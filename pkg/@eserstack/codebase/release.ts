@@ -42,19 +42,9 @@ import type * as shellArgs from "@eserstack/shell/args";
 import * as shellExec from "@eserstack/shell/exec";
 import * as tui from "@eserstack/shell/tui";
 
-import {
-  bumpVersion,
-  readVersionFile,
-  type VersionCommand,
-} from "./versions.ts";
-import {
-  commandFailureDetail,
-  createCliContext,
-  runCliMain,
-  toCliEvent,
-} from "./cli-support.ts";
-
-const { ctx, output: out } = createCliContext();
+import * as versions from "./versions.ts";
+import type { VersionCommand } from "./versions.ts";
+import * as cliSupport from "./cli-support.ts";
 
 // =============================================================================
 // Types
@@ -168,6 +158,9 @@ const gitAddAndCommit = async (
   files: ReadonlyArray<string>,
 ): Promise<void> => {
   for (const file of files) {
+    // One pathspec at a time: concurrent `git add` runs contend for
+    // .git/index.lock, and the first failure must stop the loop.
+    // deno-lint-ignore no-await-in-loop
     const result = await shellExec.exec`git add ${file}`.noThrow().spawn();
 
     if (result.code !== 0) {
@@ -220,6 +213,7 @@ const deleteGitHubRelease = async (tag: string): Promise<boolean> => {
  * Falls back to a simple process-based prompt if TUI is unavailable.
  */
 const confirmPrompt = async (question: string): Promise<boolean> => {
+  const { ctx } = cliSupport.getCliContext();
   const answer = await tui.confirm(ctx, { message: question });
   return answer === true;
 };
@@ -263,7 +257,7 @@ export const release = async (
   }
 
   // 3. Read previous version
-  const previousVersion = (await readVersionFile()) ?? "0.0.0";
+  const previousVersion = (await versions.readVersionFile()) ?? "0.0.0";
 
   // 4. Bump version (unless type is "same")
   //
@@ -283,7 +277,8 @@ export const release = async (
   }
 
   // 5. Resolve the new version
-  const version = bumpedVersion ?? (await readVersionFile()) ?? previousVersion;
+  const version = bumpedVersion ?? (await versions.readVersionFile()) ??
+    previousVersion;
   const tag = `v${version}`;
 
   // 6. Generate changelog
@@ -346,7 +341,7 @@ export const release = async (
       throw new Error(
         "Release commit created but push failed. Fix the push, then run: " +
           `git push origin HEAD && eser codebase gh release-tag${
-            commandFailureDetail(err)
+            cliSupport.commandFailureDetail(err)
           }`,
         { cause: err },
       );
@@ -364,7 +359,7 @@ export const release = async (
     } catch (err) {
       throw new Error(
         `Commit pushed but tag push failed. Run "eser codebase rerelease" to ` +
-          `create and push ${tag}.${commandFailureDetail(err)}`,
+          `create and push ${tag}.${cliSupport.commandFailureDetail(err)}`,
         { cause: err },
       );
     }
@@ -428,7 +423,7 @@ export const rerelease = async (
   }
 
   // Read current version
-  const version = await readVersionFile();
+  const version = await versions.readVersionFile();
   if (version === undefined || !/^\d+\.\d+\.\d+$/.test(version)) {
     throw new Error(
       `Invalid or missing version in VERSION file: "${version}"`,
@@ -454,7 +449,7 @@ export const rerelease = async (
       throw new Error(
         `${tag} was deleted but could not be recreated — the version now has ` +
           `no tag. Run "eser codebase gh release-tag" to push it.${
-            commandFailureDetail(err)
+            cliSupport.commandFailureDetail(err)
           }`,
         { cause: err },
       );
@@ -483,7 +478,7 @@ export const unrelease = async (
   options: UnreleaseOptions = {},
 ): Promise<UnreleaseResult> => {
   // Read current version
-  const version = await readVersionFile();
+  const version = await versions.readVersionFile();
   if (version === undefined || !/^\d+\.\d+\.\d+$/.test(version)) {
     throw new Error(
       `Invalid or missing version in VERSION file: "${version}"`,
@@ -587,6 +582,8 @@ const releaseResponseMapper: functions.handler.ResponseMapper<
   Error | functions.handler.AdaptError,
   shellArgs.CliResult<void>
 > = (result) => {
+  const { ctx } = cliSupport.getCliContext();
+
   if (primitives.results.isFail(result)) {
     const err = result.error;
     const message = err instanceof Error
@@ -650,6 +647,8 @@ const rereleaseResponseMapper: functions.handler.ResponseMapper<
   Error | functions.handler.AdaptError,
   shellArgs.CliResult<void>
 > = (result) => {
+  const { ctx } = cliSupport.getCliContext();
+
   if (primitives.results.isFail(result)) {
     const err = result.error;
     const message = err instanceof Error
@@ -684,6 +683,8 @@ const unreleaseResponseMapper: functions.handler.ResponseMapper<
   Error | functions.handler.AdaptError,
   shellArgs.CliResult<void>
 > = (result) => {
+  const { ctx } = cliSupport.getCliContext();
+
   if (primitives.results.isFail(result)) {
     const err = result.error;
     const message = err instanceof Error
@@ -778,7 +779,7 @@ export const main = async (
     ["patch", "minor", "major", "same"].includes(typeArg)
   ) {
     // Preview version
-    const previousVersion = (await readVersionFile()) ?? "0.0.0";
+    const previousVersion = (await versions.readVersionFile()) ?? "0.0.0";
 
     // Name the tag in the prompt — it is the step that actually publishes. The
     // bump goes through FFI and can fail on a machine without the native lib,
@@ -792,12 +793,16 @@ export const main = async (
     try {
       const bumped = typeArg === "same"
         ? previousVersion
-        : await bumpVersion(previousVersion, typeArg as VersionCommand);
+        : await versions.bumpVersion(
+          previousVersion,
+          typeArg as VersionCommand,
+        );
       nextVersion = bumped.replace(/^v/, "");
     } catch {
       nextVersion = undefined;
     }
 
+    const { ctx, output: out } = cliSupport.getCliContext();
     tui.log.info(ctx, `Current version: ${previousVersion}`);
     tui.log.info(ctx, `Bump type: ${typeArg}`);
     tui.log.info(
@@ -818,7 +823,7 @@ export const main = async (
     parsed["yes"] = true;
   }
 
-  const event = toCliEvent("release", parsed);
+  const event = cliSupport.toCliEvent("release", parsed);
   return await handleReleaseCli(event);
 };
 
@@ -838,20 +843,20 @@ export const rereleaseMain = async (
   const yes = parsed["yes"] === true;
 
   if (!dryRun && !yes) {
-    const version = (await readVersionFile()) ?? "0.0.0";
+    const version = (await versions.readVersionFile()) ?? "0.0.0";
 
     const proceed = await confirmPrompt(
       `Delete and recreate tag v${version} at HEAD? This re-fires the release pipeline.`,
     );
     if (!proceed) {
-      tui.log.warn(ctx, "Aborted.");
+      tui.log.warn(cliSupport.getCliContext().ctx, "Aborted.");
       return primitives.results.ok(undefined);
     }
 
     parsed["yes"] = true;
   }
 
-  const event = toCliEvent("rerelease", parsed);
+  const event = cliSupport.toCliEvent("rerelease", parsed);
   return await handleRereleaseCli(event);
 };
 
@@ -868,13 +873,13 @@ export const unreleaseMain = async (
   );
 
   if (parsed["yes"] !== true) {
-    const version = (await readVersionFile()) ?? "0.0.0";
+    const version = (await versions.readVersionFile()) ?? "0.0.0";
 
     const proceed = await confirmPrompt(
       `Delete tag v${version} and its GitHub Release? The release commit stays in history.`,
     );
     if (!proceed) {
-      tui.log.warn(ctx, "Aborted.");
+      tui.log.warn(cliSupport.getCliContext().ctx, "Aborted.");
       return primitives.results.ok(undefined);
     }
 
@@ -883,13 +888,15 @@ export const unreleaseMain = async (
     parsed["yes"] = true;
   }
 
-  const event = toCliEvent("unrelease", parsed);
+  const event = cliSupport.toCliEvent("unrelease", parsed);
   return await handleUnreleaseCli(event);
 };
 
 if (import.meta.main) {
-  runCliMain(
-    await main(standards.crossRuntime.runtime.process.args as string[]),
-    out,
+  // Entry point: the await only runs when this file is executed directly.
+  // deno-lint-ignore no-top-level-await
+  const result = await main(
+    standards.crossRuntime.runtime.process.args as string[],
   );
+  cliSupport.runCliMain(result, cliSupport.getCliContext().output);
 }

@@ -44,6 +44,14 @@
     "should_trigger": true
   },
   {
+    "query": "run the web app's tests and rebuild its assets",
+    "should_trigger": true
+  },
+  {
+    "query": "the README says npm install && npm run dev, set the dashboard up locally",
+    "should_trigger": true
+  },
+  {
     "query": "publish to npm",
     "should_trigger": false
   },

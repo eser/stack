@@ -14,6 +14,7 @@ export type {
   ObjectFitValue,
   ParsedImageSrc,
   PictureSource,
+  PictureSourcesOptions,
   PlaceholderStyles,
   PlaceholderType,
   ResponsiveImageProps,
@@ -37,7 +38,6 @@ export {
 
 // Image config utilities
 export {
-  buildFallbackHandler,
   buildImageAttributes,
   combineClassNames,
   parseImageSrc,

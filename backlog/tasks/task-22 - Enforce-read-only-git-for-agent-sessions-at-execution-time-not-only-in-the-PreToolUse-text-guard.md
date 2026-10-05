@@ -3,9 +3,10 @@ id: TASK-22
 title: >-
   Enforce read-only git for agent sessions at execution time, not only in the
   PreToolUse text guard
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-09-25 01:12'
+updated_date: '2026-10-04 20:52'
 labels:
   - security
   - noskills
@@ -27,8 +28,16 @@ Follow-up to TASK-19 (security audit stack-run-1, fingerprint noskills/invoke-ho
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 An agent session cannot complete a git commit or push through an interpreter-built command such as python -c "subprocess.run(['g'+'it','push'])" while allowGit is false
-- [ ] #2 The noskills run loop's own git commits still work
-- [ ] #3 A regression test covers the interpreter case
-- [ ] #4 deno task cli ok passes
+- [x] #1 An agent session cannot complete a git commit or push through an interpreter-built command such as python -c "subprocess.run(['g'+'it','push'])" while allowGit is false
+- [x] #2 The noskills run loop's own git commits still work
+- [x] #3 A regression test covers the interpreter case
+- [x] #4 deno task cli ok passes
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Applied in the skills sweep on 2026-10-04; deno task cli ok passes.
+
+noskills: The verifier found a bypass and fixed it. A git global option the guard did not know, placed before -C <project>, let writes reach the project. The wrapper ran real git directly when the working directory was outside the project, and checkGitExec looked at the wrong repository. Reproduced with --no-advice, --no-lazy-fetch and --attr-source=HEAD, which all committed. Fixes: the guard lists now include those options; the wrapper hands any subcommand starting with '-' to noskills; checkGitExec refuses an unknown leading option. Regression tests are in git-wrapper.test.ts (interpreter-run commit after each option) and git.test.ts (splitGitArgs). The documented limits still apply: an absolute /usr/bin/git, Windows, and tools other than Claude Code and noskills run.
+<!-- SECTION:NOTES:END -->

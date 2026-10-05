@@ -24,20 +24,20 @@ Deno.bench(
 );
 
 Deno.bench(
-  "import registry.ts (routing table)",
+  "import @eserstack/codebase/validation (workflows, on-demand)",
   { group },
   async () => {
-    const mod = await import("./registry.ts");
+    const mod = await import("@eserstack/codebase/validation");
 
-    if (mod.registry === undefined) throw new Error("unreachable");
+    if (mod.getWorkflowTools === undefined) throw new Error("unreachable");
   },
 );
 
 Deno.bench(
-  "import @eserstack/registry/schema (on-demand)",
+  "import @eserstack/kit/recipes/schema (on-demand)",
   { group },
   async () => {
-    const mod = await import("@eserstack/registry/schema");
+    const mod = await import("@eserstack/kit/recipes/schema");
 
     if (mod.validateRegistryManifest === undefined) {
       throw new Error("unreachable");
@@ -46,20 +46,20 @@ Deno.bench(
 );
 
 Deno.bench(
-  "import @eserstack/registry/fetcher (on-demand)",
+  "import @eserstack/kit/recipes/fetcher (on-demand)",
   { group },
   async () => {
-    const mod = await import("@eserstack/registry/fetcher");
+    const mod = await import("@eserstack/kit/recipes/fetcher");
 
     if (mod.fetchRegistry === undefined) throw new Error("unreachable");
   },
 );
 
 Deno.bench(
-  "import @eserstack/registry/applier (on-demand)",
+  "import @eserstack/kit/recipes/applier (on-demand)",
   { group },
   async () => {
-    const mod = await import("@eserstack/registry/applier");
+    const mod = await import("@eserstack/kit/recipes/applier");
 
     if (mod.applyRecipe === undefined) throw new Error("unreachable");
   },

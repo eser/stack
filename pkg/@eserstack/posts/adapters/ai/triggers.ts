@@ -5,9 +5,16 @@
  *
  * `routeToolCall(bound, event)` dispatches a model tool call to the matching
  * bound trigger and returns a `ToolCallResponse` ready to feed back into the
- * conversation. The model is already constrained by JSON Schema parameters in
- * tool-definitions.ts, so argument validation here is minimal — just cast and
- * forward.
+ * conversation. The arguments are model output, which is untrusted input, so
+ * they are checked against the tool's JSON Schema parameters from
+ * tool-definitions.ts first (tool-arguments.ts). A call whose arguments do not
+ * match runs no handler and comes back as an error response that names each
+ * bad argument.
+ *
+ * A failed tool comes back with its error message as the content, except
+ * the two partial failures: a cross-post that failed on some platforms and a
+ * thread that stopped partway come back as objects that list the posts that
+ * were published and what failed, so the model does not publish them again.
  *
  * `createToolCallTrigger(bound)` wraps `routeToolCall` into a single-arg
  * function for use in the agent loop.
@@ -15,10 +22,17 @@
  * @module
  */
 
+import type * as ai from "@eserstack/ai/mod";
 import * as task from "@eserstack/functions/task";
 import * as results from "@eserstack/primitives/results";
+import * as fanOutPartialError from "../../application/fan-out-partial-error.ts";
 import type * as appHandlers from "../../application/handlers.ts";
+import * as threadPostError from "../../application/thread-post-error.ts";
 import type { BoundTriggers } from "../../application/wiring.ts";
+import type { Post } from "../../domain/entities/post.ts";
+import type { Platform } from "../../domain/values/platform.ts";
+import * as toolArguments from "./tool-arguments.ts";
+import * as toolDefinitions from "./tool-definitions.ts";
 
 // ── Event / Response types ──────────────────────────────────────────────────
 
@@ -35,30 +49,142 @@ export type ToolCallResponse = {
   readonly isError?: boolean;
 };
 
+/**
+ * The error content of a cross-post (compose_post_all) that failed on at
+ * least one platform. The posts in `posted` are public and stay up.
+ */
+export type FanOutPartialContent = {
+  /** What happened, naming the platforms that published and failed. */
+  readonly error: string;
+  /** The posts that were published, one per platform that succeeded. */
+  readonly posted: readonly Post[];
+  /** Each platform that failed, with its error message. */
+  readonly failed: ReadonlyArray<{
+    readonly platform: Platform;
+    readonly error: string;
+  }>;
+};
+
+/**
+ * The error content of a thread (post_thread) that stopped partway. The posts
+ * in `posted` are public and stay up.
+ */
+export type ThreadPartialContent = {
+  /** What happened: how many posts went out and where the thread stopped. */
+  readonly error: string;
+  /** The posts that were published, in thread order; empty when none were. */
+  readonly posted: readonly Post[];
+  /** The zero-based index of the post that failed; later ones were not sent. */
+  readonly failedIndex: number;
+  /** Why the post at `failedIndex` failed. */
+  readonly cause: string;
+};
+
 // ── Response helpers ────────────────────────────────────────────────────────
 
-/** Convert a Result into the tool-response wire format. */
+/**
+ * The tool-result content for a failure: the partial outcome for the two
+ * partial errors, the error message for every other error.
+ */
+const failureContent = (
+  error: Error,
+): FanOutPartialContent | ThreadPartialContent | string => {
+  if (error instanceof fanOutPartialError.FanOutPartialError) {
+    return {
+      error: error.message,
+      posted: error.posted,
+      failed: error.failed.map((failure) => ({
+        platform: failure.platform,
+        error: failure.error.message,
+      })),
+    };
+  }
+
+  if (error instanceof threadPostError.ThreadPartialError) {
+    return {
+      error: error.message,
+      posted: error.postedTweets,
+      failedIndex: error.failedIndex,
+      cause: error.failureCause.message,
+    };
+  }
+
+  return error.message;
+};
+
+/**
+ * Convert a Result into the tool-response wire format.
+ *
+ * A success carries its value as the content, and `null` for a tool that has
+ * no result value (repost, undo_repost, bookmark_post, remove_bookmark):
+ * JSON.stringify turns undefined into undefined instead of a string, and the
+ * OpenAI chat API rejects a tool message without content. A failure has
+ * `isError` set; its content is a `FanOutPartialContent` for a
+ * FanOutPartialError, a `ThreadPartialContent` for a ThreadPartialError, and
+ * the error message for any other error.
+ */
 export const mapToToolResponse = (
   result: results.Result<unknown, Error>,
 ): ToolCallResponse => {
   if (results.isOk(result)) {
-    return { content: result.value };
+    return { content: result.value === undefined ? null : result.value };
   }
-  return { content: result.error.message, isError: true };
+  return { content: failureContent(result.error), isError: true };
 };
 
 // ── Dispatch ────────────────────────────────────────────────────────────────
 
+/** The post tools by name, so each call is checked against its own schema. */
+const definitionsByName: ReadonlyMap<string, ai.ToolDefinition> = new Map(
+  toolDefinitions.postToolDefinitions.map((definition) => [
+    definition.name,
+    definition,
+  ]),
+);
+
+/** The schema of a tool that declares no parameters: an empty object. */
+const NO_PARAMETERS: toolArguments.ToolSchema = {
+  type: "object",
+  properties: {},
+};
+
 /**
  * Route a tool-call event to the matching bound trigger.
- * Returns `ToolCallResponse` — content is the serialisable result value
- * or the error message if the tool errored.
+ *
+ * The arguments are checked against the tool's parameter schema first; when
+ * they do not match, no handler runs and the response is an error that names
+ * each bad argument. Otherwise the response comes from `mapToToolResponse`:
+ * the serializable result value, or the failure content when the tool failed.
  */
 export const routeToolCall = async (
   bound: BoundTriggers,
   event: ToolCallEvent,
 ): Promise<ToolCallResponse> => {
-  const args = event.arguments;
+  const definition = definitionsByName.get(event.name);
+  if (definition === undefined) {
+    return {
+      content: `Unknown tool: ${event.name}. The available tools are ${
+        Array.from(definitionsByName.keys()).join(", ")
+      }.`,
+      isError: true,
+    };
+  }
+
+  // tool-definitions.ts writes every parameters object in the ToolSchema
+  // subset; tool-arguments.test.ts fails on a keyword outside it.
+  const schema =
+    (definition.parameters ?? NO_PARAMETERS) as toolArguments.ToolSchema;
+  const checked = toolArguments.validateToolArguments(schema, event.arguments);
+  if (results.isFail(checked)) {
+    return {
+      content: toolArguments.describeArgumentIssues(event.name, checked.error),
+      isError: true,
+    };
+  }
+
+  // The schema check above narrows the arguments to the handler input types
+  // below; each schema in tool-definitions.ts mirrors its input type.
+  const args = checked.value;
 
   switch (event.name) {
     case "compose_post": {
@@ -140,7 +266,13 @@ export const routeToolCall = async (
     }
 
     default:
-      return { content: `Unknown tool: ${event.name}`, isError: true };
+      // Reached only when postToolDefinitions gains a tool without a case
+      // here; the routing test in triggers.test.ts covers every definition.
+      return {
+        content:
+          `${event.name} is defined but has no route, so it did not run.`,
+        isError: true,
+      };
   }
 };
 
@@ -148,7 +280,7 @@ export const routeToolCall = async (
 
 /**
  * Produce a single-arg tool-call trigger from pre-bound handlers.
- * Pass the result to the agent loop — it never needs to see BoundTriggers.
+ * Pass the result to the agent loop; it never needs to see BoundTriggers.
  */
 export const createToolCallTrigger = (
   bound: BoundTriggers,

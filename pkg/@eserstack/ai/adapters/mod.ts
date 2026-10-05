@@ -40,6 +40,7 @@ export {
   parseTextOutput,
   resolveBinary,
   spawnCliProcess,
+  stopCliProcess,
 } from "./cli-shared.ts";
 
 // =============================================================================
@@ -90,21 +91,26 @@ export const defaultFactories = (): Promise<
  * Importers rather than instances so a caller that wants ONE provider pays for
  * one vendor SDK. `ai ask` resolves a single provider per invocation, and
  * eagerly importing all eight would make it load three SDKs it will not use.
+ *
+ * A Map, so a provider name such as "constructor" finds no loader instead of
+ * an Object.prototype member.
  */
-const TS_FACTORY_LOADERS: Record<
+const TS_FACTORY_LOADERS: ReadonlyMap<
   string,
   () => Promise<model.ProviderFactory>
-> = {
-  anthropic: async () => (await import("./anthropic.ts")).anthropicFactory,
-  openai: async () => (await import("./openai.ts")).openaiFactory,
-  gemini: async () => (await import("./gemini.ts")).geminiFactory,
-  vertexai: async () => (await import("./vertexai.ts")).vertexaiFactory,
-  "claude-code": async () =>
-    (await import("./claude-code.ts")).claudeCodeFactory,
-  ollama: async () => (await import("./ollama.ts")).ollamaFactory,
-  opencode: async () => (await import("./opencode.ts")).openCodeFactory,
-  kiro: async () => (await import("./kiro.ts")).kiroFactory,
-};
+> = new Map([
+  ["anthropic", async () => (await import("./anthropic.ts")).anthropicFactory],
+  ["openai", async () => (await import("./openai.ts")).openaiFactory],
+  ["gemini", async () => (await import("./gemini.ts")).geminiFactory],
+  ["vertexai", async () => (await import("./vertexai.ts")).vertexaiFactory],
+  [
+    "claude-code",
+    async () => (await import("./claude-code.ts")).claudeCodeFactory,
+  ],
+  ["ollama", async () => (await import("./ollama.ts")).ollamaFactory],
+  ["opencode", async () => (await import("./opencode.ts")).openCodeFactory],
+  ["kiro", async () => (await import("./kiro.ts")).kiroFactory],
+]);
 
 // The bridge load is cached separately from defaultFactories so a single-provider
 // lookup does not repeat the dlopen, and so both paths agree on what the bridge
@@ -113,9 +119,9 @@ let cachedBridge: Promise<readonly model.ProviderFactory[]> | null = null;
 
 const bridgeFactories = (): Promise<readonly model.ProviderFactory[]> => {
   cachedBridge ??= (async () => {
-    const { tryLoadBridgeFactories } = await import("./ajan-bridge.ts");
+    const ajanBridge = await import("./ajan-bridge.ts");
 
-    return await tryLoadBridgeFactories();
+    return await ajanBridge.tryLoadBridgeFactories();
   })();
 
   return cachedBridge;
@@ -134,7 +140,7 @@ const bridgeFactories = (): Promise<readonly model.ProviderFactory[]> => {
 export const tsFactoryFor = async (
   provider: string,
 ): Promise<model.ProviderFactory | undefined> =>
-  await TS_FACTORY_LOADERS[provider]?.();
+  await TS_FACTORY_LOADERS.get(provider)?.();
 
 /**
  * Returns the factory for one provider, applying the same preference
@@ -161,7 +167,7 @@ export const factoryFor = async (
 
 const loadFactories = async (): Promise<readonly model.ProviderFactory[]> => {
   const tsFactories = await Promise.all(
-    Object.values(TS_FACTORY_LOADERS).map((load) => load()),
+    [...TS_FACTORY_LOADERS.values()].map((load) => load()),
   );
 
   const byProvider = new Map<string, model.ProviderFactory>();

@@ -38,10 +38,7 @@ declare namespace Deno {
 
 import * as hex from "@std/encoding/hex";
 import * as logging from "@eserstack/logging";
-import { runtime } from "@eserstack/standards/cross-runtime";
-import { replaceJsExtension } from "@eserstack/standards/patterns";
-
-const bundlerLogger = logging.logger.getLogger(["bundler", "deno-bundler"]);
+import * as crossRuntime from "@eserstack/standards/cross-runtime";
 import type {
   BundleError,
   BundleMetafile,
@@ -53,53 +50,99 @@ import type {
   OutputMetadata,
   SuccessResultOptions,
 } from "../types.ts";
-import { createErrorResult, createSuccessResult } from "../types.ts";
+import * as types from "../types.ts";
+import * as layout from "./deno-bundle-layout.ts";
+
+const bundlerLogger = logging.logger.getLogger(["bundler", "deno-bundler"]);
 
 /**
  * Backend options specific to Deno Bundler.
  */
 export interface DenoBundlerBackendOptions {
-  /** Build ID for cache busting. */
+  /**
+   * Build ID for cache busting. The bundle gets an extra `build-id.js` entry
+   * that exports it as `BUILD_ID`.
+   */
   buildId?: string;
-  /** Custom entry point name (default: "main"). */
+  /**
+   * Key of the main entry in `config.entrypoints` (default: "main"). The
+   * result's `entrypoint` is `${entryName}.js` when an entry has this key, and
+   * the first entry's output otherwise.
+   */
   entryName?: string;
 }
+
+/** One entry point Deno.bundle() builds, and the name its output gets. */
+interface DenoEntry {
+  /** The key in `config.entrypoints`, or null for the build ID entry. */
+  readonly key: string | null;
+  /** The entry point file, as given. */
+  readonly path: string;
+  /** The output name: `${key}.js`, or `build-id.js`. */
+  readonly outputName: string;
+}
+
+/** A bundle file after renaming and post-processing. */
+interface ProcessedFile {
+  readonly finalName: string;
+  readonly entry: DenoEntry | undefined;
+  readonly code: Uint8Array;
+  readonly hash: string;
+  readonly imports: readonly layout.BundleImport[];
+  readonly map: { readonly code: Uint8Array; readonly hash: string } | null;
+}
+
+const BUILD_ID_OUTPUT = "build-id.js";
 
 /**
  * Deno Bundler backend implementation.
  *
- * Uses the native Deno.bundle() API for bundling.
- * Best for: Native Deno integration, stable fallback.
+ * Uses the native Deno.bundle() API for bundling. Each entry's output is
+ * named after its key in `config.entrypoints` (`${key}.js`), as the Rolldown
+ * backend names them, whatever directory layout Deno.bundle() used.
  */
 export class DenoBundlerBackend implements Bundler {
+  /** The backend name, as `createBundler` takes it. */
   readonly name = "deno-bundler";
   private readonly options: DenoBundlerBackendOptions;
 
+  /** Creates the backend; see {@link DenoBundlerBackendOptions}. */
   constructor(options: DenoBundlerBackendOptions = {}) {
     this.options = options;
   }
 
+  /**
+   * Bundles `config.entrypoints` with Deno.bundle() and writes the renamed
+   * outputs to `config.outputDir`. A failed build, or an output layout this
+   * backend does not recognize, comes back as an error result.
+   */
   async bundle(config: BundlerConfig): Promise<BundleResult> {
-    const tempDir = await runtime.fs.makeTempDir({ prefix: "deno-bundle-" });
+    const tempDir = await crossRuntime.runtime.fs.makeTempDir({
+      prefix: "deno-bundle-",
+    });
 
     try {
-      // Preserve entry keys for output path mapping
-      const entrypointPaths = Object.values(config.entrypoints);
-      const entryKeys = Object.keys(config.entrypoints);
+      const entries: DenoEntry[] = Object.entries(config.entrypoints).map((
+        [key, path],
+      ) => ({ key, path, outputName: `${key}.js` }));
 
-      // Create build ID entry if provided
-      const allEntrypoints = [...entrypointPaths];
       if (this.options.buildId !== undefined) {
-        const buildIdEntryPath = runtime.path.join(
+        const buildIdEntryPath = crossRuntime.runtime.path.join(
           tempDir,
           "_build-id-entry.ts",
         );
-        await runtime.fs.writeTextFile(
+        await crossRuntime.runtime.fs.writeTextFile(
           buildIdEntryPath,
-          `export const BUILD_ID = "${this.options.buildId}";\n`,
+          `export const BUILD_ID = ${JSON.stringify(this.options.buildId)};\n`,
         );
-        allEntrypoints.unshift(buildIdEntryPath);
+        entries.unshift({
+          key: null,
+          path: buildIdEntryPath,
+          outputName: BUILD_ID_OUTPUT,
+        });
       }
+
+      const allEntrypoints = entries.map((entry) => entry.path);
 
       // Deno.bundle supports "browser" and "deno" platforms
       // Map the unified platform config to Deno.bundle's platform options:
@@ -126,10 +169,8 @@ export class DenoBundlerBackend implements Bundler {
         sourcemap: sourcemapValue,
       };
 
-      // TODO(@eser) needs implementation
-      // if (config.define !== undefined) {
-      //   options.define = config.define;
-      // }
+      // Deno.bundle() has no `define` option, so config.define is applied to
+      // the bundled output in processOutput (applyDefineReplacements).
 
       if (config.external !== undefined) {
         options.external = config.external as string[];
@@ -159,41 +200,43 @@ export class DenoBundlerBackend implements Bundler {
           message: e.text ?? this.extractErrorMessage(e),
           severity: "error" as const,
         }));
-        return createErrorResult(errors);
+        return types.createErrorResult(errors);
       }
 
-      return await this.processOutput(
-        tempDir,
-        config,
-        entryKeys,
-        entrypointPaths,
-      );
+      return await this.processOutput(tempDir, config, entries);
     } catch (error) {
-      return createErrorResult([{
+      return types.createErrorResult([{
         message: error instanceof Error ? error.message : String(error),
         severity: "fatal",
       }]);
     } finally {
       try {
-        await runtime.fs.remove(tempDir, { recursive: true });
+        await crossRuntime.runtime.fs.remove(tempDir, { recursive: true });
       } catch {
-        // Ignore cleanup errors
+        // Best-effort cleanup: a leftover temp dir must not replace the
+        // bundle result or the error that is already being returned.
       }
     }
   }
 
+  /**
+   * Rebundles whenever a file changes in an entry point's directory and passes
+   * each result to `onChange`.
+   */
   watch(
     config: BundlerConfig,
     onChange: (result: BundleResult) => void,
   ): Promise<BundleWatcher> {
     let running = true;
     const watchPaths = Object.values(config.entrypoints).map((p) =>
-      runtime.path.dirname(p)
+      crossRuntime.runtime.path.dirname(p)
     );
     const uniquePaths = [...new Set(watchPaths)];
 
     // Use cross-runtime fs.watch for file watching
-    const watcher = runtime.fs.watch(uniquePaths, { recursive: true });
+    const watcher = crossRuntime.runtime.fs.watch(uniquePaths, {
+      recursive: true,
+    });
 
     const watchLoop = async () => {
       for await (const _event of watcher) {
@@ -203,9 +246,16 @@ export class DenoBundlerBackend implements Bundler {
       }
     };
 
-    watchLoop().catch((error) => {
-      console.error("Watch loop error:", error);
-    });
+    // bundle() reports build failures through onChange; this catch only sees
+    // a failing watcher or onChange callback, which ends the watch loop.
+    watchLoop().catch((error) =>
+      bundlerLogger
+        .with({
+          watchPaths: uniquePaths,
+          error: error instanceof Error ? error.message : String(error),
+        })
+        .error("deno-bundler watch loop stopped")
+    );
 
     return Promise.resolve({
       stop: () => {
@@ -216,6 +266,7 @@ export class DenoBundlerBackend implements Bundler {
     });
   }
 
+  /** The message of a Deno.bundle() error that carries no `text`. */
   private extractErrorMessage(error: unknown): string {
     if (error === null || error === undefined) return "Unknown error";
     if (typeof error === "object" && "message" in error) {
@@ -224,129 +275,63 @@ export class DenoBundlerBackend implements Bundler {
     return String(error);
   }
 
+  /**
+   * Renames the files Deno.bundle() wrote in `tempDir` after the entry keys,
+   * post-processes them, and builds the result.
+   */
   private async processOutput(
     tempDir: string,
     config: BundlerConfig,
-    entryKeys: string[],
-    entrypointPaths: string[],
+    entries: readonly DenoEntry[],
   ): Promise<BundleResult> {
+    const path = crossRuntime.runtime.path;
     const entryName = this.options.entryName ?? "main";
-    const outputs = new Map<string, BundleOutput>();
-    const metaOutputs: Record<string, OutputMetadata> = {};
-    const entrypointManifest: Record<string, string[]> = {};
-    let mainEntrypoint = null;
-    let totalSize = 0;
+    const denoNames = await collectBundleFiles(tempDir);
+    const writtenNames = new Set(denoNames);
 
-    // Build mapping from entry path patterns to entry keys
-    // This maps Deno.bundle output names back to desired entry key paths
-    // We store both basename and full key for flexible matching
-    const pathToKeyMap = new Map<string, string>();
-    const entryKeysByPath = new Map<string, string>();
-    for (let i = 0; i < entrypointPaths.length; i++) {
-      const entryPath = entrypointPaths[i];
-      const entryKey = entryKeys[i];
-      if (entryPath !== undefined && entryKey !== undefined) {
-        // Map the entry path basename (without extension) to the entry key
-        const basename = runtime.path.basename(entryPath).replace(
-          /\.[^.]+$/,
-          "",
-        );
-        pathToKeyMap.set(basename, entryKey);
-        // Also store by path suffix for more accurate matching
-        entryKeysByPath.set(
-          replaceJsExtension(entryPath, ".js"),
-          entryKey,
-        );
-      }
-    }
-
-    // Deno.bundle() creates a nested dist/ directory
-    const nestedDistDir = runtime.path.join(tempDir, "dist");
-    let scanDir = tempDir;
-
-    try {
-      const nestedStat = await runtime.fs.stat(nestedDistDir);
-      if (nestedStat.isDirectory) {
-        scanDir = nestedDistDir;
-      }
-    } catch {
-      // FIXME(@eser) expected: directory doesn't exist, use outputDir
-    }
-
-    // Collect all output files (both .js and .map files)
-    const outputFiles: Array<{ name: string; path: string }> = [];
-
-    bundlerLogger.debug(`Scanning output dir: ${scanDir}`);
-
-    // Recursively collect all .js and .map files from output directory
-    const collectFiles = async (dir: string, basePath: string = "") => {
-      for await (const entry of runtime.fs.readDir(dir)) {
-        const fullPath = runtime.path.join(dir, entry.name);
-        const relativeName = basePath
-          ? `${basePath}/${entry.name}`
-          : entry.name;
-
-        if (entry.isDirectory) {
-          // Recursively scan subdirectories
-          await collectFiles(fullPath, relativeName);
-        } else if (
-          entry.isFile &&
-          (entry.name.endsWith(".js") || entry.name.endsWith(".map"))
-        ) {
-          outputFiles.push({
-            name: relativeName,
-            path: fullPath,
-          });
-        }
-      }
-    };
-
-    await collectFiles(scanDir);
-
-    // Also check root tempDir for chunk files if we scanned nested
-    if (scanDir !== tempDir) {
-      for await (const entry of runtime.fs.readDir(tempDir)) {
-        if (
-          entry.isFile &&
-          (entry.name.endsWith(".js") || entry.name.endsWith(".map")) &&
-          (entry.name.startsWith("chunk-") || entry.name.endsWith(".map"))
-        ) {
-          const path = runtime.path.join(tempDir, entry.name);
-          if (!outputFiles.some((f) => f.path === path)) {
-            outputFiles.push({ name: entry.name, path });
-          }
-        }
-      }
-    }
-
-    bundlerLogger.debug(
-      `Found ${outputFiles.length} output files`,
-      outputFiles.map((f) => f.name),
+    // Where Deno.bundle() put each entry, and the name the entry key asks for.
+    const outbase = layout.lowestCommonAncestorDir(
+      entries.map((entry) => entry.path),
     );
+    const finalNames = new Map<string, string>();
+    const entriesByDenoName = new Map<string, DenoEntry>();
 
-    // Track source map content to attach to JS outputs
-    const sourceMaps = new Map<string, Uint8Array>();
+    for (const entry of entries) {
+      const denoName = layout.denoOutputName(entry.path, outbase);
 
-    // First pass: collect source maps
-    for (const file of outputFiles) {
-      if (file.name.endsWith(".map")) {
-        const mapContent = await runtime.fs.readFile(file.path);
-        // Normalize the map file name to match JS file naming
-        let normalizedMapName = file.name;
-        if (file.name.startsWith("_client-entry")) {
-          normalizedMapName = `${entryName}.js.map`;
-        } else if (file.name.startsWith("_build-id-entry")) {
-          normalizedMapName = "build-id.js.map";
-        }
-        sourceMaps.set(normalizedMapName, mapContent);
+      if (!writtenNames.has(denoName)) {
+        return types.createErrorResult([{
+          message: `deno-bundler: Deno.bundle wrote no ${denoName} for entry ${
+            entry.key ?? "build-id"
+          } (${entry.path}); it wrote ${
+            denoNames.join(", ")
+          }. Its output layout may have changed; check the Deno version.`,
+          severity: "fatal",
+        }]);
+      }
+
+      finalNames.set(denoName, entry.outputName);
+      entriesByDenoName.set(denoName, entry);
+    }
+
+    // Chunks keep the names Deno.bundle() gave them.
+    const jsNames = denoNames.filter((name) => name.endsWith(".js"));
+    for (const name of jsNames) {
+      if (!finalNames.has(name)) {
+        finalNames.set(name, name);
       }
     }
 
-    // Second pass: process JS files
-    for (const file of outputFiles) {
-      if (file.name.endsWith(".map")) continue; // Skip maps, already processed
+    const outputDir = path.resolve(config.outputDir);
 
-      let content = await runtime.fs.readTextFile(file.path);
+    // Each file is read, rewritten and hashed on its own; the results are
+    // applied in file order below. The count is bounded by the bundle's own
+    // output, which is held in memory anyway.
+    const processFile = async (denoName: string): Promise<ProcessedFile> => {
+      const finalName = finalNames.get(denoName) ?? denoName;
+      let content = await crossRuntime.runtime.fs.readTextFile(
+        path.join(tempDir, denoName),
+      );
 
       // Post-process: Replace URL paths
       if (config.basePath !== undefined) {
@@ -364,384 +349,123 @@ export class DenoBundlerBackend implements Bundler {
         );
       }
 
-      // Fix relative import paths (Deno.bundle quirk)
-      content = content.replace(
-        /from\s{0,5}["']\.\.\/chunk-/g,
-        'from"./chunk-',
+      const rewritten = layout.rewriteRelativeImports(
+        content,
+        denoName,
+        finalName,
+        finalNames,
       );
-      content = content.replace(/from\s{0,5}["']\.\.chunk-/g, 'from"./chunk-');
-      content = content.replace(
-        /import\s{0,5}\(["']\.\.\/chunk-/g,
-        'import("./chunk-',
-      );
-      content = content.replace(
-        /import\s{0,5}\(["']\.\.chunk-/g,
-        'import("./chunk-',
-      );
+      content = rewritten.code;
 
-      // Normalize file name
-      let normalizedName = file.name;
-      const isMainEntry = normalizedName.startsWith("_client-entry");
-      if (isMainEntry) {
-        normalizedName = `${entryName}.js`;
-        mainEntrypoint = `${entryName}.js`;
-      } else if (normalizedName.startsWith("_build-id-entry")) {
-        normalizedName = "build-id.js";
-      } else if (!normalizedName.startsWith("chunk-")) {
-        // For entry files (not chunks), map output name back to entry key
-        // This preserves directory structure like src/app/page.js
-        // First try to match by path suffix (more accurate)
-        let entryKey: string | undefined;
-        for (const [entryPath, key] of entryKeysByPath) {
-          if (entryPath.endsWith(normalizedName)) {
-            entryKey = key;
-            break;
-          }
-        }
-        // Fall back to basename matching
-        if (entryKey === undefined) {
-          const fileBasename = runtime.path.basename(normalizedName).replace(
-            /\.js$/,
-            "",
-          );
-          entryKey = pathToKeyMap.get(fileBasename);
-        }
-        if (entryKey !== undefined) {
-          normalizedName = `${entryKey}.js`;
-        }
-      }
-
-      // Add or update sourcemap reference for entry files
-      if (isMainEntry && sourceMaps.has(`${entryName}.js.map`)) {
-        content = content.replace(
-          /\/\/# sourceMappingURL=.*$/m,
-          `//# sourceMappingURL=${entryName}.js.map`,
+      let map: ProcessedFile["map"] = null;
+      const mapDenoName = `${denoName}.map`;
+      const fromDir = path.dirname(path.join(tempDir, denoName));
+      const toDir = path.dirname(path.join(outputDir, finalName));
+      if (!writtenNames.has(mapDenoName)) {
+        // With sourcemap "inline" the map sits at the end of the code.
+        content = layout.relocateInlineSourceMap(content, fromDir, toDir);
+      } else {
+        const mapText = layout.relocateSourceMap(
+          await crossRuntime.runtime.fs.readTextFile(
+            path.join(tempDir, mapDenoName),
+          ),
+          fromDir,
+          toDir,
         );
-        if (!content.includes("//# sourceMappingURL=")) {
-          content += `\n//# sourceMappingURL=${entryName}.js.map`;
-        }
+        const mapCode = new TextEncoder().encode(mapText);
+        map = { code: mapCode, hash: await this.computeHash(mapCode) };
+        content = layout.setSourceMappingUrl(
+          content,
+          `${path.basename(finalName)}.map`,
+        );
       }
 
-      const encoded = new TextEncoder().encode(content);
-      const hash = await this.computeHash(encoded);
-      const imports = this.parseImports(content);
+      const code = new TextEncoder().encode(content);
 
-      // Get associated source map
-      const mapFileName = `${normalizedName}.map`;
-      const mapContent = sourceMaps.get(mapFileName);
-
-      outputs.set(normalizedName, {
-        path: normalizedName,
-        code: encoded,
-        map: mapContent,
-        size: encoded.length,
-        hash,
-        isEntry: !normalizedName.startsWith("chunk-"),
-      });
-
-      totalSize += encoded.length;
-
-      metaOutputs[normalizedName] = {
-        bytes: encoded.length,
-        inputs: {},
-        imports: imports.map((path) => ({
-          path,
-          kind: "import-statement" as const,
-        })),
+      return {
+        finalName,
+        entry: entriesByDenoName.get(denoName),
+        code,
+        hash: await this.computeHash(code),
+        imports: rewritten.imports,
+        map,
       };
+    };
+
+    const processedFiles = await Promise.all(jsNames.map(processFile));
+
+    const outputs = new Map<string, BundleOutput>();
+    const metaOutputs: Record<string, OutputMetadata> = {};
+    const entrypointManifest: Record<string, string[]> = {};
+    let totalSize = 0;
+
+    for (const file of processedFiles) {
+      outputs.set(file.finalName, {
+        path: file.finalName,
+        code: file.code,
+        ...(file.map !== null ? { map: file.map.code } : {}),
+        size: file.code.length,
+        hash: file.hash,
+        isEntry: file.entry !== undefined,
+      });
+      totalSize += file.code.length;
+
+      metaOutputs[file.finalName] = {
+        bytes: file.code.length,
+        inputs: {},
+        imports: file.imports,
+        ...(file.entry !== undefined ? { entryPoint: file.entry.path } : {}),
+      };
+
+      // Like the Rolldown backend: the entry's own file first, then the files
+      // it imports statically.
+      if (file.entry !== undefined && file.entry.key !== null) {
+        entrypointManifest[file.entry.path] = [
+          file.finalName,
+          ...file.imports
+            .filter((imported) => imported.kind === "import-statement")
+            .map((imported) => imported.path),
+        ];
+      }
     }
 
-    // Also add standalone source map files to outputs (for external sourcemaps)
-    for (const [mapName, mapContent] of sourceMaps) {
-      if (!outputs.has(mapName)) {
-        const hash = await this.computeHash(mapContent);
+    // Source maps are outputs of their own as well, so they get written.
+    for (const file of processedFiles) {
+      if (file.map !== null) {
+        const mapName = `${file.finalName}.map`;
         outputs.set(mapName, {
           path: mapName,
-          code: mapContent,
-          size: mapContent.length,
-          hash,
+          code: file.map.code,
+          size: file.map.code.length,
+          hash: file.map.hash,
           isEntry: false,
         });
-        totalSize += mapContent.length;
+        totalSize += file.map.code.length;
       }
     }
 
-    // Write outputs to final output directory if specified
-    if (config.outputDir !== undefined) {
-      await runtime.fs.mkdir(config.outputDir, { recursive: true });
-      for (const [fileName, output] of outputs) {
-        const outputPath = runtime.path.join(config.outputDir, fileName);
-        // Create parent directories for nested files (e.g., app/sidebar.js)
-        const parentDir = runtime.path.dirname(outputPath);
-        if (parentDir !== config.outputDir) {
-          await runtime.fs.mkdir(parentDir, { recursive: true });
-        }
-        await runtime.fs.writeFile(outputPath, output.code);
-      }
-    }
-
-    // Build entrypoint manifest by analyzing proxy files
-    // Proxy files are generated by Deno.bundle for each entrypoint
-    // Use entrypoint keys (relative paths) to find proxy files, and values (full paths) for manifest keys
-    for (const [entryKey, entryValue] of Object.entries(config.entrypoints)) {
-      // Skip main entry - it doesn't have a proxy file
-      if (entryKey === "client" || entryKey === "main") continue;
-
-      // Find the corresponding proxy file for this entrypoint
-      // entryKey is the relative path like "src/app/counter.tsx"
-      const chunks = await this.findEntrypointChunks(
-        entryKey,
-        scanDir,
-        tempDir,
-        outputs,
-      );
-
-      if (chunks.length > 0) {
-        // Use the full path (entryValue) as the manifest key for compatibility
-        entrypointManifest[entryValue] = chunks;
-      }
-    }
+    await writeOutputs(outputDir, outputs);
 
     const metafile: BundleMetafile = {
       inputs: {},
       outputs: metaOutputs,
     };
 
+    const firstEntry = entries.find((entry) => entry.key !== null);
+    const mainOutput = `${entryName}.js`;
     const options: SuccessResultOptions = {
       metafile,
       entrypointManifest,
-      entrypoint: mainEntrypoint ?? "main.js",
+      entrypoint: entries.some((entry) => entry.key === entryName)
+        ? mainOutput
+        : firstEntry?.outputName ?? mainOutput,
       totalSize,
     };
 
-    return createSuccessResult(outputs, options);
+    return types.createSuccessResult(outputs, options);
   }
 
-  /**
-   * Find which chunks an entrypoint depends on by analyzing proxy files.
-   * Also searches all chunks to find where the component is actually exported.
-   */
-  private async findEntrypointChunks(
-    entrypointPath: string,
-    scanDir: string,
-    outputDir: string,
-    outputs: Map<string, BundleOutput>,
-  ): Promise<string[]> {
-    // Convert entrypoint path to expected proxy file path
-    // e.g., "src/app/counter.tsx" -> proxy file at "src/app/counter.js"
-    const relativePath = replaceJsExtension(entrypointPath, ".js");
-    const proxyFilePath = runtime.path.join(scanDir, relativePath);
-
-    // Try to read proxy file
-    let proxyContent: string | null = null;
-    try {
-      proxyContent = await runtime.fs.readTextFile(proxyFilePath);
-    } catch {
-      // Try in the nested directory structure
-      try {
-        const nestedProxyPath = runtime.path.join(
-          outputDir,
-          "dist",
-          relativePath,
-        );
-        proxyContent = await runtime.fs.readTextFile(nestedProxyPath);
-      } catch {
-        // No proxy file found
-      }
-    }
-
-    // If we have a proxy file, use it
-    if (proxyContent !== null) {
-      return this.extractChunksFromProxyFile(proxyContent, outputs);
-    }
-
-    // No proxy file - search all chunks for the component export
-    // This handles cases where Deno.bundle doesn't create proxy files
-    return this.findChunksForComponentName(entrypointPath, outputs);
-  }
-
-  /**
-   * Find chunks containing a component by searching all chunk exports.
-   * Used when no proxy file exists for an entrypoint.
-   */
-  private findChunksForComponentName(
-    entrypointPath: string,
-    outputs: Map<string, BundleOutput>,
-  ): string[] {
-    const chunks: string[] = [];
-
-    // Extract expected export name from file path
-    // e.g., "src/app/icon.tsx" -> "Icon" (PascalCase of basename)
-    const basename = runtime.path.basename(entrypointPath).replace(
-      /\.[^.]+$/,
-      "",
-    );
-    const expectedExport = basename.charAt(0).toUpperCase() +
-      basename.slice(1).replace(/-([a-z])/g, (_, c) => c.toUpperCase());
-
-    // Search all chunks for the exported component
-    for (const [chunkFile, chunkOutput] of outputs) {
-      // Only check chunk files
-      if (!chunkFile.startsWith("chunk-") || !chunkFile.endsWith(".js")) {
-        continue;
-      }
-
-      const chunkContent = new TextDecoder().decode(chunkOutput.code);
-
-      // Check if this chunk exports the expected symbol
-      const exportPatterns = [
-        // export { Symbol } or export { Symbol, ... } or export { X as Symbol }
-        // Use bounded quantifier instead of [^}]* to prevent ReDoS
-        new RegExp(
-          `export\\s{0,5}\\{[^}]{0,500}\\b${expectedExport}\\b[^}]{0,500}\\}`,
-        ),
-        // export function Symbol or export const Symbol
-        new RegExp(
-          `export\\s{1,20}(?:function|const|let|var|class)\\s{1,20}${expectedExport}\\b`,
-        ),
-        // minified pattern: Symbol2 as Symbol
-        new RegExp(`\\b\\w+\\s{1,10}as\\s{1,10}${expectedExport}\\b`),
-      ];
-
-      const exportsSymbol = exportPatterns.some((pattern) =>
-        pattern.test(chunkContent)
-      );
-
-      if (exportsSymbol) {
-        // Found the main chunk - add it to the front
-        chunks.unshift(chunkFile);
-
-        // Also find dependency chunks by looking at what this chunk imports
-        // Use bounded quantifier to prevent ReDoS
-        const importPattern =
-          /from\s{0,5}["']\.?\/?([^"']{0,500}chunk-[A-Z0-9]+\.js)["']/gi;
-        let match: RegExpExecArray | null;
-        while ((match = importPattern.exec(chunkContent)) !== null) {
-          const depChunk = runtime.path.basename(match[1] ?? "");
-          if (depChunk && !chunks.includes(depChunk)) {
-            chunks.push(depChunk);
-          }
-        }
-        break;
-      }
-    }
-
-    return chunks;
-  }
-
-  /**
-   * Extract chunk dependencies from a proxy file's import statements.
-   * Returns chunks with the main chunk (containing the exported symbol) first.
-   *
-   * IMPORTANT: Due to code splitting, the proxy file may not import from the chunk
-   * that actually contains the exported component. We must search ALL chunks to find
-   * the one that exports the symbol.
-   */
-  private extractChunksFromProxyFile(
-    content: string,
-    outputs: Map<string, BundleOutput>,
-  ): string[] {
-    const chunks: string[] = [];
-
-    // Pattern: import{...}from"../../chunk-HASH.js" or import"../../chunk-HASH.js"
-    // Use specific character classes to prevent ReDoS (avoid unbounded [^X]* patterns)
-    const chunkImportPattern =
-      /import(?:\{[\w\s,]{0,500}\})?\s{0,100}from\s{0,100}["']([\w./-]*chunk-[A-Z0-9]+\.js)["']/gi;
-    const sideEffectPattern =
-      /import\s{0,100}["']([\w./-]*chunk-[A-Z0-9]+\.js)["']/gi;
-
-    let match: RegExpExecArray | null;
-
-    // Find all chunk imports from proxy file
-    while ((match = chunkImportPattern.exec(content)) !== null) {
-      const importPath = match[1];
-      if (importPath !== undefined) {
-        const chunkFile = runtime.path.basename(importPath);
-        if (!chunks.includes(chunkFile)) {
-          chunks.push(chunkFile);
-        }
-      }
-    }
-
-    // Find side-effect imports
-    while ((match = sideEffectPattern.exec(content)) !== null) {
-      const importPath = match[1];
-      if (importPath !== undefined) {
-        const chunkFile = runtime.path.basename(importPath);
-        if (!chunks.includes(chunkFile)) {
-          chunks.push(chunkFile);
-        }
-      }
-    }
-
-    // Determine main chunk by finding which chunk actually exports the symbol
-    // IMPORTANT: Search ALL chunks in the bundle, not just the ones imported by proxy
-    // Use bounded quantifier to prevent ReDoS
-    const exportMatch = content.match(/export\s{0,5}\{([\w\s,]{1,500})\}/);
-    if (exportMatch !== null) {
-      const exportStatement = exportMatch[1];
-      // Match either "Symbol as ExportName" or just "Symbol"
-      const symbolMatch = exportStatement?.match(/(\w+)(?:\s+as\s+\w+)?/);
-      const exportedSymbol = symbolMatch?.[1] ?? null;
-
-      if (exportedSymbol !== null) {
-        // Search ALL chunks in the bundle to find which one exports the symbol
-        // This handles code splitting where the actual component ends up in a shared chunk
-        let mainChunkFile: string | null = null;
-
-        for (const [chunkFile, chunkOutput] of outputs) {
-          // Only check chunk files (not main entry or other files)
-          if (!chunkFile.startsWith("chunk-") || !chunkFile.endsWith(".js")) {
-            continue;
-          }
-
-          const chunkContent = new TextDecoder().decode(chunkOutput.code);
-
-          // Check if this chunk exports the symbol directly
-          const exportPatterns = [
-            // export { Symbol } or export { Symbol, ... } or export { X as Symbol }
-            // Use bounded quantifier instead of [^}]* to prevent ReDoS
-            new RegExp(
-              `export\\s{0,5}\\{[^}]{0,500}\\b${exportedSymbol}\\b[^}]{0,500}\\}`,
-            ),
-            // export function Symbol or export const Symbol
-            new RegExp(
-              `export\\s{1,20}(?:function|const|let|var|class)\\s{1,20}${exportedSymbol}\\b`,
-            ),
-            // minified pattern: Symbol2 as Symbol (common in bundled code)
-            new RegExp(`\\b\\w+\\s{1,10}as\\s{1,10}${exportedSymbol}\\b`),
-          ];
-
-          const exportsSymbol = exportPatterns.some((pattern) =>
-            pattern.test(chunkContent)
-          );
-
-          if (exportsSymbol) {
-            mainChunkFile = chunkFile;
-            break;
-          }
-        }
-
-        if (mainChunkFile !== null) {
-          // Ensure main chunk is in the list and at the front
-          const mainIndex = chunks.indexOf(mainChunkFile);
-          if (mainIndex > 0) {
-            // Already in list but not first - move to front
-            chunks.splice(mainIndex, 1);
-            chunks.unshift(mainChunkFile);
-          } else if (mainIndex === -1) {
-            // Not in list from proxy imports - add to front
-            // This happens when code splitting puts the component in a shared chunk
-            chunks.unshift(mainChunkFile);
-          }
-          // mainIndex === 0 means already first, no change needed
-        }
-      }
-    }
-
-    return chunks;
-  }
-
+  /** The first 16 hex digits of the SHA-256 of `content`. */
   private async computeHash(content: Uint8Array): Promise<string> {
     const hashBuffer = await crypto.subtle.digest(
       "SHA-256",
@@ -749,55 +473,58 @@ export class DenoBundlerBackend implements Bundler {
     );
     return hex.encodeHex(new Uint8Array(hashBuffer)).slice(0, 16);
   }
+}
 
-  private parseImports(content: string): string[] {
-    const imports: string[] = [];
+/**
+ * Lists the `.js` and `.map` files under `dir`, as `/`-separated paths
+ * relative to it, sorted so the result does not depend on directory order.
+ */
+async function collectBundleFiles(dir: string): Promise<string[]> {
+  const files: string[] = [];
 
-    // Match static imports: import ... from "..."
-    // Use bounded quantifiers and non-overlapping character classes to prevent ReDoS
-    const staticImportRegex =
-      /import\s{1,100}[^\n"']{1,500}from\s{0,100}["']([\w./@-]+)["']/g;
-    let match: RegExpExecArray | null;
+  const walk = async (current: string, prefix: string): Promise<void> => {
+    for await (const entry of crossRuntime.runtime.fs.readDir(current)) {
+      const relativeName = prefix === ""
+        ? entry.name
+        : `${prefix}/${entry.name}`;
 
-    while ((match = staticImportRegex.exec(content)) !== null) {
-      const importPath = match[1];
-      if (
-        importPath !== undefined &&
-        (importPath.startsWith("./") ||
-          importPath.startsWith("../") ||
-          importPath.startsWith("/"))
+      if (entry.isDirectory) {
+        await walk(
+          crossRuntime.runtime.path.join(current, entry.name),
+          relativeName,
+        );
+      } else if (
+        entry.isFile &&
+        (entry.name.endsWith(".js") || entry.name.endsWith(".map"))
       ) {
-        const normalized = importPath.startsWith("./")
-          ? importPath.slice(2)
-          : importPath.startsWith("../")
-          ? importPath
-          : importPath.slice(1);
-        imports.push(normalized);
+        files.push(relativeName);
       }
     }
+  };
 
-    // Match dynamic imports: import("...")
-    const dynamicImportRegex =
-      /import\s{0,5}\(\s{0,5}["']([^"']+)["']\s{0,5}\)/g;
-    while ((match = dynamicImportRegex.exec(content)) !== null) {
-      const importPath = match[1];
-      if (
-        importPath !== undefined &&
-        (importPath.startsWith("./") ||
-          importPath.startsWith("../") ||
-          importPath.startsWith("/"))
-      ) {
-        const normalized = importPath.startsWith("./")
-          ? importPath.slice(2)
-          : importPath.startsWith("../")
-          ? importPath
-          : importPath.slice(1);
-        imports.push(normalized);
-      }
-    }
+  await walk(dir, "");
 
-    return [...new Set(imports)];
-  }
+  return files.sort();
+}
+
+/** Writes every output under `outputDir`, creating nested directories. */
+async function writeOutputs(
+  outputDir: string,
+  outputs: ReadonlyMap<string, BundleOutput>,
+): Promise<void> {
+  const path = crossRuntime.runtime.path;
+  await crossRuntime.runtime.fs.mkdir(outputDir, { recursive: true });
+
+  await Promise.all(
+    [...outputs.values()].map(async (output) => {
+      const outputPath = path.join(outputDir, output.path);
+      // A recursive mkdir also succeeds when another write created it.
+      await crossRuntime.runtime.fs.mkdir(path.dirname(outputPath), {
+        recursive: true,
+      });
+      await crossRuntime.runtime.fs.writeFile(outputPath, output.code);
+    }),
+  );
 }
 
 /**

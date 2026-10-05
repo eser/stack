@@ -9,9 +9,13 @@
  * @returns Array of chunks
  *
  * @example
- * chunk([1, 2, 3, 4, 5], 2) // [[1, 2], [3, 4], [5]]
- * chunk([1, 2, 3, 4], 2)    // [[1, 2], [3, 4]]
- * chunk([], 2)              // []
+ * ```typescript
+ * import * as fp from "@eserstack/fp";
+ *
+ * fp.chunk([1, 2, 3, 4, 5], 2); // [[1, 2], [3, 4], [5]]
+ * fp.chunk([1, 2, 3, 4], 2); // [[1, 2], [3, 4]]
+ * fp.chunk([], 2); // []
+ * ```
  */
 export const chunk = <T>(
   array: ReadonlyArray<T>,
@@ -43,5 +47,3 @@ export const chunk = <T>(
 
   return result;
 };
-
-export { chunk as default };

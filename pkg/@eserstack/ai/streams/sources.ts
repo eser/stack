@@ -51,6 +51,12 @@ export const aiTextSource = (
           for await (const event of iterable) {
             if (event.kind === "content_delta") {
               controller.enqueue(streams.createChunk(event.textDelta));
+            } else if (event.kind === "error") {
+              // streamText reports a failure as an event. A text stream has no
+              // chunk for it, so the stream fails with the error instead of
+              // ending as if the reply were empty.
+              controller.error(event.error);
+              return;
             }
           }
           controller.close();

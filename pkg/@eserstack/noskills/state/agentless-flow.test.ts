@@ -8,21 +8,21 @@
  * All through library calls (same code paths as CLI commands).
  */
 
-import { describe, it } from "@std/testing/bdd";
-import { assertEquals } from "@std/assert";
+import * as bdd from "@std/testing/bdd";
+import * as assert from "@std/assert";
 import * as machine from "./machine.ts";
 import * as schema from "./schema.ts";
 import * as compiler from "../context/compiler.ts";
 import * as questions from "../context/questions.ts";
 import * as template from "../spec/template.ts";
 import * as formatter from "../output/formatter.ts";
-import { loadDefaultConcerns } from "../context/concerns.ts";
+import * as defaultConcerns from "../defaults/concerns/mod.ts";
 
 // =============================================================================
 // Helpers
 // =============================================================================
 
-const allConcerns = await loadDefaultConcerns();
+const allConcerns = defaultConcerns.DEFAULT_CONCERNS;
 const openSource = allConcerns.find((c) => c.id === "open-source")!;
 const beautiful = allConcerns.find((c) => c.id === "beautiful-product")!;
 const activeConcerns = [openSource, beautiful];
@@ -46,255 +46,265 @@ const config = (): schema.NosManifest => ({
 // Full agentless lifecycle
 // =============================================================================
 
-describe("Agentless flow: complete lifecycle via CLI", () => {
-  it("walks IDLE → DISCOVERY → all questions → SPEC_PROPOSAL → SPEC_APPROVED → EXECUTING → COMPLETED", async () => {
-    // === Step 1: Start from IDLE ===
-    let state = schema.createInitialState();
-    const output0 = await compiler.compile(
-      state,
-      activeConcerns,
-      rules,
-      config(),
-    );
-    assertEquals(output0.phase, "IDLE");
-
-    // Text output works for human
-    const text0 = formatter.format(output0, "text");
-    assertEquals(text0.includes("[IDLE]"), true);
-
-    // === Step 2: Create spec ===
-    state = machine.startSpec(state, "photo-upload", "spec/photo-upload");
-    assertEquals(state.phase, "DISCOVERY");
-
-    // === Step 3: Answer all 6 discovery questions via CLI ===
-    const qs = questions.getQuestionsWithExtras(activeConcerns);
-    assertEquals(qs.length, 6);
-
-    const answers: Record<string, string> = {
-      status_quo: "Users drag files manually into a folder",
-      ambition: "1-star: basic upload. 10-star: AI auto-categorization",
-      reversibility: "No irreversible decisions - can always re-upload",
-      user_impact: "New feature, no breaking changes",
-      verification: "Unit tests for endpoint, e2e test for upload flow",
-      scope_boundary: "No video support, no batch upload in v1",
-    };
-
-    // Simulate: noskills next → returns ALL questions at once
-    const output3 = await compiler.compile(
-      state,
-      activeConcerns,
-      rules,
-      config(),
-    );
-    assertEquals(output3.phase, "DISCOVERY");
-    const discovery = output3 as compiler.DiscoveryOutput;
-    assertEquals(discovery.questions.length, 6);
-
-    // Text format shows questions
-    const textOut = formatter.format(output3, "text");
-    assertEquals(textOut.includes("Question ["), true);
-
-    // Markdown format shows questions
-    const mdOut = formatter.format(output3, "markdown");
-    assertEquals(mdOut.includes("## Question:"), true);
-
-    // Simulate: answer all questions at once (batched JSON)
-    for (const q of qs) {
-      state = machine.addDiscoveryAnswer(
+bdd.describe("Agentless flow: complete lifecycle via CLI", () => {
+  bdd.it(
+    "walks IDLE → DISCOVERY → all questions → SPEC_PROPOSAL → SPEC_APPROVED → EXECUTING → COMPLETED",
+    async () => {
+      // === Step 1: Start from IDLE ===
+      let state = schema.createInitialState();
+      const output0 = await compiler.compile(
         state,
-        q.id,
-        answers[q.id] ?? "default answer with enough detail to pass validation",
+        activeConcerns,
+        rules,
+        config(),
       );
-    }
+      assert.assertEquals(output0.phase, "IDLE");
 
-    assertEquals(state.discovery.answers.length, 6);
+      // Text output works for human
+      const text0 = formatter.format(output0, "text");
+      assert.assertEquals(text0.includes("[IDLE]"), true);
 
-    // === Step 4: Complete discovery → DISCOVERY_REFINEMENT ===
-    assertEquals(questions.isDiscoveryComplete(state.discovery.answers), true);
-    state = machine.completeDiscovery(state);
-    assertEquals(state.phase, "DISCOVERY_REFINEMENT");
+      // === Step 2: Create spec ===
+      state = machine.startSpec(state, "photo-upload", "spec/photo-upload");
+      assert.assertEquals(state.phase, "DISCOVERY");
 
-    // Approve discovery review → SPEC_PROPOSAL
-    state = machine.approveDiscoveryReview(state);
-    assertEquals(state.phase, "SPEC_PROPOSAL");
-    // approveDiscoveryReview now auto-infers classification via
-    // autoClassifyIfMissing (task-10), so it is never null at this point.
-    assertEquals(state.classification !== null, true);
-    assertEquals(state.classification?.source, "inferred");
+      // === Step 3: Answer all 6 discovery questions via CLI ===
+      const qs = questions.getQuestionsWithExtras(activeConcerns);
+      assert.assertEquals(qs.length, 6);
 
-    // Force classification back to null to exercise the compiler's
-    // null-handling branch (classificationRequired path).
-    state = { ...state, classification: null };
+      const answers: Record<string, string> = {
+        "status_quo": "Users drag files manually into a folder",
+        ambition: "1-star: basic upload. 10-star: AI auto-categorization",
+        reversibility: "No irreversible decisions - can always re-upload",
+        "user_impact": "New feature, no breaking changes",
+        verification: "Unit tests for endpoint, e2e test for upload flow",
+        "scope_boundary": "No video support, no batch upload in v1",
+      };
 
-    // SPEC_PROPOSAL without classification → asks for classification
-    const output4a = await compiler.compile(
-      state,
-      activeConcerns,
-      rules,
-      config(),
-    );
-    assertEquals(output4a.phase, "SPEC_PROPOSAL");
-    assertEquals(
-      (output4a as compiler.SpecDraftOutput).classificationRequired,
-      true,
-    );
+      // Simulate: noskills next → returns ALL questions at once
+      const output3 = await compiler.compile(
+        state,
+        activeConcerns,
+        rules,
+        config(),
+      );
+      assert.assertEquals(output3.phase, "DISCOVERY");
+      const discovery = output3 as compiler.DiscoveryOutput;
+      assert.assertEquals(discovery.questions.length, 6);
 
-    // Provide classification (no UI, no API — simple template change)
-    state = {
-      ...state,
-      classification: {
-        involvesWebUI: false,
-        involvesCLI: false,
-        involvesPublicAPI: false,
-        involvesMigration: false,
-        involvesDataHandling: false,
-      },
-    };
+      // Text format shows questions
+      const textOut = formatter.format(output3, "text");
+      assert.assertEquals(textOut.includes("Question ["), true);
 
-    // Generate spec with classification
-    const specMd = template.renderSpec(
-      "photo-upload",
-      state.discovery.answers,
-      activeConcerns,
-      state.decisions,
-      state.classification,
-    );
-    assertEquals(specMd.includes("# Spec: photo-upload"), true);
-    assertEquals(specMd.includes("Users drag files manually"), true);
-    assertEquals(specMd.includes("## Out of Scope"), true);
-    assertEquals(specMd.includes("## Tasks"), true);
-    // Conditional sections hidden (classification flags all false)
-    assertEquals(specMd.includes("Design States"), false);
-    // Unconditional sections (condition: null) always shown
-    assertEquals(specMd.includes("Contributor Guide"), true);
+      // Markdown format shows questions
+      const mdOut = formatter.format(output3, "markdown");
+      assert.assertEquals(mdOut.includes("## Question:"), true);
 
-    // Output now shows approve transition (classification provided)
-    const output4b = await compiler.compile(
-      state,
-      activeConcerns,
-      rules,
-      config(),
-    );
-    assertEquals(output4b.phase, "SPEC_PROPOSAL");
-    const specDraft = output4b as compiler.SpecDraftOutput;
-    assertEquals(specDraft.transition.onApprove.includes("approve"), true);
+      // Simulate: answer all questions at once (batched JSON)
+      for (const q of qs) {
+        state = machine.addDiscoveryAnswer(
+          state,
+          q.id,
+          answers[q.id] ??
+            "default answer with enough detail to pass validation",
+        );
+      }
 
-    // === Step 5: Approve → SPEC_APPROVED ===
-    state = machine.approveSpec(state);
-    assertEquals(state.phase, "SPEC_APPROVED");
-    assertEquals(state.specState.status, "approved");
+      assert.assertEquals(state.discovery.answers.length, 6);
 
-    const output5 = await compiler.compile(
-      state,
-      activeConcerns,
-      rules,
-      config(),
-    );
-    assertEquals(output5.phase, "SPEC_APPROVED");
+      // === Step 4: Complete discovery → DISCOVERY_REFINEMENT ===
+      assert.assertEquals(
+        questions.isDiscoveryComplete(state.discovery.answers),
+        true,
+      );
+      state = machine.completeDiscovery(state);
+      assert.assertEquals(state.phase, "DISCOVERY_REFINEMENT");
 
-    // === Step 6: Start execution ===
-    state = machine.startExecution(state);
-    assertEquals(state.phase, "EXECUTING");
-    assertEquals(state.execution.iteration, 0);
+      // Approve discovery review → SPEC_PROPOSAL
+      state = machine.approveDiscoveryReview(state);
+      assert.assertEquals(state.phase, "SPEC_PROPOSAL");
+      // approveDiscoveryReview now auto-infers classification via
+      // autoClassifyIfMissing (task-10), so it is never null at this point.
+      assert.assertEquals(state.classification !== null, true);
+      assert.assertEquals(state.classification?.source, "inferred");
 
-    const output6 = await compiler.compile(
-      state,
-      activeConcerns,
-      rules,
-      config(),
-    );
-    assertEquals(output6.phase, "EXECUTING");
-    const execOutput = output6 as compiler.ExecutionOutput;
-    assertEquals(
-      execOutput.instruction.includes("task") ||
-        execOutput.instruction.includes("completed"),
-      true,
-    );
+      // Force classification back to null to exercise the compiler's
+      // null-handling branch (classificationRequired path).
+      state = { ...state, classification: null };
 
-    // Behavioral guardrails present
-    assertEquals(
-      output6.behavioral.tone.includes("Orchestrate immediately"),
-      true,
-    );
-    assertEquals(
-      output6.behavioral.rules.some((r) => r.includes("Do not explore")),
-      true,
-    );
+      // SPEC_PROPOSAL without classification → asks for classification
+      const output4a = await compiler.compile(
+        state,
+        activeConcerns,
+        rules,
+        config(),
+      );
+      assert.assertEquals(output4a.phase, "SPEC_PROPOSAL");
+      assert.assertEquals(
+        (output4a as compiler.SpecDraftOutput).classificationRequired,
+        true,
+      );
 
-    // === Step 7: Report progress (simulating --answer) ===
-    // Agent (or human) says "done" → triggers status report
-    state = {
-      ...state,
-      execution: {
-        ...state.execution,
-        lastProgress: "task-1 done",
-        awaitingStatusReport: true,
-      },
-    };
+      // Provide classification (no UI, no API — simple template change)
+      state = {
+        ...state,
+        classification: {
+          involvesWebUI: false,
+          involvesCLI: false,
+          involvesPublicAPI: false,
+          involvesMigration: false,
+          involvesDataHandling: false,
+        },
+      };
 
-    const output7 = await compiler.compile(
-      state,
-      activeConcerns,
-      rules,
-      config(),
-    );
-    const execWithReport = output7 as compiler.ExecutionOutput;
-    assertEquals(execWithReport.statusReportRequired, true);
-    assertEquals(execWithReport.statusReport !== undefined, true);
-    // Classification filters keyword-specific ACs — involvesWebUI=false means no "Mobile layout" etc.
-    assertEquals(
-      execWithReport.statusReport!.criteria.some((c) =>
-        c.text.includes("Mobile layout")
-      ),
-      false,
-    );
-    assertEquals(
-      execWithReport.statusReport!.criteria.some((c) =>
-        c.text.includes("Public API documented")
-      ),
-      false,
-    );
+      // Generate spec with classification
+      const specMd = template.renderSpec(
+        "photo-upload",
+        state.discovery.answers,
+        activeConcerns,
+        state.decisions,
+        state.classification,
+      );
+      assert.assertEquals(specMd.includes("# Spec: photo-upload"), true);
+      assert.assertEquals(specMd.includes("Users drag files manually"), true);
+      assert.assertEquals(specMd.includes("## Out of Scope"), true);
+      assert.assertEquals(specMd.includes("## Tasks"), true);
+      // Conditional sections hidden (classification flags all false)
+      assert.assertEquals(specMd.includes("Design States"), false);
+      // Unconditional sections (condition: null) always shown
+      assert.assertEquals(specMd.includes("Contributor Guide"), true);
 
-    // Submit status report — everything complete, no debt
-    state = {
-      ...state,
-      execution: {
-        ...state.execution,
-        awaitingStatusReport: false,
-        debt: null,
-      },
-    };
+      // Output now shows approve transition (classification provided)
+      const output4b = await compiler.compile(
+        state,
+        activeConcerns,
+        rules,
+        config(),
+      );
+      assert.assertEquals(output4b.phase, "SPEC_PROPOSAL");
+      const specDraft = output4b as compiler.SpecDraftOutput;
+      assert.assertEquals(
+        specDraft.transition.onApprove.includes("approve"),
+        true,
+      );
 
-    // === Step 8: Advance and complete ===
-    state = machine.advanceExecution(state, "all tasks done");
-    state = machine.completeSpec(state, "done");
-    assertEquals(state.phase, "COMPLETED");
+      // === Step 5: Approve → SPEC_APPROVED ===
+      state = machine.approveSpec(state);
+      assert.assertEquals(state.phase, "SPEC_APPROVED");
+      assert.assertEquals(state.specState.status, "approved");
 
-    const output8 = await compiler.compile(
-      state,
-      activeConcerns,
-      rules,
-      config(),
-    );
-    assertEquals(output8.phase, "COMPLETED");
-    const completed = output8 as compiler.CompletedOutput;
-    assertEquals(completed.summary.spec, "photo-upload");
+      const output5 = await compiler.compile(
+        state,
+        activeConcerns,
+        rules,
+        config(),
+      );
+      assert.assertEquals(output5.phase, "SPEC_APPROVED");
 
-    // Text format shows summary
-    const textDone = formatter.format(output8, "text");
-    assertEquals(textDone.includes("photo-upload"), true);
+      // === Step 6: Start execution ===
+      state = machine.startExecution(state);
+      assert.assertEquals(state.phase, "EXECUTING");
+      assert.assertEquals(state.execution.iteration, 0);
 
-    // Markdown format shows summary
-    const mdDone = formatter.format(output8, "markdown");
-    assertEquals(mdDone.includes("## Summary"), true);
-  });
+      const output6 = await compiler.compile(
+        state,
+        activeConcerns,
+        rules,
+        config(),
+      );
+      assert.assertEquals(output6.phase, "EXECUTING");
+      const execOutput = output6 as compiler.ExecutionOutput;
+      assert.assertEquals(
+        execOutput.instruction.includes("task") ||
+          execOutput.instruction.includes("completed"),
+        true,
+      );
+
+      // Behavioral guardrails present
+      assert.assertEquals(
+        output6.behavioral.tone.includes("Orchestrate immediately"),
+        true,
+      );
+      assert.assertEquals(
+        output6.behavioral.rules.some((r) => r.includes("Do not explore")),
+        true,
+      );
+
+      // === Step 7: Report progress (simulating --answer) ===
+      // Agent (or human) says "done" → triggers status report
+      state = {
+        ...state,
+        execution: {
+          ...state.execution,
+          lastProgress: "task-1 done",
+          awaitingStatusReport: true,
+        },
+      };
+
+      const output7 = await compiler.compile(
+        state,
+        activeConcerns,
+        rules,
+        config(),
+      );
+      const execWithReport = output7 as compiler.ExecutionOutput;
+      assert.assertEquals(execWithReport.statusReportRequired, true);
+      assert.assertEquals(execWithReport.statusReport !== undefined, true);
+      // Classification filters keyword-specific ACs — involvesWebUI=false means no "Mobile layout" etc.
+      assert.assertEquals(
+        execWithReport.statusReport!.criteria.some((c) =>
+          c.text.includes("Mobile layout")
+        ),
+        false,
+      );
+      assert.assertEquals(
+        execWithReport.statusReport!.criteria.some((c) =>
+          c.text.includes("Public API documented")
+        ),
+        false,
+      );
+
+      // Submit status report — everything complete, no debt
+      state = {
+        ...state,
+        execution: {
+          ...state.execution,
+          awaitingStatusReport: false,
+          debt: null,
+        },
+      };
+
+      // === Step 8: Advance and complete ===
+      state = machine.advanceExecution(state, "all tasks done");
+      state = machine.completeSpec(state, "done");
+      assert.assertEquals(state.phase, "COMPLETED");
+
+      const output8 = await compiler.compile(
+        state,
+        activeConcerns,
+        rules,
+        config(),
+      );
+      assert.assertEquals(output8.phase, "COMPLETED");
+      const completed = output8 as compiler.CompletedOutput;
+      assert.assertEquals(completed.summary.spec, "photo-upload");
+
+      // Text format shows summary
+      const textDone = formatter.format(output8, "text");
+      assert.assertEquals(textDone.includes("photo-upload"), true);
+
+      // Markdown format shows summary
+      const mdDone = formatter.format(output8, "markdown");
+      assert.assertEquals(mdDone.includes("## Summary"), true);
+    },
+  );
 });
 
 // =============================================================================
 // Output format consistency
 // =============================================================================
 
-describe("Output format consistency across phases", () => {
+bdd.describe("Output format consistency across phases", () => {
   const phases = (): { name: string; state: schema.StateFile }[] => {
     let s = schema.createInitialState();
     const idle = { name: "IDLE", state: s };
@@ -327,32 +337,39 @@ describe("Output format consistency across phases", () => {
     return [idle, disc, discReview, draft, approved, exec, blocked, completed];
   };
 
-  it("every phase produces valid JSON output", async () => {
-    for (const p of phases()) {
-      const output = await compiler.compile(p.state, [], [], config());
-      const json = formatter.format(output, "json");
+  /** Compiles every phase concurrently; the result keeps the phase order. */
+  const compilePhases = async () => {
+    const list = phases();
+    const outputs = await Promise.all(
+      list.map((p) => compiler.compile(p.state, [], [], config())),
+    );
+
+    return list.map((p, i) => ({ name: p.name, output: outputs[i]! }));
+  };
+
+  bdd.it("every phase produces valid JSON output", async () => {
+    for (const p of await compilePhases()) {
+      const json = formatter.format(p.output, "json");
       const parsed = JSON.parse(json);
-      assertEquals(parsed.phase, p.name);
-      assertEquals(parsed.meta !== undefined, true);
-      assertEquals(parsed.behavioral !== undefined, true);
+      assert.assertEquals(parsed.phase, p.name);
+      assert.assertEquals(parsed.meta !== undefined, true);
+      assert.assertEquals(parsed.behavioral !== undefined, true);
     }
   });
 
-  it("every phase produces non-empty text output", async () => {
-    for (const p of phases()) {
-      const output = await compiler.compile(p.state, [], [], config());
-      const text = formatter.format(output, "text");
-      assertEquals(text.length > 0, true);
-      assertEquals(text.includes(`[${p.name}]`), true);
+  bdd.it("every phase produces non-empty text output", async () => {
+    for (const p of await compilePhases()) {
+      const text = formatter.format(p.output, "text");
+      assert.assertEquals(text.length > 0, true);
+      assert.assertEquals(text.includes(`[${p.name}]`), true);
     }
   });
 
-  it("every phase produces non-empty markdown output", async () => {
-    for (const p of phases()) {
-      const output = await compiler.compile(p.state, [], [], config());
-      const md = formatter.format(output, "markdown");
-      assertEquals(md.length > 0, true);
-      assertEquals(md.includes(`# noskills — ${p.name}`), true);
+  bdd.it("every phase produces non-empty markdown output", async () => {
+    for (const p of await compilePhases()) {
+      const md = formatter.format(p.output, "markdown");
+      assert.assertEquals(md.length > 0, true);
+      assert.assertEquals(md.includes(`# noskills — ${p.name}`), true);
     }
   });
 });
@@ -361,8 +378,8 @@ describe("Output format consistency across phases", () => {
 // Dual entry points (Section 15.1-15.2)
 // =============================================================================
 
-describe("Dual entry: CLI and agent produce identical state", () => {
-  it("half CLI, half agent continues seamlessly", async () => {
+bdd.describe("Dual entry: CLI and agent produce identical state", () => {
+  bdd.it("half CLI, half agent continues seamlessly", async () => {
     // CLI answers Q1-Q3
     let state = machine.startSpec(
       schema.createInitialState(),
@@ -386,14 +403,14 @@ describe("Dual entry: CLI and agent produce identical state", () => {
       "cli answer 3 describing the verification strategy",
     );
 
-    assertEquals(state.discovery.answers.length, 3);
+    assert.assertEquals(state.discovery.answers.length, 3);
 
     // Agent picks up — noskills next should return Q4, not Q1
     const output = await compiler.compile(state, [], []);
-    assertEquals(output.phase, "DISCOVERY");
+    assert.assertEquals(output.phase, "DISCOVERY");
     const disc = output as compiler.DiscoveryOutput;
-    assertEquals(disc.questions.length, 3); // 3 remaining unanswered
-    assertEquals(disc.answeredCount, 3);
+    assert.assertEquals(disc.questions.length, 3); // 3 remaining unanswered
+    assert.assertEquals(disc.answeredCount, 3);
   });
 });
 
@@ -401,51 +418,54 @@ describe("Dual entry: CLI and agent produce identical state", () => {
 // Formatter arg parsing
 // =============================================================================
 
-describe("Formatter arg parsing", () => {
-  it("defaults to json with no args", () => {
-    assertEquals(formatter.parseOutputFormat(undefined), "json");
-    assertEquals(formatter.parseOutputFormat([]), "json");
+bdd.describe("Formatter arg parsing", () => {
+  bdd.it("defaults to json with no args", () => {
+    assert.assertEquals(formatter.parseOutputFormat(undefined), "json");
+    assert.assertEquals(formatter.parseOutputFormat([]), "json");
   });
 
-  it("parses -o json", () => {
-    assertEquals(formatter.parseOutputFormat(["-o", "json"]), "json");
+  bdd.it("parses -o json", () => {
+    assert.assertEquals(formatter.parseOutputFormat(["-o", "json"]), "json");
   });
 
-  it("parses -o markdown", () => {
-    assertEquals(formatter.parseOutputFormat(["-o", "markdown"]), "markdown");
+  bdd.it("parses -o markdown", () => {
+    assert.assertEquals(
+      formatter.parseOutputFormat(["-o", "markdown"]),
+      "markdown",
+    );
   });
 
-  it("parses -o md as markdown", () => {
-    assertEquals(formatter.parseOutputFormat(["-o", "md"]), "markdown");
+  bdd.it("parses -o md as markdown", () => {
+    assert.assertEquals(formatter.parseOutputFormat(["-o", "md"]), "markdown");
   });
 
-  it("parses -o text", () => {
-    assertEquals(formatter.parseOutputFormat(["-o", "text"]), "text");
+  bdd.it("parses -o text", () => {
+    assert.assertEquals(formatter.parseOutputFormat(["-o", "text"]), "text");
   });
 
-  it("parses --output=text", () => {
-    assertEquals(formatter.parseOutputFormat(["--output=text"]), "text");
+  bdd.it("parses --output=text", () => {
+    assert.assertEquals(formatter.parseOutputFormat(["--output=text"]), "text");
   });
 
-  it("strips -o flag from args", () => {
+  bdd.it("strips -o flag from args", () => {
     const result = formatter.stripOutputFlag([
       "--answer=hello",
       "-o",
       "markdown",
       "extra",
     ]);
-    assertEquals(result.length, 2);
-    assertEquals(result[0], "--answer=hello");
-    assertEquals(result[1], "extra");
+    assert.assertEquals(result.length, 2);
+    assert.assertEquals(result[0], "--answer=hello");
+    assert.assertEquals(result[1], "extra");
   });
 
-  it("strips --output=value from args", () => {
+  bdd.it("strips --output=value from args", () => {
     const result = formatter.stripOutputFlag([
       "--output=json",
       "--answer=hello",
     ]);
-    assertEquals(result.length, 1);
-    assertEquals(result[0], "--answer=hello");
+    assert.assertEquals(result.length, 1);
+    assert.assertEquals(result[0], "--answer=hello");
   });
 });
 
@@ -453,23 +473,23 @@ describe("Formatter arg parsing", () => {
 // Spec naming
 // =============================================================================
 
-describe("Spec naming via slugify", () => {
-  it("slug from description is lowercase with hyphens", () => {
+bdd.describe("Spec naming via slugify", () => {
+  bdd.it("slug from description is lowercase with hyphens", () => {
     // Test via startSpec which receives the slug
     const state = machine.startSpec(
       schema.createInitialState(),
       "photo-upload-feature",
       "spec/photo-upload-feature",
     );
-    assertEquals(state.spec, "photo-upload-feature");
+    assert.assertEquals(state.spec, "photo-upload-feature");
   });
 
-  it("explicit name preserved as-is", () => {
+  bdd.it("explicit name preserved as-is", () => {
     const state = machine.startSpec(
       schema.createInitialState(),
       "SPC0001",
       "spec/SPC0001",
     );
-    assertEquals(state.spec, "SPC0001");
+    assert.assertEquals(state.spec, "SPC0001");
   });
 });

@@ -19,12 +19,15 @@
 import * as span from "@eserstack/streams/span";
 import * as streams from "@eserstack/streams";
 import * as standardsCrossRuntime from "@eserstack/standards/cross-runtime";
-import { appOpts } from "../app-opts.ts";
+import * as appOpts from "../app-opts.ts";
 import type { CliApp } from "../app.ts";
 import * as results from "@eserstack/primitives/results";
-import * as shellArgs from "@eserstack/shell/args";
+import type * as shellArgs from "@eserstack/shell/args";
 import * as shellExec from "@eserstack/shell/exec";
 import * as versionCheck from "./version-check.ts";
+
+// Release archives are tens of megabytes; this bounds a stalled download.
+const ARCHIVE_DOWNLOAD_TIMEOUT_MS = 300_000;
 
 const runtime = standardsCrossRuntime.runtime;
 
@@ -168,6 +171,48 @@ const DENO_TARGET_MAP: Record<string, string> = {
   "windows-amd64": "x86_64-pc-windows-msvc",
 };
 
+/** A program and its arguments, run without a shell. */
+export type ExtractCommand = {
+  readonly cmd: string;
+  readonly args: readonly string[];
+};
+
+/** Where a release archive is unpacked: Windows (zip) or Unix (tar.gz). */
+export type ExtractTarget =
+  | {
+    readonly platform: "windows";
+    /** The `SystemRoot` environment variable, e.g. `C:\Windows` */
+    readonly systemRoot: string | undefined;
+  }
+  | { readonly platform: "unix" };
+
+/**
+ * Builds the command that unpacks a downloaded release archive into
+ * `destDir`. Both paths stay separate arguments, so no shell or PowerShell
+ * parser reads them: a Windows path keeps its backslashes, and a quote in a
+ * path cannot end a string and start a command.
+ *
+ * Windows uses the bsdtar that ships in System32 (Windows 10 1803 and later),
+ * which reads zip archives. The absolute path matters: a GNU tar from Git for
+ * Windows earlier on PATH cannot read zip and takes `C:` for a remote host.
+ */
+export const extractArchiveCommand = (
+  archivePath: string,
+  destDir: string,
+  target: ExtractTarget,
+): ExtractCommand => {
+  if (target.platform === "unix") {
+    return { cmd: "tar", args: ["-xzf", archivePath, "-C", destDir] };
+  }
+
+  const systemRoot = target.systemRoot?.replace(/[\\/]+$/, "") ?? "";
+  const cmd = systemRoot !== ""
+    ? `${systemRoot}\\System32\\tar.exe`
+    : "tar.exe";
+
+  return { cmd, args: ["-xf", archivePath, "-C", destDir] };
+};
+
 /**
  * Detects the current platform in the format used by our release archives.
  */
@@ -244,7 +289,9 @@ const updateCompiledBinary = async (
   // Download archive
   out.writeln(span.dim(`Downloading ${archiveName}...`));
 
-  const archiveResponse = await fetch(`${baseUrl}/${archiveName}`);
+  const archiveResponse = await fetch(`${baseUrl}/${archiveName}`, {
+    signal: AbortSignal.timeout(ARCHIVE_DOWNLOAD_TIMEOUT_MS),
+  });
   if (!archiveResponse.ok) {
     out.writeln(
       span.red(`\nFailed to download: HTTP ${archiveResponse.status}`),
@@ -255,9 +302,7 @@ const updateCompiledBinary = async (
 
   // Download SHA256SUMS.txt and verify. Verification is mandatory: see
   // verifyArchiveChecksum for why every failure path is a refusal.
-  const archiveBytes = new Uint8Array(
-    await archiveResponse.clone().arrayBuffer(),
-  );
+  const archiveBytes = new Uint8Array(await archiveResponse.arrayBuffer());
   const verification = await verifyArchiveChecksum(
     baseUrl,
     archiveName,
@@ -276,21 +321,25 @@ const updateCompiledBinary = async (
   const tempDir = await runtime.fs.makeTempDir({ prefix: "eser-update-" });
 
   try {
+    // The bytes written are the ones the checksum was verified against.
     const archivePath = runtime.path.join(tempDir, archiveName);
-    const archiveData = new Uint8Array(await archiveResponse.arrayBuffer());
-    await runtime.fs.writeFile(archivePath, archiveData);
+    await runtime.fs.writeFile(archivePath, archiveBytes);
 
-    if (isWindows) {
-      await shellExec
-        .exec`powershell -Command "Expand-Archive -Path ${archivePath} -DestinationPath ${tempDir}"`
-        .spawn();
-    } else {
-      await shellExec.exec`tar -xzf ${archivePath} -C ${tempDir}`.spawn();
-    }
+    const extract = extractArchiveCommand(
+      archivePath,
+      tempDir,
+      isWindows
+        ? { platform: "windows", systemRoot: runtime.env.get("SystemRoot") }
+        : { platform: "unix" },
+    );
+    await new shellExec.CommandBuilder(extract.cmd, [...extract.args]).spawn();
 
-    const newBinaryPath = isWindows
-      ? runtime.path.join(tempDir, "eser.exe")
-      : runtime.path.join(tempDir, app.command);
+    // The archive holds the binary under the app's command name, as
+    // pkg/@eserstack/cli/scripts/compile.ts packs it.
+    const newBinaryPath = runtime.path.join(
+      tempDir,
+      isWindows ? `${app.command}.exe` : app.command,
+    );
     const currentBinaryPath = runtime.process.execPath();
 
     if (isWindows) {
@@ -351,7 +400,7 @@ export const updateHandler = async (
   app: CliApp,
 ): Promise<shellArgs.CliResult<void>> => {
   const execContext = await standardsCrossRuntime.detectExecutionContext(
-    appOpts(app),
+    appOpts.appOpts(app),
   );
 
   // Compiled binary: self-update from GitHub Releases

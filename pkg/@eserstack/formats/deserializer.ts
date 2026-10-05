@@ -1,18 +1,18 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 import type { FormatOptions } from "./types.ts";
-import { FormatNotFoundError } from "./types.ts";
-import { getFormat } from "./format-registry.ts";
-import { ensureLib, getLib } from "./ffi-client.ts";
+import * as types from "./types.ts";
+import * as formatRegistry from "./format-registry.ts";
+import * as ffiClient from "./ffi-client.ts";
 
 export const deserialize = async (
   input: string,
   format: string,
   options?: FormatOptions,
 ): Promise<unknown[]> => {
-  await ensureLib();
+  await ffiClient.ensureLib();
 
-  const lib = getLib();
+  const lib = ffiClient.getLib();
   if (lib !== null) {
     try {
       const requestJSON = JSON.stringify({
@@ -35,9 +35,9 @@ export const deserialize = async (
   }
 
   // TS fallback: pure TypeScript implementation.
-  const formatAdapter = getFormat(format);
+  const formatAdapter = formatRegistry.getFormat(format);
   if (formatAdapter === undefined) {
-    throw new FormatNotFoundError(format);
+    throw new types.FormatNotFoundError(format);
   }
 
   const reader = formatAdapter.createReader(options);

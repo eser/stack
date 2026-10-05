@@ -13,6 +13,7 @@
 
 import type * as adapter from "../../adapter.ts";
 import * as crossRuntime from "@eserstack/standards/cross-runtime";
+import * as discoveryAnswers from "../../../context/discovery-answers.ts";
 
 // =============================================================================
 // Constants
@@ -59,14 +60,11 @@ const buildProtocol = (
     "- Advances the state machine to the next phase",
     "- Records the decision permanently in the project history",
     "",
-    "When you batch-submit answers or backfill discovery responses yourself,",
-    "the user sees nothing happening — then suddenly everything jumps forward.",
-    "This defeats the purpose.",
-    "",
-    "Call noskills ONCE per interaction. Ask the user ONE question. Wait for",
-    "their answer. Submit it. Ask the next. The user is watching every step.",
-    "Do NOT pre-fill answers. Do NOT batch multiple answers. Do NOT answer",
-    "discovery questions yourself — the user's input is the data.",
+    discoveryAnswers.discoveryQuestionRule(),
+    "Do not answer discovery questions yourself: the user's input is the data.",
+    discoveryAnswers.discoveryAnswerRule(
+      `${commandPrefix} spec <name> next --answer`,
+    ),
     "",
     "### When to call noskills next",
     "",
@@ -112,13 +110,12 @@ const buildProtocol = (
     "- Rule promotion → ask the user, don't decide",
     'If you think something can be skipped, ASK "would you like to skip this?" — don\'t skip it.',
     "NEVER suggest bypassing or skipping noskills. Discovery is not overhead.",
-    "NEVER ask permission to run the next noskills command. After spec new → run next. After approve → run next. Just run it.",
+    "Run the next noskills command as soon as the current step is done; each step has exactly one next step, so there is nothing to ask permission for.",
     "",
     "### Command execution",
     "",
-    "When told to run a noskills command, execute it IMMEDIATELY. Do not explore,",
-    "research, read source code, or plan first. The command output contains all the",
-    "context you need. Exploring noskills internals wastes tokens and delays the user.",
+    "Run noskills commands as soon as you are told to. Their output carries the",
+    "context you need, so do not read noskills source or `.eser/` files first.",
     "",
     "### JSON output",
     "",

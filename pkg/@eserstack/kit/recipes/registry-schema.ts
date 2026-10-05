@@ -3,10 +3,11 @@
 /**
  * Registry schema types and validation for the eser recipe registry.
  *
- * This module defines the `eser-registry.json` manifest format and provides
- * type-guard validation. This is a RECIPE registry for distributing code
- * recipes — not to be confused with `@eserstack/standards/collections` which is a
- * generic immutable data structure.
+ * This module defines the registry manifest format (`.eser/recipes.json`,
+ * schema registry/v1) and the type guards that validate it. It is a registry
+ * for distributing code recipes, not to be confused with
+ * `@eserstack/standards/collections`, which is a generic immutable data
+ * structure.
  *
  * A recipe can also live standalone as `recipe.json` in any GitHub repo,
  * used via `eser kit clone <specifier>`.
@@ -19,38 +20,68 @@
 // =============================================================================
 
 /** Scale taxonomy for recipes */
-type RecipeScale = "project" | "structure" | "utility";
+export type RecipeScale = "project" | "structure" | "utility";
 
 /** Kind of file entry — single file or entire folder */
-type RecipeFileKind = "file" | "folder";
+export type RecipeFileKind = "file" | "folder";
 
 /** Where to fetch the file from */
-type RecipeFileProvider = "local" | "github";
+export type RecipeFileProvider = "local" | "github";
 
 /** A single file mapping in a recipe */
-interface RecipeFile {
+export interface RecipeFile {
+  /**
+   * Path of the file or folder to copy, relative to the registry's
+   * `registryUrl`, or to the repository (or subpath) root in a standalone
+   * `recipe.json`.
+   */
   readonly source: string;
+  /**
+   * Where the file or folder goes, relative to the project directory. A
+   * target that leads outside the project directory stops the recipe.
+   */
   readonly target: string;
+  /**
+   * `"file"` (the default) copies one file; `"folder"` copies every file in a
+   * folder. The TypeScript applier lists a folder through the GitHub contents
+   * API, so its registry has to be on raw.githubusercontent.com.
+   */
   readonly kind?: RecipeFileKind;
+  /**
+   * Where `source` lives: `"local"` (the default) next to the registry
+   * manifest, or `"github"` at the root of the repository that a
+   * `gh:owner/repo` registry URL names. Only the Go implementation reads it;
+   * the TypeScript applier resolves every source against `registryUrl`.
+   */
   readonly provider?: RecipeFileProvider;
 }
 
 /** Dependencies grouped by ecosystem */
-interface RecipeDependencies {
+export interface RecipeDependencies {
+  /** Go module paths, installed with `go get`. */
   readonly go?: readonly string[];
+  /** JSR specifiers such as `jsr:@eserstack/fp@^4.1.0`, installed with `deno add`. */
   readonly jsr?: readonly string[];
+  /** npm package names, installed with `npm install`. */
   readonly npm?: readonly string[];
 }
 
 /** A template variable definition for substitution */
-interface TemplateVariable {
+export interface TemplateVariable {
+  /** The name a template refers to as `{{.name}}`. */
   readonly name: string;
+  /** Shown as the question when kit prompts for the value; the name is shown when it is absent. */
   readonly description?: string;
+  /** The value used when the caller gives none. */
   readonly default?: string;
+  /** Prompt text for the variable. Kit does not show it yet; it asks with `description`. */
   readonly prompt?: string;
   /** Regex pattern applied during interactive validation */
   readonly pattern?: string;
-  /** Whether the variable is required when no default is provided (default: true) */
+  /**
+   * Whether a variable without a default must get a value (default: true).
+   * Kit does not read it yet, so every variable without a default needs one.
+   */
   readonly required?: boolean;
 }
 
@@ -60,32 +91,67 @@ interface TemplateVariable {
  * All fields are optional for standalone `recipe.json` usage (clone path).
  * Registry entries have stricter requirements enforced by `isRegistryRecipe`.
  */
-interface Recipe {
+export interface Recipe {
   /** Accepted sentinel: "registry/v1". Used for the empty-fallback synthesis. */
   readonly schema?: string;
+  /**
+   * The name that `eser kit add`, `new` and `update` look the recipe up by;
+   * unique within a registry. Required for registry entries.
+   */
   readonly name?: string;
+  /** One-line summary that `eser kit list` shows. Required for registry entries. */
   readonly description?: string;
+  /**
+   * Primary language, such as `"typescript"` or `"go"`. `eser kit add` warns
+   * when it does not match the project. Required for registry entries.
+   */
   readonly language?: string;
+  /**
+   * How much the recipe creates; `eser kit new` offers the `"project"`
+   * recipes. Required for registry entries.
+   */
   readonly scale?: RecipeScale;
+  /** Labels that `eser kit list --tag` filters on. */
   readonly tags?: readonly string[];
+  /** Names of recipes in the same registry to apply before this one. */
   readonly requires?: readonly string[];
+  /** Variables that the recipe's files refer to as `{{.name}}`. */
   readonly variables?: readonly TemplateVariable[];
+  /**
+   * Commands to run in the project directory once the files are written, in
+   * order. The first one that fails stops the rest.
+   */
   readonly postInstall?: readonly string[];
   /** File list for recipe mode. Absent → whole-repo mode. */
   readonly files?: readonly RecipeFile[];
   /** Glob patterns for whole-repo mode file exclusion. */
   readonly ignore?: readonly string[];
+  /** Packages the recipe's files import; kit prints or runs their install commands. */
   readonly dependencies?: RecipeDependencies;
+  /** Reserved for file transforms; kit does not read it yet. */
   readonly transforms?: readonly unknown[];
 }
 
 /** The root registry manifest */
-interface RegistryManifest {
+export interface RegistryManifest {
+  /**
+   * The schema the manifest follows, such as
+   * `https://eser.live/registry/v1.json`. One that does not contain
+   * `registry/v1` loads with a warning.
+   */
   readonly $schema?: string;
+  /** The registry's name, shown as the heading of `eser kit list`. */
   readonly name: string;
+  /** One-line summary of the registry, shown next to its name. */
   readonly description: string;
+  /** Who maintains the registry. */
   readonly author: string;
+  /**
+   * Base URL that recipe sources resolve against, such as
+   * `https://raw.githubusercontent.com/eser/stack/main/.eser`.
+   */
   readonly registryUrl: string;
+  /** The recipes the registry offers. */
   readonly recipes: readonly Recipe[];
 }
 
@@ -93,7 +159,11 @@ interface RegistryManifest {
 // Validation
 // =============================================================================
 
-const SUPPORTED_SCHEMA_VERSIONS = ["registry/v1"];
+/**
+ * Schema ids this version of kit reads. A manifest whose `$schema` contains
+ * none of them still loads, with a warning on stderr.
+ */
+export const SUPPORTED_SCHEMA_VERSIONS: readonly string[] = ["registry/v1"];
 
 const VALID_FILE_KINDS: readonly string[] = ["file", "folder"];
 const VALID_FILE_PROVIDERS: readonly string[] = ["local", "github"];
@@ -101,7 +171,11 @@ const VALID_FILE_PROVIDERS: readonly string[] = ["local", "github"];
 const isValidScale = (value: unknown): value is RecipeScale =>
   value === "project" || value === "structure" || value === "utility";
 
-const isRecipeFile = (value: unknown): value is RecipeFile => {
+/**
+ * Type guard for a {@link RecipeFile}: `source` and `target` are strings, and
+ * `kind` and `provider` are absent or one of their allowed values.
+ */
+export const isRecipeFile = (value: unknown): value is RecipeFile => {
   if (typeof value !== "object" || value === null) {
     return false;
   }
@@ -151,7 +225,13 @@ const isRecipeDependencies = (
   return true;
 };
 
-const isTemplateVariable = (value: unknown): value is TemplateVariable => {
+/**
+ * Type guard for a {@link TemplateVariable}: `name` is a non-empty string, and
+ * each optional field is absent or has its declared type.
+ */
+export const isTemplateVariable = (
+  value: unknown,
+): value is TemplateVariable => {
   if (typeof value !== "object" || value === null) {
     return false;
   }
@@ -190,7 +270,7 @@ const isTemplateVariable = (value: unknown): value is TemplateVariable => {
  * For registry-listed recipes that require name/description/language/scale/files,
  * use `isRegistryRecipe` instead.
  */
-const isRecipe = (value: unknown): value is Recipe => {
+export const isRecipe = (value: unknown): value is Recipe => {
   if (typeof value !== "object" || value === null) {
     return false;
   }
@@ -299,7 +379,7 @@ const isRecipe = (value: unknown): value is Recipe => {
  * Retains the original required-field contract:
  * name, description, language, scale, and files are all required.
  */
-const isRegistryRecipe = (value: unknown): value is Recipe => {
+export const isRegistryRecipe = (value: unknown): value is Recipe => {
   if (!isRecipe(value)) {
     return false;
   }
@@ -329,7 +409,7 @@ const isRegistryRecipe = (value: unknown): value is Recipe => {
  * Validate and parse a registry manifest from unknown data.
  * Throws a descriptive error if validation fails.
  */
-const validateRegistryManifest = (data: unknown): RegistryManifest => {
+export const validateRegistryManifest = (data: unknown): RegistryManifest => {
   if (typeof data !== "object" || data === null) {
     throw new Error("Registry manifest must be a JSON object");
   }
@@ -344,6 +424,8 @@ const validateRegistryManifest = (data: unknown): RegistryManifest => {
     );
 
     if (!hasSupported) {
+      // An unknown schema version still loads; the warning tells the person
+      // running kit that this CLI only knows v1.
       // deno-lint-ignore no-console
       console.warn(
         `Warning: Registry uses unknown schema "${schema}". This CLI supports v1.`,
@@ -398,7 +480,7 @@ const validateRegistryManifest = (data: unknown): RegistryManifest => {
  * Validate a standalone recipe (e.g., from a recipe.json in a GitHub repo).
  * Same validation as registry recipes but for a single recipe object.
  */
-const validateRecipe = (data: unknown): Recipe => {
+export const validateRecipe = (data: unknown): Recipe => {
   if (!isRecipe(data)) {
     throw new Error("Invalid recipe definition");
   }
@@ -414,31 +496,9 @@ const validateRecipe = (data: unknown): Recipe => {
  * Resolve a registry URL by joining a base URL with a relative path.
  * Normalizes trailing/leading slashes to prevent double-slash or missing-slash.
  */
-const resolveRegistryUrl = (base: string, path: string): string => {
+export const resolveRegistryUrl = (base: string, path: string): string => {
   const normalizedBase = base.replace(/\/{1,20}$/, "");
   const normalizedPath = path.replace(/^\/{1,20}/, "");
 
   return `${normalizedBase}/${normalizedPath}`;
-};
-
-export {
-  isRecipe,
-  isRecipeFile,
-  isRegistryRecipe,
-  isTemplateVariable,
-  resolveRegistryUrl,
-  SUPPORTED_SCHEMA_VERSIONS,
-  validateRecipe,
-  validateRegistryManifest,
-};
-
-export type {
-  Recipe,
-  RecipeDependencies,
-  RecipeFile,
-  RecipeFileKind,
-  RecipeFileProvider,
-  RecipeScale,
-  RegistryManifest,
-  TemplateVariable,
 };

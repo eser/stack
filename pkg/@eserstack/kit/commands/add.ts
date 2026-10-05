@@ -101,5 +101,5 @@ export const main = async (
     return results.ok(undefined);
   }
 
-  return results.fail({ exitCode: 1 });
+  return results.fail({ message: result.error.message, exitCode: 1 });
 };

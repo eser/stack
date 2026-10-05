@@ -6,8 +6,8 @@ import * as results from "@eserstack/primitives/results";
 import * as taskMod from "@eserstack/functions/task";
 import * as ai from "@eserstack/ai/mod";
 import type { BoundTriggers } from "../../application/wiring.ts";
-import { createTestPost } from "../../application/testing.ts";
-import { runPostsAgent } from "./agent.ts";
+import * as testing from "../../application/testing.ts";
+import * as agent from "./agent.ts";
 
 // ── Mock helpers ──────────────────────────────────────────────────────────────
 
@@ -68,7 +68,7 @@ function createMockModel(
 }
 
 function createMockBound(overrides?: Partial<BoundTriggers>): BoundTriggers {
-  const testPost = createTestPost();
+  const testPost = testing.createTestPost();
   return {
     composeTweet: (_i) => taskMod.succeed(testPost),
     composePostToAll: (_i) => taskMod.succeed([testPost]),
@@ -103,7 +103,10 @@ bdd.describe("runPostsAgent", () => {
       ]);
       const bound = createMockBound();
 
-      const result = await runPostsAgent("List my options", { model, bound });
+      const result = await agent.runPostsAgent("List my options", {
+        model,
+        bound,
+      });
 
       assert.assertEquals(results.isOk(result), true);
       assert.assertEquals(
@@ -113,10 +116,31 @@ bdd.describe("runPostsAgent", () => {
     },
   );
 
+  bdd.it("fails instead of answering when the model refuses", async () => {
+    const model = createMockModel([
+      results.ok({
+        ...textResult("I can't help with posting that."),
+        stopReason: "refusal",
+      }),
+    ]);
+    const bound = createMockBound();
+
+    const result = await agent.runPostsAgent("Post something harmful", {
+      model,
+      bound,
+    });
+
+    assert.assertEquals(results.isFail(result), true);
+    assert.assertStringIncludes(
+      results.isFail(result) ? result.error.message : "",
+      "refusal",
+    );
+  });
+
   bdd.it(
     "performs a tool call and returns final text on second turn",
     async () => {
-      const testPost = createTestPost({ text: "Hello from agent" });
+      const testPost = testing.createTestPost({ text: "Hello from agent" });
       let composeCalled = false;
 
       const model = createMockModel([
@@ -135,7 +159,7 @@ bdd.describe("runPostsAgent", () => {
         },
       });
 
-      const result = await runPostsAgent("Post Hello from agent", {
+      const result = await agent.runPostsAgent("Post Hello from agent", {
         model,
         bound,
       });
@@ -158,7 +182,7 @@ bdd.describe("runPostsAgent", () => {
     const model = createMockModel([results.fail(aiError)]);
     const bound = createMockBound();
 
-    const result = await runPostsAgent("Do something", { model, bound });
+    const result = await agent.runPostsAgent("Do something", { model, bound });
 
     assert.assertEquals(results.isFail(result), true);
     if (results.isFail(result)) {
@@ -178,7 +202,7 @@ bdd.describe("runPostsAgent", () => {
     const model = createMockModel(toolCallResponses);
     const bound = createMockBound();
 
-    const result = await runPostsAgent("Keep posting", {
+    const result = await agent.runPostsAgent("Keep posting", {
       model,
       bound,
       maxTurns: 3,
@@ -228,7 +252,7 @@ bdd.describe("runPostsAgent", () => {
         composeTweet: (_i) => taskMod.failTask(new Error("Platform down")),
       });
 
-      const result = await runPostsAgent("Post this", { model, bound });
+      const result = await agent.runPostsAgent("Post this", { model, bound });
 
       assert.assertEquals(results.isOk(result), true);
 
@@ -264,7 +288,7 @@ bdd.describe("runPostsAgent", () => {
     };
 
     const bound = createMockBound();
-    await runPostsAgent("Do something", {
+    await agent.runPostsAgent("Do something", {
       model,
       bound,
       system: "You are a social media assistant.",
@@ -272,4 +296,53 @@ bdd.describe("runPostsAgent", () => {
 
     assert.assertEquals(capturedSystem, "You are a social media assistant.");
   });
+
+  bdd.it(
+    "sends a tool without a result value back as the text null",
+    async () => {
+      let secondCallMessages: readonly ai.Message[] = [];
+
+      const model: ai.LanguageModel = {
+        capabilities: ["text_generation", "tool_calling"],
+        provider: "mock",
+        modelId: "mock-model",
+        generateText: (
+          opts,
+        ): Promise<results.Result<ai.GenerateTextResult, ai.AiError>> => {
+          if (opts.messages.length === 1) {
+            return Promise.resolve(
+              results.ok(
+                toolCallResult("call-repost", "repost", {
+                  id: "1234567890",
+                  platform: "twitter",
+                }),
+              ),
+            );
+          }
+          secondCallMessages = opts.messages;
+          return Promise.resolve(results.ok(textResult("Reposted.")));
+        },
+        streamText: (_opts) => {
+          async function* empty() {}
+          return empty();
+        },
+        close: async () => {},
+        getRawClient: () => null,
+      };
+
+      const result = await agent.runPostsAgent("Repost 1234567890", {
+        model,
+        bound: createMockBound(),
+      });
+
+      assert.assert(results.isOk(result));
+      const toolMessage = secondCallMessages.find((m) => m.role === "tool");
+      const block = toolMessage?.content[0];
+      assert.assertEquals(block?.kind, "tool_result");
+      assert.assertEquals(
+        block?.kind === "tool_result" ? block.toolResult : undefined,
+        { toolCallId: "call-repost", content: "null", isError: false },
+      );
+    },
+  );
 });

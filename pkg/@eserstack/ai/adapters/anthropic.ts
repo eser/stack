@@ -3,7 +3,7 @@
 import * as results from "@eserstack/primitives/results";
 import type * as types from "../types.ts";
 import type * as config from "../config.ts";
-import type * as generation from "../generation.ts";
+import * as generation from "../generation.ts";
 import type * as batch from "../batch.ts";
 import type * as model from "../model.ts";
 import * as content from "../content.ts";
@@ -21,14 +21,20 @@ export class AnthropicModel
     "tool_calling",
     "vision",
     "batch_processing",
+    "structured_output",
+    // A thinking budget turns on adaptive thinking, and the reply carries the
+    // thinking blocks.
+    "reasoning",
   ];
   readonly provider = "anthropic";
   readonly modelId: string;
 
+  // The SDK is loaded lazily by the factory; its client type is not in scope.
   // deno-lint-ignore no-explicit-any
   private readonly client: any;
   private readonly config: config.ResolvedConfigTarget;
 
+  // Takes the lazily imported SDK client stored in the field above.
   // deno-lint-ignore no-explicit-any
   constructor(client: any, cfg: config.ResolvedConfigTarget) {
     this.client = client;
@@ -40,9 +46,8 @@ export class AnthropicModel
     options: generation.GenerateTextOptions,
     signal?: AbortSignal,
   ): Promise<results.Result<generation.GenerateTextResult, errors.AiError>> {
-    const params = buildParams(this.config, options);
-
     try {
+      const params = buildParams(this.config, options);
       const response = await this.client.messages.create(params, {
         signal,
         timeout: this.config.requestTimeoutMs,
@@ -58,9 +63,8 @@ export class AnthropicModel
     options: generation.GenerateTextOptions,
     signal?: AbortSignal,
   ): AsyncIterable<generation.StreamEvent> {
-    const params = buildParams(this.config, options);
-
     try {
+      const params = buildParams(this.config, options);
       const stream = await this.client.messages.create(
         { ...params, stream: true },
         { signal, timeout: this.config.requestTimeoutMs },
@@ -69,6 +73,10 @@ export class AnthropicModel
       let currentToolCallId: string | null = null;
       let currentToolCallName: string | null = null;
       let currentToolCallArgs = "";
+      // A thinking block's text and signature arrive in separate deltas; the
+      // block is yielded whole at its stop, since only the finished block can
+      // be replayed.
+      let currentThinking: ThinkingDraft | null = null;
       let inputTokens = 0;
       let outputTokens = 0;
 
@@ -80,6 +88,13 @@ export class AnthropicModel
             currentToolCallId = event.content_block.id ?? null;
             currentToolCallName = event.content_block.name ?? null;
             currentToolCallArgs = "";
+          } else {
+            const started = toThinkingPart(event.content_block);
+            currentThinking = started === null ? null : {
+              text: started.text,
+              signature: started.signature ?? "",
+              redactedData: started.redactedData ?? null,
+            };
           }
         } else if (event.type === "content_block_delta") {
           if (event.delta?.type === "text_delta") {
@@ -90,14 +105,31 @@ export class AnthropicModel
               kind: "tool_call_delta",
               textDelta: event.delta.partial_json,
             };
+          } else if (
+            event.delta?.type === "thinking_delta" && currentThinking !== null
+          ) {
+            currentThinking.text += event.delta.thinking ?? "";
+          } else if (
+            event.delta?.type === "signature_delta" && currentThinking !== null
+          ) {
+            currentThinking.signature += event.delta.signature ?? "";
           }
         } else if (event.type === "content_block_stop") {
+          if (currentThinking !== null) {
+            yield {
+              kind: "thinking",
+              thinking: finishThinking(currentThinking),
+            };
+            currentThinking = null;
+          }
           if (currentToolCallId !== null && currentToolCallName !== null) {
             let args: Record<string, unknown> = {};
-            try {
-              args = JSON.parse(currentToolCallArgs || "{}");
-            } catch {
-              // Keep empty args on parse failure
+            if (currentToolCallArgs !== "") {
+              try {
+                args = JSON.parse(currentToolCallArgs);
+              } catch {
+                // Keep empty args on parse failure
+              }
             }
             yield {
               kind: "tool_call_delta",
@@ -134,12 +166,11 @@ export class AnthropicModel
     request: batch.BatchRequest,
     signal?: AbortSignal,
   ): Promise<batch.BatchJob> {
-    const requests = request.items.map((item) => ({
-      custom_id: item.customId,
-      params: buildParams(this.config, item.options),
-    }));
-
     try {
+      const requests = request.items.map((item) => ({
+        custom_id: item.customId,
+        params: buildParams(this.config, item.options),
+      }));
       const result = await this.client.beta.messages.batches.create(
         { requests },
         { signal },
@@ -248,11 +279,11 @@ export class AnthropicModel
 
 export const anthropicFactory: model.ProviderFactory = {
   provider: "anthropic",
-  async createModel(
+  createModel: async (
     cfg: config.ResolvedConfigTarget,
-  ): Promise<model.LanguageModel> {
+  ): Promise<model.LanguageModel> => {
     // Dynamic import to avoid loading SDK when not needed
-    const { default: Anthropic } = await import("@anthropic-ai/sdk");
+    const anthropicSdk = await import("@anthropic-ai/sdk");
 
     const clientOptions: Record<string, unknown> = {};
 
@@ -263,7 +294,7 @@ export const anthropicFactory: model.ProviderFactory = {
       clientOptions["baseURL"] = cfg.baseUrl;
     }
 
-    const client = new Anthropic(clientOptions);
+    const client = new anthropicSdk.Anthropic(clientOptions);
 
     return new AnthropicModel(client, cfg);
   },
@@ -273,13 +304,23 @@ export const anthropicFactory: model.ProviderFactory = {
 // Internal Helpers
 // =============================================================================
 
+const LOW_EFFORT_MAX_BUDGET = 1_000;
+const HIGH_EFFORT_MIN_BUDGET = 10_000;
+
+const mapEffort = (budget: number): generation.Effort => {
+  if (budget <= LOW_EFFORT_MAX_BUDGET) return "low";
+  if (budget >= HIGH_EFFORT_MIN_BUDGET) return "high";
+  return "medium";
+};
+
 const buildParams = (
   cfg: config.ResolvedConfigTarget,
   options: generation.GenerateTextOptions,
 ): Record<string, unknown> => {
+  // Keys follow the Anthropic Messages API request body.
   const params: Record<string, unknown> = {
     model: cfg.model,
-    max_tokens: options.maxTokens ?? cfg.maxTokens,
+    "max_tokens": options.maxTokens ?? cfg.maxTokens,
     messages: mapMessages(options.messages),
   };
 
@@ -287,13 +328,8 @@ const buildParams = (
     params["system"] = options.system;
   }
 
-  if (options.temperature !== undefined) {
-    params["temperature"] = options.temperature;
-  }
-
-  if (options.topP !== undefined) {
-    params["top_p"] = options.topP;
-  }
+  // temperature and topP are not sent: Claude 4.7+ and the Claude 5 models
+  // reject non-default sampling parameters.
 
   if (options.stopWords !== undefined) {
     params["stop_sequences"] = options.stopWords;
@@ -308,17 +344,61 @@ const buildParams = (
   }
 
   if (options.toolChoice !== undefined) {
-    params["tool_choice"] = { type: options.toolChoice };
-  }
-
-  if (options.thinkingBudget !== undefined) {
-    params["thinking"] = {
-      type: "enabled",
-      budget_tokens: options.thinkingBudget,
+    // Anthropic names the forced choice "any"; "required" is rejected.
+    params["tool_choice"] = {
+      type: options.toolChoice === "required" ? "any" : options.toolChoice,
     };
   }
 
+  if (options.thinkingBudget !== undefined) {
+    // A fixed thinking budget returns a 400 on Claude 4.7+ and the Claude 5
+    // models; the budget maps to an effort level instead.
+    params["thinking"] = { type: "adaptive" };
+  }
+
+  // An explicit effort wins over the level the budget maps to. With neither,
+  // nothing is sent and the model's default applies.
+  const effort = options.effort ??
+    (options.thinkingBudget === undefined
+      ? undefined
+      : mapEffort(options.thinkingBudget));
+  const format = mapResponseFormat(options.responseFormat);
+
+  // Effort and format share one output_config object.
+  const outputConfig: Record<string, unknown> = {};
+  if (effort !== undefined) {
+    outputConfig["effort"] = effort;
+  }
+  if (format !== null) {
+    outputConfig["format"] = format;
+  }
+  if (Object.keys(outputConfig).length > 0) {
+    params["output_config"] = outputConfig;
+  }
+
   return params;
+};
+
+/**
+ * Maps a json_schema response format to `output_config.format`. Claude has no
+ * JSON mode without a schema, so `json_object` and `text` map to null and the
+ * prompt alone decides the shape of the reply. The format's `name` has no field
+ * in the API and is not sent.
+ *
+ * @throws {errors.BadRequestError} for `json_schema` without an object
+ * `jsonSchema`.
+ */
+const mapResponseFormat = (
+  responseFormat: generation.ResponseFormat | undefined,
+): Record<string, unknown> | null => {
+  if (responseFormat?.type !== "json_schema") {
+    return null;
+  }
+
+  return {
+    type: "json_schema",
+    schema: generation.requireJsonSchema(responseFormat, "anthropic"),
+  };
 };
 
 const mapMessages = (
@@ -331,7 +411,14 @@ const mapMessages = (
       continue; // System messages handled separately in params
     }
 
-    const contentParts = message.content.map(mapContentBlock);
+    const contentParts: Record<string, unknown>[] = [];
+    for (const block of message.content) {
+      const part = mapContentBlock(block);
+      if (part !== null) {
+        contentParts.push(part);
+      }
+    }
+
     result.push({
       role: message.role === "tool" ? "user" : message.role,
       content: contentParts,
@@ -341,9 +428,14 @@ const mapMessages = (
   return result;
 };
 
+/**
+ * Maps one block to the Messages API. Returns null for a block the request
+ * must leave out: a thinking block with neither a signature nor redacted data,
+ * such as one another provider produced, cannot pass the API's check.
+ */
 const mapContentBlock = (
   block: types.ContentBlock,
-): Record<string, unknown> => {
+): Record<string, unknown> | null => {
   switch (block.kind) {
     case "text": {
       return { type: "text", text: block.text };
@@ -396,6 +488,22 @@ const mapContentBlock = (
         is_error: block.toolResult.isError,
       };
     }
+    case "thinking": {
+      // Replayed exactly as the API returned it; the API checks the signature
+      // or the redacted data, so an empty one counts as missing (as in aifx).
+      const { redactedData, signature } = block.thinking;
+      if (redactedData !== undefined && redactedData !== "") {
+        return { type: "redacted_thinking", data: redactedData };
+      }
+      if (signature === undefined || signature === "") {
+        return null;
+      }
+      return {
+        type: "thinking",
+        thinking: block.thinking.text,
+        signature,
+      };
+    }
     default: {
       return {
         type: "text",
@@ -406,6 +514,7 @@ const mapContentBlock = (
 };
 
 const mapResponse = (
+  // The response is untyped vendor JSON; only the mapped fields are read.
   // deno-lint-ignore no-explicit-any
   response: any,
   modelId: string,
@@ -413,13 +522,15 @@ const mapResponse = (
   const contentBlocks: types.ContentBlock[] = [];
 
   for (const block of response.content ?? []) {
+    const thinking = toThinkingPart(block);
+
     if (block.type === "text") {
       contentBlocks.push({ kind: "text", text: block.text });
-    } else if (block.type === "thinking") {
-      contentBlocks.push({
-        kind: "text",
-        text: `[thinking] ${block.thinking}`,
-      });
+    } else if (thinking !== null) {
+      // Kept as its own kind, never as text, and kept when the text is empty
+      // (Claude 5 omits it by default): a tool-use loop must send the
+      // signature back.
+      contentBlocks.push({ kind: "thinking", thinking });
     } else if (block.type === "tool_use") {
       contentBlocks.push({
         kind: "tool_call",
@@ -446,13 +557,17 @@ const mapResponse = (
   };
 };
 
+/**
+ * Maps Anthropic's stop_reason. `model_context_window_exceeded` is a truncation
+ * like `max_tokens`: the reply was cut off because the context window filled.
+ */
 const mapStopReason = (
   reason: string | null | undefined,
 ): generation.StopReason => {
   if (reason === "end_turn") {
     return "end_turn";
   }
-  if (reason === "max_tokens") {
+  if (reason === "max_tokens" || reason === "model_context_window_exceeded") {
     return "max_tokens";
   }
   if (reason === "tool_use") {
@@ -461,10 +576,52 @@ const mapStopReason = (
   if (reason === "stop_sequence") {
     return "stop";
   }
+  if (reason === "refusal") {
+    return "refusal";
+  }
 
   return "end_turn";
 };
 
+/** A thinking block while its deltas are still arriving. */
+type ThinkingDraft = {
+  text: string;
+  signature: string;
+  redactedData: string | null;
+};
+
+const finishThinking = (draft: ThinkingDraft): types.ThinkingPart => {
+  if (draft.redactedData !== null) {
+    return { text: "", redactedData: draft.redactedData };
+  }
+
+  return draft.signature === ""
+    ? { text: draft.text }
+    : { text: draft.text, signature: draft.signature };
+};
+
+/**
+ * Reads an Anthropic thinking or redacted_thinking block as a thinking part,
+ * or returns null for any other block.
+ */
+const toThinkingPart = (
+  // A content block is untyped vendor JSON; only the mapped fields are read.
+  // deno-lint-ignore no-explicit-any
+  block: any,
+): types.ThinkingPart | null => {
+  if (block?.type === "thinking") {
+    return block.signature === undefined
+      ? { text: block.thinking ?? "" }
+      : { text: block.thinking ?? "", signature: block.signature };
+  }
+  if (block?.type === "redacted_thinking") {
+    return { text: "", redactedData: block.data ?? "" };
+  }
+
+  return null;
+};
+
+// The batch job is untyped vendor JSON; only the mapped fields are read.
 // deno-lint-ignore no-explicit-any
 const mapBatchJob = (result: any): batch.BatchJob => {
   return {
@@ -500,6 +657,7 @@ const classifyError = (err: unknown): errors.AiError => {
   }
 
   const error = err instanceof Error ? err : new Error(String(err));
+  // SDK errors carry the HTTP status on a field their type does not declare.
   // deno-lint-ignore no-explicit-any
   const statusCode = (err as any)?.status ?? (err as any)?.statusCode ?? 500;
 

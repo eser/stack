@@ -7,37 +7,40 @@
  */
 
 import * as standards from "@eserstack/standards";
-import { createFileTool, type FileTool, withGoValidator } from "./file-tool.ts";
+import * as cliSupport from "./cli-support.ts";
+import * as fileTool from "./file-tool.ts";
+import type { FileTool } from "./file-tool.ts";
 
-export const tool: FileTool = withGoValidator(
-  createFileTool({
+export const tool: FileTool = fileTool.withGoValidator(
+  fileTool.createFileTool({
     name: "validate-symlinks",
     description: "Detect broken symlinks",
     canFix: false,
     stacks: [],
     defaults: {},
 
-    async checkAll(files) {
-      const issues = [];
+    checkAll: async (files) => {
+      // Only flag BROKEN symlinks (target doesn't exist).
+      // Valid symlinks like AGENTS.md → CLAUDE.md pass silently.
+      // Each check is independent, so they run concurrently.
+      const symlinks = files.filter((file) => file.isSymlink);
+      const broken = await Promise.all(
+        symlinks.map(async (file): Promise<boolean> => {
+          try {
+            await standards.crossRuntime.runtime.fs.stat(file.path);
+            return false;
+          } catch {
+            return true;
+          }
+        }),
+      );
 
-      for (const file of files) {
-        if (!file.isSymlink) {
-          continue;
-        }
-
-        // Only flag BROKEN symlinks (target doesn't exist).
-        // Valid symlinks like AGENTS.md → CLAUDE.md pass silently.
-        try {
-          await standards.crossRuntime.runtime.fs.stat(file.path);
-        } catch {
-          issues.push({
-            path: file.path,
-            message: "broken symlink — target not found",
-          });
-        }
-      }
-
-      return issues;
+      return symlinks
+        .filter((_file, index) => broken[index] === true)
+        .map((file) => ({
+          path: file.path,
+          message: "broken symlink — target not found",
+        }));
     },
   }),
   "symlinks",
@@ -48,8 +51,10 @@ export const validator: FileTool["validator"] = tool.validator;
 export const main: FileTool["main"] = tool.main;
 
 if (import.meta.main) {
-  const { runCliMain } = await import("./cli-support.ts");
-  runCliMain(
-    await main(standards.crossRuntime.runtime.process.args as string[]),
+  // Entry point: the await only runs when this file is executed directly.
+  // deno-lint-ignore no-top-level-await
+  const result = await main(
+    standards.crossRuntime.runtime.process.args as string[],
   );
+  cliSupport.runCliMain(result);
 }

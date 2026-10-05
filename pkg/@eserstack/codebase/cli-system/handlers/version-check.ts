@@ -146,10 +146,15 @@ const markAttempt = async (knownVersion: string | undefined): Promise<void> => {
   }
 };
 
+// The check runs on ordinary CLI invocations; a slow network must not hold
+// the command up.
+const VERSION_CHECK_TIMEOUT_MS = 5_000;
+
 const fetchLatestVersion = async (): Promise<string | undefined> => {
   try {
     const response = await fetch(RELEASES_URL, {
       headers: { "Accept": "application/vnd.github.v3+json" },
+      signal: AbortSignal.timeout(VERSION_CHECK_TIMEOUT_MS),
     });
 
     if (!response.ok) {

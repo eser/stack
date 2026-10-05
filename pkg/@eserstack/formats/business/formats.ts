@@ -4,6 +4,12 @@ export type FormatEncodeOptions = {
   readonly pretty?: boolean;
   readonly indent?: number;
   readonly isFirst?: boolean;
+  /**
+   * Writes the value as a whole document instead of one list entry: one YAML
+   * mapping instead of a sequence entry, one TOML table without a `+++` line,
+   * one JSON value without array separators.
+   */
+  readonly document?: boolean;
 };
 
 export type FormatEncodeDocumentOptions = {

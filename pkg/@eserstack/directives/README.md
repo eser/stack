@@ -10,8 +10,9 @@ to a philosophy that consists of some best practices and proven experiences.
 
 ## 📕 Directives
 
-- [Social](01-social.md)
+- [Social: Code of Conduct](01-social.md)
 - [Technical](02-technical.md)
+- [Contributing](03-contributing.md)
 
 ---
 

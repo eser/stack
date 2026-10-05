@@ -1,7 +1,8 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 import * as assert from "@std/assert";
-import { emitter, type LogType } from "./emitter.ts";
+import * as emitter from "./emitter.ts";
+import type { LogType } from "./emitter.ts";
 
 Deno.test("basic", async () => {
   let sideEffectCounter = 0;
@@ -17,7 +18,7 @@ Deno.test("basic", async () => {
     calculate: [subscriberOne, subscriberTwo],
   };
 
-  await emitter(events, "calculate");
+  await emitter.emitter(events, "calculate");
 
   assert.assertEquals(sideEffectCounter, 3);
 });
@@ -40,8 +41,8 @@ Deno.test("many events", async () => {
     sub: [subscriberSubOne],
   };
 
-  await emitter(events, "add");
-  await emitter(events, "sub");
+  await emitter.emitter(events, "add");
+  await emitter.emitter(events, "sub");
 
   assert.assertEquals(sideEffectCounter, 2);
 });
@@ -61,7 +62,7 @@ Deno.test("wildcard events", async () => {
     dec: [subscriberTwo],
   };
 
-  await emitter(events, "*");
+  await emitter.emitter(events, "*");
 
   assert.assertEquals(sideEffectCounter, -1);
 });
@@ -80,7 +81,7 @@ Deno.test("parameters", async () => {
     calculate: [subscriberOne, subscriberTwo],
   };
 
-  await emitter(events, "calculate", [5]);
+  await emitter.emitter(events, "calculate", [5]);
 
   assert.assertEquals(sideEffectCounter, 15);
 });
@@ -102,7 +103,7 @@ Deno.test("subscribers", async () => {
   const logs: Array<LogType> = [];
   const logger = (entry: LogType) => logs.push(entry);
 
-  await emitter(events, "calculate", [5], [logger]);
+  await emitter.emitter(events, "calculate", [5], [logger]);
 
   assert.assertEquals(sideEffectCounter, 15);
   assert.assertEquals(logs, [

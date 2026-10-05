@@ -10,37 +10,48 @@
  */
 
 import * as results from "@eserstack/primitives/results";
+import * as streams from "@eserstack/streams";
 import type * as shellArgs from "@eserstack/shell/args";
 import * as persistence from "../state/persistence.ts";
 import * as specParser from "../spec/parser.ts";
+import * as cmd from "../output/cmd.ts";
 import { runtime } from "@eserstack/standards/cross-runtime";
 
 const ALLOWED_PHASES = new Set(["SPEC_PROPOSAL", "SPEC_APPROVED", "EXECUTING"]);
 
+/**
+ * Runs `spec <name> plan-export`. `projectRoot` is the project to read; the
+ * CLI leaves it out and resolves the project from the environment and the
+ * working directory.
+ */
 export const main = async (
   args?: readonly string[],
+  projectRoot?: string,
 ): Promise<shellArgs.CliResult<void>> => {
-  const { root } = await persistence.resolveProjectRoot();
-  const specResult = persistence.requireSpecFlag(args);
+  const root = projectRoot ?? (await persistence.resolveProjectRoot()).root;
+  const prefix = await cmd.loadCommandPrefix(root);
+  const specResult = persistence.requireSpecFlag(args, prefix);
   if (!specResult.ok) {
-    console.error(specResult.error);
-    return results.fail({ exitCode: 1 });
+    return results.fail({ exitCode: 1, message: specResult.error });
   }
 
   const specName = specResult.spec;
   let state;
   try {
-    state = await persistence.resolveState(root, specName);
+    state = await persistence.resolveState(root, specName, prefix);
   } catch (err: unknown) {
-    console.error(err instanceof Error ? err.message : String(err));
-    return results.fail({ exitCode: 1 });
+    return results.fail({
+      exitCode: 1,
+      message: err instanceof Error ? err.message : String(err),
+    });
   }
 
   if (!ALLOWED_PHASES.has(state.phase)) {
-    console.error(
-      `Spec must be in SPEC_PROPOSAL, SPEC_APPROVED, or EXECUTING to export a plan (current: ${state.phase}).`,
-    );
-    return results.fail({ exitCode: 1 });
+    return results.fail({
+      exitCode: 1,
+      message:
+        `Spec must be in SPEC_PROPOSAL, SPEC_APPROVED, or EXECUTING to export a plan (current: ${state.phase}).`,
+    });
   }
 
   // Parse spec.md for tasks
@@ -121,15 +132,21 @@ export const main = async (
   try {
     await runtime.fs.mkdir(`${root}/.claude`, { recursive: true });
     await runtime.fs.writeTextFile(planPath, content);
-    console.log(`Written: ${planPath}`);
   } catch (err: unknown) {
-    console.error(
-      `Failed to write plan.md: ${
+    return results.fail({
+      exitCode: 1,
+      message: `Write ${planPath}: ${
         err instanceof Error ? err.message : String(err)
       }`,
-    );
-    return results.fail({ exitCode: 1 });
+    });
   }
+
+  const out = streams.output({
+    renderer: streams.renderers.ansi(),
+    sink: streams.sinks.stdout(),
+  });
+  out.writeln(`Written: ${planPath}`);
+  await out.close();
 
   return results.ok(undefined);
 };

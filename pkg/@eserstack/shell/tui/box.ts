@@ -12,14 +12,22 @@
 
 import * as ansi from "./ansi.ts";
 
+/** The line style of a box border. */
 export type BorderStyle = "single" | "double" | "rounded";
 
+/** Where to draw a box and how it looks. */
 export type BoxOptions = {
+  /** Column of the left border, 1-based. */
   readonly x: number;
+  /** Row of the top border, 1-based. */
   readonly y: number;
+  /** Width in columns, borders included. */
   readonly width: number;
+  /** Height in rows, borders included. */
   readonly height: number;
+  /** Text set into the top border. */
   readonly title?: string;
+  /** Border style; "single" when unset. */
   readonly borderStyle?: BorderStyle;
 };
 

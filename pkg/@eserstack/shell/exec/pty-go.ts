@@ -14,18 +14,18 @@
  */
 
 import type * as ffiTypes from "@eserstack/ajan/ffi";
-import { describeLoadFailure, ensureLib, getLib } from "../ffi-client.ts";
+import * as ffiClient from "../ffi-client.ts";
 import type { PtyOptions, PtyProcess } from "./pty.ts";
 
 const requireLib = async (): Promise<ffiTypes.FFILibrary> => {
-  await ensureLib();
-  const lib = getLib();
+  await ffiClient.ensureLib();
+  const lib = ffiClient.getLib();
 
   if (lib === null) {
     throw new Error(
       "@eserstack/ajan native library is not available — " +
         "EserAjanShellPty* requires FFI or command-mode WASM" +
-        describeLoadFailure(),
+        ffiClient.describeLoadFailure(),
     );
   }
 
@@ -114,6 +114,8 @@ export const spawnPtyGo = async (opts: PtyOptions): Promise<PtyProcess> => {
   const pump = async (): Promise<void> => {
     try {
       while (true) {
+        // Each read returns the next PTY chunk, so reads run one at a time.
+        // deno-lint-ignore no-await-in-loop
         const raw = await lib.symbols.EserAjanShellPtyRead(handle);
 
         if (raw === "null") break;

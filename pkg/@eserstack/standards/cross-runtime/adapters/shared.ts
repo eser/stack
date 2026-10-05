@@ -10,6 +10,7 @@
 
 import type {
   Arch,
+  HttpHandler,
   Platform,
   PlatformInfo,
   Runtime,
@@ -17,12 +18,13 @@ import type {
   RuntimeEnv,
   RuntimeExec,
   RuntimeFs,
+  RuntimeHttp,
   RuntimeName,
   RuntimeProcess,
   SpawnOptions,
 } from "../types.ts";
-import { ProcessError, RuntimeCapabilityError } from "../types.ts";
-import { posixPath } from "../polyfills/path.ts";
+import * as types from "../types.ts";
+import * as path from "../polyfills/path.ts";
 
 // =============================================================================
 // Helper Utilities
@@ -39,6 +41,8 @@ export const getEnvVar = (key: string): string | undefined => {
   }
 
   // Node.js / Bun
+  // The Node types declare process as always present, but browsers and
+  // workers lack it, so it is read untyped and checked before use.
   // deno-lint-ignore no-explicit-any
   const proc = (globalThis as any).process;
   if (proc?.env) {
@@ -68,6 +72,8 @@ export const getFirstEnvVar = (...keys: string[]): string | undefined => {
  */
 export const tryRequire = <T>(moduleName: string): T | undefined => {
   try {
+    // require exists only in CommonJS contexts, while the Node types declare it
+    // everywhere; it is read untyped and narrowed by the instanceof check.
     // deno-lint-ignore no-explicit-any
     const requireFn = (globalThis as any).require;
     if (requireFn instanceof Function) {
@@ -80,22 +86,77 @@ export const tryRequire = <T>(moduleName: string): T | undefined => {
 };
 
 /**
- * Gets the Node.js process object if available.
+ * The fields of the Node.js and Bun `process` object that platform detection
+ * reads. Each one is optional because a bundler's browser shim of `process`
+ * can lack it.
  */
-// deno-lint-ignore no-explicit-any
-export const getProcess = (): any | undefined => {
-  // deno-lint-ignore no-explicit-any
-  return (globalThis as any).process;
+export interface NodeProcessInfo {
+  readonly platform?: string;
+  readonly arch?: string;
+}
+
+/**
+ * The field of the `navigator` object that platform detection reads.
+ */
+export interface NavigatorInfo {
+  readonly userAgent?: string;
+}
+
+/**
+ * Reads a property that holds a string, or undefined when it is absent or
+ * holds another type.
+ */
+const readStringProperty = (
+  target: object,
+  key: string,
+): string | undefined => {
+  const value: unknown = Reflect.get(target, key);
+
+  return typeof value === "string" ? value : undefined;
 };
 
 /**
- * Gets the browser navigator object if available.
+ * Narrows a `process` global to the fields platform detection reads.
+ * Returns null when the value is not an object.
  */
-// deno-lint-ignore no-explicit-any
-export const getNavigator = (): any | undefined => {
-  // deno-lint-ignore no-explicit-any
-  return (globalThis as any).navigator;
+export const toNodeProcessInfo = (value: unknown): NodeProcessInfo | null => {
+  if (!(value instanceof Object)) {
+    return null;
+  }
+
+  return {
+    platform: readStringProperty(value, "platform"),
+    arch: readStringProperty(value, "arch"),
+  };
 };
+
+/**
+ * Narrows a `navigator` global to the field platform detection reads.
+ * Returns null when the value is not an object.
+ */
+export const toNavigatorInfo = (value: unknown): NavigatorInfo | null => {
+  if (!(value instanceof Object)) {
+    return null;
+  }
+
+  return { userAgent: readStringProperty(value, "userAgent") };
+};
+
+/**
+ * Gets the platform fields of the Node.js or Bun process object, or null when
+ * the runtime has no `process` global. The global is read as unknown because
+ * the Node types declare it as always present, while browsers and workers
+ * lack it.
+ */
+export const getProcess = (): NodeProcessInfo | null =>
+  toNodeProcessInfo(Reflect.get(globalThis, "process"));
+
+/**
+ * Gets the user agent field of the `navigator` object, or null when the
+ * runtime has no `navigator` global.
+ */
+export const getNavigator = (): NavigatorInfo | null =>
+  toNavigatorInfo(Reflect.get(globalThis, "navigator"));
 
 /**
  * Type for Node.js os module methods we use.
@@ -110,6 +171,8 @@ export interface NodeOsModule {
 // Runtime Detection
 // =============================================================================
 
+// Detection probes globals (Bun, Deno, process, caches, window) that exist in
+// only some runtimes, so they are read untyped and checked with typeof.
 // deno-lint-ignore no-explicit-any
 const globalRef = globalThis as any;
 
@@ -227,13 +290,13 @@ export const getPlatform = (): Platform => {
 
   // Node.js / Bun
   const proc = getProcess();
-  if (proc?.platform) {
+  if (proc?.platform !== undefined) {
     return PLATFORM_MAP[proc.platform] ?? "linux";
   }
 
   // Browser detection via userAgent
   const nav = getNavigator();
-  if (nav?.userAgent) {
+  if (nav?.userAgent !== undefined) {
     const ua = nav.userAgent.toLowerCase();
     if (ua.includes("mac")) return "darwin";
     if (ua.includes("win")) return "windows";
@@ -243,8 +306,9 @@ export const getPlatform = (): Platform => {
   return "linux";
 };
 
+// Keys are the names that Deno.build.arch and Node's process.arch report.
 const ARCH_MAP: Record<string, Arch> = {
-  x86_64: "amd64",
+  "x86_64": "amd64",
   x64: "amd64",
   aarch64: "arm64",
   arm64: "arm64",
@@ -262,13 +326,13 @@ export const getArch = (): Arch => {
 
   // Node.js / Bun
   const proc = getProcess();
-  if (proc?.arch) {
+  if (proc?.arch !== undefined) {
     return ARCH_MAP[proc.arch] ?? "amd64";
   }
 
   // Browser detection via userAgent
   const nav = getNavigator();
-  if (nav?.userAgent) {
+  if (nav?.userAgent !== undefined) {
     const ua = nav.userAgent.toLowerCase();
     if (ua.includes("arm64") || ua.includes("aarch64")) return "arm64";
   }
@@ -399,14 +463,14 @@ export const createSharedExec = (
 
     async exec(
       cmd: string,
-      args: string[] = [],
+      args?: string[],
       options?: SpawnOptions,
     ): Promise<string> {
       const result = await spawnFn(cmd, args, options);
 
       if (!result.success) {
         const stderr = new TextDecoder().decode(result.stderr);
-        throw new ProcessError(cmd, result.code, stderr);
+        throw new types.ProcessError(cmd, result.code, stderr);
       }
 
       return new TextDecoder().decode(result.stdout).trim();
@@ -414,7 +478,7 @@ export const createSharedExec = (
 
     async execJson<T = unknown>(
       cmd: string,
-      args: string[] = [],
+      args?: string[],
       options?: SpawnOptions,
     ): Promise<T> {
       const output = await execAdapter.exec(cmd, args, options);
@@ -426,6 +490,54 @@ export const createSharedExec = (
 };
 
 // =============================================================================
+// Shared HTTP Composition
+// =============================================================================
+
+/** The address `runtime.http.serve` listens on when the caller names none. */
+export const DEFAULT_SERVE_HOSTNAME = "127.0.0.1";
+
+/**
+ * Wraps a serve handler so that an error it throws becomes a 500 response.
+ *
+ * Deno and Bun each answer such an error in their own way, and Node has no
+ * fetch-style server, so every adapter wraps the handler the same way.
+ *
+ * @param handler - The caller's handler
+ * @returns A handler that never rejects
+ */
+export const createSafeHandler = (
+  handler: HttpHandler,
+): (request: Request) => Promise<Response> =>
+async (request) => {
+  try {
+    return await handler(request);
+  } catch (error) {
+    // The query string is left out because it can carry tokens.
+    const { pathname } = new URL(request.url);
+    reportServeError(
+      `the handler threw for ${request.method} ${pathname}; the client got a 500 response.`,
+      error,
+    );
+
+    return new Response("Internal Server Error", { status: 500 });
+  }
+};
+
+/**
+ * Prints an error of `runtime.http.serve` that has no other owner, such as one
+ * a handler did not catch. Deno.serve and Bun.serve print those to stderr too.
+ *
+ * @param problem - What failed, without request data that can hold secrets
+ * @param error - The error
+ */
+export const reportServeError = (problem: string, error: unknown): void => {
+  // standards cannot depend on @eserstack/logging, and stderr is where the
+  // runtimes' own servers report these errors.
+  // deno-lint-ignore no-console
+  console.error(`runtime.http.serve: ${problem}`, error);
+};
+
+// =============================================================================
 // Stub Factories
 // =============================================================================
 
@@ -434,7 +546,7 @@ const createThrowFn = (
   runtimeName: RuntimeName,
 ): () => never => {
   return () => {
-    throw new RuntimeCapabilityError(capability, runtimeName);
+    throw new types.RuntimeCapabilityError(capability, runtimeName);
   };
 };
 
@@ -498,39 +610,53 @@ export const createStubProcess = (
     // claim still stands — throwing would turn "no process model" into a crash
     // on a question that has a correct answer here.
     isAlive: (): boolean => false,
+    addSignalListener: throwProcess,
+    removeSignalListener: throwProcess,
     get argv(): readonly string[] {
-      throw new RuntimeCapabilityError("process", runtimeName);
+      throw new types.RuntimeCapabilityError("process", runtimeName);
     },
     get argv0(): string {
-      throw new RuntimeCapabilityError("process", runtimeName);
+      throw new types.RuntimeCapabilityError("process", runtimeName);
     },
     get args(): readonly string[] {
-      throw new RuntimeCapabilityError("process", runtimeName);
+      throw new types.RuntimeCapabilityError("process", runtimeName);
     },
     get pid(): number {
-      throw new RuntimeCapabilityError("process", runtimeName);
+      throw new types.RuntimeCapabilityError("process", runtimeName);
     },
     get stdin(): ReadableStream<Uint8Array> {
-      throw new RuntimeCapabilityError("process", runtimeName);
+      throw new types.RuntimeCapabilityError("process", runtimeName);
     },
     get stdout(): WritableStream<Uint8Array> {
-      throw new RuntimeCapabilityError("process", runtimeName);
+      throw new types.RuntimeCapabilityError("process", runtimeName);
     },
     get stderr(): WritableStream<Uint8Array> {
-      throw new RuntimeCapabilityError("process", runtimeName);
+      throw new types.RuntimeCapabilityError("process", runtimeName);
     },
     isTerminal(): boolean {
       return false;
     },
     setStdinRaw(): void {
-      throw new RuntimeCapabilityError("process", runtimeName);
+      throw new types.RuntimeCapabilityError("process", runtimeName);
     },
     writeToStdout(): void {
-      throw new RuntimeCapabilityError("process", runtimeName);
+      throw new types.RuntimeCapabilityError("process", runtimeName);
     },
     consoleSize(): { columns: number; rows: number } {
       return { columns: 80, rows: 24 };
     },
+  };
+};
+
+/**
+ * Creates a stub HTTP adapter that throws on all operations.
+ */
+export const createStubHttp = (runtimeName: RuntimeName): RuntimeHttp => {
+  const throwHttp = createThrowFn("http", runtimeName);
+
+  return {
+    serve: throwHttp,
+    upgradeWebSocket: throwHttp,
   };
 };
 
@@ -559,11 +685,13 @@ export const createFallbackRuntime = (name: RuntimeName): Runtime => ({
     env: false,
     stdin: false,
     stdout: false,
+    http: false,
     kv: false,
   },
   fs: createStubFs(name),
-  path: posixPath,
+  path: path.posixPath,
   exec: createStubExec(name),
   env: createStubEnv(),
   process: createStubProcess(name),
+  http: createStubHttp(name),
 });

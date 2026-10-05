@@ -1,7 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import { assertEquals } from "@std/assert";
-import { wsTransport } from "./transport-ws.ts";
+import * as assert from "@std/assert";
+import * as transportWs from "./transport-ws.ts";
 
 /**
  * A minimal in-memory `WebSocket` stand-in. Two fakes can be linked so a frame
@@ -45,8 +45,8 @@ type Ping = { readonly t: "ping"; readonly n: number };
 
 Deno.test("wsTransport round-trips JSON messages between two sockets", async () => {
   const [sa, sb] = linkedPair();
-  const ta = wsTransport<Ping, Ping>(sa as unknown as WebSocket);
-  const tb = wsTransport<Ping, Ping>(sb as unknown as WebSocket);
+  const ta = transportWs.wsTransport<Ping, Ping>(sa as unknown as WebSocket);
+  const tb = transportWs.wsTransport<Ping, Ping>(sb as unknown as WebSocket);
 
   const received: Ping[] = [];
   tb.onMessage((m) => received.push(m));
@@ -55,22 +55,22 @@ Deno.test("wsTransport round-trips JSON messages between two sockets", async () 
   ta.send({ t: "ping", n: 2 });
   await new Promise((r) => queueMicrotask(() => r(undefined)));
 
-  assertEquals(received, [{ t: "ping", n: 1 }, { t: "ping", n: 2 }]);
+  assert.assertEquals(received, [{ t: "ping", n: 1 }, { t: "ping", n: 2 }]);
 });
 
 Deno.test("wsTransport drops sends when the socket is not open", () => {
   const [sa] = linkedPair();
   sa.readyState = FakeWebSocket.CLOSED;
-  const ta = wsTransport<Ping, Ping>(sa as unknown as WebSocket);
+  const ta = transportWs.wsTransport<Ping, Ping>(sa as unknown as WebSocket);
 
   ta.send({ t: "ping", n: 1 });
-  assertEquals(sa.sent, []);
+  assert.assertEquals(sa.sent, []);
 });
 
 Deno.test("wsTransport ignores non-string and malformed frames", async () => {
   const [sa, sb] = linkedPair();
-  const ta = wsTransport<Ping, Ping>(sa as unknown as WebSocket);
-  const tb = wsTransport<Ping, Ping>(sb as unknown as WebSocket);
+  const ta = transportWs.wsTransport<Ping, Ping>(sa as unknown as WebSocket);
+  const tb = transportWs.wsTransport<Ping, Ping>(sb as unknown as WebSocket);
 
   const received: Ping[] = [];
   tb.onMessage((m) => received.push(m));
@@ -83,18 +83,18 @@ Deno.test("wsTransport ignores non-string and malformed frames", async () => {
   ta.send({ t: "ping", n: 7 });
   await new Promise((r) => queueMicrotask(() => r(undefined)));
 
-  assertEquals(received, [{ t: "ping", n: 7 }]);
+  assert.assertEquals(received, [{ t: "ping", n: 7 }]);
 });
 
 Deno.test("wsTransport invokes onClose when the socket closes", () => {
   const [sa] = linkedPair();
   let closed = false;
-  wsTransport<Ping, Ping>(sa as unknown as WebSocket, {
+  transportWs.wsTransport<Ping, Ping>(sa as unknown as WebSocket, {
     onClose: () => {
       closed = true;
     },
   });
 
   sa.close();
-  assertEquals(closed, true);
+  assert.assertEquals(closed, true);
 });

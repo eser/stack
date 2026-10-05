@@ -1,19 +1,19 @@
 ---
 name: go-practices
-description: "Go conventions for eserstack's ajan framework, services and FFI bridge. Covers package layout, hexagonal wiring, errors and logfx logging, context, tests, idioms, data structures, performance and Go 1.26 stdlib use. Use when writing or reviewing .go files, pkg/ajan packages, pkg/@eserstack/ajan, Go tests, benchmarks, profiling or allocation work, or fixing golangci-lint findings."
+description: "Go conventions of this codebase, built on the ajan fx packages (logfx, httpfx, connfx, processfx): hexagonal layout, constructor injection, errors with errors.AsType, logfx logging, context, table-driven tests, idioms, data structures, performance, the Go 1.26 standard library. Use when writing or reviewing .go files, Go services or tests, benchmarks or profiling, or golangci-lint findings."
 ---
 
 # Go Practices
 
-How Go code is written in this repository: one root module
-`github.com/eser/stack` (framework in `pkg/ajan/`, binary in
-`cmd/noskills-server/`) plus the FFI bridge module `github.com/eser/ajan` in
-`pkg/@eserstack/ajan/`.
+How Go services and libraries are written in this codebase: hexagonal layers,
+dependencies through constructors, and the ajan `fx` packages as the building
+blocks for logging, HTTP, connections, processes and configuration. This
+codebase's module layout and commands are in its `AGENTS.md`.
 
 ## Always
 
-- Business packages under `pkg/ajan/api/business/` import only the standard
-  library; wiring happens in `pkg/ajan/api/adapters/appcontext/appcontext.go`.
+- Business packages (`business/<domain>/`) import only the standard library; all
+  wiring happens in one composition root (`adapters/appcontext/`).
 - Files are snake_case.
 - Check every error and wrap with a context prefix:
   `fmt.Errorf("load session %q: %w", id, err)`. Lowercase messages, `%q` for
@@ -29,8 +29,8 @@ How Go code is written in this repository: one root module
 - `defer Close()` on the line after a successful open; `panic` only for bugs.
 - Use the standard library up to the `go 1.26` directive, nothing newer.
 - Tests are table-driven with `t.Parallel()` and run with `-race`.
-- `make ok` checks only the root module. `deno task cli ok` also vets, builds
-  and lints the bridge module, since `./...` never crosses a module boundary.
+- `./...` never crosses a module boundary: when this codebase has several Go
+  modules, check, lint and test each one in its own directory.
 
 ## References
 
@@ -46,4 +46,4 @@ How Go code is written in this repository: one root module
 | [modernization.md](references/modernization.md)           | Replacing an old idiom, raising the `go` directive, Go tooling       |
 
 General rules (errors, logging, timeouts, config, interfaces) live in
-coding-practices and design-principles; commands in AGENTS.md.
+coding-practices and design-principles; commands in this codebase's AGENTS.md.

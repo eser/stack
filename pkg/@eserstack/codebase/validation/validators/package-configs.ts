@@ -6,7 +6,7 @@
  * @module
  */
 
-import { checkPackageConfigs } from "../../validate-package-configs.ts";
+import * as validatePackageConfigs from "../../validate-package-configs.ts";
 import type { Validator, ValidatorIssue, ValidatorResult } from "../types.ts";
 
 /**
@@ -19,8 +19,10 @@ export const packageConfigsValidator: Validator = {
   description: "Validate deno.json/package.json consistency",
   requiredStacks: ["javascript"],
 
-  async validate(options): Promise<ValidatorResult> {
-    const result = await checkPackageConfigs({ root: options.root });
+  validate: async (options): Promise<ValidatorResult> => {
+    const result = await validatePackageConfigs.checkPackageConfigs({
+      root: options.root,
+    });
 
     const issues: ValidatorIssue[] = [];
 

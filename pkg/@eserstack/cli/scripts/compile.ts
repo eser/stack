@@ -23,6 +23,10 @@
  * @module
  */
 
+// Build script: the progress lines and the summary it prints are the build log
+// that CI shows.
+// deno-lint-ignore-file no-console
+
 import { runtime } from "@eserstack/standards/cross-runtime";
 import * as shellExec from "@eserstack/shell/exec";
 import * as ajanTargets from "../../ajan/targets.ts";
@@ -32,38 +36,68 @@ const TARGETS = ajanTargets.NATIVE_TARGETS.map((t) => t.denoTarget);
 
 const MIN_BINARY_SIZE = 1_000_000; // 1MB — Deno binaries are 80-130MB
 
+/** Read size of the streaming hash: memory stays at one chunk per archive. */
+const HASH_CHUNK_BYTES = 65_536;
+
+/** A finished release archive. */
+type Archive = {
+  readonly target: string;
+  readonly archiveName: string;
+  readonly archivePath: string;
+};
+
+/** Paths and the version shared by every build in one run. */
+type BuildContext = {
+  readonly version: string;
+  readonly projectRoot: string;
+  readonly outputDir: string;
+  readonly eserGoDistDir: string;
+};
+
+/** A TypeScript entry point compiled with `deno compile`. */
+type DenoBinary = {
+  readonly name: string;
+  readonly entry: string;
+  /**
+   * Whether the archive carries the Go shared library.
+   *
+   * It is 34.7 MB and is copied per binary per platform, so shipping it with a
+   * tool that never calls into it multiplies the download for nothing. `laroux`
+   * touches no FFI; `noskills` does (ffi-client.ts, and the ai bridge behind
+   * `noskills run`).
+   */
+  readonly needsNativeLib: boolean;
+};
+
+/** A Go executable cross-compiled with `go build`. */
+type GoBinary = {
+  readonly name: string;
+  readonly main: string;
+};
+
+const describeError = (error: unknown): string =>
+  error instanceof Error ? error.message : String(error);
+
 /**
- * Computes SHA256 hash of a file using streaming (64KB chunks, <1MB peak memory).
+ * Computes the SHA-256 of a file by streaming it in 64KB chunks, so peak memory
+ * stays at one chunk whatever the archive size.
  */
 const computeFileSha256 = async (filePath: string): Promise<string> => {
-  const nodeFs = await import("node:fs");
-  const { createReadStream } = nodeFs;
+  const [nodeCrypto, nodeFs] = await Promise.all([
+    import("node:crypto"),
+    import("node:fs"),
+  ]);
 
-  const stream = createReadStream(filePath, { highWaterMark: 65_536 });
-  const chunks: Uint8Array[] = [];
+  const hash = nodeCrypto.createHash("sha256");
+  const stream = nodeFs.createReadStream(filePath, {
+    highWaterMark: HASH_CHUNK_BYTES,
+  });
 
   for await (const chunk of stream) {
-    chunks.push(chunk instanceof Uint8Array ? chunk : new Uint8Array(chunk));
+    hash.update(chunk);
   }
 
-  // Concatenate all chunks for digest
-  const totalLength = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
-  const combined = new Uint8Array(totalLength);
-  let offset = 0;
-  for (const chunk of chunks) {
-    combined.set(chunk, offset);
-    offset += chunk.length;
-  }
-
-  const hashBuffer = await crypto.subtle.digest(
-    "SHA-256",
-    combined as unknown as BufferSource,
-  );
-  const hashArray = new Uint8Array(hashBuffer);
-
-  return Array.from(hashArray)
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
+  return hash.digest("hex");
 };
 
 /**
@@ -92,6 +126,36 @@ const createZip = async (
 };
 
 /**
+ * Archives the staged files: .zip for Windows targets, .tar.gz for the rest.
+ */
+const createArchive = async (
+  isWindows: boolean,
+  stagingDir: string,
+  fileNames: string[],
+  outputPath: string,
+): Promise<void> => {
+  if (isWindows) {
+    await createZip(stagingDir, fileNames, outputPath);
+    return;
+  }
+
+  await createTarGz(stagingDir, fileNames, outputPath);
+};
+
+/**
+ * Removes a staging directory. Cleanup is best effort: a leftover staging
+ * directory does not change the archives, so a failure here must not fail the
+ * build.
+ */
+const removeStagingDir = async (stagingDir: string): Promise<void> => {
+  try {
+    await runtime.fs.remove(stagingDir, { recursive: true });
+  } catch {
+    // Already gone, or not removable; either way the archives are complete.
+  }
+};
+
+/**
  * Checks whether a file exists at the given path.
  */
 const fileExists = async (filePath: string): Promise<boolean> => {
@@ -101,6 +165,46 @@ const fileExists = async (filePath: string): Promise<boolean> => {
   } catch {
     return false;
   }
+};
+
+/**
+ * Copies one WASM build to `<file>.wasm.bin` and returns its `--include` flag,
+ * or null when the WASM build is absent or cannot be copied.
+ *
+ * deno compile validates .wasm imports statically and chokes on
+ * wasi_snapshot_preview1 (provided at runtime via our custom shim). Copying
+ * .wasm to .wasm.bin makes Deno treat it as opaque data, and the resolver finds
+ * it at runtime.
+ */
+const includeWasmFallback = async (
+  eserGoDistDir: string,
+  wasmTarget: ajanTargets.WasmTarget,
+): Promise<string | null> => {
+  const wasmPath = runtime.path.join(
+    eserGoDistDir,
+    wasmTarget.id,
+    wasmTarget.outputFile,
+  );
+
+  if (!(await fileExists(wasmPath))) {
+    return null;
+  }
+
+  const binPath = `${wasmPath}.bin`;
+
+  try {
+    await runtime.fs.copyFile(wasmPath, binPath);
+  } catch (error) {
+    console.warn(
+      `    ~ Failed to copy WASM for embed: ${wasmTarget.outputFile} (${
+        describeError(error)
+      })`,
+    );
+    return null;
+  }
+
+  console.log(`    + Including WASM fallback: ${wasmTarget.outputFile}.bin`);
+  return `--include=${binPath}`;
 };
 
 /**
@@ -126,42 +230,29 @@ const resolveGoIncludes = async (
 
     if (await fileExists(libPath)) {
       includes.push(`--include=${libPath}`);
-      // deno-lint-ignore no-console
       console.log(`    + Including Go library: ${nativeTarget.libFile}`);
     } else {
-      // deno-lint-ignore no-console
       console.warn(
         `    ~ Go library not found for ${target} (looked at ${libPath}), skipping FFI embed`,
       );
     }
   } else {
-    // deno-lint-ignore no-console
     console.warn(
       `    ~ No Go target mapping for ${target}, skipping FFI embed`,
     );
   }
 
-  // 2. WASM files (platform-independent fallback)
-  // deno compile validates .wasm imports statically and chokes on
-  // wasi_snapshot_preview1 (provided at runtime via our custom shim).
-  // Workaround: copy .wasm → .wasm.bin so Deno treats it as opaque data,
-  // then the resolver finds it at runtime.
-  for (const wt of ajanTargets.WASM_TARGETS) {
-    const wasmPath = runtime.path.join(eserGoDistDir, wt.id, wt.outputFile);
+  // 2. WASM files (platform-independent fallback). Each WASM target is its own
+  // file, so the copies run concurrently; Promise.all keeps the flag order.
+  const wasmIncludes = await Promise.all(
+    ajanTargets.WASM_TARGETS.map((wasmTarget) =>
+      includeWasmFallback(eserGoDistDir, wasmTarget)
+    ),
+  );
 
-    if (await fileExists(wasmPath)) {
-      // Copy to .wasm.bin to avoid Deno's static WASM import validation
-      const binPath = `${wasmPath}.bin`;
-      try {
-        const bytes = await runtime.fs.readFile(wasmPath);
-        await runtime.fs.writeFile(binPath, bytes);
-        includes.push(`--include=${binPath}`);
-        // deno-lint-ignore no-console
-        console.log(`    + Including WASM fallback: ${wt.outputFile}.bin`);
-      } catch {
-        // deno-lint-ignore no-console
-        console.warn(`    ~ Failed to copy WASM for embed: ${wt.outputFile}`);
-      }
+  for (const include of wasmIncludes) {
+    if (include !== null) {
+      includes.push(include);
     }
   }
 
@@ -183,14 +274,12 @@ const buildGoLibraries = async (projectRoot: string): Promise<void> => {
     "build.ts",
   );
 
-  // deno-lint-ignore no-console
   console.log("Building Go shared libraries (--with-go)...\n");
 
   await shellExec
     .exec`deno run --allow-all ${buildScript} --all`
     .spawn();
 
-  // deno-lint-ignore no-console
   console.log("");
 };
 
@@ -253,7 +342,7 @@ const buildGoLibraries = async (projectRoot: string): Promise<void> => {
  * per target, which is what made GoReleaser worth its complexity in the first
  * place.
  */
-const GO_BINARIES: readonly { name: string; main: string }[] = [
+const GO_BINARIES: readonly GoBinary[] = [
   { name: "noskills-server", main: "./cmd/noskills-server" },
 ];
 
@@ -267,19 +356,7 @@ const GO_BINARIES: readonly { name: string; main: string }[] = [
  * `noskills next` and `eser noskills next` are one code path. Adding a binary
  * here must never mean adding an implementation.
  */
-const BINARIES: readonly {
-  name: string;
-  entry: string;
-  /**
-   * Whether the archive carries the Go shared library.
-   *
-   * It is 34.7 MB and is copied per binary per platform, so shipping it with a
-   * tool that never calls into it multiplies the download for nothing. `laroux`
-   * touches no FFI; `noskills` does (ffi-client.ts, and the ai bridge behind
-   * `noskills run`).
-   */
-  needsNativeLib: boolean;
-}[] = [
+const BINARIES: readonly DenoBinary[] = [
   { name: "eser", entry: "pkg/@eserstack/cli/main.ts", needsNativeLib: true },
   {
     name: "noskills",
@@ -292,6 +369,187 @@ const BINARIES: readonly {
     needsNativeLib: false,
   },
 ];
+
+/**
+ * Compiles one TypeScript binary for one target and archives it, with the Go
+ * shared library when the binary needs it. Returns null when the build fails;
+ * the failure is already printed.
+ */
+const compileDenoBinary = async (
+  binary: DenoBinary,
+  target: string,
+  context: BuildContext,
+): Promise<Archive | null> => {
+  const { version, outputDir, eserGoDistDir } = context;
+  const entryPath = runtime.path.join(context.projectRoot, binary.entry);
+  const isWindows = target.includes("windows");
+  const binaryName = isWindows ? `${binary.name}.exe` : binary.name;
+
+  // Use a per-target staging directory so the shared library can sit
+  // alongside the binary inside the archive.
+  const stagingDir = runtime.path.join(
+    outputDir,
+    `staging-${binary.name}-${target}`,
+  );
+  await runtime.fs.mkdir(stagingDir, { recursive: true });
+  const binaryPath = runtime.path.join(stagingDir, binaryName);
+
+  console.log(`  Compiling ${binary.name} for ${target}...`);
+
+  try {
+    // Resolve --include flags for Go shared lib + WASM
+    const includeFlags = await resolveGoIncludes(eserGoDistDir, target);
+
+    await shellExec
+      // --node-modules-dir=none is not a micro-optimisation.
+      //
+      // Root deno.json sets nodeModulesDir "manual", and `deno compile`
+      // otherwise walks and EMBEDS the entire resolved node_modules tree --
+      // in a pnpm workspace that means every package's dependencies, 647 MB,
+      // not just this entry point's. Measured: 916 CPU-seconds to compile
+      // main.ts with the tree, 5.8 CPU-seconds without it. A one-line
+      // console.log with zero imports still took 10m32s with the tree and
+      // 0.475s without, which is what proves the cost is the walk and not our
+      // code.
+      //
+      // It also closes a reliability hole: a 10-minute tree walk races
+      // anything that touches the working copy, and compiles aborted with
+      // "Opening <path>: No such file or directory" when a file moved
+      // underneath it.
+      //
+      // The requirement this adds: npm packages must be in DENO_DIR at compile
+      // time, so CI needs its Deno cache warm before this runs.
+      .exec`deno compile --no-check --allow-all --node-modules-dir=none --target ${target} ${includeFlags} --output ${binaryPath} ${entryPath}`
+      .stderr("inherit")
+      .spawn();
+
+    // Validate binary size
+    const stat = await runtime.fs.stat(binaryPath);
+    if (stat.size < MIN_BINARY_SIZE) {
+      console.error(
+        `    ✗ Binary too small (${stat.size} bytes), likely corrupted`,
+      );
+      return null;
+    }
+
+    console.log(
+      `    ✓ ${(stat.size / 1_000_000).toFixed(1)}MB`,
+    );
+
+    // Collect files to archive: binary + Go shared library (if present)
+    const archiveFiles = [binaryName];
+    const nativeTarget = binary.needsNativeLib
+      ? ajanTargets.findByDenoTarget(target)
+      : undefined;
+
+    if (nativeTarget !== undefined) {
+      const libSrcPath = runtime.path.join(
+        eserGoDistDir,
+        nativeTarget.id,
+        nativeTarget.libFile,
+      );
+
+      if (await fileExists(libSrcPath)) {
+        // Copy the shared library into the staging dir for archiving
+        const libDestPath = runtime.path.join(
+          stagingDir,
+          nativeTarget.libFile,
+        );
+        await runtime.fs.copyFile(libSrcPath, libDestPath);
+        archiveFiles.push(nativeTarget.libFile);
+      }
+    }
+
+    // Create archive
+    const archiveBase = `${binary.name}-v${version}-${target}`;
+    const archiveName = isWindows
+      ? `${archiveBase}.zip`
+      : `${archiveBase}.tar.gz`;
+    const archivePath = runtime.path.join(outputDir, archiveName);
+
+    await createArchive(isWindows, stagingDir, archiveFiles, archivePath);
+
+    return { target, archiveName, archivePath };
+  } catch (error) {
+    console.error(`    ✗ Failed: ${describeError(error)}`);
+
+    // Surface captured stderr so CI logs show the actual deno compile error
+    if (
+      error !== null && typeof error === "object" && "stderr" in error &&
+      typeof (error as { stderr: unknown }).stderr === "string"
+    ) {
+      const stderr = (error as { stderr: string }).stderr.trim();
+      if (stderr.length > 0) {
+        console.error(`    stderr:\n${stderr}`);
+      }
+    }
+
+    return null;
+  } finally {
+    await removeStagingDir(stagingDir);
+  }
+};
+
+/**
+ * Cross-compiles one Go executable for one target and archives it. Returns
+ * null when the build fails; the failure is already printed.
+ */
+const compileGoBinary = async (
+  goBinary: GoBinary,
+  nativeTarget: ajanTargets.NativeTarget,
+  context: BuildContext,
+): Promise<Archive | null> => {
+  const { version, outputDir } = context;
+  const target = nativeTarget.denoTarget;
+  const isWindows = target.includes("windows");
+  const binaryName = isWindows ? `${goBinary.name}.exe` : goBinary.name;
+  const stagingDir = runtime.path.join(
+    outputDir,
+    `staging-${goBinary.name}-${target}`,
+  );
+
+  await runtime.fs.mkdir(stagingDir, { recursive: true });
+
+  console.log(`  Compiling ${goBinary.name} for ${target}...`);
+
+  try {
+    await shellExec
+      .exec`go build -trimpath -ldflags ${
+      "-s -w -X github.com/eser/stack/pkg/ajan/noskillsserverfx.Version=" +
+      version
+    } -o ${runtime.path.join(stagingDir, binaryName)} ${goBinary.main}`
+      // The parent environment is spread in explicitly rather than relying
+      // on the builder to merge. The two exec backends disagree: the Deno
+      // path merges with the parent (Deno.Command's default), while the Go
+      // bridge does `cmd.Env = opts.Env`, replacing it outright. Which one
+      // runs depends on whether the native library loaded, so a build that
+      // works locally could lose PATH, HOME and GOCACHE in CI and fail with
+      // a baffling "go: not found".
+      .env({
+        ...runtime.env.toObject(),
+        GOOS: nativeTarget.goos,
+        GOARCH: nativeTarget.goarch,
+        CGO_ENABLED: "0",
+      })
+      .stderr("inherit")
+      .spawn();
+
+    const archiveBase = `${goBinary.name}-v${version}-${target}`;
+    const archiveName = isWindows
+      ? `${archiveBase}.zip`
+      : `${archiveBase}.tar.gz`;
+    const archivePath = runtime.path.join(outputDir, archiveName);
+
+    await createArchive(isWindows, stagingDir, [binaryName], archivePath);
+
+    return { target, archiveName, archivePath };
+  } catch (error) {
+    console.error(`    ✗ ${goBinary.name}/${target}: ${describeError(error)}`);
+    return null;
+  } finally {
+    await removeStagingDir(stagingDir);
+  }
+};
 
 const main = async (): Promise<void> => {
   const scriptDir = import.meta.dirname;
@@ -333,7 +591,6 @@ const main = async (): Promise<void> => {
 
   // Step 1: Read version
   const version = (await runtime.fs.readTextFile(versionPath)).trim();
-  // deno-lint-ignore no-console
   console.log(
     `Compiling ${BINARIES.map((b) => b.name).join(", ")} v${version} ` +
       `for ${targets.length} platform${targets.length === 1 ? "" : "s"}...\n`,
@@ -352,145 +609,29 @@ const main = async (): Promise<void> => {
   }
   await runtime.fs.mkdir(outputDir, { recursive: true });
 
+  const context: BuildContext = {
+    version,
+    projectRoot,
+    outputDir,
+    eserGoDistDir,
+  };
+
   // Step 4: Compile for each target
-  const results: {
-    target: string;
-    archiveName: string;
-    archivePath: string;
-  }[] = [];
+  const archives: Archive[] = [];
   const failed: string[] = [];
 
   for (const binary of BINARIES) {
-    const entryPath = runtime.path.join(projectRoot, binary.entry);
-
     for (const target of targets) {
-      const isWindows = target.includes("windows");
-      const binaryName = isWindows ? `${binary.name}.exe` : binary.name;
+      // One `deno compile` at a time: each run takes several cores and
+      // gigabytes of memory, and every run rewrites the same .wasm.bin copies
+      // in the shared dist directory.
+      // deno-lint-ignore no-await-in-loop
+      const archive = await compileDenoBinary(binary, target, context);
 
-      // Use a per-target staging directory so the shared library can sit
-      // alongside the binary inside the archive.
-      const stagingDir = runtime.path.join(
-        outputDir,
-        `staging-${binary.name}-${target}`,
-      );
-      await runtime.fs.mkdir(stagingDir, { recursive: true });
-      const binaryPath = runtime.path.join(stagingDir, binaryName);
-
-      // deno-lint-ignore no-console
-      console.log(`  Compiling ${binary.name} for ${target}...`);
-
-      try {
-        // Resolve --include flags for Go shared lib + WASM
-        const includeFlags = await resolveGoIncludes(eserGoDistDir, target);
-
-        await shellExec
-          // --node-modules-dir=none is not a micro-optimisation.
-          //
-          // Root deno.json sets nodeModulesDir "manual", and `deno compile`
-          // otherwise walks and EMBEDS the entire resolved node_modules tree --
-          // in a pnpm workspace that means every package's dependencies, 647 MB,
-          // not just this entry point's. Measured: 916 CPU-seconds to compile
-          // main.ts with the tree, 5.8 CPU-seconds without it. A one-line
-          // console.log with zero imports still took 10m32s with the tree and
-          // 0.475s without, which is what proves the cost is the walk and not our
-          // code.
-          //
-          // It also closes a reliability hole: a 10-minute tree walk races
-          // anything that touches the working copy, and compiles aborted with
-          // "Opening <path>: No such file or directory" when a file moved
-          // underneath it.
-          //
-          // The requirement this adds: npm packages must be in DENO_DIR at compile
-          // time, so CI needs its Deno cache warm before this runs.
-          .exec`deno compile --no-check --allow-all --node-modules-dir=none --target ${target} ${includeFlags} --output ${binaryPath} ${entryPath}`
-          .stderr("inherit")
-          .spawn();
-
-        // Validate binary size
-        const stat = await runtime.fs.stat(binaryPath);
-        if (stat.size < MIN_BINARY_SIZE) {
-          // deno-lint-ignore no-console
-          console.error(
-            `    ✗ Binary too small (${stat.size} bytes), likely corrupted`,
-          );
-          failed.push(`${binary.name}/${target}`);
-          continue;
-        }
-
-        // deno-lint-ignore no-console
-        console.log(
-          `    ✓ ${(stat.size / 1_000_000).toFixed(1)}MB`,
-        );
-
-        // Collect files to archive: binary + Go shared library (if present)
-        const archiveFiles = [binaryName];
-        const nativeTarget = binary.needsNativeLib
-          ? ajanTargets.findByDenoTarget(target)
-          : undefined;
-
-        if (nativeTarget !== undefined) {
-          const libSrcPath = runtime.path.join(
-            eserGoDistDir,
-            nativeTarget.id,
-            nativeTarget.libFile,
-          );
-
-          if (await fileExists(libSrcPath)) {
-            // Copy the shared library into the staging dir for archiving
-            const libDestPath = runtime.path.join(
-              stagingDir,
-              nativeTarget.libFile,
-            );
-            await runtime.fs.copyFile(libSrcPath, libDestPath);
-            archiveFiles.push(nativeTarget.libFile);
-          }
-        }
-
-        // Create archive
-        const archiveBase = `${binary.name}-v${version}-${target}`;
-        const archiveName = isWindows
-          ? `${archiveBase}.zip`
-          : `${archiveBase}.tar.gz`;
-        const archivePath = runtime.path.join(outputDir, archiveName);
-
-        if (isWindows) {
-          await createZip(stagingDir, archiveFiles, archivePath);
-        } else {
-          await createTarGz(stagingDir, archiveFiles, archivePath);
-        }
-
-        results.push({ target, archiveName, archivePath });
-
-        // Remove staging directory after archiving
-        await runtime.fs.remove(stagingDir, { recursive: true });
-      } catch (error) {
-        // deno-lint-ignore no-console
-        console.error(
-          `    ✗ Failed: ${
-            error instanceof Error ? error.message : String(error)
-          }`,
-        );
-
-        // Surface captured stderr so CI logs show the actual deno compile error
-        if (
-          error !== null && typeof error === "object" && "stderr" in error &&
-          typeof (error as { stderr: unknown }).stderr === "string"
-        ) {
-          const stderr = (error as { stderr: string }).stderr.trim();
-          if (stderr.length > 0) {
-            // deno-lint-ignore no-console
-            console.error(`    stderr:\n${stderr}`);
-          }
-        }
-
+      if (archive === null) {
         failed.push(`${binary.name}/${target}`);
-
-        // Clean up staging directory
-        try {
-          await runtime.fs.remove(stagingDir, { recursive: true });
-        } catch {
-          // May not exist
-        }
+      } else {
+        archives.push(archive);
       }
     }
   }
@@ -505,76 +646,27 @@ const main = async (): Promise<void> => {
         continue;
       }
 
-      const isWindows = target.includes("windows");
-      const binaryName = isWindows ? `${goBinary.name}.exe` : goBinary.name;
-      const stagingDir = runtime.path.join(
-        outputDir,
-        `staging-${goBinary.name}-${target}`,
-      );
+      // One `go build` at a time: each build already uses every core, and
+      // running them in turn keeps each target's log lines together.
+      // deno-lint-ignore no-await-in-loop
+      const archive = await compileGoBinary(goBinary, nativeTarget, context);
 
-      await runtime.fs.mkdir(stagingDir, { recursive: true });
-
-      // deno-lint-ignore no-console
-      console.log(`  Compiling ${goBinary.name} for ${target}...`);
-
-      try {
-        await shellExec
-          .exec`go build -trimpath -ldflags ${
-          "-s -w -X github.com/eser/stack/pkg/ajan/noskillsserverfx.Version=" +
-          version
-        } -o ${runtime.path.join(stagingDir, binaryName)} ${goBinary.main}`
-          // The parent environment is spread in explicitly rather than relying
-          // on the builder to merge. The two exec backends disagree: the Deno
-          // path merges with the parent (Deno.Command's default), while the Go
-          // bridge does `cmd.Env = opts.Env`, replacing it outright. Which one
-          // runs depends on whether the native library loaded — so a build that
-          // works locally could lose PATH, HOME and GOCACHE in CI and fail with
-          // a baffling "go: not found".
-          .env({
-            ...runtime.env.toObject(),
-            GOOS: nativeTarget.goos,
-            GOARCH: nativeTarget.goarch,
-            CGO_ENABLED: "0",
-          })
-          .stderr("inherit")
-          .spawn();
-
-        const archiveBase = `${goBinary.name}-v${version}-${target}`;
-        const archiveName = isWindows
-          ? `${archiveBase}.zip`
-          : `${archiveBase}.tar.gz`;
-        const archivePath = runtime.path.join(outputDir, archiveName);
-
-        if (isWindows) {
-          await createZip(stagingDir, [binaryName], archivePath);
-        } else {
-          await createTarGz(stagingDir, [binaryName], archivePath);
-        }
-
-        results.push({ target, archiveName, archivePath });
-      } catch (error) {
-        // deno-lint-ignore no-console
-        console.error(`    ✗ ${goBinary.name}/${target}: ${error}`);
+      if (archive === null) {
         failed.push(`${goBinary.name}/${target}`);
-      }
-
-      try {
-        await runtime.fs.remove(stagingDir, { recursive: true });
-      } catch {
-        // May not exist
+      } else {
+        archives.push(archive);
       }
     }
   }
 
-  // Step 5: Generate SHA256SUMS.txt
-  // deno-lint-ignore no-console
+  // Step 5: Generate SHA256SUMS.txt. Each hash streams its own file, so they
+  // run concurrently; Promise.all keeps the lines in build order.
   console.log("\nGenerating SHA256SUMS.txt...");
-  const sha256Lines: string[] = [];
-
-  for (const { archiveName, archivePath } of results) {
-    const hash = await computeFileSha256(archivePath);
-    sha256Lines.push(`${hash}  ${archiveName}`);
-  }
+  const sha256Lines = await Promise.all(
+    archives.map(async ({ archiveName, archivePath }) =>
+      `${await computeFileSha256(archivePath)}  ${archiveName}`
+    ),
+  );
 
   const sha256Path = runtime.path.join(outputDir, "SHA256SUMS.txt");
   await runtime.fs.writeTextFile(
@@ -583,27 +675,20 @@ const main = async (): Promise<void> => {
   );
 
   // Step 6: Summary
-  // deno-lint-ignore no-console
+  const attempted = targets.length * (BINARIES.length + GO_BINARIES.length);
   console.log(`\n${"─".repeat(50)}`);
-  // deno-lint-ignore no-console
   console.log(
-    `✓ ${results.length}/${
-      TARGETS.length * BINARIES.length
-    } builds compiled successfully`,
+    `✓ ${archives.length}/${attempted} builds compiled successfully`,
   );
 
   if (failed.length > 0) {
-    // deno-lint-ignore no-console
     console.error(`✗ ${failed.length} targets failed: ${failed.join(", ")}`);
   }
 
-  // deno-lint-ignore no-console
   console.log(`\nOutput: ${outputDir}`);
-  for (const { archiveName } of results) {
-    // deno-lint-ignore no-console
+  for (const { archiveName } of archives) {
     console.log(`  ${archiveName}`);
   }
-  // deno-lint-ignore no-console
   console.log(`  SHA256SUMS.txt`);
 
   // Exit with error if any target failed
@@ -612,4 +697,9 @@ const main = async (): Promise<void> => {
   }
 };
 
-main();
+if (import.meta.main) {
+  // Script entry point: the await runs only when this file is the program,
+  // never on import.
+  // deno-lint-ignore no-top-level-await
+  await main();
+}

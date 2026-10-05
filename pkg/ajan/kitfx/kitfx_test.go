@@ -266,7 +266,7 @@ func TestApplyRecipe_DryRun(t *testing.T) {
 		Variables: map[string]string{"name": "world"},
 	}
 
-	result, err := kitfx.ApplyRecipe(recipe, opts)
+	result, err := kitfx.ApplyRecipe(t.Context(), recipe, opts)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -296,7 +296,7 @@ func TestApplyRecipe_PathTraversal(t *testing.T) {
 
 	opts := kitfx.ApplyOptions{CWD: t.TempDir()}
 
-	_, err := kitfx.ApplyRecipe(recipe, opts)
+	_, err := kitfx.ApplyRecipe(t.Context(), recipe, opts)
 	if err == nil {
 		t.Fatal("expected path traversal error")
 	}

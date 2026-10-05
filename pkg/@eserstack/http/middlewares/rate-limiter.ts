@@ -8,9 +8,9 @@
  *
  * @example
  * ```typescript
- * import { rateLimiter } from "@eserstack/http/middlewares";
+ * import * as http from "@eserstack/http";
  *
- * const limiter = rateLimiter.createRateLimiter({
+ * const limiter = http.middlewares.rateLimiter.createRateLimiter({
  *   maxRequests: 100,
  *   windowMs: 60000,
  *   skipPaths: ["/health", "/api/public"],
@@ -18,7 +18,7 @@
  *
  * // In your request handler:
  * const rateLimitResponse = limiter.check(req, pathname);
- * if (rateLimitResponse) {
+ * if (rateLimitResponse !== null) {
  *   return rateLimitResponse; // 429 Too Many Requests
  * }
  * ```
@@ -175,6 +175,8 @@ export const UNKNOWN_CLIENT = "unknown";
  */
 export const getClientIp = (
   req: Request,
+  // Public API: moving `trustProxy` after `remote` would break every caller.
+  // deno-lint-ignore default-param-last
   trustProxy = false,
   remote?: RemoteAddress,
   trustedProxies: readonly string[] = DEFAULT_TRUSTED_PROXIES,
@@ -237,9 +239,9 @@ const validateConfig = (config: RateLimitConfig): void => {
  *
  * @example
  * ```typescript
- * import { rateLimiter } from "@eserstack/http/middlewares";
+ * import * as http from "@eserstack/http";
  *
- * const limiter = rateLimiter.createRateLimiter({
+ * const limiter = http.middlewares.rateLimiter.createRateLimiter({
  *   maxRequests: 100,
  *   windowMs: 60000,
  *   skipPaths: ["/health", "/api/public"],
@@ -247,7 +249,7 @@ const validateConfig = (config: RateLimitConfig): void => {
  *
  * // In your request handler:
  * const rateLimitResponse = limiter.check(req, pathname);
- * if (rateLimitResponse) {
+ * if (rateLimitResponse !== null) {
  *   return rateLimitResponse; // 429 Too Many Requests
  * }
  *

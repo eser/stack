@@ -1,80 +1,93 @@
 package httpfx_test
 
 import (
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/eser/stack/pkg/ajan/httpfx"
+	"github.com/eser/stack/pkg/ajan/logfx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
+// newTestRouter returns a router whose log of failed writes is discarded.
+func newTestRouter() *httpfx.Router {
+	return httpfx.NewRouter(logfx.NewLogger(logfx.WithWriter(io.Discard)))
+}
+
 func TestNewRouter(t *testing.T) {
 	t.Parallel()
 
-	tests := []struct {
-		name     string
-		path     string
-		wantPath string
-	}{
-		{
-			name:     "root_path",
-			path:     "/",
-			wantPath: "/",
-		},
-		{
-			name:     "api_path",
-			path:     "/api",
-			wantPath: "/api",
-		},
-		{
-			name:     "nested_path",
-			path:     "/api/v1",
-			wantPath: "/api/v1",
-		},
-	}
-
-	for _, tt := range tests { //nolint:varnamelen
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-
-			router := httpfx.NewRouter(tt.path)
-			require.NotNil(t, router)
-			assert.Equal(t, tt.wantPath, router.GetPath())
-			assert.NotNil(t, router.GetMux())
-			assert.Empty(t, router.GetHandlers())
-			assert.Empty(t, router.GetRoutes())
-		})
-	}
+	router := newTestRouter()
+	require.NotNil(t, router)
+	assert.NotNil(t, router.GetMux())
+	assert.Empty(t, router.GetHandlers())
+	assert.Empty(t, router.GetRoutes())
 }
 
-// TestRouter_Group pins that grouping refuses rather than silently 404ing.
-//
-// This test used to assert only that GetPath() concatenated the prefixes, so it
-// passed for as long as the feature was entirely broken: Group returned a router
-// with its own unmounted ServeMux, and every route registered on it 404ed. The
-// assertion never registered a route or issued a request, which is exactly how a
-// non-functioning API kept the appearance of coverage.
-func TestRouter_Group(t *testing.T) {
+func TestNewRouter_NilLogger(t *testing.T) {
 	t.Parallel()
-
-	router := httpfx.NewRouter("/api")
-	require.NotNil(t, router)
 
 	assert.PanicsWithValue(
 		t,
-		"httpfx: Router.Group is not implemented (requested path=/v1). "+
-			"It returned an unmounted router, so grouped routes silently "+
-			"404ed. Register routes on the parent router with their full path.",
-		func() { router.Group("/v1") },
+		"httpfx: NewRouter needs a logger; pass the service's *logfx.Logger",
+		func() { httpfx.NewRouter(nil) },
 	)
+}
+
+// The router has no prefix of its own: each pattern is served at exactly the
+// path it names, through the mux the services mount.
+func TestRouter_ServesPatternsAsWritten(t *testing.T) {
+	t.Parallel()
+
+	router := newTestRouter()
+
+	router.Route("GET /users", func(ctx *httpfx.Context) httpfx.Result {
+		return ctx.Results.PlainText([]byte("users"))
+	})
+	router.Route("GET /api/v1/users", func(ctx *httpfx.Context) httpfx.Result {
+		return ctx.Results.PlainText([]byte("api users"))
+	})
+	router.RouteRaw("/api/v1/attach", func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusAccepted)
+	})
+
+	tests := []struct {
+		name       string
+		method     string
+		path       string
+		wantStatus int
+		wantBody   string
+	}{
+		{name: "top-level pattern", method: http.MethodGet, path: "/users", wantStatus: http.StatusOK, wantBody: "users"},
+		{name: "nested pattern", method: http.MethodGet, path: "/api/v1/users", wantStatus: http.StatusOK, wantBody: "api users"},
+		{name: "raw pattern", method: http.MethodConnect, path: "/api/v1/attach", wantStatus: http.StatusAccepted},
+		{name: "no implicit prefix", method: http.MethodGet, path: "/api/users", wantStatus: http.StatusNotFound},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			req := httptest.NewRequestWithContext(t.Context(), tt.method, tt.path, nil)
+			recorder := httptest.NewRecorder()
+			router.GetMux().ServeHTTP(recorder, req)
+
+			assert.Equal(t, tt.wantStatus, recorder.Code)
+
+			if tt.wantBody != "" {
+				assert.Equal(t, tt.wantBody, recorder.Body.String())
+			}
+		})
+	}
 }
 
 func TestRouter_Use(t *testing.T) {
 	t.Parallel()
 
-	router := httpfx.NewRouter("/")
+	router := newTestRouter()
 	require.NotNil(t, router)
 
 	handler1 := func(ctx *httpfx.Context) httpfx.Result {
@@ -127,7 +140,7 @@ func TestRouter_Route(t *testing.T) {
 			t.Parallel()
 
 			// Create a new router for each test case
-			router := httpfx.NewRouter("/api")
+			router := newTestRouter()
 			require.NotNil(t, router)
 
 			handler := func(ctx *httpfx.Context) httpfx.Result {
@@ -153,7 +166,7 @@ func TestRouter_Route(t *testing.T) {
 func TestRouter_RouteWithMiddleware(t *testing.T) {
 	t.Parallel()
 
-	router := httpfx.NewRouter("/api")
+	router := newTestRouter()
 	require.NotNil(t, router)
 
 	// Middleware that adds a header

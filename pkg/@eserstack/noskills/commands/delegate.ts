@@ -15,6 +15,7 @@ import * as persistence from "../state/persistence.ts";
 import * as machine from "../state/machine.ts";
 import * as identity from "../state/identity.ts";
 import * as dashboardEvents from "../dashboard/events.ts";
+import * as cmd from "../output/cmd.ts";
 
 export const main = async (
   args?: readonly string[],
@@ -25,7 +26,8 @@ export const main = async (
   });
 
   const { root } = await persistence.resolveProjectRoot();
-  const specResult = persistence.requireSpecFlag(args);
+  const prefix = await cmd.loadCommandPrefix(root);
+  const specResult = persistence.requireSpecFlag(args, prefix);
   if (!specResult.ok) {
     out.writeln(span.red(specResult.error));
     await out.close();
@@ -39,10 +41,12 @@ export const main = async (
   const questionId = positionals[0];
   const userName = positionals.slice(1).join(" ");
 
-  if (!questionId || !userName) {
+  if (questionId === undefined || questionId === "" || userName === "") {
     out.writeln(
       span.red(
-        "Usage: noskills spec <name> delegate <questionId> <userName>",
+        `Usage: ${
+          cmd.cmd(`spec ${specResult.spec} delegate <questionId> <userName>`)
+        }`,
       ),
     );
     await out.close();
@@ -51,7 +55,7 @@ export const main = async (
 
   let state: schema.StateFile;
   try {
-    state = await persistence.resolveState(root, specResult.spec);
+    state = await persistence.resolveState(root, specResult.spec, prefix);
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     out.writeln(span.red(msg));

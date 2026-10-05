@@ -1,7 +1,7 @@
 {
   "id": "root-cause",
   "name": "Root Cause Investigation",
-  "description": "NO FIXES WITHOUT ROOT CAUSE INVESTIGATION FIRST. Symptoms are not bugs. The bug is the condition that allowed the symptom to occur. A fix that addresses the symptom without finding the root cause will recur — guaranteed. Every bugfix must trace the failure to its origin and verify the chain.",
+  "description": "No fix without a root cause investigation first. Symptoms are not bugs: the bug is the condition that allowed the symptom to occur. A fix that addresses the symptom without finding the root cause leaves that condition in place, so the bug comes back. Every bugfix traces the failure to its origin and verifies the chain.",
   "category": "quality",
   "extras": [
     {
@@ -26,40 +26,35 @@
       "id": "symptom-description",
       "title": "Symptom Description",
       "placeholder": "_What is the exact symptom? Reproduce it step by step. What is the expected behavior vs. actual behavior? Which users are affected, and under what conditions?_",
-      "condition": null,
       "position": "after:problem-statement"
     },
     {
       "id": "root-cause-analysis",
       "title": "Root Cause Analysis",
       "placeholder": "_Trace the failure to its origin: what is the FIRST place in the call stack or data flow where the value is wrong — not where it surfaces, where it originates. File:line reference required._",
-      "condition": null,
       "position": "after:problem-statement"
     },
     {
       "id": "reproduction-test",
       "title": "Reproduction Test",
       "placeholder": "_Name the exact test file and test case that reproduces this bug. Confirm it was RED before the fix and GREEN after. The test must target the root cause condition, not just the symptom._",
-      "condition": null,
       "position": "after:problem-statement"
     },
     {
       "id": "fix-strategy",
       "title": "Fix Strategy",
       "placeholder": "_Describe the fix at the root cause level. Why does this fix make the class of bug impossible, not just this instance? What other codepaths have the same vulnerability?_",
-      "condition": null,
       "position": "after:problem-statement"
     },
     {
       "id": "bug-verification",
       "title": "Verification",
       "placeholder": "_How is the fix verified? Regression test name, manual reproduction steps, and any monitoring signals that confirm the fix is effective in production._",
-      "condition": null,
       "position": "after:problem-statement"
     }
   ],
   "reminders": [
-    "IRON LAW: NO FIXES WITHOUT ROOT CAUSE INVESTIGATION FIRST. Before writing one line of fix code, you must identify the root cause. 'I think it's X' is not a root cause. The root cause is the deepest causal condition in the system that, if changed, would make this class of bug impossible.",
+    "Root cause first: identify the root cause before you write any fix code, because a fix aimed at the symptom leaves the cause in place and the bug comes back. 'I think it's X' is not a root cause. The root cause is the deepest causal condition in the system that, if changed, would make this class of bug impossible.",
     "5-Phase Structure — follow this order: (1) INVESTIGATE: reproduce the bug, map the call chain, identify where the wrong value originates. (2) PATTERN ANALYSIS: is this a one-off or a class of bugs? Check for similar patterns nearby. (3) HYPOTHESIS TESTING: state a falsifiable hypothesis about the root cause, test it. (4) IMPLEMENTATION: write the fix at the root, not the symptom. (5) VERIFICATION: run the reproduction test — it must go from RED to GREEN.",
     "3-Strike Rule: if your first hypothesis is wrong, revise. If your second is wrong, stop and map the full data flow from entry to failure. Three strikes = STOP, write down everything you know, ask for help. Do NOT keep guessing.",
     "Fault taxonomy — check each: (1) Off-by-one: boundary condition wrong. (2) Race condition: shared state, missing lock, wrong order. (3) Nil/null propagation: unwrap of optional without check. (4) Type coercion: implicit conversion producing wrong type. (5) Stale closure/reference: captured value from wrong scope/time. (6) Missing case: enum or union with an unhandled branch.",
@@ -69,7 +64,7 @@
   ],
   "acceptanceCriteria": [
     "Root cause identified and documented: the exact condition that allowed the bug to exist, with file:line reference",
-    "Reproduction test written BEFORE the fix — test was RED before fix, GREEN after (Regression Iron Law)",
+    "Reproduction test written before the fix: red before the fix, green after",
     "Fix addresses the root cause, not the symptom — symptom disappears as a consequence",
     "Pattern check completed: adjacent code paths with same vulnerability identified and either fixed or documented as follow-up",
     "3-Strike Rule applied: if hypothesis changed, documented why each failed hypothesis was wrong",

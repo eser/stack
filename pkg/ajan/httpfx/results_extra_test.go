@@ -62,6 +62,10 @@ func TestWithJSON_Option_MarshalError(t *testing.T) {
 	if result.StatusCode() != http.StatusInternalServerError {
 		t.Errorf("expected 500 on marshal error, got %d", result.StatusCode())
 	}
+
+	if _, isUnsupported := errors.AsType[*json.UnsupportedTypeError](result.Unwrap()); !isUnsupported {
+		t.Errorf("result carries %v, want the encoding error", result.Unwrap())
+	}
 }
 
 func TestResults_JSON_MarshalError(t *testing.T) {
@@ -72,6 +76,10 @@ func TestResults_JSON_MarshalError(t *testing.T) {
 
 	if result.StatusCode() != http.StatusInternalServerError {
 		t.Errorf("expected 500 on marshal error, got %d", result.StatusCode())
+	}
+
+	if _, isUnsupported := errors.AsType[*json.UnsupportedTypeError](result.Unwrap()); !isUnsupported {
+		t.Errorf("result carries %v, want the encoding error", result.Unwrap())
 	}
 }
 
@@ -102,6 +110,11 @@ func TestWithSanitizedError_DiscloseDisabled(t *testing.T) {
 	if payload["error"] == "" {
 		t.Error("expected a generic error message, got empty")
 	}
+
+	// The router logs the error it finds on the result.
+	if !errors.Is(result.Unwrap(), err) {
+		t.Errorf("result carries %v, want %v", result.Unwrap(), err)
+	}
 }
 
 func TestWithSanitizedError_DiscloseEnabled(t *testing.T) {
@@ -121,5 +134,9 @@ func TestWithSanitizedError_DiscloseEnabled(t *testing.T) {
 
 	if payload["error"] != "real error message" {
 		t.Errorf("expected real error, got %q", payload["error"])
+	}
+
+	if !errors.Is(result.Unwrap(), err) {
+		t.Errorf("result carries %v, want %v", result.Unwrap(), err)
 	}
 }

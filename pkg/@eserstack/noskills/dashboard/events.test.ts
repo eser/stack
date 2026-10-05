@@ -1,7 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import { describe, it } from "@std/testing/bdd";
-import { assert, assertEquals } from "@std/assert";
+import * as bdd from "@std/testing/bdd";
+import * as assert from "@std/assert";
 import * as events from "./events.ts";
 import { runtime } from "@eserstack/standards/cross-runtime";
 
@@ -33,21 +33,21 @@ const makeEvent = (
 // appendEvent
 // =============================================================================
 
-describe("appendEvent", () => {
-  it("creates JSONL file if not exists", async () => {
+bdd.describe("appendEvent", () => {
+  bdd.it("creates JSONL file if not exists", async () => {
     const root = await makeTempDir();
     await events.appendEvent(root, makeEvent("spec-created", "test-spec"));
 
     const content = await runtime.fs.readTextFile(
       `${root}/${events.eventsFile}`,
     );
-    assert(content.length > 0);
+    assert.assert(content.length > 0);
     const parsed = JSON.parse(content.trim());
-    assertEquals(parsed.type, "spec-created");
-    assertEquals(parsed.spec, "test-spec");
+    assert.assertEquals(parsed.type, "spec-created");
+    assert.assertEquals(parsed.spec, "test-spec");
   });
 
-  it("appends multiple events as separate lines", async () => {
+  bdd.it("appends multiple events as separate lines", async () => {
     const root = await makeTempDir();
     await events.appendEvent(root, makeEvent("spec-created", "spec-1"));
     await events.appendEvent(root, makeEvent("phase-change", "spec-1"));
@@ -57,10 +57,10 @@ describe("appendEvent", () => {
       `${root}/${events.eventsFile}`,
     );
     const lines = content.trim().split("\n");
-    assertEquals(lines.length, 3);
+    assert.assertEquals(lines.length, 3);
   });
 
-  it("each line is valid JSON", async () => {
+  bdd.it("each line is valid JSON", async () => {
     const root = await makeTempDir();
     await events.appendEvent(root, makeEvent("spec-created", "s1"));
     await events.appendEvent(
@@ -73,12 +73,12 @@ describe("appendEvent", () => {
     );
     for (const line of content.trim().split("\n")) {
       const parsed = JSON.parse(line);
-      assert(typeof parsed.ts === "string");
-      assert(typeof parsed.type === "string");
+      assert.assert(typeof parsed.ts === "string");
+      assert.assert(typeof parsed.type === "string");
     }
   });
 
-  it("creates events directory if missing", async () => {
+  bdd.it("creates events directory if missing", async () => {
     const base = await runtime.fs.makeTempDir();
     const root = `${base}/fresh-${tempCounter++}`;
     await runtime.fs.mkdir(`${root}/.eser`, { recursive: true });
@@ -89,7 +89,7 @@ describe("appendEvent", () => {
     const content = await runtime.fs.readTextFile(
       `${root}/${events.eventsFile}`,
     );
-    assert(content.includes("spec-created"));
+    assert.assert(content.includes("spec-created"));
   });
 });
 
@@ -97,14 +97,14 @@ describe("appendEvent", () => {
 // readEvents
 // =============================================================================
 
-describe("readEvents", () => {
-  it("returns empty array when no events file", async () => {
+bdd.describe("readEvents", () => {
+  bdd.it("returns empty array when no events file", async () => {
     const root = await makeTempDir();
     const result = await events.readEvents(root);
-    assertEquals(result.length, 0);
+    assert.assertEquals(result.length, 0);
   });
 
-  it("returns events in newest-first order", async () => {
+  bdd.it("returns events in newest-first order", async () => {
     const root = await makeTempDir();
     await events.appendEvent(
       root,
@@ -120,22 +120,24 @@ describe("readEvents", () => {
     );
 
     const result = await events.readEvents(root);
-    assertEquals(result.length, 3);
-    assertEquals(result[0]!.type, "note"); // newest first
-    assertEquals(result[2]!.type, "spec-created"); // oldest last
+    assert.assertEquals(result.length, 3);
+    assert.assertEquals(result[0]!.type, "note"); // newest first
+    assert.assertEquals(result[2]!.type, "spec-created"); // oldest last
   });
 
-  it("respects limit option", async () => {
+  bdd.it("respects limit option", async () => {
     const root = await makeTempDir();
     for (let i = 0; i < 10; i++) {
+      // Every append goes to the same log file, so they run in order.
+      // deno-lint-ignore no-await-in-loop
       await events.appendEvent(root, makeEvent("note", "s1"));
     }
 
     const result = await events.readEvents(root, { limit: 3 });
-    assertEquals(result.length, 3);
+    assert.assertEquals(result.length, 3);
   });
 
-  it("respects since option", async () => {
+  bdd.it("respects since option", async () => {
     const root = await makeTempDir();
     await events.appendEvent(
       root,
@@ -149,11 +151,11 @@ describe("readEvents", () => {
     const result = await events.readEvents(root, {
       since: "2026-01-03T00:00:00Z",
     });
-    assertEquals(result.length, 1);
-    assertEquals(result[0]!.type, "phase-change");
+    assert.assertEquals(result.length, 1);
+    assert.assertEquals(result[0]!.type, "phase-change");
   });
 
-  it("skips malformed lines", async () => {
+  bdd.it("skips malformed lines", async () => {
     const root = await makeTempDir();
     const file = `${root}/${events.eventsFile}`;
     await runtime.fs.writeTextFile(
@@ -162,7 +164,7 @@ describe("readEvents", () => {
     );
 
     const result = await events.readEvents(root);
-    assertEquals(result.length, 2);
+    assert.assertEquals(result.length, 2);
   });
 });
 
@@ -170,14 +172,14 @@ describe("readEvents", () => {
 // watchEvents
 // =============================================================================
 
-describe("watchEvents", () => {
-  it("returns an unsubscribe function", () => {
+bdd.describe("watchEvents", () => {
+  bdd.it("returns an unsubscribe function", () => {
     const unsub = events.watchEvents("/nonexistent", () => {});
-    assertEquals(typeof unsub, "function");
+    assert.assertEquals(typeof unsub, "function");
     unsub(); // should not throw
   });
 
-  it("fires callback on new events", async () => {
+  bdd.it("fires callback on new events", async () => {
     const root = await makeTempDir();
     // Create initial file
     await events.appendEvent(root, makeEvent("spec-created", "s1"));
@@ -197,7 +199,7 @@ describe("watchEvents", () => {
     await new Promise((r) => setTimeout(r, 700));
 
     unsub();
-    assertEquals(received.length, 1);
-    assertEquals(received[0]!.type, "phase-change");
+    assert.assertEquals(received.length, 1);
+    assert.assertEquals(received[0]!.type, "phase-change");
   });
 });

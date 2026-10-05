@@ -77,6 +77,13 @@ const renderFrame = (
   return lineCount;
 };
 
+/**
+ * Ask for a line of text. When `options.validate` returns a message, the
+ * answer is refused and the message shown until the user fixes it.
+ *
+ * @returns The text entered, or {@link types.CANCEL} when the user cancels;
+ *   check it with `isCancel`.
+ */
 export const text = async (
   ctx: types.TuiContext,
   options: types.TextOptions,

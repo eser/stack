@@ -8,21 +8,23 @@ import type {
   AspectRatioValue,
   ImageFormat,
   ImageProps,
+  ObjectFitValue,
+  PlaceholderType,
   ResponsiveImageProps,
 } from "@eserstack/laroux/image";
-import {
-  ASPECT_RATIO_CLASSES,
-  buildImageAttributes,
-  buildPictureSources,
-  buildPlaceholderStyles,
-  ImageSizes,
-  parseImageSrc,
-  shouldUsePictureElement,
-} from "@eserstack/laroux/image";
+import * as image from "@eserstack/laroux/image";
+import * as imageFallback from "./fallback.ts";
 
-// Re-export types for component consumers
-export type { ImageProps, ResponsiveImageProps };
-export { ImageSizes };
+// Re-export types for component consumers, with the types their props use
+export type {
+  AspectRatioValue,
+  ImageFormat,
+  ImageProps,
+  ObjectFitValue,
+  PlaceholderType,
+  ResponsiveImageProps,
+};
+export { ImageSizes } from "@eserstack/laroux/image";
 
 /**
  * Server Component - Optimized image with lazy loading, modern formats, and CLS prevention
@@ -33,44 +35,51 @@ export { ImageSizes };
  * - Modern format support (WebP, AVIF) via picture element
  * - Responsive images with srcset
  * - Blur placeholder support
- * - Fallback image support
  * - Decoding async for better performance
  * - fetchpriority for above-the-fold images
+ *
+ * `fallback` replaces the source when it is empty, and when it fails to load
+ * in the browser. The fallback travels as a data attribute rather than an
+ * `onError` handler, because laroux serializes server components as JSON and
+ * drops functions; the laroux client bootstrap applies it.
  */
 export function Image(props: ImageProps): React.ReactElement {
-  const {
-    src,
-    fallback,
-    formats = [],
-    srcSet,
-    sizes,
-    placeholder,
-    blurDataURL,
-  } = props;
+  const fallback = props.fallback ?? "";
+  const hasFallback = fallback !== "";
+  const imgAttributes = image.buildImageAttributes(props);
+  const placeholderStyles = image.buildPlaceholderStyles(
+    props.placeholder,
+    props.blurDataURL,
+  );
 
-  // Build framework-agnostic attributes
-  const imgAttributes = buildImageAttributes(props);
+  // An image without a source shows its fallback straight away, without the
+  // format variants derived from the missing source. srcSet and sizes are left
+  // out too: the browser prefers srcset over src, so it would hide the fallback.
+  if (props.src === "" && hasFallback) {
+    const { srcSet: _srcSet, sizes: _sizes, ...fallbackImgAttributes } =
+      imgAttributes;
 
-  // Build placeholder styles
-  const placeholderStyles = buildPlaceholderStyles(placeholder, blurDataURL);
-
-  // Error handler for fallback
-  const handleError = fallback
-    ? `(function(e) { if (e.target.src !== '${fallback}') e.target.src = '${fallback}'; })(event)`
-    : undefined;
-
-  if (shouldUsePictureElement(formats)) {
-    // Get base path and extension for format variants
-    const { basePath, ext } = parseImageSrc(src);
-
-    // Build picture sources
-    const sources = buildPictureSources(
-      basePath,
-      ext,
-      formats as ImageFormat[],
-      srcSet,
-      sizes,
+    return (
+      <img
+        {...fallbackImgAttributes}
+        src={fallback}
+        style={placeholderStyles}
+      />
     );
+  }
+
+  const fallbackAttributes = hasFallback
+    ? { [imageFallback.FALLBACK_ATTRIBUTE]: fallback }
+    : {};
+  const formats = props.formats ?? [];
+
+  if (image.shouldUsePictureElement(formats)) {
+    const sources = image.buildPictureSources({
+      ...image.parseImageSrc(props.src),
+      formats,
+      srcSet: props.srcSet,
+      sizes: props.sizes,
+    });
 
     return (
       <picture style={placeholderStyles}>
@@ -82,12 +91,7 @@ export function Image(props: ImageProps): React.ReactElement {
             sizes={source.sizes}
           />
         ))}
-        <img
-          {...imgAttributes}
-          src={src}
-          onError={handleError ? undefined : undefined}
-          data-onerror={handleError}
-        />
+        <img {...imgAttributes} {...fallbackAttributes} src={props.src} />
       </picture>
     );
   }
@@ -95,16 +99,9 @@ export function Image(props: ImageProps): React.ReactElement {
   return (
     <img
       {...imgAttributes}
-      src={src}
+      {...fallbackAttributes}
+      src={props.src}
       style={placeholderStyles}
-      onError={fallback
-        ? (e) => {
-          const target = e.currentTarget;
-          if (target.src !== fallback) {
-            target.src = fallback;
-          }
-        }
-        : undefined}
     />
   );
 }
@@ -116,37 +113,27 @@ export function Image(props: ImageProps): React.ReactElement {
 export function ResponsiveImage(
   props: ResponsiveImageProps,
 ): React.ReactElement {
-  const {
-    src,
-    alt,
-    aspectRatio = "16/9",
-    className = "",
-    containerClassName = "",
-    priority = false,
-    fallback,
-    sizes = "(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw",
-    formats,
-    blurDataURL,
-  } = props;
-
-  const aspectRatioClass =
-    ASPECT_RATIO_CLASSES[aspectRatio as AspectRatioValue] ?? "aspect-video";
+  const aspectRatio: AspectRatioValue = props.aspectRatio ?? "16/9";
+  const aspectRatioClass = image.ASPECT_RATIO_CLASSES[aspectRatio];
+  const hasBlur = image.shouldShowPlaceholder("blur", props.blurDataURL);
 
   return (
     <div
-      className={`relative overflow-hidden ${aspectRatioClass} ${containerClassName}`
-        .trim()}
+      className={`relative overflow-hidden ${aspectRatioClass} ${
+        props.containerClassName ?? ""
+      }`.trim()}
     >
       <Image
-        src={src}
-        alt={alt}
-        className={`absolute inset-0 w-full h-full ${className}`.trim()}
-        priority={priority}
-        fallback={fallback}
-        sizes={sizes}
-        formats={formats}
-        placeholder={blurDataURL ? "blur" : undefined}
-        blurDataURL={blurDataURL}
+        src={props.src}
+        alt={props.alt}
+        className={`absolute inset-0 w-full h-full ${props.className ?? ""}`
+          .trim()}
+        priority={props.priority ?? false}
+        fallback={props.fallback}
+        sizes={props.sizes ?? image.DEFAULT_SIZES}
+        formats={props.formats}
+        placeholder={hasBlur ? "blur" : undefined}
+        blurDataURL={props.blurDataURL}
       />
     </div>
   );

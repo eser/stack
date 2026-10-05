@@ -1,9 +1,29 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import { useState } from "npm:react";
+import * as react from "npm:react";
 
-export const baseLayout = () => {
-  const [state] = useState({
+type LayoutProps = {
+  readonly children?: react.ReactNode;
+};
+
+type PageProps = {
+  readonly selectedLayout: react.ComponentType<LayoutProps>;
+};
+
+type LayoutState = {
+  readonly title: string;
+  readonly description: string;
+  readonly keywords: string;
+  readonly styles: readonly string[];
+  readonly scripts: readonly string[];
+};
+
+type Registry = {
+  readonly register: (entry: (...args: never[]) => unknown) => void;
+};
+
+export const baseLayout = (props: LayoutProps) => {
+  const [state] = react.useState<LayoutState>({
     title: "",
     description: "",
     keywords: "",
@@ -18,17 +38,21 @@ export const baseLayout = () => {
         <title>{state.title}</title>
         <meta name="description" content={state.description} />
         <meta name="keywords" content={state.keywords} />
-        {state.styles.map((style) => <link rel="stylesheet" href={style} />)}
+        {state.styles.map((style) => (
+          <link key={style} rel="stylesheet" href={style} />
+        ))}
       </head>
       <body>
         {props.children}
-        {state.scripts.map((script) => <script defer src={script}></script>)}
+        {state.scripts.map((script) => (
+          <script key={script} defer src={script}></script>
+        ))}
       </body>
     </html>
   );
 };
 
-export const indexPage = (props) => {
+export const indexPage = (props: PageProps) => {
   return (
     <props.selectedLayout>
       <h1>Hello World</h1>
@@ -36,14 +60,14 @@ export const indexPage = (props) => {
   );
 };
 
-export const anyFnc = (a, b, c) => {
+export const sum = (a: number, b: number, c: number) => {
   return a + b + c;
 };
 
-export const limeModule = (r) => {
+export const appModule = (r: Registry) => {
   r.register(baseLayout);
   // = r.register(baseLayout, { type: "layout", name: "base", loc: "$/pkg/app/mod.tsx" });
   r.register(indexPage);
   // = r.register(indexPage, { type: "page", name: "index", path: "/", loc: "$/pkg/app/mod.tsx" });
-  r.register(anyFnc);
+  r.register(sum);
 };

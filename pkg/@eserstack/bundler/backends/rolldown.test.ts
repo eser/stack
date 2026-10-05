@@ -1,26 +1,21 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 import * as assert from "@std/assert";
-import {
-  createRolldownBackend,
-  createRolldownWithPreset,
-  RolldownBackend,
-  type RolldownBackendOptions,
-  RolldownPresets,
-} from "./rolldown.ts";
+import * as rolldown from "./rolldown.ts";
+import type { RolldownBackendOptions } from "./rolldown.ts";
 
 // ============================================================================
 // RolldownBackend constructor tests
 // ============================================================================
 
 Deno.test("RolldownBackend has correct name", () => {
-  const backend = new RolldownBackend();
+  const backend = new rolldown.RolldownBackend();
 
   assert.assertEquals(backend.name, "rolldown");
 });
 
 Deno.test("RolldownBackend accepts empty options", () => {
-  const backend = new RolldownBackend({});
+  const backend = new rolldown.RolldownBackend({});
 
   assert.assertEquals(backend.name, "rolldown");
 });
@@ -43,7 +38,7 @@ Deno.test("RolldownBackend accepts full options", () => {
     },
   };
 
-  const backend = new RolldownBackend(options);
+  const backend = new rolldown.RolldownBackend(options);
 
   assert.assertEquals(backend.name, "rolldown");
 });
@@ -53,21 +48,21 @@ Deno.test("RolldownBackend accepts full options", () => {
 // ============================================================================
 
 Deno.test("createRolldownBackend creates backend instance", () => {
-  const backend = createRolldownBackend();
+  const backend = rolldown.createRolldownBackend();
 
-  assert.assertInstanceOf(backend, RolldownBackend);
+  assert.assertInstanceOf(backend, rolldown.RolldownBackend);
   assert.assertEquals(backend.name, "rolldown");
 });
 
 Deno.test("createRolldownBackend accepts options", () => {
-  const backend = createRolldownBackend({
+  const backend = rolldown.createRolldownBackend({
     treeshake: false,
     advancedChunks: {
       minSize: 5000,
     },
   });
 
-  assert.assertInstanceOf(backend, RolldownBackend);
+  assert.assertInstanceOf(backend, rolldown.RolldownBackend);
 });
 
 // ============================================================================
@@ -75,7 +70,7 @@ Deno.test("createRolldownBackend accepts options", () => {
 // ============================================================================
 
 Deno.test("RolldownPresets.default returns valid configuration", () => {
-  const preset = RolldownPresets.default();
+  const preset = rolldown.RolldownPresets.default();
 
   assert.assertEquals(preset.treeshake, true);
   assert.assertExists(preset.advancedChunks);
@@ -84,7 +79,7 @@ Deno.test("RolldownPresets.default returns valid configuration", () => {
 });
 
 Deno.test("RolldownPresets.react returns React-optimized configuration", () => {
-  const preset = RolldownPresets.react();
+  const preset = rolldown.RolldownPresets.react();
 
   assert.assertEquals(preset.treeshake, true);
   assert.assertExists(preset.advancedChunks);
@@ -110,7 +105,7 @@ Deno.test("RolldownPresets.react returns React-optimized configuration", () => {
 });
 
 Deno.test("RolldownPresets.library returns library-optimized configuration", () => {
-  const preset = RolldownPresets.library();
+  const preset = rolldown.RolldownPresets.library();
 
   assert.assertEquals(preset.treeshake, true);
   assert.assertEquals(preset.preserveEntrySignatures, "strict");
@@ -120,7 +115,7 @@ Deno.test("RolldownPresets.library returns library-optimized configuration", () 
 });
 
 Deno.test("RolldownPresets.ssr returns SSR-optimized configuration", () => {
-  const preset = RolldownPresets.ssr();
+  const preset = rolldown.RolldownPresets.ssr();
 
   assert.assertEquals(preset.treeshake, true);
   assert.assertEquals(preset.moduleSideEffects, "no-external");
@@ -138,7 +133,7 @@ Deno.test("RolldownPresets.ssr returns SSR-optimized configuration", () => {
 });
 
 Deno.test("RolldownPresets.performance returns performance-optimized configuration", () => {
-  const preset = RolldownPresets.performance();
+  const preset = rolldown.RolldownPresets.performance();
 
   assert.assertEquals(preset.treeshake, true);
   assert.assertEquals(preset.moduleSideEffects, false);
@@ -159,33 +154,33 @@ Deno.test("RolldownPresets.performance returns performance-optimized configurati
 // ============================================================================
 
 Deno.test("createRolldownWithPreset creates backend with default preset", () => {
-  const backend = createRolldownWithPreset("default");
+  const backend = rolldown.createRolldownWithPreset("default");
 
-  assert.assertInstanceOf(backend, RolldownBackend);
+  assert.assertInstanceOf(backend, rolldown.RolldownBackend);
 });
 
 Deno.test("createRolldownWithPreset creates backend with react preset", () => {
-  const backend = createRolldownWithPreset("react");
+  const backend = rolldown.createRolldownWithPreset("react");
 
-  assert.assertInstanceOf(backend, RolldownBackend);
+  assert.assertInstanceOf(backend, rolldown.RolldownBackend);
 });
 
 Deno.test("createRolldownWithPreset creates backend with library preset", () => {
-  const backend = createRolldownWithPreset("library");
+  const backend = rolldown.createRolldownWithPreset("library");
 
-  assert.assertInstanceOf(backend, RolldownBackend);
+  assert.assertInstanceOf(backend, rolldown.RolldownBackend);
 });
 
 Deno.test("createRolldownWithPreset creates backend with ssr preset", () => {
-  const backend = createRolldownWithPreset("ssr");
+  const backend = rolldown.createRolldownWithPreset("ssr");
 
-  assert.assertInstanceOf(backend, RolldownBackend);
+  assert.assertInstanceOf(backend, rolldown.RolldownBackend);
 });
 
 Deno.test("createRolldownWithPreset creates backend with performance preset", () => {
-  const backend = createRolldownWithPreset("performance");
+  const backend = rolldown.createRolldownWithPreset("performance");
 
-  assert.assertInstanceOf(backend, RolldownBackend);
+  assert.assertInstanceOf(backend, rolldown.RolldownBackend);
 });
 
 Deno.test("createRolldownWithPreset accepts custom options instead of preset name", () => {
@@ -196,33 +191,33 @@ Deno.test("createRolldownWithPreset accepts custom options instead of preset nam
     },
   };
 
-  const backend = createRolldownWithPreset(customOptions);
+  const backend = rolldown.createRolldownWithPreset(customOptions);
 
-  assert.assertInstanceOf(backend, RolldownBackend);
+  assert.assertInstanceOf(backend, rolldown.RolldownBackend);
 });
 
 Deno.test("createRolldownWithPreset merges overrides with preset", () => {
   // We can't directly check internal options, but we can verify it doesn't throw
-  const backend = createRolldownWithPreset("react", {
+  const backend = rolldown.createRolldownWithPreset("react", {
     treeshake: false,
     advancedChunks: {
       minSize: 5000,
     },
   });
 
-  assert.assertInstanceOf(backend, RolldownBackend);
+  assert.assertInstanceOf(backend, rolldown.RolldownBackend);
 });
 
 Deno.test("createRolldownWithPreset preserves groups when overriding advancedChunks", () => {
   // Verifying that overrides work correctly (no throw)
-  const backend = createRolldownWithPreset("react", {
+  const backend = rolldown.createRolldownWithPreset("react", {
     advancedChunks: {
       minSize: 15000,
       // groups should be preserved from react preset
     },
   });
 
-  assert.assertInstanceOf(backend, RolldownBackend);
+  assert.assertInstanceOf(backend, rolldown.RolldownBackend);
 });
 
 // ============================================================================
@@ -230,7 +225,7 @@ Deno.test("createRolldownWithPreset preserves groups when overriding advancedChu
 // ============================================================================
 
 Deno.test("ChunkGroup regex patterns match expected paths", () => {
-  const reactPreset = RolldownPresets.react();
+  const reactPreset = rolldown.RolldownPresets.react();
   const reactVendorGroup = reactPreset.advancedChunks?.groups?.find(
     (g) => g.name === "react-vendor",
   );
@@ -254,7 +249,7 @@ Deno.test("ChunkGroup regex patterns match expected paths", () => {
 });
 
 Deno.test("Performance preset UI group matches expected packages", () => {
-  const perfPreset = RolldownPresets.performance();
+  const perfPreset = rolldown.RolldownPresets.performance();
   const uiGroup = perfPreset.advancedChunks?.groups?.find(
     (g) => g.name === "ui",
   );
@@ -271,7 +266,7 @@ Deno.test("Performance preset UI group matches expected packages", () => {
 });
 
 Deno.test("Performance preset utils group matches utility packages", () => {
-  const perfPreset = RolldownPresets.performance();
+  const perfPreset = rolldown.RolldownPresets.performance();
   const utilsGroup = perfPreset.advancedChunks?.groups?.find(
     (g) => g.name === "utils",
   );
@@ -291,7 +286,7 @@ Deno.test("Performance preset utils group matches utility packages", () => {
 // ============================================================================
 
 Deno.test("React preset groups have correct priority ordering", () => {
-  const preset = RolldownPresets.react();
+  const preset = rolldown.RolldownPresets.react();
   const groups = preset.advancedChunks?.groups ?? [];
 
   const reactVendor = groups.find((g) => g.name === "react-vendor");
@@ -305,7 +300,7 @@ Deno.test("React preset groups have correct priority ordering", () => {
 });
 
 Deno.test("SSR preset groups have correct priority ordering", () => {
-  const preset = RolldownPresets.ssr();
+  const preset = rolldown.RolldownPresets.ssr();
   const groups = preset.advancedChunks?.groups ?? [];
 
   const reactVendor = groups.find((g) => g.name === "react-vendor");
@@ -322,7 +317,7 @@ Deno.test("SSR preset groups have correct priority ordering", () => {
 });
 
 Deno.test("Performance preset groups have correct priority ordering", () => {
-  const preset = RolldownPresets.performance();
+  const preset = rolldown.RolldownPresets.performance();
   const groups = preset.advancedChunks?.groups ?? [];
 
   const react = groups.find((g) => g.name === "react");

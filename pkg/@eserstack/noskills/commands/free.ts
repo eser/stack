@@ -10,7 +10,7 @@ import * as results from "@eserstack/primitives/results";
 import * as streams from "@eserstack/streams";
 import * as span from "@eserstack/streams/span";
 import type * as shellArgs from "@eserstack/shell/args";
-import { cmd } from "../output/cmd.ts";
+import * as cmd from "../output/cmd.ts";
 
 export const main = async (
   _args?: readonly string[],
@@ -25,7 +25,7 @@ export const main = async (
       "noskills starts in idle mode with no enforcement. To work on a spec, run:",
     ),
   );
-  out.writeln(span.bold(`  ${cmd('spec new "description"')}`));
+  out.writeln(span.bold(`  ${cmd.cmd('spec new "description"')}`));
   await out.close();
 
   return results.ok(undefined);

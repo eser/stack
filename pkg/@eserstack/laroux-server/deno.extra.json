@@ -13,8 +13,6 @@
       "runtime/**/*.ts",
       "config/**/*.ts",
       "proxy/**/*.ts",
-      "error-formatting.ts",
-      "product-info.ts",
       "package.json",
       "README.md",
       "LICENSE"

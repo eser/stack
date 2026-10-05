@@ -4,11 +4,9 @@
  * Renders React Server Components to the RSC wire protocol format
  */
 
-import {
-  type BundlerConfig,
-  renderToReadableStream,
-} from "./rsc-flight-renderer.ts";
-import { NotFoundError, runtime } from "@eserstack/standards/cross-runtime";
+import * as rscFlightRenderer from "./rsc-flight-renderer.ts";
+import type { BundlerConfig } from "./rsc-flight-renderer.ts";
+import * as crossRuntime from "@eserstack/standards/cross-runtime";
 import type { AppConfig } from "@eserstack/laroux/config";
 import * as logging from "@eserstack/logging";
 
@@ -31,12 +29,12 @@ const MODULE_MAP_FILENAME = "module-map.json";
  */
 export async function loadModuleMap(config: AppConfig): Promise<BundlerConfig> {
   try {
-    const moduleMapPath = runtime.path.resolve(
+    const moduleMapPath = crossRuntime.runtime.path.resolve(
       config.distDir,
       "client",
       MODULE_MAP_FILENAME,
     );
-    const content = await runtime.fs.readTextFile(moduleMapPath);
+    const content = await crossRuntime.runtime.fs.readTextFile(moduleMapPath);
     const map: BundlerConfig = JSON.parse(content);
     rscRenderer.debug(
       `Loaded module map with ${Object.keys(map).length} entries`,
@@ -44,7 +42,7 @@ export async function loadModuleMap(config: AppConfig): Promise<BundlerConfig> {
     return map;
   } catch (error) {
     rscRenderer.warn("Module map not found, using empty map");
-    if (error instanceof NotFoundError) {
+    if (error instanceof crossRuntime.NotFoundError) {
       rscRenderer.warn("   Run `deno task build` to generate the module map");
     }
     return {};
@@ -85,12 +83,17 @@ export async function renderRSC(
 
     // Render to RSC wire format stream
     // renderToReadableStream now returns immediately (not async)
-    const stream = renderToReadableStream(component, bundlerConfig);
+    const stream = rscFlightRenderer.renderToReadableStream(
+      component,
+      bundlerConfig,
+    );
 
     rscRenderer.debug("RSC stream created");
     return stream;
   } catch (error) {
-    rscRenderer.error("RSC rendering error:", { error });
+    rscRenderer.with({ error }).error(
+      "render RSC: start the stream; sending an error stream instead",
+    );
 
     // Return error stream in RSC format
     const errorMessage = error instanceof Error ? error.message : String(error);
@@ -109,6 +112,11 @@ export async function renderRSC(
 
 /**
  * Convert RSC stream to HTTP Response with proper headers
+ *
+ * The response carries no CORS headers: the laroux client fetches `/rsc` from
+ * its own origin. A deployment that serves the payload to another origin adds
+ * an allowlist for that origin itself.
+ *
  * @param stream - RSC wire format stream
  * @returns HTTP Response ready to send to client
  */
@@ -120,9 +128,6 @@ export function streamToResponse(stream: ReadableStream): Response {
       "Content-Type": "text/x-component; charset=utf-8",
       "Cache-Control": "no-cache, no-store, must-revalidate",
       "X-Content-Type-Options": "nosniff",
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type",
     },
   });
 }

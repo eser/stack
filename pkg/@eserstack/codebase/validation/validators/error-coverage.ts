@@ -6,7 +6,7 @@
  * @module
  */
 
-import { checkErrorCoverage } from "../../validate-error-coverage.ts";
+import * as validateErrorCoverage from "../../validate-error-coverage.ts";
 import type { Validator, ValidatorResult } from "../types.ts";
 
 export const errorCoverageValidator: Validator = {
@@ -14,7 +14,7 @@ export const errorCoverageValidator: Validator = {
   description: "Verify error-struct entries have non-empty required fields",
   requiredStacks: ["golang"],
 
-  async validate(options): Promise<ValidatorResult> {
+  validate: async (options): Promise<ValidatorResult> => {
     const file = options.options?.["file"] as string | undefined;
 
     if (file === undefined || file === "") {
@@ -36,7 +36,7 @@ export const errorCoverageValidator: Validator = {
       | string[]
       | undefined;
 
-    const result = await checkErrorCoverage({
+    const result = await validateErrorCoverage.checkErrorCoverage({
       root: options.root,
       file,
       errorObjects,

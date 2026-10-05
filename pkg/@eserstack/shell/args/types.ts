@@ -82,6 +82,7 @@ export type ArgsConfig = {
  * Interface for command-like objects (used for root reference)
  */
 export interface CommandLike {
+  /** The command's name. */
   readonly name: string;
   /**
    * The version the binary was built with, when one was configured.
@@ -91,7 +92,9 @@ export interface CommandLike {
    * Command is not required to declare one.
    */
   readonly versionString?: string;
+  /** The completion script for `shell`, covering the whole command tree. */
   completions(shell: "bash" | "zsh" | "fish"): string;
+  /** The help text for this command. */
   help(): string;
 }
 
@@ -114,15 +117,23 @@ export type CliError = {
  *
  * @example
  * ```ts
- * import { ok, fail } from "@eserstack/primitives/results";
+ * import * as primitives from "@eserstack/primitives";
+ * import * as shell from "@eserstack/shell";
  *
- * // Success
- * return ok(undefined);
+ * const handler = (
+ *   ctx: shell.args.CommandContext,
+ * ): shell.args.CliResult<void> => {
+ *   if (ctx.args.length === 0) {
+ *     // Failure
+ *     return primitives.results.fail({ message: "Missing argument", exitCode: 1 });
+ *   }
  *
- * // Failure
- * return fail({ message: "Invalid argument", exitCode: 1 });
+ *   // Success
+ *   return primitives.results.ok(undefined);
+ * };
  * ```
  */
+// deno-doc-ignore private-type-ref -- Result is public in @eserstack/primitives/results; doc lint flags it only because the workspace resolves it to a local file
 export type CliResult<T> = results.Result<T, CliError>;
 
 /**

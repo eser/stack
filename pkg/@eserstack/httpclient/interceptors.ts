@@ -60,6 +60,8 @@ export const applyRequestInterceptors = async (
 ): Promise<Request> => {
   let current = request;
   for (const interceptor of chain) {
+    // Each interceptor receives the previous one's output, so they run in
+    // order.
     // deno-lint-ignore no-await-in-loop
     current = await interceptor.intercept(current);
   }
@@ -73,6 +75,8 @@ export const applyResponseInterceptors = async <T>(
 ): Promise<types.HttpResponse<T>> => {
   let current: types.HttpResponse<T> = response;
   for (const interceptor of chain) {
+    // Each interceptor receives the previous one's output, so they run in
+    // order.
     // deno-lint-ignore no-await-in-loop
     current = (await interceptor.intercept(current)) as types.HttpResponse<T>;
   }

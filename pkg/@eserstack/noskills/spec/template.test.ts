@@ -1,16 +1,16 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import { describe, it } from "@std/testing/bdd";
-import { assertEquals } from "@std/assert";
+import * as bdd from "@std/testing/bdd";
+import * as assert from "@std/assert";
 import * as template from "./template.ts";
-import * as schema from "../state/schema.ts";
-import { loadDefaultConcerns } from "../context/concerns.ts";
+import type * as schema from "../state/schema.ts";
+import * as defaultConcerns from "../defaults/concerns/mod.ts";
 
 // =============================================================================
 // Helpers
 // =============================================================================
 
-const allConcerns = await loadDefaultConcerns();
+const allConcerns = defaultConcerns.DEFAULT_CONCERNS;
 const openSource = allConcerns.find((c) => c.id === "open-source")!;
 const beautiful = allConcerns.find((c) => c.id === "beautiful-product")!;
 
@@ -47,23 +47,23 @@ const sampleDecisions: readonly schema.Decision[] = [
 // renderSpec
 // =============================================================================
 
-describe("renderSpec", () => {
-  it("includes spec name as heading", () => {
+bdd.describe("renderSpec", () => {
+  bdd.it("includes spec name as heading", () => {
     const md = template.renderSpec("photo-upload", [], [], []);
 
-    assertEquals(md.includes("# Spec: photo-upload"), true);
+    assert.assertEquals(md.includes("# Spec: photo-upload"), true);
   });
 
-  it("includes all discovery answers under their questionIds", () => {
+  bdd.it("includes all discovery answers under their questionIds", () => {
     const md = template.renderSpec("test", sampleAnswers, [], []);
 
-    assertEquals(md.includes("### status_quo"), true);
-    assertEquals(md.includes("Users manually upload files"), true);
-    assertEquals(md.includes("### ambition"), true);
-    assertEquals(md.includes("### verification"), true);
+    assert.assertEquals(md.includes("### status_quo"), true);
+    assert.assertEquals(md.includes("Users manually upload files"), true);
+    assert.assertEquals(md.includes("### ambition"), true);
+    assert.assertEquals(md.includes("### verification"), true);
   });
 
-  it("includes concern sections when classification says relevant", () => {
+  bdd.it("includes concern sections when classification says relevant", () => {
     const apiClassification = {
       involvesWebUI: false,
       involvesCLI: false,
@@ -79,11 +79,17 @@ describe("renderSpec", () => {
       apiClassification,
     );
 
-    assertEquals(md.includes("## Contributor Guide (open-source)"), true);
-    assertEquals(md.includes("## Public API Surface (open-source)"), true);
+    assert.assertEquals(
+      md.includes("## Contributor Guide (open-source)"),
+      true,
+    );
+    assert.assertEquals(
+      md.includes("## Public API Surface (open-source)"),
+      true,
+    );
   });
 
-  it("skips irrelevant concern sections based on classification", () => {
+  bdd.it("skips irrelevant concern sections based on classification", () => {
     const noUiClassification = {
       involvesWebUI: false,
       involvesCLI: false,
@@ -99,37 +105,40 @@ describe("renderSpec", () => {
       noUiClassification,
     );
 
-    assertEquals(md.includes("## Design States"), false);
-    assertEquals(md.includes("## Mobile Layout"), false);
+    assert.assertEquals(md.includes("## Design States"), false);
+    assert.assertEquals(md.includes("## Mobile Layout"), false);
   });
 
-  it("skips concern sections when no classification provided (clean default)", () => {
-    const md = template.renderSpec("test", [], [beautiful], []);
+  bdd.it(
+    "skips concern sections when no classification provided (clean default)",
+    () => {
+      const md = template.renderSpec("test", [], [beautiful], []);
 
-    assertEquals(md.includes("## Design States"), false);
-  });
+      assert.assertEquals(md.includes("## Design States"), false);
+    },
+  );
 
-  it("includes decisions table when decisions exist", () => {
+  bdd.it("includes decisions table when decisions exist", () => {
     const md = template.renderSpec("test", [], [], sampleDecisions);
 
-    assertEquals(md.includes("## Decisions"), true);
-    assertEquals(md.includes("Which storage backend?"), true);
-    assertEquals(md.includes("S3"), true);
-    assertEquals(md.includes("OAuth2"), true);
-    assertEquals(md.includes("| yes |"), true);
-    assertEquals(md.includes("| no |"), true);
+    assert.assertEquals(md.includes("## Decisions"), true);
+    assert.assertEquals(md.includes("Which storage backend?"), true);
+    assert.assertEquals(md.includes("S3"), true);
+    assert.assertEquals(md.includes("OAuth2"), true);
+    assert.assertEquals(md.includes("| yes |"), true);
+    assert.assertEquals(md.includes("| no |"), true);
   });
 
-  it("omits decisions section when empty", () => {
+  bdd.it("omits decisions section when empty", () => {
     const md = template.renderSpec("test", [], [], []);
 
-    assertEquals(md.includes("## Decisions"), false);
+    assert.assertEquals(md.includes("## Decisions"), false);
   });
 
-  it("includes status as draft", () => {
+  bdd.it("includes status as draft", () => {
     const md = template.renderSpec("test", [], [], []);
 
-    assertEquals(md.includes("## Status: draft"), true);
+    assert.assertEquals(md.includes("## Status: draft"), true);
   });
 });
 
@@ -137,12 +146,12 @@ describe("renderSpec", () => {
 // deriveTasks — sentence splitting and clean titles
 // =============================================================================
 
-describe("deriveTasks", () => {
+bdd.describe("deriveTasks", () => {
   // ---------------------------------------------------------------------------
   // Q2 ambition — always ONE task using highest star description
   // ---------------------------------------------------------------------------
 
-  it("Q2 produces ONE task from 10-star description", () => {
+  bdd.it("Q2 produces ONE task from 10-star description", () => {
     const answers: schema.DiscoveryAnswer[] = [
       {
         questionId: "ambition",
@@ -153,13 +162,13 @@ describe("deriveTasks", () => {
     const tasks = template.deriveTasks(answers);
 
     // +2 mandatory test/docs tasks appended
-    assertEquals(tasks.length, 3);
-    assertEquals(tasks[0]!.includes("validation"), true);
-    assertEquals(tasks[0]!.includes("preview"), true);
-    assertEquals(tasks[0]!.includes("batch processing"), true);
+    assert.assertEquals(tasks.length, 3);
+    assert.assertEquals(tasks[0]!.includes("validation"), true);
+    assert.assertEquals(tasks[0]!.includes("preview"), true);
+    assert.assertEquals(tasks[0]!.includes("batch processing"), true);
   });
 
-  it("Q2 uses 1-star when no 10-star provided", () => {
+  bdd.it("Q2 uses 1-star when no 10-star provided", () => {
     const answers: schema.DiscoveryAnswer[] = [
       {
         questionId: "ambition",
@@ -169,12 +178,12 @@ describe("deriveTasks", () => {
     const tasks = template.deriveTasks(answers);
 
     // +2 mandatory test/docs tasks appended
-    assertEquals(tasks.length, 3);
-    assertEquals(tasks[0]!.includes("filtering"), true);
-    assertEquals(tasks[0]!.includes("sorting"), true);
+    assert.assertEquals(tasks.length, 3);
+    assert.assertEquals(tasks[0]!.includes("filtering"), true);
+    assert.assertEquals(tasks[0]!.includes("sorting"), true);
   });
 
-  it("Q2 does not split 1-star and 10-star into separate tasks", () => {
+  bdd.it("Q2 does not split 1-star and 10-star into separate tasks", () => {
     const answers: schema.DiscoveryAnswer[] = [
       {
         questionId: "ambition",
@@ -186,13 +195,13 @@ describe("deriveTasks", () => {
 
     // Must be ONE task, not two
     // +2 mandatory test/docs tasks appended
-    assertEquals(tasks.length, 3);
-    assertEquals(tasks[0]!.includes("protocol section"), true);
+    assert.assertEquals(tasks.length, 3);
+    assert.assertEquals(tasks[0]!.includes("protocol section"), true);
     // Must NOT contain 1-star content
-    assertEquals(tasks[0]!.includes("1-star"), false);
+    assert.assertEquals(tasks[0]!.includes("1-star"), false);
   });
 
-  it("Q2 strips garbled prefixes like 'the target:'", () => {
+  bdd.it("Q2 strips garbled prefixes like 'the target:'", () => {
     const answers: schema.DiscoveryAnswer[] = [
       {
         questionId: "ambition",
@@ -203,14 +212,14 @@ describe("deriveTasks", () => {
     const tasks = template.deriveTasks(answers);
 
     // +2 mandatory test/docs tasks appended
-    assertEquals(tasks.length, 3);
-    assertEquals(
+    assert.assertEquals(tasks.length, 3);
+    assert.assertEquals(
       tasks[0],
       "Full protocol section with phase transition docs",
     );
   });
 
-  it("Q2 does not add 'Implement:' prefix", () => {
+  bdd.it("Q2 does not add 'Implement:' prefix", () => {
     const answers: schema.DiscoveryAnswer[] = [
       {
         questionId: "ambition",
@@ -221,15 +230,15 @@ describe("deriveTasks", () => {
     const tasks = template.deriveTasks(answers);
 
     // +2 mandatory test/docs tasks appended
-    assertEquals(tasks.length, 3);
-    assertEquals(tasks[0]!.startsWith("Implement"), false);
+    assert.assertEquals(tasks.length, 3);
+    assert.assertEquals(tasks[0]!.startsWith("Implement"), false);
   });
 
   // ---------------------------------------------------------------------------
   // Q5 verification — kept whole, no splitting on file extensions
   // ---------------------------------------------------------------------------
 
-  it("keeps verification as single task even with commas", () => {
+  bdd.it("keeps verification as single task even with commas", () => {
     const answers: schema.DiscoveryAnswer[] = [
       {
         questionId: "verification",
@@ -240,13 +249,13 @@ describe("deriveTasks", () => {
     const tasks = template.deriveTasks(answers);
 
     // +2 mandatory test/docs tasks appended
-    assertEquals(tasks.length, 3);
-    assertEquals(tasks[0]!.includes("Run noskills sync"), true);
-    assertEquals(tasks[0]!.includes("CLAUDE.md"), true);
-    assertEquals(tasks[0]!.includes("Phase Transition Protocol"), true);
+    assert.assertEquals(tasks.length, 3);
+    assert.assertEquals(tasks[0]!.includes("Run noskills sync"), true);
+    assert.assertEquals(tasks[0]!.includes("CLAUDE.md"), true);
+    assert.assertEquals(tasks[0]!.includes("Phase Transition Protocol"), true);
   });
 
-  it("verification with newlines produces multiple tasks", () => {
+  bdd.it("verification with newlines produces multiple tasks", () => {
     const answers: schema.DiscoveryAnswer[] = [
       {
         questionId: "verification",
@@ -256,13 +265,13 @@ describe("deriveTasks", () => {
     const tasks = template.deriveTasks(answers);
 
     // 3 verification + 2 mandatory test/docs tasks
-    assertEquals(tasks.length, 5);
-    assertEquals(tasks[0], "Run unit tests");
-    assertEquals(tasks[1], "Check e2e tests pass");
-    assertEquals(tasks[2], "Verify deployment");
+    assert.assertEquals(tasks.length, 5);
+    assert.assertEquals(tasks[0], "Run unit tests");
+    assert.assertEquals(tasks[1], "Check e2e tests pass");
+    assert.assertEquals(tasks[2], "Verify deployment");
   });
 
-  it("verification does not add 'Verify:' prefix", () => {
+  bdd.it("verification does not add 'Verify:' prefix", () => {
     const answers: schema.DiscoveryAnswer[] = [
       {
         questionId: "verification",
@@ -272,30 +281,34 @@ describe("deriveTasks", () => {
     const tasks = template.deriveTasks(answers);
 
     // +2 mandatory test/docs tasks appended
-    assertEquals(tasks.length, 3);
-    assertEquals(tasks[0]!.startsWith("Verify:"), false);
-    assertEquals(tasks[0], "Run noskills sync");
+    assert.assertEquals(tasks.length, 3);
+    assert.assertEquals(tasks[0]!.startsWith("Verify:"), false);
+    assert.assertEquals(tasks[0], "Run noskills sync");
   });
 
   // ---------------------------------------------------------------------------
   // Bug A: sentence splitting must not break on file extensions/abbreviations
   // ---------------------------------------------------------------------------
 
-  it("does not split on periods inside file extensions like CLAUDE.md", () => {
-    const answers: schema.DiscoveryAnswer[] = [
-      {
-        questionId: "verification",
-        answer: "Run noskills sync, check CLAUDE.md contains protocol section",
-      },
-    ];
-    const tasks = template.deriveTasks(answers);
+  bdd.it(
+    "does not split on periods inside file extensions like CLAUDE.md",
+    () => {
+      const answers: schema.DiscoveryAnswer[] = [
+        {
+          questionId: "verification",
+          answer:
+            "Run noskills sync, check CLAUDE.md contains protocol section",
+        },
+      ];
+      const tasks = template.deriveTasks(answers);
 
-    // +2 mandatory test/docs tasks appended
-    assertEquals(tasks.length, 3);
-    assertEquals(tasks[0]!.includes("CLAUDE.md"), true);
-  });
+      // +2 mandatory test/docs tasks appended
+      assert.assertEquals(tasks.length, 3);
+      assert.assertEquals(tasks[0]!.includes("CLAUDE.md"), true);
+    },
+  );
 
-  it("does not split on version numbers like v0.1", () => {
+  bdd.it("does not split on version numbers like v0.1", () => {
     const answers: schema.DiscoveryAnswer[] = [
       {
         questionId: "verification",
@@ -305,11 +318,11 @@ describe("deriveTasks", () => {
     const tasks = template.deriveTasks(answers);
 
     // +2 mandatory test/docs tasks appended
-    assertEquals(tasks.length, 3);
-    assertEquals(tasks[0]!.includes("v0.1"), true);
+    assert.assertEquals(tasks.length, 3);
+    assert.assertEquals(tasks[0]!.includes("v0.1"), true);
   });
 
-  it("does not split on file paths like src/api/v1/endpoint.ts", () => {
+  bdd.it("does not split on file paths like src/api/v1/endpoint.ts", () => {
     const answers: schema.DiscoveryAnswer[] = [
       {
         questionId: "verification",
@@ -319,15 +332,15 @@ describe("deriveTasks", () => {
     const tasks = template.deriveTasks(answers);
 
     // +2 mandatory test/docs tasks appended
-    assertEquals(tasks.length, 3);
-    assertEquals(tasks[0]!.includes("endpoint.ts"), true);
+    assert.assertEquals(tasks.length, 3);
+    assert.assertEquals(tasks[0]!.includes("endpoint.ts"), true);
   });
 
   // ---------------------------------------------------------------------------
   // Bug B: Q2 ambition produces ONE task, not per-star tasks
   // ---------------------------------------------------------------------------
 
-  it("1-star/10-star answer produces ONE task using 10-star", () => {
+  bdd.it("1-star/10-star answer produces ONE task using 10-star", () => {
     const answers: schema.DiscoveryAnswer[] = [
       {
         questionId: "ambition",
@@ -337,16 +350,16 @@ describe("deriveTasks", () => {
     const tasks = template.deriveTasks(answers);
 
     // +2 mandatory test/docs tasks appended
-    assertEquals(tasks.length, 3);
-    assertEquals(tasks[0]!.toLowerCase().includes("full system"), true);
-    assertEquals(tasks[0]!.includes("1-star"), false);
+    assert.assertEquals(tasks.length, 3);
+    assert.assertEquals(tasks[0]!.toLowerCase().includes("full system"), true);
+    assert.assertEquals(tasks[0]!.includes("1-star"), false);
   });
 
   // ---------------------------------------------------------------------------
   // Bug C: no raw prefixes like "Implement:" in task descriptions
   // ---------------------------------------------------------------------------
 
-  it("task descriptions do not start with Implement: prefix", () => {
+  bdd.it("task descriptions do not start with Implement: prefix", () => {
     const answers: schema.DiscoveryAnswer[] = [
       {
         questionId: "ambition",
@@ -357,9 +370,9 @@ describe("deriveTasks", () => {
     const tasks = template.deriveTasks(answers);
 
     // +2 mandatory test/docs tasks appended
-    assertEquals(tasks.length, 3);
-    assertEquals(tasks[0]!.startsWith("Implement:"), false);
-    assertEquals(tasks[0]!.startsWith("Implement "), false);
+    assert.assertEquals(tasks.length, 3);
+    assert.assertEquals(tasks[0]!.startsWith("Implement:"), false);
+    assert.assertEquals(tasks[0]!.startsWith("Implement "), false);
   });
 });
 
@@ -367,8 +380,8 @@ describe("deriveTasks", () => {
 // SpecSectionDefinition object shape in renderSpec
 // =============================================================================
 
-describe("renderSpec: SpecSectionDefinition object shape", () => {
-  it("renders sections from object-shape specSections correctly", () => {
+bdd.describe("renderSpec: SpecSectionDefinition object shape", () => {
+  bdd.it("renders sections from object-shape specSections correctly", () => {
     const concernWithObjects: schema.ConcernDefinition = {
       id: "test-object-concern",
       name: "Object Concern",
@@ -388,11 +401,14 @@ describe("renderSpec: SpecSectionDefinition object shape", () => {
     };
 
     const md = template.renderSpec("test", [], [concernWithObjects], [], null);
-    assertEquals(md.includes("## My Object Section"), true);
-    assertEquals(md.includes("_This is the object section placeholder_"), true);
+    assert.assertEquals(md.includes("## My Object Section"), true);
+    assert.assertEquals(
+      md.includes("_This is the object section placeholder_"),
+      true,
+    );
   });
 
-  it("renders legacy string specSections (backward compat ramp)", () => {
+  bdd.it("renders legacy string specSections (backward compat ramp)", () => {
     const legacyConcern: schema.ConcernDefinition = {
       id: "legacy-template-concern",
       name: "Legacy",
@@ -404,10 +420,10 @@ describe("renderSpec: SpecSectionDefinition object shape", () => {
     };
 
     const md = template.renderSpec("test", [], [legacyConcern], [], null);
-    assertEquals(md.includes("## Legacy Section Title"), true);
+    assert.assertEquals(md.includes("## Legacy Section Title"), true);
   });
 
-  it("conditional section with true flag is included", () => {
+  bdd.it("conditional section with true flag is included", () => {
     const uiConcern: schema.ConcernDefinition = {
       id: "ui-concern",
       name: "UI Concern",
@@ -441,11 +457,11 @@ describe("renderSpec: SpecSectionDefinition object shape", () => {
       [],
       uiClassification,
     );
-    assertEquals(md.includes("## UI Section"), true);
-    assertEquals(md.includes("_UI placeholder_"), true);
+    assert.assertEquals(md.includes("## UI Section"), true);
+    assert.assertEquals(md.includes("_UI placeholder_"), true);
   });
 
-  it("conditional section with false flag is excluded", () => {
+  bdd.it("conditional section with false flag is excluded", () => {
     const uiConcern: schema.ConcernDefinition = {
       id: "ui-concern2",
       name: "UI Concern 2",
@@ -479,10 +495,10 @@ describe("renderSpec: SpecSectionDefinition object shape", () => {
       [],
       noUiClassification,
     );
-    assertEquals(md.includes("## UI Section 2"), false);
+    assert.assertEquals(md.includes("## UI Section 2"), false);
   });
 
-  it("multiple concerns stack their sections in load order", () => {
+  bdd.it("multiple concerns stack their sections in load order", () => {
     const firstConcern: schema.ConcernDefinition = {
       id: "first",
       name: "First",
@@ -527,6 +543,84 @@ describe("renderSpec: SpecSectionDefinition object shape", () => {
     );
     const firstIdx = md.indexOf("## First Section");
     const secondIdx = md.indexOf("## Second Section");
-    assertEquals(firstIdx < secondIdx, true);
+    assert.assertEquals(firstIdx < secondIdx, true);
   });
+});
+
+// =============================================================================
+// renderSpec: declared section scopes
+// =============================================================================
+
+bdd.describe("renderSpec: declared section scopes", () => {
+  const noFlags: schema.SpecClassification = {
+    involvesWebUI: false,
+    involvesCLI: false,
+    involvesPublicAPI: false,
+    involvesMigration: false,
+    involvesDataHandling: false,
+  };
+  const concern: schema.ConcernDefinition = {
+    id: "custom",
+    name: "Custom",
+    description: "A project concern with scoped and plain sections",
+    extras: [],
+    specSections: [
+      {
+        id: "screens",
+        title: "Screens",
+        placeholder: "_List every screen._",
+        scope: ["ui"],
+        position: "after:acceptance-criteria",
+      },
+      {
+        id: "endpoints",
+        title: "Endpoints",
+        placeholder: "_List every endpoint._",
+        scope: ["api"],
+        position: "after:acceptance-criteria",
+      },
+      {
+        id: "rollout",
+        title: "Rollout",
+        placeholder: "_Describe the rollout._",
+        position: "after:acceptance-criteria",
+      },
+    ],
+    reminders: [],
+    acceptanceCriteria: [],
+  };
+
+  const headings = (classification: schema.SpecClassification | null) =>
+    template.renderSpec("scoped", [], [concern], [], classification)
+      .split("\n")
+      .filter((line) => line.endsWith("(custom)"));
+
+  const cases = [
+    {
+      name: "renders only unscoped sections before classification",
+      classification: null,
+      expected: ["## Rollout (custom)"],
+    },
+    {
+      name: "renders the ui section for a UI spec",
+      classification: { ...noFlags, involvesWebUI: true },
+      expected: ["## Screens (custom)", "## Rollout (custom)"],
+    },
+    {
+      name: "renders the api section for an API spec",
+      classification: { ...noFlags, involvesPublicAPI: true },
+      expected: ["## Endpoints (custom)", "## Rollout (custom)"],
+    },
+    {
+      name: "renders only unscoped sections for another spec",
+      classification: { ...noFlags, involvesCLI: true },
+      expected: ["## Rollout (custom)"],
+    },
+  ];
+
+  for (const { name, classification, expected } of cases) {
+    bdd.it(name, () => {
+      assert.assertEquals(headings(classification), expected);
+    });
+  }
 });

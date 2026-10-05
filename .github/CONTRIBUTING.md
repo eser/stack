@@ -1,62 +1,91 @@
-# Contributing to [eserstack](./)
+# Contributing to eser/stack
 
-👍🎉 First off, thanks for taking the time to contribute! 🎉👍
+eser/stack follows the eserstack
+[contributing guidelines](../pkg/@eserstack/directives/03-contributing.md) and
+[Code of Conduct](../pkg/@eserstack/directives/01-social.md). This page adds
+what is specific to this repository.
 
-The following is a set of guidelines for contributing to `eserstack` and its
-packages, which are hosted in GitHub. These are mostly guidelines, not strict
-rules. Use your best judgment and feel free to propose changes to this document
-in a pull request.
+## Filing a bug or DX issue
 
-## What Should I Know Before I Get Started?
+Run `noskills-server doctor --json` and paste the output into the issue. The
+GitHub issue templates (`bug.yml`, `feature.yml`, `dx.yml`) are pre-filled for
+this. You can also run `noskills-server feedback` to open a pre-filled URL.
 
-### Code of Conduct
+## Development setup
 
-This project and everyone participating in it is governed by the
-[@eserstack/directives](../pkg/@eserstack/directives/README.md). By
-participating, you are expected to uphold this code. Please report unacceptable
-behavior as in specified in the link.
+Run `deno task cli init` once after cloning: it installs the dependencies with
+pnpm and sets up the git hooks (`eser codebase install`). The full check is
+`deno task cli ok`; it must pass before every commit.
 
-### Technical Requirements
+```bash
+# Go toolchain
+go mod download
+deno task cli ok        # full validation (Deno + Go) — must pass before every commit
 
-Just familiarity with JavaScript and Git.
+# Build binaries
+go build ./cmd/noskills-server
 
-### Conventions
+# The TypeScript binaries (eser, noskills, laroux) are deno-compiled:
+deno run --allow-all pkg/@eserstack/cli/scripts/compile.ts
 
-Using Deno Formatter and Linter should be fine for now. Please ensure your
-submissions are formatted accordingly.
+# Run noskills-server tests
+go test ./pkg/ajan/noskillsserverfx/... -v
 
-### Design Decisions
+# Run TypeScript tests (noskills-client, webtransport, noskills-server-worker)
+deno lint pkg/@eserstack/noskills-client/ pkg/@eserstack/webtransport/ pkg/@eserstack/noskills-server-worker/
+deno check pkg/@eserstack/noskills-client/mod.ts pkg/@eserstack/webtransport/mod.ts
+```
 
-Before making significant changes, please open a new issue to discuss the
-proposed changes and its design first.
+## Documentation
 
-## How Can I Contribute?
+`docs/` holds two kinds of content, and the distinction matters before you edit
+anything there:
 
-### Ways to Contribute
+- `docs/adr/` and `docs/schema/` are **hand-written and tracked**.
+- `docs/api/` is **generated and untracked**. `deno task cli docs` deletes and
+  rebuilds it from the JSDoc in `pkg/@eserstack/*/mod.ts`, so edits there are
+  lost on the next run — change the doc comment instead.
 
-It is publicly open for any contribution. Here are some ideas you can begin
-from:
+Build the API reference locally with:
 
-- Reporting bugs
-- Suggesting enhancements and new features
-- Implementing performance improvements
-- Improving documentation
-- Submitting bug fixes
-- Linking to your eserstack project
+```bash
+deno task cli docs
+```
 
-## Creating an Issue
+## Architecture decision records
 
-- Check the [GitHub Issues](https://github.com/eser/stack/issues) first to avoid
-  duplicating an existing issue.
-- Use the issue tracker to ask questions, report problems or for discussion
-  related to the project.
+ADRs live in `docs/adr/`. Read `0001-http3-and-webtransport.md` and
+`0002-magical-moment-and-tthw-target.md` before touching transport or DX code.
 
-## Submitting a Pull Request
+## Extension points
 
-- Adhere to [@eserstack/directives](../pkg/@eserstack/directives/README.md)
-- Fork the repo
-- Make your changes in a new branch
-- Provide tests for your changes, particularly for new features or fixes
-- Push changes to your own fork
-- Submit a pull request, linking it to the relevant issue. If an issue does not
-  exist, create one before submission.
+### Adding a new cert provider
+
+Implement `pkg/ajan/noskillsserverfx.CertProvider` (planned — `cert.go`):
+
+```go
+type CertProvider interface {
+    Name() string
+    Ensure(ctx context.Context, dataDir string) (CertHandle, error)
+    Fingerprint() string
+}
+```
+
+Register it in `server.go` via the `--cert-provider` flag. See
+`SelfSignedProvider` for the reference implementation.
+
+### Adding a new doctor check
+
+Add a `Check{Name, Run}` struct to `pkg/ajan/noskillsserverfx/doctor.go` and
+append it to the `checks` slice in `RunDoctor`. The check function returns
+`(pass bool, detail string)`.
+
+### Adding a new NS error code
+
+Add an entry to `NSErrors` in `pkg/ajan/noskillsserverfx/errors.go`. The
+`TestNSErrors_AllFieldsPopulated` test enforces that every entry has non-empty
+`Code`, `Cause`, and `Fix`.
+
+## Code standards
+
+Each file in `pkg/ajan/noskillsserverfx/` must stay under 500 LOC.

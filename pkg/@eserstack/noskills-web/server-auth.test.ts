@@ -5,38 +5,42 @@
  * actually be refused on the wire, not just by the guard helpers in isolation.
  */
 
-import { assertEquals } from "@std/assert";
-import { startServer } from "./server.ts";
+import * as assert from "@std/assert";
+import { runtime } from "@eserstack/standards/cross-runtime";
+import * as server from "./server.ts";
 
-const PORT = 39117;
 const TOKEN = "test-token-" + "a".repeat(52);
 
 const withServer = async (
   fn: (base: string) => Promise<void>,
 ): Promise<void> => {
-  const previous = Deno.env.get("NOSKILLS_WEB_TOKEN");
-  Deno.env.set("NOSKILLS_WEB_TOKEN", TOKEN);
+  const previous = runtime.env.get("NOSKILLS_WEB_TOKEN");
+  runtime.env.set("NOSKILLS_WEB_TOKEN", TOKEN);
 
+  // Port 0 lets the system pick a free port; onListen reports it once the
+  // server accepts connections.
   const controller = new AbortController();
-  const running = startServer({
-    root: Deno.cwd(),
-    port: PORT,
+  const listening = Promise.withResolvers<number>();
+  const running = server.startServer({
+    root: runtime.process.cwd(),
+    port: 0,
     open: false,
     signal: controller.signal,
+    onListen: (address) => listening.resolve(address.port),
   });
-
-  // Give Deno.serve a tick to bind.
-  await new Promise((resolve) => setTimeout(resolve, 150));
+  // A server that cannot bind rejects before it listens.
+  running.catch((error: unknown) => listening.reject(error));
 
   try {
-    await fn(`http://127.0.0.1:${PORT}`);
+    const port = await listening.promise;
+    await fn(`http://127.0.0.1:${port}`);
   } finally {
     controller.abort();
 
     if (previous === undefined) {
-      Deno.env.delete("NOSKILLS_WEB_TOKEN");
+      runtime.env.delete("NOSKILLS_WEB_TOKEN");
     } else {
-      Deno.env.set("NOSKILLS_WEB_TOKEN", previous);
+      runtime.env.set("NOSKILLS_WEB_TOKEN", previous);
     }
 
     await running.catch(() => {});
@@ -54,7 +58,7 @@ Deno.test({
       });
       await res.body?.cancel();
 
-      assertEquals(res.status, 403);
+      assert.assertEquals(res.status, 403);
     }),
 });
 
@@ -69,7 +73,7 @@ Deno.test({
       });
       await res.body?.cancel();
 
-      assertEquals(res.status, 403);
+      assert.assertEquals(res.status, 403);
     }),
 });
 
@@ -86,7 +90,7 @@ Deno.test({
       });
       await res.body?.cancel();
 
-      assertEquals(res.status, 403);
+      assert.assertEquals(res.status, 403);
     }),
 });
 
@@ -106,7 +110,55 @@ Deno.test({
       });
       await res.body?.cancel();
 
-      assertEquals(res.status, 403);
+      assert.assertEquals(res.status, 403);
+    }),
+});
+
+Deno.test({
+  name: "the server's own Origin passes on the port the system picked",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  fn: () =>
+    withServer(async (base) => {
+      // Started with port 0: the Origin check must compare against the bound
+      // port, or the dashboard's own requests would be refused.
+      const res = await fetch(`${base}/api/spec/any-spec/no-such-action`, {
+        method: "POST",
+        headers: {
+          origin: base,
+          "content-type": "application/json",
+          "x-noskills-token": TOKEN,
+        },
+        body: "{}",
+      });
+      const body = await res.json();
+
+      assert.assertEquals(res.status, 400);
+      assert.assertEquals(body.error, "Unknown action: no-such-action");
+    }),
+});
+
+Deno.test({
+  name: "a JSON body that is not an object is read as {}, not a server error",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  fn: () =>
+    withServer(async (base) => {
+      const res = await fetch(`${base}/api/spec/any-spec/no-such-action`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-noskills-token": TOKEN,
+        },
+        body: "null",
+      });
+      const body = await res.json();
+
+      assert.assertEquals(res.status, 400);
+      assert.assertEquals(body, {
+        ok: false,
+        error: "Unknown action: no-such-action",
+      });
     }),
 });
 
@@ -119,8 +171,8 @@ Deno.test({
       const res = await fetch(`${base}/`);
       const html = await res.text();
 
-      assertEquals(res.status, 200);
-      assertEquals(
+      assert.assertEquals(res.status, 200);
+      assert.assertEquals(
         html.includes(`<meta name="noskills-token" content="${TOKEN}" />`),
         true,
         "dashboard must hand the browser its token",

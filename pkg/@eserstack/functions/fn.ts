@@ -15,14 +15,20 @@ import * as results from "@eserstack/primitives/results";
  *
  * @example
  * ```typescript
- * import { run } from "@eserstack/functions";
- * import { ok, fail } from "@eserstack/primitives/results";
+ * import * as functions from "@eserstack/functions";
+ * import * as primitives from "@eserstack/primitives";
  *
- * const fetchUserWithPosts = (userId: number) => run(async function* () {
- *   const user = yield* fetchUser(userId);
- *   const posts = yield* fetchPosts(user.id);
- *   return { user, posts };
- * });
+ * const fetchUser = (id: number) =>
+ *   Promise.resolve(primitives.results.ok({ id, name: "Ada" }));
+ * const fetchPosts = (userId: number) =>
+ *   Promise.resolve(primitives.results.ok([{ userId, title: "Hello" }]));
+ *
+ * const fetchUserWithPosts = (userId: number) =>
+ *   functions.run(async function* () {
+ *     const user = yield* await fetchUser(userId);
+ *     const posts = yield* await fetchPosts(user.id);
+ *     return { user, posts };
+ *   });
  * ```
  */
 export const run = async <T, E>(
@@ -39,6 +45,9 @@ export const run = async <T, E>(
       return result as results.Result<T, E>;
     }
 
+    // Each step resumes the generator with the previous step's value, so the
+    // steps cannot overlap.
+    // deno-lint-ignore no-await-in-loop
     next = await iter.next(result.value);
   }
 
@@ -51,14 +60,24 @@ export const run = async <T, E>(
  *
  * @example
  * ```typescript
- * import { runSync } from "@eserstack/functions";
- * import { ok, fail } from "@eserstack/primitives/results";
+ * import * as functions from "@eserstack/functions";
+ * import * as primitives from "@eserstack/primitives";
  *
- * const parseConfig = (input: string) => runSync(function* () {
- *   const json = yield* parseJson(input);
- *   const port = yield* validatePort(json.port);
- *   return { port, host: json.host };
- * });
+ * type Json = { readonly port?: unknown; readonly host?: string };
+ *
+ * const parseJson = (input: string) =>
+ *   primitives.results.tryCatch((): Json => JSON.parse(input), () => "bad JSON");
+ * const validatePort = (port: unknown) =>
+ *   typeof port === "number"
+ *     ? primitives.results.ok(port)
+ *     : primitives.results.fail("port must be a number");
+ *
+ * const parseConfig = (input: string) =>
+ *   functions.runSync(function* () {
+ *     const json = yield* parseJson(input);
+ *     const port = yield* validatePort(json.port);
+ *     return { port, host: json.host };
+ *   });
  * ```
  */
 export const runSync = <T, E>(

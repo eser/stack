@@ -26,6 +26,7 @@ import type * as types from "./types.ts";
  * Returns the shared library file extension for the current OS.
  */
 export const getLibraryExtension = (): types.LibraryExtension => {
+  // globalThis does not declare Deno, Bun or process on every runtime.
   // deno-lint-ignore no-explicit-any
   const g = globalThis as any;
 
@@ -66,6 +67,7 @@ export const getLibraryExtension = (): types.LibraryExtension => {
  * ultimately to the WASM fallback, which is the correct outcome anyway.
  */
 const getPlatformSlug = (): string => {
+  // globalThis does not declare Deno, Bun or process on every runtime.
   // deno-lint-ignore no-explicit-any
   const g = globalThis as any;
 
@@ -107,6 +109,7 @@ const getStatSync = (): ((path: string) => unknown) | null => {
     return statSyncImpl;
   }
 
+  // globalThis does not declare Deno, Bun or process on every runtime.
   // deno-lint-ignore no-explicit-any
   const g = globalThis as any;
 
@@ -136,8 +139,9 @@ const getStatSync = (): ((path: string) => unknown) | null => {
 /**
  * Checks whether a file exists at the given path.
  * Returns `false` when the runtime offers no synchronous filesystem access.
+ * `wasm/resolve.ts` probes its candidates through this as well.
  */
-const fileExists = (path: string): boolean => {
+export const fileExists = (path: string): boolean => {
   const statSync = getStatSync();
 
   if (statSync === null) {
@@ -192,11 +196,12 @@ const getBaseName = (dir: string): string =>
  * Because `import.meta.dirname` is only accessible at the call-site (not in
  * a helper function), callers should pass a `hint` when they can.
  */
-const getModuleDir = (hint?: string): string => {
+export const getModuleDir = (hint?: string): string => {
   if (hint !== undefined) {
     return hint;
   }
 
+  // globalThis does not declare Deno, Bun or process on every runtime.
   // deno-lint-ignore no-explicit-any
   const g = globalThis as any;
 
@@ -299,6 +304,7 @@ export const resolveLibraryPath = (moduleDirHint?: string): string => {
     return cwdDistPath;
   }
 
+  // globalThis does not declare Deno, Bun or process on every runtime.
   // deno-lint-ignore no-explicit-any
   const g = globalThis as any;
   const cwd =
@@ -367,6 +373,7 @@ export const resolveLibraryPath = (moduleDirHint?: string): string => {
  * Uses `process.env` which works on Deno 2.7+, Node.js, and Bun.
  */
 const getEnvVar = (name: string): string | undefined => {
+  // globalThis does not declare Deno, Bun or process on every runtime.
   // deno-lint-ignore no-explicit-any
   const g = globalThis as any;
 

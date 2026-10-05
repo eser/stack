@@ -2,12 +2,14 @@
 
 // @ts-types="@types/react/jsx-runtime"
 import * as reactJsxRuntime from "react/jsx-runtime";
-import { encodeEntities } from "./encoder.ts";
+import * as encoder from "./encoder.ts";
 
 export const jsx = reactJsxRuntime.jsx;
 export const jsxs = reactJsxRuntime.jsxs;
 export const Fragment = reactJsxRuntime.Fragment;
 
+// Escaped child arrays mix strings, null and nested nodes, so the element
+// type stays open.
 // deno-lint-ignore no-explicit-any
 type VNode = object | any[]; // reactJsxRuntime.JSX.Element;
 
@@ -41,7 +43,7 @@ export function jsxEscape(value: unknown): string | null | VNode {
     }
   }
 
-  return encodeEntities(String(value));
+  return encoder.encodeEntities(String(value));
 }
 
 /**

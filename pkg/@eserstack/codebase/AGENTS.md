@@ -102,5 +102,6 @@ Rule:
 4. Add `validate-<name>.test.ts` that runs the pure check on fixtures and one
    `run({ root })` against a temporary directory.
 5. When the rule has existing violations, record them in a baseline under
-   `.eser/baselines/` and fail only above it, as `validate-code-conventions`
-   does, instead of excluding files.
+   `.eser/baselines/` and fail only above it, with the helpers in
+   `violation-baseline.ts` as `validate-code-conventions` and
+   `validate-runtime-js-apis` do, instead of excluding files.

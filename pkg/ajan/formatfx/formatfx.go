@@ -10,7 +10,10 @@
 //	formatfx.RegisterBuiltinFormats()
 //
 //	f, err := formatfx.GetFormat("json")
-//	raw, err := f.WriteItem(myData, nil)
+//	raw, err := f.WriteItem(myData, &formatfx.FormatOptions{Document: true})
+//
+// Document writes one value as a whole document. Without it, WriteItem writes
+// one entry of a list that WriteStart opens and WriteEnd closes.
 package formatfx
 
 // RegisterBuiltinFormats registers all built-in formats (JSON, JSONL, CSV,

@@ -80,7 +80,7 @@ func TestMetricsMiddleware(t *testing.T) {
 			require.NotNil(t, metrics)
 
 			// Create a router with the metrics middleware
-			router := httpfx.NewRouter("/")
+			router := newTestRouter()
 			router.Use(middlewares.MetricsMiddleware(metrics))
 
 			// Add a test route

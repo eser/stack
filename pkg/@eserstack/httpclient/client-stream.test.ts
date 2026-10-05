@@ -1,7 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import { describe, it } from "@std/testing/bdd";
-import { assertEquals, assertInstanceOf, assertRejects } from "@std/assert";
+import * as bdd from "@std/testing/bdd";
+import * as assert from "@std/assert";
 import * as results from "@eserstack/primitives/results";
 import * as clientModule from "./client.ts";
 import * as errors from "./errors.ts";
@@ -67,8 +67,8 @@ const collectStream = async (
 // requestStream — success path
 // =============================================================================
 
-describe("HttpClient — requestStream success", () => {
-  it("returns ReadableStream without consuming the body", async () => {
+bdd.describe("HttpClient — requestStream success", () => {
+  bdd.it("returns ReadableStream without consuming the body", async () => {
     const client = makeClient(
       (_req) =>
         Promise.resolve(
@@ -79,13 +79,13 @@ describe("HttpClient — requestStream success", () => {
       "POST",
       "https://example.com/stream",
     );
-    assertEquals(resp.status, 200);
-    assertInstanceOf(resp.body, ReadableStream);
+    assert.assertEquals(resp.status, 200);
+    assert.assertInstanceOf(resp.body, ReadableStream);
     const text = await collectStream(resp.body);
-    assertEquals(text, '{"token":"hello"}{"token":"world"}');
+    assert.assertEquals(text, '{"token":"hello"}{"token":"world"}');
   });
 
-  it("includes retries count on first-attempt success", async () => {
+  bdd.it("includes retries count on first-attempt success", async () => {
     const client = makeClient(
       (_req) => Promise.resolve(makeStreamResponse(["data"])),
     );
@@ -93,10 +93,10 @@ describe("HttpClient — requestStream success", () => {
       "POST",
       "https://example.com/stream",
     );
-    assertEquals(resp.retries, 0);
+    assert.assertEquals(resp.retries, 0);
   });
 
-  it("includes rateLimit info when headers are present", async () => {
+  bdd.it("includes rateLimit info when headers are present", async () => {
     const client = makeClient(
       (_req) =>
         Promise.resolve(
@@ -110,8 +110,8 @@ describe("HttpClient — requestStream success", () => {
       "POST",
       "https://example.com/stream",
     );
-    assertEquals(resp.rateLimit?.remaining, 42);
-    assertEquals(resp.rateLimit?.limit, 100);
+    assert.assertEquals(resp.rateLimit?.remaining, 42);
+    assert.assertEquals(resp.rateLimit?.limit, 100);
   });
 });
 
@@ -119,8 +119,8 @@ describe("HttpClient — requestStream success", () => {
 // requestStream — retry on 5xx
 // =============================================================================
 
-describe("HttpClient — requestStream retry on 5xx", () => {
-  it("retries on 500 and succeeds on second attempt", async () => {
+bdd.describe("HttpClient — requestStream retry on 5xx", () => {
+  bdd.it("retries on 500 and succeeds on second attempt", async () => {
     let callCount = 0;
     const client = makeClient(
       (_req) => {
@@ -136,9 +136,9 @@ describe("HttpClient — requestStream retry on 5xx", () => {
       "POST",
       "https://example.com/stream",
     );
-    assertEquals(resp.status, 200);
-    assertEquals(resp.retries, 1);
-    assertEquals(callCount, 2);
+    assert.assertEquals(resp.status, 200);
+    assert.assertEquals(resp.retries, 1);
+    assert.assertEquals(callCount, 2);
   });
 });
 
@@ -146,8 +146,8 @@ describe("HttpClient — requestStream retry on 5xx", () => {
 // requestStream — retry on 429 with Retry-After
 // =============================================================================
 
-describe("HttpClient — requestStream retry on 429", () => {
-  it("honours Retry-After and retries", async () => {
+bdd.describe("HttpClient — requestStream retry on 429", () => {
+  bdd.it("honours Retry-After and retries", async () => {
     const delays: number[] = [];
     let callCount = 0;
     const client = clientModule.createHttpClient({
@@ -172,8 +172,8 @@ describe("HttpClient — requestStream retry on 429", () => {
       "POST",
       "https://example.com/stream",
     );
-    assertEquals(resp.status, 200);
-    assertEquals(delays, [2_000]);
+    assert.assertEquals(resp.status, 200);
+    assert.assertEquals(delays, [2_000]);
   });
 });
 
@@ -181,13 +181,13 @@ describe("HttpClient — requestStream retry on 429", () => {
 // requestStream — null body
 // =============================================================================
 
-describe("HttpClient — requestStream null body", () => {
-  it("throws HttpNetworkError when response body is null", async () => {
+bdd.describe("HttpClient — requestStream null body", () => {
+  bdd.it("throws HttpNetworkError when response body is null", async () => {
     const client = makeClient(
       (_req) => Promise.resolve(new Response(null, { status: 200 })),
       { retry: false },
     );
-    await assertRejects(
+    await assert.assertRejects(
       () => client.requestStream("POST", "https://example.com/stream"),
       errors.HttpNetworkError,
     );
@@ -198,25 +198,25 @@ describe("HttpClient — requestStream null body", () => {
 // requestStream — non-2xx error
 // =============================================================================
 
-describe("HttpClient — requestStream non-2xx", () => {
-  it("throws HttpResponseError for 404", async () => {
+bdd.describe("HttpClient — requestStream non-2xx", () => {
+  bdd.it("throws HttpResponseError for 404", async () => {
     const client = makeClient(
       (_req) => Promise.resolve(makeErrorResponse(404, { error: "Not found" })),
       { retry: false },
     );
-    await assertRejects(
+    await assert.assertRejects(
       () => client.requestStream("GET", "https://example.com/stream"),
       errors.HttpResponseError,
     );
   });
 
-  it("throws HttpRateLimitError for 429 (no retry)", async () => {
+  bdd.it("throws HttpRateLimitError for 429 (no retry)", async () => {
     const client = makeClient(
       (_req) =>
         Promise.resolve(makeErrorResponse(429, { error: "Rate limited" })),
       { retry: false },
     );
-    await assertRejects(
+    await assert.assertRejects(
       () => client.requestStream("POST", "https://example.com/stream"),
       errors.HttpRateLimitError,
     );
@@ -227,8 +227,8 @@ describe("HttpClient — requestStream non-2xx", () => {
 // postStream — convenience method
 // =============================================================================
 
-describe("HttpClient — postStream convenience", () => {
-  it("delegates to POST requestStream", async () => {
+bdd.describe("HttpClient — postStream convenience", () => {
+  bdd.it("delegates to POST requestStream", async () => {
     let capturedMethod: string | undefined;
     const client = makeClient(
       (req) => {
@@ -237,8 +237,8 @@ describe("HttpClient — postStream convenience", () => {
       },
     );
     const resp = await client.postStream("https://example.com/stream");
-    assertEquals(resp.status, 200);
-    assertEquals(capturedMethod, "POST");
+    assert.assertEquals(resp.status, 200);
+    assert.assertEquals(capturedMethod, "POST");
   });
 });
 
@@ -246,8 +246,8 @@ describe("HttpClient — postStream convenience", () => {
 // requestStreamResult — Result-style API
 // =============================================================================
 
-describe("HttpClient — requestStreamResult Result wrapping", () => {
-  it("wraps success in Ok", async () => {
+bdd.describe("HttpClient — requestStreamResult Result wrapping", () => {
+  bdd.it("wraps success in Ok", async () => {
     const client = makeClient(
       (_req) => Promise.resolve(makeStreamResponse(["data"])),
     );
@@ -255,14 +255,14 @@ describe("HttpClient — requestStreamResult Result wrapping", () => {
       "POST",
       "https://example.com/stream",
     );
-    assertEquals(results.isOk(r), true);
+    assert.assertEquals(results.isOk(r), true);
     if (results.isOk(r)) {
-      assertInstanceOf(r.value.body, ReadableStream);
-      assertEquals(r.value.status, 200);
+      assert.assertInstanceOf(r.value.body, ReadableStream);
+      assert.assertEquals(r.value.status, 200);
     }
   });
 
-  it("wraps failure in Fail", async () => {
+  bdd.it("wraps failure in Fail", async () => {
     const client = makeClient(
       (_req) => Promise.resolve(makeErrorResponse(500)),
       { retry: false },
@@ -271,13 +271,13 @@ describe("HttpClient — requestStreamResult Result wrapping", () => {
       "POST",
       "https://example.com/stream",
     );
-    assertEquals(results.isFail(r), true);
+    assert.assertEquals(results.isFail(r), true);
     if (results.isFail(r)) {
-      assertInstanceOf(r.error, errors.HttpResponseError);
+      assert.assertInstanceOf(r.error, errors.HttpResponseError);
     }
   });
 
-  it("wraps HttpNetworkError (null body) in Fail", async () => {
+  bdd.it("wraps HttpNetworkError (null body) in Fail", async () => {
     const client = makeClient(
       (_req) => Promise.resolve(new Response(null, { status: 200 })),
       { retry: false },
@@ -286,9 +286,9 @@ describe("HttpClient — requestStreamResult Result wrapping", () => {
       "POST",
       "https://example.com/stream",
     );
-    assertEquals(results.isFail(r), true);
+    assert.assertEquals(results.isFail(r), true);
     if (results.isFail(r)) {
-      assertInstanceOf(r.error, errors.HttpNetworkError);
+      assert.assertInstanceOf(r.error, errors.HttpNetworkError);
     }
   });
 });
@@ -297,12 +297,12 @@ describe("HttpClient — requestStreamResult Result wrapping", () => {
 // postStreamResult — convenience
 // =============================================================================
 
-describe("HttpClient — postStreamResult convenience", () => {
-  it("wraps POST stream success in Ok", async () => {
+bdd.describe("HttpClient — postStreamResult convenience", () => {
+  bdd.it("wraps POST stream success in Ok", async () => {
     const client = makeClient(
       (_req) => Promise.resolve(makeStreamResponse(["ndjson"])),
     );
     const r = await client.postStreamResult("https://example.com/stream");
-    assertEquals(results.isOk(r), true);
+    assert.assertEquals(results.isOk(r), true);
   });
 });

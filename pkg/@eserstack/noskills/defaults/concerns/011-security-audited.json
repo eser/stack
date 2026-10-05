@@ -26,35 +26,30 @@
       "id": "trust-boundary-model",
       "title": "Trust Boundary Model",
       "placeholder": "_Map all trust zones, entry points, and data flows. What components are involved? Where does untrusted input enter? Sketch the architecture before opening the code._",
-      "condition": null,
       "position": "after:scope-boundary"
     },
     {
       "id": "attack-surface-census",
       "title": "Attack Surface Census",
       "placeholder": "_Enumerate every external input: HTTP params, headers, cookies, file uploads, env vars, webhook payloads, OAuth callbacks, CLI args. For each: what validation is applied?_",
-      "condition": null,
       "position": "after:scope-boundary"
     },
     {
       "id": "owasp-top10-checklist",
       "title": "OWASP Top 10 Checklist",
       "placeholder": "_For each applicable OWASP category (A01–A10), state: does this change touch it? What specific test verifies this change does not introduce a vulnerability? File:line reference per check._",
-      "condition": null,
       "position": "after:scope-boundary"
     },
     {
       "id": "secrets-lifecycle",
       "title": "Secrets Lifecycle",
       "placeholder": "_Find every secret (API key, token, password, signing key). For each: where stored, how rotated, ever in logs/error messages/serialized responses? Any hardcoded? Last rotation date?_",
-      "condition": null,
       "position": "after:scope-boundary"
     },
     {
       "id": "dependency-supply-chain",
       "title": "Dependency Supply Chain",
       "placeholder": "_For every new dependency: CVE check (npm audit / go vuln / pip-audit), maintainer verification, download count, license compatibility. No new dependency without evidence of review._",
-      "condition": null,
       "position": "after:scope-boundary"
     }
   ],

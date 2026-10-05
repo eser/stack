@@ -10,11 +10,17 @@
  * @returns Object with keys from iteratee and elements as values
  *
  * @example
- * keyBy([{id: 'a', name: 'Alice'}, {id: 'b', name: 'Bob'}], x => x.id)
- * // { a: {id: 'a', name: 'Alice'}, b: {id: 'b', name: 'Bob'} }
+ * ```typescript
+ * import * as fp from "@eserstack/fp";
  *
- * keyBy(['one', 'two', 'three'], x => x.length)
- * // { 3: 'one', 5: 'three' } // 'two' overwrites 'one' at key 3, then 'three' at key 5
+ * const users = [{ id: "a", name: "Alice" }, { id: "b", name: "Bob" }];
+ *
+ * fp.keyBy(users, (x) => x.id);
+ * // { a: { id: "a", name: "Alice" }, b: { id: "b", name: "Bob" } }
+ *
+ * // "two" replaces "one" at key 3
+ * fp.keyBy(["one", "two", "three"], (x) => x.length); // { 3: "two", 5: "three" }
+ * ```
  */
 export const keyBy = <T, K extends string | number | symbol>(
   array: ReadonlyArray<T>,
@@ -31,5 +37,3 @@ export const keyBy = <T, K extends string | number | symbol>(
 
   return result;
 };
-
-export { keyBy as default };

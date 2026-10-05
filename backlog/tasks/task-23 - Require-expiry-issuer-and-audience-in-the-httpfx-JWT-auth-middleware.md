@@ -1,9 +1,10 @@
 ---
 id: TASK-23
 title: 'Require expiry, issuer and audience in the httpfx JWT auth middleware'
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-09-25 19:59'
+updated_date: '2026-10-04 20:52'
 labels:
   - security
   - ajan
@@ -24,9 +25,17 @@ httpfx/middlewares/auth_middleware.go parses bearer tokens with jwt.Parse and jw
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 A token without exp is rejected with 401
-- [ ] #2 A token with the wrong issuer or audience is rejected with 401
-- [ ] #3 The signing algorithm is pinned through jwt.WithValidMethods
-- [ ] #4 Issuer and audience come from httpfx config, and the change is documented for existing deployments
-- [ ] #5 Tests cover each rejection case; deno task cli ok passes
+- [x] #1 A token without exp is rejected with 401
+- [x] #2 A token with the wrong issuer or audience is rejected with 401
+- [x] #3 The signing algorithm is pinned through jwt.WithValidMethods
+- [x] #4 Issuer and audience come from httpfx config, and the change is documented for existing deployments
+- [x] #5 Tests cover each rejection case; deno task cli ok passes
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Applied in the skills sweep on 2026-10-04; deno task cli ok passes.
+
+go-server: Verified in auth_middleware.go and its tests. jwt.NewParser uses WithValidMethods (HS256 by default) and WithExpirationRequired, and adds WithIssuer and WithAudience when they are set. An empty secret fails closed. A startup warning is logged when issuer or audience is unset. Test cases cover a missing exp, an expired token, the wrong secret, an unpinned HS512, alg none, a wrong or missing iss or aud, the HS512 pin, the empty secret and the warning. httpfx.Config has AuthIssuer and AuthAudience, and the README 'JWT authentication' section documents the migration.
+<!-- SECTION:NOTES:END -->

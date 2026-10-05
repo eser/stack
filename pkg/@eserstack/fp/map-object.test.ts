@@ -1,7 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 import * as assert from "@std/assert";
-import { mapObject } from "./map-object.ts";
+import * as mapObject from "./map-object.ts";
 
 Deno.test("basic", () => {
   const obj1 = { a: 1, b: 2, c: 3, d: 4, e: 5 };
@@ -9,7 +9,7 @@ Deno.test("basic", () => {
     [key]: value - 1,
   });
 
-  const result = mapObject(obj1, func1);
+  const result = mapObject.mapObject(obj1, func1);
 
   assert.assertNotStrictEquals(result, obj1);
   assert.assertEquals(Object.keys(result).length, 5);
@@ -29,7 +29,7 @@ Deno.test("with-value-skipping", () => {
     return { [key]: value - 1 };
   };
 
-  const result = mapObject(obj1, func1);
+  const result = mapObject.mapObject(obj1, func1);
 
   // deno-lint-ignore no-explicit-any
   assert.assertNotStrictEquals(<any> result, <any> obj1);

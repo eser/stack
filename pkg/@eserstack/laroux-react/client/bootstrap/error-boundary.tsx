@@ -4,17 +4,24 @@
  * Catches errors in RSC rendering and provides a friendly UI
  */
 
-import { Component, type ErrorInfo, type ReactNode } from "react";
+import * as React from "react";
+import * as logging from "@eserstack/logging";
 
-interface Props {
-  children: ReactNode;
-}
+/** Props of {@link ErrorBoundary}. */
+export type ErrorBoundaryProps = {
+  /** The tree whose render errors the boundary catches */
+  children: React.ReactNode;
+};
 
-interface State {
+/** State of {@link ErrorBoundary}. */
+export type ErrorBoundaryState = {
+  /** Whether a render below the boundary failed */
   hasError: boolean;
+  /** The error that failed the render, or null */
   error: Error | null;
-  errorInfo: ErrorInfo | null;
-}
+  /** React's component stack for the error, or null */
+  errorInfo: React.ErrorInfo | null;
+};
 
 // Extended error interface matching LarouxError
 interface LarouxError extends Error {
@@ -22,6 +29,10 @@ interface LarouxError extends Error {
   hint?: string;
   docUrl?: string;
 }
+
+// Optional fields of a LarouxError render only when they hold text.
+const hasText = (value: string | undefined): value is string =>
+  value !== undefined && value !== "";
 
 // Check if debug mode is enabled
 const isDebugMode = () => {
@@ -45,8 +56,19 @@ const isNetworkError = (error: Error | null): boolean => {
   );
 };
 
-export class ErrorBoundary extends Component<Props, State> {
-  constructor(props: Props) {
+/**
+ * Catches errors in the rendering below it. A network error keeps the
+ * server-rendered content and shows nothing; any other error shows an error
+ * view with a retry button, and its details with `?debug=1` in the URL.
+ */
+export class ErrorBoundary
+  extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  /**
+   * Creates the boundary with no error recorded.
+   *
+   * @param props - The tree to guard
+   */
+  constructor(props: ErrorBoundaryProps) {
     super(props);
     this.state = {
       hasError: false,
@@ -55,35 +77,50 @@ export class ErrorBoundary extends Component<Props, State> {
     };
   }
 
-  static getDerivedStateFromError(error: Error): Partial<State> {
+  /** Records the error so the next render shows the error view. */
+  static getDerivedStateFromError(error: Error): Partial<ErrorBoundaryState> {
     return {
       hasError: true,
       error,
     };
   }
 
-  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error("ErrorBoundary caught an error:", error, errorInfo);
+  /** Logs the error once and keeps its component stack for the view. */
+  override componentDidCatch(error: Error, errorInfo: React.ErrorInfo): void {
+    // The boundary handles the error, so this is the one place that logs it.
+    const logger = logging.logger.getLogger([
+      "laroux-bundler",
+      "error-boundary",
+    ]);
+    if (isNetworkError(error)) {
+      logger.with({ error }).warn(
+        "render hit a network error; keeping the server-rendered content",
+      );
+    } else {
+      logger.with({
+        error,
+        componentStack: errorInfo.componentStack,
+      }).error("render failed; showing the error view");
+    }
+
     this.setState({
       errorInfo,
     });
   }
 
+  /** Reloads the page, which renders it again from the server. */
   handleRetry = (): void => {
     // Reload the page to retry
     globalThis.location.reload();
   };
 
-  render(): React.ReactNode {
+  /** Renders the children, or the error view after an error. */
+  override render(): React.ReactNode {
     if (this.state.hasError) {
       // For network errors, don't show visible error UI - just return null
       // This keeps SSR content visible and prevents Lighthouse score penalty
       // The error is already logged in componentDidCatch
       if (isNetworkError(this.state.error)) {
-        console.warn(
-          "[ErrorBoundary] Network error detected, keeping SSR content visible:",
-          this.state.error?.message,
-        );
         return null;
       }
 
@@ -126,21 +163,23 @@ export class ErrorBoundary extends Component<Props, State> {
               >
                 ❌ {error?.name ?? "Error"}
               </h2>
-              {error?.code && (
-                <span
-                  style={{
-                    background: "#7f1d1d",
-                    color: "#fee2e2",
-                    padding: "0.25rem 0.75rem",
-                    borderRadius: "4px",
-                    fontSize: "0.875rem",
-                    fontWeight: "600",
-                    fontFamily: "monospace",
-                  }}
-                >
-                  {error.code}
-                </span>
-              )}
+              {hasText(error?.code)
+                ? (
+                  <span
+                    style={{
+                      background: "#7f1d1d",
+                      color: "#fee2e2",
+                      padding: "0.25rem 0.75rem",
+                      borderRadius: "4px",
+                      fontSize: "0.875rem",
+                      fontWeight: "600",
+                      fontFamily: "monospace",
+                    }}
+                  >
+                    {error.code}
+                  </span>
+                )
+                : null}
             </div>
 
             <p
@@ -155,61 +194,65 @@ export class ErrorBoundary extends Component<Props, State> {
                 "The React Server Components renderer encountered an error while loading the page."}
             </p>
 
-            {error?.hint && (
-              <div
-                style={{
-                  background: "#fef2f2",
-                  border: "1px solid #fecaca",
-                  borderRadius: "6px",
-                  padding: "1rem",
-                  marginTop: "1rem",
-                }}
-              >
+            {hasText(error?.hint)
+              ? (
                 <div
                   style={{
-                    color: "#991b1b",
-                    fontWeight: "600",
-                    marginBottom: "0.5rem",
-                    fontSize: "0.875rem",
-                  }}
-                >
-                  💡 Hint:
-                </div>
-                <div
-                  style={{
-                    color: "#7f1d1d",
-                    fontSize: "0.875rem",
-                    lineHeight: "1.5",
-                    whiteSpace: "pre-wrap",
-                  }}
-                >
-                  {error.hint}
-                </div>
-              </div>
-            )}
-
-            {error?.docUrl && (
-              <div style={{ marginTop: "1rem" }}>
-                <a
-                  href={error.docUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{
-                    display: "inline-block",
-                    background: "#dbeafe",
-                    color: "#1e40af",
-                    textDecoration: "none",
-                    padding: "0.5rem 1rem",
+                    background: "#fef2f2",
+                    border: "1px solid #fecaca",
                     borderRadius: "6px",
-                    fontSize: "0.875rem",
-                    fontWeight: "600",
-                    border: "1px solid #93c5fd",
+                    padding: "1rem",
+                    marginTop: "1rem",
                   }}
                 >
-                  📖 View Documentation
-                </a>
-              </div>
-            )}
+                  <div
+                    style={{
+                      color: "#991b1b",
+                      fontWeight: "600",
+                      marginBottom: "0.5rem",
+                      fontSize: "0.875rem",
+                    }}
+                  >
+                    💡 Hint:
+                  </div>
+                  <div
+                    style={{
+                      color: "#7f1d1d",
+                      fontSize: "0.875rem",
+                      lineHeight: "1.5",
+                      whiteSpace: "pre-wrap",
+                    }}
+                  >
+                    {error.hint}
+                  </div>
+                </div>
+              )
+              : null}
+
+            {hasText(error?.docUrl)
+              ? (
+                <div style={{ marginTop: "1rem" }}>
+                  <a
+                    href={error.docUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      display: "inline-block",
+                      background: "#dbeafe",
+                      color: "#1e40af",
+                      textDecoration: "none",
+                      padding: "0.5rem 1rem",
+                      borderRadius: "6px",
+                      fontSize: "0.875rem",
+                      fontWeight: "600",
+                      border: "1px solid #93c5fd",
+                    }}
+                  >
+                    📖 View Documentation
+                  </a>
+                </div>
+              )
+              : null}
 
             <div style={{ marginTop: "1.5rem" }}>
               <button
@@ -293,24 +336,26 @@ export class ErrorBoundary extends Component<Props, State> {
                     <strong>Error:</strong> {this.state.error.message}
                   </div>
 
-                  {this.state.error.stack && (
-                    <div>
-                      <strong>Stack Trace:</strong>
-                      <pre
-                        style={{
-                          overflow: "auto",
-                          padding: "0.5rem",
-                          background: "rgba(0, 0, 0, 0.3)",
-                          borderRadius: "4px",
-                          marginTop: "0.5rem",
-                          fontSize: "0.75rem",
-                          lineHeight: "1.4",
-                        }}
-                      >
+                  {hasText(this.state.error.stack)
+                    ? (
+                      <div>
+                        <strong>Stack Trace:</strong>
+                        <pre
+                          style={{
+                            overflow: "auto",
+                            padding: "0.5rem",
+                            background: "rgba(0, 0, 0, 0.3)",
+                            borderRadius: "4px",
+                            marginTop: "0.5rem",
+                            fontSize: "0.75rem",
+                            lineHeight: "1.4",
+                          }}
+                        >
                         {this.state.error.stack}
-                      </pre>
-                    </div>
-                  )}
+                        </pre>
+                      </div>
+                    )
+                    : null}
 
                   {this.state.errorInfo && (
                     <div style={{ marginTop: "1rem" }}>

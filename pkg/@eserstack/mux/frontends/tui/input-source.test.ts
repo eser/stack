@@ -1,10 +1,10 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import { assertEquals } from "@std/assert";
+import * as assert from "@std/assert";
 import type * as tui from "@eserstack/shell/tui";
-import { defaultKeymap } from "../../keybindings/mod.ts";
+import * as keybindings from "../../keybindings/mod.ts";
 import type { Scene } from "../../scene/scene.ts";
-import { keyToMessages, mouseToMessages } from "./input-source.ts";
+import * as inputSource from "./input-source.ts";
 
 const key = (over: Partial<tui.KeypressEvent>): tui.KeypressEvent => ({
   name: "a",
@@ -16,43 +16,54 @@ const key = (over: Partial<tui.KeypressEvent>): tui.KeypressEvent => ({
 });
 
 Deno.test("a bound chord dispatches its actions", () => {
-  const msgs = keyToMessages(
+  const msgs = inputSource.keyToMessages(
     key({ name: "p", ctrl: true }),
     "normal",
-    defaultKeymap,
+    keybindings.defaultKeymap,
   );
-  assertEquals(msgs, [
+  assert.assertEquals(msgs, [
     { t: "action", action: { type: "switchMode", mode: "pane" } },
   ]);
 });
 
 Deno.test("an unbound key in normal mode is forwarded raw (passthrough)", () => {
-  const msgs = keyToMessages(
+  const msgs = inputSource.keyToMessages(
     key({ name: "a", raw: new TextEncoder().encode("a") }),
     "normal",
-    defaultKeymap,
+    keybindings.defaultKeymap,
   );
-  assertEquals(msgs, [
+  assert.assertEquals(msgs, [
     { t: "action", action: { type: "writeInput", data: "a" } },
   ]);
 });
 
 Deno.test("an unbound key in a command mode is dropped", () => {
-  assertEquals(keyToMessages(key({ name: "a" }), "pane", defaultKeymap), []);
+  assert.assertEquals(
+    inputSource.keyToMessages(
+      key({ name: "a" }),
+      "pane",
+      keybindings.defaultKeymap,
+    ),
+    [],
+  );
 });
 
 Deno.test("locked mode forwards everything except ctrl+g", () => {
-  assertEquals(
-    keyToMessages(
+  assert.assertEquals(
+    inputSource.keyToMessages(
       key({ name: "p", ctrl: true, raw: new Uint8Array([16]) }),
       "locked",
-      defaultKeymap,
+      keybindings.defaultKeymap,
     )
       .length,
     1, // passthrough
   );
-  assertEquals(
-    keyToMessages(key({ name: "g", ctrl: true }), "locked", defaultKeymap),
+  assert.assertEquals(
+    inputSource.keyToMessages(
+      key({ name: "g", ctrl: true }),
+      "locked",
+      keybindings.defaultKeymap,
+    ),
     [
       { t: "action", action: { type: "switchMode", mode: "normal" } },
     ],
@@ -96,7 +107,7 @@ Deno.test("a mouse click focuses the pane under the cursor", () => {
     ctrl: false,
   };
 
-  assertEquals(mouseToMessages(ev, scene), [
+  assert.assertEquals(inputSource.mouseToMessages(ev, scene), [
     { t: "action", action: { type: "focusPane", pane: "pane-2" } },
   ]);
 });

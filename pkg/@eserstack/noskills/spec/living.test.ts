@@ -8,8 +8,8 @@
  * Disk I/O functions (applyAnswerToFile, applyNaToFile) are not tested here.
  */
 
-import { describe, it } from "@std/testing/bdd";
-import { assertEquals, assertThrows } from "@std/assert";
+import * as bdd from "@std/testing/bdd";
+import * as assert from "@std/assert";
 import * as schema from "../state/schema.ts";
 import * as living from "./living.ts";
 
@@ -86,71 +86,77 @@ const uiClassification: schema.SpecClassification = {
 // mergeSections
 // =============================================================================
 
-describe("mergeSections", () => {
-  it("returns base sections when no concerns provided", () => {
+bdd.describe("mergeSections", () => {
+  bdd.it("returns base sections when no concerns provided", () => {
     const sections = living.mergeSections([]);
     const ids = sections.map((s) => s.id);
     // Base sections always present
-    assertEquals(ids.includes("summary"), true);
-    assertEquals(ids.includes("problem-statement"), true);
-    assertEquals(ids.includes("acceptance-criteria"), true);
-    assertEquals(sections.length, living.BASE_SECTIONS.length);
+    assert.assertEquals(ids.includes("summary"), true);
+    assert.assertEquals(ids.includes("problem-statement"), true);
+    assert.assertEquals(ids.includes("acceptance-criteria"), true);
+    assert.assertEquals(sections.length, living.BASE_SECTIONS.length);
   });
 
-  it("concern sections appear after their anchor", () => {
+  bdd.it("concern sections appear after their anchor", () => {
     const sections = living.mergeSections([openSourceConcern]);
     const acIdx = sections.findIndex((s) => s.id === "acceptance-criteria");
     const guideIdx = sections.findIndex((s) => s.id === "contributor-guide");
-    assertEquals(guideIdx > acIdx, true);
+    assert.assertEquals(guideIdx > acIdx, true);
   });
 
-  it("concern with no specSections does not add sections", () => {
+  bdd.it("concern with no specSections does not add sections", () => {
     const bare: schema.ConcernDefinition = {
       ...openSourceConcern,
       id: "bare",
       specSections: [],
     };
     const sections = living.mergeSections([bare]);
-    assertEquals(sections.length, living.BASE_SECTIONS.length);
+    assert.assertEquals(sections.length, living.BASE_SECTIONS.length);
   });
 
-  it("legacy string[] sections are auto-migrated with synthetic ids", () => {
-    const sections = living.mergeSections([legacyConcern]);
-    const legacySection = sections.find((s) =>
-      s.id.startsWith("legacy-") && s.id.includes("legacy-section-title")
-    );
-    assertEquals(legacySection !== undefined, true);
-    assertEquals(legacySection?.title, "Legacy Section Title");
-    assertEquals(legacySection?.condition, null);
-  });
+  bdd.it(
+    "legacy string[] sections are auto-migrated with synthetic ids",
+    () => {
+      const sections = living.mergeSections([legacyConcern]);
+      const legacySection = sections.find((s) =>
+        s.id.startsWith("legacy-") && s.id.includes("legacy-section-title")
+      );
+      assert.assertEquals(legacySection !== undefined, true);
+      assert.assertEquals(legacySection?.title, "Legacy Section Title");
+      assert.assertEquals(legacySection?.condition, null);
+    },
+  );
 
-  it("section ordering: anchor:scope-boundary positions before acceptance-criteria", () => {
-    const scopeConcern: schema.ConcernDefinition = {
-      id: "scope-concern",
-      name: "Scope Concern",
-      description: "test",
-      extras: [],
-      specSections: [
-        {
-          id: "scope-extra",
-          title: "Scope Extra",
-          placeholder: "_placeholder_",
-          condition: null,
-          position: "after:scope-boundary",
-        },
-      ],
-      reminders: [],
-      acceptanceCriteria: ["ok"],
-    };
-    const sections = living.mergeSections([scopeConcern]);
-    const scopeIdx = sections.findIndex((s) => s.id === "scope-boundary");
-    const extraIdx = sections.findIndex((s) => s.id === "scope-extra");
-    const acIdx = sections.findIndex((s) => s.id === "acceptance-criteria");
-    assertEquals(extraIdx > scopeIdx, true);
-    assertEquals(extraIdx < acIdx, true);
-  });
+  bdd.it(
+    "section ordering: anchor:scope-boundary positions before acceptance-criteria",
+    () => {
+      const scopeConcern: schema.ConcernDefinition = {
+        id: "scope-concern",
+        name: "Scope Concern",
+        description: "test",
+        extras: [],
+        specSections: [
+          {
+            id: "scope-extra",
+            title: "Scope Extra",
+            placeholder: "_placeholder_",
+            condition: null,
+            position: "after:scope-boundary",
+          },
+        ],
+        reminders: [],
+        acceptanceCriteria: ["ok"],
+      };
+      const sections = living.mergeSections([scopeConcern]);
+      const scopeIdx = sections.findIndex((s) => s.id === "scope-boundary");
+      const extraIdx = sections.findIndex((s) => s.id === "scope-extra");
+      const acIdx = sections.findIndex((s) => s.id === "acceptance-criteria");
+      assert.assertEquals(extraIdx > scopeIdx, true);
+      assert.assertEquals(extraIdx < acIdx, true);
+    },
+  );
 
-  it("unknown anchor falls back to after:acceptance-criteria", () => {
+  bdd.it("unknown anchor falls back to after:acceptance-criteria", () => {
     const badAnchorConcern: schema.ConcernDefinition = {
       id: "bad-anchor",
       name: "Bad Anchor",
@@ -171,7 +177,7 @@ describe("mergeSections", () => {
     const sections = living.mergeSections([badAnchorConcern]);
     const acIdx = sections.findIndex((s) => s.id === "acceptance-criteria");
     const orphanIdx = sections.findIndex((s) => s.id === "orphan-section");
-    assertEquals(orphanIdx > acIdx, true);
+    assert.assertEquals(orphanIdx > acIdx, true);
   });
 });
 
@@ -179,8 +185,8 @@ describe("mergeSections", () => {
 // generateInitialSpec
 // =============================================================================
 
-describe("generateInitialSpec", () => {
-  it("base + concern sections appear with placeholder markers", () => {
+bdd.describe("generateInitialSpec", () => {
+  bdd.it("base + concern sections appear with placeholder markers", () => {
     const { content, placeholders } = living.generateInitialSpec({
       specName: "my-feature",
       activeConcerns: [openSourceConcern],
@@ -188,53 +194,68 @@ describe("generateInitialSpec", () => {
       creator,
       now,
     });
-    assertEquals(content.includes("# Spec: my-feature"), true);
-    assertEquals(content.includes("## Summary"), true);
-    assertEquals(content.includes("## Contributor Guide"), true);
-    assertEquals(content.includes("<!-- PLACEHOLDER:summary -->"), true);
-    assertEquals(
+    assert.assertEquals(content.includes("# Spec: my-feature"), true);
+    assert.assertEquals(content.includes("## Summary"), true);
+    assert.assertEquals(content.includes("## Contributor Guide"), true);
+    assert.assertEquals(content.includes("<!-- PLACEHOLDER:summary -->"), true);
+    assert.assertEquals(
       content.includes("<!-- PLACEHOLDER:contributor-guide -->"),
       true,
     );
-    assertEquals(placeholders.some((p) => p.sectionId === "summary"), true);
-    assertEquals(
+    assert.assertEquals(
+      placeholders.some((p) => p.sectionId === "summary"),
+      true,
+    );
+    assert.assertEquals(
       placeholders.find((p) => p.sectionId === "summary")?.status,
       "placeholder",
     );
   });
 
-  it("conditional sections start conditional-hidden when classification is null", () => {
-    const { content, placeholders } = living.generateInitialSpec({
-      specName: "feature",
-      activeConcerns: [beautifulProductConcern],
-      classification: null,
-      creator,
-      now,
-    });
-    const designStates = placeholders.find((p) =>
-      p.sectionId === "design-states"
-    );
-    assertEquals(designStates?.status, "conditional-hidden");
-    // Marker should NOT be in the document body
-    assertEquals(content.includes("<!-- PLACEHOLDER:design-states -->"), false);
-  });
+  bdd.it(
+    "conditional sections start conditional-hidden when classification is null",
+    () => {
+      const { content, placeholders } = living.generateInitialSpec({
+        specName: "feature",
+        activeConcerns: [beautifulProductConcern],
+        classification: null,
+        creator,
+        now,
+      });
+      const designStates = placeholders.find((p) =>
+        p.sectionId === "design-states"
+      );
+      assert.assertEquals(designStates?.status, "conditional-hidden");
+      // Marker should NOT be in the document body
+      assert.assertEquals(
+        content.includes("<!-- PLACEHOLDER:design-states -->"),
+        false,
+      );
+    },
+  );
 
-  it("conditional sections start placeholder when classification flag is true", () => {
-    const { content, placeholders } = living.generateInitialSpec({
-      specName: "ui-feature",
-      activeConcerns: [beautifulProductConcern],
-      classification: uiClassification,
-      creator,
-      now,
-    });
-    const designStates = placeholders.find((p) =>
-      p.sectionId === "design-states"
-    );
-    assertEquals(designStates?.status, "placeholder");
-    assertEquals(content.includes("<!-- PLACEHOLDER:design-states -->"), true);
-  });
+  bdd.it(
+    "conditional sections start placeholder when classification flag is true",
+    () => {
+      const { content, placeholders } = living.generateInitialSpec({
+        specName: "ui-feature",
+        activeConcerns: [beautifulProductConcern],
+        classification: uiClassification,
+        creator,
+        now,
+      });
+      const designStates = placeholders.find((p) =>
+        p.sectionId === "design-states"
+      );
+      assert.assertEquals(designStates?.status, "placeholder");
+      assert.assertEquals(
+        content.includes("<!-- PLACEHOLDER:design-states -->"),
+        true,
+      );
+    },
+  );
 
-  it("metadata.created is set to creator + now", () => {
+  bdd.it("metadata.created is set to creator + now", () => {
     const { metadata } = living.generateInitialSpec({
       specName: "feature",
       activeConcerns: [],
@@ -242,13 +263,13 @@ describe("generateInitialSpec", () => {
       creator,
       now,
     });
-    assertEquals(metadata.created.user, "Alice");
-    assertEquals(metadata.created.date, now.toISOString());
-    assertEquals(metadata.contributors.length, 1);
-    assertEquals(metadata.contributors[0]?.user, "Alice");
+    assert.assertEquals(metadata.created.user, "Alice");
+    assert.assertEquals(metadata.created.date, now.toISOString());
+    assert.assertEquals(metadata.contributors.length, 1);
+    assert.assertEquals(metadata.contributors[0]?.user, "Alice");
   });
 
-  it("content includes YAML frontmatter", () => {
+  bdd.it("content includes YAML frontmatter", () => {
     const { content } = living.generateInitialSpec({
       specName: "feature",
       activeConcerns: [],
@@ -256,11 +277,11 @@ describe("generateInitialSpec", () => {
       creator,
       now,
     });
-    assertEquals(content.startsWith("---"), true);
-    assertEquals(content.includes("created:"), true);
+    assert.assertEquals(content.startsWith("---"), true);
+    assert.assertEquals(content.includes("created:"), true);
   });
 
-  it("TOC block is included with placeholder symbols", () => {
+  bdd.it("TOC block is included with placeholder symbols", () => {
     const { content } = living.generateInitialSpec({
       specName: "feature",
       activeConcerns: [],
@@ -268,9 +289,9 @@ describe("generateInitialSpec", () => {
       creator,
       now,
     });
-    assertEquals(content.includes("<!-- TOC:START -->"), true);
-    assertEquals(content.includes("<!-- TOC:END -->"), true);
-    assertEquals(content.includes("○ Summary"), true);
+    assert.assertEquals(content.includes("<!-- TOC:START -->"), true);
+    assert.assertEquals(content.includes("<!-- TOC:END -->"), true);
+    assert.assertEquals(content.includes("○ Summary"), true);
   });
 });
 
@@ -278,7 +299,7 @@ describe("generateInitialSpec", () => {
 // renderTOC
 // =============================================================================
 
-describe("renderTOC", () => {
+bdd.describe("renderTOC", () => {
   const basePlaceholders: schema.PlaceholderStatus[] = [
     { sectionId: "summary", sectionTitle: "Summary", status: "filled" },
     {
@@ -299,23 +320,23 @@ describe("renderTOC", () => {
     },
   ];
 
-  it("uses correct symbols for each status", () => {
+  bdd.it("uses correct symbols for each status", () => {
     const toc = living.renderTOC(basePlaceholders);
-    assertEquals(toc.includes("✓ Summary"), true);
-    assertEquals(toc.includes("○ Problem Statement"), true);
-    assertEquals(toc.includes("— Scope Boundary"), true);
-    assertEquals(toc.includes("⊘ Design States"), true);
+    assert.assertEquals(toc.includes("✓ Summary"), true);
+    assert.assertEquals(toc.includes("○ Problem Statement"), true);
+    assert.assertEquals(toc.includes("— Scope Boundary"), true);
+    assert.assertEquals(toc.includes("⊘ Design States"), true);
   });
 
-  it("includes N/A reason inline", () => {
+  bdd.it("includes N/A reason inline", () => {
     const toc = living.renderTOC(basePlaceholders);
-    assertEquals(toc.includes("pure refactor with no new scope"), true);
+    assert.assertEquals(toc.includes("pure refactor with no new scope"), true);
   });
 
-  it("is wrapped in TOC markers", () => {
+  bdd.it("is wrapped in TOC markers", () => {
     const toc = living.renderTOC(basePlaceholders);
-    assertEquals(toc.startsWith("<!-- TOC:START -->"), true);
-    assertEquals(toc.endsWith("<!-- TOC:END -->"), true);
+    assert.assertEquals(toc.startsWith("<!-- TOC:START -->"), true);
+    assert.assertEquals(toc.endsWith("<!-- TOC:END -->"), true);
   });
 });
 
@@ -323,35 +344,42 @@ describe("renderTOC", () => {
 // replaceTOCBlock
 // =============================================================================
 
-describe("replaceTOCBlock", () => {
-  it("replaces TOC region atomically", () => {
+bdd.describe("replaceTOCBlock", () => {
+  bdd.it("replaces TOC region atomically", () => {
     const content =
       "before\n<!-- TOC:START -->\n## Sections\n- ○ Old\n<!-- TOC:END -->\nafter";
     const placeholders: schema.PlaceholderStatus[] = [
       { sectionId: "summary", sectionTitle: "Summary", status: "filled" },
     ];
     const updated = living.replaceTOCBlock(content, placeholders);
-    assertEquals(updated.includes("○ Old"), false);
-    assertEquals(updated.includes("✓ Summary"), true);
-    assertEquals(updated.includes("before"), true);
-    assertEquals(updated.includes("after"), true);
+    assert.assertEquals(updated.includes("○ Old"), false);
+    assert.assertEquals(updated.includes("✓ Summary"), true);
+    assert.assertEquals(updated.includes("before"), true);
+    assert.assertEquals(updated.includes("after"), true);
   });
 
-  it("is idempotent — re-running with same placeholders yields same result", () => {
-    const content =
-      "<!-- TOC:START -->\n## Sections\n- ○ Summary\n<!-- TOC:END -->";
-    const placeholders: schema.PlaceholderStatus[] = [
-      { sectionId: "summary", sectionTitle: "Summary", status: "placeholder" },
-    ];
-    const once = living.replaceTOCBlock(content, placeholders);
-    const twice = living.replaceTOCBlock(once, placeholders);
-    assertEquals(once, twice);
-  });
+  bdd.it(
+    "is idempotent — re-running with same placeholders yields same result",
+    () => {
+      const content =
+        "<!-- TOC:START -->\n## Sections\n- ○ Summary\n<!-- TOC:END -->";
+      const placeholders: schema.PlaceholderStatus[] = [
+        {
+          sectionId: "summary",
+          sectionTitle: "Summary",
+          status: "placeholder",
+        },
+      ];
+      const once = living.replaceTOCBlock(content, placeholders);
+      const twice = living.replaceTOCBlock(once, placeholders);
+      assert.assertEquals(once, twice);
+    },
+  );
 
-  it("gracefully skips when no TOC block is found", () => {
+  bdd.it("gracefully skips when no TOC block is found", () => {
     const content = "# Spec: foo\n\n## Summary";
     const result = living.replaceTOCBlock(content, []);
-    assertEquals(result, content);
+    assert.assertEquals(result, content);
   });
 });
 
@@ -359,8 +387,8 @@ describe("replaceTOCBlock", () => {
 // replacePlaceholderMarker
 // =============================================================================
 
-describe("replacePlaceholderMarker", () => {
-  it("replaces marker with body text", () => {
+bdd.describe("replacePlaceholderMarker", () => {
+  bdd.it("replaces marker with body text", () => {
     const content =
       "## Summary\n\n<!-- PLACEHOLDER:summary -->\n_placeholder text_";
     const result = living.replacePlaceholderMarker(
@@ -368,13 +396,13 @@ describe("replacePlaceholderMarker", () => {
       "summary",
       "The new body",
     );
-    assertEquals(result.includes("<!-- PLACEHOLDER:summary -->"), false);
-    assertEquals(result.includes("The new body"), true);
+    assert.assertEquals(result.includes("<!-- PLACEHOLDER:summary -->"), false);
+    assert.assertEquals(result.includes("The new body"), true);
   });
 
-  it("throws when marker not found", () => {
+  bdd.it("throws when marker not found", () => {
     const content = "## Summary\n\nAlready filled content";
-    assertThrows(
+    assert.assertThrows(
       () => living.replacePlaceholderMarker(content, "summary", "body"),
       Error,
       "Placeholder marker not found",
@@ -386,13 +414,13 @@ describe("replacePlaceholderMarker", () => {
 // markPlaceholderNa (Expansion B)
 // =============================================================================
 
-describe("markPlaceholderNa", () => {
+bdd.describe("markPlaceholderNa", () => {
   const initial: readonly schema.PlaceholderStatus[] = [
     { sectionId: "summary", sectionTitle: "Summary", status: "placeholder" },
     { sectionId: "ambition", sectionTitle: "Ambition", status: "placeholder" },
   ];
 
-  it("records naReason, naBy, naAt correctly", () => {
+  bdd.it("records naReason, naBy, naAt correctly", () => {
     const updated = living.markPlaceholderNa(
       initial,
       "summary",
@@ -401,13 +429,16 @@ describe("markPlaceholderNa", () => {
       now,
     );
     const s = updated.find((p) => p.sectionId === "summary")!;
-    assertEquals(s.status, "na");
-    assertEquals(s.naReason, "pure refactor — no net-new user-facing behavior");
-    assertEquals(s.naBy, "Alice");
-    assertEquals(s.naAt, now.toISOString());
+    assert.assertEquals(s.status, "na");
+    assert.assertEquals(
+      s.naReason,
+      "pure refactor — no net-new user-facing behavior",
+    );
+    assert.assertEquals(s.naBy, "Alice");
+    assert.assertEquals(s.naAt, now.toISOString());
   });
 
-  it("leaves other sections unchanged", () => {
+  bdd.it("leaves other sections unchanged", () => {
     const updated = living.markPlaceholderNa(
       initial,
       "summary",
@@ -415,22 +446,22 @@ describe("markPlaceholderNa", () => {
       "Alice",
       now,
     );
-    assertEquals(
+    assert.assertEquals(
       updated.find((p) => p.sectionId === "ambition")?.status,
       "placeholder",
     );
   });
 
-  it("rejects blank reason", () => {
-    assertThrows(
+  bdd.it("rejects blank reason", () => {
+    assert.assertThrows(
       () => living.markPlaceholderNa(initial, "summary", "", "Alice", now),
       Error,
       "N/A reason",
     );
   });
 
-  it("rejects reason shorter than 20 chars", () => {
-    assertThrows(
+  bdd.it("rejects reason shorter than 20 chars", () => {
+    assert.assertThrows(
       () =>
         living.markPlaceholderNa(initial, "summary", "too short", "Alice", now),
       Error,
@@ -438,7 +469,7 @@ describe("markPlaceholderNa", () => {
     );
   });
 
-  it("accepts reason of exactly 20 chars", () => {
+  bdd.it("accepts reason of exactly 20 chars", () => {
     const reason = "12345678901234567890";
     const updated = living.markPlaceholderNa(
       initial,
@@ -447,7 +478,10 @@ describe("markPlaceholderNa", () => {
       "Alice",
       now,
     );
-    assertEquals(updated.find((p) => p.sectionId === "summary")?.status, "na");
+    assert.assertEquals(
+      updated.find((p) => p.sectionId === "summary")?.status,
+      "na",
+    );
   });
 });
 
@@ -455,7 +489,7 @@ describe("markPlaceholderNa", () => {
 // applyClassificationToPlaceholders
 // =============================================================================
 
-describe("applyClassificationToPlaceholders", () => {
+bdd.describe("applyClassificationToPlaceholders", () => {
   const sectionDefs = living.mergeSections([beautifulProductConcern]);
 
   const hiddenPlaceholders: readonly schema.PlaceholderStatus[] = [
@@ -466,19 +500,22 @@ describe("applyClassificationToPlaceholders", () => {
     },
   ];
 
-  it("reveals conditional section when classification flag turns true", () => {
-    const updated = living.applyClassificationToPlaceholders(
-      hiddenPlaceholders,
-      sectionDefs,
-      uiClassification,
-    );
-    assertEquals(
-      updated.find((p) => p.sectionId === "design-states")?.status,
-      "placeholder",
-    );
-  });
+  bdd.it(
+    "reveals conditional section when classification flag turns true",
+    () => {
+      const updated = living.applyClassificationToPlaceholders(
+        hiddenPlaceholders,
+        sectionDefs,
+        uiClassification,
+      );
+      assert.assertEquals(
+        updated.find((p) => p.sectionId === "design-states")?.status,
+        "placeholder",
+      );
+    },
+  );
 
-  it("hides visible section when flag turns false", () => {
+  bdd.it("hides visible section when flag turns false", () => {
     const visiblePlaceholders: readonly schema.PlaceholderStatus[] = [
       {
         sectionId: "design-states",
@@ -491,13 +528,13 @@ describe("applyClassificationToPlaceholders", () => {
       sectionDefs,
       allFalseClassification,
     );
-    assertEquals(
+    assert.assertEquals(
       updated.find((p) => p.sectionId === "design-states")?.status,
       "conditional-hidden",
     );
   });
 
-  it("does not change filled sections", () => {
+  bdd.it("does not change filled sections", () => {
     const filledPlaceholders: readonly schema.PlaceholderStatus[] = [
       {
         sectionId: "design-states",
@@ -510,13 +547,13 @@ describe("applyClassificationToPlaceholders", () => {
       sectionDefs,
       allFalseClassification,
     );
-    assertEquals(
+    assert.assertEquals(
       updated.find((p) => p.sectionId === "design-states")?.status,
       "filled",
     );
   });
 
-  it("does not change N/A sections", () => {
+  bdd.it("does not change N/A sections", () => {
     const naPlaceholders: readonly schema.PlaceholderStatus[] = [
       {
         sectionId: "design-states",
@@ -530,13 +567,13 @@ describe("applyClassificationToPlaceholders", () => {
       sectionDefs,
       allFalseClassification,
     );
-    assertEquals(
+    assert.assertEquals(
       updated.find((p) => p.sectionId === "design-states")?.status,
       "na",
     );
   });
 
-  it("null classification hides all conditional sections", () => {
+  bdd.it("null classification hides all conditional sections", () => {
     const visible: readonly schema.PlaceholderStatus[] = [
       {
         sectionId: "design-states",
@@ -549,7 +586,7 @@ describe("applyClassificationToPlaceholders", () => {
       sectionDefs,
       null,
     );
-    assertEquals(
+    assert.assertEquals(
       updated.find((p) => p.sectionId === "design-states")?.status,
       "conditional-hidden",
     );
@@ -560,7 +597,7 @@ describe("applyClassificationToPlaceholders", () => {
 // checkSpecCompleteness
 // =============================================================================
 
-describe("checkSpecCompleteness", () => {
+bdd.describe("checkSpecCompleteness", () => {
   const makeSpecState = (
     placeholders: readonly schema.PlaceholderStatus[],
     pendingDecisions: readonly schema.PendingDecision[] = [],
@@ -574,7 +611,7 @@ describe("checkSpecCompleteness", () => {
     placeholders,
   });
 
-  it("canAdvance when all sections are filled", () => {
+  bdd.it("canAdvance when all sections are filled", () => {
     const { canAdvance, unresolvedSections } = living.checkSpecCompleteness(
       makeSpecState([
         { sectionId: "summary", sectionTitle: "Summary", status: "filled" },
@@ -585,11 +622,11 @@ describe("checkSpecCompleteness", () => {
         },
       ]),
     );
-    assertEquals(canAdvance, true);
-    assertEquals(unresolvedSections.length, 0);
+    assert.assertEquals(canAdvance, true);
+    assert.assertEquals(unresolvedSections.length, 0);
   });
 
-  it("blocks when a placeholder remains", () => {
+  bdd.it("blocks when a placeholder remains", () => {
     const { canAdvance, unresolvedSections } = living.checkSpecCompleteness(
       makeSpecState([
         {
@@ -599,12 +636,12 @@ describe("checkSpecCompleteness", () => {
         },
       ]),
     );
-    assertEquals(canAdvance, false);
-    assertEquals(unresolvedSections.length, 1);
-    assertEquals(unresolvedSections[0]?.sectionId, "summary");
+    assert.assertEquals(canAdvance, false);
+    assert.assertEquals(unresolvedSections.length, 1);
+    assert.assertEquals(unresolvedSections[0]?.sectionId, "summary");
   });
 
-  it("N/A with a valid reason counts as resolved", () => {
+  bdd.it("N/A with a valid reason counts as resolved", () => {
     const { canAdvance } = living.checkSpecCompleteness(
       makeSpecState([
         {
@@ -615,20 +652,20 @@ describe("checkSpecCompleteness", () => {
         },
       ]),
     );
-    assertEquals(canAdvance, true);
+    assert.assertEquals(canAdvance, true);
   });
 
-  it("N/A without reason counts as unresolved", () => {
+  bdd.it("N/A without reason counts as unresolved", () => {
     const { canAdvance, unresolvedSections } = living.checkSpecCompleteness(
       makeSpecState([
         { sectionId: "summary", sectionTitle: "Summary", status: "na" },
       ]),
     );
-    assertEquals(canAdvance, false);
-    assertEquals(unresolvedSections.length, 1);
+    assert.assertEquals(canAdvance, false);
+    assert.assertEquals(unresolvedSections.length, 1);
   });
 
-  it("conditional-hidden sections are not required", () => {
+  bdd.it("conditional-hidden sections are not required", () => {
     const { canAdvance } = living.checkSpecCompleteness(
       makeSpecState([
         {
@@ -638,10 +675,10 @@ describe("checkSpecCompleteness", () => {
         },
       ]),
     );
-    assertEquals(canAdvance, true);
+    assert.assertEquals(canAdvance, true);
   });
 
-  it("pending decisions block advancement", () => {
+  bdd.it("pending decisions block advancement", () => {
     const { canAdvance, pendingDecisions } = living.checkSpecCompleteness(
       makeSpecState(
         [{ sectionId: "summary", sectionTitle: "Summary", status: "filled" }],
@@ -652,11 +689,11 @@ describe("checkSpecCompleteness", () => {
         }],
       ),
     );
-    assertEquals(canAdvance, false);
-    assertEquals(pendingDecisions.length, 1);
+    assert.assertEquals(canAdvance, false);
+    assert.assertEquals(pendingDecisions.length, 1);
   });
 
-  it("lists all unresolved section ids and titles", () => {
+  bdd.it("lists all unresolved section ids and titles", () => {
     const { unresolvedSections } = living.checkSpecCompleteness(
       makeSpecState([
         { sectionId: "s1", sectionTitle: "Section One", status: "placeholder" },
@@ -668,8 +705,8 @@ describe("checkSpecCompleteness", () => {
         },
       ]),
     );
-    assertEquals(unresolvedSections.length, 2);
-    assertEquals(unresolvedSections.map((s) => s.sectionId).sort(), [
+    assert.assertEquals(unresolvedSections.length, 2);
+    assert.assertEquals(unresolvedSections.map((s) => s.sectionId).sort(), [
       "s1",
       "s3",
     ]);
@@ -680,8 +717,8 @@ describe("checkSpecCompleteness", () => {
 // Frontmatter round-trip
 // =============================================================================
 
-describe("parseFrontmatter / renderFrontmatter", () => {
-  it("round-trips metadata with no data loss", () => {
+bdd.describe("parseFrontmatter / renderFrontmatter", () => {
+  bdd.it("round-trips metadata with no data loss", () => {
     const metadata: schema.SpecMetadata = {
       created: { date: "2026-04-06T00:00:00.000Z", user: "Alice" },
       lastModified: { date: "2026-04-06T01:00:00.000Z", user: "Bob" },
@@ -714,24 +751,28 @@ describe("parseFrontmatter / renderFrontmatter", () => {
       full,
     );
 
-    assertEquals(parsed.created.user, metadata.created.user);
-    assertEquals(parsed.lastModified.user, metadata.lastModified.user);
-    assertEquals(parsed.contributors.length, 2);
-    assertEquals(parsed.approvals.length, 1);
-    assertEquals(parsed.pendingDecisions.length, 1);
-    assertEquals(parsedBody, body);
+    assert.assertEquals(parsed.created.user, metadata.created.user);
+    assert.assertEquals(parsed.lastModified.user, metadata.lastModified.user);
+    assert.assertEquals(parsed.contributors.length, 2);
+    assert.assertEquals(parsed.approvals.length, 1);
+    assert.assertEquals(parsed.pendingDecisions.length, 1);
+    assert.assertEquals(parsedBody, body);
   });
 
-  it("returns empty metadata when no frontmatter block", () => {
+  bdd.it("returns empty metadata when no frontmatter block", () => {
     const content = "# Spec: foo\n\n## Summary";
     const { metadata, body } = living.parseFrontmatter(content);
-    assertEquals(metadata.contributors.length, 0);
-    assertEquals(body, content);
+    assert.assertEquals(metadata.contributors.length, 0);
+    assert.assertEquals(body, content);
   });
 
-  it("throws when frontmatter is unclosed", () => {
+  bdd.it("throws when frontmatter is unclosed", () => {
     const content = "---\ncreated:\n  user: Alice\n# missing closing ---";
-    assertThrows(() => living.parseFrontmatter(content), Error, "malformed");
+    assert.assertThrows(
+      () => living.parseFrontmatter(content),
+      Error,
+      "malformed",
+    );
   });
 });
 
@@ -739,22 +780,22 @@ describe("parseFrontmatter / renderFrontmatter", () => {
 // applyMetadataAction
 // =============================================================================
 
-describe("applyMetadataAction", () => {
+bdd.describe("applyMetadataAction", () => {
   const baseMetadata: schema.SpecMetadata = schema.EMPTY_SPEC_METADATA;
 
-  it("answer action updates lastModified and adds contributor", () => {
+  bdd.it("answer action updates lastModified and adds contributor", () => {
     const updated = living.applyMetadataAction(
       baseMetadata,
       { type: "answer", user: "Alice", section: "summary" },
       now,
     );
-    assertEquals(updated.lastModified.user, "Alice");
-    assertEquals(updated.contributors.length, 1);
-    assertEquals(updated.contributors[0]?.user, "Alice");
-    assertEquals(updated.contributors[0]?.lastAction, "answer");
+    assert.assertEquals(updated.lastModified.user, "Alice");
+    assert.assertEquals(updated.contributors.length, 1);
+    assert.assertEquals(updated.contributors[0]?.user, "Alice");
+    assert.assertEquals(updated.contributors[0]?.lastAction, "answer");
   });
 
-  it("repeat contributor is updated in place (not duplicated)", () => {
+  bdd.it("repeat contributor is updated in place (not duplicated)", () => {
     let meta = living.applyMetadataAction(
       baseMetadata,
       { type: "answer", user: "Alice", section: "summary" },
@@ -765,11 +806,11 @@ describe("applyMetadataAction", () => {
       { type: "answer", user: "Alice", section: "ambition" },
       new Date("2026-04-06T01:00:00Z"),
     );
-    assertEquals(meta.contributors.length, 1);
-    assertEquals(meta.contributors[0]?.user, "Alice");
+    assert.assertEquals(meta.contributors.length, 1);
+    assert.assertEquals(meta.contributors[0]?.user, "Alice");
   });
 
-  it("delegation-created adds pending decision", () => {
+  bdd.it("delegation-created adds pending decision", () => {
     const updated = living.applyMetadataAction(
       baseMetadata,
       {
@@ -781,11 +822,14 @@ describe("applyMetadataAction", () => {
       },
       now,
     );
-    assertEquals(updated.pendingDecisions.length, 1);
-    assertEquals(updated.pendingDecisions[0]?.question, "Which provider?");
+    assert.assertEquals(updated.pendingDecisions.length, 1);
+    assert.assertEquals(
+      updated.pendingDecisions[0]?.question,
+      "Which provider?",
+    );
   });
 
-  it("delegation-answered removes pending decision by section", () => {
+  bdd.it("delegation-answered removes pending decision by section", () => {
     const withDecision = living.applyMetadataAction(
       baseMetadata,
       {
@@ -802,17 +846,17 @@ describe("applyMetadataAction", () => {
       { type: "delegation-answered", user: "Bob", section: "auth" },
       new Date("2026-04-06T02:00:00Z"),
     );
-    assertEquals(resolved.pendingDecisions.length, 0);
+    assert.assertEquals(resolved.pendingDecisions.length, 0);
   });
 
-  it("approval action upserts approvals entry", () => {
+  bdd.it("approval action upserts approvals entry", () => {
     const updated = living.applyMetadataAction(
       baseMetadata,
       { type: "approval", user: "Alice" },
       now,
     );
-    assertEquals(updated.approvals.length, 1);
-    assertEquals(updated.approvals[0]?.status, "approved");
+    assert.assertEquals(updated.approvals.length, 1);
+    assert.assertEquals(updated.approvals[0]?.status, "approved");
   });
 });
 
@@ -820,7 +864,7 @@ describe("applyMetadataAction", () => {
 // getRevealNotification
 // =============================================================================
 
-describe("getRevealNotification", () => {
+bdd.describe("getRevealNotification", () => {
   const base: readonly schema.PlaceholderStatus[] = [
     { sectionId: "summary", sectionTitle: "Summary", status: "filled" },
     {
@@ -830,48 +874,54 @@ describe("getRevealNotification", () => {
     },
   ];
 
-  it("returns null when nothing changed", () => {
+  bdd.it("returns null when nothing changed", () => {
     const result = living.getRevealNotification(base, base);
-    assertEquals(result, null);
+    assert.assertEquals(result, null);
   });
 
-  it("returns revealed IDs when conditional section becomes visible", () => {
-    const next: readonly schema.PlaceholderStatus[] = [
-      { sectionId: "summary", sectionTitle: "Summary", status: "filled" },
-      {
-        sectionId: "design-states",
-        sectionTitle: "Design States",
-        status: "placeholder",
-      },
-    ];
-    const result = living.getRevealNotification(base, next);
-    assertEquals(result !== null, true);
-    assertEquals(result!.revealed.includes("design-states"), true);
-    assertEquals(result!.hidden.length, 0);
-  });
+  bdd.it(
+    "returns revealed IDs when conditional section becomes visible",
+    () => {
+      const next: readonly schema.PlaceholderStatus[] = [
+        { sectionId: "summary", sectionTitle: "Summary", status: "filled" },
+        {
+          sectionId: "design-states",
+          sectionTitle: "Design States",
+          status: "placeholder",
+        },
+      ];
+      const result = living.getRevealNotification(base, next);
+      assert.assertEquals(result !== null, true);
+      assert.assertEquals(result!.revealed.includes("design-states"), true);
+      assert.assertEquals(result!.hidden.length, 0);
+    },
+  );
 
-  it("returns hidden IDs when visible section becomes conditional-hidden", () => {
-    const prev: readonly schema.PlaceholderStatus[] = [
-      {
-        sectionId: "design-states",
-        sectionTitle: "Design States",
-        status: "placeholder",
-      },
-    ];
-    const next: readonly schema.PlaceholderStatus[] = [
-      {
-        sectionId: "design-states",
-        sectionTitle: "Design States",
-        status: "conditional-hidden",
-      },
-    ];
-    const result = living.getRevealNotification(prev, next);
-    assertEquals(result !== null, true);
-    assertEquals(result!.hidden.includes("design-states"), true);
-    assertEquals(result!.revealed.length, 0);
-  });
+  bdd.it(
+    "returns hidden IDs when visible section becomes conditional-hidden",
+    () => {
+      const prev: readonly schema.PlaceholderStatus[] = [
+        {
+          sectionId: "design-states",
+          sectionTitle: "Design States",
+          status: "placeholder",
+        },
+      ];
+      const next: readonly schema.PlaceholderStatus[] = [
+        {
+          sectionId: "design-states",
+          sectionTitle: "Design States",
+          status: "conditional-hidden",
+        },
+      ];
+      const result = living.getRevealNotification(prev, next);
+      assert.assertEquals(result !== null, true);
+      assert.assertEquals(result!.hidden.includes("design-states"), true);
+      assert.assertEquals(result!.revealed.length, 0);
+    },
+  );
 
-  it("returns both revealed and hidden in one notification", () => {
+  bdd.it("returns both revealed and hidden in one notification", () => {
     const prev: readonly schema.PlaceholderStatus[] = [
       { sectionId: "s1", sectionTitle: "S1", status: "placeholder" },
       { sectionId: "s2", sectionTitle: "S2", status: "conditional-hidden" },
@@ -881,19 +931,158 @@ describe("getRevealNotification", () => {
       { sectionId: "s2", sectionTitle: "S2", status: "placeholder" },
     ];
     const result = living.getRevealNotification(prev, next);
-    assertEquals(result !== null, true);
-    assertEquals(result!.revealed.includes("s2"), true);
-    assertEquals(result!.hidden.includes("s1"), true);
+    assert.assertEquals(result !== null, true);
+    assert.assertEquals(result!.revealed.includes("s2"), true);
+    assert.assertEquals(result!.hidden.includes("s1"), true);
   });
 
-  it("does not include already-filled sections in revealed or hidden", () => {
-    const prev: readonly schema.PlaceholderStatus[] = [
-      { sectionId: "summary", sectionTitle: "Summary", status: "filled" },
-    ];
-    const next: readonly schema.PlaceholderStatus[] = [
-      { sectionId: "summary", sectionTitle: "Summary", status: "filled" },
-    ];
-    const result = living.getRevealNotification(prev, next);
-    assertEquals(result, null);
+  bdd.it(
+    "does not include already-filled sections in revealed or hidden",
+    () => {
+      const prev: readonly schema.PlaceholderStatus[] = [
+        { sectionId: "summary", sectionTitle: "Summary", status: "filled" },
+      ];
+      const next: readonly schema.PlaceholderStatus[] = [
+        { sectionId: "summary", sectionTitle: "Summary", status: "filled" },
+      ];
+      const result = living.getRevealNotification(prev, next);
+      assert.assertEquals(result, null);
+    },
+  );
+});
+
+// =============================================================================
+// Declared section scopes
+// =============================================================================
+
+bdd.describe("declared section scopes", () => {
+  const scopedSectionsConcern: schema.ConcernDefinition = {
+    id: "custom",
+    name: "Custom",
+    description: "A project concern with scoped and plain sections",
+    extras: [],
+    specSections: [
+      {
+        id: "screens",
+        title: "Screens",
+        placeholder: "_List every screen._",
+        scope: ["ui"],
+        position: "after:acceptance-criteria",
+      },
+      {
+        id: "endpoints",
+        title: "Endpoints",
+        placeholder: "_List every endpoint._",
+        scope: ["api"],
+        position: "after:acceptance-criteria",
+      },
+      {
+        id: "rollout",
+        title: "Rollout",
+        placeholder: "_Describe the rollout._",
+        position: "after:acceptance-criteria",
+      },
+      {
+        id: "cli-help",
+        title: "CLI Help",
+        placeholder: "_Describe the help text._",
+        condition: "involvesCLI",
+        position: "after:acceptance-criteria",
+      },
+    ],
+    reminders: [],
+    acceptanceCriteria: [],
+  };
+
+  const statuses = (
+    classification: schema.SpecClassification | null,
+  ): Record<string, string> => {
+    const { placeholders } = living.generateInitialSpec({
+      specName: "scoped",
+      activeConcerns: [scopedSectionsConcern],
+      classification,
+      creator,
+      now,
+    });
+
+    return Object.fromEntries(
+      placeholders
+        .filter((p) => p.concernSource === "custom")
+        .map((p) => [p.sectionId, p.status]),
+    );
+  };
+
+  const cases = [
+    {
+      name: "hides scoped sections until the spec is classified",
+      classification: null,
+      expected: {
+        "screens": "conditional-hidden",
+        "endpoints": "conditional-hidden",
+        "rollout": "placeholder",
+        "cli-help": "conditional-hidden",
+      },
+    },
+    {
+      name: "shows the ui section for a UI spec",
+      classification: uiClassification,
+      expected: {
+        "screens": "placeholder",
+        "endpoints": "conditional-hidden",
+        "rollout": "placeholder",
+        "cli-help": "conditional-hidden",
+      },
+    },
+    {
+      name: "shows the api section for an API spec",
+      classification: { ...allFalseClassification, involvesPublicAPI: true },
+      expected: {
+        "screens": "conditional-hidden",
+        "endpoints": "placeholder",
+        "rollout": "placeholder",
+        "cli-help": "conditional-hidden",
+      },
+    },
+    {
+      name: "shows only unscoped sections and matching conditions otherwise",
+      classification: { ...allFalseClassification, involvesCLI: true },
+      expected: {
+        "screens": "conditional-hidden",
+        "endpoints": "conditional-hidden",
+        "rollout": "placeholder",
+        "cli-help": "placeholder",
+      },
+    },
+  ];
+
+  for (const { name, classification, expected } of cases) {
+    bdd.it(name, () => {
+      assert.assertEquals(statuses(classification), expected);
+    });
+  }
+
+  bdd.it("reveals a scoped section once the classification matches", () => {
+    const { placeholders } = living.generateInitialSpec({
+      specName: "scoped",
+      activeConcerns: [scopedSectionsConcern],
+      classification: null,
+      creator,
+      now,
+    });
+
+    const updated = living.applyClassificationToPlaceholders(
+      placeholders,
+      living.mergeSections([scopedSectionsConcern]),
+      { ...allFalseClassification, involvesPublicAPI: true },
+    );
+
+    assert.assertEquals(
+      updated.find((p) => p.sectionId === "endpoints")?.status,
+      "placeholder",
+    );
+    assert.assertEquals(
+      updated.find((p) => p.sectionId === "screens")?.status,
+      "conditional-hidden",
+    );
   });
 });

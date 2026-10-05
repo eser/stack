@@ -18,21 +18,18 @@
       "id": "review-scope",
       "title": "Review Scope",
       "placeholder": "_Who will review this change? What specific aspects need a second pair of eyes? What are you LEAST confident about? Name the reviewer and the focus area._",
-      "condition": null,
       "position": "after:acceptance-criteria"
     },
     {
       "id": "critical-pass-items",
       "title": "Critical Pass Items",
       "placeholder": "_Run the Critical Pass checklist: SQL/data safety, race conditions, LLM trust boundary, shell injection, enum completeness, auth bypass. Report each finding with file:line. All must be resolved before merge._",
-      "condition": null,
       "position": "after:acceptance-criteria"
     },
     {
       "id": "informational-pass-items",
       "title": "Informational Pass Items",
       "placeholder": "_Run the Informational Pass: async/sync mixing, dead code, time window safety, overly broad catch, missing readonly, magic numbers, inconsistent naming, TODO without ticket. Non-blocking but must be documented._",
-      "condition": null,
       "position": "after:acceptance-criteria"
     }
   ],

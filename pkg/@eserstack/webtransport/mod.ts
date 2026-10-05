@@ -10,5 +10,9 @@
  * @module
  */
 
-export * from "./client.ts";
-export * from "./types.ts";
+export { createWebTransportClient } from "./client.ts";
+export type {
+  WebTransportClient,
+  WebTransportConfig,
+  WebTransportSession,
+} from "./types.ts";

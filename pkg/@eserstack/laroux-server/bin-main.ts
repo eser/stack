@@ -10,10 +10,16 @@
  * @module
  */
 
-import { runStandaloneModule } from "@eserstack/codebase/cli-support";
-import { moduleDef } from "./module.ts";
+import * as cliSupport from "@eserstack/codebase/cli-support";
+import * as module from "./module.ts";
 import config from "./package.json" with { type: "json" };
 
 if (import.meta.main) {
-  await runStandaloneModule(moduleDef, "laroux", config.version);
+  // Binary entry point: the process runs the CLI and exits when it settles.
+  // deno-lint-ignore no-top-level-await
+  await cliSupport.runStandaloneModule(
+    module.moduleDef,
+    "laroux",
+    config.version,
+  );
 }

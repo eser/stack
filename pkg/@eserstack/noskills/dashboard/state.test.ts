@@ -1,7 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import { describe, it } from "@std/testing/bdd";
-import { assert, assertEquals } from "@std/assert";
+import * as bdd from "@std/testing/bdd";
+import * as assert from "@std/assert";
 import * as dashboardState from "./state.ts";
 import * as actions from "./actions.ts";
 import * as events from "./events.ts";
@@ -59,45 +59,45 @@ const createExecutingSpec = async (
 // getState
 // =============================================================================
 
-describe("dashboard.getState", () => {
-  it("returns empty specs when no specs exist", async () => {
+bdd.describe("dashboard.getState", () => {
+  bdd.it("returns empty specs when no specs exist", async () => {
     const root = await makeTempDir();
     const state = await dashboardState.getState(root);
 
-    assertEquals(state.specs.length, 0);
-    assertEquals(state.activeSpec, null);
-    assertEquals(state.recentEvents.length, 0);
+    assert.assertEquals(state.specs.length, 0);
+    assert.assertEquals(state.activeSpec, null);
+    assert.assertEquals(state.recentEvents.length, 0);
   });
 
-  it("returns specs with correct phase", async () => {
+  bdd.it("returns specs with correct phase", async () => {
     const root = await makeTempDir();
     await createSpec(root, "feature-a", "Add feature A");
 
     const state = await dashboardState.getState(root);
 
-    assertEquals(state.specs.length, 1);
-    assertEquals(state.specs[0]!.name, "feature-a");
-    assertEquals(state.specs[0]!.phase, "DISCOVERY");
-    assertEquals(state.specs[0]!.description, "Add feature A");
+    assert.assertEquals(state.specs.length, 1);
+    assert.assertEquals(state.specs[0]!.name, "feature-a");
+    assert.assertEquals(state.specs[0]!.phase, "DISCOVERY");
+    assert.assertEquals(state.specs[0]!.description, "Add feature A");
   });
 
-  it("returns multiple specs with activeSpec set", async () => {
+  bdd.it("returns multiple specs with activeSpec set", async () => {
     const root = await makeTempDir();
     await createSpec(root, "spec-1", "First");
     await createExecutingSpec(root, "spec-2");
 
     const state = await dashboardState.getState(root);
 
-    assertEquals(state.specs.length, 2);
+    assert.assertEquals(state.specs.length, 2);
     // activeSpec should be one of the non-IDLE/non-COMPLETED specs
-    assert(state.activeSpec !== null);
-    assert(
+    assert.assert(state.activeSpec !== null);
+    assert.assert(
       state.activeSpec.phase !== "COMPLETED" &&
         state.activeSpec.phase !== "IDLE",
     );
   });
 
-  it("includes recent events", async () => {
+  bdd.it("includes recent events", async () => {
     const root = await makeTempDir();
     await events.appendEvent(root, {
       ts: new Date().toISOString(),
@@ -107,8 +107,8 @@ describe("dashboard.getState", () => {
     });
 
     const state = await dashboardState.getState(root);
-    assertEquals(state.recentEvents.length, 1);
-    assertEquals(state.recentEvents[0]!.type, "spec-created");
+    assert.assertEquals(state.recentEvents.length, 1);
+    assert.assertEquals(state.recentEvents[0]!.type, "spec-created");
   });
 });
 
@@ -116,25 +116,25 @@ describe("dashboard.getState", () => {
 // getSpecSummary
 // =============================================================================
 
-describe("dashboard.getSpecSummary", () => {
-  it("returns correct summary for DISCOVERY spec", async () => {
+bdd.describe("dashboard.getSpecSummary", () => {
+  bdd.it("returns correct summary for DISCOVERY spec", async () => {
     const root = await makeTempDir();
     await createSpec(root, "photo-upload", "Add photo upload");
 
     const summary = await dashboardState.getSpecSummary(root, "photo-upload");
 
-    assertEquals(summary.name, "photo-upload");
-    assertEquals(summary.phase, "DISCOVERY");
-    assertEquals(summary.description, "Add photo upload");
-    assert(summary.roadmap.includes("DISCOVERY"));
+    assert.assertEquals(summary.name, "photo-upload");
+    assert.assertEquals(summary.phase, "DISCOVERY");
+    assert.assertEquals(summary.description, "Add photo upload");
+    assert.assert(summary.roadmap.includes("DISCOVERY"));
   });
 
-  it("returns correct task status for EXECUTING spec", async () => {
+  bdd.it("returns correct task status for EXECUTING spec", async () => {
     const root = await makeTempDir();
     await createExecutingSpec(root, "exec-spec");
 
     const summary = await dashboardState.getSpecSummary(root, "exec-spec");
-    assertEquals(summary.phase, "EXECUTING");
+    assert.assertEquals(summary.phase, "EXECUTING");
   });
 });
 
@@ -142,51 +142,56 @@ describe("dashboard.getSpecSummary", () => {
 // dashboard.approve
 // =============================================================================
 
-describe("dashboard.approve", () => {
-  it("transitions SPEC_PROPOSAL to SPEC_APPROVED and writes event", async () => {
-    const root = await makeTempDir();
-    let state = schema.createInitialState();
-    state = machine.startSpec(
-      state,
-      "test-approve",
-      "spec/test-approve",
-      "test",
-    );
-    state = machine.completeDiscovery(state);
-    state = machine.approveDiscoveryReview(state);
-    // Now in SPEC_PROPOSAL
+bdd.describe("dashboard.approve", () => {
+  bdd.it(
+    "transitions SPEC_PROPOSAL to SPEC_APPROVED and writes event",
+    async () => {
+      const root = await makeTempDir();
+      let state = schema.createInitialState();
+      state = machine.startSpec(
+        state,
+        "test-approve",
+        "spec/test-approve",
+        "test",
+      );
+      state = machine.completeDiscovery(state);
+      state = machine.approveDiscoveryReview(state);
+      // Now in SPEC_PROPOSAL
 
-    await runtime.fs.mkdir(
-      `${root}/${persistence.paths.specDir("test-approve")}`,
-      { recursive: true },
-    );
-    await persistence.writeSpecState(root, "test-approve", state);
+      await runtime.fs.mkdir(
+        `${root}/${persistence.paths.specDir("test-approve")}`,
+        { recursive: true },
+      );
+      await persistence.writeSpecState(root, "test-approve", state);
 
-    const result = await actions.approve(root, "test-approve", {
-      name: "Test User",
-      email: "test@example.com",
-    });
+      const result = await actions.approve(root, "test-approve", {
+        name: "Test User",
+        email: "test@example.com",
+      });
 
-    assertEquals(result.ok, true);
+      assert.assertEquals(result.ok, true);
 
-    // Verify state changed
-    const updated = await persistence.readSpecState(root, "test-approve");
-    assertEquals(updated.phase, "SPEC_APPROVED");
+      // Verify state changed
+      const updated = await persistence.readSpecState(root, "test-approve");
+      assert.assertEquals(updated.phase, "SPEC_APPROVED");
 
-    // Verify event written
-    const evts = await events.readEvents(root);
-    assertEquals(evts.length, 1);
-    assertEquals(evts[0]!.type, "phase-change");
-    assertEquals(evts[0]!.spec, "test-approve");
-  });
+      // Verify event written
+      const evts = await events.readEvents(root);
+      assert.assertEquals(evts.length, 1);
+      assert.assertEquals(evts[0]!.type, "phase-change");
+      assert.assertEquals(evts[0]!.spec, "test-approve");
+    },
+  );
 
-  it("rejects approve from wrong phase", async () => {
+  bdd.it("rejects approve from wrong phase", async () => {
     const root = await makeTempDir();
     await createSpec(root, "wrong-phase", "test");
 
     const result = await actions.approve(root, "wrong-phase");
-    assertEquals(result.ok, false);
-    assert(!result.ok && result.error.message.includes("Cannot approve"));
+    assert.assertEquals(result.ok, false);
+    assert.assert(
+      !result.ok && result.error.message.includes("Cannot approve"),
+    );
   });
 });
 
@@ -194,8 +199,8 @@ describe("dashboard.approve", () => {
 // dashboard.addNote
 // =============================================================================
 
-describe("dashboard.addNote", () => {
-  it("adds note and writes event", async () => {
+bdd.describe("dashboard.addNote", () => {
+  bdd.it("adds note and writes event", async () => {
     const root = await makeTempDir();
     await createSpec(root, "noted-spec", "test");
 
@@ -206,13 +211,13 @@ describe("dashboard.addNote", () => {
       { name: "Reviewer", email: "r@test.com" },
     );
 
-    assertEquals(result.ok, true);
+    assert.assertEquals(result.ok, true);
 
     // Verify event
     const evts = await events.readEvents(root);
-    assertEquals(evts.length, 1);
-    assertEquals(evts[0]!.type, "note");
-    assertEquals(
+    assert.assertEquals(evts.length, 1);
+    assert.assertEquals(evts[0]!.type, "note");
+    assert.assertEquals(
       (evts[0] as Record<string, unknown>)["text"],
       "Important observation",
     );
@@ -223,8 +228,8 @@ describe("dashboard.addNote", () => {
 // dashboard.addQuestion
 // =============================================================================
 
-describe("dashboard.addQuestion", () => {
-  it("adds question note and writes mention event", async () => {
+bdd.describe("dashboard.addQuestion", () => {
+  bdd.it("adds question note and writes mention event", async () => {
     const root = await makeTempDir();
     await createSpec(root, "question-spec", "test");
 
@@ -235,12 +240,12 @@ describe("dashboard.addQuestion", () => {
       { name: "Dev", email: "d@test.com" },
     );
 
-    assertEquals(result.ok, true);
+    assert.assertEquals(result.ok, true);
 
     // Verify mention event
     const evts = await events.readEvents(root);
-    assertEquals(evts.length, 1);
-    assertEquals(evts[0]!.type, "mention");
+    assert.assertEquals(evts.length, 1);
+    assert.assertEquals(evts[0]!.type, "mention");
   });
 });
 
@@ -248,8 +253,8 @@ describe("dashboard.addQuestion", () => {
 // dashboard.replyMention
 // =============================================================================
 
-describe("dashboard.replyMention", () => {
-  it("adds reply and writes mention-reply event", async () => {
+bdd.describe("dashboard.replyMention", () => {
+  bdd.it("adds reply and writes mention-reply event", async () => {
     const root = await makeTempDir();
     await createSpec(root, "reply-spec", "test");
 
@@ -261,12 +266,12 @@ describe("dashboard.replyMention", () => {
       { name: "Lead", email: "l@test.com" },
     );
 
-    assertEquals(result.ok, true);
+    assert.assertEquals(result.ok, true);
 
     const evts = await events.readEvents(root);
-    assertEquals(evts.length, 1);
-    assertEquals(evts[0]!.type, "mention-reply");
-    assertEquals(
+    assert.assertEquals(evts.length, 1);
+    assert.assertEquals(evts[0]!.type, "mention-reply");
+    assert.assertEquals(
       (evts[0] as Record<string, unknown>)["mentionId"],
       "mention-123",
     );
@@ -277,8 +282,8 @@ describe("dashboard.replyMention", () => {
 // dashboard.signoff
 // =============================================================================
 
-describe("dashboard.signoff", () => {
-  it("writes signoff event", async () => {
+bdd.describe("dashboard.signoff", () => {
+  bdd.it("writes signoff event", async () => {
     const root = await makeTempDir();
 
     const result = await actions.signoff(root, "any-spec", {
@@ -286,12 +291,15 @@ describe("dashboard.signoff", () => {
       email: "m@test.com",
     });
 
-    assertEquals(result.ok, true);
+    assert.assertEquals(result.ok, true);
 
     const evts = await events.readEvents(root);
-    assertEquals(evts.length, 1);
-    assertEquals(evts[0]!.type, "signoff");
-    assertEquals((evts[0] as Record<string, unknown>)["role"], "reviewer");
+    assert.assertEquals(evts.length, 1);
+    assert.assertEquals(evts[0]!.type, "signoff");
+    assert.assertEquals(
+      (evts[0] as Record<string, unknown>)["role"],
+      "reviewer",
+    );
   });
 });
 
@@ -299,12 +307,12 @@ describe("dashboard.signoff", () => {
 // Roles — null = everything allowed
 // =============================================================================
 
-describe("roles", () => {
-  it("null roles means everything allowed", async () => {
+bdd.describe("roles", () => {
+  bdd.it("null roles means everything allowed", async () => {
     const root = await makeTempDir();
     const state = await dashboardState.getState(root);
 
-    assertEquals(state.roles, null);
+    assert.assertEquals(state.roles, null);
     // All actions should work without role config
   });
 });

@@ -12,6 +12,7 @@ export const DEEP_COPY_DEFAULT_MAX_DEPTH = 100;
  * Error thrown when deep copy encounters a circular reference or exceeds max depth.
  */
 export class DeepCopyError extends Error {
+  /** Creates the error with a message that says what failed. */
   constructor(message: string) {
     super(message);
     this.name = "DeepCopyError";
@@ -39,10 +40,12 @@ export interface DeepCopyOptions {
  *
  * @example
  * ```typescript
+ * import * as fp from "@eserstack/fp";
+ *
  * const original = { a: { b: { c: 1 } } };
- * const copy = deepCopy(original);
+ * const copy = fp.deepCopy(original);
  * copy.a.b.c = 2;
- * console.log(original.a.b.c); // Still 1
+ * original.a.b.c; // still 1
  * ```
  */
 // deno-lint-ignore no-explicit-any
@@ -188,5 +191,3 @@ export const deepCopy2 = <T extends Record<string | number | symbol, any>>(
 
   return copyRecursive(instance, 0);
 };
-
-export { deepCopy as default };

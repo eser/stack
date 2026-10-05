@@ -1,10 +1,13 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+// Packaging progress and the summary table are this script's terminal output.
+// deno-lint-ignore-file no-console
+
 /**
  * Packages eser-ajan C-shared library build output into distributable archives.
  *
  * This script:
- * 1. Scans dist/{target}/ directories for built shared libraries + headers
+ * 1. Scans the native dist/{target}/ directories for shared libraries + headers
  * 2. Bundles each target into a tar.gz (Linux/macOS) or zip (Windows) archive
  * 3. Includes the shared library, header file, LICENSE, and a README
  * 4. Generates SHA256 hashes for each archive
@@ -15,12 +18,13 @@
  *
  * Usage:
  *   deno run --allow-all ./package.ts                  # package all targets in dist/
- *   deno run --allow-all ./package.ts --version=1.2.3  # override version
+ *   deno run --allow-all ./package.ts --version=1.2.3  # override the VERSION file
  *
  * @module
  */
 
 import { runtime } from "@eserstack/standards/cross-runtime";
+import * as targets from "../targets.ts";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -33,6 +37,9 @@ const SHARED_LIB_NAMES = [
 ] as const;
 
 const HEADER_NAME = "libeser_ajan.h";
+
+/** Upper bound for one tar or zip run over a target's files. */
+const ARCHIVE_TIMEOUT_MINUTES = 5;
 
 const FFI_README_CONTENT = `# eser-ajan — C-shared FFI Library
 
@@ -151,18 +158,19 @@ const computeFileSha256 = async (filePath: string): Promise<string> => {
     .join("");
 };
 
-const readVersionFromBridgeGo = async (pkgDir: string): Promise<string> => {
-  const bridgePath = `${pkgDir}/bridge.go`;
-  const content = await runtime.fs.readTextFile(bridgePath);
-  const match = content.match(/const\s+Version\s*=\s*"([^"]+)"/);
-
-  if (match === null) {
+/**
+ * Reads the monorepo VERSION file, the same version build.ts stamps into the
+ * library. bridge.go only declares `var Version = "dev"` for -ldflags to set.
+ */
+const readRepoVersion = async (repoRoot: string): Promise<string> => {
+  const versionPath = `${repoRoot}/VERSION`;
+  if (!await runtime.fs.exists(versionPath)) {
     throw new Error(
-      `Could not extract Version from ${bridgePath}`,
+      `${versionPath} does not exist. Run from an eser/stack checkout or pass --version=X.Y.Z.`,
     );
   }
 
-  return match[1];
+  return (await runtime.fs.readTextFile(versionPath)).trim();
 };
 
 const formatBytes = (bytes: number): string => {
@@ -185,11 +193,18 @@ const createTarGz = async (
   stagingDir: string,
   outputPath: string,
 ): Promise<void> => {
+  const timeout = AbortSignal.timeout(ARCHIVE_TIMEOUT_MINUTES * 60_000);
   const { code, stderr } = await runtime.exec.spawn(
     "tar",
     ["-czf", outputPath, "-C", stagingDir, "."],
-    { stdout: "piped", stderr: "piped" },
+    { stdout: "piped", stderr: "piped", signal: timeout },
   );
+
+  if (timeout.aborted) {
+    throw new Error(
+      `tar ${outputPath} ran past ${ARCHIVE_TIMEOUT_MINUTES} minutes and was stopped`,
+    );
+  }
 
   if (code !== 0) {
     const errText = new TextDecoder().decode(stderr);
@@ -212,11 +227,18 @@ const createZip = async (
     }
   }
 
+  const timeout = AbortSignal.timeout(ARCHIVE_TIMEOUT_MINUTES * 60_000);
   const { code, stderr } = await runtime.exec.spawn(
     "zip",
     ["-j", outputPath, ...files.map((f) => `${stagingDir}/${f}`)],
-    { stdout: "piped", stderr: "piped" },
+    { stdout: "piped", stderr: "piped", signal: timeout },
   );
+
+  if (timeout.aborted) {
+    throw new Error(
+      `zip ${outputPath} ran past ${ARCHIVE_TIMEOUT_MINUTES} minutes and was stopped`,
+    );
+  }
 
   if (code !== 0) {
     const errText = new TextDecoder().decode(stderr);
@@ -243,17 +265,11 @@ const packageTarget = async (
   distDir: string,
   licensePath: string,
 ): Promise<PackageResult> => {
-  // Find the shared library
-  let sharedLibName: string | undefined;
-  for (const name of SHARED_LIB_NAMES) {
-    try {
-      await runtime.fs.stat(`${targetDir}/${name}`);
-      sharedLibName = name;
-      break;
-    } catch {
-      // not found, try next
-    }
-  }
+  // Find the shared library: the first name in SHARED_LIB_NAMES that exists.
+  const present = await Promise.all(
+    SHARED_LIB_NAMES.map((name) => runtime.fs.exists(`${targetDir}/${name}`)),
+  );
+  const sharedLibName = SHARED_LIB_NAMES.find((_name, i) => present[i]);
 
   if (sharedLibName === undefined) {
     throw new Error(
@@ -265,18 +281,16 @@ const packageTarget = async (
 
   // Check for header
   const headerPath = `${targetDir}/${HEADER_NAME}`;
-  try {
-    await runtime.fs.stat(headerPath);
-  } catch {
-    throw new Error(`Header file not found: ${headerPath}`);
+  if (!await runtime.fs.exists(headerPath)) {
+    throw new Error(
+      `Header file not found: ${headerPath}. Rebuild the target with scripts/build.ts.`,
+    );
   }
 
   // Create staging directory
   const stagingDir = `${distDir}/_staging_${targetName}`;
-  try {
+  if (await runtime.fs.exists(stagingDir)) {
     await runtime.fs.remove(stagingDir, { recursive: true });
-  } catch {
-    // doesn't exist
   }
   await runtime.fs.mkdir(stagingDir, { recursive: true });
 
@@ -327,11 +341,10 @@ const packageTarget = async (
 // ---------------------------------------------------------------------------
 
 const printUsage = (): void => {
-  // deno-lint-ignore no-console
   console.log(`Usage: deno run --allow-all package.ts [options]
 
 Options:
-  --version=X.Y.Z    Override version (default: read from bridge.go)
+  --version=X.Y.Z    Override version (default: the repository VERSION file)
   --help             Show this help
 
 Packages all targets found in dist/ into distributable archives containing
@@ -344,7 +357,9 @@ const main = async (): Promise<void> => {
     throw new Error("Cannot determine script directory");
   }
 
-  const pkgDir = scriptDir.replace(/\/scripts$/, "");
+  // Strip the trailing "scripts" segment regardless of path separator
+  // (import.meta.dirname uses backslashes on Windows).
+  const pkgDir = scriptDir.replace(/[/\\]scripts$/, "");
   const distDir = `${pkgDir}/dist`;
   const repoRoot = `${pkgDir}/../../..`;
 
@@ -357,36 +372,23 @@ const main = async (): Promise<void> => {
   }
 
   // --version
-  const versionArg = args.find((a) => a.startsWith("--version="));
+  const versionFlag = "--version=";
+  const versionArg = args.find((a) => a.startsWith(versionFlag));
   const version = versionArg !== undefined
-    ? versionArg.split("=")[1]
-    : await readVersionFromBridgeGo(pkgDir);
+    ? versionArg.slice(versionFlag.length)
+    : await readRepoVersion(repoRoot);
 
-  // deno-lint-ignore no-console
   console.log(`Packaging eser-ajan v${version} ...\n`);
 
   // Locate LICENSE
   const licensePath = `${repoRoot}/LICENSE`;
-  try {
-    await runtime.fs.stat(licensePath);
-  } catch {
+  if (!await runtime.fs.exists(licensePath)) {
     throw new Error(
       `LICENSE not found at ${licensePath}. Expected repo root LICENSE file.`,
     );
   }
 
-  // Discover targets in dist/
-  const targetDirs: { name: string; path: string }[] = [];
-
-  try {
-    for await (const entry of runtime.fs.readDir(distDir)) {
-      if (!entry.isDirectory) continue;
-      if (entry.name.startsWith("_")) continue; // skip staging dirs
-
-      targetDirs.push({ name: entry.name, path: `${distDir}/${entry.name}` });
-    }
-  } catch {
-    // deno-lint-ignore no-console
+  if (!await runtime.fs.exists(distDir)) {
     console.error(
       `dist/ directory not found. Run build.ts first:\n  deno run --allow-all scripts/build.ts`,
     );
@@ -394,8 +396,19 @@ const main = async (): Promise<void> => {
     return;
   }
 
+  // Discover targets in dist/
+  const targetDirs: { name: string; path: string }[] = [];
+
+  for await (const entry of runtime.fs.readDir(distDir)) {
+    if (!entry.isDirectory) continue;
+    // Staging dirs start with "_"; WASM builds (wasi/, wasi-reactor/) ship in
+    // @eserstack/ajan-wasm, not in these archives.
+    if (targets.findNativeTarget(entry.name) === undefined) continue;
+
+    targetDirs.push({ name: entry.name, path: `${distDir}/${entry.name}` });
+  }
+
   if (targetDirs.length === 0) {
-    // deno-lint-ignore no-console
     console.error(
       `No target directories found in dist/. Run build.ts first.`,
     );
@@ -406,7 +419,6 @@ const main = async (): Promise<void> => {
   // Sort for deterministic output
   targetDirs.sort((a, b) => a.name.localeCompare(b.name));
 
-  // deno-lint-ignore no-console
   console.log(
     `Found ${targetDirs.length} target(s): ${
       targetDirs.map((t) => t.name).join(", ")
@@ -418,10 +430,12 @@ const main = async (): Promise<void> => {
   const failed: string[] = [];
 
   for (const { name, path } of targetDirs) {
-    // deno-lint-ignore no-console
     console.log(`  Packaging ${name} ...`);
 
     try {
+      // One target at a time: each archive runs tar or zip over a large
+      // library, and the per-target progress lines stay grouped.
+      // deno-lint-ignore no-await-in-loop
       const result = await packageTarget(
         path,
         name,
@@ -429,7 +443,6 @@ const main = async (): Promise<void> => {
         distDir,
         licensePath,
       );
-      // deno-lint-ignore no-console
       console.log(
         `    OK  ${result.fileCount} files, archive ${
           formatBytes(result.archiveSize)
@@ -438,19 +451,20 @@ const main = async (): Promise<void> => {
       results.push(result);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      // deno-lint-ignore no-console
       console.error(`    FAIL: ${msg}`);
       failed.push(name);
     }
   }
 
   // Generate SHA256SUMS.txt
-  // deno-lint-ignore no-console
   console.log("\nGenerating SHA256SUMS.txt ...");
 
   const sha256Lines: string[] = [];
 
   for (const { archiveName, archivePath } of results) {
+    // One archive at a time: computeFileSha256 reads the whole file into
+    // memory, so hashing them together would hold every archive at once.
+    // deno-lint-ignore no-await-in-loop
     const hash = await computeFileSha256(archivePath);
     sha256Lines.push(`${hash}  ${archiveName}`);
   }
@@ -459,17 +473,13 @@ const main = async (): Promise<void> => {
   await runtime.fs.writeTextFile(sha256Path, sha256Lines.join("\n") + "\n");
 
   // Summary
-  // deno-lint-ignore no-console
   console.log(`\n${"─".repeat(62)}`);
-  // deno-lint-ignore no-console
   console.log(
     `${"Target".padEnd(22)} ${"Archive".padEnd(24)} ${"Size".padEnd(12)}`,
   );
-  // deno-lint-ignore no-console
   console.log(`${"─".repeat(62)}`);
 
   for (const r of results) {
-    // deno-lint-ignore no-console
     console.log(
       `${r.target.padEnd(22)} ${r.archiveName.padEnd(24)} ${
         formatBytes(r.archiveSize).padEnd(12)
@@ -477,26 +487,20 @@ const main = async (): Promise<void> => {
     );
   }
 
-  // deno-lint-ignore no-console
   console.log(`${"─".repeat(62)}`);
 
-  // deno-lint-ignore no-console
   console.log(
     `\n${results.length}/${targetDirs.length} packaged successfully`,
   );
 
   if (failed.length > 0) {
-    // deno-lint-ignore no-console
     console.error(`${failed.length} failed: ${failed.join(", ")}`);
   }
 
-  // deno-lint-ignore no-console
   console.log(`\nOutput: ${distDir}/`);
   for (const { archiveName } of results) {
-    // deno-lint-ignore no-console
     console.log(`  ${archiveName}`);
   }
-  // deno-lint-ignore no-console
   console.log(`  SHA256SUMS.txt`);
 
   if (failed.length > 0) {
@@ -504,4 +508,8 @@ const main = async (): Promise<void> => {
   }
 };
 
-main();
+if (import.meta.main) {
+  // A script entry point: the process has nothing else to do until main ends.
+  // deno-lint-ignore no-top-level-await
+  await main();
+}

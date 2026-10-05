@@ -3,8 +3,9 @@
  * Tests for Renderer port interface
  */
 
-import { assertEquals, assertExists } from "@std/assert";
-import { noopRenderer, type RenderContext, type Renderer } from "./renderer.ts";
+import * as assert from "@std/assert";
+import * as renderer from "./renderer.ts";
+import type { RenderContext, Renderer } from "./renderer.ts";
 
 // Mock render context for testing
 function createMockRenderContext(): RenderContext {
@@ -35,7 +36,7 @@ function createMockRenderContext(): RenderContext {
 
 Deno.test("Renderer - noopRenderer", async (t) => {
   await t.step("has correct name", () => {
-    assertEquals(noopRenderer.name, "noop");
+    assert.assertEquals(renderer.noopRenderer.name, "noop");
   });
 
   await t.step("renderPage returns empty html", async () => {
@@ -43,10 +44,14 @@ Deno.test("Renderer - noopRenderer", async (t) => {
     const Layout = () => null;
     const Page = () => null;
 
-    const result = await noopRenderer.renderPage(Layout, Page, context);
+    const result = await renderer.noopRenderer.renderPage(
+      Layout,
+      Page,
+      context,
+    );
 
-    assertEquals(result.html, "");
-    assertEquals(result.rscPayload, undefined);
+    assert.assertEquals(result.html, "");
+    assert.assertEquals(result.rscPayload, undefined);
   });
 
   await t.step("renderRSC returns empty response", async () => {
@@ -54,54 +59,58 @@ Deno.test("Renderer - noopRenderer", async (t) => {
     const Layout = () => null;
     const Page = () => null;
 
-    const response = await noopRenderer.renderRSC(Layout, Page, context);
+    const response = await renderer.noopRenderer.renderRSC(
+      Layout,
+      Page,
+      context,
+    );
 
-    assertExists(response);
+    assert.assertExists(response);
     const text = await response.text();
-    assertEquals(text, "");
+    assert.assertEquals(text, "");
   });
 
   await t.step("generateBootstrapScript returns empty string", () => {
     const context = createMockRenderContext();
-    const script = noopRenderer.generateBootstrapScript(context);
+    const script = renderer.noopRenderer.generateBootstrapScript(context);
 
-    assertEquals(script, "");
+    assert.assertEquals(script, "");
   });
 });
 
 Deno.test("Renderer interface compliance", async (t) => {
   await t.step("noopRenderer implements Renderer interface", () => {
-    const renderer: Renderer = noopRenderer;
+    const port: Renderer = renderer.noopRenderer;
 
     // Verify all required properties exist
-    assertEquals(typeof renderer.name, "string");
-    assertEquals(typeof renderer.renderPage, "function");
-    assertEquals(typeof renderer.renderRSC, "function");
-    assertEquals(typeof renderer.generateBootstrapScript, "function");
+    assert.assertEquals(typeof port.name, "string");
+    assert.assertEquals(typeof port.renderPage, "function");
+    assert.assertEquals(typeof port.renderRSC, "function");
+    assert.assertEquals(typeof port.generateBootstrapScript, "function");
   });
 
   await t.step("renderPage is async function", () => {
-    const result = noopRenderer.renderPage(
+    const result = renderer.noopRenderer.renderPage(
       null,
       null,
       createMockRenderContext(),
     );
 
     // Verify it returns a Promise
-    assertExists(result.then);
-    assertEquals(typeof result.then, "function");
+    assert.assertExists(result.then);
+    assert.assertEquals(typeof result.then, "function");
   });
 
   await t.step("renderRSC is async function", () => {
-    const result = noopRenderer.renderRSC(
+    const result = renderer.noopRenderer.renderRSC(
       null,
       null,
       createMockRenderContext(),
     );
 
     // Verify it returns a Promise
-    assertExists(result.then);
-    assertEquals(typeof result.then, "function");
+    assert.assertExists(result.then);
+    assert.assertEquals(typeof result.then, "function");
   });
 });
 
@@ -120,8 +129,8 @@ Deno.test("RenderContext", async (t) => {
       request: new Request("http://localhost:3000/page?id=123"),
     };
 
-    assertEquals(context.pathname, "/page");
-    assertEquals(context.params.id, "123");
+    assert.assertEquals(context.pathname, "/page");
+    assert.assertEquals(context.params["id"], "123");
   });
 
   await t.step("params can have array values", () => {
@@ -138,7 +147,7 @@ Deno.test("RenderContext", async (t) => {
       request: new Request("http://localhost:3000/tags"),
     };
 
-    assertEquals(context.params.tags, ["react", "typescript"]);
+    assert.assertEquals(context.params["tags"], ["react", "typescript"]);
   });
 });
 
@@ -166,7 +175,7 @@ Deno.test("Custom Renderer implementation", async (t) => {
   };
 
   await t.step("custom renderer has correct name", () => {
-    assertEquals(customRenderer.name, "custom");
+    assert.assertEquals(customRenderer.name, "custom");
   });
 
   await t.step(
@@ -175,9 +184,9 @@ Deno.test("Custom Renderer implementation", async (t) => {
       const context = createMockRenderContext();
       const result = await customRenderer.renderPage(null, null, context);
 
-      assertEquals(result.html.includes("/test"), true);
-      assertExists(result.rscPayload);
-      assertEquals(JSON.parse(result.rscPayload).pathname, "/test");
+      assert.assertEquals(result.html.includes("/test"), true);
+      assert.assertExists(result.rscPayload);
+      assert.assertEquals(JSON.parse(result.rscPayload).pathname, "/test");
     },
   );
 
@@ -185,16 +194,19 @@ Deno.test("Custom Renderer implementation", async (t) => {
     const context = createMockRenderContext();
     const response = await customRenderer.renderRSC(null, null, context);
 
-    assertEquals(response.headers.get("Content-Type"), "application/json");
+    assert.assertEquals(
+      response.headers.get("Content-Type"),
+      "application/json",
+    );
     const data = await response.json();
-    assertEquals(data.pathname, "/test");
+    assert.assertEquals(data.pathname, "/test");
   });
 
   await t.step("custom renderer generateBootstrapScript returns script", () => {
     const context = createMockRenderContext();
     const script = customRenderer.generateBootstrapScript(context);
 
-    assertEquals(script.includes("__INITIAL_PATHNAME__"), true);
-    assertEquals(script.includes("/test"), true);
+    assert.assertEquals(script.includes("__INITIAL_PATHNAME__"), true);
+    assert.assertEquals(script.includes("/test"), true);
   });
 });

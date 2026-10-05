@@ -1,15 +1,15 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 import * as assert from "@std/assert";
-import { flow } from "./flow.ts";
+import * as flow from "./flow.ts";
 
 Deno.test("flow with single function returns it as-is", () => {
-  const double = flow((x: number) => x * 2);
+  const double = flow.flow((x: number) => x * 2);
   assert.assertEquals(double(5), 10);
 });
 
 Deno.test("flow composes two functions left-to-right", () => {
-  const doubleThenAdd = flow(
+  const doubleThenAdd = flow.flow(
     (x: number) => x * 2,
     (x: number) => x + 1,
   );
@@ -17,7 +17,7 @@ Deno.test("flow composes two functions left-to-right", () => {
 });
 
 Deno.test("flow composes multiple functions left-to-right", () => {
-  const slug = flow(
+  const slug = flow.flow(
     (x: string) => x.toLowerCase(),
     (x: string) => x.split(" "),
     (x: string[]) => x.join("-"),
@@ -26,7 +26,7 @@ Deno.test("flow composes multiple functions left-to-right", () => {
 });
 
 Deno.test("flow handles type transformations across steps", () => {
-  const process = flow(
+  const process = flow.flow(
     (x: number) => String(x),
     (x: string) => x.length,
     (x: number) => x > 1,
@@ -36,7 +36,7 @@ Deno.test("flow handles type transformations across steps", () => {
 });
 
 Deno.test("flow is different from compose (left-to-right vs right-to-left)", () => {
-  const addOneThenDouble = flow(
+  const addOneThenDouble = flow.flow(
     (x: number) => x + 1,
     (x: number) => x * 2,
   );
@@ -45,12 +45,12 @@ Deno.test("flow is different from compose (left-to-right vs right-to-left)", () 
 });
 
 Deno.test("flow preserves function identity with single arg", () => {
-  const identity = flow((x: string) => x);
+  const identity = flow.flow((x: string) => x);
   assert.assertEquals(identity("test"), "test");
 });
 
 Deno.test("flow works with array transformations", () => {
-  const sumSquares = flow(
+  const sumSquares = flow.flow(
     (xs: number[]) => xs.map((x) => x * x),
     (xs: number[]) => xs.reduce((a, b) => a + b, 0),
   );

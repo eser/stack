@@ -17,7 +17,17 @@ import type {
  *
  * @example
  * ```typescript
- * const builder = createIndexedRegistryBuilder<string, WriterFormat>([
+ * import * as standards from "@eserstack/standards";
+ *
+ * type WriterFormat = {
+ *   readonly name: string;
+ *   readonly extensions: readonly string[];
+ * };
+ *
+ * const builder = standards.collections.createIndexedRegistryBuilder<
+ *   string,
+ *   WriterFormat
+ * >([
  *   {
  *     name: "byExtension",
  *     extractor: (format) => format.extensions,
@@ -306,8 +316,18 @@ const createIndexedRegistry = <K extends string, V>(
  *
  * @example
  * ```typescript
- * const builder = createIndexedRegistryBuilder([
- *   createExtensionIndex<WriterFormat>("byExtension", (f) => f.extensions),
+ * import * as standards from "@eserstack/standards";
+ *
+ * type WriterFormat = {
+ *   readonly name: string;
+ *   readonly extensions: readonly string[];
+ * };
+ *
+ * const builder = standards.collections.createIndexedRegistryBuilder([
+ *   standards.collections.createExtensionIndex<WriterFormat>(
+ *     "byExtension",
+ *     (f) => f.extensions,
+ *   ),
  * ]);
  * ```
  */

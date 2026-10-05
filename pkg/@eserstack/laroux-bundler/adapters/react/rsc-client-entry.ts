@@ -8,23 +8,62 @@
  */
 
 import { runtime } from "@eserstack/standards/cross-runtime";
-import { copy } from "@std/fs"; // copy not available in runtime
+import * as fs from "@std/fs"; // copy not available in runtime
 import type { ClientComponent } from "./rsc-analyze.ts";
 
+/** Upper bound for fetching one bootstrap file from a remote source (JSR). */
+const REMOTE_SOURCE_TIMEOUT_MS = 30_000;
+
+/** The laroux-react export that locates the package root. */
+const BOOTSTRAP_EXPORT = "@eserstack/laroux-react/client/bootstrap";
+
+/** What BOOTSTRAP_EXPORT resolves to, below the package root. */
+const BOOTSTRAP_EXPORT_SUFFIX = /\/client\/bootstrap(?:\/index\.ts)?$/;
+
+/** Directory under distDir that holds the copied laroux-react files. */
+export const BOOTSTRAP_COPY_DIR = "_laroux-react";
+
+/** The bootstrap module the generated entry imports, inside the copy. */
+const BOOTSTRAP_ENTRY_FILE = "client/bootstrap/entry.tsx";
+
 /**
- * Bootstrap files that need to be copied to the dist directory.
- * These are the client-side files from @eserstack/laroux-react/client/bootstrap/
+ * laroux-react files the client entry bundles, relative to the package root.
+ *
+ * They are copied with this layout so the relative imports between them
+ * (entry.tsx imports ../../client.ts) resolve inside the copy. The copy sits
+ * in the app's dist directory instead of being bundled from the package
+ * location for two reasons: bare imports such as react then resolve from the
+ * app, so the bootstrap and the app's client components share one React
+ * instance; and a package fetched from JSR goes through the same path as a
+ * local one. The app therefore needs the packages these files import by bare
+ * specifier: react, react-dom and @eserstack/laroux (@eserstack/logging is
+ * replaced by its browser shim).
+ *
+ * A file that joins this import graph must be listed here;
+ * rsc-client-entry.test.ts bundles the entry and fails on a missing one.
  */
-const BOOTSTRAP_FILES = [
-  "entry.tsx",
-  "error-boundary.tsx",
-  "error-overlay.tsx",
-  "globals.d.ts",
-  "hmr-client.tsx",
-  "index.ts",
-  "lazy-loader.ts",
-  "smart-refresh.tsx",
+const BOOTSTRAP_SOURCE_FILES = [
+  "client.ts",
+  "protocol.ts",
+  "runtime/image/fallback.ts",
+  "runtime/navigation/link-navigation.ts",
+  "client/bootstrap/entry.tsx",
+  "client/bootstrap/error-boundary.tsx",
+  "client/bootstrap/error-overlay.tsx",
+  "client/bootstrap/globals.d.ts",
+  "client/bootstrap/hmr-client.tsx",
+  "client/bootstrap/index.ts",
+  "client/bootstrap/lazy-loader.ts",
+  "client/bootstrap/smart-refresh.tsx",
 ] as const;
+
+/** Where the laroux-react package files come from. */
+type PackageSource = {
+  /** True when the files are fetched over HTTP(S), as from JSR. */
+  readonly isRemote: boolean;
+  /** URL of the package root, without a trailing slash. */
+  readonly baseUrl: string;
+};
 
 /**
  * Check if a URL string represents a remote source (HTTP/HTTPS/JSR).
@@ -45,19 +84,20 @@ function isRemoteSource(urlString: string): boolean {
   return false;
 }
 
+/** A file URL pathname of a Windows path, such as /C:/dir. */
+const WINDOWS_DRIVE_PATHNAME = /^\/[A-Za-z]:\//;
+
 /**
- * Convert a file:// URL to a filesystem path using URL API.
- * Returns the pathname from the URL, properly decoded.
+ * Convert a file:// URL to a filesystem path, decoding percent-escapes such
+ * as %20, and return any other string unchanged.
  */
-function fileUrlToPath(urlString: string): string {
-  // Use URL API to parse file:// URLs
-  if (URL.canParse(urlString) && urlString.startsWith("file://")) {
-    const url = new URL(urlString);
-    // pathname is already decoded by URL API
-    return url.pathname;
+export function fileUrlToPath(urlString: string): string {
+  if (!urlString.startsWith("file://")) {
+    return urlString;
   }
-  // Return as-is if not a file:// URL
-  return urlString;
+
+  const pathname = decodeURIComponent(new URL(urlString).pathname);
+  return WINDOWS_DRIVE_PATHNAME.test(pathname) ? pathname.slice(1) : pathname;
 }
 
 /**
@@ -136,75 +176,94 @@ function transformJsrImports(content: string): string {
 }
 
 /**
- * Get the bootstrap directory URL/path using import.meta.resolve.
- * Works with both local workspace and installed packages (JSR/npm).
+ * Locate the laroux-react package root through import.meta.resolve, so it
+ * works from the workspace and from installed packages (JSR or npm).
  */
-function getBootstrapDir(): { isRemote: boolean; baseUrl: string } {
-  // Use import.meta.resolve to get the proper path to the bootstrap index
-  // This works regardless of whether we're running from workspace or installed packages
-  const resolved = import.meta.resolve(
-    "@eserstack/laroux-react/client/bootstrap",
-  );
+function getPackageSource(): PackageSource {
+  const resolved = import.meta.resolve(BOOTSTRAP_EXPORT);
+  const resolvedUrl = resolved.startsWith("jsr:")
+    ? jsrSpecifierToUrl(resolved)
+    : resolved;
+  const baseUrl = resolvedUrl.replace(BOOTSTRAP_EXPORT_SUFFIX, "");
 
-  // Get the directory by removing the trailing filename if present
-  // The resolve gives us the path to index.ts, we need the directory
-  let baseUrl = resolved.replace(/\/index\.ts$/, "");
-
-  // Check if it's a JSR specifier and convert to HTTPS URL
-  if (baseUrl.startsWith("jsr:")) {
-    baseUrl = jsrSpecifierToUrl(baseUrl);
+  if (baseUrl === resolvedUrl) {
+    throw new Error(
+      `locate the laroux-react package root: ${BOOTSTRAP_EXPORT} resolved to ${resolved}, which does not end in /client/bootstrap/index.ts`,
+    );
   }
 
-  return {
-    isRemote: isRemoteSource(baseUrl),
-    baseUrl,
-  };
+  return { isRemote: isRemoteSource(baseUrl), baseUrl };
 }
 
 /**
- * Copy bootstrap files from source to destination.
+ * Copy one laroux-react file to the same relative path under copyDir.
  * Handles both local filesystem and remote (JSR/HTTP) sources.
  */
-async function copyBootstrapFiles(distDir: string): Promise<void> {
-  const { isRemote, baseUrl } = getBootstrapDir();
+async function copyBootstrapFile(
+  relativePath: string,
+  source: PackageSource,
+  copyDir: string,
+): Promise<void> {
+  const destPath = runtime.path.resolve(copyDir, relativePath);
+  const sourceUrl = new URL(relativePath, `${source.baseUrl}/`).href;
 
-  for (const filename of BOOTSTRAP_FILES) {
-    const destPath = runtime.path.resolve(distDir, filename);
-    // Use URL API for proper URL path joining
-    const sourceUrl = baseUrl.endsWith("/")
-      ? new URL(filename, baseUrl).href
-      : new URL(`${baseUrl}/${filename}`).href;
+  await runtime.fs.ensureDir(runtime.path.dirname(destPath));
 
-    if (isRemote) {
-      // Fetch from remote URL (JSR, etc.)
-      try {
-        const response = await fetch(sourceUrl);
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}`);
-        }
-        let content = await response.text();
+  if (!source.isRemote) {
+    // Copy from local filesystem (file:// URL or path)
+    await fs.copy(fileUrlToPath(sourceUrl), destPath, { overwrite: true });
+    return;
+  }
 
-        // Transform JSR-published imports back to bare imports for bundling
-        // JSR rewrites imports like "@eserstack/logging" to "jsr:@eserstack/logging@^4.0.25"
-        // We need to reverse this so rolldown can resolve them
-        content = transformJsrImports(content);
-
-        await runtime.fs.writeTextFile(destPath, content);
-      } catch (err) {
-        throw new Error(
-          `Failed to fetch bootstrap file ${filename} from ${sourceUrl}: ${
-            err instanceof Error ? err.message : String(err)
-          }`,
-        );
-      }
-    } else {
-      // Copy from local filesystem (file:// URL or path)
-      const sourcePath = fileUrlToPath(sourceUrl);
-      await copy(sourcePath, destPath, { overwrite: true });
+  // Fetch from remote URL (JSR, etc.)
+  try {
+    const response = await fetch(sourceUrl, {
+      signal: AbortSignal.timeout(REMOTE_SOURCE_TIMEOUT_MS),
+    });
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
     }
+
+    // Transform JSR-published imports back to bare imports for bundling
+    // JSR rewrites imports like "@eserstack/logging" to "jsr:@eserstack/logging@^4.0.25"
+    // We need to reverse this so rolldown can resolve them
+    const content = transformJsrImports(await response.text());
+
+    await runtime.fs.writeTextFile(destPath, content);
+  } catch (error) {
+    throw new Error(
+      `fetch bootstrap file ${relativePath} from ${sourceUrl}: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+      { cause: error },
+    );
   }
 }
 
+/**
+ * Copy the bootstrap files into copyDir, keeping their package layout.
+ * The file list is fixed and small, so the copies run concurrently.
+ */
+async function copyBootstrapFiles(copyDir: string): Promise<void> {
+  const source = getPackageSource();
+
+  await Promise.all(
+    BOOTSTRAP_SOURCE_FILES.map((relativePath) =>
+      copyBootstrapFile(relativePath, source, copyDir)
+    ),
+  );
+}
+
+/**
+ * Write the client entry for a bundle: it imports every client component,
+ * registers it in the global module registry and runs the laroux-react
+ * bootstrap, whose files are copied to `<distDir>/_laroux-react/`.
+ *
+ * @param clientComponents - The app's "use client" components
+ * @param _projectRoot - Unused; kept for the FrameworkPlugin signature
+ * @param distDir - Directory that receives the entry and the bootstrap copy
+ * @returns Absolute path of the generated entry file
+ */
 export async function createClientEntry(
   clientComponents: ClientComponent[],
   _projectRoot: string,
@@ -214,8 +273,8 @@ export async function createClientEntry(
 
   await runtime.fs.ensureDir(distDir);
 
-  // Copy all client bootstrap files to dist
-  await copyBootstrapFiles(distDir);
+  // Copy the bootstrap files to dist, keeping their relative imports intact
+  await copyBootstrapFiles(runtime.path.resolve(distDir, BOOTSTRAP_COPY_DIR));
 
   // Generate import statements for all client components
   const componentImports = clientComponents.map((component, index) => {
@@ -250,8 +309,8 @@ const __RUNTIME_MODULES__ = typeof globalThis !== "undefined"
 // Register all client components
 ${componentRegistry}
 
-// Import and run the bootstrap code (copied to dist/)
-import "./entry.tsx";
+// Import and run the bootstrap code (copied to dist/${BOOTSTRAP_COPY_DIR}/)
+import "./${BOOTSTRAP_COPY_DIR}/${BOOTSTRAP_ENTRY_FILE}";
 `;
 
   await runtime.fs.writeTextFile(entryPath, content);

@@ -5,11 +5,10 @@
   "exports": "./mod.ts",
   "dependencies": {
     "@eserstack/agents": "workspace:*",
+    "@eserstack/logging": "workspace:*",
     "@eserstack/mux": "workspace:*",
     "@eserstack/noskills": "workspace:*",
-    "@eserstack/shell": "workspace:*",
-    "@eserstack/standards": "workspace:*",
-    "@std/path": "npm:@jsr/std__path@^1.1.6"
+    "@eserstack/standards": "workspace:*"
   },
   "devDependencies": {
     "@std/assert": "npm:@jsr/std__assert@^1.0.19",

@@ -21,7 +21,12 @@
  */
 
 import * as shellExec from "@eserstack/shell/exec";
-import type { WorkflowTool, WorkflowToolResult } from "./types.ts";
+import { runtime } from "@eserstack/standards/cross-runtime";
+import type {
+  WorkflowTool,
+  WorkflowToolContext,
+  WorkflowToolResult,
+} from "./types.ts";
 
 /**
  * Built-in shell tool — executes commands via `sh -c`.
@@ -32,7 +37,12 @@ import type { WorkflowTool, WorkflowToolResult } from "./types.ts";
  * - `name` (string, optional) — display name (defaults to command)
  * - `workingDirectory` (string, optional) — working directory (relative to root)
  * - `fix` (boolean) — injected by engine, selects fixCommand if present
+ * - `dryRun` (boolean): injected by engine; a dry run never runs fixCommand,
+ *   since it writes files, and runs `command` instead
  * - `root` (string) — injected by engine, default working directory
+ *
+ * The command is stopped when it runs past the step's timeout
+ * (`context.timeoutMs`).
  */
 export const shellTool: WorkflowTool = {
   name: "shell",
@@ -40,15 +50,16 @@ export const shellTool: WorkflowTool = {
 
   run: async (
     options: Record<string, unknown>,
+    context: WorkflowToolContext,
   ): Promise<WorkflowToolResult> => {
     const command = options["command"] as string | undefined;
     const fixCommand = options["fixCommand"] as string | undefined;
     const displayName = (options["name"] as string | undefined) ?? command ??
       "shell";
     const fix = (options["fix"] as boolean | undefined) ?? false;
+    const dryRun = (options["dryRun"] as boolean | undefined) ?? false;
     const root = (options["root"] as string | undefined) ?? ".";
-    const workingDirectory =
-      (options["workingDirectory"] as string | undefined) ?? root;
+    const workingDirectory = options["workingDirectory"] as string | undefined;
 
     if (command === undefined || command.length === 0) {
       throw new Error(
@@ -57,12 +68,22 @@ export const shellTool: WorkflowTool = {
       );
     }
 
-    const cmd = (fix && fixCommand !== undefined) ? fixCommand : command;
+    const cmd = fix && !dryRun && fixCommand !== undefined
+      ? fixCommand
+      : command;
 
-    const builder = new shellExec.CommandBuilder("sh", ["-c", cmd]).cwd(
-      workingDirectory,
-    ).noThrow();
-    const output = await builder.spawn();
+    // Stopped at the step's timeout, so the command does not run on after the
+    // engine has failed the step. spawn() then throws CommandRunError, which
+    // the engine reports as the step's timeout.
+    const output = await new shellExec.CommandBuilder("sh", ["-c", cmd])
+      .cwd(
+        workingDirectory !== undefined
+          ? runtime.path.resolve(root, workingDirectory)
+          : root,
+      )
+      .timeout(context.timeoutMs)
+      .noThrow()
+      .spawn();
     const exitCode = output.code;
 
     if (exitCode === 0) {
@@ -87,7 +108,9 @@ export const shellTool: WorkflowTool = {
       name: displayName,
       passed: false,
       issues: [{
-        message: combinedOutput || `Command exited with code ${exitCode}`,
+        message: combinedOutput.length > 0
+          ? combinedOutput
+          : `Command exited with code ${exitCode}`,
       }],
       mutations: [],
       stats: { exitCode },

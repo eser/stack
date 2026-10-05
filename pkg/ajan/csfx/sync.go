@@ -37,8 +37,7 @@ func RunKubectl(ref ResourceReference) ([]string, error) {
 	output, err := exec.Command("kubectl", args...).Output() //nolint:gosec // arguments validated above
 
 	if err != nil {
-		var exitErr *exec.ExitError
-		if errors.As(err, &exitErr) {
+		if exitErr, ok := errors.AsType[*exec.ExitError](err); ok {
 			return nil, fmt.Errorf("kubectl command failed: %s", strings.TrimSpace(string(exitErr.Stderr)))
 		}
 

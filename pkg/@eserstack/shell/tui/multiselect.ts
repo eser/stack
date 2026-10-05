@@ -117,6 +117,14 @@ const findNext = <T>(
   return current;
 };
 
+/**
+ * Ask the user to pick any number of options: the arrow keys move, Space
+ * toggles, Enter accepts. An empty choice is refused unless
+ * `options.required` is false.
+ *
+ * @returns The chosen values, or {@link types.CANCEL} when the user cancels;
+ *   check it with `isCancel`.
+ */
 export const multiselect = async <T>(
   ctx: types.TuiContext,
   options: types.MultiselectOptions<T>,

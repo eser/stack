@@ -8,23 +8,20 @@
  *
  * @example
  * ```typescript
- * import {
- *   isCommonLocale,
- *   isRtlLocale,
- *   getTextDirection,
- *   DEFAULT_LOCALE,
- * } from "@eserstack/standards/i18n";
+ * import * as standards from "@eserstack/standards";
  *
  * // Check if locale is supported
- * isCommonLocale("en"); // true
- * isCommonLocale("xx"); // false
+ * standards.i18n.isCommonLocale("en"); // true
+ * standards.i18n.isCommonLocale("xx"); // false
  *
  * // Get text direction
- * getTextDirection("ar"); // "rtl"
- * getTextDirection("en"); // "ltr"
+ * standards.i18n.getTextDirection("ar"); // "rtl"
+ * standards.i18n.getTextDirection("en"); // "ltr"
  *
  * // Use default locale
- * const locale = userLocale ?? DEFAULT_LOCALE; // "en"
+ * const pickLocale = (userLocale?: string): string =>
+ *   userLocale ?? standards.i18n.DEFAULT_LOCALE;
+ * pickLocale(); // "en"
  * ```
  *
  * @module

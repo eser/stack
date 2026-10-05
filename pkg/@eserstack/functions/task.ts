@@ -13,41 +13,68 @@
  *
  * ### Basic Task (no context)
  * ```ts
- * import * as task from "@eserstack/functions/task";
- * import * as results from "@eserstack/primitives/results";
+ * import * as functions from "@eserstack/functions";
+ * import * as primitives from "@eserstack/primitives";
  *
- * const double = task.task(async () =>
- *   results.ok(42 * 2)
+ * const double = functions.task.task(async () =>
+ *   primitives.results.ok(42 * 2)
  * );
  *
- * const result = await task.runTask(double);
+ * const result = await functions.task.runTask(double);
  * ```
  *
  * ### Task with Context (Reader pattern)
  * ```ts
- * type DbContext = { readonly db: Database };
+ * import * as functions from "@eserstack/functions";
+ * import * as primitives from "@eserstack/primitives";
  *
- * const getUser = (id: string): task.Task<User, DbError, DbContext> =>
- *   task.task(async (ctx) => {
- *     const user = await ctx.db.users.find(id);
- *     return user ? results.ok(user) : results.fail(new DbError("not found"));
+ * type User = { readonly id: string; readonly name: string };
+ * type DbContext = { readonly users: ReadonlyMap<string, User> };
+ *
+ * const getUser = (id: string): functions.task.Task<User, Error, DbContext> =>
+ *   functions.task.task(async (ctx) => {
+ *     const user = ctx.users.get(id);
+ *     return user !== undefined
+ *       ? primitives.results.ok(user)
+ *       : primitives.results.fail(new Error("not found"));
  *   });
  *
  * // Context is provided at the call site — not threaded manually
- * const result = await task.runTask(getUser("123"), { db: postgres });
+ * const users = new Map([["123", { id: "123", name: "Ada" }]]);
+ * const result = await functions.task.runTask(getUser("123"), { users });
  * ```
  *
  * ### Composing Tasks Widens Requirements
  * ```ts
- * type AuthContext = { readonly auth: AuthService };
- * type DbContext = { readonly db: Database };
+ * import * as functions from "@eserstack/functions";
+ * import * as primitives from "@eserstack/primitives";
+ *
+ * type AuthContext = { readonly sessions: ReadonlyMap<string, string> };
+ * type DbContext = { readonly profiles: ReadonlyMap<string, string> };
+ * type AuthError = { readonly _tag: "AuthError" };
+ * type DbError = { readonly _tag: "DbError" };
+ *
+ * const authenticate = (token: string) =>
+ *   functions.task.task<string, AuthError, AuthContext>(async (ctx) => {
+ *     const userId = ctx.sessions.get(token);
+ *     return userId !== undefined
+ *       ? primitives.results.ok(userId)
+ *       : primitives.results.fail<AuthError>({ _tag: "AuthError" });
+ *   });
+ * const loadProfile = (userId: string) =>
+ *   functions.task.task<string, DbError, DbContext>(async (ctx) => {
+ *     const profile = ctx.profiles.get(userId);
+ *     return profile !== undefined
+ *       ? primitives.results.ok(profile)
+ *       : primitives.results.fail<DbError>({ _tag: "DbError" });
+ *   });
  *
  * // Composed task needs AuthContext & DbContext (automatically widened)
- * const getProfile = task.flatMapW(
- *   authenticate(token),
+ * const getProfile = functions.task.flatMapW(
+ *   authenticate("token-1"),
  *   (userId) => loadProfile(userId),
  * );
- * // Type: Task<Profile, AuthError | DbError, AuthContext & DbContext>
+ * // Type: Task<string, AuthError | DbError, AuthContext & DbContext>
  * ```
  *
  * ### FP References
@@ -67,7 +94,7 @@
  */
 
 import * as results from "@eserstack/primitives/results";
-import { retry, withTimeout as resourceWithTimeout } from "./resources.ts";
+import * as resources from "./resources.ts";
 
 // --- Helper Types ---
 
@@ -87,9 +114,16 @@ export type MergeContext<R1, R2> = R1 extends void ? R2
  * Context type requiring an `AbortSignal` for cancellation support.
  *
  * ```ts
- * const fetchData = task<Data, FetchError, Cancellable>(async (ctx) => {
+ * import * as functions from "@eserstack/functions";
+ * import * as primitives from "@eserstack/primitives";
+ *
+ * const fetchData = functions.task.task<
+ *   unknown,
+ *   Error,
+ *   functions.task.Cancellable
+ * >(async (ctx) => {
  *   const resp = await fetch("/api/data", { signal: ctx.signal });
- *   return results.ok(await resp.json());
+ *   return primitives.results.ok(await resp.json());
  * });
  * ```
  */
@@ -107,9 +141,16 @@ export type Logger = {
  * Context type requiring a `Logger` for observability.
  *
  * ```ts
- * const processOrder = task<Receipt, OrderError, Observable>(async (ctx) => {
+ * import * as functions from "@eserstack/functions";
+ * import * as primitives from "@eserstack/primitives";
+ *
+ * const processOrder = functions.task.task<
+ *   string,
+ *   Error,
+ *   functions.task.Observable
+ * >(async (ctx) => {
  *   ctx.logger.info("Processing order");
- *   return results.ok(receipt);
+ *   return primitives.results.ok("receipt-1");
  * });
  * ```
  */
@@ -241,12 +282,20 @@ export const flatMapW = <T, U, E1, E2, R1 = void, R2 = void>(
  *
  * For context-free tasks (`R = void`), call without context:
  * ```ts
- * const result = await runTask(myTask);
+ * import * as functions from "@eserstack/functions";
+ *
+ * const result = await functions.task.runTask(functions.task.succeed(42));
  * ```
  *
  * For context-aware tasks, provide the required context:
  * ```ts
- * const result = await runTask(myTask, { db: postgres });
+ * import * as functions from "@eserstack/functions";
+ * import * as primitives from "@eserstack/primitives";
+ *
+ * const greet = functions.task.task<string, never, { readonly name: string }>(
+ *   (ctx) => Promise.resolve(primitives.results.ok(`Hello, ${ctx.name}`)),
+ * );
+ * const result = await functions.task.runTask(greet, { name: "Ada" });
  * ```
  */
 export const runTask = <T, E, R = void>(
@@ -263,8 +312,14 @@ export const runTask = <T, E, R = void>(
  * It "eliminates" the R parameter by closing over the environment.
  *
  * ```ts
- * const ready = provideContext(getUser("123"), { db: postgres });
- * const result = await runTask(ready); // no context needed
+ * import * as functions from "@eserstack/functions";
+ * import * as primitives from "@eserstack/primitives";
+ *
+ * const greet = functions.task.task<string, never, { readonly name: string }>(
+ *   (ctx) => Promise.resolve(primitives.results.ok(`Hello, ${ctx.name}`)),
+ * );
+ * const ready = functions.task.provideContext(greet, { name: "Ada" });
+ * const result = await functions.task.runTask(ready); // no context needed
  * ```
  */
 export const provideContext = <T, E, R>(
@@ -281,9 +336,14 @@ export const provideContext = <T, E, R>(
  * an `AbortSignal` via the context.
  *
  * ```ts
- * const cancellable = withAbort(fetchData, 5000);
+ * import * as functions from "@eserstack/functions";
+ *
+ * const fetchData = functions.task.fromPromise(() => fetch("/api/data"));
+ * const cancellable = functions.task.withAbort(fetchData, 5000);
  * const controller = new AbortController();
- * const result = await runTask(cancellable, { signal: controller.signal });
+ * const result = await functions.task.runTask(cancellable, {
+ *   signal: controller.signal,
+ * });
  * ```
  *
  * @param t - Task to wrap
@@ -353,7 +413,11 @@ export const withAbort = <T, E, R = void>(
  * a `Logger` via the context.
  *
  * ```ts
- * const traced = withLogging(fetchData, "fetch-data");
+ * import * as functions from "@eserstack/functions";
+ *
+ * const fetchData = functions.task.fromPromise(() => fetch("/api/data"));
+ * const traced = functions.task.withLogging(fetchData, "fetch-data");
+ * await functions.task.runTask(traced, { logger: console });
  * // Logs: "[fetch-data] started" then "[fetch-data] completed" or "[fetch-data] failed"
  * ```
  *
@@ -388,13 +452,16 @@ export const withLogging = <T, E, R = void>(
  * Create a validation step that returns a Task.
  *
  * ```ts
- * const validateEmail = validate(
+ * import * as functions from "@eserstack/functions";
+ *
+ * const validateEmail = functions.task.validate(
  *   (email: string) => email.includes("@"),
  *   "Invalid email address",
  * );
+ * const createUser = (email: string) => functions.task.succeed({ email });
  *
- * const processUser = flatMapW(
- *   validateEmail(input),
+ * const processUser = functions.task.flatMapW(
+ *   validateEmail("ada@example.com"),
  *   (email) => createUser(email),
  * );
  * ```
@@ -424,6 +491,9 @@ export const all = <T, E, R = void>(
   task<T[], E, R>(async (ctx) => {
     const values: T[] = [];
     for (const t of tasks) {
+      // Tasks run in order and stop at the first failure; allPar is the
+      // concurrent variant.
+      // deno-lint-ignore no-await-in-loop
       const result = await t.execute(ctx);
       if (results.isFail(result)) return result;
       values.push(result.value);
@@ -459,7 +529,9 @@ export const withRetry = <T, E, R = void>(
   attempts: number,
   delay = 0,
 ): Task<T, E, R> =>
-  task<T, E, R>((ctx) => retry(() => t.execute(ctx), attempts, delay));
+  task<T, E, R>((ctx) =>
+    resources.retry(() => t.execute(ctx), attempts, delay)
+  );
 
 /**
  * Add a timeout to a Task using resources.ts timeout.
@@ -471,5 +543,5 @@ export const withTimeout = <T, E, R = void>(
   timeoutError: E,
 ): Task<T, E, R> =>
   task<T, E, R>((ctx) =>
-    resourceWithTimeout(() => t.execute(ctx), timeoutMs, timeoutError)
+    resources.withTimeout(() => t.execute(ctx), timeoutMs, timeoutError)
   );

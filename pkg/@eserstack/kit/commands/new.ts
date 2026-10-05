@@ -14,6 +14,7 @@ import * as span from "@eserstack/streams/span";
 import { runtime } from "@eserstack/standards/cross-runtime";
 import * as newProjectHandler from "../recipes/handlers/new-project.ts";
 import * as registryFetcher from "../recipes/registry-fetcher.ts";
+import * as errorChain from "../recipes/error-chain.ts";
 import type * as shellArgs from "@eserstack/shell/args";
 
 export const main = async (
@@ -38,6 +39,7 @@ export const main = async (
   const interactive = !noInteractive && (explicitInteractive || isTty);
 
   if (!explicitInteractive && !noInteractive && isTty) {
+    // Prompting was turned on automatically; stderr tells the user why.
     // deno-lint-ignore no-console
     console.error(
       "Prompting for missing variables (use --no-interactive to disable)",
@@ -62,28 +64,38 @@ export const main = async (
 
   // No template → show available templates
   if (templateName === undefined) {
+    let manifest: Awaited<ReturnType<typeof registryFetcher.fetchRegistry>>;
     try {
-      const manifest = await registryFetcher.fetchRegistry(registryUrl, {
-        local,
-      });
-      const templates = manifest.recipes.filter((r) => r.scale === "project");
-
-      out.writeln(
-        "Usage: eser kit new <template> [--name <project-name>] [--var key=value]",
-      );
-      out.writeln();
-      out.writeln("Available project templates:");
-      out.writeln();
-
-      for (const tmpl of templates) {
-        out.writeln(
-          `  ${(tmpl.name ?? "").padEnd(20)} ${tmpl.description} `,
-          span.dim(`[${tmpl.language}]`),
-        );
-      }
+      manifest = await registryFetcher.fetchRegistry(registryUrl, { local });
     } catch (error) {
-      const msg = error instanceof Error ? error.message : String(error);
-      out.writeln(span.red(`Error: ${msg}`));
+      await out.close();
+      if (!(error instanceof registryFetcher.RegistryLoadError)) {
+        throw error;
+      }
+
+      return results.fail({
+        message: errorChain.formatErrorChain(error),
+        exitCode: 1,
+      });
+    }
+
+    const templates = manifest.recipes.filter((r) => r.scale === "project");
+
+    out.writeln(
+      "Usage: eser kit new <template> [--name <project-name>] [--var key=value]",
+    );
+    out.writeln();
+    out.writeln("Available project templates:");
+    out.writeln();
+
+    for (const tmpl of templates) {
+      out.writeln(
+        // Registry strings are third-party content: strip terminal controls.
+        span.untrusted(
+          `  ${(tmpl.name ?? "").padEnd(20)} ${tmpl.description} `,
+        ),
+        span.dim(span.untrusted(`[${tmpl.language}]`)),
+      );
     }
 
     await out.close();
@@ -122,5 +134,5 @@ export const main = async (
     return results.ok(undefined);
   }
 
-  return results.fail({ exitCode: 1 });
+  return results.fail({ message: handlerResult.error.message, exitCode: 1 });
 };

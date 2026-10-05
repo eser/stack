@@ -14,66 +14,90 @@
 // Span Types — Inline
 // =============================================================================
 
-type TextSpan = { readonly kind: "text"; readonly value: string };
-type BoldSpan = { readonly kind: "bold"; readonly children: readonly Span[] };
-type DimSpan = { readonly kind: "dim"; readonly children: readonly Span[] };
-type ItalicSpan = {
+/** Text, written as it is. */
+export type TextSpan = { readonly kind: "text"; readonly value: string };
+/** Children shown in bold. */
+export type BoldSpan = {
+  readonly kind: "bold";
+  readonly children: readonly Span[];
+};
+/** Children shown dimmed. */
+export type DimSpan = {
+  readonly kind: "dim";
+  readonly children: readonly Span[];
+};
+/** Children shown in italics. */
+export type ItalicSpan = {
   readonly kind: "italic";
   readonly children: readonly Span[];
 };
-type UnderlineSpan = {
+/** Children shown underlined. */
+export type UnderlineSpan = {
   readonly kind: "underline";
   readonly children: readonly Span[];
 };
-type StrikethroughSpan = {
+/** Children shown struck through. */
+export type StrikethroughSpan = {
   readonly kind: "strikethrough";
   readonly children: readonly Span[];
 };
-type ColorSpan = {
+/** Children shown in a named color, such as `"red"`. */
+export type ColorSpan = {
   readonly kind: "color";
   readonly color: string;
   readonly children: readonly Span[];
 };
-type GroupSpan = {
+/** Children with no formatting of their own. */
+export type GroupSpan = {
   readonly kind: "group";
   readonly children: readonly Span[];
 };
-type NewlineSpan = { readonly kind: "newline" };
+/** A line break. */
+export type NewlineSpan = { readonly kind: "newline" };
 
 // =============================================================================
 // Span Types — Block-level
 // =============================================================================
 
-type CodeBlockSpan = {
+/** A block of code, with an optional language name. */
+export type CodeBlockSpan = {
   readonly kind: "code-block";
   readonly language?: string;
   readonly value: string;
 };
 
-type TableSpan = {
+/** A table: a header row and rows of cells. */
+export type TableSpan = {
   readonly kind: "table";
   readonly headers: readonly Span[];
   readonly rows: readonly (readonly Span[])[];
 };
 
-type ListSpan = {
+/** A list: each item is a row of spans. */
+export type ListSpan = {
   readonly kind: "list";
   readonly items: readonly (readonly Span[])[];
 };
 
-type GaugeSpan = {
+/**
+ * A bar that shows a percentage from 0 to 100, with an optional width in
+ * characters and a label.
+ */
+export type GaugeSpan = {
   readonly kind: "gauge";
   readonly percent: number;
   readonly width?: number;
   readonly label?: string;
 };
 
-type SeparatorSpan = {
+/** A horizontal rule, with an optional label. */
+export type SeparatorSpan = {
   readonly kind: "separator";
   readonly label?: string;
 };
 
-type AlertSpan = {
+/** A callout at the info, success, warning or error level. */
+export type AlertSpan = {
   readonly kind: "alert";
   readonly level: "info" | "success" | "warning" | "error";
   readonly children: readonly Span[];
@@ -83,7 +107,11 @@ type AlertSpan = {
 // Union type
 // =============================================================================
 
-type Span =
+/**
+ * Any span. A renderer turns a list of spans into its output format, such as
+ * ANSI text or Markdown.
+ */
+export type Span =
   | TextSpan
   | BoldSpan
   | DimSpan
@@ -100,20 +128,23 @@ type Span =
   | SeparatorSpan
   | AlertSpan;
 
-type SpanInput = string | Span;
+/** A span, or a string that becomes a text span. */
+export type SpanInput = string | Span;
 
 // =============================================================================
 // Normalize helper
 // =============================================================================
 
-const normalize = (inputs: readonly SpanInput[]): Span[] =>
+/** Turns each string into a text span and keeps spans as they are. */
+export const normalize = (inputs: readonly SpanInput[]): Span[] =>
   inputs.map((i) => typeof i === "string" ? text(i) : i);
 
 // =============================================================================
 // Inline constructors
 // =============================================================================
 
-const text = (value: string): TextSpan => ({ kind: "text", value });
+/** Creates a text span. */
+export const text = (value: string): TextSpan => ({ kind: "text", value });
 
 // ESC-introduced sequences (CSI, OSC ending in BEL or ST, DCS/SOS/PM/APC,
 // other two-byte ESC forms), their 8-bit CSI/OSC forms, C0 controls other than
@@ -126,7 +157,7 @@ const TERMINAL_CONTROL =
  * Removes terminal control sequences and control characters, keeping tab and
  * newline, so the string can only print visible text.
  */
-const stripTerminalControls = (value: string): string =>
+export const stripTerminalControls = (value: string): string =>
   value.replace(TERMINAL_CONTROL, "");
 
 /**
@@ -136,75 +167,102 @@ const stripTerminalControls = (value: string): string =>
  * control sequences first, so the content cannot move the cursor, rewrite
  * earlier lines, spoof links or write the clipboard.
  */
-const untrusted = (value: string): TextSpan =>
+export const untrusted = (value: string): TextSpan =>
   text(stripTerminalControls(value));
 
-const bold = (...children: SpanInput[]): BoldSpan => ({
+/** Creates a bold span; strings among the children become text spans. */
+export const bold = (...children: SpanInput[]): BoldSpan => ({
   kind: "bold",
   children: normalize(children),
 });
 
-const dim = (...children: SpanInput[]): DimSpan => ({
+/** Creates a dimmed span; strings among the children become text spans. */
+export const dim = (...children: SpanInput[]): DimSpan => ({
   kind: "dim",
   children: normalize(children),
 });
 
-const italic = (...children: SpanInput[]): ItalicSpan => ({
+/** Creates an italic span; strings among the children become text spans. */
+export const italic = (...children: SpanInput[]): ItalicSpan => ({
   kind: "italic",
   children: normalize(children),
 });
 
-const underline = (...children: SpanInput[]): UnderlineSpan => ({
+/**
+ * Creates an underlined span; strings among the children become text spans.
+ */
+export const underline = (...children: SpanInput[]): UnderlineSpan => ({
   kind: "underline",
   children: normalize(children),
 });
 
-const strikethrough = (...children: SpanInput[]): StrikethroughSpan => ({
+/**
+ * Creates a struck-through span; strings among the children become text
+ * spans.
+ */
+export const strikethrough = (...children: SpanInput[]): StrikethroughSpan => ({
   kind: "strikethrough",
   children: normalize(children),
 });
 
-const group = (...children: SpanInput[]): GroupSpan => ({
+/** Groups spans without adding formatting. */
+export const group = (...children: SpanInput[]): GroupSpan => ({
   kind: "group",
   children: normalize(children),
 });
 
-const nl = (): NewlineSpan => ({ kind: "newline" });
+/** Creates a line break. */
+export const nl = (): NewlineSpan => ({ kind: "newline" });
 
 // Color constructors
-const color = (c: string, ...children: SpanInput[]): ColorSpan => ({
+/**
+ * Creates a span of the children in the named color; strings among the
+ * children become text spans.
+ */
+export const color = (c: string, ...children: SpanInput[]): ColorSpan => ({
   kind: "color",
   color: c,
   children: normalize(children),
 });
 
-const red = (...children: SpanInput[]): ColorSpan => color("red", ...children);
-const green = (...children: SpanInput[]): ColorSpan =>
+/** Creates a red span. */
+export const red = (...children: SpanInput[]): ColorSpan =>
+  color("red", ...children);
+/** Creates a green span. */
+export const green = (...children: SpanInput[]): ColorSpan =>
   color("green", ...children);
-const yellow = (...children: SpanInput[]): ColorSpan =>
+/** Creates a yellow span. */
+export const yellow = (...children: SpanInput[]): ColorSpan =>
   color("yellow", ...children);
-const blue = (...children: SpanInput[]): ColorSpan =>
+/** Creates a blue span. */
+export const blue = (...children: SpanInput[]): ColorSpan =>
   color("blue", ...children);
-const magenta = (...children: SpanInput[]): ColorSpan =>
+/** Creates a magenta span. */
+export const magenta = (...children: SpanInput[]): ColorSpan =>
   color("magenta", ...children);
-const cyan = (...children: SpanInput[]): ColorSpan =>
+/** Creates a cyan span. */
+export const cyan = (...children: SpanInput[]): ColorSpan =>
   color("cyan", ...children);
-const gray = (...children: SpanInput[]): ColorSpan =>
+/** Creates a gray span. */
+export const gray = (...children: SpanInput[]): ColorSpan =>
   color("gray", ...children);
-const white = (...children: SpanInput[]): ColorSpan =>
+/** Creates a white span. */
+export const white = (...children: SpanInput[]): ColorSpan =>
   color("white", ...children);
 
 // =============================================================================
 // Block-level constructors
 // =============================================================================
 
-const codeBlock = (value: string, language?: string): CodeBlockSpan => ({
+/** Creates a code block, with an optional language name. */
+export const codeBlock = (value: string, language?: string): CodeBlockSpan => ({
   kind: "code-block",
   language,
   value,
 });
 
-const table = (
+/** Creates a table from a header row and rows of cells. */
+export const table = (
   headers: readonly SpanInput[],
   rows: readonly (readonly SpanInput[])[],
 ): TableSpan => ({
@@ -213,12 +271,16 @@ const table = (
   rows: rows.map((row) => normalize(row)),
 });
 
-const list = (items: readonly (readonly SpanInput[])[]): ListSpan => ({
+/** Creates a list; each item is a row of spans. */
+export const list = (items: readonly (readonly SpanInput[])[]): ListSpan => ({
   kind: "list",
   items: items.map((row) => normalize(row)),
 });
 
-const gauge = (
+/**
+ * Creates a bar for a percentage. `percent` is clamped to 0 through 100.
+ */
+export const gauge = (
   percent: number,
   options?: { width?: number; label?: string },
 ): GaugeSpan => ({
@@ -228,12 +290,14 @@ const gauge = (
   label: options?.label,
 });
 
-const separator = (label?: string): SeparatorSpan => ({
+/** Creates a horizontal rule, with an optional label. */
+export const separator = (label?: string): SeparatorSpan => ({
   kind: "separator",
   label,
 });
 
-const alert = (
+/** Creates a callout at the given level. */
+export const alert = (
   level: AlertSpan["level"],
   ...children: SpanInput[]
 ): AlertSpan => ({
@@ -246,7 +310,12 @@ const alert = (
 // Measurement — plain text length of a span (strips all formatting)
 // =============================================================================
 
-const plainLength = (s: Span): number => {
+/**
+ * Returns how many characters a span takes as plain text, without
+ * formatting. Tables, lists and separators count as 0 because they are blocks,
+ * not inline text.
+ */
+export const plainLength = (s: Span): number => {
   switch (s.kind) {
     case "text":
       return s.value.length;
@@ -275,58 +344,4 @@ const plainLength = (s: Span): number => {
     case "alert":
       return 2 + s.children.reduce((sum, child) => sum + plainLength(child), 0);
   }
-};
-
-// =============================================================================
-// Exports
-// =============================================================================
-
-export {
-  alert,
-  blue,
-  bold,
-  codeBlock,
-  color,
-  cyan,
-  dim,
-  gauge,
-  gray,
-  green,
-  group,
-  italic,
-  list,
-  magenta,
-  nl,
-  normalize,
-  plainLength,
-  red,
-  separator,
-  strikethrough,
-  stripTerminalControls,
-  table,
-  text,
-  underline,
-  untrusted,
-  white,
-  yellow,
-};
-
-export type {
-  AlertSpan,
-  BoldSpan,
-  CodeBlockSpan,
-  ColorSpan,
-  DimSpan,
-  GaugeSpan,
-  GroupSpan,
-  ItalicSpan,
-  ListSpan,
-  NewlineSpan,
-  SeparatorSpan,
-  Span,
-  SpanInput,
-  StrikethroughSpan,
-  TableSpan,
-  TextSpan,
-  UnderlineSpan,
 };

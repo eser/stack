@@ -14,6 +14,8 @@ export type {
   ProviderCapability,
   Role,
   TextBlock,
+  ThinkingBlock,
+  ThinkingPart,
   ToolCall,
   ToolCallBlock,
   ToolDefinition,
@@ -58,6 +60,7 @@ export {
 // Generation
 export type {
   ContentDeltaEvent,
+  Effort,
   GenerateTextOptions,
   GenerateTextResult,
   MessageDoneEvent,
@@ -66,6 +69,7 @@ export type {
   StopReason,
   StreamErrorEvent,
   StreamEvent,
+  ThinkingEvent,
   ToolCallDeltaEvent,
   ToolChoice,
   Usage,

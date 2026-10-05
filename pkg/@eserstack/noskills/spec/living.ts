@@ -13,8 +13,9 @@
  * @module
  */
 
-import * as yaml from "yaml";
-import * as schema from "../state/schema.ts";
+import * as yaml from "@eemeli/yaml";
+import type * as schema from "../state/schema.ts";
+import * as concernScope from "../state/concern-scope.ts";
 import { runtime } from "@eserstack/standards/cross-runtime";
 
 // =============================================================================
@@ -110,6 +111,9 @@ export type SpecSection = {
   readonly id: string;
   readonly title: string;
   readonly placeholder: string;
+  /** Where the section applies; empty for a section every spec gets. */
+  readonly scope: readonly schema.ConcernScope[];
+  /** The legacy single-flag condition, or null. */
   readonly condition: string | null;
   readonly position: string;
   /** Id of the concern that contributed this section; absent for base sections. */
@@ -121,15 +125,15 @@ export type SpecSection = {
 // =============================================================================
 
 /**
- * Normalize a ConcernDefinition.specSections entry to SpecSectionDefinition.
+ * Normalize a ConcernDefinition.specSections entry to a resolved section.
  * Supports the legacy string[] format — auto-migrates with synthetic ids.
- * Logs a deprecation warning so library authors know to upgrade.
+ * A missing `scope` becomes an empty list and a missing `condition` null.
  */
 const normalizeSection = (
   concernId: string,
   raw: schema.SpecSectionDefinition | string,
   idx: number,
-): schema.SpecSectionDefinition => {
+): Omit<SpecSection, "concernSource"> => {
   if (typeof raw === "string") {
     const id = `${concernId}-${
       raw.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")
@@ -138,11 +142,19 @@ const normalizeSection = (
       id,
       title: raw,
       placeholder: `_${raw}: to be addressed during discovery._`,
+      scope: [],
       condition: null,
       position: `after:tasks:${idx}`,
     };
   }
-  return raw;
+  return {
+    id: raw.id,
+    title: raw.title,
+    placeholder: raw.placeholder,
+    scope: raw.scope ?? [],
+    condition: raw.condition ?? null,
+    position: raw.position,
+  };
 };
 
 // =============================================================================
@@ -159,6 +171,7 @@ export const mergeSections = (
 ): readonly SpecSection[] => {
   const base: SpecSection[] = BASE_SECTIONS.map((s) => ({
     ...s,
+    scope: [],
     condition: null,
   }));
   const baseIds = new Set(base.map((s) => s.id));
@@ -199,14 +212,20 @@ export const mergeSections = (
 // Classification-driven visibility
 // =============================================================================
 
-type ClassificationFlag = (c: schema.SpecClassification) => boolean;
+/**
+ * Whether a section is visible under the given classification. A section
+ * with no scope and no condition always is; a conditional one waits until
+ * the spec is classified and then needs its scope (and legacy condition) to
+ * match.
+ */
+const isSectionVisible = (
+  section: SpecSection,
+  classification: schema.SpecClassification | null,
+): boolean => {
+  if (!concernScope.isConditionalSection(section)) return true;
 
-const CLASSIFICATION_CONDITIONS: Record<string, ClassificationFlag> = {
-  involvesWebUI: (c) => c.involvesWebUI,
-  involvesCLI: (c) => c.involvesCLI,
-  involvesPublicAPI: (c) => c.involvesPublicAPI,
-  involvesMigration: (c) => c.involvesMigration,
-  involvesDataHandling: (c) => c.involvesDataHandling,
+  return classification !== null &&
+    concernScope.sectionMatchesClassification(section, classification);
 };
 
 /**
@@ -225,15 +244,12 @@ export const applyClassificationToPlaceholders = (
 
   return placeholders.map((p) => {
     const def = defMap.get(p.sectionId);
-    if (def === undefined || def.condition === null) return p;
+    if (def === undefined || !concernScope.isConditionalSection(def)) return p;
 
     // Don't change already-filled or N/A sections
     if (p.status === "filled" || p.status === "na") return p;
 
-    const condFn = CLASSIFICATION_CONDITIONS[def.condition];
-    if (condFn === undefined) return p;
-
-    const shouldBeVisible = classification !== null && condFn(classification);
+    const shouldBeVisible = isSectionVisible(def, classification);
 
     if (shouldBeVisible && p.status === "conditional-hidden") {
       return { ...p, status: "placeholder" as const };
@@ -264,8 +280,8 @@ export const classificationReasonText = (
   const changes: string[] = [];
   for (const [key, label] of labels) {
     if (key === "source" || key === "inferredFrom") continue;
-    const prevVal = prev !== null ? Boolean(prev[key]) : false;
-    const nextVal = Boolean(next[key]);
+    const prevVal = prev !== null && prev[key] === true;
+    const nextVal = next[key] === true;
     if (!prevVal && nextVal) changes.push(label);
   }
   return changes.length > 0
@@ -631,12 +647,15 @@ export const applyMetadataAction = (
 // Question ID → Section ID mapping
 // =============================================================================
 
-/** Map discovery question IDs to the spec section they populate. */
+/**
+ * Map discovery question IDs to the spec section they populate. The ids are
+ * stored in state files as written, so the snake_case keys are quoted.
+ */
 const QUESTION_TO_SECTION: Record<string, string> = {
-  status_quo: "problem-statement",
-  user_impact: "user-impact",
+  "status_quo": "problem-statement",
+  "user_impact": "user-impact",
   ambition: "ambition",
-  scope_boundary: "scope-boundary",
+  "scope_boundary": "scope-boundary",
   verification: "verification-strategy",
   reversibility: "reversibility",
 };
@@ -675,27 +694,14 @@ export const generateInitialSpec = (args: {
   const sectionDefs = mergeSections(activeConcerns);
 
   // Build initial placeholder state
-  const placeholders: schema.PlaceholderStatus[] = sectionDefs.map((s) => {
-    if (s.condition === null) {
-      return {
-        sectionId: s.id,
-        sectionTitle: s.title,
-        status: "placeholder" as const,
-        concernSource: s.concernSource,
-      };
-    }
-    const condFn = CLASSIFICATION_CONDITIONS[s.condition];
-    const isVisible = classification !== null && condFn !== undefined &&
-      condFn(classification);
-    return {
-      sectionId: s.id,
-      sectionTitle: s.title,
-      status: isVisible
-        ? "placeholder" as const
-        : "conditional-hidden" as const,
-      concernSource: s.concernSource,
-    };
-  });
+  const placeholders: schema.PlaceholderStatus[] = sectionDefs.map((s) => ({
+    sectionId: s.id,
+    sectionTitle: s.title,
+    status: isSectionVisible(s, classification)
+      ? "placeholder" as const
+      : "conditional-hidden" as const,
+    concernSource: s.concernSource,
+  }));
 
   const metadata: schema.SpecMetadata = {
     created: { date: dateStr, user: creator.name },

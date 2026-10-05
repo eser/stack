@@ -7,13 +7,12 @@
  */
 
 import { runtime } from "@eserstack/standards/cross-runtime";
-import { replaceJsExtension } from "@eserstack/standards/patterns";
+import * as patterns from "@eserstack/standards/patterns";
 import type {
   ModuleEntry as BaseModuleEntry,
   ModuleMap as BaseModuleMap,
 } from "@eserstack/bundler";
 import type { ClientComponent } from "./rsc-analyze.ts";
-import { analyzeClientComponents } from "./rsc-analyze.ts";
 import * as logging from "@eserstack/logging";
 
 const moduleMapLogger = logging.logger.getLogger([
@@ -52,7 +51,10 @@ export function generateModuleMap(
     const key = `./${component.relativePath}`;
 
     // Convert to bundle path: "./src/app/counter.tsx" → "src/app/counter.js"
-    const bundlePath = replaceJsExtension(component.relativePath, ".js");
+    const bundlePath = patterns.replaceJsExtension(
+      component.relativePath,
+      ".js",
+    );
 
     // Value: module reference with proper bundle path
     // Use first export name as fallback (server.ts will use the actual export name from client reference)
@@ -122,19 +124,4 @@ export function createClientManifest(
   }
 
   return manifest;
-}
-
-// CLI usage
-if (import.meta.main) {
-  const projectRoot = runtime.process.cwd();
-  const srcDir = runtime.path.resolve(projectRoot, "src");
-  const clientComponents = await analyzeClientComponents(srcDir, projectRoot);
-
-  const moduleMap = generateModuleMap(clientComponents);
-  moduleMapLogger.info("\nModule Map:", { moduleMap });
-
-  await saveModuleMap(
-    moduleMap,
-    runtime.path.resolve(projectRoot, "dist/module-map.json"),
-  );
 }

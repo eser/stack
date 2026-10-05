@@ -4,8 +4,8 @@
  * Wraps Tailwind's programmatic compile() API
  */
 
-import { compile } from "tailwindcss";
-import { loadStylesheet } from "./stylesheet-loader.ts";
+import * as tailwindcss from "tailwindcss";
+import * as stylesheetLoader from "./stylesheet-loader.ts";
 
 export type TailwindCompileOptions = {
   /** Base directory for relative imports */
@@ -24,9 +24,9 @@ export async function compileTailwind(
   css: string,
   options: TailwindCompileOptions,
 ): Promise<string> {
-  const compiled = await compile(css, {
+  const compiled = await tailwindcss.compile(css, {
     base: options.base,
-    loadStylesheet,
+    loadStylesheet: stylesheetLoader.loadStylesheet,
   });
 
   // Build with candidates (or empty array for just @apply expansion)

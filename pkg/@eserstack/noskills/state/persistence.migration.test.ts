@@ -226,6 +226,25 @@ bdd.describe("migrateLegacyLayout", () => {
     },
   );
 
+  bdd.it("leaves the purge history where it is", async () => {
+    await seedLegacyLayout(tempDir);
+    const kept =
+      `${tempDir}/${persistence.paths.purgeHistoryDir}/2026-10-05T14-03-12-345Z/rules/r.md`;
+    await crossRuntime.runtime.fs.mkdir(
+      crossRuntime.runtime.path.dirname(kept),
+      { recursive: true },
+    );
+    await writeFile(kept, "rule");
+
+    await persistence.migrateLegacyLayout(tempDir);
+
+    assert.assertEquals(await readFile(kept), "rule");
+    assert.assertEquals(
+      await exists(`${tempDir}/.eser/.state/progresses/purge-history`),
+      false,
+    );
+  });
+
   bdd.it("migrates only .sessions when only .sessions is legacy", async () => {
     await crossRuntime.runtime.fs.mkdir(`${tempDir}/.eser/.sessions`, {
       recursive: true,

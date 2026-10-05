@@ -6,7 +6,7 @@ import type {
   Lifetime,
   RegistryBuilder,
 } from "./types.ts";
-import { createRegistry } from "./registry.ts";
+import * as registry from "./registry.ts";
 
 // =============================================================================
 // Internal State Type
@@ -26,7 +26,15 @@ type BuilderState<K extends string, V> = {
  *
  * @example
  * ```typescript
- * const builder = createRegistryBuilder<string, Service>();
+ * import * as standards from "@eserstack/standards";
+ *
+ * type Service = { readonly name: string };
+ *
+ * const loggerInstance: Service = { name: "logger" };
+ * const connectToDatabase = (): Promise<Service> =>
+ *   Promise.resolve({ name: "database" });
+ *
+ * const builder = standards.collections.createRegistryBuilder<string, Service>();
  *
  * builder
  *   .set("logger", loggerInstance)
@@ -84,7 +92,7 @@ export const createRegistryBuilder = <
     build: () => {
       assertNotSealed();
       state.sealed = true;
-      return createRegistry(state.entries);
+      return registry.createRegistry(state.entries);
     },
   };
 
@@ -100,7 +108,15 @@ export const createRegistryBuilder = <
  *
  * @example
  * ```typescript
- * const builder = fromEntries([
+ * import * as standards from "@eserstack/standards";
+ *
+ * type Service = { readonly name: string };
+ *
+ * const loggerInstance: Service = { name: "logger" };
+ * const connectFn = (): Promise<Service> =>
+ *   Promise.resolve({ name: "database" });
+ *
+ * const builder = standards.collections.fromEntries<string, Service>([
  *   ["logger", loggerInstance, "value"],
  *   ["database", connectFn, "lazy"],
  * ]);
@@ -131,8 +147,20 @@ export const fromEntries = <K extends string, V>(
  *
  * @example
  * ```typescript
- * const merged = mergeBuilders(registry1, registry2);
- * const newRegistry = merged.build();
+ * import * as standards from "@eserstack/standards";
+ *
+ * const registry1 = standards.collections
+ *   .createRegistryBuilder<string, number>()
+ *   .set("retries", 3)
+ *   .set("timeout", 30)
+ *   .build();
+ * const registry2 = standards.collections
+ *   .createRegistryBuilder<string, number>()
+ *   .set("timeout", 60)
+ *   .build();
+ *
+ * const merged = standards.collections.mergeBuilders(registry1, registry2);
+ * const newRegistry = merged.build(); // timeout is 60
  * ```
  */
 export const mergeBuilders = <K extends string, V>(
@@ -142,9 +170,9 @@ export const mergeBuilders = <K extends string, V>(
 ): RegistryBuilder<K, V> => {
   const result = createRegistryBuilder<K, V>();
 
-  for (const registry of registries) {
-    for (const key of registry.keys()) {
-      const value = registry.get(key);
+  for (const source of registries) {
+    for (const key of source.keys()) {
+      const value = source.get(key);
       if (value !== undefined) {
         result.set(key, value);
       }

@@ -8,9 +8,13 @@
  * @module
  */
 
-import { Module } from "@eserstack/shell/module";
+import * as module from "@eserstack/shell/module";
 
-export const moduleDef: Module = new Module({
+/** The command module type, `Module` from `@eserstack/shell/module`. */
+export type Module = module.Module;
+
+/** The `eser posts` command group and its subcommands. */
+export const moduleDef: Module = new module.Module({
   description: "posts — compose and manage social media posts across platforms",
   modules: {
     compose: {
@@ -58,7 +62,8 @@ export const moduleDef: Module = new Module({
       load: () => import("./adapters/cli/commands/unbookmark.ts"),
     },
     login: {
-      description: "Authenticate with a social platform",
+      description:
+        "Log in to a platform and save the session for later commands",
       load: () => import("./adapters/cli/commands/login.ts"),
     },
     logout: {

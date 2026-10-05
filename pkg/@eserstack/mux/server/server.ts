@@ -13,12 +13,8 @@
  */
 
 import type { Chrome } from "../engine/geometry.ts";
-import {
-  computeTabGeoms,
-  DEFAULT_CHROME,
-  effectiveChrome,
-} from "../engine/geometry.ts";
-import { reduce } from "../engine/reducer.ts";
+import * as geometry from "../engine/geometry.ts";
+import * as reducer from "../engine/reducer.ts";
 import type {
   Action,
   Geom,
@@ -33,13 +29,10 @@ import type {
   ServerToFrontend,
   Transport,
 } from "../ipc/protocol.ts";
-import { diffScene } from "../scene/diff.ts";
-import { deriveScene, type Scene } from "../scene/scene.ts";
-import {
-  createPtyHost,
-  type PtyHost,
-  type PtyHostCallbacks,
-} from "./pty-host.ts";
+import * as diff from "../scene/diff.ts";
+import * as scene from "../scene/scene.ts";
+import * as ptyHost from "./pty-host.ts";
+import type { PtyHost, PtyHostCallbacks } from "./pty-host.ts";
 
 /** Resolves how to actually launch a pane's process. */
 export type SpawnResolver = (
@@ -101,23 +94,23 @@ const SCROLL_SEQ: Record<ScrollAction, string> = {
 };
 
 export const createServer = (opts: MuxServerOptions): MuxServer => {
-  let baseChrome: Chrome = opts.chrome ?? DEFAULT_CHROME;
+  let baseChrome: Chrome = opts.chrome ?? geometry.DEFAULT_CHROME;
   let state = opts.initialState;
   const exitOnEmpty = opts.exitOnEmpty ?? true;
 
   // Chrome actually applied, with decorations dropped when the viewport is too
   // small. Server and frontend both use this (it's carried in the scene).
   const currentChrome = (): Chrome =>
-    effectiveChrome(state.viewport, baseChrome);
+    geometry.effectiveChrome(state.viewport, baseChrome);
   let sink: Transport<ServerToFrontend, FrontendToServer> | null = null;
-  let lastScene: Scene | null = null;
+  let lastScene: scene.Scene | null = null;
   let disposed = false;
 
   // Panes whose async spawn is in flight, and those killed before it resolved.
   const spawning = new Set<PaneId>();
   const pendingKill = new Set<PaneId>();
 
-  const host: PtyHost = (opts.createHost ?? createPtyHost)({
+  const host: PtyHost = (opts.createHost ?? ptyHost.createPtyHost)({
     onData: (pane, data) => sink?.send({ t: "output", pane, data }),
     onExit: (pane, code) => {
       host.forget(pane);
@@ -130,7 +123,7 @@ export const createServer = (opts: MuxServerOptions): MuxServer => {
     const tab = state.tabs[state.activeTab];
     if (tab === undefined) return new Map();
 
-    return computeTabGeoms(tab, state.viewport, currentChrome());
+    return geometry.computeTabGeoms(tab, state.viewport, currentChrome());
   };
 
   const contentSize = (
@@ -183,10 +176,10 @@ export const createServer = (opts: MuxServerOptions): MuxServer => {
   };
 
   const broadcastScene = (): void => {
-    const scene = deriveScene(state, currentChrome());
+    const next = scene.deriveScene(state, currentChrome());
     const wasNull = lastScene === null;
-    const delta = diffScene(lastScene, scene);
-    lastScene = scene;
+    const delta = diff.diffScene(lastScene, next);
+    lastScene = next;
     if (delta !== null) sink?.send({ t: "scene", full: wasNull, delta });
   };
 
@@ -233,7 +226,7 @@ export const createServer = (opts: MuxServerOptions): MuxServer => {
   const applyAction = (action: Action): void => {
     if (disposed) return;
 
-    const result = reduce(state, action);
+    const result = reducer.reduce(state, action);
     state = result.state;
     for (const effect of result.effects) runEffect(effect);
 

@@ -456,6 +456,7 @@ const toCString = (str: string): Uint8Array<ArrayBuffer> => {
  * string↔pointer conversions and frees returned C strings.
  */
 const createSymbolWrappers = (
+  // Deno types dlopen symbols per definition; the wrappers below take them all.
   // deno-lint-ignore no-explicit-any
   rawSymbols: any,
 ): types.FFILibrary["symbols"] => {

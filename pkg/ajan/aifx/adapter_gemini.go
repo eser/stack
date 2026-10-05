@@ -26,8 +26,7 @@ func classifyGeminiError(providerSentinel error, err error) error {
 		return ctxErr
 	}
 
-	var apiErr genai.APIError
-	if errors.As(err, &apiErr) {
+	if apiErr, ok := errors.AsType[genai.APIError](err); ok {
 		return classifyAndWrap(providerSentinel, apiErr.Code, err)
 	}
 
@@ -118,7 +117,11 @@ func (m *GeminiModel) GenerateText(
 	ctx context.Context,
 	opts *GenerateTextOptions,
 ) (*GenerateTextResult, error) {
-	config := buildGenerateContentConfig(opts)
+	config, err := buildGenerateContentConfig(opts)
+	if err != nil {
+		return nil, classifyGeminiError(ErrGeminiGenerationFailed, err)
+	}
+
 	contents := mapMessagesToGenAI(opts.Messages)
 
 	resp, err := m.client.Models.GenerateContent(ctx, m.modelID, contents, config)
@@ -141,7 +144,11 @@ func (m *GeminiModel) StreamText(
 	ctx context.Context,
 	opts *StreamTextOptions,
 ) (*StreamIterator, error) {
-	config := buildGenerateContentConfig(opts)
+	config, err := buildGenerateContentConfig(opts)
+	if err != nil {
+		return nil, classifyGeminiError(ErrGeminiStreamFailed, err)
+	}
+
 	contents := mapMessagesToGenAI(opts.Messages)
 
 	streamCtx, cancel := context.WithCancel(ctx)
@@ -149,6 +156,8 @@ func (m *GeminiModel) StreamText(
 
 	go func() {
 		defer close(eventCh)
+
+		mapper := &genAIStreamMapper{calledTool: false}
 
 		for resp, err := range m.client.Models.GenerateContentStream(streamCtx, m.modelID, contents, config) {
 			if err != nil {
@@ -159,7 +168,7 @@ func (m *GeminiModel) StreamText(
 				return
 			}
 
-			emitStreamEventsFromResponse(streamCtx, eventCh, resp)
+			mapper.emit(streamCtx, eventCh, resp)
 		}
 
 		// Stream completed successfully -- send the done event.

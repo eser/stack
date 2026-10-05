@@ -60,18 +60,21 @@ export type ApiRouteDefinition = {
 
 /**
  * Helper to create JSON responses with proper headers
+ *
+ * `init` passes through to the Response; its status defaults to 200. The
+ * content type is `application/json; charset=utf-8` unless `init.headers` sets
+ * one, in any letter case and in any HeadersInit form.
  */
 export function jsonResponse(
   data: unknown,
   init?: ResponseInit,
 ): Response {
-  return new Response(JSON.stringify(data), {
-    status: init?.status ?? 200,
-    headers: {
-      "Content-Type": "application/json; charset=utf-8",
-      ...init?.headers,
-    },
-  });
+  const headers = new Headers(init?.headers);
+  if (!headers.has("content-type")) {
+    headers.set("content-type", "application/json; charset=utf-8");
+  }
+
+  return new Response(JSON.stringify(data), { ...init, headers });
 }
 
 /**
@@ -79,6 +82,8 @@ export function jsonResponse(
  */
 export function errorResponse(
   message: string,
+  // Public API: moving `status` after `details` would break every caller.
+  // deno-lint-ignore default-param-last
   status = 500,
   details?: unknown,
 ): Response {

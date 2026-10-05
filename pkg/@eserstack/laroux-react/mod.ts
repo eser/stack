@@ -10,11 +10,19 @@ export { Link } from "./runtime/navigation/link.tsx";
 export type { LinkProps } from "./runtime/navigation/link.tsx";
 
 export { useRouter } from "./runtime/navigation/use-router.ts";
+export type {
+  NavigateOptions,
+  RouterMethods,
+} from "@eserstack/laroux/navigation";
 
 // Image components
 export { Image, ImageSizes, ResponsiveImage } from "./runtime/image/image.tsx";
 export type {
+  AspectRatioValue,
+  ImageFormat,
   ImageProps,
+  ObjectFitValue,
+  PlaceholderType,
   ResponsiveImageProps,
 } from "./runtime/image/image.tsx";
 

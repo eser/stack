@@ -11,13 +11,16 @@
  *   - a FileTokenStore for persisting OAuth tokens
  *
  * Configuration keys:
- *   TWITTER_CLIENT_ID      — enables Twitter/X (OAuth 2.0 PKCE)
- *   TWITTER_REDIRECT_URI   — OAuth redirect URI (default: http://127.0.0.1:8080/callback)
- *   TWITTER_API_BASE_URL   — base URL override for testing
- *   BLUESKY_PDS_HOST       — Bluesky PDS host (default: https://bsky.social)
- *   ANTHROPIC_API_KEY      — enables AI-powered translation
+ *   TWITTER_CLIENT_ID      enables Twitter/X (OAuth 2.0 PKCE)
+ *   TWITTER_CLIENT_SECRET  client secret of a confidential X client
+ *   TWITTER_REDIRECT_URI   OAuth redirect URI (default: http://127.0.0.1:8080/callback)
+ *   TWITTER_API_BASE_URL   base URL override for testing
+ *   BLUESKY_PDS_HOST       Bluesky PDS host (default: https://bsky.social)
+ *   BLUESKY_IDENTIFIER     Bluesky account for `eser posts login`
+ *   BLUESKY_APP_PASSWORD   Bluesky app password for `eser posts login`
+ *   ANTHROPIC_API_KEY      enables AI-powered translation
  *
- * See pkg/@eserstack/posts/.env for the full list.
+ * config.ts documents each key and where it may come from.
  */
 
 import type { AuthProvider } from "../../application/auth-provider.ts";
@@ -34,7 +37,7 @@ import * as tokenStoreAdapter from "../token-store/mod.ts";
 import * as stubs from "../tui/stubs.ts";
 import * as cliTriggersMod from "./triggers.ts";
 import type { PostsConfig } from "../../config.ts";
-import { loadPostsConfig } from "../../config.ts";
+import * as config from "../../config.ts";
 
 export interface AppContext {
   config: PostsConfig;
@@ -49,7 +52,7 @@ export interface AppContext {
 
 /** Build the full application context, loading config from env / .env files. */
 export async function createAppContext(): Promise<AppContext> {
-  const cfg = await loadPostsConfig();
+  const cfg = await config.loadPostsConfig();
 
   const connections: PlatformConnection[] = [];
   const auths = new Map<Platform, AuthProvider>();
@@ -62,7 +65,12 @@ export async function createAppContext(): Promise<AppContext> {
         : {},
     );
     const twitterAuth = new twitter.TwitterAuthProvider(
-      { clientId: cfg.twitter.clientId, redirectUri: cfg.twitter.redirectUri },
+      {
+        clientId: cfg.twitter.clientId,
+        redirectUri: cfg.twitter.redirectUri,
+        ...(cfg.twitter.clientSecret !== undefined &&
+          { clientSecret: cfg.twitter.clientSecret }),
+      },
       twitterClient,
     );
     const twitterApi = new twitter.TwitterSocialApi(twitterClient);
@@ -81,7 +89,7 @@ export async function createAppContext(): Promise<AppContext> {
       : {},
   );
   const blueskyAuth = new bluesky.BlueskyAuthProvider(blueskyClient);
-  const blueskyApi = new bluesky.BluekysSocialApi(blueskyClient);
+  const blueskyApi = new bluesky.BlueskySocialApi(blueskyClient);
   connections.push({
     platform: "bluesky",
     socialApi: blueskyApi,
@@ -94,8 +102,10 @@ export async function createAppContext(): Promise<AppContext> {
     connections,
   );
 
+  // The key goes to the translator directly: a key from a .env file is not in
+  // the process environment, where the Anthropic SDK would look for it.
   const translator = cfg.ai.apiKey !== undefined
-    ? new anthropic.AnthropicTranslator()
+    ? new anthropic.AnthropicTranslator({ apiKey: cfg.ai.apiKey })
     : stubs.noopTranslator;
 
   const service = new postServiceMod.PostService(

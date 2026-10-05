@@ -23,9 +23,9 @@ var ErrPanicRecovered = errors.New("handler panicked")
 // Result-based error shaping applies, and any middleware bookkeeping after
 // ctx.Next() is skipped.
 //
-// The recovered value goes through WithSanitizedError, so the panic text is
-// logged server-side and never disclosed to the client unless the operator has
-// explicitly enabled ExposeInternalErrors.
+// The recovered value goes through WithSanitizedError, so the router logs the
+// panic text once, with the request context, and the client never sees it
+// unless the operator has explicitly enabled ExposeInternalErrors.
 func ErrorHandlerMiddleware() httpfx.Handler {
 	return func(ctx *httpfx.Context) (result httpfx.Result) {
 		defer func() {

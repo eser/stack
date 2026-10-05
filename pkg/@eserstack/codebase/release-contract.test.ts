@@ -22,14 +22,23 @@
  * @module
  */
 
-import { assertEquals, assertStringIncludes } from "@std/assert";
+import * as assert from "@std/assert";
+import { runtime } from "@eserstack/standards/cross-runtime";
 
-// Resolved from this file's own URL: these tests read sources rather than
-// import them, so surviving any cwd matters more than a module specifier.
-const repoRoot = new URL("../../../", import.meta.url);
+// Resolved from this file's own directory: these tests read sources rather
+// than import them, so surviving any cwd matters more than a module specifier.
+const testDir = import.meta.dirname;
+if (testDir === undefined) {
+  throw new Error(
+    "release-contract.test.ts must run from a local file: it reads the " +
+      "release sources relative to its own directory.",
+  );
+}
+
+const repoRoot = runtime.path.resolve(testDir, "../../..");
 
 const read = (relative: string): Promise<string> =>
-  Deno.readTextFile(new URL(relative, repoRoot));
+  runtime.fs.readTextFile(runtime.path.join(repoRoot, relative));
 
 const releaseSourcePath = "pkg/@eserstack/codebase/release.ts";
 
@@ -56,7 +65,11 @@ const stripComments = (source: string): string =>
 /** Slice one `export const <name> = async (…)` declaration out of a source. */
 const functionBody = (source: string, name: string): string => {
   const start = source.indexOf(`export const ${name} = async (`);
-  assertEquals(start >= 0, true, `release.ts no longer declares ${name}()`);
+  assert.assertEquals(
+    start >= 0,
+    true,
+    `release.ts no longer declares ${name}()`,
+  );
 
   const rest = source.slice(start);
   const end = rest.indexOf("\nexport const ", 1);
@@ -67,7 +80,7 @@ const functionBody = (source: string, name: string): string => {
 /** Pull the quoted pathspecs out of the `filesToStage` array literal. */
 const parseStagedPathspecs = (source: string): string[] => {
   const literal = source.match(/const filesToStage = \[([^\]]*)\]/)?.[1];
-  assertEquals(
+  assert.assertEquals(
     literal !== undefined,
     true,
     "release.ts no longer builds a filesToStage array",
@@ -85,7 +98,7 @@ Deno.test("release stages exactly the four version-bearing pathspecs", async () 
 
   // Order is asserted too: this is the list handed to `git add` one entry at a
   // time, so it is the list a reader has to reconcile against the working tree.
-  assertEquals(parseStagedPathspecs(source), [
+  assert.assertEquals(parseStagedPathspecs(source), [
     "VERSION",
     "CHANGELOG.md",
     "pkg/*/package.json",
@@ -97,7 +110,7 @@ Deno.test("release stages no generated JSR manifest", async () => {
   const source = stripComments(await read(releaseSourcePath));
   const staged = parseStagedPathspecs(source);
 
-  assertEquals(
+  assert.assertEquals(
     staged.filter((pathspec) => pathspec.endsWith("deno.json")),
     [],
     "pkg/*/deno.json is gitignored; staging it exits 128 and aborts the " +
@@ -105,7 +118,10 @@ Deno.test("release stages no generated JSR manifest", async () => {
   );
 
   // The other half of that contract, in the file that creates it.
-  assertStringIncludes(await read(".gitignore"), "/pkg/@eserstack/*/deno.json");
+  assert.assertStringIncludes(
+    await read(".gitignore"),
+    "/pkg/@eserstack/*/deno.json",
+  );
 });
 
 // =============================================================================
@@ -123,8 +139,8 @@ Deno.test("the release commit message is 'chore(codebase): release v<version>'",
   const tagTemplate = body.match(/const tag = `([^`]+)`/)?.[1];
   const messageTemplate = body.match(/const commitMessage = `([^`]+)`/)?.[1];
 
-  assertEquals(tagTemplate, "v${version}");
-  assertEquals(
+  assert.assertEquals(tagTemplate, "v${version}");
+  assert.assertEquals(
     messageTemplate?.replace("${tag}", tagTemplate ?? ""),
     "chore(codebase): release v${version}",
   );
@@ -143,9 +159,13 @@ Deno.test("release pushes the commit before it pushes the tag", async () => {
   const commitPush = body.indexOf("gitPushHead()");
   const tagPush = body.indexOf("pushReleaseTag(");
 
-  assertEquals(commitPush >= 0, true, "release() no longer pushes the commit");
-  assertEquals(tagPush >= 0, true, "release() no longer pushes the tag");
-  assertEquals(
+  assert.assertEquals(
+    commitPush >= 0,
+    true,
+    "release() no longer pushes the commit",
+  );
+  assert.assertEquals(tagPush >= 0, true, "release() no longer pushes the tag");
+  assert.assertEquals(
     commitPush < tagPush,
     true,
     "the tag push must come last: CI publishes from the tag, so a tag pushed " +
@@ -163,24 +183,24 @@ Deno.test("release.ts never commits with --allow-empty", async () => {
   // re-fire the pipeline with an empty commit; it re-pushes the tag now.
   const source = await read(releaseSourcePath);
 
-  assertEquals(source.includes("--allow-empty"), false);
+  assert.assertEquals(source.includes("--allow-empty"), false);
 });
 
 Deno.test("unrelease deletes the GitHub Release, and does it before the tag", async () => {
   const source = stripComments(await read(releaseSourcePath));
 
-  assertStringIncludes(source, "exec`gh release delete ${tag} --yes`");
+  assert.assertStringIncludes(source, "exec`gh release delete ${tag} --yes`");
 
   const body = functionBody(source, "unrelease");
   const releaseDelete = body.indexOf("deleteGitHubRelease(tag)");
   const tagDelete = body.indexOf("gitDeleteTag(tag)");
 
-  assertEquals(
+  assert.assertEquals(
     releaseDelete >= 0,
     true,
     "unrelease() no longer deletes the GitHub Release",
   );
-  assertEquals(
+  assert.assertEquals(
     releaseDelete < tagDelete,
     true,
     "gh resolves a Release by its tag, so deleting the tag first strands the " +
@@ -210,7 +230,7 @@ Deno.test("the changelog version key matches the Go struct tag", async () => {
     ts.indexOf("EserAjanCodebaseGenerateChangelog("),
   ).slice(0, 400);
 
-  assertStringIncludes(
+  assert.assertStringIncludes(
     payload,
     "version: options.version",
     "changelog-gen.ts stopped sending the caller's version",
@@ -220,7 +240,7 @@ Deno.test("the changelog version key matches the Go struct tag", async () => {
   const request = go.slice(go.indexOf("type codebaseChangelogRequest struct"));
   const field = request.slice(0, request.indexOf("}"));
 
-  assertStringIncludes(
+  assert.assertStringIncludes(
     field,
     `json:"version,omitempty"`,
     "bridge.go's codebaseChangelogRequest no longer decodes the `version` key",

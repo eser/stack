@@ -12,7 +12,9 @@ import type { SubscriptionTier } from "../entities/user.ts";
 
 /** Context needed to determine the effective character limit for a post. */
 export interface CharacterLimitContext {
+  /** The platform the post goes to. */
   platform: Platform;
+  /** The account's subscription tier, which raises the limit on Twitter/X. */
   subscriptionTier: SubscriptionTier;
 }
 
@@ -60,8 +62,11 @@ export function getMinCharacterLimit(
 
 /** Result returned by validatePostLength. */
 export interface PostLengthValidation {
+  /** True when the text fits the limit. */
   valid: boolean;
+  /** The text length in UTF-16 code units, as `String.length` counts it. */
   length: number;
+  /** The character limit that applies. */
   limit: number;
   /** How many characters remain (negative means over the limit). */
   remaining: number;

@@ -22,13 +22,24 @@
  * as a broken extractor rather than passing as a vacuous match.
  */
 
-import { assert, assertEquals } from "@std/assert";
+import * as assert from "@std/assert";
+import { runtime } from "@eserstack/standards/cross-runtime";
 
 /** Below this, assume the extractor broke rather than that the ABI shrank. */
 const EXTRACTOR_FLOOR = 50;
 
+// The sources under test are read relative to this file, so the result does
+// not depend on the working directory the suite runs from.
+const testDir = import.meta.dirname;
+if (testDir === undefined) {
+  throw new Error(
+    "ajan-ffi-parity.test.ts must run from a local file: it reads the ajan " +
+      "sources relative to its own directory.",
+  );
+}
+
 const read = (relative: string): Promise<string> =>
-  Deno.readTextFile(new URL(relative, import.meta.url));
+  runtime.fs.readTextFile(runtime.path.join(testDir, relative));
 
 const sortedUnique = (values: Iterable<string>): string[] =>
   [...new Set(values)].sort();
@@ -60,7 +71,7 @@ const wasmCalls = (source: string): string[] =>
   sortedUnique(matchAll(source, /\bcall\(\s*"([a-zA-Z]\w*)"/g));
 
 const assertExtracted = (label: string, names: string[]): void => {
-  assert(
+  assert.assert(
     names.length >= EXTRACTOR_FLOOR,
     `${label}: extracted only ${names.length} symbols (floor ${EXTRACTOR_FLOOR}). ` +
       `The declaration format almost certainly changed, so this test's ` +
@@ -94,7 +105,7 @@ Deno.test(
 
     for (const [label, actual] of declarations) {
       assertExtracted(label, actual);
-      assertEquals(
+      assert.assertEquals(
         actual,
         expected,
         `${label} does not match the cgo export list in main.go. Adding a Go ` +
@@ -119,7 +130,7 @@ Deno.test(
     assertExtracted("main_wasi.go dispatch", served);
     assertExtracted("loader-command.ts call()", sent);
 
-    assertEquals(
+    assert.assertEquals(
       sent.filter((name) => !served.includes(name)),
       [],
       "The command-mode loader sends dispatch names that the WASI switch in " +
@@ -145,7 +156,7 @@ Deno.test(
     const lib = await ffi.loadEserAjan({ wasm: false });
 
     try {
-      assertEquals(
+      assert.assertEquals(
         Object.keys(lib.symbols).sort(),
         expected,
         "The symbols the active backend exposes differ from the cgo export " +

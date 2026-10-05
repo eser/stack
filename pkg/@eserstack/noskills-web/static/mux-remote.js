@@ -25,15 +25,20 @@
   "use strict";
 
   function startRemoteMux(cfg) {
-    if (typeof WebTransport === "undefined") {
+    // Browser globals come from globalThis: deno lint checks this file against
+    // Deno's globals, which have no DOM, WebTransport or MuxRender.
+    const { document, MuxRender, WebTransport } = globalThis;
+    if (WebTransport === undefined) {
       throw new Error("WebTransport is not supported in this browser");
     }
-    if (!globalThis.MuxRender) throw new Error("mux-render.js must load first");
+    if (MuxRender === undefined) {
+      throw new Error("mux-render.js must load first");
+    }
 
     const root = cfg.root;
     const cell = MuxRender.measureCell(
-      "'SF Mono', 'Cascadia Code', 'Fira Code', monospace",
-      13,
+      MuxRender.FONT_FAMILY,
+      MuxRender.FONT_SIZE_PX,
     );
 
     let lastSeq = 0;
@@ -59,21 +64,23 @@
     // ── Tab management via mux actions (no REST on the daemon) ──────────────
     document.addEventListener("click", (e) => {
       const t = e.target;
-      if (t.classList.contains("tab") && t.dataset.index) {
+      if (t.classList.contains("tab") && t.dataset.index !== undefined) {
         send({
           t: "action",
           action: { type: "gotoTab", index: Number(t.dataset.index) },
         });
-      } else if (t.classList.contains("tab-close") && t.dataset.close) {
+      } else if (
+        t.classList.contains("tab-close") && t.dataset.close !== undefined
+      ) {
         e.stopPropagation();
         const scene = renderer.getScene();
-        const idx = scene && Array.isArray(scene.tabs)
+        const idx = scene !== null && Array.isArray(scene.tabs)
           ? scene.tabs.findIndex((tab) => tab.id === t.dataset.close)
           : -1;
-        if (idx >= 0) {
+        if (idx !== -1) {
           send({ t: "action", action: { type: "closeTab", index: idx } });
         }
-      } else if (t.id === "add-tab" || t.closest("#add-tab")) {
+      } else if (t.closest("#add-tab") !== null) {
         send({ t: "action", action: { type: "newTab" } });
       }
     });
@@ -102,7 +109,9 @@
       // Build the URL per-attempt so a reconnect resumes from the last seq seen.
       const q = new URLSearchParams({ kind: "mux" });
       if (lastSeq > 0) q.set("after", String(lastSeq));
-      if (cfg.token) q.set("token", cfg.token);
+      if (typeof cfg.token === "string" && cfg.token !== "") {
+        q.set("token", cfg.token);
+      }
       const url = `${cfg.baseUrl}/attach/${encodeURIComponent(cfg.slug)}/${
         encodeURIComponent(cfg.sid)
       }?${q.toString()}`;
@@ -122,6 +131,8 @@
         let buf = "";
 
         for (;;) {
+          // A stream reader yields chunks in order, one read at a time.
+          // deno-lint-ignore no-await-in-loop
           const { value, done } = await reader.read();
           if (done) break;
           buf += decoder.decode(value, { stream: true });
@@ -139,7 +150,9 @@
               continue;
             }
             if (typeof evt.seq === "number") lastSeq = evt.seq;
-            if (evt.type === "mux" && evt.frame) renderer.applyFrame(evt.frame);
+            if (evt.type === "mux" && evt.frame instanceof Object) {
+              renderer.applyFrame(evt.frame);
+            }
           }
         }
       } catch {

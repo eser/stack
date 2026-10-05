@@ -3,15 +3,24 @@
 import * as formats from "@eserstack/formats";
 import * as dotenv from "@eserstack/config/dotenv";
 import * as sync from "./sync.ts";
-import { ensureLib, getLib } from "./ffi-client.ts";
+import * as ffiClient from "./ffi-client.ts";
 import { runtime } from "@eserstack/standards/cross-runtime";
 
 import type { KubectlResourceReference } from "./types.ts";
 
+/** Options for `generate()`. */
 export interface GenerateOptions {
+  /** Output format of the manifest. */
   format: "yaml" | "json";
+  /** Kind and name of the resource to generate. */
   resource: KubectlResourceReference;
+  /** Namespace to use when `resource.namespace` is absent. */
   namespace?: string;
+  /**
+   * Environment name, such as `"production"`, which selects the
+   * `.env.<name>` file. When `undefined`, the `.env` files of the default
+   * environment are read.
+   */
   env: string | undefined;
   /**
    * Directory to resolve `.env` files from. Defaults to the process cwd.
@@ -26,21 +35,40 @@ export interface GenerateOptions {
   cwd?: string;
 }
 
+/**
+ * Generates a ConfigMap or Secret manifest from the `.env` files of an
+ * environment. Secret values are Base64-encoded, which is not encryption.
+ *
+ * @param options - Resource, environment, directory and output format
+ * @returns The manifest as YAML or JSON, or a `#` comment line when the
+ *   environment has no values
+ *
+ * @example
+ * ```typescript
+ * import * as cs from "@eserstack/cs";
+ *
+ * const manifest = await cs.generate({
+ *   resource: { type: "configmap", name: "my-app-config" },
+ *   env: "production",
+ *   format: "yaml",
+ * });
+ * ```
+ */
 export const generate = async (options: GenerateOptions): Promise<string> => {
-  await ensureLib();
+  await ffiClient.ensureLib();
 
   // FFI path: when env is undefined, bridge auto-discovers .env + .env.local from CWD.
-  const lib = getLib();
+  const lib = ffiClient.getLib();
   if (lib !== null) {
     try {
       const cwd = options.cwd ?? runtime.process.cwd();
-      const envFilePath = options.env != null
+      const envFilePath = options.env !== undefined
         ? runtime.path.join(cwd, `.env.${options.env}`)
         : "";
       const requestJSON = JSON.stringify({
         resource: options.resource,
         envFile: envFilePath,
-        cwd: options.env == null ? cwd : "",
+        cwd: options.env === undefined ? cwd : "",
         format: options.format,
         namespace: options.namespace ?? "",
       });
@@ -63,6 +91,7 @@ export const generate = async (options: GenerateOptions): Promise<string> => {
   const resourceNamespace = options.resource.namespace ?? options.namespace;
 
   const envMap = await dotenv.load({
+    baseDir: options.cwd ?? ".",
     env: options.env,
     loadProcessEnv: false,
   });

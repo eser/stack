@@ -104,7 +104,8 @@ type SpecSection struct {
 	ID            string
 	Title         string
 	Placeholder   string
-	Condition     *string // classification flag name, e.g. "involvesWebUI"
+	Scope         []ConcernScope // where the section applies; empty for every spec
+	Condition     *string        // legacy classification flag name, e.g. "involvesCLI"
 	Position      string
 	ConcernSource *string // ID of the concern that contributed this section
 }
@@ -172,6 +173,12 @@ func normalizeRawSection(concernID string, raw any, idx int) SpecSectionDefiniti
 			def.Condition = &v
 		}
 
+		// LoadConcerns has checked the scope already; a malformed one reads as
+		// no scope here.
+		if scope, ok := sectionScope(m); ok {
+			def.Scope = scope
+		}
+
 		return def
 	}
 
@@ -208,6 +215,7 @@ func MergeSections(activeConcerns []ConcernDefinition) []SpecSection {
 				ID:            def.ID,
 				Title:         def.Title,
 				Placeholder:   def.Placeholder,
+				Scope:         def.Scope,
 				Condition:     def.Condition,
 				Position:      def.Position,
 				ConcernSource: &src,
@@ -376,21 +384,12 @@ type GenerateSpecResult struct {
 	Metadata     SpecMetadata
 }
 
-// classificationConditions maps section condition IDs to flag accessors.
-//
-//nolint:gochecknoglobals // pure accessor map, never mutated
-var classificationConditions = map[string]func(*SpecClassification) bool{
-	"involvesWebUI":        func(c *SpecClassification) bool { return c.InvolvesWebUI },
-	"involvesCLI":          func(c *SpecClassification) bool { return c.InvolvesCLI },
-	"involvesPublicAPI":    func(c *SpecClassification) bool { return c.InvolvesPublicAPI },
-	"involvesMigration":    func(c *SpecClassification) bool { return c.InvolvesMigration },
-	"involvesDataHandling": func(c *SpecClassification) bool { return c.InvolvesDataHandling },
-}
-
-// sectionVisible reports whether a section with the given condition should be
-// shown under the given classification. Sections with no condition are always visible.
-func sectionVisible(condition *string, classification *SpecClassification) bool {
-	if condition == nil {
+// sectionVisible reports whether a section should be shown under the given
+// classification. A section with no scope and no condition always is; a
+// conditional one waits until the spec is classified and then needs its scope
+// (and legacy condition) to match.
+func sectionVisible(sec *SpecSection, classification *SpecClassification) bool {
+	if len(sec.Scope) == 0 && sec.Condition == nil {
 		return true
 	}
 
@@ -398,9 +397,7 @@ func sectionVisible(condition *string, classification *SpecClassification) bool 
 		return false
 	}
 
-	fn, ok := classificationConditions[*condition]
-
-	return ok && fn(classification)
+	return sectionMatchesClassification(sec.Scope, sec.Condition, classification)
 }
 
 // GenerateInitialSpec produces the initial spec.md content, placeholder state,
@@ -413,7 +410,7 @@ func GenerateInitialSpec(args GenerateSpecArgs) (GenerateSpecResult, error) { //
 
 	for _, sec := range sections {
 		status := "placeholder"
-		if !sectionVisible(sec.Condition, args.Classification) {
+		if !sectionVisible(&sec, args.Classification) {
 			status = "conditional-hidden"
 		}
 

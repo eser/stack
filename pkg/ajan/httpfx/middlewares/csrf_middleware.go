@@ -4,6 +4,7 @@ package middlewares
 
 import (
 	"crypto/rand"
+	"crypto/subtle"
 	"encoding/hex"
 	"net/http"
 
@@ -106,7 +107,7 @@ func CsrfMiddleware(options ...CsrfOption) httpfx.Handler {
 		switch r.Method {
 		case http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete:
 			reqToken := r.Header.Get(cfg.headerName)
-			if reqToken == "" || reqToken != token {
+			if reqToken == "" || subtle.ConstantTimeCompare([]byte(reqToken), []byte(token)) != 1 {
 				return ctx.Results.Error(http.StatusForbidden,
 					httpfx.WithPlainText("CSRF token missing or invalid"),
 				)
@@ -120,6 +121,8 @@ func CsrfMiddleware(options ...CsrfOption) httpfx.Handler {
 // generateCSRFToken returns a cryptographically random hex-encoded token.
 func generateCSRFToken() string {
 	b := make([]byte, csrfTokenBytes)
+	// crypto/rand.Read never returns an error since Go 1.24; it crashes the
+	// process instead of returning a short read.
 	_, _ = rand.Read(b)
 
 	return hex.EncodeToString(b)

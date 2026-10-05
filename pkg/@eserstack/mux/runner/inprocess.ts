@@ -11,13 +11,13 @@
  */
 
 import * as tui from "@eserstack/shell/tui";
-import { getPlatform, runtime } from "@eserstack/standards/cross-runtime";
-import { createInitialState } from "../engine/reducer.ts";
-import { defaultKeymap } from "../keybindings/mod.ts";
-import { createInProcessPair } from "../ipc/transport-inprocess.ts";
+import * as crossRuntime from "@eserstack/standards/cross-runtime";
+import * as reducer from "../engine/reducer.ts";
+import * as keybindings from "../keybindings/mod.ts";
+import * as transportInprocess from "../ipc/transport-inprocess.ts";
 import type { FrontendToServer, ServerToFrontend } from "../ipc/protocol.ts";
-import { createTuiFrontend } from "../frontends/tui/tui-frontend.ts";
-import { createServer, type SpawnResolver } from "../server/server.ts";
+import * as tuiFrontend from "../frontends/tui/tui-frontend.ts";
+import * as muxServer from "../server/server.ts";
 
 export type RunInProcessOptions = {
   /** Override the default shell command for terminal panes. */
@@ -25,45 +25,52 @@ export type RunInProcessOptions = {
   readonly shellArgs?: readonly string[];
   readonly cwd?: string;
   /** Fully custom spawn resolver (e.g. an agent adapter). */
-  readonly resolveSpawn?: SpawnResolver;
+  readonly resolveSpawn?: muxServer.SpawnResolver;
 };
 
 const defaultShell = (): { command: string; args: readonly string[] } => {
-  if (getPlatform() === "windows") {
+  if (crossRuntime.getPlatform() === "windows") {
     return { command: "powershell.exe", args: [] };
   }
 
-  return { command: runtime.env.get("SHELL") ?? "/bin/sh", args: [] };
+  return {
+    command: crossRuntime.runtime.env.get("SHELL") ?? "/bin/sh",
+    args: [],
+  };
 };
 
 export const runInProcess = async (
   opts: RunInProcessOptions = {},
 ): Promise<number> => {
   const size = tui.terminal.getTerminalSize();
-  const initialState = createInitialState({ cols: size.cols, rows: size.rows });
-
-  const resolveSpawn: SpawnResolver = opts.resolveSpawn ?? ((pane) => {
-    const fallback = defaultShell();
-
-    return {
-      command: pane.command ?? opts.shell ?? fallback.command,
-      args: pane.args ?? opts.shellArgs ?? fallback.args,
-      cwd: pane.cwd ?? opts.cwd,
-      env: runtime.env.toObject(),
-    };
+  const initialState = reducer.createInitialState({
+    cols: size.cols,
+    rows: size.rows,
   });
 
-  const server = createServer({ initialState, resolveSpawn });
+  const resolveSpawn: muxServer.SpawnResolver = opts.resolveSpawn ??
+    ((pane) => {
+      const fallback = defaultShell();
 
-  const [serverSide, frontendSide] = createInProcessPair<
+      return {
+        command: pane.command ?? opts.shell ?? fallback.command,
+        args: pane.args ?? opts.shellArgs ?? fallback.args,
+        cwd: pane.cwd ?? opts.cwd,
+        env: crossRuntime.runtime.env.toObject(),
+      };
+    });
+
+  const server = muxServer.createServer({ initialState, resolveSpawn });
+
+  const [serverSide, frontendSide] = transportInprocess.createInProcessPair<
     ServerToFrontend,
     FrontendToServer
   >();
   server.connect(serverSide);
 
-  const frontend = createTuiFrontend({
+  const frontend = tuiFrontend.createTuiFrontend({
     transport: frontendSide,
-    keymap: defaultKeymap,
+    keymap: keybindings.defaultKeymap,
   });
 
   // Open the first tab; the frontend's attach will pull a full scene.

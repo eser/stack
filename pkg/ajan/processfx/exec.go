@@ -5,6 +5,7 @@ package processfx
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"os/exec"
 	"time"
@@ -108,8 +109,7 @@ func Run(ctx context.Context, command string, args []string, opts ExecOptions) (
 			return result, fmt.Errorf("exec %q: %w", command, ctxErr)
 		}
 
-		var exitErr *exec.ExitError
-		if ok := isExitError(runErr, &exitErr); ok {
+		if exitErr, ok := errors.AsType[*exec.ExitError](runErr); ok {
 			result.Code = exitErr.ExitCode()
 
 			return result, nil
@@ -119,15 +119,4 @@ func Run(ctx context.Context, command string, args []string, opts ExecOptions) (
 	}
 
 	return result, nil
-}
-
-// isExitError checks if err is an *exec.ExitError and populates target.
-func isExitError(err error, target **exec.ExitError) bool {
-	if ee, ok := err.(*exec.ExitError); ok { //nolint:errorlint
-		*target = ee
-
-		return true
-	}
-
-	return false
 }

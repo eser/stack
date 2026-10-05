@@ -1,7 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import { describe, it } from "@std/testing/bdd";
-import { assertEquals } from "@std/assert";
+import * as bdd from "@std/testing/bdd";
+import * as assert from "@std/assert";
 import * as splitDetector from "./split-detector.ts";
 import type * as schema from "../state/schema.ts";
 
@@ -13,12 +13,12 @@ const makeAnswers = (
   overrides: Partial<Record<string, string>> = {},
 ): readonly schema.DiscoveryAnswer[] => {
   const defaults: Record<string, string> = {
-    status_quo: "Users manually upload photos via email.",
+    "status_quo": "Users manually upload photos via email.",
     ambition: "1-star: basic upload. 10-star: drag-and-drop with preview.",
     reversibility: "No irreversible decisions.",
-    user_impact: "No breaking changes.",
+    "user_impact": "No breaking changes.",
     verification: "Unit tests and manual QA.",
-    scope_boundary: "No video support.",
+    "scope_boundary": "No video support.",
   };
 
   const merged = { ...defaults, ...overrides };
@@ -33,9 +33,9 @@ const makeAnswers = (
 // analyzeForSplit
 // =============================================================================
 
-describe("analyzeForSplit", () => {
+bdd.describe("analyzeForSplit", () => {
   // Single area -> no split
-  it("returns detected:false for single-area discovery", () => {
+  bdd.it("returns detected:false for single-area discovery", () => {
     const answers = makeAnswers({
       status_quo: "Users manually upload photos via email.",
       ambition: "Add a drag-and-drop photo upload widget.",
@@ -43,12 +43,12 @@ describe("analyzeForSplit", () => {
 
     const result = splitDetector.analyzeForSplit(answers);
 
-    assertEquals(result.detected, false);
-    assertEquals(result.proposals.length, 0);
+    assert.assertEquals(result.detected, false);
+    assert.assertEquals(result.proposals.length, 0);
   });
 
   // Multiple independent areas -> split proposed
-  it("detects numbered list areas in status_quo", () => {
+  bdd.it("detects numbered list areas in status_quo", () => {
     const answers = makeAnswers({
       status_quo:
         "(1) Log messages are too verbose and flood stdout (2) Bot chat responses use wrong gender pronouns",
@@ -56,15 +56,15 @@ describe("analyzeForSplit", () => {
 
     const result = splitDetector.analyzeForSplit(answers);
 
-    assertEquals(result.detected, true);
-    assertEquals(result.proposals.length, 2);
-    assertEquals(
+    assert.assertEquals(result.detected, true);
+    assert.assertEquals(result.proposals.length, 2);
+    assert.assertEquals(
       result.proposals[0]!.relevantAnswers.includes("status_quo"),
       true,
     );
   });
 
-  it("detects dot-numbered list areas in ambition", () => {
+  bdd.it("detects dot-numbered list areas in ambition", () => {
     const answers = makeAnswers({
       ambition:
         "1. Fix the log level configuration to reduce noise. 2. Restore bot gender detection from user profiles.",
@@ -72,11 +72,11 @@ describe("analyzeForSplit", () => {
 
     const result = splitDetector.analyzeForSplit(answers);
 
-    assertEquals(result.detected, true);
-    assertEquals(result.proposals.length, 2);
+    assert.assertEquals(result.detected, true);
+    assert.assertEquals(result.proposals.length, 2);
   });
 
-  it("detects 'additionally' separation", () => {
+  bdd.it("detects 'additionally' separation", () => {
     const answers = makeAnswers({
       status_quo:
         "Cursor shader is stale and renders incorrectly. Additionally, bot gender detection is broken in chat.",
@@ -84,23 +84,23 @@ describe("analyzeForSplit", () => {
 
     const result = splitDetector.analyzeForSplit(answers);
 
-    assertEquals(result.detected, true);
-    assertEquals(result.proposals.length, 2);
+    assert.assertEquals(result.detected, true);
+    assert.assertEquals(result.proposals.length, 2);
   });
 
-  it("detects AND pattern with unrelated nouns", () => {
+  bdd.it("detects AND pattern with unrelated nouns", () => {
     const answers = makeAnswers({
       ambition: "fix log levels AND restore bot gender detection",
     });
 
     const result = splitDetector.analyzeForSplit(answers);
 
-    assertEquals(result.detected, true);
-    assertEquals(result.proposals.length, 2);
+    assert.assertEquals(result.detected, true);
+    assert.assertEquals(result.proposals.length, 2);
   });
 
   // Tight coupling -> no split
-  it("returns detected:false for tightly coupled areas", () => {
+  bdd.it("returns detected:false for tightly coupled areas", () => {
     const answers = makeAnswers({
       status_quo:
         "(1) Add UserType enum to schema (2) Use the new UserType in the handler",
@@ -109,11 +109,11 @@ describe("analyzeForSplit", () => {
     const result = splitDetector.analyzeForSplit(answers);
 
     // Should detect coupling via shared PascalCase "UserType" and "use" pattern
-    assertEquals(result.detected, false);
+    assert.assertEquals(result.detected, false);
   });
 
   // Small scope -> no split
-  it("returns detected:false when total tasks <= 3", () => {
+  bdd.it("returns detected:false when total tasks <= 3", () => {
     // Two very short areas — each would estimate ~2 tasks but we need
     // the total to be <= 3 to trigger this. Use minimal text.
     const answers = makeAnswers({
@@ -131,12 +131,12 @@ describe("analyzeForSplit", () => {
         (sum, p) => sum + p.estimatedTasks,
         0,
       );
-      assertEquals(total > 3, true);
+      assert.assertEquals(total > 3, true);
     }
   });
 
   // Ship fast mode -> no split
-  it("returns detected:false in ship-fast mode", () => {
+  bdd.it("returns detected:false in ship-fast mode", () => {
     const answers = makeAnswers({
       status_quo:
         "(1) Log messages are too verbose (2) Bot chat uses wrong gender",
@@ -144,12 +144,12 @@ describe("analyzeForSplit", () => {
 
     const result = splitDetector.analyzeForSplit(answers, "ship-fast");
 
-    assertEquals(result.detected, false);
-    assertEquals(result.proposals.length, 0);
+    assert.assertEquals(result.detected, false);
+    assert.assertEquals(result.proposals.length, 0);
   });
 
   // Proposal shape
-  it("generates slugified names for proposals", () => {
+  bdd.it("generates slugified names for proposals", () => {
     const answers = makeAnswers({
       status_quo:
         "(1) Log messages are too verbose and flood stdout (2) Bot chat responses use wrong gender pronouns",
@@ -157,15 +157,18 @@ describe("analyzeForSplit", () => {
 
     const result = splitDetector.analyzeForSplit(answers);
 
-    assertEquals(result.detected, true);
+    assert.assertEquals(result.detected, true);
     for (const proposal of result.proposals) {
       // Slug should be lowercase, hyphens, no special chars
-      assertEquals(/^[a-z0-9][a-z0-9-]*[a-z0-9]$/.test(proposal.name), true);
-      assertEquals(proposal.name.length <= 50, true);
+      assert.assertEquals(
+        /^[a-z0-9][a-z0-9-]*[a-z0-9]$/.test(proposal.name),
+        true,
+      );
+      assert.assertEquals(proposal.name.length <= 50, true);
     }
   });
 
-  it("assigns relevant answer IDs to each proposal", () => {
+  bdd.it("assigns relevant answer IDs to each proposal", () => {
     const answers = makeAnswers({
       status_quo:
         "(1) Log messages are too verbose (2) Bot chat uses wrong gender",
@@ -173,18 +176,18 @@ describe("analyzeForSplit", () => {
 
     const result = splitDetector.analyzeForSplit(answers);
 
-    assertEquals(result.detected, true);
+    assert.assertEquals(result.detected, true);
     for (const proposal of result.proposals) {
-      assertEquals(proposal.relevantAnswers.length > 0, true);
+      assert.assertEquals(proposal.relevantAnswers.length > 0, true);
       // Each relevant answer should be a valid question ID
       for (const id of proposal.relevantAnswers) {
-        assertEquals(typeof id, "string");
-        assertEquals(id.length > 0, true);
+        assert.assertEquals(typeof id, "string");
+        assert.assertEquals(id.length > 0, true);
       }
     }
   });
 
-  it("detects First:/Second: ordinal pattern", () => {
+  bdd.it("detects First:/Second: ordinal pattern", () => {
     const answers = makeAnswers({
       ambition:
         "First: reduce log noise by fixing the log level config. Second: restore the bot gender detection pipeline.",
@@ -192,23 +195,23 @@ describe("analyzeForSplit", () => {
 
     const result = splitDetector.analyzeForSplit(answers);
 
-    assertEquals(result.detected, true);
-    assertEquals(result.proposals.length, 2);
+    assert.assertEquals(result.detected, true);
+    assert.assertEquals(result.proposals.length, 2);
   });
 
-  it("returns reason string when split detected", () => {
+  bdd.it("returns reason string when split detected", () => {
     const answers = makeAnswers({
       status_quo: "(1) Log messages too verbose (2) Bot chat broken",
     });
 
     const result = splitDetector.analyzeForSplit(answers);
 
-    assertEquals(result.detected, true);
-    assertEquals(result.reason.length > 0, true);
-    assertEquals(result.reason.includes("2"), true);
+    assert.assertEquals(result.detected, true);
+    assert.assertEquals(result.reason.length > 0, true);
+    assert.assertEquals(result.reason.includes("2"), true);
   });
 
-  it("detects 3 independent areas from numbered list", () => {
+  bdd.it("detects 3 independent areas from numbered list", () => {
     const answers = makeAnswers({
       status_quo:
         "(1) Log messages are too verbose and flood stdout (2) Bot chat responses use wrong gender pronouns (3) Missing asset loading fails silently",
@@ -216,8 +219,8 @@ describe("analyzeForSplit", () => {
 
     const result = splitDetector.analyzeForSplit(answers);
 
-    assertEquals(result.detected, true);
-    assertEquals(result.proposals.length, 3);
-    assertEquals(result.reason.includes("3"), true);
+    assert.assertEquals(result.detected, true);
+    assert.assertEquals(result.proposals.length, 3);
+    assert.assertEquals(result.reason.includes("3"), true);
   });
 });

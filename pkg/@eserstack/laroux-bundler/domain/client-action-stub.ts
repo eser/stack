@@ -5,7 +5,8 @@
  *
  * Transforms "use server" files into client-side stubs for the client bundle.
  * When the client bundle imports from a "use server" file, it gets stub functions
- * that call the server's /action endpoint with the correct action ID.
+ * that call the server through globalThis.__callServer with the action ID;
+ * the client bootstrap's __callServer posts to /_rsc with an RSC-Action header.
  *
  * This allows users to:
  * 1. Write server actions in files with "use server" directive
@@ -17,11 +18,7 @@
 
 import { runtime } from "@eserstack/standards/cross-runtime";
 import * as logging from "@eserstack/logging";
-import {
-  analyzeServerActions,
-  extractExports,
-  hasDirective,
-} from "@eserstack/codebase/directive-analysis";
+import * as directiveAnalysis from "@eserstack/codebase/directive-analysis";
 
 const stubLogger = logging.logger.getLogger([
   "laroux-bundler",
@@ -96,7 +93,7 @@ function generateStubContent(
  * Auto-generated client stubs for server actions
  * Original file: ${relativePath}
  *
- * These stubs call the server's /action endpoint with the correct action ID.
+ * These stubs call globalThis.__callServer, which posts to /_rsc with the action ID.
  * Action ID format: path/to/file#exportName
  */
 
@@ -125,17 +122,19 @@ export async function generateClientStub(
   try {
     content = await runtime.fs.readTextFile(filePath);
   } catch (error) {
-    stubLogger.warn(`Failed to read file: ${filePath}`, { error });
+    stubLogger.with({ error }).warn(
+      `read ${filePath}; skipping its client action stubs`,
+    );
     return null;
   }
 
   // Check if file has "use server" directive at the top
-  if (!hasDirective(content, "use server")) {
+  if (!directiveAnalysis.hasDirective(content, "use server")) {
     return null;
   }
 
   // Extract exports
-  const exports = extractExports(content);
+  const exports = directiveAnalysis.extractExports(content);
   if (exports.length === 0) {
     stubLogger.debug(`Skipping ${filePath} - no exports found`);
     return null;
@@ -169,7 +168,7 @@ export async function generateClientStub(
  * Transform all "use server" files in a directory into client stubs.
  *
  * This is used during client bundling to replace server action files
- * with client-side stubs that call the /action endpoint.
+ * with client-side stubs that call the server through __callServer.
  *
  * @param virtualSrcDir - Virtual source directory (e.g., dist/_bundle_src/src)
  * @param projectRoot - Project root for relative path calculation
@@ -189,9 +188,12 @@ export async function generateClientActionStubs(
   }
 
   // Find all server action files
-  const actionMatches = await analyzeServerActions(virtualSrcDir, {
-    projectRoot,
-  });
+  const actionMatches = await directiveAnalysis.analyzeServerActions(
+    virtualSrcDir,
+    {
+      projectRoot,
+    },
+  );
 
   if (actionMatches.length === 0) {
     stubLogger.debug("No server action files found");
@@ -205,6 +207,9 @@ export async function generateClientActionStubs(
   const results: ClientActionStubResult[] = [];
 
   for (const match of actionMatches) {
+    // One file at a time keeps open file handles bounded; a project can have
+    // more action files than the open-file limit.
+    // deno-lint-ignore no-await-in-loop
     const exportedActions = await generateClientStub(
       match.filePath,
       match.relativePath,

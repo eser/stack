@@ -18,11 +18,13 @@ import type {
   ResolvedServerConfig,
   ResolvedSSRConfig,
 } from "./types.ts";
+import * as loggingBrowserShim from "./logging-browser-shim.ts";
 
 // =============================================================================
 // Default Values - Single source of truth
 // =============================================================================
 
+/** Server defaults: port 8000 on localhost, HMR on, no browser opened. */
 export const DEFAULT_SERVER: ResolvedServerConfig = {
   port: 8000,
   host: "localhost",
@@ -39,6 +41,7 @@ export const DEFAULT_SERVER_EXTERNALS: string[] = [
   "@eserstack/laroux-server",
 ];
 
+/** Build defaults: minified ES2022 output with source maps. */
 export const DEFAULT_BUILD: ResolvedBuildConfig = {
   minify: true,
   sourcemap: true,
@@ -47,11 +50,13 @@ export const DEFAULT_BUILD: ResolvedBuildConfig = {
   serverExternals: DEFAULT_SERVER_EXTERNALS,
 };
 
+/** SSR defaults: render every page on the server and stream it. */
 export const DEFAULT_SSR: ResolvedSSRConfig = {
   mode: "always",
   streamMode: "streaming-optimal",
 };
 
+/** Encoder quality per output image format, from 0 to 100. */
 export const DEFAULT_IMAGE_QUALITY: ResolvedImageQuality = {
   webp: 80,
   avif: 75,
@@ -59,6 +64,7 @@ export const DEFAULT_IMAGE_QUALITY: ResolvedImageQuality = {
   png: 90,
 };
 
+/** Image optimization defaults: WebP plus the original, five widths, blur placeholders. */
 export const DEFAULT_IMAGES: ResolvedImageConfig = {
   formats: ["webp", "original"],
   widths: [640, 768, 1024, 1280, 1920],
@@ -66,11 +72,13 @@ export const DEFAULT_IMAGES: ResolvedImageConfig = {
   placeholder: "blur",
 };
 
+/** The viewport critical CSS is extracted for. */
 export const DEFAULT_CRITICAL_CSS_VIEWPORT: ResolvedCriticalCssViewport = {
   width: 1300,
   height: 900,
 };
 
+/** Critical CSS defaults: enabled, with no forced inclusions or exclusions. */
 export const DEFAULT_CRITICAL_CSS: ResolvedCriticalCssConfig = {
   enabled: true,
   viewport: DEFAULT_CRITICAL_CSS_VIEWPORT,
@@ -78,12 +86,14 @@ export const DEFAULT_CRITICAL_CSS: ResolvedCriticalCssConfig = {
   forceExclude: [],
 };
 
+/** Endpoints and path prefixes laroux uses internally. */
 export const DEFAULT_INTERNAL: ResolvedInternalConfig = {
   runtimeBundleEndpoint: "/__runtime_bundle.js",
   runtimeModuleMapEndpoint: "/__runtime_module_map.json",
   staticAssetsPrefix: "/dist",
 };
 
+/** Mode flags with every mode off; the CLI command sets the one that runs. */
 export const DEFAULT_MODE: ResolvedModeConfig = {
   isDev: false,
   isBuild: false,
@@ -91,17 +101,14 @@ export const DEFAULT_MODE: ResolvedModeConfig = {
   isWatch: false,
 };
 
+/**
+ * Browser replacements for server-only modules in client bundles.
+ * `@eserstack/logging` becomes a console logger with the package's API (see
+ * logging-browser-shim.ts), and `node:process` a minimal `process.env`.
+ */
 export const DEFAULT_BROWSER_SHIMS: ResolvedBrowserShimsConfig = {
   jsr: {
-    "@eserstack/logging": `
-// Browser shim for @eserstack/logging
-const noop = () => {};
-const noopLogger = { debug: noop, info: noop, warn: noop, error: noop };
-export const logger = {
-  getLogger: () => noopLogger,
-};
-export default { logger };
-`,
+    "@eserstack/logging": loggingBrowserShim.LOGGING_BROWSER_SHIM,
     "@eserstack/standards/cross-runtime/browser": `
 // Browser shim for @eserstack/standards/cross-runtime/browser
 export const isBrowser = () => true;
@@ -142,6 +149,7 @@ export type DefaultConfigShape = {
   browserShims: ResolvedBrowserShimsConfig;
 };
 
+/** The complete default configuration, without `projectRoot`. */
 export const DEFAULT_CONFIG: DefaultConfigShape = {
   srcDir: "src",
   distDir: "dist",

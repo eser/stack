@@ -13,13 +13,21 @@
 // Types
 // =============================================================================
 
+/** A mouse action reported by the terminal in SGR extended mode. */
 export type MouseEvent = {
+  /** What happened. */
   readonly type: "mousedown" | "mouseup" | "mousemove" | "wheel";
+  /** 0 for left, 1 for middle, 2 for right; 0 for the wheel. */
   readonly button: 0 | 1 | 2;
+  /** Column, 0-based. */
   readonly x: number;
+  /** Row, 0-based. */
   readonly y: number;
+  /** Whether Shift was held. */
   readonly shift: boolean;
+  /** Whether Ctrl was held. */
   readonly ctrl: boolean;
+  /** Scroll direction, on "wheel" events only. */
   readonly direction?: "up" | "down";
 };
 

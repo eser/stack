@@ -1,7 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 import * as assert from "@std/assert";
-import { cors } from "./cors.ts";
+import * as cors from "./cors.ts";
 
 const createRequest = (
   method: string,
@@ -16,7 +16,7 @@ const createRequest = (
 const okHandler = () => new Response("OK", { status: 200 });
 
 Deno.test("cors should allow all origins by default", async () => {
-  const middleware = cors();
+  const middleware = cors.cors();
   const req = createRequest("GET", { Origin: "https://example.com" });
 
   const response = await middleware(req, okHandler);
@@ -28,7 +28,7 @@ Deno.test("cors should allow all origins by default", async () => {
 });
 
 Deno.test("cors should handle preflight OPTIONS request", async () => {
-  const middleware = cors();
+  const middleware = cors.cors();
   const req = createRequest("OPTIONS", { Origin: "https://example.com" });
 
   const response = await middleware(req, okHandler);
@@ -42,7 +42,7 @@ Deno.test("cors should handle preflight OPTIONS request", async () => {
 });
 
 Deno.test("cors should allow specific origins", async () => {
-  const middleware = cors({
+  const middleware = cors.cors({
     origin: ["https://allowed.com", "https://also-allowed.com"],
   });
 
@@ -66,7 +66,7 @@ Deno.test("cors should allow specific origins", async () => {
 });
 
 Deno.test("cors should support origin as function", async () => {
-  const middleware = cors({
+  const middleware = cors.cors({
     origin: (origin) => origin.endsWith(".example.com"),
   });
 
@@ -89,7 +89,7 @@ Deno.test("cors should support origin as function", async () => {
 });
 
 Deno.test("cors should set credentials header when enabled", async () => {
-  const middleware = cors({ credentials: true });
+  const middleware = cors.cors({ credentials: true });
   const req = createRequest("GET", { Origin: "https://example.com" });
 
   const response = await middleware(req, okHandler);
@@ -101,7 +101,7 @@ Deno.test("cors should set credentials header when enabled", async () => {
 });
 
 Deno.test("cors should set max-age in preflight", async () => {
-  const middleware = cors({ maxAge: 86400 });
+  const middleware = cors.cors({ maxAge: 86400 });
   const req = createRequest("OPTIONS", { Origin: "https://example.com" });
 
   const response = await middleware(req, okHandler);
@@ -113,7 +113,7 @@ Deno.test("cors should set max-age in preflight", async () => {
 });
 
 Deno.test("cors should set allowed headers in preflight", async () => {
-  const middleware = cors({
+  const middleware = cors.cors({
     allowedHeaders: ["Content-Type", "Authorization"],
   });
   const req = createRequest("OPTIONS", { Origin: "https://example.com" });
@@ -127,7 +127,7 @@ Deno.test("cors should set allowed headers in preflight", async () => {
 });
 
 Deno.test("cors should mirror requested headers if not specified", async () => {
-  const middleware = cors();
+  const middleware = cors.cors();
   const req = createRequest("OPTIONS", {
     Origin: "https://example.com",
     "Access-Control-Request-Headers": "X-Custom-Header",
@@ -142,7 +142,7 @@ Deno.test("cors should mirror requested headers if not specified", async () => {
 });
 
 Deno.test("cors should set exposed headers", async () => {
-  const middleware = cors({
+  const middleware = cors.cors({
     exposedHeaders: ["X-Request-Id", "X-Rate-Limit"],
   });
   const req = createRequest("GET", { Origin: "https://example.com" });
@@ -156,7 +156,7 @@ Deno.test("cors should set exposed headers", async () => {
 });
 
 Deno.test("cors should set Vary header for specific origins", async () => {
-  const middleware = cors({ origin: "https://example.com" });
+  const middleware = cors.cors({ origin: "https://example.com" });
   const req = createRequest("GET", { Origin: "https://example.com" });
 
   const response = await middleware(req, okHandler);
@@ -166,7 +166,7 @@ Deno.test("cors should set Vary header for specific origins", async () => {
 });
 
 Deno.test("cors should pass through response from next handler", async () => {
-  const middleware = cors();
+  const middleware = cors.cors();
   const req = createRequest("GET", { Origin: "https://example.com" });
 
   const response = await middleware(

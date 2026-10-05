@@ -6,7 +6,7 @@
 
 import type { ChunkManifest } from "@eserstack/laroux-bundler";
 import type { SeoConfig } from "./seo/index.ts";
-import { generateJsonLd, generateMetaTags } from "./seo/index.ts";
+import * as seo from "./seo/index.ts";
 
 // Default SEO configuration for laroux.now
 const DEFAULT_SEO_CONFIG: SeoConfig = {
@@ -125,13 +125,14 @@ export function createStreamingHtmlShellStart(
   const defaultUniversalCSS =
     `html{scrollbar-gutter:stable}*,*::before,*::after{box-sizing:border-box}`;
 
-  const criticalUniversalCSS = options.criticalUniversalCSS ||
-    defaultUniversalCSS;
+  // An empty extraction result falls back to the default too
+  const criticalUniversalCSS = options.criticalUniversalCSS !== undefined &&
+      options.criticalUniversalCSS !== ""
+    ? options.criticalUniversalCSS
+    : defaultUniversalCSS;
 
   // Combine universal CSS (base/theme) with page CSS (layout utilities)
-  const combinedCSS = options.criticalPageCSS
-    ? `${criticalUniversalCSS}${options.criticalPageCSS}`
-    : criticalUniversalCSS;
+  const combinedCSS = `${criticalUniversalCSS}${options.criticalPageCSS ?? ""}`;
 
   const inlineCriticalCSS = `<style id="critical-css">${combinedCSS}</style>`;
 
@@ -149,8 +150,8 @@ export function createStreamingHtmlShellStart(
     ...options.seoConfig,
   };
 
-  const metaTags = generateMetaTags(seoConfig);
-  const jsonLd = generateJsonLd(seoConfig);
+  const metaTags = seo.generateMetaTags(seoConfig);
+  const jsonLd = seo.generateJsonLd(seoConfig);
 
   const lang = options.locale?.split("_")[0] ??
     seoConfig.locale?.split("_")[0] ?? "en";
@@ -166,7 +167,7 @@ export function createStreamingHtmlShellStart(
   ${cssPreload}
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   ${metaTags}
-  <title>${seoConfig.title}</title>
+  <title>${seo.escapeHtml(seoConfig.title)}</title>
   ${fontPreloadHints}
   ${inlineFontCSS}
   ${inlineCriticalCSS}
@@ -258,13 +259,14 @@ export function createHtmlShell(options: HtmlShellOptions): string {
   const defaultUniversalCSS =
     `html{scrollbar-gutter:stable}*,*::before,*::after{box-sizing:border-box}`;
 
-  const criticalUniversalCSS = options.criticalUniversalCSS ||
-    defaultUniversalCSS;
+  // An empty extraction result falls back to the default too
+  const criticalUniversalCSS = options.criticalUniversalCSS !== undefined &&
+      options.criticalUniversalCSS !== ""
+    ? options.criticalUniversalCSS
+    : defaultUniversalCSS;
 
   // Combine universal CSS (base/theme) with page CSS (layout utilities)
-  const combinedCSS = options.criticalPageCSS
-    ? `${criticalUniversalCSS}${options.criticalPageCSS}`
-    : criticalUniversalCSS;
+  const combinedCSS = `${criticalUniversalCSS}${options.criticalPageCSS ?? ""}`;
 
   const inlineCriticalCSS = `<style id="critical-css">${combinedCSS}</style>`;
 
@@ -281,8 +283,8 @@ export function createHtmlShell(options: HtmlShellOptions): string {
   };
 
   // Generate SEO meta tags and JSON-LD
-  const metaTags = generateMetaTags(seoConfig);
-  const jsonLd = generateJsonLd(seoConfig);
+  const metaTags = seo.generateMetaTags(seoConfig);
+  const jsonLd = seo.generateJsonLd(seoConfig);
 
   // Determine language from locale
   const lang = options.locale?.split("_")[0] ??
@@ -301,7 +303,7 @@ export function createHtmlShell(options: HtmlShellOptions): string {
   ${cssPreload}
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   ${metaTags}
-  <title>${seoConfig.title}</title>
+  <title>${seo.escapeHtml(seoConfig.title)}</title>
   ${fontPreloadHints}
   ${inlineFontCSS}
   <!-- Critical CSS (inlined for fast first paint) -->

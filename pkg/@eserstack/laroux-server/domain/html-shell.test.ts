@@ -3,45 +3,42 @@
  * Tests for HtmlShellBuilder port interface
  */
 
-import { assertEquals, assertExists, assertStringIncludes } from "@std/assert";
-import {
-  type HtmlShellBuilder,
-  type HtmlShellOptions,
-  noopHtmlShellBuilder,
-} from "./html-shell.ts";
+import * as assert from "@std/assert";
+import * as htmlShell from "./html-shell.ts";
+import type { HtmlShellBuilder, HtmlShellOptions } from "./html-shell.ts";
 
 Deno.test("HtmlShellBuilder - noopHtmlShellBuilder", async (t) => {
   await t.step("has correct name", () => {
-    assertEquals(noopHtmlShellBuilder.name, "noop");
+    assert.assertEquals(htmlShell.noopHtmlShellBuilder.name, "noop");
   });
 
   await t.step("createShell returns valid HTML document", () => {
-    const html = noopHtmlShellBuilder.createShell({});
+    const html = htmlShell.noopHtmlShellBuilder.createShell({});
 
-    assertStringIncludes(html, "<!DOCTYPE html>");
-    assertStringIncludes(html, "<html>");
-    assertStringIncludes(html, "<head>");
-    assertStringIncludes(html, "<body>");
-    assertStringIncludes(html, "</html>");
+    assert.assertStringIncludes(html, "<!DOCTYPE html>");
+    assert.assertStringIncludes(html, "<html>");
+    assert.assertStringIncludes(html, "<head>");
+    assert.assertStringIncludes(html, "<body>");
+    assert.assertStringIncludes(html, "</html>");
   });
 
   await t.step("createStreamingStart returns document start", () => {
-    const html = noopHtmlShellBuilder.createStreamingStart({});
+    const html = htmlShell.noopHtmlShellBuilder.createStreamingStart({});
 
-    assertStringIncludes(html, "<!DOCTYPE html>");
-    assertStringIncludes(html, "<html>");
-    assertStringIncludes(html, "<body>");
+    assert.assertStringIncludes(html, "<!DOCTYPE html>");
+    assert.assertStringIncludes(html, "<html>");
+    assert.assertStringIncludes(html, "<body>");
     // Should NOT include closing tags
-    assertEquals(html.includes("</html>"), false);
+    assert.assertEquals(html.includes("</html>"), false);
   });
 
   await t.step("createStreamingEnd returns document end", () => {
-    const html = noopHtmlShellBuilder.createStreamingEnd({});
+    const html = htmlShell.noopHtmlShellBuilder.createStreamingEnd({});
 
-    assertStringIncludes(html, "</body>");
-    assertStringIncludes(html, "</html>");
+    assert.assertStringIncludes(html, "</body>");
+    assert.assertStringIncludes(html, "</html>");
     // Should NOT include opening tags
-    assertEquals(html.includes("<!DOCTYPE"), false);
+    assert.assertEquals(html.includes("<!DOCTYPE"), false);
   });
 });
 
@@ -49,12 +46,12 @@ Deno.test("HtmlShellBuilder interface compliance", async (t) => {
   await t.step(
     "noopHtmlShellBuilder implements HtmlShellBuilder interface",
     () => {
-      const builder: HtmlShellBuilder = noopHtmlShellBuilder;
+      const builder: HtmlShellBuilder = htmlShell.noopHtmlShellBuilder;
 
-      assertEquals(typeof builder.name, "string");
-      assertEquals(typeof builder.createShell, "function");
-      assertEquals(typeof builder.createStreamingStart, "function");
-      assertEquals(typeof builder.createStreamingEnd, "function");
+      assert.assertEquals(typeof builder.name, "string");
+      assert.assertEquals(typeof builder.createShell, "function");
+      assert.assertEquals(typeof builder.createStreamingStart, "function");
+      assert.assertEquals(typeof builder.createStreamingEnd, "function");
     },
   );
 
@@ -71,48 +68,48 @@ Deno.test("HtmlShellBuilder interface compliance", async (t) => {
     };
 
     // Should not throw
-    const shell = noopHtmlShellBuilder.createShell(options);
-    const start = noopHtmlShellBuilder.createStreamingStart(options);
-    const end = noopHtmlShellBuilder.createStreamingEnd(options);
+    const shell = htmlShell.noopHtmlShellBuilder.createShell(options);
+    const start = htmlShell.noopHtmlShellBuilder.createStreamingStart(options);
+    const end = htmlShell.noopHtmlShellBuilder.createStreamingEnd(options);
 
-    assertExists(shell);
-    assertExists(start);
-    assertExists(end);
+    assert.assertExists(shell);
+    assert.assertExists(start);
+    assert.assertExists(end);
   });
 });
 
 Deno.test("HtmlShellOptions", async (t) => {
   await t.step("all properties are optional", () => {
     const emptyOptions: HtmlShellOptions = {};
-    assertExists(emptyOptions);
+    assert.assertExists(emptyOptions);
   });
 
   await t.step("accepts head content", () => {
     const options: HtmlShellOptions = {
       head: "<meta name='viewport' content='width=device-width'>",
     };
-    assertEquals(options.head?.includes("viewport"), true);
+    assert.assertEquals(options.head?.includes("viewport"), true);
   });
 
   await t.step("accepts body content", () => {
     const options: HtmlShellOptions = {
       body: "<div id='app'></div>",
     };
-    assertEquals(options.body?.includes("app"), true);
+    assert.assertEquals(options.body?.includes("app"), true);
   });
 
   await t.step("accepts scripts array", () => {
     const options: HtmlShellOptions = {
       scripts: ["/chunk-abc123.js", "/client.js"],
     };
-    assertEquals(options.scripts?.length, 2);
+    assert.assertEquals(options.scripts?.length, 2);
   });
 
   await t.step("accepts styles array", () => {
     const options: HtmlShellOptions = {
       styles: ["/critical.css", "/main.css"],
     };
-    assertEquals(options.styles?.length, 2);
+    assert.assertEquals(options.styles?.length, 2);
   });
 
   await t.step("accepts critical CSS", () => {
@@ -122,7 +119,7 @@ Deno.test("HtmlShellOptions", async (t) => {
         .header { background: #fff; }
       `,
     };
-    assertEquals(options.criticalCss?.includes("header"), true);
+    assert.assertEquals(options.criticalCss?.includes("header"), true);
   });
 
   await t.step("accepts RSC payload", () => {
@@ -133,21 +130,21 @@ Deno.test("HtmlShellOptions", async (t) => {
     const options: HtmlShellOptions = {
       rscPayload: payload,
     };
-    assertEquals(options.rscPayload, payload);
+    assert.assertEquals(options.rscPayload, payload);
   });
 
   await t.step("accepts page title", () => {
     const options: HtmlShellOptions = {
       title: "My App - Home",
     };
-    assertEquals(options.title, "My App - Home");
+    assert.assertEquals(options.title, "My App - Home");
   });
 
   await t.step("accepts language attribute", () => {
     const options: HtmlShellOptions = {
       lang: "ja",
     };
-    assertEquals(options.lang, "ja");
+    assert.assertEquals(options.lang, "ja");
   });
 
   await t.step("accepts chunk manifest", () => {
@@ -162,8 +159,8 @@ Deno.test("HtmlShellOptions", async (t) => {
         logLevel: "info",
       },
     };
-    assertExists(options.manifest);
-    assertEquals(options.manifest?.buildId, "abc123");
+    assert.assertExists(options.manifest);
+    assert.assertEquals(options.manifest?.buildId, "abc123");
   });
 });
 
@@ -241,7 +238,7 @@ Deno.test("Custom HtmlShellBuilder implementation", async (t) => {
   };
 
   await t.step("custom builder has correct name", () => {
-    assertEquals(customBuilder.name, "custom");
+    assert.assertEquals(customBuilder.name, "custom");
   });
 
   await t.step("custom builder createShell includes all options", () => {
@@ -256,14 +253,14 @@ Deno.test("Custom HtmlShellBuilder implementation", async (t) => {
       rscPayload: '{"type":"test"}',
     });
 
-    assertStringIncludes(html, 'lang="de"');
-    assertStringIncludes(html, "<title>Test Page</title>");
-    assertStringIncludes(html, "meta name='author'");
-    assertStringIncludes(html, "<div id='root'>Content</div>");
-    assertStringIncludes(html, "body { color: blue; }");
-    assertStringIncludes(html, 'src="/app.js"');
-    assertStringIncludes(html, 'href="/app.css"');
-    assertStringIncludes(html, "__RSC_PAYLOAD__");
+    assert.assertStringIncludes(html, 'lang="de"');
+    assert.assertStringIncludes(html, "<title>Test Page</title>");
+    assert.assertStringIncludes(html, "meta name='author'");
+    assert.assertStringIncludes(html, "<div id='root'>Content</div>");
+    assert.assertStringIncludes(html, "body { color: blue; }");
+    assert.assertStringIncludes(html, 'src="/app.js"');
+    assert.assertStringIncludes(html, 'href="/app.css"');
+    assert.assertStringIncludes(html, "__RSC_PAYLOAD__");
   });
 
   await t.step("custom builder streaming creates valid document", () => {
@@ -277,21 +274,21 @@ Deno.test("Custom HtmlShellBuilder implementation", async (t) => {
     const end = customBuilder.createStreamingEnd(options);
 
     // Start should have opening tags but not closing
-    assertStringIncludes(start, "<!DOCTYPE html>");
-    assertStringIncludes(start, "<html");
-    assertStringIncludes(start, "<head>");
-    assertStringIncludes(start, "<body>");
-    assertEquals(start.includes("</html>"), false);
+    assert.assertStringIncludes(start, "<!DOCTYPE html>");
+    assert.assertStringIncludes(start, "<html");
+    assert.assertStringIncludes(start, "<head>");
+    assert.assertStringIncludes(start, "<body>");
+    assert.assertEquals(start.includes("</html>"), false);
 
     // End should have closing tags but not opening
-    assertStringIncludes(end, "</body>");
-    assertStringIncludes(end, "</html>");
-    assertEquals(end.includes("<!DOCTYPE"), false);
+    assert.assertStringIncludes(end, "</body>");
+    assert.assertStringIncludes(end, "</html>");
+    assert.assertEquals(end.includes("<!DOCTYPE"), false);
 
     // Combined should be valid HTML
     const full = start + "<div>Streamed content</div>" + end;
-    assertStringIncludes(full, "<!DOCTYPE html>");
-    assertStringIncludes(full, "</html>");
-    assertStringIncludes(full, "Streamed content");
+    assert.assertStringIncludes(full, "<!DOCTYPE html>");
+    assert.assertStringIncludes(full, "</html>");
+    assert.assertStringIncludes(full, "Streamed content");
   });
 });

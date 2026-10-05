@@ -39,7 +39,7 @@ func (w *acpWorker) openSession(
 
 		// A resume that cannot be honoured must not lose the turn: fall through
 		// to a fresh session, which is exactly what the SDK path always did.
-		w.logger.Warn("acp session/load failed, starting fresh", "resume", resume, "err", err)
+		w.logger.WarnContext(ctx, "acp session/load failed, starting fresh", "resume", resume, "err", err)
 	}
 
 	session, err := w.client.NewSession(ctx, &acpfx.NewSessionRequest{ //nolint:exhaustruct
@@ -102,21 +102,22 @@ const maxSessionIDLen = 128
 //
 // Failures are logged and swallowed: not being able to resume next time is a
 // lost convenience, and refusing to run the session over it would trade a
-// working agent for a bookkeeping problem.
-func (w *acpWorker) rememberAgentSession(agentSessionID string) {
+// working agent for a bookkeeping problem. ctx carries the ids for those log
+// entries.
+func (w *acpWorker) rememberAgentSession(ctx context.Context, agentSessionID string) {
 	if w.dataDir == "" || agentSessionID == "" {
 		return
 	}
 
 	path := acpResumePath(w.dataDir, w.root, w.sessionID)
 	if path == "" {
-		w.logger.Warn("acp worker: unsafe session id, not remembering", "session", w.sessionID)
+		w.logger.WarnContext(ctx, "acp worker: unsafe session id, not remembering", "session", w.sessionID)
 
 		return
 	}
 
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
-		w.logger.Warn("acp worker: cannot create session dir", "err", err)
+		w.logger.WarnContext(ctx, "acp worker: cannot create session dir", "session", w.sessionID, "err", err)
 
 		return
 	}
@@ -125,7 +126,7 @@ func (w *acpWorker) rememberAgentSession(agentSessionID string) {
 	// that isSafeSessionID has restricted to [A-Za-z0-9_-], so no component of
 	// it can traverse.
 	if err := os.WriteFile(path, []byte(agentSessionID), 0o600); err != nil {
-		w.logger.Warn("acp worker: cannot remember agent session", "err", err)
+		w.logger.WarnContext(ctx, "acp worker: cannot remember agent session", "session", w.sessionID, "err", err)
 	}
 }
 

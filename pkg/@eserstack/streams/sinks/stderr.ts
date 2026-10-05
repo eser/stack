@@ -2,15 +2,15 @@
 
 import { runtime } from "@eserstack/standards/cross-runtime";
 import type { Chunk, Sink } from "../types.ts";
+import * as processStream from "./process-stream.ts";
 
-let encoder: TextEncoder | undefined;
-const getEncoder = (): TextEncoder => {
-  if (encoder === undefined) {
-    encoder = new TextEncoder();
-  }
-  return encoder;
-};
-
+/**
+ * Creates a sink that writes each chunk's data, as text, to the process
+ * stderr. All `stderr()` sinks in the process share one write queue, so their
+ * writes keep their order and do not fail on the stream lock.
+ *
+ * @returns A sink named `stderr`
+ */
 export const stderr = (): Sink<unknown> => {
   const stderrStream = runtime.process.stderr;
 
@@ -18,14 +18,10 @@ export const stderr = (): Sink<unknown> => {
     name: "stderr",
     writable: new WritableStream<Chunk<unknown>>({
       async write(chunk) {
-        const text = String(chunk.data);
-        const bytes = getEncoder().encode(text);
-        const writer = stderrStream.getWriter();
-        try {
-          await writer.write(bytes);
-        } finally {
-          writer.releaseLock();
-        }
+        await processStream.writeToProcessStream(
+          stderrStream,
+          String(chunk.data),
+        );
       },
     }),
   };

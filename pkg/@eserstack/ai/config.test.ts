@@ -1,23 +1,23 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import { describe, it } from "@std/testing/bdd";
-import { assertEquals } from "@std/assert";
+import * as bdd from "@std/testing/bdd";
+import * as assert from "@std/assert";
 import * as configModule from "./config.ts";
 
-describe("withDefaults", () => {
-  it("should apply default values for missing fields", () => {
+bdd.describe("withDefaults", () => {
+  bdd.it("should apply default values for missing fields", () => {
     const target: configModule.ConfigTarget = {
       provider: "anthropic",
       model: "claude-sonnet-4-20250514",
     };
 
     const resolved = configModule.withDefaults(target);
-    assertEquals(resolved.maxTokens, 1024);
-    assertEquals(resolved.temperature, 0.7);
-    assertEquals(resolved.requestTimeoutMs, 60_000);
+    assert.assertEquals(resolved.maxTokens, 16_000);
+    assert.assertEquals(resolved.temperature, 0.7);
+    assert.assertEquals(resolved.requestTimeoutMs, 60_000);
   });
 
-  it("should preserve explicitly set values", () => {
+  bdd.it("should preserve explicitly set values", () => {
     const target: configModule.ConfigTarget = {
       provider: "openai",
       model: "gpt-4",
@@ -27,12 +27,12 @@ describe("withDefaults", () => {
     };
 
     const resolved = configModule.withDefaults(target);
-    assertEquals(resolved.maxTokens, 4096);
-    assertEquals(resolved.temperature, 0.0);
-    assertEquals(resolved.requestTimeoutMs, 120_000);
+    assert.assertEquals(resolved.maxTokens, 4096);
+    assert.assertEquals(resolved.temperature, 0.0);
+    assert.assertEquals(resolved.requestTimeoutMs, 120_000);
   });
 
-  it("should preserve all original fields", () => {
+  bdd.it("should preserve all original fields", () => {
     const target: configModule.ConfigTarget = {
       provider: "vertexai",
       model: "gemini-pro",
@@ -44,11 +44,11 @@ describe("withDefaults", () => {
     };
 
     const resolved = configModule.withDefaults(target);
-    assertEquals(resolved.provider, "vertexai");
-    assertEquals(resolved.apiKey, "test-key");
-    assertEquals(resolved.baseUrl, "https://custom.api.com");
-    assertEquals(resolved.projectId, "my-project");
-    assertEquals(resolved.location, "us-central1");
-    assertEquals(resolved.properties?.["batch_bucket"], "my-bucket");
+    assert.assertEquals(resolved.provider, "vertexai");
+    assert.assertEquals(resolved.apiKey, "test-key");
+    assert.assertEquals(resolved.baseUrl, "https://custom.api.com");
+    assert.assertEquals(resolved.projectId, "my-project");
+    assert.assertEquals(resolved.location, "us-central1");
+    assert.assertEquals(resolved.properties?.["batch_bucket"], "my-bucket");
   });
 });

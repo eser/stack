@@ -1,11 +1,12 @@
 ---
 name: security-practices
-description: "Security rules for eserstack in TypeScript and Go: secrets, output hygiene, input validation, authorization, injection, SSRF, error sanitization, httpfx hardening, tokens, passwords, cookies, crypto, untrusted files and archives, LLM trust. Use when handling secrets, input, auth, sessions, cookies, crypto, uploads, subprocesses, outbound URLs, prompts, production config or a security review."
+description: "Security rules of this codebase for TypeScript and Go: secrets, output hygiene, input validation, authorization, injection, SSRF, error sanitization, HTTP hardening with httpfx middlewares, tokens, passwords, cookies, crypto, untrusted files, LLM trust. Use when handling secrets, input, auth, sessions, cookies, crypto, uploads, subprocesses, outbound URLs, prompts, production config or a review."
 ---
 
 # Security Practices
 
-Security rules that apply to every package and service in the repository.
+Security rules for every package and service in this codebase, TypeScript and Go
+alike.
 
 ## Always
 
@@ -20,8 +21,8 @@ Security rules that apply to every package and service in the repository.
 - Production errors carry a message, a code and a request id, never internals
 - Tokens and ids come from a CSPRNG, never `Math.random` or `math/rand`
 - Model output is untrusted input
-- HTTP services compose the existing `httpfx/middlewares` (rate limit, body
-  size, auth, headers, CSP, CSRF, CORS) instead of new ones
+- Go HTTP services compose the ajan `httpfx/middlewares` (rate limit, body size,
+  auth, headers, CSP, CSRF, CORS) instead of writing new ones
 - Tokens pin their algorithm and require expiry; passwords use Argon2id or
   bcrypt 12+; crypto comes from the standard library or `x/crypto`
 

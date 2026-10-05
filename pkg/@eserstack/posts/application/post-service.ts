@@ -19,11 +19,15 @@ import type { FeedAggregator, PlatformConnection } from "./feed-aggregator.ts";
 import type { Scheduler } from "./scheduler.ts";
 import type { SocialApi } from "./social-api.ts";
 import type { Translator } from "./translator.ts";
+import * as defaults from "./defaults.ts";
 
 /** Per-platform result from a cross-platform operation. */
 export interface PostResult {
+  /** The platform this entry is for. */
   platform: Platform;
+  /** The published post, when the platform succeeded. */
   post?: Post;
+  /** Why the platform failed, when it did. */
   error?: Error;
 }
 
@@ -34,7 +38,10 @@ export interface InboundPostService {
     text: string,
     platform?: Platform,
   ): Promise<results.Result<Post, Error>>;
-  /** Cross-post the same text to all configured platforms. Returns one entry per platform. */
+  /**
+   * Cross-post the same text to all configured platforms, one after another in
+   * configuration order. Returns one entry per platform, in that order.
+   */
   composePostToAll(
     text: string,
   ): Promise<results.Result<PostResult[], Error>>;
@@ -107,7 +114,11 @@ export interface InboundPostService {
   searchPosts(
     params: { query: string; maxResults?: number; platform: Platform },
   ): Promise<results.Result<Post[], Error>>;
-  /** Search across all authenticated platforms, merge results sorted newest first. */
+  /**
+   * Search across all configured platforms and merge the results, newest
+   * first. A platform that fails is left out. `maxResultsPerPlatform`
+   * defaults to `DEFAULT_MAX_RESULTS_PER_PLATFORM` (10).
+   */
   searchPostsAll(
     params: { query: string; maxResultsPerPlatform?: number },
   ): Promise<results.Result<Post[], Error>>;
@@ -129,43 +140,53 @@ export interface InboundPostService {
 
 /** Concrete use-case coordinator for multi-platform posting. */
 export class PostService implements InboundPostService {
-  private readonly apis: Map<Platform, SocialApi>;
-  private readonly feedAggregator: FeedAggregator;
-  private readonly translator: Translator;
-  private readonly scheduler: Scheduler;
+  readonly #apis: Map<Platform, SocialApi>;
+  readonly #feedAggregator: FeedAggregator;
+  readonly #translator: Translator;
+  readonly #scheduler: Scheduler;
 
+  /**
+   * Create the service over the given platform connections.
+   *
+   * @param connections The platforms to route to; the first one is the
+   *   default for operations that take an optional platform, and
+   *   cross-platform operations visit them in this order.
+   * @param translator Translates text for the translate operations.
+   * @param scheduler Stores posts to send later.
+   * @param feedAggregator Merges timelines across platforms.
+   */
   constructor(
     connections: ReadonlyArray<PlatformConnection>,
     translator: Translator,
     scheduler: Scheduler,
     feedAggregator: FeedAggregator,
   ) {
-    this.apis = new Map(connections.map((c) => [c.platform, c.socialApi]));
-    this.feedAggregator = feedAggregator;
-    this.translator = translator;
-    this.scheduler = scheduler;
+    this.#apis = new Map(connections.map((c) => [c.platform, c.socialApi]));
+    this.#feedAggregator = feedAggregator;
+    this.#translator = translator;
+    this.#scheduler = scheduler;
   }
 
-  private resolveApiWithPlatformResult(
+  #resolveApiWithPlatformResult(
     platform?: Platform,
   ): results.Result<[Platform, SocialApi], Error> {
     if (platform !== undefined) {
-      const api = this.apis.get(platform);
+      const api = this.#apis.get(platform);
       if (api !== undefined) return results.ok([platform, api]);
       return results.fail(
         new Error(`Platform "${platform}" is not configured.`),
       );
     }
-    for (const [p, api] of this.apis.entries()) {
+    for (const [p, api] of this.#apis.entries()) {
       return results.ok([p, api]);
     }
     return results.fail(new Error("No platforms are configured."));
   }
 
-  private resolveApiResult(
+  #resolveApiResult(
     platform?: Platform,
   ): results.Result<SocialApi, Error> {
-    const r = this.resolveApiWithPlatformResult(platform);
+    const r = this.#resolveApiWithPlatformResult(platform);
     return results.map(r, ([, api]) => api);
   }
 
@@ -173,9 +194,8 @@ export class PostService implements InboundPostService {
     text: string,
     platform?: Platform,
   ): Promise<results.Result<Post, Error>> {
-    const resolveApiWithPlatformResult = this.resolveApiWithPlatformResult.bind(
-      this,
-    );
+    const resolveApiWithPlatformResult = this.#resolveApiWithPlatformResult
+      .bind(this);
     return fn.run(async function* () {
       const [resolvedPlatform, api] = yield* resolveApiWithPlatformResult(
         platform,
@@ -198,16 +218,19 @@ export class PostService implements InboundPostService {
   async composePostToAll(
     text: string,
   ): Promise<results.Result<PostResult[], Error>> {
-    const platforms = Array.from(this.apis.keys());
-    const perPlatform = await Promise.all(
-      platforms.map((p) => this.composePost(text, p)),
-    );
-    const postResults: PostResult[] = perPlatform.map((r, i) => {
-      const platform = platforms[i] as Platform;
-      return results.isOk(r)
-        ? { platform, post: r.value }
-        : { platform, error: r.error };
-    });
+    const postResults: PostResult[] = [];
+    for (const platform of this.#apis.keys()) {
+      // Platforms publish one after another in configuration order, as
+      // composePostToAllHandler does with saved tokens, so every wiring sends
+      // the posts in the same order.
+      // deno-lint-ignore no-await-in-loop
+      const r = await this.composePost(text, platform);
+      postResults.push(
+        results.isOk(r)
+          ? { platform, post: r.value }
+          : { platform, error: r.error },
+      );
+    }
     return results.ok(postResults);
   }
 
@@ -217,7 +240,7 @@ export class PostService implements InboundPostService {
     to: string;
     platform?: Platform;
   }): Promise<results.Result<Post, Error>> {
-    const translator = this.translator;
+    const translator = this.#translator;
     const composePost = this.composePost.bind(this);
     return fn.run(async function* () {
       const translated = yield* (await translator.translate({
@@ -232,7 +255,7 @@ export class PostService implements InboundPostService {
   schedulePost(
     params: { text: string; scheduledAt: Date; platform?: Platform },
   ): Promise<results.Result<void, Error>> {
-    const scheduler = this.scheduler;
+    const scheduler = this.#scheduler;
     return fn.run(async function* () {
       yield* (await results.fromPromise(
         scheduler.schedule({
@@ -246,7 +269,7 @@ export class PostService implements InboundPostService {
   getUnifiedTimeline(
     params?: { maxResultsPerPlatform?: number },
   ): Promise<results.Result<Post[], Error>> {
-    const feedAggregator = this.feedAggregator;
+    const feedAggregator = this.#feedAggregator;
     return fn.run(async function* () {
       return yield* (await results.fromPromise(
         feedAggregator.getUnifiedTimeline(params),
@@ -257,7 +280,7 @@ export class PostService implements InboundPostService {
   getTimeline(
     params?: { maxResults?: number; platform?: Platform },
   ): Promise<results.Result<Post[], Error>> {
-    const resolveApiResult = this.resolveApiResult.bind(this);
+    const resolveApiResult = this.#resolveApiResult.bind(this);
     return fn.run(async function* () {
       const api = yield* resolveApiResult(params?.platform);
       return yield* (await results.fromPromise(
@@ -270,7 +293,7 @@ export class PostService implements InboundPostService {
     id: PostId,
     platform: Platform,
   ): Promise<results.Result<Post, Error>> {
-    const resolveApiResult = this.resolveApiResult.bind(this);
+    const resolveApiResult = this.#resolveApiResult.bind(this);
     return fn.run(async function* () {
       const api = yield* resolveApiResult(platform);
       return yield* (await results.fromPromise(api.getPost(id)));
@@ -280,7 +303,7 @@ export class PostService implements InboundPostService {
   replyToPost(
     params: { text: string; inReplyToPost: Post },
   ): Promise<results.Result<Post, Error>> {
-    const resolveApiResult = this.resolveApiResult.bind(this);
+    const resolveApiResult = this.#resolveApiResult.bind(this);
     return fn.run(async function* () {
       const api = yield* resolveApiResult(
         params.inReplyToPost.platform,
@@ -305,7 +328,7 @@ export class PostService implements InboundPostService {
     texts: ReadonlyArray<string>,
     platform?: Platform,
   ): Promise<results.Result<Post[], Error>> {
-    const resolveApiResult = this.resolveApiResult.bind(this);
+    const resolveApiResult = this.#resolveApiResult.bind(this);
     return fn.run(async function* () {
       const api = yield* resolveApiResult(platform);
       const result = yield* (await api.postThread({ texts }));
@@ -319,7 +342,7 @@ export class PostService implements InboundPostService {
     from: string;
     to: string;
   }): Promise<results.Result<Post, Error>> {
-    const translator = this.translator;
+    const translator = this.#translator;
     const replyToPost = this.replyToPost.bind(this);
     return fn.run(async function* () {
       const translated = yield* (await translator.translate({
@@ -337,7 +360,7 @@ export class PostService implements InboundPostService {
   getUsage(
     platform?: Platform,
   ): Promise<results.Result<UsageData, Error>> {
-    const resolveApiResult = this.resolveApiResult.bind(this);
+    const resolveApiResult = this.#resolveApiResult.bind(this);
     return fn.run(async function* () {
       const api = yield* resolveApiResult(platform);
       return yield* (await results.fromPromise(api.getUsage()));
@@ -347,7 +370,7 @@ export class PostService implements InboundPostService {
   repost(
     params: { id: PostId; platform: Platform },
   ): Promise<results.Result<void, Error>> {
-    const resolveApiResult = this.resolveApiResult.bind(this);
+    const resolveApiResult = this.#resolveApiResult.bind(this);
     return fn.run(async function* () {
       const api = yield* resolveApiResult(params.platform);
       yield* (await results.fromPromise(api.repost(params.id)));
@@ -357,7 +380,7 @@ export class PostService implements InboundPostService {
   undoRepost(
     params: { id: PostId; platform: Platform },
   ): Promise<results.Result<void, Error>> {
-    const resolveApiResult = this.resolveApiResult.bind(this);
+    const resolveApiResult = this.#resolveApiResult.bind(this);
     return fn.run(async function* () {
       const api = yield* resolveApiResult(params.platform);
       yield* (await results.fromPromise(api.undoRepost(params.id)));
@@ -367,9 +390,8 @@ export class PostService implements InboundPostService {
   quotePost(
     params: { text: string; quotedPostId: PostId; platform: Platform },
   ): Promise<results.Result<Post, Error>> {
-    const resolveApiWithPlatformResult = this.resolveApiWithPlatformResult.bind(
-      this,
-    );
+    const resolveApiWithPlatformResult = this.#resolveApiWithPlatformResult
+      .bind(this);
     return fn.run(async function* () {
       const [resolvedPlatform, api] = yield* resolveApiWithPlatformResult(
         params.platform,
@@ -395,7 +417,7 @@ export class PostService implements InboundPostService {
   searchPosts(
     params: { query: string; maxResults?: number; platform: Platform },
   ): Promise<results.Result<Post[], Error>> {
-    const resolveApiResult = this.resolveApiResult.bind(this);
+    const resolveApiResult = this.#resolveApiResult.bind(this);
     return fn.run(async function* () {
       const api = yield* resolveApiResult(params.platform);
       return yield* (await results.fromPromise(
@@ -407,8 +429,9 @@ export class PostService implements InboundPostService {
   async searchPostsAll(
     params: { query: string; maxResultsPerPlatform?: number },
   ): Promise<results.Result<Post[], Error>> {
-    const maxResults = params.maxResultsPerPlatform ?? 10;
-    const platforms = Array.from(this.apis.keys());
+    const maxResults = params.maxResultsPerPlatform ??
+      defaults.DEFAULT_MAX_RESULTS_PER_PLATFORM;
+    const platforms = Array.from(this.#apis.keys());
     const perPlatform = await Promise.all(
       platforms.map((p) =>
         this.searchPosts({ query: params.query, maxResults, platform: p })
@@ -426,7 +449,7 @@ export class PostService implements InboundPostService {
   bookmarkPost(
     params: { id: PostId; platform: Platform },
   ): Promise<results.Result<void, Error>> {
-    const resolveApiResult = this.resolveApiResult.bind(this);
+    const resolveApiResult = this.#resolveApiResult.bind(this);
     return fn.run(async function* () {
       const api = yield* resolveApiResult(params.platform);
       yield* (await results.fromPromise(api.bookmarkPost(params.id)));
@@ -436,7 +459,7 @@ export class PostService implements InboundPostService {
   removeBookmark(
     params: { id: PostId; platform: Platform },
   ): Promise<results.Result<void, Error>> {
-    const resolveApiResult = this.resolveApiResult.bind(this);
+    const resolveApiResult = this.#resolveApiResult.bind(this);
     return fn.run(async function* () {
       const api = yield* resolveApiResult(params.platform);
       yield* (await results.fromPromise(api.removeBookmark(params.id)));
@@ -446,7 +469,7 @@ export class PostService implements InboundPostService {
   getBookmarks(
     params: { platform: Platform; maxResults?: number },
   ): Promise<results.Result<Post[], Error>> {
-    const resolveApiResult = this.resolveApiResult.bind(this);
+    const resolveApiResult = this.#resolveApiResult.bind(this);
     return fn.run(async function* () {
       const api = yield* resolveApiResult(params.platform);
       return yield* (await results.fromPromise(

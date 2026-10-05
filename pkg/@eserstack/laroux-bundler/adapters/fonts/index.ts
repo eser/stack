@@ -14,14 +14,18 @@ export type { FontDefinition, FontDisplay, FontStyle, FontWeight };
 /**
  * Filter fonts by provider
  */
-function getGoogleFonts(fonts: FontDefinition[]): FontDefinition[] {
+function getGoogleFonts(
+  fonts: readonly FontDefinition[],
+): FontDefinition[] {
   return fonts.filter((font) => font.provider === "google");
 }
 
 /**
  * Generate Google Fonts URL from configuration
  */
-export function generateGoogleFontsUrl(fonts: FontDefinition[]): string {
+export function generateGoogleFontsUrl(
+  fonts: readonly FontDefinition[],
+): string {
   const googleFonts = getGoogleFonts(fonts);
 
   if (googleFonts.length === 0) {
@@ -89,7 +93,7 @@ export function getFontFamilies(fonts: FontDefinition[]): string[] {
 /**
  * Get font URLs for optimization (used by build system)
  */
-export function getFontUrls(fonts: FontDefinition[]): string[] {
+export function getFontUrls(fonts: readonly FontDefinition[]): string[] {
   const googleFonts = getGoogleFonts(fonts);
 
   if (googleFonts.length === 0) {

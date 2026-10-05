@@ -9,6 +9,7 @@
 // LightningCSS adapter
 export {
   type CssProcessOptions,
+  lightningCssProcessor,
   postProcessWithLightningCSS,
   processCss,
 } from "./lightningcss/mod.ts";
@@ -24,6 +25,7 @@ export {
   optimizeImage,
   optimizeImages,
   scanImages,
+  sharpImageOptimizer,
 } from "./sharp/mod.ts";
 
 // Fonts adapter
@@ -38,6 +40,7 @@ export {
   generateGoogleFontsUrl,
   getFontFamilies,
   getFontUrls,
+  googleFontOptimizer,
   optimizeGoogleFonts,
   optimizeMultipleGoogleFonts,
 } from "./fonts/mod.ts";

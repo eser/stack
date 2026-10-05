@@ -47,8 +47,7 @@ eser
 ├── kit                   Kit — recipes, templates, project creation
 │   ├── list              Browse available recipes and templates
 │   ├── add               Add a recipe to your project
-│   ├── new               Create a new project from a template
-│   ├── create            Create a new recipe
+│   ├── new, create       Create a new project from a template
 │   ├── clone             Clone a recipe from any GitHub repo
 │   └── update            Re-fetch and update an applied recipe
 ├── codebase, cb, .       Codebase management tools
@@ -62,7 +61,7 @@ eser
 │   ├── release           Create a release (bump, changelog, commit, push, tag)
 │   ├── rerelease         Delete and recreate the current version tag
 │   ├── unrelease         Delete the current version tag and GitHub Release
-│   └── validate-*        24 validators — eof, secrets, licenses, circular-deps,
+│   └── validate-*        Validators: eof, secrets, licenses, circular-deps,
 │                         mod-exports, error-coverage, … (`--help` for the list)
 ├── workflows, wf         Workflow engine — run tool pipelines
 │   ├── run               Run workflows by event or id
@@ -179,7 +178,8 @@ eser kit create <template> [options]   # alias
 | `--local`           | Use local registry (auto-detected)                                 |
 
 **Available templates:** `library-pkg`, `laroux-app`, `go-service`,
-`cf-workers-app`, `vite-app`, `cool-lime-app`, `jsx-runtime-app`, `vanilla-app`
+`cf-workers-app`, `vite-app`, `laroux-runtime-app`, `jsx-runtime-app`,
+`vanilla-app`
 
 #### kit clone
 
@@ -334,12 +334,12 @@ eser laroux init [folder] [options]
 eser laroux dev [options]
 ```
 
-| Option        | Description                         |
-| ------------- | ----------------------------------- |
-| `-p, --port`  | Server port (default: 8000)         |
-| `-o, --open`  | Open browser automatically          |
-| `--no-hmr`    | Disable hot module replacement      |
-| `--log-level` | Log level: debug, info, warn, error |
+| Option        | Description                                                       |
+| ------------- | ----------------------------------------------------------------- |
+| `-p, --port`  | Server port (default: 8000)                                       |
+| `-o, --open`  | Open browser automatically                                        |
+| `--no-hmr`    | Disable hot module replacement                                    |
+| `--log-level` | Log level: trace, debug, info, warn, error, fatal (default: info) |
 
 #### laroux build
 
@@ -353,6 +353,7 @@ eser laroux build [options]
 | `--clean`     | Clean output directory first     |
 | `--no-minify` | Disable minification             |
 | `--analyze`   | Analyze bundle size              |
+| `--log-level` | Log level (default: info)        |
 
 #### laroux serve
 
@@ -360,10 +361,10 @@ eser laroux build [options]
 eser laroux serve [options]
 ```
 
-| Option       | Description                            |
-| ------------ | -------------------------------------- |
-| `-p, --port` | Server port (default: 8000)            |
-| `--dist-dir` | Distribution directory (default: dist) |
+| Option        | Description                 |
+| ------------- | --------------------------- |
+| `-p, --port`  | Server port (default: 8000) |
+| `--log-level` | Log level (default: info)   |
 
 ### system
 
@@ -381,6 +382,47 @@ eser version --bare   # version number only
 # Run diagnostic checks
 eser doctor
 ```
+
+### Project scripts and plugins
+
+A name that is not a built-in command runs a script from the project's
+`.eser/manifest.yml`. Arguments after the script name are appended to its
+command, one word each: the shell does not split, expand or run them, so an
+argument with spaces or quotes arrives as you typed it. A leading `eser` in a
+script runs the CLI that runs the script, so scripts work without a global
+install and use the same version: the compiled binary runs itself, the npm
+package runs its entry file with the same Node or Bun, and under Deno it runs
+`main.ts` with `deno run --allow-all`.
+
+```yaml
+scripts:
+  ok: eser workflows run -e precommit
+  generate: deno run --allow-all ./scripts/generate.ts
+  test:
+    command: deno test --allow-all
+    description: Run the library tests
+    workingDirectory: ./pkg/my-lib
+    depends: [generate]
+```
+
+```bash
+eser ok                  # runs the "ok" script
+eser test --filter slug  # runs "generate", then "deno test --allow-all --filter slug" in ./pkg/my-lib
+eser test --filter "slug parser"  # "slug parser" reaches deno test as one argument
+```
+
+`depends` lists the scripts that run before this one. Each dependency runs after
+its own dependencies, and a script that several others depend on runs once.
+Dependencies run without the arguments you pass, which go to the script you
+named. When a dependency exits with a non-zero code, the run stops and `eser`
+exits with that code. A cycle in `depends`, or a name the manifest does not
+define, stops the run before any script starts.
+
+When no script matches, `eser <name>` runs an executable named `eser-<name>`
+from `PATH`, the way `git lfs` runs `git-lfs`. Its arguments pass through
+unchanged, and its exit code becomes the exit code of `eser`. Built-in commands
+come first, then scripts, then plugins, so a project script wins over an
+installed plugin of the same name.
 
 ## Architecture
 
@@ -424,6 +466,36 @@ The same handler can be invoked with a different renderer + sink:
 | `@eserstack/functions/task`       | Task<T,E,R> for DI-aware lazy computation          |
 | `@eserstack/streams`              | Output API + Span formatting + Renderers           |
 | `@eserstack/kit/recipes/handlers` | Pure business logic handlers                       |
+
+## Upgrading from 4.x
+
+These changes since 4.5.2 need a change in code, commands or files that use this
+package. The [changelog](https://github.com/eser/stack/blob/main/CHANGELOG.md)
+lists the changes in every package.
+
+- Manifest scripts receive each forwarded argument as exactly one word, with
+  `$VARS`, globs, `;` and `$()` kept literal; the shell no longer re-parses
+  them. Pass separate words as separate arguments, and put any expansion in the
+  script's command in `.eser/manifest.yml`:
+
+  ```bash
+  # Before: "--filter x" was split into two words
+  eser test "--filter x"
+  # After
+  eser test --filter x
+  ```
+
+- Manifest scripts with `depends` run those dependencies first, in post-order
+  and once each; they used to be skipped without notice. Remove any `depends`
+  entry you do not want to run.
+- A malformed manifest script entry stops the run with exit code 1 and a message
+  naming the field: `null`, a list, an object without a `command` string, a
+  non-string `description` or `workingDirectory`, or a `depends` that is not a
+  list of names. Before: `depends: build`. After: `depends: [build]`.
+- A failing dependency is reported on stderr as
+  `script "<name>" did not run: its dependency "<dep>" exited with code N`
+  instead of the stdout line `Script dependency ... failed`. Tools that read
+  that line read stderr.
 
 ## License
 

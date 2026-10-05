@@ -10,16 +10,23 @@
 
 import type * as adapter from "../adapter.ts";
 import * as crossRuntime from "@eserstack/standards/cross-runtime";
+import * as agentPrompts from "./shared/agent-prompts.ts";
+import * as discoveryAnswers from "../../context/discovery-answers.ts";
+import * as hookCommands from "../hook-commands.ts";
 
 // =============================================================================
-// Steering File Paths
+// File Paths
 // =============================================================================
 
 const STEERING_DIR = ".kiro/steering";
-const HOOKS_DIR = ".kiro/settings";
+const SETTINGS_DIR = ".kiro/settings";
+const HOOKS_DIR = ".kiro/hooks";
 const AGENTS_DIR = ".kiro/agents";
 const SPECS_DIR = ".kiro/specs";
-const HOOKS_FILE = "hooks.json";
+const HOOKS_FILE = "noskills.json";
+// Where earlier noskills versions wrote their Kiro hooks, a file Kiro does not
+// read; a sync removes noskills' entries from it.
+const LEGACY_HOOKS_FILE = "hooks.json";
 const MCP_FILE = "mcp.json";
 const PROTOCOL_FILE = "noskills-protocol.md";
 const COACHING_FILE = "noskills-coaching.md";
@@ -69,14 +76,11 @@ const buildProtocol = (
     "- Advances the state machine to the next phase",
     "- Records the decision permanently in the project history",
     "",
-    "When you batch-submit answers or backfill discovery responses yourself,",
-    "the user sees nothing happening — then suddenly everything jumps forward.",
-    "This defeats the purpose.",
-    "",
-    "Call noskills ONCE per interaction. Ask the user ONE question. Wait for",
-    "their answer. Submit it. Ask the next. The user is watching every step.",
-    "Do NOT pre-fill answers. Do NOT batch multiple answers. Do NOT answer",
-    "discovery questions yourself — the user's input is the data.",
+    discoveryAnswers.discoveryQuestionRule(),
+    "Do not answer discovery questions yourself: the user's input is the data.",
+    discoveryAnswers.discoveryAnswerRule(
+      `${commandPrefix} spec <name> next --answer`,
+    ),
     "",
     "## When to call noskills next",
     "",
@@ -122,13 +126,12 @@ const buildProtocol = (
     "- Rule promotion → ask the user, don't decide",
     'If you think something can be skipped, ASK "would you like to skip this?" — don\'t skip it.',
     "NEVER suggest bypassing or skipping noskills. Discovery is not overhead.",
-    "NEVER ask permission to run the next noskills command. After spec new → run next. After approve → run next. Just run it.",
+    "Run the next noskills command as soon as the current step is done; each step has exactly one next step, so there is nothing to ask permission for.",
     "",
     "## Command execution",
     "",
-    "When told to run a noskills command, execute it IMMEDIATELY. Do not explore,",
-    "research, read source code, or plan first. The command output contains all the",
-    "context you need. Exploring noskills internals wastes tokens and delays the user.",
+    "Run noskills commands as soon as you are told to. Their output carries the",
+    "context you need, so do not read noskills source or `.eser/` files first.",
     "",
     "## JSON output",
     "",
@@ -202,75 +205,96 @@ const buildRules = (rules: readonly string[]): string => {
 // =============================================================================
 // Hooks Config Generator
 // =============================================================================
+//
+// Kiro IDE 1.0 and Kiro CLI 3.0 read hooks from standalone files in
+// `.kiro/hooks/`: version "v1" and a list of hooks, each with a name, a
+// PascalCase trigger, an optional matcher on the tool name and a command
+// action; `timeout` is in seconds (kiro.dev/docs/hooks). A PreToolUse command
+// that exits with code 2 blocks the tool call and its stderr goes to the agent
+// (kiro.dev/docs/hooks/types). The matchers list the write and shell tools by
+// their canonical names and aliases (kiro.dev/docs/tools).
 
 type KiroHook = {
-  readonly _noskills?: boolean;
+  readonly name: string;
+  readonly description: string;
   readonly trigger: string;
-  readonly condition?: { readonly toolNames: readonly string[] };
-  readonly action: { readonly type: string; readonly command: string };
+  readonly matcher?: string;
+  readonly action: { readonly type: "command"; readonly command: string };
   readonly timeout: number;
 };
 
-type KiroHooksConfig = {
-  hooks: KiroHook[];
+type KiroHooksFile = {
+  readonly version: "v1";
+  readonly hooks: readonly KiroHook[];
 };
 
-const buildHooksConfig = (commandPrefix: string): KiroHooksConfig => ({
+const WRITE_TOOLS: readonly string[] = [
+  "write",
+  "fs_write",
+  "fsWrite",
+  "fs_append",
+  "str_replace",
+  "delete_file",
+];
+const SHELL_TOOLS: readonly string[] = ["shell", "execute_bash", "execute_cmd"];
+
+/** A matcher for exactly the tools `names` lists. */
+const anyOf = (names: readonly string[]): string => `^(${names.join("|")})$`;
+
+const kiroHook = (
+  commandPrefix: string,
+  event: hookCommands.HookEvent,
+  trigger: string,
+  description: string,
+  matcher?: string,
+): KiroHook => ({
+  name: `noskills-${event}`,
+  description,
+  trigger,
+  ...(matcher === undefined ? {} : { matcher }),
+  action: {
+    type: "command",
+    command: hookCommands.hookCommand(commandPrefix, event),
+  },
+  timeout: hookCommands.HOOK_TIMEOUT_SECONDS[event],
+});
+
+const buildHooksFile = (commandPrefix: string): KiroHooksFile => ({
+  version: "v1",
   hooks: [
-    {
-      _noskills: true,
-      trigger: "Prompt Submit",
-      action: {
-        type: "Run Command",
-        command: `${commandPrefix} invoke-hook session-start`,
-      },
-      timeout: 5000,
-    },
-    {
-      _noskills: true,
-      trigger: "Pre Tool Use",
-      condition: {
-        toolNames: ["write", "shell"],
-      },
-      action: {
-        type: "Run Command",
-        command: `${commandPrefix} invoke-hook pre-tool-use`,
-      },
-      timeout: 5000,
-    },
-    {
-      _noskills: true,
-      trigger: "Post Tool Use",
-      condition: {
-        toolNames: ["write"],
-      },
-      action: {
-        type: "Run Command",
-        command: `${commandPrefix} invoke-hook post-file-write`,
-      },
-      timeout: 3000,
-    },
-    {
-      _noskills: true,
-      trigger: "Post Tool Use",
-      condition: {
-        toolNames: ["shell"],
-      },
-      action: {
-        type: "Run Command",
-        command: `${commandPrefix} invoke-hook post-bash`,
-      },
-      timeout: 3000,
-    },
-    {
-      _noskills: true,
-      trigger: "Agent Stop",
-      action: {
-        type: "Run Command",
-        command: `${commandPrefix} invoke-hook stop`,
-      },
-      timeout: 10000,
-    },
+    kiroHook(
+      commandPrefix,
+      "session-start",
+      "SessionStart",
+      "Generated by noskills: gives the agent the current noskills instruction.",
+    ),
+    kiroHook(
+      commandPrefix,
+      "pre-tool-use",
+      "PreToolUse",
+      "Generated by noskills: refuses git writes, changes to the noskills settings and file edits the spec's phase does not allow.",
+      anyOf([...WRITE_TOOLS, ...SHELL_TOOLS]),
+    ),
+    kiroHook(
+      commandPrefix,
+      "post-file-write",
+      "PostToolUse",
+      "Generated by noskills: logs the files the agent changed.",
+      anyOf(WRITE_TOOLS),
+    ),
+    kiroHook(
+      commandPrefix,
+      "post-bash",
+      "PostToolUse",
+      "Generated by noskills: logs the noskills commands the agent ran.",
+      anyOf(SHELL_TOOLS),
+    ),
+    kiroHook(
+      commandPrefix,
+      "stop",
+      "Stop",
+      "Generated by noskills: records the iteration when the agent stops.",
+    ),
   ],
 });
 
@@ -339,9 +363,7 @@ const buildExecutorAgent = (commandPrefix: string): KiroAgent => ({
     "",
     "## Self-Verification",
     "After completing the task, you MUST verify your own work before reporting:",
-    "1. Run type check: `deno check` on all modified files",
-    "2. Run test suite: `deno test` on the relevant test files",
-    "3. If type check or tests fail, fix the issues before reporting",
+    ...agentPrompts.EXECUTOR_SELF_CHECK,
     "",
     "## Reporting",
     "When finished, provide a structured JSON summary:",
@@ -375,10 +397,7 @@ const buildVerifierAgent = (): KiroAgent => ({
     "You CANNOT edit files. Read-only access only.",
     "",
     "## Verification Steps",
-    "1. Read each modified file and verify the changes are correct",
-    "2. Run type check: `deno check` on modified files",
-    "3. Run tests: `deno test` on relevant test files",
-    "4. Check each acceptance criterion against actual file contents",
+    ...agentPrompts.VERIFIER_STEPS,
     "",
     "## Report Format",
     "When finished, provide a structured JSON summary:",
@@ -393,6 +412,41 @@ const buildVerifierAgent = (): KiroAgent => ({
 // =============================================================================
 // File Helpers
 // =============================================================================
+
+/**
+ * Removes the hooks earlier noskills versions wrote to
+ * `.kiro/settings/hooks.json` (marked `_noskills`), and the file when nothing
+ * else is left in it. A file that is missing or not JSON stays as it is.
+ */
+const removeLegacyHooks = async (path: string): Promise<void> => {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(await crossRuntime.runtime.fs.readTextFile(path));
+  } catch {
+    return;
+  }
+  if (!(parsed instanceof Object) || Array.isArray(parsed)) return;
+
+  const file = parsed as Readonly<Record<string, unknown>>;
+  const hooks = file["hooks"];
+  if (!Array.isArray(hooks)) return;
+
+  const userHooks = hooks.filter((hook: unknown) =>
+    !(hook instanceof Object &&
+      (hook as Readonly<Record<string, unknown>>)["_noskills"] === true)
+  );
+  if (userHooks.length === hooks.length) return;
+
+  if (userHooks.length === 0 && Object.keys(file).length === 1) {
+    await crossRuntime.runtime.fs.remove(path);
+    return;
+  }
+
+  await crossRuntime.runtime.fs.writeTextFile(
+    path,
+    JSON.stringify({ ...file, hooks: userHooks }, null, 2) + "\n",
+  );
+};
 
 const fileExists = async (path: string): Promise<boolean> => {
   try {
@@ -468,7 +522,9 @@ const buildRequirementsMd = (spec: ParsedSpec): string => {
     "",
     "## Overview",
     "",
-    spec.discoveryAnswers || "(no discovery answers yet)",
+    spec.discoveryAnswers === ""
+      ? "(no discovery answers yet)"
+      : spec.discoveryAnswers,
     "",
     "## Requirements",
     "",
@@ -483,7 +539,7 @@ const buildRequirementsMd = (spec: ParsedSpec): string => {
     for (const line of reqLines) {
       lines.push(`- ${line.replace(/^###\s*/, "")}`);
     }
-  } else if (spec.discoveryAnswers) {
+  } else if (spec.discoveryAnswers !== "") {
     lines.push("- See overview for details");
   } else {
     lines.push("- (none yet)");
@@ -492,12 +548,14 @@ const buildRequirementsMd = (spec: ParsedSpec): string => {
   lines.push("", "## Acceptance Criteria", "");
 
   // Map verification items to acceptance criteria
-  if (spec.verification) {
-    const verLines = spec.verification.split("\n").filter((l) => l.trim());
+  if (spec.verification !== "") {
+    const verLines = spec.verification.split("\n").filter((l) =>
+      l.trim() !== ""
+    );
     for (const line of verLines) {
       const trimmed = line.replace(/^[-*]\s*/, "").trim();
 
-      if (trimmed) {
+      if (trimmed !== "") {
         lines.push(`- [ ] ${trimmed}`);
       }
     }
@@ -506,7 +564,7 @@ const buildRequirementsMd = (spec: ParsedSpec): string => {
   }
 
   lines.push("", "## Out of Scope", "");
-  lines.push(spec.outOfScope || "(nothing listed)");
+  lines.push(spec.outOfScope === "" ? "(nothing listed)" : spec.outOfScope);
   lines.push("");
 
   return lines.join("\n");
@@ -521,7 +579,7 @@ const buildDesignMd = (spec: ParsedSpec): string => {
   ];
 
   // Extract architecture info from discovery answers
-  if (spec.discoveryAnswers) {
+  if (spec.discoveryAnswers !== "") {
     lines.push(spec.discoveryAnswers);
   } else {
     lines.push("(no architecture decisions yet)");
@@ -529,7 +587,7 @@ const buildDesignMd = (spec: ParsedSpec): string => {
 
   lines.push("", "## Concerns", "");
 
-  if (spec.concerns) {
+  if (spec.concerns !== "") {
     lines.push(spec.concerns);
   } else {
     lines.push("(no active concerns)");
@@ -538,12 +596,12 @@ const buildDesignMd = (spec: ParsedSpec): string => {
   lines.push("", "## Decisions", "");
 
   // Contributor guide and public API inform design decisions
-  if (spec.contributorGuide || spec.publicApi) {
-    if (spec.contributorGuide) {
+  if (spec.contributorGuide !== "" || spec.publicApi !== "") {
+    if (spec.contributorGuide !== "") {
       lines.push("### Contributor Guide", "", spec.contributorGuide, "");
     }
 
-    if (spec.publicApi) {
+    if (spec.publicApi !== "") {
       lines.push("### Public API Surface", "", spec.publicApi, "");
     }
   } else {
@@ -561,7 +619,7 @@ const buildTasksMd = (spec: ParsedSpec): string => {
     "",
   ];
 
-  if (spec.tasks) {
+  if (spec.tasks !== "") {
     lines.push(spec.tasks);
   } else {
     lines.push("(no tasks yet)");
@@ -593,10 +651,10 @@ export const kiroAdapter: adapter.ToolAdapter = {
     },
   },
 
-  async syncRules(
+  syncRules: async (
     ctx: adapter.SyncContext,
     options?: adapter.SyncOptions,
-  ): Promise<void> {
+  ): Promise<void> => {
     const steeringDir = `${ctx.root}/${STEERING_DIR}`;
     await crossRuntime.runtime.fs.mkdir(steeringDir, { recursive: true });
 
@@ -628,48 +686,26 @@ export const kiroAdapter: adapter.ToolAdapter = {
     }
   },
 
-  async syncHooks(
+  syncHooks: async (
     ctx: adapter.SyncContext,
     _options?: adapter.SyncOptions,
-  ): Promise<void> {
+  ): Promise<void> => {
     const hooksDir = `${ctx.root}/${HOOKS_DIR}`;
-    const hooksPath = `${hooksDir}/${HOOKS_FILE}`;
-
     await crossRuntime.runtime.fs.mkdir(hooksDir, { recursive: true });
 
-    // Read existing hooks config (preserve non-noskills hooks)
-    let existingHooks: KiroHook[] = [];
-    try {
-      const content = await crossRuntime.runtime.fs.readTextFile(hooksPath);
-      const parsed = JSON.parse(content) as KiroHooksConfig;
-      if (Array.isArray(parsed.hooks)) {
-        existingHooks = parsed.hooks;
-      }
-    } catch {
-      // File doesn't exist yet
-    }
-
-    // Filter out previous noskills-managed hooks, keep user hooks
-    const userHooks = existingHooks.filter(
-      (h) => !(h as { _noskills?: boolean })._noskills,
-    );
-
-    // Build fresh noskills hooks and merge
-    const noskillsConfig = buildHooksConfig(ctx.commandPrefix);
-    const merged: KiroHooksConfig = {
-      hooks: [...userHooks, ...noskillsConfig.hooks],
-    };
-
+    // noskills owns this file; the user's hooks live in files of their own.
     await crossRuntime.runtime.fs.writeTextFile(
-      hooksPath,
-      JSON.stringify(merged, null, 2) + "\n",
+      `${hooksDir}/${HOOKS_FILE}`,
+      JSON.stringify(buildHooksFile(ctx.commandPrefix), null, 2) + "\n",
     );
+
+    await removeLegacyHooks(`${ctx.root}/${SETTINGS_DIR}/${LEGACY_HOOKS_FILE}`);
   },
 
-  async syncAgents(
+  syncAgents: async (
     ctx: adapter.SyncContext,
     _options?: adapter.SyncOptions,
-  ): Promise<void> {
+  ): Promise<void> => {
     const agentsDir = `${ctx.root}/${AGENTS_DIR}`;
     await crossRuntime.runtime.fs.mkdir(agentsDir, { recursive: true });
 
@@ -688,10 +724,10 @@ export const kiroAdapter: adapter.ToolAdapter = {
     );
   },
 
-  async syncSpecs(
+  syncSpecs: async (
     ctx: adapter.SyncContext,
     specPath: string,
-  ): Promise<void> {
+  ): Promise<void> => {
     // Read the noskills spec.md
     let content: string;
 
@@ -733,10 +769,10 @@ export const kiroAdapter: adapter.ToolAdapter = {
     );
   },
 
-  async syncMcp(
+  syncMcp: async (
     ctx: adapter.SyncContext,
-  ): Promise<void> {
-    const settingsDir = `${ctx.root}/${HOOKS_DIR}`;
+  ): Promise<void> => {
+    const settingsDir = `${ctx.root}/${SETTINGS_DIR}`;
     const mcpPath = `${settingsDir}/${MCP_FILE}`;
 
     await crossRuntime.runtime.fs.mkdir(settingsDir, { recursive: true });

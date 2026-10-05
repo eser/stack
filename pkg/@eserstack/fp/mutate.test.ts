@@ -1,7 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 import * as assert from "@std/assert";
-import { mutate } from "./mutate.ts";
+import * as mutate from "./mutate.ts";
 
 Deno.test("basic", () => {
   const obj1 = {
@@ -10,7 +10,7 @@ Deno.test("basic", () => {
     aliases: [],
   };
 
-  const result = mutate(obj1, (x) => x.firstName = "Helo");
+  const result = mutate.mutate(obj1, (x) => x.firstName = "Helo");
 
   assert.assertNotStrictEquals(result, obj1);
   assert.assertEquals(Object.keys(result).length, 3);
@@ -31,7 +31,7 @@ Deno.test("array-push", () => {
     aliases: <Array<string>> [],
   };
 
-  const result = mutate(obj1, (x) => {
+  const result = mutate.mutate(obj1, (x) => {
     x.firstName = "Helo";
 
     x.aliases.push("laroux");
@@ -62,7 +62,7 @@ Deno.test("with-class", () => {
 
   const obj1 = new Dummy();
 
-  const result = mutate(obj1, (x) => {
+  const result = mutate.mutate(obj1, (x) => {
     x.items.push("laroux");
   });
 

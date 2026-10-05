@@ -14,9 +14,12 @@ import type { Audience, Interaction } from "../env/mod.ts";
 // Cancellation
 // =============================================================================
 
+/** What a prompt returns when the user cancels it. */
 export const CANCEL: unique symbol = Symbol("tui.cancel");
+/** The type of {@link CANCEL}. */
 export type Cancel = typeof CANCEL;
 
+/** Whether a prompt's answer is {@link CANCEL}. */
 export const isCancel = (value: unknown): value is Cancel => value === CANCEL;
 
 // =============================================================================
@@ -26,8 +29,13 @@ export const isCancel = (value: unknown): value is Cancel => value === CANCEL;
 /** @deprecated Use `Interaction` from `@eserstack/shell/env` instead. */
 export type TuiTarget = "interactive" | "non-interactive";
 
+/**
+ * What a prompt does on a signal key: exit the process, cancel the prompt, or
+ * ignore the key.
+ */
 export type SignalAction = "exit" | "cancel" | "ignore";
 
+/** How prompts react to Ctrl+C and Escape. */
 export type SignalConfig = {
   /** Ctrl+C behavior. Default: "exit" (exit process with code 130). */
   readonly ctrlC: SignalAction;
@@ -35,27 +43,49 @@ export type SignalConfig = {
   readonly escape: SignalAction;
 };
 
+/** Ctrl+C exits the process; Escape cancels the prompt. */
 export const DEFAULT_SIGNALS: SignalConfig = {
   ctrlC: "exit",
   escape: "cancel",
 };
 
+/**
+ * The output stream a {@link TuiContext} writes to: `Output` from
+ * `@eserstack/streams`, named here so a custom context can be typed from this
+ * package alone.
+ */
+export type TuiOutput = streams.Output;
+
+/**
+ * The I/O every prompt and widget writes through: real terminal streams from
+ * {@link createTuiContext}, or buffers from {@link createTestContext}.
+ */
 export type TuiContext = {
-  readonly output: streams.Output;
+  /** Where prompts and output are written. */
+  readonly output: TuiOutput;
+  /** Where keypresses are read from. */
   readonly input: ReadableStream<Uint8Array>;
+  /** @deprecated Use `interaction` instead. */
   readonly target: TuiTarget;
+  /** Whether a person can answer prompts. */
   readonly interaction: Interaction;
+  /** Who reads the output: a person or an agent. */
   readonly audience: Audience;
+  /** How prompts react to Ctrl+C and Escape. */
   readonly signals: SignalConfig;
   /** stderr output for non-interactive mode (logs go here, stdout stays pure JSON) */
-  readonly stderr: streams.Output;
+  readonly stderr: TuiOutput;
 };
 
+/** Overrides for {@link createTuiContext}; anything unset gets its default. */
 export type TuiContextOptions = Partial<TuiContext> & {
   /** @deprecated Use `interaction` instead. */
   target?: TuiTarget;
+  /** "interactive" when unset. */
   interaction?: Interaction;
+  /** "human" when unset. */
   audience?: Audience;
+  /** Merged over {@link DEFAULT_SIGNALS}. */
   signals?: Partial<SignalConfig>;
 };
 
@@ -69,6 +99,11 @@ const getStdinStream = (): ReadableStream<Uint8Array> => {
   }
 };
 
+/**
+ * Create a context on the real terminal. Interactive mode writes ANSI to
+ * stdout and reads stdin; non-interactive mode writes plain text to stderr, so
+ * stdout stays clean for machine-readable output.
+ */
 export const createTuiContext = (
   options?: TuiContextOptions,
 ): TuiContext => {
@@ -189,38 +224,60 @@ export const createTestContext = (): {
 // Prompt option types
 // =============================================================================
 
+/** What every prompt takes. */
 export type PromptOptions = {
+  /** The question shown to the user. */
   readonly message: string;
 };
 
+/** Options for the `text` prompt. */
 export type TextOptions = PromptOptions & {
+  /** Dimmed text shown while the answer is empty. */
   readonly placeholder?: string;
+  /** The answer to start with. */
   readonly initialValue?: string;
+  /** Returns a message to refuse the answer, or `undefined` to accept it. */
   readonly validate?: (value: string) => string | undefined;
 };
 
+/** One choice in `select` or `multiselect`. */
 export type SelectOption<T> = {
+  /** What the prompt returns for this choice. */
   readonly value: T;
+  /** The text shown. */
   readonly label: string;
+  /** Dimmed text shown next to the label. */
   readonly hint?: string;
+  /** Shown but cannot be chosen. */
   readonly disabled?: boolean;
 };
 
+/** Options for the `select` prompt. */
 export type SelectOptions<T> = PromptOptions & {
+  /** The choices, in display order. */
   readonly options: readonly SelectOption<T>[];
+  /** The value highlighted first; the first enabled choice when unset. */
   readonly initialValue?: T;
 };
 
+/** Options for the `multiselect` prompt. */
 export type MultiselectOptions<T> = PromptOptions & {
+  /** The choices, in display order. */
   readonly options: readonly SelectOption<T>[];
+  /** The values checked at the start. */
   readonly initialValues?: readonly T[];
+  /** False to accept an empty choice; true when unset. */
   readonly required?: boolean;
 };
 
+/** Options for the `confirm` prompt. */
 export type ConfirmOptions = PromptOptions & {
+  /** The answer to start with; true when unset. */
   readonly initialValue?: boolean;
 };
 
+/** Options for `group`. */
 export type GroupOptions = {
+  /** Called once when any prompt in the group is cancelled. */
   readonly onCancel?: () => void;
 };

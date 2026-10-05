@@ -176,8 +176,7 @@ func waitExitCode(cmd *exec.Cmd) int {
 		return 0
 	}
 
-	var exitErr *exec.ExitError
-	if errors.As(err, &exitErr) {
+	if exitErr, ok := errors.AsType[*exec.ExitError](err); ok {
 		return exitErr.ExitCode()
 	}
 

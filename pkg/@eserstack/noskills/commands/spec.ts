@@ -13,11 +13,12 @@ import type * as shellArgs from "@eserstack/shell/args";
 import * as persistence from "../state/persistence.ts";
 import * as schema from "../state/schema.ts";
 import * as machine from "../state/machine.ts";
+import * as split from "../state/split.ts";
 import * as splitDetector from "../context/split-detector.ts";
 import * as identity from "../state/identity.ts";
 import * as dashboardEvents from "../dashboard/events.ts";
 import * as livingSpec from "../spec/living.ts";
-import { cmd, cmdPrefix } from "../output/cmd.ts";
+import * as cmd from "../output/cmd.ts";
 import { runtime } from "@eserstack/standards/cross-runtime";
 
 // Agent-facing contract for interactive spec creation (no description provided)
@@ -29,7 +30,7 @@ export type SpecNewInteractiveResponse = {
 };
 
 // Reserved names that cannot be used as spec names
-const RESERVED_NAMES = new Set([
+export const RESERVED_NAMES: ReadonlySet<string> = new Set([
   "new",
   "list",
   "help",
@@ -52,6 +53,19 @@ const RESERVED_NAMES = new Set([
   "plan-export",
   "ledger",
 ]);
+
+// Lowercase letters, digits and inner hyphens: the spec name is a directory
+// under .eser/specs/ and part of the `spec/<name>` branch.
+const SPEC_NAME_PATTERN = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/;
+const SPEC_NAME_MAX_LENGTH = 50;
+
+/**
+ * True if `name` can name a spec: lowercase letters, digits and inner hyphens,
+ * at most 50 characters, and not a reserved subcommand name.
+ */
+export const isValidSpecName = (name: string): boolean =>
+  name.length <= SPEC_NAME_MAX_LENGTH && SPEC_NAME_PATTERN.test(name) &&
+  !RESERVED_NAMES.has(name);
 
 // Stop words to strip when generating slugs from descriptions
 const SLUG_STOP_WORDS = new Set([
@@ -123,7 +137,7 @@ const stripPaths = (text: string): string =>
     .replace(/\s+/g, " ")
     .trim();
 
-const slugFromDescription = (description: string): string => {
+export const slugFromDescription = (description: string): string => {
   const cleaned = stripPaths(description);
   const words = cleaned
     .toLowerCase()
@@ -142,11 +156,11 @@ const slugFromDescription = (description: string): string => {
   // Ensure slug starts and ends with alphanumeric
   slug = slug.replace(/^-+|-+$/g, "");
 
-  return slug || "spec";
+  return slug === "" ? "spec" : slug;
 };
 
 /** Check if a string looks like a description rather than a slug name. */
-const looksLikeDescription = (value: string): boolean => {
+export const looksLikeDescription = (value: string): boolean => {
   return value.includes(" ") || value.length > 50;
 };
 
@@ -173,11 +187,13 @@ const SPEC_SUBCOMMANDS: ReadonlyMap<
   ["ledger", () => import("./ledger.ts")],
 ]);
 
-export { looksLikeDescription, RESERVED_NAMES, slugFromDescription };
-
 export const main = async (
   args?: readonly string[],
 ): Promise<shellArgs.CliResult<void>> => {
+  // The subcommands below build their command strings with this prefix.
+  const { root } = await persistence.resolveProjectRoot();
+  await cmd.loadCommandPrefix(root);
+
   const arg1 = args?.[0];
 
   // noskills spec new <name> "description"
@@ -192,7 +208,7 @@ export const main = async (
 
   // noskills spec help
   if (arg1 === "help" || arg1 === undefined) {
-    const prefix = cmdPrefix();
+    const prefix = cmd.cmdPrefix();
     const out = streams.output({
       renderer: streams.renderers.ansi(),
       sink: streams.sinks.stdout(),
@@ -302,7 +318,7 @@ const specNew = async (
     out.writeln(
       span.red("noskills is not initialized."),
       " Run: ",
-      span.bold(cmd("init")),
+      span.bold(cmd.cmd("init")),
     );
     await out.close();
 
@@ -370,6 +386,8 @@ const specNew = async (
       }
       const candidateDir = `${root}/${persistence.paths.specDir(candidate)}`;
       try {
+        // Suffixes are probed in order and the first free one wins.
+        // deno-lint-ignore no-await-in-loop
         await runtime.fs.stat(candidateDir);
         // Exists — try next suffix
         candidate = `${specName}-${suffix}`;
@@ -408,20 +426,14 @@ const specNew = async (
     return results.fail({ exitCode: 1 });
   }
 
-  // Validate name: lowercase, hyphens, numbers only. Max 50 chars.
-  const NAME_REGEX = /^[a-z0-9][a-z0-9-]*[a-z0-9]$/;
-  if (
-    specName.length > 50 ||
-    (specName.length > 1 && !NAME_REGEX.test(specName)) ||
-    (specName.length === 1 && !/^[a-z0-9]$/.test(specName))
-  ) {
+  if (!isValidSpecName(specName)) {
     out.writeln(
       span.red("Invalid spec name: "),
       span.bold(specName),
     );
     out.writeln(
       span.dim(
-        "Must be lowercase, hyphens, numbers only. Max 50 chars. Regex: /^[a-z0-9][a-z0-9-]*[a-z0-9]$/",
+        `Must be lowercase, hyphens, numbers only. Max ${SPEC_NAME_MAX_LENGTH} chars. Regex: ${SPEC_NAME_PATTERN}`,
       ),
     );
     await out.close();
@@ -433,7 +445,7 @@ const specNew = async (
     out.writeln(
       span.red("Please provide a description: "),
       span.bold(
-        `${cmdPrefix()} spec new "Add photo upload support"`,
+        `${cmd.cmdPrefix()} spec new "Add photo upload support"`,
       ),
     );
     await out.close();
@@ -466,7 +478,7 @@ const specNew = async (
     out.writeln(
       span.red(`Spec "${specName}" already exists.`),
       span.dim(
-        ` Use a different --name or run \`${cmdPrefix()} reset --spec=${specName}\` first.`,
+        ` Use a different --name or run \`${cmd.cmdPrefix()} reset --spec=${specName}\` first.`,
       ),
     );
     await out.close();
@@ -560,7 +572,7 @@ const specNew = async (
   out.writeln("");
   out.writeln(
     "Run ",
-    span.bold(cmd(`next --spec=${specName}`)),
+    span.bold(cmd.cmd(`spec ${specName} next`)),
     " to begin discovery questions.",
   );
   await out.close();
@@ -706,7 +718,7 @@ const specSplit = async (
     out.writeln(
       span.red("noskills is not initialized."),
       " Run: ",
-      span.bold(cmd("init")),
+      span.bold(cmd.cmd("init")),
     );
     await out.close();
 
@@ -722,7 +734,7 @@ const specSplit = async (
     out.writeln(
       span.dim("Example: "),
       span.bold(
-        `${cmdPrefix()} spec split --spec=parent --into name1 "desc1" --into name2 "desc2"`,
+        `${cmd.cmdPrefix()} spec split --spec=parent --into name1 "desc1" --into name2 "desc2"`,
       ),
     );
     await out.close();
@@ -733,7 +745,11 @@ const specSplit = async (
   // Load parent state
   let parentState: schema.StateFile;
   try {
-    parentState = await persistence.resolveState(root, specFlag);
+    parentState = await persistence.resolveState(
+      root,
+      specFlag,
+      cmd.cmdPrefix(),
+    );
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     out.writeln(span.red(`Error: ${msg}`));
@@ -759,9 +775,36 @@ const specSplit = async (
 
   // Parse --into flags
   const intoEntries = parseIntoFlags(args ?? []);
+  let children: split.ChildSpec[];
 
-  if (intoEntries.length < 2) {
-    // If no --into flags, try auto-detect from split detector
+  if (intoEntries.length >= 2) {
+    // Manual split: every child gets all of the parent's answers.
+    const invalidNames = intoEntries
+      .map((entry) => entry.name)
+      .filter((name) => !isValidSpecName(name));
+    if (invalidNames.length > 0) {
+      out.writeln(
+        span.red("Invalid child spec name: "),
+        span.bold(invalidNames.join(", ")),
+      );
+      out.writeln(
+        span.dim(
+          `Use lowercase letters, numbers and hyphens, at most ${SPEC_NAME_MAX_LENGTH} chars, and not a subcommand name.`,
+        ),
+      );
+      await out.close();
+
+      return results.fail({ exitCode: 1 });
+    }
+
+    children = intoEntries.map((entry) => ({
+      name: entry.name,
+      description: entry.description === "" ? null : entry.description,
+      answers: parentState.discovery.answers,
+    }));
+  } else {
+    // No --into flags: use the areas the split detector finds, each with the
+    // answers it came from.
     const proposal = splitDetector.analyzeForSplit(
       parentState.discovery.answers,
     );
@@ -777,103 +820,41 @@ const specSplit = async (
       return results.fail({ exitCode: 1 });
     }
 
-    // Use auto-detected proposals
-    const childNames: string[] = [];
+    children = proposal.proposals.map((item) => ({
+      name: item.name,
+      description: item.description,
+      answers: parentState.discovery.answers.filter((a) =>
+        item.relevantAnswers.includes(a.questionId)
+      ),
+    }));
+  }
 
-    for (const item of proposal.proposals) {
-      const specDir = `${root}/${persistence.paths.specDir(item.name)}`;
-      await runtime.fs.mkdir(specDir, { recursive: true });
-
-      const relevantAnswers = parentState.discovery.answers.filter(
-        (a) => item.relevantAnswers.includes(a.questionId),
-      );
-
-      const childState = machine.startSpec(
-        schema.createInitialState(),
-        item.name,
-        `spec/${item.name}`,
-      );
-
-      let filledState = childState;
-      for (const a of relevantAnswers) {
-        filledState = machine.addDiscoveryAnswer(
-          filledState,
-          a.questionId,
-          a.answer,
-        );
-      }
-
-      filledState = machine.completeDiscovery(filledState);
-      await persistence.writeSpecState(root, item.name, filledState);
-      childNames.push(item.name);
-    }
-
-    // Cancel parent
-    const parentCompleted = machine.completeSpec(
+  let parentCompleted: schema.StateFile;
+  try {
+    parentCompleted = await split.splitSpec(
+      root,
       parentState,
-      "cancelled",
-      `Split into: ${childNames.join(", ")}`,
+      children,
+      cmd.cmdPrefix(),
     );
-    await persistence.writeSpecState(root, specFlag, parentCompleted);
-
-    out.writeln(
-      span.green("Split complete."),
-      ` Created ${childNames.length} sub-specs:`,
-    );
-    for (const name of childNames) {
-      out.writeln("  ", span.dim("○"), " ", span.bold(name));
+  } catch (err: unknown) {
+    if (!(err instanceof split.SplitRefusedError)) {
+      await out.close();
+      throw err;
     }
-    out.writeln(
-      "",
-      span.dim(`Parent spec "${specFlag}" cancelled.`),
-    );
+    out.writeln(span.red(`Error: ${err.message}`));
     await out.close();
 
-    return results.ok(undefined);
+    return results.fail({ exitCode: 1 });
   }
-
-  // Manual split: use --into entries
-  const childNames: string[] = [];
-
-  for (const entry of intoEntries) {
-    const specDir = `${root}/${persistence.paths.specDir(entry.name)}`;
-    await runtime.fs.mkdir(specDir, { recursive: true });
-
-    const childState = machine.startSpec(
-      schema.createInitialState(),
-      entry.name,
-      `spec/${entry.name}`,
-    );
-
-    // Copy all parent discovery answers to each child
-    let filledState = childState;
-    for (const a of parentState.discovery.answers) {
-      filledState = machine.addDiscoveryAnswer(
-        filledState,
-        a.questionId,
-        a.answer,
-      );
-    }
-
-    filledState = machine.completeDiscovery(filledState);
-    await persistence.writeSpecState(root, entry.name, filledState);
-    childNames.push(entry.name);
-  }
-
-  // Cancel parent
-  const parentCompleted = machine.completeSpec(
-    parentState,
-    "cancelled",
-    `Split into: ${childNames.join(", ")}`,
-  );
   await persistence.writeSpecState(root, specFlag, parentCompleted);
 
   out.writeln(
     span.green("Split complete."),
-    ` Created ${childNames.length} sub-specs:`,
+    ` Created ${children.length} sub-specs:`,
   );
-  for (const name of childNames) {
-    out.writeln("  ", span.dim("○"), " ", span.bold(name));
+  for (const child of children) {
+    out.writeln("  ", span.dim("○"), " ", span.bold(child.name));
   }
   out.writeln(
     "",
@@ -902,7 +883,7 @@ const specRevisit = async (
     out.writeln(
       span.red("noskills is not initialized."),
       " Run: ",
-      span.bold(cmd("init")),
+      span.bold(cmd.cmd("init")),
     );
     await out.close();
 
@@ -915,7 +896,7 @@ const specRevisit = async (
     out.writeln(
       span.dim("Example: "),
       span.bold(
-        `${cmdPrefix()} spec revisit --spec=my-spec "reason for revisit"`,
+        `${cmd.cmdPrefix()} spec revisit --spec=my-spec "reason for revisit"`,
       ),
     );
     await out.close();
@@ -930,7 +911,9 @@ const specRevisit = async (
   if (reason === undefined || reason.trim().length === 0) {
     out.writeln(
       span.red(
-        'Error: Reason is required: noskills spec revisit --spec=X "reason"',
+        `Error: Reason is required: ${
+          cmd.cmd(`spec ${specFlag} revisit "reason"`)
+        }`,
       ),
     );
     await out.close();
@@ -940,7 +923,7 @@ const specRevisit = async (
 
   let specState: schema.StateFile;
   try {
-    specState = await persistence.resolveState(root, specFlag);
+    specState = await persistence.resolveState(root, specFlag, cmd.cmdPrefix());
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     out.writeln(span.red(`Error: ${msg}`));
@@ -966,7 +949,7 @@ const specRevisit = async (
   if (specState.phase === "COMPLETED") {
     out.writeln(
       span.red(
-        `Spec is completed. Use \`${cmdPrefix()} reopen --spec=${specFlag}\` instead.`,
+        `Spec is completed. Use \`${cmd.cmdPrefix()} reopen --spec=${specFlag}\` instead.`,
       ),
     );
     await out.close();
@@ -1021,7 +1004,7 @@ const specAC = async (
 
   if (specName === undefined || action === undefined) {
     out.writeln(
-      `Usage: ${cmdPrefix()} spec <name> ac <add "text" | list>`,
+      `Usage: ${cmd.cmdPrefix()} spec <name> ac <add "text" | list>`,
     );
     await out.close();
     return results.ok(undefined);
@@ -1037,7 +1020,11 @@ const specAC = async (
       return results.fail({ exitCode: 1 });
     }
 
-    const state = await persistence.resolveState(root, specName);
+    const state = await persistence.resolveState(
+      root,
+      specName,
+      cmd.cmdPrefix(),
+    );
     const user = await identity.resolveUser(root);
 
     // Warn if adding during EXECUTING
@@ -1060,7 +1047,11 @@ const specAC = async (
   }
 
   if (action === "list") {
-    const state = await persistence.resolveState(root, specName);
+    const state = await persistence.resolveState(
+      root,
+      specName,
+      cmd.cmdPrefix(),
+    );
     const acs = state.customACs ?? [];
 
     out.writeln(span.bold(`Custom ACs for ${specName}`));
@@ -1080,7 +1071,7 @@ const specAC = async (
   }
 
   out.writeln(
-    `Usage: ${cmdPrefix()} spec <name> ac <add "text" | list>`,
+    `Usage: ${cmd.cmdPrefix()} spec <name> ac <add "text" | list>`,
   );
   await out.close();
   return results.ok(undefined);
@@ -1103,7 +1094,7 @@ const specTask = async (
 
   if (specName === undefined || action === undefined) {
     out.writeln(
-      `Usage: ${cmdPrefix()} spec <name> task <add "text" | list>`,
+      `Usage: ${cmd.cmdPrefix()} spec <name> task <add "text" | list>`,
     );
     await out.close();
     return results.ok(undefined);
@@ -1119,7 +1110,11 @@ const specTask = async (
       return results.fail({ exitCode: 1 });
     }
 
-    const state = await persistence.resolveState(root, specName);
+    const state = await persistence.resolveState(
+      root,
+      specName,
+      cmd.cmdPrefix(),
+    );
 
     if (state.phase === "EXECUTING" || state.phase === "BLOCKED") {
       out.writeln(
@@ -1146,7 +1141,11 @@ const specTask = async (
   }
 
   if (action === "list") {
-    const state = await persistence.resolveState(root, specName);
+    const state = await persistence.resolveState(
+      root,
+      specName,
+      cmd.cmdPrefix(),
+    );
     const notes = (state.specNotes ?? []).filter((n) =>
       n.text.startsWith("[TASK] ")
     );
@@ -1168,7 +1167,7 @@ const specTask = async (
   }
 
   out.writeln(
-    `Usage: ${cmdPrefix()} spec <name> task <add "text" | list>`,
+    `Usage: ${cmd.cmdPrefix()} spec <name> task <add "text" | list>`,
   );
   await out.close();
   return results.ok(undefined);
@@ -1191,7 +1190,7 @@ const specNote = async (
 
   if (specName === undefined || action === undefined) {
     out.writeln(
-      `Usage: ${cmdPrefix()} spec <name> note <add "text" | list>`,
+      `Usage: ${cmd.cmdPrefix()} spec <name> note <add "text" | list>`,
     );
     await out.close();
     return results.ok(undefined);
@@ -1207,7 +1206,11 @@ const specNote = async (
       return results.fail({ exitCode: 1 });
     }
 
-    const state = await persistence.resolveState(root, specName);
+    const state = await persistence.resolveState(
+      root,
+      specName,
+      cmd.cmdPrefix(),
+    );
     const user = await identity.resolveUser(root);
     const newState = machine.addSpecNote(state, text, user);
     await persistence.writeSpecState(root, specName, newState);
@@ -1222,7 +1225,11 @@ const specNote = async (
   }
 
   if (action === "list") {
-    const state = await persistence.resolveState(root, specName);
+    const state = await persistence.resolveState(
+      root,
+      specName,
+      cmd.cmdPrefix(),
+    );
     const notes = (state.specNotes ?? []).filter((n) =>
       !n.text.startsWith("[TASK] ")
     );
@@ -1244,7 +1251,7 @@ const specNote = async (
   }
 
   out.writeln(
-    `Usage: ${cmdPrefix()} spec <name> note <add "text" | list>`,
+    `Usage: ${cmd.cmdPrefix()} spec <name> note <add "text" | list>`,
   );
   await out.close();
   return results.ok(undefined);

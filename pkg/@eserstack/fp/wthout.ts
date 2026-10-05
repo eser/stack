@@ -2,6 +2,13 @@
 
 type Key = string | number | symbol;
 
+/**
+ * Returns a copy of an object without the given keys.
+ *
+ * @param instance - The source object
+ * @param fields - The keys to leave out
+ * @returns A new object
+ */
 export const wthout = <T>(
   instance: Record<Key, T>,
   ...fields: ReadonlyArray<Key>
@@ -19,5 +26,3 @@ export const wthout = <T>(
 
   return result;
 };
-
-export { wthout as default };

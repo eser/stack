@@ -17,6 +17,7 @@ import type * as types from "./types.ts";
 import * as errors from "./errors.ts";
 import * as interceptors from "./interceptors.ts";
 import * as goClientModule from "./go-client.ts";
+import * as goTransport from "./go-transport.ts";
 
 // =============================================================================
 // Defaults
@@ -147,10 +148,14 @@ const errorMessageFromBody = (body: unknown): string | null => {
 
 export class HttpClient {
   private readonly config: types.HttpClientConfig;
-  #goClient: goClientModule.GoHttpClient | null = null;
-  #goClientInit: Promise<void> | null = null;
+  #goClientInit: Promise<goClientModule.GoHttpClient> | null = null;
 
   constructor(config?: types.HttpClientConfig) {
+    if (config?.transport === "native" && config.fetchFn !== undefined) {
+      throw new TypeError(
+        'HttpClient: fetchFn and transport "native" exclude each other; pass one of them',
+      );
+    }
     this.config = config ?? {};
   }
 
@@ -170,15 +175,11 @@ export class HttpClient {
   // Throw-style API
   // ---------------------------------------------------------------------------
 
-  async request<T>(
+  request<T>(
     method: types.HttpMethod,
     url: string,
     options?: types.RequestOptions,
   ): Promise<types.HttpResponse<T>> {
-    await this.#ensureGoClient();
-    if (this.#goClient !== null) {
-      return this.#executeViaGoClient<T>(method, url, options);
-    }
     return this._execute<T>(method, url, options);
   }
 
@@ -228,18 +229,15 @@ export class HttpClient {
    * Key differences from `request<T>()`:
    * - Body is NOT consumed or parsed — caller owns the stream lifecycle.
    * - Retry applies to connection establishment only, not stream reading.
-   * - Timeout applies to the initial connection, not stream duration.
+   * - Timeout applies to the initial connection, not stream duration; on
+   *   transport "native" the Go client's timeout covers the whole stream.
    * - Response interceptors do NOT run (they require a parsed `data` field).
    */
-  async requestStream(
+  requestStream(
     method: types.HttpMethod,
     url: string,
     options?: types.RequestOptions,
   ): Promise<types.HttpStreamResponse> {
-    await this.#ensureGoClient();
-    if (this.#goClient !== null) {
-      return this.#executeStreamViaGoClient(method, url, options);
-    }
     return this._executeStream(method, url, options);
   }
 
@@ -363,12 +361,15 @@ export class HttpClient {
    * _executeStream returns the body stream directly.
    *
    * This is the single source of truth for retry/timeout behavior — both
-   * _execute and _executeStream delegate entirely to this method.
+   * _execute and _executeStream delegate entirely to this method, on the
+   * fetch and the native transport alike. `stream` tells the native
+   * transport to hand the body over unread.
    */
   private async _executeFetch<T>(
     method: types.HttpMethod,
     url: string,
     options: types.RequestOptions | undefined,
+    stream: boolean,
     onSuccess: (
       raw: Response,
       sentRequest: Request,
@@ -376,7 +377,6 @@ export class HttpClient {
       rateLimit: types.RateLimitInfo | undefined,
     ) => Promise<T>,
   ): Promise<T> {
-    const fetchFn = this.config.fetchFn ?? fetch;
     const delayFn = this.config._delayFn ?? defaultDelayFn;
 
     // Build URL
@@ -416,13 +416,26 @@ export class HttpClient {
       }
     }
 
+    if (
+      this.config.transport === "native" && body !== undefined &&
+      typeof body !== "string" && !(body instanceof URLSearchParams)
+    ) {
+      throw new errors.HttpClientError(
+        `${method} request: transport "native" sends text bodies only (a string, URLSearchParams, or an object sent as JSON); send binary, form and stream bodies with the default fetch transport`,
+      );
+    }
+
     // Resolve retry and timeout config
     const retryCfg = resolveRetryConfig(this.config.retry, options?.retry);
     const timeout = options?.timeout ?? this.config.timeout ?? DEFAULT_TIMEOUT;
-    const maxAttempts = retryCfg === false
+    // A stream body is consumed by the first attempt and cannot be sent again,
+    // so a request with one is never retried.
+    const replayable = !(body instanceof ReadableStream);
+    const maxAttempts = retryCfg === false || !replayable
       ? 1
       : (retryCfg.maxAttempts ?? DEFAULT_RETRY.maxAttempts);
     const requestInterceptors = this.config.interceptors?.request ?? [];
+    const fetchFn = await this.#resolveFetch(stream);
 
     let retries = 0;
     let lastError: errors.HttpClientError | undefined;
@@ -443,19 +456,25 @@ export class HttpClient {
           ? AbortSignal.any([timeoutSignal, userSignal])
           : timeoutSignal;
 
-        const initRequest = new Request(fullUrl.toString(), {
+        const init: RequestInit & { duplex?: "half" } = {
           method,
           headers,
           body,
           signal,
-        });
+          // Node's fetch requires duplex for a stream body; Deno and
+          // browsers accept it.
+          ...(!replayable && { duplex: "half" }),
+        };
+        const initRequest = new Request(fullUrl.toString(), init);
 
+        // Attempts are sequential: a retry starts only after this one fails.
         // deno-lint-ignore no-await-in-loop
         sentRequest = await interceptors.applyRequestInterceptors(
           initRequest,
           requestInterceptors,
         );
 
+        // Attempts are sequential: a retry starts only after this one fails.
         // deno-lint-ignore no-await-in-loop
         raw = await fetchFn(sentRequest);
       } catch (err) {
@@ -477,6 +496,7 @@ export class HttpClient {
             attempt,
             retryCfg === false ? DEFAULT_RETRY : retryCfg,
           );
+          // The backoff must elapse before the next attempt starts.
           // deno-lint-ignore no-await-in-loop
           await delayFn(delay);
         }
@@ -487,6 +507,7 @@ export class HttpClient {
       const rateLimit = extractRateLimitInfo(raw.headers);
 
       if (!raw.ok) {
+        // The error body decides whether and how this attempt is retried.
         // deno-lint-ignore no-await-in-loop
         const errorBody = await extractErrorBody(raw);
         const statusMsg = errorMessageFromBody(errorBody) ??
@@ -524,6 +545,8 @@ export class HttpClient {
             raw.status === 429 && retryCfg !== false &&
             retryCfg.respectRetryAfter && retryAfterMs !== null
           ) {
+            // The server's Retry-After wait must elapse before the next
+            // attempt.
             // deno-lint-ignore no-await-in-loop
             await delayFn(retryAfterMs);
             continue;
@@ -533,6 +556,7 @@ export class HttpClient {
             attempt,
             retryCfg === false ? DEFAULT_RETRY : retryCfg,
           );
+          // The backoff must elapse before the next attempt starts.
           // deno-lint-ignore no-await-in-loop
           await delayFn(delay);
           continue;
@@ -541,7 +565,8 @@ export class HttpClient {
         throw httpError;
       }
 
-      // 2xx — delegate to the variant-specific success handler
+      // 2xx: delegate to the variant-specific success handler. The await
+      // ends the loop; it returns on the first successful attempt.
       // deno-lint-ignore no-await-in-loop
       return await onSuccess(raw, sentRequest, retries, rateLimit);
     }
@@ -563,6 +588,7 @@ export class HttpClient {
       method,
       url,
       options,
+      false,
       async (raw, sentRequest, retries, rateLimit) => {
         // Parse response body
         let data: T;
@@ -620,6 +646,7 @@ export class HttpClient {
       method,
       url,
       options,
+      true,
       (raw, sentRequest, retries, rateLimit) => {
         if (raw.body === null) {
           return Promise.reject(
@@ -644,194 +671,52 @@ export class HttpClient {
   }
 
   // ---------------------------------------------------------------------------
-  // Go FFI bridge (private)
+  // Transport
   // ---------------------------------------------------------------------------
 
-  #classifyGoHttpError(err: unknown): errors.HttpClientError {
-    if (err instanceof goClientModule.GoHttpError) {
-      if (err.status > 0) {
-        let body: unknown = err.body;
-        try {
-          body = JSON.parse(err.body);
-        } catch { /* keep as string */ }
-        const retryAfterMs = parseRetryAfterMs(
-          err.headers["Retry-After"] ?? err.headers["retry-after"] ?? null,
-        );
-        const opts: errors.HttpClientErrorOptions = {
-          statusCode: err.status,
-          body,
-          ...(retryAfterMs !== null && { retryAfter: retryAfterMs / 1_000 }),
-        };
-        if (err.status === 429) {
-          return new errors.HttpRateLimitError(`HTTP ${err.status}`, opts);
-        }
-        return new errors.HttpResponseError(`HTTP ${err.status}`, opts);
-      }
-      return new errors.HttpNetworkError(err.message, { cause: err });
+  /**
+   * The function that sends one Request: `fetchFn` or the global fetch, or the
+   * Go client for `transport: "native"`.
+   */
+  async #resolveFetch(stream: boolean): Promise<goTransport.FetchLike> {
+    if (this.config.transport !== "native") {
+      return this.config.fetchFn ?? fetch;
     }
-    const e = err instanceof Error ? err : new Error(String(err));
-    return errors.classifyError(e);
+    return goTransport.createGoFetch(await this.#nativeClient(), stream);
   }
 
-  #ensureGoClient(): Promise<void> {
-    // Custom fetchFn signals test/mock mode — always use the TS path.
-    if (this.config.fetchFn !== undefined) {
-      return Promise.resolve();
-    }
+  /** Creates the Go client on first use and reuses it until `close()`. */
+  #nativeClient(): Promise<goClientModule.GoHttpClient> {
     if (this.#goClientInit !== null) {
       return this.#goClientInit;
     }
-    this.#goClientInit = goClientModule.createGoHttpClient({
-      baseUrl: this.config.baseUrl,
-      timeout: this.config.timeout,
-      headers: this.config.headers,
-    }).then(
-      (client) => {
-        this.#goClient = client;
-      },
-      () => {/* native library unavailable — #goClient stays null */},
-    );
-    return this.#goClientInit;
-  }
 
-  async #executeViaGoClient<T>(
-    method: types.HttpMethod,
-    url: string,
-    options?: types.RequestOptions,
-  ): Promise<types.HttpResponse<T>> {
-    const resolvedUrl = resolveUrl(this.config.baseUrl, url);
-    const headers: Record<string, string> = {
-      ...(this.config.headers ?? {}),
-      ...(options?.headers ?? {}),
-    };
-    const bodyValue = options?.body;
-    let bodyStr: string | undefined;
-    if (bodyValue !== undefined) {
-      if (typeof bodyValue === "string") {
-        bodyStr = bodyValue;
-      } else if (
-        typeof bodyValue === "object" && bodyValue !== null &&
-        !(bodyValue instanceof ReadableStream)
-      ) {
-        bodyStr = JSON.stringify(bodyValue);
-        if (headers["Content-Type"] === undefined) {
-          headers["Content-Type"] = "application/json";
-        }
-      }
-    }
-
-    const goReq: goClientModule.GoHttpRequest = {
-      method: method as goClientModule.GoHttpMethod,
-      url: resolvedUrl,
-      headers,
-      ...(bodyStr !== undefined && { body: bodyStr }),
-      ...(options?.timeout !== undefined && { timeout: options.timeout }),
-    };
-
-    let resp: Awaited<ReturnType<goClientModule.GoHttpClient["request"]>>;
-    try {
-      resp = await this.#goClient!.request(goReq);
-    } catch (err) {
-      throw this.#classifyGoHttpError(err);
-    }
-
-    const contentType = resp.headers["content-type"] ??
-      resp.headers["Content-Type"] ?? "";
-    let data: T;
-    if (contentType.includes("application/json")) {
-      data = JSON.parse(resp.body) as T;
-    } else {
-      try {
-        data = JSON.parse(resp.body) as T;
-      } catch {
-        data = resp.body as unknown as T;
-      }
-    }
-
-    const raw = new Response(resp.body, {
-      status: resp.status,
-      statusText: resp.statusText,
-      headers: resp.headers,
+    const create = this.config._createGoClient ??
+      goClientModule.createGoHttpClient;
+    // Retries stay off in Go: the retry policy above runs on both transports.
+    // The Go timeout bounds each blocking call.
+    const init = create({
+      timeoutMs: this.config.timeout ?? DEFAULT_TIMEOUT,
+    }).catch((cause: unknown) => {
+      throw new errors.HttpClientError(
+        'transport "native": the Go HTTP client could not be created; remove transport: "native" to send requests with fetch',
+        { cause: cause instanceof Error ? cause : new Error(String(cause)) },
+      );
     });
-    const rateLimit = extractRateLimitInfo(raw.headers);
-
-    return {
-      data,
-      status: resp.status,
-      statusText: resp.statusText,
-      headers: raw.headers,
-      request: new Request(resolvedUrl, { method, headers }),
-      raw,
-      retries: resp.retries,
-      ...(rateLimit !== undefined && { rateLimit }),
-    };
+    this.#goClientInit = init;
+    return init;
   }
 
-  async #executeStreamViaGoClient(
-    method: types.HttpMethod,
-    url: string,
-    options?: types.RequestOptions,
-  ): Promise<types.HttpStreamResponse> {
-    const resolvedUrl = resolveUrl(this.config.baseUrl, url);
-    const headers: Record<string, string> = {
-      ...(this.config.headers ?? {}),
-      ...(options?.headers ?? {}),
-    };
-    const bodyValue = options?.body;
-    let bodyStr: string | undefined;
-    if (bodyValue !== undefined) {
-      if (typeof bodyValue === "string") {
-        bodyStr = bodyValue;
-      } else if (
-        typeof bodyValue === "object" && bodyValue !== null &&
-        !(bodyValue instanceof ReadableStream)
-      ) {
-        bodyStr = JSON.stringify(bodyValue);
-        if (headers["Content-Type"] === undefined) {
-          headers["Content-Type"] = "application/json";
-        }
-      }
-    }
-
-    const goReq: goClientModule.GoHttpRequest = {
-      method: method as goClientModule.GoHttpMethod,
-      url: resolvedUrl,
-      headers,
-      ...(bodyStr !== undefined && { body: bodyStr }),
-      ...(options?.timeout !== undefined && { timeout: options.timeout }),
-    };
-
-    let resp: Awaited<ReturnType<goClientModule.GoHttpClient["requestStream"]>>;
-    try {
-      resp = await this.#goClient!.requestStream(goReq);
-    } catch (err) {
-      throw this.#classifyGoHttpError(err);
-    }
-
-    const rawHeaders = new Headers(resp.headers);
-    const rateLimit = extractRateLimitInfo(rawHeaders);
-
-    return {
-      body: resp.body,
-      status: resp.status,
-      statusText: resp.statusText,
-      headers: rawHeaders,
-      request: new Request(resolvedUrl, { method, headers }),
-      raw: new Response(resp.body, {
-        status: resp.status,
-        statusText: resp.statusText,
-        headers: resp.headers,
-      }),
-      retries: 0,
-      ...(rateLimit !== undefined && { rateLimit }),
-    };
-  }
-
-  /** Release the underlying Go HTTP client handle. */
+  /** Release the Go HTTP client handle that `transport: "native"` opened. */
   close(): void {
-    this.#goClient?.close();
-    this.#goClient = null;
+    const init = this.#goClientInit;
     this.#goClientInit = null;
+    init?.then(
+      (client) => client.close(),
+      () => {
+        // Creation failed, so there is no handle to release.
+      },
+    );
   }
 }
 

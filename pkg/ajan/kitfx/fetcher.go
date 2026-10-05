@@ -3,15 +3,30 @@
 package kitfx
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
+
+	"github.com/eser/stack/pkg/ajan/lib"
+)
+
+const (
+	// registryHTTPTimeout bounds one registry or GitHub request, from dialing
+	// to reading the last byte of the body.
+	registryHTTPTimeout = 30 * time.Second
+
+	// maxRegistryResponseBytes caps one registry or GitHub response body. A
+	// registry manifest is a few kilobytes, and the GitHub contents API serves
+	// files of at most 1 MiB inline, which base64 grows by a third.
+	maxRegistryResponseBytes = 4 << 20
 )
 
 // ErrRegistryNotFound is returned when no registry manifest can be located.
@@ -108,10 +123,11 @@ func ResolveSpecifier(specifier string) ResolvedSpecifier {
 // Otherwise it is treated as a file path.
 // If registryURL is empty, the function walks up to maxAncestorSearch
 // parent directories from cwd to find a .eser/recipes.json file.
-func FetchRegistry(cwd, registryURL string) (*RegistryManifest, error) {
+// An HTTP fetch stops when ctx ends or after registryHTTPTimeout.
+func FetchRegistry(ctx context.Context, cwd, registryURL string) (*RegistryManifest, error) {
 	if registryURL != "" {
 		if strings.HasPrefix(registryURL, "http") {
-			return fetchRegistryHTTP(registryURL)
+			return fetchRegistryHTTP(ctx, registryURL)
 		}
 
 		return fetchRegistryFile(registryURL)
@@ -139,9 +155,9 @@ func FetchRegistry(cwd, registryURL string) (*RegistryManifest, error) {
 
 // FetchRegistryFromRepo fetches a registry manifest from a GitHub repository.
 // It uses the GitHub Contents API at the well-known path "eser-registry.json".
-func FetchRegistryFromRepo(owner, repo, ref string) (*RegistryManifest, error) {
+func FetchRegistryFromRepo(ctx context.Context, owner, repo, ref string) (*RegistryManifest, error) {
 	path := "eser-registry.json"
-	content, err := fetchGitHubFile(owner, repo, path, ref)
+	content, err := fetchGitHubFile(ctx, owner, repo, path, ref)
 
 	if err != nil {
 		return nil, fmt.Errorf("fetching registry from github.com/%s/%s: %w", owner, repo, err)
@@ -156,7 +172,7 @@ func FetchRegistryFromRepo(owner, repo, ref string) (*RegistryManifest, error) {
 }
 
 // FetchRecipeFile fetches the content of a single recipe file.
-func FetchRecipeFile(file *RecipeFile, recipe *Recipe, registryURL string) (string, error) {
+func FetchRecipeFile(ctx context.Context, file *RecipeFile, recipe *Recipe, registryURL string) (string, error) {
 	switch file.Provider {
 	case RecipeFileProviderGitHub:
 		spec := ResolveSpecifier(registryURL)
@@ -164,7 +180,7 @@ func FetchRecipeFile(file *RecipeFile, recipe *Recipe, registryURL string) (stri
 			return "", fmt.Errorf("github provider requires a gh: registry URL, got %q", registryURL)
 		}
 
-		return fetchGitHubFile(spec.Owner, spec.Repo, file.Source, spec.Ref)
+		return fetchGitHubFile(ctx, spec.Owner, spec.Repo, file.Source, spec.Ref)
 
 	default:
 		// Local provider: source is relative to the registry manifest location.
@@ -175,7 +191,7 @@ func FetchRecipeFile(file *RecipeFile, recipe *Recipe, registryURL string) (stri
 // FetchRecipeFolder fetches all files within a recipe folder entry.
 // Returns a slice of FetchedFile so callers can write them atomically after
 // all downloads succeed (matching the TS atomicity guarantee).
-func FetchRecipeFolder(file *RecipeFile, recipe *Recipe, registryURL string) ([]FetchedFile, error) {
+func FetchRecipeFolder(ctx context.Context, file *RecipeFile, recipe *Recipe, registryURL string) ([]FetchedFile, error) {
 	switch file.Provider {
 	case RecipeFileProviderGitHub:
 		spec := ResolveSpecifier(registryURL)
@@ -183,7 +199,7 @@ func FetchRecipeFolder(file *RecipeFile, recipe *Recipe, registryURL string) ([]
 			return nil, fmt.Errorf("github provider requires a gh: registry URL, got %q", registryURL)
 		}
 
-		return fetchGitHubFolder(spec.Owner, spec.Repo, file.Source, spec.Ref)
+		return fetchGitHubFolder(ctx, spec.Owner, spec.Repo, file.Source, spec.Ref)
 
 	default:
 		return readLocalFolder(file.Source)
@@ -206,29 +222,53 @@ func fetchRegistryFile(path string) (*RegistryManifest, error) {
 	return &manifest, nil
 }
 
-func fetchRegistryHTTP(url string) (*RegistryManifest, error) {
-	resp, err := http.Get(url) //nolint:gosec,noctx // registry URL is user-supplied config
+func fetchRegistryHTTP(ctx context.Context, registryURL string) (*RegistryManifest, error) {
+	data, err := httpGet(ctx, registryURL, "")
 	if err != nil {
-		return nil, fmt.Errorf("fetching registry %q: %w", url, err)
-	}
-
-	defer resp.Body.Close() //nolint:errcheck
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("fetching registry %q: HTTP %d", url, resp.StatusCode)
-	}
-
-	data, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("reading registry response: %w", err)
+		return nil, fmt.Errorf("fetching registry %q: %w", registryURL, err)
 	}
 
 	var manifest RegistryManifest
 	if err := json.Unmarshal(data, &manifest); err != nil {
-		return nil, fmt.Errorf("parsing registry response: %w", err)
+		return nil, fmt.Errorf("parsing registry response from %q: %w", registryURL, err)
 	}
 
 	return &manifest, nil
+}
+
+// httpGet sends a GET request and returns the body of a 200 response. The
+// request ends when ctx ends or after registryHTTPTimeout, and a body larger
+// than maxRegistryResponseBytes is an error wrapping lib.ErrReadLimitExceeded.
+func httpGet(ctx context.Context, target, accept string) ([]byte, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, target, http.NoBody)
+	if err != nil {
+		return nil, fmt.Errorf("building request: %w", err)
+	}
+
+	if accept != "" {
+		req.Header.Set("Accept", accept)
+	}
+
+	client := &http.Client{Timeout: registryHTTPTimeout}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	// The body is read in full or abandoned on error; a failed close loses nothing.
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("HTTP %d", resp.StatusCode)
+	}
+
+	data, err := lib.ReadAllLimited(resp.Body, maxRegistryResponseBytes)
+	if err != nil {
+		return nil, fmt.Errorf("reading response body: %w", err)
+	}
+
+	return data, nil
 }
 
 // githubContentsItem is a single entry from the GitHub Contents API response.
@@ -241,33 +281,24 @@ type githubContentsItem struct {
 	DownloadURL string `json:"download_url"`
 }
 
-func fetchGitHubFile(owner, repo, path, ref string) (string, error) {
-	url := fmt.Sprintf("https://api.github.com/repos/%s/%s/contents/%s", owner, repo, path)
+// githubContentsURL builds the GitHub Contents API URL for path at ref.
+func githubContentsURL(owner, repo, path, ref string) string {
+	endpoint := fmt.Sprintf("https://api.github.com/repos/%s/%s/contents/%s", owner, repo, path)
 	if ref != "" {
-		url += "?ref=" + ref
+		endpoint += "?ref=" + url.QueryEscape(ref)
 	}
 
-	req, err := http.NewRequest(http.MethodGet, url, http.NoBody) //nolint:noctx
+	return endpoint
+}
+
+const githubAcceptHeader = "application/vnd.github.v3+json"
+
+func fetchGitHubFile(ctx context.Context, owner, repo, path, ref string) (string, error) {
+	endpoint := githubContentsURL(owner, repo, path, ref)
+
+	data, err := httpGet(ctx, endpoint, githubAcceptHeader)
 	if err != nil {
-		return "", err
-	}
-
-	req.Header.Set("Accept", "application/vnd.github.v3+json")
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return "", fmt.Errorf("GitHub API GET %s: %w", url, err)
-	}
-
-	defer resp.Body.Close() //nolint:errcheck
-
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("GitHub API GET %s: HTTP %d", url, resp.StatusCode)
-	}
-
-	data, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return "", err
+		return "", fmt.Errorf("GitHub API GET %s: %w", endpoint, err)
 	}
 
 	var item githubContentsItem
@@ -287,33 +318,12 @@ func fetchGitHubFile(owner, repo, path, ref string) (string, error) {
 	return item.Content, nil
 }
 
-func fetchGitHubFolder(owner, repo, path, ref string) ([]FetchedFile, error) {
-	url := fmt.Sprintf("https://api.github.com/repos/%s/%s/contents/%s", owner, repo, path)
-	if ref != "" {
-		url += "?ref=" + ref
-	}
+func fetchGitHubFolder(ctx context.Context, owner, repo, path, ref string) ([]FetchedFile, error) {
+	endpoint := githubContentsURL(owner, repo, path, ref)
 
-	req, err := http.NewRequest(http.MethodGet, url, http.NoBody) //nolint:noctx
+	data, err := httpGet(ctx, endpoint, githubAcceptHeader)
 	if err != nil {
-		return nil, err
-	}
-
-	req.Header.Set("Accept", "application/vnd.github.v3+json")
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("GitHub folder listing %s: %w", url, err)
-	}
-
-	defer resp.Body.Close() //nolint:errcheck
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("GitHub folder listing %s: HTTP %d", url, resp.StatusCode)
-	}
-
-	data, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("GitHub folder listing %s: %w", endpoint, err)
 	}
 
 	var items []githubContentsItem
@@ -328,7 +338,7 @@ func fetchGitHubFolder(owner, repo, path, ref string) ([]FetchedFile, error) {
 			continue // skip subdirs for now
 		}
 
-		content, err := fetchGitHubFile(owner, repo, item.Path, ref)
+		content, err := fetchGitHubFile(ctx, owner, repo, item.Path, ref)
 		if err != nil {
 			return nil, fmt.Errorf("fetching %s: %w", item.Path, err)
 		}

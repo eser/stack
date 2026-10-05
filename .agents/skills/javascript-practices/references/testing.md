@@ -7,21 +7,20 @@ architecture-guidelines: What to Test.
 
 ## Test Files and Runner
 
-Scope: Tests under `pkg/@eserstack/*`
+Scope: TypeScript tests
 
 Rule:
 
-- Name test files `<module>.test.ts`, next to the module they test. A few older
-  files use `_test.ts`; do not add more.
-- Both `Deno.test` and `@std/testing/bdd` (`describe`/`it`) are in use. Follow
-  the style of the existing tests in the package; a new package may pick either.
-- Assert with `@std/assert`; test helpers and assertions are the named-import
-  exception in modules.md: Imports.
+- Name test files `<module>.test.ts`, next to the module they test; never
+  `_test.ts`.
+- Both `Deno.test` and `@std/testing/bdd` (`describe`/`it`) are fine. Follow the
+  style of the existing tests in the package; a new package may pick either.
+- Assert with `@std/assert`, imported as a namespace like everything else.
 - Match the package's runner (`Deno.test` or bdd), not its import style: test
   files use namespace imports like any other module.
-- Run the suite with `deno task cli test` (defined in `.eser/manifest.yml`, with
-  the permissions and coverage flags the repository uses). For one file,
-  `deno test --allow-all path/to/file.test.ts`.
+- Run the suite through the repository's test script (a `test` entry in
+  `.eser/manifest.yml`, which carries the permissions and coverage flags). For
+  one file, `deno test --allow-all path/to/file.test.ts`.
 - Tests that touch files, env or processes go through `runtime` from
   `@eserstack/standards/cross-runtime` and clean up temporary directories they
   create.

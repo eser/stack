@@ -1,13 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 import * as assert from "@std/assert";
-import {
-  extractFontFamilies,
-  extractFontUrls,
-  generateInlineFontFaceCss,
-  generatePreloadHints,
-  rewriteFontFaceCss,
-} from "./fonts.ts";
+import * as fonts from "./fonts.ts";
 import type { FontFile } from "./types.ts";
 
 // ============================================================================
@@ -21,7 +15,7 @@ Deno.test("extractFontUrls extracts woff2 URLs from CSS", () => {
     }
   `;
 
-  const urls = extractFontUrls(css);
+  const urls = fonts.extractFontUrls(css);
 
   assert.assertEquals(urls.length, 1);
   assert.assert(urls[0]?.includes(".woff2"));
@@ -34,7 +28,7 @@ Deno.test("extractFontUrls extracts woff URLs", () => {
     }
   `;
 
-  const urls = extractFontUrls(css);
+  const urls = fonts.extractFontUrls(css);
 
   assert.assertEquals(urls.length, 1);
   assert.assert(urls[0]?.includes(".woff"));
@@ -47,7 +41,7 @@ Deno.test("extractFontUrls extracts ttf URLs", () => {
     }
   `;
 
-  const urls = extractFontUrls(css);
+  const urls = fonts.extractFontUrls(css);
 
   assert.assertEquals(urls.length, 1);
   assert.assert(urls[0]?.includes(".ttf"));
@@ -60,7 +54,7 @@ Deno.test("extractFontUrls handles double-quoted URLs", () => {
     }
   `;
 
-  const urls = extractFontUrls(css);
+  const urls = fonts.extractFontUrls(css);
 
   assert.assertEquals(urls.length, 1);
   assert.assertEquals(urls[0], "https://fonts.example.com/font.woff2");
@@ -73,7 +67,7 @@ Deno.test("extractFontUrls handles single-quoted URLs", () => {
     }
   `;
 
-  const urls = extractFontUrls(css);
+  const urls = fonts.extractFontUrls(css);
 
   assert.assertEquals(urls.length, 1);
   assert.assertEquals(urls[0], "https://fonts.example.com/font.woff2");
@@ -86,7 +80,7 @@ Deno.test("extractFontUrls handles unquoted URLs", () => {
     }
   `;
 
-  const urls = extractFontUrls(css);
+  const urls = fonts.extractFontUrls(css);
 
   assert.assertEquals(urls.length, 1);
 });
@@ -94,7 +88,7 @@ Deno.test("extractFontUrls handles unquoted URLs", () => {
 Deno.test("extractFontUrls returns empty array when no font URLs", () => {
   const css = `.foo { color: red; background: url(image.png); }`;
 
-  const urls = extractFontUrls(css);
+  const urls = fonts.extractFontUrls(css);
 
   assert.assertEquals(urls.length, 0);
 });
@@ -109,7 +103,7 @@ Deno.test("extractFontUrls extracts multiple URLs", () => {
     }
   `;
 
-  const urls = extractFontUrls(css);
+  const urls = fonts.extractFontUrls(css);
 
   assert.assertEquals(urls.length, 2);
 });
@@ -138,7 +132,7 @@ Deno.test("extractFontUrls handles quoted, unquoted and malformed values", () =>
   ];
 
   for (const [css, urls] of cases) {
-    assert.assertEquals(extractFontUrls(css), urls, css);
+    assert.assertEquals(fonts.extractFontUrls(css), urls, css);
   }
 });
 
@@ -149,7 +143,7 @@ Deno.test("extractFontUrls stays linear on adversarial CSS (ReDoS regression)", 
   const css = "url(".repeat(20_000) + "a".repeat(20_000) + ".woff2";
 
   const started = performance.now();
-  assert.assertEquals(extractFontUrls(css), []);
+  assert.assertEquals(fonts.extractFontUrls(css), []);
   const elapsed = performance.now() - started;
 
   assert.assert(
@@ -166,7 +160,7 @@ Deno.test("extractFontFamilies extracts single font family from URL", () => {
   const url =
     "https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap";
 
-  const families = extractFontFamilies(url);
+  const families = fonts.extractFontFamilies(url);
 
   assert.assertEquals(families.length, 1);
   assert.assertEquals(families[0], "Roboto");
@@ -176,7 +170,7 @@ Deno.test("extractFontFamilies extracts multiple font families", () => {
   const url =
     "https://fonts.googleapis.com/css2?family=Roboto|Open+Sans&display=swap";
 
-  const families = extractFontFamilies(url);
+  const families = fonts.extractFontFamilies(url);
 
   assert.assertEquals(families.length, 2);
   assert.assertEquals(families[0], "Roboto");
@@ -187,7 +181,7 @@ Deno.test("extractFontFamilies decodes URL-encoded family names", () => {
   const url =
     "https://fonts.googleapis.com/css2?family=Roboto+Mono&display=swap";
 
-  const families = extractFontFamilies(url);
+  const families = fonts.extractFontFamilies(url);
 
   assert.assertEquals(families.length, 1);
   assert.assertEquals(families[0], "Roboto Mono");
@@ -197,7 +191,7 @@ Deno.test("extractFontFamilies extracts family name without weight specifier", (
   const url =
     "https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500&display=swap";
 
-  const families = extractFontFamilies(url);
+  const families = fonts.extractFontFamilies(url);
 
   assert.assertEquals(families.length, 1);
   assert.assertEquals(families[0], "Inter");
@@ -206,7 +200,7 @@ Deno.test("extractFontFamilies extracts family name without weight specifier", (
 Deno.test("extractFontFamilies returns empty array for invalid URL", () => {
   const url = "https://fonts.googleapis.com/css2?display=swap";
 
-  const families = extractFontFamilies(url);
+  const families = fonts.extractFontFamilies(url);
 
   assert.assertEquals(families.length, 0);
 });
@@ -230,7 +224,7 @@ Deno.test("rewriteFontFaceCss replaces CDN URLs with local paths", () => {
     },
   ];
 
-  const rewritten = rewriteFontFaceCss(originalCss, fontFiles, "/fonts");
+  const rewritten = fonts.rewriteFontFaceCss(originalCss, fontFiles, "/fonts");
 
   assert.assert(rewritten.includes("/fonts/font.woff2"));
   // Check that no external URLs remain by verifying no http(s):// protocol prefixes
@@ -262,7 +256,7 @@ Deno.test("rewriteFontFaceCss handles multiple font files", () => {
     },
   ];
 
-  const rewritten = rewriteFontFaceCss(originalCss, fontFiles, "/fonts");
+  const rewritten = fonts.rewriteFontFaceCss(originalCss, fontFiles, "/fonts");
 
   assert.assert(rewritten.includes("/fonts/a.woff2"));
   assert.assert(rewritten.includes("/fonts/b.woff2"));
@@ -286,7 +280,7 @@ Deno.test("rewriteFontFaceCss preserves other CSS content", () => {
     },
   ];
 
-  const rewritten = rewriteFontFaceCss(originalCss, fontFiles, "/fonts");
+  const rewritten = fonts.rewriteFontFaceCss(originalCss, fontFiles, "/fonts");
 
   assert.assert(rewritten.includes("font-family"));
   assert.assert(rewritten.includes("font-display: swap"));
@@ -307,7 +301,7 @@ Deno.test("generatePreloadHints generates HTML preload link tags", () => {
     },
   ];
 
-  const hints = generatePreloadHints(fontFiles, "/fonts");
+  const hints = fonts.generatePreloadHints(fontFiles, "/fonts");
 
   assert.assertEquals(hints.length, 1);
   assert.assert(hints[0]?.includes('<link rel="preload"'));
@@ -324,7 +318,7 @@ Deno.test("generatePreloadHints includes correct crossorigin attribute", () => {
     },
   ];
 
-  const hints = generatePreloadHints(fontFiles, "/fonts");
+  const hints = fonts.generatePreloadHints(fontFiles, "/fonts");
 
   assert.assert(hints[0]?.includes('crossorigin="anonymous"'));
 });
@@ -339,7 +333,7 @@ Deno.test("generatePreloadHints uses correct font format in type attribute", () 
     },
   ];
 
-  const hints = generatePreloadHints(fontFiles, "/fonts");
+  const hints = fonts.generatePreloadHints(fontFiles, "/fonts");
 
   assert.assert(hints[0]?.includes('type="font/woff2"'));
 });
@@ -354,7 +348,7 @@ Deno.test("generatePreloadHints uses publicPath in href", () => {
     },
   ];
 
-  const hints = generatePreloadHints(fontFiles, "/custom/path");
+  const hints = fonts.generatePreloadHints(fontFiles, "/custom/path");
 
   assert.assert(hints[0]?.includes('href="/custom/path/font.woff2"'));
 });
@@ -375,7 +369,7 @@ Deno.test("generatePreloadHints handles multiple fonts", () => {
     },
   ];
 
-  const hints = generatePreloadHints(fontFiles, "/fonts");
+  const hints = fonts.generatePreloadHints(fontFiles, "/fonts");
 
   assert.assertEquals(hints.length, 2);
   assert.assert(hints[0]?.includes("font1.woff2"));
@@ -396,7 +390,7 @@ Deno.test("generateInlineFontFaceCss generates valid @font-face declarations", (
     },
   ];
 
-  const css = generateInlineFontFaceCss(fontFiles, "/fonts", ["Roboto"]);
+  const css = fonts.generateInlineFontFaceCss(fontFiles, "/fonts", ["Roboto"]);
 
   assert.assert(css.includes("@font-face"));
   assert.assert(css.includes("font-family: 'Roboto'"));
@@ -413,7 +407,7 @@ Deno.test("generateInlineFontFaceCss includes font-display swap", () => {
     },
   ];
 
-  const css = generateInlineFontFaceCss(fontFiles, "/fonts", ["Inter"]);
+  const css = fonts.generateInlineFontFaceCss(fontFiles, "/fonts", ["Inter"]);
 
   assert.assert(css.includes("font-display: swap"));
 });
@@ -428,7 +422,7 @@ Deno.test("generateInlineFontFaceCss uses first family name", () => {
     },
   ];
 
-  const css = generateInlineFontFaceCss(fontFiles, "/fonts", [
+  const css = fonts.generateInlineFontFaceCss(fontFiles, "/fonts", [
     "Roboto",
     "Open Sans",
   ]);
@@ -442,9 +436,9 @@ Deno.test("generateInlineFontFaceCss handles multiple fonts", () => {
     { url: "u2", localPath: "p2", filename: "b.woff2", format: "woff2" },
   ];
 
-  const css = generateInlineFontFaceCss(fontFiles, "/fonts", ["Font"]);
+  const css = fonts.generateInlineFontFaceCss(fontFiles, "/fonts", ["Font"]);
 
-  const fontFaceCount = (css.match(/@font-face/g) || []).length;
+  const fontFaceCount = (css.match(/@font-face/g) ?? []).length;
   assert.assertEquals(fontFaceCount, 2);
 });
 
@@ -471,7 +465,7 @@ Deno.test("extractFontUrls handles multiple weights in separate font-face blocks
     }
   `;
 
-  const urls = extractFontUrls(css);
+  const urls = fonts.extractFontUrls(css);
 
   assert.assertEquals(urls.length, 3);
   assert.assert(urls[0]?.includes("font-400"));
@@ -497,7 +491,7 @@ Deno.test("rewriteFontFaceCss preserves font-family declaration in font-face", (
     },
   ];
 
-  const rewritten = rewriteFontFaceCss(originalCss, fontFiles, "/fonts");
+  const rewritten = fonts.rewriteFontFaceCss(originalCss, fontFiles, "/fonts");
 
   assert.assert(rewritten.includes("font-family: 'Open Sans'"));
   assert.assert(rewritten.includes("font-weight: 400"));
@@ -509,7 +503,7 @@ Deno.test("extractFontFamilies handles multiple font families with weights using
   const url =
     "https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600;700|Roboto+Mono:wght@400;500&display=swap";
 
-  const families = extractFontFamilies(url);
+  const families = fonts.extractFontFamilies(url);
 
   assert.assertEquals(families.length, 2);
   assert.assertEquals(families[0], "Open Sans");

@@ -7,10 +7,14 @@
     "./types": "./types.ts",
     "./cert": "./cert.ts",
     "./client": "./client.ts",
-    "./attach": "./attach.ts"
+    "./attach": "./attach.ts",
+    "./errors": "./errors.ts"
   },
   "dependencies": {
     "@eserstack/mux": "workspace:*",
     "@eserstack/webtransport": "workspace:*"
+  },
+  "devDependencies": {
+    "@std/assert": "npm:@jsr/std__assert@^1.0.19"
   }
 }

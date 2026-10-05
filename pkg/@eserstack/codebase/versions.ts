@@ -37,11 +37,10 @@ import * as standards from "@eserstack/standards";
 import * as functions from "@eserstack/functions";
 import type * as shellArgs from "@eserstack/shell/args";
 import * as tui from "@eserstack/shell/tui";
-import { createCliContext, runCliMain, toCliEvent } from "./cli-support.ts";
+import * as span from "@eserstack/streams/span";
+import * as cliSupport from "./cli-support.ts";
 import * as pkg from "./package/mod.ts";
-import { requireLib } from "./ffi-client.ts";
-
-const { ctx, output: out } = createCliContext();
+import * as ffiClient from "./ffi-client.ts";
 
 /**
  * Valid version commands.
@@ -127,6 +126,46 @@ export type VersionsResult = {
 };
 
 /**
+ * A package config file that a version bump could not write.
+ */
+export type VersionWriteFailure = {
+  /** Path of the file that was not written */
+  readonly filepath: string;
+  /** Why the write failed */
+  readonly reason: string;
+};
+
+/**
+ * Thrown by {@link versions} when one or more package config files could not
+ * be written.
+ *
+ * Every package is still attempted, so `failures` lists all of them. The
+ * VERSION file is left unchanged, so it still names the previous version.
+ */
+export class VersionWriteError extends Error {
+  /** The version the bump was writing */
+  readonly targetVersion: string;
+  /** Every file that was not written, with the reason */
+  readonly failures: readonly VersionWriteFailure[];
+
+  constructor(
+    targetVersion: string,
+    failures: readonly VersionWriteFailure[],
+  ) {
+    const message = [
+      `bump versions to ${targetVersion}: could not write ${failures.length} package file(s):`,
+      ...failures.map((failure) => `  ${failure.filepath}: ${failure.reason}`),
+      `Every other file was written and VERSION was left unchanged. Fix the files above, then run "eser codebase versions ${targetVersion}" to finish the bump.`,
+    ].join("\n");
+
+    super(message);
+    this.name = "VersionWriteError";
+    this.targetVersion = targetVersion;
+    this.failures = failures;
+  }
+}
+
+/**
  * Reads the current version from the VERSION file.
  *
  * @param options - Options with root directory
@@ -161,7 +200,7 @@ export const bumpVersion = async (
   command: VersionCommand,
   explicit?: string,
 ): Promise<string> => {
-  const lib = await requireLib();
+  const lib = await ffiClient.requireLib();
   const raw = lib.symbols.EserAjanCodebaseBumpVersion(
     JSON.stringify({ current, command, explicit }),
   );
@@ -233,6 +272,7 @@ export const showVersions = async (
  * @param command - The command to execute
  * @param options - Options for the operation
  * @returns Result of the operation
+ * @throws {VersionWriteError} When a package config file could not be written
  */
 export const versions = async (
   command: VersionCommand,
@@ -275,11 +315,13 @@ export const versions = async (
 
   // Apply package updates (including root)
   const updates: VersionUpdate[] = [];
+  const failures: VersionWriteFailure[] = [];
 
   // Update root config
   const rootNeedsUpdate = rootVersion !== targetVersion;
   if (!dryRun) {
-    await pkg.updateVersion(rootConfig, targetVersion);
+    const rootResult = await pkg.updateVersion(rootConfig, targetVersion);
+    failures.push(...rootResult.failed);
   }
   updates.push({
     name: rootName,
@@ -293,7 +335,14 @@ export const versions = async (
     const needsUpdate = module.version !== targetVersion;
 
     if (!dryRun) {
-      await pkg.updateVersion(module.config, targetVersion);
+      // Packages are bumped one at a time to bound open file handles in a
+      // large workspace.
+      // deno-lint-ignore no-await-in-loop
+      const moduleResult = await pkg.updateVersion(
+        module.config,
+        targetVersion,
+      );
+      failures.push(...moduleResult.failed);
     }
 
     updates.push({
@@ -307,6 +356,12 @@ export const versions = async (
   // The @eserstack/ajan-* platform packages are workspace members since
   // TASK-8, so the loop above already stamped them; cli and ajan reference
   // them with workspace:*, which needs no rewriting.
+
+  // A partial bump must not look complete. VERSION is written last, so it
+  // keeps the previous version until every package file has the new one.
+  if (failures.length > 0) {
+    throw new VersionWriteError(targetVersion, failures);
+  }
 
   // Update VERSION file
   const fileUpdates: FileUpdate[] = [];
@@ -436,10 +491,16 @@ const cliResponseMapper: functions.handler.ResponseMapper<
     });
   }
 
+  const { ctx, output: out } = cliSupport.getCliContext();
   const handlerOutput = result.value;
 
   if (handlerOutput.mode === "show") {
-    console.table(handlerOutput.result.packages);
+    out.writeln(
+      span.table(
+        ["name", "version"],
+        handlerOutput.result.packages.map((p) => [p.name, p.version]),
+      ),
+    );
     return primitives.results.ok(undefined);
   }
 
@@ -461,7 +522,14 @@ const cliResponseMapper: functions.handler.ResponseMapper<
   }
 
   tui.log.info(ctx, `Target version: ${updateResult.targetVersion}`);
-  console.table(updateResult.updates);
+  out.writeln(
+    span.table(
+      ["name", "from", "to", "changed"],
+      updateResult.updates.map((
+        u,
+      ) => [u.name, u.from, u.to, String(u.changed)]),
+    ),
+  );
 
   for (const fileUpdate of updateResult.fileUpdates) {
     if (fileUpdate.changed) {
@@ -506,13 +574,15 @@ export const main = async (
     (cliArgs ?? []) as string[],
     { boolean: ["dry-run"] },
   );
-  const event = toCliEvent("versions", parsed);
+  const event = cliSupport.toCliEvent("versions", parsed);
   return await handleCli(event);
 };
 
 if (import.meta.main) {
-  runCliMain(
-    await main(standards.crossRuntime.runtime.process.args as string[]),
-    out,
+  // Entry point: the await only runs when this file is executed directly.
+  // deno-lint-ignore no-top-level-await
+  const result = await main(
+    standards.crossRuntime.runtime.process.args as string[],
   );
+  cliSupport.runCliMain(result, cliSupport.getCliContext().output);
 }

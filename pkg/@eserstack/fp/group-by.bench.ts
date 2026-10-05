@@ -1,6 +1,8 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import { groupBy } from "./group-by.ts";
+import * as groupBy from "./group-by.ts";
+// lodash.groupby is CommonJS whose module.exports is one function, so it has no
+// named exports to import as a namespace.
 import lodashGroupBy from "lodash.groupby";
 
 const group = "group-by";
@@ -14,7 +16,7 @@ Deno.bench("eser/fp/groupBy", { group, baseline: true }, () => {
     { type: "b", value: 5 },
   ];
 
-  groupBy(arr, (x) => x.type);
+  groupBy.groupBy(arr, (x) => x.type);
 });
 
 Deno.bench("npm:lodash.groupby", { group }, () => {

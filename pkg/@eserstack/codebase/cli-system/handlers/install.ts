@@ -13,16 +13,12 @@ import * as span from "@eserstack/streams/span";
 import * as streams from "@eserstack/streams";
 import * as standardsCrossRuntime from "@eserstack/standards/cross-runtime";
 import type { CliApp } from "../app.ts";
-import { appOpts } from "../app-opts.ts";
+import * as appOpts from "../app-opts.ts";
 import * as results from "@eserstack/primitives/results";
-import * as shellArgs from "@eserstack/shell/args";
+import type * as shellArgs from "@eserstack/shell/args";
 import * as shellExec from "@eserstack/shell/exec";
 import * as shellEnv from "@eserstack/shell/env";
-import {
-  addCompletions,
-  detectShell,
-  hasCompletions,
-} from "./completions-setup.ts";
+import * as completionsSetup from "./completions-setup.ts";
 
 const runtime = standardsCrossRuntime.runtime;
 
@@ -116,8 +112,11 @@ const installCompiledBinary = async (
   );
 
   // Setup shell completions
-  const shell = detectShell();
-  const alreadyHasCompletions = await hasCompletions(shell, app.command);
+  const shell = completionsSetup.detectShell();
+  const alreadyHasCompletions = await completionsSetup.hasCompletions(
+    shell,
+    app.command,
+  );
 
   if (!alreadyHasCompletions) {
     out.writeln(
@@ -125,7 +124,7 @@ const installCompiledBinary = async (
       span.cyan(shell),
       span.text(" completions..."),
     );
-    await addCompletions(shell, app.command);
+    await completionsSetup.addCompletions(shell, app.command);
 
     const shellConfig = shellEnv.getShellConfig(shell);
     if (shellConfig.completionType === "eval") {
@@ -146,7 +145,7 @@ export const installHandler = async (
   app: CliApp,
 ): Promise<shellArgs.CliResult<void>> => {
   const execContext = await standardsCrossRuntime.detectExecutionContext(
-    appOpts(app),
+    appOpts.appOpts(app),
   );
 
   // Compiled binary: copy self to install directory
@@ -190,8 +189,11 @@ export const installHandler = async (
   );
 
   // Setup shell completions
-  const shell = detectShell();
-  const alreadyHasCompletions = await hasCompletions(shell, app.command);
+  const shell = completionsSetup.detectShell();
+  const alreadyHasCompletions = await completionsSetup.hasCompletions(
+    shell,
+    app.command,
+  );
 
   if (!alreadyHasCompletions) {
     out.writeln(
@@ -199,7 +201,7 @@ export const installHandler = async (
       span.cyan(shell),
       span.text(" completions..."),
     );
-    await addCompletions(shell, app.command);
+    await completionsSetup.addCompletions(shell, app.command);
 
     const shellConfig = shellEnv.getShellConfig(shell);
     if (shellConfig.completionType === "eval") {

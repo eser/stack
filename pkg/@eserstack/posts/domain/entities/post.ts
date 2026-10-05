@@ -36,8 +36,9 @@ export interface Post {
   /**
    * Platform-specific opaque references needed for adapter operations.
    * Twitter: not used (only the numeric id is needed for replies).
-   * Bluesky: { uri: "at://did:plc:.../app.bsky.feed.post/...", cid: "..." }
-   *          — required to construct the reply.root / reply.parent fields.
+   * Bluesky: { uri: "at://did:plc:.../app.bsky.feed.post/...", cid: "..." },
+   * plus rootUri and rootCid when the post is itself a reply. A reply to it
+   * names it as reply.parent and its thread root as reply.root.
    */
   platformRef?: Record<string, string>;
 }

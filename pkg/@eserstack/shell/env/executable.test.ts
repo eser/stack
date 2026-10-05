@@ -1,19 +1,24 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import { assert, assertEquals, assertFalse } from "@std/assert";
+import * as assert from "@std/assert";
 
-import { hasExecutable, resolveExecutable } from "./executable.ts";
+import * as executable from "./executable.ts";
 
 Deno.test("resolves a real executable on PATH", async () => {
-  const resolved = await resolveExecutable("sh");
+  const resolved = await executable.resolveExecutable("sh");
 
-  assert(resolved !== null, "sh was not found on PATH");
-  assert(resolved.endsWith("/sh"), `unexpected path: ${resolved}`);
+  assert.assert(resolved !== null, "sh was not found on PATH");
+  assert.assert(resolved.endsWith("/sh"), `unexpected path: ${resolved}`);
 });
 
 Deno.test("reports absence rather than throwing", async () => {
-  assertEquals(await resolveExecutable("definitely-not-installed-xyzzy"), null);
-  assertFalse(await hasExecutable("definitely-not-installed-xyzzy"));
+  assert.assertEquals(
+    await executable.resolveExecutable("definitely-not-installed-xyzzy"),
+    null,
+  );
+  assert.assertFalse(
+    await executable.hasExecutable("definitely-not-installed-xyzzy"),
+  );
 });
 
 // A non-executable file with the right name must not be "found". Reporting it
@@ -30,7 +35,7 @@ Deno.test("a non-executable file is not resolved", async () => {
   Deno.env.set("PATH", `${dir}:${previous}`);
 
   try {
-    assertEquals(await resolveExecutable("inert"), null);
+    assert.assertEquals(await executable.resolveExecutable("inert"), null);
   } finally {
     Deno.env.set("PATH", previous);
     await Deno.remove(dir, { recursive: true });
@@ -58,14 +63,19 @@ Deno.test("a path-like name cannot escape a PATH directory", async () => {
   Deno.env.set("PATH", bin);
 
   try {
-    assertEquals(
-      await resolveExecutable("../victim"),
+    assert.assertEquals(
+      await executable.resolveExecutable("../victim"),
       null,
       "resolution escaped the PATH directory",
     );
 
-    for (const name of ["a/b", "..", "a\\b"]) {
-      assertEquals(await resolveExecutable(name), null, `${name} resolved`);
+    const names = ["a/b", "..", "a\\b"];
+    const resolved = await Promise.all(
+      names.map((name) => executable.resolveExecutable(name)),
+    );
+
+    for (const [i, name] of names.entries()) {
+      assert.assertEquals(resolved[i], null, `${name} resolved`);
     }
   } finally {
     Deno.env.set("PATH", previous);

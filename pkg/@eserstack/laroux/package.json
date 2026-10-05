@@ -9,9 +9,13 @@
     "./navigation": "./navigation/mod.ts",
     "./image": "./image/mod.ts",
     "./router": "./router/mod.ts",
-    "./config": "./config/mod.ts"
+    "./config": "./config/mod.ts",
+    "./chunk-manifest": "./chunk-manifest/mod.ts"
   },
   "dependencies": {
     "@eserstack/standards": "workspace:*"
+  },
+  "devDependencies": {
+    "@std/assert": "npm:@jsr/std__assert@^1.0.19"
   }
 }

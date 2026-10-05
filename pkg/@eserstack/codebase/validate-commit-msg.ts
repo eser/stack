@@ -15,14 +15,8 @@ import * as primitives from "@eserstack/primitives";
 import * as standards from "@eserstack/standards";
 import type * as shellArgs from "@eserstack/shell/args";
 import * as span from "@eserstack/streams/span";
-import { createCliOutput, runCliMain } from "./cli-support.ts";
-import { ensureLib, getLib } from "./ffi-client.ts";
-
-// Eagerly kick off FFI loading — by the time validateCommitMsg is called
-// (after async CLI arg parsing / file I/O), the library is usually ready.
-ensureLib();
-
-const out = createCliOutput();
+import * as cliSupport from "./cli-support.ts";
+import * as ffiClient from "./ffi-client.ts";
 
 // =============================================================================
 // Validation logic (pure)
@@ -66,14 +60,19 @@ export type CommitMsgResult = {
 
 /**
  * Validate a commit message against conventional commit format.
+ *
+ * The check is synchronous, so it uses the native validator only when the
+ * bridge has already loaded, and the TypeScript rules below otherwise. Await
+ * `ensureLib()` from `@eserstack/ajan/ffi/client` first to use the native one.
  */
 export const validateCommitMsg = (
   message: string,
   options: CommitMsgOptions = {},
 ): CommitMsgResult => {
-  // FFI path: synchronous call — works when library was pre-loaded via ensureLib().
-  // Falls through to TS if library is not yet loaded or call fails.
-  const lib = getLib();
+  // FFI path: a synchronous call, so it only runs when the caller already
+  // awaited ensureLib(). Falls through to TS if the library is not loaded or
+  // the call fails.
+  const lib = ffiClient.getLib();
   if (lib !== null) {
     try {
       const raw = lib.symbols.EserAjanCodebaseValidateCommitMsg(
@@ -177,6 +176,7 @@ export const validateCommitMsg = (
 export const main = async (
   cliArgs?: readonly string[],
 ): Promise<shellArgs.CliResult<void>> => {
+  const { output: out } = cliSupport.getCliContext();
   const parsed = cliParseArgs.parseArgs(
     (cliArgs ?? []) as string[],
     {
@@ -187,12 +187,12 @@ export const main = async (
   );
 
   if (parsed.help) {
-    console.log(
+    out.writeln(
       "eser codebase validate-commit-msg — Validate conventional commit format\n",
     );
-    console.log("Usage:");
-    console.log("  eser codebase validate-commit-msg <commit-msg-file>");
-    console.log(
+    out.writeln("Usage:");
+    out.writeln("  eser codebase validate-commit-msg <commit-msg-file>");
+    out.writeln(
       "  eser codebase validate-commit-msg --message 'feat(x): msg'",
     );
     return primitives.results.ok(undefined);
@@ -220,6 +220,8 @@ export const main = async (
     return primitives.results.fail({ exitCode: 1 });
   }
 
+  // Load the bridge before the synchronous check so the native validator runs.
+  await ffiClient.ensureLib();
   const result = validateCommitMsg(message);
 
   if (result.valid) {
@@ -234,8 +236,10 @@ export const main = async (
 };
 
 if (import.meta.main) {
-  runCliMain(
-    await main(standards.crossRuntime.runtime.process.args as string[]),
-    out,
+  // Entry point: the await only runs when this file is executed directly.
+  // deno-lint-ignore no-top-level-await
+  const result = await main(
+    standards.crossRuntime.runtime.process.args as string[],
   );
+  cliSupport.runCliMain(result, cliSupport.getCliContext().output);
 }

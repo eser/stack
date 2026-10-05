@@ -8,7 +8,7 @@ import (
 
 // emit encodes one message and puts it on the events channel.
 //
-// # Why the lock rather than a select on w.done
+// # Why the lock rather than a select on w.ctx.Done()
 //
 // Several goroutines emit -- the turn runner, the permission handler, the
 // connection watcher -- and a different one closes the channel when the agent
@@ -16,7 +16,7 @@ import (
 //
 //	select {
 //	case w.events <- event:
-//	case <-w.done:
+//	case <-w.ctx.Done():
 //	}
 //
 // looks like it guards against that and does not: sending on a closed channel
@@ -33,7 +33,7 @@ func (w *acpWorker) emit(msg map[string]any) {
 	payload, err := json.Marshal(msg)
 	if err != nil {
 		if w.logger != nil {
-			w.logger.Warn("acp worker: marshal event failed", "err", err)
+			w.logger.WarnContext(w.ctx, "acp worker: marshal event failed", "sid", w.sessionID, "err", err)
 		}
 
 		return
@@ -52,7 +52,7 @@ func (w *acpWorker) emit(msg map[string]any) {
 	case w.events <- WorkerEvent{Type: kind, Payload: payload}:
 	default:
 		if w.logger != nil {
-			w.logger.Warn("acp worker: event dropped, queue full", "type", kind)
+			w.logger.WarnContext(w.ctx, "acp worker: event dropped, queue full", "sid", w.sessionID, "type", kind)
 		}
 	}
 }

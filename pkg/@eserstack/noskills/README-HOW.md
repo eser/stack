@@ -60,13 +60,98 @@ via `revisit` — progress is preserved so you can re-scope without losing work.
 
 Every phase transition follows the same structured cycle:
 
-```
-Human input -> Agent A evaluates -> Agent B validates (optional) -> Human approves -> Next phase
+```text
+Human input -> Agent evaluates -> Validator reviews (opt-in) -> Human approves -> Next phase
 ```
 
-Agent B validation is opt-in per command (`noskills next --validate`) or as a
-project default in `manifest.yml`. When active, Agent B gets completely isolated
-context — real generator/judge separation, not role-played.
+The agent that does the work also evaluates it. At two transitions you can also
+have a second agent check the work before you approve it:
+
+| Transition       | Phase change                         | What you approve                                        |
+| ---------------- | ------------------------------------ | ------------------------------------------------------- |
+| End of discovery | DISCOVERY_REFINEMENT → SPEC_PROPOSAL | The discovery answers that the spec draft is built from |
+| Spec proposal    | SPEC_PROPOSAL → SPEC_APPROVED        | The classified spec draft, its tasks and its criteria   |
+
+#### The transition validator
+
+The validator is a second agent that `noskills next` runs through
+`@eserstack/ai`. It checks the transition in an isolated context and sees only:
+
+- the spec's name, its description and its `spec.md` (cut at 100,000
+  characters);
+- the discovery answers with their questions, and the answered follow-ups,
+  without the names of the people who gave them;
+- the transition and what approving it means.
+
+It does not get the codebase or the working agent's conversation. A CLI agent
+(claude-code, kiro, opencode) runs in a new, empty temporary directory, so the
+project's files, rules and hooks are not in its working directory; its
+user-level settings still apply.
+
+Turn it on for one call with the flag:
+
+```bash
+noskills spec photo-upload next --validate
+```
+
+Without a manifest entry, `--validate` runs claude-code with `claude-sonnet-5`,
+the agent `noskills run` drives. To run the validator at every `next` call that
+reaches one of the two transitions, add a `validate` entry with an agent and a
+model to the manifest's noskills section:
+
+```yaml
+noskills:
+  validate:
+    agent: claude-code # an @eserstack/ai provider
+    model: claude-sonnet-5 # a model id that provider runs
+```
+
+`agent` is one of claude-code, anthropic, openai, gemini, vertexai, ollama,
+opencode or kiro, resolved the way `noskills run` resolves its agent. API
+providers read their key from the provider's environment variable, such as
+`ANTHROPIC_API_KEY` or `OPENAI_API_KEY`. With the entry, the validator runs once
+per input: `next` stores the result in
+`.eser/.state/progresses/validations/<spec>.json` and repeats it until the spec
+document, the answers, the transition or the agent change. `--validate` always
+runs it again.
+
+The result is the `validation` field of the `next` output. The agent presents
+the findings to you before it asks for your approval:
+
+```jsonc
+{
+  "phase": "SPEC_PROPOSAL",
+  "validation": {
+    "status": "reviewed",
+    "transition": {
+      "id": "spec-proposal",
+      "from": "SPEC_PROPOSAL",
+      "to": "SPEC_APPROVED",
+      "approval": "The user approves the spec draft, and its tasks and acceptance criteria become the work to execute and check."
+    },
+    "agent": "claude-code",
+    "model": "claude-sonnet-5",
+    "summary": "One task has no acceptance criterion.",
+    "findings": [{
+      "severity": "medium",
+      "issue": "task-3 names no acceptance criterion.",
+      "suggestion": "Add a criterion that names the expected output."
+    }],
+    "instruction": "A second model checked this transition in an isolated context: ..."
+  }
+}
+```
+
+The findings are advice: the validator never blocks a transition, and you decide
+what to change. Severity is `high` when approving now builds the wrong thing or
+loses data, `medium` when the spec needs a change before work starts, and `low`
+when a point is worth a look.
+
+When no agent can be resolved, the manifest entry is unusable, the call fails,
+the reply is not the expected JSON, or 120 seconds pass without an answer,
+`validation.status` is `skipped` and `validation.reason` says why. The
+transition then goes to your approval as usual. Run `next --validate` to try
+again.
 
 ---
 
@@ -176,17 +261,42 @@ _"Is this workaround common in the community?"_
 | ship-fast       | Minimum viable scope    | Bug fixes              |
 | explore         | Think bigger            | Brainstorming          |
 
-### Adaptive Follow-ups
+### Asking the Questions
 
-After each answer, noskills evaluates whether follow-ups are needed. If you
-mention a specific technology, it asks about error handling. If you're vague, it
-pushes for specifics. Max 3 follow-ups per question, depth 1.
+`noskills next` hands the agent every unanswered base question in one output,
+with one instruction: ask them together and submit the confirmed answers as one
+JSON object keyed by question id.
 
 ```bash
-noskills spec upload followup Q3 "What's the reconnection strategy?"
-noskills spec upload followup Q3a --answer="Exponential backoff"
-noskills spec upload followup Q3a --skip
+noskills spec upload next --agent --answer='{"status_quo":"...","ambition":"...","reversibility":"...","user_impact":"...","verification":"...","scope_boundary":"..."}'
 ```
+
+A tool with AskUserQuestion asks them in as few calls as it can (each call takes
+up to 4 questions, so the six take two); other tools list them in one message.
+An object that answers only some questions records those, and the next output
+asks the rest. A key that is not a question id is refused, so a misspelt id
+cannot sit in the state unread. Plain text still answers the first open
+question, for agents that follow older instructions.
+
+Follow-ups come one at a time. Every generated instruction file (CLAUDE.md,
+AGENTS.md, the Kiro steering file and the Cursor, Windsurf and Copilot rule
+files) and the `next` rules state the same rule.
+
+### Adaptive Follow-ups
+
+When an answer is vague, risky, or names a technology or a dependency, the agent
+registers up to 3 follow-ups for it before it submits the answers. Once every
+base question has an answer, `next` hands out the pending follow-ups one per
+output, and discovery completes when the last one is answered or skipped.
+
+```bash
+noskills spec upload followup reversibility "What's the rollback plan?"
+noskills spec upload followup reversibilitya --answer="Feature flag, off by default"
+noskills spec upload followup reversibilitya --skip
+```
+
+A follow-up's id is its question's id followed by a letter (`a`, `b`, `c`).
+`followup` refuses an id that names no pending follow-up.
 
 ### Premise Challenge
 
@@ -201,7 +311,9 @@ before generating the spec. You pick one or skip.
 ### Rich Description Pre-fill
 
 Descriptions >500 chars or plan files (`--from-plan`) get pre-filled answers
-marked as [STATED] (your words) or [INFERRED] (agent's interpretation).
+marked as [STATED] (your words) or [INFERRED] (agent's interpretation). You
+confirm or correct each one, and the agent submits only confirmed answers, in
+the one call that `transition.onComplete` shows.
 
 ### Spec Classification
 
@@ -240,7 +352,9 @@ slice is delivered — never the full concern payload at once:
 Each phase gets only what it needs from concerns — not the full definition.
 DISCOVERY gets extras and dream state prompts. REFINEMENT gets review dimensions
 (scope-filtered). PROPOSAL gets spec sections and registry skeletons. EXECUTING
-gets reminders and ACs. Zero upfront dump.
+gets reminders and ACs. Zero upfront dump. Reminders, spec sections and review
+dimensions can declare a `scope`, which limits them to the specs and files it
+names; [Where content applies](#where-content-applies-scope) lists the values.
 
 ### Review Dimensions
 
@@ -258,7 +372,7 @@ spec never sees UI dimensions.
       "label": "Test Pyramid Strategy",
       "prompt": "Map every new behavior to a test layer: Unit | Integration | E2E. Flag untested failure paths.",
       "evidenceRequired": true,
-      "scope": "all" // "all" | "ui" | "api" | "data"
+      "scope": "all" // "all" | "ui" | "api" | "data" | "migration"
     }
   ]
 }
@@ -341,8 +455,12 @@ edit):
     }
   ],
   "specSections": ["Audit Trail"], // sections added to the generated spec
-  "reminders": [ // shown in every EXECUTING prompt
-    "Every state change must be traceable to an actor and timestamp"
+  "reminders": [ // a plain string is shown in every EXECUTING prompt
+    "Every state change must be traceable to an actor and timestamp",
+    { // a scoped reminder reaches only the specs and files its scope names
+      "text": "Mask account numbers in every log line",
+      "scope": ["data"]
+    }
   ],
   "acceptanceCriteria": [ // checked in status reports
     "Audit log entries present for all mutations"
@@ -353,7 +471,7 @@ edit):
       "label": "Audit Trail Completeness",
       "prompt": "For every mutation: is it logged with actor, action, resource, from-value, to-value, timestamp?",
       "evidenceRequired": true,
-      "scope": "data" // "all" | "ui" | "api" | "data"
+      "scope": "data" // "all" | "ui" | "api" | "data" | "migration"
     }
   ]
 }
@@ -362,7 +480,8 @@ edit):
 **Required fields:** `id`, `name`, `description`, `extras`, `specSections`,
 `reminders`, `acceptanceCriteria`.
 
-**Optional fields:** `reviewDimensions`, `registries`, `dreamStatePrompt`.
+**Optional fields:** `reviewDimensions`, `registries`, `dreamStatePrompt`, and a
+`scope` on each reminder and spec section.
 
 #### Question IDs for `extras`
 
@@ -377,17 +496,74 @@ The 6 base discovery questions accept extras via `questionId`:
 | `verification`   | How do you verify this works correctly?            |
 | `scope_boundary` | What should this feature NOT do?                   |
 
-#### Classification axes and `scope`
+#### Where content applies: `scope`
 
-Review dimensions are scope-filtered by 5 boolean axes on `SpecClassification`.
-Use `scope` to target:
+A reminder, a spec section and a review dimension can each declare where it
+applies. Each scope value names one flag of the spec's `SpecClassification`,
+which is set after discovery ([Spec Classification](#spec-classification)).
+Content without a scope applies to every spec.
 
-| scope    | Fires when                      |
-| -------- | ------------------------------- |
-| `"all"`  | Always                          |
-| `"ui"`   | `involvesWebUI === true`        |
-| `"api"`  | `involvesPublicAPI === true`    |
-| `"data"` | `involvesDataHandling === true` |
+| scope value   | Spec flag              | Files the hook adds a scoped reminder for          |
+| ------------- | ---------------------- | -------------------------------------------------- |
+| `"ui"`        | `involvesWebUI`        | `.tsx`, `.jsx`, `.html`, `.css`, `.svelte`, `.vue` |
+| `"api"`       | `involvesPublicAPI`    | `.ts`, `.go`, `.py`, `.rs`                         |
+| `"data"`      | `involvesDataHandling` | every file                                         |
+| `"migration"` | `involvesMigration`    | every file                                         |
+
+Reminders are plain strings or `{ "text": "...", "scope": [...] }` objects:
+
+- A plain string, or an object without a `scope`, is in the context of every
+  DISCOVERY output and every EXECUTING instruction.
+- A scoped reminder is file-specific. noskills leaves it out of the EXECUTING
+  instruction (the instruction counts it in `tier2Summary`), and the PreToolUse
+  hook adds it when the agent edits a file listed for one of its scope values in
+  a spec whose classification has that value's flag. In DISCOVERY it is in the
+  context while the spec has no classification, and afterwards only when a
+  value's flag is set.
+
+```jsonc
+{
+  "reminders": [
+    "Every state change must be traceable", // every spec, every EXECUTING prompt
+    { "text": "Every screen has an empty state", "scope": ["ui"] }, // .tsx and the other UI files, in UI specs
+    { "text": "Version every public route", "scope": ["api"] }, // .ts, .go, .py and .rs files, in API specs
+    { "text": "Write the down migration too", "scope": ["migration"] } // every file, in migration specs
+  ]
+}
+```
+
+A spec section with a `scope` is hidden until the spec is classified, then shown
+while one of its values has its flag set:
+
+```jsonc
+{
+  "specSections": [
+    {
+      "id": "retention-policy",
+      "title": "Retention Policy",
+      "placeholder": "_How long is each new data element kept?_",
+      "scope": ["data"],
+      "position": "after:acceptance-criteria"
+    }
+  ]
+}
+```
+
+A section may still carry the older `condition` field, one flag name such as
+`"involvesCLI"`; when a section has both, both must hold.
+
+A review dimension takes a single value: `"all"` or one of the four above.
+
+noskills checks every `scope` when it loads a concern. A concern with an unknown
+value, such as `"UI"`, is skipped, and noskills prints a warning that names the
+file and the entry.
+
+Earlier versions guessed where a reminder applied from words in its text
+("slop", "api doc", "migration" and others). If a project concern relied on
+those words, give its reminders a `scope`. Run `noskills init` to refresh the
+copies of the built-in concerns in `.eser/concerns/`; the copies written by
+earlier versions have no scopes, so their UI reminders reach every spec until
+you do.
 
 #### Concern IDs appear in prompt reminders
 
@@ -431,6 +607,8 @@ keep prompts inline._
 | `Failed to parse concern at .eser/concerns/100-x.json: Unexpected token` | JSON syntax error — check for trailing commas, missing quotes, unmatched braces                      |
 | Concern reminders not appearing                                          | Check `id` in JSON matches the filename's `<id>` segment. Check that `reminders` array is non-empty. |
 | Review dimensions not appearing                                          | `scope` mismatch — if `scope: "ui"` but spec has `involvesWebUI: false`, dimension is filtered out   |
+| `noskills: WARNING — .eser/concerns/100-x.json ... scope has "UI"`       | Use a lowercase scope value: `ui`, `api`, `data` or `migration`. The concern is skipped until then.  |
+| A reminder is missing from the EXECUTING prompt                          | It has a `scope`, so the PreToolUse hook adds it when the agent edits a matching file.               |
 | Extras not appearing in discovery                                        | `questionId` must match exactly one of the 6 base question IDs listed above                          |
 
 ---
@@ -439,47 +617,92 @@ keep prompts inline._
 
 Zero-token bookkeeping. The agent doesn't know hooks exist.
 
-| Hook                       | Event        | What it does                                                           |
-| -------------------------- | ------------ | ---------------------------------------------------------------------- |
-| **pre-tool-use**           | PreToolUse   | Blocks file edits outside EXECUTING. Blocks git writes.                |
-| **stop**                   | Stop         | Increments iteration, snapshots git diff.                              |
-| **post-file-write**        | PostToolUse  | Logs modified file paths.                                              |
-| **post-bash**              | PostToolUse  | Logs noskills CLI invocations.                                         |
-| **post-ask-user-question** | PostToolUse  | Writes single-use confirmation token proving the agent asked the user. |
-| **session-start**          | SessionStart | Runs `noskills next` so the agent is oriented.                         |
+| Hook                       | Event        | What it does                                                               |
+| -------------------------- | ------------ | -------------------------------------------------------------------------- |
+| **pre-tool-use**           | PreToolUse   | Blocks file edits outside EXECUTING, git writes and changes to `allowGit`. |
+| **stop**                   | Stop         | Increments iteration, snapshots git diff.                                  |
+| **post-file-write**        | PostToolUse  | Logs modified file paths.                                                  |
+| **post-bash**              | PostToolUse  | Logs noskills CLI invocations.                                             |
+| **post-ask-user-question** | PostToolUse  | Writes single-use confirmation token proving the agent asked the user.     |
+| **session-start**          | SessionStart | Gives the agent the `noskills next` output. Puts the git wrapper on PATH.  |
 
 Hooks are CLI subcommands (`noskills invoke-hook <name>`), not generated script
 files.
 
+Claude Code, Codex, Copilot CLI, Kiro and the OpenCode plugin each send the hook
+their own payload: `tool_name` and `tool_input`, or Copilot CLI's camelCase
+`toolName` and `toolArgs`, with each tool's own tool names and input fields.
+pre-tool-use, post-file-write and post-bash map them to a shell command or the
+files a call changes before they decide anything (`toolCallOf` in
+`commands/hook-decisions.ts`, which cites each tool's documentation). A
+pre-tool-use denial exits with code 2 and the reason on stderr, which each of
+these tools takes as a denial; stdout carries the same denial as JSON for the
+tools that read one. Every config gives pre-tool-use 30 seconds.
+[The PreToolUse hook in each tool](./README.md#the-pretooluse-hook-in-each-tool)
+in the README lists the configs, the guarded tools and the gaps.
+
+session-start prints the compiled `noskills next` output as
+`hookSpecificOutput.additionalContext`, the field Claude Code and Codex add to
+the agent's context. Copilot CLI's config runs it with `--tool=copilot-cli`,
+which prints a top-level `additionalContext`, the field Copilot CLI reads.
+Claude Code does not always run the SessionStart hook for a new conversation, or
+add its output to the context
+([anthropics/claude-code#10373](https://github.com/anthropics/claude-code/issues/10373),
+open on 2026-10-05). The generated CLAUDE.md therefore also tells the agent to
+call `next` at the start of a conversation, and running `/clear` starts the hook
+again.
+
+While `allowGit` is false, session-start writes the git wrapper to
+`.eser/.state/bin/git`. In Claude Code it also adds that directory to the front
+of PATH through `CLAUDE_ENV_FILE`; other tools need it on PATH when they start.
+The wrapper calls `noskills invoke-hook git-exec <git arguments>` for every git
+command it does not run directly; that check refuses pushes, and other writes to
+the project's repository, and has 30 seconds to answer before the wrapper
+refuses the command. pre-tool-use refuses agent changes to the `noskills`
+section of `.eser/manifest.yml` and to `.eser/.state/bin/` in every phase.
+[Behavioral Guardrails](./README.md#behavioral-guardrails) in the README lists
+what these checks allow and where they stop.
+
 ### AskUserQuestion confirmation tokens
 
-noskills cryptographically verifies that agents ask you before submitting
-discovery answers. When an agent calls the `AskUserQuestion` tool, a
-`PostToolUse` hook (`noskills invoke-hook post-ask-user-question`) writes a
-single-use token to `.eser/.state/progresses/ask-token.json` with the step id,
-spec name, match quality, and a timestamp.
+noskills records which discovery questions the agent asked you through
+AskUserQuestion. When an agent calls the `AskUserQuestion` tool, a `PostToolUse`
+hook (`noskills invoke-hook post-ask-user-question`) writes a token to
+`.eser/.state/progresses/ask-token.json` with the spec name, a timestamp, and
+one step per asked question: its step id and match quality.
 
-When the agent later submits the answer via `noskills next --answer`, the
-consumer validates the token:
+While discovery collects the base answers, each asked question goes to the open
+base question it shares the most words with, or, sharing none, to the first open
+one left. A second call adds its steps to those of the first, since the six
+questions take two calls. A question asked at any other point is recorded as
+`discovery`, `refinement` or `approval`, steps no base answer takes.
 
-- **Spec match** — the token's spec must equal the current activeSpec
-- **Step match** — the stepId must match the currently-expected discovery step
-  (Q1-Q6, refinement, approval)
-- **Expiry** — tokens older than 30 minutes are rejected
-- **Single use** — valid tokens are deleted immediately after consumption
+When the agent later submits answers via `noskills next --answer`, the consumer
+validates the token:
 
-If any check fails, the answer is marked `source: "INFERRED"` rather than
-`"STATED"`, and the REFINEMENT phase will surface it for your confirmation.
-Answers that bypass AskUserQuestion entirely get no token at all and default to
-INFERRED.
+- **Spec match**: the token's spec must equal the current activeSpec
+- **Step match**: each answer takes the step named after its question id
+  (`status_quo` to `scope_boundary`); a revised answer in refinement takes
+  `refinement`
+- **Expiry**: tokens older than 30 minutes are rejected
+- **Single use**: a taken step is removed, and the file goes once no step is
+  left
+
+If no step matches, the answer is marked `source: "INFERRED"` rather than
+`"STATED"`. When answers that arrive together in one JSON object include one
+without a step, noskills sets `batchSubmitted`, and REFINEMENT asks you to
+confirm each answer on its own (Jidoka C1). Answers that bypass AskUserQuestion
+entirely get no token at all and default to INFERRED.
 
 **Behavioral platforms** (Cursor, Windsurf, Copilot) do not support PostToolUse
 hooks. On those platforms, all answers default to INFERRED and REFINEMENT always
 shows them for confirmation. This is the safe default.
 
-**Known limitation**: the current `expectedText` in the hook handler is an
-empty-string placeholder, so question similarity always marks as "modified". A
-future pass will add expected-text lookup for exact-match detection.
+The token's match quality is `exact` when the question the agent asked shares at
+least 70% of its words with the built-in discovery question (the Jaccard index
+over words longer than two letters), and `modified` when the agent rephrased it
+or the step has no built-in question (refinement, approval). The answer keeps it
+as `questionMatch`.
 
 ---
 
@@ -503,12 +726,12 @@ system runs autonomously but stops at every meaningful decision point.
 
 | Safeguard                                           | Mechanism                                                        |
 | --------------------------------------------------- | ---------------------------------------------------------------- |
-| File edits blocked in DISCOVERY/REFINEMENT/PROPOSAL | PreToolUse hook denies Write/Edit/MultiEdit                      |
+| File edits blocked in DISCOVERY/REFINEMENT/PROPOSAL | PreToolUse hook denies each tool's file tools                    |
 | File edits blocked when phase is UNKNOWN            | Default-deny (Jidoka C4)                                         |
 | Git write commands blocked                          | PreToolUse hook denies git commit/push/checkout                  |
 | Short discovery answers rejected                    | 20-char minimum (Jidoka I1)                                      |
 | Empty premises rejected                             | Must provide at least 1 premise (Jidoka M3)                      |
-| Batch answers flagged                               | `batchSubmitted` flag triggers stronger confirmation (Jidoka C1) |
+| Unasked batch answers flagged                       | `batchSubmitted` flag triggers stronger confirmation (Jidoka C1) |
 | Pending follow-ups block discovery completion       | Must answer or skip before transitioning (Jidoka I2)             |
 | Done requires status report                         | Blocks if `awaitingStatusReport` is true (Jidoka C2)             |
 | High confidence needs evidence                      | Confidence >= 7 requires basis >= 10 chars (Jidoka M2)           |
@@ -522,10 +745,10 @@ system runs autonomously but stops at every meaningful decision point.
 
 ### Platform Enforcement Levels
 
-| Platform                               | Level          | Capabilities                                                             |
-| -------------------------------------- | -------------- | ------------------------------------------------------------------------ |
-| Claude Code, Kiro, Codex CLI, OpenCode | **Enforced**   | PreToolUse gate, git guard, iteration tracking, file logging, sub-agents |
-| Cursor, Windsurf, Copilot              | **Behavioral** | Rules synced but not enforced — agent can bypass                         |
+| Platform                                            | Level          | Capabilities                                                             |
+| --------------------------------------------------- | -------------- | ------------------------------------------------------------------------ |
+| Claude Code, Kiro, Codex CLI, Copilot CLI, OpenCode | **Enforced**   | PreToolUse gate, git guard, iteration tracking, file logging, sub-agents |
+| Cursor, Windsurf, Copilot                           | **Behavioral** | Rules synced but not enforced — agent can bypass                         |
 
 On behavioral platforms, `meta.enforcement.gaps` lists what's missing. The agent
 self-reports its enforcement level so the user knows the compliance posture.
@@ -543,12 +766,19 @@ tool:
 ├── → AGENTS.md                        (Codex / Copilot / OpenCode)
 ├── → .claude/settings.json            (hooks)
 ├── → .kiro/steering/*.md              (Kiro)
-├── → .kiro/settings/hooks.json        (Kiro hooks)
+├── → .kiro/hooks/noskills.json        (Kiro hooks)
 ├── → .codex/hooks.json                (Codex CLI)
 ├── → .github/hooks/noskills.json      (Copilot CLI)
+├── → .opencode/plugins/noskills.ts    (OpenCode)
+├── → .github/copilot-instructions.md  (Copilot)
 ├── → .cursorrules                     (Cursor)
 └── → .windsurfrules                   (Windsurf)
 ```
+
+Cursor, Windsurf and Copilot run no noskills hooks, so their file is the only
+instruction they get. All three files hold the same text, built in
+`sync/rule-file.ts`, and every command in it carries `spec <name>`: once a spec
+is active, `next` refuses a call without the spec name.
 
 ---
 
@@ -563,6 +793,13 @@ noskills spec upload split --into x --into y        # split into sub-specs
 ```
 
 Multiple specs can exist at different stages. Switching preserves everything.
+
+A split, through `split --into` or the answer `split` during discovery review,
+cancels the parent and starts each child in discovery review. With `--into` (at
+least two), every child starts with all of the parent's answers. Without it, the
+children are the areas the split detector found, and each starts with only the
+answers its area came from. A split refuses child names that repeat or already
+belong to a spec, and then creates nothing.
 
 ---
 
@@ -589,6 +826,36 @@ noskills pack search                # browse available
 ```
 
 Built-in: `typescript`, `react`, `security`. Remote: `github:owner/repo#name`.
+
+A pack's concerns use the concern file format, `scope` included
+([Where content applies](#where-content-applies-scope)). Installing a remote
+pack stops at a concern with an unknown scope value and names the entry.
+
+`noskills pack search` also searches a remote registry when `.eser/manifest.yml`
+names one:
+
+```yaml
+noskills:
+  packRegistry: "https://your_registry_host/registry.json"
+```
+
+The registry is a JSON document with a `packs` list, each entry with `name`,
+`description`, `version`, `source` (`builtin`, `local` or `remote`) and optional
+`tags`. The URL comes from the repository, so noskills checks it before the
+request:
+
+- It must use https; http is allowed only for a loopback host (`localhost`,
+  `127.0.0.0/8` or `[::1]`).
+- It must not contain a user name or password.
+- An IP address host must not be private, link-local, shared, unspecified,
+  multicast or reserved, in IPv4 or IPv6.
+
+Redirects are refused, documents over 1 MiB are not read, and entries with
+control characters are rejected. A host name that resolves to an internal
+address is not caught; the module header of
+[pack/registry.ts](./pack/registry.ts) explains why that case is allowed. A
+refused or unreachable registry is reported, and the built-in packs are still
+listed.
 
 ---
 
@@ -626,6 +893,9 @@ noskills:
   maxIterationsBeforeRestart: 15
   verifyCommand: "deno test"
   allowGit: false
+  validate: # optional: see "The transition validator"
+    agent: claude-code
+    model: claude-sonnet-5
 ```
 
 ---
@@ -646,8 +916,10 @@ noskills:
 │   ├── progresses/            #   workflow state machine
 │   │   ├── state.json
 │   │   ├── specs/
+│   │   ├── validations/       #   last validator result per spec
 │   │   ├── files-changed.jsonl
 │   │   └── noskills-calls.jsonl
+│   ├── purge-history/         #   what noskills purge removed (5 newest)
 │   ├── sessions/              #   ephemeral session bindings
 │   └── events/                #   append-only audit log
 │       └── events.jsonl
@@ -671,6 +943,7 @@ eser nos <command>             # alias
 | `spec list`                           | List all specs                                    |
 | `spec <name> next`                    | Get instruction for current phase                 |
 | `spec <name> next --answer="..."`     | Submit answer and advance                         |
+| `spec <name> next --validate`         | Have a second agent check the transition          |
 | `spec <name> approve`                 | Approve spec → APPROVED                           |
 | `spec <name> done`                    | Complete → COMPLETED (reason: done)               |
 | `spec <name> cancel`                  | Cancel spec → COMPLETED (reason: cancelled)       |
@@ -681,6 +954,8 @@ eser nos <command>             # alias
 | `spec <name> revisit "reason"`        | EXECUTING/BLOCKED → DISCOVERY with progress       |
 | `spec <name> review`                  | See delegations assigned to you                   |
 | `spec <name> followup <qId> "text"`   | Add adaptive follow-up question                   |
+| `spec <name> followup <id> --answer=` | Answer a pending follow-up                        |
+| `spec <name> followup <id> --skip`    | Skip a pending follow-up                          |
 | `spec <name> learn "text"`            | Record a learning                                 |
 | `spec <name> learn "text" --rule`     | Record as permanent project rule                  |
 | `run [--unattended]`                  | Autonomous execution loop                         |
@@ -693,13 +968,26 @@ eser nos <command>             # alias
 | `pack install/uninstall/list/search`  | Manage packs                                      |
 | `diagrams scan/list/check/verify`     | Diagram staleness audit                           |
 | `config set-user/get-user/clear-user` | User identity                                     |
+| `purge [--force] [--no-history]`      | Remove noskills content, keeping a copy           |
+| `purge restore [entry_id] [category]` | List the purge history or restore from an entry   |
 
 ---
 
 ## Library API
 
+The package root (`@eserstack/noskills`) is the CLI entry point; the library
+lives under `@eserstack/noskills/mod`. This example reads the project's
+manifest, starts a spec and compiles the instruction an agent would receive:
+
 ```typescript
 import * as noskills from "@eserstack/noskills/mod";
+
+const { root } = await noskills.persistence.resolveProjectRoot();
+const config = await noskills.persistence.readManifest(root);
+const allConcerns = await noskills.concerns.loadDefaultConcerns();
+const activeConcerns = allConcerns.filter((c) =>
+  config?.concerns.includes(c.id) === true
+);
 
 const state = noskills.machine.startSpec(
   noskills.createInitialState(),
@@ -708,22 +996,50 @@ const state = noskills.machine.startSpec(
 );
 
 const qs = noskills.questions.getQuestionsWithExtras(activeConcerns);
-const output = noskills.compiler.compile(state, activeConcerns, rules, config);
+const output = await noskills.compiler.compile(
+  state,
+  activeConcerns,
+  [],
+  config,
+);
 const tensions = noskills.concerns.detectTensions(activeConcerns);
 const dimensions = noskills.concerns.getReviewDimensions(activeConcerns);
 const registries = noskills.concerns.getRegistryDimensionIds(activeConcerns);
 const text = noskills.formatter.format(output, "markdown");
 ```
 
-### Dashboard API
+A concern's `reminders` hold plain strings and `{ text, scope }` objects. Read
+either shape with `noskills.concerns.reminderText(reminder)` and
+`noskills.concerns.reminderScope(reminder)`:
 
 ```typescript
-import * as dashboard from "@eserstack/noskills/dashboard";
+import * as noskills from "@eserstack/noskills/mod";
 
-const state = await dashboard.getState(projectRoot);
-const unsub = dashboard.watchEvents(projectRoot, (event) => { ... });
-await dashboard.approve(projectRoot, "upload", user);
-await dashboard.addNote(projectRoot, "upload", "KDV dahil mi?", user);
+const concerns = await noskills.concerns.loadDefaultConcerns();
+const uiReminders = concerns.flatMap((concern) => concern.reminders)
+  .filter((reminder) =>
+    noskills.concerns.reminderScope(reminder).includes("ui")
+  )
+  .map((reminder) => noskills.concerns.reminderText(reminder));
+```
+
+### Dashboard API
+
+The dashboard functions are on the same entry point, under `dashboard`:
+
+```typescript
+import * as noskills from "@eserstack/noskills/mod";
+
+const { root } = await noskills.persistence.resolveProjectRoot();
+const user = { name: "your_name", email: "your_email" };
+
+const state = await noskills.dashboard.getState(root);
+const unsubscribe = noskills.dashboard.watchEvents(root, (event) => {
+  console.log(event.type, event.spec);
+});
+await noskills.dashboard.approve(root, "upload", user);
+await noskills.dashboard.addNote(root, "upload", "Is VAT included?", user);
+unsubscribe();
 ```
 
 ---
@@ -792,8 +1108,8 @@ records which driver the run used.
 `factoryFor` prefers the ACP-backed Go bridge when the native library loads, and
 falls back to the TypeScript adapter otherwise. Both drive the same vendor
 binary in the same non-interactive mode, so the choice affects transport, not
-behaviour. If no agent can be resolved, validation returns null and the caller
-falls back to human review.
+behaviour. If no agent can be resolved, `noskills run` reports that it could not
+run the agent and stops.
 
 There is no longer a `bridge/` module or a `claude -p` shell-out — that chain
 was removed when ACP replaced it.

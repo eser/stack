@@ -1,5 +1,13 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+/**
+ * Returns the properties of an object without duplicate values, keeping the
+ * first property for each key `predicate` returns.
+ *
+ * @param instance - The source object
+ * @param predicate - Returns the key to compare a value by
+ * @returns A new object of the first property for each key
+ */
 export const distinctObject = <T>(
   instance: Record<string | number | symbol, T>,
   predicate: (
@@ -26,5 +34,3 @@ export const distinctObject = <T>(
 
   return result;
 };
-
-export { distinctObject as default };

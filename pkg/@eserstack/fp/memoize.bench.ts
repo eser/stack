@@ -1,6 +1,8 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import { memoize } from "./memoize.ts";
+import * as memoize from "./memoize.ts";
+// lodash.memoize is CommonJS whose module.exports is one function, so it has no
+// named exports to import as a namespace.
 import lodashMemoize from "lodash.memoize";
 
 const group = "memoize";
@@ -8,7 +10,7 @@ const group = "memoize";
 // Simple computation for benchmarking
 const compute = (x: number) => x * 2 + 1;
 
-const eserMemoized = memoize(compute);
+const eserMemoized = memoize.memoize(compute);
 const lodashMemoized = lodashMemoize(compute);
 
 Deno.bench("eser/fp/memoize (cache hit)", { group, baseline: true }, () => {
@@ -23,7 +25,7 @@ Deno.bench("npm:lodash.memoize (cache hit)", { group }, () => {
 let eserCounter = 0;
 let lodashCounter = 0;
 
-const eserFreshMemoized = memoize((x: number) => x * 2);
+const eserFreshMemoized = memoize.memoize((x: number) => x * 2);
 const lodashFreshMemoized = lodashMemoize((x: number) => x * 2);
 
 Deno.bench("eser/fp/memoize (cache miss)", { group }, () => {

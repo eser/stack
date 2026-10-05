@@ -67,13 +67,12 @@ Rule:
   second runner or assertion library (chai, `node:assert`, vitest).
 - Both `Deno.test` and `@std/testing/bdd` (`describe`/`it`) are in use. In an
   existing file follow its style; do not mix the two in one file.
-- Test files are co-located with the source as `*.test.ts`. Some older files use
-  `_test.ts` (for example in `pkg/@eserstack/workflows`); leave them as they are
-  unless asked, and name new files `*.test.ts`.
-- Run tests with `deno task cli test`, which runs in parallel with
-  `--trace-leaks` and writes coverage to `etc/coverage/`. `deno task cli ok`
-  runs them as part of the precommit workflow. The Build workflow converts
-  coverage to LCOV and uploads it to Codecov.
+- Test files are co-located with the source as `*.test.ts`. Leave older
+  `_test.ts` files as they are unless asked, and name new files `*.test.ts`.
+- Run tests through this codebase's test command (the manifest script its
+  AGENTS.md names), in parallel with `--trace-leaks` and coverage on, and as
+  part of the precommit gate. CI uploads the coverage so a drop is visible in
+  review.
 
 Because tests run in parallel in one process, a test that sets a process-wide
 value (an environment variable, the working directory) races the others. Pass

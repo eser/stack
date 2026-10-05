@@ -17,17 +17,16 @@ import * as primitives from "@eserstack/primitives";
 import * as standards from "@eserstack/standards";
 import type * as shellArgs from "@eserstack/shell/args";
 import * as tui from "@eserstack/shell/tui";
-import { createCliContext, runCliMain } from "./cli-support.ts";
-
-const { ctx, output: out } = createCliContext();
+import * as cliSupport from "./cli-support.ts";
 
 const showGhHelp = (): void => {
+  const { ctx, output: out } = cliSupport.getCliContext();
   tui.log.info(ctx, "eser codebase gh — GitHub operations\n");
-  console.log("Subcommands:");
-  console.log("  contributors     Update contributor list in README.md");
-  console.log("  release-notes    Sync CHANGELOG to GitHub Releases");
-  console.log("  release-tag      Create and push release git tags");
-  console.log(
+  out.writeln("Subcommands:");
+  out.writeln("  contributors     Update contributor list in README.md");
+  out.writeln("  release-notes    Sync CHANGELOG to GitHub Releases");
+  out.writeln("  release-tag      Create and push release git tags");
+  out.writeln(
     "\nRun 'eser codebase gh <subcommand> --help' for details.",
   );
 };
@@ -61,16 +60,20 @@ export const main = async (
       const mod = await import("./release-tag.ts");
       return await mod.main(remaining);
     }
-    default:
+    default: {
+      const { ctx } = cliSupport.getCliContext();
       tui.log.error(ctx, `Unknown gh subcommand: ${subcommand}`);
       showGhHelp();
       return primitives.results.fail({ exitCode: 1 });
+    }
   }
 };
 
 if (import.meta.main) {
-  runCliMain(
-    await main(standards.crossRuntime.runtime.process.args as string[]),
-    out,
+  // Entry point: the await only runs when this file is executed directly.
+  // deno-lint-ignore no-top-level-await
+  const result = await main(
+    standards.crossRuntime.runtime.process.args as string[],
   );
+  cliSupport.runCliMain(result, cliSupport.getCliContext().output);
 }

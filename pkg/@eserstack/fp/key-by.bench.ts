@@ -1,6 +1,8 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import { keyBy } from "./key-by.ts";
+import * as keyBy from "./key-by.ts";
+// lodash.keyby is CommonJS whose module.exports is one function, so it has no
+// named exports to import as a namespace.
 import lodashKeyBy from "lodash.keyby";
 
 const group = "key-by";
@@ -14,7 +16,7 @@ Deno.bench("eser/fp/keyBy", { group, baseline: true }, () => {
     { id: "e", name: "Eve" },
   ];
 
-  keyBy(arr, (x) => x.id);
+  keyBy.keyBy(arr, (x) => x.id);
 });
 
 Deno.bench("npm:lodash.keyby", { group }, () => {

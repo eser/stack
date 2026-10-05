@@ -1,520 +1,426 @@
-# ajan/lib
+# 🧰 [ajan/lib](./)
 
-## Overview
+> **eserstack Go library** in the root module `github.com/eser/stack`. Import
+> `github.com/eser/stack/pkg/ajan/lib`. The module is not published for
+> `go get`: build inside this repository, or require `github.com/eser/stack`
+> with a `replace` directive that points at a checkout.
 
-**lib** is a utility library for Go applications with helper functions for
-networking, cryptography, environment handling, string manipulation, and more.
+`lib` is a utility library of helpers the other ajan packages share: networking
+and outbound URL checks, cryptography, IDs, environment handling, string, slug
+and path manipulation, bounded reads, case-insensitive map access, a nullable
+SQL string with JSON support, and sleeps that end with a context. It depends on
+the standard library, `github.com/oklog/ulid/v2` and `golang.org/x/text`.
 
 ## Key Features
 
-- **Network Utilities**: IP address parsing, host/port splitting, local network
-  detection
+- **Network Utilities**: Host/port splitting, local and private address checks,
+  outbound URL validation against SSRF
 - **Cryptography**: Self-signed certificate generation, random byte generation
 - **Environment Handling**: Environment-aware file loading, variable overrides
-- **String Utilities**: Advanced string trimming functions
-- **Path Utilities**: File path parsing and manipulation
-- **Array Utilities**: Generic array operations and copying
+- **String Utilities**: Unicode-aware trimming, slugs
+- **Path Utilities**: File path parsing and home directory expansion
+- **Array Utilities**: Generic slice concatenation and copying
+- **I/O Utilities**: Reading a stream to the end under a size limit
 - **Map Utilities**: Case-insensitive map operations
-- **SQL Types**: Enhanced nullable SQL types with JSON support
-- **ID Generation**: ULID-based unique identifier generation
+- **SQL Types**: Nullable SQL string with JSON support
+- **ID Generation**: ULID-based unique identifiers, trace and span IDs
 - **Logging Utilities**: Structured logging attribute serialization
 
-## API Reference
+## Quick Start
 
-### Network Utilities
-
-#### SplitHostPort
-
-Splits a network address into host and port components.
+Each helper is a plain function:
 
 ```go
-func SplitHostPort(addr string) (string, string, error)
+package main
+
+import (
+	"fmt"
+	"strings"
+
+	"github.com/eser/stack/pkg/ajan/lib"
+)
+
+func main() {
+	fmt.Println(lib.IDsGenerateUnique())
+	fmt.Println(lib.Slugify("Héllo, Wörld!"))
+	fmt.Println(lib.EnvAwareFilenames("production", "config.json"))
+
+	err := lib.ValidateExternalURL("http://127.0.0.1/admin", false)
+	fmt.Println(err)
+
+	_, err = lib.ReadAllLimited(strings.NewReader("payload"), 4)
+	fmt.Println(err)
+}
 ```
 
-**Usage:**
+It prints a new ULID on the first line, then:
+
+```text
+hello-world
+[config.json config.production.json config.local.json config.production.local.json]
+URL resolves to a private or reserved IP address: 127.0.0.1
+read limit exceeded: more than 4 bytes
+```
+
+## Network Utilities
+
+### SplitHostPort
+
+Splits a network address into host and port components. An address without a
+port, including a bare IPv6 address, returns the whole address as the host and
+an empty port.
 
 ```go
-import "github.com/eser/stack/pkg/ajan/lib"
+// func SplitHostPort(addr string) (string, string, error)
 
-// Split address with port
 host, port, err := lib.SplitHostPort("localhost:8080")
 // host = "localhost", port = "8080", err = nil
 
-// Address without port
-host, port, err := lib.SplitHostPort("localhost")
+host, port, err = lib.SplitHostPort("localhost")
 // host = "localhost", port = "", err = nil
 
-// IPv6 address
-host, port, err := lib.SplitHostPort("[::1]:8080")
+host, port, err = lib.SplitHostPort("[::1]:8080")
 // host = "::1", port = "8080", err = nil
+
+host, port, err = lib.SplitHostPort("2001:db8::1")
+// host = "2001:db8::1", port = "", err = nil
 ```
 
-#### DetectLocalNetwork
+A malformed address returns an error wrapping `lib.ErrFailedToSplitHostPort`.
 
-Determines if a request IP address is from the local network.
+### DetectLocalNetwork
+
+Reports whether a request address comes from this machine: it returns true when
+the address is a loopback address inside the network of one of the local
+interfaces. When `requestAddr` holds a comma-separated list (as
+`X-Forwarded-For` does), only the first entry is checked.
 
 ```go
-func DetectLocalNetwork(requestAddr string) (bool, error)
-```
+// func DetectLocalNetwork(requestAddr string) (bool, error)
 
-**Usage:**
-
-```go
-// Check if request is from local network
 isLocal, err := lib.DetectLocalNetwork("127.0.0.1:54321")
+// isLocal = true, err = nil
+
+isLocal, err = lib.DetectLocalNetwork("10.0.0.1:80,203.0.113.1:80")
+// isLocal = false: 10.0.0.1 is a private address, not a loopback one
+```
+
+An entry that is not an IP address returns an error wrapping
+`lib.ErrInvalidIPAddress`.
+
+### IsPrivateIP and ValidateExternalURL
+
+`IsPrivateIP` reports whether an IP string falls in a private or reserved range:
+`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, `127.0.0.0/8`,
+`169.254.0.0/16`, `0.0.0.0/8`, `100.64.0.0/10`, `::1/128`, `fc00::/7` and
+`fe80::/10`. A string that does not parse returns false.
+
+`ValidateExternalURL` checks a URL before an outbound request, to block
+Server-Side Request Forgery (SSRF). It accepts only `http` and `https` (only
+`https` when `requireHTTPS` is true), resolves the host name, and rejects the
+URL when any resolved address is private or reserved:
+
+```go
+// func ValidateExternalURL(rawURL string, requireHTTPS bool) error
+
+err := lib.ValidateExternalURL(webhookURL, true)
+if errors.Is(err, lib.ErrSSRFBlocked) {
+	return fmt.Errorf("webhook %q points at an internal address: %w", webhookURL, err)
+}
+
 if err != nil {
-    log.Fatal(err)
+	return fmt.Errorf("check webhook %q: %w", webhookURL, err)
 }
+```
 
-if isLocal {
-    fmt.Println("Request from local network")
+The errors wrap `lib.ErrInvalidURL`, `lib.ErrInsecureScheme` or
+`lib.ErrSSRFBlocked`. The check resolves the name when you call it, and the HTTP
+client resolves it again when it connects.
+
+## Cryptography
+
+### CryptoGetRandomBytes
+
+Returns `size` bytes from `crypto/rand`:
+
+```go
+// func CryptoGetRandomBytes(size int) ([]byte, error)
+
+key, err := lib.CryptoGetRandomBytes(32) // a 256-bit key
+if err != nil {
+	return fmt.Errorf("generate key: %w", err)
 }
-
-// Handle multiple addresses (X-Forwarded-For style)
-isLocal, err := lib.DetectLocalNetwork("10.0.0.1:80,203.0.113.1:80")
 ```
 
-### Cryptography
+### GenerateSelfSignedCert
 
-#### CryptoGetRandomBytes
-
-Generates cryptographically secure random bytes.
-
-```go
-func CryptoGetRandomBytes(size int) []byte
-```
-
-**Usage:**
+Creates a self-signed TLS certificate for development purposes: an RSA key of
+2048 bits (`lib.SelfSignedKeyLength`), the organization `Development`, valid for
+365 days from now and for server authentication. It names no host, so clients
+that verify the chain reject it.
 
 ```go
-// Generate 32 random bytes for a key
-key := lib.CryptoGetRandomBytes(32)
-fmt.Printf("Random key: %x\n", key)
+// func GenerateSelfSignedCert() (tls.Certificate, error)
 
-// Generate session token
-token := lib.CryptoGetRandomBytes(16)
-```
-
-#### GenerateSelfSignedCert
-
-Creates a self-signed TLS certificate for development purposes.
-
-```go
-func GenerateSelfSignedCert() (tls.Certificate, error)
-```
-
-**Usage:**
-
-```go
-// Generate certificate for HTTPS development server
 cert, err := lib.GenerateSelfSignedCert()
 if err != nil {
-    log.Fatal("Failed to generate certificate:", err)
+	return fmt.Errorf("generate development certificate: %w", err)
 }
 
-// Use with HTTP server
 server := &http.Server{
-    Addr:      ":8443",
-    TLSConfig: &tls.Config{Certificates: []tls.Certificate{cert}},
+	Addr:              ":8443",
+	ReadHeaderTimeout: 5 * time.Second,
+	TLSConfig:         &tls.Config{Certificates: []tls.Certificate{cert}},
 }
-
-go server.ListenAndServeTLS("", "")
 ```
 
-### Environment Handling
+The errors wrap `lib.ErrPrivateKeyGeneration`, `lib.ErrCertificateGeneration` or
+`lib.ErrKeyPairCreation`.
 
-#### EnvGetCurrent
+## ID Generation
 
-Gets the current environment name from `env` environment variable.
+`IDsGenerateUnique` returns a ULID (Universally Unique Lexicographically
+Sortable Identifier) such as `01ARZ3NDEKTSV4RRFFQ69G5FAV`. ULIDs sort by the
+millisecond they were made in, and `ulid.Make`, which this function calls, keeps
+the IDs made in one process within the same millisecond in order.
 
 ```go
-func EnvGetCurrent() string
+// func IDsGenerateUnique() string
+// func GenerateHexID(byteLength int) string
+// func GenerateTraceID() string
+// func GenerateSpanID() string
+
+userID := lib.IDsGenerateUnique()
+traceID := lib.GenerateTraceID() // 32 hex characters (128 bits)
+spanID := lib.GenerateSpanID()   // 16 hex characters (64 bits)
 ```
 
-**Usage:**
+`GenerateHexID` returns `byteLength` random bytes from `crypto/rand` as hex.
+
+## Environment Handling
+
+### EnvGetCurrent
+
+Returns the current environment name: the `env` environment variable in lower
+case, or `development` when it is unset or empty.
 
 ```go
-// Get current environment (defaults to "development")
+// func EnvGetCurrent() string
+
 env := lib.EnvGetCurrent()
-fmt.Printf("Running in %q environment\n", env)
-
-// Set environment
-os.Setenv("env", "production")
-env = lib.EnvGetCurrent() // Returns "production"
 ```
 
-#### EnvAwareFilenames
+### EnvAwareFilenames
 
-Generates environment-aware filenames for configuration loading.
-
-```go
-func EnvAwareFilenames(env string, filename string) []string
-```
-
-**Usage:**
+Generates environment-aware filenames for configuration loading, in the order
+they should be read. The test environment skips the `.local` file, so a
+developer's local overrides do not change test runs.
 
 ```go
-// Get environment-aware config filenames
+// func EnvAwareFilenames(env string, filename string) []string
+
 filenames := lib.EnvAwareFilenames("production", "config.json")
-// Returns: ["config.json", "config.production.json", "config.local.json", "config.production.local.json"]
+// ["config.json", "config.production.json", "config.local.json", "config.production.local.json"]
 
-// For test environment (excludes .local)
-filenames := lib.EnvAwareFilenames("test", "app.yaml")
-// Returns: ["app.yaml", "app.test.yaml", "app.test.local.yaml"]
+filenames = lib.EnvAwareFilenames("test", "app.yaml")
+// ["app.yaml", "app.test.yaml", "app.test.local.yaml"]
 ```
 
-#### EnvOverrideVariables
+### EnvOverrideVariables
 
-Loads system environment variables into a map with optional case-insensitive
-keys.
-
-```go
-func EnvOverrideVariables(m *map[string]any, keyCaseInsensitive bool)
-```
-
-**Usage:**
+Copies the process environment into a map. With `keyCaseInsensitive`, a variable
+overwrites an existing key that matches it in any case and keeps that key's
+spelling, so `DATABASE_URL` updates an existing `database_url` entry.
 
 ```go
-config := make(map[string]any)
+// func EnvOverrideVariables(m *map[string]any, keyCaseInsensitive bool)
 
-// Load environment variables (case sensitive)
-lib.EnvOverrideVariables(&config, false)
-
-// Load environment variables (case insensitive)
+config := map[string]any{"database_url": "postgres://localhost/dev"}
 lib.EnvOverrideVariables(&config, true)
-// DATABASE_URL and database_url will both map to the same key
 ```
 
-### String Utilities
+## String Utilities
 
-#### String Trimming Functions
+### String Trimming Functions
 
-Advanced string trimming that handles Unicode whitespace properly.
-
-```go
-func StringsTrimLeadingSpace(src string) string
-func StringsTrimTrailingSpace(src string) string
-func StringsTrimLeadingSpaceFromBytes(src []byte) []byte
-func StringsTrimTrailingSpaceFromBytes(src []byte) []byte
-```
-
-**Usage:**
+Trimming that removes every Unicode space character (`unicode.IsSpace`):
 
 ```go
-// Trim leading whitespace
-text := "   hello world"
-trimmed := lib.StringsTrimLeadingSpace(text)
-// Result: "hello world"
+// func StringsTrimLeadingSpace(src string) string
+// func StringsTrimTrailingSpace(src string) string
+// func StringsTrimLeadingSpaceFromBytes(src []byte) []byte
+// func StringsTrimTrailingSpaceFromBytes(src []byte) []byte
 
-// Trim trailing whitespace
-text = "hello world   "
-trimmed = lib.StringsTrimTrailingSpace(text)
-// Result: "hello world"
+trimmed := lib.StringsTrimLeadingSpace("   hello world")
+// "hello world"
 
-// Work with byte slices
 data := []byte("   hello world   ")
-leading := lib.StringsTrimLeadingSpaceFromBytes(data)
 trailing := lib.StringsTrimTrailingSpaceFromBytes(data)
+// []byte("   hello world")
 ```
 
-### Path Utilities
+### Slugify and SanitizeSlug
 
-#### PathsSplit
-
-Splits a file path into directory, basename, and extension.
+Both remove accents (`é` becomes `e`) and lowercase the text. `Slugify` makes a
+URL slug from a title: it drops other characters, joins words with hyphens and
+trims hyphens at the ends. `SanitizeSlug` cleans a slug a user typed: it
+replaces each other character with a hyphen and keeps hyphens at the ends.
 
 ```go
-func PathsSplit(filename string) (string, string, string)
+slug := lib.Slugify("Héllo, Wörld!  Again")
+// "hello-world-again"
+
+cleaned := lib.SanitizeSlug("My Slug!")
+// "my-slug-"
 ```
 
-**Usage:**
+## Path Utilities
+
+`PathsSplit` splits a file path into directory, basename, and extension.
+`ExpandPath` replaces a leading `~/` with the user's home directory and returns
+other paths unchanged.
 
 ```go
-// Split file path
+// func PathsSplit(filename string) (string, string, string)
+// func ExpandPath(path string) (string, error)
+
 dir, name, ext := lib.PathsSplit("/path/to/config.json")
 // dir = "/path/to/", name = "config", ext = ".json"
 
-// File without extension
-dir, name, ext := lib.PathsSplit("/path/to/README")
-// dir = "/path/to/", name = "README", ext = ""
-
-// Just filename
-dir, name, ext := lib.PathsSplit("app.go")
+dir, name, ext = lib.PathsSplit("app.go")
 // dir = "", name = "app", ext = ".go"
+
+configPath, err := lib.ExpandPath("~/.config/app.json")
 ```
 
-### Array Utilities
+## Array Utilities
 
-#### ArraysCopy
-
-Efficiently copies and concatenates multiple slices into a single slice.
+`ArraysCopy` concatenates any number of slices into a new slice, so the result
+shares no backing array with its inputs:
 
 ```go
-func ArraysCopy[T any](items ...[]T) []T
+// func ArraysCopy[T any](items ...[]T) []T
+
+result := lib.ArraysCopy([]string{"a", "b"}, []string{"c", "d"}, []string{"e"})
+// ["a", "b", "c", "d", "e"]
 ```
 
-**Usage:**
+## I/O Utilities
+
+`ReadAllLimited` reads a reader to the end like `io.ReadAll`, but holds at most
+`limit` bytes. When the reader has more, it returns an error wrapping
+`lib.ErrReadLimitExceeded` instead of a truncated result.
 
 ```go
-// Concatenate string slices
-slice1 := []string{"a", "b"}
-slice2 := []string{"c", "d"}
-slice3 := []string{"e"}
+// func ReadAllLimited(r io.Reader, limit int64) ([]byte, error)
 
-result := lib.ArraysCopy(slice1, slice2, slice3)
-// Result: ["a", "b", "c", "d", "e"]
+const maxManifestBytes = 1 << 20 // 1 MiB
 
-// Works with any type
-ints1 := []int{1, 2}
-ints2 := []int{3, 4}
-intResult := lib.ArraysCopy(ints1, ints2)
-// Result: [1, 2, 3, 4]
-
-// Single slice copy
-copied := lib.ArraysCopy(slice1)
-```
-
-### Map Utilities
-
-#### CaseInsensitiveSet
-
-Sets a value in a map using case-insensitive key matching.
-
-```go
-func CaseInsensitiveSet(m *map[string]any, key string, value any)
-```
-
-**Usage:**
-
-```go
-config := map[string]any{
-    "DATABASE_URL": "postgres://localhost/db1",
+data, err := lib.ReadAllLimited(resp.Body, maxManifestBytes)
+if errors.Is(err, lib.ErrReadLimitExceeded) {
+	return fmt.Errorf("manifest %s is larger than %d bytes: %w", manifestURL, maxManifestBytes, err)
 }
 
-// This will update the existing key instead of creating a new one
+if err != nil {
+	return fmt.Errorf("read manifest %s: %w", manifestURL, err)
+}
+```
+
+## Map Utilities
+
+`CaseInsensitiveGet` looks up a key, preferring an exact match and falling back
+to a case-insensitive one. `CaseInsensitiveSet` updates the existing key that
+matches in any case, keeping its spelling, or adds the key when none matches.
+
+```go
+// func CaseInsensitiveGet(m map[string]any, key string) (any, bool)
+// func CaseInsensitiveSet(m *map[string]any, key string, value any)
+
+config := map[string]any{"DATABASE_URL": "postgres://localhost/db1"}
+
+databaseURL, found := lib.CaseInsensitiveGet(config, "database_url")
+// databaseURL = "postgres://localhost/db1", found = true
+
 lib.CaseInsensitiveSet(&config, "database_url", "postgres://localhost/db2")
 // config["DATABASE_URL"] is now "postgres://localhost/db2"
-
-// If no matching key exists, creates new key
-lib.CaseInsensitiveSet(&config, "API_KEY", "secret123")
-// config["API_KEY"] = "secret123"
 ```
 
-### SQL Types
+## SQL Types
 
-#### NullString
-
-Enhanced nullable string type with JSON marshaling support.
-
-```go
-type NullString struct {
-    sql.NullString
-}
-```
-
-**Usage:**
+`NullString` wraps `sql.NullString` and adds JSON support: an invalid value
+encodes as `null`, and `null` decodes as an invalid value. Its methods have
+pointer receivers, so marshal a pointer to the struct that holds it:
 
 ```go
-// Use in struct definitions
 type User struct {
-    ID       int64            `json:"id"`
-    Name     string           `json:"name"`
-    Bio      lib.NullString   `json:"bio"`
-    Website  lib.NullString   `json:"website"`
+	Name string         `json:"name"`
+	Bio  lib.NullString `json:"bio"`
 }
 
-// Create null value
-bio := lib.NullString{}
-// bio.Valid = false, bio.String = ""
+user := User{Name: "Ada"}
+user.Bio.String, user.Bio.Valid = "Developer", true
 
-// Create with value
-bio = lib.NullString{sql.NullString{String: "Developer", Valid: true}}
+data, err := json.Marshal(&user)
+// {"name":"Ada","bio":"Developer"}
 
-// JSON marshaling
-data, err := json.Marshal(bio)
-// If Valid=true: "Developer"
-// If Valid=false: null
-
-// Database scanning
-var bio lib.NullString
-err := row.Scan(&user.ID, &user.Name, &bio)
+err = db.QueryRowContext(ctx, "SELECT bio FROM users WHERE id = ?", userID).
+	Scan(&user.Bio)
 ```
 
-### ID Generation
+`Scan` accepts a `string`, a `[]byte` or `nil`; any other type returns an error
+wrapping `lib.ErrUnexpectedNullStringType`.
 
-#### IDsGenerateUnique
+## Logging Utilities
 
-Generates unique identifiers using ULID (Universally Unique Lexicographically
-Sortable Identifier).
+`SerializeSlogAttrs` joins attributes into one `key=value` string, and
+`GetSlogAttrs` collects the attributes of a `slog.Record` into a slice:
 
 ```go
-func IDsGenerateUnique() string
+// func SerializeSlogAttrs(attrs []slog.Attr) string
+// func GetSlogAttrs(rec slog.Record) []slog.Attr
+
+serialized := lib.SerializeSlogAttrs([]slog.Attr{
+	slog.String("user_id", "12345"),
+	slog.Int("status_code", 200),
+})
+// "user_id=12345, status_code=200"
 ```
 
-**Usage:**
+## Sleeping With a Context
+
+`SleepContext` waits for `delay` and `SleepUntilContext` until `targetTime`;
+both return early when the context ends. Neither returns an error, so check
+`ctx.Err()` afterwards when you need to know which happened:
 
 ```go
-// Generate unique ID for entities
-userID := lib.IDsGenerateUnique()
-fmt.Printf("User ID: %s\n", userID)
-// Output: User ID: 01ARZ3NDEKTSV4RRFFQ69G5FAV
+// func SleepContext(ctx context.Context, delay time.Duration)
+// func SleepUntilContext(ctx context.Context, targetTime time.Time)
 
-// Generate multiple IDs
-sessionID := lib.IDsGenerateUnique()
-requestID := lib.IDsGenerateUnique()
+lib.SleepContext(ctx, 2*time.Second)
 
-// IDs are lexicographically sortable by creation time
-ids := []string{
-    lib.IDsGenerateUnique(),
-    lib.IDsGenerateUnique(),
-    lib.IDsGenerateUnique(),
-}
-// ids are automatically sorted by creation time
-```
-
-### Logging Utilities
-
-#### SerializeSlogAttrs
-
-Serializes structured logging attributes into a string format.
-
-```go
-func SerializeSlogAttrs(attrs []slog.Attr) string
-```
-
-**Usage:**
-
-```go
-import "log/slog"
-
-// Create attributes
-attrs := []slog.Attr{
-    slog.String("user_id", "12345"),
-    slog.Int("status_code", 200),
-    slog.String("method", "GET"),
-}
-
-// Serialize to string
-serialized := lib.SerializeSlogAttrs(attrs)
-fmt.Println(serialized)
-// Output: "user_id=12345, status_code=200, method=GET"
-
-// Use in custom logging
-message := fmt.Sprintf("Request processed: %s", lib.SerializeSlogAttrs(attrs))
-```
-
-## Error Handling
-
-The lib package uses sentinel errors for consistent error handling:
-
-```go
-import "errors"
-
-// Network errors
-if errors.Is(err, lib.ErrInvalidIPAddress) {
-    // Handle invalid IP address
-}
-
-if errors.Is(err, lib.ErrFailedToSplitHostPort) {
-    // Handle host:port parsing error
-}
-
-// Cryptography errors
-if errors.Is(err, lib.ErrPrivateKeyGeneration) {
-    // Handle private key generation failure
-}
-
-if errors.Is(err, lib.ErrCertificateGeneration) {
-    // Handle certificate generation failure
-}
-
-// SQL errors
-if errors.Is(err, lib.ErrUnexpectedNullStringType) {
-    // Handle unexpected type in NullString scanning
+if ctx.Err() != nil {
+	return fmt.Errorf("wait before retry: %w", ctx.Err())
 }
 ```
 
-## Best Practices
+## MIME Types
 
-### 1. Network Operations
+`EnsureMimetypesRegistered` adds audio types to the `mime` package's table:
+`.mp3` (`audio/mpeg`), `.wav` (`audio/wav`), `.ogg` (`audio/ogg`), and `.mp4`
+and `.m4a` (`audio/mp4`). Call it once at start-up, before
+`mime.TypeByExtension` needs them.
 
-```go
-// Always validate IP addresses before use
-host, port, err := lib.SplitHostPort(userInput)
-if err != nil {
-    return fmt.Errorf("invalid address format: %w", err)
-}
+## Concurrency
 
-// Check for local network access in security-sensitive operations
-isLocal, err := lib.DetectLocalNetwork(remoteAddr)
-if err != nil {
-    return err
-}
+The functions keep no state of their own and can be called from any number of
+goroutines. The map helpers read and write the map you pass without locking, so
+guard a map that several goroutines share. `EnsureMimetypesRegistered` changes
+the process-wide `mime` table.
 
-if !isLocal && requiresLocalAccess {
-    return errors.New("operation requires local network access")
-}
-```
+## 🔗 Links
 
-### 2. Cryptography
-
-```go
-// Use appropriate key sizes for different purposes
-sessionKey := lib.CryptoGetRandomBytes(32)   // 256-bit key
-csrfToken := lib.CryptoGetRandomBytes(16)    // 128-bit token
-
-// Generate certificates for development only
-if env := lib.EnvGetCurrent(); env == "development" {
-    cert, err := lib.GenerateSelfSignedCert()
-    if err != nil {
-        log.Fatal("Failed to create dev certificate:", err)
-    }
-    // Use cert for development server
-}
-```
-
-### 3. Environment Configuration
-
-```go
-// Load configuration in order of precedence
-env := lib.EnvGetCurrent()
-filenames := lib.EnvAwareFilenames(env, "config.json")
-
-config := make(map[string]any)
-for _, filename := range filenames {
-    // Load each file if it exists
-    if data, err := os.ReadFile(filename); err == nil {
-        // Parse and merge config
-    }
-}
-
-// Override with environment variables
-lib.EnvOverrideVariables(&config, true)
-```
-
-### 4. Database Operations
-
-```go
-// Use NullString for optional database fields
-type User struct {
-    Email     string         `json:"email" db:"email"`
-    Bio       lib.NullString `json:"bio" db:"bio"`
-    Website   lib.NullString `json:"website" db:"website"`
-}
-
-// Handle nullable fields properly
-var user User
-err := db.QueryRow("SELECT email, bio, website FROM users WHERE id = ?", userID).
-    Scan(&user.Email, &user.Bio, &user.Website)
-```
-
-## Dependencies
-
-- `github.com/oklog/ulid/v2`: ULID generation
-- Standard library: `crypto/*`, `net`, `database/sql`, `log/slog`
-
-## Thread Safety
-
-All functions in the lib package are thread-safe and can be called concurrently
-from multiple goroutines. The only exception is map operations which should be
-synchronized when accessed concurrently.
+- `go doc github.com/eser/stack/pkg/ajan/lib`: the API reference generated from
+  source
+- [ajan/configfx](../configfx/README.md): uses the environment helpers to find
+  and read config files
+- [eser/stack on GitHub](https://github.com/eser/stack)

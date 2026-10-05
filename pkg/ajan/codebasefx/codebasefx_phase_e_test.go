@@ -6,6 +6,7 @@ package codebasefx_test
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -792,9 +793,11 @@ func writeJSON(t *testing.T, path string, v any) {
 func TestCheckCircularDeps_NoWorkspace(t *testing.T) {
 	t.Parallel()
 
-	// No deno.json — acceptable to return error or empty result; must not panic.
+	// No root config: the check fails instead of passing on zero packages.
 	dir := t.TempDir()
-	_, _ = codebasefx.CheckCircularDeps(dir)
+	if _, err := codebasefx.CheckCircularDeps(dir); !errors.Is(err, codebasefx.ErrNoWorkspaceMembers) {
+		t.Errorf("CheckCircularDeps error = %v, want ErrNoWorkspaceMembers", err)
+	}
 }
 
 func TestCheckCircularDeps_EmptyWorkspace(t *testing.T) {

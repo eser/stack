@@ -1,10 +1,10 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import { assert, assertEquals, assertStringIncludes } from "@std/assert";
+import * as assert from "@std/assert";
 
 import * as results from "@eserstack/primitives/results";
 
-import { Command } from "./command.ts";
+import * as command from "./command.ts";
 
 /**
  * Builds a parent command with one lazily-loaded child that carries an alias.
@@ -13,17 +13,17 @@ import { Command } from "./command.ts";
  * point of registering it lazily: a command nobody invoked must not cost
  * anything at startup.
  */
-const withLazyChild = (): { root: Command; loaded: () => boolean } => {
+const withLazyChild = (): { root: command.Command; loaded: () => boolean } => {
   let wasLoaded = false;
 
-  const root = new Command("root").lazyCommand("workflows", {
+  const root = new command.Command("root").lazyCommand("workflows", {
     description: "Workflow engine",
     aliases: ["wf"],
     load: () => {
       wasLoaded = true;
 
       return Promise.resolve(
-        new Command("workflows").run(() => results.ok(undefined)),
+        new command.Command("workflows").run(() => results.ok(undefined)),
       );
     },
   });
@@ -38,11 +38,11 @@ const withLazyChild = (): { root: Command; loaded: () => boolean } => {
 Deno.test("a lazy command dispatches through its alias", async () => {
   const { root, loaded } = withLazyChild();
 
-  assert(!loaded(), "the module loaded before anything invoked it");
+  assert.assert(!loaded(), "the module loaded before anything invoked it");
 
   await root.parse(["wf"]);
 
-  assert(loaded(), "invoking the alias did not load the command");
+  assert.assert(loaded(), "invoking the alias did not load the command");
 });
 
 Deno.test("a lazy command still dispatches through its own name", async () => {
@@ -50,7 +50,10 @@ Deno.test("a lazy command still dispatches through its own name", async () => {
 
   await root.parse(["workflows"]);
 
-  assert(loaded(), "invoking the canonical name did not load the command");
+  assert.assert(
+    loaded(),
+    "invoking the canonical name did not load the command",
+  );
 });
 
 // An alias that works but is undiscoverable is worse than no alias, so help
@@ -60,21 +63,79 @@ Deno.test("a lazy command's aliases appear in help", () => {
 
   const help = root.help();
 
-  assertStringIncludes(help, "workflows, wf");
+  assert.assertStringIncludes(help, "workflows, wf");
 
   // Generating help must not import the command — that would reintroduce the
   // eager cost this whole mechanism exists to avoid.
-  assertEquals(loaded(), false);
+  assert.assertEquals(loaded(), false);
 });
 
 Deno.test("an unaliased lazy command renders without a trailing comma", () => {
-  const root = new Command("root").lazyCommand("solo", {
+  const root = new command.Command("root").lazyCommand("solo", {
     description: "No alias here",
-    load: () => Promise.resolve(new Command("solo")),
+    load: () => Promise.resolve(new command.Command("solo")),
   });
 
   const help = root.help();
 
-  assertStringIncludes(help, "solo");
-  assertEquals(help.includes("solo,"), false);
+  assert.assertStringIncludes(help, "solo");
+  assert.assertEquals(help.includes("solo,"), false);
+});
+
+/**
+ * Builds a root command with one module group. `received` reports the
+ * arguments the dispatched module's `main` was called with, or null when no
+ * module ran.
+ */
+const withGroup = (): {
+  root: command.Command;
+  received: () => readonly string[] | null;
+} => {
+  let receivedArgs: readonly string[] | null = null;
+
+  const root = new command.Command("root").group("tools", {
+    description: "Tool modules",
+    aliases: { fmt: "format" },
+    modules: {
+      format: {
+        description: "Format files",
+        load: () =>
+          Promise.resolve({
+            main: (cliArgs?: readonly string[]) => {
+              receivedArgs = cliArgs ?? [];
+              return Promise.resolve(results.ok(undefined));
+            },
+          }),
+      },
+    },
+  });
+
+  return { root, received: () => receivedArgs };
+};
+
+Deno.test("a group dispatches to its module with the remaining args", async () => {
+  const { root, received } = withGroup();
+
+  const result = await root.parse(["tools", "format", "src"]);
+
+  assert.assert(results.isOk(result));
+  assert.assertEquals(received(), ["src"]);
+});
+
+Deno.test("a group resolves a module alias", async () => {
+  const { root, received } = withGroup();
+
+  await root.parse(["tools", "fmt", "src"]);
+
+  assert.assertEquals(received(), ["src"]);
+});
+
+Deno.test("a group rejects an unknown module with exit code 1", async () => {
+  const { root, received } = withGroup();
+
+  const result = await root.parse(["tools", "missing"]);
+
+  assert.assert(results.isFail(result));
+  assert.assertEquals(result.error.exitCode, 1);
+  assert.assertEquals(received(), null);
 });

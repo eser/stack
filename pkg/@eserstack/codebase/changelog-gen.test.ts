@@ -1,14 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 import * as assert from "@std/assert";
-import {
-  deduplicateCommits,
-  generateChangelogSection,
-  groupBySection,
-  insertIntoChangelog,
-  parseConventionalCommit,
-  stripTakeSuffix,
-} from "./changelog-gen.ts";
+import * as changelogGen from "./changelog-gen.ts";
 import type { ConventionalCommit } from "./changelog-gen.ts";
 
 // =============================================================================
@@ -16,7 +9,7 @@ import type { ConventionalCommit } from "./changelog-gen.ts";
 // =============================================================================
 
 Deno.test("parseConventionalCommit - feat with scope", () => {
-  const result = parseConventionalCommit(
+  const result = changelogGen.parseConventionalCommit(
     "feat(auth): add login system",
     "abc123",
   );
@@ -28,7 +21,7 @@ Deno.test("parseConventionalCommit - feat with scope", () => {
 });
 
 Deno.test("parseConventionalCommit - fix without scope", () => {
-  const result = parseConventionalCommit(
+  const result = changelogGen.parseConventionalCommit(
     "fix: resolve crash on startup",
     "def456",
   );
@@ -39,7 +32,7 @@ Deno.test("parseConventionalCommit - fix without scope", () => {
 });
 
 Deno.test("parseConventionalCommit - breaking change with !", () => {
-  const result = parseConventionalCommit(
+  const result = changelogGen.parseConventionalCommit(
     "feat(api)!: remove deprecated endpoint",
     "ghi789",
   );
@@ -50,12 +43,15 @@ Deno.test("parseConventionalCommit - breaking change with !", () => {
 });
 
 Deno.test("parseConventionalCommit - non-conventional returns undefined", () => {
-  const result = parseConventionalCommit("random commit message", "jkl012");
+  const result = changelogGen.parseConventionalCommit(
+    "random commit message",
+    "jkl012",
+  );
   assert.assertEquals(result, undefined);
 });
 
 Deno.test("parseConventionalCommit - chore type", () => {
-  const result = parseConventionalCommit(
+  const result = changelogGen.parseConventionalCommit(
     "chore(deps): bump versions",
     "mno345",
   );
@@ -69,35 +65,35 @@ Deno.test("parseConventionalCommit - chore type", () => {
 
 Deno.test("stripTakeSuffix - roman numeral", () => {
   assert.assertEquals(
-    stripTakeSuffix("authentication system (take II)."),
+    changelogGen.stripTakeSuffix("authentication system (take II)."),
     "authentication system",
   );
 });
 
 Deno.test("stripTakeSuffix - roman numeral III", () => {
   assert.assertEquals(
-    stripTakeSuffix("authentication system (take III)"),
+    changelogGen.stripTakeSuffix("authentication system (take III)"),
     "authentication system",
   );
 });
 
 Deno.test("stripTakeSuffix - arabic number", () => {
   assert.assertEquals(
-    stripTakeSuffix("styling issues (take 3)"),
+    changelogGen.stripTakeSuffix("styling issues (take 3)"),
     "styling issues",
   );
 });
 
 Deno.test("stripTakeSuffix - no take suffix", () => {
   assert.assertEquals(
-    stripTakeSuffix("normal commit message"),
+    changelogGen.stripTakeSuffix("normal commit message"),
     "normal commit message",
   );
 });
 
 Deno.test("stripTakeSuffix - case insensitive", () => {
   assert.assertEquals(
-    stripTakeSuffix("feature (Take IV)"),
+    changelogGen.stripTakeSuffix("feature (Take IV)"),
     "feature",
   );
 });
@@ -129,7 +125,7 @@ Deno.test("deduplicateCommits - collapses take series", () => {
     },
   ];
 
-  const result = deduplicateCommits(commits);
+  const result = changelogGen.deduplicateCommits(commits);
   assert.assertEquals(result.length, 2);
   assert.assertEquals(result[0]!.message, "authentication system.");
   assert.assertEquals(result[1]!.message, "styling issues.");
@@ -141,12 +137,12 @@ Deno.test("deduplicateCommits - different types are not deduped", () => {
     { type: "fix", scope: undefined, message: "add feature", hash: "b" },
   ];
 
-  const result = deduplicateCommits(commits);
+  const result = changelogGen.deduplicateCommits(commits);
   assert.assertEquals(result.length, 2);
 });
 
 Deno.test("deduplicateCommits - empty input", () => {
-  const result = deduplicateCommits([]);
+  const result = changelogGen.deduplicateCommits([]);
   assert.assertEquals(result.length, 0);
 });
 
@@ -162,7 +158,7 @@ Deno.test("groupBySection - maps types to sections", () => {
     { type: "chore", scope: undefined, message: "bump deps", hash: "d" },
   ];
 
-  const groups = groupBySection(commits);
+  const groups = changelogGen.groupBySection(commits);
   assert.assertEquals(groups.size, 3);
   assert.assertEquals(groups.get("Added")!.length, 1);
   assert.assertEquals(groups.get("Fixed")!.length, 1);
@@ -177,7 +173,7 @@ Deno.test("groupBySection - skips chore, ci, test", () => {
     { type: "test", scope: undefined, message: "add tests", hash: "c" },
   ];
 
-  const groups = groupBySection(commits);
+  const groups = changelogGen.groupBySection(commits);
   assert.assertEquals(groups.size, 0);
 });
 
@@ -191,7 +187,7 @@ Deno.test("generateChangelogSection - produces markdown", () => {
     { type: "fix", scope: undefined, message: "fix crash", hash: "b" },
   ];
 
-  const section = generateChangelogSection("4.1.2", commits);
+  const section = changelogGen.generateChangelogSection("4.1.2", commits);
   assert.assertStringIncludes(section, "## 4.1.2 -");
   assert.assertStringIncludes(section, "### Added");
   assert.assertStringIncludes(section, "- **auth:** add login");
@@ -204,7 +200,7 @@ Deno.test("generateChangelogSection - maintenance section when all skipped", () 
     { type: "chore", scope: undefined, message: "bump", hash: "a" },
   ];
 
-  const section = generateChangelogSection("1.0.0", commits);
+  const section = changelogGen.generateChangelogSection("1.0.0", commits);
   assert.assertStringIncludes(section, "## 1.0.0 -");
   assert.assertStringIncludes(section, "_Maintenance release._");
 });
@@ -217,7 +213,7 @@ Deno.test("generateChangelogSection - section ordering", () => {
     { type: "refactor", scope: undefined, message: "clean", hash: "d" },
   ];
 
-  const section = generateChangelogSection("1.0.0", commits);
+  const section = changelogGen.generateChangelogSection("1.0.0", commits);
   const addedIdx = section.indexOf("### Added");
   const changedIdx = section.indexOf("### Changed");
   const fixedIdx = section.indexOf("### Fixed");
@@ -255,7 +251,7 @@ Deno.test("insertIntoChangelog - inserts after [Unreleased]", () => {
 
 - new feature`;
 
-  const result = insertIntoChangelog(existing, newSection);
+  const result = changelogGen.insertIntoChangelog(existing, newSection);
   assert.assertStringIncludes(result, "## [Unreleased]");
   assert.assertStringIncludes(result, "## 4.1.2 - 2025-03-14");
   assert.assertStringIncludes(result, "## 4.1.1 - 2024-07-16");
@@ -284,7 +280,7 @@ Deno.test("insertIntoChangelog - no [Unreleased] section", () => {
 
 - new feature`;
 
-  const result = insertIntoChangelog(existing, newSection);
+  const result = changelogGen.insertIntoChangelog(existing, newSection);
   assert.assertStringIncludes(result, "## 4.1.2 - 2025-03-14");
   // Should be inserted before the existing section
   const newIdx = result.indexOf("## 4.1.2");
@@ -320,7 +316,11 @@ Deno.test("insertIntoChangelog - replaces existing section for same version", ()
 
 - new bug fix`;
 
-  const result = insertIntoChangelog(existing, newSection, "4.1.2");
+  const result = changelogGen.insertIntoChangelog(
+    existing,
+    newSection,
+    "4.1.2",
+  );
 
   // Should contain the new content, not the old
   assert.assertStringIncludes(result, "updated entry after pipeline fix");

@@ -6,8 +6,9 @@
 
 import { runtime } from "@eserstack/standards/cross-runtime";
 import * as logging from "@eserstack/logging";
-import { walkFiles } from "@eserstack/collector";
-import { Scanner } from "@tailwindcss/oxide";
+import * as collector from "@eserstack/collector";
+import * as patterns from "@eserstack/standards/patterns";
+import * as oxide from "@tailwindcss/oxide";
 import type {
   CriticalCssResult,
   CssPlugin,
@@ -15,14 +16,17 @@ import type {
   CssPluginOptions,
   UniversalCssResult,
 } from "../../domain/css-plugin.ts";
-import { compileTailwind, expandApplyDirectives } from "./compile.ts";
-import { extractCriticalPageCss } from "./critical-page-css.ts";
-import { extractCriticalUniversalCss } from "./critical-universal-css.ts";
+import * as compile from "./compile.ts";
+import * as criticalPageCss from "./critical-page-css.ts";
+import * as criticalUniversalCss from "./critical-universal-css.ts";
 
 const logger = logging.logger.getLogger([
   "laroux-bundler",
   "tailwindcss",
 ]);
+
+/** Extensions of the source files scanned for utility class candidates. */
+const SCANNED_EXTENSIONS: readonly string[] = ["tsx", "ts", "jsx", "js"];
 
 export type TailwindPluginOptions = CssPluginOptions & {
   /** Custom patterns to detect Tailwind usage */
@@ -60,9 +64,13 @@ export function createTailwindPlugin(
       if (context.isModule && css.includes("@apply")) {
         let processedContent = css;
 
-        // Auto-inject @reference directive if enabled and not present
+        // Auto-inject @reference directive if enabled and not present; the
+        // build turns it off for an app that sets noCssModuleAutoReference
         const hasReferenceDirective = /^@reference\s+/m.test(css);
-        if (autoInjectReference && !hasReferenceDirective) {
+        if (
+          autoInjectReference && context.injectReference !== false &&
+          !hasReferenceDirective
+        ) {
           // Calculate relative path from CSS module to global.css
           const cssDir = runtime.path.dirname(context.cssPath);
           const globalCssAbsPath = runtime.path.resolve(
@@ -75,7 +83,7 @@ export function createTailwindPlugin(
         }
 
         // Expand @apply directives
-        return expandApplyDirectives(
+        return compile.expandApplyDirectives(
           processedContent,
           runtime.path.dirname(context.cssPath),
         );
@@ -94,14 +102,15 @@ export function createTailwindPlugin(
       // Collect source files for scanning
       const filesToScan: Array<{ content: string; extension: string }> = [];
 
-      // Walk src directory using @eserstack/collector walkFiles
+      // Walk src directory using @eserstack/collector walkFiles. The
+      // extension check is done here: its glob filter supports only * and
+      // **, so a "*.{tsx,ts}" list would match no file.
       for await (
-        const relPath of walkFiles(
-          srcDir,
-          "**/*.{tsx,ts,jsx,js}",
-          /node_modules/,
-        )
+        const relPath of collector.walkFiles(srcDir, undefined, /node_modules/)
       ) {
+        if (!patterns.hasExtension(relPath, SCANNED_EXTENSIONS)) {
+          continue;
+        }
         const fullPath = runtime.path.resolve(srcDir, relPath);
         const ext = runtime.path.extname(relPath);
         const content = await runtime.fs.readTextFile(fullPath);
@@ -112,7 +121,7 @@ export function createTailwindPlugin(
       }
 
       // Scan all files for utility candidates using @tailwindcss/oxide
-      const scanner = new Scanner({});
+      const scanner = new oxide.Scanner({});
       const candidates = scanner.scanFiles(filesToScan);
 
       logger.debug(
@@ -122,7 +131,7 @@ export function createTailwindPlugin(
       );
 
       // Compile with programmatic API
-      return compileTailwind(css, {
+      return compile.compileTailwind(css, {
         base: cssDir,
         candidates,
       });
@@ -136,7 +145,7 @@ export function createTailwindPlugin(
         forceExclude?: (string | RegExp)[];
       },
     ): CriticalCssResult {
-      const result = extractCriticalPageCss({
+      const result = criticalPageCss.extractCriticalPageCss({
         css: compiledCss,
         html,
         forceInclude: options?.forceInclude,
@@ -155,7 +164,9 @@ export function createTailwindPlugin(
     },
 
     extractUniversalCss(compiledCss: string): UniversalCssResult {
-      const result = extractCriticalUniversalCss(compiledCss);
+      const result = criticalUniversalCss.extractCriticalUniversalCss(
+        compiledCss,
+      );
 
       return {
         css: result.css,

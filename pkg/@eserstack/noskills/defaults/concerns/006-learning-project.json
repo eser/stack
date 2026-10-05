@@ -30,21 +30,18 @@
       "id": "learning-goals",
       "title": "Learning Goals",
       "placeholder": "_What specific questions will this experiment answer? What knowledge gap does it fill? How will you know if the experiment succeeded or failed?_",
-      "condition": null,
       "position": "after:ambition"
     },
     {
       "id": "hypothesis",
       "title": "Hypothesis",
       "placeholder": "_State a falsifiable hypothesis: 'I believe X because Y. I will know I am right when Z.' If the experiment is complete, state the verdict: confirmed, rejected, or inconclusive._",
-      "condition": null,
       "position": "after:ambition"
     },
     {
       "id": "experiment-log",
       "title": "Experiment Log",
       "placeholder": "_Document what was tried, in what order, and what each attempt produced. Include dead ends — they are data. Tag mental model shifts with EUREKA:_",
-      "condition": null,
       "position": "after:acceptance-criteria"
     }
   ],

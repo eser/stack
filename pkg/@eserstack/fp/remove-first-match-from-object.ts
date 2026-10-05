@@ -1,5 +1,13 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+/**
+ * Returns an object without the first property for which `predicate` returns
+ * `true`.
+ *
+ * @param instance - The source object
+ * @param predicate - Finds the property to remove
+ * @returns A new object
+ */
 export const removeFirstMatchFromObject = <T>(
   instance: Record<string | number | symbol, T>,
   predicate: (
@@ -26,5 +34,3 @@ export const removeFirstMatchFromObject = <T>(
 
   return result;
 };
-
-export { removeFirstMatchFromObject as default };

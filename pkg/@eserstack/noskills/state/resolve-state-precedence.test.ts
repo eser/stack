@@ -19,6 +19,8 @@ import * as crossRuntime from "@eserstack/standards/cross-runtime";
 import * as persistence from "./persistence.ts";
 import * as schema from "./schema.ts";
 
+const PREFIX = "npx eser@latest noskills";
+
 let tempDir: string;
 
 bdd.describe("resolveState — per-spec precedence", () => {
@@ -57,7 +59,11 @@ bdd.describe("resolveState — per-spec precedence", () => {
       } as schema.StateFile;
       await persistence.writeSpecState(tempDir, specName, current);
 
-      const resolved = await persistence.resolveState(tempDir, specName);
+      const resolved = await persistence.resolveState(
+        tempDir,
+        specName,
+        PREFIX,
+      );
 
       assert.assertEquals(
         resolved.phase,
@@ -74,7 +80,7 @@ bdd.describe("resolveState — per-spec precedence", () => {
     } as schema.StateFile;
     await persistence.writeState(tempDir, state);
 
-    const resolved = await persistence.resolveState(tempDir, null);
+    const resolved = await persistence.resolveState(tempDir, null, PREFIX);
 
     assert.assertEquals(resolved.phase, "EXECUTING");
   });

@@ -5,26 +5,35 @@
  * @module
  */
 
-import type { ImageFormat, PictureSource } from "./types.ts";
-import { inferSrcSet, replaceSrcSetExtension } from "./srcset-builder.ts";
+import type {
+  ImageFormat,
+  PictureSource,
+  PictureSourcesOptions,
+} from "./types.ts";
+import * as srcsetBuilder from "./srcset-builder.ts";
 
 /**
  * Build picture source elements configuration
  *
- * @param basePath - Base path without extension
- * @param originalExt - Original file extension
- * @param formats - Array of formats to generate sources for
- * @param srcSet - Optional custom srcset (will be adapted for each format)
- * @param sizes - Optional sizes attribute
+ * @param options - The image path, its formats and the optional srcset and sizes
  * @returns Array of source configurations for picture element
+ *
+ * @example
+ * ```typescript
+ * import * as laroux from "@eserstack/laroux";
+ *
+ * const sources = laroux.buildPictureSources({
+ *   ...laroux.parseImageSrc("/images/photo.jpg"),
+ *   formats: ["avif", "webp"],
+ *   sizes: "100vw",
+ * });
+ * // [{ type: "image/avif", srcSet: "/images/photo-640w.avif 640w, ...", sizes: "100vw" }, ...]
+ * ```
  */
 export function buildPictureSources(
-  basePath: string,
-  originalExt: string,
-  formats: ImageFormat[],
-  srcSet?: string,
-  sizes?: string,
+  options: PictureSourcesOptions,
 ): PictureSource[] {
+  const { basePath, ext, formats, srcSet, sizes } = options;
   const sources: PictureSource[] = [];
 
   // Add AVIF source if requested (most efficient, should come first)
@@ -32,8 +41,8 @@ export function buildPictureSources(
     sources.push({
       type: "image/avif",
       srcSet: srcSet !== undefined
-        ? replaceSrcSetExtension(srcSet, originalExt, "avif")
-        : inferSrcSet(`${basePath}.avif`),
+        ? srcsetBuilder.replaceSrcSetExtension(srcSet, ext, "avif")
+        : srcsetBuilder.inferSrcSet(`${basePath}.avif`),
       sizes,
     });
   }
@@ -43,8 +52,8 @@ export function buildPictureSources(
     sources.push({
       type: "image/webp",
       srcSet: srcSet !== undefined
-        ? replaceSrcSetExtension(srcSet, originalExt, "webp")
-        : inferSrcSet(`${basePath}.webp`),
+        ? srcsetBuilder.replaceSrcSetExtension(srcSet, ext, "webp")
+        : srcsetBuilder.inferSrcSet(`${basePath}.webp`),
       sizes,
     });
   }
@@ -58,7 +67,9 @@ export function buildPictureSources(
  * @param formats - Array of formats
  * @returns True if formats array has entries
  */
-export function shouldUsePictureElement(formats?: ImageFormat[]): boolean {
+export function shouldUsePictureElement(
+  formats?: readonly ImageFormat[],
+): boolean {
   return formats !== undefined && formats.length > 0;
 }
 

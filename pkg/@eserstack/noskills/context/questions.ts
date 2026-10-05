@@ -138,3 +138,110 @@ export const isDiscoveryComplete = (
 
   return QUESTIONS.every((q) => answeredIds.has(q.id));
 };
+
+// =============================================================================
+// Answers Submitted Together
+// =============================================================================
+
+/** A JSON discovery answer that noskills refuses; the message says why. */
+export class DiscoveryAnswerError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "DiscoveryAnswerError";
+  }
+}
+
+/**
+ * The base answers a JSON object answer holds, keyed by question id, or null
+ * when `answer` is not a JSON object, in which case it answers one question.
+ * An empty string leaves its question open. Throws DiscoveryAnswerError for a
+ * key that is not a base question id, a value that is not a string, or an
+ * object with no answer at all, so a misspelt id is reported instead of
+ * stored where nothing reads it.
+ */
+export const discoveryAnswersOf = (
+  answer: string,
+): Readonly<Record<string, string>> | null => {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(answer);
+  } catch {
+    return null;
+  }
+
+  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+    return null;
+  }
+
+  const ids = QUESTIONS.map((q) => q.id);
+  const answers: Record<string, string> = {};
+
+  for (const [id, value] of Object.entries(parsed)) {
+    if (!ids.includes(id)) {
+      throw new DiscoveryAnswerError(
+        `Cannot record the discovery answers: "${id}" is not a question id. Key each answer by one of: ${
+          ids.join(", ")
+        }.`,
+      );
+    }
+    if (typeof value !== "string") {
+      throw new DiscoveryAnswerError(
+        `Cannot record the discovery answers: the answer to "${id}" is not a string. Send each answer as text.`,
+      );
+    }
+    if (value.length > 0) answers[id] = value;
+  }
+
+  if (Object.keys(answers).length === 0) {
+    throw new DiscoveryAnswerError(
+      `Cannot record the discovery answers: the object holds no answer. Key each answer by one of: ${
+        ids.join(", ")
+      }.`,
+    );
+  }
+
+  return answers;
+};
+
+// =============================================================================
+// Discovery Stage
+// =============================================================================
+
+/**
+ * What DISCOVERY asks for next: the user's context ("listen"), the discovery
+ * mode ("mode"), the premise challenge ("premises"), or the base questions
+ * and their follow-ups ("questions").
+ */
+export type DiscoveryStage = "listen" | "mode" | "premises" | "questions";
+
+/**
+ * The stage a DISCOVERY state is in. `noskills next` compiles its output from
+ * it, and the AskUserQuestion hook reads it to tell a base question from the
+ * questions asked before them.
+ */
+export const discoveryStageOf = (state: schema.StateFile): DiscoveryStage => {
+  const discovery = state.discovery;
+  const hasDescription = state.specDescription !== null &&
+    state.specDescription.length > 0;
+
+  // A new spec with a description and no plan: listen first, then the mode.
+  if (
+    discovery.mode === undefined && hasDescription &&
+    discovery.answers.length === 0 && discovery.planPath === null
+  ) {
+    const hasUserContext = discovery.userContext !== undefined &&
+      discovery.userContext.length > 0;
+
+    return hasUserContext ? "mode" : "listen";
+  }
+
+  // States from before modes existed have no mode and skip the premises.
+  if (
+    discovery.mode !== undefined && discovery.premisesCompleted !== true &&
+    !isDiscoveryComplete(discovery.answers)
+  ) {
+    return "premises";
+  }
+
+  return "questions";
+};

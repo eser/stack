@@ -11,5 +11,8 @@
     "@eserstack/app-runtime": "workspace:*",
     "@eserstack/config": "workspace:*",
     "@eserstack/standards": "workspace:*"
+  },
+  "devDependencies": {
+    "@std/assert": "npm:@jsr/std__assert@^1.0.19"
   }
 }

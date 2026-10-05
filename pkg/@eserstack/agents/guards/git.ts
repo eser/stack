@@ -4,18 +4,19 @@
  * Pure git-guard predicates: decide whether a shell command only READS git
  * state, and detect write operations smuggled through subshells/pipes.
  *
- * This is the intended canonical home. noskills still has the original copy;
- * Part 3 migrates it to re-export from here so the two security allowlists don't
- * drift. The driving-loop safety policy uses these to refuse injecting/auto-
- * confirming anything that would mutate a repo.
+ * This is the canonical copy: noskills re-exports these predicates for its
+ * PreToolUse hook, so the hook and this package share one allowlist.
  *
  * Each predicate is side-effect free and checks a single command segment unless
  * noted; callers split on `&&`/`;`/`|` or use {@link extractGitInvocations}.
+ * {@link isGitArgsAllowed} decides on the argument vector git actually
+ * receives, for a wrapper that sits in front of the git binary.
  *
  * @module
  */
 
-const GIT_ALLOWED_SUBCOMMANDS: ReadonlySet<string> = new Set([
+/** Subcommands that only read repository state, whatever their arguments. */
+export const GIT_ALLOWED_SUBCOMMANDS: ReadonlySet<string> = new Set([
   "log",
   "diff",
   "status",
@@ -34,35 +35,44 @@ const GIT_ALLOWED_SUBCOMMANDS: ReadonlySet<string> = new Set([
   "version",
 ]);
 
-const GIT_CONDITIONAL_READS: ReadonlyMap<string, ReadonlySet<string>> = new Map(
-  [
+/**
+ * Subcommands that read only when their first argument is one of the listed
+ * values. The empty string stands for no argument at all (`git branch`).
+ */
+export const GIT_CONDITIONAL_READS: ReadonlyMap<string, ReadonlySet<string>> =
+  new Map(
     [
-      "branch",
-      new Set([
-        "",
-        "--list",
-        "-l",
-        "-a",
-        "--all",
-        "-r",
-        "--remotes",
-        "-v",
-        "--verbose",
-        "--contains",
-        "--no-contains",
-        "--merged",
-        "--no-merged",
-        "--show-current",
-      ]),
+      [
+        "branch",
+        new Set([
+          "",
+          "--list",
+          "-l",
+          "-a",
+          "--all",
+          "-r",
+          "--remotes",
+          "-v",
+          "--verbose",
+          "--contains",
+          "--no-contains",
+          "--merged",
+          "--no-merged",
+          "--show-current",
+        ]),
+      ],
+      ["tag", new Set(["", "-l", "--list", "-v", "--verify", "-n"])],
+      ["stash", new Set(["list", "show"])],
+      ["remote", new Set(["", "-v", "--verbose", "show", "get-url"])],
+      ["reflog", new Set(["", "show"])],
     ],
-    ["tag", new Set(["", "-l", "--list", "-v", "--verify", "-n"])],
-    ["stash", new Set(["list", "show"])],
-    ["remote", new Set(["", "-v", "--verbose", "show", "get-url"])],
-    ["reflog", new Set(["", "show"])],
-  ],
-);
+  );
 
-const GIT_GLOBAL_FLAGS_WITH_ARG: ReadonlySet<string> = new Set([
+/**
+ * Options before the subcommand that take a value: as the next argument
+ * (`-C dir`), or after `=` for the long ones (`--git-dir=dir`).
+ */
+export const GIT_GLOBAL_FLAGS_WITH_ARG: ReadonlySet<string> = new Set([
   "-C",
   "-c",
   "--git-dir",
@@ -70,10 +80,23 @@ const GIT_GLOBAL_FLAGS_WITH_ARG: ReadonlySet<string> = new Set([
   "--namespace",
   "--super-prefix",
   "--config-env",
+  "--attr-source",
 ]);
 
-const GIT_GLOBAL_FLAGS_NO_ARG: ReadonlySet<string> = new Set([
+/**
+ * Long options before the subcommand that take their value only after `=`.
+ * Without a value, `--exec-path` prints the path and exits, so it is listed
+ * in {@link GIT_INFO_OPTIONS} as well.
+ */
+export const GIT_GLOBAL_FLAGS_INLINE_ARG: ReadonlySet<string> = new Set([
+  "--exec-path",
+]);
+
+/** Options before the subcommand that take no value. */
+export const GIT_GLOBAL_FLAGS_NO_ARG: ReadonlySet<string> = new Set([
   "--no-replace-objects",
+  "--no-lazy-fetch",
+  "--no-advice",
   "--bare",
   "--no-optional-locks",
   "--literal-pathspecs",
@@ -81,7 +104,34 @@ const GIT_GLOBAL_FLAGS_NO_ARG: ReadonlySet<string> = new Set([
   "--noglob-pathspecs",
   "--icase-pathspecs",
   "--no-pager",
+  "-P",
   "--paginate",
+  "-p",
+]);
+
+/**
+ * Options that take the place of a subcommand: git prints something and exits
+ * (`git --version`, `git --help`).
+ */
+export const GIT_INFO_OPTIONS: ReadonlySet<string> = new Set([
+  "--version",
+  "-v",
+  "--help",
+  "-h",
+  "--exec-path",
+  "--html-path",
+  "--man-path",
+  "--info-path",
+]);
+
+/**
+ * Subcommands that send commits to another repository. A push reaches the
+ * project's remote from any clone, so callers that scope writes to one
+ * repository still refuse these everywhere.
+ */
+export const GIT_REMOTE_WRITE_SUBCOMMANDS: ReadonlySet<string> = new Set([
+  "push",
+  "send-pack",
 ]);
 
 // `git config` is decided on all of its arguments, not the first one: a scope
@@ -175,6 +225,16 @@ const isGitConfigRead = (args: readonly string[]): boolean => {
   return positionals.length === 1;
 };
 
+/** True for `--name=value` where `--name` is a global option with a value. */
+const isInlineGlobalFlag = (arg: string): boolean => {
+  const eq = arg.indexOf("=");
+  if (!arg.startsWith("--") || eq === -1) return false;
+  const name = arg.slice(0, eq);
+
+  return GIT_GLOBAL_FLAGS_WITH_ARG.has(name) ||
+    GIT_GLOBAL_FLAGS_INLINE_ARG.has(name);
+};
+
 const extractGitSubcommandIndex = (tokens: readonly string[]): number => {
   let i = 0;
   while (i < tokens.length) {
@@ -188,13 +248,7 @@ const extractGitSubcommandIndex = (tokens: readonly string[]): number => {
       i += 1;
       continue;
     }
-    if (
-      arg.startsWith("--git-dir=") ||
-      arg.startsWith("--work-tree=") ||
-      arg.startsWith("--namespace=") ||
-      arg.startsWith("--super-prefix=") ||
-      arg.startsWith("--config-env=")
-    ) {
+    if (isInlineGlobalFlag(arg)) {
       i += 1;
       continue;
     }
@@ -291,28 +345,70 @@ export const isGitAllowed = (command: string): boolean => {
 
   if (!isGitProgram(tokens[0]!)) return true; // not a git invocation
 
-  const argTokens = tokens.slice(1).map(unquoteWord);
-  if (argTokens.length === 0) return true; // bare "git" shows help
+  return isGitArgsAllowed(tokens.slice(1).map(unquoteWord));
+};
 
-  const subIndex = extractGitSubcommandIndex(argTokens);
-  const subcommand = subIndex >= 0 ? argTokens[subIndex]! : "";
-  const subArgs = subIndex >= 0 ? argTokens.slice(subIndex + 1) : [];
+/** A git argument vector split at its subcommand. */
+export type GitArgs = {
+  /** The options before the subcommand (`-C dir`, `--git-dir=x`). */
+  readonly globalOptions: readonly string[];
+  /** The subcommand, or `""` when there is none (bare `git`). */
+  readonly subcommand: string;
+  /** Everything after the subcommand. */
+  readonly subcommandArgs: readonly string[];
+};
 
+/**
+ * Splits the arguments git receives (without the program name) into the
+ * global options, the subcommand and its arguments. An option git prints and
+ * exits on (`--version`) stands in the subcommand's place.
+ */
+export const splitGitArgs = (args: readonly string[]): GitArgs => {
+  const subIndex = extractGitSubcommandIndex(args);
+  if (subIndex === -1) {
+    return { globalOptions: args, subcommand: "", subcommandArgs: [] };
+  }
+
+  return {
+    globalOptions: args.slice(0, subIndex),
+    subcommand: args[subIndex]!,
+    subcommandArgs: args.slice(subIndex + 1),
+  };
+};
+
+/**
+ * True if git, run with these arguments (without the program name), only
+ * reads repository state. Decides on the argument vector itself, so it holds
+ * for a program an interpreter assembled at run time as well as for typed
+ * commands.
+ */
+export const isGitArgsAllowed = (args: readonly string[]): boolean => {
+  const { subcommand, subcommandArgs } = splitGitArgs(args);
+
+  if (subcommand === "") return true; // bare "git" shows help
   if (GIT_ALLOWED_SUBCOMMANDS.has(subcommand)) return true;
+  if (GIT_INFO_OPTIONS.has(subcommand)) return true;
 
-  if (subcommand === "config") return isGitConfigRead(subArgs);
+  if (subcommand === "config") return isGitConfigRead(subcommandArgs);
 
   const readTokens = GIT_CONDITIONAL_READS.get(subcommand);
   if (readTokens !== undefined) {
-    const nextToken = subArgs[0] ?? "";
+    const nextToken = subcommandArgs[0] ?? "";
     if (readTokens.has(nextToken)) return true;
   }
 
   return false;
 };
 
-/** Backward-compatible alias. */
-export const isGitReadOnly = isGitAllowed;
+/** True if git, run with these arguments, sends commits to another repository. */
+export const isGitRemoteWrite = (args: readonly string[]): boolean =>
+  GIT_REMOTE_WRITE_SUBCOMMANDS.has(splitGitArgs(args).subcommand);
+
+/**
+ * Backward-compatible alias of {@link isGitAllowed}: true if a single git
+ * command segment only reads repository state.
+ */
+export const isGitReadOnly: (command: string) => boolean = isGitAllowed;
 
 /**
  * Extract every `git <subcommand> …` fragment from a command string, handling

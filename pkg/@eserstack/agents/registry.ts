@@ -8,14 +8,14 @@
  */
 
 import type { AgentAdapter } from "./adapter.ts";
-import { claudeCodeAdapter } from "./adapters/claude-code.ts";
-import { opencodeAdapter } from "./adapters/opencode.ts";
-import { codexAdapter } from "./adapters/codex.ts";
+import * as claudeCode from "./adapters/claude-code.ts";
+import * as opencode from "./adapters/opencode.ts";
+import * as codex from "./adapters/codex.ts";
 
 const ADAPTERS: readonly AgentAdapter[] = [
-  claudeCodeAdapter,
-  opencodeAdapter,
-  codexAdapter,
+  claudeCode.claudeCodeAdapter,
+  opencode.opencodeAdapter,
+  codex.codexAdapter,
 ];
 
 /** All registered adapters. */
@@ -26,4 +26,5 @@ export const getAgentAdapter = (id: string): AgentAdapter | undefined =>
   ADAPTERS.find((a) => a.id === id);
 
 /** The default adapter (Claude Code). */
-export const defaultAgentAdapter = (): AgentAdapter => claudeCodeAdapter;
+export const defaultAgentAdapter = (): AgentAdapter =>
+  claudeCode.claudeCodeAdapter;

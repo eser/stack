@@ -7,7 +7,7 @@
   "recipes": [
     {
       "name": "library-pkg",
-      "description": "Deno library package with tests and README",
+      "description": "Workspace library package with tests and README",
       "language": "typescript",
       "scale": "project",
       "tags": ["deno", "library", "typescript", "jsr"],
@@ -17,7 +17,10 @@
           "source": "recipes/library-pkg/mod.test.ts",
           "target": "mod.test.ts"
         },
-        { "source": "recipes/library-pkg/deno.json", "target": "deno.json" },
+        {
+          "source": "recipes/library-pkg/package.json",
+          "target": "package.json"
+        },
         { "source": "recipes/library-pkg/README.md", "target": "README.md" }
       ]
     },
@@ -252,30 +255,39 @@
       }
     },
     {
-      "name": "cool-lime-app",
-      "description": "Cool Lime framework application",
+      "name": "laroux-runtime-app",
+      "description": "laroux.js runtime application that loads a manifest at startup",
       "language": "typescript",
       "scale": "project",
-      "tags": ["lime", "deno", "web"],
+      "tags": ["laroux", "runtime", "deno"],
       "files": [
         {
-          "source": "recipes/cool-lime-app/build.ts",
+          "source": "recipes/laroux-runtime-app/build.ts",
           "target": "build.ts"
         },
-        { "source": "recipes/cool-lime-app/main.ts", "target": "main.ts" },
         {
-          "source": "recipes/cool-lime-app/manifest.jsonc",
+          "source": "recipes/laroux-runtime-app/main.ts",
+          "target": "main.ts"
+        },
+        {
+          "source": "recipes/laroux-runtime-app/manifest.jsonc",
           "target": "manifest.jsonc"
         },
         {
-          "source": "recipes/cool-lime-app/manifest.yaml",
+          "source": "recipes/laroux-runtime-app/manifest.yaml",
           "target": "manifest.yaml"
         },
         {
-          "source": "recipes/cool-lime-app/pkg/app/mod.tsx",
+          "source": "recipes/laroux-runtime-app/pkg/app/mod.tsx",
           "target": "pkg/app/mod.tsx"
         }
-      ]
+      ],
+      "dependencies": {
+        "jsr": [
+          "jsr:@eserstack/laroux-runtime@^4.5.2",
+          "jsr:@eserstack/collector@^4.5.2"
+        ]
+      }
     },
     {
       "name": "jsx-runtime-app",

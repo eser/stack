@@ -2,6 +2,14 @@
 
 import type { Chunk, Layer, LayerDefinition } from "./types.ts";
 
+/**
+ * Creates a layer from a definition. Each use of the layer calls
+ * `definition.create()`, so state in the callbacks is not shared between
+ * streams.
+ *
+ * @param definition - The layer's name and callback factory
+ * @returns The layer
+ */
 export const defineLayer = <I = unknown, O = unknown>(
   definition: LayerDefinition<I, O>,
 ): Layer<I, O> => {

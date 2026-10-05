@@ -1,7 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import { assert, assertEquals } from "@std/assert";
-import { defaultFactories, factoryFor } from "./mod.ts";
+import * as assert from "@std/assert";
+import * as adapters from "./mod.ts";
 
 // factoryFor exists so a single-provider caller gets the same bridge-first
 // preference as defaultFactories without importing all eight adapters. `ai ask`
@@ -20,28 +20,35 @@ Deno.test("factoryFor returns a factory for every known provider", async () => {
     "kiro",
   ];
 
-  for (const provider of providers) {
-    const factory = await factoryFor(provider);
+  const factories = await Promise.all(
+    providers.map((provider) => adapters.factoryFor(provider)),
+  );
 
-    assert(factory !== undefined, `no factory for ${provider}`);
-    assertEquals(factory.provider, provider);
+  for (const [index, provider] of providers.entries()) {
+    const factory = factories[index];
+
+    assert.assert(factory !== undefined, `no factory for ${provider}`);
+    assert.assertEquals(factory.provider, provider);
   }
 });
 
 Deno.test("factoryFor is undefined for an unknown provider", async () => {
-  assertEquals(await factoryFor("nonesuch"), undefined);
+  assert.assertEquals(await adapters.factoryFor("nonesuch"), undefined);
 });
 
 // The two entry points must not disagree about which implementation serves a
 // provider — that was the whole defect: one path used the bridge, the other
 // never did.
 Deno.test("factoryFor agrees with defaultFactories", async () => {
-  const all = await defaultFactories();
+  const all = await adapters.defaultFactories();
+  const singles = await Promise.all(
+    all.map((expected) => adapters.factoryFor(expected.provider)),
+  );
 
-  for (const expected of all) {
-    const single = await factoryFor(expected.provider);
+  for (const [index, expected] of all.entries()) {
+    const single = singles[index];
 
-    assert(
+    assert.assert(
       single === expected,
       `${expected.provider}: factoryFor returned a different implementation ` +
         `than defaultFactories`,

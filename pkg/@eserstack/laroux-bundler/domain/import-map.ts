@@ -242,10 +242,8 @@ async function loadDenoJson(
     const content = await runtime.fs.readTextFile(denoJsonPath);
     return JSON.parse(content) as DenoJsonConfig;
   } catch (error) {
-    importMapLogger.debug(
-      `Failed to load deno.json: ${
-        error instanceof Error ? error.message : String(error)
-      }`,
+    importMapLogger.with({ error }).debug(
+      `load deno.json from ${projectRoot}; resolving without its import map`,
     );
     return null;
   }
@@ -268,10 +266,8 @@ async function loadPackageJson(
     const content = await runtime.fs.readTextFile(packageJsonPath);
     return JSON.parse(content) as PackageJsonConfig;
   } catch (error) {
-    importMapLogger.debug(
-      `Failed to load package.json: ${
-        error instanceof Error ? error.message : String(error)
-      }`,
+    importMapLogger.with({ error }).debug(
+      `load ${packageJsonPath}; resolving without its dependencies`,
     );
     return null;
   }

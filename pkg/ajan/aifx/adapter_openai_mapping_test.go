@@ -621,7 +621,11 @@ func TestMapOpenAIResponseFormat_JsonObject(t *testing.T) {
 	t.Parallel()
 
 	format := &ResponseFormat{Type: "json_object"}
-	result := mapOpenAIResponseFormat(format)
+
+	result, err := mapOpenAIResponseFormat(format)
+	if err != nil {
+		t.Fatalf("mapOpenAIResponseFormat(json_object): %v", err)
+	}
 
 	// json_object format should set OfJSONObject.
 	if result.OfJSONObject == nil {
@@ -771,9 +775,11 @@ func TestMapOpenAIFinishReason(t *testing.T) {
 		want  StopReason
 	}{
 		{"stop", StopReasonEndTurn},
+		{"", StopReasonEndTurn},
 		{"length", StopReasonMaxTokens},
 		{"tool_calls", StopReasonToolUse},
-		{"content_filter", StopReasonStop},
+		{"function_call", StopReasonToolUse},
+		{"content_filter", StopReasonRefusal},
 		{"unknown", StopReasonStop},
 	}
 

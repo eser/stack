@@ -1,13 +1,13 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 /**
- * AuthProvider — outbound port for authentication flows.
+ * AuthProvider: outbound port for authentication flows.
  * Supports both browser-based OAuth (Twitter) and direct credential login (Bluesky).
+ *
+ * @module
  */
 
 import type { OAuthTokens } from "../domain/entities/user.ts";
-
-/** Outbound port: authentication lifecycle for any platform. */
 
 /**
  * A browser authorization request. `state` is the value sent to the provider;
@@ -15,11 +15,15 @@ import type { OAuthTokens } from "../domain/entities/user.ts";
  * request.
  */
 export type AuthorizationRequest = {
+  /** The provider's authorization URL to open in the browser. */
   readonly url: string;
+  /** The PKCE code verifier that the code exchange must send. */
   readonly codeVerifier: string;
+  /** The value the redirect must carry back unchanged. */
   readonly state: string;
 };
 
+/** Outbound port: authentication lifecycle for any platform. */
 export interface AuthProvider {
   /**
    * True if this provider requires a browser redirect (Twitter OAuth 2.0 PKCE).

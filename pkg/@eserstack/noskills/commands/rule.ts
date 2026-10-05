@@ -12,7 +12,7 @@ import * as span from "@eserstack/streams/span";
 import type * as shellArgs from "@eserstack/shell/args";
 import * as persistence from "../state/persistence.ts";
 import * as syncEngine from "../sync/engine.ts";
-import { cmd, cmdPrefix } from "../output/cmd.ts";
+import * as cmd from "../output/cmd.ts";
 import { runtime } from "@eserstack/standards/cross-runtime";
 
 export const main = async (
@@ -32,7 +32,7 @@ export const main = async (
     return await rulePromote(args?.slice(1));
   }
 
-  const prefix = cmdPrefix();
+  const prefix = cmd.cmdPrefix();
   const out = streams.output({
     renderer: streams.renderers.ansi(),
     sink: streams.sinks.stdout(),
@@ -84,7 +84,7 @@ const ruleAdd = async (
   if (ruleText.length === 0) {
     out.writeln(
       span.red("Please provide a rule: "),
-      span.bold(`${cmd('rule add "Use Deno Tests for all tests"')}`),
+      span.bold(`${cmd.cmd('rule add "Use Deno Tests for all tests"')}`),
     );
     await out.close();
 
@@ -163,7 +163,7 @@ const ruleList = async (): Promise<shellArgs.CliResult<void>> => {
   if (rules.length === 0) {
     out.writeln(
       span.dim(
-        `  No rules yet. Add one with: ${cmd('rule add "..."')}`,
+        `  No rules yet. Add one with: ${cmd.cmd('rule add "..."')}`,
       ),
     );
   } else {

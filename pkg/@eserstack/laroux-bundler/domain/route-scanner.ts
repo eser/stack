@@ -2,12 +2,9 @@
 // Route scanner for file-based routing
 // Scans src/app/routes for page.tsx, layout.tsx, route.ts, and proxy.ts files
 
-import { runtime, toPosix } from "@eserstack/standards/cross-runtime";
-import {
-  JS_FILE_EXTENSIONS,
-  JS_FILE_PATTERN,
-} from "@eserstack/standards/patterns";
-import { walkFiles } from "@eserstack/collector";
+import * as crossRuntime from "@eserstack/standards/cross-runtime";
+import * as patterns from "@eserstack/standards/patterns";
+import * as collector from "@eserstack/collector";
 import * as logging from "@eserstack/logging";
 
 const scannerLogger = logging.logger.getLogger([
@@ -15,27 +12,64 @@ const scannerLogger = logging.logger.getLogger([
   "route-scanner",
 ]);
 
-// Module-level cache for route scanning
-let cachedResult: ScanResult | null = null;
-let cachedRoutesDirMtime: number = 0;
-
+/** A page or API route found under the routes directory. */
 export type ScannedRoute = {
-  routePath: string; // "/stories/[slug]"
-  componentPath: string; // "src/app/routes/stories/[slug]/page.tsx"
-  layoutPath?: string; // "src/app/routes/stories/[slug]/layout.tsx"
-  isApiRoute: boolean; // true if route.ts exists
-  proxyPath?: string; // "src/app/routes/stories/proxy.ts"
+  /** URL pattern, such as "/stories/[slug]" */
+  routePath: string;
+  /** Module path from the project root, such as "src/app/routes/stories/[slug]/page.tsx" */
+  componentPath: string;
+  /** The page's own layout or its closest parent's, from the project root */
+  layoutPath?: string;
+  /** True for a route.ts handler, false for a page */
+  isApiRoute: boolean;
+  /** Proxy module that applies to the route, from the project root */
+  proxyPath?: string;
 };
 
+/** A proxy.ts module found under the routes directory. */
 export type ScannedProxy = {
-  pathPrefix: string; // "/admin"
-  modulePath: string; // "src/app/routes/admin/proxy.ts"
+  /** URL prefix the proxy applies to, such as "/admin" */
+  pathPrefix: string;
+  /** Module path from the project root, such as "src/app/routes/admin/proxy.ts" */
+  modulePath: string;
 };
 
+/** The routes, API routes and proxies of one routes directory. */
 export type ScanResult = {
+  /** Page routes, most specific first */
   routes: ScannedRoute[];
+  /** API routes, most specific first */
   apiRoutes: ScannedRoute[];
+  /** Proxies, longest prefix first */
   proxies: ScannedProxy[];
+};
+
+/**
+ * Keeps scan results between builds, per routes directory. BuildCache
+ * implements it; watch mode drops an entry when a file under its routes
+ * directory changes.
+ */
+export type RouteScanCache = {
+  /**
+   * The cached scan of routesDir, or null when there is none or the routes
+   * directory changed after it (its mtime is newer than the entry's).
+   */
+  getRouteScan(routesDir: string, routesDirMtime: number): ScanResult | null;
+  /** Store the scan of routesDir, made when the directory had this mtime. */
+  setRouteScan(
+    routesDir: string,
+    result: ScanResult,
+    routesDirMtime: number,
+  ): void;
+};
+
+/** Options of {@link scanRoutes}. */
+export type ScanRoutesOptions = {
+  /**
+   * Cache to reuse a scan of the same routes directory from an earlier
+   * build. Without one, every call scans the directory.
+   */
+  readonly cache?: RouteScanCache;
 };
 
 type DirectoryEntry = {
@@ -45,8 +79,11 @@ type DirectoryEntry = {
   proxyPath?: string;
 };
 
-// Pattern to ignore private directories and test files
-const IGNORE_PATTERN = /(?:^|[/\\])(?:_[^/\\]*|.*\.test\.(?:[cm]?[jt]sx?))$/;
+// Skips test files and every path with a segment that starts with "_": a
+// file such as _helpers.tsx and everything below a directory such as
+// _private/ stay private to the app. The pattern is matched against the path
+// relative to the routes directory, so a "_" above it does not count.
+const IGNORE_PATTERN = /(?:^|[/\\])_|\.test\.[cm]?[jt]sx?$/;
 
 // Route file base names (without extension)
 const ROUTE_FILE_BASES = ["page", "layout", "route", "proxy"];
@@ -54,7 +91,7 @@ const ROUTE_FILE_BASES = ["page", "layout", "route", "proxy"];
 // Generate all valid route file names with supported extensions
 const ROUTE_FILES = new Set(
   ROUTE_FILE_BASES.flatMap((base) =>
-    JS_FILE_EXTENSIONS.map((ext) => `${base}.${ext}`)
+    patterns.JS_FILE_EXTENSIONS.map((ext) => `${base}.${ext}`)
   ),
 );
 
@@ -63,7 +100,9 @@ const ROUTE_FILES = new Set(
  */
 function getRouteFileBase(fileName: string): string | null {
   for (const base of ROUTE_FILE_BASES) {
-    if (fileName.startsWith(`${base}.`) && JS_FILE_PATTERN.test(fileName)) {
+    if (
+      fileName.startsWith(`${base}.`) && patterns.JS_FILE_PATTERN.test(fileName)
+    ) {
       return base;
     }
   }
@@ -71,41 +110,47 @@ function getRouteFileBase(fileName: string): string | null {
 }
 
 /**
- * Invalidate the route cache
- * Call this when route files change in watch mode
+ * Read the modification time of the routes directory, or null when it does
+ * not exist or the file system reports none.
  */
-export function invalidateRouteCache(): void {
-  cachedResult = null;
-  cachedRoutesDirMtime = 0;
-  scannerLogger.debug("Route cache invalidated");
+async function readRoutesDirMtime(routesDir: string): Promise<number | null> {
+  try {
+    const routesDirStat = await crossRuntime.runtime.fs.stat(routesDir);
+    return routesDirStat.mtime?.getTime() ?? null;
+  } catch (error) {
+    if (error instanceof crossRuntime.NotFoundError) {
+      return null;
+    }
+    throw error;
+  }
 }
 
 /**
  * Scans the routes directory for page, layout, route, and proxy files
+ * Test files and anything in or below an `_`-prefixed file or directory are
+ * skipped, so `_private/page.tsx` is never routed
  * Uses @eserstack/collector for file walking
- * Implements caching for faster incremental builds
  * @param routesDir - The routes directory path (src/app/routes)
  * @param projectRoot - The project root directory
- * @param forceRescan - Force a rescan even if cache is valid
+ * @param options - A cache to reuse an earlier scan of the same directory;
+ *   without one, the directory is scanned every time
  * @returns Scan result containing routes, API routes, and proxies
  */
 export async function scanRoutes(
   routesDir: string,
   projectRoot: string,
-  forceRescan = false,
+  options: ScanRoutesOptions = {},
 ): Promise<ScanResult> {
-  // Check if cache is valid
-  if (!forceRescan && cachedResult) {
-    try {
-      const routesDirStat = await runtime.fs.stat(routesDir);
-      const mtime = routesDirStat.mtime?.getTime() ?? 0;
+  const { cache } = options;
+  const routesDirMtime = cache !== undefined
+    ? await readRoutesDirMtime(routesDir)
+    : null;
 
-      if (mtime <= cachedRoutesDirMtime) {
-        scannerLogger.debug("Using cached route scan result");
-        return cachedResult;
-      }
-    } catch {
-      // Directory might not exist, continue with scan
+  if (cache !== undefined && routesDirMtime !== null) {
+    const cached = cache.getRouteScan(routesDir, routesDirMtime);
+    if (cached !== null) {
+      scannerLogger.debug(`Using cached route scan of ${routesDir}`);
+      return cached;
     }
   }
 
@@ -116,19 +161,23 @@ export async function scanRoutes(
 
   // Walk all files using @eserstack/collector
   for await (
-    const relativePath of walkFiles(routesDir, undefined, IGNORE_PATTERN)
+    const relativePath of collector.walkFiles(
+      routesDir,
+      undefined,
+      IGNORE_PATTERN,
+    )
   ) {
-    const fileName = runtime.path.basename(relativePath);
+    const fileName = crossRuntime.runtime.path.basename(relativePath);
 
     // Only process route files
     if (!ROUTE_FILES.has(fileName)) {
       continue;
     }
 
-    const dirPath = runtime.path.dirname(relativePath);
+    const dirPath = crossRuntime.runtime.path.dirname(relativePath);
     const dirEntry = dirEntries.get(dirPath) ?? {};
 
-    const fullPath = runtime.path.join(routesDir, relativePath);
+    const fullPath = crossRuntime.runtime.path.join(routesDir, relativePath);
 
     const base = getRouteFileBase(fileName);
     if (base === "page") {
@@ -153,12 +202,15 @@ export async function scanRoutes(
   const findParentLayout = (dirPath: string): string | undefined => {
     let currentDir = dirPath;
     while (currentDir && currentDir !== ".") {
-      const parentDir = runtime.path.dirname(currentDir);
+      const parentDir = crossRuntime.runtime.path.dirname(currentDir);
       if (parentDir === currentDir) break; // Reached root
 
       const parentEntry = dirEntries.get(parentDir);
       if (parentEntry?.layoutPath) {
-        return runtime.path.relative(projectRoot, parentEntry.layoutPath);
+        return crossRuntime.runtime.path.relative(
+          projectRoot,
+          parentEntry.layoutPath,
+        );
       }
       currentDir = parentDir;
     }
@@ -170,13 +222,13 @@ export async function scanRoutes(
 
     // Add page route
     if (entries.pagePath) {
-      const componentPath = runtime.path.relative(
+      const componentPath = crossRuntime.runtime.path.relative(
         projectRoot,
         entries.pagePath,
       );
       // Use own layout if present, otherwise inherit from closest parent
       const layoutPath = entries.layoutPath
-        ? runtime.path.relative(projectRoot, entries.layoutPath)
+        ? crossRuntime.runtime.path.relative(projectRoot, entries.layoutPath)
         : findParentLayout(dirPath);
 
       routes.push({
@@ -195,7 +247,7 @@ export async function scanRoutes(
 
     // Add API route
     if (entries.routePath) {
-      const componentPath = runtime.path.relative(
+      const componentPath = crossRuntime.runtime.path.relative(
         projectRoot,
         entries.routePath,
       );
@@ -211,14 +263,19 @@ export async function scanRoutes(
 
     // Add proxy
     if (entries.proxyPath) {
-      const modulePath = runtime.path.relative(projectRoot, entries.proxyPath);
+      const modulePath = crossRuntime.runtime.path.relative(
+        projectRoot,
+        entries.proxyPath,
+      );
 
+      // directoryToRoutePath maps the root directory to "/", so the prefix is
+      // never empty
       proxies.push({
-        pathPrefix: routePath || "/",
+        pathPrefix: routePath,
         modulePath,
       });
 
-      scannerLogger.debug(`Found proxy: ${routePath || "/"} -> ${modulePath}`);
+      scannerLogger.debug(`Found proxy: ${routePath} -> ${modulePath}`);
     }
   }
 
@@ -237,14 +294,11 @@ export async function scanRoutes(
     proxies: sortedProxies,
   };
 
-  // Cache the result for future builds
-  try {
-    const routesDirStat = await runtime.fs.stat(routesDir);
-    cachedRoutesDirMtime = routesDirStat.mtime?.getTime() ?? 0;
-  } catch {
-    // Ignore caching errors
+  // A directory without an mtime cannot be checked for changes, so its scan
+  // is not cached.
+  if (cache !== undefined && routesDirMtime !== null) {
+    cache.setRouteScan(routesDir, result, routesDirMtime);
   }
-  cachedResult = result;
 
   return result;
 }
@@ -259,7 +313,7 @@ export async function scanRoutes(
  */
 function directoryToRoutePath(relativePath: string): string {
   // Handle root directory (empty string)
-  if (!relativePath || relativePath === ".") {
+  if (relativePath === "" || relativePath === ".") {
     return "/";
   }
 
@@ -269,7 +323,7 @@ function directoryToRoutePath(relativePath: string): string {
   }
 
   // Convert to POSIX format and add leading slash
-  return `/${toPosix(relativePath)}`;
+  return `/${crossRuntime.toPosix(relativePath)}`;
 }
 
 /**
@@ -338,7 +392,9 @@ function sortProxiesBySpecificity(proxies: ScannedProxy[]): ScannedProxy[] {
  */
 export function getComponentName(componentPath: string): string {
   // Get parent directory name
-  const dirName = runtime.path.basename(runtime.path.dirname(componentPath));
+  const dirName = crossRuntime.runtime.path.basename(
+    crossRuntime.runtime.path.dirname(componentPath),
+  );
 
   // Generate a PascalCase component name from directory
   const name = dirName === "home" ? "HomePage" : `${toPascalCase(dirName)}Page`;
@@ -350,7 +406,9 @@ export function getComponentName(componentPath: string): string {
  * Gets the layout component name from a layout.tsx file
  */
 export function getLayoutName(layoutPath: string): string {
-  const dirName = runtime.path.basename(runtime.path.dirname(layoutPath));
+  const dirName = crossRuntime.runtime.path.basename(
+    crossRuntime.runtime.path.dirname(layoutPath),
+  );
   return `${toPascalCase(dirName)}Layout`;
 }
 

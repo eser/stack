@@ -1,9 +1,12 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 /**
- * Module exports completeness checker.
+ * Module reachability checker.
  *
- * Validates that mod.ts files export all public TypeScript files in a package.
+ * Reports the top-level modules of each package that no entry point reaches:
+ * mod.ts, the exports map, the package.json bin, main and module fields, and
+ * any module that runs as a program. Such a module is missing from the exports
+ * or is dead code.
  *
  * @module
  */
@@ -11,10 +14,8 @@
 import * as primitives from "@eserstack/primitives";
 import type * as shellArgs from "@eserstack/shell/args";
 import * as span from "@eserstack/streams/span";
-import { createCliOutput, runCliMain } from "./cli-support.ts";
-import { ensureLib, getLib } from "./ffi-client.ts";
-
-const out = createCliOutput();
+import * as cliSupport from "./cli-support.ts";
+import * as ffiClient from "./ffi-client.ts";
 
 export type CheckModExportsOptions = {
   readonly root?: string;
@@ -37,8 +38,8 @@ export const checkModExports = async (
 ): Promise<CheckModExportsResult> => {
   const { root = "." } = options;
 
-  await ensureLib();
-  const lib = getLib();
+  await ffiClient.ensureLib();
+  const lib = ffiClient.getLib();
 
   if (lib === null) {
     throw new Error("native library not available for checkModExports");
@@ -59,6 +60,8 @@ export const checkModExports = async (
 export const main = async (
   _cliArgs?: readonly string[],
 ): Promise<shellArgs.CliResult<void>> => {
+  const { output: out } = cliSupport.getCliContext();
+
   try {
     const value = await checkModExports({ root: "." });
 
@@ -70,7 +73,9 @@ export const main = async (
     if (!value.isComplete) {
       out.writeln(
         span.red("✗"),
-        span.text(` Found ${value.missingExports.length} missing exports:`),
+        span.text(
+          ` Found ${value.missingExports.length} modules no entry point reaches (export them or remove them):`,
+        ),
       );
 
       for (const missing of value.missingExports) {
@@ -85,7 +90,7 @@ export const main = async (
 
     out.writeln(
       span.green("✓"),
-      span.text(" All mod.ts exports are complete."),
+      span.text(" Every module is reached from a package entry point."),
     );
     return primitives.results.ok(undefined);
   } catch (err) {
@@ -95,5 +100,8 @@ export const main = async (
 };
 
 if (import.meta.main) {
-  runCliMain(await main(), out);
+  // Entry point: the await only runs when this file is executed directly.
+  // deno-lint-ignore no-top-level-await
+  const result = await main();
+  cliSupport.runCliMain(result, cliSupport.getCliContext().output);
 }

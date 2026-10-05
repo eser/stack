@@ -4,8 +4,11 @@
  * Connects to HMR WebSocket server and triggers Smart Refresh on updates
  */
 
-/// <reference path="./globals.d.ts" />
 import * as logging from "@eserstack/logging";
+import type { LarouxGlobalThis } from "./globals.d.ts";
+
+// The page-wide state the laroux client keeps on globalThis, with its types.
+const larouxGlobals = globalThis as LarouxGlobalThis;
 
 const hmrLogger = logging.logger.getLogger([
   "laroux-bundler",
@@ -23,7 +26,7 @@ export function initializeHMR(): void {
   const host = globalThis.location.host;
   const url = `${protocol}//${host}/hmr`;
 
-  hmrLogger.debug("Connecting to WebSocket", { url });
+  hmrLogger.with({ url }).debug("Connecting to WebSocket");
 
   let socket: WebSocket;
   let reconnectAttempts = 0;
@@ -64,9 +67,9 @@ export function initializeHMR(): void {
             break;
 
           case "update":
-            hmrLogger.debug("Update received", {
+            hmrLogger.with({
               changedModules: message.changedModules,
-            });
+            }).debug("Update received");
             // Debounce reload to handle multiple rapid updates
             if (reloadTimeout) {
               clearTimeout(reloadTimeout);
@@ -80,7 +83,7 @@ export function initializeHMR(): void {
               if (onlyCssChanged) {
                 hmrLogger.debug("CSS-only update, reloading stylesheet");
                 // Reload CSS without full page refresh
-                const links = document.querySelectorAll(
+                const links = globalThis.document.querySelectorAll(
                   'link[rel="stylesheet"]',
                 );
                 links.forEach((link) => {
@@ -90,18 +93,17 @@ export function initializeHMR(): void {
                   (link as HTMLLinkElement).href = url.toString();
                 });
               } else if (
-                globalThis.__SMART_REFRESH_ENABLED__ &&
-                globalThis.__performSmartRefresh__
+                larouxGlobals.__SMART_REFRESH_ENABLED__ === true &&
+                larouxGlobals.__performSmartRefresh__ !== undefined
               ) {
                 hmrLogger.debug("Attempting Smart Refresh");
                 // Pass changed modules for targeted updates
-                globalThis.__performSmartRefresh__(
+                larouxGlobals.__performSmartRefresh__(
                   message.changedModules,
                 )
                   .catch((error: Error) => {
-                    hmrLogger.error(
+                    hmrLogger.with({ error }).error(
                       "Smart Refresh failed, falling back to full reload",
-                      { error },
                     );
                     globalThis.location.reload();
                   });
@@ -113,14 +115,14 @@ export function initializeHMR(): void {
             break;
 
           case "error":
-            hmrLogger.error("Build error", { message: message.message });
+            hmrLogger.with({ message: message.message }).error("Build error");
             break;
 
           default:
-            hmrLogger.warn("Unknown message type", { message });
+            hmrLogger.with({ message }).warn("Unknown message type");
         }
       } catch (error) {
-        hmrLogger.error("Failed to parse message", { error });
+        hmrLogger.with({ error }).error("Failed to parse message");
       }
     });
 
@@ -131,10 +133,10 @@ export function initializeHMR(): void {
       if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
         reconnectAttempts++;
         const delay = getReconnectDelay(reconnectAttempts);
-        hmrLogger.debug("Reconnecting...", {
+        hmrLogger.with({
           attempt: reconnectAttempts,
           delayMs: delay,
-        });
+        }).debug("Reconnecting...");
         setTimeout(connect, delay);
       } else {
         hmrLogger.warn(
@@ -144,7 +146,7 @@ export function initializeHMR(): void {
     });
 
     socket.addEventListener("error", (error) => {
-      hmrLogger.error("WebSocket error", { error });
+      hmrLogger.with({ error }).error("WebSocket error");
     });
   }
 

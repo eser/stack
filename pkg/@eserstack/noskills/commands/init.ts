@@ -19,28 +19,29 @@ import * as codebaseDetect from "../detect/codebase.ts";
 import * as concernDefs from "../context/concerns.ts";
 import * as compiler from "../context/compiler.ts";
 import * as syncEngine from "../sync/engine.ts";
+import * as hookCommands from "../sync/hook-commands.ts";
 import * as formatter from "../output/formatter.ts";
-import { cmd, extractPrefix, setCommandPrefix } from "../output/cmd.ts";
-import { renderOnboardingBanner } from "../output/banner.ts";
-import { detectMode, stripModeFlag } from "../output/mode.ts";
-import { detectAgentTool } from "@eserstack/shell/env";
+import * as cmd from "../output/cmd.ts";
+import * as banner from "../output/banner.ts";
+import * as mode from "../output/mode.ts";
+import * as env from "@eserstack/shell/env";
 import { runtime } from "@eserstack/standards/cross-runtime";
 
 export const main = async (
   args?: readonly string[],
 ): Promise<shellArgs.CliResult<void>> => {
   const root = runtime.process.cwd();
-  const mode = detectMode(args);
+  const outputMode = mode.detectMode(args);
   const ctx = tui.createTuiContext({
-    target: mode === "agent" ? "non-interactive" : "interactive",
+    target: outputMode === "agent" ? "non-interactive" : "interactive",
   });
-  const cleanArgs = stripModeFlag(args);
+  const cleanArgs = mode.stripModeFlag(args);
 
   // Parse flags
   const parsedConcerns = parseListFlag(cleanArgs, "--concerns");
   const parsedTools = parseListFlag(cleanArgs, "--tools");
   const nonInteractive = cleanArgs.includes("--non-interactive") ||
-    mode === "agent";
+    outputMode === "agent";
 
   const alreadyInitialized = await persistence.isInitialized(root);
 
@@ -72,7 +73,7 @@ export const main = async (
   toolSpinner.start();
   const detectedTools = await toolDetect.detectCodingTools(root);
 
-  const currentAgent = detectAgentTool();
+  const currentAgent = env.detectAgentTool();
   const guaranteed: schema.CodingToolId[] = currentAgent !== null &&
       !detectedTools.includes(currentAgent)
     ? [currentAgent]
@@ -174,13 +175,13 @@ export const main = async (
   const selectedConcerns = allConcerns.filter((c) =>
     selectedConcernIds.includes(c.id)
   );
-  for (const concern of selectedConcerns) {
-    await persistence.writeConcern(root, concern);
-  }
+  await Promise.all(
+    selectedConcerns.map((concern) => persistence.writeConcern(root, concern)),
+  );
 
   // ── Step 7: Write config ──
-  const commandPrefix = await extractPrefix();
-  setCommandPrefix(commandPrefix);
+  const commandPrefix = await cmd.extractPrefix();
+  cmd.setCommandPrefix(commandPrefix);
 
   const config: schema.NosManifest = {
     ...schema.createInitialManifest(
@@ -211,6 +212,15 @@ export const main = async (
     }
   }
 
+  // The hooks start this command for every guarded tool call, and most tools
+  // let the call through when a hook does not answer in time.
+  const networkWarning = syncEngine.toolsWithHooks(codingTools).length > 0
+    ? hookCommands.networkCommandWarning(commandPrefix)
+    : null;
+  if (networkWarning !== null) {
+    tui.log.warn(ctx, networkWarning);
+  }
+
   // ── Summary ──
   tui.outro(
     ctx,
@@ -218,7 +228,7 @@ export const main = async (
   );
 
   // In agent mode: output the IDLE instruction
-  if (mode === "agent") {
+  if (outputMode === "agent") {
     const state = await persistence.readState(root);
     const allConcernDefs = await concernDefs.loadDefaultConcerns();
     const active = allConcernDefs.filter((c) =>
@@ -260,13 +270,16 @@ export const main = async (
     );
 
     if (!hasActiveSpecs) {
-      renderOnboardingBanner(ctx, {
+      banner.renderOnboardingBanner(ctx, {
         concernCount: selectedConcernIds.length,
         toolCount: codingTools.length,
       });
     } else {
       tui.gapDetached(ctx);
-      tui.messageDetached(ctx, `Start a spec with: ${cmd('spec new "..."')}`);
+      tui.messageDetached(
+        ctx,
+        `Start a spec with: ${cmd.cmd('spec new "..."')}`,
+      );
     }
   }
 
@@ -330,8 +343,11 @@ const pickCodingTools = async (
   return result;
 };
 
-/** Parse comma-separated list from --flag=a,b,c */
-const parseListFlag = (
+/**
+ * The comma-separated values of `--flag=a,b,c`, trimmed and without empty
+ * entries, or null when `args` has no such flag.
+ */
+export const parseListFlag = (
   args: readonly string[] | undefined,
   flag: string,
 ): string[] | null => {
@@ -340,7 +356,7 @@ const parseListFlag = (
   for (const arg of args) {
     if (arg.startsWith(`${flag}=`)) {
       return arg.slice(flag.length + 1).split(",").map((s) => s.trim()).filter(
-        Boolean,
+        (item) => item !== "",
       );
     }
   }

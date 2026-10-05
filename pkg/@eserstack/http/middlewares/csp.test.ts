@@ -1,7 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 import * as assert from "@std/assert";
-import { csp, generateNonce } from "./csp.ts";
+import * as csp from "./csp.ts";
 
 const createRequest = (): Request => {
   return new Request("http://localhost/test", { method: "GET" });
@@ -10,8 +10,8 @@ const createRequest = (): Request => {
 const okHandler = () => new Response("OK", { status: 200 });
 
 Deno.test("generateNonce should create random base64 string", () => {
-  const nonce1 = generateNonce();
-  const nonce2 = generateNonce();
+  const nonce1 = csp.generateNonce();
+  const nonce2 = csp.generateNonce();
 
   assert.assertNotEquals(nonce1, nonce2);
   assert.assertEquals(typeof nonce1, "string");
@@ -19,7 +19,7 @@ Deno.test("generateNonce should create random base64 string", () => {
 });
 
 Deno.test("csp should add default CSP header", async () => {
-  const middleware = csp();
+  const middleware = csp.csp();
   const req = createRequest();
 
   const response = await middleware(req, okHandler);
@@ -30,7 +30,7 @@ Deno.test("csp should add default CSP header", async () => {
 });
 
 Deno.test("csp should use custom directives", async () => {
-  const middleware = csp({
+  const middleware = csp.csp({
     directives: {
       "default-src": "'none'",
       "script-src": ["'self'", "https://cdn.example.com"],
@@ -52,7 +52,7 @@ Deno.test("csp should use custom directives", async () => {
 });
 
 Deno.test("csp should use report-only header when specified", async () => {
-  const middleware = csp({ reportOnly: true });
+  const middleware = csp.csp({ reportOnly: true });
   const req = createRequest();
 
   const response = await middleware(req, okHandler);
@@ -64,7 +64,7 @@ Deno.test("csp should use report-only header when specified", async () => {
 });
 
 Deno.test("csp should add nonce when useNonce is true", async () => {
-  const middleware = csp({ useNonce: true });
+  const middleware = csp.csp({ useNonce: true });
   const req = createRequest();
 
   const response = await middleware(req, okHandler);
@@ -78,7 +78,7 @@ Deno.test("csp should add nonce when useNonce is true", async () => {
 });
 
 Deno.test("csp should generate different nonces for different requests", async () => {
-  const middleware = csp({ useNonce: true });
+  const middleware = csp.csp({ useNonce: true });
 
   const response1 = await middleware(createRequest(), okHandler);
   const response2 = await middleware(createRequest(), okHandler);
@@ -90,7 +90,7 @@ Deno.test("csp should generate different nonces for different requests", async (
 });
 
 Deno.test("csp should merge nonce with existing script-src", async () => {
-  const middleware = csp({
+  const middleware = csp.csp({
     directives: {
       "script-src": "'self' https://cdn.example.com",
     },
@@ -108,7 +108,7 @@ Deno.test("csp should merge nonce with existing script-src", async () => {
 });
 
 Deno.test("csp should merge nonce with array script-src", async () => {
-  const middleware = csp({
+  const middleware = csp.csp({
     directives: {
       "script-src": ["'self'", "https://cdn.example.com"],
     },
@@ -124,7 +124,7 @@ Deno.test("csp should merge nonce with array script-src", async () => {
 });
 
 Deno.test("csp should pass through response from next handler", async () => {
-  const middleware = csp();
+  const middleware = csp.csp();
   const req = createRequest();
 
   const response = await middleware(
@@ -138,7 +138,7 @@ Deno.test("csp should pass through response from next handler", async () => {
 });
 
 Deno.test("csp should preserve response headers", async () => {
-  const middleware = csp();
+  const middleware = csp.csp();
   const req = createRequest();
 
   const response = await middleware(req, () =>

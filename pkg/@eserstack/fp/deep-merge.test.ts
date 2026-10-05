@@ -1,7 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 import * as assert from "@std/assert";
-import { deepMerge, DeepMergeError } from "./deep-merge.ts";
+import * as deepMerge from "./deep-merge.ts";
 
 type Dummy1Prop = {
   inners: {
@@ -53,7 +53,7 @@ Deno.test("basic", () => {
     e: "hello",
   };
 
-  const result = deepMerge(obj1, obj2);
+  const result = deepMerge.deepMerge(obj1, obj2);
 
   assert.assertNotStrictEquals(result, obj1);
   assert.assertNotStrictEquals(result, obj2);
@@ -85,7 +85,7 @@ Deno.test("classes", () => {
     outer: "sub-mariner",
   });
 
-  const result = deepMerge(obj1, obj2);
+  const result = deepMerge.deepMerge(obj1, obj2);
 
   assert.assertNotStrictEquals(result, obj1);
   assert.assertNotStrictEquals(result, obj2);
@@ -115,8 +115,8 @@ Deno.test("deepMerge() should detect circular reference in first argument", () =
   const obj2 = { extra: "data" };
 
   assert.assertThrows(
-    () => deepMerge(obj1, obj2),
-    DeepMergeError,
+    () => deepMerge.deepMerge(obj1, obj2),
+    deepMerge.DeepMergeError,
     "Circular reference detected",
   );
 });
@@ -129,8 +129,8 @@ Deno.test("deepMerge() should detect circular reference in second argument", () 
   obj2.self = obj2;
 
   assert.assertThrows(
-    () => deepMerge(obj1, obj2),
-    DeepMergeError,
+    () => deepMerge.deepMerge(obj1, obj2),
+    deepMerge.DeepMergeError,
     "Circular reference detected",
   );
 });
@@ -149,8 +149,8 @@ Deno.test("deepMerge() should detect deep circular references", () => {
   const obj2 = { extra: "data" };
 
   assert.assertThrows(
-    () => deepMerge(obj1, obj2),
-    DeepMergeError,
+    () => deepMerge.deepMerge(obj1, obj2),
+    deepMerge.DeepMergeError,
     "Circular reference detected",
   );
 });
@@ -164,8 +164,8 @@ Deno.test("deepMerge() should detect mutually circular references", () => {
   objB.ref = objA;
 
   assert.assertThrows(
-    () => deepMerge(objA, {}),
-    DeepMergeError,
+    () => deepMerge.deepMerge(objA, {}),
+    deepMerge.DeepMergeError,
     "Circular reference detected",
   );
 });
@@ -178,7 +178,7 @@ Deno.test("deepMerge() should merge objects within max depth", () => {
   const obj1 = { a: { b: { c: 1 } } };
   const obj2 = { a: { b: { d: 2 } } };
 
-  const result = deepMerge(obj1, obj2, { maxDepth: 10 });
+  const result = deepMerge.deepMerge(obj1, obj2, { maxDepth: 10 });
 
   assert.assertEquals(result, { a: { b: { c: 1, d: 2 } } });
 });
@@ -188,8 +188,8 @@ Deno.test("deepMerge() should throw when exceeding max depth", () => {
   const obj2 = { a: { b: { c: { e: 2 } } } };
 
   assert.assertThrows(
-    () => deepMerge(obj1, obj2, { maxDepth: 2 }),
-    DeepMergeError,
+    () => deepMerge.deepMerge(obj1, obj2, { maxDepth: 2 }),
+    deepMerge.DeepMergeError,
     "Maximum recursion depth exceeded",
   );
 });
@@ -200,14 +200,14 @@ Deno.test("deepMerge() should allow custom max depth", () => {
   const obj2 = { a: { b: { d: 2 } } };
 
   // Should succeed with maxDepth of 2 (we reach depth 2 when accessing 'b')
-  const result = deepMerge(obj1, obj2, { maxDepth: 2 });
+  const result = deepMerge.deepMerge(obj1, obj2, { maxDepth: 2 });
   assert.assertEquals(result.a.b.c, 1);
   assert.assertEquals(result.a.b.d, 2);
 
   // Should fail with maxDepth of 1 (can't reach depth 2 for 'b')
   assert.assertThrows(
-    () => deepMerge(obj1, obj2, { maxDepth: 1 }),
-    DeepMergeError,
+    () => deepMerge.deepMerge(obj1, obj2, { maxDepth: 1 }),
+    deepMerge.DeepMergeError,
     "Maximum recursion depth exceeded",
   );
 });
@@ -220,7 +220,7 @@ Deno.test("deepMerge() should handle undefined second argument", () => {
   const obj1 = { a: 1, b: { c: 2 } };
 
   // deno-lint-ignore no-explicit-any
-  const result = deepMerge(obj1, undefined as any);
+  const result = deepMerge.deepMerge(obj1, undefined as any);
 
   assert.assertEquals(result.a, 1);
   assert.assertEquals(result.b.c, 2);
@@ -230,7 +230,7 @@ Deno.test("deepMerge() should handle null values", () => {
   const obj1 = { a: null, b: { c: null } };
   const obj2 = { b: { d: null } };
 
-  const result = deepMerge(obj1, obj2);
+  const result = deepMerge.deepMerge(obj1, obj2);
 
   assert.assertEquals(result.a, null);
   assert.assertEquals(result.b.c, null);
@@ -243,7 +243,7 @@ Deno.test("deepMerge() should override primitives with objects", () => {
   // deno-lint-ignore no-explicit-any
   const obj2: any = { a: { nested: true } };
 
-  const result = deepMerge(obj1, obj2);
+  const result = deepMerge.deepMerge(obj1, obj2);
 
   assert.assertEquals(result.a, { nested: true });
 });
@@ -254,7 +254,7 @@ Deno.test("deepMerge() should override objects with primitives", () => {
   // deno-lint-ignore no-explicit-any
   const obj2: any = { a: 1 };
 
-  const result = deepMerge(obj1, obj2);
+  const result = deepMerge.deepMerge(obj1, obj2);
 
   assert.assertEquals(result.a, 1);
 });
@@ -263,7 +263,7 @@ Deno.test("deepMerge() should handle arrays as values (not merged)", () => {
   const obj1 = { arr: [1, 2, 3] };
   const obj2 = { arr: [4, 5] };
 
-  const result = deepMerge(obj1, obj2);
+  const result = deepMerge.deepMerge(obj1, obj2);
 
   // Arrays should be replaced, not merged
   assert.assertEquals(result.arr, [4, 5]);
@@ -281,7 +281,7 @@ Deno.test("deepMerge() should skip undefined values by default", () => {
     debug: undefined,
   };
 
-  const result = deepMerge(defaults, userConfig);
+  const result = deepMerge.deepMerge(defaults, userConfig);
 
   // undefined values should be skipped, keeping defaults
   assert.assertEquals(result.port, 8000);
@@ -295,7 +295,7 @@ Deno.test("deepMerge() should skip undefined in nested objects by default", () =
     server: { port: undefined, host: "0.0.0.0" },
   };
 
-  const result = deepMerge(defaults, userConfig);
+  const result = deepMerge.deepMerge(defaults, userConfig);
 
   assert.assertEquals(result.server.port, 8000);
   assert.assertEquals(result.server.host, "0.0.0.0");
@@ -305,7 +305,7 @@ Deno.test("deepMerge() should not add undefined-only keys from source by default
   const obj1 = { a: 1 };
   const obj2: Partial<typeof obj1> & { b?: undefined } = { a: 1, b: undefined };
 
-  const result = deepMerge(obj1, obj2);
+  const result = deepMerge.deepMerge(obj1, obj2);
 
   // b should not be added since it's undefined
   assert.assertEquals(result, { a: 1 });
@@ -319,7 +319,9 @@ Deno.test("deepMerge() with noSkipUndefined: true should override with undefined
     host: "0.0.0.0",
   };
 
-  const result = deepMerge(defaults, userConfig, { noSkipUndefined: true });
+  const result = deepMerge.deepMerge(defaults, userConfig, {
+    noSkipUndefined: true,
+  });
 
   // undefined should override the default
   assert.assertEquals(result.port, undefined);
@@ -331,7 +333,7 @@ Deno.test("deepMerge() with noSkipUndefined: true should add undefined keys", ()
   // deno-lint-ignore no-explicit-any
   const obj2: any = { b: undefined };
 
-  const result = deepMerge(obj1, obj2, { noSkipUndefined: true });
+  const result = deepMerge.deepMerge(obj1, obj2, { noSkipUndefined: true });
 
   assert.assertEquals(result.a, 1);
   assert.assert("b" in result);
@@ -342,7 +344,7 @@ Deno.test("deepMerge() with noSkipUndefined: true should add undefined keys", ()
 Deno.test("deepMerge() should return copy of instance when other is undefined", () => {
   const defaults = { port: 8000, nested: { host: "localhost" } };
 
-  const result = deepMerge(defaults, undefined);
+  const result = deepMerge.deepMerge(defaults, undefined);
 
   assert.assertEquals(result, defaults);
   assert.assertNotStrictEquals(result, defaults); // Should be a copy
@@ -351,7 +353,7 @@ Deno.test("deepMerge() should return copy of instance when other is undefined", 
 Deno.test("deepMerge() should return copy of instance when other is null", () => {
   const defaults = { port: 8000, nested: { host: "localhost" } };
 
-  const result = deepMerge(defaults, null);
+  const result = deepMerge.deepMerge(defaults, null);
 
   assert.assertEquals(result, defaults);
   assert.assertNotStrictEquals(result, defaults); // Should be a copy

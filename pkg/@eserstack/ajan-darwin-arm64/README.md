@@ -1,9 +1,16 @@
-# @eserstack/ajan-darwin-arm64
+# 📦 [@eserstack/ajan-darwin-arm64](./)
 
 eser-ajan shared library for macOS ARM64 (Apple Silicon).
 
 Prebuilt `libeser_ajan.dylib` for the [@eserstack/ajan](../ajan) FFI bridge,
-installed automatically as an optional dependency of the `eser` CLI on this
-platform. The binary is a build output written here by
-`pkg/@eserstack/ajan/scripts/build.ts` and is not committed; only this manifest
-is.
+with its C header `libeser_ajan.h`, installed automatically as an optional
+dependency of `@eserstack/ajan` and the `eser` CLI on this platform.
+`pkg/@eserstack/ajan/scripts/build.ts` builds the library into
+`pkg/@eserstack/ajan/dist/`, and `pkg/@eserstack/ajan/npm/generate-packages.ts`
+copies it here. The binary is a build output and is not committed; only this
+manifest is.
+
+## 🔗 Links
+
+- [@eserstack/ajan](../ajan/README.md): the FFI bridge that loads this library
+- [eser/stack on GitHub](https://github.com/eser/stack)

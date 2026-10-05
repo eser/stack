@@ -1,18 +1,18 @@
 # Logging
 
-Where and how code logs, in TypeScript (`@eserstack/logging`) and Go
-(`pkg/ajan/logfx`). Secrets and personal data rules are in security-practices:
-Secrets and Personal Data Never Reach Output.
+Where and how code logs, in TypeScript (`@eserstack/logging`) and Go (ajan's
+`logfx`, `github.com/eser/stack/pkg/ajan/logfx`). Secrets and personal data
+rules are in security-practices: Secrets and Personal Data Never Reach Output.
 
 ---
 
 ## Structured Logging
 
-Scope: Services, adapters and command handlers (the noskills daemon, HTTP and
-CLI handlers, repository adapters). Pure domain functions and library utilities
-do not log; they return values or errors, and the caller logs.
+Scope: Services, adapters and command handlers (daemons, HTTP and CLI handlers,
+repository adapters). Pure domain functions and library utilities do not log;
+they return values or errors, and the caller logs.
 
-Rule: Log through the project loggers with structured properties, never with
+Rule: Log through this codebase's loggers with structured properties, never with
 `console.*` (lint: `no-console`) or `fmt.Println`. Pick the level by layer and
 attach correlation context.
 
@@ -31,7 +31,7 @@ Correct:
 ```typescript
 import * as logging from "@eserstack/logging";
 
-const logger = logging.logger.getLogger(["noskills", "sessions"]);
+const logger = logging.logger.getLogger(["app", "sessions"]);
 
 export async function createSession(input: SessionInput, requestId: string) {
   const log = logger.with({ requestId, projectId: input.projectId });

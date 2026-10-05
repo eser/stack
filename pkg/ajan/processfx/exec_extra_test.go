@@ -13,7 +13,7 @@ func TestExec_NonExistentCwd(t *testing.T) {
 	t.Parallel()
 
 	// A non-existent Cwd produces *os.PathError from chdir, not *exec.ExitError.
-	// This covers the isExitError false branch in exec.go.
+	// This covers the branch in exec.go where the error is not an exit error.
 	_, err := processfx.Exec(context.Background(), "echo hi", processfx.ExecOptions{
 		Cwd: "/nonexistent_path_xyz_abc_123456",
 	})

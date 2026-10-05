@@ -18,25 +18,24 @@ processing utilities.
 ## Installation
 
 ```typescript
-import { createBundler } from "@eserstack/bundler";
-import {
-  createTailwindRoot,
-  optimizeGoogleFonts,
-  processCssModule,
-} from "@eserstack/bundler/css";
+import * as bundler from "@eserstack/bundler";
+import * as css from "@eserstack/bundler/css";
 ```
+
+The CSS tools live in their own `@eserstack/bundler/css` entry, so importing the
+bundler does not load Lightning CSS or Tailwind.
 
 ## Quick Start
 
 ### Basic Bundling
 
 ```typescript
-import { createBundler } from "@eserstack/bundler";
+import * as bundler from "@eserstack/bundler";
 
 // Create bundler (Rolldown is default)
-const bundler = createBundler("rolldown");
+const backend = bundler.createBundler("rolldown");
 
-const result = await bundler.bundle({
+const result = await backend.bundle({
   entrypoints: {
     main: "./src/main.ts",
     worker: "./src/worker.ts",
@@ -60,12 +59,12 @@ if (result.success) {
 ### Using Deno.bundle Fallback
 
 ```typescript
-import { createBundler } from "@eserstack/bundler";
+import * as bundler from "@eserstack/bundler";
 
 // Use native Deno.bundle API
-const bundler = createBundler("deno-bundler");
+const backend = bundler.createBundler("deno-bundler");
 
-const result = await bundler.bundle({
+const result = await backend.bundle({
   entrypoints: { app: "./src/app.tsx" },
   outputDir: "./dist",
   format: "esm",
@@ -80,21 +79,17 @@ const result = await bundler.bundle({
 
 ### Rolldown (Default)
 
-Rolldown is a Rust-based bundler that's 10-30x faster than Rollup with
-Rollup-compatible plugin API.
+[Rolldown](https://rolldown.rs) is a Rust-based bundler with a Rollup-compatible
+plugin API. Its site publishes benchmarks against Rollup.
 
 ```typescript
-import {
-  createRolldownBackend,
-  createRolldownWithPreset,
-  RolldownPresets,
-} from "@eserstack/bundler";
+import * as bundler from "@eserstack/bundler";
 
 // Basic usage
-const bundler = createRolldownBackend();
+const basic = bundler.createRolldownBackend();
 
 // With advanced chunking
-const bundler = createRolldownBackend({
+const chunked = bundler.createRolldownBackend({
   treeshake: true,
   advancedChunks: {
     minSize: 20000,
@@ -106,7 +101,7 @@ const bundler = createRolldownBackend({
 });
 
 // Using presets
-const bundler = createRolldownWithPreset("react");
+const react = bundler.createRolldownWithPreset("react");
 // Available presets: "default", "react", "library", "ssr", "performance"
 ```
 
@@ -115,18 +110,40 @@ const bundler = createRolldownWithPreset("react");
 Uses the native `Deno.bundle()` API (requires `--unstable-bundle` flag).
 
 ```typescript
-import { createDenoBundlerBackend } from "@eserstack/bundler";
+import * as bundler from "@eserstack/bundler";
 
-const bundler = createDenoBundlerBackend({
+const backend = bundler.createDenoBundlerBackend({
   buildId: "abc123", // Optional build ID for cache busting
+  entryName: "client", // Key of the main entry (default: "main")
 });
 ```
+
+`Deno.bundle()` has no `define` option, so this backend applies `config.define`
+to the bundled output after the build.
+
+`Deno.bundle()` writes each entry below the common parent directory of all the
+entries. This backend renames the outputs the way the Rolldown backend names
+them:
+
+- The entry under the key `src/app.ts` becomes `src/app.ts.js`, and `client`
+  becomes `client.js`. Shared chunks keep their `chunk-HASH.js` names.
+- With `buildId`, a `build-id.js` entry exports the ID as `BUILD_ID`.
+- The relative imports between the outputs follow the new names.
+- With `sourcemap: true` or `"external"`, each output carries its map in `map`,
+  the map is also an output of its own (`client.js.map`), the code ends with a
+  `sourceMappingURL` comment, and the map's `sources` resolve from the map's new
+  place. With `sourcemap: "inline"`, the map stays at the end of the code and
+  its `sources` are rewritten the same way.
+- `entrypoint` is `${entryName}.js` when an entry has that key, and the first
+  entry's output otherwise. `entrypointManifest` maps the path of each entry in
+  `config.entrypoints` to its own output followed by the chunks it imports
+  statically.
 
 ### Backend Comparison
 
 | Feature              | Rolldown              | Deno Bundler  |
 | -------------------- | --------------------- | ------------- |
-| **Performance**      | 10-30x faster         | Native Deno   |
+| **Performance**      | Rust-based            | Native Deno   |
 | **Format**           | ESM, CJS, IIFE        | ESM only      |
 | **External Modules** | ✓                     | ✓             |
 | **Plugins**          | ✓ (Rollup-compatible) | ✗             |
@@ -157,20 +174,16 @@ Process CSS with Tailwind using `@tailwindcss/node` (same pattern as
 `@tailwindcss/vite`).
 
 ```typescript
-import {
-  createTailwindRoot,
-  hasTailwindDirectives,
-  processCssModule,
-} from "@eserstack/bundler/css";
+import * as css from "@eserstack/bundler/css";
 
 // Create a Tailwind compiler root (reuse across files)
-const tailwind = createTailwindRoot({
+const tailwind = css.createTailwindRoot({
   base: ".",
   minify: true,
 });
 
 // Process CSS modules with @apply support
-const result = await processCssModule("src/Button.module.css", {
+const result = await css.processCssModule("src/Button.module.css", {
   tailwind,
   generateDts: true,
 });
@@ -181,7 +194,8 @@ console.log(result.exports); // { button: "button_abc123" }
 tailwind.dispose();
 
 // Check if CSS contains Tailwind directives
-if (hasTailwindDirectives(cssContent)) {
+const cssContent = ".button { @apply px-4 py-2; }";
+if (css.hasTailwindDirectives(cssContent)) {
   // Process with Tailwind
 }
 ```
@@ -191,34 +205,31 @@ if (hasTailwindDirectives(cssContent)) {
 Advanced CSS transformation with browser targeting and minification.
 
 ```typescript
-import {
-  BrowserTargetPresets,
-  browserVersion,
-  minifyCss,
-  transformWithLightningCss,
-} from "@eserstack/bundler/css";
+import * as css from "@eserstack/bundler/css";
+
+const cssContent = ".card { display: flex; & .title { font-weight: bold; } }";
 
 // Basic transformation
-const result = transformWithLightningCss(cssContent, {
+const result = css.transformWithLightningCss(cssContent, {
   filename: "styles.css",
   minify: true,
   targets: {
-    chrome: browserVersion(90),
-    firefox: browserVersion(88),
-    safari: browserVersion(14),
+    chrome: css.browserVersion(90),
+    firefox: css.browserVersion(88),
+    safari: css.browserVersion(14),
   },
 });
 
 console.log(result.code);
 
 // Using presets
-const result = transformWithLightningCss(cssContent, {
+const modernResult = css.transformWithLightningCss(cssContent, {
   minify: true,
-  targets: BrowserTargetPresets.modern(),
+  targets: css.BrowserTargetPresets.modern(),
 });
 
 // Simple minification
-const minified = minifyCss(cssContent);
+const minified = css.minifyCss(cssContent);
 ```
 
 ### CSS Modules
@@ -226,15 +237,10 @@ const minified = minifyCss(cssContent);
 Process `.module.css` files with scoped class names and TypeScript definitions.
 
 ```typescript
-import {
-  buildCssModules,
-  createTailwindRoot,
-  generateTypeScriptDefinition,
-  processCssModule,
-} from "@eserstack/bundler/css";
+import * as css from "@eserstack/bundler/css";
 
 // Process single module (without Tailwind)
-const result = await processCssModule("src/Button.module.css", {
+const result = await css.processCssModule("src/Button.module.css", {
   generateDts: true,
   minify: true,
 });
@@ -247,7 +253,7 @@ console.log(result.dts);
 // export default styles;
 
 // Build all CSS modules in a directory
-const results = await buildCssModules("src", "dist", {
+const results = await css.buildCssModules("src", "dist", {
   generateDts: true,
 });
 ```
@@ -255,11 +261,13 @@ const results = await buildCssModules("src", "dist", {
 CSS Modules with Tailwind `@apply`:
 
 ```typescript
+import * as css from "@eserstack/bundler/css";
+
 // Create Tailwind compiler (reuse across files)
-const tailwind = createTailwindRoot({ base: "." });
+const tailwind = css.createTailwindRoot({ base: "." });
 
 // Process CSS module with @apply support
-const result = await processCssModule("src/Card.module.css", {
+const result = await css.processCssModule("src/Card.module.css", {
   tailwind,
   generateDts: true,
 });
@@ -267,22 +275,19 @@ const result = await processCssModule("src/Card.module.css", {
 tailwind.dispose();
 ```
 
-Note: CSS files using `@apply` need `@reference "tailwindcss";` directive
-(Tailwind v4 requirement).
+Note: Tailwind v4 needs a `@reference "tailwindcss";` directive in CSS files
+that use `@apply`. `createTailwindRoot` adds it when it is missing; pass
+`autoInjectReference: false` to turn that off.
 
 ### Google Fonts Optimization
 
 Download and self-host Google Fonts for better performance.
 
 ```typescript
-import {
-  generatePreloadHints,
-  optimizeGoogleFonts,
-  optimizeMultipleGoogleFonts,
-} from "@eserstack/bundler/css";
+import * as css from "@eserstack/bundler/css";
 
 // Optimize single font
-const result = await optimizeGoogleFonts(
+const result = await css.optimizeGoogleFonts(
   "https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700",
   {
     outputDir: "dist/fonts",
@@ -296,7 +301,7 @@ console.log(result.preloadHints); // HTML preload link tags
 console.log(result.totalSize); // Total bytes downloaded
 
 // Optimize multiple fonts
-const result = await optimizeMultipleGoogleFonts(
+const combined = await css.optimizeMultipleGoogleFonts(
   [
     "https://fonts.googleapis.com/css2?family=Roboto:wght@400;700",
     "https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600",
@@ -310,12 +315,18 @@ const result = await optimizeMultipleGoogleFonts(
 ### BundlerConfig
 
 ```typescript
+import * as bundler from "@eserstack/bundler";
+
 interface BundlerConfig {
   // Named entrypoints (name -> file path)
   entrypoints: Record<string, string>;
 
   // Output directory
   outputDir: string;
+
+  // Optional: Project root for module resolution (Rolldown adds its
+  // node_modules to the resolve paths)
+  projectRoot?: string;
 
   // Output format: "esm" | "cjs" | "iife"
   format: "esm" | "cjs" | "iife";
@@ -335,11 +346,17 @@ interface BundlerConfig {
   // Optional: Target environments
   target?: string[];
 
+  // Optional: Global replacements (e.g. process.env.NODE_ENV)
+  define?: Record<string, string>;
+
   // Optional: External modules
   external?: string[];
 
   // Optional: Bundler plugins
-  plugins?: BundlerPlugin[];
+  plugins?: bundler.BundlerPlugin[];
+
+  // Optional: Path to deno.json or tsconfig.json
+  configPath?: string;
 
   // Optional: Base path for URL rewriting
   basePath?: string;
@@ -349,12 +366,14 @@ interface BundlerConfig {
 ### BundleResult
 
 ```typescript
+import * as bundler from "@eserstack/bundler";
+
 interface BundleResult {
   success: boolean;
-  outputs: Map<string, BundleOutput>;
-  errors?: BundleError[];
-  warnings?: BundleWarning[];
-  metafile?: BundleMetafile;
+  outputs: Map<string, bundler.BundleOutput>;
+  errors?: bundler.BundleError[];
+  warnings?: bundler.BundleWarning[];
+  metafile?: bundler.BundleMetafile;
   entrypointManifest?: Record<string, string[]>;
   entrypoint?: string;
   totalSize?: number;
@@ -366,9 +385,9 @@ interface BundleResult {
 Create custom plugins with resolve, load, and transform hooks:
 
 ```typescript
-import type { BundlerPlugin } from "@eserstack/bundler";
+import * as bundler from "@eserstack/bundler";
 
-const myPlugin: BundlerPlugin = {
+const myPlugin: bundler.BundlerPlugin = {
   name: "my-plugin",
   setup(build) {
     // Resolve hook - customize module resolution
@@ -393,9 +412,15 @@ const myPlugin: BundlerPlugin = {
   },
 };
 
-const bundler = createBundler("rolldown");
-await bundler.bundle({
-  // ...config
+const backend = bundler.createBundler("rolldown");
+await backend.bundle({
+  entrypoints: { main: "./src/main.ts" },
+  outputDir: "./dist",
+  format: "esm",
+  platform: "browser",
+  codeSplitting: true,
+  minify: false,
+  sourcemap: false,
   plugins: [myPlugin],
 });
 ```
@@ -413,18 +438,18 @@ Pre-configured settings for common use cases:
 | `performance` | Maximum optimization for production         |
 
 ```typescript
-import { createRolldownWithPreset, RolldownPresets } from "@eserstack/bundler";
+import * as bundler from "@eserstack/bundler";
 
 // Use preset directly
-const bundler = createRolldownWithPreset("react");
+const react = bundler.createRolldownWithPreset("react");
 
 // Customize preset
-const bundler = createRolldownWithPreset("react", {
+const customReact = bundler.createRolldownWithPreset("react", {
   advancedChunks: { minSize: 5000 },
 });
 
 // Access preset options
-const options = RolldownPresets.performance();
+const options = bundler.RolldownPresets.performance();
 ```
 
 ## Watch Mode
@@ -432,9 +457,11 @@ const options = RolldownPresets.performance();
 Both backends support watch mode for development:
 
 ```typescript
-const bundler = createBundler("rolldown");
+import * as bundler from "@eserstack/bundler";
 
-const watcher = await bundler.watch(
+const backend = bundler.createRolldownBackend();
+
+const watcher = await backend.watch(
   {
     entrypoints: { main: "./src/main.ts" },
     outputDir: "./dist",
@@ -462,20 +489,33 @@ await watcher.stop();
 Use `browserVersion()` to create target numbers for Lightning CSS:
 
 ```typescript
-import { BrowserTargetPresets, browserVersion } from "@eserstack/bundler/css";
+import * as css from "@eserstack/bundler/css";
 
 // Manual targets
 const targets = {
-  chrome: browserVersion(100), // Chrome 100
-  firefox: browserVersion(95), // Firefox 95
-  safari: browserVersion(15, 4), // Safari 15.4
+  chrome: css.browserVersion(100), // Chrome 100
+  firefox: css.browserVersion(95), // Firefox 95
+  safari: css.browserVersion(15, 4), // Safari 15.4
 };
 
 // Or use presets
-BrowserTargetPresets.modern(); // Chrome 90+, Firefox 88+, Safari 14+
-BrowserTargetPresets.wide(); // Chrome 80+, Firefox 75+, Safari 13+
-BrowserTargetPresets.latest(); // Chrome 120+, Firefox 120+, Safari 17+
+css.BrowserTargetPresets.modern(); // Chrome 90+, Firefox 88+, Safari 14+
+css.BrowserTargetPresets.wide(); // Chrome 80+, Firefox 75+, Safari 13+
+css.BrowserTargetPresets.latest(); // Chrome 120+, Firefox 120+, Safari 17+
 ```
+
+## Upgrading from 4.x
+
+These changes since 4.5.2 need a change in code, commands or files that use this
+package. The [changelog](https://github.com/eser/stack/blob/main/CHANGELOG.md)
+lists the changes in every package.
+
+- The deno-bundler backend names each entry's output `${key}.js` (and the build
+  ID entry `build-id.js`), lists every entry in `entrypointManifest`, `main` and
+  `client` included, with the entry's own output first, and sets `entrypoint` to
+  `${entryName}.js`. Look outputs up by `${key}.js`, as with the Rolldown
+  backend, and read the first element of a manifest entry as the entry's own
+  file.
 
 ---
 

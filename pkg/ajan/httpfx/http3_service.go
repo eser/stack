@@ -8,6 +8,8 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"slices"
+	"time"
 
 	"github.com/eser/stack/pkg/ajan/lib"
 	"github.com/eser/stack/pkg/ajan/logfx"
@@ -27,13 +29,22 @@ var (
 // The underlying webtransport.Server is initialised in NewHTTP3Service and shares
 // the http3.Server instance via a pointer.
 type WebTransportUpgrader struct {
-	inner *webtransport.Server
+	inner  *webtransport.Server
+	origin *webTransportOriginCheck
 }
 
 // Upgrade upgrades an HTTP/3 CONNECT request to a WebTransport session.
 // Must be called from a RouteRaw handler; returns an error if the client did
-// not send a valid WebTransport CONNECT request.
+// not send a valid WebTransport CONNECT request. The error wraps
+// ErrWebTransportOriginNotAllowed when the request's Origin is neither the
+// server's own nor listed in Config.H3AllowedOrigins, so the handler can
+// answer 403.
 func (u *WebTransportUpgrader) Upgrade(w http.ResponseWriter, r *http.Request) (*webtransport.Session, error) {
+	if !u.origin.allows(r) {
+		return nil, fmt.Errorf("WebTransport upgrade: %w (origin=%q)",
+			ErrWebTransportOriginNotAllowed, r.Header.Get("Origin"))
+	}
+
 	session, err := u.inner.Upgrade(w, r)
 	if err != nil {
 		return nil, fmt.Errorf("WebTransport upgrade: %w", err)
@@ -53,6 +64,10 @@ type HTTP3Service struct {
 
 	Config *Config
 	logger *logfx.Logger
+
+	// configErr is the Config error NewHTTP3Service found; Start returns it
+	// before it opens the socket.
+	configErr error
 }
 
 func NewHTTP3Service(
@@ -75,18 +90,28 @@ func NewHTTP3Service(
 	// WebTransport upgrade can retrieve the underlying QUIC connection.
 	webtransport.ConfigureHTTP3Server(h3Server)
 
+	// An invalid allowlist is reported by Start. Until then, and for the
+	// service's whole life if Start is never called, the check falls back to
+	// same-origin, which never widens what a page may open.
+	originCheck, configErr := newWebTransportOriginCheck(config.H3AllowedOrigins)
+	if configErr != nil {
+		originCheck = &webTransportOriginCheck{allowed: map[string]struct{}{}}
+	}
+
+	// webtransport-go treats a nil CheckOrigin as same-origin only, which
+	// would refuse the origins H3AllowedOrigins lists.
 	wtServer := &webtransport.Server{ //nolint:exhaustruct
-		H3: h3Server,
-		// CheckOrigin nil → accepts any origin; callers should validate in
-		// their RouteRaw handler or via the middleware chain.
+		H3:          h3Server,
+		CheckOrigin: originCheck.allows,
 	}
 
 	return &HTTP3Service{
 		InnerServer:   h3Server,
 		InnerRouter:   router,
-		InnerUpgrader: &WebTransportUpgrader{inner: wtServer},
+		InnerUpgrader: &WebTransportUpgrader{inner: wtServer, origin: originCheck},
 		Config:        config,
 		logger:        logger,
+		configErr:     configErr,
 	}
 }
 
@@ -145,7 +170,7 @@ func (hs *HTTP3Service) SetupTLS(ctx context.Context, tlsConfig *tls.Config) err
 }
 
 // Start begins serving HTTP/3 on the configured UDP address and returns a
-// cleanup function for graceful shutdown. The listener is a QUIC UDP PacketConn
+// cleanup function that closes it. The listener is a QUIC UDP PacketConn
 // rather than a TCP socket.
 func (hs *HTTP3Service) Start(ctx context.Context) (func(), error) {
 	hs.logger.InfoContext(ctx, "HTTP3Service is starting...",
@@ -153,8 +178,20 @@ func (hs *HTTP3Service) Start(ctx context.Context) (func(), error) {
 		slog.Uint64("max_streams", hs.Config.H3MaxStreams),
 	)
 
+	if hs.configErr != nil {
+		return nil, hs.configErr
+	}
+
 	if hs.InnerServer.TLSConfig == nil {
 		return nil, ErrHTTP3NoTLSConfig
+	}
+
+	// QUIC needs an ALPN protocol, and the webtransport.Server below uses this
+	// config as is, unlike http3.Server.Serve, which added "h3" itself.
+	if !slices.Contains(hs.InnerServer.TLSConfig.NextProtos, http3.NextProtoH3) {
+		tlsConfig := hs.InnerServer.TLSConfig.Clone()
+		tlsConfig.NextProtos = append(tlsConfig.NextProtos, http3.NextProtoH3)
+		hs.InnerServer.TLSConfig = tlsConfig
 	}
 
 	udpConn, err := net.ListenPacket("udp", hs.Config.H3ListenAddr)
@@ -162,9 +199,17 @@ func (hs *HTTP3Service) Start(ctx context.Context) (func(), error) {
 		return nil, fmt.Errorf("%w: %w", ErrHTTP3ServiceNetListenError, err)
 	}
 
+	// The webtransport.Server serves the socket, not the http3.Server. It
+	// turns on the QUIC datagrams and partial-delivery stream resets that
+	// WebTransport clients require, registers each connection so Upgrade can
+	// find it, and hands every other stream to the http3.Server. Served by the
+	// http3.Server alone, webtransport-go clients refused the connection and
+	// Upgrade found no session manager for it.
+	wtServer := hs.InnerUpgrader.inner
+
 	go func() {
-		sErr := hs.InnerServer.Serve(udpConn)
-		if sErr != nil && !errors.Is(sErr, http.ErrServerClosed) {
+		sErr := wtServer.Serve(udpConn)
+		if sErr != nil && !isHTTP3ServerClosed(sErr) {
 			hs.logger.ErrorContext(ctx, "HTTP3Service serve error",
 				slog.Any("error", sErr))
 		}
@@ -173,28 +218,52 @@ func (hs *HTTP3Service) Start(ctx context.Context) (func(), error) {
 	cleanup := func() {
 		hs.logger.InfoContext(ctx, "Shutting down HTTP3Service...")
 
-		// WithoutCancel is load-bearing: cleanup is invoked *because* ctx was
-		// cancelled, so deriving the deadline from ctx yielded an
-		// already-cancelled context. On quic-go that is worse than a no-op --
-		// Shutdown observes the dead context and falls through to Close,
-		// force-killing live QUIC/WebTransport sessions instead of draining
-		// them.
-		shutCtx, cancel := context.WithTimeout(
-			context.WithoutCancel(ctx),
-			hs.Config.GracefulShutdownTimeout,
-		)
-		defer cancel()
+		// webtransport-go has no graceful shutdown for the connections it
+		// serves: Close sends CONNECTION_CLOSE to every peer, then waits for
+		// their handlers to return. The wait is bounded by the shutdown
+		// timeout so a handler that ignores its closed connection cannot hold
+		// the process open.
+		closed := make(chan error, 1)
 
-		shutErr := hs.InnerServer.Shutdown(shutCtx)
-		if shutErr != nil && !errors.Is(shutErr, http.ErrServerClosed) {
-			hs.logger.ErrorContext(ctx, "HTTP3Service forced to shutdown",
-				slog.Any("error", shutErr))
+		go func() {
+			closed <- wtServer.Close()
+		}()
 
-			return
+		timer := time.NewTimer(hs.Config.GracefulShutdownTimeout)
+		defer timer.Stop()
+
+		select {
+		case closeErr := <-closed:
+			// Close leaves the socket it was given open.
+			_ = udpConn.Close() // nothing reads it any more; the error says nothing new
+
+			if closeErr != nil && !isHTTP3ServerClosed(closeErr) {
+				hs.logger.ErrorContext(ctx, "HTTP3Service close error",
+					slog.Any("error", closeErr))
+
+				return
+			}
+
+			hs.logger.InfoContext(ctx, "HTTP3Service has stopped.")
+		case <-timer.C:
+			// Close sends CONNECTION_CLOSE to every peer before it waits for
+			// the handlers, so the socket has nothing left to carry; close it
+			// instead of leaking it with the handlers that are still running.
+			_ = udpConn.Close() // the handlers' own errors are what matter here
+
+			hs.logger.ErrorContext(ctx, "HTTP3Service handlers did not return within the shutdown timeout",
+				slog.Duration("shutdown_timeout", hs.Config.GracefulShutdownTimeout))
 		}
-
-		hs.logger.InfoContext(ctx, "HTTP3Service has gracefully stopped.")
 	}
 
 	return cleanup, nil
+}
+
+// isHTTP3ServerClosed reports whether err only says the server was closed on
+// purpose: webtransport-go's Serve ends with its own context's cancellation,
+// quic-go's listener with ErrServerClosed.
+func isHTTP3ServerClosed(err error) bool {
+	return errors.Is(err, http.ErrServerClosed) ||
+		errors.Is(err, quic.ErrServerClosed) ||
+		errors.Is(err, context.Canceled)
 }

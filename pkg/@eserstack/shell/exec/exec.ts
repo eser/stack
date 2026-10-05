@@ -6,37 +6,38 @@
  * @module
  */
 
-import { CommandBuilder } from "./command.ts";
-import { parseCommand } from "./parser.ts";
+import * as command from "./command.ts";
+import * as parser from "./parser.ts";
 
 /**
  * Template tag for creating shell commands
  *
  * @example
  * ```ts
- * import { exec } from "@eserstack/shell/exec";
+ * import * as shell from "@eserstack/shell";
  *
  * // Simple command
- * const result = await exec`echo hello`.text();
+ * const result = await shell.exec.exec`echo hello`.text();
  *
  * // With interpolation
  * const name = "world";
- * await exec`echo hello ${name}`.text();
+ * await shell.exec.exec`echo hello ${name}`.text();
  *
  * // With options
- * await exec`npm install`.cwd("./my-project").text();
+ * await shell.exec.exec`npm install`.cwd("./my-project").text();
  *
  * // Get JSON output
- * const pkg = await exec`cat package.json`.json<{ name: string }>();
+ * const pkg = await shell.exec.exec`cat package.json`.json<{ name: string }>();
  *
  * // Get lines
- * const files = await exec`ls -la`.lines();
+ * const files = await shell.exec.exec`ls -la`.lines();
  *
  * // Check exit code without throwing
- * const code = await exec`test -f file.txt`.code();
+ * const code = await shell.exec.exec`test -f file.txt`.code();
  *
  * // Streaming I/O with child process
- * const child = exec`deno fmt -`.child();
+ * const raw = ReadableStream.from([new TextEncoder().encode("const a=1")]);
+ * const child = shell.exec.exec`deno fmt -`.child();
  * await raw.pipeTo(child.stdin!);
  * const { stdout } = await child.output();
  * ```
@@ -44,7 +45,7 @@ import { parseCommand } from "./parser.ts";
 export const exec = (
   strings: TemplateStringsArray,
   ...values: unknown[]
-): CommandBuilder => {
-  const [cmd, args] = parseCommand(strings, values);
-  return new CommandBuilder(cmd, args);
+): command.CommandBuilder => {
+  const [cmd, args] = parser.parseCommand(strings, values);
+  return new command.CommandBuilder(cmd, args);
 };

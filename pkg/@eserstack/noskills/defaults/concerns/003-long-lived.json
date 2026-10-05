@@ -38,35 +38,31 @@
       "id": "migration-deprecation",
       "title": "Migration & Deprecation",
       "placeholder": "_If this change is a breaking change or deprecates existing behavior: what is the migration path? What version gets the breaking change? What is the deprecation timeline?_",
-      "condition": null,
+      "scope": ["migration"],
       "position": "after:acceptance-criteria"
     },
     {
       "id": "backward-compatibility",
       "title": "Backward Compatibility",
       "placeholder": "_List every public-facing interface this change touches. For each: does it remain backward-compatible? If not, what is the justification and the migration guide?_",
-      "condition": null,
       "position": "after:acceptance-criteria"
     },
     {
       "id": "error-recovery",
       "title": "Error Recovery",
       "placeholder": "_For every new codepath: what can go wrong? What is the recovery action? What does the user see? Document every failure mode and its handler._",
-      "condition": null,
       "position": "after:acceptance-criteria"
     },
     {
       "id": "deployment-plan",
       "title": "Deployment Plan",
       "placeholder": "_How is this deployed? Incremental rollout? Feature flag? Can old and new code run simultaneously? What happens during partial deployment?_",
-      "condition": null,
       "position": "after:acceptance-criteria"
     },
     {
       "id": "runbook",
       "title": "Runbook",
       "placeholder": "_Operational runbook for this change: what alerts fire if it breaks, first diagnostic step, rollback command, escalation path._",
-      "condition": null,
       "position": "after:acceptance-criteria"
     }
   ],

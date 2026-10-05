@@ -22,28 +22,24 @@
       "id": "prod-observability-plan",
       "title": "Observability Plan",
       "placeholder": "_For every new codepath: structured logging at entry/exit (JSON, with correlation IDs), latency percentiles (P50/P95/P99), trace ID propagation. If it is not in a dashboard, it does not exist._",
-      "condition": null,
       "position": "after:verification-strategy"
     },
     {
       "id": "alert-tiers",
       "title": "Alert Tiers",
       "placeholder": "_For every new codepath: what alert fires if it breaks? Tier: CRITICAL (page immediately), HIGH (page business hours), MEDIUM (ticket 24h), LOW (weekly review). Name the condition and the recipient._",
-      "condition": null,
       "position": "after:verification-strategy"
     },
     {
       "id": "prod-runbook",
       "title": "Runbook",
       "placeholder": "_For every CRITICAL alert: (1) what it means, (2) first diagnostic step, (3) rollback command, (4) who to escalate to. Write this before shipping, not after the first incident._",
-      "condition": null,
       "position": "after:verification-strategy"
     },
     {
       "id": "canary-criteria",
       "title": "Canary Criteria",
       "placeholder": "_24-hour canary verdict: which metrics, at what thresholds, over what window, indicate success vs failure? Example: 'Error rate on /api/checkout < 0.5% for 24h; P99 latency < 800ms; no CRITICAL alerts.'_",
-      "condition": null,
       "position": "after:verification-strategy"
     }
   ],

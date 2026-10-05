@@ -28,7 +28,7 @@
     "should_trigger": true
   },
   {
-    "query": "build a loading and error state for this React form",
+    "query": "this .tsx file imports { useState } from react, is that allowed here",
     "should_trigger": true
   },
   {

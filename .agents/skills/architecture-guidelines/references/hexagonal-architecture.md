@@ -41,10 +41,10 @@ package/
 Correct:
 
 ```typescript
-import * as bundler from "@eserstack/laroux-bundler";
-import * as react from "@eserstack/laroux-bundler/adapters/react";
-import * as tailwind from "@eserstack/laroux-bundler/adapters/tailwindcss";
-import * as prebuilt from "@eserstack/laroux-bundler/adapters/prebuilt-bundler";
+import * as bundler from "@scope/bundler";
+import * as react from "@scope/bundler/adapters/react";
+import * as tailwind from "@scope/bundler/adapters/tailwindcss";
+import * as prebuilt from "@scope/bundler/adapters/prebuilt-bundler";
 
 await bundler.bundle(config, {
   framework: react.reactPlugin,
@@ -86,13 +86,14 @@ and let a caller swap one adapter without touching the others.
 
 ## Runtime Access Through cross-runtime
 
-Scope: All `@eserstack/*` library code
+Scope: All TypeScript library code
 
-Rule: Filesystem, process, exec and environment access goes through
-`@eserstack/standards/cross-runtime`, never `Deno.*` directly. The runtime is an
-adapter like any other, so the same code runs on Deno, Node and Bun and can be
-tested with a fake. CLI-only code may call `Deno.*` when cross-runtime does not
-expose the API it needs (for example `Deno.makeTempDir()`).
+Rule: Filesystem, process, exec and environment access goes through a runtime
+adapter, `@eserstack/standards/cross-runtime`, never `Deno.*` directly. The
+runtime is an adapter like any other, so the same code runs on Deno, Node and
+Bun and can be tested with a fake. CLI-only code may call `Deno.*` when
+cross-runtime does not expose the API it needs (for example
+`Deno.makeTempDir()`).
 
 Correct:
 
@@ -152,8 +153,7 @@ render(tree, true, false); // what are true and false?
 
 ## Request-Scoped Metadata Across Boundaries
 
-Scope: HTTP and RPC servers and clients, the noskills daemon, services that call
-each other
+Scope: HTTP and RPC servers and clients, daemons, services that call each other
 
 Rule: Metadata that identifies a request (trace and span ids, a request or
 correlation id, the authenticated principal) travels with the request's context

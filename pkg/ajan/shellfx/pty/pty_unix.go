@@ -127,8 +127,7 @@ func platformKill(p *platform, signal string) error {
 func platformWaitProcess(p *platform) int {
 	code := 0
 	if err := p.cmd.Wait(); err != nil {
-		var exitErr *exec.ExitError
-		if errors.As(err, &exitErr) {
+		if exitErr, ok := errors.AsType[*exec.ExitError](err); ok {
 			code = exitErr.ExitCode()
 		} else {
 			code = -1

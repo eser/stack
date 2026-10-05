@@ -1,15 +1,17 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import { afterEach, beforeEach, describe, it } from "@std/testing/bdd";
-import { assertEquals, assertRejects } from "@std/assert";
+import * as bdd from "@std/testing/bdd";
+import * as assert from "@std/assert";
 import * as crossRuntime from "@eserstack/standards/cross-runtime";
+import type * as schema from "../state/schema.ts";
 import * as concerns from "./concerns.ts";
+import * as defaultConcerns from "../defaults/concerns/mod.ts";
 
 // =============================================================================
 // Helpers
 // =============================================================================
 
-const allConcerns = await concerns.loadDefaultConcerns();
+const allConcerns = defaultConcerns.DEFAULT_CONCERNS;
 
 const openSource = allConcerns.find((c) => c.id === "open-source")!;
 const beautiful = allConcerns.find((c) => c.id === "beautiful-product")!;
@@ -21,27 +23,27 @@ const longLived = allConcerns.find((c) => c.id === "long-lived")!;
 // getConcernExtras
 // =============================================================================
 
-describe("getConcernExtras", () => {
-  it("returns empty for no concerns", () => {
+bdd.describe("getConcernExtras", () => {
+  bdd.it("returns empty for no concerns", () => {
     const result = concerns.getConcernExtras([], "status_quo");
 
-    assertEquals(result.length, 0);
+    assert.assertEquals(result.length, 0);
   });
 
-  it("returns matching extras for given questionId", () => {
+  bdd.it("returns matching extras for given questionId", () => {
     const result = concerns.getConcernExtras([openSource], "status_quo");
 
-    assertEquals(result.length, 1);
-    assertEquals(
+    assert.assertEquals(result.length, 1);
+    assert.assertEquals(
       result[0]?.text,
       "Is this workaround common in the community?",
     );
   });
 
-  it("ignores extras for non-matching questionIds", () => {
+  bdd.it("ignores extras for non-matching questionIds", () => {
     const result = concerns.getConcernExtras([openSource], "reversibility");
 
-    assertEquals(result.length, 0);
+    assert.assertEquals(result.length, 0);
   });
 });
 
@@ -49,24 +51,24 @@ describe("getConcernExtras", () => {
 // getReminders
 // =============================================================================
 
-describe("getReminders", () => {
-  it("prefixes each reminder with concern id", () => {
+bdd.describe("getReminders", () => {
+  bdd.it("prefixes each reminder with concern id", () => {
     const result = concerns.getReminders([openSource]);
 
     for (const reminder of result) {
-      assertEquals(reminder.startsWith("open-source: "), true);
+      assert.assertEquals(reminder.startsWith("open-source: "), true);
     }
   });
 
-  it("flattens reminders across multiple concerns", () => {
+  bdd.it("flattens reminders across multiple concerns", () => {
     const result = concerns.getReminders([openSource, moveFast]);
 
     const osCount = result.filter((r) => r.startsWith("open-source:")).length;
     const mfCount = result.filter((r) => r.startsWith("move-fast:")).length;
 
-    assertEquals(osCount, openSource.reminders.length);
-    assertEquals(mfCount, moveFast.reminders.length);
-    assertEquals(result.length, osCount + mfCount);
+    assert.assertEquals(osCount, openSource.reminders.length);
+    assert.assertEquals(mfCount, moveFast.reminders.length);
+    assert.assertEquals(result.length, osCount + mfCount);
   });
 });
 
@@ -74,54 +76,57 @@ describe("getReminders", () => {
 // detectTensions
 // =============================================================================
 
-describe("detectTensions", () => {
-  it("returns empty when no conflicting concerns active", () => {
+bdd.describe("detectTensions", () => {
+  bdd.it("returns empty when no conflicting concerns active", () => {
     const result = concerns.detectTensions([openSource, longLived]);
 
-    assertEquals(result.length, 0);
+    assert.assertEquals(result.length, 0);
   });
 
-  it("detects move-fast + compliance tension", () => {
+  bdd.it("detects move-fast + compliance tension", () => {
     const result = concerns.detectTensions([moveFast, compliance]);
 
-    assertEquals(result.length, 1);
-    assertEquals(result[0]?.between.includes("move-fast"), true);
-    assertEquals(result[0]?.between.includes("compliance"), true);
+    assert.assertEquals(result.length, 1);
+    assert.assertEquals(result[0]?.between.includes("move-fast"), true);
+    assert.assertEquals(result[0]?.between.includes("compliance"), true);
   });
 
-  it("detects move-fast + long-lived tension", () => {
+  bdd.it("detects move-fast + long-lived tension", () => {
     const result = concerns.detectTensions([moveFast, longLived]);
 
-    assertEquals(result.length, 1);
-    assertEquals(result[0]?.between.includes("long-lived"), true);
+    assert.assertEquals(result.length, 1);
+    assert.assertEquals(result[0]?.between.includes("long-lived"), true);
   });
 
-  it("detects beautiful-product + move-fast tension", () => {
+  bdd.it("detects beautiful-product + move-fast tension", () => {
     const result = concerns.detectTensions([beautiful, moveFast]);
 
-    assertEquals(result.length, 1);
-    assertEquals(result[0]?.between.includes("beautiful-product"), true);
+    assert.assertEquals(result.length, 1);
+    assert.assertEquals(result[0]?.between.includes("beautiful-product"), true);
   });
 
-  it("returns multiple tensions when 3+ conflicting concerns active", () => {
-    const result = concerns.detectTensions([
-      moveFast,
-      compliance,
-      longLived,
-      beautiful,
-    ]);
+  bdd.it(
+    "returns multiple tensions when 3+ conflicting concerns active",
+    () => {
+      const result = concerns.detectTensions([
+        moveFast,
+        compliance,
+        longLived,
+        beautiful,
+      ]);
 
-    // move-fast conflicts with: compliance, long-lived, beautiful-product
-    assertEquals(result.length, 3);
-  });
+      // move-fast conflicts with: compliance, long-lived, beautiful-product
+      assert.assertEquals(result.length, 3);
+    },
+  );
 
-  it("detects well-engineered vs move-fast tension", () => {
+  bdd.it("detects well-engineered vs move-fast tension", () => {
     const wellEngineered = allConcerns.find((c) => c.id === "well-engineered")!;
     const result = concerns.detectTensions([wellEngineered, moveFast]);
 
-    assertEquals(result.length, 1);
-    assertEquals(result[0]?.between.includes("well-engineered"), true);
-    assertEquals(result[0]?.between.includes("move-fast"), true);
+    assert.assertEquals(result.length, 1);
+    assert.assertEquals(result[0]?.between.includes("well-engineered"), true);
+    assert.assertEquals(result[0]?.between.includes("move-fast"), true);
   });
 });
 
@@ -129,24 +134,27 @@ describe("detectTensions", () => {
 // getReviewDimensions
 // =============================================================================
 
-describe("getReviewDimensions", () => {
-  it("collects dimensions from all active concerns", () => {
+bdd.describe("getReviewDimensions", () => {
+  bdd.it("collects dimensions from all active concerns", () => {
     const result = concerns.getReviewDimensions([longLived, beautiful]);
 
     // long-lived has 7 dimensions, beautiful-product has 7
-    assertEquals(result.length >= 10, true);
-    assertEquals(result.some((d) => d.concernId === "long-lived"), true);
-    assertEquals(result.some((d) => d.concernId === "beautiful-product"), true);
+    assert.assertEquals(result.length >= 10, true);
+    assert.assertEquals(result.some((d) => d.concernId === "long-lived"), true);
+    assert.assertEquals(
+      result.some((d) => d.concernId === "beautiful-product"),
+      true,
+    );
   });
 
-  it("returns empty for concerns without dimensions", () => {
+  bdd.it("returns empty for concerns without dimensions", () => {
     const result = concerns.getReviewDimensions([moveFast]);
 
     // move-fast has scope-knife, lake-check, feedback-loop
-    assertEquals(result.length, 3);
+    assert.assertEquals(result.length, 3);
   });
 
-  it("filters UI-scoped dimensions when classification excludes UI", () => {
+  bdd.it("filters UI-scoped dimensions when classification excludes UI", () => {
     const result = concerns.getReviewDimensions([beautiful], {
       involvesWebUI: false,
       involvesCLI: false,
@@ -156,14 +164,14 @@ describe("getReviewDimensions", () => {
     });
 
     // beautiful-product dimensions are all scope: "ui" — should be filtered out
-    assertEquals(result.length, 0);
+    assert.assertEquals(result.length, 0);
   });
 
-  it("includes all dimensions when classification is null", () => {
+  bdd.it("includes all dimensions when classification is null", () => {
     const result = concerns.getReviewDimensions([beautiful], null);
 
     // null classification = include all (safe default for pre-classification phases)
-    assertEquals(result.length >= 5, true);
+    assert.assertEquals(result.length >= 5, true);
   });
 });
 
@@ -171,16 +179,16 @@ describe("getReviewDimensions", () => {
 // getRegistryDimensionIds
 // =============================================================================
 
-describe("getRegistryDimensionIds", () => {
-  it("collects registry IDs from concerns", () => {
+bdd.describe("getRegistryDimensionIds", () => {
+  bdd.it("collects registry IDs from concerns", () => {
     const result = concerns.getRegistryDimensionIds([longLived]);
 
     // long-lived has registries: ["error-rescue", "failure-modes"]
-    assertEquals(result.includes("error-rescue"), true);
-    assertEquals(result.includes("failure-modes"), true);
+    assert.assertEquals(result.includes("error-rescue"), true);
+    assert.assertEquals(result.includes("failure-modes"), true);
   });
 
-  it("deduplicates across concerns", () => {
+  bdd.it("deduplicates across concerns", () => {
     const mockConcern = {
       ...longLived,
       id: "test-dup",
@@ -193,13 +201,13 @@ describe("getRegistryDimensionIds", () => {
 
     const errorRescueCount = result.filter((id) => id === "error-rescue")
       .length;
-    assertEquals(errorRescueCount, 1);
+    assert.assertEquals(errorRescueCount, 1);
   });
 
-  it("returns empty for concerns without registries", () => {
+  bdd.it("returns empty for concerns without registries", () => {
     const result = concerns.getRegistryDimensionIds([moveFast, beautiful]);
 
-    assertEquals(result.length, 0);
+    assert.assertEquals(result.length, 0);
   });
 });
 
@@ -207,19 +215,19 @@ describe("getRegistryDimensionIds", () => {
 // getDreamStatePrompts
 // =============================================================================
 
-describe("getDreamStatePrompts", () => {
-  it("collects dream state prompts from concerns", () => {
+bdd.describe("getDreamStatePrompts", () => {
+  bdd.it("collects dream state prompts from concerns", () => {
     const result = concerns.getDreamStatePrompts([longLived]);
 
     // long-lived has dreamStatePrompt
-    assertEquals(result.length, 1);
-    assertEquals(result[0]?.includes("CURRENT STATE"), true);
+    assert.assertEquals(result.length, 1);
+    assert.assertEquals(result[0]?.includes("CURRENT STATE"), true);
   });
 
-  it("returns empty for concerns without dream state", () => {
+  bdd.it("returns empty for concerns without dream state", () => {
     const result = concerns.getDreamStatePrompts([moveFast, compliance]);
 
-    assertEquals(result.length, 0);
+    assert.assertEquals(result.length, 0);
   });
 });
 
@@ -227,16 +235,16 @@ describe("getDreamStatePrompts", () => {
 // loadConcerns — promptFile resolution
 // =============================================================================
 
-describe("loadConcerns — promptFile", () => {
+bdd.describe("loadConcerns — promptFile", () => {
   let tempDir: string;
 
-  beforeEach(async () => {
+  bdd.beforeEach(async () => {
     tempDir = await crossRuntime.runtime.fs.makeTempDir({
       prefix: "nos_concerns_",
     });
   });
 
-  afterEach(async () => {
+  bdd.afterEach(async () => {
     await crossRuntime.runtime.fs.remove(tempDir, { recursive: true });
   });
 
@@ -244,34 +252,37 @@ describe("loadConcerns — promptFile", () => {
     await crossRuntime.runtime.fs.writeTextFile(path, JSON.stringify(data));
   };
 
-  it("appends promptFile content to reminders when file exists", async () => {
-    const extraContent = "Extra rule from markdown companion file.";
-    const concernJson = {
-      id: "test-concern",
-      name: "Test",
-      description: "Test concern",
-      extras: [],
-      specSections: [],
-      reminders: ["Inline reminder"],
-      acceptanceCriteria: [],
-      promptFile: "companion.md",
-    };
+  bdd.it(
+    "appends promptFile content to reminders when file exists",
+    async () => {
+      const extraContent = "Extra rule from markdown companion file.";
+      const concernJson = {
+        id: "test-concern",
+        name: "Test",
+        description: "Test concern",
+        extras: [],
+        specSections: [],
+        reminders: ["Inline reminder"],
+        acceptanceCriteria: [],
+        promptFile: "companion.md",
+      };
 
-    await writeJson(`${tempDir}/100-test-concern.json`, concernJson);
-    await crossRuntime.runtime.fs.writeTextFile(
-      `${tempDir}/companion.md`,
-      extraContent,
-    );
+      await writeJson(`${tempDir}/100-test-concern.json`, concernJson);
+      await crossRuntime.runtime.fs.writeTextFile(
+        `${tempDir}/companion.md`,
+        extraContent,
+      );
 
-    const loaded = await concerns.loadConcerns(tempDir);
+      const loaded = await concerns.loadConcerns(tempDir);
 
-    assertEquals(loaded.length, 1);
-    assertEquals(loaded[0]!.reminders.length, 2);
-    assertEquals(loaded[0]!.reminders[0], "Inline reminder");
-    assertEquals(loaded[0]!.reminders[1], extraContent);
-  });
+      assert.assertEquals(loaded.length, 1);
+      assert.assertEquals(loaded[0]!.reminders.length, 2);
+      assert.assertEquals(loaded[0]!.reminders[0], "Inline reminder");
+      assert.assertEquals(loaded[0]!.reminders[1], extraContent);
+    },
+  );
 
-  it("throws a clear error when promptFile is missing", async () => {
+  bdd.it("throws a clear error when promptFile is missing", async () => {
     const concernJson = {
       id: "test-concern",
       name: "Test",
@@ -285,14 +296,14 @@ describe("loadConcerns — promptFile", () => {
 
     await writeJson(`${tempDir}/100-test-concern.json`, concernJson);
 
-    await assertRejects(
+    await assert.assertRejects(
       () => concerns.loadConcerns(tempDir),
       Error,
       "promptFile not found",
     );
   });
 
-  it("skips promptFile field when it is not set", async () => {
+  bdd.it("skips promptFile field when it is not set", async () => {
     const concernJson = {
       id: "test-concern",
       name: "Test",
@@ -307,106 +318,118 @@ describe("loadConcerns — promptFile", () => {
 
     const loaded = await concerns.loadConcerns(tempDir);
 
-    assertEquals(loaded[0]!.reminders.length, 1);
-    assertEquals(loaded[0]!.reminders[0], "Only this");
+    assert.assertEquals(loaded[0]!.reminders.length, 1);
+    assert.assertEquals(loaded[0]!.reminders[0], "Only this");
   });
 
-  it("ignores empty promptFile content (no extra reminder added)", async () => {
-    const concernJson = {
-      id: "test-concern",
-      name: "Test",
-      description: "Test concern",
-      extras: [],
-      specSections: [],
-      reminders: ["Inline"],
-      acceptanceCriteria: [],
-      promptFile: "empty.md",
-    };
+  bdd.it(
+    "ignores empty promptFile content (no extra reminder added)",
+    async () => {
+      const concernJson = {
+        id: "test-concern",
+        name: "Test",
+        description: "Test concern",
+        extras: [],
+        specSections: [],
+        reminders: ["Inline"],
+        acceptanceCriteria: [],
+        promptFile: "empty.md",
+      };
 
-    await writeJson(`${tempDir}/100-test-concern.json`, concernJson);
-    // Write a file with only whitespace
-    await crossRuntime.runtime.fs.writeTextFile(`${tempDir}/empty.md`, "   \n");
+      await writeJson(`${tempDir}/100-test-concern.json`, concernJson);
+      // Write a file with only whitespace
+      await crossRuntime.runtime.fs.writeTextFile(
+        `${tempDir}/empty.md`,
+        "   \n",
+      );
 
-    const loaded = await concerns.loadConcerns(tempDir);
+      const loaded = await concerns.loadConcerns(tempDir);
 
-    // Whitespace-only content → not appended
-    assertEquals(loaded[0]!.reminders.length, 1);
-  });
+      // Whitespace-only content → not appended
+      assert.assertEquals(loaded[0]!.reminders.length, 1);
+    },
+  );
 });
 
 // =============================================================================
 // SpecSectionDefinition object shape
 // =============================================================================
 
-describe("loadConcerns with SpecSectionDefinition object shape", () => {
+bdd.describe("loadConcerns with SpecSectionDefinition object shape", () => {
   let tempDir: string;
 
   const writeJson = (path: string, data: unknown) =>
     crossRuntime.runtime.fs.writeTextFile(path, JSON.stringify(data));
 
-  beforeEach(async () => {
+  bdd.beforeEach(async () => {
     tempDir = await crossRuntime.runtime.fs.makeTempDir({
       prefix: "concerns_section_def_",
     });
   });
 
-  afterEach(async () => {
+  bdd.afterEach(async () => {
     await crossRuntime.runtime.fs.remove(tempDir, { recursive: true });
   });
 
-  it("loads concern with SpecSectionDefinition specSections correctly", async () => {
-    const concernJson = {
-      id: "test-concern",
-      name: "Test",
-      description: "Test concern",
-      extras: [],
-      specSections: [
-        {
-          id: "my-section",
-          title: "My Section",
-          placeholder: "_placeholder_",
-          condition: null,
-          position: "after:acceptance-criteria",
-        },
-      ],
-      reminders: [],
-      acceptanceCriteria: ["One criterion"],
-    };
+  bdd.it(
+    "loads concern with SpecSectionDefinition specSections correctly",
+    async () => {
+      const concernJson = {
+        id: "test-concern",
+        name: "Test",
+        description: "Test concern",
+        extras: [],
+        specSections: [
+          {
+            id: "my-section",
+            title: "My Section",
+            placeholder: "_placeholder_",
+            condition: null,
+            position: "after:acceptance-criteria",
+          },
+        ],
+        reminders: [],
+        acceptanceCriteria: ["One criterion"],
+      };
 
-    await writeJson(`${tempDir}/100-test-concern.json`, concernJson);
-    const loaded = await concerns.loadConcerns(tempDir);
+      await writeJson(`${tempDir}/100-test-concern.json`, concernJson);
+      const loaded = await concerns.loadConcerns(tempDir);
 
-    assertEquals(loaded.length, 1);
-    const sec = loaded[0]!.specSections[0];
-    assertEquals(typeof sec, "object");
-    // Type narrowing: the object shape has an `id` property
-    assertEquals(typeof (sec as { id: string }).id, "string");
-    assertEquals((sec as { id: string }).id, "my-section");
-    assertEquals((sec as { title: string }).title, "My Section");
-    assertEquals((sec as { condition: null }).condition, null);
-  });
+      assert.assertEquals(loaded.length, 1);
+      const sec = loaded[0]!.specSections[0];
+      assert.assertEquals(typeof sec, "object");
+      // Type narrowing: the object shape has an `id` property
+      assert.assertEquals(typeof (sec as { id: string }).id, "string");
+      assert.assertEquals((sec as { id: string }).id, "my-section");
+      assert.assertEquals((sec as { title: string }).title, "My Section");
+      assert.assertEquals((sec as { condition: null }).condition, null);
+    },
+  );
 
-  it("loads concern with legacy string specSections (backward compat)", async () => {
-    const concernJson = {
-      id: "legacy-concern",
-      name: "Legacy",
-      description: "Legacy format",
-      extras: [],
-      specSections: ["Legacy Section One", "Legacy Section Two"],
-      reminders: [],
-      acceptanceCriteria: ["ok"],
-    };
+  bdd.it(
+    "loads concern with legacy string specSections (backward compat)",
+    async () => {
+      const concernJson = {
+        id: "legacy-concern",
+        name: "Legacy",
+        description: "Legacy format",
+        extras: [],
+        specSections: ["Legacy Section One", "Legacy Section Two"],
+        reminders: [],
+        acceptanceCriteria: ["ok"],
+      };
 
-    await writeJson(`${tempDir}/200-legacy-concern.json`, concernJson);
-    const loaded = await concerns.loadConcerns(tempDir);
+      await writeJson(`${tempDir}/200-legacy-concern.json`, concernJson);
+      const loaded = await concerns.loadConcerns(tempDir);
 
-    assertEquals(loaded.length, 1);
-    assertEquals(loaded[0]!.specSections.length, 2);
-    // The strings are preserved as-is in the loaded concern; living.ts normalizes them
-    assertEquals(loaded[0]!.specSections[0], "Legacy Section One");
-  });
+      assert.assertEquals(loaded.length, 1);
+      assert.assertEquals(loaded[0]!.specSections.length, 2);
+      // The strings are preserved as-is in the loaded concern; living.ts normalizes them
+      assert.assertEquals(loaded[0]!.specSections[0], "Legacy Section One");
+    },
+  );
 
-  it("loads concern with conductRules correctly", async () => {
+  bdd.it("loads concern with conductRules correctly", async () => {
     const concernJson = {
       id: "conduct-concern",
       name: "Conduct",
@@ -426,9 +449,319 @@ describe("loadConcerns with SpecSectionDefinition object shape", () => {
     await writeJson(`${tempDir}/300-conduct-concern.json`, concernJson);
     const loaded = await concerns.loadConcerns(tempDir);
 
-    assertEquals(loaded.length, 1);
+    assert.assertEquals(loaded.length, 1);
     const rules = loaded[0]!.conductRules?.["DISCOVERY"] ?? [];
-    assertEquals(rules.length, 2);
-    assertEquals(rules[0], "Ask about failure modes first.");
+    assert.assertEquals(rules.length, 2);
+    assert.assertEquals(rules[0], "Ask about failure modes first.");
   });
+});
+
+// =============================================================================
+// Declared scopes: custom concerns with and without a scope
+// =============================================================================
+
+const noFlags: schema.SpecClassification = {
+  involvesWebUI: false,
+  involvesCLI: false,
+  involvesPublicAPI: false,
+  involvesMigration: false,
+  involvesDataHandling: false,
+};
+const uiSpec: schema.SpecClassification = { ...noFlags, involvesWebUI: true };
+const apiSpec: schema.SpecClassification = {
+  ...noFlags,
+  involvesPublicAPI: true,
+};
+const migrationSpec: schema.SpecClassification = {
+  ...noFlags,
+  involvesMigration: true,
+};
+// A CLI-only spec has none of the flags a scope names.
+const otherSpec: schema.SpecClassification = { ...noFlags, involvesCLI: true };
+
+const PLAIN =
+  "custom: Plain: the migration, the loading state and the API docs";
+const UI = "custom: UI: design every state";
+const API = "custom: API: document every endpoint";
+const MIGRATION = "custom: Migration: write a rollback for each schema change";
+const EITHER = "custom: Either: name things for the reader";
+
+// The plain reminder holds the words the old keyword filter matched; without
+// a scope it still applies to every spec.
+const scopedConcern: schema.ConcernDefinition = {
+  id: "custom",
+  name: "Custom",
+  description: "A project concern with scoped and plain reminders",
+  extras: [],
+  specSections: [],
+  reminders: [
+    "Plain: the migration, the loading state and the API docs",
+    { text: "UI: design every state", scope: ["ui"] },
+    { text: "API: document every endpoint", scope: ["api"] },
+    {
+      text: "Migration: write a rollback for each schema change",
+      scope: ["migration"],
+    },
+    { text: "Either: name things for the reader", scope: ["ui", "api"] },
+  ],
+  acceptanceCriteria: [],
+};
+
+// Reminders written with the old keywords and no scope: none is UI-, API- or
+// file-specific any more.
+const unscopedConcern: schema.ConcernDefinition = {
+  id: "legacy",
+  name: "Legacy",
+  description: "A project concern written before scopes existed",
+  extras: [],
+  specSections: [],
+  reminders: [
+    "No AI slop: every UI element is intentional",
+    "Endpoint should be documented in API docs",
+    "Plan the migration and its rollback",
+  ],
+  acceptanceCriteria: [],
+};
+const LEGACY = unscopedConcern.reminders.map((r) => `legacy: ${r as string}`);
+
+bdd.describe("getReminders: declared scopes", () => {
+  const cases = [
+    {
+      name: "keeps every reminder before the spec is classified",
+      classification: null,
+      expected: [PLAIN, UI, API, MIGRATION, EITHER],
+    },
+    {
+      name: "keeps UI-scoped reminders for a UI spec",
+      classification: uiSpec,
+      expected: [PLAIN, UI, EITHER],
+    },
+    {
+      name: "keeps API-scoped reminders for an API spec",
+      classification: apiSpec,
+      expected: [PLAIN, API, EITHER],
+    },
+    {
+      name: "keeps migration-scoped reminders for a migration spec",
+      classification: migrationSpec,
+      expected: [PLAIN, MIGRATION],
+    },
+    {
+      name: "keeps only unscoped reminders for another spec",
+      classification: otherSpec,
+      expected: [PLAIN],
+    },
+  ];
+
+  for (const { name, classification, expected } of cases) {
+    bdd.it(name, () => {
+      assert.assertEquals(
+        concerns.getReminders([scopedConcern], classification),
+        expected,
+      );
+    });
+  }
+
+  bdd.it("keeps every unscoped reminder for every spec", () => {
+    for (const classification of [uiSpec, apiSpec, otherSpec, null]) {
+      assert.assertEquals(
+        concerns.getReminders([unscopedConcern], classification),
+        LEGACY,
+      );
+    }
+  });
+});
+
+bdd.describe("splitRemindersByTier: declared scopes", () => {
+  bdd.it("puts unscoped reminders in tier1 and scoped ones in tier2", () => {
+    const split = concerns.splitRemindersByTier([
+      scopedConcern,
+      unscopedConcern,
+    ]);
+
+    assert.assertEquals(split.tier1, [PLAIN, ...LEGACY]);
+    assert.assertEquals(split.tier2, [UI, API, MIGRATION, EITHER]);
+  });
+
+  bdd.it("keeps only the tier2 reminders the classification matches", () => {
+    const split = concerns.splitRemindersByTier([scopedConcern], uiSpec);
+
+    assert.assertEquals(split.tier1, [PLAIN]);
+    assert.assertEquals(split.tier2, [UI, EITHER]);
+  });
+});
+
+bdd.describe("getTier2RemindersForFile: declared scopes", () => {
+  const cases = [
+    {
+      name: "UI spec, UI file",
+      classification: uiSpec,
+      filePath: "src/app/page.tsx",
+      expected: [UI, EITHER],
+    },
+    {
+      name: "UI spec, source file",
+      classification: uiSpec,
+      filePath: "src/server/routes.ts",
+      expected: [],
+    },
+    {
+      name: "API spec, source file",
+      classification: apiSpec,
+      filePath: "pkg/server/routes.go",
+      expected: [API, EITHER],
+    },
+    {
+      name: "API spec, UI file",
+      classification: apiSpec,
+      filePath: "src/app/page.tsx",
+      expected: [],
+    },
+    {
+      name: "migration spec, any file",
+      classification: migrationSpec,
+      filePath: "db/001_init.sql",
+      expected: [MIGRATION],
+    },
+    {
+      name: "other spec, UI file",
+      classification: otherSpec,
+      filePath: "src/app/page.tsx",
+      expected: [],
+    },
+    {
+      name: "other spec, source file",
+      classification: otherSpec,
+      filePath: "src/cli.ts",
+      expected: [],
+    },
+    {
+      name: "unclassified spec, UI file",
+      classification: null,
+      filePath: "src/app/page.tsx",
+      expected: [UI, MIGRATION, EITHER],
+    },
+    {
+      name: "unclassified spec, file of no listed type",
+      classification: null,
+      filePath: "README.md",
+      expected: [MIGRATION],
+    },
+  ];
+
+  for (const { name, classification, filePath, expected } of cases) {
+    bdd.it(name, () => {
+      assert.assertEquals(
+        concerns.getTier2RemindersForFile(
+          [scopedConcern, unscopedConcern],
+          filePath,
+          classification,
+        ),
+        expected,
+      );
+    });
+  }
+});
+
+bdd.describe("getReviewDimensions: migration scope", () => {
+  const dimension = (
+    id: string,
+    scope: schema.ReviewDimensionScope,
+  ): schema.ReviewDimension => ({
+    id,
+    label: id,
+    prompt: "Check it.",
+    evidenceRequired: false,
+    scope,
+  });
+  const withDimensions: schema.ConcernDefinition = {
+    ...unscopedConcern,
+    reviewDimensions: [
+      dimension("everywhere", "all"),
+      dimension("schema-change", "migration"),
+    ],
+  };
+
+  bdd.it("keeps a migration dimension for a migration spec only", () => {
+    const ids = (classification: schema.SpecClassification) =>
+      concerns.getReviewDimensions([withDimensions], classification).map((
+        d,
+      ) => d.id);
+
+    assert.assertEquals(ids(migrationSpec), ["everywhere", "schema-change"]);
+    assert.assertEquals(ids(otherSpec), ["everywhere"]);
+  });
+});
+
+bdd.describe("loadConcerns: declared scopes", () => {
+  let tempDir: string;
+
+  bdd.beforeEach(async () => {
+    tempDir = await crossRuntime.runtime.fs.makeTempDir({
+      prefix: "nos_concern_scope_",
+    });
+  });
+
+  bdd.afterEach(async () => {
+    await crossRuntime.runtime.fs.remove(tempDir, { recursive: true });
+  });
+
+  const write = (data: unknown): Promise<void> =>
+    crossRuntime.runtime.fs.writeTextFile(
+      `${tempDir}/100-custom.json`,
+      JSON.stringify(data),
+    );
+
+  bdd.it("loads plain and scoped reminders as written", async () => {
+    await write(scopedConcern);
+
+    const loaded = await concerns.loadConcerns(tempDir);
+
+    assert.assertEquals(loaded[0]!.reminders, scopedConcern.reminders);
+  });
+
+  const invalid = [
+    {
+      name: "refuses a reminder scope value it does not know",
+      reminders: [{ text: "Check it", scope: ["UI"] }],
+      specSections: [],
+      message: 'reminders[0].scope has "UI"',
+    },
+    {
+      name: "refuses a reminder scope that is not a list",
+      reminders: [{ text: "Check it", scope: "ui" }],
+      specSections: [],
+      message: 'reminders[0].scope is "ui"',
+    },
+    {
+      name: "refuses a reminder object without text",
+      reminders: [{ scope: ["ui"] }],
+      specSections: [],
+      message: 'reminders[0] must be a string or an object with a "text"',
+    },
+    {
+      name: "refuses a spec section scope value it does not know",
+      reminders: [],
+      specSections: [{
+        id: "cli-help",
+        title: "CLI Help",
+        placeholder: "_Describe the help text._",
+        scope: ["cli"],
+        position: "after:acceptance-criteria",
+      }],
+      message: 'specSections[0].scope has "cli"',
+    },
+  ];
+
+  for (const { name, reminders, specSections, message } of invalid) {
+    bdd.it(name, async () => {
+      await write({ ...scopedConcern, reminders, specSections });
+
+      await assert.assertRejects(
+        () => concerns.loadConcerns(tempDir),
+        Error,
+        message,
+      );
+    });
+  }
 });

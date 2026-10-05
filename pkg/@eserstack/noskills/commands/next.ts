@@ -3,6 +3,8 @@
 /**
  * `noskills next` — Get next instruction for agent (JSON to stdout).
  * `noskills next --answer="..."` — Submit answer and advance state.
+ * `noskills next --validate` — Also have a second agent check the transition
+ * waiting for approval (end of discovery, spec proposal).
  *
  * @module
  */
@@ -25,19 +27,68 @@ import * as splitDetector from "../context/split-detector.ts";
 import * as formatter from "../output/formatter.ts";
 import * as mode from "../output/mode.ts";
 import * as identity from "../state/identity.ts";
-import { cmd } from "../output/cmd.ts";
+import * as split from "../state/split.ts";
+import * as askToken from "../state/ask-token.ts";
+import * as iteration from "../state/iteration.ts";
+import * as cmd from "../output/cmd.ts";
+import * as transitionValidation from "../context/transition-validation.ts";
+import * as nextValidation from "./next-validation.ts";
+import * as crossRuntime from "@eserstack/standards/cross-runtime";
 import { runtime } from "@eserstack/standards/cross-runtime";
+
+/** Writes a one-line notice for the user to stderr, so stdout stays JSON. */
+const writeNotice = async (text: string): Promise<void> => {
+  const writer = runtime.process.stderr.getWriter();
+  try {
+    await writer.write(new TextEncoder().encode(`${text}\n`));
+  } finally {
+    writer.releaseLock();
+  }
+};
+
+/** The validator step as `next` runs it. */
+const VALIDATION_DEPS: nextValidation.NextValidationDeps = {
+  resolveFactory: nextValidation.resolveAiFactory,
+  timeoutMs: transitionValidation.VALIDATION_TIMEOUT_MS,
+  notify: writeNotice,
+};
+
+/**
+ * Adds the second agent's findings to the output at the end of discovery and
+ * at the spec proposal, when `--validate` or the manifest asks for them.
+ */
+const withValidation = async (
+  root: string,
+  state: schema.StateFile,
+  config: schema.NosManifest,
+  forced: boolean,
+  output: compiler.NextOutput,
+): Promise<compiler.NextOutput> => {
+  const validation = await nextValidation.validationFor(
+    root,
+    state,
+    config,
+    forced,
+    VALIDATION_DEPS,
+  );
+
+  return validation === null
+    ? output
+    : nextValidation.attachValidation(output, validation);
+};
 
 export const main = async (
   args?: readonly string[],
 ): Promise<shellArgs.CliResult<void>> => {
   const { root } = await persistence.resolveProjectRoot();
+  // Every command string below, the compiler's included, uses this prefix.
+  const prefix = await cmd.loadCommandPrefix(root);
   const fmt = formatter.parseOutputFormat(args);
   const cleanArgs = formatter.stripOutputFlag(args);
 
   if (!(await persistence.isInitialized(root))) {
     await formatter.writeFormatted(
-      { error: `noskills not initialized. Run: ${cmd("init")}` },
+      { error: `noskills not initialized. Run: ${cmd.cmd("init")}` },
       fmt,
     );
 
@@ -53,11 +104,13 @@ export const main = async (
     }
   }
 
+  const validateFlag = cleanArgs.includes(nextValidation.VALIDATE_FLAG);
+
   // Try --spec flag; if absent, fall back to global state (supports IDLE)
   const specFlag = persistence.parseSpecFlag(cleanArgs);
   let state: schema.StateFile;
   try {
-    state = await persistence.resolveState(root, specFlag);
+    state = await persistence.resolveState(root, specFlag, prefix);
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     await formatter.writeFormatted({ error: msg }, fmt);
@@ -70,22 +123,19 @@ export const main = async (
     state.phase !== "IDLE" &&
     state.phase !== "COMPLETED"
   ) {
+    const activeSpec = state.spec ?? "<name>";
     await formatter.writeFormatted(
       {
         error:
-          "Error: --spec=<name> is required. Use `noskills spec list` to see available specs.",
+          `Error: the spec name is required while a spec is active. Run \`${
+            cmd.cmd(`spec ${activeSpec} next`)
+          }\`, or \`${cmd.cmd("spec list")}\` to see the other specs.`,
       },
       fmt,
     );
     return results.fail({ exitCode: 1 });
   }
   const config = await persistence.readManifest(root);
-
-  // Set command prefix from manifest for cmd() / cmdPrefix() calls
-  if (config?.command !== undefined) {
-    const { setCommandPrefix } = await import("../output/cmd.ts");
-    setCommandPrefix(config.command);
-  }
 
   if (config === null) {
     await formatter.writeFormatted({ error: "No config found" }, fmt);
@@ -105,8 +155,10 @@ export const main = async (
         error: true,
         message:
           `Active spec '${state.spec}' directory not found. Files may have been deleted manually.`,
-        suggestion: `Run \`${cmd("reset")}\` to return to idle, or \`${
-          cmd("cancel")
+        suggestion: `Run \`${
+          cmd.cmd(`spec ${state.spec} reset`)
+        }\` to return to idle, or \`${
+          cmd.cmd(`spec ${state.spec} cancel`)
         }\` to mark as cancelled.`,
       }, fmt);
       return results.fail({ exitCode: 1 });
@@ -128,14 +180,30 @@ export const main = async (
   // Handle --answer
   if (answerText !== null) {
     const answerUser = await identity.resolveUser(root);
-    const newState = await handleAnswer(
-      root,
-      state,
-      config,
-      activeConcerns,
-      answerText,
-      answerUser,
-    );
+    let newState: schema.StateFile;
+    try {
+      newState = await handleAnswer(
+        root,
+        state,
+        config,
+        activeConcerns,
+        answerText,
+        answerUser,
+      );
+    } catch (err: unknown) {
+      // A "split" answer whose child names are taken, or discovery answers
+      // keyed by an unknown id, change nothing; the agent gets the reason
+      // instead of a stack trace.
+      if (
+        !(err instanceof split.SplitRefusedError) &&
+        !(err instanceof questions.DiscoveryAnswerError)
+      ) {
+        throw err;
+      }
+      await formatter.writeFormatted({ error: err.message }, fmt);
+
+      return results.fail({ exitCode: 1 });
+    }
     await persistence.writeStateAndSpec(root, newState);
 
     // Update lastCalledAt and recompile
@@ -168,18 +236,24 @@ export const main = async (
     const fRules = await folderRules.collectFolderRules(root, touchedFiles);
     const hints = syncEngine.resolveInteractionHints(config?.tools ?? []);
     const user = await identity.resolveUser(root);
-    const output = await compiler.compile(
-      touchedState,
-      activeConcerns,
-      tier1,
-      config,
-      parsed,
-      fRules,
-      undefined,
-      hints,
-      user,
-      tier2Count,
+    const output = await withValidation(
       root,
+      touchedState,
+      config,
+      validateFlag,
+      await compiler.compile(
+        touchedState,
+        activeConcerns,
+        tier1,
+        config,
+        parsed,
+        fRules,
+        undefined,
+        hints,
+        user,
+        tier2Count,
+        root,
+      ),
     );
 
     // Inject saved flag when "save" was the answer and phase didn't change
@@ -190,9 +264,14 @@ export const main = async (
       (touchedState.phase === "SPEC_PROPOSAL" ||
         touchedState.phase === "SPEC_APPROVED")
     ) {
+      const savedSpec = touchedState.spec ?? "<name>";
       const savedInstruction = touchedState.phase === "SPEC_PROPOSAL"
-        ? "Spec draft saved. The spec stays in DRAFT and can be reviewed by anyone. Other users can add ACs (`ac add`), notes (`note add`), or tasks (`task add`) while in draft. When ready, any user can approve with `noskills spec <name> approve`."
-        : 'Spec is approved and parked. Others can still add ACs or notes. When ready, run `noskills next --answer="start"` to begin execution.';
+        ? `Spec draft saved. The spec stays in DRAFT and can be reviewed by anyone. Other users can add ACs (\`ac add\`), notes (\`note add\`), or tasks (\`task add\`) while in draft. When ready, any user can approve with \`${
+          cmd.cmd(`spec ${savedSpec} approve`)
+        }\`.`
+        : `Spec is approved and parked. Others can still add ACs or notes. When ready, run \`${
+          cmd.cmd(`spec ${savedSpec} next --answer="start"`)
+        }\` to begin execution.`;
       const savedOutput = {
         ...output,
         instruction: savedInstruction,
@@ -255,18 +334,24 @@ export const main = async (
 
   const hints = syncEngine.resolveInteractionHints(config?.tools ?? []);
   const user = await identity.resolveUser(root);
-  const output = await compiler.compile(
-    touchedState,
-    activeConcerns,
-    noAnswerTier1,
-    config,
-    parsed,
-    fRules,
-    idleContext,
-    hints,
-    user,
-    noAnswerTier2Count,
+  const output = await withValidation(
     root,
+    touchedState,
+    config,
+    validateFlag,
+    await compiler.compile(
+      touchedState,
+      activeConcerns,
+      noAnswerTier1,
+      config,
+      parsed,
+      fRules,
+      idleContext,
+      hints,
+      user,
+      noAnswerTier2Count,
+      root,
+    ),
   );
   await formatter.writeFormatted(output, fmt);
 
@@ -282,56 +367,78 @@ export type AskTokenResult = {
   readonly questionMatch: "exact" | "modified" | "not-asked";
 };
 
+/** What an answer gets when no ask token names its step. */
+const NOT_ASKED: AskTokenResult = {
+  source: "INFERRED",
+  questionMatch: "not-asked",
+};
+
 /**
- * Read and consume the ask-token.json written by the post-ask-user-question
- * hook. Validates spec + stepId + 30-min expiry. Single-use: deletes on
- * successful validation. Best-effort — any IO failure falls through to
- * INFERRED.
+ * Read the ask-token.json written by the post-ask-user-question hook and take
+ * the steps listed in `expectedStepIds` from it. Validates spec and 30-minute
+ * expiry. A taken step is used up: the token keeps the steps nobody took yet,
+ * and goes once none are left. Best-effort: any IO failure leaves every step
+ * INFERRED. Steps the token does not hold are absent from the result.
+ */
+export const consumeAskTokens = async (
+  root: string,
+  expectedSpec: string | null,
+  expectedStepIds: readonly string[],
+): Promise<ReadonlyMap<string, AskTokenResult>> => {
+  const tokenPath = `${root}/${persistence.paths.askTokenFile}`;
+  const taken = new Map<string, AskTokenResult>();
+
+  let raw: string;
+  try {
+    raw = await runtime.fs.readTextFile(tokenPath);
+  } catch {
+    // No token: nothing was asked through AskUserQuestion.
+    return taken;
+  }
+
+  const steps = askToken.validStepsOf(raw, expectedSpec, Date.now());
+  if (steps === null) return taken;
+
+  const left: askToken.AskTokenStep[] = [];
+  for (const step of steps) {
+    if (expectedStepIds.includes(step.stepId) && !taken.has(step.stepId)) {
+      taken.set(step.stepId, { source: "STATED", questionMatch: step.match });
+    } else {
+      left.push(step);
+    }
+  }
+  if (taken.size === 0) return taken;
+
+  // Single use: drop the taken steps, and the file once none are left.
+  try {
+    if (left.length === 0) {
+      await runtime.fs.remove(tokenPath);
+    } else {
+      const token = JSON.parse(raw) as Record<string, unknown>;
+      await runtime.fs.writeTextFile(
+        tokenPath,
+        JSON.stringify({ ...token, steps: left }) + "\n",
+      );
+    }
+  } catch {
+    // best effort
+  }
+
+  return taken;
+};
+
+/**
+ * Take one step from the ask token: STATED when the token records that the
+ * user was asked `expectedStepId`, INFERRED otherwise.
  */
 export const consumeAskToken = async (
   root: string,
   expectedSpec: string | null,
   expectedStepId: string,
 ): Promise<AskTokenResult> => {
-  const tokenPath = `${root}/${persistence.paths.askTokenFile}`;
-  try {
-    const raw = await runtime.fs.readTextFile(tokenPath);
-    const token = JSON.parse(raw) as {
-      stepId?: string;
-      spec?: string | null;
-      match?: "exact" | "modified";
-      createdAt?: string;
-    };
+  const taken = await consumeAskTokens(root, expectedSpec, [expectedStepId]);
 
-    // Spec must match
-    if ((token.spec ?? null) !== (expectedSpec ?? null)) {
-      return { source: "INFERRED", questionMatch: "not-asked" };
-    }
-    // StepId must match
-    if (token.stepId !== expectedStepId) {
-      return { source: "INFERRED", questionMatch: "not-asked" };
-    }
-    // 30-minute expiry
-    const ageMs = Date.now() - new Date(token.createdAt ?? 0).getTime();
-    if (!isFinite(ageMs) || ageMs < 0 || ageMs > 30 * 60 * 1000) {
-      return { source: "INFERRED", questionMatch: "not-asked" };
-    }
-
-    // Valid — single-use delete
-    try {
-      await runtime.fs.remove(tokenPath);
-    } catch {
-      // best effort
-    }
-
-    return {
-      source: "STATED",
-      questionMatch: token.match ?? "exact",
-    };
-  } catch {
-    // File missing / unparseable / IO error → INFERRED
-    return { source: "INFERRED", questionMatch: "not-asked" };
-  }
+  return taken.get(expectedStepId) ?? NOT_ASKED;
 };
 
 /**
@@ -378,16 +485,6 @@ const applyTokenSourceToLastAnswer = (
     },
   };
 };
-
-// Built-in DISCOVERY question IDs in order (mirrors invoke-hook.ts mapping).
-const DISCOVERY_QUESTION_IDS: readonly string[] = [
-  "status_quo",
-  "ambition",
-  "reversibility",
-  "user_impact",
-  "verification",
-  "scope_boundary",
-];
 
 // =============================================================================
 // Living Spec update helper (Expansion F: classification-driven reveals)
@@ -612,7 +709,9 @@ const handleApproveAnswer = async (
         throw new Error(
           `${
             (err as Error).message
-          } — Your CEO review is saved and will be preserved (run 'noskills next' to see remaining gaps).`,
+          } — Your CEO review is saved and will be preserved (run '${
+            cmd.cmd(`spec ${state.spec ?? "<name>"} next`)
+          }' to see remaining gaps).`,
         );
       }
       throw err;
@@ -646,7 +745,10 @@ const handleRefinementAnswer = async (
   try {
     const parsed = JSON.parse(answer);
     if (parsed !== null && typeof parsed === "object") {
-      if ("posture" in parsed || "completeness" in parsed) {
+      if (
+        Object.hasOwn(parsed, "posture") ||
+        Object.hasOwn(parsed, "completeness")
+      ) {
         let next = state;
         if (
           typeof parsed.completeness === "object" &&
@@ -707,9 +809,11 @@ const handleRefinementAnswer = async (
             defaultReviewPosture: currentPosture,
           });
         }
-        // Note: state returned unchanged; manifest is the side-effect
-        // Caller sees no state diff — CLI output will confirm the save via console.error
-        console.error(`Saved '${currentPosture}' as project default posture.`);
+        // The state is returned unchanged; the manifest write is the side
+        // effect, so the notice on stderr is what confirms the save.
+        await writeNotice(
+          `Saved '${currentPosture}' as project default posture.`,
+        );
       } catch { /* best-effort */ }
     }
     return state;
@@ -720,10 +824,9 @@ const handleRefinementAnswer = async (
     try {
       const mf = await persistence.readManifest(root);
       if (mf !== null) {
-        // deno-lint-ignore no-explicit-any
-        const { defaultReviewPosture: _drp, ...rest } = mf as any;
-        await persistence.writeManifest(root, rest as schema.NosManifest);
-        console.error("Cleared project default posture.");
+        const { defaultReviewPosture: _drp, ...rest } = mf;
+        await persistence.writeManifest(root, rest);
+        await writeNotice("Cleared project default posture.");
       }
     } catch { /* best-effort */ }
     return state;
@@ -747,11 +850,11 @@ const handleRefinementAnswer = async (
         ?.overall;
       const final = state.discovery.refinement?.completenessScore?.overall;
       if (initial !== undefined && final !== undefined && initial !== final) {
-        console.error(
+        await writeNotice(
           `Completeness improved from ${initial} to ${final}/10 through review.`,
         );
       } else if (final !== undefined) {
-        console.error(`Spec reviewed at ${final}/10.`);
+        await writeNotice(`Spec reviewed at ${final}/10.`);
       }
       return nextState;
     }
@@ -953,57 +1056,61 @@ export const handleAnswer = async (
         );
       }
 
-      const isAgent = state.discovery.audience === "agent";
-
-      // Try parsing answer as JSON object for batch submission
-      let answersMap: Record<string, string> | null = null;
-      try {
-        const parsed = JSON.parse(answer);
-        if (
-          typeof parsed === "object" && parsed !== null &&
-          !Array.isArray(parsed)
-        ) {
-          if (isAgent) {
-            // Agent mode: only batch if ALL required question IDs are present
-            const requiredIds = questions.QUESTIONS.map((q) => q.id);
-            const hasAll = requiredIds.every((id) => id in parsed);
-            if (hasAll) {
-              answersMap = parsed as Record<string, string>;
-            }
-          } else {
-            // Human mode: any JSON object is treated as batch
-            answersMap = parsed as Record<string, string>;
-          }
-        }
-      } catch {
-        // Not JSON — fall through to single answer mode
-      }
-
+      // A JSON object answers the base questions it names: every unanswered
+      // one at once, as `next` asks for them, or some of them.
+      const answersMap = questions.discoveryAnswersOf(answer);
       let newState = state;
 
       if (answersMap !== null) {
-        // Batch mode: add all answers at once (human/agentless CLI)
-        // Jidoka C1: flag batch submissions for mandatory user confirmation
-        for (const [qId, qAnswer] of Object.entries(answersMap)) {
-          if (typeof qAnswer === "string" && qAnswer.length > 0) {
-            newState = machine.addDiscoveryAnswer(newState, qId, qAnswer, user);
-          }
+        const answered = Object.entries(answersMap);
+        const tokens = await consumeAskTokens(
+          root,
+          state.spec,
+          answered.map(([qId]) => qId),
+        );
+        let unconfirmed = false;
+
+        for (const [qId, qAnswer] of answered) {
+          const token = tokens.get(qId) ?? NOT_ASKED;
+          if (token.source !== "STATED") unconfirmed = true;
+
+          newState = machine.addDiscoveryAnswer(newState, qId, qAnswer, user);
+          newState = applyTokenSourceToLastAnswer(newState, qId, token);
+
+          // Each answer updates spec.md in turn, building on the state the
+          // previous one left, so they run one after another.
+          // deno-lint-ignore no-await-in-loop
+          const living = await applyLivingSpecToDiscoveryAnswer(
+            root,
+            newState,
+            qId,
+            qAnswer,
+            user,
+            activeConcerns,
+          );
+          newState = living.newState;
         }
-        // Mark that answers were batch-submitted (needs explicit user confirmation)
+
+        // Jidoka C1: answers that arrived together, without a record that the
+        // user was asked each one, need the user's confirmation in review.
         newState = {
           ...newState,
           discovery: {
             ...newState.discovery,
-            batchSubmitted: true,
+            batchSubmitted: newState.discovery.batchSubmitted === true ||
+              unconfirmed,
           },
         };
       } else {
-        // Single answer mode (agent one-at-a-time): answer current question and advance
+        // Plain text answers the first open base question; agents told to ask
+        // one question at a time still send these.
         const allQuestions = questions.getQuestionsWithExtras(activeConcerns);
-        const currentIdx = newState.discovery.currentQuestion;
-        const currentQ = allQuestions[currentIdx];
+        const currentQ = questions.getNextUnanswered(
+          allQuestions,
+          newState.discovery.answers,
+        );
 
-        if (currentQ === undefined) return state;
+        if (currentQ === null) return state;
         newState = machine.addDiscoveryAnswer(
           newState,
           currentQ.id,
@@ -1012,9 +1119,11 @@ export const handleAnswer = async (
         );
         // Consume ask-token (best-effort) and annotate the just-appended
         // answer with STATED/INFERRED provenance.
-        const stepId = DISCOVERY_QUESTION_IDS[currentIdx] ??
-          `Q${currentIdx + 1}`;
-        const tokenResult = await consumeAskToken(root, state.spec, stepId);
+        const tokenResult = await consumeAskToken(
+          root,
+          state.spec,
+          currentQ.id,
+        );
         newState = applyTokenSourceToLastAnswer(
           newState,
           currentQ.id,
@@ -1035,12 +1144,9 @@ export const handleAnswer = async (
         newState = livingUpdated;
       }
 
-      // Check if discovery is complete — transition to DISCOVERY_REFINEMENT
-      if (questions.isDiscoveryComplete(newState.discovery.answers)) {
-        newState = machine.completeDiscovery(newState);
-      }
-
-      return newState;
+      // Discovery completes once the base answers are in and no follow-up
+      // is pending; until then `next` hands out the follow-ups one at a time.
+      return machine.completeDiscoveryWhenReady(newState);
     }
 
     case "DISCOVERY_REFINEMENT": {
@@ -1079,7 +1185,7 @@ export const handleAnswer = async (
           typeof parsed.refinement === "string" &&
           parsed.refinement.length > 0
         ) {
-          const refinementText = parsed.refinement;
+          const refinementText: string = parsed.refinement;
 
           if (workingState.spec !== null) {
             const specFile = `${root}/${
@@ -1230,56 +1336,24 @@ const handleSplit = async (
   root: string,
   state: schema.StateFile,
 ): Promise<schema.StateFile> => {
-  // Run split analysis
   const proposal = splitDetector.analyzeForSplit(state.discovery.answers);
   if (!proposal.detected || proposal.proposals.length === 0) {
     return state; // No split possible
   }
 
-  const childNames: string[] = [];
-
-  for (const item of proposal.proposals) {
-    // Create spec directory
-    const specDir = `${root}/${persistence.paths.specDir(item.name)}`;
-    await runtime.fs.mkdir(specDir, { recursive: true });
-
-    // Pre-fill discovery answers (only relevant ones)
-    const relevantAnswers = state.discovery.answers.filter(
-      (a) => item.relevantAnswers.includes(a.questionId),
-    );
-
-    // Create child state at DISCOVERY_REFINEMENT (answers pre-filled)
-    const childState = machine.startSpec(
-      schema.createInitialState(),
-      item.name,
-      `spec/${item.name}`,
-    );
-
-    // Add relevant answers
-    let filledState = childState;
-    for (const a of relevantAnswers) {
-      filledState = machine.addDiscoveryAnswer(
-        filledState,
-        a.questionId,
-        a.answer,
-      );
-    }
-
-    // Transition to DISCOVERY_REFINEMENT
-    filledState = machine.completeDiscovery(filledState);
-
-    await persistence.writeSpecState(root, item.name, filledState);
-    childNames.push(item.name);
-  }
-
-  // Cancel parent spec
-  const parentCompleted = machine.completeSpec(
+  // Each child inherits only the answers its area came from.
+  return await split.splitSpec(
+    root,
     state,
-    "cancelled",
-    `Split into: ${childNames.join(", ")}`,
+    proposal.proposals.map((item) => ({
+      name: item.name,
+      description: item.description,
+      answers: state.discovery.answers.filter((a) =>
+        item.relevantAnswers.includes(a.questionId)
+      ),
+    })),
+    cmd.cmdPrefix(),
   );
-
-  return parentCompleted;
 };
 
 // =============================================================================
@@ -1352,14 +1426,9 @@ const processStatusReport = async (
       },
     };
     // Log migration for observability
-    const encoder = new TextEncoder();
-    const writer = runtime.process.stderr.getWriter();
-    await writer.write(
-      encoder.encode(
-        "noskills: migrated legacy string[] debt to DebtItem[] format\n",
-      ),
+    await writeNotice(
+      "noskills: migrated legacy string[] debt to DebtItem[] format",
     );
-    writer.releaseLock();
   }
 
   // ── Mandatory AC rejection ──
@@ -1489,7 +1558,9 @@ const processStatusReport = async (
             debtCounter: newDebtCounter,
             naItems: updatedNaItems,
             lastProgress:
-              "Review gate complete — all concern dimensions satisfied. Run `noskills done` to finish.",
+              `Review gate complete: all concern dimensions satisfied. Run \`${
+                cmd.cmd(`spec ${currentState.spec ?? "<name>"} done`)
+              }\` to finish.`,
           },
         };
       }
@@ -1565,8 +1636,12 @@ const processStatusReport = async (
 
       // Mark all batch tasks as completed
       const newlyCompleted: string[] = [];
+      // Every task rewrites the same spec.md and progress file, so the
+      // updates run one after another to keep each read-modify-write whole.
       for (const taskId of batchIds) {
+        // deno-lint-ignore no-await-in-loop
         await specUpdater.markTaskCompleted(root, currentState.spec, taskId);
+        // deno-lint-ignore no-await-in-loop
         await specUpdater.updateProgressTask(
           root,
           currentState.spec,
@@ -1648,54 +1723,89 @@ const processStatusReport = async (
 // Verification Runner
 // =============================================================================
 
-const runVerification = async (
+const VERIFICATION_TIMEOUT_MS = 60_000;
+const VERIFICATION_OUTPUT_LIMIT = 4000;
+
+/**
+ * The shell that runs a configured verification command line: sh on POSIX
+ * systems, cmd.exe on Windows.
+ */
+const shellInvocation = (command: string): readonly [string, string[]] =>
+  crossRuntime.getPlatform() === "windows"
+    ? ["cmd.exe", ["/d", "/s", "/c", command]]
+    : ["sh", ["-c", command]];
+
+/**
+ * Runs the configured verification command in the project root. It passes
+ * when the command exits 0 within the time limit; otherwise the output tells
+ * the agent what failed. A command still running after `timeoutMs` (60
+ * seconds unless given) is stopped and fails.
+ */
+export const runVerification = async (
   root: string,
   command: string,
+  timeoutMs: number = VERIFICATION_TIMEOUT_MS,
 ): Promise<schema.VerificationResult> => {
+  const timestamp = new Date().toISOString();
+  const [shell, shellArgs] = shellInvocation(command);
+  const timeout = new AbortController();
+  const timer = setTimeout(() => timeout.abort(), timeoutMs);
+
+  let result: crossRuntime.ProcessOutput;
   try {
-    const { execSync } = await import("node:child_process");
-    const output = execSync(command, {
+    result = await runtime.exec.spawn(shell, shellArgs, {
       cwd: root,
-      encoding: "utf-8",
-      timeout: 60_000,
-      stdio: ["pipe", "pipe", "pipe"],
+      stdin: "null",
+      stdout: "piped",
+      stderr: "piped",
+      signal: timeout.signal,
     });
-
-    return {
-      passed: true,
-      output: String(output).slice(0, 4000),
-      timestamp: new Date().toISOString(),
-    };
   } catch (err: unknown) {
-    // execSync throws on non-zero exit — capture output from the error
-    const execErr = err as {
-      stdout?: string;
-      stderr?: string;
-      status?: number;
-    };
-    const output = ((execErr.stdout ?? "") + (execErr.stderr ?? "")).slice(
-      0,
-      4000,
-    );
-
-    if (execErr.status !== undefined) {
-      // Command ran but returned non-zero exit code — verification failed
-      return {
-        passed: false,
-        output: output || "Verification failed with no output",
-        timestamp: new Date().toISOString(),
-      };
-    }
-
-    // Command failed to execute entirely
+    // The shell itself could not be started.
     const message = err instanceof Error ? err.message : String(err);
 
     return {
       passed: false,
       output: `Verification command failed to execute: ${message}`,
-      timestamp: new Date().toISOString(),
+      timestamp,
+    };
+  } finally {
+    clearTimeout(timer);
+  }
+
+  const decoder = new TextDecoder();
+  const stdout = decoder.decode(result.stdout);
+
+  if (result.success && !timeout.signal.aborted) {
+    return {
+      passed: true,
+      output: stdout.slice(0, VERIFICATION_OUTPUT_LIMIT),
+      timestamp,
     };
   }
+
+  const output = (stdout + decoder.decode(result.stderr)).slice(
+    0,
+    VERIFICATION_OUTPUT_LIMIT,
+  );
+
+  if (timeout.signal.aborted) {
+    return {
+      passed: false,
+      output: `Verification command did not finish within ${
+        timeoutMs / 1000
+      } seconds and was stopped: ${command}${
+        output === "" ? "" : `\n${output}`
+      }`,
+      timestamp,
+    };
+  }
+
+  return {
+    passed: false,
+    output: output === "" ? "Verification failed with no output" : output,
+    timestamp,
+  };
 };
 
 /**
@@ -1711,36 +1821,8 @@ const collectTouchedFiles = async (
   state: schema.StateFile,
 ): Promise<readonly string[]> => {
   const fromState = [...(state.execution.modifiedFiles ?? [])];
-  const fromLog = await readFilesChangedLog(root);
+  const fromLog = await iteration.readTrackedFiles(root);
   const merged = new Set([...fromState, ...fromLog]);
 
   return [...merged];
-};
-
-const readFilesChangedLog = async (
-  root: string,
-): Promise<readonly string[]> => {
-  const logFile =
-    `${root}/${persistence.paths.progressesDir}/files-changed.jsonl`;
-
-  try {
-    const content = await runtime.fs.readTextFile(logFile);
-    const lines = content.trim().split("\n").filter(Boolean);
-    const files: string[] = [];
-
-    for (const line of lines) {
-      try {
-        const entry = JSON.parse(line) as { file: string };
-        if (!files.includes(entry.file)) {
-          files.push(entry.file);
-        }
-      } catch {
-        // skip malformed lines
-      }
-    }
-
-    return files;
-  } catch {
-    return [];
-  }
 };

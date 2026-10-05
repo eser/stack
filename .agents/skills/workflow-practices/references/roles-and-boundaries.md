@@ -1,7 +1,7 @@
 # Roles and Boundaries
 
-What an agent may do on its own in this repository, what needs the user's
-approval, and who owns which area.
+What an agent may do on its own, what needs the user's approval, and who owns
+which area.
 
 ## Contents
 
@@ -20,13 +20,12 @@ Scope: Every agent task
 
 Rule: An agent works in one role at a time.
 
-- **Implementer:** changes code inside one package (`pkg/@eserstack/<name>/` or
-  one `pkg/ajan/<name>fx/`), follows that package's conventions
-  (tooling-standards, AGENTS.md), writes tests, and runs `deno task cli ok`
-  before calling the work done.
+- **Implementer:** changes code inside one package, follows that package's
+  conventions (tooling-standards, this codebase's AGENTS.md), writes tests, and
+  runs the full gate before calling the work done.
 - **Reviewer:** reads and reports; changes nothing.
-  - Reports semantic issues. Formatting and lint-level issues are left to
-    `deno fmt`, `deno lint` and the validators.
+  - Reports semantic issues. Formatting and lint-level issues are left to the
+    formatter, the linter and the validators.
   - Marks each finding blocking or informational. Blocking: injection, missing
     authorization, unsynchronized shared state, non-exhaustive branching,
     untrusted input reaching a prompt or subprocess, secrets in output.
@@ -35,8 +34,9 @@ Rule: An agent works in one role at a time.
     deferred to a backlog task, or accepted with a reason; no blocking finding
     stays open.
 - **Architect:** plans cross-package or structural changes with the
-  cross-package protocol below, reads `.github/ARCHITECTURE.md` for the package
-  layers, and records significant decisions as ADRs in `docs/adr/`.
+  cross-package protocol below, reads this codebase's architecture document for
+  the package layers, and records significant decisions as ADRs
+  (architecture-guidelines).
 
 ---
 
@@ -44,25 +44,15 @@ Rule: An agent works in one role at a time.
 
 Scope: Deciding whether a change stays inside its area
 
-Rule: A task stays inside the area it was given. The areas marked high impact
-need the Ask First step before any change.
+Rule: A task stays inside the area it was given. This codebase's AGENTS.md or
+its linked docs name the areas and which of them are high impact (shared
+foundations every package depends on, CI/CD workflows, publishing
+configuration); a high-impact area needs the Ask First step before any change.
+When no document names them, treat the shared base package, the CI configuration
+and anything that is published as high impact.
 
-| Area                         | Concern                                                                             |
-| ---------------------------- | ----------------------------------------------------------------------------------- |
-| `pkg/@eserstack/standards/`  | Cross-runtime abstractions; **high impact**, every package depends on it            |
-| `pkg/@eserstack/codebase/`   | Repo tooling and validators; owns `cli-system/`, the command tree of every binary   |
-| `pkg/@eserstack/cli/`        | The `eser` binary and its npm bundle                                                |
-| `pkg/@eserstack/noskills*/`  | Spec workflow, daemon client, web dashboard, mux worker                             |
-| `pkg/@eserstack/laroux*/`    | Framework: server, bundler, React integration                                       |
-| `pkg/@eserstack/ai/`         | AI providers: TypeScript adapters and the Go bridge                                 |
-| `pkg/@eserstack/kit/`        | Recipes and scaffolding                                                             |
-| `pkg/@eserstack/ajan/`       | FFI bridge to the Go library; its own Go module                                     |
-| `pkg/ajan/`                  | Go library packages (`*fx`); `api/business/` is pure domain, `api/adapters/` is I/O |
-| `pkg/ajan/noskillsserverfx/` | The noskills daemon: sessions, ledger, workers                                      |
-| `cmd/`                       | Go entry points; only `noskills-server`, the other binaries are `deno compile`d     |
-| `.github/workflows/`         | CI/CD; **high impact**, see release-and-ci                                          |
-| `.eser/`                     | Workflow manifest, recipes and scripts                                              |
-| `.agents/skills/`            | Agent rules; update them when a convention changes (eser-rules-manager)             |
+**Why:** a change in a shared or published area reaches every consumer at once,
+and it is the one an agent is least able to judge from inside a single task.
 
 ---
 
@@ -75,17 +65,23 @@ current task. A general "go ahead" does not cover them.
 
 - **Git history and working tree:** no `commit`, `push`, `tag`, `reset`,
   `rebase`, `checkout`, `restore`, `stash` or force push. The user commits and
-  pushes. When the user does ask for a commit, the message carries no AI
-  attribution and no session ids (task-workflow.md: Git Commit Policy).
+  pushes. When the user asks for a commit, it follows task-workflow.md: Git
+  Commit Policy: the configured identity, one or two lines, no attribution and
+  no session ids. When this codebase's AGENTS.md delegates task commits to
+  agents, the worktree, commit and rebase steps of task-workflow.md: Parallel
+  Task Agents are allowed, and nothing else on this list.
+- **Push, tag and release decisions:** the user starts every push, tag and
+  release. An agent does not decide on one, and does not suggest or offer one at
+  the end of a task either.
 - **Release commands:** `eser codebase release`, `rerelease` and `unrelease`
-  commit, push to `main` and push tags. Run them only when the user asks for a
-  release (release-and-ci).
+  commit, push and push tags. Run them only when the user asks for a release
+  (release-and-ci).
 - **Versions:** never edit a `version` field by hand; the release command bumps
-  `VERSION` and every `package.json` together.
-- **Generated files:** per-package `deno.json` files are generated by
-  `etc/scripts/gen-jsr-manifests.ts`; edit `package.json` or `deno.extra.json`
-  instead. Lock files (`pnpm-lock.yaml`, `go.sum`) change only through their
-  tools.
+  every version together.
+- **Generated files:** never edit a generated file; change its source and run
+  its generator (a per-package `deno.json` is generated from `package.json` and
+  `deno.extra.json`, tooling-standards). Lock files (`pnpm-lock.yaml`, `go.sum`)
+  change only through their tools.
 - **Checks:** never skip hooks (`--no-verify`) and never weaken TypeScript types
   to make a check pass.
 - **Secrets:** never commit `.env` files, keys or tokens.
@@ -106,7 +102,7 @@ checks", "this change is too small for a test", "I'll fix the types later" or
 "it is only one version field".
 
 **Why:** these actions are either irreversible (a pushed tag starts a publish
-that JSR never forgets) or hide a problem the checks exist to catch.
+that a registry never forgets) or hide a problem the checks exist to catch.
 
 ---
 
@@ -116,12 +112,12 @@ Scope: Actions that need the user's confirmation
 
 Rule: Describe the change and wait for approval before:
 
-- adding an import between `@eserstack/*` packages that did not depend on each
-  other before;
+- adding an import between workspace packages that did not depend on each other
+  before;
 - adding an external dependency (JSR, npm or Go module), with the purpose,
   license and alternative from tooling-standards: Adding a Dependency;
-- changing `.github/workflows/`;
-- changing `@eserstack/standards`;
+- changing CI/CD workflows;
+- changing a high-impact area (File Ownership);
 - changing publishing configuration (`exports`, `publish` fields,
   `deno.extra.json`);
 - removing or deprecating a public API;
@@ -132,7 +128,7 @@ Rule: Describe the change and wait for approval before:
 
 ## Language
 
-Scope: Everything written into the repository
+Scope: Everything written into this codebase
 
 Rule: Source code, comments, documentation, commit messages, backlog items,
 ADRs, task plans and release notes are written in English, whatever language the
@@ -140,14 +136,14 @@ conversation uses. A Turkish request produces English files. Never translate a
 rule, comment or backlog item into the conversation language, and never leave a
 non-English fragment in a file because the user wrote it that way.
 
-**Why:** the repository has external readers, and its tooling (validators,
+**Why:** repositories have external readers, and their tooling (validators,
 changelog generation, release notes) parses these files.
 
 ---
 
 ## Cross-Package Change Protocol
 
-Scope: A change that spans more than one `@eserstack/*` package
+Scope: A change that spans more than one workspace package
 
 Rule:
 
@@ -155,10 +151,8 @@ Rule:
    change is the default.
 2. **Plan:** list each affected package and its part of the change.
 3. **Order:** change dependencies before dependents, following the layers in
-   `.github/ARCHITECTURE.md`: Layer 0 (`@eserstack/standards` and other
-   foundations) first, then core utilities and infrastructure, then the
-   framework, and the shipped binaries (Layer 4: `cli`, `noskills`,
-   `laroux-server`) last.
-4. **Test:** run `deno task cli ok` after all packages are changed.
-5. **Version:** all packages share one version, so no per-package bump is
+   this codebase's architecture document: foundations first, then core utilities
+   and infrastructure, then frameworks, and shipped binaries last.
+4. **Test:** run the full gate after all packages are changed.
+5. **Version:** when all packages share one version, no per-package bump is
    needed; the next release carries the change.

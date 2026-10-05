@@ -4,6 +4,8 @@ package codebasefx
 
 import (
 	"encoding/json"
+	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -57,7 +59,7 @@ func buildDepGraph(packages []WorkspacePackage) map[string][]string {
 
 // detectCycles runs DFS on graph and returns all found cycles.
 func detectCycles(graph map[string][]string) [][]string {
-	var cycles [][]string
+	cycles := [][]string{}
 	visited := make(map[string]bool)
 	inStack := make(map[string]bool)
 	path := make([]string, 0, len(graph))
@@ -170,7 +172,7 @@ func CheckExportNames(root string, ignoreWords []string) (ExportNamesResult, err
 		return ExportNamesResult{}, err //nolint:exhaustruct
 	}
 
-	var violations []ExportNameViolation
+	violations := []ExportNameViolation{}
 
 	for _, pkg := range packages {
 		exports := pkg.Config.Exports
@@ -212,94 +214,215 @@ func CheckExportNames(root string, ignoreWords []string) (ExportNamesResult, err
 // CheckModExports
 // =============================================================================
 
+// Module files are checked by extension; a test or bench file
+// (`x.test.ts`, `x_bench.tsx`, ...) is never a public module.
 var (
-	reExportAll   = regexp.MustCompile(`export\s+\*\s+from\s+["']([^"']+)["']`)
-	reExportNamed = regexp.MustCompile(`export\s+\{[^}]*\}\s+from\s+["']([^"']+)["']`)
-	reExportType  = regexp.MustCompile(`export\s+type\s+\{[^}]*\}\s+from\s+["']([^"']+)["']`)
+	moduleFileRx    = regexp.MustCompile(`\.[cm]?[jt]sx?$`)
+	testOrBenchRx   = regexp.MustCompile(`[._](?:test|bench)\.[cm]?[jt]sx?$`)
+	relativeSpecRxs = []*regexp.Regexp{
+		// import ... from "./x.ts", export ... from "./x.ts", import "./x.ts"
+		// and import("./x.ts").
+		regexp.MustCompile(`(?:\bfrom|\bimport)\s*\(?\s*["'](\.{1,2}/[^"']+)["']`),
+		// new URL("./worker.ts", import.meta.url) for workers and assets.
+		regexp.MustCompile(`new\s+URL\(\s*["'](\.{1,2}/[^"']+)["']`),
+		// /// <reference types="./x.d.ts" /> and // @ts-self-types="./x.d.ts".
+		regexp.MustCompile(`(?:path|types)=["'](\.{1,2}/[^"']+)["']`),
+	}
+	// A module that runs as a program is an entry point of its own.
+	programEntryMarker = "import.meta.main"
+	// Sloppy imports may leave the extension out; these are tried in order.
+	implicitExtensions = []string{"", ".ts", ".tsx", ".js", ".mjs"}
 )
 
-// extractModExports parses export paths from mod.ts content.
-func extractModExports(content string) map[string]bool {
-	seen := make(map[string]bool)
-	for _, rx := range []*regexp.Regexp{reExportAll, reExportNamed, reExportType} {
+// isModuleFile reports whether name is a JS or TS module that is not a test
+// or bench file.
+func isModuleFile(name string) bool {
+	return moduleFileRx.MatchString(name) && !testOrBenchRx.MatchString(name)
+}
+
+// exportTargets returns the file paths of an exports, bin or main field, in
+// its string form or its map form (subpath to path, or subpath to a map of
+// conditions to paths).
+func exportTargets(v interface{}) []string {
+	switch t := v.(type) {
+	case string:
+		return []string{t}
+	case map[string]interface{}:
+		var out []string
+		for _, val := range t {
+			out = append(out, exportTargets(val)...)
+		}
+
+		return out
+	default:
+		return nil
+	}
+}
+
+// packageModules reads every non-test module under pkgDir, keyed by absolute
+// path. It skips node_modules, build output (dist) and hidden directories.
+func packageModules(pkgDir string) (map[string]string, error) {
+	modules := make(map[string]string)
+
+	err := filepath.WalkDir(pkgDir, func(current string, entry fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+
+		name := entry.Name()
+
+		if entry.IsDir() {
+			if current != pkgDir && (name == "node_modules" || name == "dist" || strings.HasPrefix(name, ".")) {
+				return filepath.SkipDir
+			}
+
+			return nil
+		}
+
+		if !isModuleFile(name) {
+			return nil
+		}
+
+		data, err := os.ReadFile(current) //nolint:gosec // walking the package's own directory
+		if err != nil {
+			return err
+		}
+
+		modules[current] = string(data)
+
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("read modules of %s: %w", pkgDir, err)
+	}
+
+	return modules, nil
+}
+
+// packageEntryPoints returns the absolute paths of a package's entry modules:
+// mod.ts, every target of the exports map in deno.json and package.json, the
+// package.json bin, main and module targets, and every module that runs as a
+// program.
+func packageEntryPoints(pkg *WorkspacePackage, modules map[string]string) []string {
+	targets := []string{"./mod.ts"}
+
+	if pkg.Config.RawDeno != nil {
+		targets = append(targets, exportTargets(pkg.Config.RawDeno["exports"])...)
+	}
+
+	if pkg.Config.RawPackage != nil {
+		for _, field := range []string{"exports", "bin", "main", "module"} {
+			targets = append(targets, exportTargets(pkg.Config.RawPackage[field])...)
+		}
+	}
+
+	entries := make([]string, 0, len(targets))
+	for _, target := range targets {
+		entries = append(entries, filepath.Join(pkg.Path, filepath.FromSlash(target)))
+	}
+
+	for modulePath, content := range modules {
+		if strings.Contains(content, programEntryMarker) {
+			entries = append(entries, modulePath)
+		}
+	}
+
+	return entries
+}
+
+// relativeSpecifiers returns the relative module specifiers that content
+// imports, re-exports, references or loads as a worker.
+func relativeSpecifiers(content string) []string {
+	var specs []string
+
+	for _, rx := range relativeSpecRxs {
 		for _, m := range rx.FindAllStringSubmatch(content, -1) {
-			if len(m) > 1 {
-				seen[m[1]] = true
+			specs = append(specs, m[1])
+		}
+	}
+
+	return specs
+}
+
+// resolveSpecifier returns the module a relative specifier in from points to,
+// trying the implicit extensions in order; it falls back to the bare path.
+func resolveSpecifier(from, spec string, modules map[string]string) string {
+	target := filepath.Join(filepath.Dir(from), filepath.FromSlash(spec))
+
+	for _, ext := range implicitExtensions {
+		if _, ok := modules[target+ext]; ok {
+			return target + ext
+		}
+	}
+
+	return target
+}
+
+// reachableModules follows relative imports from the entry points through the
+// package's modules and returns every path they reach.
+func reachableModules(entries []string, modules map[string]string) map[string]bool {
+	reached := make(map[string]bool)
+	queue := make([]string, 0, len(entries))
+
+	for _, entry := range entries {
+		if !reached[entry] {
+			reached[entry] = true
+			queue = append(queue, entry)
+		}
+	}
+
+	for len(queue) > 0 {
+		current := queue[0]
+		queue = queue[1:]
+
+		for _, spec := range relativeSpecifiers(modules[current]) {
+			target := resolveSpecifier(current, spec, modules)
+			if !reached[target] {
+				reached[target] = true
+				queue = append(queue, target)
 			}
 		}
 	}
-	return seen
+
+	return reached
 }
 
-// normalizeTSPath strips leading "./" and ".ts" suffix for comparison.
-func normalizeTSPath(p string) string {
-	p = strings.TrimPrefix(p, "./")
-	p = strings.TrimSuffix(p, ".ts")
-	return p
-}
-
-// shouldExportFile returns true when a .ts filename should appear in mod.ts.
-func shouldExportFile(name string) bool {
-	if name == "mod.ts" {
-		return false
-	}
-	if strings.HasSuffix(name, "_test.ts") || strings.HasSuffix(name, "_bench.ts") {
-		return false
-	}
-	if strings.HasPrefix(name, "_") {
-		return false
-	}
-	if strings.Contains(name, "/") {
-		return false
-	}
-	return true
-}
-
-// CheckModExports validates that mod.ts exports all public .ts files in each package.
+// CheckModExports reports the top-level modules of each package that nothing
+// reaches. A module is reached when an entry point imports or re-exports it,
+// directly or through other modules; the entry points are mod.ts, the exports
+// map, the package.json bin, main and module fields, and every module that
+// runs as a program (`import.meta.main`). Imports from tests do not count, and
+// test, bench and `_`-prefixed files are not checked. An unreached module is
+// missing from the exports or is dead code.
 func CheckModExports(root string) (ModExportsResult, error) {
 	packages, err := DiscoverWorkspacePackages(root)
 	if err != nil {
 		return ModExportsResult{}, err //nolint:exhaustruct
 	}
 
-	var missing []MissingExport
+	missing := []MissingExport{}
 
 	for _, pkg := range packages {
-		modPath := filepath.Join(pkg.Path, "mod.ts")
-
-		modData, err := os.ReadFile(modPath) //nolint:gosec
-		if err != nil {
-			continue // no mod.ts — skip
-		}
-
-		exports := extractModExports(string(modData))
-		normalised := make(map[string]bool, len(exports))
-		for e := range exports {
-			normalised[normalizeTSPath(e)] = true
-		}
-
-		// Enumerate .ts files directly in the package directory.
 		entries, err := os.ReadDir(pkg.Path)
 		if err != nil {
-			continue
+			return ModExportsResult{}, fmt.Errorf("list package %s: %w", pkg.Name, err) //nolint:exhaustruct
 		}
 
+		modules, err := packageModules(pkg.Path)
+		if err != nil {
+			return ModExportsResult{}, fmt.Errorf("package %s: %w", pkg.Name, err) //nolint:exhaustruct
+		}
+
+		reached := reachableModules(packageEntryPoints(&pkg, modules), modules)
+
 		for _, entry := range entries {
-			if entry.IsDir() {
-				continue
-			}
-
 			name := entry.Name()
-			if !strings.HasSuffix(name, ".ts") {
+
+			if entry.IsDir() || strings.HasPrefix(name, "_") || !isModuleFile(name) {
 				continue
 			}
 
-			if !shouldExportFile(name) {
-				continue
-			}
-
-			norm := normalizeTSPath(name)
-			if !normalised[norm] {
+			if !reached[filepath.Join(pkg.Path, name)] {
 				missing = append(missing, MissingExport{
 					PackageName: pkg.Name,
 					File:        name,
@@ -363,7 +486,13 @@ func convertPkgDepToDenoSpec(depName, spec string) string {
 }
 
 // checkPkgDependencies compares package.json deps against deno.json imports.
+// A deno.json without an `imports` map leaves dependency resolution to
+// package.json, so there is nothing to keep in step and no issue is reported.
 func checkPkgDependencies(packageName string, cfg WorkspacePackageConfig) []DependencyInconsistency {
+	if _, declared := cfg.RawDeno["imports"]; !declared {
+		return nil
+	}
+
 	var issues []DependencyInconsistency
 
 	allPkgDeps := make(map[string]string)
@@ -424,8 +553,8 @@ func CheckPackageConfigs(root string) (PackageConfigsResult, error) {
 		return PackageConfigsResult{}, err //nolint:exhaustruct
 	}
 
-	var inconsistencies []ConfigInconsistency
-	var depInconsistencies []DependencyInconsistency
+	inconsistencies := []ConfigInconsistency{}
+	depInconsistencies := []DependencyInconsistency{}
 
 	for _, pkg := range packages {
 		cfg := pkg.Config
@@ -541,7 +670,7 @@ func CheckDocs(root string, requireExamples bool) (DocsResult, error) {
 		return DocsResult{}, err //nolint:exhaustruct
 	}
 
-	var issues []DocIssue
+	issues := []DocIssue{}
 	filesChecked := 0
 	symbolsChecked := 0
 
@@ -557,7 +686,7 @@ func CheckDocs(root string, requireExamples bool) (DocsResult, error) {
 			}
 
 			name := entry.Name()
-			if !strings.HasSuffix(name, ".ts") || strings.HasSuffix(name, "_test.ts") {
+			if !strings.HasSuffix(name, ".ts") || testOrBenchRx.MatchString(name) {
 				continue
 			}
 

@@ -1,5 +1,8 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+// Build progress and the summary table are this script's terminal output.
+// deno-lint-ignore-file no-console
+
 /**
  * Cross-compiles the eser-ajan C-shared library and WASM modules.
  *
@@ -80,6 +83,9 @@ const ALL_TARGETS: readonly BuildTarget[] = [
 
 const MIN_OUTPUT_SIZE = 1_024; // 1KB — output files should be much larger
 
+/** Upper bound for one `go build`, so a stuck toolchain cannot hang the build. */
+const GO_BUILD_TIMEOUT_MINUTES = 15;
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -121,18 +127,27 @@ interface BuildResult {
   error?: string;
 }
 
+/**
+ * Reads the monorepo VERSION file for the -ldflags version stamp, or "dev" when
+ * the package is built outside the monorepo and the file does not exist.
+ */
+const readVersion = async (pkgDir: string): Promise<string> => {
+  const versionPath = `${pkgDir}/../../../VERSION`;
+  if (!await runtime.fs.exists(versionPath)) {
+    return "dev";
+  }
+
+  return (await runtime.fs.readTextFile(versionPath)).trim();
+};
+
 const buildTarget = async (
   target: BuildTarget,
   pkgDir: string,
   distDir: string,
+  version: string,
 ): Promise<BuildResult> => {
   const targetDir = `${distDir}/${target.id}`;
-
-  try {
-    await runtime.fs.mkdir(targetDir, { recursive: true });
-  } catch {
-    // already exists
-  }
+  await runtime.fs.mkdir(targetDir, { recursive: true });
 
   const outputPath = `${targetDir}/${target.outputFile}`;
 
@@ -145,16 +160,6 @@ const buildTarget = async (
     // workspace graph.
     GOWORK: "off",
   };
-
-  // Read version from monorepo VERSION file for -ldflags injection
-  let version = "dev";
-  try {
-    const nodeFs = await import("node:fs");
-    const versionPath = `${pkgDir}/../../../VERSION`;
-    version = nodeFs.readFileSync(versionPath, "utf-8").trim();
-  } catch {
-    // Fall back to "dev" if VERSION file not found
-  }
 
   // -s -w strips the symbol table and DWARF debug info: 40.9 MB -> 34.7 MB
   // measured on darwin/arm64, and this library is copied into every release
@@ -189,21 +194,23 @@ const buildTarget = async (
 
   buildArgs.push("-o", outputPath, ".");
 
-  // deno-lint-ignore no-console
   console.log(`  Building ${target.id} ...`);
 
+  const timeout = AbortSignal.timeout(GO_BUILD_TIMEOUT_MINUTES * 60_000);
   const { code, stderr } = await runtime.exec.spawn("go", buildArgs, {
     cwd: pkgDir,
     env,
     stdout: "piped",
     stderr: "piped",
+    signal: timeout,
   });
 
   if (code !== 0) {
-    const errText = new TextDecoder().decode(stderr);
-    // deno-lint-ignore no-console
-    console.error(`    FAIL: ${errText.trim()}`);
-    return { target: target.id, status: "fail", error: errText.trim() };
+    const errText = timeout.aborted
+      ? `go build ran past ${GO_BUILD_TIMEOUT_MINUTES} minutes and was stopped`
+      : new TextDecoder().decode(stderr).trim();
+    console.error(`    FAIL: ${errText}`);
+    return { target: target.id, status: "fail", error: errText };
   }
 
   // Validate output
@@ -211,17 +218,14 @@ const buildTarget = async (
     const stat = await runtime.fs.stat(outputPath);
     if (stat.size < MIN_OUTPUT_SIZE) {
       const msg = `Output too small (${stat.size} bytes), likely corrupted`;
-      // deno-lint-ignore no-console
       console.error(`    FAIL: ${msg}`);
       return { target: target.id, status: "fail", error: msg };
     }
 
-    // deno-lint-ignore no-console
     console.log(`    OK  ${formatBytes(stat.size)}`);
     return { target: target.id, status: "ok", fileSize: stat.size };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    // deno-lint-ignore no-console
     console.error(`    FAIL: ${msg}`);
     return { target: target.id, status: "fail", error: msg };
   }
@@ -232,7 +236,6 @@ const buildTarget = async (
 // ---------------------------------------------------------------------------
 
 const printUsage = (): void => {
-  // deno-lint-ignore no-console
   console.log(`Usage: deno run --allow-all build.ts [options]
 
 Options:
@@ -269,16 +272,14 @@ const main = async (): Promise<void> => {
 
   // --clean
   if (args.includes("--clean")) {
-    // deno-lint-ignore no-console
-    console.log("Removing dist/ ...");
-    try {
-      await runtime.fs.remove(distDir, { recursive: true });
-      // deno-lint-ignore no-console
-      console.log("Done.");
-    } catch {
-      // deno-lint-ignore no-console
+    if (!await runtime.fs.exists(distDir)) {
       console.log("dist/ does not exist — nothing to clean.");
+      return;
     }
+
+    console.log("Removing dist/ ...");
+    await runtime.fs.remove(distDir, { recursive: true });
+    console.log("Done.");
     return;
   }
 
@@ -295,9 +296,7 @@ const main = async (): Promise<void> => {
       const name = targetArg.split("=")[1];
       const found = ALL_TARGETS.find((t) => t.id === name);
       if (found === undefined) {
-        // deno-lint-ignore no-console
         console.error(`Unknown target: ${name}`);
-        // deno-lint-ignore no-console
         console.error(
           `Available: ${ALL_TARGETS.map((t) => t.id).join(", ")}`,
         );
@@ -309,7 +308,6 @@ const main = async (): Promise<void> => {
       // Auto-detect current platform (native only)
       const current = detectCurrentTarget();
       if (current === undefined) {
-        // deno-lint-ignore no-console
         console.error(
           `Could not detect current platform (${Deno.build.os}/${Deno.build.arch})`,
         );
@@ -328,47 +326,44 @@ const main = async (): Promise<void> => {
     ? "WASM"
     : "native";
 
-  // deno-lint-ignore no-console
   console.log(
     `Building eser-ajan ${modeLabel} for ${selectedTargets.length} target(s)...\n`,
   );
+
+  const version = await readVersion(pkgDir);
 
   // Build each target
   const results: BuildResult[] = [];
 
   for (const target of selectedTargets) {
-    const result = await buildTarget(target, pkgDir, distDir);
+    // One go build at a time: each one already uses every core, and the
+    // progress lines of parallel builds would interleave.
+    // deno-lint-ignore no-await-in-loop
+    const result = await buildTarget(target, pkgDir, distDir, version);
     results.push(result);
   }
 
   // Summary table
-  // deno-lint-ignore no-console
   console.log(`\n${"─".repeat(58)}`);
-  // deno-lint-ignore no-console
   console.log(
     `${"Target".padEnd(22)} ${"Size".padEnd(12)} ${"Status"}`,
   );
-  // deno-lint-ignore no-console
   console.log(`${"─".repeat(58)}`);
 
   for (const r of results) {
     const size = r.fileSize !== undefined ? formatBytes(r.fileSize) : "-";
     const status = r.status === "ok" ? "OK" : `FAIL: ${r.error ?? "unknown"}`;
-    // deno-lint-ignore no-console
     console.log(
       `${r.target.padEnd(22)} ${size.padEnd(12)} ${status}`,
     );
   }
 
-  // deno-lint-ignore no-console
   console.log(`${"─".repeat(58)}`);
 
   const ok = results.filter((r) => r.status === "ok").length;
   const fail = results.filter((r) => r.status === "fail").length;
 
-  // deno-lint-ignore no-console
   console.log(`\n${ok}/${results.length} succeeded, ${fail} failed`);
-  // deno-lint-ignore no-console
   console.log(`Output: ${distDir}`);
 
   if (fail > 0) {
@@ -376,4 +371,8 @@ const main = async (): Promise<void> => {
   }
 };
 
-main();
+if (import.meta.main) {
+  // A script entry point: the process has nothing else to do until main ends.
+  // deno-lint-ignore no-top-level-await
+  await main();
+}

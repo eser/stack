@@ -23,6 +23,7 @@ export const backend: types.FFIBackend = {
   name: "node",
 
   available: (): boolean => {
+    // globalThis does not declare Deno, Bun or process on every runtime.
     // deno-lint-ignore no-explicit-any
     const g = globalThis as any;
 
@@ -47,6 +48,7 @@ export const backend: types.FFIBackend = {
     // Same trick as noskills/commands/web.ts. Under Node the import resolves
     // normally at runtime.
     const specifier = "koffi";
+    // Imported through a variable specifier, so koffi's type declarations do not apply.
     // deno-lint-ignore no-explicit-any
     let koffi: any = await import(specifier);
     // Handle default export (koffi uses module.exports = ...)

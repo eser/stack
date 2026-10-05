@@ -211,14 +211,14 @@ export const getState = async (root: string): Promise<DashboardState> => {
     // No specs directory
   }
 
-  const specs: SpecSummary[] = [];
-  for (const name of specNames) {
-    try {
-      specs.push(await getSpecSummary(root, name));
-    } catch {
-      // Skip broken specs
-    }
-  }
+  // Each spec is summarized from its own files, so they load concurrently. A
+  // broken spec is skipped.
+  const summaries = await Promise.all(
+    [...specNames].map((name) => getSpecSummary(root, name).catch(() => null)),
+  );
+  const specs = summaries.filter((summary): summary is SpecSummary =>
+    summary !== null
+  );
 
   // Sort: active specs first, then by updatedAt
   specs.sort((a, b) => {

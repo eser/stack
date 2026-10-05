@@ -27,6 +27,7 @@ const (
 	ContentBlockFile       ContentBlockType = "file"
 	ContentBlockToolCall   ContentBlockType = "tool_call"
 	ContentBlockToolResult ContentBlockType = "tool_result"
+	ContentBlockThinking   ContentBlockType = "thinking"
 )
 
 // Message represents a single message in a conversation.
@@ -44,6 +45,21 @@ type ContentBlock struct {
 	File       *FilePart
 	ToolCall   *ToolCall
 	ToolResult *ToolResult
+	Thinking   *ThinkingPart
+}
+
+// ThinkingPart is a block of the model's reasoning, kept apart from the answer
+// text. A provider that signs its reasoning (Anthropic) checks the block when it
+// comes back in the next request of a multi-turn call, so it must be sent back
+// exactly as received.
+type ThinkingPart struct {
+	// Text is the reasoning; empty when the provider omits it.
+	Text string
+	// Signature is the provider's opaque check value for Text.
+	Signature string
+	// RedactedData is the provider's opaque, encrypted reasoning, set instead
+	// of Text and Signature when the provider redacted the block.
+	RedactedData string
 }
 
 // ToolCall represents a function/tool call made by the model.
@@ -80,6 +96,7 @@ func NewTextMessage(role Role, text string) Message {
 				File:       nil,
 				ToolCall:   nil,
 				ToolResult: nil,
+				Thinking:   nil,
 			},
 		},
 	}
@@ -103,6 +120,7 @@ func NewImageMessage(role Role, imageURL string, detail ImageDetail) Message {
 				File:       nil,
 				ToolCall:   nil,
 				ToolResult: nil,
+				Thinking:   nil,
 			},
 		},
 	}
@@ -125,6 +143,7 @@ func NewAudioMessage(role Role, audioURL string) Message {
 				File:       nil,
 				ToolCall:   nil,
 				ToolResult: nil,
+				Thinking:   nil,
 			},
 		},
 	}
@@ -144,6 +163,7 @@ func NewToolCallBlock(toolCallID, name string, arguments json.RawMessage) Conten
 			Arguments: arguments,
 		},
 		ToolResult: nil,
+		Thinking:   nil,
 	}
 }
 
@@ -161,5 +181,22 @@ func NewToolResultBlock(toolCallID, content string, isError bool) ContentBlock {
 			Content:    content,
 			IsError:    isError,
 		},
+		Thinking: nil,
+	}
+}
+
+// NewThinkingBlock creates a thinking content block. Pass the part exactly as
+// the provider returned it; a signed block that was changed is rejected when it
+// is sent back.
+func NewThinkingBlock(part ThinkingPart) ContentBlock {
+	return ContentBlock{
+		Type:       ContentBlockThinking,
+		Text:       "",
+		Image:      nil,
+		Audio:      nil,
+		File:       nil,
+		ToolCall:   nil,
+		ToolResult: nil,
+		Thinking:   &part,
 	}
 }

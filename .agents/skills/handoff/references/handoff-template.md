@@ -62,9 +62,9 @@ What the next session is for (the /handoff argument, or the natural next step).
   not repeated.
 - **Pitfalls** saves the next agent from repeating a dead end: a command that
   hung, an API that does not exist, a check that flags generated files.
-- **Suggested Skills** names skills from `.agents/skills/` by name, based on the
-  next focus (for example workflow-practices and go-practices for continuing a
-  Go change).
+- **Suggested Skills** names the installed skills by name, based on the next
+  focus (for example workflow-practices and go-practices for continuing a Go
+  change).
 
 ---
 

@@ -1,12 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import { assertEquals } from "@std/assert";
-import {
-  feedsShellFromStdin,
-  hasGitWrite,
-  shellScriptTargets,
-  writesFile,
-} from "./git.ts";
+import * as assert from "@std/assert";
+import * as git from "./git.ts";
 
 // Shapes from the security audit that reached git without being denied.
 const BYPASSES = [
@@ -41,26 +36,30 @@ const BENIGN = [
 ];
 
 Deno.test("reported bypass shapes are git writes", () => {
-  for (const cmd of BYPASSES) assertEquals(hasGitWrite(cmd), true, cmd);
+  for (const cmd of BYPASSES) {
+    assert.assertEquals(git.hasGitWrite(cmd), true, cmd);
+  }
 });
 
 Deno.test("read-only and non-git commands stay allowed", () => {
-  for (const cmd of BENIGN) assertEquals(hasGitWrite(cmd), false, cmd);
+  for (const cmd of BENIGN) {
+    assert.assertEquals(git.hasGitWrite(cmd), false, cmd);
+  }
 });
 
 Deno.test("stdin-fed shells and script files are recognised", () => {
-  assertEquals(feedsShellFromStdin("echo x | sh"), true);
-  assertEquals(feedsShellFromStdin("sh <<< 'x'"), true);
-  assertEquals(feedsShellFromStdin("sh run.sh"), false);
-  assertEquals(
-    shellScriptTargets(
+  assert.assertEquals(git.feedsShellFromStdin("echo x | sh"), true);
+  assert.assertEquals(git.feedsShellFromStdin("sh <<< 'x'"), true);
+  assert.assertEquals(git.feedsShellFromStdin("sh run.sh"), false);
+  assert.assertEquals(
+    git.shellScriptTargets(
       "printf x > r.sh; sh r.sh && bash -e run.sh; source env.sh; . ./x.sh; sh -c 'y'",
     ),
     ["r.sh", "run.sh", "env.sh", "./x.sh"],
   );
-  assertEquals(
-    writesFile("printf 'g%sit push' '' > r.sh; sh r.sh", "r.sh"),
+  assert.assertEquals(
+    git.writesFile("printf 'g%sit push' '' > r.sh; sh r.sh", "r.sh"),
     true,
   );
-  assertEquals(writesFile("sh r.sh", "r.sh"), false);
+  assert.assertEquals(git.writesFile("sh r.sh", "r.sh"), false);
 });

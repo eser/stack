@@ -1,11 +1,11 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import { wth } from "./wth.ts";
+import * as wth from "./wth.ts";
 
 const group = "wth";
 
 Deno.bench("eser/fp/wth", { group, baseline: true }, () => {
-  wth({ a: 1 }, { b: 2 });
+  wth.wth({ a: 1 }, { b: 2 });
 });
 
 Deno.bench("spread operator", { group }, () => {

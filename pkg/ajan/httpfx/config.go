@@ -36,8 +36,21 @@ type Config struct {
 	OpenAPIEnabled     bool `conf:"openapi"      default:"true"`
 	ProfilingEnabled   bool `conf:"profiling"    default:"false"`
 
+	// ProfilingToken is the bearer token the profiling module requires on
+	// /debug/pprof/. With profiling enabled and no token, the module mounts
+	// nothing and returns an error. It is a secret: set it from the
+	// environment, never in committed config.
+	ProfilingToken string `conf:"profiling_token"`
+
 	// Authentication configuration
 	AuthEnabled bool `conf:"auth_enabled" default:"false"`
+
+	// AuthIssuer and AuthAudience are the iss and aud claims that
+	// middlewares.AuthMiddleware requires, passed through WithAuthIssuer and
+	// WithAuthAudience. An empty value leaves that check off and the
+	// middleware logs a warning when it is built.
+	AuthIssuer   string `conf:"auth_issuer"`
+	AuthAudience string `conf:"auth_audience"`
 
 	ExposeInternalErrors bool `conf:"expose_internal_errors" default:"false"`
 
@@ -63,4 +76,12 @@ type Config struct {
 	H3ListenAddr string `conf:"h3_listen_addr" default:":4433"`
 	// H3MaxStreams caps concurrent QUIC streams per connection.
 	H3MaxStreams uint64 `conf:"h3_max_streams" default:"100"`
+	// H3AllowedOrigins lists the origins, besides the server's own, whose
+	// pages may open a WebTransport session. Each entry is an exact origin
+	// such as https://app.example.com (scheme, host and a non-default port,
+	// no path); there are no wildcards. Empty by default: only a page served
+	// from the server's own host, or a client that sends no Origin header,
+	// can upgrade. HTTP3Service.Start fails on an entry that is not an
+	// origin.
+	H3AllowedOrigins []string `conf:"h3_allowed_origins"`
 }

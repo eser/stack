@@ -74,7 +74,6 @@ workflows:
                 - ".git/COMMIT_EDITMSG"
                 - "AGENTS.md"
                 - "CHANGELOG.md"
-                - "CONTRIBUTING.md"
                 - "Makefile"
                 - "PHILOSOPHY.md"
                 - "VERSION"
@@ -90,10 +89,7 @@ workflows:
                 - "README.md"
                 - "TODOS.md"
                 - "WIRING.md"
-                - "pkg/*/README.md"
                 - "pkg/@eserstack/noskills/README-HOW.md"
-                - "*_test.ts"
-                - "*_test.go"
       - validate-submodules
       - validate-licenses:
           exclude:
@@ -111,15 +107,20 @@ workflows:
             - "etc/scripts/update-homebrew-formula.ts"
             - "etc/scripts/update-nix-hashes.ts"
             - "etc/scripts/preflight-npm-consumer.ts"
+            # Run on a bare node with built-ins only, so they cannot import the
+            # cross-runtime layer: a Claude Code hook, the skill validator and
+            # the release-notes CI step.
+            - ".agents/hooks/decision-nudge.js"
+            - ".agents/skills/eser-rules-manager/scripts/validate-skills.ts"
+            - "etc/scripts/release-notes-from-changelog.ts"
             # Tests and benches run only under Deno — exempt from the portable-API rule.
-            - "_test.ts"
             - ".test.ts"
       - validate-self-imports:
           exclude:
             # Tests are not part of the published module graph.
-            - "_test.ts"
             - ".test.ts"
-      # Namespace imports and `??` defaults (javascript-practices). Existing
+      # Namespace imports, `??` defaults and no `export *` re-exports
+      # (javascript-practices). Existing
       # violations are listed in .eser/baselines/code-conventions.json; only
       # new ones fail. Shrink the baseline after migrating files with
       # `deno run -A ./pkg/@eserstack/codebase/validate-code-conventions.ts --write-baseline`.
@@ -159,6 +160,16 @@ workflows:
           command: deno run -A ./pkg/@eserstack/ajan/scripts/build.ts
           timeout: 300
 
+      # Workspace checks. They read the members from the root package.json
+      # `workspaces` and fail when it lists none, so they run after the native
+      # library they call is rebuilt and the manifests they compare exist.
+      # No dependency cycles between packages:
+      - validate-circular-deps
+      # Export sub-paths are kebab-case:
+      - validate-export-names
+      # Each generated deno.json matches its package.json:
+      - validate-package-configs
+
       # Deno checks
       - shell:
           name: deno-formatter
@@ -168,9 +179,11 @@ workflows:
           name: deno-linter
           command: deno lint .
           fixCommand: deno lint --fix .
+      # cli has no mod.ts, and its main.ts graph is what `deno compile` and
+      # publish check in strict mode, so it is a root of its own.
       - shell:
           name: deno-type-check
-          command: deno check ./pkg/@eserstack/*/mod.ts
+          command: deno check ./pkg/@eserstack/*/mod.ts ./pkg/@eserstack/cli/main.ts
           timeout: 120
       - shell:
           name: deno-tests
@@ -329,7 +342,7 @@ scripts:
   # Code quality
   lint: deno lint .
   fmt: deno fmt
-  check: deno check ./pkg/@eserstack/*/mod.ts
+  check: deno check ./pkg/@eserstack/*/mod.ts ./pkg/@eserstack/cli/main.ts
 
   # Build
   build: deno run --allow-all ./pkg/@eserstack/cli/scripts/npm-build.ts
@@ -341,7 +354,10 @@ scripts:
   # pkg/@cool/ was also globbed here and does not exist.
   docs: "rm -rf ./docs/api/ && deno doc --name='eserstack' --output=./docs/api/
     --html ./pkg/@eserstack/*/mod.ts"
-  docs-lint: deno doc --lint ./pkg/@eserstack/*/mod.ts
+  # Lints every module a package publishes in its package.json exports, not
+  # only mod.ts; CLI-first packages map "." to main.ts.
+  docs-lint: "roots=$(deno run --allow-read ./etc/scripts/package-export-roots.ts)
+    && deno doc --lint $roots"
 
   # Docker
   container-build: docker build -t eservm .
@@ -372,6 +388,7 @@ scripts:
 
   # Go shortcuts
   go-ok: make ok
+  go-vuln: make vuln
   go-test: make test-coverage
   go-lint: make lint
   go-fmt: make fix

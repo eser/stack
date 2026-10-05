@@ -1,73 +1,41 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 /**
- * HTTP/3-capable fetch polyfill for Node.js.
+ * A fetch function for HTTP/3 servers such as noskills-server.
  *
- * ## Current status
+ * `createH3FetchFn` returns the runtime's own `fetch`. Browsers negotiate
+ * HTTP/3 by themselves when the server advertises it, so the native `fetch`
+ * already speaks it there. This package has no HTTP/3 transport of its own:
+ * outside a browser, `fetch` speaks whatever the runtime supports.
  *
- * `undici` (Node's built-in fetch engine) does not yet ship stable HTTP/3
- * support. The long-term path is to extend pkg/@eserstack/ajan/bridge.go
- * (the FFI HTTP client at bridge.go:823-847) with a `protocol:"h3"` flag so
- * the TS bridge gets HTTP/3 via Go's quic-go transport. That keeps a single
- * HTTP/3 implementation in Go and avoids shipping a second UDP stack in Node.
- *
- * ## Usage today
- *
- * In browser environments, the native `fetch` already negotiates h3 ALPN
- * automatically — no polyfill needed. Just use createHttpClient() as normal.
- *
- * In Node environments talking to a noskills-server:
- * 1. For REST requests: use the standard fetch (Node 22+ has native fetch over
- *    HTTP/1.1 / HTTP/2; the daemon falls back to TCP if QUIC is unavailable).
- * 2. For WebTransport sessions: use @eserstack/webtransport which wraps the
- *    browser WebTransport API (Node 22+ --experimental-fetch) or the FFI bridge.
- *
- * ## Future path
- *
- * When the FFI bridge is extended, replace the body of createH3FetchFn with:
- * ```ts
- * import { createFfiFetch } from "@eserstack/ajan/bridge-http";
- * export const createH3FetchFn = (certHashes?: ArrayBuffer[]) =>
- *   createFfiFetch({ protocol: "h3", certHashes });
- * ```
+ * It pins no certificate. Pin a self-signed certificate through the runtime
+ * (for example `Deno.createHttpClient({ caCerts })`) or, for WebTransport,
+ * through `serverCertificateHashes` in `@eserstack/webtransport`.
  *
  * @module
  */
 
-/** Options for creating an HTTP/3 fetch function. */
-export interface H3FetchOptions {
-  /**
-   * SHA-256 DER fingerprints for certificate pinning. When provided, the
-   * server certificate is accepted if its fingerprint matches any supplied hash,
-   * bypassing CA chain validation.
-   */
-  certHashes?: ArrayBuffer[];
-}
-
 /**
- * Returns a fetch-compatible function that uses HTTP/3.
+ * Returns the global `fetch`, bound to `globalThis`, for use as the `fetchFn`
+ * of `createHttpClient`.
  *
- * In browsers, `fetch` already negotiates h3 automatically — this is a no-op
- * that returns the native `fetch`. In Node, this falls back to native fetch
- * until the FFI bridge grows HTTP/3 support.
+ * @throws Error when the runtime has no global `fetch`.
  *
- * Pass the returned function to createHttpClient via the `fetchFn` config field:
+ * @example
  * ```ts
- * const client = createHttpClient({
+ * import * as httpclient from "@eserstack/httpclient";
+ * import * as h3Fetch from "@eserstack/httpclient/h3-fetch";
+ *
+ * const client = httpclient.createHttpClient({
  *   baseUrl: "https://localhost:4433",
- *   fetchFn: createH3FetchFn({ certHashes }),
+ *   fetchFn: h3Fetch.createH3FetchFn(),
  * });
  * ```
  */
-export function createH3FetchFn(
-  _options: H3FetchOptions = {},
-): typeof fetch {
-  // Future: when bridge.go exposes protocol:"h3", replace this with the FFI path.
-  // For now, return native fetch — browsers negotiate h3 automatically.
+export function createH3FetchFn(): typeof fetch {
   if (typeof globalThis.fetch !== "function") {
     throw new Error(
-      "@eserstack/httpclient/h3-fetch: fetch is not available in this environment. " +
-        "Use Node 22+ or provide a custom fetchFn.",
+      "createH3FetchFn: this runtime has no global fetch; use Node 18 or later, Deno or a browser, or pass your own fetchFn to createHttpClient",
     );
   }
 

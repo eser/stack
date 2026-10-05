@@ -3,37 +3,47 @@
 import * as assert from "@std/assert";
 import { runtime } from "@eserstack/standards/cross-runtime";
 import * as formats from "@eserstack/formats";
-import {
-  buildConfigMapFromContext,
-  buildSecretFromContext,
-  KubernetesResourceNameError,
-  sync,
-  validateKubernetesResourceName,
-  validateResourceReference,
-} from "./sync.ts";
+import * as sync from "./sync.ts";
+import type * as types from "./types.ts";
 
-// Test helper to set up environment variables
-function setupTestEnv(): Record<string, string> {
-  const testEnv = {
-    "DD_SITE": "datadoghq.com",
-    "DD_API_KEY": "test-api-key",
-    "DB_HOST": "localhost",
-    "DB_PORT": "5432",
-    "DB_NAME": "test_db",
-  };
+// The process environment is loaded on top of the .env files, so the keys in
+// these tests carry a prefix no real variable uses.
+const HOST_KEY = "CS_SYNC_TEST_HOST";
+const PORT_KEY = "CS_SYNC_TEST_PORT";
+const MISSING_KEY = "CS_SYNC_TEST_MISSING";
 
-  for (const [key, value] of Object.entries(testEnv)) {
-    runtime.env.set(key, value);
-  }
-
-  return testEnv;
+// Writes the given files into a new temporary directory, which sync() reads
+// through its cwd option instead of the working directory.
+async function createEnvDir(
+  files: Record<string, Record<string, string>>,
+): Promise<string> {
+  const dir = await runtime.fs.makeTempDir({ prefix: "cs_sync_test_" });
+  await Promise.all(
+    Object.entries(files).map(([fileName, values]) => {
+      const content = Object.entries(values)
+        .map(([key, value]) => `${key}=${value}`)
+        .join("\n");
+      return runtime.fs.writeTextFile(`${dir}/${fileName}`, content);
+    }),
+  );
+  return dir;
 }
 
-// Test helper to clean up environment variables
-function cleanupTestEnv(keys: string[]) {
-  for (const key of keys) {
-    runtime.env.delete(key);
-  }
+// A key lookup that stands in for kubectl and records each resource it reads.
+function fakeResourceKeys(keys: ReadonlyArray<string>): {
+  readonly lookup: (
+    resource: types.KubectlResourceReference,
+  ) => Promise<ReadonlyArray<string>>;
+  readonly calls: types.KubectlResourceReference[];
+} {
+  const calls: types.KubectlResourceReference[] = [];
+  return {
+    lookup: (resource) => {
+      calls.push(resource);
+      return Promise.resolve(keys);
+    },
+    calls,
+  };
 }
 
 Deno.test("buildConfigMapFromContext() should create valid ConfigMap", () => {
@@ -43,7 +53,7 @@ Deno.test("buildConfigMapFromContext() should create valid ConfigMap", () => {
     ["DB_HOST", "localhost"],
   ]);
 
-  const configMap = buildConfigMapFromContext(
+  const configMap = sync.buildConfigMapFromContext(
     "test-config",
     "test-namespace",
     data,
@@ -61,7 +71,7 @@ Deno.test("buildConfigMapFromContext() should create valid ConfigMap", () => {
 Deno.test("buildConfigMapFromContext() should omit default namespace", () => {
   const data = new Map([["TEST_VAR", "test-value"]]);
 
-  const configMap = buildConfigMapFromContext(
+  const configMap = sync.buildConfigMapFromContext(
     "default-config",
     "default",
     data,
@@ -74,7 +84,7 @@ Deno.test("buildConfigMapFromContext() should omit default namespace", () => {
 Deno.test("buildConfigMapFromContext() should handle undefined namespace", () => {
   const data = new Map([["TEST_VAR", "test-value"]]);
 
-  const configMap = buildConfigMapFromContext(
+  const configMap = sync.buildConfigMapFromContext(
     "no-namespace-config",
     undefined,
     data,
@@ -91,7 +101,11 @@ Deno.test("buildSecretFromContext() should create valid Secret with base64 encod
     ["DB_PASSWORD", "secret123"],
   ]);
 
-  const secret = buildSecretFromContext("test-secret", "test-namespace", data);
+  const secret = sync.buildSecretFromContext(
+    "test-secret",
+    "test-namespace",
+    data,
+  );
 
   assert.assertEquals(secret.apiVersion, "v1");
   assert.assertEquals(secret.kind, "Secret");
@@ -111,7 +125,7 @@ Deno.test("buildSecretFromContext() should handle special characters in values",
     ["MULTILINE_VAR", "line1\\nline2\\nline3"],
   ]);
 
-  const secret = buildSecretFromContext("special-secret", "test-ns", data);
+  const secret = sync.buildSecretFromContext("special-secret", "test-ns", data);
 
   assert.assertEquals(
     secret.data?.["SPECIAL_VAR"],
@@ -126,184 +140,245 @@ Deno.test("buildSecretFromContext() should handle special characters in values",
 Deno.test("buildSecretFromContext() should omit default namespace", () => {
   const data = new Map([["TEST_SECRET", "secret-value"]]);
 
-  const secret = buildSecretFromContext("default-secret", "default", data);
+  const secret = sync.buildSecretFromContext("default-secret", "default", data);
 
   assert.assertEquals(secret.metadata.name, "default-secret");
   assert.assertEquals(secret.metadata.namespace, undefined);
 });
 
 Deno.test("buildSecretFromContext() should handle empty data", () => {
-  const secret = buildSecretFromContext("empty-secret", "test-ns", new Map());
+  const secret = sync.buildSecretFromContext(
+    "empty-secret",
+    "test-ns",
+    new Map(),
+  );
 
   assert.assertEquals(secret.kind, "Secret");
   assert.assertEquals(secret.metadata.name, "empty-secret");
   assert.assertEquals(Object.keys(secret.data ?? {}).length, 0);
 });
 
-Deno.test({
-  name: "sync() should handle empty kubectl response",
-  sanitizeResources: false,
-}, async () => {
-  try {
-    // We can't easily mock the import, so we test the expected behavior
-    const result = await sync({
-      resource: { type: "configmap", name: "empty-config" },
-    });
+Deno.test("buildConfigMapFromContext() and buildSecretFromContext() omit an empty namespace", () => {
+  const data = new Map([["TEST_VAR", "test-value"]]);
 
-    // Should handle empty result gracefully
-    assert.assertStringIncludes(result, "No data found");
-  } catch (error) {
-    // Expected if kubectl is not available in test environment
-    assert.assertStringIncludes(
-      (error as Error).message,
-      "kubectl",
-    );
-  }
+  const configMap = sync.buildConfigMapFromContext("empty-ns", "", data);
+  const secret = sync.buildSecretFromContext("empty-ns", "", data);
+
+  assert.assertEquals(configMap.metadata.namespace, undefined);
+  assert.assertEquals(secret.metadata.namespace, undefined);
 });
 
-Deno.test("sync() should generate kubectl patch command for configmap type", async () => {
-  const testEnv = setupTestEnv();
+Deno.test("sync() calls onMissingKey for a key the environment lacks and leaves it out of the patch", async () => {
+  const dir = await createEnvDir({ ".env": { [HOST_KEY]: "localhost" } });
+  const keys = fakeResourceKeys([HOST_KEY, MISSING_KEY]);
+  const missing: string[] = [];
 
   try {
-    // This test will fail in environments without kubectl, which is expected
-    // In a real test environment, we'd mock the kubectl execution
-    const result = await sync({
-      resource: {
-        type: "configmap",
-        name: "test-config",
-        namespace: "test-ns",
-      },
-    });
-
-    // This assertion will only run if kubectl is available
-    if (
-      !result.includes("No data found") && !result.includes("Failed to sync")
-    ) {
-      assert.assertStringIncludes(result, "kubectl patch cm test-config");
-      assert.assertStringIncludes(result, "-n test-ns");
-      assert.assertStringIncludes(result, "--type=merge");
-    }
-  } catch (error) {
-    // Expected behavior when kubectl is not available
-    assert.assertStringIncludes((error as Error).message, "kubectl");
-  } finally {
-    cleanupTestEnv(Object.keys(testEnv));
-  }
-});
-
-Deno.test("sync() should generate kubectl patch command for secret type", async () => {
-  const testEnv = setupTestEnv();
-
-  try {
-    const result = await sync({
-      resource: { type: "secret", name: "test-secret", namespace: "test-ns" },
-    });
-
-    // This assertion will only run if kubectl is available
-    if (
-      !result.includes("No data found") && !result.includes("Failed to sync")
-    ) {
-      assert.assertStringIncludes(result, "kubectl patch secret test-secret");
-      assert.assertStringIncludes(result, "-n test-ns");
-      assert.assertStringIncludes(result, "--type=merge");
-    }
-  } catch (error) {
-    // Expected behavior when kubectl is not available
-    assert.assertStringIncludes((error as Error).message, "kubectl");
-  } finally {
-    cleanupTestEnv(Object.keys(testEnv));
-  }
-});
-
-Deno.test("sync() should generate proper kubectl patch command format", async () => {
-  const testEnv = setupTestEnv();
-
-  try {
-    const result = await sync({
-      resource: { type: "configmap", name: "json-config" },
-    });
-
-    // This assertion will only run if kubectl is available and returns data
-    if (
-      !result.includes("No data found") && !result.includes("Failed to sync")
-    ) {
-      // Should contain proper kubectl patch format
-      assert.assertStringIncludes(result, "kubectl patch cm json-config");
-      assert.assertStringIncludes(result, "--type=merge");
-      assert.assertStringIncludes(result, '-p \'{"data":');
-    }
-  } catch (error) {
-    // Expected behavior when kubectl is not available
-    assert.assertStringIncludes((error as Error).message, "kubectl");
-  } finally {
-    cleanupTestEnv(Object.keys(testEnv));
-  }
-});
-
-Deno.test("sync() should support YAML format patch commands", async () => {
-  const testEnv = setupTestEnv();
-
-  try {
-    const result = await sync({
-      resource: { type: "configmap", name: "yaml-config" },
-      format: "yaml",
-    });
-
-    if (
-      !result.includes("No data found") && !result.includes("Failed to sync")
-    ) {
-      // Should contain YAML format
-      assert.assertStringIncludes(result, "kubectl patch cm yaml-config");
-      assert.assertStringIncludes(result, "--type=merge");
-      assert.assertStringIncludes(result, "data:");
-    }
-  } catch (error) {
-    assert.assertStringIncludes((error as Error).message, "kubectl");
-  } finally {
-    cleanupTestEnv(Object.keys(testEnv));
-  }
-});
-
-Deno.test("sync() should support string-only output", async () => {
-  const testEnv = setupTestEnv();
-
-  try {
-    const result = await sync({
-      resource: { type: "configmap", name: "string-only-config" },
+    const result = await sync.sync({
+      resource: { type: "configmap", name: "app-config" },
+      cwd: dir,
       stringOnly: true,
+      getResourceKeys: keys.lookup,
+      onMissingKey: (key) => missing.push(key),
     });
 
-    if (
-      !result.includes("No data found") && !result.includes("Failed to sync")
-    ) {
-      // Should only contain JSON patch data, no kubectl command
-      assert.assertStringIncludes(result, '{"data":');
-      assert.assert(!result.includes("kubectl"));
-    }
-  } catch (error) {
-    assert.assertStringIncludes((error as Error).message, "kubectl");
+    assert.assertEquals(missing, [MISSING_KEY]);
+    assert.assertEquals(JSON.parse(result), {
+      data: { [HOST_KEY]: "localhost" },
+    });
   } finally {
-    cleanupTestEnv(Object.keys(testEnv));
+    await runtime.fs.remove(dir, { recursive: true });
   }
 });
 
-// CLI parsing tests (testing the parseKubectlResource function indirectly)
-Deno.test("CLI should handle configmap resource format", () => {
-  // Test that our resource type mapping works correctly
-  const configMapType = "configmap";
-  assert.assertEquals(configMapType, "configmap");
+const patchCases = [
+  {
+    name: "sync() builds a kubectl patch command for a configmap",
+    resource: { type: "configmap", name: "app-config", namespace: "test-ns" },
+    format: undefined,
+    stringOnly: undefined,
+    expected:
+      `kubectl patch cm app-config -n test-ns --type=merge -p '{"data":{"${HOST_KEY}":"localhost","${PORT_KEY}":"5432"}}'`,
+  },
+  {
+    name: "sync() Base64-encodes the values of a secret patch",
+    resource: { type: "secret", name: "app-secret", namespace: "test-ns" },
+    format: undefined,
+    stringOnly: undefined,
+    expected:
+      `kubectl patch secret app-secret -n test-ns --type=merge -p '{"data":{"${HOST_KEY}":"${
+        btoa("localhost")
+      }","${PORT_KEY}":"${btoa("5432")}"}}'`,
+  },
+  {
+    name: "sync() leaves out -n when the resource has no namespace",
+    resource: { type: "configmap", name: "app-config" },
+    format: undefined,
+    stringOnly: true,
+    expected: `{"data":{"${HOST_KEY}":"localhost","${PORT_KEY}":"5432"}}`,
+  },
+  {
+    name: "sync() writes a YAML patch when format is yaml",
+    resource: { type: "configmap", name: "app-config" },
+    format: "yaml",
+    stringOnly: true,
+    expected: `data:\n  ${HOST_KEY}: localhost\n  ${PORT_KEY}: "5432"`,
+  },
+] as const;
 
-  const cmShortType = "cm";
-  // In the actual implementation, "cm" gets mapped to "configmap"
-  assert.assertEquals(
-    cmShortType === "cm" ? "configmap" : cmShortType,
-    "configmap",
-  );
+for (const testCase of patchCases) {
+  Deno.test(testCase.name, async () => {
+    const dir = await createEnvDir({
+      ".env": { [HOST_KEY]: "localhost", [PORT_KEY]: "5432" },
+    });
+
+    try {
+      const result = await sync.sync({
+        resource: testCase.resource,
+        cwd: dir,
+        format: testCase.format,
+        stringOnly: testCase.stringOnly,
+        getResourceKeys: fakeResourceKeys([HOST_KEY, PORT_KEY]).lookup,
+      });
+
+      assert.assertEquals(result, testCase.expected);
+    } finally {
+      await runtime.fs.remove(dir, { recursive: true });
+    }
+  });
+}
+
+Deno.test("sync() passes the resource reference to getResourceKeys", async () => {
+  const dir = await createEnvDir({ ".env": { [HOST_KEY]: "localhost" } });
+  const keys = fakeResourceKeys([HOST_KEY]);
+  const resource = {
+    type: "secret",
+    name: "app-secret",
+    namespace: "test-ns",
+  } as const;
+
+  try {
+    await sync.sync({ resource, cwd: dir, getResourceKeys: keys.lookup });
+
+    assert.assertEquals(keys.calls, [resource]);
+  } finally {
+    await runtime.fs.remove(dir, { recursive: true });
+  }
 });
 
-Deno.test("CLI should handle secret resource format", () => {
-  const secretType = "secret";
-  assert.assertEquals(secretType, "secret");
+Deno.test("sync() reads the .env file of the environment it is given", async () => {
+  const dir = await createEnvDir({
+    ".env": { [HOST_KEY]: "from-base" },
+    ".env.staging": { [HOST_KEY]: "from-staging" },
+  });
+
+  try {
+    const result = await sync.sync({
+      resource: { type: "configmap", name: "app-config" },
+      env: "staging",
+      cwd: dir,
+      stringOnly: true,
+      getResourceKeys: fakeResourceKeys([HOST_KEY]).lookup,
+    });
+
+    assert.assertEquals(JSON.parse(result), {
+      data: { [HOST_KEY]: "from-staging" },
+    });
+  } finally {
+    await runtime.fs.remove(dir, { recursive: true });
+  }
+});
+
+Deno.test("sync() quotes a single quote in a value for the shell", async () => {
+  const dir = await createEnvDir({ ".env": { [HOST_KEY]: "it's" } });
+
+  try {
+    const result = await sync.sync({
+      resource: { type: "configmap", name: "app-config" },
+      cwd: dir,
+      getResourceKeys: fakeResourceKeys([HOST_KEY]).lookup,
+    });
+
+    assert.assertEquals(
+      result,
+      `kubectl patch cm app-config --type=merge -p '{"data":{"${HOST_KEY}":"it'"'"'s"}}'`,
+    );
+  } finally {
+    await runtime.fs.remove(dir, { recursive: true });
+  }
+});
+
+Deno.test("sync() reports a resource with no data keys", async () => {
+  const result = await sync.sync({
+    resource: { type: "configmap", name: "empty-config" },
+    getResourceKeys: fakeResourceKeys([]).lookup,
+  });
+
+  assert.assertEquals(result, "# No data found in configmap/empty-config");
+});
+
+Deno.test("sync() reports a resource whose keys are all missing from the environment", async () => {
+  const dir = await createEnvDir({ ".env": { [HOST_KEY]: "localhost" } });
+  const missing: string[] = [];
+
+  try {
+    const result = await sync.sync({
+      resource: { type: "secret", name: "app-secret" },
+      cwd: dir,
+      getResourceKeys: fakeResourceKeys([MISSING_KEY]).lookup,
+      onMissingKey: (key) => missing.push(key),
+    });
+
+    assert.assertEquals(
+      result,
+      "# No matching environment variables found for secret/app-secret",
+    );
+    assert.assertEquals(missing, [MISSING_KEY]);
+  } finally {
+    await runtime.fs.remove(dir, { recursive: true });
+  }
+});
+
+Deno.test("sync() wraps a failed key lookup and keeps it as the cause", async () => {
+  const lookupError = new Error("connection refused");
+
+  const error = await assert.assertRejects(
+    () =>
+      sync.sync({
+        resource: { type: "configmap", name: "app-config" },
+        getResourceKeys: () => Promise.reject(lookupError),
+      }),
+    Error,
+    "Failed to sync with kubectl: connection refused",
+  );
+
+  assert.assertStrictEquals(error.cause, lookupError);
+});
+
+Deno.test("syncApply() returns the patch command for the injected keys", async () => {
+  const dir = await createEnvDir({ ".env": { [HOST_KEY]: "localhost" } });
+
+  try {
+    const result = await sync.syncApply({
+      resource: { type: "configmap", name: "app-config", namespace: "test-ns" },
+      cwd: dir,
+      getResourceKeys: fakeResourceKeys([HOST_KEY]).lookup,
+    });
+
+    assert.assertEquals(
+      result,
+      `kubectl patch cm app-config -n test-ns --type=merge -p '{"data":{"${HOST_KEY}":"localhost"}}'`,
+    );
+  } finally {
+    await runtime.fs.remove(dir, { recursive: true });
+  }
+});
+
+Deno.test("executeKubectl() rejects an invalid name before it runs kubectl", async () => {
+  await assert.assertRejects(
+    () => sync.executeKubectl({ type: "configmap", name: "bad;name" }),
+    sync.KubernetesResourceNameError,
+  );
 });
 
 // Test integration with @eserstack/formats for YAML/JSON output
@@ -311,7 +386,7 @@ Deno.test({
   name: "ConfigMap YAML output should be properly formatted",
   sanitizeResources: false,
 }, async () => {
-  const configMap = buildConfigMapFromContext(
+  const configMap = sync.buildConfigMapFromContext(
     "format-test",
     "test-ns",
     new Map([
@@ -333,7 +408,7 @@ Deno.test({
 });
 
 Deno.test("Secret YAML output should be properly formatted", async () => {
-  const secret = buildSecretFromContext(
+  const secret = sync.buildSecretFromContext(
     "secret-format-test",
     "test-ns",
     new Map([
@@ -357,7 +432,7 @@ Deno.test("Secret YAML output should be properly formatted", async () => {
 });
 
 Deno.test("JSON output should be valid JSON", async () => {
-  const configMap = buildConfigMapFromContext(
+  const configMap = sync.buildConfigMapFromContext(
     "json-format-test",
     "test-ns",
     new Map([
@@ -378,77 +453,50 @@ Deno.test("JSON output should be valid JSON", async () => {
   assert.assertEquals(parsed[0].data["CONFIG_KEY"], "config-value");
 });
 
-// Error handling tests
-Deno.test("sync() should handle kubectl command failures", async () => {
-  // This tests error handling when kubectl command fails
-  try {
-    const result = await sync({
-      resource: { type: "configmap", name: "nonexistent-resource" },
-    });
-
-    // Should either return a "No data found" message or throw an error
-    if (
-      !result.includes("No data found") && !result.includes("Failed to sync")
-    ) {
-      // If it doesn't contain expected messages, kubectl was not available
-      assert.assertStringIncludes(result, "ConfigMap");
-    }
-  } catch (error) {
-    // Expected behavior when kubectl fails
-    assert.assertStringIncludes((error as Error).message, "kubectl");
-  }
-});
-
 // Test that demonstrates the full workflow
 Deno.test("Full workflow test with mock data", async () => {
-  const testEnv = setupTestEnv();
+  // Simulate environment values for the test
+  const envValues = new Map([
+    ["DD_SITE", "datadoghq.com"],
+    ["DD_API_KEY", "test-api-key"],
+    ["DB_HOST", "localhost"],
+  ]);
 
-  try {
-    // Simulate environment values for the test
-    const envValues = new Map([
-      ["DD_SITE", "datadoghq.com"],
-      ["DD_API_KEY", "test-api-key"],
-      ["DB_HOST", "localhost"],
-    ]);
+  // Build ConfigMap
+  const configMap = sync.buildConfigMapFromContext(
+    "workflow-test",
+    "test-ns",
+    envValues,
+  );
 
-    // Build ConfigMap
-    const configMap = buildConfigMapFromContext(
-      "workflow-test",
-      "test-ns",
-      envValues,
-    );
+  // Generate YAML output
+  const yamlOutput = await formats.serialize([configMap], "yaml", {
+    pretty: true,
+  });
 
-    // Generate YAML output
-    const yamlOutput = await formats.serialize([configMap], "yaml", {
-      pretty: true,
-    });
+  // Verify the complete workflow
+  assert.assertStringIncludes(yamlOutput, "kind: ConfigMap");
+  assert.assertStringIncludes(yamlOutput, "name: workflow-test");
+  assert.assertStringIncludes(yamlOutput, "DD_SITE: datadoghq.com");
+  assert.assertStringIncludes(yamlOutput, "DD_API_KEY: test-api-key");
+  assert.assertStringIncludes(yamlOutput, "DB_HOST: localhost");
 
-    // Verify the complete workflow
-    assert.assertStringIncludes(yamlOutput, "kind: ConfigMap");
-    assert.assertStringIncludes(yamlOutput, "name: workflow-test");
-    assert.assertStringIncludes(yamlOutput, "DD_SITE: datadoghq.com");
-    assert.assertStringIncludes(yamlOutput, "DD_API_KEY: test-api-key");
-    assert.assertStringIncludes(yamlOutput, "DB_HOST: localhost");
+  // Test Secret workflow
+  const secret = sync.buildSecretFromContext(
+    "workflow-secret",
+    "test-ns",
+    envValues,
+  );
+  const secretYaml = await formats.serialize([secret], "yaml", {
+    pretty: true,
+  });
 
-    // Test Secret workflow
-    const secret = buildSecretFromContext(
-      "workflow-secret",
-      "test-ns",
-      envValues,
-    );
-    const secretYaml = await formats.serialize([secret], "yaml", {
-      pretty: true,
-    });
-
-    assert.assertStringIncludes(secretYaml, "kind: Secret");
-    assert.assertStringIncludes(secretYaml, "name: workflow-secret");
-    assert.assertStringIncludes(secretYaml, "type: Opaque");
-    // Verify base64 encoding
-    assert.assertStringIncludes(secretYaml, btoa("datadoghq.com"));
-    assert.assertStringIncludes(secretYaml, btoa("test-api-key"));
-  } finally {
-    cleanupTestEnv(Object.keys(testEnv));
-  }
+  assert.assertStringIncludes(secretYaml, "kind: Secret");
+  assert.assertStringIncludes(secretYaml, "name: workflow-secret");
+  assert.assertStringIncludes(secretYaml, "type: Opaque");
+  // Verify base64 encoding
+  assert.assertStringIncludes(secretYaml, btoa("datadoghq.com"));
+  assert.assertStringIncludes(secretYaml, btoa("test-api-key"));
 });
 
 // ============================================================================
@@ -471,14 +519,14 @@ Deno.test("validateKubernetesResourceName() should accept valid names", () => {
 
   for (const name of validNames) {
     // Should not throw
-    validateKubernetesResourceName(name);
+    sync.validateKubernetesResourceName(name);
   }
 });
 
 Deno.test("validateKubernetesResourceName() should reject empty names", () => {
   assert.assertThrows(
-    () => validateKubernetesResourceName(""),
-    KubernetesResourceNameError,
+    () => sync.validateKubernetesResourceName(""),
+    sync.KubernetesResourceNameError,
     "cannot be empty",
   );
 });
@@ -486,16 +534,16 @@ Deno.test("validateKubernetesResourceName() should reject empty names", () => {
 Deno.test("validateKubernetesResourceName() should reject names exceeding 253 characters", () => {
   const longName = "a".repeat(254);
   assert.assertThrows(
-    () => validateKubernetesResourceName(longName),
-    KubernetesResourceNameError,
+    () => sync.validateKubernetesResourceName(longName),
+    sync.KubernetesResourceNameError,
     "253 characters or less",
   );
 });
 
 Deno.test("validateKubernetesResourceName() should reject names with uppercase letters", () => {
   assert.assertThrows(
-    () => validateKubernetesResourceName("MyApp"),
-    KubernetesResourceNameError,
+    () => sync.validateKubernetesResourceName("MyApp"),
+    sync.KubernetesResourceNameError,
     "lowercase alphanumeric",
   );
 });
@@ -504,8 +552,8 @@ Deno.test("validateKubernetesResourceName() should reject names starting with no
   const invalidStarts = ["-app", ".app", "_app"];
   for (const name of invalidStarts) {
     assert.assertThrows(
-      () => validateKubernetesResourceName(name),
-      KubernetesResourceNameError,
+      () => sync.validateKubernetesResourceName(name),
+      sync.KubernetesResourceNameError,
     );
   }
 });
@@ -514,8 +562,8 @@ Deno.test("validateKubernetesResourceName() should reject names ending with non-
   const invalidEnds = ["app-", "app.", "app_"];
   for (const name of invalidEnds) {
     assert.assertThrows(
-      () => validateKubernetesResourceName(name),
-      KubernetesResourceNameError,
+      () => sync.validateKubernetesResourceName(name),
+      sync.KubernetesResourceNameError,
     );
   }
 });
@@ -540,29 +588,29 @@ Deno.test("validateKubernetesResourceName() should reject names with shell metac
 
   for (const name of dangerousNames) {
     assert.assertThrows(
-      () => validateKubernetesResourceName(name),
-      KubernetesResourceNameError,
+      () => sync.validateKubernetesResourceName(name),
+      sync.KubernetesResourceNameError,
     );
   }
 });
 
 Deno.test("validateKubernetesResourceName() should reject names with consecutive dots or dashes", () => {
   assert.assertThrows(
-    () => validateKubernetesResourceName("app..name"),
-    KubernetesResourceNameError,
+    () => sync.validateKubernetesResourceName("app..name"),
+    sync.KubernetesResourceNameError,
     "consecutive dots or dashes",
   );
 
   assert.assertThrows(
-    () => validateKubernetesResourceName("app--name"),
-    KubernetesResourceNameError,
+    () => sync.validateKubernetesResourceName("app--name"),
+    sync.KubernetesResourceNameError,
     "consecutive dots or dashes",
   );
 });
 
 Deno.test("validateKubernetesResourceName() should use custom field name in error messages", () => {
   try {
-    validateKubernetesResourceName("", "namespace");
+    sync.validateKubernetesResourceName("", "namespace");
     assert.assert(false, "Should have thrown");
   } catch (error) {
     assert.assertStringIncludes((error as Error).message, "namespace");
@@ -571,14 +619,14 @@ Deno.test("validateKubernetesResourceName() should use custom field name in erro
 
 Deno.test("validateResourceReference() should validate both name and namespace", () => {
   // Valid reference
-  validateResourceReference({
+  sync.validateResourceReference({
     type: "configmap",
     name: "my-config",
     namespace: "my-namespace",
   });
 
   // Valid reference without namespace
-  validateResourceReference({
+  sync.validateResourceReference({
     type: "secret",
     name: "my-secret",
   });
@@ -587,47 +635,55 @@ Deno.test("validateResourceReference() should validate both name and namespace",
 Deno.test("validateResourceReference() should reject invalid resource names", () => {
   assert.assertThrows(
     () =>
-      validateResourceReference({
+      sync.validateResourceReference({
         type: "configmap",
         name: "Invalid-Name",
         namespace: "default",
       }),
-    KubernetesResourceNameError,
+    sync.KubernetesResourceNameError,
   );
 });
 
 Deno.test("validateResourceReference() should reject invalid namespace", () => {
   assert.assertThrows(
     () =>
-      validateResourceReference({
+      sync.validateResourceReference({
         type: "configmap",
         name: "my-config",
         namespace: "Invalid-Namespace",
       }),
-    KubernetesResourceNameError,
+    sync.KubernetesResourceNameError,
   );
 });
 
-Deno.test("sync() should reject invalid resource names", async () => {
+Deno.test("sync() should reject invalid resource names before the key lookup", async () => {
+  const keys = fakeResourceKeys([HOST_KEY]);
+
   await assert.assertRejects(
     () =>
-      sync({
+      sync.sync({
         resource: { type: "configmap", name: "invalid;name" },
+        getResourceKeys: keys.lookup,
       }),
-    KubernetesResourceNameError,
+    sync.KubernetesResourceNameError,
   );
+  assert.assertEquals(keys.calls, []);
 });
 
-Deno.test("sync() should reject invalid namespace", async () => {
+Deno.test("sync() should reject invalid namespace before the key lookup", async () => {
+  const keys = fakeResourceKeys([HOST_KEY]);
+
   await assert.assertRejects(
     () =>
-      sync({
+      sync.sync({
         resource: {
           type: "configmap",
           name: "valid-name",
           namespace: "invalid|namespace",
         },
+        getResourceKeys: keys.lookup,
       }),
-    KubernetesResourceNameError,
+    sync.KubernetesResourceNameError,
   );
+  assert.assertEquals(keys.calls, []);
 });

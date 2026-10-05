@@ -4,7 +4,7 @@ go 1.26.0
 
 // Pinned so CI (go-version-file: go.mod) and every developer build with the
 // same patch release instead of whatever "stable" resolves to that day.
-toolchain go1.26.5
+toolchain go1.26.6
 
 tool (
 	github.com/golangci/golangci-lint/v2/cmd/golangci-lint

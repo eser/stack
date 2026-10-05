@@ -8,22 +8,30 @@
  *
  * @example
  * ```typescript
- * import { matchRoute, findMatchingRoute, normalizePath } from "@eserstack/standards/routes";
+ * import * as standards from "@eserstack/standards";
  *
  * // Match a single route
- * const params = matchRoute("/stories/hello", "/stories/[slug]");
+ * const params = standards.routes.matchRoute("/stories/hello", "/stories/[slug]");
  * // { slug: "hello" }
+ *
+ * // Params come back percent-decoded
+ * standards.routes.matchRoute("/stories/hello%20world", "/stories/[slug]");
+ * // { slug: "hello world" }
+ *
+ * // A catch-all matches its bare prefix with no segments
+ * standards.routes.matchRoute("/docs", "/docs/[...path]");
+ * // { path: [] }
  *
  * // Match against multiple routes
  * const routes = [
  *   { path: "/stories/featured", data: "featured" },
  *   { path: "/stories/[slug]", data: "story" },
  * ];
- * const result = findMatchingRoute("/stories/hello", routes);
+ * const result = standards.routes.findMatchingRoute("/stories/hello", routes);
  * // { route: { path: "/stories/[slug]", data: "story" }, params: { slug: "hello" } }
  *
  * // Normalize paths
- * normalizePath("stories/hello/"); // "/stories/hello"
+ * standards.routes.normalizePath("stories/hello/"); // "/stories/hello"
  * ```
  *
  * @module

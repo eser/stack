@@ -91,7 +91,10 @@ export const PARSING_INVALID_PATTERN = "PARSING_INVALID_PATTERN";
 
 1. **TypeScript lexer/parser** (`lexer/`, `parser.ts`): state-machine tokenizer
    and combinator parser. Pure TS, no Go equivalent needed for this API shape.
-   Not replaced.
+   Not replaced. `Tokenizer` never calls Go: it once did whenever another
+   package had loaded the library, and then returned Go's token kinds
+   (`identifier`, `integer`) instead of `T_ALPHANUMERIC` and `T_NUMERIC`, read
+   string patterns as regular expressions, and left out `T_END`.
 2. **FFI tokenizer** (`adapters/ffi/loader.ts`): `ffiLoader` exposes Go's
    `parsingfx.Tokenize` which uses regex-based tokenization. Different API shape
    — `FfiToken[]` with `{kind, value, offset, length}`.

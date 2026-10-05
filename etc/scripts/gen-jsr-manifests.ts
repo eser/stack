@@ -37,6 +37,9 @@
  * @module
  */
 
+// The summary and the drift report it prints are the command's output.
+// deno-lint-ignore-file no-console
+
 // This script deliberately uses no imports and no cross-runtime helpers.
 //
 // It runs BEFORE the package graph it generates manifests for, from etc/scripts/
@@ -143,62 +146,89 @@ const listPackageDirs = async (): Promise<string[]> => {
   return dirs.sort();
 };
 
+type Mode = "write" | "check" | "clean";
+
+/** What happened to one package's manifest. */
+type Outcome =
+  | "unpublishable"
+  | "written"
+  | "removed"
+  | "unchanged"
+  | "drifted";
+
+/** Write, check or remove one package's manifest, depending on the mode. */
+const syncPackage = async (
+  dir: string,
+  version: string,
+  mode: Mode,
+): Promise<Outcome> => {
+  const target = join(dir, "deno.json");
+  const manifest = await buildManifest(dir, version);
+
+  if (manifest === null) {
+    // A stale manifest for a now-unpublishable package is still drift.
+    if (mode === "clean" && (await exists(target))) {
+      await Deno.remove(target);
+    }
+
+    return "unpublishable";
+  }
+
+  if (mode === "clean") {
+    if (await exists(target)) {
+      await Deno.remove(target);
+
+      return "removed";
+    }
+
+    return "unchanged";
+  }
+
+  const expected = serialize(manifest);
+
+  if (mode === "check") {
+    const actual = (await exists(target))
+      ? await Deno.readTextFile(target)
+      : "";
+
+    return actual === expected ? "unchanged" : "drifted";
+  }
+
+  await Deno.writeTextFile(target, expected);
+
+  return "written";
+};
+
 const main = async (): Promise<void> => {
   const args = Deno.args;
-  const check = args.includes("--check");
-  const clean = args.includes("--clean");
+  const mode: Mode = args.includes("--clean")
+    ? "clean"
+    : args.includes("--check")
+    ? "check"
+    : "write";
 
   const version = (await Deno.readTextFile(join(REPO_ROOT, "VERSION"))).trim();
 
   const dirs = await listPackageDirs();
 
-  let written = 0;
-  let skipped = 0;
-  const drifted: string[] = [];
+  // Each package touches only its own directory, so they sync concurrently;
+  // the results keep the sorted directory order.
+  const outcomes = await Promise.all(
+    dirs.map(async (dir) => ({
+      dir,
+      outcome: await syncPackage(dir, version, mode),
+    })),
+  );
 
-  for (const dir of dirs) {
-    const target = join(dir, "deno.json");
-    const manifest = await buildManifest(dir, version);
+  const skipped = outcomes.filter((o) => o.outcome === "unpublishable").length;
+  const written =
+    outcomes.filter((o) => o.outcome === "written" || o.outcome === "removed")
+      .length;
+  const drifted = outcomes
+    .filter((o) => o.outcome === "drifted")
+    .map((o) => join(o.dir, "deno.json"));
 
-    if (manifest === null) {
-      skipped++;
-
-      // A stale manifest for a now-unpublishable package is still drift.
-      if (clean && (await exists(target))) {
-        await Deno.remove(target);
-      }
-
-      continue;
-    }
-
-    const expected = serialize(manifest);
-
-    if (clean) {
-      if (await exists(target)) {
-        await Deno.remove(target);
-        written++;
-      }
-
-      continue;
-    }
-
-    if (check) {
-      const actual = (await exists(target))
-        ? await Deno.readTextFile(target)
-        : "";
-
-      if (actual !== expected) {
-        drifted.push(target);
-      }
-
-      continue;
-    }
-
-    await Deno.writeTextFile(target, expected);
-    written++;
-  }
-
-  if (check) {
+  if (mode === "check") {
     if (drifted.length > 0) {
       console.error(
         `JSR manifests are stale (${drifted.length}):\n` +
@@ -219,10 +249,12 @@ const main = async (): Promise<void> => {
     return;
   }
 
-  const verb = clean ? "Removed" : "Generated";
+  const verb = mode === "clean" ? "Removed" : "Generated";
   console.log(
     `${verb} ${written} JSR manifest(s) at v${version} (${skipped} package(s) not publishable).`,
   );
 };
 
+// Script entry point: CI and the manifest's workflows run the file directly.
+// deno-lint-ignore no-top-level-await
 await main();

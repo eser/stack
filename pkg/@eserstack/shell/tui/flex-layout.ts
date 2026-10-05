@@ -12,7 +12,7 @@
  * @module
  */
 
-import * as layoutTypes from "./layout-types.ts";
+import type * as layoutTypes from "./layout-types.ts";
 
 // ---------------------------------------------------------------------------
 // Defaults

@@ -2,6 +2,7 @@ package aifx
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"slices"
@@ -109,13 +110,20 @@ type ACPModel struct {
 }
 
 func (m *ACPModel) GetCapabilities() []ProviderCapability {
-	return []ProviderCapability{
+	capabilities := []ProviderCapability{
 		CapabilityTextGeneration,
 		CapabilityStreaming,
-		// Tool calling is genuine here where it was not before: an ACP agent
-		// streams tool_call updates, and the claude-code backend maps them.
-		CapabilityToolCalling,
 	}
+
+	// An ACP agent streams tool_call updates, but only the claude-code shim
+	// maps the CLI's tool calls to them; the kiro and opencode shims report
+	// text, done and error only. Only the claude CLI takes a response schema
+	// (--json-schema).
+	if m.backend == claudeCodeProviderName {
+		capabilities = append(capabilities, CapabilityToolCalling, CapabilityStructuredOut)
+	}
+
+	return capabilities
 }
 
 func (m *ACPModel) GetProvider() string { return m.config.Provider }
@@ -153,12 +161,35 @@ func (m *ACPModel) vendorArgs() []string {
 const acpShimVersion = "1"
 
 // backendImpl builds the vendor backend this model drives, from the backend
-// name, the vendor command and the vendor args.
-func (m *ACPModel) backendImpl() (shim.Backend, error) { //nolint:ireturn
+// name, the vendor command, the vendor args and the request's effort level and
+// response format.
+//
+// The claude CLI takes the level as --effort, with the same five levels as
+// Effort, and a json_schema response format's schema as --json-schema. kiro and
+// opencode get neither flag, so they ignore both.
+func (m *ACPModel) backendImpl(opts *GenerateTextOptions) (shim.Backend, error) { //nolint:ireturn
 	args := m.vendorArgs()
 
 	switch m.backend {
 	case claudeCodeProviderName:
+		err := checkEffort(opts.Effort)
+		if err != nil {
+			return nil, fmt.Errorf("%w: %w", ErrACPFailed, err)
+		}
+
+		if opts.Effort != EffortDefault {
+			args = append(args, "--effort", string(opts.Effort))
+		}
+
+		schema, err := claudeJSONSchema(opts.ResponseFormat)
+		if err != nil {
+			return nil, fmt.Errorf("%w: %w", ErrACPFailed, err)
+		}
+
+		if schema != "" {
+			args = append(args, "--json-schema", schema)
+		}
+
 		return &shim.ClaudeCode{Command: m.command, ExtraArgs: args}, nil
 	case kiroProviderName:
 		return &shim.Kiro{Command: m.command, ExtraArgs: args}, nil //nolint:exhaustruct
@@ -167,6 +198,34 @@ func (m *ACPModel) backendImpl() (shim.Backend, error) { //nolint:ireturn
 	default:
 		return nil, fmt.Errorf("%w: unknown backend %q", ErrACPFailed, m.backend)
 	}
+}
+
+// claudeJSONSchema returns the schema of a json_schema response format as the
+// claude CLI's --json-schema value, or "" when there is none to send. The CLI
+// has no JSON mode without a schema, so json_object and text send nothing, as
+// on the anthropic provider. A missing or non-object schema fails before the
+// CLI is started.
+func claudeJSONSchema(format *ResponseFormat) (string, error) {
+	if format == nil || format.Type != "json_schema" {
+		return "", nil
+	}
+
+	_, err := decodeResponseSchema(format.JSONSchema)
+	if err != nil {
+		return "", err
+	}
+
+	// The schema decoded, so it is valid JSON. The CLI parses the argument
+	// itself, and the arguments reach it without a shell.
+	return string(format.JSONSchema), nil
+}
+
+// usesStructuredOutput reports whether the turn's reply comes from the claude
+// CLI's StructuredOutput tool, which it calls when given --json-schema.
+func (m *ACPModel) usesStructuredOutput(opts *GenerateTextOptions) bool {
+	return m.backend == claudeCodeProviderName &&
+		opts.ResponseFormat != nil &&
+		opts.ResponseFormat.Type == "json_schema"
 }
 
 // stringSliceProperty reads a list-of-strings config property.
@@ -277,6 +336,13 @@ func (m *ACPModel) runTurn(
 	opts *GenerateTextOptions,
 	sink acpSink,
 ) (StopReason, error) {
+	var structured *acpStructuredSink
+
+	if m.usesStructuredOutput(opts) {
+		structured = &acpStructuredSink{next: sink} //nolint:exhaustruct
+		sink = structured
+	}
+
 	handler := &acpClientHandler{sink: sink}
 
 	// The shim runs in this process, not as a subprocess.
@@ -285,7 +351,7 @@ func (m *ACPModel) runTurn(
 	// spawning it would mean serialising JSON down a pipe to reach a struct
 	// already in memory. acpfx.Spawn remains the entry point for agents that
 	// genuinely are other programs.
-	backend, err := m.backendImpl()
+	backend, err := m.backendImpl(opts)
 	if err != nil {
 		return "", err
 	}
@@ -317,6 +383,10 @@ func (m *ACPModel) runTurn(
 		return "", fmt.Errorf("%w: %w", ErrACPFailed, err)
 	}
 
+	if structured != nil {
+		structured.finish()
+	}
+
 	return mapACPStopReason(resp.StopReason), nil
 }
 
@@ -335,17 +405,18 @@ func (m *ACPModel) workingDirectory() string {
 
 // mapACPStopReason translates ACP's stop reasons to aifx's.
 //
-// refusal and cancelled have no aifx analogue, so they map to the nearest true
-// statement rather than being invented: both mean the turn stopped early.
+// max_turn_requests and cancelled have no aifx analogue, so they map to the
+// nearest true statement rather than being invented: both mean the turn
+// stopped early.
 func mapACPStopReason(reason acpfx.StopReason) StopReason {
 	switch reason {
 	case acpfx.StopReasonEndTurn:
 		return StopReasonEndTurn
 	case acpfx.StopReasonMaxTokens:
 		return StopReasonMaxTokens
-	case acpfx.StopReasonMaxTurnRequests:
-		return StopReasonEndTurn
-	case acpfx.StopReasonRefusal, acpfx.StopReasonCancelled:
+	case acpfx.StopReasonRefusal:
+		return StopReasonRefusal
+	case acpfx.StopReasonMaxTurnRequests, acpfx.StopReasonCancelled:
 		return StopReasonEndTurn
 	default:
 		return StopReasonEndTurn
@@ -437,6 +508,61 @@ func (c *acpCollector) content() []ContentBlock {
 	return blocks
 }
 
+// claudeStructuredOutputTool is the tool the claude CLI calls to return the
+// reply of a --json-schema request. The tool's input is the reply.
+const claudeStructuredOutputTool = "StructuredOutput"
+
+// acpStructuredSink turns the reply of a --json-schema turn into its text.
+//
+// The claude CLI returns the reply as the input of its StructuredOutput tool
+// call, and calls the tool again when a reply fails the schema, so the last
+// call wins. Prose around the call is not part of the reply. It is passed on
+// only when no call came, as when the model declined, so the caller still
+// sees why there is no reply.
+type acpStructuredSink struct {
+	next  acpSink
+	mu    sync.Mutex
+	prose strings.Builder
+	reply json.RawMessage
+}
+
+func (s *acpStructuredSink) text(delta string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.prose.WriteString(delta)
+}
+
+func (s *acpStructuredSink) toolCall(call *ToolCall) {
+	if call.Name != claudeStructuredOutputTool {
+		s.next.toolCall(call)
+
+		return
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.reply = call.Arguments
+}
+
+// finish passes the reply, or the prose when no reply came, to the next sink.
+// It runs once, after the turn has ended.
+func (s *acpStructuredSink) finish() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if len(s.reply) > 0 {
+		s.next.text(string(s.reply))
+
+		return
+	}
+
+	if s.prose.Len() > 0 {
+		s.next.text(s.prose.String())
+	}
+}
+
 // acpEmitter forwards updates to a stream as they arrive.
 type acpEmitter struct {
 	ctx    context.Context //nolint:containedctx
@@ -458,4 +584,5 @@ var (
 	_ acpfx.ClientHandler = (*acpClientHandler)(nil)
 	_ acpSink             = (*acpCollector)(nil)
 	_ acpSink             = (*acpEmitter)(nil)
+	_ acpSink             = (*acpStructuredSink)(nil)
 )

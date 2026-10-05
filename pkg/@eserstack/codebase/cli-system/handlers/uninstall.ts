@@ -11,9 +11,9 @@ import * as streams from "@eserstack/streams";
 import * as standardsCrossRuntime from "@eserstack/standards/cross-runtime";
 import type { CliApp } from "../app.ts";
 import * as results from "@eserstack/primitives/results";
-import * as shellArgs from "@eserstack/shell/args";
+import type * as shellArgs from "@eserstack/shell/args";
 import * as shellExec from "@eserstack/shell/exec";
-import { detectShell, removeCompletions } from "./completions-setup.ts";
+import * as completionsSetup from "./completions-setup.ts";
 
 type UninstallConfig = {
   readonly cmd: string;
@@ -63,13 +63,13 @@ export const uninstallHandler = async (
   const { cmd, args } = config;
 
   // Remove shell completions first
-  const shell = detectShell();
+  const shell = completionsSetup.detectShell();
   out.writeln(
     span.text("\nRemoving "),
     span.cyan(shell),
     span.text(" completions..."),
   );
-  await removeCompletions(shell, app.command);
+  await completionsSetup.removeCompletions(shell, app.command);
 
   out.writeln(span.dim(`\nRunning: ${cmd} ${args.join(" ")}`));
   out.writeln();

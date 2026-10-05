@@ -18,21 +18,19 @@
       "id": "documentation-updates",
       "title": "Documentation Updates",
       "placeholder": "_Name every documentation file that changes as a result of this work. For each: what sections are added, changed, or removed? The diff in code must have a diff in docs._",
-      "condition": null,
       "position": "after:acceptance-criteria"
     },
     {
       "id": "api-documentation",
       "title": "API Documentation",
       "placeholder": "_For every public API surface changed: updated function signatures, parameter descriptions, return types, and runnable code examples. Before/after examples for breaking changes._",
-      "condition": null,
+      "scope": ["api"],
       "position": "after:acceptance-criteria"
     },
     {
       "id": "user-guide-changes",
       "title": "User Guide Changes",
       "placeholder": "_What does the user-facing guide say about this feature? Which getting-started steps change? Is the README accurate for install, config, and first-run after this change?_",
-      "condition": null,
       "position": "after:acceptance-criteria"
     }
   ],
@@ -41,7 +39,10 @@
     "CHANGELOG is documentation: every user-visible change must appear in CHANGELOG.md with the version, a one-line description, and a link to the relevant issue or PR.",
     "README accuracy: if you changed how the project is installed, configured, or run, update the README. Stale README instructions are a DX failure.",
     "Inline code comments explain WHY, not WHAT: the code explains what. Comments explain why a non-obvious choice was made. If you wrote something unusual, leave a comment that future-you will thank you for.",
-    "Migration guides for breaking changes: if any existing user would need to change their code to upgrade, write a before/after example. 'See CHANGELOG' is not a migration guide.",
+    {
+      "text": "Migration guides for breaking changes: if any existing user would need to change their code to upgrade, write a before/after example. 'See CHANGELOG' is not a migration guide.",
+      "scope": ["migration"]
+    },
     "API reference sync: if the project has generated or maintained API reference documentation, verify it reflects the new state after this change."
   ],
   "acceptanceCriteria": [

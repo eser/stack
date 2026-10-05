@@ -184,6 +184,51 @@ func TestStreamIterator_Collect(t *testing.T) {
 	}
 }
 
+// TestStreamIterator_Collect_ThinkingFirst pins the block order of a collected
+// stream: Anthropic rejects a replayed assistant turn whose tool calls are not
+// preceded by their thinking, whatever order the events arrived in.
+func TestStreamIterator_Collect_ThinkingFirst(t *testing.T) {
+	t.Parallel()
+
+	thinking := &aifx.ThinkingPart{Text: "plan", Signature: "sig-1", RedactedData: ""}
+
+	ch := make(chan aifx.StreamEvent, 4)
+	ch <- aifx.StreamEvent{Type: aifx.StreamEventContentDelta, TextDelta: "Looking."}
+	ch <- aifx.StreamEvent{Type: aifx.StreamEventToolCallDelta, ToolCall: &aifx.ToolCall{ID: "tc-1", Name: "fetch"}}
+	ch <- aifx.StreamEvent{Type: aifx.StreamEventThinking, Thinking: thinking}
+	ch <- aifx.StreamEvent{Type: aifx.StreamEventMessageDone, StopReason: aifx.StopReasonToolUse}
+	close(ch)
+
+	result, err := aifx.NewStreamIterator(ch, func() {}).Collect()
+	if err != nil {
+		t.Fatalf("Collect() error: %v", err)
+	}
+
+	want := []aifx.ContentBlockType{
+		aifx.ContentBlockThinking,
+		aifx.ContentBlockText,
+		aifx.ContentBlockToolCall,
+	}
+
+	if len(result.Content) != len(want) {
+		t.Fatalf("got %d blocks, want %d: %+v", len(result.Content), len(want), result.Content)
+	}
+
+	for i, blockType := range want {
+		if result.Content[i].Type != blockType {
+			t.Errorf("block %d type = %q, want %q", i, result.Content[i].Type, blockType)
+		}
+	}
+
+	if got := result.Content[0].Thinking; got == nil || *got != *thinking {
+		t.Errorf("thinking = %+v, want %+v", got, thinking)
+	}
+
+	if result.Text() != "Looking." {
+		t.Errorf("Text() = %q, want only the answer text", result.Text())
+	}
+}
+
 func TestStreamIterator_Collect_Error(t *testing.T) {
 	t.Parallel()
 

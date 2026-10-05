@@ -7,7 +7,9 @@
  */
 
 import * as standards from "@eserstack/standards";
-import { createFileTool, type FileTool, withGoValidator } from "./file-tool.ts";
+import * as cliSupport from "./cli-support.ts";
+import * as fileTool from "./file-tool.ts";
+import type { FileTool } from "./file-tool.ts";
 
 const CONFLICT_PATTERNS = [
   /^<{7}\s/,
@@ -15,8 +17,8 @@ const CONFLICT_PATTERNS = [
   /^>{7}\s/,
 ];
 
-export const tool: FileTool = withGoValidator(
-  createFileTool({
+export const tool: FileTool = fileTool.withGoValidator(
+  fileTool.createFileTool({
     name: "validate-merge-conflict",
     description: "Detect merge conflict markers",
     canFix: false,
@@ -55,8 +57,10 @@ export const validator: FileTool["validator"] = tool.validator;
 export const main: FileTool["main"] = tool.main;
 
 if (import.meta.main) {
-  const { runCliMain } = await import("./cli-support.ts");
-  runCliMain(
-    await main(standards.crossRuntime.runtime.process.args as string[]),
+  // Entry point: the await only runs when this file is executed directly.
+  // deno-lint-ignore no-top-level-await
+  const result = await main(
+    standards.crossRuntime.runtime.process.args as string[],
   );
+  cliSupport.runCliMain(result);
 }

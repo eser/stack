@@ -6,7 +6,7 @@
 
 "use client";
 
-import { useEffect, useState } from "react";
+import * as React from "react";
 
 interface ErrorInfo {
   message: string;
@@ -16,10 +16,14 @@ interface ErrorInfo {
   column?: number;
 }
 
+/**
+ * Development overlay that shows build and runtime errors over the page,
+ * with the file, line and stack when they are known.
+ */
 export function ErrorOverlay(): React.ReactElement | null {
-  const [error, setError] = useState<ErrorInfo | null>(null);
+  const [error, setError] = React.useState<ErrorInfo | null>(null);
 
-  useEffect(() => {
+  React.useEffect(() => {
     // Listen for runtime errors
     const handleError = (event: ErrorEvent) => {
       event.preventDefault();
@@ -67,7 +71,7 @@ export function ErrorOverlay(): React.ReactElement | null {
     };
   }, []);
 
-  if (!error) return null;
+  if (error === null) return null;
 
   return (
     <div
@@ -157,51 +161,55 @@ export function ErrorOverlay(): React.ReactElement | null {
             {error.message}
           </div>
 
-          {error.file && (
-            <div
-              style={{
-                fontSize: "12px",
-                color: "#999",
-                marginBottom: "8px",
-              }}
-            >
-              at {error.file}
-              {error.line && `:${error.line}`}
-              {error.column && `:${error.column}`}
-            </div>
-          )}
+          {error.file !== undefined && error.file !== ""
+            ? (
+              <div
+                style={{
+                  fontSize: "12px",
+                  color: "#999",
+                  marginBottom: "8px",
+                }}
+              >
+                at {error.file}
+                {error.line !== undefined ? `:${error.line}` : null}
+                {error.column !== undefined ? `:${error.column}` : null}
+              </div>
+            )
+            : null}
         </div>
 
         {/* Stack Trace */}
-        {error.stack && (
-          <div>
-            <div
-              style={{
-                fontSize: "14px",
-                fontWeight: "500",
-                marginBottom: "12px",
-                color: "#999",
-              }}
-            >
-              Stack Trace
-            </div>
-            <pre
-              style={{
-                backgroundColor: "#1a1a1a",
-                border: "1px solid #333",
-                borderRadius: "8px",
-                padding: "20px",
-                overflow: "auto",
-                margin: 0,
-                fontSize: "12px",
-                lineHeight: "1.5",
-                color: "#ccc",
-              }}
-            >
+        {error.stack !== undefined
+          ? (
+            <div>
+              <div
+                style={{
+                  fontSize: "14px",
+                  fontWeight: "500",
+                  marginBottom: "12px",
+                  color: "#999",
+                }}
+              >
+                Stack Trace
+              </div>
+              <pre
+                style={{
+                  backgroundColor: "#1a1a1a",
+                  border: "1px solid #333",
+                  borderRadius: "8px",
+                  padding: "20px",
+                  overflow: "auto",
+                  margin: 0,
+                  fontSize: "12px",
+                  lineHeight: "1.5",
+                  color: "#ccc",
+                }}
+              >
               {error.stack}
-            </pre>
-          </div>
-        )}
+              </pre>
+            </div>
+          )
+          : null}
 
         {/* Help Text */}
         <div

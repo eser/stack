@@ -13,9 +13,9 @@ bdd.describe("Twitter mappers", () => {
       const raw: TwitterApiTweet = {
         id: "1234567890",
         text: "Hello Twitter",
-        author_id: "user-001",
-        created_at: "2026-01-01T00:00:00Z",
-        conversation_id: "1234567890",
+        "author_id": "user-001",
+        "created_at": "2026-01-01T00:00:00Z",
+        "conversation_id": "1234567890",
       };
       const authorHandle = handleMod.toHandle("testuser");
 
@@ -63,7 +63,7 @@ bdd.describe("Twitter mappers", () => {
       const raw: TwitterApiTweet = {
         id: "999",
         text: "reply",
-        referenced_tweets: [
+        "referenced_tweets": [
           { type: "replied_to", id: "100" },
           { type: "quoted", id: "200" },
           { type: "retweeted", id: "300" },
@@ -92,7 +92,7 @@ bdd.describe("Twitter mappers", () => {
       const raw: TwitterApiTweet = {
         id: "999",
         text: "test",
-        referenced_tweets: [{ type: "unknown_future_type", id: "100" }],
+        "referenced_tweets": [{ type: "unknown_future_type", id: "100" }],
       };
 
       const post = mappersMod.mapToDomainPost(raw, handleMod.toHandle("u"));

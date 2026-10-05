@@ -25,11 +25,9 @@ import * as standards from "@eserstack/standards";
 import * as functions from "@eserstack/functions";
 import type * as shellArgs from "@eserstack/shell/args";
 import * as tui from "@eserstack/shell/tui";
-import { createTag, pushTag } from "./git.ts";
-import { readVersionFile } from "./versions.ts";
-import { createCliContext, runCliMain, toCliEvent } from "./cli-support.ts";
-
-const { ctx, output: out } = createCliContext();
+import * as git from "./git.ts";
+import * as versions from "./versions.ts";
+import * as cliSupport from "./cli-support.ts";
 
 /**
  * Options for pushing a release tag.
@@ -79,7 +77,7 @@ export const pushReleaseTag = async (
     dryRun = false,
   } = options;
 
-  const version = await readVersionFile({ root });
+  const version = await versions.readVersionFile({ root });
   if (version === undefined || !/^\d+\.\d+\.\d+$/.test(version)) {
     throw new Error(
       `Invalid or missing version in VERSION file: "${version}"`,
@@ -92,8 +90,8 @@ export const pushReleaseTag = async (
     .replace("{version}", version);
 
   if (!dryRun) {
-    await createTag(tag, message);
-    await pushTag(remote, tag);
+    await git.createTag(tag, message);
+    await git.pushTag(remote, tag);
   }
 
   return { version, tag, remote, dryRun };
@@ -126,6 +124,8 @@ const cliResponseMapper: functions.handler.ResponseMapper<
   Error | functions.handler.AdaptError,
   shellArgs.CliResult<void>
 > = (result) => {
+  const { ctx } = cliSupport.getCliContext();
+
   if (primitives.results.isFail(result)) {
     const message = result.error instanceof Error
       ? result.error.message
@@ -168,13 +168,15 @@ export const main = async (
     (cliArgs ?? []) as string[],
     { boolean: ["dry-run"], alias: { n: "dry-run" } },
   );
-  const event = toCliEvent("release-tag", parsed);
+  const event = cliSupport.toCliEvent("release-tag", parsed);
   return await handleCli(event);
 };
 
 if (import.meta.main) {
-  runCliMain(
-    await main(standards.crossRuntime.runtime.process.args as string[]),
-    out,
+  // Entry point: the await only runs when this file is executed directly.
+  // deno-lint-ignore no-top-level-await
+  const result = await main(
+    standards.crossRuntime.runtime.process.args as string[],
   );
+  cliSupport.runCliMain(result, cliSupport.getCliContext().output);
 }

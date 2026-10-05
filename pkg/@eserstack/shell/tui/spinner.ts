@@ -5,10 +5,10 @@
  *
  * @example
  * ```typescript
- * import * as tui from "@eserstack/shell/tui";
+ * import * as shell from "@eserstack/shell";
  *
- * const ctx = tui.createTuiContext();
- * const s = tui.createSpinner(ctx, "Installing...");
+ * const ctx = shell.tui.createTuiContext();
+ * const s = shell.tui.createSpinner(ctx, "Installing...");
  * s.start();
  * // await doWork();
  * s.succeed("Installed!");
@@ -21,24 +21,43 @@ import * as span from "@eserstack/streams/span";
 import * as symbols from "./symbols.ts";
 import type { TuiContext } from "./types.ts";
 
+/** How a spinner animates. */
 export type SpinnerOptions = {
+  /** The frames shown in turn; a braille dot cycle when unset. */
   readonly frames?: readonly string[];
+  /** Milliseconds between frames; 80 when unset. */
   readonly interval?: number;
 };
 
+/**
+ * Controls for a spinner from {@link createSpinner}. Each method that ends the
+ * spinner stops its timer and, except `stop`, writes a final line with an
+ * icon; a `message` given there replaces the current one.
+ */
 export type SpinnerHandle = {
+  /** Start animating, optionally with a new message. */
   readonly start: (message?: string) => void;
+  /** Stop and clear the line without a final line. */
   readonly stop: (message?: string) => void;
+  /** Change the message shown next to the animation. */
   readonly update: (message: string) => void;
+  /** Stop with a success line. */
   readonly succeed: (message?: string) => void;
+  /** Stop with a failure line. */
   readonly fail: (message?: string) => void;
+  /** Stop with a warning line. */
   readonly warn: (message?: string) => void;
+  /** Stop with an information line. */
   readonly info: (message?: string) => void;
 };
 
 const DEFAULT_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 const DEFAULT_INTERVAL = 80;
 
+/**
+ * Create a spinner that writes to `ctx.output`. It does not start until
+ * `start()` is called.
+ */
 export const createSpinner = (
   ctx: TuiContext,
   initialMessage: string,

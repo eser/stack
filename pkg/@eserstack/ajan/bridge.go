@@ -29,6 +29,7 @@ import (
 	"github.com/eser/stack/pkg/ajan/formatfx"
 	"github.com/eser/stack/pkg/ajan/httpclient"
 	"github.com/eser/stack/pkg/ajan/kitfx"
+	"github.com/eser/stack/pkg/ajan/lib"
 	"github.com/eser/stack/pkg/ajan/logfx"
 	"github.com/eser/stack/pkg/ajan/noskillsfx"
 	"github.com/eser/stack/pkg/ajan/parsingfx"
@@ -195,6 +196,15 @@ type aiToolResultReq struct {
 	IsError    bool   `json:"isError,omitempty"`
 }
 
+// aiThinkingPart mirrors aifx.ThinkingPart in both directions: a thinking
+// block in a model's answer, and the same block replayed in the next request.
+// Its fields cross unchanged, because the provider checks them.
+type aiThinkingPart struct {
+	Text         string `json:"text,omitempty"`
+	Signature    string `json:"signature,omitempty"`
+	RedactedData string `json:"redactedData,omitempty"`
+}
+
 // aiContentBlockReq carries one block of a message.
 //
 // Everything but Text used to be missing, and the effect was not a decode
@@ -207,6 +217,7 @@ type aiContentBlockReq struct {
 	File       *aiFilePartReq   `json:"file,omitempty"`
 	ToolCall   *aiToolCallReq   `json:"toolCall,omitempty"`
 	ToolResult *aiToolResultReq `json:"toolResult,omitempty"`
+	Thinking   *aiThinkingPart  `json:"thinking,omitempty"`
 	Type       string           `json:"type"`
 	Text       string           `json:"text,omitempty"`
 }
@@ -249,6 +260,9 @@ type aiGenerateRequest struct {
 	SafetySettings []aiSafetySettingReq  `json:"safetySettings,omitempty"`
 	System         string                `json:"system"`
 	ToolChoice     string                `json:"toolChoice"`
+	// Effort is one of low, medium, high, xhigh and max, or empty for the
+	// provider default. The adapter that uses it rejects any other value.
+	Effort string `json:"effort,omitempty"`
 	// RequestID names this call so it can be cancelled while it runs. Optional:
 	// a caller that supplies none gets an uncancellable request, which is what
 	// every caller got before cancellation existed.
@@ -281,7 +295,11 @@ type aiHandleResponse struct {
 // tool and discards the call id and the arguments -- everything a caller needs
 // to actually run it. TypeScript then dropped the block entirely, so the loss
 // was invisible from either end.
+//
+// Thinking carries a thinking block whole, so the caller can send it back in
+// the next request of a multi-turn call; Text stays the answer text only.
 type aiContentBlockResp struct {
+	Thinking  *aiThinkingPart `json:"thinking,omitempty"`
 	Arguments json.RawMessage `json:"arguments,omitempty"`
 	Type      string          `json:"type"`
 	Text      string          `json:"text,omitempty"`
@@ -312,6 +330,7 @@ type aiGenerateResponse struct {
 // prose, and the arguments never arrived at all.
 type aiStreamEventResponse struct {
 	Usage          *aiUsageResp    `json:"usage,omitempty"`
+	Thinking       *aiThinkingPart `json:"thinking,omitempty"`
 	ArgumentsDelta json.RawMessage `json:"argumentsDelta,omitempty"`
 	Type           string          `json:"type"`
 	TextDelta      string          `json:"textDelta,omitempty"`
@@ -896,8 +915,8 @@ func convertOptions(req *aiGenerateRequest) *aifx.GenerateTextOptions {
 	for _, m := range req.Messages {
 		blocks := make([]aifx.ContentBlock, 0, len(m.Content))
 
-		for _, b := range m.Content {
-			if block, ok := convertContentBlock(b); ok {
+		for i := range m.Content {
+			if block, ok := convertContentBlock(&m.Content[i]); ok {
 				blocks = append(blocks, block)
 			}
 		}
@@ -916,6 +935,7 @@ func convertOptions(req *aiGenerateRequest) *aifx.GenerateTextOptions {
 		TopP:           req.TopP,
 		StopWords:      req.StopWords,
 		ThinkingBudget: req.ThinkingBudget,
+		Effort:         aifx.Effort(req.Effort),
 		Extensions:     req.Extensions,
 	}
 
@@ -955,7 +975,7 @@ func convertOptions(req *aiGenerateRequest) *aifx.GenerateTextOptions {
 // `{"type":"image"}` with no image is a malformed request, and forwarding it
 // would ask the provider to look at nothing. The false return says so instead
 // of panicking on the nil pointer.
-func convertContentBlock(b aiContentBlockReq) (aifx.ContentBlock, bool) {
+func convertContentBlock(b *aiContentBlockReq) (aifx.ContentBlock, bool) {
 	switch b.Type {
 	case "text":
 		return aifx.ContentBlock{Type: aifx.ContentBlockText, Text: b.Text}, true //nolint:exhaustruct
@@ -1027,8 +1047,28 @@ func convertContentBlock(b aiContentBlockReq) (aifx.ContentBlock, bool) {
 			},
 		}, true
 
+	case "thinking":
+		if b.Thinking == nil {
+			return aifx.ContentBlock{}, false //nolint:exhaustruct
+		}
+
+		return aifx.NewThinkingBlock(aifx.ThinkingPart{
+			Text:         b.Thinking.Text,
+			Signature:    b.Thinking.Signature,
+			RedactedData: b.Thinking.RedactedData,
+		}), true
+
 	default:
 		return aifx.ContentBlock{}, false //nolint:exhaustruct
+	}
+}
+
+// newThinkingPartResp carries an aifx thinking block to the wire unchanged.
+func newThinkingPartResp(part *aifx.ThinkingPart) *aiThinkingPart {
+	return &aiThinkingPart{
+		Text:         part.Text,
+		Signature:    part.Signature,
+		RedactedData: part.RedactedData,
 	}
 }
 
@@ -1090,6 +1130,14 @@ func mapGenerateResult(r *aifx.GenerateTextResult) aiGenerateResponse {
 					Type: "tool_result",
 					ID:   b.ToolResult.ToolCallID,
 					Text: b.ToolResult.Content,
+				})
+			}
+
+		case aifx.ContentBlockThinking:
+			if b.Thinking != nil {
+				blocks = append(blocks, aiContentBlockResp{ //nolint:exhaustruct
+					Type:     "thinking",
+					Thinking: newThinkingPartResp(b.Thinking),
 				})
 			}
 		}
@@ -1393,6 +1441,9 @@ type httpRequestInput struct {
 	Method  string            `json:"method"`
 	URL     string            `json:"url"`
 	Body    string            `json:"body,omitempty"`
+	// MaxResponseBytes caps the response body read into memory; zero or less
+	// means defaultHTTPMaxResponseBytes. A larger body is reported as an error.
+	MaxResponseBytes int64 `json:"maxResponseBytes,omitempty"`
 }
 
 type httpResponseOutput struct {
@@ -1407,6 +1458,52 @@ type httpResponseOutput struct {
 // ---------------------------------------------------------------------------
 // HTTP bridge functions
 // ---------------------------------------------------------------------------
+
+// defaultHTTPMaxResponseBytes caps the response body a request reads into
+// memory when the caller sets no maxResponseBytes. The whole body crosses the
+// bridge as one JSON string; a larger download belongs on the streaming
+// request, which hands the body over in chunks.
+const defaultHTTPMaxResponseBytes int64 = 32 << 20
+
+// responseBodyLimit returns the caller's body cap, or
+// defaultHTTPMaxResponseBytes when it is absent or not positive.
+func responseBodyLimit(requested int64) int64 {
+	if requested <= 0 {
+		return defaultHTTPMaxResponseBytes
+	}
+
+	return requested
+}
+
+// readResponseBody reads a response body under limit. When the body is larger,
+// the error message names the limit and the way around it.
+func readResponseBody(body io.Reader, limit int64) ([]byte, error) {
+	data, err := lib.ReadAllLimited(body, limit)
+	if errors.Is(err, lib.ErrReadLimitExceeded) {
+		return nil, fmt.Errorf(
+			"response body is larger than maxResponseBytes (%d bytes); raise maxResponseBytes or use the streaming request: %w",
+			limit, err,
+		)
+	}
+
+	if err != nil {
+		return nil, fmt.Errorf("read response body: %w", err)
+	}
+
+	return data, nil
+}
+
+// firstHeaderValues flattens response headers to their first value each.
+func firstHeaderValues(header http.Header) map[string]string {
+	out := make(map[string]string, len(header))
+	for k, vals := range header {
+		if len(vals) > 0 {
+			out[k] = vals[0]
+		}
+	}
+
+	return out
+}
 
 // countOrDefault converts a JSON-supplied count to uint, falling back to
 // fallback when it is absent or negative.
@@ -1497,6 +1594,10 @@ func bridgeHttpCreate(configJSON string) string {
 // bridgeHttpRequest performs an HTTP request via a stored client handle.
 // Returns JSON: { status, statusText, headers, body, retries } on success,
 // or { error, status, statusText, headers, body, retries } on HTTP or transport error.
+//
+// The body is read up to the request's maxResponseBytes, 32 MiB
+// (defaultHTTPMaxResponseBytes) when unset. A larger body returns the status
+// and headers with an error and no body.
 func bridgeHttpRequest(requestJSON string) string {
 	var req httpRequestInput
 	if err := json.Unmarshal([]byte(requestJSON), &req); err != nil {
@@ -1547,27 +1648,23 @@ func bridgeHttpRequest(requestJSON string) string {
 	if err != nil {
 		return marshalResponse(httpResponseOutput{Error: "request failed: " + err.Error(), Retries: retries}) //nolint:exhaustruct
 	}
-	defer resp.Body.Close() //nolint:errcheck,gosec // body already drained above
+	defer resp.Body.Close() //nolint:errcheck,gosec // the body is read in full or abandoned; a failed close loses nothing
 
-	bodyBytes, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return marshalResponse(httpResponseOutput{Error: "read response body: " + err.Error(), Retries: retries}) //nolint:exhaustruct
-	}
-
-	respHeaders := make(map[string]string, len(resp.Header))
-	for k, vals := range resp.Header {
-		if len(vals) > 0 {
-			respHeaders[k] = vals[0]
-		}
-	}
-
-	out := httpResponseOutput{
+	out := httpResponseOutput{ //nolint:exhaustruct
 		Status:     resp.StatusCode,
 		StatusText: http.StatusText(resp.StatusCode),
-		Headers:    respHeaders,
-		Body:       string(bodyBytes),
+		Headers:    firstHeaderValues(resp.Header),
 		Retries:    retries,
 	}
+
+	bodyBytes, err := readResponseBody(resp.Body, responseBodyLimit(req.MaxResponseBytes))
+	if err != nil {
+		out.Error = err.Error()
+
+		return marshalResponse(out)
+	}
+
+	out.Body = string(bodyBytes)
 
 	if resp.StatusCode >= http.StatusBadRequest {
 		out.Error = fmt.Sprintf("HTTP %d %s", resp.StatusCode, http.StatusText(resp.StatusCode))
@@ -1737,19 +1834,17 @@ func bridgeHttpRequestStream(requestJSON string) string {
 	}
 
 	if resp.StatusCode >= http.StatusBadRequest {
-		bodyBytes, _ := io.ReadAll(resp.Body)
-		resp.Body.Close() //nolint:errcheck,gosec // body already drained above
-		respHeaders := make(map[string]string, len(resp.Header))
-		for k, vals := range resp.Header {
-			if len(vals) > 0 {
-				respHeaders[k] = vals[0]
-			}
+		bodyBytes, readErr := readResponseBody(resp.Body, responseBodyLimit(req.MaxResponseBytes))
+		resp.Body.Close() //nolint:errcheck,gosec // the error body is read or abandoned; a failed close loses nothing
+		if readErr != nil {
+			return errorResponse(fmt.Sprintf("read error response body (status %d): %v", resp.StatusCode, readErr))
 		}
+
 		return marshalResponse(httpStreamCreateOutput{
 			Error:      fmt.Sprintf("HTTP %d %s", resp.StatusCode, http.StatusText(resp.StatusCode)),
 			Status:     resp.StatusCode,
 			StatusText: http.StatusText(resp.StatusCode),
-			Headers:    respHeaders,
+			Headers:    firstHeaderValues(resp.Header),
 			Handle:     "",
 			Body:       string(bodyBytes),
 		})
@@ -1761,18 +1856,11 @@ func bridgeHttpRequestStream(requestJSON string) string {
 	httpStreamHandles[streamHandle] = &httpStreamEntry{body: resp.Body} //nolint:exhaustruct
 	httpStreamMu.Unlock()
 
-	respHeaders := make(map[string]string, len(resp.Header))
-	for k, vals := range resp.Header {
-		if len(vals) > 0 {
-			respHeaders[k] = vals[0]
-		}
-	}
-
 	return marshalResponse(httpStreamCreateOutput{ //nolint:exhaustruct
 		Handle:     streamHandle,
 		Status:     resp.StatusCode,
 		StatusText: http.StatusText(resp.StatusCode),
-		Headers:    respHeaders,
+		Headers:    firstHeaderValues(resp.Header),
 	})
 }
 
@@ -2245,6 +2333,8 @@ type formatEncodeRequest struct {
 	Pretty  bool            `json:"pretty"`
 	Indent  int             `json:"indent"`
 	IsFirst bool            `json:"isFirst"`
+	// Document marks data as a whole document rather than one list entry.
+	Document bool `json:"document"`
 }
 
 type formatEncodeResponse struct {
@@ -2302,7 +2392,9 @@ func ensureFormats() {
 
 // bridgeFormatEncode serializes the given data value to the named format.
 // The data field must be a valid JSON value; it is unmarshalled before
-// being passed to the format's WriteItem method.
+// being passed to the format's WriteItem method. With document set, the value
+// is written as one whole document: one YAML mapping, one TOML table without a
+// "+++" line, or one JSON value without array separators.
 func bridgeFormatEncode(requestJSON string) string {
 	var req formatEncodeRequest
 	if err := json.Unmarshal([]byte(requestJSON), &req); err != nil {
@@ -2322,9 +2414,10 @@ func bridgeFormatEncode(requestJSON string) string {
 	}
 
 	opts := &formatfx.FormatOptions{ //nolint:exhaustruct
-		Pretty:  req.Pretty,
-		Indent:  req.Indent,
-		IsFirst: req.IsFirst,
+		Pretty:   req.Pretty,
+		Indent:   req.Indent,
+		IsFirst:  req.IsFirst,
+		Document: req.Document,
 	}
 
 	result, err := f.WriteItem(data, opts)
@@ -2491,6 +2584,12 @@ func mapStreamEvent(event aifx.StreamEvent) aiStreamEventResponse { //nolint:goc
 			resp.ArgumentsDelta = event.ToolCall.Arguments
 		}
 
+	case aifx.StreamEventThinking:
+		resp.Type = "thinking"
+		if event.Thinking != nil {
+			resp.Thinking = newThinkingPartResp(event.Thinking)
+		}
+
 	case aifx.StreamEventMessageDone:
 		resp.Type = "message_done"
 		resp.StopReason = string(event.StopReason)
@@ -2586,7 +2685,7 @@ func bridgeNoskillsInit(requestJSON string) string {
 			Providers:                  []string{},
 			MaxIterationsBeforeRestart: 15,
 			AllowGit:                   false,
-			Command:                    "noskills",
+			Command:                    noskillsfx.DefaultCommandPrefix,
 		}
 
 		if writeErr := noskillsfx.WriteManifest(root, manifest); writeErr != nil {
@@ -3469,7 +3568,11 @@ func bridgeCsGenerate(requestJSON string) string {
 	} else {
 		cwd := req.CWD
 		if cwd == "" {
-			cwd, _ = os.Getwd() //nolint:errcheck
+			wd, err := os.Getwd()
+			if err != nil {
+				return marshalResponse(csResultResponse{Error: "cannot determine cwd: " + err.Error()}) //nolint:exhaustruct
+			}
+			cwd = wd
 		}
 		genOpts.EnvFiles = []string{
 			filepath.Join(cwd, ".env"),
@@ -3561,6 +3664,27 @@ type kitApplyRecipeResult struct {
 	Skipped        []string `json:"skipped,omitempty"`
 	Total          int      `json:"total"`
 	PostInstallRan []string `json:"postInstallRan,omitempty"`
+	// PostInstallFailed lists the post-install commands that could not start,
+	// exited with a non-zero status or timed out; PostInstallRan includes them.
+	PostInstallFailed []string `json:"postInstallFailed,omitempty"`
+}
+
+// newKitApplyRecipeResults converts the recipes of an applied chain to their
+// wire form.
+func newKitApplyRecipeResults(recipes []kitfx.NamedApplyResult) []kitApplyRecipeResult {
+	results := make([]kitApplyRecipeResult, 0, len(recipes))
+	for _, nr := range recipes {
+		results = append(results, kitApplyRecipeResult{
+			Name:              nr.Name,
+			Written:           nr.Result.Written,
+			Skipped:           nr.Result.Skipped,
+			Total:             nr.Result.Total,
+			PostInstallRan:    nr.Result.PostInstallRan,
+			PostInstallFailed: nr.Result.PostInstallFailed,
+		})
+	}
+
+	return results
 }
 
 // bridgeKitListRecipes fetches a registry manifest and returns all recipe metadata.
@@ -3579,7 +3703,7 @@ func bridgeKitListRecipes(requestJSON string) string {
 		}
 	}
 
-	manifest, err := kitfx.FetchRegistry(cwd, req.RegistryURL)
+	manifest, err := kitfx.FetchRegistry(context.Background(), cwd, req.RegistryURL)
 	if err != nil {
 		return marshalResponse(kitListRecipesResponse{Error: err.Error()}) //nolint:exhaustruct
 	}
@@ -3621,12 +3745,12 @@ func bridgeKitApplyRecipe(requestJSON string) string {
 		}
 	}
 
-	manifest, err := kitfx.FetchRegistry(cwd, req.RegistryURL)
+	manifest, err := kitfx.FetchRegistry(context.Background(), cwd, req.RegistryURL)
 	if err != nil {
 		return marshalResponse(kitApplyRecipeResponse{Error: err.Error()}) //nolint:exhaustruct
 	}
 
-	chainResult, err := kitfx.ApplyRecipeChain(req.RecipeName, manifest, kitfx.ApplyOptions{
+	chainResult, err := kitfx.ApplyRecipeChain(context.Background(), req.RecipeName, manifest, kitfx.ApplyOptions{
 		CWD:          cwd,
 		RegistryURL:  req.RegistryURL,
 		Force:        req.Force,
@@ -3639,18 +3763,7 @@ func bridgeKitApplyRecipe(requestJSON string) string {
 		return marshalResponse(kitApplyRecipeResponse{Error: err.Error()}) //nolint:exhaustruct
 	}
 
-	results := make([]kitApplyRecipeResult, 0, len(chainResult.Recipes))
-	for _, nr := range chainResult.Recipes {
-		results = append(results, kitApplyRecipeResult{
-			Name:           nr.Name,
-			Written:        nr.Result.Written,
-			Skipped:        nr.Result.Skipped,
-			Total:          nr.Result.Total,
-			PostInstallRan: nr.Result.PostInstallRan,
-		})
-	}
-
-	return marshalResponse(kitApplyRecipeResponse{Recipes: results}) //nolint:exhaustruct
+	return marshalResponse(kitApplyRecipeResponse{Recipes: newKitApplyRecipeResults(chainResult.Recipes)}) //nolint:exhaustruct
 }
 
 // kitCloneRecipeRequest is the JSON request for EserAjanKitCloneRecipe.
@@ -3700,7 +3813,7 @@ func bridgeKitCloneRecipe(requestJSON string) string {
 		return marshalResponse(kitApplyRecipeResponse{Error: "specifier must be a GitHub repo (e.g. gh:owner/repo#ref)"}) //nolint:exhaustruct
 	}
 
-	manifest, err := kitfx.FetchRegistryFromRepo(resolved.Owner, resolved.Repo, resolved.Ref)
+	manifest, err := kitfx.FetchRegistryFromRepo(context.Background(), resolved.Owner, resolved.Repo, resolved.Ref)
 	if err != nil {
 		return marshalResponse(kitApplyRecipeResponse{Error: err.Error()}) //nolint:exhaustruct
 	}
@@ -3736,7 +3849,7 @@ func bridgeKitCloneRecipe(requestJSON string) string {
 		}
 	}
 
-	chainResult, err := kitfx.ApplyRecipeChain(manifest.Recipes[0].Name, manifest, kitfx.ApplyOptions{
+	chainResult, err := kitfx.ApplyRecipeChain(context.Background(), manifest.Recipes[0].Name, manifest, kitfx.ApplyOptions{
 		CWD:          targetDir,
 		RegistryURL:  manifest.RegistryURL,
 		Force:        req.Force,
@@ -3749,18 +3862,7 @@ func bridgeKitCloneRecipe(requestJSON string) string {
 		return marshalResponse(kitApplyRecipeResponse{Error: err.Error()}) //nolint:exhaustruct
 	}
 
-	cloneResults := make([]kitApplyRecipeResult, 0, len(chainResult.Recipes))
-	for _, nr := range chainResult.Recipes {
-		cloneResults = append(cloneResults, kitApplyRecipeResult{
-			Name:           nr.Name,
-			Written:        nr.Result.Written,
-			Skipped:        nr.Result.Skipped,
-			Total:          nr.Result.Total,
-			PostInstallRan: nr.Result.PostInstallRan,
-		})
-	}
-
-	return marshalResponse(kitApplyRecipeResponse{Recipes: cloneResults}) //nolint:exhaustruct
+	return marshalResponse(kitApplyRecipeResponse{Recipes: newKitApplyRecipeResults(chainResult.Recipes)}) //nolint:exhaustruct
 }
 
 // bridgeKitNewProject scaffolds a new project from a registry template.
@@ -3779,7 +3881,7 @@ func bridgeKitNewProject(requestJSON string) string {
 	}
 
 	cwd := req.TargetDir
-	manifest, err := kitfx.FetchRegistry(cwd, req.RegistrySource)
+	manifest, err := kitfx.FetchRegistry(context.Background(), cwd, req.RegistrySource)
 	if err != nil {
 		return marshalResponse(kitApplyRecipeResponse{Error: err.Error()}) //nolint:exhaustruct
 	}
@@ -3817,7 +3919,7 @@ func bridgeKitNewProject(requestJSON string) string {
 		vars["project_name"] = req.ProjectName
 	}
 
-	chainResult, err := kitfx.ApplyRecipeChain(req.TemplateName, manifest, kitfx.ApplyOptions{
+	chainResult, err := kitfx.ApplyRecipeChain(context.Background(), req.TemplateName, manifest, kitfx.ApplyOptions{
 		CWD:         req.TargetDir,
 		RegistryURL: manifest.RegistryURL,
 		Force:       true,
@@ -3827,18 +3929,7 @@ func bridgeKitNewProject(requestJSON string) string {
 		return marshalResponse(kitApplyRecipeResponse{Error: err.Error()}) //nolint:exhaustruct
 	}
 
-	npResults := make([]kitApplyRecipeResult, 0, len(chainResult.Recipes))
-	for _, nr := range chainResult.Recipes {
-		npResults = append(npResults, kitApplyRecipeResult{
-			Name:           nr.Name,
-			Written:        nr.Result.Written,
-			Skipped:        nr.Result.Skipped,
-			Total:          nr.Result.Total,
-			PostInstallRan: nr.Result.PostInstallRan,
-		})
-	}
-
-	return marshalResponse(kitApplyRecipeResponse{Recipes: npResults}) //nolint:exhaustruct
+	return marshalResponse(kitApplyRecipeResponse{Recipes: newKitApplyRecipeResults(chainResult.Recipes)}) //nolint:exhaustruct
 }
 
 // bridgeKitUpdateRecipe re-applies a recipe chain to an existing project (force mode).
@@ -3861,7 +3952,7 @@ func bridgeKitUpdateRecipe(requestJSON string) string {
 		}
 	}
 
-	manifest, err := kitfx.FetchRegistry(cwd, req.RegistrySource)
+	manifest, err := kitfx.FetchRegistry(context.Background(), cwd, req.RegistrySource)
 	if err != nil {
 		return marshalResponse(kitApplyRecipeResponse{Error: err.Error()}) //nolint:exhaustruct
 	}
@@ -3881,7 +3972,7 @@ func bridgeKitUpdateRecipe(requestJSON string) string {
 		})
 	}
 
-	chainResult, err := kitfx.ApplyRecipeChain(req.RecipeName, manifest, kitfx.ApplyOptions{
+	chainResult, err := kitfx.ApplyRecipeChain(context.Background(), req.RecipeName, manifest, kitfx.ApplyOptions{
 		CWD:         cwd,
 		RegistryURL: manifest.RegistryURL,
 		Force:       true,
@@ -3892,18 +3983,7 @@ func bridgeKitUpdateRecipe(requestJSON string) string {
 		return marshalResponse(kitApplyRecipeResponse{Error: err.Error()}) //nolint:exhaustruct
 	}
 
-	upResults := make([]kitApplyRecipeResult, 0, len(chainResult.Recipes))
-	for _, nr := range chainResult.Recipes {
-		upResults = append(upResults, kitApplyRecipeResult{
-			Name:           nr.Name,
-			Written:        nr.Result.Written,
-			Skipped:        nr.Result.Skipped,
-			Total:          nr.Result.Total,
-			PostInstallRan: nr.Result.PostInstallRan,
-		})
-	}
-
-	return marshalResponse(kitApplyRecipeResponse{Recipes: upResults}) //nolint:exhaustruct
+	return marshalResponse(kitApplyRecipeResponse{Recipes: newKitApplyRecipeResults(chainResult.Recipes)}) //nolint:exhaustruct
 }
 
 // ---------------------------------------------------------------------------
@@ -4220,9 +4300,9 @@ type codebaseValidateRequest struct {
 	// validated and never reported — the same contract as codebaseWalkRequest.
 	// Before it existed the manifest's excludes reached only the TypeScript
 	// tools, and the Go validators reported 84 "secrets" in skill docs.
-	Exclude          []string               `json:"exclude,omitempty"`
-	ValidatorOptions map[string]interface{} `json:"validatorOptions,omitempty"`
-	GitAware         bool                   `json:"gitAware"`
+	Exclude          []string       `json:"exclude,omitempty"`
+	ValidatorOptions map[string]any `json:"validatorOptions,omitempty"`
+	GitAware         bool           `json:"gitAware"`
 }
 
 type codebaseValidatorResultJSON struct {
@@ -4439,45 +4519,65 @@ func bridgeCodebaseValidateFiles(requestJSON string) string {
 	return marshalResponse(codebaseValidateResponse{Results: jsonResults}) //nolint:exhaustruct
 }
 
-// resolveFilenameValidator extracts FilenameRule slice and excludes from opts.
-func resolveFilenameValidator(opts map[string]interface{}) codebasefx.ValidatorFunc {
-	var rules []codebasefx.FilenameRule
+// validatorOptionsFor returns one validator's entry from a request's
+// validatorOptions. An absent entry is an empty object; an entry that is not an
+// object is an error.
+func validatorOptionsFor(opts map[string]any, name string) (map[string]any, error) {
+	raw, ok := opts[name]
+	if !ok || raw == nil {
+		return map[string]any{}, nil
+	}
+
+	entry, ok := raw.(map[string]any)
+	if !ok {
+		return nil, fmt.Errorf("validatorOptions[%q] has type %T; expected an object", name, raw)
+	}
+
+	return entry, nil
+}
+
+// resolveFilenameValidator builds the filenames validator from its rules and
+// exclude options. Malformed rules are an error.
+func resolveFilenameValidator(opts map[string]any) (codebasefx.ValidatorFunc, error) {
+	fnOpts, err := validatorOptionsFor(opts, "filenames")
+	if err != nil {
+		return nil, err
+	}
+
+	rules, err := codebasefx.ParseFilenameRules(fnOpts["rules"])
+	if err != nil {
+		return nil, fmt.Errorf(`validatorOptions["filenames"]: %w`, err)
+	}
+
 	var excludes []string
 
-	if fnOpts, ok := opts["filenames"].(map[string]interface{}); ok {
-		if rawRules, ok := fnOpts["rules"].([]interface{}); ok {
-			for _, r := range rawRules {
-				rm, ok := r.(map[string]interface{})
-				if !ok {
-					continue
-				}
-				rule := codebasefx.FilenameRule{} //nolint:exhaustruct
-				if d, ok := rm["directory"].(string); ok {
-					rule.Directory = d
-				}
-				if c, ok := rm["convention"].(string); ok {
-					rule.Convention = c
-				}
-				if rawExcl, ok := rm["exclude"].([]interface{}); ok {
-					for _, e := range rawExcl {
-						if s, ok := e.(string); ok {
-							rule.Exclude = append(rule.Exclude, s)
-						}
-					}
-				}
-				rules = append(rules, rule)
-			}
-		}
-		if rawExcl, ok := fnOpts["exclude"].([]interface{}); ok {
-			for _, e := range rawExcl {
-				if s, ok := e.(string); ok {
-					excludes = append(excludes, s)
-				}
+	if rawExcl, ok := fnOpts["exclude"].([]any); ok {
+		for _, e := range rawExcl {
+			// A TypeScript RegExp exclude arrives as {} and cannot be applied
+			// here; the string patterns are the ones Go matches.
+			if s, ok := e.(string); ok {
+				excludes = append(excludes, s)
 			}
 		}
 	}
 
-	return codebasefx.ValidateFilenames(rules, excludes)
+	return codebasefx.ValidateFilenames(rules, excludes), nil
+}
+
+// resolveLargeFileValidator builds the large-file validator from its maxKb
+// option. A maxKb that is not a whole number of kilobytes is an error.
+func resolveLargeFileValidator(opts map[string]any) (codebasefx.ValidatorFunc, error) {
+	lfOpts, err := validatorOptionsFor(opts, "large-file")
+	if err != nil {
+		return nil, err
+	}
+
+	maxKb, err := codebasefx.ParseMaxKb(lfOpts["maxKb"])
+	if err != nil {
+		return nil, fmt.Errorf(`validatorOptions["large-file"]: %w`, err)
+	}
+
+	return codebasefx.ValidateLargeFile(maxKb * 1024), nil
 }
 
 // ErrUnknownValidator is returned when a caller asks for a validator name the
@@ -4513,8 +4613,20 @@ func defaultValidatorEntries() []validatorEntry {
 	}
 }
 
-// validatorsByName maps every requestable short name to its validator.
-func validatorsByName(opts map[string]interface{}) map[string]codebasefx.ValidatorFunc {
+// validatorsByName maps every requestable short name to its validator. The
+// options of configurable validators are read here, so malformed options fail
+// the request before any file is read.
+func validatorsByName(opts map[string]any) (map[string]codebasefx.ValidatorFunc, error) {
+	largeFile, err := resolveLargeFileValidator(opts)
+	if err != nil {
+		return nil, err
+	}
+
+	filenames, err := resolveFilenameValidator(opts)
+	if err != nil {
+		return nil, err
+	}
+
 	return map[string]codebasefx.ValidatorFunc{
 		"eof":             codebasefx.ValidateEOF,
 		"bom":             codebasefx.ValidateBOM,
@@ -4522,7 +4634,7 @@ func validatorsByName(opts map[string]interface{}) map[string]codebasefx.Validat
 		"line-endings":    codebasefx.ValidateLineEndings,
 		"merge-conflicts": codebasefx.ValidateMergeConflicts,
 		"secrets":         codebasefx.ValidateSecrets,
-		"large-file":      codebasefx.ValidateLargeFile(1024 * 1024),
+		"large-file":      largeFile,
 		"json":            codebasefx.ValidateJSON,
 		"yaml":            codebasefx.ValidateYAML,
 		"toml":            codebasefx.ValidateTOML,
@@ -4532,8 +4644,8 @@ func validatorsByName(opts map[string]interface{}) map[string]codebasefx.Validat
 		"submodules":      codebasefx.ValidateSubmodules(),
 		"shebangs":        codebasefx.ValidateShebangs,
 		"runtime-js-apis": codebasefx.ValidateRuntimeJSAPIs,
-		"filenames":       resolveFilenameValidator(opts),
-	}
+		"filenames":       filenames,
+	}, nil
 }
 
 // resolveValidatorEntries maps requested names to name/validator pairs, in the
@@ -4544,13 +4656,17 @@ func validatorsByName(opts map[string]interface{}) map[string]codebasefx.Validat
 // every result after the dropped entry carried the wrong name.
 func resolveValidatorEntries(
 	names []string,
-	opts map[string]interface{},
+	opts map[string]any,
 ) ([]validatorEntry, error) {
 	if len(names) == 0 {
 		return defaultValidatorEntries(), nil
 	}
 
-	all := validatorsByName(opts)
+	all, err := validatorsByName(opts)
+	if err != nil {
+		return nil, err
+	}
+
 	entries := make([]validatorEntry, 0, len(names))
 
 	for _, name := range names {
@@ -4652,7 +4768,7 @@ func bridgeCodebaseCheckExportNames(requestJSON string) string {
 	return marshalResponse(result)
 }
 
-// bridgeCodebaseCheckModExports validates mod.ts export completeness.
+// bridgeCodebaseCheckModExports reports top-level modules no package entry point reaches.
 func bridgeCodebaseCheckModExports(requestJSON string) string {
 	var req workspaceCheckRequest
 	if err := json.Unmarshal([]byte(requestJSON), &req); err != nil {
@@ -4754,6 +4870,16 @@ func bridgeCodebaseWalkFilesStreamCreate(requestJSON string) string {
 	go func() {
 		defer state.wg.Done()
 		defer close(state.ch)
+		// This goroutine outlives the guarded export call, so it recovers on
+		// its own: an escaping panic would abort the host process.
+		defer func() {
+			if recovered := recover(); recovered != nil {
+				select {
+				case state.ch <- marshalError(reportPanic(recovered)):
+				case <-ctx.Done():
+				}
+			}
+		}()
 
 		entries, err := codebasefx.WalkSourceFiles(ctx, codebasefx.WalkOptions{
 			Root:       req.Dir,
@@ -4870,6 +4996,16 @@ func bridgeCodebaseValidateFilesStreamCreate(requestJSON string) string {
 	go func() {
 		defer state.wg.Done()
 		defer close(state.ch)
+		// This goroutine outlives the guarded export call, so it recovers on
+		// its own: an escaping panic would abort the host process.
+		defer func() {
+			if recovered := recover(); recovered != nil {
+				select {
+				case state.ch <- marshalError(reportPanic(recovered)):
+				case <-ctx.Done():
+				}
+			}
+		}()
 
 		files, err := codebasefx.WalkSourceFiles(ctx, codebasefx.WalkOptions{
 			Root:       req.Dir,
@@ -5284,7 +5420,9 @@ type shellExecRequest struct {
 	Cwd     string   `json:"cwd,omitempty"`
 	Env     []string `json:"env,omitempty"`
 	Stdin   string   `json:"stdin,omitempty"`
-	Timeout string   `json:"timeout,omitempty"` // Go duration string e.g. "30s"
+	// Timeout is a Go duration string such as "30s". Empty means
+	// defaultShellExecTimeout.
+	Timeout string `json:"timeout,omitempty"`
 }
 
 type shellExecResponse struct {
@@ -5294,35 +5432,70 @@ type shellExecResponse struct {
 	Error  string `json:"error,omitempty"`
 }
 
+// defaultShellExecTimeout bounds a bridgeShellExec command whose request sets
+// no timeout, so a hung child cannot block the calling thread forever. A caller
+// that runs a longer command sends a larger "timeout".
+const defaultShellExecTimeout = 10 * time.Minute
+
+// errShellExecTimeoutNotPositive rejects a zero or negative timeout: processfx
+// reads zero as "no limit", and every bridged command has one.
+var errShellExecTimeoutNotPositive = errors.New("timeout must be a positive duration")
+
+// shellExecTimeout turns the request's timeout into a duration. An empty value
+// gives defaultShellExecTimeout.
+func shellExecTimeout(raw string) (time.Duration, error) {
+	if raw == "" {
+		return defaultShellExecTimeout, nil
+	}
+
+	d, err := time.ParseDuration(raw)
+	if err != nil {
+		return 0, fmt.Errorf(`parse timeout %q as a Go duration such as "30s": %w`, raw, err)
+	}
+
+	if d <= 0 {
+		return 0, fmt.Errorf(`%w: got %q; send one such as "30s", or omit it for the %s default`,
+			errShellExecTimeoutNotPositive, raw, defaultShellExecTimeout)
+	}
+
+	return d, nil
+}
+
 // bridgeShellExec executes a shell command and returns stdout/stderr/exit-code.
+// The command stops after the request's timeout, or after
+// defaultShellExecTimeout when the request sets none.
 func bridgeShellExec(requestJSON string) string {
 	var req shellExecRequest
 	if err := json.Unmarshal([]byte(requestJSON), &req); err != nil {
 		return marshalResponse(shellExecResponse{Error: "invalid request JSON: " + err.Error()}) //nolint:exhaustruct
 	}
 
+	timeout, err := shellExecTimeout(req.Timeout)
+	if err != nil {
+		return marshalResponse(shellExecResponse{Error: err.Error()}) //nolint:exhaustruct
+	}
+
 	opts := processfx.ExecOptions{
-		Cwd: req.Cwd,
-		Env: req.Env,
+		Cwd:     req.Cwd,
+		Env:     req.Env,
+		Timeout: timeout,
 	}
 
 	if req.Stdin != "" {
 		opts.Stdin = []byte(req.Stdin)
 	}
 
-	if req.Timeout != "" {
-		d, err := time.ParseDuration(req.Timeout)
-		if err != nil {
-			return marshalResponse(shellExecResponse{Error: "invalid timeout: " + err.Error()}) //nolint:exhaustruct
-		}
-
-		opts.Timeout = d
-	}
-
 	// command + args form a complete argv (callers pre-wrap, e.g.
 	// command "sh" with args ["-c", script]). Run executes it directly — using
 	// Exec here would re-wrap into `sh -c "sh" -c script`, a nested no-op shell.
 	result, err := processfx.Run(context.Background(), req.Command, req.Args, opts)
+	if errors.Is(err, context.DeadlineExceeded) {
+		return marshalResponse(shellExecResponse{ //nolint:exhaustruct
+			Error: fmt.Sprintf(`%v: the command ran past its %s timeout; send a larger "timeout" to allow more time`,
+				err, timeout),
+		})
+	}
+
 	if err != nil {
 		return marshalResponse(shellExecResponse{Error: err.Error()}) //nolint:exhaustruct
 	}

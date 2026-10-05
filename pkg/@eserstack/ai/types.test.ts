@@ -1,45 +1,45 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import { describe, it } from "@std/testing/bdd";
-import { assertEquals } from "@std/assert";
+import * as bdd from "@std/testing/bdd";
+import * as assert from "@std/assert";
 import type * as types from "./types.ts";
 
-describe("ContentBlock discriminated union", () => {
-  it("should create text blocks", () => {
+bdd.describe("ContentBlock discriminated union", () => {
+  bdd.it("should create text blocks", () => {
     const block: types.ContentBlock = { kind: "text", text: "hello" };
-    assertEquals(block.kind, "text");
-    assertEquals(block.text, "hello");
+    assert.assertEquals(block.kind, "text");
+    assert.assertEquals(block.text, "hello");
   });
 
-  it("should create image blocks", () => {
+  bdd.it("should create image blocks", () => {
     const block: types.ContentBlock = {
       kind: "image",
       image: { url: "https://example.com/image.png", detail: "high" },
     };
-    assertEquals(block.kind, "image");
-    assertEquals(block.image.url, "https://example.com/image.png");
-    assertEquals(block.image.detail, "high");
+    assert.assertEquals(block.kind, "image");
+    assert.assertEquals(block.image.url, "https://example.com/image.png");
+    assert.assertEquals(block.image.detail, "high");
   });
 
-  it("should create audio blocks", () => {
+  bdd.it("should create audio blocks", () => {
     const block: types.ContentBlock = {
       kind: "audio",
       audio: { url: "https://example.com/audio.mp3", mimeType: "audio/mpeg" },
     };
-    assertEquals(block.kind, "audio");
-    assertEquals(block.audio.mimeType, "audio/mpeg");
+    assert.assertEquals(block.kind, "audio");
+    assert.assertEquals(block.audio.mimeType, "audio/mpeg");
   });
 
-  it("should create file blocks", () => {
+  bdd.it("should create file blocks", () => {
     const block: types.ContentBlock = {
       kind: "file",
       file: { uri: "gs://bucket/file.pdf", mimeType: "application/pdf" },
     };
-    assertEquals(block.kind, "file");
-    assertEquals(block.file.uri, "gs://bucket/file.pdf");
+    assert.assertEquals(block.kind, "file");
+    assert.assertEquals(block.file.uri, "gs://bucket/file.pdf");
   });
 
-  it("should create tool call blocks", () => {
+  bdd.it("should create tool call blocks", () => {
     const block: types.ContentBlock = {
       kind: "tool_call",
       toolCall: {
@@ -48,22 +48,22 @@ describe("ContentBlock discriminated union", () => {
         arguments: { city: "Istanbul" },
       },
     };
-    assertEquals(block.kind, "tool_call");
-    assertEquals(block.toolCall.name, "get_weather");
-    assertEquals(block.toolCall.arguments["city"], "Istanbul");
+    assert.assertEquals(block.kind, "tool_call");
+    assert.assertEquals(block.toolCall.name, "get_weather");
+    assert.assertEquals(block.toolCall.arguments["city"], "Istanbul");
   });
 
-  it("should create tool result blocks", () => {
+  bdd.it("should create tool result blocks", () => {
     const block: types.ContentBlock = {
       kind: "tool_result",
       toolResult: { toolCallId: "call_1", content: "25°C", isError: false },
     };
-    assertEquals(block.kind, "tool_result");
-    assertEquals(block.toolResult.content, "25°C");
-    assertEquals(block.toolResult.isError, false);
+    assert.assertEquals(block.kind, "tool_result");
+    assert.assertEquals(block.toolResult.content, "25°C");
+    assert.assertEquals(block.toolResult.isError, false);
   });
 
-  it("should support all content block kinds via switch", () => {
+  bdd.it("should support all content block kinds via switch", () => {
     const getKindLabel = (block: types.ContentBlock): string => {
       switch (block.kind) {
         case "text":
@@ -78,32 +78,50 @@ describe("ContentBlock discriminated union", () => {
           return "tool_call";
         case "tool_result":
           return "tool_result";
+        case "thinking":
+          return "thinking";
       }
     };
 
-    assertEquals(getKindLabel({ kind: "text", text: "test" }), "text");
-    assertEquals(getKindLabel({ kind: "image", image: { url: "x" } }), "image");
-    assertEquals(getKindLabel({ kind: "audio", audio: { url: "x" } }), "audio");
-    assertEquals(getKindLabel({ kind: "file", file: { uri: "x" } }), "file");
-    assertEquals(
+    assert.assertEquals(getKindLabel({ kind: "text", text: "test" }), "text");
+    assert.assertEquals(
+      getKindLabel({ kind: "image", image: { url: "x" } }),
+      "image",
+    );
+    assert.assertEquals(
+      getKindLabel({ kind: "audio", audio: { url: "x" } }),
+      "audio",
+    );
+    assert.assertEquals(
+      getKindLabel({ kind: "file", file: { uri: "x" } }),
+      "file",
+    );
+    assert.assertEquals(
       getKindLabel({
         kind: "tool_call",
         toolCall: { id: "1", name: "fn", arguments: {} },
       }),
       "tool_call",
     );
-    assertEquals(
+    assert.assertEquals(
       getKindLabel({
         kind: "tool_result",
         toolResult: { toolCallId: "1", content: "", isError: false },
       }),
       "tool_result",
     );
+    assert.assertEquals(
+      getKindLabel({
+        kind: "thinking",
+        thinking: { text: "plan", signature: "sig" },
+      }),
+      "thinking",
+    );
   });
 });
 
-describe("Message", () => {
-  it("should create a message with multiple content blocks", () => {
+bdd.describe("Message", () => {
+  bdd.it("should create a message with multiple content blocks", () => {
     const message: types.Message = {
       role: "user",
       content: [
@@ -112,9 +130,9 @@ describe("Message", () => {
       ],
     };
 
-    assertEquals(message.role, "user");
-    assertEquals(message.content.length, 2);
-    assertEquals(message.content[0]?.kind, "text");
-    assertEquals(message.content[1]?.kind, "image");
+    assert.assertEquals(message.role, "user");
+    assert.assertEquals(message.content.length, 2);
+    assert.assertEquals(message.content[0]?.kind, "text");
+    assert.assertEquals(message.content[1]?.kind, "image");
   });
 });

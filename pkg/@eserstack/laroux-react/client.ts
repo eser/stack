@@ -20,18 +20,19 @@
 // - Promise/thenable chunk handlers
 // - State machine chunk transitions
 
-import { Children, createElement, Fragment } from "react";
-import {
-  isReactElement,
-  type ModuleReference,
-  parseChunk,
-  type RSCChunk,
-  type ServerActionReference,
+import * as React from "react";
+import * as logging from "@eserstack/logging";
+import * as protocol from "./protocol.ts";
+import type {
+  ModuleReference,
+  RSCChunk,
+  ServerActionReference,
 } from "./protocol.ts";
 
-// Build-time define - bundler replaces process.env.DEBUG with "false" at build time
-// All if(DEBUG) blocks are tree-shaken in production builds
-const DEBUG = (globalThis as any).process?.env?.DEBUG === "true";
+// Taken on first use, not at import. In the browser this is laroux's browser
+// logger, which client builds put in place of @eserstack/logging.
+const getClientLogger = () =>
+  logging.logger.getLogger(["laroux-bundler", "rsc-client"]);
 
 /**
  * Apply keys to children array using React.Children.toArray()
@@ -39,7 +40,7 @@ const DEBUG = (globalThis as any).process?.env?.DEBUG === "true";
  * Used to avoid "Each child in a list should have a unique key" warnings
  */
 function applyChildKeys(children: any[]): any[] {
-  return Children.toArray(children);
+  return React.Children.toArray(children);
 }
 
 // Chunk states matching official React Flight implementation
@@ -139,16 +140,20 @@ type Chunk =
 
 interface ClientContext {
   chunks: Map<number, Chunk>;
-  moduleCache: Map<string, any>;
+  moduleCache: Map<string, Promise<unknown>>;
   moduleLoader: ModuleLoader;
   _closed: boolean; // Has the stream been closed?
   _closedReason: Error | null; // Error that caused stream to close (if any)
 }
 
 /**
- * Module loader function type
+ * Loads the export that a module chunk (`M`) names.
+ *
+ * Returns the export, or a promise of it. Its type is known only to the module
+ * that exports it: usually a component, and the whole module for the name
+ * `"*"`. Code that renders the value narrows it first.
  */
-export type ModuleLoader = (id: string, name: string) => Promise<any> | any;
+export type ModuleLoader = (id: string, name: string) => unknown;
 
 /**
  * ChunkReader - Deferred chunk reader for progressive Suspense
@@ -162,11 +167,6 @@ export type ModuleLoader = (id: string, name: string) => Promise<any> | any;
  * BEFORE encountering PENDING children.
  */
 function ChunkReader({ chunk }: { chunk: Chunk }): any {
-  if (DEBUG) {
-    console.log(
-      `[CLIENT] 🔍 ChunkReader rendering (chunk status: ${chunk._status})`,
-    );
-  }
   // Use readChunk which handles initialization and throwing for Suspense
   return readChunk(chunk);
 }
@@ -175,18 +175,22 @@ function ChunkReader({ chunk }: { chunk: Chunk }): any {
  * Default module loader using dynamic import
  */
 const defaultModuleLoader: ModuleLoader = async (id: string, name: string) => {
+  let module;
   try {
-    const module = await import(id);
-    if (name === "default") {
-      return module.default;
-    } else if (name === "*") {
-      return module;
-    } else {
-      return module[name];
-    }
+    module = await import(id);
   } catch (error) {
-    console.error(`Failed to load client module: ${id}`, error);
-    throw error;
+    throw new Error(
+      `load client module ${id}#${name}: check that the module is in the client bundle`,
+      { cause: error },
+    );
+  }
+
+  if (name === "default") {
+    return module.default;
+  } else if (name === "*") {
+    return module;
+  } else {
+    return module[name];
   }
 };
 
@@ -196,9 +200,41 @@ const defaultModuleLoader: ModuleLoader = async (id: string, name: string) => {
 async function loadClientModule(
   moduleRef: ModuleReference,
   moduleLoader: ModuleLoader,
-): Promise<any> {
+): Promise<unknown> {
   const { id, name } = moduleRef;
   return await moduleLoader(id, name);
+}
+
+/**
+ * Create the state a stream's chunks are collected in.
+ *
+ * @param closed Whether no more chunks will arrive, as for an embedded payload
+ */
+function createClientContext(
+  moduleLoader: ModuleLoader,
+  closed: boolean,
+): ClientContext {
+  return {
+    chunks: new Map(),
+    moduleCache: new Map(),
+    moduleLoader,
+    _closed: closed,
+    _closedReason: null,
+  };
+}
+
+/** Turn a thrown value into an Error, keeping one that already is. */
+function toError(value: unknown): Error {
+  return value instanceof Error ? value : new Error(String(value));
+}
+
+/**
+ * The error a chunk gets when its stream ended without sending it.
+ */
+function createStreamClosedError(id: number): Error {
+  return new Error(
+    `read RSC stream: the stream ended before chunk ${id} arrived; check the server log for the error that stopped the render`,
+  );
 }
 
 /**
@@ -206,32 +242,101 @@ async function loadClientModule(
  * Returns a Thenable with a listener queue that React can suspend on
  */
 function createPendingChunk(context: ClientContext): PendingChunk {
-  const listeners: ChunkListener[] = [];
-
   const thenable: PendingChunk = {
     _status: PENDING,
     status: "pending",
     value: null,
     reason: null,
     _response: context,
-    _listeners: listeners,
+    _listeners: [],
     then(onResolve: (value: any) => void, onReject?: (error: any) => void) {
+      // The chunk object changes state in place. One that settled before this
+      // call has already notified its listeners, so it answers from its state.
+      const current = thenable as unknown as Chunk;
+      if (current._status === ERRORED) {
+        return Promise.reject(current.reason).then(onResolve, onReject);
+      }
+      if (current._status !== PENDING && current._status !== BLOCKED) {
+        return Promise.resolve(current.value).then(onResolve, onReject);
+      }
+
       // Create a promise that gets resolved when chunk arrives
       const promise = new Promise<any>((resolve, reject) => {
-        listeners.push({ resolve, reject });
+        current._listeners.push({ resolve, reject });
       });
       return promise.then(onResolve, onReject);
     },
   };
 
-  if (DEBUG) {
-    console.log(
-      `[CLIENT] 🏗️  Created PENDING chunk with status=${thenable._status} (typeof: ${typeof thenable
-        ._status})`,
-    );
+  return thenable;
+}
+
+/**
+ * Move a PENDING chunk to ERRORED and reject its listeners, so the Suspense
+ * boundary that is waiting on it retries and the error reaches the error
+ * boundary.
+ */
+function rejectPendingChunk(chunk: PendingChunk, error: Error): void {
+  // Double assertion needed: chunk state transition from PENDING to ERRORED
+  const erroredChunk = chunk as any as ErroredChunk;
+  erroredChunk._status = ERRORED;
+  erroredChunk.reason = error;
+
+  rejectChunkListeners(chunk, error);
+}
+
+/**
+ * Store an error for a chunk id: a PENDING chunk moves to ERRORED and its
+ * listeners are rejected, and a chunk that has not been referenced yet is
+ * created as ERRORED.
+ *
+ * @returns false when the chunk already holds a value, which it keeps
+ */
+function storeErroredChunk(
+  context: ClientContext,
+  id: number,
+  error: Error,
+): boolean {
+  const existingChunk = context.chunks.get(id);
+
+  if (existingChunk === undefined) {
+    const erroredChunk: ErroredChunk = {
+      _status: ERRORED,
+      value: null,
+      reason: error,
+      _response: context,
+    };
+    context.chunks.set(id, erroredChunk);
+    return true;
   }
 
-  return thenable;
+  if (existingChunk._status !== PENDING) {
+    return false;
+  }
+
+  rejectPendingChunk(existingChunk, error);
+  return true;
+}
+
+/**
+ * Mark the stream that feeds a context as finished.
+ *
+ * A chunk that is still PENDING will never arrive, so it moves to ERRORED
+ * and its listeners are rejected: the Suspense boundary that waits on it
+ * shows the error instead of waiting forever. Chunks referenced later fail
+ * in getChunk the same way.
+ *
+ * @param reason The error the stream failed with, or null when it ended
+ */
+function closeContext(context: ClientContext, reason: Error | null): void {
+  context._closed = true;
+  context._closedReason = reason;
+
+  for (const [id, chunk] of context.chunks) {
+    if (chunk._status === PENDING) {
+      rejectPendingChunk(chunk, reason ?? createStreamClosedError(id));
+    }
+  }
 }
 
 /**
@@ -253,19 +358,9 @@ function readChunk(chunk: Chunk): any {
   // Lazy initialization - only parse/load if needed
   switch (chunk._status) {
     case RESOLVED_MODEL:
-      if (DEBUG) {
-        console.log(
-          `[CLIENT] 🔄 Lazy-initializing RESOLVED_MODEL chunk during render`,
-        );
-      }
       initializeModelChunk(chunk as ResolvedModelChunk);
       break;
     case RESOLVED_MODULE:
-      if (DEBUG) {
-        console.log(
-          `[CLIENT] 🔄 Lazy-initializing RESOLVED_MODULE chunk during render`,
-        );
-      }
       initializeModuleChunk(chunk as ResolvedModuleChunk);
       break;
   }
@@ -279,13 +374,6 @@ function readChunk(chunk: Chunk): any {
     case BLOCKED:
       // Throw thenable for React Suspense - this is the magic!
       // React will catch this throw and suspend until chunk resolves
-      if (DEBUG) {
-        console.log(
-          `[CLIENT] 🔴 Throwing ${
-            chunk._status === PENDING ? "PENDING" : "BLOCKED"
-          } chunk for Suspense`,
-        );
-      }
       throw chunk;
 
     case ERRORED:
@@ -311,8 +399,7 @@ function getChunk(id: number, context: ClientContext): Chunk {
 
   // Stream closed? Create error chunk
   if (context._closed) {
-    const error = context._closedReason ??
-      new Error("Stream closed before chunk arrived");
+    const error = context._closedReason ?? createStreamClosedError(id);
     const erroredChunk: ErroredChunk = {
       _status: ERRORED,
       value: null,
@@ -342,15 +429,6 @@ function initializeModelChunk(chunk: ResolvedModelChunk): void {
   const context = chunk._response;
   const model = chunk.value;
 
-  // Find chunk ID for logging
-  let chunkId = -1;
-  for (const [id, c] of context.chunks.entries()) {
-    if (c === chunk) {
-      chunkId = id;
-      break;
-    }
-  }
-
   // Transition to BLOCKED to handle cycles
   // Double assertion needed: chunk state machine transitions between discriminated union types
   const blockedChunk = chunk as any as BlockedChunk;
@@ -367,26 +445,8 @@ function initializeModelChunk(chunk: ResolvedModelChunk): void {
     initializedChunk._status = INITIALIZED;
     initializedChunk.value = value;
 
-    // TRACE: Log what we stored for element chunks
-    if (DEBUG && chunkId >= 0 && chunkId <= 25) {
-      const hasSymbol = typeof value?.$$typeof === "symbol";
-      console.log(`[CLIENT] ✅ Chunk ${chunkId} INITIALIZED:`, {
-        rawModelType: model?.type,
-        rawModel$$typeof: model?.$$typeof,
-        parsedHasSymbol: hasSymbol,
-        parsedType: hasSymbol ? "ReactElement" : (value?.type ?? typeof value),
-        parsedKeys: value && typeof value === "object"
-          ? Object.keys(value).slice(0, 5)
-          : null,
-      });
-    }
-
     // Wake any blocked listeners
     wakeChunkListeners(blockedChunk, value);
-
-    if (DEBUG) {
-      console.log(`[CLIENT] ✅ Model chunk initialized successfully`);
-    }
   } catch (error) {
     // Check if this is a Suspense throw (PENDING/BLOCKED chunk)
     // If so, re-throw it - don't treat it as an error!
@@ -395,11 +455,6 @@ function initializeModelChunk(chunk: ResolvedModelChunk): void {
       typeof error === "object" && error !== null && "status" in error &&
       ((error as any)._status === PENDING || (error as any)._status === BLOCKED)
     ) {
-      if (DEBUG) {
-        console.log(
-          `[CLIENT] ⏸️  Chunk initialization suspended - re-throwing for Suspense`,
-        );
-      }
       // Reset chunk back to RESOLVED_MODEL so it can be retried
       // Double assertion needed: chunk state reset for Suspense retry
       const resolvedChunk = chunk as any as ResolvedModelChunk;
@@ -415,12 +470,9 @@ function initializeModelChunk(chunk: ResolvedModelChunk): void {
     erroredChunk._status = ERRORED;
     erroredChunk.reason = error as Error;
 
-    // Reject blocked listeners
+    // Reject blocked listeners. The error reaches React when the chunk is
+    // read, and the error boundary that catches it reports it.
     rejectChunkListeners(blockedChunk, error as Error);
-
-    if (DEBUG) {
-      console.error(`[CLIENT] ❌ Model chunk initialization failed:`, error);
-    }
   }
 }
 
@@ -455,9 +507,6 @@ function wakeChunkListeners(
 ): void {
   const listeners = chunk._listeners;
   if (listeners && listeners.length > 0) {
-    if (DEBUG) {
-      console.log(`[CLIENT] 🔔 Waking ${listeners.length} listeners`);
-    }
     // Notify in microtask to let React properly handle updates
     queueMicrotask(() => {
       for (const listener of listeners) {
@@ -480,9 +529,6 @@ function rejectChunkListeners(
 ): void {
   const listeners = chunk._listeners;
   if (listeners && listeners.length > 0) {
-    if (DEBUG) {
-      console.log(`[CLIENT] 🔔 Rejecting ${listeners.length} listeners`);
-    }
     queueMicrotask(() => {
       for (const listener of listeners) {
         listener.reject(error);
@@ -516,7 +562,7 @@ function parseModel(model: any, context: ClientContext): any {
 
   // Real React elements (already parsed, with Symbol $$typeof) - pass through as-is
   // This prevents losing the Symbol $$typeof when copying object properties
-  if (isReactElement(model)) {
+  if (protocol.isReactElement(model)) {
     return model;
   }
 
@@ -524,86 +570,108 @@ function parseModel(model: any, context: ClientContext): any {
   // Handle both "react.element" and "react.transitional.element" (React 19)
   const typeofValue = model.$$typeof ?? model.$typeof;
 
-  // Debug: Log EVERY object that has type+props to ensure we catch all elements
-  if (DEBUG && model.type !== undefined && model.props !== undefined) {
-    console.log(
-      `[CLIENT] 🔍 parseModel object with type+props:`,
-      {
-        modelType: model.type,
-        "$$typeof_value": model.$$typeof,
-        "$typeof_value": model.$typeof,
-        typeofValue,
-        willParseAsElement: typeofValue === "react.element" ||
-          typeofValue === "react.transitional.element",
-        allKeys: Object.keys(model),
-      },
-    );
-  }
-
   if (
     typeofValue === "react.element" ||
     typeofValue === "react.transitional.element"
   ) {
-    if (DEBUG) {
-      console.log(
-        `[CLIENT] 🔧 parseModel found serialized React element:`,
-        { type: model.type, hasProps: !!model.props },
-      );
-    }
-    const result = parseReactElement(model, context);
-    // Verify the result has Symbol $$typeof
-    if (DEBUG && result && typeof result === "object") {
-      console.log(`[CLIENT] ✅ parseReactElement returned:`, {
-        type: model.type,
-        resultHasSymbolTypeof: typeof result.$$typeof === "symbol",
-        resultTypeof: result.$$typeof,
-        resultType: result.type,
-      });
-    }
-    return result;
+    return parseReactElement(model, context);
   }
 
-  // Plain objects - parse properties
+  // Plain objects - parse properties. Object.fromEntries defines each key as
+  // an own property, so a "__proto__" key from the stream stays data and does
+  // not replace the object's prototype.
   if (Object.getPrototypeOf(model) === Object.prototype) {
-    const parsed: any = {};
-    for (const [key, val] of Object.entries(model)) {
-      parsed[key] = parseModel(val, context);
-    }
-    return parsed;
+    return Object.fromEntries(
+      Object.entries(model).map((
+        [key, val],
+      ) => [key, parseModel(val, context)]),
+    );
   }
 
   return model;
 }
 
 /**
- * Parse a $ reference - read chunk value
+ * Read the chunk id written after a reference prefix, such as "12" in "$12"
+ * or "$Q12"; null when the text is not a decimal id.
+ */
+function parseChunkId(text: string): number | null {
+  return /^\d+$/.test(text) ? Number(text) : null;
+}
+
+/**
+ * The chunk id of a plain reference such as "$12"; null for every other
+ * value, tagged values and escaped strings included.
+ */
+function parseChunkReference(value: unknown): number | null {
+  return typeof value === "string" && value.startsWith("$")
+    ? parseChunkId(value.slice(1))
+    : null;
+}
+
+/** Digits of a BigInt as the server writes them after its tag. */
+const BIGINT_DIGITS = /^-?\d+$/;
+
+/**
+ * Parse a string that starts with "$": a reference to another chunk, a value
+ * JSON cannot hold, or an escaped string (protocol.RSC_VALUE_TAGS)
  *
- * @param ref The $ reference string (e.g., "$79", "$M123", "$F456")
+ * @param ref The $ string (e.g., "$79", "$M123", "$F456", "$D2026-01-02T...")
  * @param context The client context
- * @returns The chunk value
+ * @returns The value the string stands for
  */
 function parseReference(ref: string, context: ClientContext): any {
+  const tags = protocol.RSC_VALUE_TAGS;
+
+  // A string the server escaped because it starts with "$"
+  if (ref.startsWith(tags.escaped)) {
+    return ref.slice(1);
+  }
+
+  switch (ref) {
+    case tags.undefined:
+      return undefined;
+    case tags.nan:
+      return NaN;
+    case tags.infinity:
+      return Infinity;
+    case tags.negativeInfinity:
+      return -Infinity;
+    case tags.negativeZero:
+      return -0;
+  }
+
+  if (ref.startsWith(tags.date)) {
+    return new Date(ref.slice(tags.date.length));
+  }
+
+  if (ref.startsWith(tags.bigint)) {
+    const digits = ref.slice(tags.bigint.length);
+    return BIGINT_DIGITS.test(digits) ? BigInt(digits) : ref;
+  }
+
+  // A Map or a Set: the referenced chunk holds its entries or values
+  const isMap = ref.startsWith(tags.map);
+  if (isMap || ref.startsWith(tags.set)) {
+    const tag = isMap ? tags.map : tags.set;
+    const id = parseChunkId(ref.slice(tag.length));
+    if (id === null) {
+      return ref;
+    }
+
+    const items = readChunk(getChunk(id, context));
+    return isMap ? new Map(items) : new Set(items);
+  }
+
   // Handle different reference types:
   // - $M123: Module reference
   // - $F123: Server action (function) reference
   // - $123: Regular JSON reference
-  let id: number;
+  const id = ref.startsWith("$M") || ref.startsWith("$F")
+    ? parseChunkId(ref.slice(2))
+    : parseChunkId(ref.slice(1));
 
-  if (ref.startsWith("$M")) {
-    // Module reference: $M123
-    id = parseInt(ref.slice(2), 10);
-  } else if (ref.startsWith("$F")) {
-    // Server action (function) reference: $F123
-    id = parseInt(ref.slice(2), 10);
-  } else if (ref.startsWith("$")) {
-    // Regular reference: $123
-    id = parseInt(ref.slice(1), 10);
-  } else {
-    // Not a reference, return as-is
-    return ref;
-  }
-
-  if (isNaN(id)) {
+  if (id === null) {
     // Not a valid reference, return as-is
     return ref;
   }
@@ -611,30 +679,8 @@ function parseReference(ref: string, context: ClientContext): any {
   // Get or create chunk (might be PENDING if forward reference)
   const chunk = getChunk(id, context);
 
-  if (DEBUG) {
-    console.log(
-      `[CLIENT] 🔗 Reading reference ${ref} to chunk ${id} (status: ${chunk._status})`,
-    );
-  }
-
   // Read chunk - will throw if PENDING
-  const result = readChunk(chunk);
-
-  // TRACE: Log what we got back for element chunks
-  if (DEBUG && id <= 30) {
-    console.log(`[CLIENT] 🔗 parseReference ${ref} returned:`, {
-      id,
-      resultType: typeof result,
-      isArray: Array.isArray(result),
-      hasSymbolTypeof: typeof result?.$$typeof === "symbol",
-      typeofValue: result?.$$typeof,
-      resultKeys: result && typeof result === "object"
-        ? Object.keys(result).slice(0, 6)
-        : null,
-    });
-  }
-
-  return result;
+  return readChunk(chunk);
 }
 
 /**
@@ -652,18 +698,6 @@ function parseReference(ref: string, context: ClientContext): any {
 function parseReactElement(element: any, context: ClientContext): any {
   // Resolve type
   let type = parseModel(element.type, context);
-
-  if (DEBUG) {
-    console.log(`[CLIENT] 🔧 parseReactElement:`, {
-      rawType: element.type,
-      resolvedType: typeof type === "symbol" ? type.toString() : type,
-      hasProps: !!element.props,
-      propsIsRef: typeof element.props === "string",
-      propsKeys: element.props && typeof element.props === "object"
-        ? Object.keys(element.props)
-        : null,
-    });
-  }
 
   // Convert serialized symbols back to actual Symbol objects
   if (typeof type === "string" && type.startsWith("Symbol(")) {
@@ -684,80 +718,61 @@ function parseReactElement(element: any, context: ClientContext): any {
     let rawProps = element.props;
 
     // If props is a reference, resolve it to get the raw object
-    if (typeof rawProps === "string" && rawProps.startsWith("$")) {
-      const propsId = parseInt(rawProps.slice(1), 10);
-      if (!isNaN(propsId)) {
-        const propsChunk = getChunk(propsId, context);
-        // For RESOLVED_MODEL, get the raw JSON value
-        if (
-          propsChunk._status === RESOLVED_MODEL ||
-          propsChunk._status === INITIALIZED
-        ) {
-          rawProps = propsChunk.value;
-        }
+    const propsId = parseChunkReference(rawProps);
+    if (propsId !== null) {
+      const propsChunk = getChunk(propsId, context);
+      // For RESOLVED_MODEL, get the raw JSON value
+      if (
+        propsChunk._status === RESOLVED_MODEL ||
+        propsChunk._status === INITIALIZED
+      ) {
+        rawProps = propsChunk.value;
       }
     }
 
-    // Check if raw props has children that's a reference
-    if (
-      rawProps !== null && typeof rawProps === "object" &&
-      typeof rawProps.children === "string" && rawProps.children.startsWith("$")
-    ) {
-      const childRef = rawProps.children;
-      const childId = parseInt(childRef.slice(1), 10);
+    // Check if raw props has children that's a reference. A tagged value or
+    // an escaped string ("$$5 off") is not one.
+    const childId = rawProps !== null && typeof rawProps === "object"
+      ? parseChunkReference(rawProps.children)
+      : null;
 
-      if (!isNaN(childId)) {
-        const childChunk = getChunk(childId, context);
+    if (childId !== null) {
+      const childChunk = getChunk(childId, context);
 
-        // Check if child is PENDING or indirect PENDING reference
-        let shouldWrap = childChunk._status === PENDING;
+      // Check if child is PENDING or indirect PENDING reference
+      let shouldWrap = childChunk._status === PENDING;
 
-        if (!shouldWrap && childChunk._status === RESOLVED_MODEL) {
-          const childValue = childChunk.value;
-          if (typeof childValue === "string" && childValue.startsWith("$")) {
-            const indirectId = parseInt(childValue.slice(1), 10);
-            if (!isNaN(indirectId)) {
-              const indirectChunk = getChunk(indirectId, context);
-              if (indirectChunk._status === PENDING) {
-                shouldWrap = true;
-                if (DEBUG) {
-                  console.log(
-                    `[CLIENT] 🔍 Found indirect reference: chunk ${childId} -> chunk ${indirectId} (PENDING)`,
-                  );
-                }
-              }
-            }
-          }
+      if (!shouldWrap && childChunk._status === RESOLVED_MODEL) {
+        const indirectId = parseChunkReference(childChunk.value);
+        if (
+          indirectId !== null &&
+          getChunk(indirectId, context)._status === PENDING
+        ) {
+          shouldWrap = true;
         }
+      }
 
-        if (shouldWrap) {
-          if (DEBUG) {
-            console.log(
-              `[CLIENT] 🎯 Suspense with PENDING child (chunk ${childId}) - wrapping in ChunkReader`,
-            );
-          }
+      if (shouldWrap) {
+        // Build props manually: parse fallback separately
+        const { children: _, fallback, ...otherRawProps } = rawProps;
 
-          // Build props manually: parse fallback separately
-          const { children: _, fallback, ...otherRawProps } = rawProps;
+        // Parse fallback - it could be a reference like "$252" or a plain object
+        // Use parseModel to resolve references and reconstruct React elements
+        const parsedFallback = fallback === undefined
+          ? undefined
+          : parseModel(fallback, context);
 
-          // Parse fallback - it could be a reference like "$252" or a plain object
-          // Use parseModel to resolve references and reconstruct React elements
-          const parsedFallback = fallback
-            ? parseModel(fallback, context)
-            : undefined;
+        // Parse other props (excluding children and fallback)
+        const parsedOtherProps = Object.keys(otherRawProps).length > 0
+          ? parseModel(otherRawProps, context)
+          : {};
 
-          // Parse other props (excluding children and fallback)
-          const parsedOtherProps = Object.keys(otherRawProps).length > 0
-            ? parseModel(otherRawProps, context)
-            : {};
-
-          // Return Suspense with ChunkReader as children
-          return createElement(type, {
-            ...parsedOtherProps,
-            fallback: parsedFallback,
-            children: createElement(ChunkReader, { chunk: childChunk }),
-          });
-        }
+        // Return Suspense with ChunkReader as children
+        return React.createElement(type, {
+          ...parsedOtherProps,
+          fallback: parsedFallback,
+          children: React.createElement(ChunkReader, { chunk: childChunk }),
+        });
       }
     }
   }
@@ -773,64 +788,10 @@ function parseReactElement(element: any, context: ClientContext): any {
     const { children, ...restProps } = props;
     const keyedChildren = applyChildKeys(children);
 
-    if (DEBUG) {
-      console.log(
-        `[CLIENT] 🔧 parseReactElement creating element with array children:`,
-        {
-          type: typeof type === "symbol" ? type.toString() : type,
-          restPropsKeys: Object.keys(restProps),
-          childrenCount: keyedChildren.length,
-        },
-      );
-    }
-    try {
-      return createElement(type, restProps, ...keyedChildren);
-    } catch (err) {
-      console.error(`[CLIENT] ❌ createElement failed with array children:`, {
-        type: typeof type === "symbol" ? type.toString() : type,
-        restProps,
-        children: keyedChildren,
-        error: err,
-      });
-      throw err;
-    }
+    return React.createElement(type, restProps, ...keyedChildren);
   }
 
-  if (DEBUG) {
-    console.log(`[CLIENT] 🔧 parseReactElement creating element:`, {
-      type: typeof type === "symbol" ? type.toString() : type,
-      propsKeys: props ? Object.keys(props) : null,
-      hasChildren: props?.children !== undefined,
-      childrenType: props?.children !== undefined
-        ? (
-          props.children === null
-            ? "null"
-            : props.children === undefined
-            ? "undefined"
-            : typeof props.children === "string"
-            ? "string"
-            : typeof props.children === "number"
-            ? "number"
-            : props.children?.$$typeof
-            ? "ReactElement"
-            : typeof props.children === "object"
-            ? `object:${Object.keys(props.children).join(",")}`
-            : typeof props.children
-        )
-        : "none",
-    });
-  }
-
-  try {
-    return createElement(type, props);
-  } catch (err) {
-    console.error(`[CLIENT] ❌ createElement failed:`, {
-      type: typeof type === "symbol" ? type.toString() : type,
-      props,
-      error: err,
-    });
-    throw err;
-  }
+  return React.createElement(type, props);
 }
 
 /**
@@ -853,44 +814,21 @@ async function processChunk(
 ): Promise<void> {
   const { type, id, value } = rscChunk;
 
-  if (DEBUG) {
-    const preview = typeof value === "string" ? value.slice(0, 50) : value;
-    console.log(`[CLIENT] 📦 Processing chunk: ${type}${id}`, preview);
-  }
-
   // Get existing chunk (might be PENDING forward reference)
   const existingChunk = context.chunks.get(id);
-  const _wasPending = existingChunk?._status === PENDING;
 
   switch (type) {
     case "J": {
       // JSON chunk - store as RESOLVED_MODEL WITHOUT parsing
-      if (DEBUG && existingChunk) {
-        console.log(
-          `[CLIENT] 🔍 J${id} arrived, existing chunk status: ${existingChunk._status}, has listeners: ${
-            (existingChunk as any)._listeners?.length ?? 0
-          }`,
-        );
-      }
 
       // Only skip if chunk is already INITIALIZED (actively being used by React)
       // RESOLVED_MODEL chunks can be updated - /rsc is authoritative over inline
       if (existingChunk && existingChunk._status === INITIALIZED) {
-        if (DEBUG) {
-          console.log(
-            `[CLIENT] ⏭️ Chunk ${id} already INITIALIZED, skipping /rsc update`,
-          );
-        }
         return;
       }
 
       // Allow RESOLVED_MODEL to be updated by /rsc (fixes inline vs /rsc conflicts)
       if (existingChunk && existingChunk._status === RESOLVED_MODEL) {
-        if (DEBUG) {
-          console.log(
-            `[CLIENT] 🔄 Chunk ${id} updating RESOLVED_MODEL with /rsc value`,
-          );
-        }
         const modelChunk = existingChunk as any as ResolvedModelChunk;
         modelChunk.value = value; // Replace with /rsc value
         return;
@@ -908,12 +846,6 @@ async function processChunk(
         const modelChunk = existingChunk as any as ResolvedModelChunk;
         modelChunk._status = RESOLVED_MODEL;
         modelChunk.value = value; // Raw JSON, NOT parsed
-
-        if (DEBUG) {
-          console.log(
-            `[CLIENT] ✅ Chunk ${id} resolved (PENDING/BLOCKED → RESOLVED_MODEL)`,
-          );
-        }
       } else {
         // Create new RESOLVED_MODEL chunk
         const modelChunk: ResolvedModelChunk = {
@@ -923,10 +855,6 @@ async function processChunk(
           _response: context,
         };
         context.chunks.set(id, modelChunk);
-
-        if (DEBUG) {
-          console.log(`[CLIENT] ✅ Chunk ${id} stored as RESOLVED_MODEL`);
-        }
       }
       break;
     }
@@ -936,41 +864,42 @@ async function processChunk(
       const moduleRef = value as ModuleReference;
       const cacheKey = `${moduleRef.id}#${moduleRef.name}`;
 
-      if (DEBUG) {
-        console.log(
-          `[CLIENT] 📚 Loading module: ${moduleRef.id}#${moduleRef.name}`,
-        );
-      }
-
       // Load module (with caching)
       if (!context.moduleCache.has(cacheKey)) {
         const modulePromise = loadClientModule(moduleRef, context.moduleLoader);
         context.moduleCache.set(cacheKey, modulePromise);
       }
 
-      const module = await context.moduleCache.get(cacheKey);
+      let module: unknown;
+      try {
+        module = await context.moduleCache.get(cacheKey);
+      } catch (error) {
+        // Handled here: the failure is stored on this chunk only, so the rest
+        // of the stream still applies, and the error boundary that renders
+        // the chunk reports it.
+        storeErroredChunk(context, id, toError(error));
+        return;
+      }
 
-      if (existingChunk && existingChunk._status !== PENDING) {
-        console.warn(
-          `[CLIENT] ⚠️ Module chunk ${id} already exists with status ${existingChunk._status}`,
+      // Read the chunk again: while the module loaded, React may have
+      // rendered a reference to it and created a PENDING chunk for this id.
+      const currentChunk = context.chunks.get(id);
+
+      if (currentChunk !== undefined && currentChunk._status !== PENDING) {
+        await getClientLogger().warn(
+          `RSC module chunk M${id} arrived twice; keeping the first one (status ${currentChunk._status})`,
         );
         return;
       }
 
-      if (existingChunk) {
+      if (currentChunk !== undefined) {
         // Update existing PENDING chunk to INITIALIZED
-        const initializedChunk = existingChunk as any as InitializedChunk;
+        const initializedChunk = currentChunk as any as InitializedChunk;
         initializedChunk._status = INITIALIZED;
         initializedChunk.value = module;
 
-        if (DEBUG) {
-          console.log(
-            `[CLIENT] ✅ Module chunk ${id} resolved (PENDING → INITIALIZED)`,
-          );
-        }
-
         // Wake listeners
-        wakeChunkListeners(existingChunk as PendingChunk, module);
+        wakeChunkListeners(currentChunk as PendingChunk, module);
       } else {
         // Create new INITIALIZED chunk
         const initializedChunk: InitializedChunk = {
@@ -980,10 +909,6 @@ async function processChunk(
           _response: context,
         };
         context.chunks.set(id, initializedChunk);
-
-        if (DEBUG) {
-          console.log(`[CLIENT] ✅ Module chunk ${id} stored as INITIALIZED`);
-        }
       }
       break;
     }
@@ -995,44 +920,11 @@ async function processChunk(
         error.stack = value.stack;
       }
 
-      if (existingChunk && existingChunk._status !== PENDING) {
-        console.warn(
-          `[CLIENT] ⚠️ Error chunk ${id} already exists with status ${existingChunk._status}`,
+      if (!storeErroredChunk(context, id, error)) {
+        await getClientLogger().warn(
+          `RSC error chunk E${id} arrived for a chunk that already has status ${existingChunk?._status}; ignoring it`,
         );
         return;
-      }
-
-      if (existingChunk) {
-        // Update existing PENDING chunk to ERRORED
-        const erroredChunk = existingChunk as any as ErroredChunk;
-        erroredChunk._status = ERRORED;
-        erroredChunk.reason = error;
-
-        if (DEBUG) {
-          console.log(
-            `[CLIENT] ❌ Chunk ${id} errored (PENDING → ERRORED)`,
-            error.message,
-          );
-        }
-
-        // Reject listeners
-        rejectChunkListeners(existingChunk as PendingChunk, error);
-      } else {
-        // Create new ERRORED chunk
-        const erroredChunk: ErroredChunk = {
-          _status: ERRORED,
-          value: null,
-          reason: error,
-          _response: context,
-        };
-        context.chunks.set(id, erroredChunk);
-
-        if (DEBUG) {
-          console.log(
-            `[CLIENT] ❌ Chunk ${id} stored as ERRORED`,
-            error.message,
-          );
-        }
       }
       break;
     }
@@ -1042,14 +934,6 @@ async function processChunk(
       // Value can be a string (symbol reference) or ServerActionReference object
       if (typeof value === "object" && value !== null && "id" in value) {
         const actionRef = value as ServerActionReference;
-
-        if (DEBUG) {
-          console.log(
-            `[CLIENT] 🎯 Server action chunk: ${actionRef.id} (bound: ${
-              actionRef.bound !== null
-            })`,
-          );
-        }
 
         // Create a bound action function that calls __callServer
         const boundAction = async (...args: unknown[]) => {
@@ -1073,8 +957,8 @@ async function processChunk(
         });
 
         if (existingChunk && existingChunk._status !== PENDING) {
-          console.warn(
-            `[CLIENT] ⚠️ Server action chunk ${id} already exists with status ${existingChunk._status}`,
+          await getClientLogger().warn(
+            `RSC server action chunk S${id} (${actionRef.id}) arrived twice; keeping the first one (status ${existingChunk._status})`,
           );
           return;
         }
@@ -1084,12 +968,6 @@ async function processChunk(
           const initializedChunk = existingChunk as any as InitializedChunk;
           initializedChunk._status = INITIALIZED;
           initializedChunk.value = boundAction;
-
-          if (DEBUG) {
-            console.log(
-              `[CLIENT] ✅ Server action chunk ${id} resolved (PENDING → INITIALIZED)`,
-            );
-          }
 
           // Wake listeners
           wakeChunkListeners(existingChunk as PendingChunk, boundAction);
@@ -1102,19 +980,9 @@ async function processChunk(
             _response: context,
           };
           context.chunks.set(id, initializedChunk);
-
-          if (DEBUG) {
-            console.log(
-              `[CLIENT] ✅ Server action chunk ${id} stored as INITIALIZED`,
-            );
-          }
         }
       } else {
         // Symbol reference (original S chunk behavior) - store as string
-        if (DEBUG) {
-          console.log(`[CLIENT] 🔣 Symbol chunk ${id}: ${value}`);
-        }
-
         const initializedChunk: InitializedChunk = {
           _status: INITIALIZED,
           value: typeof value === "string" ? Symbol.for(value) : value,
@@ -1127,11 +995,111 @@ async function processChunk(
     }
 
     default:
-      if (DEBUG) {
-        console.warn(`[CLIENT] ⚠️ Unknown chunk type: ${type}`);
-      }
+      await getClientLogger().warn(
+        `RSC chunk ${type}${id} has an unknown type "${type}"; skipping it (known types: J, M, E, S)`,
+      );
       return;
   }
+}
+
+/**
+ * Apply one line of the RSC wire format to a context; blank lines and lines
+ * that are not a chunk are skipped.
+ */
+async function processStreamLine(
+  line: string,
+  context: ClientContext,
+): Promise<void> {
+  if (line.trim() === "") {
+    return;
+  }
+
+  const chunk = protocol.parseChunk(line);
+  if (chunk !== null) {
+    await processChunk(chunk, context);
+  }
+}
+
+/**
+ * Read an RSC stream into a context, applying chunks in stream order, and
+ * close the context when the stream ends or fails.
+ *
+ * Every failure is handled here, so the returned promise never rejects:
+ * closing the context with the error rejects every chunk that is still
+ * PENDING, and the error boundary that renders one of them reports it.
+ *
+ * @param source What the stream is, for the log entry of a failure
+ */
+async function consumeRSCStream(
+  stream: ReadableStream<Uint8Array>,
+  context: ClientContext,
+  source: string,
+): Promise<void> {
+  const reader = stream.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  try {
+    while (true) {
+      // A stream yields its parts one after another.
+      // deno-lint-ignore no-await-in-loop
+      const { done, value } = await reader.read();
+
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() ?? "";
+
+      for (const line of lines) {
+        // Chunks apply in stream order: a chunk can update or wake one
+        // that an earlier line created.
+        // deno-lint-ignore no-await-in-loop
+        await processStreamLine(line, context);
+      }
+    }
+
+    // Process remaining buffer
+    buffer += decoder.decode();
+    await processStreamLine(buffer, context);
+
+    closeContext(context, null);
+  } catch (error) {
+    // Handled here: the pending chunks fail with the error, so the
+    // boundaries that wait on them show it instead of waiting forever.
+    closeContext(context, toError(error));
+    await getClientLogger().with({ error }).error(`read RSC stream ${source}`);
+  } finally {
+    reader.releaseLock();
+  }
+}
+
+/**
+ * Unwrap a root that is a props object holding only `children`, which the
+ * server sends for a fragment at the root of the tree.
+ */
+function unwrapRootValue(root: any): any {
+  if (
+    root === null || typeof root !== "object" || !("children" in root) ||
+    root.$$typeof !== undefined
+  ) {
+    return root;
+  }
+
+  const keys = Object.keys(root);
+  if (keys.length !== 1 || keys[0] !== "children") {
+    return root;
+  }
+
+  if (Array.isArray(root.children)) {
+    return React.createElement(
+      React.Fragment,
+      null,
+      ...applyChildKeys(root.children),
+    );
+  }
+
+  return root.children;
 }
 
 /**
@@ -1141,6 +1109,10 @@ async function processChunk(
  * The component uses readChunk() for lazy initialization, enabling
  * progressive Suspense with correct boundary targeting.
  *
+ * When the stream fails, every chunk React is still waiting for fails with
+ * the stream's error, so the nearest error boundary shows it; when the
+ * stream ends without a chunk, that chunk fails with an error naming it.
+ *
  * @param stream RSC wire format stream from server
  * @param moduleLoader Optional custom module loader for client components
  * @returns Promise resolving to a React component function
@@ -1149,160 +1121,80 @@ export function createFromReadableStream(
   stream: ReadableStream<Uint8Array>,
   moduleLoader: ModuleLoader = defaultModuleLoader,
 ): Promise<any> {
-  const context: ClientContext = {
-    chunks: new Map(),
-    moduleCache: new Map(),
-    moduleLoader,
-    _closed: false,
-    _closedReason: null,
-  };
+  const context = createClientContext(moduleLoader, false);
 
-  const reader = stream.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
-  let chunkCount = 0;
-
-  // Promise that resolves when chunk 0 (root) arrives
-  let resolveRootChunk!: () => void;
-  const _rootChunkReady = new Promise<void>((resolve) => {
-    resolveRootChunk = resolve;
-  });
-
-  // Start processing stream in background
-  const streamStartTime = Date.now();
-  const _streamComplete = (async () => {
-    try {
-      while (true) {
-        const readStartTime = Date.now();
-        const { done, value } = await reader.read();
-        const readDuration = Date.now() - readStartTime;
-
-        // Log when data arrives from network
-        if (DEBUG && value && value.length > 0) {
-          const elapsed = ((Date.now() - streamStartTime) / 1000).toFixed(1);
-          console.log(
-            `[CLIENT] 📡 Stream data received at T+${elapsed}s (waited ${readDuration}ms, ${value.length} bytes)`,
-          );
-        }
-
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() ?? "";
-
-        for (const line of lines) {
-          if (!line.trim()) continue;
-
-          const chunk = parseChunk(line);
-          if (chunk) {
-            chunkCount++;
-            const elapsed = ((Date.now() - streamStartTime) / 1000).toFixed(1);
-            if (DEBUG) {
-              console.log(
-                `[CLIENT] Chunk ${chunkCount}: ${chunk.type}${chunk.id} at T+${elapsed}s`,
-              );
-            }
-            await processChunk(chunk, context);
-
-            // Notify when root chunk arrives
-            if (chunk.id === 0) {
-              if (DEBUG) console.log("[CLIENT] 🎯 Root chunk (ID 0) received!");
-              resolveRootChunk();
-            }
-          }
-        }
-      }
-
-      // Process remaining buffer
-      if (buffer.trim()) {
-        const chunk = parseChunk(buffer);
-        if (chunk) {
-          chunkCount++;
-          if (DEBUG) {
-            console.log(
-              `[CLIENT] Chunk ${chunkCount}: ${chunk.type}${chunk.id}`,
-            );
-          }
-          await processChunk(chunk, context);
-
-          // Notify when root chunk arrives
-          if (chunk.id === 0) {
-            if (DEBUG) console.log("[CLIENT] 🎯 Root chunk (ID 0) received!");
-            resolveRootChunk();
-          }
-        }
-      }
-
-      if (DEBUG) {
-        console.log(`[CLIENT] ✅ Stream complete. Total chunks: ${chunkCount}`);
-      }
-    } catch (error) {
-      console.error("[CLIENT] ❌ Stream processing error:", error);
-      context._closed = true;
-      context._closedReason = error as Error;
-      throw error;
-    } finally {
-      context._closed = true;
-      reader.releaseLock();
-    }
-  })();
+  // Process the stream in the background. consumeRSCStream handles every
+  // failure itself, so this promise never rejects.
+  const _streamComplete = consumeRSCStream(
+    stream,
+    context,
+    "for the component tree",
+  );
 
   // DON'T wait - return immediately and let React suspend if chunk 0 isn't ready
-  if (DEBUG) {
-    console.log(
-      "[CLIENT] ✅ Returning RSC component (stream processing in background)",
-    );
-  }
-
   // Return a component FUNCTION (not element!) that uses lazy evaluation
   // React calls readChunk() during render, enabling progressive Suspense
   return Promise.resolve(function RSCTreeRoot() {
-    if (DEBUG) {
-      console.log("[CLIENT] 🎯 RSCTreeRoot rendering - reading root chunk");
-    }
-
-    // Get chunk 0 - might be PENDING, RESOLVED_MODEL, or INITIALIZED
-    const rootChunk = context.chunks.get(0);
-
-    // If chunk 0 hasn't arrived yet, create a PENDING chunk and throw it
-    if (!rootChunk) {
-      if (DEBUG) {
-        console.log(
-          "[CLIENT] 🔮 Root chunk not yet available - creating PENDING",
-        );
-      }
-      const pending = createPendingChunk(context);
-      context.chunks.set(0, pending);
-
-      // When chunk 0 arrives, it will resolve this pending chunk
-      throw pending;
-    }
-
-    // Read chunk - will initialize if RESOLVED_MODEL, throw if PENDING
-    let root = readChunk(rootChunk);
-
-    // Handle Fragment unwrapping
-    if (
-      root !== null && typeof root === "object" && "children" in root &&
-      !root.$$typeof
-    ) {
-      const keys = Object.keys(root);
-      if (keys.length === 1 && keys[0] === "children") {
-        if (Array.isArray(root.children)) {
-          root = createElement(
-            Fragment,
-            null,
-            ...applyChildKeys(root.children),
-          );
-        } else {
-          root = root.children;
-        }
-      }
-    }
-
-    return root;
+    // Chunk 0 might be PENDING, RESOLVED_MODEL or INITIALIZED; getChunk
+    // creates a PENDING one if it has not arrived, which readChunk throws
+    // for Suspense, or an ERRORED one once the stream is closed.
+    return unwrapRootValue(readChunk(getChunk(0, context)));
   });
+}
+
+/** Whether a value thrown by readChunk is a chunk to wait for. */
+function isPendingChunk(thrown: unknown): thrown is PendingChunk {
+  return typeof thrown === "object" && thrown !== null &&
+    "_status" in thrown && thrown._status === PENDING;
+}
+
+/** Wait until a PENDING chunk arrives; rejects when it fails instead. */
+function waitForChunk(chunk: PendingChunk): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
+    chunk.then(() => resolve(), reject);
+  });
+}
+
+/**
+ * Decode the value in chunk 0 of an RSC stream, such as a server action's
+ * result.
+ *
+ * createFromReadableStream returns a component for React to render; this
+ * resolves with the value itself once chunk 0 and the chunks it references
+ * have arrived. Dates, Maps, Sets, BigInts, `undefined` and React elements
+ * come back as themselves, and the content of a Suspense boundary inside an
+ * element keeps streaming after the promise resolves.
+ *
+ * @param stream RSC wire format stream from server
+ * @param moduleLoader Loads the client components the value references
+ * @returns Promise resolving to the decoded value; it rejects with the
+ *   message of an error chunk, or with the stream's error when the stream
+ *   fails before the value is complete
+ */
+export async function createValueFromReadableStream(
+  stream: ReadableStream<Uint8Array>,
+  moduleLoader: ModuleLoader = defaultModuleLoader,
+): Promise<unknown> {
+  const context = createClientContext(moduleLoader, false);
+
+  // Process the stream in the background, also after the value resolves.
+  // consumeRSCStream handles every failure itself, so this never rejects.
+  const _streamComplete = consumeRSCStream(stream, context, "for a value");
+
+  while (true) {
+    try {
+      return readChunk(getChunk(0, context));
+    } catch (thrown) {
+      if (!isPendingChunk(thrown)) {
+        throw thrown;
+      }
+
+      // Each round waits for the next missing chunk. It arrives, or the
+      // stream closes and fails it, so the loop always ends.
+      // deno-lint-ignore no-await-in-loop
+      await waitForChunk(thrown);
+    }
+  }
 }
 
 /**
@@ -1331,11 +1223,6 @@ export async function createFromFetch(
     throw new Error("RSC response has no body");
   }
 
-  if (DEBUG) {
-    console.log("[CLIENT] Fetching RSC from:", response.url);
-    console.log("[CLIENT] Response status:", response.status);
-  }
-
   return createFromReadableStream(response.body, moduleLoader);
 }
 
@@ -1353,40 +1240,21 @@ export async function createFromPayload(
   payload: RSCChunk[],
   moduleLoader: ModuleLoader = defaultModuleLoader,
 ): Promise<any> {
-  if (DEBUG) {
-    console.log("[CLIENT] Creating React tree from embedded payload");
-    console.log(`[CLIENT] Payload has ${payload.length} chunks`);
-  }
-
-  const context: ClientContext = {
-    chunks: new Map(),
-    moduleCache: new Map(),
-    moduleLoader,
-    _closed: true, // Payload is already complete
-    _closedReason: null,
-  };
+  // The payload is already complete
+  const context = createClientContext(moduleLoader, true);
 
   // Process all chunks - await each one since processChunk is async (for module loading)
   for (const chunk of payload) {
+    // Chunks apply in payload order: a repeated chunk id sees the state the
+    // earlier one left.
+    // deno-lint-ignore no-await-in-loop
     await processChunk(chunk, context);
-  }
-
-  if (DEBUG) {
-    console.log(
-      `[CLIENT] Processed ${context.chunks.size} chunks from payload`,
-    );
   }
 
   // Return a component FUNCTION (not element!) that uses lazy evaluation
   // This is the same pattern as createFromReadableStream
   // Since this is an async function, we return the function directly (no need for Promise.resolve)
   return function RSCTreeRootFromPayload() {
-    if (DEBUG) {
-      console.log(
-        "[CLIENT] 🎯 RSCTreeRootFromPayload rendering - reading root chunk",
-      );
-    }
-
     // Get chunk 0 - should be RESOLVED_MODEL or INITIALIZED
     const rootChunk = context.chunks.get(0);
 
@@ -1395,28 +1263,7 @@ export async function createFromPayload(
     }
 
     // Read chunk - will initialize if RESOLVED_MODEL
-    let root = readChunk(rootChunk);
-
-    // Handle Fragment unwrapping (same as createFromReadableStream)
-    if (
-      root !== null && typeof root === "object" && "children" in root &&
-      !root.$$typeof
-    ) {
-      const keys = Object.keys(root);
-      if (keys.length === 1 && keys[0] === "children") {
-        if (Array.isArray(root.children)) {
-          root = createElement(
-            Fragment,
-            null,
-            ...applyChildKeys(root.children),
-          );
-        } else {
-          root = root.children;
-        }
-      }
-    }
-
-    return root;
+    return unwrapRootValue(readChunk(rootChunk));
   };
 }
 
@@ -1434,20 +1281,14 @@ export async function createElementFromChunk(
   chunkId: number,
   moduleLoader: ModuleLoader = defaultModuleLoader,
 ): Promise<any> {
-  if (DEBUG) {
-    console.log(`[CLIENT] 🏝️ Creating element from chunk ${chunkId}`);
-  }
-
-  const context: ClientContext = {
-    chunks: new Map(),
-    moduleCache: new Map(),
-    moduleLoader,
-    _closed: true, // Payload is already complete
-    _closedReason: null,
-  };
+  // The payload is already complete
+  const context = createClientContext(moduleLoader, true);
 
   // Process all chunks - we need them all for reference resolution
   for (const chunk of payload) {
+    // Chunks apply in payload order: a repeated chunk id sees the state the
+    // earlier one left.
+    // deno-lint-ignore no-await-in-loop
     await processChunk(chunk, context);
   }
 
@@ -1457,20 +1298,8 @@ export async function createElementFromChunk(
     throw new Error(`Chunk ${chunkId} not found in RSC payload`);
   }
 
-  if (DEBUG) {
-    console.log(
-      `[CLIENT] 🏝️ Target chunk ${chunkId} status: ${targetChunk._status}`,
-    );
-  }
-
   // Read the chunk - this will parse and resolve all references
-  const element = readChunk(targetChunk);
-
-  if (DEBUG) {
-    console.log(`[CLIENT] 🏝️ Created element from chunk ${chunkId}:`, element);
-  }
-
-  return element;
+  return readChunk(targetChunk);
 }
 
 /**
@@ -1478,8 +1307,8 @@ export async function createElementFromChunk(
  * @returns True if RSC payload script tag exists
  */
 export function hasEmbeddedPayload(): boolean {
-  if (typeof document === "undefined") return false;
-  return document.getElementById("__RSC_PAYLOAD__") !== null;
+  if (typeof globalThis.document === "undefined") return false;
+  return globalThis.document.getElementById("__RSC_PAYLOAD__") !== null;
 }
 
 /**
@@ -1487,24 +1316,21 @@ export function hasEmbeddedPayload(): boolean {
  * @returns Parsed RSC chunks or null if not found
  */
 export function getEmbeddedPayload(): RSCChunk[] | null {
-  if (typeof document === "undefined") return null;
+  if (typeof globalThis.document === "undefined") return null;
 
-  const payloadElement = document.getElementById("__RSC_PAYLOAD__");
+  const payloadElement = globalThis.document.getElementById("__RSC_PAYLOAD__");
   if (!payloadElement) return null;
 
   try {
     const payloadText = payloadElement.textContent;
     if (!payloadText) return null;
 
-    const parsed = JSON.parse(payloadText);
-
-    if (DEBUG) {
-      console.log("[CLIENT] Parsed embedded RSC payload:", parsed);
-    }
-
-    return parsed as RSCChunk[];
+    return JSON.parse(payloadText) as RSCChunk[];
   } catch (error) {
-    console.error("[CLIENT] Failed to parse embedded RSC payload:", error);
+    // Handled here: callers treat a payload they cannot read as missing.
+    getClientLogger().with({ error }).error(
+      "parse the embedded RSC payload in #__RSC_PAYLOAD__; continuing without it",
+    );
     return null;
   }
 }
@@ -1518,8 +1344,9 @@ export function getEmbeddedPayload(): RSCChunk[] | null {
  * @returns True if RSC bootstrap script exists
  */
 export function hasStreamingOptimalRSC(): boolean {
-  if (typeof document === "undefined") return false;
-  return document.getElementById("__RSC_INLINE_BOOTSTRAP__") !== null;
+  if (typeof globalThis.document === "undefined") return false;
+  return globalThis.document.getElementById("__RSC_INLINE_BOOTSTRAP__") !==
+    null;
 }
 
 /**
@@ -1554,34 +1381,20 @@ export function getStreamingOptimalBuffer(): RSCChunk[] {
 export async function createFromStreamingOptimal(
   moduleLoader: ModuleLoader = defaultModuleLoader,
 ): Promise<any> {
-  if (DEBUG) {
-    console.log("[CLIENT] Creating React tree from streaming-optimal mode");
-  }
-
-  const context: ClientContext = {
-    chunks: new Map(),
-    moduleCache: new Map(),
-    moduleLoader,
-    _closed: false,
-    _closedReason: null,
-  };
+  const context = createClientContext(moduleLoader, false);
 
   // Process buffered chunks first
   const bufferedChunks = getStreamingOptimalBuffer();
-  if (DEBUG) {
-    console.log(`[CLIENT] Processing ${bufferedChunks.length} buffered chunks`);
-  }
 
   for (const chunk of bufferedChunks) {
+    // Buffered chunks apply in arrival order, as they would from a stream.
+    // deno-lint-ignore no-await-in-loop
     await processChunk(chunk, context);
   }
 
   // Set up handler for future chunks (replacing the buffer)
   // Type assertion needed: setting RSC streaming runtime globals for inline script chunks
   (globalThis as any).__RSC_CHUNK__ = async (chunk: RSCChunk) => {
-    if (DEBUG) {
-      console.log(`[CLIENT] Processing inline chunk: ${chunk.type}${chunk.id}`);
-    }
     await processChunk(chunk, context);
   };
 
@@ -1589,61 +1402,18 @@ export async function createFromStreamingOptimal(
   const checkComplete = () => {
     if (isStreamingOptimalComplete()) {
       context._closed = true;
-      if (DEBUG) {
-        console.log("[CLIENT] Streaming-optimal RSC complete");
-      }
     } else {
       // Check again in the next frame
-      requestAnimationFrame(checkComplete);
+      globalThis.requestAnimationFrame(checkComplete);
     }
   };
   checkComplete();
 
   // Return a component FUNCTION that uses lazy evaluation
   return function RSCTreeRootFromStreamingOptimal() {
-    if (DEBUG) {
-      console.log(
-        "[CLIENT] 🎯 RSCTreeRootFromStreamingOptimal rendering - reading root chunk",
-      );
-    }
-
-    // Get chunk 0 - might be PENDING if not yet received
-    const rootChunk = context.chunks.get(0);
-
-    if (!rootChunk) {
-      if (DEBUG) {
-        console.log(
-          "[CLIENT] 🔮 Root chunk not yet available - creating PENDING",
-        );
-      }
-      const pending = createPendingChunk(context);
-      context.chunks.set(0, pending);
-      throw pending;
-    }
-
-    // Read chunk - will initialize if RESOLVED_MODEL, throw if PENDING
-    let root = readChunk(rootChunk);
-
-    // Handle Fragment unwrapping
-    if (
-      root !== null && typeof root === "object" && "children" in root &&
-      !root.$$typeof
-    ) {
-      const keys = Object.keys(root);
-      if (keys.length === 1 && keys[0] === "children") {
-        if (Array.isArray(root.children)) {
-          root = createElement(
-            Fragment,
-            null,
-            ...applyChildKeys(root.children),
-          );
-        } else {
-          root = root.children;
-        }
-      }
-    }
-
-    return root;
+    // Chunk 0 might not be received yet: getChunk then creates a PENDING
+    // chunk, which readChunk throws for Suspense.
+    return unwrapRootValue(readChunk(getChunk(0, context)));
   };
 }
 
@@ -1657,40 +1427,24 @@ export async function createFromStreamingOptimal(
  * - Progressive updates for async components (from /rsc stream)
  * - No duplicate execution of async components (only run on server via /rsc)
  *
- * @param inlinePayload Pre-parsed RSC chunks from embedded script tag (sync only)
+ * @param _inlinePayload Pre-parsed RSC chunks from embedded script tag; not
+ *   read yet, see the note in the body
  * @param rscFetchPromise Promise for the /rsc fetch (provides async chunks)
  * @param moduleLoader Optional custom module loader
  * @returns Promise resolving to a React component function
  */
 export function createHybridRSCTree(
-  inlinePayload: RSCChunk[] | null,
+  _inlinePayload: RSCChunk[] | null,
   rscFetchPromise: Promise<Response>,
   moduleLoader: ModuleLoader = defaultModuleLoader,
 ): Promise<any> {
-  if (DEBUG) {
-    console.log("[CLIENT] 🔄 Creating hybrid RSC tree (inline + /rsc)");
-  }
-
-  const context: ClientContext = {
-    chunks: new Map(),
-    moduleCache: new Map(),
-    moduleLoader,
-    _closed: false,
-    _closedReason: null,
-  };
+  const context = createClientContext(moduleLoader, false);
 
   // 1. Skip inline chunks entirely for now
   // The inline (SSR) and /rsc chunk ID schemes are incompatible:
   // - Same chunk ID has different content in each (e.g., element vs props)
   // - This causes React error #31 and other issues
-  // Until SSR generates compatible chunks, we rely solely on /rsc
-  if (inlinePayload && inlinePayload.length > 0) {
-    if (DEBUG) {
-      console.log(
-        `[CLIENT] ⏭️ Skipping ${inlinePayload.length} inline chunks (incompatible with /rsc ID scheme)`,
-      );
-    }
-  }
+  // Until SSR generates compatible chunks, we rely solely on /rsc.
 
   // Create PENDING for root chunk - /rsc will provide the real data
   const rootPending = createPendingChunk(context);
@@ -1698,85 +1452,34 @@ export function createHybridRSCTree(
 
   // 2. Start processing /rsc stream in background (async components)
   // This runs concurrently - React will render sync content immediately
-  // and update async content as chunks arrive from /rsc
-  (async () => {
-    const streamStartTime = Date.now();
+  // and update async content as chunks arrive from /rsc. Every failure is
+  // handled inside, so this promise never rejects.
+  const _streamComplete = (async () => {
+    let body: ReadableStream<Uint8Array>;
     try {
-      if (DEBUG) {
-        console.log("[CLIENT] 📡 Connecting to /rsc for async chunks...");
-      }
-
       const response = await rscFetchPromise;
       if (!response.ok) {
         throw new Error(
-          `RSC fetch failed: ${response.status} ${response.statusText}`,
+          `fetch /rsc: the server answered ${response.status} ${response.statusText}; check the server log`,
         );
       }
-      if (!response.body) {
-        throw new Error("RSC response has no body");
+      if (response.body === null) {
+        throw new Error("fetch /rsc: the response has no body");
       }
-
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-      let chunkCount = 0;
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() ?? "";
-
-        for (const line of lines) {
-          if (!line.trim()) continue;
-          const chunk = parseChunk(line);
-          if (chunk) {
-            chunkCount++;
-            const elapsed = ((Date.now() - streamStartTime) / 1000).toFixed(1);
-            if (DEBUG) {
-              console.log(
-                `[CLIENT] 📡 /rsc chunk ${chunkCount}: ${chunk.type}${chunk.id} at T+${elapsed}s`,
-              );
-            }
-
-            // This updates/adds chunks to context
-            // If chunk already exists (from inline), it gets updated
-            // If chunk is new (async), it's added and wakes listeners
-            await processChunk(chunk, context);
-          }
-        }
-      }
-
-      // Process remaining buffer
-      if (buffer.trim()) {
-        const chunk = parseChunk(buffer);
-        if (chunk) {
-          chunkCount++;
-          if (DEBUG) {
-            console.log(
-              `[CLIENT] 📡 /rsc final chunk: ${chunk.type}${chunk.id}`,
-            );
-          }
-          await processChunk(chunk, context);
-        }
-      }
-
-      if (DEBUG) {
-        const elapsed = ((Date.now() - streamStartTime) / 1000).toFixed(1);
-        console.log(
-          `[CLIENT] ✅ /rsc stream complete at T+${elapsed}s (${chunkCount} chunks)`,
-        );
-      }
-
-      reader.releaseLock();
+      body = response.body;
     } catch (error) {
-      console.error("[CLIENT] ❌ /rsc stream error:", error);
-      context._closedReason = error as Error;
-    } finally {
-      context._closed = true;
+      // Handled here, like a failed stream: the pending root chunk fails
+      // with the error, and the error boundary around the tree shows it.
+      closeContext(context, toError(error));
+      await getClientLogger().with({
+        error,
+      }).error("fetch the RSC stream from /rsc");
+      return;
     }
+
+    // Chunks that already exist get updated, and new ones wake the
+    // listeners that wait for them.
+    await consumeRSCStream(body, context, "from /rsc");
   })();
 
   // 3. Return Promise that resolves to a component that reads from unified context
@@ -1784,50 +1487,7 @@ export function createHybridRSCTree(
   // and suspend on PENDING chunks (async from /rsc)
   // Wrapped in Promise.resolve to match the Promise<any> return type for use() hook
   return Promise.resolve(function RSCTreeRootHybrid() {
-    if (DEBUG) {
-      console.log(
-        "[CLIENT] 🎯 RSCTreeRootHybrid rendering - reading root chunk",
-      );
-    }
-
-    const rootChunk = context.chunks.get(0);
-
-    if (!rootChunk) {
-      // Root not yet available - create pending and suspend
-      if (DEBUG) {
-        console.log(
-          "[CLIENT] 🔮 Root chunk not yet available - creating PENDING",
-        );
-      }
-      const pending = createPendingChunk(context);
-      context.chunks.set(0, pending);
-      throw pending;
-    }
-
     // Read chunk - will throw if PENDING (async not yet resolved)
-    let root = readChunk(rootChunk);
-
-    // Handle Fragment unwrapping
-    if (
-      root !== null &&
-      typeof root === "object" &&
-      "children" in root &&
-      !root.$$typeof
-    ) {
-      const keys = Object.keys(root);
-      if (keys.length === 1 && keys[0] === "children") {
-        if (Array.isArray(root.children)) {
-          root = createElement(
-            Fragment,
-            null,
-            ...applyChildKeys(root.children),
-          );
-        } else {
-          root = root.children;
-        }
-      }
-    }
-
-    return root;
+    return unwrapRootValue(readChunk(getChunk(0, context)));
   });
 }

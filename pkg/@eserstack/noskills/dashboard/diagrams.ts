@@ -126,7 +126,7 @@ const scanMarkdownFile = async (
     // ASCII diagrams (lines with box-drawing characters)
     if (
       /[┌─┬┐│└┴┘╔═╗║╚╝╭╮╰╯]/.test(line) &&
-      lines[i + 1] && /[┌─┬┐│└┴┘╔═╗║╚╝╭╮╰╯]/.test(lines[i + 1]!)
+      lines[i + 1] !== undefined && /[┌─┬┐│└┴┘╔═╗║╚╝╭╮╰╯]/.test(lines[i + 1]!)
     ) {
       // Collect contiguous ASCII art lines
       let asciiContent = "";
@@ -170,12 +170,12 @@ export const scanProject = async (
           continue;
         }
         if (entry.isFile && entry.name.endsWith(".md")) {
-          mdFiles.push(prefix ? `${prefix}/${entry.name}` : entry.name);
+          mdFiles.push(prefix === "" ? entry.name : `${prefix}/${entry.name}`);
         }
         if (entry.isDirectory && !entry.name.startsWith(".")) {
           await scanDir(
             `${dir}/${entry.name}`,
-            prefix ? `${prefix}/${entry.name}` : entry.name,
+            prefix === "" ? entry.name : `${prefix}/${entry.name}`,
           );
         }
       }
@@ -186,8 +186,10 @@ export const scanProject = async (
 
   await scanDir(root, "");
 
-  // Also check docs/ specifically
+  // Also check docs/ specifically. The scan covers every markdown file in the
+  // project, so files are read one at a time to keep open handles bounded.
   for (const mdFile of mdFiles) {
+    // deno-lint-ignore no-await-in-loop
     const diagrams = await scanMarkdownFile(root, mdFile);
     entries.push(...diagrams);
   }

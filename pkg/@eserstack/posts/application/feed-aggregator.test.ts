@@ -3,28 +3,26 @@
 import * as bdd from "@std/testing/bdd";
 import * as assert from "@std/assert";
 import * as feedAggregatorMod from "./feed-aggregator.ts";
-import {
-  createMockAuthProvider,
-  createMockSocialApi,
-  createTestPost,
-} from "./testing.ts";
+import * as testing from "./testing.ts";
 
 bdd.describe("DefaultFeedAggregator", () => {
   bdd.describe("getUnifiedTimeline", () => {
     bdd.it(
       "should return posts from a single authenticated platform",
       async () => {
-        const post = createTestPost({
+        const post = testing.createTestPost({
           platform: "bluesky",
           text: "Bluesky post",
         });
         const aggregator = new feedAggregatorMod.DefaultFeedAggregator([
           {
             platform: "bluesky",
-            socialApi: createMockSocialApi({
+            socialApi: testing.createMockSocialApi({
               getTimeline: () => Promise.resolve([post]),
             }),
-            auth: createMockAuthProvider({ isAuthenticated: () => true }),
+            auth: testing.createMockAuthProvider({
+              isAuthenticated: () => true,
+            }),
           },
         ]);
 
@@ -39,8 +37,10 @@ bdd.describe("DefaultFeedAggregator", () => {
       const aggregator = new feedAggregatorMod.DefaultFeedAggregator([
         {
           platform: "twitter",
-          socialApi: createMockSocialApi(),
-          auth: createMockAuthProvider({ isAuthenticated: () => false }),
+          socialApi: testing.createMockSocialApi(),
+          auth: testing.createMockAuthProvider({
+            isAuthenticated: () => false,
+          }),
         },
       ]);
 
@@ -52,12 +52,12 @@ bdd.describe("DefaultFeedAggregator", () => {
     bdd.it(
       "should merge posts from multiple platforms sorted by createdAt desc",
       async () => {
-        const twitterPost = createTestPost({
+        const twitterPost = testing.createTestPost({
           platform: "twitter",
           createdAt: new Date("2026-04-13T10:00:00Z"),
           text: "From Twitter",
         });
-        const blueskyPost = createTestPost({
+        const blueskyPost = testing.createTestPost({
           platform: "bluesky",
           createdAt: new Date("2026-04-13T11:00:00Z"),
           text: "From Bluesky",
@@ -66,17 +66,21 @@ bdd.describe("DefaultFeedAggregator", () => {
         const aggregator = new feedAggregatorMod.DefaultFeedAggregator([
           {
             platform: "twitter",
-            socialApi: createMockSocialApi({
+            socialApi: testing.createMockSocialApi({
               getTimeline: () => Promise.resolve([twitterPost]),
             }),
-            auth: createMockAuthProvider({ isAuthenticated: () => true }),
+            auth: testing.createMockAuthProvider({
+              isAuthenticated: () => true,
+            }),
           },
           {
             platform: "bluesky",
-            socialApi: createMockSocialApi({
+            socialApi: testing.createMockSocialApi({
               getTimeline: () => Promise.resolve([blueskyPost]),
             }),
-            auth: createMockAuthProvider({ isAuthenticated: () => true }),
+            auth: testing.createMockAuthProvider({
+              isAuthenticated: () => true,
+            }),
           },
         ]);
 
@@ -92,19 +96,23 @@ bdd.describe("DefaultFeedAggregator", () => {
       const aggregator = new feedAggregatorMod.DefaultFeedAggregator([
         {
           platform: "twitter",
-          socialApi: createMockSocialApi({
+          socialApi: testing.createMockSocialApi({
             getTimeline: () =>
-              Promise.resolve([createTestPost({ platform: "twitter" })]),
+              Promise.resolve([
+                testing.createTestPost({ platform: "twitter" }),
+              ]),
           }),
-          auth: createMockAuthProvider({ isAuthenticated: () => true }),
+          auth: testing.createMockAuthProvider({ isAuthenticated: () => true }),
         },
         {
           platform: "bluesky",
-          socialApi: createMockSocialApi({
+          socialApi: testing.createMockSocialApi({
             getTimeline: () =>
-              Promise.resolve([createTestPost({ platform: "bluesky" })]),
+              Promise.resolve([
+                testing.createTestPost({ platform: "bluesky" }),
+              ]),
           }),
-          auth: createMockAuthProvider({ isAuthenticated: () => true }),
+          auth: testing.createMockAuthProvider({ isAuthenticated: () => true }),
         },
       ]);
 
@@ -117,24 +125,28 @@ bdd.describe("DefaultFeedAggregator", () => {
     bdd.it(
       "should return available posts when one platform fails",
       async () => {
-        const blueskyPost = createTestPost({
+        const blueskyPost = testing.createTestPost({
           platform: "bluesky",
           text: "Bluesky OK",
         });
         const aggregator = new feedAggregatorMod.DefaultFeedAggregator([
           {
             platform: "twitter",
-            socialApi: createMockSocialApi({
+            socialApi: testing.createMockSocialApi({
               getTimeline: () => Promise.reject(new Error("Twitter down")),
             }),
-            auth: createMockAuthProvider({ isAuthenticated: () => true }),
+            auth: testing.createMockAuthProvider({
+              isAuthenticated: () => true,
+            }),
           },
           {
             platform: "bluesky",
-            socialApi: createMockSocialApi({
+            socialApi: testing.createMockSocialApi({
               getTimeline: () => Promise.resolve([blueskyPost]),
             }),
-            auth: createMockAuthProvider({ isAuthenticated: () => true }),
+            auth: testing.createMockAuthProvider({
+              isAuthenticated: () => true,
+            }),
           },
         ]);
 
@@ -149,17 +161,17 @@ bdd.describe("DefaultFeedAggregator", () => {
       const aggregator = new feedAggregatorMod.DefaultFeedAggregator([
         {
           platform: "twitter",
-          socialApi: createMockSocialApi({
+          socialApi: testing.createMockSocialApi({
             getTimeline: () => Promise.reject(new Error("Twitter down")),
           }),
-          auth: createMockAuthProvider({ isAuthenticated: () => true }),
+          auth: testing.createMockAuthProvider({ isAuthenticated: () => true }),
         },
         {
           platform: "bluesky",
-          socialApi: createMockSocialApi({
+          socialApi: testing.createMockSocialApi({
             getTimeline: () => Promise.reject(new Error("Bluesky down")),
           }),
-          auth: createMockAuthProvider({ isAuthenticated: () => true }),
+          auth: testing.createMockAuthProvider({ isAuthenticated: () => true }),
         },
       ]);
 
@@ -174,13 +186,17 @@ bdd.describe("DefaultFeedAggregator", () => {
         const aggregator = new feedAggregatorMod.DefaultFeedAggregator([
           {
             platform: "twitter",
-            socialApi: createMockSocialApi(),
-            auth: createMockAuthProvider({ isAuthenticated: () => false }),
+            socialApi: testing.createMockSocialApi(),
+            auth: testing.createMockAuthProvider({
+              isAuthenticated: () => false,
+            }),
           },
           {
             platform: "bluesky",
-            socialApi: createMockSocialApi(),
-            auth: createMockAuthProvider({ isAuthenticated: () => false }),
+            socialApi: testing.createMockSocialApi(),
+            auth: testing.createMockAuthProvider({
+              isAuthenticated: () => false,
+            }),
           },
         ]);
 
@@ -204,14 +220,16 @@ bdd.describe("DefaultFeedAggregator", () => {
     bdd.it(
       "should pass maxResultsPerPlatform to each socialApi.getTimeline",
       async () => {
-        const socialApi = createMockSocialApi({
+        const socialApi = testing.createMockSocialApi({
           getTimeline: () => Promise.resolve([]),
         });
         const aggregator = new feedAggregatorMod.DefaultFeedAggregator([
           {
             platform: "twitter",
             socialApi,
-            auth: createMockAuthProvider({ isAuthenticated: () => true }),
+            auth: testing.createMockAuthProvider({
+              isAuthenticated: () => true,
+            }),
           },
         ]);
 
@@ -223,14 +241,14 @@ bdd.describe("DefaultFeedAggregator", () => {
     );
 
     bdd.it("should default maxResults to 10 when not specified", async () => {
-      const socialApi = createMockSocialApi({
+      const socialApi = testing.createMockSocialApi({
         getTimeline: () => Promise.resolve([]),
       });
       const aggregator = new feedAggregatorMod.DefaultFeedAggregator([
         {
           platform: "twitter",
           socialApi,
-          auth: createMockAuthProvider({ isAuthenticated: () => true }),
+          auth: testing.createMockAuthProvider({ isAuthenticated: () => true }),
         },
       ]);
 

@@ -15,35 +15,35 @@
  */
 
 import * as results from "@eserstack/primitives/results";
-import { Module } from "@eserstack/shell/module";
-import { moduleDef as aiModule } from "@eserstack/ai/module";
-import { moduleDef as kitModule } from "@eserstack/kit/module";
-import { moduleDef as codebaseModule } from "@eserstack/codebase/module";
-import {
-  attachStandardCommands,
-  exitCli,
-} from "@eserstack/codebase/cli-support";
-import { createModuleDef as createWorkflowsModule } from "@eserstack/workflows/module";
+import * as module from "@eserstack/shell/module";
+import * as aiModule from "@eserstack/ai/module";
+import * as kitModule from "@eserstack/kit/module";
+import * as codebaseModule from "@eserstack/codebase/module";
+import * as cliSupport from "@eserstack/codebase/cli-support";
+import * as workflowsModule from "@eserstack/workflows/module";
 
-import { moduleDef as noskillsModule } from "@eserstack/noskills/module";
-import { moduleDef as postsModule } from "@eserstack/posts/module";
-import { moduleDef as larouxModule } from "@eserstack/laroux-server/module";
+import * as noskillsModule from "@eserstack/noskills/module";
+import * as postsModule from "@eserstack/posts/module";
+import * as larouxModule from "@eserstack/laroux-server/module";
 import config from "./package.json" with { type: "json" };
 
-const cliModule = new Module({
+const cliModule = new module.Module({
   description: "Terminal client for Eser's work",
 });
-cliModule.addSubmodule({ name: "ai" }, aiModule);
-cliModule.addSubmodule({ name: "kit" }, kitModule);
+cliModule.addSubmodule({ name: "ai" }, aiModule.moduleDef);
+cliModule.addSubmodule({ name: "kit" }, kitModule.moduleDef);
 cliModule.addSubmodule(
   { name: "codebase", aliases: ["cb", "."] },
-  codebaseModule,
+  codebaseModule.moduleDef,
 );
-cliModule.addSubmodule({ name: "noskills", aliases: ["nos"] }, noskillsModule);
-cliModule.addSubmodule({ name: "posts" }, postsModule);
-cliModule.addSubmodule({ name: "laroux" }, larouxModule);
+cliModule.addSubmodule(
+  { name: "noskills", aliases: ["nos"] },
+  noskillsModule.moduleDef,
+);
+cliModule.addSubmodule({ name: "posts" }, postsModule.moduleDef);
+cliModule.addSubmodule({ name: "laroux" }, larouxModule.moduleDef);
 
-const app = attachStandardCommands(
+const app = cliSupport.attachStandardCommands(
   cliModule.toCommand("eser", config.version),
   {
     npmPackage: "eser",
@@ -62,14 +62,10 @@ const app = attachStandardCommands(
     description: "Workflow engine — run tool pipelines",
     aliases: ["wf"],
     load: async () => {
-      const { getWorkflowTools } = await import(
-        "@eserstack/codebase/validation"
-      );
+      const validation = await import("@eserstack/codebase/validation");
 
-      return createWorkflowsModule(getWorkflowTools()).toCommand(
-        "workflows",
-        config.version,
-      );
+      return workflowsModule.createModuleDef(validation.getWorkflowTools())
+        .toCommand("workflows", config.version);
     },
   })
   .lazyCommand("ajan", {
@@ -85,24 +81,16 @@ const app = attachStandardCommands(
     const manifest = await configManifest.loadManifest(".");
     const scriptEntries = manifest?.["scripts"];
 
-    if (
-      scriptEntries !== undefined &&
-      scriptEntries !== null &&
-      typeof scriptEntries === "object"
-    ) {
-      const scripts = scriptEntries as Readonly<
-        Record<string, import("@eserstack/workflows/mod").ScriptConfig>
-      >;
+    // The manifest is YAML the user edits, so its entries stay unchecked here;
+    // runScript checks every entry it runs.
+    if (scriptEntries instanceof Object && !Array.isArray(scriptEntries)) {
+      const scripts = scriptEntries as Readonly<Record<string, unknown>>;
 
-      if (commandName in scripts) {
-        const scriptConfig = scripts[commandName]!;
-        const { runScript } = await import("./scripts.ts");
-        return await runScript(
-          commandName,
-          scriptConfig,
-          scripts,
-          args as string[],
-        );
+      // Object.hasOwn, so "toString" and the other names every object inherits
+      // are not taken for scripts.
+      if (Object.hasOwn(scripts, commandName)) {
+        const scriptRunner = await import("./scripts.ts");
+        return await scriptRunner.runScript(commandName, scripts, args);
       }
     }
 
@@ -113,25 +101,24 @@ const app = attachStandardCommands(
     //
     // After manifest scripts, so project-local intent wins over an installed
     // plugin of the same name.
-    const { resolvePlugin, runPlugin } = await import("./plugins.ts");
-    const executable = await resolvePlugin(commandName);
+    const plugins = await import("./plugins.ts");
+    const executable = await plugins.resolvePlugin(commandName);
 
     if (executable !== null) {
-      const exitCode = await runPlugin(executable, args as string[]);
+      const exitCode = await plugins.runPlugin(executable, args);
 
       return exitCode === 0
         ? results.ok(undefined)
         : results.fail({ exitCode });
     }
 
-    // deno-lint-ignore no-console
-    console.error(
-      `Unknown subcommand "${commandName}"\n` +
+    // exitCli prints the message on stderr before it exits.
+    return results.fail({
+      message: `Unknown subcommand "${commandName}"\n` +
         `  No built-in command, manifest script, or "eser-${commandName}" ` +
         `executable on PATH.`,
-    );
-
-    return results.fail({ exitCode: 1 });
+      exitCode: 1,
+    });
   });
 
 export const main = async (): Promise<
@@ -143,5 +130,9 @@ export const main = async (): Promise<
 if (import.meta.main) {
   // exitCli drains buffered output then hard-exits — see its docs for why the
   // native FFI teardown makes a natural exit unsafe here.
-  await exitCli(await main());
+  //
+  // Entry point: the await runs only when this file is the program, never on
+  // import.
+  // deno-lint-ignore no-top-level-await
+  await cliSupport.exitCli(await main());
 }

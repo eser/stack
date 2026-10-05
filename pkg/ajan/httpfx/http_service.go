@@ -164,10 +164,17 @@ func (hs *HTTPService) Start(ctx context.Context) (func(), error) { //nolint:fun
 	// Create high-performance listener with optimized socket options
 	listener, lnErr := hs.createListener(ctx)
 	if lnErr != nil {
-		return nil, fmt.Errorf("%w: %w", ErrHTTPServiceNetListenError, lnErr)
+		return nil, fmt.Errorf("%w on %q: %w", ErrHTTPServiceNetListenError, hs.InnerServer.Addr, lnErr)
 	}
 
+	// The serve goroutine is owned by cleanup, which waits for it to return.
+	// Serve returns once Shutdown has closed the listener, and at once when
+	// Shutdown ran first.
+	served := make(chan struct{})
+
 	go func() {
+		defer close(served)
+
 		var sErr error
 
 		if hs.InnerServer.TLSConfig != nil {
@@ -177,7 +184,7 @@ func (hs *HTTPService) Start(ctx context.Context) (func(), error) { //nolint:fun
 		}
 
 		if sErr != nil && !errors.Is(sErr, http.ErrServerClosed) {
-			hs.logger.ErrorContext(ctx, "HTTPService ServeTLS error: %w", slog.Any("error", sErr))
+			hs.logger.ErrorContext(ctx, "HTTPService serve error", slog.Any("error", sErr))
 		}
 	}()
 
@@ -199,6 +206,9 @@ func (hs *HTTPService) Start(ctx context.Context) (func(), error) { //nolint:fun
 		defer cancel()
 
 		err := hs.InnerServer.Shutdown(newCtx)
+
+		<-served
+
 		if err != nil &&
 			!errors.Is(err, http.ErrServerClosed) {
 			hs.logger.ErrorContext(ctx, "HTTPService forced to shutdown", slog.Any("error", err))
@@ -240,22 +250,31 @@ func (hs *HTTPService) createListener(ctx context.Context) (net.Listener, error)
 	}
 
 	listener, err := NewHighPerfListener(ctx, hs.InnerServer.Addr, listenerConfig)
-	if err != nil {
-		// Fall back to standard listener if high-performance listener fails
-		// This can happen on unsupported platforms
-		hs.logger.WarnContext(
-			ctx,
-			"Failed to create high-performance listener, falling back to standard",
-			slog.Any("error", err),
-		)
-
-		standardListener, listenErr := net.Listen("tcp", hs.InnerServer.Addr)
-		if listenErr != nil {
-			return nil, fmt.Errorf("standard listener creation: %w", listenErr)
-		}
-
-		return standardListener, nil
+	if err == nil {
+		return listener, nil
 	}
 
-	return listener, nil
+	// An address in use or an invalid address fails a plain listener too, so
+	// it goes back to the caller as it is, without a fallback warning that
+	// would log the same failure a second time.
+	if !errors.Is(err, errSocketOptions) {
+		return nil, err
+	}
+
+	// The platform refused the socket options. A standard listener still
+	// serves, without them and without the MaxConnections limit.
+	hs.logger.WarnContext(
+		ctx,
+		"HTTPService could not set its socket options, falling back to a standard listener",
+		slog.Any("error", err),
+	)
+
+	var standardConfig net.ListenConfig
+
+	standardListener, listenErr := standardConfig.Listen(ctx, "tcp", hs.InnerServer.Addr)
+	if listenErr != nil {
+		return nil, fmt.Errorf("standard listener creation: %w", listenErr)
+	}
+
+	return standardListener, nil
 }

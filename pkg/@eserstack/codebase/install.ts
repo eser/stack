@@ -14,6 +14,7 @@ import * as primitives from "@eserstack/primitives";
 import * as standards from "@eserstack/standards";
 import * as configManifest from "@eserstack/config/manifest";
 import type * as shellArgs from "@eserstack/shell/args";
+import * as cliSupport from "./cli-support.ts";
 
 // =============================================================================
 // Constants
@@ -34,22 +35,30 @@ const MARKER = "# @eser managed hook";
 // =============================================================================
 
 /**
- * Generate the shell script content for a git hook.
+ * Resolve the command a hook runs to reach the CLI.
  *
  * Uses `detectExecutionContext()` to determine how the CLI was invoked,
  * honoring the user's chosen invocation method for the hook command.
  */
-const generateHookScript = async (
-  event: string,
-  args: string,
-): Promise<string> => {
+const resolveCliCommand = async (): Promise<string> => {
   const ctx = await standards.crossRuntime.detectExecutionContext({
     command: "eser",
     devCommand: "deno task cli",
     npmPackage: "eser",
     jsrPackage: "@eserstack/cli",
   });
-  const cliCmd = ctx.command;
+
+  return ctx.command;
+};
+
+/**
+ * Generate the shell script content for a git hook.
+ */
+const generateHookScript = (
+  cliCmd: string,
+  event: string,
+  args: string,
+): string => {
   const argsStr = args.length > 0 ? ` ${args}` : "";
   const command = `${cliCmd} workflows run -e ${event}${argsStr}`;
 
@@ -139,22 +148,23 @@ export const main = async (
     alias: { h: "help", f: "force", n: "dry-run" },
   });
 
-  if (parsed.help) {
-    console.log(
-      "eser codebase install — Install git hooks from .eser/manifest.yml",
-    );
-    console.log("");
-    console.log("Flags:");
-    console.log("  --force, -f     Overwrite non-managed hooks");
-    console.log("  --dry-run, -n   Show what would happen without writing");
-    console.log("  --help, -h      Show this help");
-    return primitives.results.ok(undefined);
-  }
-
   const out = streams.output({
     renderer,
     sink: streams.sinks.stdout(),
   });
+
+  if (parsed.help) {
+    out.writeln(
+      "eser codebase install — Install git hooks from .eser/manifest.yml",
+    );
+    out.writeln();
+    out.writeln("Flags:");
+    out.writeln("  --force, -f     Overwrite non-managed hooks");
+    out.writeln("  --dry-run, -n   Show what would happen without writing");
+    out.writeln("  --help, -h      Show this help");
+    await out.close();
+    return primitives.results.ok(undefined);
+  }
 
   const force = parsed.force as boolean;
   const dryRun = parsed["dry-run"] as boolean;
@@ -196,6 +206,7 @@ export const main = async (
   }
 
   // 5. Install hooks
+  const cliCmd = await resolveCliCommand();
   let installed = 0;
   let skipped = 0;
   let updated = 0;
@@ -214,12 +225,15 @@ export const main = async (
       hooksDir,
       hookName,
     );
-    const script = await generateHookScript(event, args);
+    const script = generateHookScript(cliCmd, event, args);
 
     let exists = false;
     let isManaged = false;
 
     try {
+      // Hooks are written one at a time, so a failed write stops before the
+      // next hook changes and the report follows the manifest order.
+      // deno-lint-ignore no-await-in-loop
       const existing = await standards.crossRuntime.runtime.fs.readTextFile(
         hookPath,
       );
@@ -262,10 +276,14 @@ export const main = async (
       continue;
     }
 
+    // One hook at a time, as above.
+    // deno-lint-ignore no-await-in-loop
     await standards.crossRuntime.runtime.fs.writeTextFile(hookPath, script);
 
     // chmod +x (non-fatal on platforms without chmod support)
     try {
+      // One hook at a time, as above.
+      // deno-lint-ignore no-await-in-loop
       await standards.crossRuntime.runtime.fs.chmod(hookPath, 0o755);
     } catch {
       // Windows doesn't support chmod — hook will still work via shebang
@@ -317,15 +335,16 @@ export const uninstallMain = async (
     alias: { h: "help" },
   });
 
-  if (parsed.help) {
-    console.log("eser codebase uninstall — Remove managed git hooks");
-    return primitives.results.ok(undefined);
-  }
-
   const out = streams.output({
     renderer,
     sink: streams.sinks.stdout(),
   });
+
+  if (parsed.help) {
+    out.writeln("eser codebase uninstall — Remove managed git hooks");
+    await out.close();
+    return primitives.results.ok(undefined);
+  }
 
   const gitDir = await findGitDir();
   if (gitDir === null) {
@@ -335,28 +354,38 @@ export const uninstallMain = async (
   }
 
   const hooksDir = standards.crossRuntime.runtime.path.join(gitDir, "hooks");
-  let removed = 0;
 
-  // Iterate over known hook names
+  // Each known hook file is independent, so they are checked and removed
+  // concurrently; the report below keeps the order of the list.
   const knownHooks = Object.values(EVENT_TO_HOOK).map((m) => m.hookName);
   const uniqueHooks = [...new Set(knownHooks)];
-
-  for (const hookName of uniqueHooks) {
-    const hookPath = standards.crossRuntime.runtime.path.join(
-      hooksDir,
-      hookName,
-    );
-    try {
-      const content = await standards.crossRuntime.runtime.fs.readTextFile(
-        hookPath,
+  const removedHooks = await Promise.all(
+    uniqueHooks.map(async (hookName): Promise<boolean> => {
+      const hookPath = standards.crossRuntime.runtime.path.join(
+        hooksDir,
+        hookName,
       );
-      if (content.includes(MARKER)) {
+      try {
+        const content = await standards.crossRuntime.runtime.fs.readTextFile(
+          hookPath,
+        );
+        if (!content.includes(MARKER)) {
+          return false;
+        }
         await standards.crossRuntime.runtime.fs.remove(hookPath);
-        out.writeln(span.green(`  removed  ${hookName}`));
-        removed++;
+        return true;
+      } catch {
+        // file doesn't exist — skip
+        return false;
       }
-    } catch {
-      // file doesn't exist — skip
+    }),
+  );
+
+  let removed = 0;
+  for (const [index, hookName] of uniqueHooks.entries()) {
+    if (removedHooks[index] === true) {
+      out.writeln(span.green(`  removed  ${hookName}`));
+      removed++;
     }
   }
 
@@ -386,15 +415,16 @@ export const statusMain = async (
     alias: { h: "help" },
   });
 
-  if (parsed.help) {
-    console.log("eser codebase status — Show git hook installation status");
-    return primitives.results.ok(undefined);
-  }
-
   const out = streams.output({
     renderer,
     sink: streams.sinks.stdout(),
   });
+
+  if (parsed.help) {
+    out.writeln("eser codebase status — Show git hook installation status");
+    await out.close();
+    return primitives.results.ok(undefined);
+  }
 
   const gitDir = await findGitDir();
   if (gitDir === null) {
@@ -423,12 +453,39 @@ export const statusMain = async (
     return primitives.results.ok(undefined);
   }
 
+  // The hook files are only read, so they are read concurrently; the report
+  // below keeps the manifest order.
+  const statuses = await Promise.all(
+    events.map(async (event): Promise<span.Span | null> => {
+      const mapping = EVENT_TO_HOOK[event];
+      if (mapping === undefined) {
+        return null;
+      }
+
+      const hookPath = standards.crossRuntime.runtime.path.join(
+        hooksDir,
+        mapping.hookName,
+      );
+      try {
+        const content = await standards.crossRuntime.runtime.fs.readTextFile(
+          hookPath,
+        );
+        return content.includes(MARKER)
+          ? span.green("managed (@eser)")
+          : span.yellow("user hook");
+      } catch {
+        return span.dim("not installed");
+      }
+    }),
+  );
+
   out.writeln(span.bold("Git hook status:"));
   out.writeln();
 
-  for (const event of events) {
+  for (const [index, event] of events.entries()) {
     const mapping = EVENT_TO_HOOK[event];
-    if (mapping === undefined) {
+    const statusSpan = statuses[index] ?? null;
+    if (mapping === undefined || statusSpan === null) {
       out.writeln(
         span.text("  "),
         span.dim(event.padEnd(14)),
@@ -438,27 +495,7 @@ export const statusMain = async (
       continue;
     }
 
-    const { hookName } = mapping;
-    const hookPath = standards.crossRuntime.runtime.path.join(
-      hooksDir,
-      hookName,
-    );
-
-    let statusSpan: span.Span;
-    try {
-      const content = await standards.crossRuntime.runtime.fs.readTextFile(
-        hookPath,
-      );
-      if (content.includes(MARKER)) {
-        statusSpan = span.green("managed (@eser)");
-      } else {
-        statusSpan = span.yellow("user hook");
-      }
-    } catch {
-      statusSpan = span.dim("not installed");
-    }
-
-    out.writeln(span.text(`  ${hookName.padEnd(14)} `), statusSpan);
+    out.writeln(span.text(`  ${mapping.hookName.padEnd(14)} `), statusSpan);
   }
 
   out.writeln();
@@ -471,8 +508,10 @@ export const statusMain = async (
 // =============================================================================
 
 if (import.meta.main) {
-  const { runCliMain } = await import("./cli-support.ts");
-  runCliMain(
-    await main(standards.crossRuntime.runtime.process.args as string[]),
+  // Entry point: the await only runs when this file is executed directly.
+  // deno-lint-ignore no-top-level-await
+  const result = await main(
+    standards.crossRuntime.runtime.process.args as string[],
   );
+  cliSupport.runCliMain(result);
 }

@@ -154,13 +154,19 @@ export type AiErrorKind =
   | "service_unavailable"
   | "cancelled";
 
-const WIRE_KINDS: Record<string, typeof AiError> = {
-  rate_limited: RateLimitedError,
-  auth_failed: AuthFailedError,
-  insufficient_credits: InsufficientCreditsError,
-  bad_request: BadRequestError,
-  service_unavailable: ServiceUnavailableError,
-};
+// Keys are the aifx ErrorKind wire slugs listed in AiErrorKind above. A Map, so
+// a kind from the wire such as "constructor" or "toString" finds no entry
+// instead of an Object.prototype member.
+const WIRE_KINDS: ReadonlyMap<string, typeof AiError> = new Map<
+  AiErrorKind,
+  typeof AiError
+>([
+  ["rate_limited", RateLimitedError],
+  ["auth_failed", AuthFailedError],
+  ["insufficient_credits", InsufficientCreditsError],
+  ["bad_request", BadRequestError],
+  ["service_unavailable", ServiceUnavailableError],
+]);
 
 /**
  * Rebuild the typed error described by a bridge response.
@@ -188,7 +194,7 @@ export const classifyWireError = (
     ? statusCode
     : undefined;
 
-  const ErrorClass = kind === undefined ? undefined : WIRE_KINDS[kind];
+  const ErrorClass = kind === undefined ? undefined : WIRE_KINDS.get(kind);
 
   if (ErrorClass === undefined) {
     return new AiError(message, { provider, statusCode: status });

@@ -3,13 +3,24 @@
 package kitfx
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
+
+	"github.com/eser/stack/pkg/ajan/logfx"
+	"github.com/eser/stack/pkg/ajan/processfx"
 )
+
+// DefaultCommandTimeout bounds each post-install command and each dependency
+// install command when the caller sets no bound of its own. It leaves room for
+// a cold package install on a slow network and still ends a command that hangs.
+const DefaultCommandTimeout = 10 * time.Minute
 
 // ErrPathTraversal is returned when a recipe target would escape the CWD.
 var ErrPathTraversal = errors.New("path traversal detected in recipe target")
@@ -30,8 +41,16 @@ func IsPathSafe(cwd, target string) bool {
 //  2. Conflict — detect existing files; honour SkipExisting / Force flags.
 //  3. Write — fetch and write each file (folder entries fetch-all then write).
 //  4. Post-install — run each post-install command in opts.CWD.
-func ApplyRecipe(recipe *Recipe, opts ApplyOptions) (ApplyResult, error) {
+//
+// ctx bounds the remote fetches and the post-install commands, and each
+// post-install command is also bounded by opts.PostInstallTimeout.
+func ApplyRecipe(ctx context.Context, recipe *Recipe, opts ApplyOptions) (ApplyResult, error) {
 	var result ApplyResult
+
+	timeout, err := postInstallTimeout(opts.PostInstallTimeout)
+	if err != nil {
+		return result, err
+	}
 
 	// ── Phase 1: path-traversal validation ─────────────────────────────────
 	for _, f := range recipe.Files {
@@ -73,11 +92,11 @@ func ApplyRecipe(recipe *Recipe, opts ApplyOptions) (ApplyResult, error) {
 		}
 
 		if f.Kind == RecipeFileKindFolder {
-			if err := applyFolder(&f, recipe, opts, vars, &result); err != nil {
+			if err := applyFolder(ctx, &f, recipe, opts, vars, &result); err != nil {
 				return result, err
 			}
 		} else {
-			if err := applyFile(&f, recipe, opts, vars, &result); err != nil {
+			if err := applyFile(ctx, &f, recipe, opts, vars, &result); err != nil {
 				return result, err
 			}
 		}
@@ -85,15 +104,8 @@ func ApplyRecipe(recipe *Recipe, opts ApplyOptions) (ApplyResult, error) {
 
 	// ── Phase 4: post-install commands ──────────────────────────────────────
 	if !opts.DryRun {
-		for _, cmd := range recipe.PostInstall {
-			if err := runPostInstall(cmd, opts.CWD); err != nil {
-				// Non-fatal — record and continue.
-				if opts.Verbose {
-					_, _ = fmt.Fprintf(os.Stderr, "post-install %q: %v\n", cmd, err)
-				}
-			}
-
-			result.PostInstallRan = append(result.PostInstallRan, cmd)
+		if err := runPostInstallCommands(ctx, recipe.PostInstall, opts, timeout, &result); err != nil {
+			return result, err
 		}
 	}
 
@@ -102,7 +114,12 @@ func ApplyRecipe(recipe *Recipe, opts ApplyOptions) (ApplyResult, error) {
 
 // ApplyRecipeChain resolves the full dependency chain for recipeName and applies
 // each recipe in dependency order.
-func ApplyRecipeChain(recipeName string, manifest *RegistryManifest, opts ApplyOptions) (ApplyChainResult, error) {
+func ApplyRecipeChain(
+	ctx context.Context,
+	recipeName string,
+	manifest *RegistryManifest,
+	opts ApplyOptions,
+) (ApplyChainResult, error) {
 	chain, err := ResolveRequires(recipeName, manifest.Recipes)
 	if err != nil {
 		return ApplyChainResult{}, fmt.Errorf("resolving recipe chain for %q: %w", recipeName, err)
@@ -112,7 +129,7 @@ func ApplyRecipeChain(recipeName string, manifest *RegistryManifest, opts ApplyO
 
 	for _, recipe := range chain {
 		r := recipe // local copy for closure safety
-		res, err := ApplyRecipe(&r, opts)
+		res, err := ApplyRecipe(ctx, &r, opts)
 		if err != nil {
 			return chainResult, fmt.Errorf("applying recipe %q: %w", recipe.Name, err)
 		}
@@ -128,8 +145,15 @@ func ApplyRecipeChain(recipeName string, manifest *RegistryManifest, opts ApplyO
 
 // --- helpers ---
 
-func applyFile(f *RecipeFile, recipe *Recipe, opts ApplyOptions, vars map[string]string, result *ApplyResult) error {
-	content, err := FetchRecipeFile(f, recipe, opts.RegistryURL)
+func applyFile(
+	ctx context.Context,
+	f *RecipeFile,
+	recipe *Recipe,
+	opts ApplyOptions,
+	vars map[string]string,
+	result *ApplyResult,
+) error {
+	content, err := FetchRecipeFile(ctx, f, recipe, opts.RegistryURL)
 	if err != nil {
 		return fmt.Errorf("fetching %q: %w", f.Source, err)
 	}
@@ -154,9 +178,16 @@ func applyFile(f *RecipeFile, recipe *Recipe, opts ApplyOptions, vars map[string
 	return nil
 }
 
-func applyFolder(f *RecipeFile, recipe *Recipe, opts ApplyOptions, vars map[string]string, result *ApplyResult) error {
+func applyFolder(
+	ctx context.Context,
+	f *RecipeFile,
+	recipe *Recipe,
+	opts ApplyOptions,
+	vars map[string]string,
+	result *ApplyResult,
+) error {
 	// Fetch all files first for atomicity — do not write until all downloads succeed.
-	fetched, err := FetchRecipeFolder(f, recipe, opts.RegistryURL)
+	fetched, err := FetchRecipeFolder(ctx, f, recipe, opts.RegistryURL)
 	if err != nil {
 		return fmt.Errorf("fetching folder %q: %w", f.Source, err)
 	}
@@ -192,14 +223,112 @@ func writeFile(dest, content string) error {
 	return os.WriteFile(dest, []byte(content), 0o644) //nolint:gosec
 }
 
-func runPostInstall(command, cwd string) error {
+// postInstallTimeout resolves ApplyOptions.PostInstallTimeout: zero selects
+// DefaultCommandTimeout and a negative value is a caller error.
+func postInstallTimeout(configured time.Duration) (time.Duration, error) {
+	if configured < 0 {
+		return 0, fmt.Errorf(
+			"post-install timeout %v is negative: set a positive duration, or 0 for the default of %v",
+			configured, DefaultCommandTimeout,
+		)
+	}
+
+	if configured == 0 {
+		return DefaultCommandTimeout, nil
+	}
+
+	return configured, nil
+}
+
+// postInstallLogger returns the logger that receives post-install failures:
+// the caller's, a standard error logger when only Verbose is set, or nil when
+// failures are recorded in the result alone.
+func postInstallLogger(opts ApplyOptions) *logfx.Logger {
+	if opts.Logger != nil {
+		return opts.Logger
+	}
+
+	if opts.Verbose {
+		return logfx.NewLogger(logfx.WithWriter(os.Stderr), logfx.WithPrettyMode(true))
+	}
+
+	return nil
+}
+
+// runPostInstallCommands runs the recipe's post-install commands in order. A
+// failed command is non-fatal: it is listed in result.PostInstallFailed and its
+// cause is logged once, here, where it is handled. A cancelled ctx ends the
+// phase with an error that says how far it got.
+func runPostInstallCommands(
+	ctx context.Context,
+	commands []string,
+	opts ApplyOptions,
+	timeout time.Duration,
+	result *ApplyResult,
+) error {
+	logger := postInstallLogger(opts)
+
+	for i, command := range commands {
+		if err := ctx.Err(); err != nil {
+			return fmt.Errorf("post-install stopped after %d of %d commands: %w", i, len(commands), err)
+		}
+
+		result.PostInstallRan = append(result.PostInstallRan, command)
+
+		err := runPostInstall(ctx, command, opts.CWD, timeout)
+		if err == nil {
+			continue
+		}
+
+		// The caller gave up while the command ran: that ends the phase and
+		// is not a failure of the command itself.
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return fmt.Errorf("post-install stopped after %d of %d commands: %w", i, len(commands), ctxErr)
+		}
+
+		result.PostInstallFailed = append(result.PostInstallFailed, command)
+
+		if logger != nil {
+			logger.WarnContext(
+				ctx,
+				"post-install command failed; the recipe was applied without it",
+				slog.String("command", command),
+				slog.String("cwd", opts.CWD),
+				slog.String("error", err.Error()),
+			)
+		}
+	}
+
+	return nil
+}
+
+// runPostInstall runs one post-install command in cwd, bounded by timeout and
+// by ctx. An empty command is a no-op.
+func runPostInstall(ctx context.Context, command, cwd string, timeout time.Duration) error {
 	parts := strings.Fields(command)
 	if len(parts) == 0 {
 		return nil
 	}
 
-	cmd := exec.Command(parts[0], parts[1:]...) //nolint:gosec
-	cmd.Dir = cwd
+	cmdCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
 
-	return cmd.Run()
+	cmd := exec.CommandContext(cmdCtx, parts[0], parts[1:]...) //nolint:gosec // post-install commands come from the recipe the caller chose to apply
+	cmd.Dir = cwd
+	// On timeout, kill the command's whole process group, not only the
+	// direct child, so nothing it started keeps running past the bound.
+	processfx.HardenCommand(cmd)
+
+	if err := cmd.Run(); err != nil {
+		if ctx.Err() == nil && errors.Is(cmdCtx.Err(), context.DeadlineExceeded) {
+			return fmt.Errorf(
+				"run %q: no exit within %v (raise ApplyOptions.PostInstallTimeout if it needs longer): %w",
+				command, timeout, context.DeadlineExceeded,
+			)
+		}
+
+		return fmt.Errorf("run %q: %w", command, err)
+	}
+
+	return nil
 }

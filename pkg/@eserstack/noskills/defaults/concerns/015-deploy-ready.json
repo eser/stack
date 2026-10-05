@@ -14,21 +14,18 @@
       "id": "deploy-configuration",
       "title": "Deploy Configuration",
       "placeholder": "_What deploy platform? What config files need updating (fly.toml, render.yaml, vercel.json, etc.)? Can old and new config coexist during a rolling deploy? Rollback command?_",
-      "condition": null,
       "position": "after:premises"
     },
     {
       "id": "environment-variables",
       "title": "Environment Variables",
       "placeholder": "_Every new env var: name, purpose, required vs optional, example value, which environments need it. Add to deploy config, .env.example, and README if user-facing._",
-      "condition": null,
       "position": "after:premises"
     },
     {
       "id": "staging-verification",
       "title": "Staging Verification",
       "placeholder": "_Steps to verify on staging before production: deploy command, smoke test steps, health check endpoint, expected output. 'Works on my machine' is not staging verification._",
-      "condition": null,
       "position": "after:premises"
     }
   ],

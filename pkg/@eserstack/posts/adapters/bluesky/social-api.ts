@@ -1,19 +1,21 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 /**
- * BluekysSocialApi — SocialApi implementation against the AT Protocol / Bluesky API.
+ * BlueskySocialApi: SocialApi implementation against the AT Protocol / Bluesky API.
  * Caches the authenticated user profile after the first getMe() call.
+ *
+ * @module
  */
 
 import type { Post } from "../../domain/entities/post.ts";
 import type { UsageData } from "../../domain/entities/usage.ts";
 import type { User } from "../../domain/entities/user.ts";
-import { toPostId } from "../../domain/values/post-id.ts";
+import * as postId from "../../domain/values/post-id.ts";
 import type { PostId } from "../../domain/values/post-id.ts";
 import * as results from "@eserstack/primitives/results";
 import type { SocialApi } from "../../application/social-api.ts";
-import { ThreadPartialError } from "../../application/thread-post-error.ts";
-import { mapToDomainPost, mapToDomainUser } from "./mappers.ts";
+import * as threadPostError from "../../application/thread-post-error.ts";
+import * as mappers from "./mappers.ts";
 import type {
   BlueskyCreateRecordResponse,
   BlueskyGetPostsResponse,
@@ -37,7 +39,7 @@ function extractRkey(atUri: string): string {
 }
 
 /** Implements SocialApi using AT Protocol XRPC endpoints. */
-export class BluekysSocialApi implements SocialApi {
+export class BlueskySocialApi implements SocialApi {
   private readonly client: BlueskyClient;
   private cachedMe: User | undefined;
 
@@ -66,7 +68,7 @@ export class BluekysSocialApi implements SocialApi {
       },
     );
     return {
-      id: toPostId(response.uri),
+      id: postId.toPostId(response.uri),
       platformRef: { uri: response.uri, cid: response.cid },
     };
   }
@@ -90,7 +92,7 @@ export class BluekysSocialApi implements SocialApi {
       "app.bsky.actor.getProfile",
       { actor: did },
     );
-    this.cachedMe = mapToDomainUser(response);
+    this.cachedMe = mappers.mapToDomainUser(response);
     return this.cachedMe;
   }
 
@@ -105,7 +107,9 @@ export class BluekysSocialApi implements SocialApi {
       queryParams,
     );
 
-    return (response.feed ?? []).map((item) => mapToDomainPost(item.post));
+    return (response.feed ?? []).map((item) =>
+      mappers.mapToDomainPost(item.post)
+    );
   }
 
   async getPost(id: PostId): Promise<Post> {
@@ -115,7 +119,7 @@ export class BluekysSocialApi implements SocialApi {
     );
     const postView = response.posts[0];
     if (postView === undefined) throw new Error(`Post not found: ${id}`);
-    return mapToDomainPost(postView);
+    return mappers.mapToDomainPost(postView);
   }
 
   async replyToPost(
@@ -129,12 +133,20 @@ export class BluekysSocialApi implements SocialApi {
     if (parentUri === undefined || parentCid === undefined) {
       throw new Error(
         "Cannot reply to this post: missing AT-URI / CID platformRef. " +
-          "Ensure the post was fetched via BluekysSocialApi.",
+          "Ensure the post was fetched via BlueskySocialApi.",
       );
     }
 
-    // For a direct reply, root === parent (single-level reply; not deep thread)
-    const ref = { uri: parentUri, cid: parentCid };
+    // An AT Protocol reply names the post it answers as parent and the first
+    // post of the thread as root. A reply to a top-level post uses that post
+    // for both; a reply to a reply keeps the root the parent carries.
+    const parent = { uri: parentUri, cid: parentCid };
+    const rootUri = params.inReplyToPost.platformRef?.["rootUri"];
+    const rootCid = params.inReplyToPost.platformRef?.["rootCid"];
+    const root = rootUri !== undefined && rootCid !== undefined
+      ? { uri: rootUri, cid: rootCid }
+      : parent;
+
     const response = await this.client.post<BlueskyCreateRecordResponse>(
       "com.atproto.repo.createRecord",
       {
@@ -144,13 +156,18 @@ export class BluekysSocialApi implements SocialApi {
           "$type": POST_TYPE,
           text: params.text,
           createdAt: new Date().toISOString(),
-          reply: { root: ref, parent: ref },
+          reply: { root, parent },
         },
       },
     );
     return {
-      id: toPostId(response.uri),
-      platformRef: { uri: response.uri, cid: response.cid },
+      id: postId.toPostId(response.uri),
+      platformRef: {
+        uri: response.uri,
+        cid: response.cid,
+        rootUri: root.uri,
+        rootCid: root.cid,
+      },
     };
   }
 
@@ -187,6 +204,7 @@ export class BluekysSocialApi implements SocialApi {
 
       let response: BlueskyCreateRecordResponse;
       try {
+        // Each post replies to the one before it, so the thread posts in order.
         // deno-lint-ignore no-await-in-loop
         response = await this.client.post<BlueskyCreateRecordResponse>(
           "com.atproto.repo.createRecord",
@@ -194,7 +212,7 @@ export class BluekysSocialApi implements SocialApi {
         );
       } catch (err) {
         return results.fail(
-          new ThreadPartialError(
+          new threadPostError.ThreadPartialError(
             postedPosts,
             postedPosts.length,
             params.texts.length,
@@ -206,15 +224,20 @@ export class BluekysSocialApi implements SocialApi {
       const currentRef = { uri: response.uri, cid: response.cid };
 
       const post: Post = {
-        id: toPostId(response.uri),
+        id: postId.toPostId(response.uri),
         text,
         authorHandle: me.handle,
         createdAt: new Date(),
         platform: "bluesky",
-        platformRef: currentRef,
+        // Every post after the first is a reply, so it carries the thread root
+        // that a reply to it must name.
+        platformRef: rootRef !== undefined
+          ? { ...currentRef, rootUri: rootRef.uri, rootCid: rootRef.cid }
+          : currentRef,
         ...(parentRef !== undefined &&
-          { inReplyToId: toPostId(parentRef.uri) }),
-        ...(rootRef !== undefined && { conversationId: toPostId(rootRef.uri) }),
+          { inReplyToId: postId.toPostId(parentRef.uri) }),
+        ...(rootRef !== undefined &&
+          { conversationId: postId.toPostId(rootRef.uri) }),
       };
 
       if (rootRef === undefined) rootRef = currentRef;
@@ -243,7 +266,7 @@ export class BluekysSocialApi implements SocialApi {
     const posts: Post[] = [];
     const collectPosts = (node: BlueskyThreadResponse["thread"]): void => {
       if (node.post !== undefined) {
-        posts.push(mapToDomainPost(node.post));
+        posts.push(mappers.mapToDomainPost(node.post));
       }
       for (const reply of node.replies ?? []) {
         collectPosts(reply);
@@ -268,7 +291,7 @@ export class BluekysSocialApi implements SocialApi {
     const cid = post.platformRef?.["cid"];
     if (cid === undefined) {
       throw new Error(
-        "Cannot repost: missing CID. Post must be fetched via BluekysSocialApi.",
+        "Cannot repost: missing CID. Post must be fetched via BlueskySocialApi.",
       );
     }
 
@@ -332,7 +355,7 @@ export class BluekysSocialApi implements SocialApi {
     const quotedCid = quotedPost.platformRef?.["cid"];
     if (quotedCid === undefined) {
       throw new Error(
-        "Cannot quote: missing CID. Quoted post must be fetched via BluekysSocialApi.",
+        "Cannot quote: missing CID. Quoted post must be fetched via BlueskySocialApi.",
       );
     }
 
@@ -352,7 +375,7 @@ export class BluekysSocialApi implements SocialApi {
         },
       },
     );
-    return { id: toPostId(response.uri) };
+    return { id: postId.toPostId(response.uri) };
   }
 
   async searchPosts(
@@ -368,7 +391,9 @@ export class BluekysSocialApi implements SocialApi {
       queryParams,
     );
 
-    return (response.posts ?? []).map((postView) => mapToDomainPost(postView));
+    return (response.posts ?? []).map((postView) =>
+      mappers.mapToDomainPost(postView)
+    );
   }
 
   bookmarkPost(_id: PostId): Promise<void> {
@@ -391,3 +416,19 @@ export class BluekysSocialApi implements SocialApi {
     );
   }
 }
+
+/**
+ * The earlier, misspelled name of {@link BlueskySocialApi}.
+ *
+ * @deprecated Use `BlueskySocialApi`. This alias stays for one release and is
+ * then removed.
+ */
+export const BluekysSocialApi: typeof BlueskySocialApi = BlueskySocialApi;
+
+/**
+ * The earlier, misspelled name of the {@link BlueskySocialApi} type.
+ *
+ * @deprecated Use `BlueskySocialApi`. This alias stays for one release and is
+ * then removed.
+ */
+export type BluekysSocialApi = BlueskySocialApi;

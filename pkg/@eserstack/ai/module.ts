@@ -6,9 +6,13 @@
  * @module
  */
 
-import { Module } from "@eserstack/shell/module";
+import * as module from "@eserstack/shell/module";
 
-export const moduleDef: Module = new Module({
+/** The command module type, `Module` from `@eserstack/shell/module`. */
+export type Module = module.Module;
+
+/** The `ai` command group: `ask` and `list`. */
+export const moduleDef: Module = new module.Module({
   description: "AI provider interface — ask questions, generate content",
   modules: {
     ask: {

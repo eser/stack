@@ -12,15 +12,19 @@
  * @returns The resolved value or defaultValue
  *
  * @example
+ * ```typescript
+ * import * as fp from "@eserstack/fp";
+ *
  * const obj = { a: { b: { c: 42 } } };
  *
- * get(obj, ['a', 'b', 'c'])           // 42
- * get(obj, ['a', 'b', 'c', 'd'])      // undefined
- * get(obj, ['a', 'b', 'c', 'd'], 0)   // 0
- * get(obj, ['x', 'y'], 'default')     // 'default'
+ * fp.get(obj, ["a", "b", "c"]); // 42
+ * fp.get(obj, ["a", "b", "c", "d"]); // undefined
+ * fp.get(obj, ["a", "b", "c", "d"], 0); // 0
+ * fp.get(obj, ["x", "y"], "default"); // "default"
  *
- * // Works with arrays too
- * get({ items: [1, 2, 3] }, ['items', 1])  // 2
+ * // Array indexes work as path keys too
+ * fp.get({ items: [1, 2, 3] }, ["items", 1]); // 2
+ * ```
  */
 export const get = <T = unknown>(
   object: unknown,
@@ -49,5 +53,3 @@ export const get = <T = unknown>(
 
   return current === undefined ? defaultValue : (current as T);
 };
-
-export { get as default };

@@ -1,40 +1,20 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 import * as assert from "@std/assert";
-import {
-  clearParameterCache,
-  createBitmapMatcher,
-  createExtensionIndex,
-  createIndexedRegistryBuilder,
-  createMap,
-  createMapBuilder,
-  createRegistry,
-  createRegistryBuilder,
-  EMPTY_MAP,
-  EMPTY_REGISTRY,
-  freezeArray,
-  fromEntries,
-  getFunctionParameters,
-  lazy,
-  lazyAsync,
-  memoizeArray,
-  mergeBuilders,
-  parallelImport,
-  parallelImportModules,
-} from "./mod.ts";
+import * as collections from "./mod.ts";
 
 // =============================================================================
 // ImmutableMap Tests (Layer 0)
 // =============================================================================
 
 Deno.test("createMapBuilder - creates empty builder", () => {
-  const builder = createMapBuilder<string, number>();
+  const builder = collections.createMapBuilder<string, number>();
   assert.assertEquals(builder.size, 0);
   assert.assertEquals(builder.has("key"), false);
 });
 
 Deno.test("createMapBuilder - set adds entries", () => {
-  const builder = createMapBuilder<string, number>();
+  const builder = collections.createMapBuilder<string, number>();
   builder.set("a", 1).set("b", 2);
 
   assert.assertEquals(builder.size, 2);
@@ -43,7 +23,7 @@ Deno.test("createMapBuilder - set adds entries", () => {
 });
 
 Deno.test("createMapBuilder - delete removes entries", () => {
-  const builder = createMapBuilder<string, number>();
+  const builder = collections.createMapBuilder<string, number>();
   builder.set("a", 1).set("b", 2).delete("a");
 
   assert.assertEquals(builder.size, 1);
@@ -52,7 +32,7 @@ Deno.test("createMapBuilder - delete removes entries", () => {
 });
 
 Deno.test("createMapBuilder - build returns sealed map", () => {
-  const builder = createMapBuilder<string, number>();
+  const builder = collections.createMapBuilder<string, number>();
   builder.set("a", 1).set("b", 2);
 
   const map = builder.build();
@@ -63,7 +43,7 @@ Deno.test("createMapBuilder - build returns sealed map", () => {
 });
 
 Deno.test("createMapBuilder - build throws after sealed", () => {
-  const builder = createMapBuilder<string, number>();
+  const builder = collections.createMapBuilder<string, number>();
   builder.build();
 
   assert.assertThrows(
@@ -74,12 +54,12 @@ Deno.test("createMapBuilder - build throws after sealed", () => {
 });
 
 Deno.test("ImmutableMap.get - returns undefined for missing keys", () => {
-  const map = createMapBuilder<string, number>().build();
+  const map = collections.createMapBuilder<string, number>().build();
   assert.assertEquals(map.get("missing"), undefined);
 });
 
 Deno.test("ImmutableMap.get - returns values", () => {
-  const map = createMapBuilder<string, number>()
+  const map = collections.createMapBuilder<string, number>()
     .set("a", 42)
     .build();
 
@@ -87,7 +67,7 @@ Deno.test("ImmutableMap.get - returns values", () => {
 });
 
 Deno.test("ImmutableMap.has - returns correct boolean", () => {
-  const map = createMapBuilder<string, number>()
+  const map = collections.createMapBuilder<string, number>()
     .set("exists", 1)
     .build();
 
@@ -96,15 +76,16 @@ Deno.test("ImmutableMap.has - returns correct boolean", () => {
 });
 
 Deno.test("ImmutableMap.isEmpty - returns correct boolean", () => {
-  const empty = createMapBuilder<string, number>().build();
-  const nonEmpty = createMapBuilder<string, number>().set("a", 1).build();
+  const empty = collections.createMapBuilder<string, number>().build();
+  const nonEmpty = collections.createMapBuilder<string, number>().set("a", 1)
+    .build();
 
   assert.assertEquals(empty.isEmpty, true);
   assert.assertEquals(nonEmpty.isEmpty, false);
 });
 
 Deno.test("ImmutableMap.keys - returns iterator", () => {
-  const map = createMapBuilder<string, number>()
+  const map = collections.createMapBuilder<string, number>()
     .set("a", 1)
     .set("b", 2)
     .build();
@@ -116,7 +97,7 @@ Deno.test("ImmutableMap.keys - returns iterator", () => {
 });
 
 Deno.test("ImmutableMap.values - returns iterator", () => {
-  const map = createMapBuilder<string, number>()
+  const map = collections.createMapBuilder<string, number>()
     .set("a", 1)
     .set("b", 2)
     .build();
@@ -128,7 +109,7 @@ Deno.test("ImmutableMap.values - returns iterator", () => {
 });
 
 Deno.test("ImmutableMap.entries - returns iterator", () => {
-  const map = createMapBuilder<string, number>()
+  const map = collections.createMapBuilder<string, number>()
     .set("a", 1)
     .set("b", 2)
     .build();
@@ -138,7 +119,7 @@ Deno.test("ImmutableMap.entries - returns iterator", () => {
 });
 
 Deno.test("ImmutableMap - supports for...of iteration", () => {
-  const map = createMapBuilder<string, number>()
+  const map = collections.createMapBuilder<string, number>()
     .set("a", 1)
     .set("b", 2)
     .build();
@@ -152,7 +133,7 @@ Deno.test("ImmutableMap - supports for...of iteration", () => {
 });
 
 Deno.test("ImmutableMap.forEach - iterates over all entries", () => {
-  const map = createMapBuilder<string, number>()
+  const map = collections.createMapBuilder<string, number>()
     .set("a", 1)
     .set("b", 2)
     .build();
@@ -166,7 +147,7 @@ Deno.test("ImmutableMap.forEach - iterates over all entries", () => {
 });
 
 Deno.test("ImmutableMap.map - transforms values", () => {
-  const map = createMapBuilder<string, number>()
+  const map = collections.createMapBuilder<string, number>()
     .set("a", 1)
     .set("b", 2)
     .build();
@@ -178,7 +159,7 @@ Deno.test("ImmutableMap.map - transforms values", () => {
 });
 
 Deno.test("ImmutableMap.filter - filters entries", () => {
-  const map = createMapBuilder<string, number>()
+  const map = collections.createMapBuilder<string, number>()
     .set("a", 1)
     .set("b", 2)
     .set("c", 3)
@@ -193,7 +174,7 @@ Deno.test("ImmutableMap.filter - filters entries", () => {
 });
 
 Deno.test("ImmutableMap.reduce - reduces to value", () => {
-  const map = createMapBuilder<string, number>()
+  const map = collections.createMapBuilder<string, number>()
     .set("a", 1)
     .set("b", 2)
     .set("c", 3)
@@ -205,7 +186,7 @@ Deno.test("ImmutableMap.reduce - reduces to value", () => {
 });
 
 Deno.test("ImmutableMap.toBuilder - creates mutable copy", () => {
-  const map = createMapBuilder<string, number>()
+  const map = collections.createMapBuilder<string, number>()
     .set("a", 1)
     .build();
 
@@ -220,15 +201,15 @@ Deno.test("ImmutableMap.toBuilder - creates mutable copy", () => {
 });
 
 Deno.test("ImmutableMap.merge - merges multiple maps", () => {
-  const map1 = createMapBuilder<string, number>()
+  const map1 = collections.createMapBuilder<string, number>()
     .set("a", 1)
     .build();
 
-  const map2 = createMapBuilder<string, number>()
+  const map2 = collections.createMapBuilder<string, number>()
     .set("b", 2)
     .build();
 
-  const map3 = createMapBuilder<string, number>()
+  const map3 = collections.createMapBuilder<string, number>()
     .set("a", 10) // Override
     .set("c", 3)
     .build();
@@ -242,7 +223,7 @@ Deno.test("ImmutableMap.merge - merges multiple maps", () => {
 });
 
 Deno.test("createMap - creates from iterable", () => {
-  const map = createMap<string, number>([
+  const map = collections.createMap<string, number>([
     ["a", 1],
     ["b", 2],
   ]);
@@ -253,9 +234,9 @@ Deno.test("createMap - creates from iterable", () => {
 });
 
 Deno.test("EMPTY_MAP - is empty and frozen", () => {
-  assert.assertEquals(EMPTY_MAP.size, 0);
-  assert.assertEquals(EMPTY_MAP.isEmpty, true);
-  assert.assertEquals(Object.isFrozen(EMPTY_MAP), true);
+  assert.assertEquals(collections.EMPTY_MAP.size, 0);
+  assert.assertEquals(collections.EMPTY_MAP.isEmpty, true);
+  assert.assertEquals(Object.isFrozen(collections.EMPTY_MAP), true);
 });
 
 // =============================================================================
@@ -263,13 +244,13 @@ Deno.test("EMPTY_MAP - is empty and frozen", () => {
 // =============================================================================
 
 Deno.test("createRegistryBuilder - creates empty builder", () => {
-  const builder = createRegistryBuilder<string, number>();
+  const builder = collections.createRegistryBuilder<string, number>();
   assert.assertEquals(builder.size, 0);
   assert.assertEquals(builder.has("key"), false);
 });
 
 Deno.test("createRegistryBuilder - set adds value entries", () => {
-  const builder = createRegistryBuilder<string, number>();
+  const builder = collections.createRegistryBuilder<string, number>();
   builder.set("a", 1).set("b", 2);
 
   assert.assertEquals(builder.size, 2);
@@ -278,7 +259,7 @@ Deno.test("createRegistryBuilder - set adds value entries", () => {
 });
 
 Deno.test("createRegistryBuilder - remove deletes entries", () => {
-  const builder = createRegistryBuilder<string, number>();
+  const builder = collections.createRegistryBuilder<string, number>();
   builder.set("a", 1).set("b", 2).remove("a");
 
   assert.assertEquals(builder.size, 1);
@@ -287,7 +268,7 @@ Deno.test("createRegistryBuilder - remove deletes entries", () => {
 });
 
 Deno.test("createRegistryBuilder - build returns sealed registry", () => {
-  const builder = createRegistryBuilder<string, number>();
+  const builder = collections.createRegistryBuilder<string, number>();
   builder.set("a", 1).set("b", 2);
 
   const registry = builder.build();
@@ -298,7 +279,7 @@ Deno.test("createRegistryBuilder - build returns sealed registry", () => {
 });
 
 Deno.test("createRegistryBuilder - build throws after sealed", () => {
-  const builder = createRegistryBuilder<string, number>();
+  const builder = collections.createRegistryBuilder<string, number>();
   builder.build();
 
   assert.assertThrows(
@@ -313,12 +294,12 @@ Deno.test("createRegistryBuilder - build throws after sealed", () => {
 // =============================================================================
 
 Deno.test("Registry.get - returns undefined for missing keys", () => {
-  const registry = createRegistryBuilder<string, number>().build();
+  const registry = collections.createRegistryBuilder<string, number>().build();
   assert.assertEquals(registry.get("missing"), undefined);
 });
 
 Deno.test("Registry.get - returns value entries", () => {
-  const registry = createRegistryBuilder<string, number>()
+  const registry = collections.createRegistryBuilder<string, number>()
     .set("a", 42)
     .build();
 
@@ -326,7 +307,7 @@ Deno.test("Registry.get - returns value entries", () => {
 });
 
 Deno.test("Registry.has - returns correct boolean", () => {
-  const registry = createRegistryBuilder<string, number>()
+  const registry = collections.createRegistryBuilder<string, number>()
     .set("exists", 1)
     .build();
 
@@ -335,7 +316,7 @@ Deno.test("Registry.has - returns correct boolean", () => {
 });
 
 Deno.test("Registry.isLazy - returns correct boolean", () => {
-  const registry = createRegistryBuilder<string, number>()
+  const registry = collections.createRegistryBuilder<string, number>()
     .set("value", 1)
     .setLazy("lazy", () => 2)
     .build();
@@ -346,7 +327,7 @@ Deno.test("Registry.isLazy - returns correct boolean", () => {
 });
 
 Deno.test("Registry.keys - returns frozen array", () => {
-  const registry = createRegistryBuilder<string, number>()
+  const registry = collections.createRegistryBuilder<string, number>()
     .set("a", 1)
     .set("b", 2)
     .build();
@@ -359,7 +340,7 @@ Deno.test("Registry.keys - returns frozen array", () => {
 });
 
 Deno.test("Registry.keys - returns cached array", () => {
-  const registry = createRegistryBuilder<string, number>()
+  const registry = collections.createRegistryBuilder<string, number>()
     .set("a", 1)
     .build();
 
@@ -369,7 +350,7 @@ Deno.test("Registry.keys - returns cached array", () => {
 });
 
 Deno.test("Registry.values - returns values for value lifetime", () => {
-  const registry = createRegistryBuilder<string, number>()
+  const registry = collections.createRegistryBuilder<string, number>()
     .set("a", 1)
     .set("b", 2)
     .build();
@@ -381,7 +362,7 @@ Deno.test("Registry.values - returns values for value lifetime", () => {
 });
 
 Deno.test("Registry.entries - returns key-value pairs", () => {
-  const registry = createRegistryBuilder<string, number>()
+  const registry = collections.createRegistryBuilder<string, number>()
     .set("a", 1)
     .set("b", 2)
     .build();
@@ -391,7 +372,7 @@ Deno.test("Registry.entries - returns key-value pairs", () => {
 });
 
 Deno.test("Registry.toBuilder - creates new mutable builder", () => {
-  const registry = createRegistryBuilder<string, number>()
+  const registry = collections.createRegistryBuilder<string, number>()
     .set("a", 1)
     .build();
 
@@ -416,7 +397,7 @@ Deno.test("setLazy - executes factory once", () => {
     return 42;
   };
 
-  const registry = createRegistryBuilder<string, number>()
+  const registry = collections.createRegistryBuilder<string, number>()
     .setLazy("lazy", factory)
     .build();
 
@@ -432,7 +413,7 @@ Deno.test("setLazy - executes factory once", () => {
 });
 
 Deno.test("setLazy - isLazy returns false after resolution", () => {
-  const registry = createRegistryBuilder<string, number>()
+  const registry = collections.createRegistryBuilder<string, number>()
     .setLazy("lazy", () => 42)
     .build();
 
@@ -451,7 +432,7 @@ Deno.test("setLazy - isLazy returns false after resolution", () => {
 // =============================================================================
 
 Deno.test("Registry.getAsync - resolves async lazy factory", async () => {
-  const registry = createRegistryBuilder<string, number>()
+  const registry = collections.createRegistryBuilder<string, number>()
     .setLazy("async", async () => {
       await new Promise((r) => setTimeout(r, 10));
       return 42;
@@ -464,7 +445,7 @@ Deno.test("Registry.getAsync - resolves async lazy factory", async () => {
 
 Deno.test("Registry.getAsync - caches async lazy result", async () => {
   let callCount = 0;
-  const registry = createRegistryBuilder<string, number>()
+  const registry = collections.createRegistryBuilder<string, number>()
     .setLazy("async", async () => {
       await new Promise((r) => setTimeout(r, 10));
       callCount++;
@@ -489,31 +470,31 @@ import type { IndexedRegistry } from "./types.ts";
 type Format = { name: string; extensions: string[] };
 
 Deno.test("IndexedRegistry - lookup by primary key", () => {
-  const registry: IndexedRegistry<string, Format> =
-    createIndexedRegistryBuilder<
+  const registry: IndexedRegistry<string, Format> = collections
+    .createIndexedRegistryBuilder<
       string,
       Format
     >([
-      createExtensionIndex("byExt", (f) => f.extensions),
+      collections.createExtensionIndex("byExt", (f) => f.extensions),
     ])
-      .set("json", { name: "json", extensions: ["json"] })
-      .build();
+    .set("json", { name: "json", extensions: ["json"] })
+    .build();
 
   const format = registry.get("json");
   assert.assertEquals(format?.name, "json");
 });
 
 Deno.test("IndexedRegistry - lookup by index", () => {
-  const registry: IndexedRegistry<string, Format> =
-    createIndexedRegistryBuilder<
+  const registry: IndexedRegistry<string, Format> = collections
+    .createIndexedRegistryBuilder<
       string,
       Format
     >([
-      createExtensionIndex("byExt", (f) => f.extensions),
+      collections.createExtensionIndex("byExt", (f) => f.extensions),
     ])
-      .set("json", { name: "json", extensions: ["json"] })
-      .set("yaml", { name: "yaml", extensions: ["yaml", "yml"] })
-      .build();
+    .set("json", { name: "json", extensions: ["json"] })
+    .set("yaml", { name: "yaml", extensions: ["yaml", "yml"] })
+    .build();
 
   const jsonFormat = registry.getByIndex("byExt", "json");
   assert.assertEquals(jsonFormat?.name, "json");
@@ -523,15 +504,15 @@ Deno.test("IndexedRegistry - lookup by index", () => {
 });
 
 Deno.test("IndexedRegistry - normalized lookup", () => {
-  const registry: IndexedRegistry<string, Format> =
-    createIndexedRegistryBuilder<
+  const registry: IndexedRegistry<string, Format> = collections
+    .createIndexedRegistryBuilder<
       string,
       Format
     >([
-      createExtensionIndex("byExt", (f) => f.extensions),
+      collections.createExtensionIndex("byExt", (f) => f.extensions),
     ])
-      .set("json", { name: "json", extensions: ["json"] })
-      .build();
+    .set("json", { name: "json", extensions: ["json"] })
+    .build();
 
   // Should normalize: .JSON -> json, JSON -> json
   const format1 = registry.getByIndex("byExt", "JSON");
@@ -542,31 +523,31 @@ Deno.test("IndexedRegistry - normalized lookup", () => {
 });
 
 Deno.test("IndexedRegistry - hasInIndex", () => {
-  const registry: IndexedRegistry<string, Format> =
-    createIndexedRegistryBuilder<
+  const registry: IndexedRegistry<string, Format> = collections
+    .createIndexedRegistryBuilder<
       string,
       Format
     >([
-      createExtensionIndex("byExt", (f) => f.extensions),
+      collections.createExtensionIndex("byExt", (f) => f.extensions),
     ])
-      .set("json", { name: "json", extensions: ["json"] })
-      .build();
+    .set("json", { name: "json", extensions: ["json"] })
+    .build();
 
   assert.assertEquals(registry.hasInIndex("byExt", "json"), true);
   assert.assertEquals(registry.hasInIndex("byExt", "xml"), false);
 });
 
 Deno.test("IndexedRegistry - isLazy works", () => {
-  const registry: IndexedRegistry<string, Format> =
-    createIndexedRegistryBuilder<
+  const registry: IndexedRegistry<string, Format> = collections
+    .createIndexedRegistryBuilder<
       string,
       Format
     >([
-      createExtensionIndex("byExt", (f) => f.extensions),
+      collections.createExtensionIndex("byExt", (f) => f.extensions),
     ])
-      .set("json", { name: "json", extensions: ["json"] })
-      .setLazy("lazy", () => ({ name: "lazy", extensions: [] }))
-      .build();
+    .set("json", { name: "json", extensions: ["json"] })
+    .setLazy("lazy", () => ({ name: "lazy", extensions: [] }))
+    .build();
 
   assert.assertEquals(registry.isLazy("json"), false);
   assert.assertEquals(registry.isLazy("lazy"), true);
@@ -577,7 +558,7 @@ Deno.test("IndexedRegistry - isLazy works", () => {
 // =============================================================================
 
 Deno.test("fromEntries - creates builder from array", () => {
-  const builder = fromEntries<string, number>([
+  const builder = collections.fromEntries<string, number>([
     ["a", 1],
     ["b", 2, "value"],
   ]);
@@ -589,7 +570,7 @@ Deno.test("fromEntries - creates builder from array", () => {
 
 Deno.test("fromEntries - supports lazy lifetime", () => {
   let called = false;
-  const builder = fromEntries<string, number>([
+  const builder = collections.fromEntries<string, number>([
     ["lazy", () => {
       called = true;
       return 42;
@@ -616,13 +597,13 @@ const TestBits = {
 } as const;
 
 Deno.test("createBitmapMatcher - creates matcher with toBitmap", () => {
-  const matcher = createBitmapMatcher(TestBits);
+  const matcher = collections.createBitmapMatcher(TestBits);
   const bitmap = matcher.toBitmap(["optionA", "optionB"]);
   assert.assertEquals(bitmap, 0b11); // Bits 0 and 1
 });
 
 Deno.test("createBitmapMatcher - match returns true for intersection", () => {
-  const matcher = createBitmapMatcher(TestBits);
+  const matcher = collections.createBitmapMatcher(TestBits);
   const required = matcher.toBitmap(["optionA"]);
   const available = matcher.toBitmap(["optionA", "optionB"]);
 
@@ -630,7 +611,7 @@ Deno.test("createBitmapMatcher - match returns true for intersection", () => {
 });
 
 Deno.test("createBitmapMatcher - match returns false for no intersection", () => {
-  const matcher = createBitmapMatcher(TestBits);
+  const matcher = collections.createBitmapMatcher(TestBits);
   const required = matcher.toBitmap(["optionC"]);
   const available = matcher.toBitmap(["optionA", "optionB"]);
 
@@ -638,7 +619,7 @@ Deno.test("createBitmapMatcher - match returns false for no intersection", () =>
 });
 
 Deno.test("createBitmapMatcher - match returns true for empty required", () => {
-  const matcher = createBitmapMatcher(TestBits);
+  const matcher = collections.createBitmapMatcher(TestBits);
   const required = matcher.toBitmap([]);
   const available = matcher.toBitmap(["optionA"]);
 
@@ -646,7 +627,7 @@ Deno.test("createBitmapMatcher - match returns true for empty required", () => {
 });
 
 Deno.test("createBitmapMatcher - matchAll returns true when all required present", () => {
-  const matcher = createBitmapMatcher(TestBits);
+  const matcher = collections.createBitmapMatcher(TestBits);
   const required = matcher.toBitmap(["optionA", "optionB"]);
   const available = matcher.toBitmap(["optionA", "optionB", "optionC"]);
 
@@ -654,7 +635,7 @@ Deno.test("createBitmapMatcher - matchAll returns true when all required present
 });
 
 Deno.test("createBitmapMatcher - matchAll returns false when not all required present", () => {
-  const matcher = createBitmapMatcher(TestBits);
+  const matcher = collections.createBitmapMatcher(TestBits);
   const required = matcher.toBitmap(["optionA", "optionB", "optionC"]);
   const available = matcher.toBitmap(["optionA", "optionB"]);
 
@@ -662,7 +643,7 @@ Deno.test("createBitmapMatcher - matchAll returns false when not all required pr
 });
 
 Deno.test("createBitmapMatcher - exposes mapping", () => {
-  const matcher = createBitmapMatcher(TestBits);
+  const matcher = collections.createBitmapMatcher(TestBits);
   assert.assertEquals(matcher.mapping.optionA, 1);
   assert.assertEquals(matcher.mapping.optionB, 2);
   assert.assertEquals(matcher.mapping.optionC, 4);
@@ -670,30 +651,31 @@ Deno.test("createBitmapMatcher - exposes mapping", () => {
 
 Deno.test("getFunctionParameters - extracts parameter names", () => {
   const fn = (a: number, b: string, c: boolean) => a + b + c;
-  const params = getFunctionParameters(fn);
+  const params = collections.getFunctionParameters(fn);
 
   assert.assertEquals(params, ["a", "b", "c"]);
 });
 
 Deno.test("getFunctionParameters - caches results", () => {
   const fn = (x: number) => x * 2;
-  const params1 = getFunctionParameters(fn);
-  const params2 = getFunctionParameters(fn);
+  const params1 = collections.getFunctionParameters(fn);
+  const params2 = collections.getFunctionParameters(fn);
 
   assert.assertEquals(params1, params2); // Same reference
 });
 
 Deno.test("getFunctionParameters - handles async functions", () => {
+  // The parser must read the parameters of an async function.
   // deno-lint-ignore require-await
   const fn = async (data: unknown) => data;
-  const params = getFunctionParameters(fn);
+  const params = collections.getFunctionParameters(fn);
 
   assert.assertEquals(params, ["data"]);
 });
 
 Deno.test("lazy - computes value once", () => {
   let callCount = 0;
-  const getValue = lazy(() => {
+  const getValue = collections.lazy(() => {
     callCount++;
     return 42;
   });
@@ -711,8 +693,9 @@ Deno.test("lazy - computes value once", () => {
 
 Deno.test("lazyAsync - computes async value once", async () => {
   let callCount = 0;
+  // lazyAsync takes a promise-returning factory; this one has nothing to await.
   // deno-lint-ignore require-await
-  const getValue = lazyAsync(async () => {
+  const getValue = collections.lazyAsync(async () => {
     callCount++;
     return 42;
   });
@@ -728,7 +711,7 @@ Deno.test("lazyAsync - computes async value once", async () => {
 
 Deno.test("freezeArray - returns frozen array", () => {
   const arr = [1, 2, 3];
-  const frozen = freezeArray(arr);
+  const frozen = collections.freezeArray(arr);
 
   assert.assertEquals(Object.isFrozen(frozen), true);
   assert.assertEquals([...frozen], [1, 2, 3]);
@@ -736,7 +719,7 @@ Deno.test("freezeArray - returns frozen array", () => {
 
 Deno.test("memoizeArray - caches array results", () => {
   let callCount = 0;
-  const getItems = memoizeArray((n: number) => {
+  const getItems = collections.memoizeArray((n: number) => {
     callCount++;
     return Array.from({ length: n }, (_, i) => i);
   });
@@ -759,17 +742,17 @@ Deno.test("memoizeArray - caches array results", () => {
 // =============================================================================
 
 Deno.test("mergeBuilders - merges multiple registries", () => {
-  const reg1 = createRegistryBuilder<string, number>()
+  const reg1 = collections.createRegistryBuilder<string, number>()
     .set("a", 1)
     .set("b", 2)
     .build();
 
-  const reg2 = createRegistryBuilder<string, number>()
+  const reg2 = collections.createRegistryBuilder<string, number>()
     .set("c", 3)
     .set("d", 4)
     .build();
 
-  const merged = mergeBuilders(reg1, reg2).build();
+  const merged = collections.mergeBuilders(reg1, reg2).build();
 
   assert.assertEquals(merged.size, 4);
   assert.assertEquals(merged.get("a"), 1);
@@ -779,17 +762,17 @@ Deno.test("mergeBuilders - merges multiple registries", () => {
 });
 
 Deno.test("mergeBuilders - later registries override earlier ones", () => {
-  const reg1 = createRegistryBuilder<string, number>()
+  const reg1 = collections.createRegistryBuilder<string, number>()
     .set("a", 1)
     .set("b", 2)
     .build();
 
-  const reg2 = createRegistryBuilder<string, number>()
+  const reg2 = collections.createRegistryBuilder<string, number>()
     .set("a", 100) // Override
     .set("c", 3)
     .build();
 
-  const merged = mergeBuilders(reg1, reg2).build();
+  const merged = collections.mergeBuilders(reg1, reg2).build();
 
   assert.assertEquals(merged.size, 3);
   assert.assertEquals(merged.get("a"), 100); // Overridden
@@ -798,25 +781,25 @@ Deno.test("mergeBuilders - later registries override earlier ones", () => {
 });
 
 Deno.test("mergeBuilders - handles empty registries", () => {
-  const reg1 = createRegistryBuilder<string, number>()
+  const reg1 = collections.createRegistryBuilder<string, number>()
     .set("a", 1)
     .build();
 
-  const empty = createRegistryBuilder<string, number>().build();
+  const empty = collections.createRegistryBuilder<string, number>().build();
 
-  const merged = mergeBuilders(reg1, empty).build();
+  const merged = collections.mergeBuilders(reg1, empty).build();
 
   assert.assertEquals(merged.size, 1);
   assert.assertEquals(merged.get("a"), 1);
 });
 
 Deno.test("mergeBuilders - skips undefined values", () => {
-  const reg1 = createRegistryBuilder<string, number | undefined>()
+  const reg1 = collections.createRegistryBuilder<string, number | undefined>()
     .set("a", 1)
     .set("b", undefined)
     .build();
 
-  const merged = mergeBuilders(reg1).build();
+  const merged = collections.mergeBuilders(reg1).build();
 
   assert.assertEquals(merged.size, 1);
   assert.assertEquals(merged.has("a"), true);
@@ -831,14 +814,14 @@ Deno.test("clearParameterCache - clears cached parameters for specific function"
   const fn = (x: number, y: string) => x + y;
 
   // Cache it
-  const params1 = getFunctionParameters(fn);
+  const params1 = collections.getFunctionParameters(fn);
   assert.assertEquals(params1, ["x", "y"]);
 
   // Clear cache for this function
-  clearParameterCache(fn);
+  collections.clearParameterCache(fn);
 
   // Should still work (re-computes)
-  const params2 = getFunctionParameters(fn);
+  const params2 = collections.getFunctionParameters(fn);
   assert.assertEquals(params2, ["x", "y"]);
 });
 
@@ -847,7 +830,7 @@ Deno.test("clearParameterCache - clears cached parameters for specific function"
 // =============================================================================
 
 Deno.test("parallelImport - handles empty array", async () => {
-  const results = await parallelImport<unknown>([]);
+  const results = await collections.parallelImport<unknown>([]);
   assert.assertEquals(results.length, 0);
 });
 
@@ -860,7 +843,7 @@ Deno.test("parallelImport - handles empty array", async () => {
 // =============================================================================
 
 Deno.test("parallelImportModules - handles empty array", async () => {
-  const results = await parallelImportModules([]);
+  const results = await collections.parallelImportModules([]);
   assert.assertEquals(results.length, 0);
 });
 
@@ -873,16 +856,16 @@ Deno.test("parallelImportModules - handles empty array", async () => {
 // =============================================================================
 
 Deno.test("EMPTY_REGISTRY - is empty and frozen", () => {
-  assert.assertEquals(EMPTY_REGISTRY.size, 0);
-  assert.assertEquals(EMPTY_REGISTRY.has("any"), false);
-  assert.assertEquals(EMPTY_REGISTRY.get("any"), undefined);
-  assert.assertEquals(Object.isFrozen(EMPTY_REGISTRY), true);
+  assert.assertEquals(collections.EMPTY_REGISTRY.size, 0);
+  assert.assertEquals(collections.EMPTY_REGISTRY.has("any"), false);
+  assert.assertEquals(collections.EMPTY_REGISTRY.get("any"), undefined);
+  assert.assertEquals(Object.isFrozen(collections.EMPTY_REGISTRY), true);
 });
 
 Deno.test("EMPTY_REGISTRY - keys/values/entries return empty arrays", () => {
-  assert.assertEquals(EMPTY_REGISTRY.keys().length, 0);
-  assert.assertEquals(EMPTY_REGISTRY.values().length, 0);
-  assert.assertEquals(EMPTY_REGISTRY.entries().length, 0);
+  assert.assertEquals(collections.EMPTY_REGISTRY.keys().length, 0);
+  assert.assertEquals(collections.EMPTY_REGISTRY.values().length, 0);
+  assert.assertEquals(collections.EMPTY_REGISTRY.entries().length, 0);
 });
 
 // =============================================================================
@@ -895,7 +878,7 @@ Deno.test("createRegistry - creates registry from entries map", () => {
     ["b", ["value", 2]],
   ]);
 
-  const registry = createRegistry(entries);
+  const registry = collections.createRegistry(entries);
 
   assert.assertEquals(registry.size, 2);
   assert.assertEquals(registry.get("a"), 1);
@@ -907,7 +890,7 @@ Deno.test("createRegistry - creates registry from entries map", () => {
 // =============================================================================
 
 Deno.test("RegistryBuilder - throws on set after seal", () => {
-  const builder = createRegistryBuilder<string, number>();
+  const builder = collections.createRegistryBuilder<string, number>();
   builder.build();
 
   assert.assertThrows(
@@ -918,7 +901,7 @@ Deno.test("RegistryBuilder - throws on set after seal", () => {
 });
 
 Deno.test("RegistryBuilder - throws on setLazy after seal", () => {
-  const builder = createRegistryBuilder<string, number>();
+  const builder = collections.createRegistryBuilder<string, number>();
   builder.build();
 
   assert.assertThrows(
@@ -929,7 +912,7 @@ Deno.test("RegistryBuilder - throws on setLazy after seal", () => {
 });
 
 Deno.test("RegistryBuilder - throws on remove after seal", () => {
-  const builder = createRegistryBuilder<string, number>();
+  const builder = collections.createRegistryBuilder<string, number>();
   builder.build();
 
   assert.assertThrows(
@@ -940,7 +923,7 @@ Deno.test("RegistryBuilder - throws on remove after seal", () => {
 });
 
 Deno.test("RegistryBuilder - throws on multiple build calls", () => {
-  const builder = createRegistryBuilder<string, number>();
+  const builder = collections.createRegistryBuilder<string, number>();
   builder.build();
 
   assert.assertThrows(
@@ -951,7 +934,10 @@ Deno.test("RegistryBuilder - throws on multiple build calls", () => {
 });
 
 Deno.test("IndexedRegistryBuilder - throws on operations after seal", () => {
-  const builder = createIndexedRegistryBuilder<string, { name: string }>([]);
+  const builder = collections.createIndexedRegistryBuilder<
+    string,
+    { name: string }
+  >([]);
   builder.build();
 
   assert.assertThrows(
@@ -962,8 +948,8 @@ Deno.test("IndexedRegistryBuilder - throws on operations after seal", () => {
 });
 
 Deno.test("IndexedRegistry - getByIndex returns undefined for non-existent index", () => {
-  const registry = createIndexedRegistryBuilder<string, Format>([
-    createExtensionIndex("byExt", (f) => f.extensions),
+  const registry = collections.createIndexedRegistryBuilder<string, Format>([
+    collections.createExtensionIndex("byExt", (f) => f.extensions),
   ])
     .set("json", { name: "json", extensions: ["json"] })
     .build();
@@ -973,8 +959,8 @@ Deno.test("IndexedRegistry - getByIndex returns undefined for non-existent index
 });
 
 Deno.test("IndexedRegistry - hasInIndex returns false for non-existent index", () => {
-  const registry = createIndexedRegistryBuilder<string, Format>([
-    createExtensionIndex("byExt", (f) => f.extensions),
+  const registry = collections.createIndexedRegistryBuilder<string, Format>([
+    collections.createExtensionIndex("byExt", (f) => f.extensions),
   ])
     .set("json", { name: "json", extensions: ["json"] })
     .build();
@@ -984,7 +970,8 @@ Deno.test("IndexedRegistry - hasInIndex returns false for non-existent index", (
 });
 
 Deno.test("Registry.get - returns undefined for async factory when called sync", async () => {
-  const registry = createRegistryBuilder<string, number>()
+  const registry = collections.createRegistryBuilder<string, number>()
+    // An async factory is the case under test; it has nothing to await.
     // deno-lint-ignore require-await
     .setLazy("async", async () => {
       return 42;
@@ -1004,7 +991,7 @@ Deno.test("Registry.get - returns undefined for async factory when called sync",
 // =============================================================================
 
 Deno.test("Registry - handles large number of entries", () => {
-  const builder = createRegistryBuilder<string, number>();
+  const builder = collections.createRegistryBuilder<string, number>();
 
   for (let i = 0; i < 1000; i++) {
     builder.set(`key${i}`, i);
@@ -1019,7 +1006,7 @@ Deno.test("Registry - handles large number of entries", () => {
 });
 
 Deno.test("Registry - handles null values", () => {
-  const registry = createRegistryBuilder<string, null>()
+  const registry = collections.createRegistryBuilder<string, null>()
     .set("null", null)
     .build();
 
@@ -1028,7 +1015,7 @@ Deno.test("Registry - handles null values", () => {
 });
 
 Deno.test("Registry - handles empty string keys", () => {
-  const registry = createRegistryBuilder<string, number>()
+  const registry = collections.createRegistryBuilder<string, number>()
     .set("", 42)
     .build();
 
@@ -1037,7 +1024,7 @@ Deno.test("Registry - handles empty string keys", () => {
 });
 
 Deno.test("Registry - handles unicode keys", () => {
-  const registry = createRegistryBuilder<string, number>()
+  const registry = collections.createRegistryBuilder<string, number>()
     .set("日本語", 1)
     .set("emoji🎉", 2)
     .set("αβγ", 3)
@@ -1051,8 +1038,11 @@ Deno.test("Registry - handles unicode keys", () => {
 Deno.test("IndexedRegistry - handles empty extension list", () => {
   type FormatWithOptionalExt = { name: string; extensions: string[] };
 
-  const registry = createIndexedRegistryBuilder<string, FormatWithOptionalExt>([
-    createExtensionIndex("byExt", (f) => f.extensions),
+  const registry = collections.createIndexedRegistryBuilder<
+    string,
+    FormatWithOptionalExt
+  >([
+    collections.createExtensionIndex("byExt", (f) => f.extensions),
   ])
     .set("noext", { name: "noext", extensions: [] })
     .set("json", { name: "json", extensions: ["json"] })
@@ -1068,7 +1058,7 @@ Deno.test("IndexedRegistry - handles empty extension list", () => {
 // =============================================================================
 
 Deno.test("ImmutableMap - is frozen after build", () => {
-  const map = createMapBuilder<string, number>()
+  const map = collections.createMapBuilder<string, number>()
     .set("a", 1)
     .build();
 
@@ -1076,7 +1066,7 @@ Deno.test("ImmutableMap - is frozen after build", () => {
 });
 
 Deno.test("Registry - is frozen after build", () => {
-  const registry = createRegistryBuilder<string, number>()
+  const registry = collections.createRegistryBuilder<string, number>()
     .set("a", 1)
     .build();
 
@@ -1084,7 +1074,10 @@ Deno.test("Registry - is frozen after build", () => {
 });
 
 Deno.test("IndexedRegistry - is frozen after build", () => {
-  const registry = createIndexedRegistryBuilder<string, { name: string }>([])
+  const registry = collections.createIndexedRegistryBuilder<
+    string,
+    { name: string }
+  >([])
     .set("a", { name: "a" })
     .build();
 
@@ -1092,7 +1085,7 @@ Deno.test("IndexedRegistry - is frozen after build", () => {
 });
 
 Deno.test("Registry.keys - returns frozen array that cannot be mutated", () => {
-  const registry = createRegistryBuilder<string, number>()
+  const registry = collections.createRegistryBuilder<string, number>()
     .set("a", 1)
     .set("b", 2)
     .build();
@@ -1107,7 +1100,7 @@ Deno.test("Registry.keys - returns frozen array that cannot be mutated", () => {
 });
 
 Deno.test("Registry.values - returns frozen array", () => {
-  const registry = createRegistryBuilder<string, number>()
+  const registry = collections.createRegistryBuilder<string, number>()
     .set("a", 1)
     .build();
 
@@ -1116,7 +1109,7 @@ Deno.test("Registry.values - returns frozen array", () => {
 });
 
 Deno.test("Registry.entries - returns frozen array", () => {
-  const registry = createRegistryBuilder<string, number>()
+  const registry = collections.createRegistryBuilder<string, number>()
     .set("a", 1)
     .build();
 
@@ -1125,7 +1118,7 @@ Deno.test("Registry.entries - returns frozen array", () => {
 });
 
 Deno.test("ImmutableMap.toBuilder - creates independent copy", () => {
-  const original = createMapBuilder<string, number>()
+  const original = collections.createMapBuilder<string, number>()
     .set("a", 1)
     .build();
 
@@ -1159,7 +1152,7 @@ Deno.test("ImmutableMap.toBuilder - creates independent copy", () => {
 
 Deno.test("Registry - concurrent lazy access returns consistent values", async () => {
   let callCount = 0;
-  const registry = createRegistryBuilder<string, number>()
+  const registry = collections.createRegistryBuilder<string, number>()
     .setLazy("lazy", () => {
       callCount++;
       return 42;
@@ -1179,7 +1172,8 @@ Deno.test("Registry - concurrent lazy access returns consistent values", async (
 
 Deno.test("Registry.getAsync - sequential async access caches correctly", async () => {
   let callCount = 0;
-  const registry = createRegistryBuilder<string, number>()
+  const registry = collections.createRegistryBuilder<string, number>()
+    // An async factory is the case under test; it has nothing to await.
     // deno-lint-ignore require-await
     .setLazy("async", async () => {
       callCount++;
@@ -1199,7 +1193,7 @@ Deno.test("Registry.getAsync - sequential async access caches correctly", async 
 });
 
 Deno.test("Registry.getAsync - works with sync values", async () => {
-  const registry = createRegistryBuilder<string, number>()
+  const registry = collections.createRegistryBuilder<string, number>()
     .set("sync", 42)
     .build();
 
@@ -1208,7 +1202,7 @@ Deno.test("Registry.getAsync - works with sync values", async () => {
 });
 
 Deno.test("Registry.getAsync - returns undefined for missing keys", async () => {
-  const registry = createRegistryBuilder<string, number>().build();
+  const registry = collections.createRegistryBuilder<string, number>().build();
 
   const result = await registry.getAsync("missing");
   assert.assertEquals(result, undefined);
@@ -1219,7 +1213,7 @@ Deno.test("Registry.getAsync - returns undefined for missing keys", async () => 
 // =============================================================================
 
 Deno.test("ImmutableMap.map - preserves keys", () => {
-  const map = createMap([
+  const map = collections.createMap([
     ["a", 1],
     ["b", 2],
   ]);
@@ -1232,7 +1226,7 @@ Deno.test("ImmutableMap.map - preserves keys", () => {
 });
 
 Deno.test("ImmutableMap.filter - key predicate", () => {
-  const map = createMap([
+  const map = collections.createMap([
     ["keep1", 1],
     ["keep2", 2],
     ["remove", 3],
@@ -1247,7 +1241,7 @@ Deno.test("ImmutableMap.filter - key predicate", () => {
 });
 
 Deno.test("ImmutableMap.reduce - with key access", () => {
-  const map = createMap([
+  const map = collections.createMap([
     ["a", 1],
     ["b", 2],
   ]);
@@ -1265,27 +1259,27 @@ Deno.test("ImmutableMap.reduce - with key access", () => {
 
 Deno.test("getFunctionParameters - handles arrow functions", () => {
   const fn = (a: number) => a * 2;
-  const params = getFunctionParameters(fn);
+  const params = collections.getFunctionParameters(fn);
   assert.assertEquals(params, ["a"]);
 });
 
 Deno.test("getFunctionParameters - handles function with no params", () => {
   const fn = () => 42;
-  const params = getFunctionParameters(fn);
+  const params = collections.getFunctionParameters(fn);
   assert.assertEquals(params, []);
 });
 
 Deno.test("getFunctionParameters - handles destructured params", () => {
   // Note: Destructured params may be extracted differently
   const fn = ({ a, b }: { a: number; b: string }) => a + b;
-  const params = getFunctionParameters(fn);
+  const params = collections.getFunctionParameters(fn);
   // Result depends on implementation - just check it doesn't throw
   assert.assertEquals(Array.isArray(params), true);
 });
 
 Deno.test("getFunctionParameters - handles default params", () => {
   const fn = (a: number, b = 10) => a + b;
-  const params = getFunctionParameters(fn);
+  const params = collections.getFunctionParameters(fn);
   assert.assertEquals(params.includes("a"), true);
 });
 
@@ -1294,8 +1288,8 @@ Deno.test("getFunctionParameters - handles default params", () => {
 // =============================================================================
 
 Deno.test("IndexedRegistry.toBuilder - preserves entries and lazy", () => {
-  const original = createIndexedRegistryBuilder<string, Format>([
-    createExtensionIndex("byExt", (f) => f.extensions),
+  const original = collections.createIndexedRegistryBuilder<string, Format>([
+    collections.createExtensionIndex("byExt", (f) => f.extensions),
   ])
     .set("json", { name: "json", extensions: ["json"] })
     .setLazy("lazy", () => ({ name: "lazy", extensions: ["lazy"] }))
@@ -1313,8 +1307,8 @@ Deno.test("IndexedRegistry.toBuilder - preserves entries and lazy", () => {
 });
 
 Deno.test("IndexedRegistry.getAsync - works with lazy entries", async () => {
-  const registry = createIndexedRegistryBuilder<string, Format>([
-    createExtensionIndex("byExt", (f) => f.extensions),
+  const registry = collections.createIndexedRegistryBuilder<string, Format>([
+    collections.createExtensionIndex("byExt", (f) => f.extensions),
   ])
     .setLazy("lazy", async () => {
       await new Promise((r) => setTimeout(r, 5));
@@ -1327,8 +1321,8 @@ Deno.test("IndexedRegistry.getAsync - works with lazy entries", async () => {
 });
 
 Deno.test("IndexedRegistry - lazy entries not indexed until resolved", () => {
-  const registry = createIndexedRegistryBuilder<string, Format>([
-    createExtensionIndex("byExt", (f) => f.extensions),
+  const registry = collections.createIndexedRegistryBuilder<string, Format>([
+    collections.createExtensionIndex("byExt", (f) => f.extensions),
   ])
     .setLazy("lazy", () => ({ name: "lazy", extensions: [".lazy"] }))
     .build();

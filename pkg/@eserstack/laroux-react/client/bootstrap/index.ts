@@ -5,6 +5,10 @@
  */
 
 export { ErrorBoundary } from "./error-boundary.tsx";
+export type {
+  ErrorBoundaryProps,
+  ErrorBoundaryState,
+} from "./error-boundary.tsx";
 export { ErrorOverlay } from "./error-overlay.tsx";
 export { initializeHMR } from "./hmr-client.tsx";
 export { LazyChunkLoader } from "./lazy-loader.ts";
@@ -12,3 +16,13 @@ export {
   initializeSmartRefresh,
   triggerSmartRefresh,
 } from "./smart-refresh.tsx";
+export {
+  installLinkNavigation,
+  LINK_ATTRIBUTE,
+  LINK_SCROLL_ATTRIBUTE,
+} from "../../runtime/navigation/link-navigation.ts";
+export type {
+  LinkClickEvent,
+  LinkNavigationDocument,
+  NavigationWindow,
+} from "../../runtime/navigation/link-navigation.ts";

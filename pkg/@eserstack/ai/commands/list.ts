@@ -10,7 +10,7 @@ import * as results from "@eserstack/primitives/results";
 import * as streams from "@eserstack/streams";
 import * as span from "@eserstack/streams/span";
 import type * as shellArgs from "@eserstack/shell/args";
-import { detectAllProviders } from "../detect.ts";
+import * as detect from "../detect.ts";
 
 // =============================================================================
 // Main
@@ -27,7 +27,7 @@ export const main = async (
   out.writeln(span.bold("AI Providers"));
   out.writeln("");
 
-  const providers = await detectAllProviders();
+  const providers = await detect.detectAllProviders();
 
   const rows = providers.map((p) => [
     p.available ? span.green("●") : span.dim("○"),

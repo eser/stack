@@ -38,19 +38,26 @@ principle of storing configuration in environment variables.
   environment variables
 - **Multiple Output Formats**: Generate YAML or JSON output for Kubernetes
   resources
-- **CLI Interface**: Easy-to-use command-line tool for common operations
+- **CLI Interface**: Command-line tool for generating manifests and patches
 - **Sync Capabilities**: Synchronize with existing Kubernetes resources using
   kubectl
-- **Flexible Configuration**: Support for custom labels, annotations, and
-  namespaces
-- **Type Safety**: Built with TypeScript for enhanced developer experience
+- **Namespaces**: Put the resource in a namespace, or leave it in the namespace
+  of the current kubectl context
+- **Type Safety**: Built with TypeScript
 
-The tool supports various configuration sources in order of precedence:
+`sync` reads values from these sources, and a later source overrides an earlier
+one:
 
-- Command-line arguments
-- Configuration files (k8s.yaml, k8s.json)
-- Environment variables
-- .env files
+1. `.env`
+2. `.env.<environment>`
+3. `.env.local` (skipped when the environment is `test`)
+4. `.env.<environment>.local`
+5. Process environment variables
+
+The environment name comes from `-e` (or the `env` option), then from the `ENV`,
+`APP_ENV`, `DENO_ENV` or `NODE_ENV` variable, then defaults to `development`.
+`generate` reads the `.env` files of the environment and no process environment
+variables.
 
 ## 🛠 Usage
 
@@ -58,34 +65,37 @@ Here you'll find examples of how to use `@eserstack/cs` for different scenarios.
 
 ### CLI Usage
 
-**Generate a ConfigMap from an environment file:**
+**Generate a ConfigMap from the `.env` files of an environment:**
 
 ```bash
-deno run --allow-all jsr:@eserstack/cs/cli generate cm/my-config -f .env
+deno run --allow-all jsr:@eserstack/cs/cli generate cm/my-config -e development
 ```
 
 **Generate a Secret with specific namespace:**
 
 ```bash
-deno run --allow-all jsr:@eserstack/cs/cli generate secret/api-keys -n production -f .env.prod
+deno run --allow-all jsr:@eserstack/cs/cli generate secret/api-keys -n production -e production
 ```
 
 **Save output to a file:**
 
 ```bash
-deno run --allow-all jsr:@eserstack/cs/cli generate cm/my-config -f .env > configmap.yaml
+deno run --allow-all jsr:@eserstack/cs/cli generate cm/my-config -e development > configmap.yaml
 ```
 
 **Sync with existing Kubernetes resource:**
 
 ```bash
-deno run --allow-all jsr:@eserstack/cs/cli sync configmap/my-existing-config -f .env.prod
+deno run --allow-all jsr:@eserstack/cs/cli sync configmap/my-existing-config -e production
 ```
+
+`sync` prints a warning on stderr for each key of the resource that the
+environment does not define, and leaves that key out of the patch.
 
 **Generate patch string only (for saving to file):**
 
 ```bash
-deno run --allow-all jsr:@eserstack/cs/cli sync secret/api-keys -f .env.prod -s > patch.json
+deno run --allow-all jsr:@eserstack/cs/cli sync secret/api-keys -e production -s > patch.json
 kubectl patch secret api-keys --type=merge --patch-file=patch.json
 ```
 
@@ -93,13 +103,13 @@ kubectl patch secret api-keys --type=merge --patch-file=patch.json
 
 **Generate ConfigMap programmatically:**
 
-```js
+```typescript
 import * as cs from "@eserstack/cs";
 
 const configMapYaml = await cs.generate({
   resource: { type: "configmap", name: "my-app-config" },
   namespace: "default",
-  envFile: ".env",
+  env: "development",
   format: "yaml",
 });
 
@@ -108,17 +118,40 @@ console.log(configMapYaml);
 
 **Sync with existing resource:**
 
-```js
+`sync()` reads the keys of the resource with `kubectl get` and returns a
+`kubectl patch` command that sets those keys from the environment.
+
+```typescript
 import * as cs from "@eserstack/cs";
 
-await cs.sync({
+const command = await cs.sync({
   resource: {
     type: "configmap",
     name: "existing-config",
     namespace: "production",
   },
-  envFile: ".env.prod",
+  env: "production",
   format: "yaml",
+  onMissingKey: (key) => console.warn(`${key} is not set; left out`),
+});
+
+console.log(command);
+```
+
+**Sync without kubectl:**
+
+Pass `getResourceKeys` to read the keys some other way, for example from another
+Kubernetes client or a fixed list in a test, and `cwd` to read the `.env` files
+from another directory.
+
+```typescript
+import * as cs from "@eserstack/cs";
+
+const patch = await cs.sync({
+  resource: { type: "configmap", name: "app-config" },
+  cwd: "./fixtures",
+  stringOnly: true,
+  getResourceKeys: () => Promise.resolve(["DATABASE_URL", "PORT"]),
 });
 ```
 
@@ -160,8 +193,9 @@ key-value pairs.
 **generate(options): Promise&lt;string&gt;** Generates Kubernetes ConfigMap or
 Secret YAML/JSON from environment data.
 
-**sync(options): Promise&lt;void&gt;** Synchronizes environment data with
-existing Kubernetes resources using kubectl.
+**sync(options): Promise&lt;string&gt;** Synchronizes environment data with
+existing Kubernetes resources using kubectl: returns the `kubectl patch`
+command, or only the patch with `stringOnly`.
 
 ### Types
 
@@ -172,6 +206,29 @@ labels, annotations, and output format.
 official API specifications.
 
 **SyncOptions** Options for synchronizing with existing Kubernetes resources.
+`onMissingKey(key)` is called for each key of the resource that the environment
+does not define; the key is left out of the patch. `getResourceKeys(resource)`
+replaces the `kubectl get` key lookup, and `cwd` sets the directory the `.env`
+files are read from.
+
+## Upgrading from 4.x
+
+These changes since 4.5.2 need a change in code, commands or files that use this
+package. The [changelog](https://github.com/eser/stack/blob/main/CHANGELOG.md)
+lists the changes in every package.
+
+- `sync()` no longer writes a console warning for a key the environment lacks,
+  and no longer goes through the Go `EserAjanCsSync` path. Pass `onMissingKey`
+  to be told:
+
+  ```typescript
+  import * as cs from "@eserstack/cs";
+
+  const command = await cs.sync({
+    resource: { type: "configmap", name: "app-config" },
+    onMissingKey: (key) => console.warn(`${key} is not set; left out`), // After
+  });
+  ```
 
 ---
 

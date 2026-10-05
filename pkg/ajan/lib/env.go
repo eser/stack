@@ -6,7 +6,8 @@ import (
 )
 
 func EnvGetCurrent() string {
-	// FIXME(@eser) no need to use os.Lookupenv here
+	// An unset variable and an empty one both mean the default, so Getenv is
+	// enough; LookupEnv would only tell the two apart.
 	env := strings.ToLower(os.Getenv("env"))
 
 	if env == "" {

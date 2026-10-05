@@ -6,10 +6,10 @@
  *
  * @example
  * ```typescript
- * import * as codebase from "@eserstack/codebase";
+ * import * as codebase from "@eserstack/codebase/mod";
  *
  * // Git operations
- * const commits = await codebase.getCommits("HEAD~5..HEAD");
+ * const commits = await codebase.getCommitsBetween("HEAD~5", "HEAD");
  *
  * // Workspace discovery
  * const packages = await codebase.discoverPackages(".");

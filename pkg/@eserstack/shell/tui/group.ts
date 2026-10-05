@@ -20,10 +20,16 @@ type PromptFn<T> = (
  *
  * @example
  * ```typescript
- * const result = await group(ctx, {
- *   name: () => text(ctx, { message: "Name?" }),
+ * import * as shell from "@eserstack/shell";
+ *
+ * const ctx = shell.tui.createTuiContext();
+ * const result = await shell.tui.group(ctx, {
+ *   name: () => shell.tui.text(ctx, { message: "Name?" }),
  *   framework: ({ results }) =>
- *     select(ctx, { message: `Framework for ${results.name}?`, options: [...] }),
+ *     shell.tui.select(ctx, {
+ *       message: `Framework for ${results["name"]}?`,
+ *       options: [{ value: "next", label: "Next.js" }],
+ *     }),
  * });
  * ```
  */
@@ -36,6 +42,9 @@ export const group = async <T extends Record<string, unknown>>(
 
   for (const key of Object.keys(prompts)) {
     const promptFn = prompts[key as keyof T] as PromptFn<unknown>;
+    // Prompts run in order: each one sees the answers before it and a cancel
+    // stops the rest.
+    // deno-lint-ignore no-await-in-loop
     const value = await promptFn({ results });
 
     if (value === types.CANCEL) {

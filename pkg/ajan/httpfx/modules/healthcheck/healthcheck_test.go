@@ -4,19 +4,21 @@ package healthcheck_test
 
 import (
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/eser/stack/pkg/ajan/httpfx"
 	"github.com/eser/stack/pkg/ajan/httpfx/modules/healthcheck"
+	"github.com/eser/stack/pkg/ajan/logfx"
 	"github.com/eser/stack/pkg/ajan/processfx"
 )
 
 func TestRegisterHTTPRoutes_Disabled(t *testing.T) {
 	t.Parallel()
 
-	router := httpfx.NewRouter("/")
+	router := newTestRouter()
 	config := &httpfx.Config{ //nolint:exhaustruct
 		HealthCheckEnabled: false,
 	}
@@ -35,7 +37,7 @@ func TestRegisterHTTPRoutes_Disabled(t *testing.T) {
 func TestRegisterHTTPRoutes_SimpleHealthCheck(t *testing.T) {
 	t.Parallel()
 
-	router := httpfx.NewRouter("/")
+	router := newTestRouter()
 	config := &httpfx.Config{ //nolint:exhaustruct
 		HealthCheckEnabled: true,
 	}
@@ -56,7 +58,7 @@ func TestRegisterHTTPRoutes_DetailedHealth_NoRegistry(t *testing.T) {
 	// No registry set → buildHealthResponse returns empty healthy response.
 	healthcheck.SetSupervisorRegistry(nil)
 
-	router := httpfx.NewRouter("/")
+	router := newTestRouter()
 	config := &httpfx.Config{ //nolint:exhaustruct
 		HealthCheckEnabled: true,
 	}
@@ -92,7 +94,7 @@ func TestRegisterHTTPRoutes_DetailedHealth_WithRegistry(t *testing.T) {
 	healthcheck.SetSupervisorRegistry(registry)
 	t.Cleanup(func() { healthcheck.SetSupervisorRegistry(nil) })
 
-	router := httpfx.NewRouter("/")
+	router := newTestRouter()
 	config := &httpfx.Config{ //nolint:exhaustruct
 		HealthCheckEnabled: true,
 	}
@@ -130,4 +132,9 @@ func TestRegisterHTTPRoutes_DetailedHealth_WithRegistry(t *testing.T) {
 	if resp.Summary.Total != 1 {
 		t.Errorf("expected total 1, got %d", resp.Summary.Total)
 	}
+}
+
+// newTestRouter returns a router whose log of failed writes is discarded.
+func newTestRouter() *httpfx.Router {
+	return httpfx.NewRouter(logfx.NewLogger(logfx.WithWriter(io.Discard)))
 }

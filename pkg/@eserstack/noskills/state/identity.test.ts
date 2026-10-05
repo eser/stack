@@ -1,7 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import { afterEach, beforeEach, describe, it } from "@std/testing/bdd";
-import { assert, assertEquals } from "@std/assert";
+import * as bdd from "@std/testing/bdd";
+import * as assert from "@std/assert";
 import * as identity from "./identity.ts";
 import * as schema from "./schema.ts";
 import * as machine from "./machine.ts";
@@ -32,36 +32,36 @@ let originalXdg: string | undefined;
 // identity helpers
 // =============================================================================
 
-describe("formatUser", () => {
-  it("formats name and email", () => {
+bdd.describe("formatUser", () => {
+  bdd.it("formats name and email", () => {
     const user: identity.NoskillsUser = {
       name: "Alice",
       email: "alice@example.com",
     };
-    assertEquals(identity.formatUser(user), "Alice <alice@example.com>");
+    assert.assertEquals(identity.formatUser(user), "Alice <alice@example.com>");
   });
 
-  it("formats name only when no email", () => {
+  bdd.it("formats name only when no email", () => {
     const user: identity.NoskillsUser = { name: "Bob", email: "" };
-    assertEquals(identity.formatUser(user), "Bob");
+    assert.assertEquals(identity.formatUser(user), "Bob");
   });
 });
 
-describe("shortUser", () => {
-  it("returns just the name", () => {
+bdd.describe("shortUser", () => {
+  bdd.it("returns just the name", () => {
     const user: identity.NoskillsUser = {
       name: "Charlie",
       email: "c@c.com",
     };
-    assertEquals(identity.shortUser(user), "Charlie");
+    assert.assertEquals(identity.shortUser(user), "Charlie");
   });
 });
 
-describe("unknownUser", () => {
-  it("returns correct defaults", () => {
+bdd.describe("unknownUser", () => {
+  bdd.it("returns correct defaults", () => {
     const user = identity.unknownUser();
-    assertEquals(user.name, "Unknown User");
-    assertEquals(user.email, "");
+    assert.assertEquals(user.name, "Unknown User");
+    assert.assertEquals(user.email, "");
   });
 });
 
@@ -69,8 +69,8 @@ describe("unknownUser", () => {
 // File-based identity (via XDG_CONFIG_HOME override)
 // =============================================================================
 
-describe("file-based identity", () => {
-  beforeEach(async () => {
+bdd.describe("file-based identity", () => {
+  bdd.beforeEach(async () => {
     tempConfigDir = await crossRuntime.runtime.fs.makeTempDir({
       prefix: "noskills-config-",
     });
@@ -78,7 +78,7 @@ describe("file-based identity", () => {
     crossRuntime.runtime.env.set("XDG_CONFIG_HOME", tempConfigDir);
   });
 
-  afterEach(async () => {
+  bdd.afterEach(async () => {
     if (originalXdg !== undefined) {
       crossRuntime.runtime.env.set("XDG_CONFIG_HOME", originalXdg);
     } else {
@@ -87,12 +87,12 @@ describe("file-based identity", () => {
     await crossRuntime.runtime.fs.remove(tempConfigDir, { recursive: true });
   });
 
-  it("getConfigDir uses XDG_CONFIG_HOME", () => {
+  bdd.it("getConfigDir uses XDG_CONFIG_HOME", () => {
     const dir = identity.getConfigDir();
-    assertEquals(dir, `${tempConfigDir}/eser/noskills`);
+    assert.assertEquals(dir, `${tempConfigDir}/eser/noskills`);
   });
 
-  it("setCurrentUser creates config file", async () => {
+  bdd.it("setCurrentUser creates config file", async () => {
     await identity.setCurrentUser({
       name: "Test User",
       email: "test@test.com",
@@ -101,67 +101,70 @@ describe("file-based identity", () => {
     const filePath = identity.getUserFilePath();
     const content = await crossRuntime.runtime.fs.readTextFile(filePath);
     const data = JSON.parse(content) as { name: string; email: string };
-    assertEquals(data.name, "Test User");
-    assertEquals(data.email, "test@test.com");
+    assert.assertEquals(data.name, "Test User");
+    assert.assertEquals(data.email, "test@test.com");
   });
 
-  it("getCurrentUser reads from config file", async () => {
+  bdd.it("getCurrentUser reads from config file", async () => {
     await identity.setCurrentUser({
       name: "Alice",
       email: "alice@co.com",
     });
 
     const user = await identity.getCurrentUser();
-    assert(user !== null);
-    assertEquals(user.name, "Alice");
-    assertEquals(user.email, "alice@co.com");
+    assert.assert(user !== null);
+    assert.assertEquals(user.name, "Alice");
+    assert.assertEquals(user.email, "alice@co.com");
   });
 
-  it("getCurrentUser returns null when no file exists", async () => {
+  bdd.it("getCurrentUser returns null when no file exists", async () => {
     const user = await identity.getCurrentUser();
-    assertEquals(user, null);
+    assert.assertEquals(user, null);
   });
 
-  it("clearCurrentUser removes the file", async () => {
+  bdd.it("clearCurrentUser removes the file", async () => {
     await identity.setCurrentUser({ name: "ToDelete", email: "" });
     const before = await identity.getCurrentUser();
-    assert(before !== null);
+    assert.assert(before !== null);
 
     const removed = await identity.clearCurrentUser();
-    assertEquals(removed, true);
+    assert.assertEquals(removed, true);
 
     const after = await identity.getCurrentUser();
-    assertEquals(after, null);
+    assert.assertEquals(after, null);
   });
 
-  it("clearCurrentUser returns false when no file", async () => {
+  bdd.it("clearCurrentUser returns false when no file", async () => {
     const removed = await identity.clearCurrentUser();
-    assertEquals(removed, false);
+    assert.assertEquals(removed, false);
   });
 
-  it("resolveUser returns configured user when set", async () => {
+  bdd.it("resolveUser returns configured user when set", async () => {
     await identity.setCurrentUser({
       name: "Configured",
       email: "c@c.com",
     });
 
     const user = await identity.resolveUser();
-    assertEquals(user.name, "Configured");
-    assertEquals(user.email, "c@c.com");
+    assert.assertEquals(user.name, "Configured");
+    assert.assertEquals(user.email, "c@c.com");
   });
 
-  it("resolveUser returns Unknown User when nothing configured and git unavailable", async () => {
-    // No config file, and we can't reliably mock git absence,
-    // so we test the fallback chain conceptually
-    const user = await identity.getCurrentUser();
-    assertEquals(user, null);
-    // resolveUser would try git next, then fall back to unknown
-  });
+  bdd.it(
+    "resolveUser returns Unknown User when nothing configured and git unavailable",
+    async () => {
+      // No config file, and we can't reliably mock git absence,
+      // so we test the fallback chain conceptually
+      const user = await identity.getCurrentUser();
+      assert.assertEquals(user, null);
+      // resolveUser would try git next, then fall back to unknown
+    },
+  );
 
-  it("getUserFilePath returns correct path under XDG", () => {
+  bdd.it("getUserFilePath returns correct path under XDG", () => {
     const path = identity.getUserFilePath();
-    assert(path.startsWith(tempConfigDir));
-    assert(path.endsWith("/eser/noskills/user.json"));
+    assert.assert(path.startsWith(tempConfigDir));
+    assert.assert(path.endsWith("/eser/noskills/user.json"));
   });
 });
 
@@ -169,22 +172,22 @@ describe("file-based identity", () => {
 // schema helpers (normalizeAnswer, getAnswersForQuestion, getCombinedAnswer)
 // =============================================================================
 
-describe("normalizeAnswer", () => {
-  it("handles old format (just questionId+answer)", () => {
+bdd.describe("normalizeAnswer", () => {
+  bdd.it("handles old format (just questionId+answer)", () => {
     const oldAnswer: schema.DiscoveryAnswer = {
       questionId: "q1",
       answer: "my answer",
     };
     const normalized = schema.normalizeAnswer(oldAnswer);
-    assertEquals(normalized.questionId, "q1");
-    assertEquals(normalized.answer, "my answer");
-    assertEquals(normalized.user, "Unknown User");
-    assertEquals(normalized.email, "");
-    assertEquals(normalized.timestamp, "");
-    assertEquals(normalized.type, "original");
+    assert.assertEquals(normalized.questionId, "q1");
+    assert.assertEquals(normalized.answer, "my answer");
+    assert.assertEquals(normalized.user, "Unknown User");
+    assert.assertEquals(normalized.email, "");
+    assert.assertEquals(normalized.timestamp, "");
+    assert.assertEquals(normalized.type, "original");
   });
 
-  it("handles new format (with user, timestamp, type)", () => {
+  bdd.it("handles new format (with user, timestamp, type)", () => {
     const newAnswer: schema.AttributedDiscoveryAnswer = {
       questionId: "q2",
       answer: "attributed answer",
@@ -194,15 +197,15 @@ describe("normalizeAnswer", () => {
       type: "addition",
     };
     const normalized = schema.normalizeAnswer(newAnswer);
-    assertEquals(normalized.user, "Alice");
-    assertEquals(normalized.email, "alice@example.com");
-    assertEquals(normalized.type, "addition");
-    assertEquals(normalized.timestamp, "2024-01-01T00:00:00Z");
+    assert.assertEquals(normalized.user, "Alice");
+    assert.assertEquals(normalized.email, "alice@example.com");
+    assert.assertEquals(normalized.type, "addition");
+    assert.assertEquals(normalized.timestamp, "2024-01-01T00:00:00Z");
   });
 });
 
-describe("getAnswersForQuestion", () => {
-  it("returns correct answers for a given question", () => {
+bdd.describe("getAnswersForQuestion", () => {
+  bdd.it("returns correct answers for a given question", () => {
     const answers: (
       | schema.DiscoveryAnswer
       | schema.AttributedDiscoveryAnswer
@@ -219,22 +222,22 @@ describe("getAnswersForQuestion", () => {
       },
     ];
     const q1Answers = schema.getAnswersForQuestion(answers, "q1");
-    assertEquals(q1Answers.length, 2);
-    assertEquals(q1Answers[0]!.answer, "a1");
-    assertEquals(q1Answers[1]!.answer, "a1-revised");
-    assertEquals(q1Answers[1]!.user, "Bob");
+    assert.assertEquals(q1Answers.length, 2);
+    assert.assertEquals(q1Answers[0]!.answer, "a1");
+    assert.assertEquals(q1Answers[1]!.answer, "a1-revised");
+    assert.assertEquals(q1Answers[1]!.user, "Bob");
   });
 });
 
-describe("getCombinedAnswer", () => {
-  it("returns single answer as-is", () => {
+bdd.describe("getCombinedAnswer", () => {
+  bdd.it("returns single answer as-is", () => {
     const answers: schema.DiscoveryAnswer[] = [
       { questionId: "q1", answer: "only answer" },
     ];
-    assertEquals(schema.getCombinedAnswer(answers, "q1"), "only answer");
+    assert.assertEquals(schema.getCombinedAnswer(answers, "q1"), "only answer");
   });
 
-  it("combines multiple answers with attribution", () => {
+  bdd.it("combines multiple answers with attribution", () => {
     const answers: schema.AttributedDiscoveryAnswer[] = [
       {
         questionId: "q1",
@@ -254,14 +257,14 @@ describe("getCombinedAnswer", () => {
       },
     ];
     const combined = schema.getCombinedAnswer(answers, "q1");
-    assertEquals(combined.includes("first"), true);
-    assertEquals(combined.includes("second"), true);
-    assertEquals(combined.includes("Alice"), true);
-    assertEquals(combined.includes("Bob"), true);
+    assert.assertEquals(combined.includes("first"), true);
+    assert.assertEquals(combined.includes("second"), true);
+    assert.assertEquals(combined.includes("Alice"), true);
+    assert.assertEquals(combined.includes("Bob"), true);
   });
 
-  it("returns empty string for missing question", () => {
-    assertEquals(schema.getCombinedAnswer([], "q99"), "");
+  bdd.it("returns empty string for missing question", () => {
+    assert.assertEquals(schema.getCombinedAnswer([], "q99"), "");
   });
 });
 
@@ -269,8 +272,8 @@ describe("getCombinedAnswer", () => {
 // machine: addDiscoveryAnswer with user
 // =============================================================================
 
-describe("addDiscoveryAnswer with user", () => {
-  it("stores attribution when user is provided", () => {
+bdd.describe("addDiscoveryAnswer with user", () => {
+  bdd.it("stores attribution when user is provided", () => {
     const state = inDiscovery();
     const updated = machine.addDiscoveryAnswer(
       state,
@@ -283,13 +286,13 @@ describe("addDiscoveryAnswer with user", () => {
     );
     const answer = updated.discovery
       .answers[0] as schema.AttributedDiscoveryAnswer;
-    assertEquals(answer.user, "Alice");
-    assertEquals(answer.email, "alice@example.com");
-    assertEquals(answer.type, "original");
-    assertEquals(typeof answer.timestamp, "string");
+    assert.assertEquals(answer.user, "Alice");
+    assert.assertEquals(answer.email, "alice@example.com");
+    assert.assertEquals(answer.type, "original");
+    assert.assertEquals(typeof answer.timestamp, "string");
   });
 
-  it("defaults to Unknown User when no user provided", () => {
+  bdd.it("defaults to Unknown User when no user provided", () => {
     const state = inDiscovery();
     const updated = machine.addDiscoveryAnswer(
       state,
@@ -298,11 +301,11 @@ describe("addDiscoveryAnswer with user", () => {
     );
     const answer = updated.discovery
       .answers[0] as schema.AttributedDiscoveryAnswer;
-    assertEquals(answer.user, "Unknown User");
-    assertEquals(answer.email, "");
+    assert.assertEquals(answer.user, "Unknown User");
+    assert.assertEquals(answer.email, "");
   });
 
-  it("replaces existing answer for same question (backward compat)", () => {
+  bdd.it("replaces existing answer for same question (backward compat)", () => {
     let state = inDiscovery();
     state = machine.addDiscoveryAnswer(
       state,
@@ -322,11 +325,14 @@ describe("addDiscoveryAnswer with user", () => {
         email: "",
       },
     );
-    assertEquals(state.discovery.answers.length, 1);
+    assert.assertEquals(state.discovery.answers.length, 1);
     const answer = state.discovery
       .answers[0] as schema.AttributedDiscoveryAnswer;
-    assertEquals(answer.answer, "second answer replaces the first one here");
-    assertEquals(answer.user, "Bob");
+    assert.assertEquals(
+      answer.answer,
+      "second answer replaces the first one here",
+    );
+    assert.assertEquals(answer.user, "Bob");
   });
 });
 
@@ -334,8 +340,8 @@ describe("addDiscoveryAnswer with user", () => {
 // machine: addDiscoveryContribution
 // =============================================================================
 
-describe("addDiscoveryContribution", () => {
-  it("adds without replacing existing answers", () => {
+bdd.describe("addDiscoveryContribution", () => {
+  bdd.it("adds without replacing existing answers", () => {
     let state = inDiscovery();
     state = machine.addDiscoveryAnswer(
       state,
@@ -355,19 +361,22 @@ describe("addDiscoveryContribution", () => {
         email: "",
       },
     );
-    assertEquals(state.discovery.answers.length, 2);
+    assert.assertEquals(state.discovery.answers.length, 2);
     const first = state.discovery
       .answers[0] as schema.AttributedDiscoveryAnswer;
     const second = state.discovery
       .answers[1] as schema.AttributedDiscoveryAnswer;
-    assertEquals(
+    assert.assertEquals(
       first.answer,
       "original answer with enough detail to pass validation",
     );
-    assertEquals(first.user, "Alice");
-    assertEquals(second.answer, "additional insight expanding on the original");
-    assertEquals(second.user, "Bob");
-    assertEquals(second.type, "addition");
+    assert.assertEquals(first.user, "Alice");
+    assert.assertEquals(
+      second.answer,
+      "additional insight expanding on the original",
+    );
+    assert.assertEquals(second.user, "Bob");
+    assert.assertEquals(second.type, "addition");
   });
 });
 
@@ -375,29 +384,29 @@ describe("addDiscoveryContribution", () => {
 // machine: recordTransition
 // =============================================================================
 
-describe("recordTransition", () => {
-  it("appends to transition history", () => {
+bdd.describe("recordTransition", () => {
+  bdd.it("appends to transition history", () => {
     const state = inDiscovery();
     const updated = machine.recordTransition(state, "IDLE", "DISCOVERY", {
       name: "Admin",
       email: "admin@co.com",
     });
-    assertEquals(updated.transitionHistory?.length, 1);
+    assert.assertEquals(updated.transitionHistory?.length, 1);
     const entry = updated.transitionHistory![0]!;
-    assertEquals(entry.from, "IDLE");
-    assertEquals(entry.to, "DISCOVERY");
-    assertEquals(entry.user, "Admin");
-    assertEquals(entry.email, "admin@co.com");
-    assertEquals(typeof entry.timestamp, "string");
+    assert.assertEquals(entry.from, "IDLE");
+    assert.assertEquals(entry.to, "DISCOVERY");
+    assert.assertEquals(entry.user, "Admin");
+    assert.assertEquals(entry.email, "admin@co.com");
+    assert.assertEquals(typeof entry.timestamp, "string");
   });
 
-  it("defaults to Unknown User when no user provided", () => {
+  bdd.it("defaults to Unknown User when no user provided", () => {
     const state = inDiscovery();
     const updated = machine.recordTransition(state, "IDLE", "DISCOVERY");
-    assertEquals(updated.transitionHistory![0]!.user, "Unknown User");
+    assert.assertEquals(updated.transitionHistory![0]!.user, "Unknown User");
   });
 
-  it("records reason if provided", () => {
+  bdd.it("records reason if provided", () => {
     const state = inDiscovery();
     const updated = machine.recordTransition(
       state,
@@ -406,18 +415,18 @@ describe("recordTransition", () => {
       { name: "User", email: "" },
       "starting new spec",
     );
-    assertEquals(
+    assert.assertEquals(
       updated.transitionHistory![0]!.reason,
       "starting new spec",
     );
   });
 
-  it("works on old state without transitionHistory", () => {
+  bdd.it("works on old state without transitionHistory", () => {
     const oldState = { ...inDiscovery() } as Record<string, unknown>;
     delete oldState["transitionHistory"];
     const state = oldState as schema.StateFile;
     const updated = machine.recordTransition(state, "IDLE", "DISCOVERY");
-    assertEquals(updated.transitionHistory?.length, 1);
+    assert.assertEquals(updated.transitionHistory?.length, 1);
   });
 });
 
@@ -425,36 +434,36 @@ describe("recordTransition", () => {
 // machine: addCustomAC
 // =============================================================================
 
-describe("addCustomAC", () => {
-  it("stores AC with user info", () => {
+bdd.describe("addCustomAC", () => {
+  bdd.it("stores AC with user info", () => {
     const state = inDiscovery();
     const updated = machine.addCustomAC(state, "Must handle edge case X", {
       name: "Alice",
       email: "alice@co.com",
     });
-    assertEquals(updated.customACs?.length, 1);
+    assert.assertEquals(updated.customACs?.length, 1);
     const ac = updated.customACs![0]!;
-    assertEquals(ac.text, "Must handle edge case X");
-    assertEquals(ac.user, "Alice");
-    assertEquals(ac.addedInPhase, "DISCOVERY");
-    assertEquals(ac.id, "custom-ac-1");
+    assert.assertEquals(ac.text, "Must handle edge case X");
+    assert.assertEquals(ac.user, "Alice");
+    assert.assertEquals(ac.addedInPhase, "DISCOVERY");
+    assert.assertEquals(ac.id, "custom-ac-1");
   });
 
-  it("works on old state without customACs", () => {
+  bdd.it("works on old state without customACs", () => {
     const oldState = { ...inDiscovery() } as Record<string, unknown>;
     delete oldState["customACs"];
     const state = oldState as schema.StateFile;
     const updated = machine.addCustomAC(state, "New AC");
-    assertEquals(updated.customACs?.length, 1);
+    assert.assertEquals(updated.customACs?.length, 1);
   });
 
-  it("increments AC id", () => {
+  bdd.it("increments AC id", () => {
     let state = inDiscovery();
     state = machine.addCustomAC(state, "AC 1");
     state = machine.addCustomAC(state, "AC 2");
-    assertEquals(state.customACs?.length, 2);
-    assertEquals(state.customACs![0]!.id, "custom-ac-1");
-    assertEquals(state.customACs![1]!.id, "custom-ac-2");
+    assert.assertEquals(state.customACs?.length, 2);
+    assert.assertEquals(state.customACs![0]!.id, "custom-ac-1");
+    assert.assertEquals(state.customACs![1]!.id, "custom-ac-2");
   });
 });
 
@@ -462,33 +471,33 @@ describe("addCustomAC", () => {
 // machine: addSpecNote
 // =============================================================================
 
-describe("addSpecNote", () => {
-  it("stores note with user info", () => {
+bdd.describe("addSpecNote", () => {
+  bdd.it("stores note with user info", () => {
     const state = inDiscovery();
     const updated = machine.addSpecNote(state, "Consider caching", {
       name: "Bob",
       email: "bob@co.com",
     });
-    assertEquals(updated.specNotes?.length, 1);
+    assert.assertEquals(updated.specNotes?.length, 1);
     const note = updated.specNotes![0]!;
-    assertEquals(note.text, "Consider caching");
-    assertEquals(note.user, "Bob");
-    assertEquals(note.phase, "DISCOVERY");
-    assertEquals(note.id, "note-1");
+    assert.assertEquals(note.text, "Consider caching");
+    assert.assertEquals(note.user, "Bob");
+    assert.assertEquals(note.phase, "DISCOVERY");
+    assert.assertEquals(note.id, "note-1");
   });
 
-  it("works on old state without specNotes", () => {
+  bdd.it("works on old state without specNotes", () => {
     const oldState = { ...inDiscovery() } as Record<string, unknown>;
     delete oldState["specNotes"];
     const state = oldState as schema.StateFile;
     const updated = machine.addSpecNote(state, "Note");
-    assertEquals(updated.specNotes?.length, 1);
+    assert.assertEquals(updated.specNotes?.length, 1);
   });
 
-  it("defaults to Unknown User without user param", () => {
+  bdd.it("defaults to Unknown User without user param", () => {
     const state = inDiscovery();
     const updated = machine.addSpecNote(state, "Anonymous note");
-    assertEquals(updated.specNotes![0]!.user, "Unknown User");
+    assert.assertEquals(updated.specNotes![0]!.user, "Unknown User");
   });
 });
 
@@ -496,23 +505,23 @@ describe("addSpecNote", () => {
 // Backward compat: old state files load without error
 // =============================================================================
 
-describe("backward compatibility", () => {
-  it("old state without new fields loads via createInitialState", () => {
+bdd.describe("backward compatibility", () => {
+  bdd.it("old state without new fields loads via createInitialState", () => {
     const state = schema.createInitialState();
-    assertEquals(state.transitionHistory, undefined);
-    assertEquals(state.customACs, undefined);
-    assertEquals(state.specNotes, undefined);
+    assert.assertEquals(state.transitionHistory, undefined);
+    assert.assertEquals(state.customACs, undefined);
+    assert.assertEquals(state.specNotes, undefined);
   });
 
-  it("machine functions work on state missing new fields", () => {
+  bdd.it("machine functions work on state missing new fields", () => {
     const state = inExecuting();
     const t = machine.recordTransition(state, "EXECUTING", "COMPLETED");
-    assertEquals(t.transitionHistory?.length, 1);
+    assert.assertEquals(t.transitionHistory?.length, 1);
 
     const a = machine.addCustomAC(state, "AC text");
-    assertEquals(a.customACs?.length, 1);
+    assert.assertEquals(a.customACs?.length, 1);
 
     const n = machine.addSpecNote(state, "Note text");
-    assertEquals(n.specNotes?.length, 1);
+    assert.assertEquals(n.specNotes?.length, 1);
   });
 });

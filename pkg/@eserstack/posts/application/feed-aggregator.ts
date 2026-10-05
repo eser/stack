@@ -9,18 +9,25 @@
 import type { Post } from "../domain/entities/post.ts";
 import type { Platform } from "../domain/values/platform.ts";
 import type { AuthProvider } from "./auth-provider.ts";
+import * as defaults from "./defaults.ts";
 import type { SocialApi } from "./social-api.ts";
 
 /** A live connection to a specific platform's SocialApi + AuthProvider. */
 export interface PlatformConnection {
+  /** The platform this connection talks to. */
   readonly platform: Platform;
+  /** The platform's API for posting and reading. */
   readonly socialApi: SocialApi;
+  /** The platform's login, token refresh and token installation. */
   readonly auth: AuthProvider;
 }
 
 /** Application service that merges timelines across platforms. */
 export interface FeedAggregator {
-  /** Unified timeline from all authenticated platforms, newest post first. */
+  /**
+   * Unified timeline from all authenticated platforms, newest post first.
+   * `maxResultsPerPlatform` defaults to `DEFAULT_MAX_RESULTS_PER_PLATFORM` (10).
+   */
   getUnifiedTimeline(
     params?: { maxResultsPerPlatform?: number },
   ): Promise<Post[]>;
@@ -30,8 +37,14 @@ export interface FeedAggregator {
 export class DefaultFeedAggregator implements FeedAggregator {
   private readonly connections: ReadonlyArray<PlatformConnection>;
 
-  // Explicit assignment, not a parameter property — Node's erase-only type
+  // Explicit assignment, not a parameter property: Node's erase-only type
   // stripping cannot emit one.
+  /**
+   * Create the aggregator over the given platform connections.
+   *
+   * @param connections The platforms to read from; only the authenticated
+   *   ones are asked for their timeline.
+   */
   constructor(connections: ReadonlyArray<PlatformConnection>) {
     this.connections = connections;
   }
@@ -39,7 +52,8 @@ export class DefaultFeedAggregator implements FeedAggregator {
   async getUnifiedTimeline(
     params?: { maxResultsPerPlatform?: number },
   ): Promise<Post[]> {
-    const maxResults = params?.maxResultsPerPlatform ?? 10;
+    const maxResults = params?.maxResultsPerPlatform ??
+      defaults.DEFAULT_MAX_RESULTS_PER_PLATFORM;
 
     const settled = await Promise.allSettled(
       this.connections

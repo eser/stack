@@ -1,23 +1,31 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as logging from "@eserstack/standards/logging";
 import type * as streams from "@eserstack/streams";
 import type { Filter, LogRecord, Sink } from "./types.ts";
-import { spanFormatter } from "./formatters.ts";
+import * as formatters from "./formatters.ts";
 
 /**
  * Creates a sink that writes log records to a @eserstack/streams Output.
  * The output handles rendering (ANSI, Markdown, plain) via its renderer.
  *
  * @example
+ * ```typescript
+ * import * as logging from "@eserstack/logging";
  * import * as streams from "@eserstack/streams";
- * const out = streams.output({ renderer: streams.renderers.ansi(), sink: streams.sinks.stdout() });
- * const sink = getOutputSink(out);
+ *
+ * const out = streams.output({
+ *   renderer: streams.renderers.ansi(),
+ *   sink: streams.sinks.stdout(),
+ * });
+ * const sink = logging.sinks.getOutputSink(out);
+ * ```
  */
 export const getOutputSink = (
   output: streams.Output,
-  options?: { formatter?: typeof spanFormatter },
+  options?: { formatter?: typeof formatters.spanFormatter },
 ): Sink => {
-  const fmt = options?.formatter ?? spanFormatter;
+  const fmt = options?.formatter ?? formatters.spanFormatter;
 
   return (record: LogRecord): void => {
     const spans = fmt(record);
@@ -29,10 +37,15 @@ export const getOutputSink = (
  * Wraps a sink with a filter. Only records passing the filter reach the sink.
  *
  * @example
- * const filteredSink = withFilter(
- *   getOutputSink(out),
- *   getLevelFilter(logging.Severities.Warning)
+ * ```typescript
+ * import * as logging from "@eserstack/logging";
+ *
+ * const { sink } = logging.sinks.getRecordCollectorSink();
+ * const warningsOnly = logging.sinks.withFilter(
+ *   sink,
+ *   logging.filters.getLevelFilter(logging.Severities.Warning),
  * );
+ * ```
  */
 export const withFilter = (sink: Sink, filter: Filter): Sink => {
   return (record: LogRecord): void | Promise<void> => {
@@ -43,13 +56,23 @@ export const withFilter = (sink: Sink, filter: Filter): Sink => {
 };
 
 /**
- * Creates a sink that buffers records and flushes them in batches.
+ * Creates a sink that buffers records and passes them to `sink` in batches:
+ * when `maxSize` records are waiting (100 by default), or `flushIntervalMs`
+ * after the first waiting record (5000 by default). `flush()` passes the
+ * waiting records on at once; call it before the process exits.
  *
  * @example
- * const bufferedSink = getBufferedSink(remoteSink, {
- *   maxSize: 100,
- *   flushIntervalMs: 5000
+ * ```typescript
+ * import * as logging from "@eserstack/logging";
+ *
+ * const { sink } = logging.sinks.getRecordCollectorSink();
+ * const buffered = logging.sinks.getBufferedSink(sink, {
+ *   maxSize: 50,
+ *   flushIntervalMs: 1000,
  * });
+ *
+ * await buffered.flush();
+ * ```
  */
 export const getBufferedSink = (
   sink: Sink,
@@ -70,7 +93,7 @@ export const getBufferedSink = (
     const toFlush = buffer;
     buffer = [];
 
-    if (flushTimer) {
+    if (flushTimer !== null) {
       clearTimeout(flushTimer);
       flushTimer = null;
     }
@@ -83,7 +106,9 @@ export const getBufferedSink = (
       flushTimer = setTimeout(() => {
         flushTimer = null;
         flush().catch(() => {
-          // Flush errors are already handled in the flush function
+          // A timed flush has no caller to report a sink failure to, and
+          // logging the failure would feed it back into this sink, so the
+          // batch is dropped. Call flush() to receive the error instead.
         });
       }, flushIntervalMs);
     }
@@ -106,13 +131,21 @@ export const getBufferedSink = (
 
 /**
  * Creates a "fingers crossed" sink that buffers low-severity logs
- * and flushes them when a high-severity log occurs.
+ * and flushes them when a high-severity log occurs. After that, records pass
+ * straight through until `clear()` starts buffering again. The buffer keeps
+ * the latest `maxBufferSize` records (1000 by default), and the trigger level
+ * defaults to Error.
  *
  * @example
- * const fcSink = fingersCrossedSink(outputSink, {
+ * ```typescript
+ * import * as logging from "@eserstack/logging";
+ *
+ * const { sink } = logging.sinks.getRecordCollectorSink();
+ * const onError = logging.sinks.fingersCrossedSink(sink, {
  *   triggerLevel: logging.Severities.Error,
- *   maxBufferSize: 1000
+ *   maxBufferSize: 500,
  * });
+ * ```
  */
 export const fingersCrossedSink = (
   sink: Sink,
@@ -121,7 +154,10 @@ export const fingersCrossedSink = (
     maxBufferSize?: number;
   } = {},
 ): Sink & { flush: () => Promise<void>; clear: () => void } => {
-  const { triggerLevel = 17, maxBufferSize = 1000 } = options; // Default: Error level (OpenTelemetry)
+  const {
+    triggerLevel = logging.Severities.Error,
+    maxBufferSize = 1000,
+  } = options;
   let buffer: LogRecord[] = [];
   let triggered = false;
 
@@ -171,9 +207,20 @@ export const fingersCrossedSink = (
  * Creates a sink that collects LogRecords into an array (for testing).
  *
  * @example
- * const { sink, records } = getRecordCollectorSink();
- * // ... log some messages
- * expect(records).toHaveLength(3);
+ * ```typescript
+ * import * as assert from "@std/assert";
+ * import * as logging from "@eserstack/logging";
+ *
+ * const { sink, records } = logging.sinks.getRecordCollectorSink();
+ * await logging.config.configure({
+ *   sinks: { test: sink },
+ *   loggers: [{ category: ["app"], sinks: ["test"] }],
+ *   reset: true,
+ * });
+ *
+ * await logging.logger.getLogger(["app"]).warn("disk almost full");
+ * assert.assertEquals(records[0]?.message, "disk almost full");
+ * ```
  */
 export const getRecordCollectorSink = (): {
   sink: Sink;
@@ -189,9 +236,12 @@ export const getRecordCollectorSink = (): {
 };
 
 /**
+ * Creates a sink that collects LogRecords into an array (for testing).
+ *
  * @deprecated Use `getRecordCollectorSink()` instead.
  */
-export const getTestSink = getRecordCollectorSink;
+export const getTestSink: typeof getRecordCollectorSink =
+  getRecordCollectorSink;
 
 // Re-export types
 export type { Sink } from "./types.ts";

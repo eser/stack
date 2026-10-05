@@ -9,13 +9,12 @@
  * @see https://github.com/facebook/react/tree/main/packages/react-server-dom-webpack
  */
 
-import { escapeJsonForScript } from "./script-json.ts";
+import * as scriptJson from "./script-json.ts";
 import type { ReactElement } from "react";
-import { parseChunk, type RSCChunk } from "@eserstack/laroux-react/protocol";
-import {
-  type BundlerConfig,
-  renderToReadableStream as renderRSCToStream,
-} from "./rsc-flight-renderer.ts";
+import * as protocol from "@eserstack/laroux-react/protocol";
+import type { RSCChunk } from "@eserstack/laroux-react/protocol";
+import * as rscFlightRenderer from "./rsc-flight-renderer.ts";
+import type { BundlerConfig } from "./rsc-flight-renderer.ts";
 import * as logging from "@eserstack/logging";
 
 const inlineLogger = logging.logger.getLogger([
@@ -36,14 +35,14 @@ export type InlineChunkCallback = (chunk: RSCChunk) => void;
  * Output (inline):      <script>self.__RSC_CHUNK__({type:"J",id:0,value:{"value":"test"}})</script>\n
  */
 export function chunkToInlineScript(line: string): string {
-  const chunk = parseChunk(line.trim());
+  const chunk = protocol.parseChunk(line.trim());
   if (!chunk) return "";
 
   // Create the inline script that calls the global chunk handler
   // The chunk is passed as a structured object for easier client-side processing
   // Chunk values carry rendered strings, so escape for script context: a
   // value containing </script or <!-- must not end or re-parse the element.
-  const chunkJson = escapeJsonForScript(JSON.stringify(chunk));
+  const chunkJson = scriptJson.escapeJsonForScript(JSON.stringify(chunk));
   return `<script>self.__RSC_CHUNK__(${chunkJson})</script>\n`;
 }
 
@@ -111,7 +110,10 @@ export function createInlineRSCStream(
   inlineLogger.debug("Creating inline RSC stream...");
 
   // Use the existing RSC Flight renderer
-  const rscStream = renderRSCToStream(element, bundlerConfig);
+  const rscStream = rscFlightRenderer.renderToReadableStream(
+    element,
+    bundlerConfig,
+  );
 
   // Transform wire format to inline scripts
   const transformStream = createInlineTransformStream();

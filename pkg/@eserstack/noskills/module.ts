@@ -6,9 +6,13 @@
  * @module
  */
 
-import { Module } from "@eserstack/shell/module";
+import * as module from "@eserstack/shell/module";
 
-export const moduleDef: Module = new Module({
+/** The command module type, `Module` from `@eserstack/shell/module`. */
+export type Module = module.Module;
+
+/** The `noskills` command group that drives the spec state machine. */
+export const moduleDef: Module = new module.Module({
   description: "noskills — state-machine orchestrator for AI agents",
   modules: {
     init: {

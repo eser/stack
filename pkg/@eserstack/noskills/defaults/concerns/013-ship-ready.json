@@ -14,7 +14,6 @@
       "id": "ship-checklist",
       "title": "Ship Checklist",
       "placeholder": "_Gate checklist before merge: full test suite passes (zero failures), coverage at or above baseline, CHANGELOG updated with version, scope audit complete (built matches spec), no unresolved TODOs without tickets, version bump correct._",
-      "condition": null,
       "position": "after:acceptance-criteria"
     }
   ],

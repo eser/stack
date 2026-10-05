@@ -1,6 +1,14 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 /**
+ * A memoized function, with the `cache` of its results by key.
+ */
+export type MemoizedFn<TArgs extends Array<unknown>, TResult> = {
+  (...args: TArgs): TResult;
+  cache: Map<unknown, TResult>;
+};
+
+/**
  * Creates a function that memoizes the result of func.
  * By default, the first argument is used as the cache key.
  * Provide a resolver function to use a custom cache key.
@@ -10,29 +18,36 @@
  * @returns Memoized function with a `cache` property (Map) for cache access
  *
  * @example
- * const expensive = memoize((x: number) => {
- *   console.log('computing...');
+ * ```typescript
+ * import * as fp from "@eserstack/fp";
+ *
+ * let calls = 0;
+ * const double = fp.memoize((x: number) => {
+ *   calls++;
  *   return x * 2;
  * });
  *
- * expensive(5); // logs 'computing...', returns 10
- * expensive(5); // returns 10 (cached, no log)
+ * double(5); // 10; calls is 1
+ * double(5); // 10 from the cache; calls is still 1
  *
- * // With custom resolver
- * const getUser = memoize(
- *   (id: string, options: { force?: boolean }) => fetchUser(id),
- *   (id, options) => id // Use only id as cache key
+ * double.cache.delete(5); // forget one result
+ * double.cache.clear(); // forget every result
+ * ```
+ *
+ * @example
+ * ```typescript
+ * import * as fp from "@eserstack/fp";
+ *
+ * // "Ada" and "ADA" share one cache entry
+ * const greet = fp.memoize(
+ *   (name: string) => `Hello, ${name.toLowerCase()}`,
+ *   (name) => name.toLowerCase(),
  * );
  *
- * // Access cache directly
- * expensive.cache.clear(); // Clear all cached values
- * expensive.cache.delete(5); // Delete specific cached value
+ * greet("Ada"); // "Hello, ada"
+ * greet("ADA"); // "Hello, ada", from the cache
+ * ```
  */
-export type MemoizedFn<TArgs extends Array<unknown>, TResult> = {
-  (...args: TArgs): TResult;
-  cache: Map<unknown, TResult>;
-};
-
 export const memoize = <TArgs extends Array<unknown>, TResult>(
   fn: (...args: TArgs) => TResult,
   resolver?: (...args: TArgs) => unknown,
@@ -56,5 +71,3 @@ export const memoize = <TArgs extends Array<unknown>, TResult>(
 
   return memoized;
 };
-
-export { memoize as default };

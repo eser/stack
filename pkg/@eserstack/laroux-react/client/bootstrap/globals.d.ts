@@ -4,12 +4,10 @@
  * Extends globalThis with the properties used by the client bootstrap
  */
 
-/**
- * Chunk manifest structure from bundler
- */
-export type ChunkManifest = {
-  chunks: Record<string, string>;
-};
+import type { ChunkManifest } from "@eserstack/laroux";
+
+/** The chunk manifest laroux-server injects into the page. */
+export type { ChunkManifest };
 
 /**
  * Laroux global runtime state
@@ -34,8 +32,12 @@ export type LarouxGlobals = {
   /** Clear RSC cache for changed modules */
   __clearRSCCache__?: (changedModules?: string[]) => void;
 
-  /** Refresh RSC root component */
-  __refreshRSCRoot__?: (changedModules?: string[]) => Promise<void>;
+  /**
+   * Re-render the RSC root with fresh data. The client entry's version returns
+   * once the render is scheduled; smart refresh awaits the result, so a version
+   * that returns a promise works too.
+   */
+  __refreshRSCRoot__?: (changedModules?: string[]) => void | Promise<void>;
 
   /** Runtime modules registry for HMR mode */
   __RUNTIME_MODULES__?: Record<string, unknown>;

@@ -13,28 +13,42 @@
  */
 
 import * as crossRuntime from "@eserstack/standards/cross-runtime";
-import { ensureLib, getLib } from "../ffi-client.ts";
-import { spawnPtyGo } from "./pty-go.ts";
+import * as ffiClient from "../ffi-client.ts";
+import * as ptyGo from "./pty-go.ts";
 
 // =============================================================================
 // Types
 // =============================================================================
 
+/** What {@link spawnPty} starts. */
 export type PtyOptions = {
+  /** The program to run. */
   readonly command: string;
+  /** Its arguments. */
   readonly args?: readonly string[];
+  /** Working directory; the current one when unset. */
   readonly cwd?: string;
+  /** Variables added to the inherited environment. */
   readonly env?: Record<string, string>;
+  /** Terminal width in columns; 80 when unset. */
   readonly cols?: number;
+  /** Terminal height in rows; 24 when unset. */
   readonly rows?: number;
 };
 
+/** A process running in a pseudo-terminal. */
 export type PtyProcess = {
+  /** Register a callback for each chunk of terminal output. */
   onData(callback: (data: string) => void): void;
+  /** Write `data` to the terminal, as typed input. */
   write(data: string): void;
+  /** Resize the terminal; the `script`-based fallback ignores it. */
   resize(cols: number, rows: number): void;
+  /** Send `signal` to the process; SIGTERM when unset. */
   kill(signal?: string): void;
+  /** The process id. */
   readonly pid: number;
+  /** Resolves to the exit code when the process exits. */
   readonly exitCode: Promise<number>;
 };
 
@@ -142,8 +156,8 @@ export const spawnPty = async (opts: PtyOptions): Promise<PtyProcess> => {
   let nativeAvailable = false;
   if (force !== "script") {
     try {
-      await ensureLib();
-      nativeAvailable = getLib() !== null;
+      await ffiClient.ensureLib();
+      nativeAvailable = ffiClient.getLib() !== null;
     } catch {
       // native library not loadable — fall back to script
       nativeAvailable = false;
@@ -154,15 +168,16 @@ export const spawnPty = async (opts: PtyOptions): Promise<PtyProcess> => {
     // The native library is loaded: use it and let genuine spawn errors (e.g. a
     // missing command) propagate to the caller, rather than masking them behind
     // a different, less specific failure from the script fallback.
-    return await spawnPtyGo(opts);
+    return await ptyGo.spawnPtyGo(opts);
   }
 
-  return spawnPtyScript(opts);
+  return await spawnPtyScript(opts);
 };
 
 /**
  * Spawn a process with a real PTY via the `script` wrapper (fallback path).
  */
+// Async so that a synchronous spawn failure reaches the caller as a rejection.
 // deno-lint-ignore require-await
 const spawnPtyScript = async (opts: PtyOptions): Promise<PtyProcess> => {
   const { runtime } = crossRuntime;
@@ -202,6 +217,8 @@ const spawnPtyScript = async (opts: PtyOptions): Promise<PtyProcess> => {
     const reader = stream.getReader();
     try {
       while (true) {
+        // A stream reader hands out chunks one at a time, in order.
+        // deno-lint-ignore no-await-in-loop
         const { done, value } = await reader.read();
         if (done) break;
         dispatch(decoder.decode(value));

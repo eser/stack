@@ -1,6 +1,7 @@
 package i18nfx
 
 import (
+	"errors"
 	"fmt"
 	"html/template"
 	"os"
@@ -22,7 +23,7 @@ type Localizer struct {
 func NewLocalizer(config *Config) (*Localizer, error) {
 	defaultLang, err := language.Parse(config.DefaultLocale)
 	if err != nil {
-		return nil, fmt.Errorf("parsing default locale %q: %w", config.DefaultLocale, err)
+		return nil, fmt.Errorf("parse default locale %q: %w", config.DefaultLocale, err)
 	}
 
 	bundle := i18n.NewBundle(defaultLang)
@@ -30,7 +31,7 @@ func NewLocalizer(config *Config) (*Localizer, error) {
 
 	entries, dirErr := os.ReadDir(config.LocalesDir)
 	if dirErr != nil {
-		return nil, fmt.Errorf("reading locales directory %q: %w", config.LocalesDir, dirErr)
+		return nil, fmt.Errorf("read locales directory %q: %w", config.LocalesDir, dirErr)
 	}
 
 	for _, entry := range entries {
@@ -46,7 +47,7 @@ func NewLocalizer(config *Config) (*Localizer, error) {
 
 		_, loadErr := bundle.LoadMessageFile(filePath)
 		if loadErr != nil {
-			return nil, fmt.Errorf("loading message file %q: %w", filePath, loadErr)
+			return nil, fmt.Errorf("load message file %q: %w", filePath, loadErr)
 		}
 	}
 
@@ -59,31 +60,39 @@ func NewLocalizer(config *Config) (*Localizer, error) {
 // T translates a message ID for the given locale.
 // Falls back to the default locale, then to the message ID itself.
 func (l *Localizer) T(locale string, messageID string) string {
-	localizer := i18n.NewLocalizer(l.bundle, locale, l.defaultLocale)
-
-	msg, err := localizer.Localize(&i18n.LocalizeConfig{ //nolint:exhaustruct
+	return l.localize(locale, &i18n.LocalizeConfig{ //nolint:exhaustruct
 		MessageID: messageID,
 	})
-	if err != nil {
-		return messageID
-	}
-
-	return msg
 }
 
 // TWithData translates a message ID with template data for the given locale.
+// It falls back the same way as T.
 func (l *Localizer) TWithData(locale string, messageID string, data map[string]any) string {
-	localizer := i18n.NewLocalizer(l.bundle, locale, l.defaultLocale)
-
-	msg, err := localizer.Localize(&i18n.LocalizeConfig{ //nolint:exhaustruct
+	return l.localize(locale, &i18n.LocalizeConfig{ //nolint:exhaustruct
 		MessageID:    messageID,
 		TemplateData: data,
 	})
-	if err != nil {
-		return messageID
+}
+
+// localize resolves config for locale. A missing translation is not an error a
+// caller can act on in a template, so every failure falls back to the message
+// ID, which keeps the page readable and shows which ID needs a translation.
+func (l *Localizer) localize(locale string, config *i18n.LocalizeConfig) string {
+	localizer := i18n.NewLocalizer(l.bundle, locale, l.defaultLocale)
+
+	msg, err := localizer.Localize(config)
+	if err == nil {
+		return msg
 	}
 
-	return msg
+	// When the locale exists but lacks this message, go-i18n returns the
+	// default locale's text together with a MessageNotFoundErr. That text is
+	// the documented fallback, so use it rather than the message ID.
+	if _, notFound := errors.AsType[*i18n.MessageNotFoundErr](err); notFound && msg != "" {
+		return msg
+	}
+
+	return config.MessageID
 }
 
 // TemplateFuncMap returns a FuncMap with "t" and "dir" functions for use

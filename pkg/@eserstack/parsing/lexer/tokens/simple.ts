@@ -1,10 +1,14 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import { isAlphanumeric } from "../checks/is-alphanumeric.ts";
-import { isNumeric } from "../checks/is-numeric.ts";
-import { isWhitespace } from "../checks/is-whitespace.ts";
-import { type TokenDefinitions } from "./definition.ts";
+import * as isAlphanumeric from "../checks/is-alphanumeric.ts";
+import * as isNumeric from "../checks/is-numeric.ts";
+import * as isWhitespace from "../checks/is-whitespace.ts";
+import type { TokenDefinitions } from "./definition.ts";
 
+/**
+ * Token definitions for punctuation, operators, whitespace, numbers and
+ * alphanumeric words.
+ */
 export const simpleTokens: TokenDefinitions = {
   T_NEWLINE: "\n",
   T_DOT: ".",
@@ -39,9 +43,9 @@ export const simpleTokens: TokenDefinitions = {
   T_QUOTE: "'",
   T_BACKTICK: "`",
   T_DOLLAR_SIGN: "$",
-  T_WHITESPACE: isWhitespace,
-  T_NUMERIC: isNumeric,
-  T_ALPHANUMERIC: isAlphanumeric,
+  T_WHITESPACE: isWhitespace.isWhitespace,
+  T_NUMERIC: isNumeric.isNumeric,
+  T_ALPHANUMERIC: isAlphanumeric.isAlphanumeric,
   T_UNKNOWN: null,
   T_END: null,
 };

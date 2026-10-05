@@ -7,26 +7,16 @@
  */
 
 import * as standardsCrossRuntime from "@eserstack/standards/cross-runtime";
-import { describeLoadFailure, ensureLib, getLib } from "../ffi-client.ts";
+import type * as ffiTypes from "@eserstack/ajan/ffi";
+import * as ffiClient from "../ffi-client.ts";
 import type { CommandOptions, CommandResult, StdioOption } from "./types.ts";
-import { CommandError } from "./types.ts";
+import * as types from "./types.ts";
 import * as childGo from "./child-go.ts";
+import * as execGo from "./exec-go.ts";
 
 const encoder = new TextEncoder();
 
 const decoder = new TextDecoder();
-
-/**
- * Convert an env record to the `KEY=VALUE` string list the Go FFI expects
- * (its `shellExecRequest.Env` is `[]string`). The runtime spawn path takes a
- * `Record` directly, so this is only for the FFI/child paths.
- */
-const envToPairs = (
-  env: Record<string, string> | undefined,
-): string[] | undefined =>
-  env !== undefined
-    ? Object.entries(env).map(([k, v]) => `${k}=${v}`)
-    : undefined;
 
 /**
  * CommandBuilder provides a fluent API for building and executing shell commands
@@ -34,8 +24,19 @@ const envToPairs = (
 export class CommandBuilder {
   readonly #cmd: string;
   readonly #args: string[];
-  #options: CommandOptions;
+  readonly #options: CommandOptions;
 
+  /**
+   * Create a builder for one command; nothing runs until `spawn()` or one of
+   * the methods that call it.
+   *
+   * @param cmd - The program to run, looked up on PATH unless it is a path.
+   * @param args - Its arguments, passed as argv without a shell.
+   * @param options - Initial options; the methods below return a copy with one
+   *   changed. Output is piped and a non-zero exit throws unless set otherwise.
+   * @throws {RangeError} When `options.timeout` is out of range; see
+   *   {@link CommandBuilder.timeout}.
+   */
   constructor(cmd: string, args: string[] = [], options: CommandOptions = {}) {
     this.#cmd = cmd;
     this.#args = args;
@@ -44,6 +45,9 @@ export class CommandBuilder {
       stdout: "piped",
       stderr: "piped",
       ...options,
+      timeout: options.timeout !== undefined
+        ? execGo.normalizeTimeout(options.timeout)
+        : undefined,
     };
   }
 
@@ -115,7 +119,25 @@ export class CommandBuilder {
     });
   }
 
-  /** Set timeout in milliseconds */
+  /**
+   * Stop the command after `ms` milliseconds.
+   *
+   * Without a timeout, a command whose output is captured ("piped" or "null"
+   * stdio) stops after 10 minutes, the same default the Go bridge applies. A
+   * command with any "inherit" stdio has no default: it is attached to the
+   * terminal, where the person running it can interrupt it.
+   *
+   * There is no value for "no limit". 0, a negative number, NaN and Infinity
+   * throw, as does a value above 2147483647 (about 24.8 days), the longest
+   * delay a timer holds. Pass a larger value for a long command.
+   *
+   * A command stopped at its timeout throws {@link types.CommandRunError},
+   * with or without `noThrow()`.
+   *
+   * @param ms - Milliseconds, above 0 and at most 2147483647; a fraction is
+   *   rounded up.
+   * @throws {RangeError} When `ms` is out of that range.
+   */
   timeout(ms: number): CommandBuilder {
     return new CommandBuilder(this.#cmd, this.#args, {
       ...this.#options,
@@ -143,95 +165,145 @@ export class CommandBuilder {
   /** Print command before execution */
   printCommand(): CommandBuilder {
     const fullCmd = [this.#cmd, ...this.#args].join(" ");
+    // Echoing the command to the terminal is what the caller asked for.
     // deno-lint-ignore no-console
     console.log(`$ ${fullCmd}`);
     return this;
   }
 
-  /** Execute command and return result */
+  /**
+   * Execute the command and return its result.
+   *
+   * A command whose stdio is all "piped" or "null" runs through the Go bridge
+   * when the native library is available, and through the runtime spawn
+   * otherwise. Any "inherit" stdio, or piped stdin, uses the runtime spawn.
+   *
+   * @throws {types.CommandError} When the command exits non-zero, unless
+   *   `noThrow()` was set.
+   * @throws {types.CommandRunError} When the command could not start, or ran
+   *   past its timeout.
+   */
   async spawn(): Promise<CommandResult> {
-    // The Go FFI one-shot path captures stdout/stderr into buffers and returns
-    // them — it can neither stream to the terminal nor connect inherited stdin.
-    // It is therefore only valid when output is captured ("piped") or discarded
-    // ("null"). For any "inherit" stdio we fall through to the runtime spawn,
-    // which wires the streams to the terminal directly.
-    const stdioNeedsRuntime = this.#options.stdin === "piped" ||
-      this.#options.stdin === "inherit" ||
+    const attachedToTerminal = this.#options.stdin === "inherit" ||
       this.#options.stdout === "inherit" ||
       this.#options.stderr === "inherit";
 
-    if (!stdioNeedsRuntime) {
-      await ensureLib();
-      const lib = getLib();
+    // The bridge's one-shot exec captures stdout and stderr into buffers: it
+    // can neither stream to the terminal nor connect a stdin stream.
+    if (!attachedToTerminal && this.#options.stdin !== "piped") {
+      const lib = await ffiClient.ensureNativeLib();
 
+      // Only a missing native library falls back to the runtime. Once the
+      // bridge has the command its answer stands: retrying after an error
+      // would run the command a second time, and one the bridge stopped at its
+      // timeout would then run with no timeout at all.
       if (lib !== null) {
-        try {
-          const raw = lib.symbols.EserAjanShellExec(
-            JSON.stringify({
-              command: this.#cmd,
-              args: this.#args,
-              cwd: this.#options.cwd,
-              // Go wants env as KEY=VALUE strings and timeout as a Go duration
-              // string; sending a JS object / number fails its JSON unmarshal.
-              env: envToPairs(this.#options.env),
-              timeout: this.#options.timeout !== undefined
-                ? `${this.#options.timeout}ms`
-                : undefined,
-            }),
-          );
-          const goResult = JSON.parse(raw) as {
-            stdout: string;
-            stderr: string;
-            code: number;
-            error?: string;
-          };
-
-          if (!goResult.error) {
-            const stdoutBytes = encoder.encode(goResult.stdout);
-            const stderrBytes = encoder.encode(goResult.stderr);
-            const result: CommandResult = {
-              code: goResult.code,
-              success: goResult.code === 0,
-              stdout: stdoutBytes,
-              stderr: stderrBytes,
-            };
-
-            if (!result.success && this.#options.throwOnError === true) {
-              throw new CommandError(
-                `Command failed with exit code ${result.code}: ${this.#cmd}`,
-                this.#cmd,
-                result.code,
-                goResult.stderr,
-              );
-            }
-
-            return result;
-          }
-        } catch (err) {
-          if (err instanceof CommandError) throw err;
-          // fall through to TS runtime
-        }
+        return this.#spawnNative(lib);
       }
     }
 
+    return await this.#spawnRuntime(attachedToTerminal);
+  }
+
+  #spawnNative(lib: ffiTypes.FFILibrary): CommandResult {
+    const reply = execGo.runExecGo(
+      lib,
+      execGo.buildExecGoRequest(this.#cmd, {
+        args: this.#args,
+        cwd: this.#options.cwd,
+        env: this.#options.env,
+        timeout: this.#options.timeout,
+      }),
+    );
+
+    return this.#checkExit({
+      code: reply.code,
+      success: reply.code === 0,
+      stdout: encoder.encode(reply.stdout),
+      stderr: encoder.encode(reply.stderr),
+    }, reply.stderr);
+  }
+
+  async #spawnRuntime(attachedToTerminal: boolean): Promise<CommandResult> {
     const { runtime } = standardsCrossRuntime;
 
-    const result = await runtime.exec.spawn(this.#cmd, this.#args, {
+    // A captured command gets the bridge's default, so the outcome does not
+    // depend on whether the native library is installed. One attached to the
+    // terminal gets none; see timeout().
+    const timeoutMs = this.#options.timeout ??
+      (attachedToTerminal ? undefined : execGo.DEFAULT_TIMEOUT_MS);
+
+    // An own timer rather than AbortSignal.timeout(), so it is cleared the
+    // moment the command exits instead of staying pending for the full delay.
+    const controller = timeoutMs !== undefined
+      ? new AbortController()
+      : undefined;
+    const timer = controller !== undefined
+      ? setTimeout(() => controller.abort(), timeoutMs)
+      : undefined;
+    const timedOut = (): boolean => controller?.signal.aborted === true;
+
+    let result: CommandResult;
+
+    try {
+      result = await runtime.exec.spawn(
+        this.#cmd,
+        this.#args,
+        this.#runtimeOptions(controller?.signal),
+      );
+    } catch (error) {
+      // Node rejects the spawn when its signal aborts.
+      if (timeoutMs !== undefined && timedOut()) {
+        throw this.#timeoutError(timeoutMs, error);
+      }
+
+      // The runtime rejects when the program or the working directory does not
+      // exist: the same failure the bridge reports, so the same error type.
+      throw new types.CommandRunError(
+        `run ${this.#cmd}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+        this.#cmd,
+        { cause: error },
+      );
+    } finally {
+      clearTimeout(timer);
+    }
+
+    // Deno resolves with the killed process's exit status.
+    if (timeoutMs !== undefined && !result.success && timedOut()) {
+      throw this.#timeoutError(timeoutMs);
+    }
+
+    return this.#checkExit(result, decoder.decode(result.stderr));
+  }
+
+  #runtimeOptions(
+    signal: AbortSignal | undefined,
+  ): standardsCrossRuntime.SpawnOptions {
+    return {
       cwd: this.#options.cwd,
       env: this.#options.env,
       stdin: this.#options.stdin,
       stdinText: this.#options.stdinText,
       stdout: this.#options.stdout,
       stderr: this.#options.stderr,
-      // Honor timeout on the runtime path too (it was previously dropped here).
-      signal: this.#options.timeout !== undefined
-        ? AbortSignal.timeout(this.#options.timeout)
-        : undefined,
-    });
+      signal,
+    };
+  }
 
+  #timeoutError(timeoutMs: number, cause?: unknown): types.CommandRunError {
+    return new types.CommandRunError(
+      `run ${this.#cmd}: the command ran past its ${timeoutMs} ms timeout ` +
+        `and was stopped; pass a larger value to timeout() to allow more time`,
+      this.#cmd,
+      cause !== undefined ? { cause } : undefined,
+    );
+  }
+
+  #checkExit(result: CommandResult, stderrText: string): CommandResult {
     if (!result.success && this.#options.throwOnError === true) {
-      const stderrText = decoder.decode(result.stderr);
-      throw new CommandError(
+      throw new types.CommandError(
         `Command failed with exit code ${result.code}: ${this.#cmd}`,
         this.#cmd,
         result.code,
@@ -312,28 +384,40 @@ export class CommandBuilder {
   }
 
   /**
-   * Spawn child process with streaming I/O support (Option B — FFI only).
-   * Throws if the native library is not available.
+   * Spawn a child process with streaming stdin, stdout and stderr, through the
+   * Go bridge only; there is no runtime fallback.
+   *
+   * It is synchronous, so the bridge must already be loaded: by an earlier
+   * `spawn()` in this process, or by another package that uses the bridge.
+   *
+   * @throws {Error} When no bridge library has loaded.
    *
    * @example
    * ```ts
-   * const child = exec`deno fmt -`.child();
+   * import * as shell from "@eserstack/shell";
+   *
+   * const input = ReadableStream.from([new TextEncoder().encode("const a=1")]);
+   * const child = shell.exec.exec`deno fmt -`.child();
    * await input.pipeTo(child.stdin!);
    * const { stdout } = await child.output();
    * ```
    */
   child(): standardsCrossRuntime.ChildProcess {
-    const lib = getLib();
+    // child() is synchronous, so it can only use a library that has already
+    // loaded: the native one spawn() loads, or the shared one.
+    const lib = ffiClient.getNativeLib() ?? ffiClient.getLib();
 
     if (lib === null) {
+      const nativeCause = ffiClient.describeNativeLoadFailure();
+
       throw new Error(
-        "@eserstack/ajan native library is not available — " +
+        "@eserstack/ajan native library is not available: " +
           "exec.child() requires FFI or command-mode WASM" +
-          describeLoadFailure(),
+          (nativeCause !== "" ? nativeCause : ffiClient.describeLoadFailure()),
       );
     }
 
-    const env = envToPairs(this.#options.env);
+    const env = execGo.envToPairs(this.#options.env);
 
     return childGo.spawnChildGoSync(lib, {
       command: this.#cmd,

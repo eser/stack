@@ -3,7 +3,7 @@
 import * as results from "@eserstack/primitives/results";
 import type * as types from "../types.ts";
 import type * as config from "../config.ts";
-import type * as generation from "../generation.ts";
+import * as generation from "../generation.ts";
 import type * as batch from "../batch.ts";
 import type * as model from "../model.ts";
 import * as errors from "../errors.ts";
@@ -19,6 +19,8 @@ export class OpenAIModel
     "streaming",
     "tool_calling",
     "vision",
+    // Audio blocks are sent as input_audio.
+    "audio",
     "batch_processing",
     "structured_output",
     "reasoning",
@@ -26,10 +28,12 @@ export class OpenAIModel
   readonly provider = "openai";
   readonly modelId: string;
 
+  // The SDK is loaded lazily by the factory; its client type is not in scope.
   // deno-lint-ignore no-explicit-any
   private readonly client: any;
   private readonly config: config.ResolvedConfigTarget;
 
+  // Takes the lazily imported SDK client stored in the field above.
   // deno-lint-ignore no-explicit-any
   constructor(client: any, cfg: config.ResolvedConfigTarget) {
     this.client = client;
@@ -41,9 +45,8 @@ export class OpenAIModel
     options: generation.GenerateTextOptions,
     signal?: AbortSignal,
   ): Promise<results.Result<generation.GenerateTextResult, errors.AiError>> {
-    const params = buildParams(this.config, options);
-
     try {
+      const params = buildParams(this.config, options);
       const response = await this.client.chat.completions.create(params, {
         signal,
         timeout: this.config.requestTimeoutMs,
@@ -59,9 +62,8 @@ export class OpenAIModel
     options: generation.GenerateTextOptions,
     signal?: AbortSignal,
   ): AsyncIterable<generation.StreamEvent> {
-    const params = buildParams(this.config, options);
-
     try {
+      const params = buildParams(this.config, options);
       const stream = await this.client.chat.completions.create(
         { ...params, stream: true },
         { signal, timeout: this.config.requestTimeoutMs },
@@ -73,6 +75,7 @@ export class OpenAIModel
       >();
       let inputTokens = 0;
       let outputTokens = 0;
+      let refused = false;
 
       for await (const chunk of stream) {
         const choice = chunk.choices?.[0];
@@ -84,6 +87,16 @@ export class OpenAIModel
 
         if (delta?.content !== undefined && delta.content !== null) {
           yield { kind: "content_delta", textDelta: delta.content };
+        }
+
+        // A refusal arrives in its own field and explains why there is no
+        // answer, so it streams as text too.
+        if (
+          delta?.refusal !== undefined && delta.refusal !== null &&
+          delta.refusal !== ""
+        ) {
+          refused = true;
+          yield { kind: "content_delta", textDelta: delta.refusal };
         }
 
         if (delta?.tool_calls !== undefined) {
@@ -109,10 +122,12 @@ export class OpenAIModel
           // Emit completed tool calls
           for (const [, tc] of toolCalls) {
             let args: Record<string, unknown> = {};
-            try {
-              args = JSON.parse(tc.args || "{}");
-            } catch {
-              // Keep empty args on parse failure
+            if (tc.args !== "") {
+              try {
+                args = JSON.parse(tc.args);
+              } catch {
+                // Keep empty args on parse failure
+              }
             }
             yield {
               kind: "tool_call_delta",
@@ -131,7 +146,9 @@ export class OpenAIModel
 
           yield {
             kind: "message_done",
-            stopReason: mapStopReason(choice.finish_reason),
+            stopReason: refused
+              ? "refusal"
+              : mapStopReason(choice.finish_reason),
             usage: {
               inputTokens,
               outputTokens,
@@ -284,10 +301,10 @@ export class OpenAIModel
 
 export const openaiFactory: model.ProviderFactory = {
   provider: "openai",
-  async createModel(
+  createModel: async (
     cfg: config.ResolvedConfigTarget,
-  ): Promise<model.LanguageModel> {
-    const { default: OpenAI } = await import("openai");
+  ): Promise<model.LanguageModel> => {
+    const openaiSdk = await import("openai");
 
     const clientOptions: Record<string, unknown> = {};
 
@@ -298,7 +315,7 @@ export const openaiFactory: model.ProviderFactory = {
       clientOptions["baseURL"] = cfg.baseUrl;
     }
 
-    const client = new OpenAI(clientOptions);
+    const client = new openaiSdk.OpenAI(clientOptions);
 
     return new OpenAIModel(client, cfg);
   },
@@ -314,10 +331,11 @@ const buildParams = (
 ): Record<string, unknown> => {
   const messages = mapMessages(options.messages, options.system);
 
+  // Keys follow the OpenAI Chat Completions request body.
   const params: Record<string, unknown> = {
     model: cfg.model,
     messages,
-    max_tokens: options.maxTokens ?? cfg.maxTokens,
+    "max_tokens": options.maxTokens ?? cfg.maxTokens,
   };
 
   if (options.temperature !== undefined) {
@@ -353,7 +371,10 @@ const buildParams = (
         type: "json_schema",
         json_schema: {
           name: options.responseFormat.name ?? "response",
-          schema: options.responseFormat.jsonSchema,
+          schema: generation.requireJsonSchema(
+            options.responseFormat,
+            "openai",
+          ),
           strict: true,
         },
       };
@@ -362,7 +383,11 @@ const buildParams = (
     }
   }
 
-  if (options.thinkingBudget !== undefined) {
+  // The effort levels are OpenAI's own reasoning_effort values. An explicit
+  // effort wins over the level the budget maps to.
+  if (options.effort !== undefined) {
+    params["reasoning_effort"] = options.effort;
+  } else if (options.thinkingBudget !== undefined) {
     params["reasoning_effort"] = mapReasoningEffort(options.thinkingBudget);
   }
 
@@ -404,7 +429,11 @@ const mapMessages = (
       continue;
     }
 
-    const contentParts = message.content.map(mapContentBlock);
+    // Thinking blocks are left out: OpenAI has no field for another
+    // provider's reasoning, and as text they would become part of the turn.
+    const contentParts = message.content
+      .filter((block) => block.kind !== "thinking")
+      .map(mapContentBlock);
 
     if (contentParts.length === 1 && contentParts[0]?.["type"] === "text") {
       result.push({ role: message.role, content: contentParts[0]["text"] });
@@ -477,6 +506,7 @@ const mapContentBlock = (
 };
 
 const mapResponse = (
+  // The response is untyped vendor JSON; only the mapped fields are read.
   // deno-lint-ignore no-explicit-any
   response: any,
   modelId: string,
@@ -491,6 +521,15 @@ const mapResponse = (
       choice.message?.content !== undefined && choice.message.content !== null
     ) {
       contentBlocks.push({ kind: "text", text: choice.message.content });
+    }
+
+    // A model that declines a structured-output request sets message.refusal
+    // and still finishes with "stop". The refusal explains why there is no
+    // answer, so it is kept as text.
+    const refusal = choice.message?.refusal;
+    const refused = typeof refusal === "string" && refusal !== "";
+    if (refused) {
+      contentBlocks.push({ kind: "text", text: refusal });
     }
 
     if (choice.message?.tool_calls !== undefined) {
@@ -512,7 +551,7 @@ const mapResponse = (
       }
     }
 
-    stopReason = mapStopReason(choice.finish_reason);
+    stopReason = refused ? "refusal" : mapStopReason(choice.finish_reason);
   }
 
   return {
@@ -528,22 +567,34 @@ const mapResponse = (
   };
 };
 
+/**
+ * Maps OpenAI's finish_reason. `content_filter` means a filter withheld the
+ * answer, so it is a refusal; `function_call` is the deprecated name of
+ * `tool_calls`. A missing reason, which some OpenAI-compatible servers send, is
+ * taken as a finished answer; any other reason has no closer match than `stop`.
+ */
 const mapStopReason = (
   reason: string | null | undefined,
 ): generation.StopReason => {
-  if (reason === "stop") {
-    return "end_turn";
+  switch (reason) {
+    case "stop":
+    case null:
+    case undefined:
+    case "":
+      return "end_turn";
+    case "length":
+      return "max_tokens";
+    case "tool_calls":
+    case "function_call":
+      return "tool_use";
+    case "content_filter":
+      return "refusal";
+    default:
+      return "stop";
   }
-  if (reason === "length") {
-    return "max_tokens";
-  }
-  if (reason === "tool_calls") {
-    return "tool_use";
-  }
-
-  return "end_turn";
 };
 
+// The batch job is untyped vendor JSON; only the mapped fields are read.
 // deno-lint-ignore no-explicit-any
 const mapBatchJob = (result: any): batch.BatchJob => {
   return {
@@ -581,7 +632,7 @@ const mapBatchStatus = (status: string): batch.BatchStatus => {
   return "pending";
 };
 
-const mapReasoningEffort = (budget: number): string => {
+const mapReasoningEffort = (budget: number): generation.Effort => {
   if (budget <= 1000) {
     return "low";
   }
@@ -615,6 +666,7 @@ const classifyError = (err: unknown): errors.AiError => {
   }
 
   const error = err instanceof Error ? err : new Error(String(err));
+  // SDK errors carry the HTTP status on a field their type does not declare.
   // deno-lint-ignore no-explicit-any
   const statusCode = (err as any)?.status ?? (err as any)?.statusCode ?? 500;
 

@@ -9,16 +9,8 @@ import type {
   LoggerRegistryState,
   Sink,
 } from "./types.ts";
-import {
-  categoryKey,
-  findMatchingConfigs,
-  normalizeCategory,
-} from "./category.ts";
-import {
-  clearDefaultStorages,
-  setCategoryPrefixStorage,
-  setContextStorage,
-} from "./context.ts";
+import * as category from "./category.ts";
+import * as context from "./context.ts";
 
 /**
  * External callback to clear logger cache (set by logger.ts to avoid circular imports).
@@ -82,18 +74,30 @@ export const isConfigured = (): boolean => {
  * Configures the logging system with sinks, filters, and loggers.
  *
  * @example
- * await configure({
- *   sinks: {
- *     console: getOutputSink(out),
- *   },
+ * ```typescript
+ * import * as logging from "@eserstack/logging";
+ * import * as streams from "@eserstack/streams";
+ *
+ * const out = streams.output({
+ *   renderer: streams.renderers.ansi(),
+ *   sink: streams.sinks.stdout(),
+ * });
+ *
+ * await logging.config.configure({
+ *   sinks: { console: logging.sinks.getOutputSink(out) },
  *   filters: {
- *     production: getLevelFilter(logging.Severities.Warning),
+ *     production: logging.filters.getLevelFilter(logging.Severities.Warning),
  *   },
  *   loggers: [
- *     { category: ["myapp"], lowestLevel: logging.Severities.Debug, sinks: ["console"] },
- *     { category: ["myapp", "db"], sinks: ["console", "file"], filters: ["production"] },
+ *     {
+ *       category: ["myapp"],
+ *       lowestLevel: logging.Severities.Debug,
+ *       sinks: ["console"],
+ *     },
+ *     { category: ["myapp", "db"], filters: ["production"] },
  *   ],
  * });
+ * ```
  */
 export const configure = async (
   options: ConfigureOptions,
@@ -113,8 +117,8 @@ export const configure = async (
 
   // Register logger configs
   for (const loggerConfig of options.loggers) {
-    const normalized = normalizeCategory(loggerConfig.category);
-    const key = categoryKey(normalized);
+    const normalized = category.normalizeCategory(loggerConfig.category);
+    const key = category.categoryKey(normalized);
     registryState.loggers.set(key, {
       ...loggerConfig,
       category: normalized,
@@ -123,7 +127,7 @@ export const configure = async (
 
   // Set custom context storage if provided
   if (options.contextLocalStorage) {
-    setContextStorage(options.contextLocalStorage);
+    context.setContextStorage(options.contextLocalStorage);
   }
 
   // Clear logger cache
@@ -142,9 +146,13 @@ export const reset = async (): Promise<void> => {
     for (const sink of registryState.sinks.values()) {
       // deno-lint-ignore no-explicit-any
       const disposable = sink as any;
+      // Sinks can wrap the same writer (stdout, one file), so they are disposed
+      // one at a time to keep their final flushes from interleaving.
       if (typeof disposable.dispose === "function") {
+        // deno-lint-ignore no-await-in-loop
         await disposable.dispose();
       } else if (typeof disposable[Symbol.asyncDispose] === "function") {
+        // deno-lint-ignore no-await-in-loop
         await disposable[Symbol.asyncDispose]();
       }
     }
@@ -153,9 +161,9 @@ export const reset = async (): Promise<void> => {
   registryState = null;
   loggerCache.clear();
   clearLoggerCacheCallback?.();
-  setContextStorage(undefined);
-  setCategoryPrefixStorage(undefined);
-  clearDefaultStorages();
+  context.setContextStorage(undefined);
+  context.setCategoryPrefixStorage(undefined);
+  context.clearDefaultStorages();
 };
 
 /**
@@ -163,9 +171,9 @@ export const reset = async (): Promise<void> => {
  * This resolves inheritance from parent categories.
  */
 export const getEffectiveConfig = (
-  category: Category,
+  loggerCategory: Category,
 ): { sinks: Sink[]; filters: Filter[]; lowestLevel: logging.Severity } => {
-  const key = categoryKey(category);
+  const key = category.categoryKey(loggerCategory);
 
   // Check cache
   const cached = loggerCache.get(key);
@@ -189,7 +197,10 @@ export const getEffectiveConfig = (
   }
 
   // Find matching configs (sorted by specificity, most specific first)
-  const matchingConfigs = findMatchingConfigs(category, registryState.loggers);
+  const matchingConfigs = category.findMatchingConfigs(
+    loggerCategory,
+    registryState.loggers,
+  );
 
   // Track which sinks to use
   const sinkNames = new Set<string>();
@@ -300,8 +311,8 @@ export const registerLogger = (config: LoggerConfig): void => {
     throw new Error("Logging not configured. Call configure() first.");
   }
 
-  const normalized = normalizeCategory(config.category);
-  const key = categoryKey(normalized);
+  const normalized = category.normalizeCategory(config.category);
+  const key = category.categoryKey(normalized);
   registryState.loggers.set(key, { ...config, category: normalized });
   loggerCache.clear();
 };
@@ -337,7 +348,7 @@ export const getLoggerCategories = (): Category[] => {
   }
 
   return Array.from(registryState.loggers.values()).map(
-    (config) => normalizeCategory(config.category),
+    (config) => category.normalizeCategory(config.category),
   );
 };
 

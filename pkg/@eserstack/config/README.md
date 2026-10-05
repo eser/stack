@@ -49,34 +49,37 @@ brief descriptions and usage examples.
 
 ### Loading environment variables
 
+The `.env` loader lives in the `@eserstack/config/dotenv` entry point. `load()`
+returns a `Map` of variable names to values.
+
 **Basic usage:**
 
-```js
-import * as config from "@eserstack/config";
+```typescript
+import * as dotenv from "@eserstack/config/dotenv";
 
-const vars = await config.load();
-console.log(vars);
+const vars = await dotenv.load();
+console.log(vars.get("PORT"));
 ```
 
 **Load from different directory:**
 
-```js
-import * as config from "@eserstack/config";
+```typescript
+import * as dotenv from "@eserstack/config/dotenv";
 
-const vars = await config.load({ baseDir: "./config" });
-console.log(vars);
+const vars = await dotenv.load({ baseDir: "./config" });
+console.log(vars.get("PORT"));
 ```
 
 ### Configuring an options object with environment reader
 
 **Basic usage:**
 
-```js
-import * as config from "@eserstack/config";
+```typescript
+import * as dotenv from "@eserstack/config/dotenv";
 
-const options = await config.configure(
+const options = await dotenv.configure<Record<string, unknown>>(
   (reader, acc) => {
-    acc["env"] = reader[config.env];
+    acc["env"] = reader.getCurrentEnv();
     acc["port"] = reader.readInt("PORT", 8080);
 
     return acc;
@@ -87,17 +90,17 @@ const options = await config.configure(
 
 **With custom interfaces:**
 
-```js
-import * as config from "@eserstack/config";
+```typescript
+import * as dotenv from "@eserstack/config/dotenv";
 
 type Options = {
   env: string;
   port: number;
 };
 
-const options = await config.configure<Options>(
+const options = await dotenv.configure<Options>(
   (reader, acc) => {
-    acc.env = reader[config.env];
+    acc.env = reader.getCurrentEnv();
     acc.port = reader.readInt("PORT", 8080);
 
     return acc;
@@ -105,6 +108,21 @@ const options = await config.configure<Options>(
   {},
 );
 ```
+
+## Upgrading from 4.x
+
+These changes since 4.5.2 need a change in code, commands or files that use this
+package. The [changelog](https://github.com/eser/stack/blob/main/CHANGELOG.md)
+lists the changes in every package.
+
+- dotenv `load()`, `configure()` and `parseEnvFromFile()` read values as written
+  instead of running `decodeURIComponent` over them, and a lone `%` no longer
+  throws. Before: `NAME=hello%20world`. After: `NAME="hello world"`.
+- dotenv `load()` takes the environment name from the value of the first set,
+  non-empty variable in `envVars` (`ENV`, `APP_ENV`, `DENO_ENV`, `NODE_ENV` by
+  default) and honours `options.envVars`. It used to use the variable's name, so
+  `ENV=production` loaded `.env.ENV`. Rename such a file after the value:
+  `.env.ENV` becomes `.env.production`.
 
 ---
 

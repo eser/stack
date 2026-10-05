@@ -6,12 +6,16 @@
  *
  * @example
  * ```tsx
- * import { runFunction } from "@eserstack/laroux-react/use-function";
- * import { listRecipes } from "@eserstack/registry/handlers/list-recipes";
+ * import * as larouxReact from "@eserstack/laroux-react";
+ * import * as kitHandlers from "@eserstack/kit/recipes/handlers";
  *
- * export default async function RecipesPage({ params }) {
- *   const { recipes } = await runFunction(listRecipes({ language: params.lang }));
- *   return <div>{recipes.map(r => <p>{r.name}</p>)}</div>;
+ * type RecipesPageProps = { readonly params: { readonly lang: string } };
+ *
+ * export async function RecipesPage(props: RecipesPageProps) {
+ *   const output = await larouxReact.runFunction(
+ *     kitHandlers.listRecipes.listRecipes({ language: props.params.lang }),
+ *   );
+ *   return <div>{output.recipes.map((r) => <p key={r.name}>{r.name}</p>)}</div>;
  * }
  * ```
  *
@@ -31,11 +35,12 @@ import * as streams from "@eserstack/streams";
  * Uses plain renderer + buffer sink — React components handle their own
  * rendering via SpanView, not through the Output stream.
  */
-type FunctionContext = {
+export type FunctionContext = {
   readonly out: streams.Output;
 };
 
-type RunFunctionOptions = {
+/** Options for {@link runFunction}. */
+export type RunFunctionOptions = {
   /** Additional context properties to merge */
   readonly context?: Readonly<Record<string, unknown>>;
 };
@@ -57,7 +62,7 @@ type RunFunctionOptions = {
  * @returns The handler's success value
  * @throws Error if the Task fails
  */
-const runFunction = async <T, E>(
+export const runFunction = async <T, E>(
   t: task.Task<T, E, FunctionContext>,
   options?: RunFunctionOptions,
 ): Promise<T> => {
@@ -85,7 +90,3 @@ const runFunction = async <T, E>(
 
   throw new Error(message);
 };
-
-export { runFunction };
-
-export type { FunctionContext, RunFunctionOptions };

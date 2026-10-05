@@ -6,9 +6,11 @@
  * @module
  */
 
-import { type AgentAdapter, createCliAgentAdapter } from "../adapter.ts";
+import * as adapter from "../adapter.ts";
+import type { AgentAdapter } from "../adapter.ts";
 
-export const codexAdapter: AgentAdapter = createCliAgentAdapter({
+/** Adapter for Codex: looks for `codex` on PATH. */
+export const codexAdapter: AgentAdapter = adapter.createCliAgentAdapter({
   id: "codex",
   displayName: "Codex",
   candidates: ["codex"],

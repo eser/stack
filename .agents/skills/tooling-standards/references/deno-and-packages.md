@@ -14,12 +14,28 @@ are chosen and declared.
 
 ## Tooling Preference
 
-Scope: JS/TS work in repositories on the eserstack toolchain
+Scope: JS/TS work in this codebase
 
-Rule: pnpm installs dependencies; Deno runs, formats, lints, type-checks and
-tests. Do not use `npm install`, `deno install` or `npx`. Do not replace a tool
-the project already uses (Deno, pnpm, Go, Make) with another one, or change how
-a tool is invoked, without the owner's approval.
+Rule: pnpm is the package manager: it installs, adds and removes dependencies.
+Deno runs, formats, lints, type-checks and tests. npm stays at a minimum: do not
+use `npm install`, `npm ci`, `npm test`, `npm run`, `npx` or `deno install`.
+Read-only registry queries such as `npm view` are fine.
+
+Package scripts run without a package manager in between:
+
+- A package whose scripts are Deno tasks runs them with `deno task <name>`.
+- A Node-only tooling package (a web app built with Vite, a package whose tests
+  run on Node) keeps its scripts in its `package.json` and runs them with
+  `node --run <script>`, which needs Node 22 or later.
+
+A README, script or older document that tells a contributor to use npm in this
+codebase is not an exception: run the pnpm, `deno task` or `node --run` form and
+update that text in the same change. Install instructions for consumers of a
+published package, and strings in code or API examples, are not commands for
+this codebase and stay as they are.
+
+Do not replace a tool this codebase already uses (Deno, pnpm, Node, Go, Make)
+with another one, or change how a tool is invoked, without the owner's approval.
 
 Correct:
 
@@ -28,19 +44,23 @@ pnpm install
 pnpm add react --filter @scope/web
 deno fmt
 deno lint
-deno task cli test
+deno task test
+node --run build   # in a Node-only package
 ```
 
 Incorrect:
 
 ```bash
 npm install
+npm ci
+npm run build
 npx vitest
 ```
 
 **Why:** module resolution runs through pnpm's workspace symlinks in
-`node_modules`, and every validation step is a Deno command; a second package
-manager produces a different tree.
+`node_modules`, and a second package manager produces a different tree.
+`node --run` reads a script straight from `package.json` and starts it without
+loading a package manager or its pre and post hooks.
 
 ---
 
@@ -50,8 +70,8 @@ Scope: Root and per-package configuration
 
 Rule: `package.json` is the source of truth for each package's name, exports and
 dependencies. A package's `deno.json` is a generated JSR publish manifest; never
-edit it, and when you change `package.json` run the repository's generator
-(named in `AGENTS.md`) instead of mirroring the change by hand. Fields
+edit it, and when you change `package.json` run this codebase's generator (named
+in its `AGENTS.md`) instead of mirroring the change by hand. Fields
 `package.json` cannot express (`publish.include`, `tasks`) go in the package's
 `deno.extra.json`.
 
@@ -124,8 +144,8 @@ down:
 - Purpose, and why the standard library (`@std/*`, Go stdlib) or an existing
   workspace package cannot do it. If about 50 lines of our own code would do it,
   write the code.
-- License: compatible with the repository's license (Apache-2.0 here). GPL, LGPL
-  or AGPL dependencies need explicit approval from the owner.
+- License: compatible with this codebase's license. GPL, LGPL or AGPL
+  dependencies need explicit approval from the owner.
 - Advisories: no open advisory in the registry's advisory data or the Go
   vulnerability database.
 - Health: an identifiable maintainer and recent releases. Its install scripts

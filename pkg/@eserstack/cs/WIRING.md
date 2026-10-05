@@ -20,11 +20,11 @@ lib.symbols.EserAjanCsGenerate(JSON.stringify({
 > expects an absolute file path. TS resolves:
 > `runtime.path.join(runtime.process.cwd(), ".env.${env}")`.
 >
-> When `env` is `undefined`, the FFI path is skipped entirely — Go cannot
-> auto-discover `.env` from CWD.
+> When `env` is `undefined`, TS sends `envFile: ""` and `cwd`, and the bridge
+> reads `.env` and `.env.local` from that directory.
 
-**EserAjanCsSync** — generates a `kubectl patch` command to sync env values into
-an existing resource:
+**EserAjanCsSync** generates a `kubectl patch` command to sync env values into
+an existing resource. `sync.ts` does not call it; see D2 below.
 
 ```ts
 lib.symbols.EserAjanCsSync(JSON.stringify({
@@ -103,11 +103,8 @@ N/A — `@eserstack/cs` is stateless. No handles are created or maintained. Both
 - `EserAjanCsGenerate` reads from a `.env` file on disk — WASM's `wasip1` has no
   `open()`, so FFI will fail. TS fallback handles file reading via
   `@eserstack/config/dotenv`.
-- `EserAjanCsSync` runs `kubectl` as a subprocess — subprocess execution is
-  unavailable in WASM. TS fallback constructs the patch command string
-  independently.
-- When `env: undefined`, TS auto-discovers `.env` from CWD via
-  `dotenv.load({ env: undefined })`. This case is always TS-only.
+- `EserAjanCsSync` runs `kubectl` as a subprocess, which WASM cannot do.
+  `sync()` runs in TypeScript in every runtime (D2).
 
 ## Behavioral divergences
 
@@ -126,9 +123,20 @@ not a valid JSON array. TS's `formats.serialize([resource], "json")` produces
 changed to use `WriteStart + WriteItem(IsFirst:true) + WriteEnd`. All formats
 now go through FFI uniformly. Hybrid routing removed from `generate.ts`.
 
-### sync.ts TS fallback format dispatch — NOT a divergence
+### D2: sync options the Go Sync cannot honor `TS_ONLY`
 
-`sync.ts:307` contains `if (format === "yaml")` inside the TS fallback body.
-This is format-specific serialization within the TS fallback implementation, not
-a routing decision between FFI and TS. It is not a behavioral divergence — both
-Go (FFI path) and TS (fallback path) handle all formats correctly.
+**Discovery (2026-10-05)**: `sync.ts` sent the environment name (`env`, for
+example `"production"`) as `envFile`, a path. The bridge found no file by that
+name and returned `# No matching environment variables found` while
+`.env.production` held the values, and no fallback ran because it was not an
+error. Even with a path, Go reads one file and no process environment, while the
+TS `sync()` layers `.env`, `.env.<env>`, `.env.local`, `.env.<env>.local` and
+the process environment. Go also cannot call `onMissingKey`, which the CLI uses
+for its warnings, or an injected `getResourceKeys`. Go's YAML patch is a
+sequence (`- data:`), which is not a valid merge patch.
+
+**Resolution**: `sync()` no longer calls `EserAjanCsSync`. It runs in
+TypeScript, and its YAML patch is a single mapping (`data:`). Delegating again
+needs a request with the environment name and directory, layered files and
+process environment in Go, the missing keys in the response, and a mapping for
+the YAML patch.

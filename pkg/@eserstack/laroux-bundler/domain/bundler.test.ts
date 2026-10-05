@@ -1,8 +1,9 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import { assertEquals, assertExists } from "@std/assert";
+import * as assert from "@std/assert";
 import { runtime } from "@eserstack/standards/cross-runtime";
-import { analyzeBundleResult, type BundleResult } from "./bundler.ts";
+import * as bundler from "./bundler.ts";
+import type { BundleResult } from "./bundler.ts";
 
 Deno.test("bundler", async (t) => {
   await t.step("analyzeBundleResult - with chunks", () => {
@@ -17,14 +18,14 @@ Deno.test("bundler", async (t) => {
       totalSize: 17000,
     };
 
-    const analysis = analyzeBundleResult(result);
+    const analysis = bundler.analyzeBundleResult(result);
 
-    assertEquals(analysis.chunkCount, 3);
-    assertEquals(analysis.largestChunk.name, "client.js");
-    assertEquals(analysis.largestChunk.size, 10000);
-    assertEquals(analysis.smallestChunk.name, "chunk-DEF456.js");
-    assertEquals(analysis.smallestChunk.size, 2000);
-    assertEquals(analysis.averageChunkSize, 17000 / 3);
+    assert.assertEquals(analysis.chunkCount, 3);
+    assert.assertEquals(analysis.largestChunk.name, "client.js");
+    assert.assertEquals(analysis.largestChunk.size, 10000);
+    assert.assertEquals(analysis.smallestChunk.name, "chunk-DEF456.js");
+    assert.assertEquals(analysis.smallestChunk.size, 2000);
+    assert.assertEquals(analysis.averageChunkSize, 17000 / 3);
   });
 
   await t.step("analyzeBundleResult - empty", () => {
@@ -35,14 +36,14 @@ Deno.test("bundler", async (t) => {
       totalSize: 0,
     };
 
-    const analysis = analyzeBundleResult(result);
+    const analysis = bundler.analyzeBundleResult(result);
 
-    assertEquals(analysis.chunkCount, 0);
-    assertEquals(analysis.largestChunk.name, "");
-    assertEquals(analysis.largestChunk.size, 0);
-    assertEquals(analysis.smallestChunk.name, "");
-    assertEquals(analysis.smallestChunk.size, 0);
-    assertEquals(analysis.averageChunkSize, 0);
+    assert.assertEquals(analysis.chunkCount, 0);
+    assert.assertEquals(analysis.largestChunk.name, "");
+    assert.assertEquals(analysis.largestChunk.size, 0);
+    assert.assertEquals(analysis.smallestChunk.name, "");
+    assert.assertEquals(analysis.smallestChunk.size, 0);
+    assert.assertEquals(analysis.averageChunkSize, 0);
   });
 
   await t.step("analyzeBundleResult - single chunk", () => {
@@ -55,14 +56,14 @@ Deno.test("bundler", async (t) => {
       totalSize: 50000,
     };
 
-    const analysis = analyzeBundleResult(result);
+    const analysis = bundler.analyzeBundleResult(result);
 
-    assertEquals(analysis.chunkCount, 1);
-    assertEquals(analysis.largestChunk.name, "client.js");
-    assertEquals(analysis.largestChunk.size, 50000);
-    assertEquals(analysis.smallestChunk.name, "client.js");
-    assertEquals(analysis.smallestChunk.size, 50000);
-    assertEquals(analysis.averageChunkSize, 50000);
+    assert.assertEquals(analysis.chunkCount, 1);
+    assert.assertEquals(analysis.largestChunk.name, "client.js");
+    assert.assertEquals(analysis.largestChunk.size, 50000);
+    assert.assertEquals(analysis.smallestChunk.name, "client.js");
+    assert.assertEquals(analysis.smallestChunk.size, 50000);
+    assert.assertEquals(analysis.averageChunkSize, 50000);
   });
 });
 
@@ -115,10 +116,10 @@ export function Counter() {
     };
 
     // Verify all required fields are present
-    assertExists(options.entrypoints);
-    assertExists(options.outputDir);
-    assertExists(options.projectRoot);
-    assertEquals(options.entrypoints.length, 1);
+    assert.assertExists(options.entrypoints);
+    assert.assertExists(options.outputDir);
+    assert.assertExists(options.projectRoot);
+    assert.assertEquals(options.entrypoints.length, 1);
   });
 
   // Cleanup

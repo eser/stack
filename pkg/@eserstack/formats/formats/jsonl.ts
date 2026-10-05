@@ -1,7 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 import type { Format, FormatOptions, FormatReader } from "../types.ts";
-import { DeserializationError, SerializationError } from "../types.ts";
+import * as types from "../types.ts";
 
 export const writeStart = (_options?: FormatOptions): string => {
   return "";
@@ -14,7 +14,7 @@ export const writeItem = (
   try {
     return JSON.stringify(data) + "\n";
   } catch (error) {
-    throw new SerializationError(
+    throw new types.SerializationError(
       `Failed to serialize JSONL: ${
         error instanceof Error ? error.message : String(error)
       }`,
@@ -47,7 +47,7 @@ export const createReader = (_options?: FormatOptions): FormatReader => {
         try {
           items.push(JSON.parse(trimmed));
         } catch (error) {
-          throw new DeserializationError(
+          throw new types.DeserializationError(
             `Failed to deserialize JSONL line: ${
               error instanceof Error ? error.message : String(error)
             }`,
@@ -71,7 +71,7 @@ export const createReader = (_options?: FormatOptions): FormatReader => {
       try {
         return [JSON.parse(trimmed)];
       } catch (error) {
-        throw new DeserializationError(
+        throw new types.DeserializationError(
           `Failed to deserialize JSONL line: ${
             error instanceof Error ? error.message : String(error)
           }`,

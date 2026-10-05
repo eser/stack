@@ -1,7 +1,6 @@
 package noskillsserverfx
 
 import (
-	"bufio"
 	"context"
 	"encoding/json"
 	"errors"
@@ -10,8 +9,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
-	"sync"
 	"time"
 
 	"github.com/eser/stack/pkg/ajan/logfx"
@@ -46,22 +43,29 @@ const (
 // ── Interface ─────────────────────────────────────────────────────────────────
 
 // WorkerHandle is the daemon-side handle to a running TS worker process.
+//
+// Every method that sends to the worker takes the caller's ctx. A send that
+// can block (the mux worker's socket writes) does not start once ctx has
+// ended, and it ends by ctx's deadline or after workerWriteTimeout, whichever
+// is sooner. A worker that stops reading therefore cannot hold the
+// WebTransport read loop that also carries the client's stop.
 type WorkerHandle interface {
 	// SendQueryStart sends the initial query_start message to the worker.
 	SendQueryStart(ctx context.Context, cwd, sessionID string, resume string) error
 	// PushMessage pushes a user message into the running query.
-	PushMessage(content string) error
+	PushMessage(ctx context.Context, content string) error
 	// PermissionResponse resolves a pending canUseTool request.
-	PermissionResponse(requestID, behavior, message string) error
+	PermissionResponse(ctx context.Context, requestID, behavior, message string) error
 	// SendMux relays a raw mux frontend frame (a {"t":...} object) to a mux
 	// worker. No-op semantics for agent workers (they ignore unknown messages).
-	SendMux(frame json.RawMessage) error
+	SendMux(ctx context.Context, frame json.RawMessage) error
 	// SetMode switches the session's mode, e.g. plan vs edit. Workers that have
 	// no mode concept return nil rather than an error: the client's request was
-	// well-formed and there is nothing to fail.
-	SetMode(mode string) error
-	// StopTask asks the worker to abort the current task gracefully.
-	StopTask() error
+	// well-formed and there is nothing to fail. ctx bounds the call.
+	SetMode(ctx context.Context, mode string) error
+	// StopTask asks the worker to abort the current task gracefully. ctx
+	// bounds the call.
+	StopTask(ctx context.Context) error
 	// Close tears down the worker process.
 	Close() error
 	// Events returns a channel of worker-to-daemon messages.
@@ -82,17 +86,7 @@ var (
 	_ WorkerHandle = (*MockWorkerHandle)(nil)
 )
 
-// ── Implementation ────────────────────────────────────────────────────────────
-
-type workerImpl struct {
-	sessionID string
-	cmd       *exec.Cmd
-	conn      net.Conn
-	events    chan WorkerEvent
-	enc       *json.Encoder
-	mu        sync.Mutex
-	once      sync.Once
-}
+// ── Spawning ──────────────────────────────────────────────────────────────────
 
 // ErrWorkerRuntimeMissing is returned when no JavaScript runtime can run the
 // mux worker.
@@ -174,7 +168,13 @@ func SpawnWorker(
 		if override := os.Getenv("NOSKILLS_MUX_WORKER_PATH"); override != "" {
 			workerPath = override
 		} else {
-			exe, _ := os.Executable()
+			exe, err := os.Executable()
+			if err != nil {
+				return nil, fmt.Errorf(
+					"locate mux-worker.ts beside the daemon binary: %w (set NOSKILLS_MUX_WORKER_PATH)", err,
+				)
+			}
+
 			workerPath = filepath.Join(filepath.Dir(exe), "mux-worker.ts")
 		}
 	}
@@ -202,224 +202,85 @@ func SpawnWorker(
 		return nil, runErr
 	}
 
-	cmd := exec.CommandContext(ctx, runCmd, runArgs...) //nolint:gosec
+	// The process belongs to the session, not to the attach request that
+	// spawned it: a client that disconnects must not take the session's
+	// terminals with it. Its context keeps ctx's values, drops its
+	// cancellation, and ends only through Close. HardenCommand makes that end
+	// kill the whole process group.
+	processCtx, stopProcess := context.WithCancel(context.WithoutCancel(ctx))
+
+	cmd := exec.CommandContext(processCtx, runCmd, runArgs...) //nolint:gosec // G204: workerRuntime picks deno, bun or node, and the script path is daemon config, never client input
 	processfx.HardenCommand(cmd)
 	cmd.Dir = cwd
 	cmd.Stderr = os.Stderr
 
 	if err := cmd.Start(); err != nil {
+		stopProcess()
+
 		return nil, fmt.Errorf("spawn worker: %w", err)
+	}
+
+	// Until the worker is ready, ctx bounds the spawn: its end kills the
+	// process, which ends the wait for ready, and closes the listener, which
+	// ends the accept.
+	stopSpawnWatch := context.AfterFunc(ctx, func() {
+		stopProcess()
+		_ = listener.Close() // ends the accept; the deferred Close reports nothing new
+	})
+
+	// abort ends a worker that never became ready and reaps its process.
+	abort := func() {
+		stopSpawnWatch()
+		stopProcess()
+		_ = cmd.Wait() // the process was killed; its exit status says nothing new
 	}
 
 	// Accept the worker's connection (with timeout).
 	deadline := time.Now().Add(30 * time.Second)
 	if err := listener.(*net.UnixListener).SetDeadline(deadline); err != nil { //nolint:forcetypeassert
-		_ = cmd.Process.Kill()
+		abort()
 
 		return nil, fmt.Errorf("set accept deadline: %w", err)
 	}
 
 	conn, err := listener.Accept()
 	if err != nil {
-		_ = cmd.Process.Kill()
+		abort()
+
+		if ctx.Err() != nil {
+			return nil, fmt.Errorf("accept worker connection: %w", ctx.Err())
+		}
 
 		return nil, fmt.Errorf("accept worker connection: %w", err)
 	}
 
-	w := &workerImpl{
-		sessionID: sessionID,
-		cmd:       cmd,
-		conn:      conn,
-		events:    make(chan WorkerEvent, 256),
-		enc:       json.NewEncoder(conn),
-	}
+	w := newMuxWorker(sessionID, conn, stopProcess)
 
 	// Wait for "ready" message.
 	if err := w.waitForReady(ctx); err != nil {
-		_ = cmd.Process.Kill()
-		_ = conn.Close()
+		_ = conn.Close() // the worker is being killed; nothing reads the socket any more
+		abort()
 
 		return nil, fmt.Errorf("worker did not send ready: %w", err)
 	}
 
-	// Start background reader.
-	go w.readLoop(logger)
-	go func() {
-		_ = cmd.Wait()
-		w.once.Do(func() { close(w.events) })
-	}()
+	if !stopSpawnWatch() {
+		// ctx ended just as the worker became ready, and the watch has already
+		// started killing it.
+		_ = conn.Close() // as above
+		abort()
+
+		return nil, fmt.Errorf("spawn worker: %w", ctx.Err())
+	}
+
+	// processCtx carries the spawning request's ids into the log entries.
+	w.run(processCtx, logger, func() error {
+		if err := cmd.Wait(); err != nil {
+			return fmt.Errorf("mux worker process: %w", err)
+		}
+
+		return nil
+	})
 
 	return w, nil
-}
-
-func (w *workerImpl) waitForReady(ctx context.Context) error {
-	deadline, ok := ctx.Deadline()
-	if !ok {
-		deadline = time.Now().Add(30 * time.Second)
-	}
-
-	if err := w.conn.SetReadDeadline(deadline); err != nil {
-		return err
-	}
-
-	defer func() { _ = w.conn.SetReadDeadline(time.Time{}) }()
-
-	scanner := bufio.NewScanner(w.conn)
-
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-		if line == "" {
-			continue
-		}
-
-		var msg struct {
-			Type  string `json:"type"`
-			Stage string `json:"stage,omitempty"`
-		}
-
-		if err := json.Unmarshal([]byte(line), &msg); err != nil {
-			continue
-		}
-
-		// Forward spawn_progress before ready.
-		if msg.Type == "spawn_progress" {
-			w.events <- WorkerEvent{Type: "spawn_progress", Payload: []byte(line)}
-
-			continue
-		}
-
-		if msg.Type == "ready" {
-			return nil
-		}
-	}
-
-	if err := scanner.Err(); err != nil {
-		return fmt.Errorf("scanner: %w", err)
-	}
-
-	return fmt.Errorf("connection closed before ready") //nolint:err113
-}
-
-func (w *workerImpl) readLoop(logger *logfx.Logger) {
-	scanner := bufio.NewScanner(w.conn)
-	scanner.Buffer(make([]byte, 1<<20), 1<<20) // 1 MB line buffer
-
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-		if line == "" {
-			continue
-		}
-
-		var msg struct {
-			Type string `json:"type"`
-		}
-
-		if err := json.Unmarshal([]byte(line), &msg); err != nil {
-			logger.Warn("worker: malformed message", "line", line[:min(len(line), 200)])
-
-			continue
-		}
-
-		w.events <- WorkerEvent{Type: msg.Type, Payload: []byte(line)}
-	}
-
-	w.once.Do(func() { close(w.events) })
-}
-
-// sendLocked encodes msg onto the worker's stdin. The caller must already hold
-// w.mu -- w.mu is a plain sync.Mutex and is not reentrant, so any path that
-// already holds it must use this rather than send.
-func (w *workerImpl) sendLocked(msg any) error {
-	return w.enc.Encode(msg) //nolint:wrapcheck
-}
-
-func (w *workerImpl) send(msg any) error {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-
-	return w.sendLocked(msg)
-}
-
-func (w *workerImpl) SendQueryStart(ctx context.Context, cwd, sessionID, resume string) error {
-	type queryStart struct {
-		Type      string `json:"type"`
-		Cwd       string `json:"cwd"`
-		SessionID string `json:"sessionId"`
-		Resume    string `json:"resume,omitempty"`
-	}
-
-	_ = ctx
-
-	return w.send(queryStart{
-		Type:      "query_start",
-		Cwd:       cwd,
-		SessionID: sessionID,
-		Resume:    resume,
-	})
-}
-
-func (w *workerImpl) PushMessage(content string) error {
-	return w.send(map[string]string{"type": "push_message", "content": content})
-}
-
-func (w *workerImpl) PermissionResponse(requestID, behavior, message string) error {
-	type resp struct {
-		Type      string `json:"type"`
-		RequestID string `json:"requestId"`
-		Behavior  string `json:"behavior"`
-		Message   string `json:"message,omitempty"`
-	}
-
-	return w.send(resp{
-		Type:      "permission_response",
-		RequestID: requestID,
-		Behavior:  behavior,
-		Message:   message,
-	})
-}
-
-func (w *workerImpl) SendMux(frame json.RawMessage) error {
-	// {"type":"mux","frame":<frontend frame>} — the mux worker delivers `frame`
-	// straight to its mux server.
-	return w.send(struct {
-		Type  string          `json:"type"`
-		Frame json.RawMessage `json:"frame"`
-	}{Type: "mux", Frame: frame})
-}
-
-// SetMode forwards the request to the worker.
-//
-// The mux worker has no mode concept and ignores unknown messages, so today
-// this reaches nothing. It is still sent rather than dropped here: the daemon
-// should not be the component that decides a worker cannot do something, and a
-// worker that grows the capability needs no change on this side.
-func (w *workerImpl) SetMode(mode string) error {
-	return w.send(map[string]string{"type": "set_mode", "mode": mode})
-}
-
-func (w *workerImpl) StopTask() error {
-	return w.send(map[string]string{"type": "stop_task"})
-}
-
-func (w *workerImpl) Close() error {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-
-	// sendLocked, not send: we already hold w.mu and it is not reentrant.
-	_ = w.sendLocked(map[string]string{"type": "shutdown"})
-	_ = w.conn.Close()
-
-	if w.cmd.Process != nil {
-		return w.cmd.Process.Kill() //nolint:wrapcheck
-	}
-
-	return nil
-}
-
-func (w *workerImpl) Events() <-chan WorkerEvent {
-	return w.events
-}
-
-func (w *workerImpl) SessionID() string {
-	return w.sessionID
 }

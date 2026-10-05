@@ -94,18 +94,25 @@ export type QueueAction =
  * LangChain/LangGraph, Pydantic AI, and similar frameworks.
  *
  * Field naming aligns with Go `aifx` package (`ToolCall` struct in
- * `apps/services/pkg/eser-go/aifx/messages.go`).
+ * `pkg/ajan/aifx/messages.go`).
  *
  * ```ts
- * import * as handler from "@eserstack/functions/handler";
- * import type { ToolCallEvent } from "@eserstack/functions/triggers";
+ * import * as functions from "@eserstack/functions";
+ * import * as primitives from "@eserstack/primitives";
  *
- * const fromToolCall: handler.Adapter<ToolCallEvent, OrderInput> = (event) => {
- *   const args = event.arguments as { customerId: string } | null;
+ * type OrderInput = { readonly customerId: string };
+ *
+ * const fromToolCall: functions.handler.Adapter<
+ *   functions.triggers.ToolCallEvent,
+ *   OrderInput
+ * > = (event) => {
+ *   const args = event.arguments as { customerId?: string } | null;
  *   if (args?.customerId === undefined) {
- *     return results.fail(handler.adaptError("Missing customerId"));
+ *     return primitives.results.fail(
+ *       functions.handler.adaptError("Missing customerId"),
+ *     );
  *   }
- *   return results.ok({ customerId: args.customerId });
+ *   return primitives.results.ok({ customerId: args.customerId });
  * };
  * ```
  */
@@ -122,10 +129,17 @@ export type ToolCallEvent = {
  * Response returned to the model after tool execution.
  *
  * ```ts
- * const toToolResponse: handler.ResponseMapper<
- *   Order, OrderError | handler.AdaptError, ToolCallResponse
+ * import * as functions from "@eserstack/functions";
+ * import * as primitives from "@eserstack/primitives";
+ *
+ * type Order = { readonly id: string; readonly customerId: string };
+ *
+ * const toToolResponse: functions.handler.ResponseMapper<
+ *   Order,
+ *   Error | functions.handler.AdaptError,
+ *   functions.triggers.ToolCallResponse
  * > = (result) => {
- *   if (results.isOk(result)) {
+ *   if (primitives.results.isOk(result)) {
  *     return { content: result.value };
  *   }
  *   return { content: { error: result.error }, isError: true };

@@ -14,8 +14,6 @@
 
 import type * as streams from "@eserstack/streams";
 
-type HandlerContext = {
+export type HandlerContext = {
   readonly out: streams.Output;
 };
-
-export type { HandlerContext };

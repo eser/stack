@@ -13,8 +13,13 @@ import type {
 } from "@eserstack/bundler";
 import type { BundleResult } from "./bundler.ts";
 import type { ClientComponent } from "./framework-plugin.ts";
+import type {
+  ChunkManifest,
+  ComponentChunkInfo,
+  FileInfo,
+} from "@eserstack/laroux";
 import type { LogLevel } from "@eserstack/laroux/config";
-import { VIRTUAL_SRC_DIR } from "./virtual-source.ts";
+import * as virtualSource from "./virtual-source.ts";
 import * as logging from "@eserstack/logging";
 
 const manifestLogger = logging.logger.getLogger([
@@ -29,52 +34,33 @@ export type { BaseChunkInfo, BaseChunkManifest };
 const MANIFEST_VERSION = "1.0";
 
 /**
- * Manifest containing build metadata and chunk mappings for client components
+ * The bundle outputs do not cover the client components: a component has no
+ * chunk mapping, or its mapping names a chunk the bundle did not emit.
  */
-export type ChunkManifest = {
-  /** Manifest format version */
-  version: string;
-  /** Unique build identifier (ULID) */
-  buildId: string;
-  /** Build timestamp in milliseconds since epoch */
-  timestamp: number;
-  /** Entry point file name (e.g., "client.js") */
-  entrypoint: string;
-  /** Log level for LogTape */
-  logLevel: LogLevel;
-  /** Whether HMR is enabled (true for dev/runtime mode, false for production) */
-  hmrEnabled?: boolean;
-  /** Map of component paths to their chunk information */
-  chunks: Record<string, ComponentChunkInfo>;
-  /** Map of generated files and their metadata */
-  files: Record<string, FileInfo>;
-};
+export class ChunkManifestError extends Error {
+  /** One entry per component or chunk that could not be resolved */
+  readonly problems: readonly string[];
+  /** What the bundle did produce: output files or mapped entry points */
+  readonly available: readonly string[];
 
-/**
- * Information about a client component and its associated chunks
- */
-export type ComponentChunkInfo = {
-  /** Main chunk hash (e.g., "MARX6EW4") */
-  main: string;
-  /** Dependency chunk hashes (e.g., ["N3HWF3I4"]) */
-  deps: string[];
-  /** Export name - defaults to "default" if omitted */
-  exportName?: string;
-  /** Total size of chunks in bytes */
-  size: number;
-};
+  // Explicit assignment, not parameter properties: Node's erase-only type
+  // stripping cannot emit the assignment a parameter property implies.
+  constructor(
+    message: string,
+    problems: readonly string[],
+    available: readonly string[],
+  ) {
+    super(message);
+    this.name = "ChunkManifestError";
+    this.problems = problems;
+    this.available = available;
+  }
+}
 
-/**
- * Metadata about a bundled file
- */
-export type FileInfo = {
-  /** File name */
-  name: string;
-  /** File size in bytes */
-  size: number;
-  /** Optional content hash for cache busting */
-  hash?: string;
-};
+// The format is shared with laroux-server and the laroux-react client
+// bootstrap, so it lives in @eserstack/laroux; it is re-exported here for
+// callers that import it from the bundler.
+export type { ChunkManifest, ComponentChunkInfo, FileInfo };
 
 /**
  * Generate chunk manifest from bundle result and component analysis
@@ -153,18 +139,15 @@ export function generateChunkManifest(
     );
   }
 
-  // Fail build if validation found issues
+  // Fail the build if validation found issues; the build logs the error
   if (missingChunks.length > 0) {
-    manifestLogger.error(`❌ Chunk manifest validation failed!`);
-    manifestLogger.error(`   Missing chunks:`);
-    for (const missing of missingChunks) {
-      manifestLogger.error(`   - ${missing}`);
-    }
-    manifestLogger.error(
-      `   Available files: ${Object.keys(manifest.files).join(", ")}`,
-    );
-    throw new Error(
-      `Chunk manifest validation failed: ${missingChunks.length} chunk(s) referenced but not found in bundle outputs`,
+    const availableFiles = Object.keys(manifest.files);
+    throw new ChunkManifestError(
+      `chunk manifest: ${missingChunks.length} chunk(s) referenced but not found in bundle outputs: ${
+        missingChunks.join("; ")
+      }. Bundle outputs: ${availableFiles.join(", ")}`,
+      missingChunks,
+      availableFiles,
     );
   }
 
@@ -191,18 +174,17 @@ function findChunksForComponent(
   // Check if bundleResult has manifest mapping for this component
   const manifestChunks = bundleResult.manifest[component.filePath];
 
-  if (!manifestChunks || manifestChunks.length === 0) {
-    // Build failed: chunk mapping is incomplete
-    // This should never happen in a properly functioning bundler
-    manifestLogger.error(
-      `❌ No chunk mapping found for component: ${component.filePath}`,
-    );
-    manifestLogger.error(
-      `   Available mappings: ${Object.keys(bundleResult.manifest).join(", ")}`,
-    );
-    throw new Error(
-      `Chunk manifest incomplete: No chunks found for ${component.relativePath}. ` +
-        `This indicates the bundler failed to analyze the component's dependencies.`,
+  if (manifestChunks === undefined || manifestChunks.length === 0) {
+    // The bundler did not map this component to any chunk, which a working
+    // bundler never does; the build logs the error
+    const availableMappings = Object.keys(bundleResult.manifest);
+    throw new ChunkManifestError(
+      `chunk manifest: no chunks found for ${component.relativePath} (${component.filePath}); ` +
+        `the bundler did not analyze the component's dependencies. Mapped entry points: ${
+          availableMappings.join(", ")
+        }`,
+      [component.filePath],
+      availableMappings,
     );
   }
 
@@ -245,7 +227,7 @@ function stripChunkDecorations(filename: string): string {
  * e.g., "_bundle_src/src/app/icon.tsx" → "src/app/icon.tsx"
  */
 function normalizeManifestKey(relativePath: string): string {
-  const prefix = `${VIRTUAL_SRC_DIR}/`;
+  const prefix = `${virtualSource.VIRTUAL_SRC_DIR}/`;
   if (relativePath.startsWith(prefix)) {
     return relativePath.slice(prefix.length);
   }

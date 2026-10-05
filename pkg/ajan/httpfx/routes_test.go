@@ -12,7 +12,7 @@ import (
 func newTestRoute(t *testing.T) *httpfx.Route {
 	t.Helper()
 
-	router := httpfx.NewRouter("/")
+	router := newTestRouter()
 
 	return router.Route("GET /test-route", func(c *httpfx.Context) httpfx.Result {
 		return c.Results.Ok()

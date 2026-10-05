@@ -84,6 +84,24 @@ export const generateToken = (): string => {
 /**
  * Parses cookies from a Cookie header value.
  */
+/**
+ * Compares two tokens without stopping at the first differing character, so
+ * the time taken does not reveal how much of a guess was right.
+ */
+const constantTimeEqual = (a: string, b: string): boolean => {
+  const left = new TextEncoder().encode(a);
+  const right = new TextEncoder().encode(b);
+  // Tokens have a fixed, public length, so an early length check leaks nothing.
+  if (left.length !== right.length) {
+    return false;
+  }
+  let diff = 0;
+  for (let i = 0; i < left.length; i++) {
+    diff |= left[i]! ^ right[i]!;
+  }
+  return diff === 0;
+};
+
 const parseCookies = (cookieHeader: string): Map<string, string> => {
   const cookies = new Map<string, string>();
   if (cookieHeader === "") return cookies;
@@ -240,7 +258,7 @@ export const csrf = (options: CsrfOptions = {}): MiddlewareFn => {
     if (
       cookieToken === undefined ||
       submittedToken === undefined ||
-      cookieToken !== submittedToken
+      !constantTimeEqual(cookieToken, submittedToken)
     ) {
       return new Response(
         JSON.stringify({

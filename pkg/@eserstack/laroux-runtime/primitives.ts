@@ -20,6 +20,48 @@ export type LarouxRuntimeState = appRuntime.AppRuntimeState & {
   options: LarouxRuntimeOptions;
 };
 
+/**
+ * A manifest queued by `LarouxRuntime.loadManifest` could not be read or
+ * parsed. `start()` and `execute()` reject with it; `cause` holds the
+ * underlying error, such as a `ConfigParseError` naming the file.
+ */
+export class LarouxManifestLoadError extends Error {
+  /** The directory that was searched for the manifest. */
+  readonly searchDir: string;
+
+  /** Wraps `cause`, the error from reading the manifest in `searchDir`. */
+  constructor(searchDir: string, cause: unknown) {
+    super(
+      `load laroux manifest from "${searchDir}": ${describeCause(cause)}`,
+      { cause },
+    );
+    this.name = "LarouxManifestLoadError";
+    this.searchDir = searchDir;
+  }
+}
+
+const describeCause = (cause: unknown): string =>
+  cause instanceof Error ? cause.message : String(cause);
+
+/**
+ * Reads the first manifest file found in `searchDir`. Resolves to `null` when
+ * the directory has none.
+ */
+const readManifest = async (
+  searchDir: string,
+): Promise<LarouxManifest | null> => {
+  try {
+    const result = await fileLoader.load<LarouxManifest>(
+      searchDir,
+      ["manifest.yaml", "manifest.jsonc", "manifest.json", "manifest.toml"],
+    );
+
+    return result.content ?? null;
+  } catch (error) {
+    throw new LarouxManifestLoadError(searchDir, error);
+  }
+};
+
 export const createLarouxRuntimeState = (
   options?: Partial<LarouxRuntimeOptions>,
 ): LarouxRuntimeState => {
@@ -51,20 +93,28 @@ export class LarouxRuntime extends appRuntime.AppRuntime<LarouxRuntimeState> {
     return this;
   }
 
+  /**
+   * Starts reading the manifest in `baseDir` (resolved against the base URL)
+   * and adds it once loaded. `start()` waits for the read and rejects with a
+   * `LarouxManifestLoadError` when it fails.
+   */
   loadManifest(baseDir?: string): this {
-    const promise = fileLoader.load<LarouxManifest>(
-      fileLoader.resolvePath(baseDir ?? ".", this.state.baseUrl),
-      ["manifest.yaml", "manifest.jsonc", "manifest.json", "manifest.toml"],
-    ).then((result) => {
-      if (result.content === undefined) {
-        return;
+    const searchDir = fileLoader.resolvePath(
+      baseDir ?? ".",
+      this.state.baseUrl,
+    );
+    const loading = readManifest(searchDir).then((manifest) => {
+      if (manifest !== null) {
+        this.addManifest(manifest);
       }
-
-      this.addManifest(result.content);
     });
-    // FIXME(@eser) Handle errors.
 
-    this.state.awaits = [...this.state.awaits, promise];
+    // start() awaits `loading` and rethrows its error. The handler has to be
+    // attached now: a read that fails before start() runs would otherwise be
+    // reported as an unhandled rejection and end the process.
+    loading.catch(() => {});
+
+    this.state.awaits = [...this.state.awaits, loading];
 
     return this;
   }

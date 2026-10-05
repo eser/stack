@@ -26,7 +26,7 @@
 
 import * as cliParseArgs from "@std/cli/parse-args";
 import * as primitives from "@eserstack/primitives";
-import * as functions from "@eserstack/functions";
+import type * as functions from "@eserstack/functions";
 import type * as shellArgs from "@eserstack/shell/args";
 import * as tui from "@eserstack/shell/tui";
 import type {
@@ -34,17 +34,14 @@ import type {
   Validator,
   ValidatorResult,
 } from "./validation/types.ts";
-import {
-  type FileEntry,
-  type FileMutation,
-  loadContent,
-  type WalkOptions,
-  walkSourceFiles,
+import * as fileToolsShared from "./file-tools-shared.ts";
+import type {
+  FileEntry,
+  FileMutation,
+  WalkOptions,
 } from "./file-tools-shared.ts";
-import { createCliContext, toCliEvent } from "./cli-support.ts";
-import { ensureLib, getLib } from "./ffi-client.ts";
-
-const { ctx, output: _out } = createCliContext();
+import * as cliSupport from "./cli-support.ts";
+import * as ffiClient from "./ffi-client.ts";
 
 // =============================================================================
 // Types
@@ -148,6 +145,19 @@ export type FileTool = {
 // =============================================================================
 
 /**
+ * Reads a CLI flag that may hold several values. `main` collects repeated
+ * flags into an array; a `CliEvent` built by another caller may carry one
+ * string.
+ */
+const toStringList = (value: unknown): string[] => {
+  if (Array.isArray(value)) {
+    return value.filter((item): item is string => typeof item === "string");
+  }
+
+  return typeof value === "string" ? [value] : [];
+};
+
+/**
  * Create a file tool from a declarative config.
  *
  * @param config - Tool configuration
@@ -180,7 +190,7 @@ export const createFileTool = (config: FileToolConfig): FileTool => {
         : undefined,
     };
 
-    const files = await walkSourceFiles(walkOpts);
+    const files = await fileToolsShared.walkSourceFiles(walkOpts);
     const allIssues: ToolIssue[] = [];
     const allMutations: FileMutation[] = [];
 
@@ -191,7 +201,10 @@ export const createFileTool = (config: FileToolConfig): FileTool => {
     } else if (config.checkFile !== undefined) {
       // Per-file mode
       for (const file of files) {
-        const content = await loadContent(file);
+        // Files load one at a time: reading thousands at once can exhaust the
+        // open file handle limit.
+        // deno-lint-ignore no-await-in-loop
+        const content = await fileToolsShared.loadContent(file);
         const issues = config.checkFile(file, content, options);
         allIssues.push(...issues);
       }
@@ -200,7 +213,9 @@ export const createFileTool = (config: FileToolConfig): FileTool => {
     // Run fixer if fix mode is enabled
     if (options.fix && config.canFix && config.fixFile !== undefined) {
       for (const file of files) {
-        const content = await loadContent(file);
+        // One file at a time, for the same reason as the check loop.
+        // deno-lint-ignore no-await-in-loop
+        const content = await fileToolsShared.loadContent(file);
         if (content === undefined) {
           continue;
         }
@@ -260,22 +275,26 @@ export const createFileTool = (config: FileToolConfig): FileTool => {
   const handleCli = async (
     event: functions.triggers.CliEvent,
   ): Promise<shellArgs.CliResult<void>> => {
+    const { ctx } = cliSupport.getCliContext();
     const fix = config.canFix && event.flags["fix"] === true;
     const root = (event.flags["root"] as string | undefined) ?? ".";
-    const excludeFlag = event.flags["exclude"];
-    const exclude = excludeFlag !== undefined
-      ? (Array.isArray(excludeFlag)
-        ? excludeFlag as string[]
-        : [excludeFlag as string])
-      : [];
+    const exclude = toStringList(event.flags["exclude"]);
+
+    // An empty pattern matches every path, so the tool would check nothing
+    // and pass.
+    if (exclude.includes("")) {
+      tui.log.error(
+        ctx,
+        `${config.name}: --exclude needs a pattern, for example --exclude docs/api/`,
+      );
+      return primitives.results.fail({ exitCode: 1 });
+    }
 
     try {
       const result = await run({ root, fix, exclude });
 
       if (result.mutations.length > 0) {
-        // Import writeMutations lazily to avoid circular deps
-        const { writeMutations } = await import("./file-tools-shared.ts");
-        const written = await writeMutations(result.mutations);
+        const written = await fileToolsShared.writeMutations(result.mutations);
         tui.log.success(
           ctx,
           `Fixed ${written} file(s) for ${config.name}.`,
@@ -318,28 +337,35 @@ export const createFileTool = (config: FileToolConfig): FileTool => {
   ): Promise<shellArgs.CliResult<void>> => {
     const flags = config.canFix ? ["fix"] : [];
     const parsed = cliParseArgs.parseArgs(
-      (cliArgs ?? []) as string[],
+      [...(cliArgs ?? [])],
       {
         boolean: [...flags, "help"],
         string: ["root", "exclude"],
+        // Each --exclude adds a pattern, the way the manifest lists several.
+        collect: ["exclude"],
         alias: { h: "help" },
       },
     );
 
     if (parsed["help"]) {
-      console.log(`eser codebase ${config.name} — ${config.description}\n`);
-      console.log(`Usage: eser codebase ${config.name} [options]\n`);
-      console.log("Options:");
+      const { output: out } = cliSupport.getCliContext();
+      out.writeln(`eser codebase ${config.name} — ${config.description}\n`);
+      out.writeln(`Usage: eser codebase ${config.name} [options]\n`);
+      out.writeln("Options:");
       if (config.canFix) {
-        console.log("  --fix          Auto-fix issues");
+        out.writeln("  --fix          Auto-fix issues");
       }
-      console.log("  --root <dir>   Root directory (default: .)");
-      console.log("  --exclude <p>  Exclude pattern");
-      console.log("  -h, --help     Show this help");
+      out.writeln("  --root <dir>   Root directory (default: .)");
+      out.writeln(
+        "  --exclude <p>  Skip paths matching the regular expression <p>;",
+      );
+      out.writeln("                 repeat the flag to add more patterns");
+      out.writeln("  -h, --help     Show this help");
+      await out.flush();
       return primitives.results.ok(undefined);
     }
 
-    const event = toCliEvent(config.name, parsed);
+    const event = cliSupport.toCliEvent(config.name, parsed);
     return await handleCli(event);
   };
 
@@ -370,8 +396,8 @@ export const withGoValidator = (
   const goValidator: Validator = {
     ...tool.validator,
     validate: async (options): Promise<ValidatorResult> => {
-      await ensureLib();
-      const lib = getLib();
+      await ffiClient.ensureLib();
+      const lib = ffiClient.getLib();
       if (lib === null) {
         throw new Error(
           `FFI library unavailable — cannot run validator "${goValidatorName}"`,

@@ -118,24 +118,26 @@ export const decodeDataUrl = (
 // MIME Detection
 // =============================================================================
 
-const EXTENSION_MIME_MAP: Readonly<Record<string, string>> = {
-  "png": "image/png",
-  "jpg": "image/jpeg",
-  "jpeg": "image/jpeg",
-  "gif": "image/gif",
-  "webp": "image/webp",
-  "svg": "image/svg+xml",
-  "bmp": "image/bmp",
-  "mp3": "audio/mpeg",
-  "wav": "audio/wav",
-  "ogg": "audio/ogg",
-  "flac": "audio/flac",
-  "m4a": "audio/mp4",
-  "webm": "audio/webm",
-  "pdf": "application/pdf",
-  "json": "application/json",
-  "txt": "text/plain",
-};
+// A Map, so an extension such as "constructor" or "__proto__" finds no entry
+// instead of an Object.prototype member.
+const EXTENSION_MIME_MAP: ReadonlyMap<string, string> = new Map([
+  ["png", "image/png"],
+  ["jpg", "image/jpeg"],
+  ["jpeg", "image/jpeg"],
+  ["gif", "image/gif"],
+  ["webp", "image/webp"],
+  ["svg", "image/svg+xml"],
+  ["bmp", "image/bmp"],
+  ["mp3", "audio/mpeg"],
+  ["wav", "audio/wav"],
+  ["ogg", "audio/ogg"],
+  ["flac", "audio/flac"],
+  ["m4a", "audio/mp4"],
+  ["webm", "audio/webm"],
+  ["pdf", "application/pdf"],
+  ["json", "application/json"],
+  ["txt", "text/plain"],
+]);
 
 export const detectMimeFromUrl = (url: string): string | null => {
   const urlWithoutQuery = url.split("?")[0] ?? url;
@@ -147,5 +149,5 @@ export const detectMimeFromUrl = (url: string): string | null => {
 
   const extension = urlWithoutQuery.slice(lastDot + 1).toLowerCase();
 
-  return EXTENSION_MIME_MAP[extension] ?? null;
+  return EXTENSION_MIME_MAP.get(extension) ?? null;
 };

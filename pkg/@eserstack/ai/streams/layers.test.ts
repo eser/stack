@@ -1,7 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import { describe, it } from "@std/testing/bdd";
-import { assertEquals } from "@std/assert";
+import * as bdd from "@std/testing/bdd";
+import * as assert from "@std/assert";
 import * as streams from "@eserstack/streams";
 import type * as generation from "../generation.ts";
 import * as layersModule from "./layers.ts";
@@ -11,8 +11,8 @@ import * as sourcesModule from "./sources.ts";
 // Tests
 // =============================================================================
 
-describe("extractText layer", () => {
-  it("should extract text deltas from stream events", async () => {
+bdd.describe("extractText layer", () => {
+  bdd.it("should extract text deltas from stream events", async () => {
     async function* events(): AsyncIterable<generation.StreamEvent> {
       yield { kind: "content_delta", textDelta: "Hello " };
       yield { kind: "tool_call_delta", textDelta: "partial" };
@@ -32,14 +32,14 @@ describe("extractText layer", () => {
       .through(layer)
       .collect<string>();
 
-    assertEquals(result.length, 2);
-    assertEquals(result[0], "Hello ");
-    assertEquals(result[1], "world!");
+    assert.assertEquals(result.length, 2);
+    assert.assertEquals(result[0], "Hello ");
+    assert.assertEquals(result[1], "world!");
   });
 });
 
-describe("tokenCounter layer", () => {
-  it("should call onUsage when message_done event arrives", async () => {
+bdd.describe("tokenCounter layer", () => {
+  bdd.it("should call onUsage when message_done event arrives", async () => {
     let capturedUsage: generation.Usage | null = null as
       | generation.Usage
       | null;
@@ -63,9 +63,9 @@ describe("tokenCounter layer", () => {
       .through(counter)
       .collect<generation.StreamEvent>();
 
-    assertEquals(result.length, 2);
-    assertEquals(capturedUsage?.inputTokens, 10);
-    assertEquals(capturedUsage?.outputTokens, 5);
-    assertEquals(capturedUsage?.totalTokens, 15);
+    assert.assertEquals(result.length, 2);
+    assert.assertEquals(capturedUsage?.inputTokens, 10);
+    assert.assertEquals(capturedUsage?.outputTokens, 5);
+    assert.assertEquals(capturedUsage?.totalTokens, 15);
   });
 });

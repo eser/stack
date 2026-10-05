@@ -9,8 +9,9 @@
  * @module
  */
 
-import { ensureLib, getLib } from "./ffi-client.ts";
+import * as ffiClient from "./ffi-client.ts";
 
+/** The HTTP methods the Go bridge sends. */
 export type GoHttpMethod =
   | "GET"
   | "POST"
@@ -20,21 +21,52 @@ export type GoHttpMethod =
   | "HEAD"
   | "OPTIONS";
 
+/**
+ * Options for {@link createGoHttpClient}. The names are the JSON fields of the
+ * Go bridge's create request (`httpCreateRequest` in
+ * pkg/@eserstack/ajan/bridge.go), so every field reaches the Go client as is.
+ */
 export type GoHttpClientOptions = {
+  /** Prefix for request URLs that are not absolute. */
   readonly baseUrl?: string;
-  readonly timeout?: number;
+  /** Headers sent with every request; a request's own headers win. */
   readonly headers?: Record<string, string>;
-  readonly retries?: number;
+  /**
+   * Time limit for one whole request, the response body included, in
+   * milliseconds. Defaults to 30 000.
+   */
+  readonly timeoutMs?: number;
+  /** Retry failed requests inside the Go client. Off unless `true`. */
+  readonly retryEnabled?: boolean;
+  /** Attempts in total when `retryEnabled` is set. The Go default is 3. */
+  readonly maxAttempts?: number;
+  /** First retry delay in milliseconds. The Go default is 100. */
+  readonly initialIntervalMs?: number;
+  /** Upper bound for one retry delay in milliseconds. The Go default is 10 000. */
+  readonly maxIntervalMs?: number;
+  /** Stop calling a failing server for a while. Off unless `true`. */
+  readonly circuitBreakerEnabled?: boolean;
+  /** Failures in a row that open the circuit. The Go default is 5. */
+  readonly failureThreshold?: number;
+  /** Milliseconds an open circuit waits before it tries again. The Go default is 10 000. */
+  readonly resetTimeoutMs?: number;
 };
 
+/** One request for {@link GoHttpClient}; the fields match the Go bridge's request JSON. */
 export type GoHttpRequest = {
   readonly method: GoHttpMethod;
   readonly url: string;
   readonly headers?: Record<string, string>;
+  /** Text body; the Go bridge carries no binary bodies. */
   readonly body?: string;
-  readonly timeout?: number;
+  /**
+   * Largest response body read into memory, in bytes; the Go default is
+   * 32 MiB. A larger body fails the request. Use `requestStream` for more.
+   */
+  readonly maxResponseBytes?: number;
 };
 
+/** A complete response from {@link GoHttpClient.request}. */
 export type GoHttpResponse = {
   readonly status: number;
   readonly statusText: string;
@@ -43,6 +75,7 @@ export type GoHttpResponse = {
   readonly retries: number;
 };
 
+/** A response from {@link GoHttpClient.requestStream}, its body unread. */
 export type GoHttpStreamResponse = {
   readonly body: ReadableStream<Uint8Array>;
   readonly status: number;
@@ -81,22 +114,35 @@ export class GoHttpError extends Error {
   }
 }
 
+/**
+ * A handle on one Go HTTP client. An error status rejects with a
+ * {@link GoHttpError} that carries the status and body.
+ */
 export type GoHttpClient = {
+  /** Sends a request and reads its whole body. */
   request(req: GoHttpRequest): Promise<GoHttpResponse>;
+  /** Sends a request and returns its body as a stream. */
   requestStream(req: GoHttpRequest): Promise<GoHttpStreamResponse>;
+  /** Releases the handle; later calls fail. */
   close(): void;
 };
+
+const DEFAULT_TIMEOUT_MS = 30_000;
 
 /**
  * Creates a Go-backed HTTP client handle.
  *
+ * Each call into the Go client blocks the JavaScript thread until it returns,
+ * which `timeoutMs` bounds.
+ *
  * @throws Error if the native library is unavailable.
+ * @throws RangeError if `timeoutMs` is not a positive number.
  *
  * @example
  * ```typescript
- * import { createGoHttpClient } from "@eserstack/httpclient/go-client";
+ * import * as goClient from "@eserstack/httpclient/go-client";
  *
- * const client = await createGoHttpClient({ timeout: 10000 });
+ * const client = await goClient.createGoHttpClient({ timeoutMs: 10_000 });
  * const resp = await client.request({ method: "GET", url: "https://example.com" });
  * console.log(resp.status, resp.body);
  * client.close();
@@ -105,25 +151,39 @@ export type GoHttpClient = {
 export const createGoHttpClient = async (
   options: GoHttpClientOptions = {},
 ): Promise<GoHttpClient> => {
-  await ensureLib();
-  const lib = getLib();
-
-  if (lib === null) {
-    throw new Error("native library not available for createGoHttpClient");
+  const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+  if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
+    // The Go client treats 0 as no limit at all, and each call blocks the
+    // JavaScript thread, so an unbounded client is never created.
+    throw new RangeError(
+      `createGoHttpClient: timeoutMs ${timeoutMs} is not a positive number of milliseconds`,
+    );
   }
 
-  const raw = lib.symbols.EserAjanHttpCreate(JSON.stringify(options));
+  await ffiClient.ensureLib();
+  const lib = ffiClient.getLib();
+
+  if (lib === null) {
+    throw new Error(
+      `createGoHttpClient: the @eserstack/ajan native library is not available${ffiClient.describeLoadFailure()}`,
+      { cause: ffiClient.getLoadError() ?? undefined },
+    );
+  }
+
+  const raw = lib.symbols.EserAjanHttpCreate(
+    JSON.stringify({ ...options, timeoutMs }),
+  );
   const result = JSON.parse(raw) as { handle: string; error?: string };
 
-  if (result.error) {
-    throw new Error(result.error);
+  if (result.error !== undefined && result.error !== "") {
+    throw new Error(`createGoHttpClient: ${result.error}`);
   }
 
   const handle = result.handle;
 
   return {
     request(req: GoHttpRequest): Promise<GoHttpResponse> {
-      const lib2 = getLib();
+      const lib2 = ffiClient.getLib();
       if (lib2 === null) {
         return Promise.reject(new Error("native library unavailable"));
       }
@@ -133,7 +193,7 @@ export const createGoHttpClient = async (
       );
       const res = JSON.parse(raw2) as GoHttpResponse & { error?: string };
 
-      if (res.error) {
+      if (res.error !== undefined && res.error !== "") {
         return Promise.reject(new GoHttpError({ ...res, error: res.error }));
       }
 
@@ -141,7 +201,7 @@ export const createGoHttpClient = async (
     },
 
     requestStream(req: GoHttpRequest): Promise<GoHttpStreamResponse> {
-      const lib2 = getLib();
+      const lib2 = ffiClient.getLib();
       if (lib2 === null) {
         return Promise.reject(new Error("native library unavailable"));
       }
@@ -158,10 +218,15 @@ export const createGoHttpClient = async (
         error?: string;
       };
 
-      if (init.error || !init.handle) {
+      const streamHandle = init.handle;
+      if (
+        (init.error !== undefined && init.error !== "") ||
+        streamHandle === undefined || streamHandle === ""
+      ) {
         return Promise.reject(
           new GoHttpError({
-            error: init.error ?? "failed to open HTTP stream",
+            error: init.error ??
+              "open HTTP stream: the Go bridge returned no stream handle",
             status: init.status,
             statusText: init.statusText,
             headers: init.headers,
@@ -170,14 +235,13 @@ export const createGoHttpClient = async (
         );
       }
 
-      const streamHandle = init.handle;
       const status = init.status ?? 200;
       const statusText = init.statusText ?? "";
       const headers = init.headers ?? {};
 
       const body = new ReadableStream<Uint8Array>({
         pull(controller) {
-          const lib3 = getLib();
+          const lib3 = ffiClient.getLib();
           if (lib3 === null) {
             controller.error(new Error("native library unavailable"));
             return;
@@ -190,17 +254,17 @@ export const createGoHttpClient = async (
             error?: string;
           };
 
-          if (chunk.error) {
+          if (chunk.error !== undefined && chunk.error !== "") {
             controller.error(new Error(chunk.error));
             return;
           }
 
-          if (chunk.done) {
+          if (chunk.done === true) {
             controller.close();
             return;
           }
 
-          if (chunk.chunk) {
+          if (chunk.chunk !== undefined && chunk.chunk !== "") {
             const binary = atob(chunk.chunk);
             const bytes = new Uint8Array(binary.length);
             for (let i = 0; i < binary.length; i++) {
@@ -210,7 +274,7 @@ export const createGoHttpClient = async (
           }
         },
         cancel() {
-          const lib3 = getLib();
+          const lib3 = ffiClient.getLib();
           if (lib3 === null) return;
           lib3.symbols.EserAjanHttpStreamClose(streamHandle);
         },
@@ -220,7 +284,7 @@ export const createGoHttpClient = async (
     },
 
     close(): void {
-      const lib2 = getLib();
+      const lib2 = ffiClient.getLib();
       if (lib2 === null) return;
       lib2.symbols.EserAjanHttpClose(JSON.stringify({ handle }));
     },

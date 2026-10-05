@@ -1,6 +1,22 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 /**
+ * HTTP error type with a status code, plus a factory for each common 4xx and
+ * 5xx status.
+ *
+ * @example
+ * ```typescript
+ * import * as standards from "@eserstack/standards";
+ *
+ * const error = standards.httpError.notFound("User not found");
+ * standards.httpError.isHttpError(error); // true
+ * error.status; // 404
+ * ```
+ *
+ * @module
+ */
+
+/**
  * HTTP status codes with their standard text descriptions.
  */
 const STATUS_TEXT: Record<number, string> = {
@@ -53,8 +69,12 @@ export type ErrorStatus =
  *
  * @example
  * ```typescript
- * throw new HttpError(404, "User not found");
- * throw new HttpError(500); // Uses default message "Internal Server Error"
+ * import * as standards from "@eserstack/standards";
+ *
+ * const notFound = new standards.httpError.HttpError(404, "User not found");
+ *
+ * // Uses default message "Internal Server Error"
+ * const serverError = new standards.httpError.HttpError(500);
  * ```
  */
 export class HttpError extends Error {

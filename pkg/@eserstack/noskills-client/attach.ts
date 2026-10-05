@@ -11,21 +11,24 @@
  * events() and renders them in sequence — no distinction needed between
  * replay and live; the marker events are included for UI progress if wanted.
  *
- * On cert_rotating: stop iteration, call fetchAndPinCertFingerprint() with
- * the new fingerprint, then reconnect.
+ * On cert_rotating: stop iteration, call storeCertFingerprint(baseUrl,
+ * newFingerprint), then attach again.
  *
  * @module
  */
 
-import * as webtransportModule from "@eserstack/webtransport/client";
-import type { WebTransportSession } from "@eserstack/webtransport/types";
+import * as webtransport from "@eserstack/webtransport";
 import type {
   AttachSession,
   ClientCommand,
   DaemonEvent,
   NoskillsClientConfig,
 } from "./types.ts";
-import { getCertFingerprint } from "./cert.ts";
+import * as cert from "./cert.ts";
+import * as deadline from "./deadline.ts";
+
+const ATTACH_TIMEOUT_MS = 10_000;
+const SHA256_BYTES = 32;
 
 // =============================================================================
 // Line-delimited JSON reader over a bidi stream
@@ -40,6 +43,8 @@ async function* readLines(
 
   try {
     while (true) {
+      // A stream reader hands out chunks in order, one read at a time.
+      // deno-lint-ignore no-await-in-loop
       const { value, done } = await reader.read();
       if (done) break;
       buf += decoder.decode(value, { stream: true });
@@ -67,7 +72,7 @@ async function* readLines(
 // =============================================================================
 
 class AttachSessionImpl implements AttachSession {
-  readonly #session: WebTransportSession;
+  readonly #session: webtransport.WebTransportSession;
   readonly #stream: WebTransportBidirectionalStream;
   readonly #writer: WritableStreamDefaultWriter<Uint8Array>;
   readonly #encoder: TextEncoder;
@@ -75,7 +80,7 @@ class AttachSessionImpl implements AttachSession {
   #lastSeq = 0;
 
   constructor(
-    session: WebTransportSession,
+    session: webtransport.WebTransportSession,
     stream: WebTransportBidirectionalStream,
   ) {
     this.#session = session;
@@ -94,6 +99,7 @@ class AttachSessionImpl implements AttachSession {
       try {
         evt = JSON.parse(line) as DaemonEvent;
       } catch {
+        // A line that is not JSON is skipped rather than ending the stream.
         continue;
       }
       if (typeof evt.seq === "number") {
@@ -123,10 +129,13 @@ class AttachSessionImpl implements AttachSession {
 // Public API
 // =============================================================================
 
+/** Options for {@link attachSession}. */
 export interface AttachOptions {
   /**
-   * Pre-fetched cert fingerprint as ArrayBuffer.
-   * If omitted, getCertFingerprint(config.baseUrl) is called automatically
+   * One SHA-256 certificate fingerprint (32 bytes) to pin in place of
+   * `config.certHashes`. `null` pins nothing and fetches nothing, for a
+   * certificate the operating system trusts. If omitted, the attach pins
+   * `config.certHashes`, or else calls getCertFingerprint(config.baseUrl)
    * (fetches daemon endpoint + caches in IndexedDB).
    */
   certHash?: ArrayBuffer | null;
@@ -144,9 +153,14 @@ export interface AttachOptions {
    *
    * @example
    * ```ts
-   * let session = await attachSession(config, slug, sid);
+   * import * as noskillsClient from "@eserstack/noskills-client";
+   *
+   * const config = { baseUrl: "https://localhost:4433", token: "your_token" };
+   * let session = await noskillsClient.attachSession(config, "your_project_slug", "your_session_id");
    * // ... network drop ...
-   * session = await attachSession(config, slug, sid, { afterSeq: session.lastSeq });
+   * session = await noskillsClient.attachSession(config, "your_project_slug", "your_session_id", {
+   *   afterSeq: session.lastSeq,
+   * });
    * ```
    */
   afterSeq?: number;
@@ -157,6 +171,93 @@ export interface AttachOptions {
    * session, which is served by the ACP worker.
    */
   kind?: "agent" | "acp" | "mux";
+  /**
+   * Cancels the attach while it fetches the fingerprint, dials and opens the
+   * stream; the promise then rejects with the signal's reason. It does not
+   * close a session that is already attached: call `close()` for that.
+   */
+  signal?: AbortSignal;
+  /**
+   * Milliseconds the whole attach may take, the fingerprint fetch, the
+   * WebTransport handshake and the stream included, before it throws
+   * `NoskillsTimeoutError`. Defaults to 10 000.
+   */
+  timeoutMs?: number;
+}
+
+/** Checks that a configured pin has the size of a SHA-256 fingerprint. */
+function checkPin(hash: ArrayBuffer, name: string): ArrayBuffer {
+  if (hash.byteLength !== SHA256_BYTES) {
+    throw new RangeError(
+      `${name} is ${hash.byteLength} bytes; a SHA-256 certificate fingerprint is ${SHA256_BYTES} bytes`,
+    );
+  }
+  return hash;
+}
+
+/**
+ * The pins the caller configured: every `config.certHashes` entry, the
+ * `certHash` option in their place, or `[]` for `certHash: null`. Returns null
+ * when nothing is configured and the daemon has to be asked.
+ */
+function configuredPins(
+  config: NoskillsClientConfig,
+  opts: AttachOptions,
+): readonly ArrayBuffer[] | null {
+  if (opts.certHash === null) {
+    return [];
+  }
+  if (opts.certHash !== undefined) {
+    return [checkPin(opts.certHash, "the certHash option")];
+  }
+  if (config.certHashes !== undefined && config.certHashes.length > 0) {
+    return config.certHashes.map((hash, index) =>
+      checkPin(hash, `config.certHashes[${index}]`)
+    );
+  }
+  return null;
+}
+
+function sameBytes(a: ArrayBuffer, b: ArrayBuffer): boolean {
+  const left = new Uint8Array(a);
+  const right = new Uint8Array(b);
+  return left.length === right.length &&
+    left.every((byte, index) => byte === right[index]);
+}
+
+/** Dials the daemon with `pins` and opens the session's bidi stream. */
+async function dial(
+  config: NoskillsClientConfig,
+  pins: readonly ArrayBuffer[],
+  path: string,
+  headers: Record<string, string> | undefined,
+  timeoutMs: number,
+  signal: AbortSignal,
+): Promise<AttachSession> {
+  const wtClient = webtransport.createWebTransportClient({
+    baseUrl: config.baseUrl,
+    certHashes: pins.length > 0 ? [...pins] : undefined,
+    // connect() takes no signal, so a handshake the attach gave up on is
+    // closed by this limit instead.
+    dialTimeout: timeoutMs,
+  });
+
+  const wtSession = await deadline.raceSignal(
+    wtClient.connect(path, headers),
+    signal,
+    (late) => late.close(),
+  );
+  try {
+    const stream = await deadline.raceSignal(
+      wtSession.openBidirectionalStream(),
+      signal,
+      () => {}, // closing the session below closes a late stream with it
+    );
+    return new AttachSessionImpl(wtSession, stream);
+  } catch (error) {
+    wtSession.close();
+    throw error;
+  }
 }
 
 /**
@@ -166,11 +267,24 @@ export interface AttachOptions {
  * The token is appended as a query parameter because browser WebTransport does
  * not support custom headers; the daemon's PIN auth middleware reads it there.
  *
+ * Without a configured pin, the attach pins the fingerprint cached for the
+ * daemon. When the handshake fails with that pin, it asks the daemon for its
+ * current fingerprint and, if the certificate changed, dials once more.
+ *
+ * @throws {NoskillsTimeoutError} When the attach takes longer than
+ *   `timeoutMs` (10 000 by default).
+ *
  * @example
  * ```ts
- * const session = await attachSession(config, "my-project", "01HV...");
+ * import * as noskillsClient from "@eserstack/noskills-client";
+ *
+ * const session = await noskillsClient.attachSession(
+ *   { baseUrl: "https://localhost:4433", token: "your_token" },
+ *   "your_project_slug",
+ *   "your_session_id",
+ * );
  * for await (const evt of session.events()) {
- *   if (evt.type === "delta") console.log(evt.text);
+ *   if (evt.type === "query_done") break;
  * }
  * ```
  */
@@ -180,38 +294,74 @@ export async function attachSession(
   sessionId: string,
   opts: AttachOptions = {},
 ): Promise<AttachSession> {
-  // Resolve cert hash: prefer explicit → cached/fetched → null (mkcert mode)
-  let certHash: ArrayBuffer | null;
-  if (opts.certHash !== undefined) {
-    certHash = opts.certHash;
-  } else if (config.certHashes && config.certHashes.length > 0) {
-    certHash = config.certHashes[0]!;
-  } else {
-    certHash = await getCertFingerprint(config.baseUrl);
-  }
-
-  const certHashes = certHash ? [certHash] : undefined;
-
-  const wtClient = webtransportModule.createWebTransportClient({
-    baseUrl: config.baseUrl,
-    certHashes,
-  });
+  const timeoutMs = opts.timeoutMs ?? ATTACH_TIMEOUT_MS;
+  const pins = configuredPins(config, opts);
 
   // Build query string: token and after go here because browser WebTransport
   // cannot set custom headers on the CONNECT request.
   const params = new URLSearchParams();
-  if (config.token) params.set("token", config.token);
-  if (opts.afterSeq && opts.afterSeq > 0) {
+  if (config.token !== undefined && config.token !== "") {
+    params.set("token", config.token);
+  }
+  if (opts.afterSeq !== undefined && opts.afterSeq > 0) {
     params.set("after", String(opts.afterSeq));
   }
-  if (opts.kind) params.set("kind", opts.kind);
+  if (opts.kind !== undefined) {
+    params.set("kind", opts.kind);
+  }
   const query = params.size > 0 ? `?${params.toString()}` : "";
   const path = `/attach/${encodeURIComponent(slug)}/${
     encodeURIComponent(sessionId)
   }${query}`;
 
-  const wtSession = await wtClient.connect(path, opts.headers);
-  const stream = await wtSession.openBidirectionalStream();
+  return await deadline.withDeadline(
+    `attach ${slug}/${sessionId}`,
+    timeoutMs,
+    opts.signal,
+    async (signal) => {
+      if (pins !== null) {
+        return await dial(config, pins, path, opts.headers, timeoutMs, signal);
+      }
 
-  return new AttachSessionImpl(wtSession, stream);
+      const fetchOptions = { signal, timeoutMs };
+      const pin = await cert.getCertFingerprint(config.baseUrl, fetchOptions);
+      if (pin === null) {
+        return await dial(config, [], path, opts.headers, timeoutMs, signal);
+      }
+
+      try {
+        return await dial(config, [pin], path, opts.headers, timeoutMs, signal);
+      } catch (error) {
+        if (signal.aborted) {
+          throw error;
+        }
+
+        // The pin may be stale: the daemon can have a new certificate since
+        // it was cached. Ask for the current one and dial again if it changed.
+        let current: ArrayBuffer | null;
+        try {
+          current = await cert.fetchAndPinCertFingerprint(
+            config.baseUrl,
+            fetchOptions,
+          );
+        } catch {
+          // The daemon cannot report a fingerprint either; the dial error
+          // says why the attach failed.
+          throw error;
+        }
+        if (current === null || sameBytes(current, pin)) {
+          throw error;
+        }
+        return await dial(
+          config,
+          [current],
+          path,
+          opts.headers,
+          timeoutMs,
+          signal,
+        );
+      }
+    },
+    (late) => late.close(),
+  );
 }

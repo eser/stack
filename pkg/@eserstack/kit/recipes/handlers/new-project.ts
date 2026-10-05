@@ -16,39 +16,81 @@ import * as recipeApplier from "../recipe-applier.ts";
 import * as dependencyResolver from "../dependency-resolver.ts";
 import type * as registrySchema from "../registry-schema.ts";
 import type { HandlerContext } from "../handler-context.ts";
-import { ensureLib, getLib } from "../../ffi-client.ts";
+import * as errorChain from "../error-chain.ts";
+import * as ffiClient from "../../ffi-client.ts";
 
 // =============================================================================
 // Types
 // =============================================================================
 
-type NewProjectInput = {
+/** Which template to use and where to create the project. */
+export type NewProjectInput = {
+  /** The name of a `"project"`-scale recipe in the registry. */
   readonly templateName: string;
+  /** The project's name; it fills the `project_name` variable unless `variables` sets one. */
   readonly projectName: string;
+  /** The directory to create the project in; created when missing. */
   readonly targetDir: string;
+  /** Path or URL of the registry manifest; the default registry when absent. */
   readonly registrySource?: string;
+  /** Without a source, look for a `.eser/recipes.json` in the working directory or a parent first. */
   readonly local?: boolean;
+  /** Values for the template's variables by name; they win over the defaults. */
   readonly variables?: Readonly<Record<string, string>>;
+  /** Prompt on the terminal for variables that have no value and no default. */
   readonly interactive?: boolean;
+  /** Do not run the template's post-install commands. */
   readonly skipPostInstall?: boolean;
 };
 
-type NewProjectOutput = {
+/**
+ * What the new project got. When the native ajan library created it,
+ * `template` carries only its name and `depInfo` is empty.
+ */
+export type NewProjectOutput = {
+  /** The template recipe from the registry. */
   readonly template: registrySchema.Recipe;
+  /** The files written and the post-install commands that ran. */
   readonly result: recipeApplier.ApplyResult;
+  /** The install commands for the template's dependencies, and any warnings. */
   readonly depInfo: dependencyResolver.DependencyInstructions;
 };
 
-type NewProjectError =
-  | { readonly _tag: "RegistryError"; readonly message: string }
+/**
+ * Why the command stopped. `message` renders the whole cause chain for the
+ * person running the command; `cause` is the original error, for matching
+ * on its type (a RegistryLoadError for RegistryError, a RecipeApplyError
+ * or PostInstallError for ApplyError).
+ */
+export type NewProjectError =
+  | {
+    readonly _tag: "RegistryError";
+    readonly message: string;
+    readonly cause: unknown;
+  }
   | { readonly _tag: "TemplateNotFound"; readonly message: string }
-  | { readonly _tag: "ApplyError"; readonly message: string };
+  | {
+    readonly _tag: "ApplyError";
+    readonly message: string;
+    readonly cause: unknown;
+  };
 
 // =============================================================================
 // Handler
 // =============================================================================
 
-const newProject = (
+/**
+ * Creates a project in `input.targetDir` from a `"project"`-scale registry
+ * recipe, overwriting files that are already there, and writes the progress
+ * and the next steps to `ctx.out`. Uses the native ajan library when it loads
+ * and neither `interactive` nor `skipPostInstall` is set, and the TypeScript
+ * applier otherwise.
+ *
+ * @param input - The template, the project name and directory, and the options
+ * @returns A task that resolves to what was created, or fails with a
+ *   RegistryError, TemplateNotFound or ApplyError
+ */
+export const newProject = (
   input: NewProjectInput,
 ): task.Task<NewProjectOutput, NewProjectError, HandlerContext> =>
   task.task<NewProjectOutput, NewProjectError, HandlerContext>(
@@ -57,8 +99,8 @@ const newProject = (
         const canUseFfi = input.interactive !== true &&
           input.skipPostInstall !== true;
 
-        await ensureLib();
-        const lib = canUseFfi ? getLib() : null;
+        await ffiClient.ensureLib();
+        const lib = canUseFfi ? ffiClient.getLib() : null;
 
         if (lib !== null) {
           const raw = lib.symbols.EserAjanKitNewProject(
@@ -81,7 +123,7 @@ const newProject = (
             error?: string;
           };
 
-          if (!goResult.error && goResult.recipes !== undefined) {
+          if (goResult.error === undefined && goResult.recipes !== undefined) {
             let totalWritten = 0;
             for (const entry of goResult.recipes) {
               totalWritten += entry.written.length;
@@ -126,7 +168,14 @@ const newProject = (
             });
           }
 
-          if (goResult.error?.includes("not found")) {
+          // Only the bridge's error for this template means it is absent. Any
+          // other error, such as a registry that cannot be read, falls
+          // through to the TypeScript path, which reports it with its cause.
+          if (
+            goResult.error?.startsWith(
+              `template '${input.templateName}' not found`,
+            ) === true
+          ) {
             return results.fail({
               _tag: "TemplateNotFound" as const,
               message: goResult.error,
@@ -159,8 +208,10 @@ const newProject = (
           recursive: true,
         });
 
+        // Templates reference {{.project_name}}; the key follows the recipe
+        // variable naming, not TypeScript's.
         const variables = {
-          project_name: input.projectName,
+          "project_name": input.projectName,
           ...input.variables,
         };
 
@@ -202,12 +253,20 @@ const newProject = (
 
         return results.ok({ template, result, depInfo });
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return results.fail({ _tag: "ApplyError" as const, message: msg });
+        const message = errorChain.formatErrorChain(error);
+        if (error instanceof registryFetcher.RegistryLoadError) {
+          return results.fail({
+            _tag: "RegistryError" as const,
+            message,
+            cause: error,
+          });
+        }
+
+        return results.fail({
+          _tag: "ApplyError" as const,
+          message,
+          cause: error,
+        });
       }
     },
   );
-
-export { newProject };
-
-export type { NewProjectError, NewProjectInput, NewProjectOutput };

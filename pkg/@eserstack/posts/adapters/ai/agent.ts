@@ -17,8 +17,8 @@
 import * as results from "@eserstack/primitives/results";
 import * as ai from "@eserstack/ai/mod";
 import type { BoundTriggers } from "../../application/wiring.ts";
-import { postToolDefinitions } from "./tool-definitions.ts";
-import { createToolCallTrigger } from "./triggers.ts";
+import * as toolDefinitions from "./tool-definitions.ts";
+import * as triggers from "./triggers.ts";
 
 // ── Options ──────────────────────────────────────────────────────────────────
 
@@ -47,7 +47,7 @@ export const runPostsAgent = async (
   options: RunPostsAgentOptions,
 ): Promise<results.Result<string, ai.AiError | Error>> => {
   const { model, bound, system, maxTurns = 10 } = options;
-  const toolCallTrigger = createToolCallTrigger(bound);
+  const toolCallTrigger = triggers.createToolCallTrigger(bound);
 
   const messages: ai.Message[] = [
     ai.textMessage("user", prompt),
@@ -56,10 +56,11 @@ export const runPostsAgent = async (
   for (let turn = 0; turn < maxTurns; turn++) {
     const genOptions: ai.GenerateTextOptions = {
       messages,
-      tools: postToolDefinitions,
+      tools: toolDefinitions.postToolDefinitions,
       ...(system !== undefined ? { system } : {}),
     };
 
+    // Each turn sends the tool results of the previous one back to the model.
     // deno-lint-ignore no-await-in-loop
     const genResult = await model.generateText(genOptions);
     if (results.isFail(genResult)) return genResult;
@@ -68,7 +69,18 @@ export const runPostsAgent = async (
     const calls = ai.toolCalls(result);
 
     if (calls.length === 0) {
-      // No tool calls — the model has finished reasoning, return final text.
+      // A refusal's text explains why the model declined; it is not an answer.
+      if (result.stopReason === "refusal") {
+        return results.fail(
+          new Error(
+            `${result.modelId} declined the request (stop reason "refusal"): ${
+              ai.text(result)
+            }`,
+          ),
+        );
+      }
+
+      // No tool calls: the model has finished reasoning, return final text.
       return results.ok(ai.text(result));
     }
 
@@ -77,6 +89,8 @@ export const runPostsAgent = async (
 
     // Execute each tool call sequentially and append tool-result messages.
     for (const call of calls) {
+      // Tool calls run in the order the model issued them: a later call can depend
+      // on an earlier one, and they share the token store.
       // deno-lint-ignore no-await-in-loop
       const toolResponse = await toolCallTrigger({
         name: call.name,

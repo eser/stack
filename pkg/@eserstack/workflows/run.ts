@@ -21,14 +21,15 @@ import type * as shellArgs from "@eserstack/shell/args";
 import type {
   RunOptions,
   StepResult,
+  WorkflowFileMutation,
+  WorkflowIssue,
   WorkflowResult,
   WorkflowTool,
 } from "./types.ts";
-import { createRegistry } from "./registry.ts";
-import { runByEvent, runWorkflowWithConfig } from "./engine.ts";
-import { loadFromFile } from "./loader.ts";
-import { shellTool } from "./shell-tool.ts";
-import { ensureLib, getLib } from "./ffi-client.ts";
+import * as registry from "./registry.ts";
+import * as engine from "./engine.ts";
+import * as loader from "./loader.ts";
+import * as shellTool from "./shell-tool.ts";
 
 // =============================================================================
 // Output formatting
@@ -36,41 +37,316 @@ import { ensureLib, getLib } from "./ffi-client.ts";
 
 const COLUMN_WIDTH = 50;
 
-const renderer = streams.renderers.ansi();
+// Lines are written synchronously so each step line appears when its step
+// ends. The synchronous FFI validators hold the event loop for most of a run,
+// and a streams.output sink writes only when the event loop runs, so its lines
+// would arrive late, in one batch, after the FFI calls return.
+type LineWriter = {
+  readonly writeln: (...args: span.SpanInput[]) => void;
+};
+
+const createLineWriter = (): LineWriter => {
+  const renderer = streams.renderers.ansi();
+  const encoder = new TextEncoder();
+
+  return {
+    writeln: (...args) => {
+      const rendered = renderer.render(span.normalize(args));
+      runtime.process.writeToStdout(encoder.encode(`${rendered}\n`));
+    },
+  };
+};
+
+// `git diff --name-only` returns in well under a second; the bound keeps a hung
+// git (a held index lock, a credential prompt) from stalling the whole run.
+const GIT_DIFF_TIMEOUT_MS = 30_000;
 
 const formatStepLine = (
   name: string,
   result: StepResult,
   verbose: boolean,
-): string => {
+): span.Span[] => {
   const dots = ".".repeat(Math.max(1, COLUMN_WIDTH - name.length));
   const timing = `${(result.durationMs / 1000).toFixed(1)}s`;
 
-  let statusStr: string;
+  let status: span.Span;
   if (result.passed && result.mutations.length > 0) {
-    statusStr = renderer.render([
-      span.yellow(
-        `Fixed (${result.mutations.length} file${
-          result.mutations.length === 1 ? "" : "s"
-        }, ${timing})`,
-      ),
-    ]);
+    status = span.yellow(
+      `Fixed (${result.mutations.length} file${
+        result.mutations.length === 1 ? "" : "s"
+      }, ${timing})`,
+    );
   } else if (result.passed) {
     if (verbose && Object.keys(result.stats).length > 0) {
       const statsStr = Object.entries(result.stats)
         .map(([k, v]) => `${v} ${k}`)
         .join(", ");
-      statusStr = renderer.render([
-        span.green(`Passed (${statsStr}, ${timing})`),
-      ]);
+      status = span.green(`Passed (${statsStr}, ${timing})`);
     } else {
-      statusStr = renderer.render([span.green(`Passed (${timing})`)]);
+      status = span.green(`Passed (${timing})`);
     }
   } else {
-    statusStr = renderer.render([span.red(`Failed (${timing})`)]);
+    status = span.red(`Failed (${timing})`);
   }
 
-  return `${name}${dots}${statusStr}`;
+  return [span.text(`${name}${dots}`), status];
+};
+
+const formatIssueLine = (issue: WorkflowIssue): span.Span[] => {
+  const location = issue.path === undefined
+    ? ""
+    : issue.line === undefined
+    ? issue.path
+    : `${issue.path}:${issue.line}`;
+  const prefix = location.length > 0 ? `${location}: ` : "";
+
+  return [
+    span.text("  "),
+    span.red("✗"),
+    span.text(` ${prefix}${issue.message}`),
+  ];
+};
+
+const writeStepResult = (
+  out: LineWriter,
+  result: StepResult,
+  verbose: boolean,
+): void => {
+  out.writeln(...formatStepLine(result.name, result, verbose));
+
+  // Print issues under failed steps (or all steps when verbose)
+  if (!result.passed || verbose) {
+    for (const issue of result.issues) {
+      out.writeln(...formatIssueLine(issue));
+    }
+  }
+};
+
+const writeHelp = (out: LineWriter): void => {
+  out.writeln("eser workflows run — Run workflow pipelines\n");
+  out.writeln("Usage:");
+  out.writeln("  eser workflows run -e <event>        Run by event");
+  out.writeln("  eser workflows run -w <workflow-id>  Run by workflow id");
+  out.writeln();
+  out.writeln("Options:");
+  out.writeln(
+    "  -e, --event <name>     Event to trigger (precommit, commitmsg, prepush)",
+  );
+  out.writeln("  -w, --workflow <id>    Workflow id to run");
+  out.writeln("  --fix                  Auto-fix issues where supported");
+  out.writeln("  --dry-run              Preview mutations without writing");
+  out.writeln("  --only <step>          Run only a specific step");
+  out.writeln("  --config <path>        Config directory (default: .)");
+  out.writeln("  -v, --verbose          Show stats and issues for all steps");
+  out.writeln("  --json                 Output results as JSON");
+  out.writeln("  --changed              Only check files changed in git");
+  out.writeln("  -h, --help             Show this help");
+};
+
+// =============================================================================
+// Run summary
+// =============================================================================
+
+type RunSummary = {
+  readonly passed: boolean;
+  readonly failedSteps: number;
+  readonly issues: number;
+};
+
+const summarize = (
+  workflowResults: readonly WorkflowResult[],
+): RunSummary => {
+  let failedSteps = 0;
+  let issues = 0;
+  for (const workflowResult of workflowResults) {
+    for (const step of workflowResult.steps) {
+      if (!step.passed) {
+        failedSteps++;
+        issues += step.issues.length;
+      }
+    }
+  }
+
+  return {
+    passed: workflowResults.every((workflowResult) => workflowResult.passed),
+    failedSteps,
+    issues,
+  };
+};
+
+const reportResults = (
+  out: LineWriter,
+  workflowResults: readonly WorkflowResult[],
+  jsonOutput: boolean,
+): shellArgs.CliResult<void> => {
+  const summary = summarize(workflowResults);
+
+  if (jsonOutput) {
+    out.writeln(JSON.stringify(workflowResults, null, 2));
+  } else if (summary.passed) {
+    out.writeln(span.green("\nAll checks passed!"));
+  } else {
+    out.writeln(
+      span.red(
+        `\n${summary.failedSteps} check(s) failed with ${summary.issues} issue(s)`,
+      ),
+    );
+  }
+
+  return summary.passed ? results.ok(undefined) : results.fail({ exitCode: 1 });
+};
+
+// =============================================================================
+// Execution
+// =============================================================================
+
+const writeMutations = async (
+  mutations: readonly WorkflowFileMutation[],
+): Promise<void> => {
+  for (const mutation of mutations) {
+    if (mutation.oldContent === mutation.newContent) {
+      continue;
+    }
+
+    // One write at a time on purpose: a step can fix hundreds of files, so
+    // this keeps one file open at a time, and a later mutation of the same
+    // path overwrites an earlier one instead of racing it.
+    // deno-lint-ignore no-await-in-loop
+    await runtime.fs.writeTextFile(mutation.path, mutation.newContent);
+  }
+};
+
+const failRun = (
+  out: LineWriter,
+  message: string,
+): shellArgs.CliResult<void> => {
+  out.writeln(span.red(`Error: ${message}`));
+  return results.fail({ exitCode: 1 });
+};
+
+type RunFlags = {
+  readonly event: string | undefined;
+  readonly workflow: string | undefined;
+  readonly config: string;
+  readonly fix: boolean;
+  readonly dryRun: boolean;
+  readonly only: string | undefined;
+  readonly args: readonly string[];
+  readonly verbose: boolean;
+  readonly json: boolean;
+  readonly changed: boolean;
+};
+
+const runCommand = async (
+  out: LineWriter,
+  flags: RunFlags,
+  cliOptions: RunCliOptions | undefined,
+): Promise<shellArgs.CliResult<void>> => {
+  if (flags.event === undefined && flags.workflow === undefined) {
+    return results.fail({
+      message:
+        "Error: specify -e <event> or -w <workflow-id>. Use --help for usage.",
+      exitCode: 1,
+    });
+  }
+
+  // --- Create registry (shell tool built-in, then injected tools) ---
+  const toolRegistry = registry.createRegistry();
+  toolRegistry.register(shellTool.shellTool);
+  if (cliOptions?.tools !== undefined) {
+    toolRegistry.registerAll(cliOptions.tools);
+  }
+
+  // --- Load config ---
+  const config = await loader.loadFromFile(flags.config);
+  if (config === null) {
+    return results.fail({
+      message: "Error: no .eser/manifest.yml found in current directory.",
+      exitCode: 1,
+    });
+  }
+
+  // --- Detect changed files ---
+  let changedFiles: string[] | undefined;
+  if (flags.changed) {
+    try {
+      changedFiles = await shellExec.exec`git diff --name-only HEAD`
+        .cwd(flags.config)
+        .timeout(GIT_DIFF_TIMEOUT_MS)
+        .noThrow()
+        .lines();
+    } catch {
+      out.writeln(
+        span.yellow(
+          "Warning: could not run git, running without file filtering.",
+        ),
+      );
+    }
+  }
+
+  // --- Build run options ---
+  const runOptions: RunOptions = {
+    root: flags.config,
+    fix: flags.fix,
+    dryRun: flags.dryRun,
+    only: flags.only,
+    args: flags.args,
+    changedFiles,
+
+    onStepEnd: flags.json
+      ? undefined
+      : (result) => writeStepResult(out, result, flags.verbose),
+
+    onMutations: flags.dryRun ? undefined : writeMutations,
+  };
+
+  // --- Run ---
+  // Every workflow runs on the TypeScript engine; WIRING.md says why the Go
+  // engine of the native library is not used.
+  try {
+    let workflowResults: readonly WorkflowResult[];
+    if (flags.event !== undefined) {
+      const eventResult = await task.runTask(
+        engine.runByEvent(
+          flags.event,
+          config.workflows,
+          toolRegistry,
+          runOptions,
+        ),
+      );
+
+      if (results.isFail(eventResult)) {
+        return failRun(out, eventResult.error.message);
+      }
+
+      workflowResults = eventResult.value;
+    } else {
+      const workflowResult = await task.runTask(
+        engine.runWorkflowWithConfig(
+          // Defined: the guard at the top returns when neither -e nor -w is set.
+          flags.workflow!,
+          config,
+          toolRegistry,
+          runOptions,
+        ),
+      );
+
+      if (results.isFail(workflowResult)) {
+        return failRun(out, workflowResult.error.message);
+      }
+
+      workflowResults = [workflowResult.value];
+    }
+
+    return reportResults(out, workflowResults, flags.json);
+  } catch (error) {
+    // The engine throws for circular or unknown includes and malformed steps,
+    // and writing a fixed file to disk can fail.
+    return failRun(
+      out,
+      error instanceof Error ? error.message : String(error),
+    );
+  }
 };
 
 // =============================================================================
@@ -86,6 +362,9 @@ export type RunCliOptions = {
 
 /**
  * CLI main function.
+ *
+ * Usage errors (no `-e` or `-w`, no manifest) come back as the `message` of
+ * the failed result, for the entry point to print.
  *
  * @param cliArgs - CLI arguments
  * @param cliOptions - Injected options (tools, config)
@@ -103,296 +382,25 @@ export const main = async (
     },
   );
 
+  const out = createLineWriter();
+
   if (parsed.help) {
-    console.log("eser workflows run — Run workflow pipelines\n");
-    console.log("Usage:");
-    console.log("  eser workflows run -e <event>        Run by event");
-    console.log(
-      "  eser workflows run -w <workflow-id>  Run by workflow id",
-    );
-    console.log();
-    console.log("Options:");
-    console.log(
-      "  -e, --event <name>     Event to trigger (precommit, commitmsg, prepush)",
-    );
-    console.log("  -w, --workflow <id>    Workflow id to run");
-    console.log("  --fix                  Auto-fix issues where supported");
-    console.log("  --dry-run              Preview mutations without writing");
-    console.log("  --only <step>          Run only a specific step");
-    console.log(
-      "  --config <path>        Config directory (default: .)",
-    );
-    console.log(
-      "  -v, --verbose          Show stats and issues for all steps",
-    );
-    console.log("  --json                 Output results as JSON");
-    console.log(
-      "  --changed              Only check files changed in git",
-    );
-    console.log("  -h, --help             Show this help");
+    writeHelp(out);
     return results.ok(undefined);
   }
 
-  const out = streams.output({
-    renderer,
-    sink: streams.sinks.stdout(),
-  });
-
-  const eventArg = parsed.event as string | undefined;
-  const workflowArg = parsed.workflow as string | undefined;
-  const fixMode = (parsed.fix as boolean | undefined) ?? false;
-  const dryRun = (parsed["dry-run"] as boolean | undefined) ?? false;
-  const onlyArg = parsed.only as string | undefined;
-  const positionalArgs = parsed._ as string[];
-  const verbose = (parsed.verbose as boolean | undefined) ?? false;
-  const jsonOutput = (parsed.json as boolean | undefined) ?? false;
-  const changed = (parsed.changed as boolean | undefined) ?? false;
-
-  if (eventArg === undefined && workflowArg === undefined) {
-    console.error(
-      "Error: specify -e <event> or -w <workflow-id>. Use --help for usage.",
-    );
-    await out.close();
-    return results.fail({ exitCode: 1 });
-  }
-
-  // --- Create registry (shell tool built-in, then injected tools) ---
-  const registry = createRegistry();
-  registry.register(shellTool);
-  if (cliOptions?.tools !== undefined) {
-    registry.registerAll(cliOptions.tools);
-  }
-
-  // --- Load config ---
-  const configDir = (parsed.config as string | undefined) ?? ".";
-  const config = await loadFromFile(configDir);
-  if (config === null) {
-    console.error(
-      "Error: no .eser/manifest.yml found in current directory.",
-    );
-    await out.close();
-    return results.fail({ exitCode: 1 });
-  }
-
-  // --- Detect changed files ---
-  let changedFiles: string[] | undefined;
-  if (changed) {
-    try {
-      const changedOutput = await shellExec.exec`git diff --name-only HEAD`
-        .cwd(configDir)
-        .noThrow()
-        .lines();
-      changedFiles = changedOutput;
-    } catch {
-      out.writeln(
-        span.yellow(
-          "Warning: could not run git, running without file filtering.",
-        ),
-      );
-    }
-  }
-
-  // --- Build run options ---
-  const allResults: WorkflowResult[] = [];
-
-  const runOptions: RunOptions = {
-    root: configDir,
-    fix: fixMode,
-    dryRun,
-    only: onlyArg,
-    args: positionalArgs,
-    changedFiles,
-
-    onStepStart: jsonOutput ? undefined : undefined,
-
-    onStepEnd: jsonOutput ? undefined : (result) => {
-      console.log(formatStepLine(result.name, result, verbose));
-
-      // Print issues under failed steps (or all steps when verbose)
-      if (!result.passed || verbose) {
-        for (const issue of result.issues) {
-          const loc = issue.path !== undefined
-            ? issue.line !== undefined
-              ? `${issue.path}:${issue.line}`
-              : issue.path
-            : "";
-          console.log(
-            `  ${renderer.render([span.red("✗")])} ${loc}${
-              loc.length > 0 ? ": " : ""
-            }${issue.message}`,
-          );
-        }
-      }
-    },
-
-    onMutations: async (mutations) => {
-      if (dryRun) {
-        return;
-      }
-      for (const mutation of mutations) {
-        if (mutation.oldContent !== mutation.newContent) {
-          await runtime.fs.writeTextFile(
-            mutation.path,
-            mutation.newContent,
-          );
-        }
-      }
-    },
+  const flags: RunFlags = {
+    event: parsed.event as string | undefined,
+    workflow: parsed.workflow as string | undefined,
+    config: (parsed.config as string | undefined) ?? ".",
+    fix: (parsed.fix as boolean | undefined) ?? false,
+    dryRun: (parsed["dry-run"] as boolean | undefined) ?? false,
+    only: parsed.only as string | undefined,
+    args: parsed._ as string[],
+    verbose: (parsed.verbose as boolean | undefined) ?? false,
+    json: (parsed.json as boolean | undefined) ?? false,
+    changed: (parsed.changed as boolean | undefined) ?? false,
   };
 
-  // --- Run ---
-  try {
-    let allPassed = true;
-    let totalIssues = 0;
-    let totalFailed = 0;
-
-    // --- Try Go FFI (faster path for event/workflow runs with built-in tools only) ---
-    if (cliOptions?.tools === undefined) {
-      try {
-        await ensureLib();
-        const lib = getLib();
-
-        if (lib !== null) {
-          const raw = lib.symbols.EserAjanWorkflowRun(
-            JSON.stringify({
-              root: configDir,
-              event: eventArg ?? "",
-              workflowId: workflowArg ?? "",
-              fix: fixMode,
-              only: onlyArg,
-              changedFiles,
-              workflows: config.workflows,
-            }),
-          );
-          const goResult = JSON.parse(raw) as {
-            results?: WorkflowResult[];
-            error?: string;
-          };
-
-          if (!goResult.error && goResult.results !== undefined) {
-            for (const wfResult of goResult.results) {
-              allResults.push(wfResult);
-              if (!wfResult.passed) allPassed = false;
-              for (const step of wfResult.steps) {
-                if (!step.passed) {
-                  totalFailed++;
-                  totalIssues += step.issues.length;
-                }
-                if (runOptions.onStepEnd !== undefined) {
-                  runOptions.onStepEnd(step);
-                }
-              }
-            }
-
-            if (jsonOutput) {
-              console.log(JSON.stringify(allResults, null, 2));
-            }
-
-            if (!allPassed) {
-              if (!jsonOutput) {
-                out.writeln(
-                  span.red(
-                    `\n${totalFailed} check(s) failed with ${totalIssues} issue(s)`,
-                  ),
-                );
-              }
-              await out.close();
-              return results.fail({ exitCode: 1 });
-            }
-
-            if (!jsonOutput) {
-              out.writeln(span.green("\nAll checks passed!"));
-            }
-            await out.close();
-            return results.ok(undefined);
-          }
-        }
-      } catch {
-        // Go unavailable or failed — fall through to TS engine
-      }
-    }
-
-    if (eventArg !== undefined) {
-      const eventResult = await task.runTask(
-        runByEvent(
-          eventArg,
-          config.workflows,
-          registry,
-          runOptions,
-        ),
-      );
-
-      if (results.isFail(eventResult)) {
-        throw new Error(eventResult.error.message);
-      }
-
-      for (const wfResult of eventResult.value) {
-        allResults.push(wfResult);
-        if (!wfResult.passed) {
-          allPassed = false;
-        }
-        for (const step of wfResult.steps) {
-          if (!step.passed) {
-            totalFailed++;
-            totalIssues += step.issues.length;
-          }
-        }
-      }
-    } else {
-      const wfTaskResult = await task.runTask(
-        runWorkflowWithConfig(
-          workflowArg!,
-          config,
-          registry,
-          runOptions,
-        ),
-      );
-
-      if (results.isFail(wfTaskResult)) {
-        throw new Error(wfTaskResult.error.message);
-      }
-
-      const wfResult = wfTaskResult.value;
-      allResults.push(wfResult);
-      allPassed = wfResult.passed;
-      for (const step of wfResult.steps) {
-        if (!step.passed) {
-          totalFailed++;
-          totalIssues += step.issues.length;
-        }
-      }
-    }
-
-    // --- JSON output ---
-    if (jsonOutput) {
-      console.log(JSON.stringify(allResults, null, 2));
-    }
-
-    // --- Summary ---
-    if (!allPassed) {
-      if (!jsonOutput) {
-        out.writeln(
-          span.red(
-            `\n${totalFailed} check(s) failed with ${totalIssues} issue(s)`,
-          ),
-        );
-      }
-      await out.close();
-      return results.fail({ exitCode: 1 });
-    }
-
-    if (!jsonOutput) {
-      out.writeln(span.green("\nAll checks passed!"));
-    }
-    await out.close();
-    return results.ok(undefined);
-  } catch (error) {
-    out.writeln(
-      span.red(
-        `Error: ${error instanceof Error ? error.message : String(error)}`,
-      ),
-    );
-    await out.close();
-    return results.fail({ exitCode: 1 });
-  }
+  return await runCommand(out, flags, cliOptions);
 };

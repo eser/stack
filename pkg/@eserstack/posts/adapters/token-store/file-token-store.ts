@@ -28,7 +28,9 @@ const TOKEN_FILE = "tokens.json";
 function resolveTokenPath(): string {
   // getHomedir() checks HOME then USERPROFILE then os.homedir(), so it returns
   // the correct home directory on every platform (Windows included).
-  const home = crossRuntime.getHomedir() || ".";
+  // os.homedir() can return "", which falls back to the working directory.
+  const homedir = crossRuntime.getHomedir();
+  const home = homedir !== "" ? homedir : ".";
   return crossRuntime.runtime.path.join(
     home,
     ...TOKEN_DIR_SEGMENTS,
@@ -73,7 +75,16 @@ async function readStore(tokenPath: string): Promise<PersistedStore> {
   const exists = await crossRuntime.runtime.fs.exists(tokenPath);
   if (!exists) return {};
   const text = await crossRuntime.runtime.fs.readTextFile(tokenPath);
-  return JSON.parse(text) as PersistedStore;
+  try {
+    return JSON.parse(text) as PersistedStore;
+  } catch (error) {
+    // The parser's message quotes the file, tokens included, so the message
+    // shown here names only the path; the original stays in cause.
+    throw new Error(
+      `token file ${tokenPath} is not valid JSON; delete it and log in again`,
+      { cause: error },
+    );
+  }
 }
 
 const TOKEN_DIR_MODE = 0o700;

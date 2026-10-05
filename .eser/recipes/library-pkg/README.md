@@ -1,15 +1,44 @@
-# @scope/package-name
+# 🧱 [@eserstack/package-name](./)
 
-A Deno library package.
+`@eserstack/package-name` builds greetings. Replace this paragraph with what the
+package does, who it is for and the design choice that shapes its API.
 
-## Usage
+## Quick Start
+
+Import the package as a namespace and call `greet`. It returns a `Result` from
+`@eserstack/primitives`, so check it before reading the greeting:
 
 ```typescript
-import * as pkg from "@scope/package-name";
+import * as packageName from "@eserstack/package-name";
+import * as primitives from "@eserstack/primitives";
 
-pkg.greet("World"); // "Hello, World!"
+const result = packageName.greet("World");
+
+if (primitives.results.isOk(result)) {
+  console.log(result.value); // "Hello, World!"
+}
 ```
 
-## License
+## API
 
-Apache-2.0
+### `greet(name)`
+
+Returns `Ok` with a greeting for `name`, with surrounding whitespace removed. An
+empty name returns `Fail` with an `Error` instead of throwing.
+
+```typescript
+import * as packageName from "@eserstack/package-name";
+import * as primitives from "@eserstack/primitives";
+
+const result = packageName.greet("  ");
+
+if (primitives.results.isFail(result)) {
+  console.error(result.error.message); // "name is empty"
+}
+```
+
+## 🔗 Links
+
+- [JSR package](https://jsr.io/@eserstack/package-name): the API reference
+  generated from source
+- [eser/stack on GitHub](https://github.com/eser/stack)

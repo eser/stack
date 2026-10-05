@@ -45,7 +45,7 @@ func TestErrorHandlerMiddleware(t *testing.T) {
 			t.Parallel()
 
 			// Create a router with the error handler middleware
-			router := httpfx.NewRouter("/")
+			router := newTestRouter()
 			router.Use(middlewares.ErrorHandlerMiddleware())
 
 			// Add a test route

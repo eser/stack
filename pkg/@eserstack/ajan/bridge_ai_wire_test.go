@@ -45,6 +45,7 @@ const wireRequest = `{
   "stopWords": ["END"],
   "responseFormat": {"type": "json_schema", "name": "reply", "jsonSchema": {"type": "object"}},
   "thinkingBudget": 2048,
+  "effort": "low",
   "safetySettings": [{"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"}],
   "extensions": {"vendorFlag": true}
 }`
@@ -86,6 +87,10 @@ func TestWireCarriesEveryGenerationOption(t *testing.T) {
 
 	if opts.ThinkingBudget == nil || *opts.ThinkingBudget != 2048 {
 		t.Fatalf("thinkingBudget = %v", opts.ThinkingBudget)
+	}
+
+	if opts.Effort != aifx.EffortLow {
+		t.Fatalf("effort = %q, want %q", opts.Effort, aifx.EffortLow)
 	}
 
 	if len(opts.StopWords) != 1 || opts.StopWords[0] != "END" {
@@ -268,6 +273,10 @@ func TestUnsetOptionsStayUnset(t *testing.T) {
 	if opts.ResponseFormat != nil || len(opts.Tools) != 0 {
 		t.Fatalf("absent responseFormat/tools became values")
 	}
+
+	if opts.Effort != aifx.EffortDefault {
+		t.Fatalf("absent effort became %q", opts.Effort)
+	}
 }
 
 // TestResponseCarriesToolCalls pins the answer half.
@@ -362,5 +371,79 @@ func TestBase64PayloadRoundTrips(t *testing.T) {
 	// the URL field is the alternative carrier for the same content.
 	if decodeBase64Payload("") != nil || decodeBase64Payload("not base64!!") != nil {
 		t.Fatal("a missing or malformed payload should decode to nil")
+	}
+}
+
+// TestThinkingRoundTripsUnchanged pins TASK-63 on the wire: a thinking block
+// in an answer reaches TypeScript whole, and the same block sent back in the
+// next request reaches the provider unchanged. Anthropic checks the signature,
+// so a block that loses or alters any field fails the next call of a tool loop.
+func TestThinkingRoundTripsUnchanged(t *testing.T) {
+	t.Parallel()
+
+	part := aifx.ThinkingPart{Text: "plan", Signature: "sig-1", RedactedData: ""}
+
+	resp := mapGenerateResult(&aifx.GenerateTextResult{ //nolint:exhaustruct
+		Content: []aifx.ContentBlock{
+			aifx.NewThinkingBlock(part),
+			{Type: aifx.ContentBlockText, Text: "answer"}, //nolint:exhaustruct
+		},
+		StopReason: aifx.StopReasonRefusal,
+	})
+
+	encoded, err := json.Marshal(resp)
+	if err != nil {
+		t.Fatalf("marshal response: %v", err)
+	}
+
+	const wantResp = `{"content":[{"thinking":{"text":"plan","signature":"sig-1"},"type":"thinking"},` +
+		`{"type":"text","text":"answer"}],"stopReason":"refusal","usage":{"inputTokens":0,"outputTokens":0,"totalTokens":0}}`
+	if string(encoded) != wantResp {
+		t.Fatalf("response JSON =\n%s\nwant\n%s", encoded, wantResp)
+	}
+
+	// The request half, as ajan-bridge.ts sends a replayed assistant turn.
+	opts, err := parseGenerateRequest(`{"messages":[{"role":"assistant","content":[
+		{"type":"thinking","thinking":{"text":"plan","signature":"sig-1"}},
+		{"type":"thinking","thinking":{"redactedData":"opaque"}},
+		{"type":"thinking"}
+	]}]}`)
+	if err != nil {
+		t.Fatalf("parseGenerateRequest: %v", err)
+	}
+
+	blocks := opts.Messages[0].Content
+	if len(blocks) != 2 {
+		t.Fatalf("got %d blocks, want 2 (a thinking block with no payload is skipped): %+v", len(blocks), blocks)
+	}
+
+	want := []aifx.ThinkingPart{part, {Text: "", Signature: "", RedactedData: "opaque"}}
+	for i, w := range want {
+		if blocks[i].Type != aifx.ContentBlockThinking || blocks[i].Thinking == nil || *blocks[i].Thinking != w {
+			t.Errorf("block %d = %+v, want thinking %+v", i, blocks[i], w)
+		}
+	}
+}
+
+// TestStreamedThinkingKeepsItsFields pins the streaming half of the same
+// contract.
+func TestStreamedThinkingKeepsItsFields(t *testing.T) {
+	t.Parallel()
+
+	event := mapStreamEvent(aifx.StreamEvent{ //nolint:exhaustruct
+		Type:     aifx.StreamEventThinking,
+		Thinking: &aifx.ThinkingPart{Text: "plan", Signature: "sig-2", RedactedData: ""},
+	})
+
+	if event.Type != "thinking" {
+		t.Fatalf("type = %q, want thinking", event.Type)
+	}
+
+	if event.Thinking == nil || event.Thinking.Text != "plan" || event.Thinking.Signature != "sig-2" {
+		t.Fatalf("thinking = %+v", event.Thinking)
+	}
+
+	if event.TextDelta != "" {
+		t.Fatalf("textDelta = %q; reasoning must not ride in the answer text", event.TextDelta)
 	}
 }

@@ -11,10 +11,10 @@ import * as streams from "@eserstack/streams";
 import * as span from "@eserstack/streams/span";
 import type * as shellArgs from "@eserstack/shell/args";
 import * as persistence from "../state/persistence.ts";
-import * as schema from "../state/schema.ts";
+import type * as schema from "../state/schema.ts";
 import * as formatter from "../output/formatter.ts";
-import { detectTensions, loadDefaultConcerns } from "../context/concerns.ts";
-import { cmd, cmdPrefix } from "../output/cmd.ts";
+import * as concerns from "../context/concerns.ts";
+import * as cmd from "../output/cmd.ts";
 
 export const main = async (
   args?: readonly string[],
@@ -33,7 +33,7 @@ export const main = async (
     return await concernList(args?.slice(1));
   }
 
-  const prefix = cmdPrefix();
+  const prefix = cmd.cmdPrefix();
   const out = streams.output({
     renderer: streams.renderers.ansi(),
     sink: streams.sinks.stdout(),
@@ -64,7 +64,7 @@ const concernAdd = async (
   if (concernIds.length === 0) {
     out.writeln(
       span.red("Please provide concern ID(s): "),
-      span.bold(cmd("concern add open-source beautiful-product")),
+      span.bold(cmd.cmd("concern add open-source beautiful-product")),
     );
     await out.close();
 
@@ -78,17 +78,22 @@ const concernAdd = async (
     return results.fail({ exitCode: 1 });
   }
 
-  const defaults = await loadDefaultConcerns();
+  const defaults = await concerns.loadDefaultConcerns();
   const added: string[] = [];
 
+  // Ids are handled one at a time, in argument order: the messages follow the
+  // order the user typed, and a repeated id must not write the same file twice
+  // at once.
   for (const concernId of concernIds) {
     // Find concern: check .eser/concerns/ first, then built-in defaults
+    // deno-lint-ignore no-await-in-loop
     let concern = await persistence.readConcern(root, concernId);
 
     if (concern === null) {
       concern = defaults.find((c) => c.id === concernId) ?? null;
 
       if (concern !== null) {
+        // deno-lint-ignore no-await-in-loop
         await persistence.writeConcern(root, concern);
       }
     }
@@ -149,7 +154,7 @@ const concernRemove = async (
   if (concernId === undefined || concernId.length === 0) {
     out.writeln(
       span.red("Please provide a concern ID: "),
-      span.bold(cmd("concern remove move-fast")),
+      span.bold(cmd.cmd("concern remove move-fast")),
     );
     await out.close();
 
@@ -203,7 +208,7 @@ const concernList = async (
   const config = await persistence.readManifest(root);
 
   // Show all built-in concerns (not just locally installed ones)
-  const allConcerns = await loadDefaultConcerns();
+  const allConcerns = await concerns.loadDefaultConcerns();
   const activeConcernIds = config?.concerns ?? [];
   const activeConcernDefs = allConcerns.filter((c) =>
     activeConcernIds.includes(c.id)
@@ -245,9 +250,9 @@ const concernList = async (
   if (allConcerns.length === 0) {
     out.writeln(span.dim("  No concerns defined."));
   } else {
-    for (const [category, concerns] of groups) {
+    for (const [category, categoryConcerns] of groups) {
       out.writeln(span.bold(capitalize(category) + ":"));
-      for (const concern of concerns) {
+      for (const concern of categoryConcerns) {
         const isActive = activeConcernIds.includes(concern.id);
         out.writeln(
           "  ",
@@ -265,7 +270,7 @@ const concernList = async (
 
   // Tension warnings
   try {
-    const tensions = detectTensions(activeConcernDefs);
+    const tensions = concerns.detectTensions(activeConcernDefs);
     if (tensions.length > 0) {
       out.writeln(span.yellow("⚠ Tensions detected:"));
       for (const t of tensions) {

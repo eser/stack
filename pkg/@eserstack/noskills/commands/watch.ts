@@ -13,6 +13,7 @@ import * as results from "@eserstack/primitives/results";
 import type * as shellArgs from "@eserstack/shell/args";
 import type * as schema from "../state/schema.ts";
 import * as persistence from "../state/persistence.ts";
+import * as iteration from "../state/iteration.ts";
 import * as specParser from "../spec/parser.ts";
 import * as formatter from "../output/formatter.ts";
 import { runtime } from "@eserstack/standards/cross-runtime";
@@ -58,14 +59,14 @@ export type WatchSnapshot = {
 // Build snapshot from filesystem
 // =============================================================================
 
-const buildSnapshot = async (
+export const buildSnapshot = async (
   root: string,
 ): Promise<WatchSnapshot> => {
   const state = await persistence.readState(root);
   const config = await persistence.readManifest(root);
 
   // Read tracked files from hook log
-  const trackedFiles = await readTrackedFiles(root);
+  const trackedFiles = await iteration.readTrackedFiles(root);
 
   // Parse spec to get task info
   let activeTaskId: string | null = null;
@@ -132,32 +133,6 @@ const buildSnapshot = async (
   };
 };
 
-const readTrackedFiles = async (root: string): Promise<readonly string[]> => {
-  const logFile =
-    `${root}/${persistence.paths.progressesDir}/files-changed.jsonl`;
-
-  try {
-    const content = await runtime.fs.readTextFile(logFile);
-    const lines = content.trim().split("\n").filter(Boolean);
-    const files: string[] = [];
-
-    for (const line of lines) {
-      try {
-        const entry = JSON.parse(line) as { file: string };
-        if (!files.includes(entry.file)) {
-          files.push(entry.file);
-        }
-      } catch {
-        // skip malformed lines
-      }
-    }
-
-    return files;
-  } catch {
-    return [];
-  }
-};
-
 // =============================================================================
 // Terminal renderer (ANSI)
 // =============================================================================
@@ -198,15 +173,18 @@ const formatTime = (seconds: number | null): string => {
   return `${Math.floor(seconds / 3600)}h ago`;
 };
 
-/** Pad text to fit within a box cell, stripping ANSI for length calc. */
+// The pattern matches ANSI color escapes, which start with the ESC control
+// character.
 // deno-lint-ignore no-control-regex
 const stripAnsi = (s: string): string => s.replace(/\x1b\[[0-9;]*m/g, "");
+
+/** Pad text to fit within a box cell, stripping ANSI for length calc. */
 const padCell = (text: string, w: number): string => {
   const visible = stripAnsi(text).length;
   return text + " ".repeat(Math.max(0, w - visible));
 };
 
-const renderTerminal = (snap: WatchSnapshot): string => {
+export const renderTerminal = (snap: WatchSnapshot): string => {
   const lines: string[] = [];
   const w = 54;
   const border = "─".repeat(w);
@@ -407,7 +385,7 @@ const renderTerminal = (snap: WatchSnapshot): string => {
 // JSON line renderer
 // =============================================================================
 
-const renderJsonLine = (snap: WatchSnapshot): string => {
+export const renderJsonLine = (snap: WatchSnapshot): string => {
   return JSON.stringify({
     ts: new Date().toISOString(),
     phase: snap.phase,
@@ -499,11 +477,15 @@ export const main = async (
   const POLL_MS = 1000;
   let lastMtime = 0;
 
+  // A polling loop: each pass waits out the interval, checks the state file and
+  // renders, so its awaits run one after another by design.
   while (true) {
+    // deno-lint-ignore no-await-in-loop
     await new Promise((resolve) => setTimeout(resolve, POLL_MS));
 
     // Check if state file changed
     try {
+      // deno-lint-ignore no-await-in-loop
       const stat = await runtime.fs.stat(`${stateDir}/state.json`);
       const mtime = stat.mtime?.getTime() ?? 0;
 
@@ -511,8 +493,10 @@ export const main = async (
         lastMtime = mtime;
 
         // Debounce: wait 200ms for rapid changes to settle
+        // deno-lint-ignore no-await-in-loop
         await new Promise((resolve) => setTimeout(resolve, 200));
 
+        // deno-lint-ignore no-await-in-loop
         const isDone = await render();
         if (isDone) break;
       }
@@ -523,10 +507,3 @@ export const main = async (
 
   return results.ok(undefined);
 };
-
-// =============================================================================
-// Exported for testing
-// =============================================================================
-
-export { buildSnapshot, renderJsonLine, renderTerminal };
-export type { WatchSnapshot as _WatchSnapshot };

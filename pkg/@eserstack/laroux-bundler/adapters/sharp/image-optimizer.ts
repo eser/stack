@@ -5,19 +5,27 @@
  */
 
 import { runtime } from "@eserstack/standards/cross-runtime";
-import { hasExtension } from "@eserstack/standards/patterns";
+import * as patterns from "@eserstack/standards/patterns";
 import * as logging from "@eserstack/logging";
+import type {
+  ImageManifest,
+  ImageOptimizationRequest,
+  ImageOptimizer,
+  ImageVariant,
+  OptimizedImage,
+} from "../../domain/image-optimizer.ts";
 
 const imageLogger = logging.logger.getLogger(["laroux", "image-optimizer"]);
 
-// Lazy load sharp
+// sharp is a native module, so it loads on first use instead of at import.
+// The dynamic import is untyped; typing it would need sharp's types here.
 // deno-lint-ignore no-explicit-any
 let sharpModule: any = null;
 
+// Returns the untyped module held in sharpModule
 // deno-lint-ignore no-explicit-any
 async function getSharp(): Promise<any> {
   if (sharpModule === null) {
-    // deno-lint-ignore no-import-prefix
     sharpModule = await import("sharp");
   }
   return sharpModule.default ?? sharpModule;
@@ -42,52 +50,6 @@ export type ImageOptimizationConfig = {
   generateBlurPlaceholder?: boolean;
   /** Placeholder width (for blur data URL) */
   placeholderWidth?: number;
-};
-
-/**
- * Optimized image variant
- */
-export type ImageVariant = {
-  /** Output file path */
-  path: string;
-  /** Format (webp, avif, jpeg, png) */
-  format: string;
-  /** Width in pixels */
-  width: number;
-  /** Height in pixels */
-  height: number;
-  /** File size in bytes */
-  size: number;
-};
-
-/**
- * Result of optimizing a single image
- */
-export type OptimizedImage = {
-  /** Original image path */
-  originalPath: string;
-  /** Public URL path (without extension for format selection) */
-  publicPath: string;
-  /** Original width */
-  originalWidth: number;
-  /** Original height */
-  originalHeight: number;
-  /** Generated variants */
-  variants: ImageVariant[];
-  /** Blur placeholder data URL (if generated) */
-  blurDataUrl?: string;
-  /** Aspect ratio (width / height) */
-  aspectRatio: number;
-};
-
-/**
- * Image manifest for runtime
- */
-export type ImageManifest = {
-  /** Build timestamp */
-  timestamp: number;
-  /** Map of original paths to optimized images */
-  images: Record<string, OptimizedImage>;
 };
 
 const DEFAULT_CONFIG: Required<ImageOptimizationConfig> = {
@@ -118,7 +80,9 @@ export async function scanImages(dir: string): Promise<string[]> {
         if (entry.isDirectory) {
           await scan(fullPath);
         } else if (entry.isFile) {
-          if (hasExtension(entry.name.toLowerCase(), imageExtensions)) {
+          if (
+            patterns.hasExtension(entry.name.toLowerCase(), imageExtensions)
+          ) {
             images.push(fullPath);
           }
         }
@@ -152,6 +116,21 @@ async function generateBlurPlaceholder(
 }
 
 /**
+ * Encode one variant and write it to disk
+ * @returns The size of the written file in bytes
+ */
+async function writeVariant(
+  // sharp is loaded lazily through getSharp(), which returns it untyped
+  // deno-lint-ignore no-explicit-any
+  processedImage: any,
+  outputPath: string,
+): Promise<number> {
+  const outputBuffer: Uint8Array = await processedImage.toBuffer();
+  await runtime.fs.writeFile(outputPath, outputBuffer);
+  return outputBuffer.length;
+}
+
+/**
  * Optimize a single image
  */
 export async function optimizeImage(
@@ -181,6 +160,9 @@ export async function optimizeImage(
 
   const variants: ImageVariant[] = [];
 
+  // Every variant is written straight into outputDir
+  await runtime.fs.ensureDir(outputDir);
+
   // Generate variants for each width and format
   for (const width of mergedConfig.widths) {
     // Skip widths larger than original
@@ -206,9 +188,6 @@ export async function optimizeImage(
         );
       }
 
-      // Ensure output directory exists
-      await runtime.fs.ensureDir(runtime.path.dirname(outputPath));
-
       // Process and save
       let processedImage = image.clone().resize(width, height, {
         fit: "cover",
@@ -232,15 +211,17 @@ export async function optimizeImage(
         });
       }
 
-      const outputBuffer = await processedImage.toBuffer();
-      await runtime.fs.writeFile(outputPath, outputBuffer);
+      // Variants are encoded one at a time so only one encoded buffer is in
+      // memory; sharp already spreads each encode over its own thread pool.
+      // deno-lint-ignore no-await-in-loop
+      const size = await writeVariant(processedImage, outputPath);
 
       variants.push({
         path: outputPath,
         format: outputFormat,
         width,
         height,
-        size: outputBuffer.length,
+        size,
       });
     }
   }
@@ -294,9 +275,14 @@ export async function optimizeImages(
 
   for (const imagePath of imagePaths) {
     try {
+      // Images are optimized one at a time to bound memory: each holds its
+      // decoded pixels and encoded variants until it finishes.
+      // deno-lint-ignore no-await-in-loop
       const originalStat = await runtime.fs.stat(imagePath);
       totalOriginalSize += originalStat.size;
 
+      // Sequential for the same memory bound as the stat above
+      // deno-lint-ignore no-await-in-loop
       const optimized = await optimizeImage(
         imagePath,
         outputDir,
@@ -318,10 +304,8 @@ export async function optimizeImages(
         } → ${optimized.variants.length} variants`,
       );
     } catch (error) {
-      imageLogger.warn(
-        `Failed to optimize ${imagePath}: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
+      imageLogger.with({ error }).warn(
+        `optimize ${imagePath}; leaving it out of the image manifest`,
       );
     }
   }
@@ -381,3 +365,20 @@ export function getBestVariant(
   // Find the smallest variant that's at least as wide as target
   return variants.find((v) => v.width >= targetWidth) ?? variants.at(-1);
 }
+
+/**
+ * Image optimizer that encodes the images with sharp: responsive variants in
+ * the configured formats, widths and quality, a blur placeholder when the
+ * config's placeholder is "blur", and image-manifest.json in the output
+ * directory. Pass it to the build as `imageOptimizer`.
+ */
+export const sharpImageOptimizer: ImageOptimizer = {
+  name: "sharp",
+  optimize: (request: ImageOptimizationRequest): Promise<ImageManifest> =>
+    optimizeImages(request.inputDir, request.outputDir, request.publicPath, {
+      formats: request.config.formats,
+      widths: request.config.widths,
+      quality: request.config.quality,
+      generateBlurPlaceholder: request.config.placeholder === "blur",
+    }),
+};

@@ -1,9 +1,9 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import { assert, assertEquals } from "@std/assert";
+import * as assert from "@std/assert";
 import * as results from "@eserstack/primitives/results";
 import type * as ffiTypes from "@eserstack/ajan/ffi";
-import { AjanBridgeModel, createBridgeFactories } from "./ajan-bridge.ts";
+import * as ajanBridge from "./ajan-bridge.ts";
 
 // The bridge's wire contract is a set of JSON key names shared with Go, and it
 // is minted in exactly one place: this file. Nothing checked it, which is how
@@ -38,7 +38,7 @@ const stubLib = (captured: Captured[]): ffiTypes.FFILibrary => {
 };
 
 const model = (captured: Captured[]) =>
-  new AjanBridgeModel(
+  new ajanBridge.AjanBridgeModel(
     stubLib(captured),
     "handle-1",
     "anthropic",
@@ -56,16 +56,19 @@ Deno.test("submitBatch sends its items under the key Go reads", async () => {
     ],
   });
 
-  assertEquals(captured.length, 1);
+  assert.assertEquals(captured.length, 1);
 
   const sent = JSON.parse(captured[0]!.payload) as Record<string, unknown>;
 
   // `items` is what pkg/@eserstack/ajan/bridge.go's aiBatchSubmitRequest tags.
-  assert(Array.isArray(sent["items"]), `no items key: ${captured[0]!.payload}`);
-  assertEquals((sent["items"] as unknown[]).length, 2);
+  assert.assert(
+    Array.isArray(sent["items"]),
+    `no items key: ${captured[0]!.payload}`,
+  );
+  assert.assertEquals((sent["items"] as unknown[]).length, 2);
 
   // The old name must not reappear: Go would ignore it and submit nothing.
-  assertEquals(sent["requests"], undefined);
+  assert.assertEquals(sent["requests"], undefined);
 });
 
 Deno.test("listBatchJobs sends its cursor under the key Go reads", async () => {
@@ -75,9 +78,9 @@ Deno.test("listBatchJobs sends its cursor under the key Go reads", async () => {
 
   const sent = JSON.parse(captured[0]!.payload) as Record<string, unknown>;
 
-  assertEquals(sent["after"], "cursor-1");
-  assertEquals(sent["afterId"], undefined);
-  assertEquals(sent["limit"], 10);
+  assert.assertEquals(sent["after"], "cursor-1");
+  assert.assertEquals(sent["afterId"], undefined);
+  assert.assertEquals(sent["limit"], 10);
 });
 
 // ── Generation wire contract ─────────────────────────────────────────────────
@@ -106,7 +109,7 @@ const captureGenerate = async (
     },
   } as unknown as ffiTypes.FFILibrary;
 
-  const m = new AjanBridgeModel(lib, "h", "anthropic", "x", [
+  const m = new ajanBridge.AjanBridgeModel(lib, "h", "anthropic", "x", [
     "text_generation",
   ]);
 
@@ -128,19 +131,24 @@ Deno.test("generation options all reach the wire", async () => {
     topP: 0.9,
     stopWords: ["END"],
     thinkingBudget: 2048,
+    effort: "low",
     safetySettings: [{ category: "C", threshold: "T" }],
     extensions: { vendorFlag: true },
   });
 
   // Temperature 0 must survive as 0, not be defaulted away: it is a real
   // setting and distinct from "unspecified".
-  assertEquals(sent["temperature"], 0);
-  assertEquals(sent["topP"], 0.9);
-  assertEquals(sent["thinkingBudget"], 2048);
-  assertEquals(sent["stopWords"], ["END"]);
-  assert(Array.isArray(sent["tools"]), "tools were dropped");
-  assert(Array.isArray(sent["safetySettings"]), "safetySettings were dropped");
-  assertEquals(sent["extensions"], { vendorFlag: true });
+  assert.assertEquals(sent["temperature"], 0);
+  assert.assertEquals(sent["topP"], 0.9);
+  assert.assertEquals(sent["thinkingBudget"], 2048);
+  assert.assertEquals(sent["effort"], "low");
+  assert.assertEquals(sent["stopWords"], ["END"]);
+  assert.assert(Array.isArray(sent["tools"]), "tools were dropped");
+  assert.assert(
+    Array.isArray(sent["safetySettings"]),
+    "safetySettings were dropped",
+  );
+  assert.assertEquals(sent["extensions"], { vendorFlag: true });
 });
 
 Deno.test("unset options are absent rather than zeroed", async () => {
@@ -148,9 +156,10 @@ Deno.test("unset options are absent rather than zeroed", async () => {
 
   // Absent, not 0. Go decodes these into pointers, so a literal 0 here would
   // pin every unspecified request to temperature 0.
-  assert(!("temperature" in sent), "temperature was defaulted");
-  assert(!("topP" in sent), "topP was defaulted");
-  assert(!("thinkingBudget" in sent), "thinkingBudget was defaulted");
+  assert.assert(!("temperature" in sent), "temperature was defaulted");
+  assert.assert(!("topP" in sent), "topP was defaulted");
+  assert.assert(!("thinkingBudget" in sent), "thinkingBudget was defaulted");
+  assert.assert(!("effort" in sent), "effort was defaulted");
 });
 
 Deno.test("content block payloads all reach the wire", async () => {
@@ -182,19 +191,19 @@ Deno.test("content block payloads all reach the wire", async () => {
 
   // "aGk=" is base64("hi"). A Uint8Array does not survive JSON.stringify -- it
   // becomes {"0":104,"1":105} -- so this is what proves it was encoded.
-  assertEquals(
+  assert.assertEquals(
     (blocks[1]!["image"] as Record<string, unknown>)["data"],
     "aGk=",
   );
-  assertEquals(
+  assert.assertEquals(
     (blocks[2]!["file"] as Record<string, unknown>)["uri"],
     "gs://b/x",
   );
-  assertEquals(
+  assert.assertEquals(
     (blocks[3]!["toolCall"] as Record<string, unknown>)["id"],
     "tc-1",
   );
-  assertEquals(
+  assert.assertEquals(
     (blocks[4]!["toolResult"] as Record<string, unknown>)["content"],
     "ok",
   );
@@ -217,27 +226,131 @@ Deno.test("tool calls in a response are decoded, not dropped", () => {
     },
   } as unknown as ffiTypes.FFILibrary;
 
-  const m = new AjanBridgeModel(lib, "h", "anthropic", "x", ["tool_calling"]);
+  const m = new ajanBridge.AjanBridgeModel(lib, "h", "anthropic", "x", [
+    "tool_calling",
+  ]);
 
   return m.generateText(
     { messages: [] } as unknown as Parameters<
       typeof m.generateText
     >[0],
   ).then((result) => {
-    assert(results.isOk(result), "generateText failed");
+    assert.assert(results.isOk(result), "generateText failed");
 
     const blocks = result.value.content as unknown as Array<
       Record<string, unknown>
     >;
 
-    assertEquals(blocks.length, 1, "the tool call was dropped");
-    assertEquals(blocks[0]!["kind"], "tool_call");
+    assert.assertEquals(blocks.length, 1, "the tool call was dropped");
+    assert.assertEquals(blocks[0]!["kind"], "tool_call");
 
     const call = blocks[0]!["toolCall"] as Record<string, unknown>;
-    assertEquals(call["id"], "tc-7");
-    assertEquals(call["name"], "get_weather");
-    assertEquals(call["arguments"], { city: "Ankara" });
+    assert.assertEquals(call["id"], "tc-7");
+    assert.assertEquals(call["name"], "get_weather");
+    assert.assertEquals(call["arguments"], { city: "Ankara" });
   });
+});
+
+// ── Thinking and refusal (TASK-63) ──────────────────────────────────────────
+//
+// The Go half is pinned in bridge_ai_wire_test.go (TestThinkingRoundTripsUnchanged).
+// A thinking block must cross whole in both directions: the provider checks
+// its signature when a tool-use loop sends it back.
+
+Deno.test("thinking blocks and a refusal in a response are decoded", async () => {
+  const lib = {
+    symbols: {
+      EserAjanAiGenerateText: () =>
+        JSON.stringify({
+          content: [
+            {
+              type: "thinking",
+              thinking: { text: "plan", signature: "sig-1" },
+            },
+            { type: "thinking", thinking: { redactedData: "opaque" } },
+            { type: "text", text: "I can't help with that." },
+          ],
+          usage: {},
+          stopReason: "refusal",
+        }),
+    },
+  } as unknown as ffiTypes.FFILibrary;
+
+  const m = new ajanBridge.AjanBridgeModel(lib, "h", "anthropic", "x", [
+    "text_generation",
+  ]);
+
+  const result = await m.generateText({ messages: [] });
+  assert.assert(results.isOk(result), "generateText failed");
+
+  assert.assertEquals(result.value.stopReason, "refusal");
+  assert.assertEquals(result.value.content, [
+    { kind: "thinking", thinking: { text: "plan", signature: "sig-1" } },
+    { kind: "thinking", thinking: { text: "", redactedData: "opaque" } },
+    { kind: "text", text: "I can't help with that." },
+  ]);
+});
+
+Deno.test("thinking blocks are sent back unchanged", async () => {
+  const sent = await captureGenerate({
+    messages: [{
+      role: "assistant",
+      content: [
+        { kind: "thinking", thinking: { text: "plan", signature: "sig-1" } },
+      ],
+    }],
+  });
+
+  const blocks =
+    (sent["messages"] as Array<{ content: Array<Record<string, unknown>> }>)[0]!
+      .content;
+
+  // The shape bridge.go's aiContentBlockReq decodes.
+  assert.assertEquals(blocks[0], {
+    type: "thinking",
+    thinking: { text: "plan", signature: "sig-1" },
+  });
+});
+
+Deno.test("a streamed thinking event is decoded", async () => {
+  const reads = [
+    JSON.stringify({
+      type: "thinking",
+      thinking: { text: "plan", signature: "sig-2" },
+    }),
+    JSON.stringify({ type: "message_done", stopReason: "refusal", usage: {} }),
+  ];
+
+  const lib = {
+    symbols: {
+      EserAjanAiStreamText: () => JSON.stringify({ handle: "s1" }),
+      EserAjanAiStreamRead: () => reads.shift() ?? "null",
+      EserAjanAiFreeStream: () => {},
+    },
+  } as unknown as ffiTypes.FFILibrary;
+
+  const m = new ajanBridge.AjanBridgeModel(lib, "h", "anthropic", "x", [
+    "streaming",
+  ]);
+
+  const events = [];
+  for await (const event of m.streamText({ messages: [] })) {
+    events.push(event);
+  }
+
+  assert.assertEquals(events, [
+    { kind: "thinking", thinking: { text: "plan", signature: "sig-2" } },
+    {
+      kind: "message_done",
+      stopReason: "refusal",
+      usage: {
+        inputTokens: 0,
+        outputTokens: 0,
+        totalTokens: 0,
+        thinkingTokens: undefined,
+      },
+    },
+  ]);
 });
 
 // ── AbortSignal ──────────────────────────────────────────────────────────────
@@ -284,7 +397,9 @@ const cancelSpy = (): CancelSpy => {
 };
 
 const spyModel = (spy: CancelSpy) =>
-  new AjanBridgeModel(spy.lib, "h", "anthropic", "x", ["text_generation"]);
+  new ajanBridge.AjanBridgeModel(spy.lib, "h", "anthropic", "x", [
+    "text_generation",
+  ]);
 
 Deno.test("aborting mid-flight reaches the cancel symbol with the request's id", async () => {
   const spy = cancelSpy();
@@ -300,26 +415,30 @@ Deno.test("aborting mid-flight reaches the cancel symbol with the request's id",
   // The call is in flight and has not resolved. That JS reached this line at
   // all is the nonblocking property: a blocking symbol would have frozen the
   // isolate here and abort could never fire.
-  assertEquals(spy.cancels.length, 0);
+  assert.assertEquals(spy.cancels.length, 0);
 
   controller.abort();
 
-  assertEquals(spy.cancels.length, 1, "abort did not reach the cancel symbol");
+  assert.assertEquals(
+    spy.cancels.length,
+    1,
+    "abort did not reach the cancel symbol",
+  );
 
   const sentId = (JSON.parse(spy.sent[0]!) as { requestId: string }).requestId;
   const cancelledId =
     (JSON.parse(spy.cancels[0]!) as { requestId: string }).requestId;
 
   // Cancelling a different id than the request carries would be a silent no-op.
-  assertEquals(cancelledId, sentId);
+  assert.assertEquals(cancelledId, sentId);
 
   spy.resolveGenerate!(JSON.stringify({ error: "context canceled" }));
 
   const result = await pending;
 
-  assert(results.isFail(result), "an aborted call reported success");
+  assert.assert(results.isFail(result), "an aborted call reported success");
   // The caller's own intent, not the Go plumbing that carried it out.
-  assertEquals(result.error.message, "request aborted");
+  assert.assertEquals(result.error.message, "request aborted");
 });
 
 Deno.test("an already-aborted signal cancels without waiting", async () => {
@@ -334,7 +453,7 @@ Deno.test("an already-aborted signal cancels without waiting", async () => {
 
   // Sent immediately. Go records it against the id, so the request stops the
   // instant it registers rather than running to completion first.
-  assertEquals(spy.cancels.length, 1);
+  assert.assertEquals(spy.cancels.length, 1);
 
   spy.resolveGenerate!(JSON.stringify({ error: "context canceled" }));
   await result;
@@ -362,7 +481,7 @@ Deno.test("the abort listener is detached when the call completes", async () => 
   // holds the controller, and fires a pointless cancel into the library.
   controller.abort();
 
-  assertEquals(
+  assert.assertEquals(
     spy.cancels.length,
     0,
     "the listener outlived the call it belonged to",
@@ -382,7 +501,7 @@ Deno.test("a call without a signal still carries a request id", async () => {
 
   // Always present, so a caller can cancel out of band and so the id never
   // silently becomes the empty string -- which Go treats as untracked.
-  assert(
+  assert.assert(
     sent.requestId !== undefined && sent.requestId.length > 0,
     "no requestId was sent",
   );
@@ -415,7 +534,7 @@ Deno.test("batch calls are cancellable and carry a request id", async () => {
     },
   } as unknown as ffiTypes.FFILibrary;
 
-  const m = new AjanBridgeModel(lib, "h", "anthropic", "x", [
+  const m = new ajanBridge.AjanBridgeModel(lib, "h", "anthropic", "x", [
     "batch_processing",
   ]);
 
@@ -425,13 +544,17 @@ Deno.test("batch calls are cancellable and carry a request id", async () => {
   // Reaching here proves the batch symbol no longer blocks the isolate.
   controller.abort();
 
-  assertEquals(cancels.length, 1, "abort did not reach the cancel symbol");
+  assert.assertEquals(
+    cancels.length,
+    1,
+    "abort did not reach the cancel symbol",
+  );
 
   const sentId = (JSON.parse(sent[0]!) as { requestId: string }).requestId;
   const cancelledId =
     (JSON.parse(cancels[0]!) as { requestId: string }).requestId;
 
-  assertEquals(cancelledId, sentId);
+  assert.assertEquals(cancelledId, sentId);
 
   resolveCall!(JSON.stringify({ error: "context canceled" }));
 
@@ -440,7 +563,7 @@ Deno.test("batch calls are cancellable and carry a request id", async () => {
       throw new Error("an aborted batch call reported success");
     },
     (err: Error) => {
-      assertEquals(err.message, "request aborted");
+      assert.assertEquals(err.message, "request aborted");
     },
   );
 });
@@ -457,7 +580,7 @@ Deno.test("a classified bridge error rebuilds its typed class", async () => {
     },
   } as unknown as ffiTypes.FFILibrary;
 
-  const m = new AjanBridgeModel(lib, "h", "anthropic", "x", [
+  const m = new ajanBridge.AjanBridgeModel(lib, "h", "anthropic", "x", [
     "text_generation",
   ]);
 
@@ -465,10 +588,10 @@ Deno.test("a classified bridge error rebuilds its typed class", async () => {
     { messages: [] } as unknown as Parameters<typeof m.generateText>[0],
   );
 
-  assert(results.isFail(result), "a classified error reported success");
+  assert.assert(results.isFail(result), "a classified error reported success");
   // Not a bare AiError: a caller has to be able to branch on this to back off.
-  assertEquals(result.error.constructor.name, "RateLimitedError");
-  assertEquals(result.error.statusCode, 429);
+  assert.assertEquals(result.error.constructor.name, "RateLimitedError");
+  assert.assertEquals(result.error.statusCode, 429);
 });
 
 // ── ACP-backed providers ─────────────────────────────────────────────────────
@@ -479,7 +602,7 @@ Deno.test("a classified bridge error rebuilds its typed class", async () => {
 Deno.test("every bridge provider is advertised once the library loads", () => {
   const lib = { symbols: {} } as unknown as ffiTypes.FFILibrary;
 
-  const providers = createBridgeFactories(lib).map((factory) =>
+  const providers = ajanBridge.createBridgeFactories(lib).map((factory) =>
     factory.provider
   );
 
@@ -493,6 +616,6 @@ Deno.test("every bridge provider is advertised once the library loads", () => {
       "gemini",
     ]
   ) {
-    assert(providers.includes(provider), `${provider} was withheld`);
+    assert.assert(providers.includes(provider), `${provider} was withheld`);
   }
 });

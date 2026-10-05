@@ -14,17 +14,29 @@ import type * as streams from "@eserstack/streams";
 import * as span from "@eserstack/streams/span";
 import { runtime } from "@eserstack/standards/cross-runtime";
 import type { SignalAction, TuiContext } from "./types.ts";
+import * as mouse from "./mouse.ts";
 
 // =============================================================================
 // Types
 // =============================================================================
 
+/** One key read from the terminal in raw mode. */
 export type KeypressEvent = {
+  /**
+   * The key: "return", "escape", "tab", "backspace", "space", "up", "down",
+   * "left", "right", "home", "end", a printable character, the letter of a
+   * Ctrl combination, or "unknown".
+   */
   readonly name: string;
+  /** The character typed, for printable keys. */
   readonly char?: string;
+  /** Whether Ctrl was held. */
   readonly ctrl: boolean;
+  /** Whether Meta (Alt) was held. */
   readonly meta: boolean;
+  /** Whether Shift was held. */
   readonly shift: boolean;
+  /** The bytes the terminal sent. */
   readonly raw: Uint8Array;
 };
 
@@ -66,20 +78,24 @@ export const withRawMode = async <T>(fn: () => Promise<T>): Promise<T> => {
 // Cursor control
 // =============================================================================
 
+/** Hide the terminal cursor. */
 export const hideCursor = (out: streams.Output): void => {
   out.write(span.text("\x1b[?25l"));
 };
 
+/** Show the terminal cursor again. */
 export const showCursor = (out: streams.Output): void => {
   out.write(span.text("\x1b[?25h"));
 };
 
+/** Move the cursor up `count` lines and clear from there to the screen end. */
 export const clearLines = (out: streams.Output, count: number): void => {
   if (count > 0) {
     out.write(span.text(`\x1b[${count}A\x1b[J`));
   }
 };
 
+/** Clear the current line and return the cursor to its start. */
 export const eraseLine = (out: streams.Output): void => {
   out.write(span.text("\r\x1b[2K"));
 };
@@ -183,6 +199,8 @@ export async function* readKeypress(
     while (true) {
       if (signal?.aborted) break;
 
+      // Keys are parsed in the order they were typed, one chunk per read.
+      // deno-lint-ignore no-await-in-loop
       const { done, value } = await reader.read();
       if (done || value === undefined) break;
 
@@ -197,12 +215,10 @@ export async function* readKeypress(
 // Unified input reader (keyboard + mouse)
 // =============================================================================
 
-import type { MouseEvent } from "./mouse.ts";
-import { isSGRMouseSequence, parseMouseEvent } from "./mouse.ts";
-
+/** A key or mouse event yielded by {@link readInput}. */
 export type InputEvent =
   | { kind: "key"; event: KeypressEvent }
-  | { kind: "mouse"; event: MouseEvent };
+  | { kind: "mouse"; event: mouse.MouseEvent };
 
 /**
  * Async iterable that yields both keyboard and mouse events.
@@ -219,13 +235,15 @@ export async function* readInput(
     while (true) {
       if (signal?.aborted) break;
 
+      // Input events are parsed in the order they arrived, one chunk per read.
+      // deno-lint-ignore no-await-in-loop
       const { done, value } = await reader.read();
       if (done || value === undefined) break;
 
       // Check for SGR mouse sequence
-      if (isSGRMouseSequence(value)) {
+      if (mouse.isSGRMouseSequence(value)) {
         const text = decoder.decode(value);
-        const mouseEv = parseMouseEvent(text);
+        const mouseEv = mouse.parseMouseEvent(text);
         if (mouseEv !== null) {
           yield { kind: "mouse", event: mouseEv };
           continue;

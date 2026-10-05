@@ -80,8 +80,7 @@ func ErrorKind(err error) string {
 // none. Zero is meaningful: it says "this failure had no HTTP status", which is
 // the normal case for a local error or an agent-backed provider.
 func ErrorStatus(err error) int {
-	var apiErr *APIError
-	if errors.As(err, &apiErr) {
+	if apiErr, ok := errors.AsType[*APIError](err); ok {
 		return apiErr.StatusCode
 	}
 

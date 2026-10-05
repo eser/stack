@@ -11,6 +11,7 @@ import type * as adapter from "../adapter.ts";
 import * as claude from "../claude.ts";
 import * as hooks from "../hooks.ts";
 import * as crossRuntime from "@eserstack/standards/cross-runtime";
+import * as agentPrompts from "./shared/agent-prompts.ts";
 
 // =============================================================================
 // Agent File Generation (moved from engine.ts)
@@ -37,15 +38,13 @@ If the task is too vague to execute, say so immediately.
 
 ## Self-Verification
 After completing the task, you MUST verify your own work before reporting:
-1. Run type check: \`deno check\` on all modified files
-2. Run test suite: \`deno test\` on the relevant test files
-3. If type check or tests fail, fix the issues before reporting
+${agentPrompts.EXECUTOR_SELF_CHECK.join("\n")}
 
 ## Reporting
 When finished, provide a structured JSON summary:
-\\\`\\\`\\\`json
+\`\`\`json
 {"completed": ["<item IDs done>"], "remaining": ["<item IDs not done>"], "blocked": ["<item IDs needing decisions>"], "filesModified": ["<paths>"], "verification": {"typeCheck": "pass|fail", "tests": "pass|fail (N passed, M failed)"}}
-\\\`\\\`\\\`
+\`\`\`
 
 Do NOT return raw test output — summarize it in the verification field.
 The orchestrator will submit this to \`${commandPrefix} next --answer\` on your behalf.
@@ -81,16 +80,13 @@ Be skeptical. Don't assume anything works — verify it yourself.
 You CANNOT edit files. Read-only access only.
 
 ## Verification Steps
-1. Read each modified file and verify the changes are correct
-2. Run type check: \\\`deno check\\\` on modified files
-3. Run tests: \\\`deno test\\\` on relevant test files
-4. Check each acceptance criterion against actual file contents
+${agentPrompts.VERIFIER_STEPS.join("\n")}
 
 ## Report Format
 When finished, provide a structured JSON summary:
-\\\`\\\`\\\`json
+\`\`\`json
 {"results": [{"id": "ac-1", "status": "PASS", "evidence": "..."}, {"id": "ac-2", "status": "FAIL", "reason": "..."}]}
-\\\`\\\`\\\`
+\`\`\`
 
 The orchestrator will use this report for the noskills status report.
 `;
@@ -119,27 +115,28 @@ export const claudeCodeAdapter: adapter.ToolAdapter = {
       optionPresentation: "tool",
       hasSubAgentDelegation: true,
       subAgentMethod: "task",
+      planModeShortcut: "Shift+Tab",
     },
   },
 
-  async syncRules(
+  syncRules: async (
     ctx: adapter.SyncContext,
     options?: adapter.SyncOptions,
-  ): Promise<void> {
+  ): Promise<void> => {
     await claude.sync(ctx.root, ctx.rules, options, ctx.commandPrefix);
   },
 
-  async syncHooks(
+  syncHooks: async (
     ctx: adapter.SyncContext,
     _options?: adapter.SyncOptions,
-  ): Promise<void> {
+  ): Promise<void> => {
     await hooks.syncHooks(ctx.root, ctx.commandPrefix);
   },
 
-  async syncAgents(
+  syncAgents: async (
     ctx: adapter.SyncContext,
     _options?: adapter.SyncOptions,
-  ): Promise<void> {
+  ): Promise<void> => {
     await generateAgentFile(ctx.root, ctx.commandPrefix);
     await generateVerifierFile(ctx.root, ctx.commandPrefix);
   },

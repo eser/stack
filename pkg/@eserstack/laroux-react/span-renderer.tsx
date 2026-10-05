@@ -8,19 +8,23 @@
  *
  * @example
  * ```tsx
- * import { SpanView } from "@eserstack/laroux-react/span-renderer";
- * import * as span from "@eserstack/streams/span";
+ * import * as larouxReact from "@eserstack/laroux-react";
+ * import * as streams from "@eserstack/streams";
  *
- * <SpanView>{[span.bold("Recipe: "), span.cyan(recipe.name)]}</SpanView>
+ * export function RecipeTitle(props: { readonly name: string }) {
+ *   return (
+ *     <larouxReact.SpanView>
+ *       {[streams.span.bold("Recipe: "), streams.span.cyan(props.name)]}
+ *     </larouxReact.SpanView>
+ *   );
+ * }
  * ```
  *
  * @module
  */
 
 import * as React from "react";
-import type * as spanTypes from "@eserstack/streams/span";
-import { normalize } from "@eserstack/streams/span";
-import type { Renderer } from "@eserstack/streams/renderers";
+import * as streams from "@eserstack/streams";
 
 // =============================================================================
 // Color mapping
@@ -37,12 +41,33 @@ const COLOR_CLASSES: Record<string, string> = {
   white: "text-white",
 };
 
+type AlertLevel = streams.span.AlertSpan["level"];
+
+// The text that names an alert's level, so the level does not rest on color.
+const ALERT_LABELS: Readonly<Record<AlertLevel, string>> = {
+  info: "Info",
+  success: "Success",
+  warning: "Warning",
+  error: "Error",
+};
+
+const ALERT_CLASSES: Readonly<Record<AlertLevel, string>> = {
+  info: "text-blue-500",
+  success: "text-green-500",
+  warning: "text-yellow-500",
+  error: "text-red-500",
+};
+
+// Labels and code languages are optional; an empty one counts as absent.
+const hasText = (value: string | undefined): value is string =>
+  value !== undefined && value !== "";
+
 // =============================================================================
 // Span → React element
 // =============================================================================
 
-const renderSpan = (
-  span: spanTypes.Span,
+export const renderSpan = (
+  span: streams.span.Span,
   key: number,
 ): React.ReactElement => {
   switch (span.kind) {
@@ -106,7 +131,11 @@ const renderSpan = (
     case "code-block":
       return (
         <pre key={key}>
-          <code className={span.language ? `language-${span.language}` : ""}>
+          <code
+            className={hasText(span.language)
+              ? `language-${span.language}`
+              : undefined}
+          >
             {span.value}
           </code>
         </pre>
@@ -144,6 +173,47 @@ const renderSpan = (
           ))}
         </ul>
       );
+
+    case "gauge":
+      return (
+        <span key={key} className="inline-flex items-center gap-2">
+          <meter
+            min={0}
+            max={100}
+            value={span.percent}
+            aria-label={hasText(span.label) ? span.label : "Percentage"}
+            style={span.width === undefined
+              ? undefined
+              : { width: `${span.width}ch` }}
+          />
+          <span>{`${span.percent}%`}</span>
+          {hasText(span.label) ? <span>{span.label}</span> : null}
+        </span>
+      );
+
+    case "separator":
+      return hasText(span.label)
+        ? (
+          <div key={key} className="flex items-center gap-2 text-gray-400">
+            <hr className="flex-1" />
+            <span>{span.label}</span>
+            <hr className="flex-1" />
+          </div>
+        )
+        : <hr key={key} />;
+
+    case "alert":
+      return (
+        <div
+          key={key}
+          role="note"
+          className={ALERT_CLASSES[span.level]}
+          data-level={span.level}
+        >
+          <strong>{`${ALERT_LABELS[span.level]}: `}</strong>
+          {span.children.map((child, i) => renderSpan(child, i))}
+        </div>
+      );
   }
 };
 
@@ -156,12 +226,15 @@ const renderSpan = (
  * Returns `React.ReactElement` instead of string.
  *
  * ```tsx
- * const renderer = react();
- * const element = renderer.render([span.bold("hello")]);
+ * import * as larouxReact from "@eserstack/laroux-react";
+ * import * as streams from "@eserstack/streams";
+ *
+ * const renderer = larouxReact.reactRenderer();
+ * const element = renderer.render([streams.span.bold("hello")]);
  * // <strong>hello</strong>
  * ```
  */
-const react = (): Renderer<React.ReactElement> => ({
+export const react = (): streams.renderers.Renderer<React.ReactElement> => ({
   name: "react",
   render: (spans) => <>{spans.map((s, i) => renderSpan(s, i))}</>,
 });
@@ -170,15 +243,16 @@ const react = (): Renderer<React.ReactElement> => ({
  * SpanView — React component that renders a Span tree.
  *
  * ```tsx
- * <SpanView>{[span.bold("Recipe"), span.cyan(name)]}</SpanView>
+ * import * as larouxReact from "@eserstack/laroux-react";
+ * import * as streams from "@eserstack/streams";
+ *
+ * <larouxReact.SpanView>{[streams.span.bold("Recipe")]}</larouxReact.SpanView>;
  * ```
  */
-const SpanView = (
-  { children }: { readonly children: readonly spanTypes.SpanInput[] },
+export const SpanView = (
+  props: { readonly children: readonly streams.span.SpanInput[] },
 ): React.ReactElement => {
-  const spans = normalize(children);
+  const spans = streams.span.normalize(props.children);
   const renderer = react();
   return renderer.render(spans);
 };
-
-export { react, renderSpan, SpanView };

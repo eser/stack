@@ -4,12 +4,17 @@
  * Branded Handle value object.
  * Represents a social media @username, stored without the leading "@".
  * Platform-agnostic: works for Twitter handles and Bluesky handles alike.
+ *
+ * @module
  */
 
-declare const handleBrand: unique symbol;
-
-/** Opaque string type representing a social media username (without "@"). */
-export type Handle = string & { readonly [handleBrand]: typeof handleBrand };
+/**
+ * Opaque string type representing a social media username (without "@").
+ * The `__brand` property exists only in the type system: it keeps a plain
+ * string or a PostId from passing as a Handle, and no value carries it at
+ * runtime. Build one with `toHandle`.
+ */
+export type Handle = string & { readonly __brand: "Handle" };
 
 /**
  * Constructs a Handle from a raw string.

@@ -3,12 +3,15 @@
 package formatfx
 
 import (
+	"bytes"
 	"errors"
 	"io"
 	"strings"
 
 	"gopkg.in/yaml.v3"
 )
+
+const defaultYAMLIndent = 2
 
 type yamlFmt struct{}
 
@@ -21,16 +24,39 @@ func (f *yamlFmt) Streamable() bool     { return true }
 
 func (f *yamlFmt) WriteStart(_ *FormatOptions) (string, error) { return "", nil }
 
-func (f *yamlFmt) WriteItem(data any, _ *FormatOptions) (string, error) {
-	// Wrap each item in a one-element slice so consecutive WriteItem calls
-	// produce adjacent YAML sequence entries that the reader reassembles.
-	wrapped := []any{data}
-	raw, err := yaml.Marshal(wrapped)
-	if err != nil {
+// WriteItem writes data as one sequence entry, so consecutive calls produce
+// one sequence that the reader reassembles. A whole document (opts.Document)
+// is written as the value itself. opts.Indent sets the indentation width, two
+// spaces by default.
+func (f *yamlFmt) WriteItem(data any, opts *FormatOptions) (string, error) {
+	if opts == nil {
+		opts = &FormatOptions{} //nolint:exhaustruct
+	}
+
+	value := data
+	if !opts.Document {
+		value = []any{data}
+	}
+
+	indent := opts.Indent
+	if indent <= 0 {
+		indent = defaultYAMLIndent
+	}
+
+	var buf bytes.Buffer
+
+	enc := yaml.NewEncoder(&buf)
+	enc.SetIndent(indent)
+
+	if err := enc.Encode(value); err != nil {
 		return "", newSerializationError("yaml", "failed to serialize YAML: "+err.Error(), err)
 	}
 
-	return string(raw), nil
+	if err := enc.Close(); err != nil {
+		return "", newSerializationError("yaml", "failed to serialize YAML: "+err.Error(), err)
+	}
+
+	return buf.String(), nil
 }
 
 func (f *yamlFmt) WriteEnd(_ *FormatOptions) (string, error) { return "", nil }

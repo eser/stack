@@ -10,7 +10,7 @@
  * @module
  */
 
-import * as layoutTypes from "./layout-types.ts";
+import type * as layoutTypes from "./layout-types.ts";
 
 /** Factory — all regions start dirty (need initial render). */
 export const createDirtyTracker = (

@@ -53,6 +53,10 @@ func LoadConcerns(dirPath string) ([]ConcernDefinition, error) {
 			return nil, fmt.Errorf("loadConcerns: parse %s: %w", name, err)
 		}
 
+		if err := ValidateConcernScopes(&c); err != nil {
+			return nil, fmt.Errorf("loadConcerns: %s: %w", name, err)
+		}
+
 		// If a promptFile is set, load it and append its content to reminders.
 		if c.PromptFile != nil {
 			promptPath := filepath.Join(filepath.Dir(filePath), *c.PromptFile)
@@ -63,7 +67,7 @@ func LoadConcerns(dirPath string) ([]ConcernDefinition, error) {
 			}
 
 			if content := strings.TrimSpace(string(promptData)); content != "" {
-				c.Reminders = append(c.Reminders, content)
+				c.Reminders = append(c.Reminders, ConcernReminder{Text: content, Scope: nil})
 			}
 		}
 
@@ -112,76 +116,44 @@ func GetConcernExtras(concerns []ConcernDefinition, questionID string) []Concern
 	return extras
 }
 
-// GetReminders aggregates reminders from all active concerns, optionally
-// filtering out file-type-specific reminders when classification is present.
+// GetReminders aggregates the reminders of all active concerns, prefixed
+// with the concern id. With a classification, a scoped reminder is left out
+// unless one of its scope values has its flag set; with nil (not classified
+// yet), every reminder is kept.
 func GetReminders(concerns []ConcernDefinition, classification *SpecClassification) []string {
 	var reminders []string
 
 	for _, c := range concerns {
 		for _, r := range c.Reminders {
-			if classification != nil && isClassificationFilteredOut(r, classification) {
+			if classification != nil && !ScopeMatchesClassification(r.Scope, classification) {
 				continue
 			}
 
-			reminders = append(reminders, c.ID+": "+r)
+			reminders = append(reminders, c.ID+": "+r.Text)
 		}
 	}
 
 	return reminders
 }
 
-// isClassificationFilteredOut returns true when a reminder should be hidden
-// given the current classification flags.
-func isClassificationFilteredOut(reminder string, cl *SpecClassification) bool {
-	lower := strings.ToLower(reminder)
-
-	uiKeywords := []string{"slop", "ui element", "design intentionality", "interaction states", "edge case check", "loading state"}
-	apiKeywords := []string{"api doc", "endpoint should be"}
-
-	for _, kw := range uiKeywords {
-		if strings.Contains(lower, kw) && !cl.InvolvesWebUI {
-			return true
-		}
-	}
-
-	for _, kw := range apiKeywords {
-		if strings.Contains(lower, kw) && !cl.InvolvesPublicAPI {
-			return true
-		}
-	}
-
-	return false
-}
-
-// isFileSpecificReminder returns true when a reminder is file-type-specific
-// (UI/API/migration) rather than general.
-func isFileSpecificReminder(reminder string) bool {
-	lower := strings.ToLower(reminder)
-	fileSpecific := []string{
-		"slop", "ui element", "design intentionality", "interaction states",
-		"edge case check", "loading state", "api doc", "endpoint should be",
-		"migration", "rollback",
-	}
-
-	for _, kw := range fileSpecific {
-		if strings.Contains(lower, kw) {
-			return true
-		}
-	}
-
-	return false
-}
-
-// SplitRemindersByTier separates reminders into tier-1 (general, always shown)
-// and tier-2 (file-type-specific, shown when editing relevant files).
-func SplitRemindersByTier(concerns []ConcernDefinition) (tier1, tier2 []string) {
+// SplitRemindersByTier separates reminders into tier 1 (no scope: in the
+// compiled EXECUTING instruction) and tier 2 (scoped: file-specific, added by
+// the PreToolUse hook through GetTier2RemindersForFile). With a
+// classification, tier 2 keeps only the scoped reminders whose scope matches
+// it.
+func SplitRemindersByTier(concerns []ConcernDefinition, classification *SpecClassification) (tier1, tier2 []string) {
 	for _, c := range concerns {
 		for _, r := range c.Reminders {
-			prefixed := c.ID + ": " + r
-			if isFileSpecificReminder(r) {
-				tier2 = append(tier2, prefixed)
-			} else {
+			prefixed := c.ID + ": " + r.Text
+
+			if len(r.Scope) == 0 {
 				tier1 = append(tier1, prefixed)
+
+				continue
+			}
+
+			if classification == nil || ScopeMatchesClassification(r.Scope, classification) {
+				tier2 = append(tier2, prefixed)
 			}
 		}
 	}
@@ -189,58 +161,18 @@ func SplitRemindersByTier(concerns []ConcernDefinition) (tier1, tier2 []string) 
 	return tier1, tier2
 }
 
-// GetTier2RemindersForFile returns tier-2 reminders applicable to a specific file.
+// GetTier2RemindersForFile returns the tier-2 (scoped) reminders that apply to
+// an edit of filePath: "ui" reminders for UI files, "api" reminders for
+// source files, "data" and "migration" reminders for any file, each only when
+// the classification has the matching flag or is nil.
 func GetTier2RemindersForFile(concerns []ConcernDefinition, filePath string, cl *SpecClassification) []string {
-	ext := ""
-	if idx := strings.LastIndex(filePath, "."); idx != -1 {
-		ext = filePath[idx:]
-	}
-
-	uiExts := map[string]bool{".tsx": true, ".jsx": true, ".html": true, ".css": true, ".svelte": true, ".vue": true}
-	apiExts := map[string]bool{".ts": true, ".go": true, ".py": true, ".rs": true}
-	isUI := uiExts[ext]
-	isAPI := apiExts[ext]
-
 	var reminders []string
 
 	for _, c := range concerns {
 		for _, r := range c.Reminders {
-			if !isFileSpecificReminder(r) {
-				continue
+			if ScopeMatchesFile(r.Scope, filePath, cl) {
+				reminders = append(reminders, c.ID+": "+r.Text)
 			}
-
-			lower := strings.ToLower(r)
-
-			uiKWs := []string{"slop", "ui element", "design intentionality", "interaction states", "edge case check", "loading state"}
-			apiKWs := []string{"api doc", "endpoint should be"}
-
-			isUIReminder := false
-			for _, kw := range uiKWs {
-				if strings.Contains(lower, kw) {
-					isUIReminder = true
-
-					break
-				}
-			}
-
-			if isUIReminder && !isUI {
-				continue
-			}
-
-			isAPIReminder := false
-			for _, kw := range apiKWs {
-				if strings.Contains(lower, kw) {
-					isAPIReminder = true
-
-					break
-				}
-			}
-
-			if isAPIReminder && (!isAPI || cl == nil || !cl.InvolvesPublicAPI) {
-				continue
-			}
-
-			reminders = append(reminders, c.ID+": "+r)
 		}
 	}
 

@@ -1,5 +1,13 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+/**
+ * Returns the items of an iterable without duplicates, keeping the first item
+ * for each key. `predicate` returns the key to compare items by.
+ *
+ * @param instance - The items
+ * @param predicate - Returns the key of an item
+ * @returns A new array of the first item for each key
+ */
 export const distinctArray = <T>(
   instance: Iterable<T>,
   predicate: (value: T, index: number, instance: Iterable<T>) => unknown,
@@ -24,5 +32,3 @@ export const distinctArray = <T>(
 
   return result;
 };
-
-export { distinctArray as default };

@@ -189,6 +189,8 @@ async function awaitCallbackNode(
     },
   );
 
+  // The request handler below clears timer, but the timeout callback needs the
+  // server, so timer is declared here and assigned after the server exists.
   // deno-lint-ignore prefer-const
   let timer!: ReturnType<typeof setTimeout>;
   let settled = false;

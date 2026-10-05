@@ -4,83 +4,50 @@
  * Bootstraps the React app with React Server Components
  */
 
-/// <reference path="./globals.d.ts" />
+import * as React from "react";
+import * as ReactDOMClient from "react-dom/client";
+import type { Root } from "react-dom/client";
+import * as logging from "@eserstack/logging";
+import * as client from "../../client.ts";
+import type { ModuleLoader } from "../../client.ts";
+import type { RSCChunk } from "../../protocol.ts";
+import * as imageFallback from "../../runtime/image/fallback.ts";
+import * as linkNavigation from "../../runtime/navigation/link-navigation.ts";
+import * as errorBoundary from "./error-boundary.tsx";
+import * as lazyLoader from "./lazy-loader.ts";
+import * as hmrClient from "./hmr-client.tsx";
+import * as smartRefresh from "./smart-refresh.tsx";
+import type { LarouxGlobalThis } from "./globals.d.ts";
 
-// Type definition for log level (inlined to avoid import issues when bundled)
-type LogLevel = "trace" | "debug" | "info" | "warn" | "error" | "fatal";
+// The page-wide state the laroux client keeps on globalThis, with its types.
+const larouxGlobals = globalThis as LarouxGlobalThis;
 
-/**
- * No-op logger for production builds
- * Provides same interface as LogTape without any overhead
- */
-const NoopLogManager = {
-  getLogger: () => ({
-    trace: () => {},
-    debug: () => {},
-    info: () => {},
-    warn: () => {},
-    error: () => {},
-    fatal: () => {},
-  }),
-};
+// The server injects the manifest into the page before this script runs.
+const chunkManifest = larouxGlobals.__CHUNK_MANIFEST__;
 
-// Get chunk manifest first to determine log level
-const chunkManifest = globalThis.__CHUNK_MANIFEST__;
-
-if (!chunkManifest) {
-  console.error(
-    "❌ [CLIENT] Chunk manifest not found! Server must inject __CHUNK_MANIFEST__",
+if (chunkManifest === undefined) {
+  throw new Error(
+    "start the laroux client: globalThis.__CHUNK_MANIFEST__ is not set; serve the page through laroux-server, which injects it before the client script",
   );
-  throw new Error("Chunk manifest not found");
 }
 
-// Configure @eserstack/logging only in development (using dynamic import to avoid bundling in production)
-// This avoids overhead in production builds
-if (chunkManifest.hmrEnabled) {
-  const logging = await import("@eserstack/logging");
+// Client builds replace @eserstack/logging with laroux's browser logger (see
+// DEFAULT_BROWSER_SHIMS in @eserstack/laroux/config): the same logger API,
+// writing warnings and errors to the browser console.
+const clientLogger = logging.logger.getLogger(["laroux-bundler", "client"]);
+const rscClientLogger = logging.logger.getLogger([
+  "laroux-bundler",
+  "rsc-client",
+]);
+const loaderLogger = logging.logger.getLogger(["laroux-bundler", "loader"]);
+const bootstrapLogger = logging.logger.getLogger([
+  "laroux-bundler",
+  "bootstrap",
+]);
+const actionsLogger = logging.logger.getLogger(["laroux-bundler", "actions"]);
 
-  const mapLogLevel = (level: LogLevel): number => {
-    const mapping: Record<LogLevel, number> = {
-      "trace": logging.Severities.Debug,
-      "debug": logging.Severities.Debug,
-      "info": logging.Severities.Info,
-      "warn": logging.Severities.Warning,
-      "error": logging.Severities.Error,
-      "fatal": logging.Severities.Critical,
-    };
-    return mapping[level] ?? logging.Severities.Info;
-  };
-
-  await logging.config.configure({
-    sinks: {
-      console: logging.sinks.getConsoleSink({
-        formatter: logging.formatters.ansiColorFormatter(),
-      }),
-    },
-    loggers: [
-      {
-        category: ["laroux-bundler"],
-        lowestLevel: mapLogLevel(chunkManifest.logLevel ?? "info"),
-        sinks: ["console"],
-      },
-    ],
-  });
-}
-
-// Create loggers (dynamic import in dev, no-op in production)
-const logging = chunkManifest.hmrEnabled
-  ? await import("@eserstack/logging")
-  : null;
-
-const getLogger = logging
-  ? (category: string[]) => logging.logger.getLogger(category)
-  : NoopLogManager.getLogger;
-
-const clientLogger = getLogger(["laroux-bundler", "client"]);
-const rscClientLogger = getLogger(["laroux-bundler", "rsc-client"]);
-const loaderLogger = getLogger(["laroux-bundler", "loader"]);
-const bootstrapLogger = getLogger(["laroux-bundler", "bootstrap"]);
-const actionsLogger = getLogger(["laroux-bundler", "actions"]);
+/** Content type of the RSC wire format that laroux-server answers with. */
+const RSC_CONTENT_TYPE = "text/x-component";
 
 /**
  * Global __callServer function for server actions
@@ -96,111 +63,127 @@ const actionsLogger = getLogger(["laroux-bundler", "actions"]);
 async function callServer(actionId: string, args: unknown[]): Promise<unknown> {
   actionsLogger.debug(`🎯 Calling server action: ${actionId}`);
 
+  // Errors here are returned to the code that called the action (a form
+  // action, useActionState or an event handler), which handles them; this
+  // function adds context and does not log them.
+
+  // Determine content type based on args
+  // If first arg is FormData, send as multipart/form-data
+  // Otherwise send as JSON
+  const isFormData = args.length > 0 && args[0] instanceof FormData;
+
+  let body: BodyInit;
+  const headers: HeadersInit = {
+    "Accept": RSC_CONTENT_TYPE,
+    "RSC-Action": actionId,
+  };
+
+  if (isFormData) {
+    // For FormData, browser sets Content-Type with boundary automatically
+    body = args[0] as FormData;
+    actionsLogger.debug(`📤 Sending FormData to action ${actionId}`);
+  } else {
+    // For regular args, send as JSON
+    headers["Content-Type"] = "application/json";
+    body = JSON.stringify(args);
+    actionsLogger.with({
+      args,
+    }).debug(`📤 Sending JSON args to action ${actionId}`);
+  }
+
+  let response: Response;
   try {
-    // Determine content type based on args
-    // If first arg is FormData, send as multipart/form-data
-    // Otherwise send as JSON
-    const isFormData = args.length > 0 && args[0] instanceof FormData;
-
-    let body: BodyInit;
-    const headers: HeadersInit = {
-      "Accept": "text/x-component",
-      "RSC-Action": actionId,
-    };
-
-    if (isFormData) {
-      // For FormData, browser sets Content-Type with boundary automatically
-      body = args[0] as FormData;
-      actionsLogger.debug(`📤 Sending FormData to action ${actionId}`);
-    } else {
-      // For regular args, send as JSON
-      headers["Content-Type"] = "application/json";
-      body = JSON.stringify(args);
-      actionsLogger.debug(`📤 Sending JSON args to action ${actionId}:`, {
-        args,
-      });
-    }
-
-    const response = await fetch("/_rsc", {
+    response = await fetch("/_rsc", {
       method: "POST",
       headers,
       body,
     });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      actionsLogger.error(`❌ Server action failed: ${actionId}`, {
-        errorText,
-      });
-      throw new Error(
-        `Server action failed: ${response.status} ${response.statusText}`,
-      );
-    }
-
-    // Parse RSC response
-    // For now, we expect JSON response (can enhance to full RSC parsing later)
-    const contentType = response.headers.get("Content-Type");
-
-    if (contentType?.includes("application/json")) {
-      const result = await response.json();
-      actionsLogger.debug(`✅ Action ${actionId} returned:`, { result });
-      return result;
-    }
-
-    // RSC response (text/x-component) - for now just parse as JSON
-    // TODO: Full RSC response parsing for complex return values
-    const text = await response.text();
-
-    // Try to extract JSON from RSC format (J0:{"result":...})
-    const jsonMatch = text.match(/^J\d+:(.+)$/m);
-    if (jsonMatch) {
-      const result = JSON.parse(jsonMatch[1]);
-      actionsLogger.debug(`✅ Action ${actionId} returned (RSC format):`, {
-        result,
-      });
-      return result;
-    }
-
-    // Fallback: try parsing entire response as JSON
-    try {
-      const result = JSON.parse(text);
-      actionsLogger.debug(`✅ Action ${actionId} returned:`, { result });
-      return result;
-    } catch {
-      actionsLogger.warn(
-        `⚠️ Could not parse action response as JSON, returning raw text`,
-      );
-      return text;
-    }
   } catch (error) {
-    actionsLogger.error(`❌ Server action error: ${actionId}`, { error });
-    throw error;
+    throw new Error(
+      `call server action ${actionId}: the request to /_rsc did not complete; check the network connection and that the laroux server is running`,
+      { cause: error },
+    );
   }
+
+  if (!response.ok) {
+    const serverMessage = await readActionErrorMessage(response);
+    throw new Error(
+      `call server action ${actionId}: the server answered ${response.status} ${response.statusText}${
+        serverMessage === null ? "" : ` (${serverMessage})`
+      }`,
+    );
+  }
+
+  // laroux-server encodes the result as RSC, so Dates, Maps, Sets, BigInts,
+  // undefined and React elements come back as themselves.
+  const contentType = response.headers.get("Content-Type") ?? "";
+  if (!contentType.includes(RSC_CONTENT_TYPE)) {
+    await response.body?.cancel();
+    const received = contentType === ""
+      ? "no Content-Type"
+      : `Content-Type "${contentType}"`;
+    throw new Error(
+      `call server action ${actionId}: the response has ${received} instead of ${RSC_CONTENT_TYPE}; check that the server and the client run the same laroux version`,
+    );
+  }
+
+  if (response.body === null) {
+    throw new Error(
+      `call server action ${actionId}: the response has no body; check that the server and the client run the same laroux version`,
+    );
+  }
+
+  const result = await client.createValueFromReadableStream(
+    response.body,
+    customModuleLoader,
+  );
+  actionsLogger.with({ result }).debug(`✅ Action ${actionId} returned`);
+  return result;
+}
+
+/**
+ * Read the message from a failed action response.
+ *
+ * laroux-server answers a failed action with `{ "error": "..." }` and keeps the
+ * message safe to show. Any other body (a proxy's error page, a cut
+ * connection) gives no message.
+ */
+async function readActionErrorMessage(
+  response: Response,
+): Promise<string | null> {
+  let body: unknown;
+  try {
+    body = await response.json();
+  } catch {
+    // The status already reports the failure; a body that is not
+    // laroux-server's JSON adds nothing to it.
+    return null;
+  }
+
+  if (
+    typeof body === "object" && body !== null && "error" in body &&
+    typeof body.error === "string"
+  ) {
+    return body.error;
+  }
+
+  return null;
 }
 
 // Register global __callServer for server action stubs
-if (typeof globalThis !== "undefined") {
-  (globalThis as unknown as { __callServer: typeof callServer }).__callServer =
-    callServer;
-  actionsLogger.debug("✅ __callServer registered globally");
-}
+(globalThis as unknown as { __callServer: typeof callServer }).__callServer =
+  callServer;
+actionsLogger.debug("✅ __callServer registered globally");
 
-import { createRoot, hydrateRoot, type Root } from "react-dom/client";
-import {
-  createElementFromChunk,
-  createFromFetch,
-  createHybridRSCTree,
-  getEmbeddedPayload,
-  hasEmbeddedPayload,
-  hasStreamingOptimalRSC,
-  type ModuleLoader,
-} from "../../client.ts";
-import type { RSCChunk } from "../../protocol.ts";
-import { startTransition, Suspense, use } from "react";
-import { ErrorBoundary } from "./error-boundary.tsx";
-import { LazyChunkLoader } from "./lazy-loader.ts";
-import { initializeHMR } from "./hmr-client.tsx";
-import { initializeSmartRefresh } from "./smart-refresh.tsx";
+// Server-rendered images carry their fallback source in an attribute, since
+// laroux drops the functions a server component renders; this applies it to
+// every image that fails to load, from here on and before this script ran.
+imageFallback.installImageFallbacks(globalThis.document);
+
+// A Link that a server component renders arrives without its click handler
+// for the same reason, with its options in data attributes; this navigates on
+// the client when such a link is clicked, under the rules Link applies.
+linkNavigation.installLinkNavigation(globalThis.document, globalThis.window);
 
 /**
  * Check if we're running in a browser environment
@@ -213,71 +196,96 @@ function isBrowser(): boolean {
 }
 
 /**
+ * The URL of the current page's RSC payload. It carries the page's pathname,
+ * a timestamp that keeps caches from answering, and the page URL's `locale`
+ * parameter, which the server hands to the page as `request.locale`.
+ */
+function buildRscUrl(timestamp: number): string {
+  const location = isBrowser() ? globalThis.window.location : null;
+  const params = new URLSearchParams({
+    pathname: location?.pathname ?? "/",
+    t: String(timestamp),
+  });
+
+  const locale = location === null
+    ? null
+    : new URLSearchParams(location.search).get("locale");
+  if (locale !== null && locale !== "") {
+    params.set("locale", locale);
+  }
+
+  return `/rsc?${params.toString()}`;
+}
+
+/**
  * Log client initialization
  */
 clientLogger.info(
   `🎬 Entry script loading with log level: ${chunkManifest.logLevel}`,
 );
-clientLogger.debug("📦 Chunk manifest loaded:", { chunkManifest });
+clientLogger.with({ chunkManifest }).debug("📦 Chunk manifest loaded");
 
 // Initialize HMR and Smart Refresh only if enabled (dev mode with runtime bundler)
 if (chunkManifest.hmrEnabled) {
   clientLogger.debug("🔥 Initializing HMR...");
-  initializeSmartRefresh();
-  initializeHMR();
+  smartRefresh.initializeSmartRefresh();
+  hmrClient.initializeHMR();
 } else {
   clientLogger.debug("📦 Production mode - HMR disabled");
 }
 
-const lazyLoader = new LazyChunkLoader(chunkManifest);
+const chunkLoader = new lazyLoader.LazyChunkLoader(chunkManifest);
 
 /**
  * Module loader that uses lazy chunk loading
  * Components are loaded on-demand via dynamic imports
+ *
+ * A failed load is returned to the RSC client, which records it on the chunk;
+ * the error boundary that renders the chunk reports it.
  */
 const customModuleLoader: ModuleLoader = async (id: string, name: string) => {
   loaderLogger.debug(`📦 Request: id="${id}", name="${name}"`);
 
-  try {
-    const module = await lazyLoader.loadModule(id, name);
-    loaderLogger.debug(`✅ Successfully loaded module: ${id}#${name}`);
-    return module;
-  } catch (err) {
-    loaderLogger.error(`❌ Failed to load ${id}#${name}:`, { error: err });
-    throw err;
-  }
+  return await chunkLoader.loadModule(id, name);
 };
+
+// The objects React renders as components: memo, forwardRef and lazy.
+const COMPONENT_OBJECT_TYPES: ReadonlySet<symbol> = new Set([
+  Symbol.for("react.memo"),
+  Symbol.for("react.forward_ref"),
+  Symbol.for("react.lazy"),
+]);
+
+/**
+ * Whether a loaded export can be rendered as a component: a function, or one
+ * of React's component objects.
+ */
+const isComponentType = (
+  value: unknown,
+): value is React.ComponentType<Record<string, unknown>> =>
+  typeof value === "function" ||
+  (typeof value === "object" && value !== null && "$$typeof" in value &&
+    typeof value.$$typeof === "symbol" &&
+    COMPONENT_OBJECT_TYPES.has(value.$$typeof));
 
 /**
  * Lazy RSC promise - created only once when first accessed
  */
-let rscPromiseCache: Promise<unknown> | null = null;
+let rscPromiseCache: Promise<React.ComponentType> | null = null;
 
 function getRSCPromise() {
-  rscClientLogger.debug("🔄 getRSCPromise called, cache exists:", {
+  rscClientLogger.with({
     cached: !!rscPromiseCache,
-  });
+  }).debug("🔄 getRSCPromise called, cache exists");
 
   if (!rscPromiseCache) {
     rscClientLogger.debug("🔄 Creating RSC promise (first time)...");
     rscClientLogger.debug("🔄 Fetching /rsc with custom module loader");
 
     // Create the fetch promise ONCE and reuse it
-    // Add cache-busting to ensure fresh data and send current pathname
-    const timestamp = Date.now();
-    const pathname = isBrowser() ? globalThis.window.location.pathname : "/";
-    // Also extract locale from URL search params to pass to RSC endpoint
-    const searchParams = isBrowser()
-      ? new URLSearchParams(globalThis.window.location.search)
-      : null;
-    const locale = searchParams?.get("locale");
-    const fetchPromise = fetch(
-      `/rsc?pathname=${encodeURIComponent(pathname)}&t=${timestamp}${
-        locale ? `&locale=${encodeURIComponent(locale)}` : ""
-      }`,
-    );
+    const fetchPromise = fetch(buildRscUrl(Date.now()));
 
-    rscPromiseCache = createFromFetch(fetchPromise, customModuleLoader);
+    rscPromiseCache = client.createFromFetch(fetchPromise, customModuleLoader);
 
     rscClientLogger.debug("🔄 Promise created successfully");
   }
@@ -300,9 +308,7 @@ function clearRSCCache(changedModules?: string[]) {
 }
 
 // Export cache clearing function for HMR
-if (typeof globalThis !== "undefined") {
-  globalThis.__clearRSCCache__ = clearRSCCache;
-}
+larouxGlobals.__clearRSCCache__ = clearRSCCache;
 
 /**
  * RSCRoot - Unwraps the RSC promise using React's use() hook
@@ -316,7 +322,7 @@ function RSCRoot() {
 
   // Lazy load the RSC - only fetches on first render
   // This returns a component FUNCTION (RSCTreeRoot)
-  const RSCTreeRoot = use(getRSCPromise());
+  const RSCTreeRoot = React.use(getRSCPromise());
 
   rscClientLogger.debug("⚛️  RSCTreeRoot component received");
 
@@ -362,13 +368,13 @@ function refreshRSCRoot(changedModules?: string[]) {
     cleanupIslandRoots();
 
     // Create a new full React root for CSR navigation
-    const rootElement = document.getElementById("root");
+    const rootElement = globalThis.document.getElementById("root");
     if (!rootElement) {
-      bootstrapLogger.fatal("❌ Root element not found during navigation!");
+      bootstrapLogger.error("❌ Root element not found during navigation!");
       return;
     }
 
-    reactRoot = createRoot(rootElement);
+    reactRoot = ReactDOMClient.createRoot(rootElement);
   }
 
   if (!reactRoot) {
@@ -379,20 +385,18 @@ function refreshRSCRoot(changedModules?: string[]) {
   // Re-render with fresh RSC data (cache was cleared)
   // Use null fallback to allow server-rendered Loading components to show through
   reactRoot.render(
-    <ErrorBoundary>
-      <Suspense fallback={null}>
+    <errorBoundary.ErrorBoundary>
+      <React.Suspense fallback={null}>
         <RSCRoot />
-      </Suspense>
-    </ErrorBoundary>,
+      </React.Suspense>
+    </errorBoundary.ErrorBoundary>,
   );
 
   bootstrapLogger.debug("✅ RSC root refreshed");
 }
 
 // Export refresh function for HMR
-if (typeof globalThis !== "undefined") {
-  globalThis.__refreshRSCRoot__ = refreshRSCRoot;
-}
+larouxGlobals.__refreshRSCRoot__ = refreshRSCRoot;
 
 /**
  * Track if we're in SSR/islands hydration mode
@@ -432,7 +436,7 @@ async function hydrateIsland(
     if (chunkId !== null) {
       // Use RSC payload for proper prop/children resolution
       if (!cachedRscPayload) {
-        cachedRscPayload = getEmbeddedPayload();
+        cachedRscPayload = client.getEmbeddedPayload();
         if (!cachedRscPayload) {
           throw new Error("RSC payload not found for chunk-based hydration");
         }
@@ -442,39 +446,50 @@ async function hydrateIsland(
       }
 
       // Parse the element from the specific chunk
-      const parsedElement = await createElementFromChunk(
+      const parsedElement = await client.createElementFromChunk(
         cachedRscPayload,
         parseInt(chunkId, 10),
         customModuleLoader,
       );
 
-      element = <ErrorBoundary>{parsedElement}</ErrorBoundary>;
+      element = (
+        <errorBoundary.ErrorBoundary>
+          {parsedElement}
+        </errorBoundary.ErrorBoundary>
+      );
     } else {
       // Fallback: use simple JSON props (no children/complex props support)
       const props = JSON.parse(propsJson);
       const Component = await customModuleLoader(moduleId, exportName);
+      if (!isComponentType(Component)) {
+        throw new Error(
+          `hydrate island ${moduleId}#${exportName}: the export is ${
+            Component === null ? "null" : `a ${typeof Component}`
+          }, not a component; check that data-export-name names an exported component`,
+        );
+      }
       element = (
-        <ErrorBoundary>
+        <errorBoundary.ErrorBoundary>
           <Component {...props} />
-        </ErrorBoundary>
+        </errorBoundary.ErrorBoundary>
       );
     }
 
     // Use hydrateRoot since we have server-rendered content
-    const root = hydrateRoot(container, element, {
+    const root = ReactDOMClient.hydrateRoot(container, element, {
       onRecoverableError: (error) => {
-        bootstrapLogger.warn(`⚠️ Island hydration mismatch (${moduleId}):`, {
+        bootstrapLogger.with({
           error,
-        });
+        }).warn(`⚠️ Island hydration mismatch (${moduleId})`);
       },
     });
 
     islandRoots.set(container, root);
     bootstrapLogger.debug(`✅ Island hydrated: ${moduleId}#${exportName}`);
   } catch (err) {
-    bootstrapLogger.error(`❌ Failed to hydrate island ${moduleId}:`, {
+    bootstrapLogger.with({
       error: err,
-    });
+    }).error(`❌ Failed to hydrate island ${moduleId}`);
   }
 }
 
@@ -486,7 +501,9 @@ async function hydrateIsland(
  * Uses RSC payload for proper prop/children resolution via data-chunk-id attribute.
  */
 async function hydrateIslands(): Promise<void> {
-  const islands = document.querySelectorAll("[data-client-component]");
+  const islands = globalThis.document.querySelectorAll(
+    "[data-client-component]",
+  );
 
   bootstrapLogger.debug(`🏝️ Found ${islands.length} islands to hydrate`);
 
@@ -529,7 +546,9 @@ function cleanupIslandRoots(): void {
     try {
       root.unmount();
     } catch (err) {
-      bootstrapLogger.warn("⚠️ Error unmounting island root:", { error: err });
+      bootstrapLogger.with({ error: err }).warn(
+        "⚠️ Error unmounting island root",
+      );
     }
   }
 
@@ -550,104 +569,78 @@ function cleanupIslandRoots(): void {
  * 4. THEN call hydrateRoot - no suspension, no flicker!
  * 5. Async Suspense boundaries update as more /rsc chunks arrive
  */
-async function hydrateFromStreamingOptimal(): Promise<void> {
+async function hydrateFromStreamingOptimal(
+  rootElement: HTMLElement,
+): Promise<void> {
   bootstrapLogger.debug(
     "🚀 Starting streaming-optimal hydration...",
   );
 
-  const rootElement = document.getElementById("root");
-  if (!rootElement) {
-    throw new Error("Root element not found");
+  // Get inline RSC payload (for potential future optimization)
+  const inlinePayload = client.getEmbeddedPayload();
+  if (inlinePayload) {
+    bootstrapLogger.debug(
+      `📦 Found ${inlinePayload.length} inline RSC chunks`,
+    );
   }
 
-  try {
-    // Get inline RSC payload (for potential future optimization)
-    const inlinePayload = getEmbeddedPayload();
-    if (inlinePayload) {
-      bootstrapLogger.debug(
-        `📦 Found ${inlinePayload.length} inline RSC chunks`,
-      );
-    }
+  // Start /rsc fetch - required for component tree
+  bootstrapLogger.debug("📡 Starting /rsc fetch...");
+  const rscFetchPromise = fetch(buildRscUrl(Date.now()));
 
-    // Start /rsc fetch - required for component tree
-    const pathname = isBrowser() ? globalThis.window.location.pathname : "/";
-    const searchParams = isBrowser()
-      ? new URLSearchParams(globalThis.window.location.search)
-      : null;
-    const locale = searchParams?.get("locale");
-    const timestamp = Date.now();
+  // Create hybrid RSC tree promise
+  const treePromise = client.createHybridRSCTree(
+    inlinePayload,
+    rscFetchPromise,
+    customModuleLoader,
+  );
 
-    bootstrapLogger.debug("📡 Starting /rsc fetch...");
-    const rscFetchPromise = fetch(
-      `/rsc?pathname=${encodeURIComponent(pathname)}&t=${timestamp}${
-        locale ? `&locale=${encodeURIComponent(locale)}` : ""
-      }`,
-    );
+  // CRITICAL: Wait for the RSC tree to resolve BEFORE hydrating!
+  // This ensures the root chunk is ready, preventing Suspense from
+  // clearing SSR content (which causes flicker).
+  // SSR HTML remains visible while we wait.
+  bootstrapLogger.debug("⏳ Waiting for RSC tree to resolve...");
+  const RSCTreeRoot = await treePromise;
+  bootstrapLogger.debug("✅ RSC tree resolved, now hydrating...");
 
-    // Create hybrid RSC tree promise
-    const treePromise = createHybridRSCTree(
-      inlinePayload,
-      rscFetchPromise,
-      customModuleLoader,
-    );
-
-    // CRITICAL: Wait for the RSC tree to resolve BEFORE hydrating!
-    // This ensures the root chunk is ready, preventing Suspense from
-    // clearing SSR content (which causes flicker).
-    // SSR HTML remains visible while we wait.
-    bootstrapLogger.debug("⏳ Waiting for RSC tree to resolve...");
-    const RSCTreeRoot = await treePromise;
-    bootstrapLogger.debug("✅ RSC tree resolved, now hydrating...");
-
-    // Now hydrate with the resolved tree - no suspension at root level!
-    // Use hydrateRoot to attach to existing SSR DOM without clearing it.
-    // Inner Suspense boundaries for async components will still work.
-    const root = hydrateRoot(
-      rootElement,
-      <ErrorBoundary>
-        <RSCTreeRoot />
-      </ErrorBoundary>,
-      {
-        onRecoverableError: (error) => {
-          // Hydration mismatches are expected for async components
-          bootstrapLogger.debug("⚠️ Hydration mismatch (expected for async):", {
-            error,
-          });
-        },
+  // Now hydrate with the resolved tree - no suspension at root level!
+  // Use hydrateRoot to attach to existing SSR DOM without clearing it.
+  // Inner Suspense boundaries for async components will still work.
+  const root = ReactDOMClient.hydrateRoot(
+    rootElement,
+    <errorBoundary.ErrorBoundary>
+      <RSCTreeRoot />
+    </errorBoundary.ErrorBoundary>,
+    {
+      onRecoverableError: (error) => {
+        // Hydration mismatches are expected for async components
+        bootstrapLogger.with({
+          error,
+        }).debug("⚠️ Hydration mismatch (expected for async)");
       },
-    );
+    },
+  );
 
-    // Store root for HMR and navigation
-    reactRoot = root;
-    isSSRHydration = true;
+  // Store root for HMR and navigation
+  reactRoot = root;
+  isSSRHydration = true;
 
-    bootstrapLogger.info(
-      "✅ Streaming-optimal hydration complete",
-    );
-  } catch (err) {
-    bootstrapLogger.error("❌ Streaming-optimal hydration failed:", {
-      error: err,
-    });
-    throw err;
-  }
+  bootstrapLogger.info(
+    "✅ Streaming-optimal hydration complete",
+  );
 }
 
 /**
  * Bootstrap in CSR mode (fallback)
  */
-function bootstrapCSR() {
-  const rootElement = document.getElementById("root");
-  if (!rootElement) {
-    throw new Error("Root element not found");
-  }
-
-  reactRoot = createRoot(rootElement);
+function bootstrapCSR(rootElement: HTMLElement) {
+  reactRoot = ReactDOMClient.createRoot(rootElement);
   reactRoot.render(
-    <ErrorBoundary>
-      <Suspense fallback={null}>
+    <errorBoundary.ErrorBoundary>
+      <React.Suspense fallback={null}>
         <RSCRoot />
-      </Suspense>
-    </ErrorBoundary>,
+      </React.Suspense>
+    </errorBoundary.ErrorBoundary>,
   );
 
   bootstrapLogger.info("✅ React app mounted with CSR");
@@ -660,15 +653,17 @@ function bootstrapCSR() {
  */
 function bootstrap() {
   bootstrapLogger.debug("🚀 Starting bootstrap...");
-  bootstrapLogger.debug("🚀 Document ready state:", {
-    readyState: document.readyState,
-  });
+  bootstrapLogger.with({
+    readyState: globalThis.document.readyState,
+  }).debug("🚀 Document ready state");
 
-  const rootElement = document.getElementById("root");
-  bootstrapLogger.debug("🚀 Root element found:", { found: !!rootElement });
+  const rootElement = globalThis.document.getElementById("root");
+  bootstrapLogger.with({ found: !!rootElement }).debug(
+    "🚀 Root element found",
+  );
 
   if (!rootElement) {
-    bootstrapLogger.fatal("❌ Root element not found!");
+    bootstrapLogger.error("❌ Root element not found!");
     return;
   }
 
@@ -676,33 +671,28 @@ function bootstrap() {
   // 1. Streaming-optimal (sync inline + async via /rsc - recommended)
   // 2. Embedded RSC payload (islands hydration)
   // 3. CSR mode (fetch /rsc)
-  const isStreamingOptimal = hasStreamingOptimalRSC();
-  isSSRHydration = isStreamingOptimal || hasEmbeddedPayload();
+  const isStreamingOptimal = client.hasStreamingOptimalRSC();
+  isSSRHydration = isStreamingOptimal || client.hasEmbeddedPayload();
 
   if (isStreamingOptimal) {
     bootstrapLogger.debug(
       "🚀 Streaming-optimal mode detected, using hybrid hydration...",
     );
 
-    // Use streaming-optimal: sync chunks inline + async via /rsc
-    try {
-      hydrateFromStreamingOptimal();
-    } catch (err) {
-      bootstrapLogger.error(
-        "❌ Streaming-optimal hydration failed, falling back to CSR:",
-        { error: err },
+    // Use streaming-optimal: sync chunks inline + async via /rsc. A failure
+    // is handled here, once, by falling back to client rendering.
+    hydrateFromStreamingOptimal(rootElement).catch((error) => {
+      bootstrapLogger.with({ error }).error(
+        "❌ Streaming-optimal hydration failed, falling back to CSR",
       );
 
       try {
-        bootstrapCSR();
-      } catch (err) {
-        bootstrapLogger.error(
-          "❌ CSR error:",
-          { error: err },
-        );
+        bootstrapCSR(rootElement);
+      } catch (csrError) {
+        bootstrapLogger.with({ error: csrError }).error("❌ CSR error");
       }
-    }
-  } else if (hasEmbeddedPayload()) {
+    });
+  } else if (client.hasEmbeddedPayload()) {
     bootstrapLogger.debug(
       "🏝️ SSR content detected, using islands hydration mode...",
     );
@@ -710,12 +700,9 @@ function bootstrap() {
     // Use islands architecture: only hydrate client components
     // Server-rendered static content doesn't need React
     hydrateIslands().catch((err) => {
-      bootstrapLogger.error(
-        "❌ Islands hydration failed, falling back to CSR:",
-        {
-          error: err,
-        },
-      );
+      bootstrapLogger.with({
+        error: err,
+      }).error("❌ Islands hydration failed, falling back to CSR");
 
       // Fall back to CSR if hydration fails
       // Keep SSR content visible - don't clear the DOM
@@ -724,13 +711,13 @@ function bootstrap() {
 
       // Use createRoot to take over the existing DOM without clearing it
       // This preserves the SSR content while enabling client-side updates
-      reactRoot = createRoot(rootElement);
+      reactRoot = ReactDOMClient.createRoot(rootElement);
       reactRoot.render(
-        <ErrorBoundary>
-          <Suspense fallback={null}>
+        <errorBoundary.ErrorBoundary>
+          <React.Suspense fallback={null}>
             <RSCRoot />
-          </Suspense>
-        </ErrorBoundary>,
+          </React.Suspense>
+        </errorBoundary.ErrorBoundary>,
       );
 
       bootstrapLogger.info(
@@ -742,31 +729,38 @@ function bootstrap() {
 
     try {
       // Create React root and store it globally for HMR
-      reactRoot = createRoot(rootElement);
+      reactRoot = ReactDOMClient.createRoot(rootElement);
       bootstrapLogger.debug("🚀 React root created");
 
       // Render with ErrorBoundary and Suspense to handle async RSC loading
       // Use null fallback to allow server-rendered Loading components to show through
       reactRoot.render(
-        <ErrorBoundary>
-          <Suspense fallback={null}>
+        <errorBoundary.ErrorBoundary>
+          <React.Suspense fallback={null}>
             <RSCRoot />
-          </Suspense>
-        </ErrorBoundary>,
+          </React.Suspense>
+        </errorBoundary.ErrorBoundary>,
       );
 
       bootstrapLogger.info("✅ React app mounted with RSC");
     } catch (err) {
-      bootstrapLogger.fatal("❌ Bootstrap error:", { error: err });
+      bootstrapLogger.with({ error: err }).error("❌ Bootstrap error");
 
       // Show error to user
+      // The message is set as text: it can echo server or payload content.
       rootElement.innerHTML = `
         <div class="error">
           <h2>⚠️ Bootstrap Error</h2>
-          <pre>${err instanceof Error ? err.message : String(err)}</pre>
+          <pre></pre>
           <button onclick="globalThis.location.reload()">Reload Page</button>
         </div>
       `;
+      const messageElement = rootElement.querySelector("pre");
+      if (messageElement !== null) {
+        messageElement.textContent = err instanceof Error
+          ? err.message
+          : String(err);
+      }
     }
   }
 }
@@ -789,7 +783,7 @@ function setupNavigationListeners() {
       currentPathname = globalThis.window.location.pathname;
       // Use startTransition to keep old UI visible during RSC fetch
       // This prevents layout flash by allowing React to render concurrently
-      startTransition(() => {
+      React.startTransition(() => {
         clearRSCCache();
         refreshRSCRoot();
       });
@@ -810,7 +804,7 @@ function setupNavigationListeners() {
       currentPathname = newPathname;
       clientLogger.debug("🧭 Popstate event detected, refreshing RSC...");
       // Use startTransition to keep old UI visible during RSC fetch
-      startTransition(() => {
+      React.startTransition(() => {
         clearRSCCache();
         refreshRSCRoot();
       });
@@ -821,15 +815,15 @@ function setupNavigationListeners() {
 }
 
 // Start the app when DOM is ready
-clientLogger.debug("🎬 Checking document ready state:", {
-  readyState: document.readyState,
-});
+clientLogger.with({
+  readyState: globalThis.document.readyState,
+}).debug("🎬 Checking document ready state");
 
-if (document.readyState === "loading") {
+if (globalThis.document.readyState === "loading") {
   clientLogger.debug(
     "🎬 Document still loading, adding DOMContentLoaded listener",
   );
-  document.addEventListener("DOMContentLoaded", () => {
+  globalThis.document.addEventListener("DOMContentLoaded", () => {
     clientLogger.debug("🎬 DOMContentLoaded event fired");
     bootstrap();
     setupNavigationListeners();

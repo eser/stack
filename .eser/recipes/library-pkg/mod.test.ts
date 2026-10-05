@@ -1,10 +1,19 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 import * as assert from "@std/assert";
+import * as primitives from "@eserstack/primitives";
 import * as mod from "./mod.ts";
 
-Deno.test("greet returns greeting message", () => {
-  const result = mod.greet("World");
+Deno.test("greet returns a greeting for a name", () => {
+  const result = mod.greet(" World ");
 
-  assert.assertEquals(result, "Hello, World!");
+  assert.assert(primitives.results.isOk(result));
+  assert.assertEquals(result.value, "Hello, World!");
+});
+
+Deno.test("greet fails for an empty name", () => {
+  const result = mod.greet("  ");
+
+  assert.assert(primitives.results.isFail(result));
+  assert.assertEquals(result.error.message, "name is empty");
 });

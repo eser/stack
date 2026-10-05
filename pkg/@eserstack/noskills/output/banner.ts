@@ -7,6 +7,7 @@
  */
 
 import * as tui from "@eserstack/shell/tui";
+import * as cmd from "./cmd.ts";
 
 export const renderOnboardingBanner = (
   ctx: tui.TuiContext,
@@ -32,6 +33,6 @@ export const renderOnboardingBanner = (
   tui.gapDetached(ctx);
   tui.messageDetached(
     ctx,
-    '  Or just type: noskills spec new "your feature description"',
+    `  Or just type: ${cmd.cmd('spec new "your feature description"')}`,
   );
 };

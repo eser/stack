@@ -87,9 +87,13 @@ type acpWorker struct {
 	events  chan WorkerEvent
 	prompts chan string
 
-	// done closes when the worker is shutting down. It is what unblocks the
-	// turn runner and every goroutine waiting on a permission decision.
-	done chan struct{}
+	// ctx lives as long as the worker; Close cancels it. Its cancellation is
+	// what unblocks the turn runner and every goroutine waiting on a permission
+	// decision, and it bounds every call the worker makes to the agent. It is
+	// stored, against the usual rule, because the turn runner and the
+	// connection watcher have no caller whose context they could borrow.
+	ctx    context.Context //nolint:containedctx // lifetime context, see the comment above
+	cancel context.CancelFunc
 
 	mu sync.Mutex
 	// session is nil until SendQueryStart runs. A nil session is a hard error
@@ -118,7 +122,7 @@ func spawnACPWorker(
 	sessionID, cwd, dataDir string,
 	logger *logfx.Logger,
 ) (WorkerHandle, error) {
-	worker := newACPWorker(sessionID, cwd, dataDir, logger)
+	worker := newACPWorker(ctx, sessionID, cwd, dataDir, logger)
 
 	worker.emit(map[string]any{"type": "spawn_progress", "stage": "starting"})
 
@@ -134,7 +138,7 @@ func spawnACPWorker(
 	// connection does: the agent may call back the moment initialize completes.
 	client, err := connectACPAgent(ctx, command, args, cwd, worker, info)
 	if err != nil {
-		close(worker.done)
+		worker.cancel()
 
 		return nil, err
 	}
@@ -150,7 +154,17 @@ func spawnACPWorker(
 // in-process agent over pipes: the alternative is testing this only through a
 // real subprocess, which makes the interesting cases -- a permission arriving
 // mid-turn, an agent that dies -- awkward to stage.
-func newACPWorker(sessionID, cwd, dataDir string, logger *logfx.Logger) *acpWorker {
+//
+// ctx is the context of the request that spawned the worker. The worker keeps
+// its values but not its cancellation or deadline: it serves later attaches
+// too, and only Close ends it.
+func newACPWorker(
+	ctx context.Context,
+	sessionID, cwd, dataDir string,
+	logger *logfx.Logger,
+) *acpWorker {
+	workerCtx, cancel := context.WithCancel(context.WithoutCancel(ctx))
+
 	return &acpWorker{ //nolint:exhaustruct
 		Host:      acpfx.NewHost(acpfx.HostOptions{}), //nolint:exhaustruct
 		logger:    logger,
@@ -159,8 +173,22 @@ func newACPWorker(sessionID, cwd, dataDir string, logger *logfx.Logger) *acpWork
 		root:      cwd,
 		events:    make(chan WorkerEvent, 256), //nolint:mnd
 		prompts:   make(chan string, promptQueueDepth),
-		done:      make(chan struct{}),
+		ctx:       workerCtx,
+		cancel:    cancel,
 		pending:   make(map[string]chan string),
+	}
+}
+
+// callContext bounds a caller's context by the worker's lifetime, so a call
+// made through the handle stops when the caller gives up or the worker closes,
+// whichever comes first. The returned func must be called when the call ends.
+func (w *acpWorker) callContext(ctx context.Context) (context.Context, context.CancelFunc) {
+	callCtx, cancel := context.WithCancel(ctx)
+	stop := context.AfterFunc(w.ctx, cancel)
+
+	return callCtx, func() {
+		stop()
+		cancel()
 	}
 }
 
@@ -205,7 +233,7 @@ func (w *acpWorker) watchConnection() {
 		})
 		w.closeEvents()
 
-	case <-w.done:
+	case <-w.ctx.Done():
 	}
 }
 
@@ -233,9 +261,9 @@ func (w *acpWorker) SendQueryStart(ctx context.Context, cwd, sessionID, resume s
 	w.session = session
 	w.mu.Unlock()
 
-	w.rememberAgentSession(session.ID())
+	w.rememberAgentSession(ctx, session.ID())
 
-	w.logger.Info(
+	w.logger.InfoContext(ctx,
 		"acp session opened", "session", sessionID, "agent", session.ID(), "resumed", resume != "",
 	)
 
@@ -247,10 +275,11 @@ func (w *acpWorker) SendQueryStart(ctx context.Context, cwd, sessionID, resume s
 // It returns as soon as the turn is queued rather than when it completes. That
 // is required, not merely convenient: this is called from the WebTransport read
 // loop, and an agent turn runs for minutes, so blocking here would stop the
-// client from being able to send the cancel that ends it.
-func (w *acpWorker) PushMessage(content string) error {
+// client from being able to send the cancel that ends it. Queueing never
+// blocks, so there is nothing for ctx to bound.
+func (w *acpWorker) PushMessage(_ context.Context, content string) error {
 	select {
-	case <-w.done:
+	case <-w.ctx.Done():
 		return ErrACPWorkerClosed
 	default:
 	}
@@ -258,7 +287,7 @@ func (w *acpWorker) PushMessage(content string) error {
 	select {
 	case w.prompts <- content:
 		return nil
-	case <-w.done:
+	case <-w.ctx.Done():
 		return ErrACPWorkerClosed
 	default:
 		return ErrPromptQueueFull
@@ -274,7 +303,7 @@ func (w *acpWorker) runTurns() {
 		select {
 		case content := <-w.prompts:
 			w.runOneTurn(content)
-		case <-w.done:
+		case <-w.ctx.Done():
 			return
 		}
 	}
@@ -297,18 +326,7 @@ func (w *acpWorker) runOneTurn(content string) {
 	// Bound by the worker's lifetime, not by a timeout: a turn legitimately runs
 	// for many minutes, and the caller's cancel arrives as StopTask rather than
 	// as a dead context.
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	go func() {
-		select {
-		case <-w.done:
-			cancel()
-		case <-ctx.Done():
-		}
-	}()
-
-	resp, err := session.Prompt(ctx, []acpfx.ContentBlock{acpfx.TextBlock(content)})
+	resp, err := session.Prompt(w.ctx, []acpfx.ContentBlock{acpfx.TextBlock(content)})
 	if err != nil {
 		w.emit(map[string]any{
 			"type":     "query_error",
@@ -335,8 +353,10 @@ func (w *acpWorker) currentSession() *acpfx.Session {
 	return w.session
 }
 
-// PermissionResponse resolves a pending session/request_permission.
-func (w *acpWorker) PermissionResponse(requestID, behavior, message string) error {
+// PermissionResponse resolves a pending session/request_permission. The reply
+// channel has room for its one decision, so this never blocks and there is
+// nothing for ctx to bound.
+func (w *acpWorker) PermissionResponse(_ context.Context, requestID, behavior, message string) error {
 	_ = message // ACP carries no free-text rejection message on the outcome.
 
 	w.mu.Lock()
@@ -364,32 +384,40 @@ func (w *acpWorker) PermissionResponse(requestID, behavior, message string) erro
 // Mux frames drive a terminal multiplexer, not an agent; sessions that need
 // them run the mux worker, which is a different WorkerHandle entirely. Returning
 // nil rather than an error keeps the daemon's dispatch table uniform.
-func (w *acpWorker) SendMux(_ json.RawMessage) error { return nil }
+func (w *acpWorker) SendMux(_ context.Context, _ json.RawMessage) error { return nil }
 
 // SetMode switches the ACP session's mode.
 //
-// This is what backs the client's set_permission_mode command.
-func (w *acpWorker) SetMode(mode string) error {
+// This is what backs the client's set_permission_mode command. The call ends
+// when ctx ends or the worker closes.
+func (w *acpWorker) SetMode(ctx context.Context, mode string) error {
 	session := w.currentSession()
 	if session == nil {
 		return ErrNoACPSession
 	}
 
-	if err := session.SetMode(context.Background(), mode); err != nil {
-		return fmt.Errorf("acp session/set_mode: %w", err)
+	callCtx, cancel := w.callContext(ctx)
+	defer cancel()
+
+	if err := session.SetMode(callCtx, mode); err != nil {
+		return fmt.Errorf("acp session/set_mode %q: %w", mode, err)
 	}
 
 	return nil
 }
 
-// StopTask cancels the in-flight turn.
-func (w *acpWorker) StopTask() error {
+// StopTask cancels the in-flight turn. The call ends when ctx ends or the
+// worker closes.
+func (w *acpWorker) StopTask(ctx context.Context) error {
 	session := w.currentSession()
 	if session == nil {
 		return nil
 	}
 
-	if err := session.Cancel(context.Background()); err != nil {
+	callCtx, cancel := w.callContext(ctx)
+	defer cancel()
+
+	if err := session.Cancel(callCtx); err != nil {
 		return fmt.Errorf("acp session/cancel: %w", err)
 	}
 
@@ -401,7 +429,7 @@ func (w *acpWorker) Close() error {
 	var err error
 
 	w.closeOnce.Do(func() {
-		close(w.done)
+		w.cancel()
 
 		if session := w.currentSession(); session != nil {
 			session.Close()

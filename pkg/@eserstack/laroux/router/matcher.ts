@@ -2,21 +2,40 @@
 // Route matching utilities
 // Uses @eserstack/standards/routes for core matching logic
 
-import {
-  matchRoute as baseMatchRoute,
-  normalizePath as baseNormalizePath,
-} from "@eserstack/standards/routes";
+// The sub-path keeps the browser bundle free of the package root, whose
+// cross-runtime module detects the runtime on import.
+import * as routes from "@eserstack/standards/routes";
 import type { RouteDefinition, RouteMatch, RouteParams } from "./types.ts";
 
 /**
  * Matches a pathname against a route definition
  * Returns the extracted parameters if matched, or null if no match
+ *
+ * Only the route's `path` is read, so an API route entry matches the same way
+ * as a page. The pathname is the one in the URL, percent-encoded as
+ * `URL.pathname` gives it, and the params come back percent-decoded, with a
+ * malformed escape kept as written. A catch-all (`[...path]`) matches zero or
+ * more segments, its bare prefix included: "/docs/[...path]" matches "/docs"
+ * and "/docs/" with `path` set to `[]`, so a path and its
+ * {@link normalizePath} form reach the same route. A decoded value can hold
+ * "/" or "..": validate it before it goes into a file path or a query.
+ *
+ * @example
+ * ```typescript
+ * import * as laroux from "@eserstack/laroux";
+ *
+ * laroux.matchRoute("/stories/hello%20world", { path: "/stories/[slug]" });
+ * // { slug: "hello world" }
+ *
+ * laroux.matchRoute("/docs", { path: "/docs/[...path]" });
+ * // { path: [] }
+ * ```
  */
 export function matchRoute(
   pathname: string,
-  routeDef: RouteDefinition,
+  routeDef: Pick<RouteDefinition, "path">,
 ): RouteParams | null {
-  const result = baseMatchRoute(pathname, routeDef.path);
+  const result = routes.matchRoute(pathname, routeDef.path);
   if (result === null) {
     return null;
   }
@@ -24,7 +43,7 @@ export function matchRoute(
   const params: RouteParams = {};
   for (const [key, value] of Object.entries(result)) {
     if (Array.isArray(value)) {
-      params[key] = [...value] as string[];
+      params[key] = [...value];
     } else if (typeof value === "string") {
       params[key] = value;
     }
@@ -38,9 +57,9 @@ export function matchRoute(
  */
 export function findMatchingRoute(
   pathname: string,
-  routes: RouteDefinition[],
+  routeDefs: readonly RouteDefinition[],
 ): RouteMatch | null {
-  for (const route of routes) {
+  for (const route of routeDefs) {
     const params = matchRoute(pathname, route);
     if (params !== null) {
       return { route, params };
@@ -52,4 +71,5 @@ export function findMatchingRoute(
 /**
  * Normalizes a pathname by removing trailing slashes and ensuring leading slash
  */
-export { baseNormalizePath as normalizePath };
+export const normalizePath = (pathname: string): string =>
+  routes.normalizePath(pathname);

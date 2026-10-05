@@ -101,6 +101,35 @@ bdd.describe("Bluesky mappers", () => {
       );
     });
 
+    bdd.it("should keep the thread root of a reply in platformRef", () => {
+      const raw = makePostView({
+        record: {
+          "$type": "app.bsky.feed.post",
+          text: "This is a reply",
+          createdAt: "2026-01-01T00:01:00Z",
+          reply: {
+            root: {
+              uri: "at://did:plc:other/app.bsky.feed.post/root1",
+              cid: "bafroot1",
+            },
+            parent: {
+              uri: "at://did:plc:other/app.bsky.feed.post/parent1",
+              cid: "bafparent1",
+            },
+          },
+        },
+      });
+
+      const post = mappersMod.mapToDomainPost(raw);
+
+      assert.assertEquals(post.platformRef, {
+        uri: "at://did:plc:testuser/app.bsky.feed.post/abc123",
+        cid: "bafyreiabc123",
+        rootUri: "at://did:plc:other/app.bsky.feed.post/root1",
+        rootCid: "bafroot1",
+      });
+    });
+
     bdd.it("should normalise author handle to lowercase without @", () => {
       const raw = makePostView({
         author: { did: "did:plc:test", handle: "TEST.bsky.social" },

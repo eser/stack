@@ -15,9 +15,11 @@ import (
 // skip is called once per request; return true to bypass token validation
 // (public endpoints: health, cert-fingerprint, auth/setup, auth/login).
 //
-// Token is extracted from "Authorization: Bearer <token>" or "?token=<value>"
-// (WebTransport CONNECT requests cannot set headers, so the query-param path
-// is required for WT upgrade flows).
+// The token comes from the "Authorization: Bearer <token>" header. A
+// WebTransport CONNECT on a raw route may carry it as "?token=<value>"
+// instead, because browsers cannot set headers on that request. Every other
+// request ignores the query string, since URLs reach access logs, browser
+// history and Referer headers.
 func PinAuthMiddleware(
 	isPINSetup func() bool,
 	validator func(string) bool,
@@ -38,16 +40,8 @@ func PinAuthMiddleware(
 			return ctx.Next()
 		}
 
-		// Auth failure path splits on route type:
-		//   • Raw routes (WebTransport): write response directly; RouteRaw skips
-		//     the raw handler when ctx.EarlyWritten is true.
-		//   • Normal routes: return a Result; MuxHandlerFunc writes it.
-		if ctx.IsRaw {
-			_ = ctx.WriteEarly(http.StatusUnauthorized, []byte(`{"error":"unauthorized"}`))
-
-			return ctx.Results.Ok() // ignored by RouteRaw when EarlyWritten
-		}
-
+		// Route and RouteRaw both write this Result, and RouteRaw does not run
+		// its raw handler after a rejection.
 		return ctx.Results.Unauthorized(httpfx.WithPlainText("unauthorized"))
 	}
 }
@@ -59,5 +53,20 @@ func extractPinToken(ctx *httpfx.Context) string {
 		}
 	}
 
-	return ctx.Request.URL.Query().Get("token")
+	if isWebTransportConnect(ctx) {
+		return ctx.Request.URL.Query().Get("token")
+	}
+
+	return ""
+}
+
+// isWebTransportConnect reports whether the request is an extended CONNECT
+// for WebTransport on a raw route. The :protocol values are the ones
+// webtransport-go accepts: "webtransport-h3" and the pre-draft-15 "webtransport".
+func isWebTransportConnect(ctx *httpfx.Context) bool {
+	if !ctx.IsRaw || ctx.Request.Method != http.MethodConnect {
+		return false
+	}
+
+	return ctx.Request.Proto == "webtransport-h3" || ctx.Request.Proto == "webtransport"
 }

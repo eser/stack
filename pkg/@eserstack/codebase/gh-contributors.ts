@@ -31,19 +31,18 @@ import * as functions from "@eserstack/functions";
 import type * as shellArgs from "@eserstack/shell/args";
 import * as shell from "@eserstack/shell";
 import * as tui from "@eserstack/shell/tui";
-import { createCliContext, runCliMain, toCliEvent } from "./cli-support.ts";
-
-const { ctx, output: out } = createCliContext();
+import * as cliSupport from "./cli-support.ts";
 
 // --- Types ---
 
 /**
- * A GitHub contributor returned by the API.
+ * A GitHub contributor returned by the API. The snake_case keys are the
+ * GitHub REST API's field names.
  */
 export type Contributor = {
   readonly login: string;
-  readonly avatar_url: string;
-  readonly html_url: string;
+  readonly "avatar_url": string;
+  readonly "html_url": string;
   readonly contributions: number;
 };
 
@@ -270,6 +269,8 @@ const cliResponseMapper: functions.handler.ResponseMapper<
   Error | functions.handler.AdaptError,
   shellArgs.CliResult<void>
 > = (result) => {
+  const { ctx } = cliSupport.getCliContext();
+
   if (primitives.results.isFail(result)) {
     const err = result.error;
     const message = err instanceof Error
@@ -326,26 +327,29 @@ export const main = async (
   );
 
   if (parsed["help"]) {
-    console.log("eser codebase gh contributors — Update contributor list\n");
-    console.log("Options:");
-    console.log(
+    const { output: out } = cliSupport.getCliContext();
+    out.writeln("eser codebase gh contributors — Update contributor list\n");
+    out.writeln("Options:");
+    out.writeln(
       "  --columns <n>    Number of columns per row (default: 8)",
     );
-    console.log(
+    out.writeln(
       "  --readme <path>  Path to README.md (default: README.md)",
     );
-    console.log("  --commit         Auto-commit and push changes");
-    console.log("  --help, -h       Show this help");
+    out.writeln("  --commit         Auto-commit and push changes");
+    out.writeln("  --help, -h       Show this help");
     return primitives.results.ok(undefined);
   }
 
-  const event = toCliEvent("gh-contributors", parsed);
+  const event = cliSupport.toCliEvent("gh-contributors", parsed);
   return await handleCli(event);
 };
 
 if (import.meta.main) {
-  runCliMain(
-    await main(standards.crossRuntime.runtime.process.args as string[]),
-    out,
+  // Entry point: the await only runs when this file is executed directly.
+  // deno-lint-ignore no-top-level-await
+  const result = await main(
+    standards.crossRuntime.runtime.process.args as string[],
   );
+  cliSupport.runCliMain(result, cliSupport.getCliContext().output);
 }

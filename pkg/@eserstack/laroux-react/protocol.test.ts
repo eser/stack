@@ -3,14 +3,9 @@
  * Tests for RSC Wire Protocol
  */
 
-import { assertEquals, assertExists } from "@std/assert";
-import {
-  createClientReference,
-  isClientReference,
-  parseChunk,
-  type RSCChunk,
-  serializeChunk,
-} from "./protocol.ts";
+import * as assert from "@std/assert";
+import * as protocol from "./protocol.ts";
+import type { RSCChunk } from "./protocol.ts";
 
 Deno.test("RSC Protocol - Serialize Module Chunk", () => {
   const chunk: RSCChunk = {
@@ -23,8 +18,8 @@ Deno.test("RSC Protocol - Serialize Module Chunk", () => {
     },
   };
 
-  const serialized = serializeChunk(chunk);
-  assertEquals(
+  const serialized = protocol.serializeChunk(chunk);
+  assert.assertEquals(
     serialized,
     'M1:{"id":"./counter.tsx","chunks":["client"],"name":"default"}\n',
   );
@@ -37,8 +32,8 @@ Deno.test("RSC Protocol - Serialize JSON Chunk", () => {
     value: { message: "Hello, RSC!" },
   };
 
-  const serialized = serializeChunk(chunk);
-  assertEquals(serialized, 'J0:{"message":"Hello, RSC!"}\n');
+  const serialized = protocol.serializeChunk(chunk);
+  assert.assertEquals(serialized, 'J0:{"message":"Hello, RSC!"}\n');
 });
 
 Deno.test("RSC Protocol - Serialize Error Chunk", () => {
@@ -48,32 +43,32 @@ Deno.test("RSC Protocol - Serialize Error Chunk", () => {
     value: { message: "Something went wrong", stack: "Error stack..." },
   };
 
-  const serialized = serializeChunk(chunk);
-  assertExists(serialized);
-  assertEquals(serialized.startsWith("E2:"), true);
+  const serialized = protocol.serializeChunk(chunk);
+  assert.assertExists(serialized);
+  assert.assertEquals(serialized.startsWith("E2:"), true);
 });
 
 Deno.test("RSC Protocol - Parse Module Chunk", () => {
   const line =
     'M1:{"id":"./counter.tsx","chunks":["client"],"name":"default"}\n';
-  const parsed = parseChunk(line);
+  const parsed = protocol.parseChunk(line);
 
-  assertExists(parsed);
-  assertEquals(parsed?.type, "M");
-  assertEquals(parsed?.id, 1);
+  assert.assertExists(parsed);
+  assert.assertEquals(parsed?.type, "M");
+  assert.assertEquals(parsed?.id, 1);
   // deno-lint-ignore no-explicit-any
-  assertEquals((parsed?.value as any).id, "./counter.tsx");
+  assert.assertEquals((parsed?.value as any).id, "./counter.tsx");
 });
 
 Deno.test("RSC Protocol - Parse JSON Chunk", () => {
   const line = 'J0:{"message":"Hello"}\n';
-  const parsed = parseChunk(line);
+  const parsed = protocol.parseChunk(line);
 
-  assertExists(parsed);
-  assertEquals(parsed?.type, "J");
-  assertEquals(parsed?.id, 0);
+  assert.assertExists(parsed);
+  assert.assertEquals(parsed?.type, "J");
+  assert.assertEquals(parsed?.id, 0);
   // deno-lint-ignore no-explicit-any
-  assertEquals((parsed?.value as any).message, "Hello");
+  assert.assertEquals((parsed?.value as any).message, "Hello");
 });
 
 Deno.test("RSC Protocol - Round-trip Serialization", () => {
@@ -83,42 +78,89 @@ Deno.test("RSC Protocol - Round-trip Serialization", () => {
     value: { nested: { data: [1, 2, 3] } },
   };
 
-  const serialized = serializeChunk(original);
-  const parsed = parseChunk(serialized);
+  const serialized = protocol.serializeChunk(original);
+  const parsed = protocol.parseChunk(serialized);
 
-  assertExists(parsed);
-  assertEquals(parsed?.type, original.type);
-  assertEquals(parsed?.id, original.id);
-  assertEquals(JSON.stringify(parsed?.value), JSON.stringify(original.value));
+  assert.assertExists(parsed);
+  assert.assertEquals(parsed?.type, original.type);
+  assert.assertEquals(parsed?.id, original.id);
+  assert.assertEquals(
+    JSON.stringify(parsed?.value),
+    JSON.stringify(original.value),
+  );
 });
 
 Deno.test("RSC Protocol - Create Client Reference", () => {
-  const ref = createClientReference("./Button.tsx", "default");
+  const ref = protocol.createClientReference("./Button.tsx", "default");
 
-  assertExists(ref);
-  assertEquals(ref.$$typeof, Symbol.for("react.client.reference"));
-  assertEquals(ref.$$id, "./Button.tsx");
-  assertEquals(ref.name, "default");
+  assert.assertExists(ref);
+  assert.assertEquals(ref.$$typeof, Symbol.for("react.client.reference"));
+  assert.assertEquals(ref.$$id, "./Button.tsx");
+  assert.assertEquals(ref.name, "default");
 });
 
 Deno.test("RSC Protocol - Is Client Reference", () => {
-  const ref = createClientReference("./Button.tsx", "default");
-  assertEquals(isClientReference(ref), true);
+  const ref = protocol.createClientReference("./Button.tsx", "default");
+  assert.assertEquals(protocol.isClientReference(ref), true);
 
   const notRef = { some: "object" };
-  assertEquals(isClientReference(notRef), false);
+  assert.assertEquals(protocol.isClientReference(notRef), false);
 
-  assertEquals(isClientReference(null), false);
-  assertEquals(isClientReference("string"), false);
+  assert.assertEquals(protocol.isClientReference(null), false);
+  assert.assertEquals(protocol.isClientReference("string"), false);
 });
 
 Deno.test("RSC Protocol - Parse Invalid Chunk", () => {
   const invalid = "invalid chunk data";
-  const parsed = parseChunk(invalid);
-  assertEquals(parsed, null);
+  const parsed = protocol.parseChunk(invalid);
+  assert.assertEquals(parsed, null);
 });
 
 Deno.test("RSC Protocol - Parse Empty String", () => {
-  const parsed = parseChunk("");
-  assertEquals(parsed, null);
+  const parsed = protocol.parseChunk("");
+  assert.assertEquals(parsed, null);
+});
+
+const ESCAPE_CASES: ReadonlyArray<{
+  readonly input: string;
+  readonly expected: string;
+}> = [
+  { input: "plain", expected: "plain" },
+  { input: "", expected: "" },
+  { input: "$5", expected: "$$5" },
+  { input: "$$", expected: "$$$" },
+  { input: "price: $5", expected: "price: $5" },
+];
+
+for (const { input, expected } of ESCAPE_CASES) {
+  Deno.test(`RSC Protocol - escapeString turns "${input}" into "${expected}"`, () => {
+    assert.assertEquals(protocol.escapeString(input), expected);
+  });
+}
+
+Deno.test("RSC Protocol - encodeJsonValue keeps JSON semantics and escapes nested strings", () => {
+  const encoded = protocol.encodeJsonValue({
+    label: "$5 off",
+    tags: ["$a", "b"],
+    at: new Date("2026-01-02T00:00:00.000Z"),
+    counts: new Map([["views", 3]]),
+    onClick: () => {},
+    missing: undefined,
+  });
+
+  assert.assertEquals(encoded, {
+    label: "$$5 off",
+    tags: ["$$a", "b"],
+    at: "2026-01-02T00:00:00.000Z",
+    counts: {},
+  });
+});
+
+Deno.test("RSC Protocol - encodeJsonValue drops what JSON.stringify drops", () => {
+  assert.assertEquals(protocol.encodeJsonValue(undefined), undefined);
+  assert.assertEquals(protocol.encodeJsonValue(() => {}), undefined);
+  assert.assertEquals(protocol.encodeJsonValue(Symbol("s")), undefined);
+  assert.assertEquals(protocol.encodeJsonValue(null), null);
+  assert.assertEquals(protocol.encodeJsonValue(0), 0);
+  assert.assertEquals(protocol.encodeJsonValue(false), false);
 });

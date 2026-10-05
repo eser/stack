@@ -7,6 +7,7 @@
  */
 
 import { runtime } from "@eserstack/standards/cross-runtime";
+import * as discoveryAnswers from "../context/discovery-answers.ts";
 
 const NOS_SECTION_START = "<!-- noskills:start -->";
 const NOS_SECTION_END = "<!-- noskills:end -->";
@@ -37,13 +38,18 @@ const buildSection = (
     "",
     "### Core rules",
     "",
-    "- Call noskills ONCE per interaction. One question, one answer, one submit.",
+    `- ${discoveryAnswers.discoveryQuestionRule()}`,
+    "- Never answer discovery questions yourself.",
     "- Call `next` at: conversation start, before file edits, after completing work, at decisions.",
-    "- Never batch-submit. Never answer discovery questions yourself.",
+    `- ${
+      discoveryAnswers.discoveryAnswerRule(
+        `${commandPrefix} spec <name> next --answer`,
+      )
+    }`,
     "- Never skip steps or infer decisions. Ask first. Explicit > Clever.",
     "- NEVER suggest bypassing or skipping noskills. Discovery is not overhead.",
-    "- NEVER ask permission to run the next noskills command. After spec new → run next. After approve → run next. Each step has one next step. Just run it.",
-    "- Execute noskills commands IMMEDIATELY — the output has all context needed.",
+    "- Run the next noskills command as soon as the current step is done; each step has exactly one next step, so there is nothing to ask permission for.",
+    "- Run noskills commands as soon as you are told to; their output has the context you need.",
     "- Display `roadmap` before content. Display `gate` prominently.",
     "",
     "### Interactive choices",
@@ -103,11 +109,9 @@ const buildSection = (
     "",
     "### Execution",
     "",
-    "- Re-read files before and after editing. Files >500 LOC: read in chunks.",
     "- Run type-check + lint after every edit. Never mark AC passed if type-check fails.",
     "- If search returns few results, re-run narrower — assume truncation.",
-    "- Clean dead code before structural refactors on files >300 LOC.",
-    "- Complete the spec — no mid-execution pauses or checkpoints.",
+    "- Work through the spec's tasks to the end; the user decides when to stop.",
     "- `meta` block has resume context for session start or after compaction.",
   );
 

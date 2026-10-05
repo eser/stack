@@ -17,11 +17,7 @@
 
 import { runtime } from "@eserstack/standards/cross-runtime";
 import * as logging from "@eserstack/logging";
-import {
-  analyzeServerActions,
-  extractExports,
-  hasDirective,
-} from "@eserstack/codebase/directive-analysis";
+import * as directiveAnalysis from "@eserstack/codebase/directive-analysis";
 
 const transformLogger = logging.logger.getLogger([
   "laroux-bundler",
@@ -90,19 +86,21 @@ export async function transformServerActionFile(
   try {
     content = await runtime.fs.readTextFile(filePath);
   } catch (error) {
-    transformLogger.warn(`Failed to read file: ${filePath}`, { error });
+    transformLogger.with({ error }).warn(
+      `read ${filePath}; skipping its server action transform`,
+    );
     return null;
   }
 
   // Check if file has "use server" directive at the top (file-level)
   // We only transform file-level "use server" - function-level needs different handling
-  if (!hasDirective(content, "use server")) {
+  if (!directiveAnalysis.hasDirective(content, "use server")) {
     transformLogger.debug(`Skipping ${filePath} - no file-level "use server"`);
     return null;
   }
 
   // Extract exports
-  const exports = extractExports(content);
+  const exports = directiveAnalysis.extractExports(content);
   if (exports.length === 0) {
     transformLogger.debug(`Skipping ${filePath} - no exports found`);
     return null;
@@ -165,9 +163,12 @@ export async function transformServerActions(
 
   // Find all server action files
   // relativePath will be like "src/app/actions.ts" (full path preserved)
-  const actionMatches = await analyzeServerActions(serverOutputDir, {
-    projectRoot: serverOutputDir,
-  });
+  const actionMatches = await directiveAnalysis.analyzeServerActions(
+    serverOutputDir,
+    {
+      projectRoot: serverOutputDir,
+    },
+  );
 
   if (actionMatches.length === 0) {
     transformLogger.debug("No server action files found");
@@ -181,7 +182,10 @@ export async function transformServerActions(
   const results: ServerActionTransformResult[] = [];
 
   for (const match of actionMatches) {
-    // Use relativePath directly for action IDs (e.g., "src/app/actions#addComment")
+    // Use relativePath directly for action IDs (e.g., "src/app/actions#addComment").
+    // One file at a time keeps open file handles bounded; a project can have
+    // more action files than the open-file limit.
+    // deno-lint-ignore no-await-in-loop
     const transformedActions = await transformServerActionFile(
       match.filePath,
       match.relativePath,

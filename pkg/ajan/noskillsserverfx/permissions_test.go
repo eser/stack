@@ -1,6 +1,7 @@
 package noskillsserverfx
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -22,7 +23,7 @@ type recordingWorker struct {
 	calls []string
 }
 
-func (r *recordingWorker) PermissionResponse(requestID, behavior, _ string) error {
+func (r *recordingWorker) PermissionResponse(_ context.Context, requestID, behavior, _ string) error {
 	r.calls = append(r.calls, requestID+":"+behavior)
 
 	if r.onPermission != nil {
@@ -87,7 +88,7 @@ func TestWriteToolDecisionIsOnDiskBeforeTheWorkerActs(t *testing.T) {
 
 	entry.Pending.record("req-1", "Write")
 
-	dispatchPermissionResponse(entry, "req-1", "allow", "", logfx.NewLogger())
+	dispatchPermissionResponse(t.Context(), entry, "req-1", "allow", "", logfx.NewLogger())
 
 	if len(worker.calls) != 1 {
 		t.Fatalf("worker calls = %v, want the decision forwarded once", worker.calls)
@@ -135,7 +136,7 @@ func TestDurabilityFollowsTheToolClass(t *testing.T) {
 
 		entry.Pending.record("req-2", tc.tool)
 
-		dispatchPermissionResponse(entry, "req-2", "allow", "", logfx.NewLogger())
+		dispatchPermissionResponse(t.Context(), entry, "req-2", "allow", "", logfx.NewLogger())
 
 		if got := entry.Ledger.Syncs(); got != tc.wantSyncs {
 			t.Fatalf("tool %q caused %d fdatasyncs, want %d", tc.tool, got, tc.wantSyncs)
@@ -188,7 +189,7 @@ func TestMalformedDecisionIsRejectedNotAllowed(t *testing.T) {
 
 		entry.Pending.record("req-3", "Write")
 
-		dispatchPermissionResponse(entry, "req-3", decision, "", logfx.NewLogger())
+		dispatchPermissionResponse(t.Context(), entry, "req-3", decision, "", logfx.NewLogger())
 
 		if len(worker.calls) != 0 {
 			t.Fatalf("decision %q reached the worker: %v", decision, worker.calls)
@@ -223,7 +224,7 @@ func TestValidDecisionsAllReachTheWorker(t *testing.T) {
 
 		entry.Pending.record("req-4", "Write")
 
-		dispatchPermissionResponse(entry, "req-4", decision, "", logfx.NewLogger())
+		dispatchPermissionResponse(t.Context(), entry, "req-4", decision, "", logfx.NewLogger())
 
 		if len(worker.calls) != 1 {
 			t.Fatalf("valid decision %q did not reach the worker", decision)

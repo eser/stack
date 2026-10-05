@@ -4,9 +4,8 @@
 > **Install:** `pnpm add jsr:@eserstack/logging`
 
 `@eserstack/logging` is a hierarchical, category-based logging library with
-context propagation, multiple sinks, filters, and OpenTelemetry integration.
-Inspired by logtape, it provides a flexible and powerful logging solution for
-modern TypeScript/JavaScript applications.
+context propagation, multiple sinks, filters, and OpenTelemetry integration. It
+is inspired by logtape and runs in TypeScript and JavaScript applications.
 
 Sinks integrate with `@eserstack/streams` for rendering — choose ANSI, Markdown,
 or plain text output by plugging in the appropriate renderer.
@@ -134,6 +133,9 @@ await logging.config.configure({
   }],
 });
 
+// Stands in for your own request handling
+const processRequest = (_req: Request): Promise<void> => Promise.resolve();
+
 async function handleRequest(req: Request) {
   // All logs within this callback include requestId automatically
   await logging.context.withContext(
@@ -162,16 +164,47 @@ await userLogger.info("User action"); // Includes userId and role
 await userLogger.warn("Permission denied");
 ```
 
+### Logging Errors
+
+Pass an `Error` as a property instead of formatting it into the message. The
+record carries its name, message, stack, its own fields (such as a `code`) and
+every `cause` below it, on the Go backend and on the console fallback alike. An
+`Error` among the extra arguments is written the same way.
+
+```typescript
+import * as logging from "@eserstack/logging";
+
+const logger = logging.logger.getLogger(["app", "build"]);
+
+const error = new Error("bundle client entry", {
+  cause: new TypeError("module ./app.tsx not found"),
+});
+
+// Includes error.name, error.message, error.stack and error.cause
+await logger.with({ error }).warn("Client bundle skipped");
+```
+
 ### Multiple Sinks
+
+Each sink can render records differently. Here the terminal gets ANSI colors,
+and audit records also go as plain text to a file through a writable stream that
+appends each rendered line to `audit.log`.
 
 ```typescript
 import * as logging from "@eserstack/logging";
 import * as streams from "@eserstack/streams";
+import { runtime } from "@eserstack/standards/cross-runtime";
 
 // ANSI-colored output for the terminal
 const terminalOut = streams.output({
   renderer: streams.renderers.ansi(),
   sink: streams.sinks.stdout(),
+});
+
+// Appends each rendered chunk to audit.log, one write at a time
+const fileStream = new WritableStream<streams.Chunk>({
+  write: (chunk) =>
+    runtime.fs.writeTextFile("audit.log", String(chunk.data), { append: true }),
 });
 
 // Plain-text output routed to a writable stream (e.g. a file)
@@ -228,6 +261,10 @@ await logging.config.configure({
 ```typescript
 import * as logging from "@eserstack/logging";
 
+const orderId = "your_order_id";
+// Stands in for your own order handling
+const processOrder = (_id: string): Promise<void> => Promise.resolve();
+
 // Logs automatically include traceId and spanId
 await logging.tracer.withSpan("process-order", async (span) => {
   const logger = logging.logger.getLogger(["app", "orders"]);
@@ -246,6 +283,9 @@ import * as logging from "@eserstack/logging";
 
 const logger = logging.logger.getLogger(["app"]);
 
+// Stands in for work you only want to do when debug logs are on
+const computeExpensiveDebugInfo = () => ({ cacheEntries: 1024 });
+
 // Function only called if debug level is enabled
 await logger.debug(() => {
   const expensiveData = computeExpensiveDebugInfo();
@@ -255,34 +295,66 @@ await logger.debug(() => {
 
 ### Custom Formatters
 
+`getOutputSink()` formats each record with the built-in
+`logging.formatters.spanFormatter` unless you pass your own span formatter. A
+span formatter returns `Span[]`, and the Output's renderer turns the spans into
+ANSI, Markdown or plain text.
+
 ```typescript
 import * as logging from "@eserstack/logging";
 import * as streams from "@eserstack/streams";
 
-// Use the built-in spanFormatter with a plain renderer
+// Use a custom span formatter with a plain renderer
 const out = streams.output({
   renderer: streams.renderers.plain(),
   sink: streams.sinks.stdout(),
 });
 
+const categoryFirst: logging.formatters.SpanFormatterFn = (record) => [
+  streams.span.cyan(`[${record.category.join(".")}]`),
+  streams.span.text(` ${record.message}`),
+];
+
 await logging.config.configure({
   sinks: {
-    console: logging.sinks.getOutputSink(out),
+    console: logging.sinks.getOutputSink(out, { formatter: categoryFirst }),
   },
   loggers: [{ category: ["app"], sinks: ["console"] }],
 });
+```
 
-// Or use a string-based formatter with getOutputSink
-const customFormatter = (record: logging.LogRecord) => {
+A string-based formatter (`logging.FormatterFn`) returns one line of text per
+record. Call it from a sink of your own:
+
+```typescript
+import * as logging from "@eserstack/logging";
+import * as streams from "@eserstack/streams";
+
+const out = streams.output({
+  renderer: streams.renderers.plain(),
+  sink: streams.sinks.stdout(),
+});
+
+const customFormatter: logging.FormatterFn = (record) => {
   return `[${record.datetime.toISOString()}] ${
     record.category.join(".")
   } - ${record.message}\n`;
 };
+
+const textSink: logging.Sink = (record) => {
+  out.write(customFormatter(record));
+};
+
+await logging.config.configure({
+  sinks: { text: textSink },
+  loggers: [{ category: ["app"], sinks: ["text"] }],
+});
 ```
 
 ### Testing with Record Collector
 
 ```typescript
+import * as assert from "@std/assert";
 import * as logging from "@eserstack/logging";
 
 const { sink, records } = logging.sinks.getRecordCollectorSink();
@@ -301,8 +373,8 @@ await logging.config.configure({
 const logger = logging.logger.getLogger(["app"]);
 await logger.info("hello");
 
-console.assert(records.length === 1);
-console.assert(records[0].message === "hello");
+assert.assertEquals(records.length, 1);
+assert.assertEquals(records[0]?.message, "hello");
 ```
 
 ## API Reference
@@ -330,14 +402,19 @@ The library exports these namespaces:
 Configures the logging system with sinks, filters, and loggers.
 
 ```typescript
+import type * as logging from "@eserstack/logging";
+
 type ConfigureOptions = {
-  sinks: Record<string, Sink>;
-  filters?: Record<string, Filter>;
-  loggers: LoggerConfig[];
-  contextLocalStorage?: ContextLocalStorage;
-  reset?: boolean;
+  readonly sinks: logging.SinkConfig; // sinks by name
+  readonly filters?: logging.FilterConfig; // filters by name
+  readonly loggers: readonly logging.LoggerConfig[];
+  readonly contextLocalStorage?: logging.ContextLocalStorage;
+  readonly reset?: boolean;
 };
 ```
+
+`contextLocalStorage` defaults to `AsyncLocalStorage`, and `reset: true` clears
+the existing configuration before applying this one.
 
 #### `reset(): Promise<void>`
 
@@ -394,6 +471,7 @@ Creates a sink that writes log records to a `@eserstack/streams` Output. The
 Output's renderer determines the final format (ANSI, Markdown, plain text).
 
 ```typescript
+import * as logging from "@eserstack/logging";
 import * as streams from "@eserstack/streams";
 
 const out = streams.output({
@@ -403,6 +481,9 @@ const out = streams.output({
 const sink = logging.sinks.getOutputSink(out);
 
 // Optionally pass a custom span formatter
+const mySpanFormatter: logging.formatters.SpanFormatterFn = (record) => [
+  streams.span.text(record.message),
+];
 const sink2 = logging.sinks.getOutputSink(out, { formatter: mySpanFormatter });
 ```
 

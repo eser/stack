@@ -9,7 +9,7 @@
  * @module
  */
 
-import { JS_FILE_EXTENSIONS } from "@eserstack/standards/patterns";
+import * as patterns from "@eserstack/standards/patterns";
 import { runtime } from "@eserstack/standards/cross-runtime";
 
 /**
@@ -205,7 +205,7 @@ export const analyzeDirectives = async (
   directive: string,
   options: DirectiveAnalysisOptions = {},
 ): Promise<readonly DirectiveMatch[]> => {
-  const extensions = options.extensions ?? JS_FILE_EXTENSIONS;
+  const extensions = options.extensions ?? patterns.JS_FILE_EXTENSIONS;
   const skip = options.skip ?? DEFAULT_SKIP;
   const projectRoot = options.projectRoot ?? scanDir;
 
@@ -275,7 +275,7 @@ export const analyzeServerActions = async (
   scanDir: string,
   options: DirectiveAnalysisOptions = {},
 ): Promise<readonly DirectiveMatch[]> => {
-  const extensions = options.extensions ?? JS_FILE_EXTENSIONS;
+  const extensions = options.extensions ?? patterns.JS_FILE_EXTENSIONS;
   const skip = options.skip ?? DEFAULT_SKIP;
   const projectRoot = options.projectRoot ?? scanDir;
 

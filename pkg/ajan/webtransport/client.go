@@ -6,32 +6,49 @@ import (
 	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
+	"sync"
 
 	"github.com/quic-go/quic-go"
 	"github.com/quic-go/webtransport-go"
 )
 
+// ErrClientClosed is returned by Connect and ConnectWithHeaders once Close has
+// been called, including by a dial that Close interrupted.
+var ErrClientClosed = errors.New("webtransport client closed")
+
 // Client dials WebTransport sessions. It is safe for concurrent use.
 // Create one per logical endpoint; sessions are created via Connect.
 type Client struct {
-	config *Config
+	config Config
 	dialer *webtransport.Transport
+
+	// closed is closed by Close. Every dial watches it, so Close ends a dial in
+	// any phase, the QUIC handshake included. Close does not call
+	// Transport.Close: webtransport-go v0.13 panics when that runs before the
+	// first Dial, and it would only end the wait for the server's settings.
+	closed    chan struct{}
+	closeOnce sync.Once
 }
 
-// NewClient creates a Client with the supplied options. The underlying QUIC
-// dialer is initialised lazily on the first Connect call.
-func NewClient(opts ...Option) *Client {
-	c := &Client{
-		config: &Config{},
+// NewClient creates a Client with the supplied options. Nothing is dialed
+// until Connect. It returns an error wrapping ErrInvalidOption when an option
+// was given a value no dial could succeed with.
+func NewClient(opts ...Option) (*Client, error) {
+	c := &Client{ //nolint:exhaustruct
+		closed: make(chan struct{}),
 	}
 
 	for _, o := range opts {
-		o(c)
+		if err := o(c); err != nil {
+			return nil, fmt.Errorf("new webtransport client: %w", err)
+		}
 	}
 
-	tlsCfg := buildDialerTLSConfig(c.config)
+	tlsCfg := buildDialerTLSConfig(&c.config)
 
 	quicCfg := &quic.Config{ //nolint:exhaustruct
 		EnableDatagrams:                  true,
@@ -47,41 +64,104 @@ func NewClient(opts ...Option) *Client {
 		QUICConfig:      quicCfg,
 	}
 
-	return c
+	return c, nil
 }
 
 // Connect dials the given WebTransport URL and returns a Session. The caller
 // is responsible for calling Session.Close when done.
-func (c *Client) Connect(ctx context.Context, url string) (*Session, error) {
-	return c.ConnectWithHeaders(ctx, url, nil)
+func (c *Client) Connect(ctx context.Context, rawURL string) (*Session, error) {
+	return c.ConnectWithHeaders(ctx, rawURL, nil)
 }
 
-// ConnectWithHeaders dials with additional request headers (e.g. for token auth
-// via ?token= query param or a custom header).
-func (c *Client) ConnectWithHeaders(ctx context.Context, url string, headers http.Header) (*Session, error) {
-	_, sess, err := c.dialer.Dial(ctx, url, headers)
+// ConnectWithHeaders dials with additional request headers, such as
+// "Authorization: Bearer <token>" for token auth. Errors name the URL without
+// its query or user info, so a token placed there does not reach a log.
+func (c *Client) ConnectWithHeaders(
+	ctx context.Context,
+	rawURL string,
+	headers http.Header,
+) (*Session, error) {
+	target, err := url.Parse(rawURL)
 	if err != nil {
-		return nil, fmt.Errorf("webtransport dial %s: %w", url, err)
+		// url.Error repeats the raw URL, query included; keep only the cause.
+		if urlErr, ok := errors.AsType[*url.Error](err); ok {
+			err = urlErr.Err
+		}
+
+		return nil, fmt.Errorf("webtransport dial: parse url: %w", err)
+	}
+
+	endpoint := redactedURL(target)
+
+	select {
+	case <-c.closed:
+		return nil, fmt.Errorf("webtransport dial %s: %w", endpoint, ErrClientClosed)
+	default:
+	}
+
+	dialCtx, cancel := context.WithCancelCause(ctx)
+	defer cancel(nil)
+
+	// Ends with this call at the latest: the deferred cancel ends dialCtx.
+	go func() {
+		select {
+		case <-c.closed:
+			cancel(ErrClientClosed)
+		case <-dialCtx.Done():
+		}
+	}()
+
+	_, sess, err := c.dialer.Dial(dialCtx, rawURL, headers)
+	if err != nil {
+		if errors.Is(context.Cause(dialCtx), ErrClientClosed) {
+			return nil, fmt.Errorf("webtransport dial %s: %w", endpoint, ErrClientClosed)
+		}
+
+		return nil, fmt.Errorf("webtransport dial %s: %w", endpoint, err)
 	}
 
 	return &Session{inner: sess}, nil
 }
 
-// Close tears down the underlying QUIC transport. Any in-flight Connect calls
-// will return with an error.
+// Close ends every in-flight Connect, which then returns ErrClientClosed, and
+// makes later calls return it as well. Sessions already returned stay open;
+// close each with Session.Close. Close is safe to call more than once and
+// always returns nil.
 func (c *Client) Close() error {
-	return c.dialer.Close()
+	c.closeOnce.Do(func() {
+		close(c.closed)
+	})
+
+	return nil
+}
+
+// redactedURL returns target's scheme, host and path. The query, fragment and
+// user info are left out because they can carry credentials.
+func redactedURL(target *url.URL) string {
+	redacted := url.URL{ //nolint:exhaustruct
+		Scheme: target.Scheme,
+		Host:   target.Host,
+		Path:   target.Path,
+	}
+
+	return redacted.String()
 }
 
 // buildDialerTLSConfig constructs the effective tls.Config for the Dialer.
-// When CertHashes are provided, InsecureSkipVerify + VerifyPeerCertificate
-// are injected so a self-signed development cert is accepted when — and only
-// when — its leaf fingerprint matches a supplied hash.
+// The caller's config is never modified: a MinVersion below TLS 1.3 is raised
+// on a clone. When CertHashes are provided, InsecureSkipVerify +
+// VerifyPeerCertificate are injected so a self-signed development cert is
+// accepted when, and only when, its leaf fingerprint matches a supplied hash.
 func buildDialerTLSConfig(cfg *Config) *tls.Config {
 	if len(cfg.CertHashes) == 0 {
 		base := cfg.TLSConfig
 		if base == nil {
-			base = &tls.Config{MinVersion: tls.VersionTLS13} //nolint:exhaustruct
+			return &tls.Config{MinVersion: tls.VersionTLS13} //nolint:exhaustruct
+		}
+
+		if base.MinVersion < tls.VersionTLS13 {
+			base = base.Clone()
+			base.MinVersion = tls.VersionTLS13
 		}
 
 		return base

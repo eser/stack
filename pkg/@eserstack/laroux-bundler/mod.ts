@@ -15,26 +15,34 @@
  * This ensures tree-shaking works, dependencies are visible, and types are checked.
  *
  * ```typescript
- * import { createBuildContext, build } from "@eserstack/laroux-bundler";
- * import { reactPlugin } from "@eserstack/laroux-bundler/adapters/react";
- * import { createTailwindPlugin } from "@eserstack/laroux-bundler/adapters/tailwindcss";
+ * import * as larouxBundler from "@eserstack/laroux-bundler";
+ * import * as fonts from "@eserstack/laroux-bundler/adapters/fonts";
+ * import * as lightningcss from "@eserstack/laroux-bundler/adapters/lightningcss";
+ * import * as react from "@eserstack/laroux-bundler/adapters/react";
+ * import * as sharp from "@eserstack/laroux-bundler/adapters/sharp";
+ * import * as tailwindcss from "@eserstack/laroux-bundler/adapters/tailwindcss";
  *
- * const context = createBuildContext(config, {
- *   framework: reactPlugin,
- *   css: createTailwindPlugin({ globalCssPath: "src/styles/global.css" }),
- *   bundlerBackend: "deno-bundler",
- * });
+ * async function buildApp(config: larouxBundler.BuildConfig) {
+ *   const context = larouxBundler.createBuildContext(config, {
+ *     framework: react.reactPlugin,
+ *     css: tailwindcss.createTailwindPlugin(),
+ *     cssProcessor: lightningcss.lightningCssProcessor,
+ *     fontOptimizer: fonts.googleFontOptimizer,
+ *     imageOptimizer: sharp.sharpImageOptimizer,
+ *     bundlerBackend: "deno-bundler",
+ *   });
  *
- * await build(context);
+ *   return await larouxBundler.build(context);
+ * }
  * ```
  *
  * ## Available Adapters
  *
  * - `@eserstack/laroux-bundler/adapters/react` - React Server Components
  * - `@eserstack/laroux-bundler/adapters/tailwindcss` - Tailwind CSS v4
- * - `@eserstack/laroux-bundler/adapters/lightningcss` - LightningCSS processor
- * - `@eserstack/laroux-bundler/adapters/sharp` - Image optimization
- * - `@eserstack/laroux-bundler/adapters/fonts` - Font optimization
+ * - `@eserstack/laroux-bundler/adapters/lightningcss` - LightningCSS processor (`lightningCssProcessor`)
+ * - `@eserstack/laroux-bundler/adapters/sharp` - Image optimization (`sharpImageOptimizer`)
+ * - `@eserstack/laroux-bundler/adapters/fonts` - Font optimization (`googleFontOptimizer`)
  * - `@eserstack/laroux-bundler/adapters/runtime-bundler` - Dev mode runtime bundler
  * - `@eserstack/laroux-bundler/adapters/prebuilt-bundler` - Production prebuilt bundler
  */
@@ -51,6 +59,7 @@ export type {
   BundleResult,
   ChunkManifest,
   ClientComponent,
+  ClientComponentCache,
   ClientComponentCacheEntry,
   ComponentChunkInfo,
   CriticalCssResult,
@@ -58,17 +67,29 @@ export type {
   CssPlugin,
   CssPluginContext,
   CssPluginOptions,
+  CssProcessor,
+  CssProcessorOptions,
   FileInfo,
   FileViolation,
+  FontOptimizationOptions,
+  FontOptimizer,
   FrameworkPlugin,
+  ImageManifest,
+  ImageOptimizationRequest,
+  ImageOptimizer,
+  ImageVariant,
   ImportMap,
   ImportMapEntry,
   ModuleMap,
   ModuleMapEntry,
+  OptimizedFonts,
+  OptimizedImage,
   RouteCacheEntry,
+  RouteScanCache,
   ScannedProxy,
   ScannedRoute,
   ScanResult,
+  ScanRoutesOptions,
   ServerActionTransformResult,
   ServerBundleOptions,
   ServerBundleResult,
@@ -80,8 +101,10 @@ export type {
 export {
   analyzeBundleResult,
   BuildCache,
+  BuildIsolationError,
   bundle,
   bundleServerComponents,
+  ChunkManifestError,
   cleanSrcArtifacts,
   createIsolatedWriter,
   createVirtualSource,
@@ -91,17 +114,17 @@ export {
   generateRouteFile,
   getComponentName,
   getExternals,
-  getGlobalBuildCache,
   getLayoutName,
-  invalidateRouteCache,
   isExternal,
   isWithinOutputDir,
   loadChunkManifest,
   loadImportMap,
   logBundleStats,
   logManifest,
+  noopCssProcessor,
+  noopFontOptimizer,
+  noopImageOptimizer,
   noopPlugin,
-  resetGlobalBuildCache,
   resolveSpecifier,
   saveChunkManifest,
   scanRoutes,

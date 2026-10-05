@@ -5,35 +5,41 @@
  * post-ask-user-question hook.
  */
 
-import { describe, it } from "@std/testing/bdd";
-import { assert, assertEquals } from "@std/assert";
-import {
-  compareQuestions,
-  SIMILARITY_EXACT_THRESHOLD,
-} from "./question-similarity.ts";
+import * as bdd from "@std/testing/bdd";
+import * as assert from "@std/assert";
+import * as questionSimilarity from "./question-similarity.ts";
 
-describe("question-similarity", () => {
-  it("returns 1 for identical strings", () => {
+bdd.describe("question-similarity", () => {
+  bdd.it("returns 1 for identical strings", () => {
     const text = "What does the user want to accomplish today?";
-    assertEquals(compareQuestions(text, text), 1);
+    assert.assertEquals(questionSimilarity.compareQuestions(text, text), 1);
   });
 
-  it("returns 0 for completely disjoint vocabulary", () => {
-    assertEquals(
-      compareQuestions("alpha bravo charlie", "delta echo foxtrot"),
+  bdd.it("returns 0 for completely disjoint vocabulary", () => {
+    assert.assertEquals(
+      questionSimilarity.compareQuestions(
+        "alpha bravo charlie",
+        "delta echo foxtrot",
+      ),
       0,
     );
   });
 
-  it("returns 0 when either input is empty", () => {
-    assertEquals(compareQuestions("", "anything goes here"), 0);
-    assertEquals(compareQuestions("anything goes here", ""), 0);
-    assertEquals(compareQuestions("", ""), 0);
+  bdd.it("returns 0 when either input is empty", () => {
+    assert.assertEquals(
+      questionSimilarity.compareQuestions("", "anything goes here"),
+      0,
+    );
+    assert.assertEquals(
+      questionSimilarity.compareQuestions("anything goes here", ""),
+      0,
+    );
+    assert.assertEquals(questionSimilarity.compareQuestions("", ""), 0);
   });
 
-  it("is case insensitive", () => {
-    assertEquals(
-      compareQuestions(
+  bdd.it("is case insensitive", () => {
+    assert.assertEquals(
+      questionSimilarity.compareQuestions(
         "What does the User do",
         "what does the user DO",
       ),
@@ -41,31 +47,40 @@ describe("question-similarity", () => {
     );
   });
 
-  it("ignores punctuation", () => {
-    const sim = compareQuestions(
+  bdd.it("ignores punctuation", () => {
+    const sim = questionSimilarity.compareQuestions(
       "What does, the user do?",
       "What does the user do",
     );
-    assert(
-      sim >= SIMILARITY_EXACT_THRESHOLD,
-      `expected sim >= ${SIMILARITY_EXACT_THRESHOLD}, got ${sim}`,
+    assert.assert(
+      sim >= questionSimilarity.SIMILARITY_EXACT_THRESHOLD,
+      `expected sim >= ${questionSimilarity.SIMILARITY_EXACT_THRESHOLD}, got ${sim}`,
     );
   });
 
-  it("exports SIMILARITY_EXACT_THRESHOLD as a number", () => {
-    assertEquals(typeof SIMILARITY_EXACT_THRESHOLD, "number");
-    assert(SIMILARITY_EXACT_THRESHOLD > 0 && SIMILARITY_EXACT_THRESHOLD <= 1);
+  bdd.it("exports SIMILARITY_EXACT_THRESHOLD as a number", () => {
+    assert.assertEquals(
+      typeof questionSimilarity.SIMILARITY_EXACT_THRESHOLD,
+      "number",
+    );
+    assert.assert(
+      questionSimilarity.SIMILARITY_EXACT_THRESHOLD > 0 &&
+        questionSimilarity.SIMILARITY_EXACT_THRESHOLD <= 1,
+    );
   });
 
-  it("returns a partial-match score below the exact threshold for loosely related questions", () => {
-    const sim = compareQuestions(
-      "What does the user do today?",
-      "What's happening today?",
-    );
-    assert(sim > 0, `expected sim > 0, got ${sim}`);
-    assert(
-      sim < SIMILARITY_EXACT_THRESHOLD,
-      `expected sim < ${SIMILARITY_EXACT_THRESHOLD}, got ${sim}`,
-    );
-  });
+  bdd.it(
+    "returns a partial-match score below the exact threshold for loosely related questions",
+    () => {
+      const sim = questionSimilarity.compareQuestions(
+        "What does the user do today?",
+        "What's happening today?",
+      );
+      assert.assert(sim > 0, `expected sim > 0, got ${sim}`);
+      assert.assert(
+        sim < questionSimilarity.SIMILARITY_EXACT_THRESHOLD,
+        `expected sim < ${questionSimilarity.SIMILARITY_EXACT_THRESHOLD}, got ${sim}`,
+      );
+    },
+  );
 });

@@ -1,14 +1,17 @@
 package middlewares_test
 
 import (
+	"bytes"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/eser/stack/pkg/ajan/httpfx"
 	"github.com/eser/stack/pkg/ajan/httpfx/middlewares"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.opentelemetry.io/otel/trace"
 )
 
 func TestResolveAddressMiddleware(t *testing.T) { //nolint:funlen
@@ -132,9 +135,12 @@ func TestResolveAddressMiddleware(t *testing.T) { //nolint:funlen
 			trustedProxies, err := httpfx.NewTrustedProxies(tt.trustedProxies)
 			require.NoError(t, err)
 
+			var logs bytes.Buffer
+
 			// Create a router with the resolve address middleware
-			router := httpfx.NewRouter("/")
+			router := newTestRouter()
 			router.Use(middlewares.ResolveAddressMiddleware(
+				newTestLogger(&logs),
 				middlewares.WithTrustedProxies(trustedProxies),
 			))
 
@@ -174,6 +180,76 @@ func TestResolveAddressMiddleware(t *testing.T) { //nolint:funlen
 			} else {
 				assert.Equal(t, tt.expectedAddr, responseRecorder.Header().Get("X-Request-Origin"))
 			}
+		})
+	}
+}
+
+// An address the middleware cannot classify is answered with a bare 500. The
+// address and the parser's message stay out of the response and are logged
+// once, with the request's trace id.
+func TestResolveAddressMiddleware_UnparsableAddress(t *testing.T) {
+	t.Parallel()
+
+	traceID := trace.TraceID{0x4b, 0xf9, 0x2f, 0x35, 0x77, 0xb3, 0x4d, 0xa6, 0xa3, 0xce, 0x92, 0x9d, 0x0e, 0x0e, 0x47, 0x36}
+	spanID := trace.SpanID{0x00, 0xf0, 0x67, 0xaa, 0x0b, 0xa9, 0x02, 0xb7}
+
+	tests := []struct {
+		name       string
+		remoteAddr string
+		wantInLog  string
+	}{
+		{
+			name:       "not an ip",
+			remoteAddr: "peer.example.test",
+			wantInLog:  "invalid IP address",
+		},
+		{
+			name:       "not a host and port",
+			remoteAddr: "203.0.113.1:80:90",
+			wantInLog:  "failed to split host and port",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			var logs bytes.Buffer
+
+			router := newTestRouter()
+			router.Use(middlewares.ResolveAddressMiddleware(newTestLogger(&logs)))
+
+			handlerCalls := 0
+
+			router.Route("GET /test", func(c *httpfx.Context) httpfx.Result {
+				handlerCalls++
+
+				return c.Results.Ok()
+			})
+
+			reqCtx := trace.ContextWithSpanContext(t.Context(), trace.NewSpanContext(trace.SpanContextConfig{
+				TraceID:    traceID,
+				SpanID:     spanID,
+				TraceFlags: trace.FlagsSampled,
+			}))
+
+			req := httptest.NewRequestWithContext(reqCtx, http.MethodGet, "/test", nil)
+			req.RemoteAddr = tt.remoteAddr
+
+			recorder := httptest.NewRecorder()
+			router.GetMux().ServeHTTP(recorder, req)
+
+			assert.Equal(t, http.StatusInternalServerError, recorder.Code)
+			assert.Equal(t, http.StatusText(http.StatusInternalServerError), recorder.Body.String())
+			assert.NotContains(t, recorder.Body.String(), tt.remoteAddr)
+			assert.Empty(t, recorder.Header().Get("X-Request-Origin"))
+			assert.Equal(t, 0, handlerCalls)
+
+			logged := logs.String()
+			assert.Equal(t, 1, strings.Count(logged, "classify client address"), "logged once: %s", logged)
+			assert.Contains(t, logged, tt.wantInLog)
+			assert.Contains(t, logged, tt.remoteAddr)
+			assert.Contains(t, logged, traceID.String())
 		})
 	}
 }

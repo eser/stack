@@ -7,8 +7,7 @@
  * @module
  */
 
-import type * as spanTypes from "../span.ts";
-import { plainLength } from "../span.ts";
+import * as span from "../span.ts";
 import type { Renderer } from "./types.ts";
 
 // =============================================================================
@@ -16,9 +15,11 @@ import type { Renderer } from "./types.ts";
 // =============================================================================
 
 const ESC = "\x1b[";
-const RESET = `${ESC}0m`;
+/** The escape sequence that turns off every style and color. */
+export const RESET = `${ESC}0m`;
 
-const STYLE_CODES: Record<string, [string, string]> = {
+/** The opening and closing escape sequences of each text style. */
+export const STYLE_CODES: Record<string, [string, string]> = {
   bold: [`${ESC}1m`, `${ESC}22m`],
   dim: [`${ESC}2m`, `${ESC}22m`],
   italic: [`${ESC}3m`, `${ESC}23m`],
@@ -26,7 +27,8 @@ const STYLE_CODES: Record<string, [string, string]> = {
   strikethrough: [`${ESC}9m`, `${ESC}29m`],
 };
 
-const COLOR_CODES: Record<string, string> = {
+/** The foreground color escape sequence of each named color. */
+export const COLOR_CODES: Record<string, string> = {
   black: `${ESC}30m`,
   red: `${ESC}31m`,
   green: `${ESC}32m`,
@@ -44,10 +46,10 @@ const COLOR_RESET = `${ESC}39m`;
 // Renderer
 // =============================================================================
 
-const renderSpan = (span: spanTypes.Span): string => {
-  switch (span.kind) {
+const renderSpan = (node: span.Span): string => {
+  switch (node.kind) {
     case "text":
-      return span.value;
+      return node.value;
     case "newline":
       return "\n";
     case "bold":
@@ -55,33 +57,36 @@ const renderSpan = (span: spanTypes.Span): string => {
     case "italic":
     case "underline":
     case "strikethrough": {
-      const [open, close] = STYLE_CODES[span.kind]!;
-      return `${open}${span.children.map(renderSpan).join("")}${close}`;
+      const [open, close] = STYLE_CODES[node.kind]!;
+      return `${open}${node.children.map(renderSpan).join("")}${close}`;
     }
     case "color": {
-      const code = COLOR_CODES[span.color] ?? COLOR_CODES["white"]!;
-      return `${code}${span.children.map(renderSpan).join("")}${COLOR_RESET}`;
+      const code = COLOR_CODES[node.color] ?? COLOR_CODES["white"]!;
+      return `${code}${node.children.map(renderSpan).join("")}${COLOR_RESET}`;
     }
     case "group":
-      return span.children.map(renderSpan).join("");
+      return node.children.map(renderSpan).join("");
     case "code-block": {
       const dimOpen = STYLE_CODES["dim"]![0];
       const dimClose = STYLE_CODES["dim"]![1];
-      return span.value
+      return node.value
         .split("\n")
         .map((line) => `${dimOpen}  ${line}${dimClose}`)
         .join("\n") + "\n";
     }
     case "table": {
-      const widths = span.headers.map((h, i) => {
-        const maxRow = span.rows.reduce(
+      const widths = node.headers.map((h, i) => {
+        const maxRow = node.rows.reduce(
           (max, row) => {
             const cell = row[i];
-            return Math.max(max, cell !== undefined ? plainLength(cell) : 0);
+            return Math.max(
+              max,
+              cell !== undefined ? span.plainLength(cell) : 0,
+            );
           },
           0,
         );
-        return Math.max(plainLength(h), maxRow);
+        return Math.max(span.plainLength(h), maxRow);
       });
 
       const boldOpen = STYLE_CODES["bold"]![0];
@@ -89,19 +94,19 @@ const renderSpan = (span: spanTypes.Span): string => {
       const dimOpen = STYLE_CODES["dim"]![0];
       const dimClose = STYLE_CODES["dim"]![1];
 
-      const padCell = (cell: spanTypes.Span, width: number): string => {
+      const padCell = (cell: span.Span, width: number): string => {
         const rendered = renderSpan(cell);
-        const textLen = plainLength(cell);
+        const textLen = span.plainLength(cell);
         return rendered + " ".repeat(Math.max(0, width - textLen));
       };
 
-      const header = span.headers
+      const header = node.headers
         .map((h, i) => `${boldOpen}${padCell(h, widths[i]!)}${boldClose}`)
         .join("  ");
       const sep = `${dimOpen}${
         widths.map((w) => "─".repeat(w)).join("──")
       }${dimClose}`;
-      const rows = span.rows
+      const rows = node.rows
         .map((row) =>
           row.map((cell, i) => padCell(cell, widths[i]!)).join("  ")
         )
@@ -110,28 +115,28 @@ const renderSpan = (span: spanTypes.Span): string => {
       return `${header}\n${sep}\n${rows}\n`;
     }
     case "list":
-      return span.items
+      return node.items
         .map((item) => `  • ${item.map(renderSpan).join("")}`)
         .join("\n") + "\n";
     case "gauge": {
-      const w = span.width ?? 20;
-      const filled = Math.round(w * span.percent / 100);
+      const w = node.width ?? 20;
+      const filled = Math.round(w * node.percent / 100);
       const empty = w - filled;
       const bar = `${COLOR_CODES["green"]!}${"█".repeat(filled)}${COLOR_RESET}${
         STYLE_CODES["dim"]![0]
       }${"░".repeat(empty)}${STYLE_CODES["dim"]![1]}`;
-      const pct = ` ${span.percent}%`;
-      const label = span.label
-        ? `${STYLE_CODES["dim"]![0]}  ${span.label}${STYLE_CODES["dim"]![1]}`
+      const pct = ` ${node.percent}%`;
+      const label = node.label
+        ? `${STYLE_CODES["dim"]![0]}  ${node.label}${STYLE_CODES["dim"]![1]}`
         : "";
       return `${bar}${pct}${label}`;
     }
     case "separator": {
       const dimOpen = STYLE_CODES["dim"]![0];
       const dimClose = STYLE_CODES["dim"]![1];
-      if (span.label) {
-        const pad = "─".repeat(Math.max(0, 33 - span.label.length));
-        return `${dimOpen}──── ${span.label} ${pad}${dimClose}\n`;
+      if (node.label) {
+        const pad = "─".repeat(Math.max(0, 33 - node.label.length));
+        return `${dimOpen}──── ${node.label} ${pad}${dimClose}\n`;
       }
       return `${dimOpen}${"─".repeat(40)}${dimClose}\n`;
     }
@@ -148,16 +153,20 @@ const renderSpan = (span: spanTypes.Span): string => {
         warning: "yellow",
         error: "red",
       } as const;
-      const icon = icons[span.level];
-      const colorCode = COLOR_CODES[colors[span.level]]!;
+      const icon = icons[node.level];
+      const colorCode = COLOR_CODES[colors[node.level]]!;
       return `${colorCode}${icon}${COLOR_RESET} ${
-        span.children.map(renderSpan).join("")
+        node.children.map(renderSpan).join("")
       }`;
     }
   }
 };
 
-const ansi = (): Renderer => ({
+/**
+ * Creates a renderer that writes spans with ANSI escape sequences for
+ * terminals.
+ */
+export const ansi = (): Renderer => ({
   name: "ansi",
   render: (spans) => {
     const result = spans.map(renderSpan).join("");
@@ -165,5 +174,3 @@ const ansi = (): Renderer => ({
     return result.includes(ESC) ? result + RESET : result;
   },
 });
-
-export { ansi, COLOR_CODES, RESET, STYLE_CODES };

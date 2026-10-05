@@ -10,11 +10,15 @@
  *
  * @example
  * ```typescript
- * import { run } from "@eserstack/functions";
- * import * as results from "@eserstack/primitives/results";
+ * import * as functions from "@eserstack/functions";
+ * import * as primitives from "@eserstack/primitives";
+ *
+ * const fetchUser = (id: number) => primitives.results.ok({ id, name: "Ada" });
+ * const fetchPosts = (userId: number) =>
+ *   primitives.results.ok([{ userId, title: "Hello" }]);
  *
  * // Monadic do-notation
- * const result = await run(async function* () {
+ * const result = await functions.run(async function* () {
  *   const user = yield* fetchUser(1);
  *   const posts = yield* fetchPosts(user.id);
  *   return { user, posts };
@@ -48,3 +52,7 @@ export * as triggers from "./triggers.ts";
 
 // Resource management
 export * as resources from "./resources.ts";
+
+// The Result types that pipelines and tasks yield, re-exported so the API
+// reference links them. They are the same types as in @eserstack/primitives.
+export type { Fail, Ok, Result } from "@eserstack/primitives/results";

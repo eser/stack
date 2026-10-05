@@ -1,6 +1,8 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import { get } from "./get.ts";
+import * as get from "./get.ts";
+// lodash.get is CommonJS whose module.exports is one function, so it has no
+// named exports to import as a namespace.
 import lodashGet from "lodash.get";
 
 const group = "get";
@@ -18,7 +20,7 @@ Deno.bench("eser/fp/get", { group, baseline: true }, () => {
     },
   };
 
-  get(obj, ["a", "b", "c", "d", "value"]);
+  get.get(obj, ["a", "b", "c", "d", "value"]);
 });
 
 Deno.bench("npm:lodash.get (array path)", { group }, () => {

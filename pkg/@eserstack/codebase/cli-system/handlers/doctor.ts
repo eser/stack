@@ -7,9 +7,9 @@
  */
 
 import type { CliApp } from "../app.ts";
-import { appOpts } from "../app-opts.ts";
+import * as appOpts from "../app-opts.ts";
 import * as results from "@eserstack/primitives/results";
-import * as shellArgs from "@eserstack/shell/args";
+import type * as shellArgs from "@eserstack/shell/args";
 import * as shellExec from "@eserstack/shell/exec";
 import * as span from "@eserstack/streams/span";
 import * as streams from "@eserstack/streams";
@@ -20,12 +20,11 @@ const runtime = standardsCrossRuntime.runtime;
 
 const LABEL_WIDTH = 17;
 
-const out = streams.output({
-  renderer: streams.renderers.ansi(),
-  sink: streams.sinks.stdout(),
-});
-
-const ok = (label: string, value: string): void => {
+const ok = (
+  out: streams.Output,
+  label: string,
+  value: string,
+): void => {
   const padded = `${label}:`.padEnd(LABEL_WIDTH);
 
   out.writeln(
@@ -35,7 +34,11 @@ const ok = (label: string, value: string): void => {
   );
 };
 
-const fail = (label: string, value: string): void => {
+const fail = (
+  out: streams.Output,
+  label: string,
+  value: string,
+): void => {
   const padded = `${label}:`.padEnd(LABEL_WIDTH);
 
   out.writeln(
@@ -45,13 +48,21 @@ const fail = (label: string, value: string): void => {
   );
 };
 
-const info = (label: string, value: string): void => {
+const info = (
+  out: streams.Output,
+  label: string,
+  value: string,
+): void => {
   const padded = `${label}:`.padEnd(LABEL_WIDTH);
 
   out.writeln(span.text(`  ${padded}${value}`));
 };
 
-const neutral = (label: string, value: string): void => {
+const neutral = (
+  out: streams.Output,
+  label: string,
+  value: string,
+): void => {
   const padded = `${label}:`.padEnd(LABEL_WIDTH);
 
   out.writeln(span.text(`  ${padded}`), span.dim("-"), span.text(` ${value}`));
@@ -83,7 +94,10 @@ const parseToolVersion = (
   return match?.[1];
 };
 
-const checkGitHooks = async (appName: string): Promise<void> => {
+const checkGitHooks = async (
+  out: streams.Output,
+  appName: string,
+): Promise<void> => {
   const hookPath = runtime.path.join(
     ".",
     ".git",
@@ -93,7 +107,7 @@ const checkGitHooks = async (appName: string): Promise<void> => {
   const exists = await fileExists(hookPath);
 
   if (!exists) {
-    fail("Git hooks", "Not installed");
+    fail(out, "Git hooks", "Not installed");
     return;
   }
 
@@ -102,13 +116,13 @@ const checkGitHooks = async (appName: string): Promise<void> => {
   // The hook is ours if it invokes this binary. Hardcoding "eser"
   // reported "Not installed" for a perfectly good noskills hook.
   if (content.includes(appName)) {
-    ok("Git hooks", "Installed");
+    ok(out, "Git hooks", "Installed");
   } else {
-    fail("Git hooks", "Not installed");
+    fail(out, "Git hooks", "Not installed");
   }
 };
 
-const checkManifest = async (): Promise<void> => {
+const checkManifest = async (out: streams.Output): Promise<void> => {
   const newPath = runtime.path.join(
     ".",
     ".eser",
@@ -121,63 +135,63 @@ const checkManifest = async (): Promise<void> => {
 
   const newExists = await fileExists(newPath);
   if (newExists) {
-    ok("Manifest", ".eser/manifest.yml found");
+    ok(out, "Manifest", ".eser/manifest.yml found");
     return;
   }
 
   const legacyExists = await fileExists(legacyPath);
   if (legacyExists) {
-    ok("Manifest", ".manifest.yml found (legacy path)");
+    ok(out, "Manifest", ".manifest.yml found (legacy path)");
     return;
   }
 
-  fail("Manifest", ".eser/manifest.yml not found");
+  fail(out, "Manifest", ".eser/manifest.yml not found");
 };
 
-const checkDeno = async (): Promise<void> => {
+const checkDeno = async (out: streams.Output): Promise<void> => {
   try {
     const output = await shellExec.exec`deno --version`.noThrow().quiet()
       .text();
     const version = parseToolVersion(output, /deno\s+(\S+)/);
 
     if (version !== undefined) {
-      ok("Deno", version);
+      ok(out, "Deno", version);
     } else {
-      fail("Deno", "Not found");
+      fail(out, "Deno", "Not found");
     }
   } catch {
-    fail("Deno", "Not found");
+    fail(out, "Deno", "Not found");
   }
 };
 
-const checkGo = async (): Promise<void> => {
+const checkGo = async (out: streams.Output): Promise<void> => {
   try {
     const output = await shellExec.exec`go version`.noThrow().quiet().text();
     const version = parseToolVersion(output, /go(\d+\.\d+(?:\.\d+)?)/);
 
     if (version !== undefined) {
-      ok("Go", version);
+      ok(out, "Go", version);
     } else {
-      fail("Go", "Not found");
+      fail(out, "Go", "Not found");
     }
   } catch {
-    fail("Go", "Not found");
+    fail(out, "Go", "Not found");
   }
 };
 
-const checkNode = async (): Promise<void> => {
+const checkNode = async (out: streams.Output): Promise<void> => {
   try {
     const output = await shellExec.exec`node --version`.noThrow().quiet()
       .text();
     const version = output.trim();
 
     if (version.length > 0) {
-      ok("Node", version);
+      ok(out, "Node", version);
     } else {
-      fail("Node", "Not found");
+      fail(out, "Node", "Not found");
     }
   } catch {
-    fail("Node", "Not found");
+    fail(out, "Node", "Not found");
   }
 };
 
@@ -185,14 +199,21 @@ export const doctorHandler = async (
   _ctx: shellArgs.CommandContext,
   app: CliApp,
 ): Promise<shellArgs.CliResult<void>> => {
+  // Created per run, not at module load: importing must not touch stdout,
+  // and the run closes it at the end.
+  const out = streams.output({
+    renderer: streams.renderers.ansi(),
+    sink: streams.sinks.stdout(),
+  });
+
   out.writeln(span.text("eser doctor\n"));
 
   // Install method & version
   const execContext = await standardsCrossRuntime.detectExecutionContext(
-    appOpts(app),
+    appOpts.appOpts(app),
   );
-  info("Install method", `${execContext.invoker} (${execContext.mode})`);
-  info("Version", _ctx.root.versionString ?? "unknown");
+  info(out, "Install method", `${execContext.invoker} (${execContext.mode})`);
+  info(out, "Version", _ctx.root.versionString ?? "unknown");
 
   // Update check
   const updateResult = await versionCheck.checkForUpdate(
@@ -200,25 +221,25 @@ export const doctorHandler = async (
   );
 
   if (updateResult === undefined) {
-    neutral("Update", "Could not check for updates");
+    neutral(out, "Update", "Could not check for updates");
   } else if (updateResult.updateAvailable) {
-    fail("Update", `Update available: v${updateResult.latestVersion}`);
+    fail(out, "Update", `Update available: v${updateResult.latestVersion}`);
   } else {
-    ok("Update", "Up to date");
+    ok(out, "Update", "Up to date");
   }
 
   out.writeln();
 
   // Project checks
-  await checkGitHooks(app.command);
-  await checkManifest();
+  await checkGitHooks(out, app.command);
+  await checkManifest(out);
 
   out.writeln();
 
   // Tool checks
-  await checkDeno();
-  await checkGo();
-  await checkNode();
+  await checkDeno(out);
+  await checkGo(out);
+  await checkNode(out);
 
   await out.close();
   return results.ok(undefined);

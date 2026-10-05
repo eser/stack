@@ -1,11 +1,11 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import { assert, assertEquals } from "@std/assert";
-import { createInitialState } from "../engine/reducer.ts";
-import { createInProcessPair } from "../ipc/transport-inprocess.ts";
+import * as assert from "@std/assert";
+import * as reducer from "../engine/reducer.ts";
+import * as transportInprocess from "../ipc/transport-inprocess.ts";
 import type { FrontendToServer, ServerToFrontend } from "../ipc/protocol.ts";
 import type { PtyHost, PtyHostCallbacks } from "./pty-host.ts";
-import { createServer } from "./server.ts";
+import * as muxServer from "./server.ts";
 
 /** A fake PTY host that records calls and lets the test drive output/exit. */
 const makeFakeHost = () => {
@@ -47,13 +47,13 @@ const makeFakeHost = () => {
 
 const setup = () => {
   const fake = makeFakeHost();
-  const server = createServer({
-    initialState: createInitialState({ cols: 80, rows: 24 }),
+  const server = muxServer.createServer({
+    initialState: reducer.createInitialState({ cols: 80, rows: 24 }),
     resolveSpawn: () => ({ command: "sh", args: [] }),
     createHost: fake.factory,
   });
 
-  const [serverSide, frontendSide] = createInProcessPair<
+  const [serverSide, frontendSide] = transportInprocess.createInProcessPair<
     ServerToFrontend,
     FrontendToServer
   >();
@@ -72,8 +72,8 @@ Deno.test("attach pushes a full scene", () => {
   frontendSide.send({ t: "attach", viewport: { cols: 100, rows: 30 } });
 
   const scene = received.find((m) => m.t === "scene");
-  assertEquals(scene?.t === "scene" && scene.full, true);
-  assertEquals(scene?.t === "scene" ? scene.delta.viewport : null, {
+  assert.assertEquals(scene?.t === "scene" && scene.full, true);
+  assert.assertEquals(scene?.t === "scene" ? scene.delta.viewport : null, {
     cols: 100,
     rows: 30,
   });
@@ -83,9 +83,9 @@ Deno.test("newTab spawns a pane and broadcasts it", () => {
   const { fake, server, received } = setup();
   server.dispatch({ type: "newTab" });
 
-  assertEquals(fake.spawned.length, 1);
+  assert.assertEquals(fake.spawned.length, 1);
   const scene = received.find((m) => m.t === "scene");
-  assertEquals(scene?.t === "scene" ? scene.delta.panes?.length : 0, 1);
+  assert.assertEquals(scene?.t === "scene" ? scene.delta.panes?.length : 0, 1);
 });
 
 Deno.test("pane output is forwarded to the frontend", () => {
@@ -96,7 +96,7 @@ Deno.test("pane output is forwarded to the frontend", () => {
 
   fake.emit(pane, "hello");
 
-  assertEquals(received, [{ t: "output", pane, data: "hello" }]);
+  assert.assertEquals(received, [{ t: "output", pane, data: "hello" }]);
 });
 
 Deno.test("writeInput reaches the focused pane's process", () => {
@@ -105,7 +105,7 @@ Deno.test("writeInput reaches the focused pane's process", () => {
   const pane = fake.spawned[0]!;
 
   server.dispatch({ type: "writeInput", data: "ls\r" });
-  assertEquals(fake.writes, [[pane, "ls\r"]]);
+  assert.assertEquals(fake.writes, [[pane, "ls\r"]]);
 });
 
 Deno.test("writeToPane reaches a specific pane even when another is focused", () => {
@@ -117,22 +117,22 @@ Deno.test("writeToPane reaches a specific pane even when another is focused", ()
 
   // second is focused after the split; address `first` explicitly.
   server.dispatch({ type: "writeToPane", pane: first!, data: "ping\r" });
-  assertEquals(fake.writes, [[first!, "ping\r"]]);
+  assert.assertEquals(fake.writes, [[first!, "ping\r"]]);
 
   // sanity: writeInput still hits the focused pane.
   server.dispatch({ type: "writeInput", data: "x" });
-  assertEquals(fake.writes[1], [second!, "x"]);
+  assert.assertEquals(fake.writes[1], [second!, "x"]);
 });
 
 Deno.test("splitPane spawns a second pane; closeFocusedPane kills it", () => {
   const { fake, server } = setup();
   server.dispatch({ type: "newTab" });
   server.dispatch({ type: "splitPane", direction: "vertical" });
-  assertEquals(fake.spawned.length, 2);
+  assert.assertEquals(fake.spawned.length, 2);
 
   const second = fake.spawned[1]!;
   server.dispatch({ type: "closeFocusedPane" });
-  assertEquals(fake.killed.includes(second), true);
+  assert.assertEquals(fake.killed.includes(second), true);
 });
 
 Deno.test("setChrome rebroadcasts the scene with the new chrome", () => {
@@ -143,7 +143,7 @@ Deno.test("setChrome rebroadcasts the scene with the new chrome", () => {
   server.setChrome({ tabBarRows: 1, statusBarRows: 1, leftCols: 20 });
 
   const sc = received.find((m) => m.t === "scene");
-  assertEquals(sc?.t === "scene" ? sc.delta.chrome?.leftCols : null, 20);
+  assert.assertEquals(sc?.t === "scene" ? sc.delta.chrome?.leftCols : null, 20);
 });
 
 Deno.test("scroll forwards a sequence to the focused pane's process", () => {
@@ -154,14 +154,14 @@ Deno.test("scroll forwards a sequence to the focused pane's process", () => {
 
   server.dispatch({ type: "scroll", action: "up" });
 
-  assertEquals(fake.writes.length, 1);
-  assertEquals(fake.writes[0]![0], pane);
+  assert.assertEquals(fake.writes.length, 1);
+  assert.assertEquals(fake.writes[0]![0], pane);
 });
 
 Deno.test("a spawn failure surfaces an error in the pane instead of being swallowed", async () => {
   const received: ServerToFrontend[] = [];
-  const server = createServer({
-    initialState: createInitialState({ cols: 80, rows: 24 }),
+  const server = muxServer.createServer({
+    initialState: reducer.createInitialState({ cols: 80, rows: 24 }),
     resolveSpawn: () => ({ command: "nope", args: [] }),
     createHost: () => ({
       spawn: () => Promise.reject(new Error("command not found")),
@@ -174,7 +174,7 @@ Deno.test("a spawn failure surfaces an error in the pane instead of being swallo
     }),
   });
 
-  const [serverSide, frontendSide] = createInProcessPair<
+  const [serverSide, frontendSide] = transportInprocess.createInProcessPair<
     ServerToFrontend,
     FrontendToServer
   >();
@@ -185,15 +185,15 @@ Deno.test("a spawn failure surfaces an error in the pane instead of being swallo
   await new Promise((r) => setTimeout(r, 0)); // let the rejected spawn settle
 
   const out = received.find((m) => m.t === "output");
-  assert(out !== undefined && out.t === "output");
-  assert(out.data.includes("failed to start"));
+  assert.assert(out !== undefined && out.t === "output");
+  assert.assert(out.data.includes("failed to start"));
 });
 
 Deno.test("onPaneExit fires when a pane exits on its own", () => {
   const fake = makeFakeHost();
   const exited: string[] = [];
-  const server = createServer({
-    initialState: createInitialState({ cols: 80, rows: 24 }),
+  const server = muxServer.createServer({
+    initialState: reducer.createInitialState({ cols: 80, rows: 24 }),
     resolveSpawn: () => ({ command: "sh", args: [] }),
     createHost: fake.factory,
     exitOnEmpty: false,
@@ -203,17 +203,17 @@ Deno.test("onPaneExit fires when a pane exits on its own", () => {
   const pane = fake.spawned[0]!;
 
   fake.exit(pane, 0);
-  assertEquals(exited, [pane]);
+  assert.assertEquals(exited, [pane]);
 });
 
 Deno.test("disconnect stops delivery to a closed sink", () => {
   const fake = makeFakeHost();
-  const server = createServer({
-    initialState: createInitialState({ cols: 80, rows: 24 }),
+  const server = muxServer.createServer({
+    initialState: reducer.createInitialState({ cols: 80, rows: 24 }),
     resolveSpawn: () => ({ command: "sh", args: [] }),
     createHost: fake.factory,
   });
-  const [serverSide, frontendSide] = createInProcessPair<
+  const [serverSide, frontendSide] = transportInprocess.createInProcessPair<
     ServerToFrontend,
     FrontendToServer
   >();
@@ -226,18 +226,18 @@ Deno.test("disconnect stops delivery to a closed sink", () => {
   received.length = 0;
 
   server.dispatch({ type: "splitPane", direction: "vertical" });
-  assertEquals(received, []); // sink was cleared, nothing delivered
+  assert.assertEquals(received, []); // sink was cleared, nothing delivered
 });
 
 Deno.test("exitOnEmpty:false keeps the server alive when the last tab closes", () => {
   const fake = makeFakeHost();
-  const server = createServer({
-    initialState: createInitialState({ cols: 80, rows: 24 }),
+  const server = muxServer.createServer({
+    initialState: reducer.createInitialState({ cols: 80, rows: 24 }),
     resolveSpawn: () => ({ command: "sh", args: [] }),
     createHost: fake.factory,
     exitOnEmpty: false,
   });
-  const [serverSide, frontendSide] = createInProcessPair<
+  const [serverSide, frontendSide] = transportInprocess.createInProcessPair<
     ServerToFrontend,
     FrontendToServer
   >();
@@ -249,10 +249,10 @@ Deno.test("exitOnEmpty:false keeps the server alive when the last tab closes", (
   server.dispatch({ type: "closeTab" }); // last tab → would normally exit
 
   // No exit was emitted, and the server still accepts a fresh tab afterwards.
-  assertEquals(received.some((m) => m.t === "exit"), false);
-  assertEquals(server.getState().tabs.length, 0);
+  assert.assertEquals(received.some((m) => m.t === "exit"), false);
+  assert.assertEquals(server.getState().tabs.length, 0);
   server.dispatch({ type: "newTab" });
-  assertEquals(server.getState().tabs.length, 1);
+  assert.assertEquals(server.getState().tabs.length, 1);
 });
 
 Deno.test("a pane exiting on its own removes it (no kill) and emits exit on the last", () => {
@@ -264,6 +264,6 @@ Deno.test("a pane exiting on its own removes it (no kill) and emits exit on the 
   fake.exit(pane, 0);
 
   // last pane gone → tab closes → server signals exit
-  assertEquals(fake.killed.includes(pane), false);
-  assertEquals(received.some((m) => m.t === "exit"), true);
+  assert.assertEquals(fake.killed.includes(pane), false);
+  assert.assertEquals(received.some((m) => m.t === "exit"), true);
 });

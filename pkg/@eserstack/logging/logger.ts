@@ -1,23 +1,15 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 import * as logging from "@eserstack/standards/logging";
-import * as functions from "@eserstack/primitives/functions";
 import type { Category, Filter, Sink } from "./types.ts";
-import {
-  categoryKey,
-  categoryToString,
-  extendCategory,
-  normalizeCategory,
-} from "./category.ts";
-import {
-  getEffectiveConfig,
-  registerConfigureHook,
-  registerLoggerCacheClear,
-} from "./config.ts";
-import { applyPrefixToCategory, getContext } from "./context.ts";
-import { ensureLib, requireLib } from "./ffi-client.ts";
+import * as category from "./category.ts";
+import * as config from "./config.ts";
+import * as context from "./context.ts";
+import * as ffiClient from "./ffi-client.ts";
+import * as serialize from "./serialize.ts";
 
-export const DEFAULT_LEVEL = logging.Severities.Info;
+/** The lowest severity a logger writes when no configuration sets one. */
+export const DEFAULT_LEVEL: logging.Severity = logging.Severities.Info;
 
 /** Maps OTel severity numbers to Go slog level name strings. */
 const severityToGoLevel = (s: logging.Severity): string => {
@@ -37,19 +29,6 @@ const severityToGoLevel = (s: logging.Severity): string => {
  * record, so nothing a caller logs can put this marker into a response.
  */
 const ERROR_FIELD_MARKER = '"error"';
-
-/**
- * Stringifies without throwing. Attributes come from callers and may be cyclic
- * or otherwise unserializable; a log call must not fail over what it was asked
- * to log.
- */
-const toJson = (value: unknown): string | null => {
-  try {
-    return JSON.stringify(value);
-  } catch {
-    return null;
-  }
-};
 
 const describeCause = (error: unknown): string =>
   error instanceof Error ? error.message : String(error);
@@ -91,18 +70,18 @@ const warnFallbackOnce = (cause: string): void => {
 
 /** Local console sink used whenever the Go backend cannot take a record. */
 const writeFallbackRecord = (
-  category: Category,
+  loggerCategory: Category,
   severity: logging.Severity,
   message: string,
   attrs: Record<string, unknown>,
 ): void => {
   const suffix = Object.keys(attrs).length > 0
-    ? ` ${toJson(attrs) ?? '{"attrs":"unserializable"}'}`
+    ? ` ${serialize.toJson(attrs) ?? '{"attrs":"unserializable"}'}`
     : "";
 
   writeStderrLine(
     `${new Date().toISOString()} ${severityToGoLevel(severity)} ${
-      categoryToString(category)
+      category.categoryToString(loggerCategory)
     }: ${message}${suffix}`,
   );
 };
@@ -142,12 +121,20 @@ export class Logger implements logging.Logger {
    */
   #degraded = false;
 
+  /**
+   * Creates a logger. Most code calls `getLogger()` instead, which returns the
+   * cached logger for a category.
+   *
+   * @param loggerCategory - Category as an array or a dot-separated string
+   * @param parent - The logger this one was derived from, if any
+   * @param properties - Properties added to every record this logger writes
+   */
   constructor(
-    category: Category | string,
+    loggerCategory: Category | string,
     parent: Logger | null = null,
     properties: Record<string, unknown> = {},
   ) {
-    this.category = normalizeCategory(category);
+    this.category = category.normalizeCategory(loggerCategory);
     this.parent = parent;
     this.#properties = properties;
   }
@@ -162,7 +149,7 @@ export class Logger implements logging.Logger {
     lowestLevel: logging.Severity;
   } {
     if (this.#effectiveConfig === null) {
-      this.#effectiveConfig = getEffectiveConfig(this.category);
+      this.#effectiveConfig = config.getEffectiveConfig(this.category);
     }
 
     return this.#effectiveConfig;
@@ -185,14 +172,14 @@ export class Logger implements logging.Logger {
     this.#goHandleInitialized = true;
 
     try {
-      await ensureLib();
+      await ffiClient.ensureLib();
 
-      const lib = requireLib();
-      const config = this.#getEffectiveConfig();
+      const lib = ffiClient.requireLib();
+      const effectiveConfig = this.#getEffectiveConfig();
       const raw = lib.symbols.EserAjanLogCreate(
         JSON.stringify({
-          scopeName: categoryToString(this.category),
-          level: severityToGoLevel(config.lowestLevel),
+          scopeName: category.categoryToString(this.category),
+          level: severityToGoLevel(effectiveConfig.lowestLevel),
         }),
       );
       const result = JSON.parse(raw) as { handle?: string; error?: string };
@@ -204,7 +191,7 @@ export class Logger implements logging.Logger {
       }
 
       this.#goHandle = result.handle;
-      goHandles.set(categoryKey(this.category), result.handle);
+      goHandles.set(category.categoryKey(this.category), result.handle);
     } catch (error) {
       this.#degrade(describeCause(error));
 
@@ -224,7 +211,7 @@ export class Logger implements logging.Logger {
     message: string,
     attrs: Record<string, unknown>,
   ): boolean {
-    const request = toJson({
+    const request = serialize.toJson({
       handle,
       level: severityToGoLevel(severity),
       message,
@@ -238,7 +225,7 @@ export class Logger implements logging.Logger {
     }
 
     try {
-      const raw = requireLib().symbols.EserAjanLogWrite(request);
+      const raw = ffiClient.requireLib().symbols.EserAjanLogWrite(request);
 
       // Hot path trade-off: a successful write answers "{}", so the response is
       // only parsed once it mentions an error field. Since Go never echoes the
@@ -280,14 +267,20 @@ export class Logger implements logging.Logger {
    * Creates a child logger with an extended category.
    *
    * @example
-   * const logger = getLogger(["myapp"]);
-   * const childLogger = logger.getChild("http"); // ["myapp", "http"]
-   * const grandchildLogger = childLogger.getChild(["request", "handler"]); // ["myapp", "http", "request", "handler"]
+   * ```typescript
+   * import * as logging from "@eserstack/logging";
+   *
+   * const logger = logging.logger.getLogger(["myapp"]);
+   * const http = logger.getChild("http"); // ["myapp", "http"]
+   *
+   * // ["myapp", "http", "request", "handler"]
+   * const handler = http.getChild(["request", "handler"]);
+   * ```
    */
   getChild(subcategory: string | Category): Logger {
-    const childCategory = extendCategory(
+    const childCategory = category.extendCategory(
       this.category,
-      normalizeCategory(subcategory),
+      category.normalizeCategory(subcategory),
     );
 
     return new Logger(childCategory, this, this.#properties);
@@ -298,9 +291,13 @@ export class Logger implements logging.Logger {
    * Properties are merged with existing ones.
    *
    * @example
-   * const logger = getLogger(["myapp"]);
+   * ```typescript
+   * import * as logging from "@eserstack/logging";
+   *
+   * const logger = logging.logger.getLogger(["myapp"]);
    * const requestLogger = logger.with({ requestId: "abc-123" });
-   * await requestLogger.info("Processing"); // Includes requestId
+   * await requestLogger.info("Processing"); // includes requestId
+   * ```
    */
   with(properties: Record<string, unknown>): Logger {
     return new Logger(this.category, this.parent, {
@@ -314,7 +311,7 @@ export class Logger implements logging.Logger {
    * For backward compatibility with old code.
    */
   get loggerName(): string {
-    return categoryToString(this.category);
+    return category.categoryToString(this.category);
   }
 
   /**
@@ -341,7 +338,7 @@ export class Logger implements logging.Logger {
     }
 
     if (data instanceof Error) {
-      return data.stack!;
+      return data.stack ?? `${data.name}: ${data.message}`;
     }
 
     if (data !== null && typeof data === "object") {
@@ -368,16 +365,16 @@ export class Logger implements logging.Logger {
     severity: logging.Severity,
     message:
       // deno-lint-ignore no-explicit-any
-      | (T extends functions.GenericFunction<any, any> ? never : T)
+      | (T extends (...args: ReadonlyArray<any>) => any ? never : T)
       | (() => T),
     // deno-lint-ignore no-explicit-any
-    ...args: functions.ArgList<any>
+    ...args: ReadonlyArray<any>
   ): Promise<T | undefined> {
     // TS-side level gate — WASM command mode is stateless so Go handles are ephemeral;
     // we use the locally-known lowestLevel to decide whether to proceed.
-    const config = this.#getEffectiveConfig();
+    const effectiveConfig = this.#getEffectiveConfig();
 
-    if (severity < config.lowestLevel) {
+    if (severity < effectiveConfig.lowestLevel) {
       return message instanceof Function ? undefined : message;
     }
 
@@ -391,10 +388,10 @@ export class Logger implements logging.Logger {
       logMessage = this.asString(message);
     }
 
-    const context = getContext();
+    const contextProperties = context.getContext();
     const attrs: Record<string, unknown> = {
       ...this.#properties,
-      ...(context ?? {}),
+      ...(contextProperties ?? {}),
     };
 
     // Forward any variadic call args as a structured attr so they reach the Go
@@ -408,212 +405,335 @@ export class Logger implements logging.Logger {
     return message instanceof Function ? fnResult : message;
   }
 
+  /**
+   * Logs a debug message built by a function. The function runs only when the
+   * Debug level is enabled for this logger.
+   *
+   * @param message - Builds the message; its result is logged
+   * @param args - Extra values written with the record
+   * @returns The function's result, or `undefined` when the level is off
+   */
   debug<T>(
     message: () => T,
     // deno-lint-ignore no-explicit-any
-    ...args: functions.ArgList<any>
+    ...args: ReadonlyArray<any>
   ): Promise<T | undefined>;
+  /**
+   * Logs a debug message.
+   *
+   * @param message - The message; a string, or a value converted to one
+   * @param args - Extra values written with the record
+   * @returns The message it was given
+   */
   debug<T>(
     // deno-lint-ignore no-explicit-any
-    message: T extends functions.GenericFunction<any, any> ? never : T,
+    message: T extends (...args: ReadonlyArray<any>) => any ? never : T,
     // deno-lint-ignore no-explicit-any
-    ...args: functions.ArgList<any>
+    ...args: ReadonlyArray<any>
   ): Promise<T>;
   debug<T>(
     message:
       // deno-lint-ignore no-explicit-any
-      | (T extends functions.GenericFunction<any, any> ? never : T)
+      | (T extends (...args: ReadonlyArray<any>) => any ? never : T)
       | (() => T),
     // deno-lint-ignore no-explicit-any
-    ...args: functions.ArgList<any>
+    ...args: ReadonlyArray<any>
   ): Promise<T | undefined> {
     return this.log(logging.Severities.Debug, message, ...args);
   }
 
+  /**
+   * Logs an info message built by a function. The function runs only when the
+   * Info level is enabled for this logger.
+   *
+   * @param message - Builds the message; its result is logged
+   * @param args - Extra values written with the record
+   * @returns The function's result, or `undefined` when the level is off
+   */
   info<T>(
     message: () => T,
     // deno-lint-ignore no-explicit-any
-    ...args: functions.ArgList<any>
+    ...args: ReadonlyArray<any>
   ): Promise<T | undefined>;
+  /**
+   * Logs an info message.
+   *
+   * @param message - The message; a string, or a value converted to one
+   * @param args - Extra values written with the record
+   * @returns The message it was given
+   */
   info<T>(
     // deno-lint-ignore no-explicit-any
-    message: T extends functions.GenericFunction<any, any> ? never : T,
+    message: T extends (...args: ReadonlyArray<any>) => any ? never : T,
     // deno-lint-ignore no-explicit-any
-    ...args: functions.ArgList<any>
+    ...args: ReadonlyArray<any>
   ): Promise<T>;
   info<T>(
     message:
       // deno-lint-ignore no-explicit-any
-      | (T extends functions.GenericFunction<any, any> ? never : T)
+      | (T extends (...args: ReadonlyArray<any>) => any ? never : T)
       | (() => T),
     // deno-lint-ignore no-explicit-any
-    ...args: functions.ArgList<any>
+    ...args: ReadonlyArray<any>
   ): Promise<T | undefined> {
     return this.log(logging.Severities.Info, message, ...args);
   }
 
+  /**
+   * Logs a warning message built by a function. The function runs only when the
+   * Warning level is enabled for this logger.
+   *
+   * @param message - Builds the message; its result is logged
+   * @param args - Extra values written with the record
+   * @returns The function's result, or `undefined` when the level is off
+   */
   warn<T>(
     message: () => T,
     // deno-lint-ignore no-explicit-any
-    ...args: functions.ArgList<any>
+    ...args: ReadonlyArray<any>
   ): Promise<T | undefined>;
+  /**
+   * Logs a warning message.
+   *
+   * @param message - The message; a string, or a value converted to one
+   * @param args - Extra values written with the record
+   * @returns The message it was given
+   */
   warn<T>(
     // deno-lint-ignore no-explicit-any
-    message: T extends functions.GenericFunction<any, any> ? never : T,
+    message: T extends (...args: ReadonlyArray<any>) => any ? never : T,
     // deno-lint-ignore no-explicit-any
-    ...args: functions.ArgList<any>
+    ...args: ReadonlyArray<any>
   ): Promise<T>;
   warn<T>(
     message:
       // deno-lint-ignore no-explicit-any
-      | (T extends functions.GenericFunction<any, any> ? never : T)
+      | (T extends (...args: ReadonlyArray<any>) => any ? never : T)
       | (() => T),
     // deno-lint-ignore no-explicit-any
-    ...args: functions.ArgList<any>
+    ...args: ReadonlyArray<any>
   ): Promise<T | undefined> {
     return this.log(logging.Severities.Warning, message, ...args);
   }
 
+  /**
+   * Logs an error message built by a function. The function runs only when the
+   * Error level is enabled for this logger.
+   *
+   * @param message - Builds the message; its result is logged
+   * @param args - Extra values written with the record
+   * @returns The function's result, or `undefined` when the level is off
+   */
   error<T>(
     message: () => T,
     // deno-lint-ignore no-explicit-any
-    ...args: functions.ArgList<any>
+    ...args: ReadonlyArray<any>
   ): Promise<T | undefined>;
+  /**
+   * Logs an error message.
+   *
+   * @param message - The message; a string, or a value converted to one
+   * @param args - Extra values written with the record
+   * @returns The message it was given
+   */
   error<T>(
     // deno-lint-ignore no-explicit-any
-    message: T extends functions.GenericFunction<any, any> ? never : T,
+    message: T extends (...args: ReadonlyArray<any>) => any ? never : T,
     // deno-lint-ignore no-explicit-any
-    ...args: functions.ArgList<any>
+    ...args: ReadonlyArray<any>
   ): Promise<T>;
   error<T>(
     message:
       // deno-lint-ignore no-explicit-any
-      | (T extends functions.GenericFunction<any, any> ? never : T)
+      | (T extends (...args: ReadonlyArray<any>) => any ? never : T)
       | (() => T),
     // deno-lint-ignore no-explicit-any
-    ...args: functions.ArgList<any>
+    ...args: ReadonlyArray<any>
   ): Promise<T | undefined> {
     return this.log(logging.Severities.Error, message, ...args);
   }
 
+  /**
+   * Logs a critical message built by a function. The function runs only when the
+   * Critical level is enabled for this logger.
+   *
+   * @param message - Builds the message; its result is logged
+   * @param args - Extra values written with the record
+   * @returns The function's result, or `undefined` when the level is off
+   */
   critical<T>(
     message: () => T,
     // deno-lint-ignore no-explicit-any
-    ...args: functions.ArgList<any>
+    ...args: ReadonlyArray<any>
   ): Promise<T | undefined>;
+  /**
+   * Logs a critical message.
+   *
+   * @param message - The message; a string, or a value converted to one
+   * @param args - Extra values written with the record
+   * @returns The message it was given
+   */
   critical<T>(
     // deno-lint-ignore no-explicit-any
-    message: T extends functions.GenericFunction<any, any> ? never : T,
+    message: T extends (...args: ReadonlyArray<any>) => any ? never : T,
     // deno-lint-ignore no-explicit-any
-    ...args: functions.ArgList<any>
+    ...args: ReadonlyArray<any>
   ): Promise<T>;
   critical<T>(
     message:
       // deno-lint-ignore no-explicit-any
-      | (T extends functions.GenericFunction<any, any> ? never : T)
+      | (T extends (...args: ReadonlyArray<any>) => any ? never : T)
       | (() => T),
     // deno-lint-ignore no-explicit-any
-    ...args: functions.ArgList<any>
+    ...args: ReadonlyArray<any>
   ): Promise<T | undefined> {
     return this.log(logging.Severities.Critical, message, ...args);
   }
 
   /**
-   * Logs an emergency message.
+   * Logs an emergency message built by a function. The function runs only when the
+   * Emergency level is enabled for this logger.
+   *
+   * @param message - Builds the message; its result is logged
+   * @param args - Extra values written with the record
+   * @returns The function's result, or `undefined` when the level is off
    */
   emergency<T>(
     message: () => T,
     // deno-lint-ignore no-explicit-any
-    ...args: functions.ArgList<any>
+    ...args: ReadonlyArray<any>
   ): Promise<T | undefined>;
+  /**
+   * Logs an emergency message.
+   *
+   * @param message - The message; a string, or a value converted to one
+   * @param args - Extra values written with the record
+   * @returns The message it was given
+   */
   emergency<T>(
     // deno-lint-ignore no-explicit-any
-    message: T extends functions.GenericFunction<any, any> ? never : T,
+    message: T extends (...args: ReadonlyArray<any>) => any ? never : T,
     // deno-lint-ignore no-explicit-any
-    ...args: functions.ArgList<any>
+    ...args: ReadonlyArray<any>
   ): Promise<T>;
   emergency<T>(
     message:
       // deno-lint-ignore no-explicit-any
-      | (T extends functions.GenericFunction<any, any> ? never : T)
+      | (T extends (...args: ReadonlyArray<any>) => any ? never : T)
       | (() => T),
     // deno-lint-ignore no-explicit-any
-    ...args: functions.ArgList<any>
+    ...args: ReadonlyArray<any>
   ): Promise<T | undefined> {
     return this.log(logging.Severities.Emergency, message, ...args);
   }
 
   /**
-   * Logs an alert message.
+   * Logs an alert message built by a function. The function runs only when the
+   * Alert level is enabled for this logger.
+   *
+   * @param message - Builds the message; its result is logged
+   * @param args - Extra values written with the record
+   * @returns The function's result, or `undefined` when the level is off
    */
   alert<T>(
     message: () => T,
     // deno-lint-ignore no-explicit-any
-    ...args: functions.ArgList<any>
+    ...args: ReadonlyArray<any>
   ): Promise<T | undefined>;
+  /**
+   * Logs an alert message.
+   *
+   * @param message - The message; a string, or a value converted to one
+   * @param args - Extra values written with the record
+   * @returns The message it was given
+   */
   alert<T>(
     // deno-lint-ignore no-explicit-any
-    message: T extends functions.GenericFunction<any, any> ? never : T,
+    message: T extends (...args: ReadonlyArray<any>) => any ? never : T,
     // deno-lint-ignore no-explicit-any
-    ...args: functions.ArgList<any>
+    ...args: ReadonlyArray<any>
   ): Promise<T>;
   alert<T>(
     message:
       // deno-lint-ignore no-explicit-any
-      | (T extends functions.GenericFunction<any, any> ? never : T)
+      | (T extends (...args: ReadonlyArray<any>) => any ? never : T)
       | (() => T),
     // deno-lint-ignore no-explicit-any
-    ...args: functions.ArgList<any>
+    ...args: ReadonlyArray<any>
   ): Promise<T | undefined> {
     return this.log(logging.Severities.Alert, message, ...args);
   }
 
   /**
-   * Logs a notice message.
+   * Logs a notice message built by a function. The function runs only when the
+   * Notice level is enabled for this logger.
+   *
+   * @param message - Builds the message; its result is logged
+   * @param args - Extra values written with the record
+   * @returns The function's result, or `undefined` when the level is off
    */
   notice<T>(
     message: () => T,
     // deno-lint-ignore no-explicit-any
-    ...args: functions.ArgList<any>
+    ...args: ReadonlyArray<any>
   ): Promise<T | undefined>;
+  /**
+   * Logs a notice message.
+   *
+   * @param message - The message; a string, or a value converted to one
+   * @param args - Extra values written with the record
+   * @returns The message it was given
+   */
   notice<T>(
     // deno-lint-ignore no-explicit-any
-    message: T extends functions.GenericFunction<any, any> ? never : T,
+    message: T extends (...args: ReadonlyArray<any>) => any ? never : T,
     // deno-lint-ignore no-explicit-any
-    ...args: functions.ArgList<any>
+    ...args: ReadonlyArray<any>
   ): Promise<T>;
   notice<T>(
     message:
       // deno-lint-ignore no-explicit-any
-      | (T extends functions.GenericFunction<any, any> ? never : T)
+      | (T extends (...args: ReadonlyArray<any>) => any ? never : T)
       | (() => T),
     // deno-lint-ignore no-explicit-any
-    ...args: functions.ArgList<any>
+    ...args: ReadonlyArray<any>
   ): Promise<T | undefined> {
     return this.log(logging.Severities.Notice, message, ...args);
   }
 
   /**
-   * Logs a trace message (most verbose level).
+   * Logs a trace message (most verbose level) built by a function. The function runs only when the
+   * Trace level is enabled for this logger.
+   *
+   * @param message - Builds the message; its result is logged
+   * @param args - Extra values written with the record
+   * @returns The function's result, or `undefined` when the level is off
    */
   trace<T>(
     message: () => T,
     // deno-lint-ignore no-explicit-any
-    ...args: functions.ArgList<any>
+    ...args: ReadonlyArray<any>
   ): Promise<T | undefined>;
+  /**
+   * Logs a trace message (most verbose level).
+   *
+   * @param message - The message; a string, or a value converted to one
+   * @param args - Extra values written with the record
+   * @returns The message it was given
+   */
   trace<T>(
     // deno-lint-ignore no-explicit-any
-    message: T extends functions.GenericFunction<any, any> ? never : T,
+    message: T extends (...args: ReadonlyArray<any>) => any ? never : T,
     // deno-lint-ignore no-explicit-any
-    ...args: functions.ArgList<any>
+    ...args: ReadonlyArray<any>
   ): Promise<T>;
   trace<T>(
     message:
       // deno-lint-ignore no-explicit-any
-      | (T extends functions.GenericFunction<any, any> ? never : T)
+      | (T extends (...args: ReadonlyArray<any>) => any ? never : T)
       | (() => T),
     // deno-lint-ignore no-explicit-any
-    ...args: functions.ArgList<any>
+    ...args: ReadonlyArray<any>
   ): Promise<T | undefined> {
     return this.log(logging.Severities.Trace, message, ...args);
   }
@@ -628,24 +748,29 @@ const loggerInstances = new Map<string, Logger>();
  * Gets or creates a logger for the given category.
  *
  * @example
- * const logger = getLogger(["myapp", "http"]);
+ * ```typescript
+ * import * as logging from "@eserstack/logging";
+ *
+ * const logger = logging.logger.getLogger(["myapp", "http"]);
  * await logger.info("Request received");
  *
- * // Or with a string
- * const logger2 = getLogger("myapp.http");
+ * // The same logger, from a dot-separated string
+ * const sameLogger = logging.logger.getLogger("myapp.http");
+ * ```
  */
-export const getLogger = (category: Category | string): Logger => {
-  const normalized = applyPrefixToCategory(normalizeCategory(category));
-  const key = categoryKey(normalized);
+export const getLogger = (loggerCategory: Category | string): Logger => {
+  const normalized = context.applyPrefixToCategory(
+    category.normalizeCategory(loggerCategory),
+  );
+  const key = category.categoryKey(normalized);
 
+  // No bridge load here: modules call getLogger() at module scope, and that
+  // must not open a native library on import. The first record loads it.
   let logger = loggerInstances.get(key);
-  if (!logger) {
+  if (logger === undefined) {
     logger = new Logger(normalized);
     loggerInstances.set(key, logger);
   }
-
-  // Pre-warm FFI library so the first log() call doesn't block on it.
-  void ensureLib();
 
   return logger;
 };
@@ -663,18 +788,19 @@ export const clearLoggerCache = (): void => {
 };
 
 // Register the logger cache clear callback with config.ts
-registerLoggerCacheClear(clearLoggerCache);
+config.registerLoggerCacheClear(clearLoggerCache);
 
 // When TS configure() runs, push updated levels to any live Go handles.
-registerConfigureHook(async (loggerConfigs) => {
-  await ensureLib();
-  const lib = requireLib(); // throws if FFI never loaded — not a silent skip
+config.registerConfigureHook(async (loggerConfigs) => {
+  await ffiClient.ensureLib();
+  // Throws when the native library never loaded, rather than skipping.
+  const lib = ffiClient.requireLib();
 
   for (const loggerConfig of loggerConfigs) {
     if (loggerConfig.lowestLevel === undefined) continue;
 
-    const normalized = normalizeCategory(loggerConfig.category);
-    const key = categoryKey(normalized);
+    const normalized = category.normalizeCategory(loggerConfig.category);
+    const key = category.categoryKey(normalized);
     const handle = goHandles.get(key);
 
     if (handle !== undefined) {

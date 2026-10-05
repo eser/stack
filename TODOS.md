@@ -598,7 +598,7 @@ lifetime and a later attempt should be allowed to succeed.
 ended in `.catch(() => {})`, discarding the checked-paths list and the
 native-vs-WASM cause that `ffi/mod.ts` had carefully built.
 
-Verified by `ffi/client_test.ts`: concurrent callers get distinct wrappers over
+Verified by `ffi/client.test.ts`: concurrent callers get distinct wrappers over
 one shared `symbols` object; one holder closing leaves another's handle working;
 a double-close does not decrement twice; the last close really closes and the
 guard then refuses calls; a released entry reopens on the next request.
@@ -1932,7 +1932,7 @@ both exist now: `bridge_handle_safety_test.go` carries a `-race` log
 configure/write test and a validator-names assertion, each verified to fail
 against the unfixed code. Also added: `panic_guard_test.go`, idempotent-close
 and unknown-handle coverage across 10 close entry points, the stalled-read and
-in-flight-generation tests, `ffi/mod_test.ts`, `ffi/resolve.test.ts`,
+in-flight-generation tests, `ffi/mod.test.ts`, `ffi/resolve.test.ts`,
 `logger.test.ts`, `update.test.ts`, `client_ip_test.go`, expanded
 `cors_middleware_test.go`, and the ABI parity guard.
 

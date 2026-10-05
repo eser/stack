@@ -1,15 +1,40 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 import * as assert from "@std/assert";
-import { simpleTokens } from "./tokens/simple.ts";
-import { createTokenizerState, Tokenizer } from "./lexer.ts";
+import * as ffiClient from "@eserstack/ajan/ffi/client";
+import * as simple from "./tokens/simple.ts";
+import * as lexer from "./lexer.ts";
+
+Deno.test({
+  name: "tokenizes the same way after the Go library is loaded",
+  // The library stays loaded for the rest of the process.
+  sanitizeResources: false,
+}, async () => {
+  // Another package loading the native library must not change the tokens.
+  await ffiClient.ensureLib();
+
+  const tokenizer = new lexer.Tokenizer(
+    lexer.createTokenizerState(simple.simpleTokens),
+  );
+
+  assert.assertEquals(Array.from(tokenizer.tokenizeFromString("a1 + 2")), [
+    { kind: "T_ALPHANUMERIC", value: "a1" },
+    { kind: "T_WHITESPACE", value: " " },
+    { kind: "T_PLUS", value: "+" },
+    { kind: "T_WHITESPACE", value: " " },
+    { kind: "T_NUMERIC", value: "2" },
+    { kind: "T_END", value: "" },
+  ]);
+});
 
 Deno.test("operators and symbols", () => {
-  const lexer = new Tokenizer(createTokenizerState(simpleTokens));
+  const tokenizer = new lexer.Tokenizer(
+    lexer.createTokenizerState(simple.simpleTokens),
+  );
 
   const input = "=+-*_/%<>!&|?:;,.()[]{}^";
 
-  const result = Array.from(lexer.tokenizeFromString(input));
+  const result = Array.from(tokenizer.tokenizeFromString(input));
 
   assert.assertEquals(
     result,
@@ -44,11 +69,13 @@ Deno.test("operators and symbols", () => {
 });
 
 Deno.test("numbers", () => {
-  const lexer = new Tokenizer(createTokenizerState(simpleTokens));
+  const tokenizer = new lexer.Tokenizer(
+    lexer.createTokenizerState(simple.simpleTokens),
+  );
 
   const input = `1234 5678`;
 
-  const result = Array.from(lexer.tokenizeFromString(input));
+  const result = Array.from(tokenizer.tokenizeFromString(input));
   assert.assertEquals(
     result,
     [
@@ -61,13 +88,15 @@ Deno.test("numbers", () => {
 });
 
 Deno.test("whitespace and comments", () => {
-  const lexer = new Tokenizer(createTokenizerState(simpleTokens));
+  const tokenizer = new lexer.Tokenizer(
+    lexer.createTokenizerState(simple.simpleTokens),
+  );
 
   const input = `   // This is a comment
   /* This is a
   multiline comment */   `;
 
-  const result = Array.from(lexer.tokenizeFromString(input));
+  const result = Array.from(tokenizer.tokenizeFromString(input));
   assert.assertEquals(
     result,
     [
@@ -107,11 +136,13 @@ Deno.test("whitespace and comments", () => {
 });
 
 Deno.test("multiline comments", () => {
-  const lexer = new Tokenizer(createTokenizerState(simpleTokens));
+  const tokenizer = new lexer.Tokenizer(
+    lexer.createTokenizerState(simple.simpleTokens),
+  );
 
   const input = `/* test */`;
 
-  const result = Array.from(lexer.tokenizeFromString(input));
+  const result = Array.from(tokenizer.tokenizeFromString(input));
   assert.assertEquals(
     result,
     [
@@ -128,11 +159,13 @@ Deno.test("multiline comments", () => {
 });
 
 Deno.test("singleline comments", () => {
-  const lexer = new Tokenizer(createTokenizerState(simpleTokens));
+  const tokenizer = new lexer.Tokenizer(
+    lexer.createTokenizerState(simple.simpleTokens),
+  );
 
   const input = `// test`;
 
-  const result = Array.from(lexer.tokenizeFromString(input));
+  const result = Array.from(tokenizer.tokenizeFromString(input));
   assert.assertEquals(
     result,
     [
@@ -146,11 +179,13 @@ Deno.test("singleline comments", () => {
 });
 
 Deno.test("mixed expression", () => {
-  const lexer = new Tokenizer(createTokenizerState(simpleTokens));
+  const tokenizer = new lexer.Tokenizer(
+    lexer.createTokenizerState(simple.simpleTokens),
+  );
 
   const input = `rocketLauncher++ /* Comment */ && test123`;
 
-  const result = Array.from(lexer.tokenizeFromString(input));
+  const result = Array.from(tokenizer.tokenizeFromString(input));
   assert.assertEquals(
     result,
     [
@@ -176,7 +211,9 @@ Deno.test("mixed expression", () => {
 });
 
 Deno.test("alphanumeric from readable stream", async () => {
-  const lexer = new Tokenizer(createTokenizerState(simpleTokens));
+  const tokenizer = new lexer.Tokenizer(
+    lexer.createTokenizerState(simple.simpleTokens),
+  );
 
   const readableStream = new ReadableStream({
     start(controller) {
@@ -187,7 +224,7 @@ Deno.test("alphanumeric from readable stream", async () => {
   });
 
   const result = [];
-  for await (const token of lexer.tokenize(readableStream)) {
+  for await (const token of tokenizer.tokenize(readableStream)) {
     result.push(token);
   }
 
@@ -201,11 +238,13 @@ Deno.test("alphanumeric from readable stream", async () => {
 });
 
 Deno.test("alphanumeric from string", () => {
-  const lexer = new Tokenizer(createTokenizerState(simpleTokens));
+  const tokenizer = new lexer.Tokenizer(
+    lexer.createTokenizerState(simple.simpleTokens),
+  );
 
   const input = `rocketLauncher`;
 
-  const result = Array.from(lexer.tokenizeFromString(input));
+  const result = Array.from(tokenizer.tokenizeFromString(input));
   assert.assertEquals(
     result,
     [
@@ -216,23 +255,25 @@ Deno.test("alphanumeric from string", () => {
 });
 
 Deno.test("alphanumeric from string, buffer boundary", () => {
-  const lexer = new Tokenizer(createTokenizerState(simpleTokens));
+  const tokenizer = new lexer.Tokenizer(
+    lexer.createTokenizerState(simple.simpleTokens),
+  );
 
-  lexer._reset();
-  const result1 = Array.from(lexer._tokenizeChunk("rocket"));
+  tokenizer._reset();
+  const result1 = Array.from(tokenizer._tokenizeChunk("rocket"));
 
   assert.assertEquals(
     result1,
     [],
   );
 
-  const result2 = Array.from(lexer._tokenizeChunk("Launcher"));
+  const result2 = Array.from(tokenizer._tokenizeChunk("Launcher"));
   assert.assertEquals(
     result2,
     [],
   );
 
-  const result3 = Array.from(lexer._tokenizeChunk(null));
+  const result3 = Array.from(tokenizer._tokenizeChunk(null));
   assert.assertEquals(
     result3,
     [

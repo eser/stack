@@ -4,6 +4,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"os"
 )
@@ -869,15 +870,27 @@ func (e *missingArgError) Error() string {
 }
 
 func writeOK(result string) {
-	resp := response{OK: true, Result: result}
-	data, _ := json.Marshal(resp)
-	os.Stdout.Write(data)
-	os.Stdout.Write([]byte("\n"))
+	writeEnvelope(response{OK: true, Result: result})
 }
 
 func writeError(msg string) {
-	resp := response{OK: false, Error: msg}
+	writeEnvelope(response{OK: false, Error: msg})
+}
+
+// writeEnvelope writes one response line to stdout in a single write, so the
+// host never reads half an envelope.
+//
+// stdout is the module's only channel back to the host. When the write fails,
+// the module reports it on stderr and exits non-zero; the host then finds no
+// output and reports the call as failed instead of reading a partial result.
+func writeEnvelope(resp response) {
+	// Marshal cannot fail: response holds only a bool and strings.
 	data, _ := json.Marshal(resp)
-	os.Stdout.Write(data)
-	os.Stdout.Write([]byte("\n"))
+
+	if _, err := os.Stdout.Write(append(data, '\n')); err != nil {
+		// Nothing is left to report a failed stderr write to.
+		_, _ = fmt.Fprintf(os.Stderr, "eser-ajan: write response to stdout: %v\n", err)
+
+		os.Exit(1)
+	}
 }

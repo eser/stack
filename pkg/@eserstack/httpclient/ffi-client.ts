@@ -8,4 +8,9 @@
  * stays as the import path the package's own code already uses.
  */
 
-export { ensureLib, getLib, getLoadError } from "@eserstack/ajan/ffi/client";
+export {
+  describeLoadFailure,
+  ensureLib,
+  getLib,
+  getLoadError,
+} from "@eserstack/ajan/ffi/client";

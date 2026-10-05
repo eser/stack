@@ -10,16 +10,29 @@
  *
  * @example
  * ```ts
- * import { reactRenderer, reactHtmlShellBuilder } from "@eserstack/laroux-server/adapters/react";
- * import { startServer } from "@eserstack/laroux-server";
+ * import * as larouxServer from "@eserstack/laroux-server";
+ * import * as reactAdapter from "@eserstack/laroux-server/adapters/react";
  *
- * await startServer({
+ * await larouxServer.startServer({
  *   mode: "dev",
- *   renderer: reactRenderer,
- *   htmlShell: reactHtmlShellBuilder,
+ *   renderer: reactAdapter.reactRenderer,
+ *   htmlShell: reactAdapter.reactHtmlShellBuilder,
  * });
  * ```
  */
+
+// The protocol and page types the exports below take and return
+export type {
+  ModuleReference,
+  RSCChunk,
+  ServerActionReference,
+} from "@eserstack/laroux-react/protocol";
+export type {
+  LayoutProps,
+  PageProps,
+  PageRequest,
+  RouteParams,
+} from "@eserstack/laroux";
 
 // Renderer port implementation
 export { createReactRenderer, reactRenderer } from "./renderer.ts";
@@ -34,6 +47,7 @@ export {
 export {
   type BundlerConfig,
   renderToReadableStream,
+  renderValueToReadableStream,
 } from "./rsc-flight-renderer.ts";
 
 // RSC handler (HTTP layer)
@@ -64,4 +78,8 @@ export {
 } from "./inline-rsc-emitter.ts";
 
 // App composition helper
-export { renderApp } from "./render-app.tsx";
+export {
+  renderApp,
+  type RenderAppProps,
+  type RenderAppRequestContext,
+} from "./render-app.tsx";

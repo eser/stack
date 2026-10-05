@@ -3,7 +3,9 @@
 package formatfx_test
 
 import (
+	"encoding/json"
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/eser/stack/pkg/ajan/formatfx"
@@ -108,6 +110,168 @@ func TestFormatTOML_ArrayRoundtrip(t *testing.T) {
 	m1 := decoded[1].(map[string]any)
 	if m1["name"] != "app2" {
 		t.Errorf("item[1].name: got %v, want app2", m1["name"])
+	}
+}
+
+// TestFormatTOML_KeepsIntegers decodes its input from JSON, as the bridge
+// does, so every number reaches WriteItem as a float64.
+func TestFormatTOML_KeepsIntegers(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{"whole number", `{"replicas":3}`, "replicas = 3\n"},
+		{"negative whole number", `{"offset":-7}`, "offset = -7\n"},
+		{"fraction stays a float", `{"ratio":2.5}`, "ratio = 2.5\n"},
+		{"2^53 is still an integer", `{"edge":9007199254740992}`, "edge = 9007199254740992\n"},
+		{"beyond 2^53 stays a float", `{"big":18014398509481984}`, "big = 1.8014398509481984e+16\n"},
+		{"nested table and array", `{"server":{"ports":[80,443]}}`, "[server]\nports = [80, 443]\n"},
+		{"array of tables", `{"list":[{"a":1},{"a":2.5}]}`, "[[list]]\na = 1\n\n[[list]]\na = 2.5\n"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			var data any
+			if err := json.Unmarshal([]byte(tc.input), &data); err != nil {
+				t.Fatalf("decode %s: %v", tc.input, err)
+			}
+
+			got, err := formatfx.TOMLFormat.WriteItem(data, &formatfx.FormatOptions{Document: true}) //nolint:exhaustruct
+			if err != nil {
+				t.Fatalf("WriteItem(%s): %v", tc.input, err)
+			}
+
+			if got != tc.want {
+				t.Errorf("WriteItem(%s) = %q, want %q", tc.input, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestFormatTOML_LeavesInputUnchanged(t *testing.T) {
+	t.Parallel()
+
+	data := map[string]any{"replicas": float64(3), "ports": []any{float64(80)}}
+
+	if _, err := formatfx.TOMLFormat.WriteItem(data, nil); err != nil {
+		t.Fatalf("WriteItem: %v", err)
+	}
+
+	if _, ok := data["replicas"].(float64); !ok {
+		t.Errorf("data[replicas] is %T after WriteItem, want float64", data["replicas"])
+	}
+
+	if ports, _ := data["ports"].([]any); len(ports) != 1 || ports[0] != float64(80) {
+		t.Errorf("data[ports] = %#v after WriteItem, want []any{float64(80)}", data["ports"])
+	}
+}
+
+func TestFormatTOML_Separator(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name string
+		opts *formatfx.FormatOptions
+		want string
+	}{
+		{"list entry ends with +++", nil, "name = \"app\"\n+++\n"},
+		{"whole document has no +++", &formatfx.FormatOptions{Document: true}, "name = \"app\"\n"}, //nolint:exhaustruct
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			got, err := formatfx.TOMLFormat.WriteItem(map[string]any{"name": "app"}, tc.opts)
+			if err != nil {
+				t.Fatalf("WriteItem: %v", err)
+			}
+
+			if got != tc.want {
+				t.Errorf("WriteItem = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestFormatYAML_WriteItem(t *testing.T) {
+	t.Parallel()
+
+	app := map[string]any{"name": "app", "server": map[string]any{"port": 80}}
+
+	cases := []struct {
+		name string
+		opts *formatfx.FormatOptions
+		want string
+	}{
+		{
+			name: "list entry",
+			opts: nil,
+			want: "- name: app\n  server:\n    port: 80\n",
+		},
+		{
+			name: "whole document",
+			opts: &formatfx.FormatOptions{Document: true}, //nolint:exhaustruct
+			want: "name: app\nserver:\n  port: 80\n",
+		},
+		{
+			name: "whole document with indent 4",
+			opts: &formatfx.FormatOptions{Document: true, Indent: 4}, //nolint:exhaustruct
+			want: "name: app\nserver:\n    port: 80\n",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			got, err := formatfx.YAMLFormat.WriteItem(app, tc.opts)
+			if err != nil {
+				t.Fatalf("WriteItem: %v", err)
+			}
+
+			if got != tc.want {
+				t.Errorf("WriteItem = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestFormatYAML_DocumentRoundtrip(t *testing.T) {
+	t.Parallel()
+
+	out, err := formatfx.YAMLFormat.WriteItem(
+		map[string]any{"name": "app", "replicas": 3},
+		&formatfx.FormatOptions{Document: true}, //nolint:exhaustruct
+	)
+	if err != nil {
+		t.Fatalf("WriteItem: %v", err)
+	}
+
+	if strings.HasPrefix(out, "- ") {
+		t.Fatalf("whole document written as a sequence entry: %q", out)
+	}
+
+	reader := formatfx.YAMLFormat.CreateReader(nil)
+	_, _ = reader.Push(out)
+
+	decoded, err := reader.Flush()
+	if err != nil {
+		t.Fatalf("Flush: %v", err)
+	}
+
+	if len(decoded) != 1 {
+		t.Fatalf("expected 1 item, got %d: %v", len(decoded), decoded)
+	}
+
+	m, ok := decoded[0].(map[string]any)
+	if !ok || m["name"] != "app" || m["replicas"] != 3 {
+		t.Errorf("decoded = %#v, want map with name app and replicas 3", decoded[0])
 	}
 }
 

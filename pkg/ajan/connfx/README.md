@@ -1,1026 +1,542 @@
-# ajan/connfx
+# 🔌 [ajan/connfx](./)
 
-## Overview
+> **eserstack Go library** in the root module `github.com/eser/stack`. Import
+> `github.com/eser/stack/pkg/ajan/connfx`. The module is not published for
+> `go get`: build inside this repository, or require `github.com/eser/stack`
+> with a `replace` directive that points at a checkout.
 
-**connfx** provides a unified connection management system for all external
-integrations in the ajan framework. It features **centralized OTLP connection
-management** that lets logging, metrics and tracing share connections
-efficiently while maintaining separation of concerns.
+**connfx** provides a unified connection management system for the external
+services an ajan application talks to: SQL databases, PostgreSQL through pgx,
+Redis, RabbitMQ (AMQP), HTTP APIs and OpenTelemetry collectors (OTLP). A
+`Registry` creates each connection from a `ConfigTarget` through the factory
+registered for its protocol, keeps it under a name, checks its health, and
+closes every connection at shutdown. The OTLP connection gives
+[logfx](../logfx/README.md) the providers that export logs, metrics and traces.
 
-### Key Features
+## Key Features
 
-- 🔗 **Unified Connection Management** - Single registry for all external
-  connections
-- 🌐 **OTLP Adapter** - Centralized OpenTelemetry Protocol connections shared
-  across observability packages
-- 🔄 **Connection Pooling** - Efficient resource sharing and lifecycle
-  management
-- 🛡️ **Health Monitoring** - Built-in connection health checks and graceful
-  fallbacks
-- 🎛️ **Protocol Support** - Support for HTTP, Redis, SQL, OTLP, and custom
-  protocols
-- ⚙️ **Configuration Management** - Environment-based configuration with
-  validation
-- 🔧 **Bridge Pattern** - Avoid import cycles while enabling package integration
-
-> **Note on `metricsfx` / `tracesfx` in the examples below.** Those packages
-> were folded into `logfx` (`logfx/metrics.go`, `logfx/tracer.go`); the
-> shared-OTLP-connection idea they illustrate is unchanged, but the import paths
-> in those snippets no longer resolve.
+- 🔗 Unified connection management: a single registry for all external
+  connections, looked up by name, behavior, capability or protocol
+- 🌐 OTLP adapter: one OpenTelemetry Protocol connection that logging, metrics
+  and tracing share through logfx
+- 🔄 Connection pooling: pool limits for SQL, pgx and Redis connections from the
+  connection's configuration
+- 🛡️ Health monitoring: a health check per connection, run concurrently for the
+  whole registry
+- 🎛️ Protocol support: SQL, pgx, Redis, AMQP, HTTP, OTLP, and custom protocols
+  through your own factories
+- ⚙️ Configuration management: `Config` loads connection targets from config
+  files and the environment through configfx
+- 🔧 Bridge pattern: logfx declares the `OTLPConnectionResource` interface and
+  connfx satisfies it, so neither package imports the other
 
 ## Quick Start
 
-### Basic OTLP Connection Setup
+Register the built-in factories, add an in-memory SQLite connection, and use the
+`*sql.DB` it holds:
 
 ```go
 package main
 
 import (
-    "context"
-    "time"
+	"context"
+	"database/sql"
+	"errors"
+	"fmt"
+	"os"
 
-    "github.com/eser/stack/pkg/ajan/connfx"
-    "github.com/eser/stack/pkg/ajan/logfx"
+	"github.com/eser/stack/pkg/ajan/connfx"
+	_ "modernc.org/sqlite" // registers the "sqlite" database/sql driver
 )
 
 func main() {
-    ctx := context.Background()
+	err := run(context.Background())
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+}
 
-    // Create connection registry
-    logger := logfx.NewLogger()
-    registry := connfx.NewRegistryWithDefaults(logger)
+func run(ctx context.Context) (err error) {
+	registry := connfx.NewRegistry(connfx.WithDefaultFactories())
+	defer func() { err = errors.Join(err, registry.Close(ctx)) }()
 
-    // Configure OTLP connection for observability stack
-    _, err := registry.AddConnection(ctx, "otel", &connfx.ConfigTarget{
-        Protocol: "otlp",
-        DSN:      "otel-collector:4318",
-        Properties: map[string]any{
-            "service_name":    "my-service",
-            "service_version": "1.0.0",
-            "insecure":        true,
-        },
-    })
-    if err != nil {
-        panic(err)
-    }
+	_, err = registry.AddConnection(ctx, connfx.DefaultConnection, &connfx.ConfigTarget{
+		Protocol: "sqlite",
+		DSN:      ":memory:",
+	})
+	if err != nil {
+		return fmt.Errorf("add database connection: %w", err)
+	}
 
-    // Check connection health
-    status := registry.HealthCheck(ctx)
-    if status["otel"] == "healthy" {
-        logger.Info("OTLP connection established successfully")
-    }
+	db, err := connfx.GetTypedConnection[*sql.DB](registry, connfx.DefaultConnection)
+	if err != nil {
+		return fmt.Errorf("get database: %w", err)
+	}
 
-    // Connection is now available for all observability packages
-    defer registry.Close(ctx)
+	var answer int
+
+	err = db.QueryRowContext(ctx, "SELECT 40 + 2").Scan(&answer)
+	if err != nil {
+		return fmt.Errorf("query: %w", err)
+	}
+
+	fmt.Println("answer:", answer)
+
+	for name, status := range registry.HealthCheck(ctx) {
+		fmt.Println(name, status.State, status.Message)
+	}
+
+	return nil
 }
 ```
 
-### Complete Observability Stack Integration
+It prints:
+
+```text
+answer: 42
+default Ready Connected, live and ready (protocol=sqlite, open=1, inuse=0, idle=1)
+```
+
+## Configuration
+
+### ConfigTarget
+
+Each connection is described by a `ConfigTarget`. Which fields an adapter reads
+is listed under Protocol Support below.
 
 ```go
-package main
+type ConfigTarget struct {
+	Properties map[string]any `conf:"properties"`
 
-import (
-    "context"
-    "net/http"
-    "time"
+	Protocol string `conf:"protocol"` // e.g., "postgres", "redis", "http"
+	DSN      string `conf:"dsn"`
+	URL      string `conf:"url"`
+	Host     string `conf:"host"`
+	CertFile string `conf:"cert_file"`
+	KeyFile  string `conf:"key_file"`
+	CAFile   string `conf:"ca_file"`
 
-    "github.com/eser/stack/pkg/ajan/connfx"
-    "github.com/eser/stack/pkg/ajan/httpfx"
-    "github.com/eser/stack/pkg/ajan/httpfx/middlewares"
-    "github.com/eser/stack/pkg/ajan/logfx"
-    "github.com/eser/stack/pkg/ajan/logfx"
+	Port            int           `conf:"port"`
+	MaxOpenConns    int           `conf:"max_open_conns"     default:"10"`
+	MaxConnLifetime time.Duration `conf:"max_conn_lifetime"  default:"1h"`
+	MaxIdleConns    int           `conf:"max_idle_conns"     default:"5"`
+	MaxConnIdleTime time.Duration `conf:"max_conn_idle_time" default:"1m"`
+	Timeout         time.Duration `conf:"timeout"`
 
-)
-
-func main() {
-    ctx := context.Background()
-
-    // Step 1: Create connection registry with multiple connections
-    logger := logfx.NewLogger()
-    registry := connfx.NewRegistryWithDefaults(logger)
-
-    // OTLP connection for observability
-    _, err := registry.AddConnection(ctx, "otel", &connfx.ConfigTarget{
-        Protocol: "otlp",
-        DSN:      "otel-collector:4318",
-        Properties: map[string]any{
-            "service_name":     "my-api",
-            "service_version":  "1.0.0",
-            "insecure":         true,
-        },
-    })
-    if err != nil {
-        panic(err)
-    }
-
-    // Redis connection for caching
-    _, err = registry.AddConnection(ctx, "cache", &connfx.ConfigTarget{
-        Protocol: "redis",
-        URL:      "redis://localhost:6379/0",
-    })
-    if err != nil {
-        panic(err)
-    }
-
-    // Database connection
-    _, err = registry.AddConnection(ctx, "db", &connfx.ConfigTarget{
-        Protocol: "sql",
-        URL:      "postgres://user:pass@localhost/mydb",
-        Properties: map[string]any{
-            "max_open_connections": 25,
-            "max_idle_connections": 10,
-        },
-    })
-    if err != nil {
-        panic(err)
-    }
-
-    // Step 2: Create observability stack using shared OTLP connection
-
-    // All packages reference the same "otel" connection
-    logger = logfx.NewLogger(
-        logfx.WithConfig(&logfx.Config{
-            Level:              "INFO",
-        }),
-    )
-
-    // Step 3: Use connections in application
-    router := httpfx.NewRouter("/api")
-
-    // Add observability middleware
-    router.Use(middlewares.TracingMiddleware(logger, ""))
-
-    router.Route("GET /health", func(ctx *httpfx.Context) httpfx.Result {
-        // Check all connection health
-        health := registry.HealthCheck(ctx.Request.Context())
-
-        // Use connections in handler
-        // Redis connection automatically available
-        // Database connection automatically available
-        // OTLP automatically exports logs, metrics, traces
-
-        return ctx.Results.JSON(map[string]any{
-            "status":      "healthy",
-            "connections": health,
-        })
-    })
-
-    // Cleanup all connections on shutdown
-    defer registry.Close(ctx)
-
-    http.ListenAndServe(":8080", router.GetMux())
+	TLS           bool `conf:"tls"`
+	TLSSkipVerify bool `conf:"tls_skip_verify"`
 }
 ```
 
-## OTLP Adapter - Unified Observability
+The `default` tags apply only when configfx loads the struct. A `ConfigTarget`
+you write in Go starts from zero values, and the adapters treat a zero as unset
+and use their own defaults.
 
-### Why Centralized OTLP Connections?
+### Loading Targets With configfx
 
-The OTLP adapter in `connfx` provides a unified approach to OpenTelemetry
-connections:
-
-**Problem (Before):**
-
-```go
-// Historical shape: separate metricsfx / tracesfx packages, each configured on
-// its own with duplicated endpoints. Both were folded into logfx
-// (logfx/metrics.go, logfx/tracer.go); neither package exists today.
-logger  := logfx.NewLogger(logfx.WithOTLP("otel-collector:4318", true))
-metrics := logfx.NewMetricsBuilder(meterProvider, "my-service")
-// ...and a third endpoint string for traces
-```
-
-**Solution (After):**
+`Config` holds named targets. Embed it in your config struct, load it, and pass
+it to `LoadFromConfig`:
 
 ```go
-// Single OTLP connection shared across all packages
-registry.AddConnection(ctx, "otel", &connfx.ConfigTarget{
-    Protocol: "otlp",
-    DSN:      "otel-collector:4318",
-    Properties: map[string]any{
-        "service_name":    "my-service",
-        "service_version": "1.0.0",
-    },
-})
-
-// All packages reference the same connection
-logger := logfx.NewLogger(logfx.WithOTLP("otel"), logfx.WithRegistry(registry))
-metrics := metricsfx.NewMetricsProvider(&metricsfx.Config{OTLPConnectionName: "otel"}, registry)
-traces := tracesfx.NewTracesProvider(&tracesfx.Config{OTLPConnectionName: "otel"}, registry)
-```
-
-### OTLP Configuration Options
-
-```go
-// Complete OTLP connection configuration
-otlpConfig := &connfx.ConfigTarget{
-    Protocol: "otlp",
-    DSN:      "otel-collector:4318",
-
-    // Connection settings
-    TLS:      false,                         // Enable TLS
-
-    Properties: map[string]any{
-        // Service identification (applied to all signals)
-        "service_name":     "my-service",
-        "service_version":  "1.0.0",
-        "environment":      "production",
-
-        // Connection settings
-        "insecure":         true,             // Use HTTP instead of HTTPS
-        "timeout":          30 * time.Second, // Connection timeout
-
-        // Export configuration
-        "export_interval":  30 * time.Second, // Metrics export interval
-        "batch_timeout":    5 * time.Second,  // Traces batch timeout
-        "batch_size":       512,              // Traces batch size
-        "sample_ratio":     1.0,              // Traces sampling ratio
-
-        // Resource attributes (applied to all signals)
-        "deployment.environment": "production",
-        "service.namespace":      "ecommerce",
-        "service.instance.id":    "pod-123",
-    },
+type AppConfig struct {
+	Conn connfx.Config `conf:"conn"`
 }
 
-_, err := registry.AddConnection(ctx, "otel", otlpConfig)
+func connect(ctx context.Context, registry *connfx.Registry) error {
+	config := &AppConfig{}
+
+	err := configfx.NewConfigManager().LoadDefaults(config)
+	if err != nil {
+		return fmt.Errorf("load config: %w", err)
+	}
+
+	return registry.LoadFromConfig(ctx, &config.Conn)
+}
 ```
 
-### Environment-Based OTLP Configuration
+Under the `conf:"conn"` field, a target named `default` reads its keys from
+`conn__targets__default__*`:
 
 ```bash
-# OTLP connection configuration
-CONN_TARGETS_OTEL_PROTOCOL=otlp
-CONN_TARGETS_OTEL_DSN=otel-collector:4318
-CONN_TARGETS_OTEL_TLS=false
-
-# Service identification
-CONN_TARGETS_OTEL_PROPERTIES_SERVICE_NAME=my-service
-CONN_TARGETS_OTEL_PROPERTIES_SERVICE_VERSION=1.0.0
-CONN_TARGETS_OTEL_PROPERTIES_ENVIRONMENT=production
-
-# Connection settings
-CONN_TARGETS_OTEL_PROPERTIES_INSECURE=true
-CONN_TARGETS_OTEL_PROPERTIES_TIMEOUT=30s
-
-# Export configuration
-CONN_TARGETS_OTEL_PROPERTIES_EXPORT_INTERVAL=30s
-CONN_TARGETS_OTEL_PROPERTIES_BATCH_TIMEOUT=5s
-CONN_TARGETS_OTEL_PROPERTIES_BATCH_SIZE=512
-CONN_TARGETS_OTEL_PROPERTIES_SAMPLE_RATIO=1.0
-
-# Package configuration (references the connection)
-LOG_OTLP_CONNECTION_NAME=otel
-METRICS_OTLP_CONNECTION_NAME=otel
-TRACES_OTLP_CONNECTION_NAME=otel
+conn__targets__default__protocol=postgres
+conn__targets__default__dsn=postgres://app:your_password@localhost:5432/app
+conn__targets__default__max_open_conns=25
 ```
 
-### Multiple OTLP Environments
+configfx loads `Properties` values as strings, while the adapters read typed
+values from it (a `bool`, an `int`, a `time.Duration`, a map). Properties set
+from config files or the environment are therefore ignored; set them in Go code.
+`LoadFromConfig` adds the targets in no fixed order and stops at the first that
+fails, keeping the ones already added.
+
+## Registry
 
 ```go
-// Different OTLP endpoints for different purposes
-connections := map[string]*connfx.ConfigTarget{
-    // Production telemetry
-    "otel-prod": {
-        Protocol: "otlp",
-        URL:      "https://prod-collector:4317",
-        TLS:      true,
-        Properties: map[string]any{
-            "service_name":    "my-service",
-            "environment":     "production",
-            "sample_ratio":    0.1,  // 10% sampling for production
-        },
-    },
-
-    // Development telemetry
-    "otel-dev": {
-        Protocol: "otlp",
-        URL:      "http://dev-collector:4318",
-        Properties: map[string]any{
-            "service_name":    "my-service-dev",
-            "environment":     "development",
-            "sample_ratio":    1.0,  // 100% sampling for development
-        },
-    },
-
-    // Business metrics (separate endpoint)
-    "otel-business": {
-        Protocol: "otlp",
-        URL:      "http://business-metrics:4318",
-        Properties: map[string]any{
-            "service_name":     "my-service",
-            "export_interval":  60 * time.Second,  // Less frequent for business metrics
-        },
-    },
-}
-
-// Add all connections
-for name, config := range connections {
-    _, err := registry.AddConnection(ctx, name, config)
-    if err != nil {
-        logger.Error("Failed to add connection", "name", name, "error", err)
-    }
-}
-
-// Use different connections for different purposes
-prodLogger := logfx.NewLogger(logfx.WithOTLP("otel-prod"), logfx.WithRegistry(registry))
-devMetrics := metricsfx.NewMetricsProvider(&metricsfx.Config{OTLPConnectionName: "otel-dev"}, registry)
-businessMetrics := metricsfx.NewMetricsProvider(&metricsfx.Config{OTLPConnectionName: "otel-business"}, registry)
+registry := connfx.NewRegistry(
+	connfx.WithDefaultFactories(),
+	connfx.WithLogger(logger),
+)
 ```
+
+- `WithDefaultFactories()` registers the built-in protocols: `sqlite`,
+  `postgres` and `mysql` (through `database/sql`), `pgx`, `http`, `https`,
+  `redis`, `amqp` and `otlp`. Without it, register factories yourself with
+  `RegisterFactory`.
+- `WithLogger(logger)` takes any value with the slog `DebugContext`,
+  `InfoContext`, `WarnContext` and `ErrorContext` methods, such as a
+  `*logfx.Logger`. The default is `slog.Default()`.
+
+The registry methods:
+
+- `AddConnection(ctx, name, config)` creates a connection through the factory
+  for `config.Protocol` and stores it under `name`. The errors wrap
+  `ErrConnectionAlreadyExists`, `ErrUnsupportedProtocol` or
+  `ErrFailedToCreateConnection`, which wraps the adapter's own error.
+- `GetDefault()` and `GetNamed(name)` return a connection, or nil when there is
+  none; `connfx.DefaultConnection` is the name `default`.
+- `GetByBehavior`, `GetByCapability` and `GetByProtocol` return every matching
+  connection.
+- `ListConnections()` and `ListRegisteredProtocols()` return names.
+- `HealthCheck(ctx)` checks every connection concurrently and returns a map from
+  name to `*HealthStatus`.
+- `RemoveConnection(ctx, name)` closes one connection and removes it; a close
+  error is logged as a warning.
+- `Close(ctx)` closes every connection, empties the registry, and returns an
+  error wrapping `ErrFailedToCloseConnections` that lists each failure.
+- `GetRepository(name)` returns the connection as a `Repository` when it
+  implements one. None of the built-in connections do, so it returns
+  `ErrInterfaceNotImplemented` for them; use `GetTypedConnection` or the adapter
+  accessors instead.
+
+### GetTypedConnection
+
+`GetTypedConnection[T]` returns the raw handle of a named connection as `T`,
+with an error instead of a failed type assertion:
+
+```go
+db, err := connfx.GetTypedConnection[*sql.DB](registry, "default")
+if err != nil {
+	return fmt.Errorf("get database: %w", err)
+}
+```
+
+| Protocol                      | Raw handle `T`             |
+| ----------------------------- | -------------------------- |
+| `sqlite`, `postgres`, `mysql` | `*sql.DB`                  |
+| `pgx`                         | `*pgxpool.Pool`            |
+| `redis`                       | `*redis.Client` (go-redis) |
+| `amqp`                        | `*connfx.AMQPAdapter`      |
+| `http`, `https`               | `*httpclient.Client`       |
+| `otlp`                        | `*connfx.OTLPConnection`   |
+
+## Connections
+
+Every connection implements `Connection`:
+
+```go
+type Connection interface {
+	GetBehaviors() []ConnectionBehavior
+	GetCapabilities() []ConnectionCapability
+	GetProtocol() string
+	GetState() ConnectionState
+	HealthCheck(ctx context.Context) *HealthStatus
+	Close(ctx context.Context) error
+	GetRawConnection() any
+}
+```
+
+| Adapter | Behaviors            | Capabilities                             |
+| ------- | -------------------- | ---------------------------------------- |
+| SQL     | stateful             | relational, transactional                |
+| pgx     | stateful             | relational, transactional                |
+| Redis   | stateful, streaming  | key-value, cache, queue                  |
+| AMQP    | stateful, streaming  | queue                                    |
+| HTTP    | stateless            | none                                     |
+| OTLP    | stateless, streaming | observability, logging, metrics, tracing |
+
+### Health Status
+
+`HealthCheck` returns a `HealthStatus` with the check's `Timestamp`, `Latency`,
+`State`, a `Message`, and the `Error` when it failed. The states are
+`ConnectionStateNotInitialized`, `Connected`, `Live`, `Ready`, `Disconnected`,
+`Error` and `Reconnecting`; `String` returns the name without the prefix
+(`Ready`). Each adapter sets the state from its own signals, such as the pool
+statistics of a database or the status code of an HTTP API.
 
 ## Protocol Support
 
-### HTTP Connections
+### SQL Connections
 
-```go
-_, err := registry.AddConnection(ctx, "api", &connfx.ConfigTarget{
-    Protocol: "http",
-    URL:      "https://api.external.com",
-    Properties: map[string]any{
-        "timeout":         30 * time.Second,
-        "max_connections": 100,
-        "headers": map[string]string{
-            "Authorization": "Bearer token",
-            "User-Agent":    "my-service/1.0.0",
-        },
-    },
-})
-```
-
-### Redis Connections
-
-```go
-_, err := registry.AddConnection(ctx, "cache", &connfx.ConfigTarget{
-    Protocol: "redis",
-    URL:      "redis://localhost:6379/0",
-    Properties: map[string]any{
-        "max_idle":        10,
-        "max_active":      100,
-        "idle_timeout":    240 * time.Second,
-        "password":        "secret",
-    },
-})
-```
-
-### SQL Database Connections
+The `sqlite`, `postgres` and `mysql` factories call `sql.Open(protocol, DSN)`,
+so import a driver that registers that name: `modernc.org/sqlite` registers
+`sqlite`. connfx imports no driver itself.
 
 ```go
 _, err := registry.AddConnection(ctx, "db", &connfx.ConfigTarget{
-    Protocol: "sql",
-    URL:      "postgres://user:pass@localhost/mydb?sslmode=disable",
-    Properties: map[string]any{
-        "max_open_connections": 25,
-        "max_idle_connections": 10,
-        "connection_max_lifetime": 5 * time.Minute,
-    },
+	Protocol:        "postgres",
+	DSN:             "postgres://app:your_password@localhost:5432/app?sslmode=disable",
+	MaxOpenConns:    25,
+	MaxIdleConns:    10,
+	MaxConnLifetime: 5 * time.Minute,
 })
 ```
 
-## Connection Management
+`MaxOpenConns`, `MaxIdleConns`, `MaxConnLifetime` and `MaxConnIdleTime` set the
+pool when they are above zero. The factory pings the database before it returns.
+`*connfx.SQLConnection` also has `GetDB()` and `Stats()`.
 
-### Health Monitoring
+### PostgreSQL With pgx
 
-```go
-// Check individual connection
-client, err := registry.GetConnection(ctx, "otel")
-if err != nil {
-    logger.Error("OTLP connection unavailable", "error", err)
-}
+The `pgx` factory parses `DSN` with `pgxpool.ParseConfig` and opens a pool:
+`MaxOpenConns` sets the maximum size (default 25), `MaxIdleConns` the minimum
+(default 2), and `MaxConnLifetime` and `MaxConnIdleTime` default to 1 hour and
+30 minutes. Every connection uses UTC and the application name `connfx_pgx`.
+`*connfx.PgxConnection` adds `Query`, `QueryRow`, `Exec`, `BeginTx`,
+`BeginTxFunc`, `SendBatch`, `CopyFrom`, `Listen` and `WaitForNotification`.
 
-// Check all connections
-healthStatus := registry.HealthCheck(ctx)
-for name, status := range healthStatus {
-    logger.Info("Connection status", "name", name, "status", status)
-}
+### Redis Connections
 
-// Health check returns:
-// - "healthy": Connection is working properly
-// - "unhealthy": Connection has issues
-// - "unknown": Connection status cannot be determined
-```
-
-### Connection Lifecycle
+The address comes from `DSN` (`redis://user:your_password@localhost:6379/0`,
+`rediss://` for TLS, or `host:port`), or from `Host` and `Port`, defaulting to
+`localhost:6379`:
 
 ```go
-// Get connection for use
-conn, err := registry.GetConnection(ctx, "cache")
-if err != nil {
-    return fmt.Errorf("cache unavailable: %w", err)
-}
-
-// Use type assertion to get specific client
-if redisConn, ok := conn.(*redis.Client); ok {
-    return redisConn.Set(ctx, key, value, 0).Err()
-}
-
-// Connections are automatically cleaned up
-defer registry.Close(ctx)  // Closes all connections gracefully
-```
-
-### Registry Configuration
-
-```go
-// Create registry with custom configuration
-config := &connfx.RegistryConfig{
-    HealthCheckInterval: 30 * time.Second,
-    HealthCheckTimeout:  5 * time.Second,
-    MaxConnections:      100,
-    EnableLogging:       true,
-}
-
-registry := connfx.NewRegistry(config, logger)
-
-// Add connections with validation
-_, err := registry.AddConnection(ctx, "otel", otlpConfig)
-if err != nil {
-    logger.Error("Failed to configure OTLP", "error", err)
-    // Registry handles failures gracefully
-}
-```
-
-## Bridge Pattern Implementation
-
-### How Packages Access Connections
-
-The bridge pattern prevents import cycles while enabling packages to access
-connections:
-
-```go
-// In metricsfx/bridge.go
-type ConnectionRegistry interface {
-    GetConnection(ctx context.Context, name string) (any, error)
-}
-
-func getOTLPExporter(registry ConnectionRegistry, connectionName string) (any, error) {
-    if registry == nil {
-        return nil, ErrNoRegistryProvided
-    }
-
-    // Use reflection to avoid direct dependency on connfx
-    return getConnectionViaReflection(registry, connectionName, "otlp")
-}
-
-// In metricsfx/provider.go
-func NewMetricsProvider(config *Config, registry ConnectionRegistry) *MetricsProvider {
-    return &MetricsProvider{
-        config:   config,
-        registry: registry,  // Store registry interface
-    }
-}
-
-func (p *MetricsProvider) Init() error {
-    if p.config.OTLPConnectionName != "" {
-        exporter, err := getOTLPExporter(p.registry, p.config.OTLPConnectionName)
-        if err != nil {
-            return fmt.Errorf("%w (name=%q): %w", ErrFailedToGetOTLPExporter, p.config.OTLPConnectionName, err)
-        }
-        // Use exporter...
-    }
-    return nil
-}
-```
-
-### Benefits of Bridge Pattern
-
-1. **No Import Cycles** - Observability packages don't directly import `connfx`
-2. **Interface Segregation** - Each package only sees the connection methods it
-   needs
-3. **Loose Coupling** - Packages work with or without connection registry
-4. **Testability** - Easy to mock connection registry for tests
-5. **Graceful Degradation** - Packages continue working when connections are
-   unavailable
-
-## Advanced Usage
-
-### Custom Connection Adapters
-
-```go
-// Implement custom adapter for new protocols
-type MyProtocolAdapter struct {
-    config *connfx.ConfigTarget
-    client *MyProtocolClient
-}
-
-func (a *MyProtocolAdapter) Connect(ctx context.Context) error {
-    client, err := NewMyProtocolClient(a.config.URL)
-    if err != nil {
-        return err
-    }
-    a.client = client
-    return nil
-}
-
-func (a *MyProtocolAdapter) Close(ctx context.Context) error {
-    return a.client.Close()
-}
-
-func (a *MyProtocolAdapter) HealthCheck(ctx context.Context) (string, error) {
-    if err := a.client.Ping(ctx); err != nil {
-        return "unhealthy", err
-    }
-    return "healthy", nil
-}
-
-func (a *MyProtocolAdapter) GetClient() any {
-    return a.client
-}
-
-// Register custom adapter
-registry.RegisterAdapter("myprotocol", func(config *connfx.ConfigTarget) connfx.Adapter {
-    return &MyProtocolAdapter{config: config}
+_, err := registry.AddConnection(ctx, "cache", &connfx.ConfigTarget{
+	Protocol: "redis",
+	DSN:      "redis://localhost:6379/0",
+	Properties: map[string]any{
+		"pool_size":    20,
+		"pool_timeout": 4 * time.Second,
+	},
 })
 ```
 
-### Configuration Validation
+The properties are `password`, `db`, `max_retries`, `pool_size`,
+`min_idle_conns` and `max_idle_conns` (`int`), `conn_max_idle_time` and
+`pool_timeout` (`time.Duration`), and `tls_enabled` and
+`tls_insecure_skip_verify` (`bool`); `TLS` and `TLSSkipVerify` turn TLS on as
+well. `*connfx.RedisConnection` has `GetClient()`, `GetStats()` and
+`GetAdapter()`, whose `*RedisAdapter` implements the key-value, cache and stream
+queue operations (`Get`, `Set`, `SetWithExpiration`, `Publish`,
+`ConsumeWithGroup` and more).
+
+### AMQP Connections
+
+The `amqp` factory connects to the URL in `DSN`, or to
+`amqp://guest:guest@localhost:5672/` when it is empty. Its raw handle, an
+`*AMQPAdapter`, implements the queue operations (`QueueDeclare`, `Publish`,
+`Consume`, `AckMessage`).
+
+### HTTP Connections
+
+The HTTP adapter wraps a resilient [httpclient](../httpclient/README.md) client
+with a circuit breaker and retries, for one base URL:
 
 ```go
-// Add connection with validation
-err := registry.AddConnection(ctx, "otel", &connfx.ConfigTarget{
-    Protocol: "otlp",
-    URL:      "invalid-url",  // This will be validated
+_, err := registry.AddConnection(ctx, "api", &connfx.ConfigTarget{
+	Protocol: "https",
+	URL:      "https://api.example.com",
+	Timeout:  10 * time.Second,
+	Properties: map[string]any{
+		"headers": map[string]string{
+			"Authorization": "Bearer your_access_token",
+		},
+		"retry_strategy": map[string]any{
+			"max_attempts":     4,
+			"initial_interval": 250 * time.Millisecond,
+		},
+	},
 })
+```
 
+- `Timeout` defaults to 30 seconds. `TLS`, `TLSSkipVerify`, `CertFile` and
+  `KeyFile` configure TLS and a client certificate.
+- `headers` (`map[string]string` or `map[string]any` of strings) are sent with
+  every request. The default `User-Agent: connfx-http-client/1.0` is replaced by
+  a `User-Agent` of your own.
+- `circuit_breaker` takes `enabled` (`bool`), `failure_threshold` and
+  `half_open_success_needed` (`int`) and `reset_timeout` (`time.Duration`). The
+  defaults are on, 5 failures, 2 successes and 10 seconds.
+- `retry_strategy` takes `enabled` (`bool`), `max_attempts` (`int`),
+  `initial_interval` and `max_interval` (`time.Duration`), and `multiplier` and
+  `random_factor` (`float64`). The defaults are on, 3 attempts, 100 ms, 10
+  seconds, 2.0 and 0.1.
+- `server_error_threshold` (`int`, default 500) is the status code from which a
+  response counts as a failure.
+
+`AddConnection` sends a `HEAD` request to the base URL (a `GET` when the server
+answers 405) and fails when the API is unreachable or answers with a server
+error. The health check maps 2xx to Ready, 429 to Live, 503 and the other 4xx
+codes to Connected, and the rest to Error.
+
+Send requests through the connection, which joins the path to the base URL and
+adds the headers. The body may be nil, a `string`, a `[]byte` or an `io.Reader`:
+
+```go
+conn, err := connfx.GetTypedConnection[*httpclient.Client](registry, "api")
 if err != nil {
-    // Handle configuration errors
-    logger.Error("Invalid OTLP configuration", "error", err)
+	return fmt.Errorf("get api client: %w", err)
+}
+
+httpConn, ok := registry.GetNamed("api").(*connfx.HTTPConnection)
+if !ok {
+	return fmt.Errorf("connection %q is not HTTP", "api")
+}
+
+req, err := httpConn.NewRequest(ctx, http.MethodGet, "/users/123", nil)
+if err != nil {
+	return fmt.Errorf("build request: %w", err)
+}
+
+resp, err := conn.Do(req)
+if err != nil {
+	return fmt.Errorf("get user: %w", err)
+}
+defer resp.Body.Close()
+```
+
+`*connfx.HTTPConnection` also has `GetClient()`, `GetStandardClient()`,
+`GetBaseURL()`, `GetHeaders()` and `GetCircuitBreakerState()`, which returns
+`StateClosed`, `StateHalfOpen` or `StateOpen`.
+
+### OTLP Connections
+
+The `otlp` factory creates OTLP/HTTP exporters for logs, metrics and traces that
+send to the collector at `DSN` (`host:port`, usually port 4318). It uses plain
+HTTP unless `TLS` is true or the `insecure` property is `false`.
+`CreateResource` adds the service identity and builds the providers that
+[logfx](../logfx/README.md) takes:
+
+```go
+conn, err := registry.AddConnection(ctx, "otel", &connfx.ConfigTarget{
+	Protocol: "otlp",
+	DSN:      "otel-collector:4318",
+})
+if err != nil {
+	return fmt.Errorf("add OTLP connection: %w", err)
+}
+
+otlpConn, ok := conn.(*connfx.OTLPConnection)
+if !ok {
+	return fmt.Errorf("connection %q is not OTLP", "otel")
+}
+
+resource, err := otlpConn.CreateResource("my-service", "1.0.0", "production")
+if err != nil {
+	return fmt.Errorf("create OTLP resource: %w", err)
+}
+
+logger.EnableOTLP(resource)
+```
+
+The resource batches log records and spans (spans every 5 seconds or 512 at a
+time), exports metrics every 30 seconds, and keeps every trace (sampling ratio
+1.0). `resource.Close(ctx)` flushes and shuts the providers down; it shuts the
+connection's exporters down too, so a later `registry.Close` reports
+`HTTP exporter is shutdown` for that connection.
+
+The OTLP health check builds an exporter and does not contact the collector, so
+it reports Ready while the collector is down. Export failures appear when the
+providers flush, for example in the error from `resource.Close`.
+
+## Custom Connection Adapters
+
+A protocol of your own needs a `ConnectionFactory` and a `Connection`:
+
+```go
+type memoryConnection struct {
+	store map[string]string
+}
+
+func (c *memoryConnection) GetBehaviors() []connfx.ConnectionBehavior {
+	return []connfx.ConnectionBehavior{connfx.ConnectionBehaviorStateful}
+}
+
+func (c *memoryConnection) GetCapabilities() []connfx.ConnectionCapability {
+	return []connfx.ConnectionCapability{connfx.ConnectionCapabilityKeyValue}
+}
+
+func (c *memoryConnection) GetProtocol() string              { return "memory" }
+func (c *memoryConnection) GetState() connfx.ConnectionState { return connfx.ConnectionStateReady }
+func (c *memoryConnection) Close(_ context.Context) error    { return nil }
+func (c *memoryConnection) GetRawConnection() any            { return c.store }
+
+func (c *memoryConnection) HealthCheck(_ context.Context) *connfx.HealthStatus {
+	return &connfx.HealthStatus{Timestamp: time.Now(), State: connfx.ConnectionStateReady}
 }
 ```
 
-### Observability Integration Benefits
+The factory creates the connection from the target and names its protocol:
 
-The centralized OTLP connection approach provides significant benefits for
-observability:
+```go
+type memoryFactory struct{}
 
-1. **Unified Configuration** - Configure service name, version, and endpoints
-   once
-2. **Consistent Attribution** - All telemetry signals have consistent resource
-   attributes
-3. **Shared Connection Pooling** - Efficient resource usage across all packages
-4. **Centralized Health Monitoring** - Monitor OTLP connection health from one
-   place
-5. **Environment Flexibility** - Easy switching between dev/staging/prod
-   collectors
-6. **Cost Optimization** - Single connection reduces overhead and resource usage
-7. **Graceful Degradation** - Applications continue working when OTLP is
-   unavailable
-8. **Configuration Validation** - Catch configuration errors early
-9. **Lifecycle Management** - Proper connection setup and cleanup
-10. **Bridge Pattern Benefits** - Clean package separation without import cycles
+func (memoryFactory) GetProtocol() string { return "memory" }
+
+func (memoryFactory) CreateConnection(
+	_ context.Context,
+	_ *connfx.ConfigTarget,
+) (connfx.Connection, error) {
+	return &memoryConnection{store: map[string]string{}}, nil
+}
+
+func registerMemory(registry *connfx.Registry) {
+	registry.RegisterFactory(memoryFactory{})
+}
+```
+
+## Error Handling
+
+Match the registry's errors with `errors.Is`:
+
+```go
+_, err := registry.AddConnection(ctx, "cache", target)
+
+switch {
+case errors.Is(err, connfx.ErrUnsupportedProtocol):
+	// No factory is registered for target.Protocol
+case errors.Is(err, connfx.ErrConnectionAlreadyExists):
+	// The name is taken; remove the old connection first
+case errors.Is(err, connfx.ErrFailedToCreateConnection):
+	// The adapter could not connect; the error wraps its cause
+}
+```
+
+`GetTypedConnection` returns `ErrRegistryIsNil`, `ErrConnectionNotFound`,
+`ErrRawConnectionIsNil` or `ErrInvalidType`, which names the expected and the
+actual type.
 
 ## Best Practices
 
-1. **Centralize OTLP Configuration** - Use a single OTLP connection for all
+1. **Centralize OTLP Configuration**: Use a single OTLP connection for all
    observability signals
-2. **Environment-Based Config** - Use environment variables for different
-   deployment environments
-3. **Health Monitoring** - Regularly check connection health and handle failures
-   gracefully
-4. **Connection Lifecycle** - Always call `registry.Close(ctx)` during
+2. **Environment-Based Config**: Keep DSNs and URLs in config files or
+   environment variables, and set the typed `Properties` in code
+3. **Health Monitoring**: Serve `registry.HealthCheck` from a health endpoint
+4. **Connection Lifecycle**: Always call `registry.Close(ctx)` during
    application shutdown
-5. **Error Handling** - Handle connection failures gracefully with fallback
-   behavior
-6. **Resource Management** - Configure appropriate connection pools and timeouts
-7. **Security** - Use TLS for production OTLP connections
-8. **Monitoring** - Monitor connection health and performance metrics
-9. **Testing** - Mock connection registry for unit tests
-10. **Documentation** - Document connection dependencies for each service
-
-## Resilient HTTP Connections
-
-### Overview
-
-The HTTP adapter in `connfx` now integrates with the `httpclient` package to
-provide HTTP connections with built-in resilience features:
-
-- **Circuit Breaker** - Prevents cascading failures by opening the circuit when
-  errors exceed threshold
-- **Retry Strategy** - Automatically retries failed requests with exponential
-  backoff and jitter
-- **Connection Pooling** - Efficient HTTP connection management and reuse
-- **Health Monitoring** - Continuous health checks with detailed status
-  reporting
-- **TLS Support** - Secure connections with certificate management
-
-### Basic HTTP Configuration
-
-```go
-// Basic HTTP connection with default resilience settings
-_, err := registry.AddConnection(ctx, "api", &connfx.ConfigTarget{
-    Protocol: "http",
-    URL:      "https://api.example.com",
-    Properties: map[string]any{
-        "headers": map[string]string{
-            "User-Agent":    "my-service/1.0",
-            "Authorization": "Bearer token",
-        },
-    },
-})
-
-// Use the connection
-conn, err := registry.GetConnection(ctx, "api")
-httpConn := conn.(*connfx.HTTPConnection)
-
-// Get the resilient client
-client := httpConn.GetClient() // Returns *httpclient.Client
-// Or get standard client
-stdClient := httpConn.GetStandardClient() // Returns *http.Client
-```
-
-### Circuit Breaker Configuration
-
-Control when connections are temporarily disabled to prevent cascading failures:
-
-```go
-_, err := registry.AddConnection(ctx, "api-resilient", &connfx.ConfigTarget{
-    Protocol: "http",
-    URL:      "https://api.example.com",
-    Properties: map[string]any{
-        "circuit_breaker": map[string]any{
-            "enabled":                   true,  // Enable circuit breaker
-            "failure_threshold":         5,     // Trip after 5 consecutive failures
-            "reset_timeout":             30 * time.Second, // Try to reset after 30s
-            "half_open_success_needed":  2,     // Need 2 successes to fully close
-        },
-        "server_error_threshold": 500, // HTTP status codes >= 500 count as failures
-    },
-})
-
-// Monitor circuit breaker state
-httpConn := conn.(*connfx.HTTPConnection)
-state := httpConn.GetCircuitBreakerState() // "Closed", "Open", or "HalfOpen"
-```
-
-**Circuit Breaker States:**
-
-- **Closed** - Normal operation, requests pass through
-- **Open** - Circuit is tripped, requests fail fast without hitting the server
-- **HalfOpen** - Testing if service has recovered, limited requests allowed
-
-### Retry Strategy Configuration
-
-Automatically retry failed requests with intelligent backoff:
-
-```go
-_, err := registry.AddConnection(ctx, "api-retry", &connfx.ConfigTarget{
-    Protocol: "http",
-    URL:      "https://api.example.com",
-    Properties: map[string]any{
-        "retry_strategy": map[string]any{
-            "enabled":          true,   // Enable automatic retries
-            "max_attempts":     3,      // Maximum total attempts (original + retries)
-            "initial_interval": 100 * time.Millisecond, // Start with 100ms delay
-            "max_interval":     10 * time.Second,       // Cap at 10s delay
-            "multiplier":       2.0,    // Double the delay each retry
-            "random_factor":    0.1,    // Add 10% jitter to prevent thundering herd
-        },
-    },
-})
-```
-
-**Exponential Backoff Example:**
-
-- Attempt 1: No delay
-- Attempt 2: ~100ms delay (100ms + jitter)
-- Attempt 3: ~200ms delay (200ms + jitter)
-- etc.
-
-### Advanced HTTP Configuration
-
-Complete configuration with all resilience features:
-
-```go
-_, err := registry.AddConnection(ctx, "api-advanced", &connfx.ConfigTarget{
-    Protocol: "http",
-    URL:      "https://api.example.com",
-    Timeout:  30 * time.Second,
-    TLS:      true,
-
-    // TLS certificate authentication (optional)
-    CertFile: "/path/to/client.crt",
-    KeyFile:  "/path/to/client.key",
-
-    Properties: map[string]any{
-        // Default headers for all requests
-        "headers": map[string]string{
-            "User-Agent":    "my-service/1.0",
-            "Accept":        "application/json",
-            "Content-Type":  "application/json",
-            "Authorization": "Bearer token",
-        },
-
-        // Circuit breaker configuration
-        "circuit_breaker": map[string]any{
-            "enabled":                   true,
-            "failure_threshold":         5,     // Trip after 5 failures
-            "reset_timeout":             60 * time.Second, // Reset attempt after 1 minute
-            "half_open_success_needed":  3,     // Need 3 successes to close circuit
-        },
-
-        // Retry strategy configuration
-        "retry_strategy": map[string]any{
-            "enabled":          true,
-            "max_attempts":     4,      // Original + 3 retries
-            "initial_interval": 250 * time.Millisecond,
-            "max_interval":     30 * time.Second,
-            "multiplier":       2.5,    // Aggressive backoff
-            "random_factor":    0.2,    // 20% jitter
-        },
-
-        // HTTP error classification
-        "server_error_threshold": 500, // Status >= 500 triggers circuit breaker
-    },
-})
-```
-
-### Making HTTP Requests
-
-Use the resilient HTTP client for all requests:
-
-```go
-conn, err := registry.GetConnection(ctx, "api")
-httpConn := conn.(*connfx.HTTPConnection)
-
-// Method 1: Use the convenience method
-req, err := httpConn.NewRequest(ctx, "GET", "/users/123", nil)
-if err != nil {
-    return err
-}
-
-client := httpConn.GetClient()
-resp, err := client.Do(req)
-if err != nil {
-    // Error already went through circuit breaker and retry logic
-    return fmt.Errorf("request failed after retries: %w", err)
-}
-defer resp.Body.Close()
-
-// Method 2: Use standard HTTP client interface
-stdClient := httpConn.GetStandardClient()
-resp, err = stdClient.Get(httpConn.GetBaseURL() + "/health")
-```
-
-**Request Body Types:**
-
-```go
-// String body
-req, err := httpConn.NewRequest(ctx, "POST", "/api/data", `{"key": "value"}`)
-
-// Byte slice body
-data := []byte(`{"key": "value"}`)
-req, err := httpConn.NewRequest(ctx, "POST", "/api/data", data)
-
-// Reader body
-body := strings.NewReader(`{"key": "value"}`)
-req, err := httpConn.NewRequest(ctx, "POST", "/api/data", body)
-
-// No body
-req, err := httpConn.NewRequest(ctx, "GET", "/api/data", nil)
-```
-
-### Health Monitoring
-
-Monitor HTTP connection health with detailed status:
-
-```go
-// Check individual connection health
-status := httpConn.HealthCheck(ctx)
-fmt.Printf("State: %s\n", status.State)        // Ready, Live, Connected, Error
-fmt.Printf("Latency: %v\n", status.Latency)    // Response time
-fmt.Printf("Message: %s\n", status.Message)    // Detailed status message
-
-// Monitor circuit breaker state
-cbState := httpConn.GetCircuitBreakerState()   // Closed, Open, HalfOpen
-fmt.Printf("Circuit Breaker: %s\n", cbState)
-
-// Check all connections
-healthStatus := registry.HealthCheck(ctx)
-for name, status := range healthStatus {
-    fmt.Printf("Connection '%s': %s\n", name, status)
-}
-```
-
-**HTTP Health Check Logic:**
-
-- Uses HEAD request to base URL (fast, minimal data transfer)
-- Falls back to GET request if HEAD returns 405 (Method Not Allowed)
-- Maps HTTP status codes to connection states:
-  - **2xx**: Ready (healthy and ready to serve)
-  - **429**: Live (healthy but rate-limited)
-  - **503**: Connected (reachable but temporarily unavailable)
-  - **4xx**: Connected (reachable but configuration issues)
-  - **5xx**: Error (server errors)
-
-### Environment Configuration
-
-Configure HTTP connections via environment variables:
-
-```bash
-# Connection configuration
-CONN_TARGETS_API_PROTOCOL=http
-CONN_TARGETS_API_URL=https://api.example.com
-CONN_TARGETS_API_TIMEOUT=30s
-CONN_TARGETS_API_TLS=true
-
-# Circuit breaker configuration
-CONN_TARGETS_API_PROPERTIES_CIRCUIT_BREAKER_ENABLED=true
-CONN_TARGETS_API_PROPERTIES_CIRCUIT_BREAKER_FAILURE_THRESHOLD=5
-CONN_TARGETS_API_PROPERTIES_CIRCUIT_BREAKER_RESET_TIMEOUT=60s
-CONN_TARGETS_API_PROPERTIES_CIRCUIT_BREAKER_HALF_OPEN_SUCCESS_NEEDED=2
-
-# Retry strategy configuration
-CONN_TARGETS_API_PROPERTIES_RETRY_STRATEGY_ENABLED=true
-CONN_TARGETS_API_PROPERTIES_RETRY_STRATEGY_MAX_ATTEMPTS=3
-CONN_TARGETS_API_PROPERTIES_RETRY_STRATEGY_INITIAL_INTERVAL=100ms
-CONN_TARGETS_API_PROPERTIES_RETRY_STRATEGY_MAX_INTERVAL=10s
-CONN_TARGETS_API_PROPERTIES_RETRY_STRATEGY_MULTIPLIER=2.0
-CONN_TARGETS_API_PROPERTIES_RETRY_STRATEGY_RANDOM_FACTOR=0.1
-
-# Error threshold
-CONN_TARGETS_API_PROPERTIES_SERVER_ERROR_THRESHOLD=500
-```
-
-### Error Handling
-
-The resilient HTTP client handles errors like this:
-
-```go
-client := httpConn.GetClient()
-resp, err := client.Do(req)
-
-if err != nil {
-    // Check for specific error types
-    switch {
-    case errors.Is(err, httpclient.ErrCircuitOpen):
-        // Circuit breaker is open - service is down
-        log.Warn("Service temporarily unavailable due to circuit breaker")
-
-    case errors.Is(err, httpclient.ErrMaxRetries):
-        // All retry attempts exhausted
-        log.Error("Request failed after all retry attempts")
-
-    case errors.Is(err, httpclient.ErrAllRetryAttemptsFailed):
-        // All retries failed with transport errors
-        log.Error("All retry attempts failed due to transport errors")
-
-    default:
-        // Other error (network, timeout, etc.)
-        log.Error("Request failed", "error", err)
-    }
-    return err
-}
-
-// Check response status
-if resp.StatusCode >= 400 {
-    // Handle HTTP error responses
-    log.Warn("HTTP error response", "status", resp.StatusCode)
-}
-```
-
-### Performance Optimization
-
-Optimize HTTP connections for your use case:
-
-```go
-// High-throughput configuration
-_, err := registry.AddConnection(ctx, "api-high-throughput", &connfx.ConfigTarget{
-    Protocol: "http",
-    URL:      "https://api.example.com",
-    Properties: map[string]any{
-        // Disable circuit breaker for high-volume, predictable traffic
-        "circuit_breaker": map[string]any{
-            "enabled": false,
-        },
-
-        // Minimal retries for speed
-        "retry_strategy": map[string]any{
-            "enabled":          true,
-            "max_attempts":     2,  // Only 1 retry
-            "initial_interval": 50 * time.Millisecond,
-            "multiplier":       1.5,
-        },
-
-        // More tolerant error threshold
-        "server_error_threshold": 503, // Only 503/504 trigger failures
-    },
-})
-
-// Fault-tolerant configuration
-_, err = registry.AddConnection(ctx, "api-fault-tolerant", &connfx.ConfigTarget{
-    Protocol: "http",
-    URL:      "https://unreliable-api.example.com",
-    Properties: map[string]any{
-        // Aggressive circuit breaker
-        "circuit_breaker": map[string]any{
-            "enabled":                   true,
-            "failure_threshold":         3,  // Trip quickly
-            "reset_timeout":             10 * time.Second, // Reset quickly
-            "half_open_success_needed":  1,  // Only need 1 success
-        },
-
-        // Aggressive retries
-        "retry_strategy": map[string]any{
-            "enabled":          true,
-            "max_attempts":     5,  // Many retries
-            "initial_interval": 500 * time.Millisecond,
-            "max_interval":     60 * time.Second,
-            "multiplier":       3.0, // Aggressive backoff
-            "random_factor":    0.3, // High jitter
-        },
-
-        // Strict error threshold
-        "server_error_threshold": 400, // Even 4xx errors trigger circuit breaker
-    },
-})
-```
-
-### Integration with Other Packages
-
-Use resilient HTTP connections with other ajan packages:
-
-```go
-// With httpfx for web servers
-func MyHandler(ctx *httpfx.Context) httpfx.Result {
-    // Get HTTP connection from registry
-    conn, err := registry.GetConnection(ctx.Request.Context(), "external-api")
-    if err != nil {
-        return ctx.Results.InternalServerError("API unavailable")
-    }
-
-    httpConn := conn.(*connfx.HTTPConnection)
-    req, err := httpConn.NewRequest(ctx.Request.Context(), "GET", "/data", nil)
-    if err != nil {
-        return ctx.Results.InternalServerError("Failed to create request")
-    }
-
-    client := httpConn.GetClient()
-    resp, err := client.Do(req)
-    if err != nil {
-        if errors.Is(err, httpclient.ErrCircuitOpen) {
-            return ctx.Results.ServiceUnavailable("External service temporarily unavailable")
-        }
-        return ctx.Results.InternalServerError("External API request failed")
-    }
-    defer resp.Body.Close()
-
-    // Process response...
-    return ctx.Results.JSON(data)
-}
-
-// With metrics for monitoring
-metricsBuilder := metricsProvider.NewBuilder()
-httpRequests, _ := metricsBuilder.Counter(
-    "http_client_requests_total",
-    "Total HTTP client requests",
-).Build()
-
-httpLatency, _ := metricsBuilder.Histogram(
-    "http_client_duration_seconds",
-    "HTTP client request duration",
-).WithDurationBuckets().Build()
-
-// Monitor HTTP requests
-start := time.Now()
-resp, err := client.Do(req)
-duration := time.Since(start)
-
-httpRequests.Inc(ctx,
-    metricsfx.StringAttr("endpoint", req.URL.Path),
-    metricsfx.StringAttr("method", req.Method),
-    metricsfx.BoolAttr("success", err == nil),
-)
-
-httpLatency.RecordDuration(ctx, duration,
-    metricsfx.StringAttr("endpoint", req.URL.Path),
-)
-```
-
-### Best Practices
-
-1. **Circuit Breaker Tuning**:
-   - Set `failure_threshold` based on your service's failure tolerance
-   - Use longer `reset_timeout` for external services, shorter for internal
-     services
-   - Require multiple successes (`half_open_success_needed`) before fully
-     trusting recovery
-
-2. **Retry Strategy**:
-   - Use fewer retries (`max_attempts`) for user-facing requests to avoid
-     latency
-   - Use more retries for background/batch operations
-   - Add jitter (`random_factor`) to prevent thundering herd effects
-
-3. **Error Classification**:
-   - Set appropriate `server_error_threshold` (typically 500)
-   - Consider 4xx errors as non-retriable for most cases
-   - Monitor circuit breaker states and adjust thresholds based on real traffic
-
-4. **Connection Management**:
-   - Reuse connections through the registry
-   - Use different connection names for different service endpoints
-   - Monitor connection health regularly
-
-5. **Testing**:
-   - Test circuit breaker behavior under load
-   - Verify retry logic with network failures
-   - Monitor latency impact of resilience features
+5. **Error Handling**: Check the error of every `AddConnection`; a connection
+   that failed is not in the registry
+6. **Resource Management**: Configure appropriate connection pools and timeouts
+7. **Security**: Use TLS for production connections, and keep credentials out of
+   committed config
+8. **Testing**: Register a factory of your own for a fake protocol in tests
+
+## Concurrency
+
+The registry guards its maps with a read-write mutex, so lookups, health checks
+and adds can run from several goroutines. `AddConnection` holds the lock while
+the factory connects, so other registry calls wait for a slow connection. The
+connections report their state with atomic values.
+
+## 🔗 Links
+
+- `go doc github.com/eser/stack/pkg/ajan/connfx`: the API reference generated
+  from source
+- [ajan/logfx](../logfx/README.md): takes the OTLP resource with `EnableOTLP`
+- [ajan/httpclient](../httpclient/README.md): the resilient client inside HTTP
+  connections
+- [ajan/configfx](../configfx/README.md): loads `Config` from files and the
+  environment
+- [eser/stack on GitHub](https://github.com/eser/stack)

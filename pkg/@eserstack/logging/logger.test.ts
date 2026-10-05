@@ -3,7 +3,7 @@
 import * as assert from "@std/assert";
 import * as logging from "@eserstack/standards/logging";
 import * as log from "./mod.ts";
-import { getLib } from "./ffi-client.ts";
+import * as ffiClient from "./ffi-client.ts";
 
 // Destructure for convenience within tests
 const { configure, reset } = log.config;
@@ -15,9 +15,15 @@ const beforeEach = async () => {
   await reset();
 };
 
+// Importing the package loads nothing, so this test module opens the bridge
+// before registering tests: the `ignore` flags below need to know whether it
+// loaded, and the load stays outside every test body.
+// deno-lint-ignore no-top-level-await
+await ffiClient.ensureLib();
+
 // The FFI singleton is shared by the whole test process; the fallback tests
 // swap individual symbols on it and restore them before yielding.
-const ffiLib = getLib();
+const ffiLib = ffiClient.getLib();
 const withoutFfi = ffiLib === null;
 
 const stubLogSymbols = (overrides: {
@@ -255,6 +261,100 @@ Deno.test({
     assert.assertStringIncludes(seen.join("\n"), "delivered message");
     assert.assertEquals(lines, []);
   },
+});
+
+/** An error with a cause, the shape a handled site logs as `{ error }`. */
+const createErrorWithCause = (): Error =>
+  new Error("bundle client entry", {
+    cause: new TypeError("module ./app.tsx not found"),
+  });
+
+type SerializedError = {
+  readonly name: string;
+  readonly message: string;
+  readonly stack: string;
+  readonly cause?: SerializedError;
+};
+
+const assertSerializedErrorWithCause = (value: unknown): void => {
+  const error = value as SerializedError;
+
+  assert.assertEquals(error.name, "Error");
+  assert.assertEquals(error.message, "bundle client entry");
+  assert.assertStringIncludes(error.stack, "bundle client entry");
+  assert.assertEquals(error.cause?.name, "TypeError");
+  assert.assertEquals(error.cause?.message, "module ./app.tsx not found");
+  assert.assertStringIncludes(
+    error.cause?.stack ?? "",
+    "module ./app.tsx not found",
+  );
+};
+
+Deno.test({
+  name: "Logger.log() sends an Error attribute with its cause to Go",
+  ignore: withoutFfi,
+  fn: async () => {
+    await beforeEach();
+    await configureFallbackTest("error-attr-go");
+
+    const seen: string[] = [];
+    const passthrough = ffiLib?.symbols.EserAjanLogWrite;
+    const restore = stubLogSymbols({
+      write: (requestJSON: string): string => {
+        seen.push(requestJSON);
+
+        return passthrough?.(requestJSON) ?? "{}";
+      },
+    });
+
+    const lines = await captureConsole(async () => {
+      try {
+        await getLogger(["error-attr-go"])
+          .with({ error: createErrorWithCause() })
+          .warn("client bundle skipped");
+      } finally {
+        restore();
+      }
+    });
+
+    assert.assertEquals(lines, []);
+    assert.assertEquals(seen.length, 1);
+
+    const request = JSON.parse(seen[0]!) as {
+      attrs: { error: unknown };
+    };
+    assertSerializedErrorWithCause(request.attrs.error);
+  },
+});
+
+Deno.test("Logger.log() writes an Error attribute with its cause on the console fallback", async () => {
+  await beforeEach();
+  await configureFallbackTest("error-attr-fallback");
+
+  // Forces the fallback where the bridge loaded; without the bridge the
+  // logger takes the fallback on its own.
+  const restore = stubLogSymbols({
+    create: () => JSON.stringify({ error: "create-boom" }),
+  });
+
+  const message = "client bundle skipped";
+  const lines = await captureConsole(async () => {
+    try {
+      await getLogger(["error-attr-fallback"])
+        .with({ error: createErrorWithCause() })
+        .warn(message);
+    } finally {
+      restore();
+    }
+  });
+
+  const record = lines.find((line) => line.includes(`${message} `));
+  assert.assertExists(record);
+
+  const attrs = JSON.parse(
+    record.slice(record.indexOf(`${message} `) + message.length + 1),
+  ) as { error: unknown };
+  assertSerializedErrorWithCause(attrs.error);
 });
 
 Deno.test("Logger constructor creates logger with category", async () => {

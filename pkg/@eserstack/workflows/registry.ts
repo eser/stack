@@ -5,10 +5,21 @@
  *
  * @example
  * ```typescript
- * import * as workflows from "@eserstack/workflows";
+ * import * as workflows from "@eserstack/workflows/mod";
  *
  * const registry = workflows.createRegistry();
- * registry.register({ name: "fix-eof", description: "...", run: async () => ({...}) });
+ * registry.register({
+ *   name: "fix-eof",
+ *   description: "Ensure files end with a newline",
+ *   run: () =>
+ *     Promise.resolve({
+ *       name: "fix-eof",
+ *       passed: true,
+ *       issues: [],
+ *       mutations: [],
+ *       stats: {},
+ *     }),
+ * });
  * registry.get("fix-eof");
  * ```
  *

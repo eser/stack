@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+/** The first properties `splitObject` took, and the rest. */
 export type SplitObjectResult<T> = {
   items: Record<string | number | symbol, T>;
   rest: Record<string | number | symbol, T>;
@@ -33,5 +34,3 @@ export const splitObject = <T>(
 
   return { items, rest };
 };
-
-export { splitObject as default };

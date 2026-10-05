@@ -8,7 +8,7 @@
  */
 
 import * as shellExec from "@eserstack/shell/exec";
-import { ensureLib, getLib } from "./ffi-client.ts";
+import * as ffiClient from "./ffi-client.ts";
 
 /**
  * Represents a git commit with its metadata.
@@ -91,8 +91,8 @@ const normalizeWireCommits = (commits: readonly WireCommit[]): Commit[] =>
  * ```
  */
 export const getLatestTag = async (): Promise<string> => {
-  await ensureLib();
-  const lib = getLib();
+  await ffiClient.ensureLib();
+  const lib = ffiClient.getLib();
   if (lib !== null) {
     try {
       const raw = lib.symbols.EserAjanCodebaseGitLatestTag("{}");
@@ -118,8 +118,8 @@ export const getLatestTag = async (): Promise<string> => {
  * ```
  */
 export const getCurrentBranch = async (): Promise<string> => {
-  await ensureLib();
-  const lib = getLib();
+  await ffiClient.ensureLib();
+  const lib = ffiClient.getLib();
   if (lib !== null) {
     try {
       const raw = lib.symbols.EserAjanCodebaseGitCurrentBranch("{}");
@@ -195,8 +195,8 @@ export const getCommitsBetween = async (
   start: string,
   end: string,
 ): Promise<Commit[]> => {
-  await ensureLib();
-  const lib = getLib();
+  await ffiClient.ensureLib();
+  const lib = ffiClient.getLib();
   if (lib !== null) {
     try {
       const raw = lib.symbols.EserAjanCodebaseGitLog(
@@ -236,8 +236,8 @@ export const getCommitsBetween = async (
 export const getCommitsSinceDate = async (
   date: string,
 ): Promise<Commit[]> => {
-  await ensureLib();
-  const lib = getLib();
+  await ffiClient.ensureLib();
+  const lib = ffiClient.getLib();
   if (lib !== null) {
     try {
       const raw = lib.symbols.EserAjanCodebaseGitLog(

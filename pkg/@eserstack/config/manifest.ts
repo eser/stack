@@ -7,8 +7,8 @@
  * @module
  */
 
-import * as yaml from "yaml";
-import { NotFoundError, runtime } from "@eserstack/standards/cross-runtime";
+import * as yaml from "@eemeli/yaml";
+import * as crossRuntime from "@eserstack/standards/cross-runtime";
 
 /** Manifest filenames to search for (in order of priority). */
 export const MANIFEST_FILENAMES = [
@@ -26,12 +26,14 @@ export const loadManifest = async (
   dir: string,
 ): Promise<Record<string, unknown> | null> => {
   for (const filename of MANIFEST_FILENAMES) {
-    const filepath = runtime.path.join(dir, filename);
+    const filepath = crossRuntime.runtime.path.join(dir, filename);
     try {
-      const content = await runtime.fs.readTextFile(filepath);
+      // Filenames are tried in priority order and the first one found wins.
+      // deno-lint-ignore no-await-in-loop
+      const content = await crossRuntime.runtime.fs.readTextFile(filepath);
       return yaml.parse(content) as Record<string, unknown>;
     } catch (error) {
-      if (error instanceof NotFoundError) {
+      if (error instanceof crossRuntime.NotFoundError) {
         continue;
       }
       throw error;
@@ -47,9 +49,11 @@ export const getManifestPath = async (
   dir: string,
 ): Promise<string | null> => {
   for (const filename of MANIFEST_FILENAMES) {
-    const filepath = runtime.path.join(dir, filename);
+    const filepath = crossRuntime.runtime.path.join(dir, filename);
     try {
-      await runtime.fs.stat(filepath);
+      // Filenames are tried in priority order and the first one found wins.
+      // deno-lint-ignore no-await-in-loop
+      await crossRuntime.runtime.fs.stat(filepath);
       return filepath;
     } catch {
       continue;

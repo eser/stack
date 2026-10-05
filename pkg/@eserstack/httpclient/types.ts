@@ -11,6 +11,7 @@
  */
 
 export type { Fail, Ok, Result } from "@eserstack/primitives/results";
+import type * as goClient from "./go-client.ts";
 
 export type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE" | "HEAD";
 
@@ -103,19 +104,36 @@ export interface RetryConfig {
   respectRetryAfter?: boolean;
 }
 
+/**
+ * How requests leave the process. `"fetch"` (the default) uses `fetchFn` or
+ * the global `fetch`. `"native"` uses the Go HTTP client of `@eserstack/ajan`,
+ * whose calls block the JavaScript thread; the README's Native Client section
+ * lists what else differs.
+ */
+export type HttpTransport = "fetch" | "native";
+
 /** Client-level configuration. */
 export interface HttpClientConfig {
+  /** Prefix for request paths that are not absolute URLs. */
   baseUrl?: string;
+  /** Headers sent with every request; a request's own headers win. */
   headers?: Record<string, string>;
   /** Request timeout in ms (default: 30_000). */
   timeout?: number;
   /** Retry policy — pass false to disable retry entirely. */
   retry?: RetryConfig | false;
+  /** Request and response interceptors, run in order. */
   interceptors?: Interceptors;
-  /** Inject a custom fetch for testing. */
+  /** Where requests are sent; see {@link HttpTransport}. Default: "fetch". */
+  transport?: HttpTransport;
+  /** Inject a custom fetch for testing. Not allowed with transport "native". */
   fetchFn?: typeof fetch;
   /** Inject a custom delay function to control timing in tests. */
   _delayFn?: (ms: number) => Promise<void>;
+  /** Inject the Go client factory in tests of transport "native". */
+  _createGoClient?: (
+    options: goClient.GoHttpClientOptions,
+  ) => Promise<goClient.GoHttpClient>;
 }
 
 /** Per-request overrides. */

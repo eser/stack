@@ -2,12 +2,18 @@
 
 package noskillsfx
 
-import "errors"
+import (
+	"encoding/json"
+	"errors"
+	"fmt"
+)
 
 // Sentinel errors.
 var (
 	ErrInvalidTransition = errors.New("invalid phase transition")
 	ErrManifestNotFound  = errors.New("manifest file not found")
+	ErrInvalidReminder   = errors.New(`a concern reminder must be a string or an object with a "text" string`)
+	ErrInvalidScope      = errors.New("invalid concern scope")
 )
 
 // =============================================================================
@@ -229,11 +235,15 @@ type DiscoveryState struct {
 
 // SpecSectionDefinition describes one section contributed by a concern.
 type SpecSectionDefinition struct {
-	ID          string  `json:"id"`
-	Title       string  `json:"title"`
-	Placeholder string  `json:"placeholder"`
-	Condition   *string `json:"condition"`
-	Position    string  `json:"position"`
+	ID          string `json:"id"`
+	Title       string `json:"title"`
+	Placeholder string `json:"placeholder"`
+	// Scope lists where the section applies; empty means every spec.
+	Scope []ConcernScope `json:"scope,omitempty"`
+	// Condition is the older form of Scope: one classification flag name
+	// (for example "involvesCLI"), or nil. When both are set, both must hold.
+	Condition *string `json:"condition"`
+	Position  string  `json:"position"`
 }
 
 // ContributorEntry records a contributor's last action on a spec.
@@ -496,6 +506,20 @@ type NoskillsUserConfig struct {
 	Email string `json:"email" yaml:"email"`
 }
 
+// DefaultCommandPrefix is the command a new manifest records (mirrors
+// DEFAULT_COMMAND_PREFIX in state/schema.ts). Compile falls back to it when
+// NosManifest.Command is empty.
+const DefaultCommandPrefix = "npx eser@latest noskills"
+
+// DefaultAgentProvider and DefaultAgentModel are the @eserstack/ai provider and
+// model `noskills run` drives, which the transition validator also uses when
+// the manifest names no other (mirrors DEFAULT_AGENT_PROVIDER and
+// DEFAULT_AGENT_MODEL in state/schema.ts).
+const (
+	DefaultAgentProvider = "claude-code"
+	DefaultAgentModel    = "claude-sonnet-5"
+)
+
 // NosManifest mirrors the noskills section inside .eser/manifest.yml.
 type NosManifest struct {
 	Concerns                   []string            `json:"concerns"                  yaml:"concerns"`
@@ -508,11 +532,80 @@ type NosManifest struct {
 	Command                    string              `json:"command"                   yaml:"command"`
 	User                       *NoskillsUserConfig `json:"user,omitempty"            yaml:"user,omitempty"`
 	DefaultReviewPosture       *ReviewPosture      `json:"defaultReviewPosture,omitempty" yaml:"defaultReviewPosture,omitempty"`
+	// Validate turns on cross-model validation of the end of discovery and the
+	// spec proposal, and names the agent that runs it (see validation.go).
+	Validate *ValidatorConfig `json:"validate,omitempty" yaml:"validate,omitempty"`
+}
+
+// ValidatorConfig is the `validate` entry of the manifest's noskills section
+// (mirrors ValidatorConfig in state/schema.ts). ResolveValidatorSettings
+// checks it before use.
+type ValidatorConfig struct {
+	// Agent is an @eserstack/ai provider name, such as claude-code or anthropic.
+	Agent string `json:"agent" yaml:"agent"`
+	// Model is the model id that provider runs.
+	Model string `json:"model" yaml:"model"`
 }
 
 // =============================================================================
 // Concern Definition (.eser/concerns/*.json)
 // =============================================================================
+
+// ConcernScope names where a piece of concern content applies (mirrors
+// ConcernScope in state/schema.ts). Each value stands for one
+// SpecClassification flag; see ScopeMatchesClassification.
+type ConcernScope = string
+
+const (
+	ConcernScopeUI        ConcernScope = "ui"        // InvolvesWebUI
+	ConcernScopeAPI       ConcernScope = "api"       // InvolvesPublicAPI
+	ConcernScopeData      ConcernScope = "data"      // InvolvesDataHandling
+	ConcernScopeMigration ConcernScope = "migration" // InvolvesMigration
+)
+
+// ConcernReminder is one entry of ConcernDefinition.Reminders. In JSON it is
+// a plain string, which applies everywhere, or an object with "text" and an
+// optional "scope".
+type ConcernReminder struct {
+	Text  string
+	Scope []ConcernScope
+}
+
+// scopedReminderJSON is the object form of a ConcernReminder.
+type scopedReminderJSON struct {
+	Text  *string        `json:"text"`
+	Scope []ConcernScope `json:"scope,omitempty"`
+}
+
+// UnmarshalJSON reads a reminder written as a string or as an object with a
+// "text" string. The scope values are checked by ValidateConcernScopes.
+func (r *ConcernReminder) UnmarshalJSON(data []byte) error {
+	var text string
+	if err := json.Unmarshal(data, &text); err == nil {
+		*r = ConcernReminder{Text: text, Scope: nil}
+
+		return nil
+	}
+
+	var obj scopedReminderJSON
+	if err := json.Unmarshal(data, &obj); err != nil || obj.Text == nil {
+		return fmt.Errorf("%w: got %s", ErrInvalidReminder, data)
+	}
+
+	*r = ConcernReminder{Text: *obj.Text, Scope: obj.Scope}
+
+	return nil
+}
+
+// MarshalJSON writes a reminder without a scope as a plain string, so a
+// concern file keeps its shape when it is written back.
+func (r ConcernReminder) MarshalJSON() ([]byte, error) {
+	if len(r.Scope) == 0 {
+		return json.Marshal(r.Text)
+	}
+
+	return json.Marshal(scopedReminderJSON{Text: &r.Text, Scope: r.Scope})
+}
 
 // ConcernExtra is an additional discovery question added by a concern.
 type ConcernExtra struct {
@@ -526,7 +619,7 @@ type ReviewDimension struct {
 	Label            string `json:"label"`
 	Prompt           string `json:"prompt"`
 	EvidenceRequired bool   `json:"evidenceRequired"`
-	Scope            string `json:"scope"` // "all" | "ui" | "api" | "data"
+	Scope            string `json:"scope"` // "all" | "ui" | "api" | "data" | "migration"
 }
 
 // ConcernLifecycle controls when and how a concern fires.
@@ -543,7 +636,7 @@ type ConcernDefinition struct {
 	Description        string             `json:"description"`
 	Extras             []ConcernExtra     `json:"extras"`
 	SpecSections       []any              `json:"specSections"` // string | SpecSectionDefinition
-	Reminders          []string           `json:"reminders"`
+	Reminders          []ConcernReminder  `json:"reminders"`
 	AcceptanceCriteria []string           `json:"acceptanceCriteria"`
 	ReviewDimensions   []ReviewDimension  `json:"reviewDimensions,omitempty"`
 	Registries         []string           `json:"registries,omitempty"`

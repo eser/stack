@@ -1,7 +1,8 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import { assertEquals } from "@std/assert";
-import { FileTokenStore } from "./file-token-store.ts";
+import * as assert from "@std/assert";
+import { runtime } from "@eserstack/standards/cross-runtime";
+import * as fileTokenStore from "./file-token-store.ts";
 
 const tokens = {
   accessToken: "DUMMY-ACCESS",
@@ -20,28 +21,46 @@ Deno.test({
     try {
       const dir = `${root}/.eser/posts`;
       const file = `${dir}/tokens.json`;
-      const store = new FileTokenStore(file);
+      const store = new fileTokenStore.FileTokenStore(file);
 
       await store.save("twitter", tokens);
-      assertEquals(await modeOf(dir), 0o700);
-      assertEquals(await modeOf(file), 0o600);
+      assert.assertEquals(await modeOf(dir), 0o700);
+      assert.assertEquals(await modeOf(file), 0o600);
 
       // A store left by an earlier version at default permissions.
       await Deno.chmod(dir, 0o755);
       await Deno.chmod(file, 0o644);
       await store.save("bluesky", tokens);
-      assertEquals(await modeOf(dir), 0o700);
-      assertEquals(await modeOf(file), 0o600);
+      assert.assertEquals(await modeOf(dir), 0o700);
+      assert.assertEquals(await modeOf(file), 0o600);
 
       const loaded = await store.load("twitter");
-      assertEquals(loaded?.accessToken, "DUMMY-ACCESS");
+      assert.assertEquals(loaded?.accessToken, "DUMMY-ACCESS");
 
       // No temp files are left beside the store.
       const names = [];
       for await (const e of Deno.readDir(dir)) names.push(e.name);
-      assertEquals(names, ["tokens.json"]);
+      assert.assertEquals(names, ["tokens.json"]);
     } finally {
       await Deno.remove(root, { recursive: true });
     }
   },
+});
+
+Deno.test("a corrupt token file fails with its path and without its content", async () => {
+  const { fs, path } = runtime;
+  const root = await fs.makeTempDir();
+  try {
+    const file = path.join(root, "tokens.json");
+    await fs.writeTextFile(file, '{"twitter":{"accessToken":"SECRET-TOKEN"');
+    const store = new fileTokenStore.FileTokenStore(file);
+
+    const error = await assert.assertRejects(() => store.load("twitter"));
+
+    assert.assertInstanceOf(error, Error);
+    assert.assertStringIncludes(error.message, file);
+    assert.assertEquals(error.message.includes("SECRET-TOKEN"), false);
+  } finally {
+    await fs.remove(root, { recursive: true });
+  }
 });

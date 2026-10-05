@@ -6,18 +6,31 @@
  */
 
 import type { ImageAttributes, ImageProps, ParsedImageSrc } from "./types.ts";
-import { OBJECT_FIT_CLASSES } from "./presets.ts";
+import * as presets from "./presets.ts";
 
 /**
  * Parse image source URL into base path and extension
+ *
+ * The extension is what follows the last dot of the file name, the last path
+ * segment. A dot in the host or a directory is not an extension, so a source
+ * whose file name has no dot gets `ext: ""` and the whole source as its base
+ * path. A query or fragment after the extension stays with it
+ * (`"photo.jpg?v=3"` gives `ext: "jpg?v=3"`).
  *
  * @param src - Image source URL
  * @returns Parsed source with basePath and ext
  */
 export function parseImageSrc(src: string): ParsedImageSrc {
-  const ext = src.split(".").pop() ?? "";
-  const basePath = src.replace(`.${ext}`, "");
-  return { basePath, ext };
+  const queryStart = src.search(/[?#]/);
+  const pathEnd = queryStart === -1 ? src.length : queryStart;
+  const fileNameStart = src.lastIndexOf("/", pathEnd - 1) + 1;
+  const dot = src.lastIndexOf(".", pathEnd - 1);
+
+  if (dot < fileNameStart) {
+    return { basePath: src, ext: "" };
+  }
+
+  return { basePath: src.slice(0, dot), ext: src.slice(dot + 1) };
 }
 
 /**
@@ -38,30 +51,20 @@ export function buildImageAttributes(props: ImageProps): ImageAttributes {
     srcSet,
   } = props;
 
-  const objectFitClass = OBJECT_FIT_CLASSES[objectFit];
+  const objectFitClass = presets.OBJECT_FIT_CLASSES[objectFit];
   const combinedClassName = `${objectFitClass} ${className}`.trim();
 
   return {
     alt,
     width,
     height,
-    className: combinedClassName || undefined,
+    className: combinedClassName === "" ? undefined : combinedClassName,
     loading: priority ? "eager" : "lazy",
     decoding: "async",
     fetchPriority: priority ? "high" : "auto",
     sizes,
     srcSet,
   };
-}
-
-/**
- * Build error handler script for fallback images
- *
- * @param fallback - Fallback image URL
- * @returns Inline script for onerror attribute
- */
-export function buildFallbackHandler(fallback: string): string {
-  return `(function(e) { if (e.target.src !== '${fallback}') e.target.src = '${fallback}'; })(event)`;
 }
 
 /**

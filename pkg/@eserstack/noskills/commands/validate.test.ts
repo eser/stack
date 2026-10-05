@@ -7,22 +7,22 @@
  * based on spec completeness via a real temp-dir fixture.
  */
 
-import { afterEach, beforeEach, describe, it } from "@std/testing/bdd";
-import { assertEquals } from "@std/assert";
+import * as bdd from "@std/testing/bdd";
+import * as assert from "@std/assert";
 import * as crossRuntime from "@eserstack/standards/cross-runtime";
 import * as results from "@eserstack/primitives/results";
 import * as schema from "../state/schema.ts";
 import * as machine from "../state/machine.ts";
 import * as persistence from "../state/persistence.ts";
-import { main } from "./validate.ts";
+import * as validate from "./validate.ts";
 
 // =============================================================================
 // Module structure
 // =============================================================================
 
-describe("noskills validate: module structure", () => {
-  it("exports main as a function", () => {
-    assertEquals(typeof main, "function");
+bdd.describe("noskills validate: module structure", () => {
+  bdd.it("exports main as a function", () => {
+    assert.assertEquals(typeof validate.main, "function");
   });
 });
 
@@ -30,16 +30,16 @@ describe("noskills validate: module structure", () => {
 // Missing spec-name argument
 // =============================================================================
 
-describe({
+bdd.describe({
   name: "noskills validate: no spec name",
   sanitizeOps: false,
   sanitizeResources: false,
   fn: () => {
-    it("returns exit code 1 when no spec name provided", async () => {
-      const result = await main([]);
-      assertEquals(results.isFail(result), true);
+    bdd.it("returns exit code 1 when no spec name provided", async () => {
+      const result = await validate.main([]);
+      assert.assertEquals(results.isFail(result), true);
       if (results.isFail(result)) {
-        assertEquals(result.error.exitCode, 1);
+        assert.assertEquals(result.error.exitCode, 1);
       }
     });
   },
@@ -51,12 +51,12 @@ describe({
 
 let tempDir: string;
 
-describe({
+bdd.describe({
   name: "noskills validate: completeness checks",
   sanitizeOps: false,
   sanitizeResources: false,
   fn: () => {
-    beforeEach(async () => {
+    bdd.beforeEach(async () => {
       tempDir = await crossRuntime.runtime.fs.makeTempDir({
         prefix: "validate_test_",
       });
@@ -64,45 +64,49 @@ describe({
         `${tempDir}/.eser/.state/progresses/specs/my-spec`,
         { recursive: true },
       );
-      // Point validate.ts → resolveProjectRoot() at our temp dir
-      crossRuntime.runtime.env.set("NOSKILLS_PROJECT_ROOT", tempDir);
     });
 
-    afterEach(async () => {
-      crossRuntime.runtime.env.delete("NOSKILLS_PROJECT_ROOT");
+    bdd.afterEach(async () => {
       await crossRuntime.runtime.fs.remove(tempDir, { recursive: true });
     });
 
-    it("returns exit code 0 when all visible sections are filled", async () => {
-      const base = schema.createInitialState();
-      const started = machine.startSpec(base, "my-spec", "spec/my-spec");
-      const withFilledPlaceholders: schema.StateFile = {
-        ...started,
-        specState: {
-          path: "spec/my-spec",
-          status: "draft",
-          metadata: schema.EMPTY_SPEC_METADATA,
-          placeholders: [
-            { sectionId: "summary", sectionTitle: "Summary", status: "filled" },
-            {
-              sectionId: "problem-statement",
-              sectionTitle: "Problem Statement",
-              status: "filled",
-            },
-          ],
-        },
-      };
-      await persistence.writeSpecState(
-        tempDir,
-        "my-spec",
-        withFilledPlaceholders,
-      );
+    bdd.it(
+      "returns exit code 0 when all visible sections are filled",
+      async () => {
+        const base = schema.createInitialState();
+        const started = machine.startSpec(base, "my-spec", "spec/my-spec");
+        const withFilledPlaceholders: schema.StateFile = {
+          ...started,
+          specState: {
+            path: "spec/my-spec",
+            status: "draft",
+            metadata: schema.EMPTY_SPEC_METADATA,
+            placeholders: [
+              {
+                sectionId: "summary",
+                sectionTitle: "Summary",
+                status: "filled",
+              },
+              {
+                sectionId: "problem-statement",
+                sectionTitle: "Problem Statement",
+                status: "filled",
+              },
+            ],
+          },
+        };
+        await persistence.writeSpecState(
+          tempDir,
+          "my-spec",
+          withFilledPlaceholders,
+        );
 
-      const result = await main(["my-spec"]);
-      assertEquals(results.isOk(result), true);
-    });
+        const result = await validate.main(["my-spec"], tempDir);
+        assert.assertEquals(results.isOk(result), true);
+      },
+    );
 
-    it("returns exit code 1 when a placeholder remains", async () => {
+    bdd.it("returns exit code 1 when a placeholder remains", async () => {
       const base = schema.createInitialState();
       const started = machine.startSpec(base, "my-spec", "spec/my-spec");
       const withUnresolved: schema.StateFile = {
@@ -122,14 +126,14 @@ describe({
       };
       await persistence.writeSpecState(tempDir, "my-spec", withUnresolved);
 
-      const result = await main(["my-spec"]);
-      assertEquals(results.isFail(result), true);
+      const result = await validate.main(["my-spec"], tempDir);
+      assert.assertEquals(results.isFail(result), true);
       if (results.isFail(result)) {
-        assertEquals(result.error.exitCode, 1);
+        assert.assertEquals(result.error.exitCode, 1);
       }
     });
 
-    it("returns exit code 1 when a pending decision exists", async () => {
+    bdd.it("returns exit code 1 when a pending decision exists", async () => {
       const base = schema.createInitialState();
       const started = machine.startSpec(base, "my-spec", "spec/my-spec");
       const withDecision: schema.StateFile = {
@@ -154,8 +158,8 @@ describe({
       };
       await persistence.writeSpecState(tempDir, "my-spec", withDecision);
 
-      const result = await main(["my-spec"]);
-      assertEquals(results.isFail(result), true);
+      const result = await validate.main(["my-spec"], tempDir);
+      assert.assertEquals(results.isFail(result), true);
     });
   },
 });

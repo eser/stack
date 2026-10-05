@@ -1,12 +1,16 @@
 #!/usr/bin/env -S deno run --allow-read --allow-write --allow-env --allow-run
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+// This CLI prints manifests and kubectl commands on stdout for piping and
+// eval, and its errors and warnings on stderr, so it writes through console.
+// deno-lint-ignore-file no-console
+
 import * as cli from "@std/cli/parse-args";
 import * as results from "@eserstack/primitives/results";
 import { runtime } from "@eserstack/standards/cross-runtime";
-import * as shellArgs from "@eserstack/shell/args";
-import { generate } from "./generate.ts";
-import { sync } from "./sync.ts";
+import type * as shellArgs from "@eserstack/shell/args";
+import * as generate from "./generate.ts";
+import * as sync from "./sync.ts";
 import type { KubectlResourceReference, SyncOptions } from "./types.ts";
 
 const VERSION = "0.1.0";
@@ -168,7 +172,7 @@ async function handleGenerate(
   kubectlResource: KubectlResourceReference,
 ): Promise<shellArgs.CliResult<void>> {
   try {
-    const result = await generate({
+    const result = await generate.generate({
       format: options.output ?? "yaml",
       resource: kubectlResource,
       namespace: options.namespace,
@@ -201,9 +205,14 @@ async function handleSync(
       env: options.env,
       format: options.output,
       stringOnly: options.stringOnly,
+      onMissingKey: (key) => {
+        console.warn(
+          `Warning: ${key} is in ${kubectlResource.type}/${kubectlResource.name} but not in the environment, so the patch leaves it out; define it in the .env file to sync it.`,
+        );
+      },
     };
 
-    const result = await sync(kubectlOptions);
+    const result = await sync.sync(kubectlOptions);
     console.log(result);
     return results.ok(undefined);
   } catch (error) {
@@ -254,6 +263,8 @@ async function main(): Promise<shellArgs.CliResult<void>> {
 
 // Run the CLI if this file is executed directly
 if (import.meta.main) {
+  // CLI entry point: runs only when executed directly, never on import.
+  // deno-lint-ignore no-top-level-await
   const result = await main();
   results.match(result, {
     ok: () => {},

@@ -10,7 +10,6 @@
   },
   "dependencies": {
     "@eserstack/ajan": "workspace:*",
-    "@eserstack/primitives": "workspace:*",
     "@eserstack/standards": "workspace:*",
     "@eserstack/streams": "workspace:*",
     "@opentelemetry/api": "^1.9.1"

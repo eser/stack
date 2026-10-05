@@ -18,7 +18,7 @@ import (
 func TestJSONResultIsServedAsJSON(t *testing.T) {
 	t.Parallel()
 
-	router := httpfx.NewRouter("/")
+	router := newTestRouter()
 	router.Route("GET /payload", func(ctx *httpfx.Context) httpfx.Result {
 		return ctx.Results.JSON(map[string]string{"hello": "world"})
 	})
@@ -43,7 +43,7 @@ func TestJSONResultIsServedAsJSON(t *testing.T) {
 func TestPlainTextResultIsServedAsPlainText(t *testing.T) {
 	t.Parallel()
 
-	router := httpfx.NewRouter("/")
+	router := newTestRouter()
 	router.Route("GET /text", func(ctx *httpfx.Context) httpfx.Result {
 		return ctx.Results.PlainText([]byte("hello"))
 	})
@@ -66,7 +66,7 @@ func TestPlainTextResultIsServedAsPlainText(t *testing.T) {
 func TestUntypedResultKeepsSniffing(t *testing.T) {
 	t.Parallel()
 
-	router := httpfx.NewRouter("/")
+	router := newTestRouter()
 	router.Route("GET /bytes", func(ctx *httpfx.Context) httpfx.Result {
 		return ctx.Results.Bytes([]byte("<html></html>"))
 	})

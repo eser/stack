@@ -5,6 +5,7 @@ package kitfx_test
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -13,6 +14,7 @@ import (
 	"testing"
 
 	"github.com/eser/stack/pkg/ajan/kitfx"
+	"github.com/eser/stack/pkg/ajan/lib"
 )
 
 // ── MissingVariables ──────────────────────────────────────────────────────────
@@ -408,7 +410,7 @@ func TestInstallDependencies_SuccessfulCommand(t *testing.T) {
 	t.Parallel()
 
 	cwd := t.TempDir()
-	results := kitfx.InstallDependencies([]string{"go version"}, cwd)
+	results := kitfx.InstallDependencies(t.Context(), []string{"go version"}, cwd)
 
 	if len(results) != 1 {
 		t.Fatalf("expected 1 result, got %d", len(results))
@@ -423,7 +425,7 @@ func TestInstallDependencies_FailingCommand(t *testing.T) {
 	t.Parallel()
 
 	cwd := t.TempDir()
-	results := kitfx.InstallDependencies([]string{"nonexistent-cmd-4567"}, cwd)
+	results := kitfx.InstallDependencies(t.Context(), []string{"nonexistent-cmd-4567"}, cwd)
 
 	if len(results) != 1 {
 		t.Fatalf("expected 1 result, got %d", len(results))
@@ -442,7 +444,7 @@ func TestInstallDependencies_EmptyInstruction(t *testing.T) {
 	t.Parallel()
 
 	cwd := t.TempDir()
-	results := kitfx.InstallDependencies([]string{""}, cwd)
+	results := kitfx.InstallDependencies(t.Context(), []string{""}, cwd)
 
 	if len(results) != 0 {
 		t.Errorf("expected 0 results for empty instruction, got %d", len(results))
@@ -453,7 +455,7 @@ func TestInstallDependencies_ContinuesAfterFailure(t *testing.T) {
 	t.Parallel()
 
 	cwd := t.TempDir()
-	results := kitfx.InstallDependencies([]string{"nonexistent-cmd-4567", "go version"}, cwd)
+	results := kitfx.InstallDependencies(t.Context(), []string{"nonexistent-cmd-4567", "go version"}, cwd)
 
 	if len(results) != 2 {
 		t.Fatalf("expected 2 results, got %d", len(results))
@@ -495,7 +497,7 @@ func TestApplyRecipeChain_SingleRecipe(t *testing.T) {
 
 	opts := kitfx.ApplyOptions{CWD: t.TempDir(), DryRun: true}
 
-	result, err := kitfx.ApplyRecipeChain("single", manifest, opts)
+	result, err := kitfx.ApplyRecipeChain(t.Context(), "single", manifest, opts)
 	if err != nil {
 		t.Fatalf("ApplyRecipeChain: %v", err)
 	}
@@ -529,7 +531,7 @@ func TestApplyRecipeChain_ChainOrder(t *testing.T) {
 
 	opts := kitfx.ApplyOptions{CWD: t.TempDir(), DryRun: true}
 
-	result, err := kitfx.ApplyRecipeChain("child", manifest, opts)
+	result, err := kitfx.ApplyRecipeChain(t.Context(), "child", manifest, opts)
 	if err != nil {
 		t.Fatalf("ApplyRecipeChain chain: %v", err)
 	}
@@ -548,7 +550,7 @@ func TestApplyRecipeChain_UnknownRecipe_Error(t *testing.T) {
 
 	manifest := &kitfx.RegistryManifest{Name: "test"}
 
-	_, err := kitfx.ApplyRecipeChain("ghost", manifest, kitfx.ApplyOptions{CWD: t.TempDir()})
+	_, err := kitfx.ApplyRecipeChain(t.Context(), "ghost", manifest, kitfx.ApplyOptions{CWD: t.TempDir()})
 	if err == nil {
 		t.Fatal("expected error for unknown recipe in chain")
 	}
@@ -578,7 +580,7 @@ func TestApplyRecipe_ConflictError_WhenFileExists(t *testing.T) {
 	}
 
 	// Force=false, SkipExisting=false → conflict error.
-	_, err := kitfx.ApplyRecipe(recipe, kitfx.ApplyOptions{CWD: cwd})
+	_, err := kitfx.ApplyRecipe(t.Context(), recipe, kitfx.ApplyOptions{CWD: cwd})
 	if err == nil {
 		t.Fatal("expected conflict error when file exists and Force=false, SkipExisting=false")
 	}
@@ -604,7 +606,7 @@ func TestApplyRecipe_SkipExisting_SkipsConflict(t *testing.T) {
 		Files: []kitfx.RecipeFile{{Source: srcFile, Target: "out.txt", Provider: kitfx.RecipeFileProviderLocal}},
 	}
 
-	result, err := kitfx.ApplyRecipe(recipe, kitfx.ApplyOptions{
+	result, err := kitfx.ApplyRecipe(t.Context(), recipe, kitfx.ApplyOptions{
 		CWD:          cwd,
 		SkipExisting: true,
 	})
@@ -649,7 +651,7 @@ func TestApplyRecipe_WriteFile_MkdirAllError(t *testing.T) {
 		}},
 	}
 
-	if _, err := kitfx.ApplyRecipe(recipe, kitfx.ApplyOptions{CWD: cwd}); err == nil {
+	if _, err := kitfx.ApplyRecipe(t.Context(), recipe, kitfx.ApplyOptions{CWD: cwd}); err == nil {
 		t.Fatal("expected MkdirAll error when parent path is a regular file, not a dir")
 	}
 }
@@ -680,7 +682,7 @@ func TestApplyRecipe_FolderKind_DryRun(t *testing.T) {
 	}
 
 	cwd := t.TempDir()
-	result, err := kitfx.ApplyRecipe(recipe, kitfx.ApplyOptions{CWD: cwd, DryRun: true})
+	result, err := kitfx.ApplyRecipe(t.Context(), recipe, kitfx.ApplyOptions{CWD: cwd, DryRun: true})
 	if err != nil {
 		t.Fatalf("ApplyRecipe folder dry-run: %v", err)
 	}
@@ -714,7 +716,7 @@ func TestApplyRecipe_FolderKind_WritesToDisk(t *testing.T) {
 	}
 
 	cwd := t.TempDir()
-	result, err := kitfx.ApplyRecipe(recipe, kitfx.ApplyOptions{CWD: cwd})
+	result, err := kitfx.ApplyRecipe(t.Context(), recipe, kitfx.ApplyOptions{CWD: cwd})
 	if err != nil {
 		t.Fatalf("ApplyRecipe folder: %v", err)
 	}
@@ -754,7 +756,7 @@ func TestApplyRecipe_PostInstall_RunsCommand(t *testing.T) {
 		PostInstall: []string{"go version"},
 	}
 
-	result, err := kitfx.ApplyRecipe(recipe, kitfx.ApplyOptions{CWD: cwd, DryRun: false})
+	result, err := kitfx.ApplyRecipe(t.Context(), recipe, kitfx.ApplyOptions{CWD: cwd, DryRun: false})
 	if err != nil {
 		t.Fatalf("ApplyRecipe post-install: %v", err)
 	}
@@ -783,7 +785,7 @@ func TestApplyRecipe_PostInstall_FailingCommand_NonFatal(t *testing.T) {
 	}
 
 	// Failing post-install is non-fatal — ApplyRecipe should still succeed.
-	result, err := kitfx.ApplyRecipe(recipe, kitfx.ApplyOptions{CWD: cwd, DryRun: false})
+	result, err := kitfx.ApplyRecipe(t.Context(), recipe, kitfx.ApplyOptions{CWD: cwd, DryRun: false})
 	if err != nil {
 		t.Fatalf("ApplyRecipe must not fail for failing post-install: %v", err)
 	}
@@ -791,6 +793,10 @@ func TestApplyRecipe_PostInstall_FailingCommand_NonFatal(t *testing.T) {
 	// Command is still appended to PostInstallRan even if it failed.
 	if len(result.PostInstallRan) != 1 {
 		t.Errorf("expected 1 post-install ran, got %v", result.PostInstallRan)
+	}
+
+	if len(result.PostInstallFailed) != 1 || result.PostInstallFailed[0] != "nonexistent-postinstall-cmd" {
+		t.Errorf("expected the command in PostInstallFailed, got %v", result.PostInstallFailed)
 	}
 }
 
@@ -812,7 +818,7 @@ func TestApplyRecipe_PostInstall_EmptyCommand_Noop(t *testing.T) {
 		PostInstall: []string{""}, // empty string → strings.Fields returns [] → return nil
 	}
 
-	result, err := kitfx.ApplyRecipe(recipe, kitfx.ApplyOptions{CWD: cwd})
+	result, err := kitfx.ApplyRecipe(t.Context(), recipe, kitfx.ApplyOptions{CWD: cwd})
 	if err != nil {
 		t.Fatalf("empty post-install command must not error: %v", err)
 	}
@@ -843,7 +849,7 @@ func TestFetchRecipeFolder_LocalProvider_ReadsFiles(t *testing.T) {
 		Provider: kitfx.RecipeFileProviderLocal,
 	}
 
-	files, err := kitfx.FetchRecipeFolder(f, &kitfx.Recipe{}, "")
+	files, err := kitfx.FetchRecipeFolder(t.Context(), f, &kitfx.Recipe{}, "")
 	if err != nil {
 		t.Fatalf("FetchRecipeFolder: %v", err)
 	}
@@ -864,7 +870,7 @@ func TestFetchRecipeFolder_EmptyDir(t *testing.T) {
 		Kind:     kitfx.RecipeFileKindFolder,
 	}
 
-	files, err := kitfx.FetchRecipeFolder(f, &kitfx.Recipe{}, "")
+	files, err := kitfx.FetchRecipeFolder(t.Context(), f, &kitfx.Recipe{}, "")
 	if err != nil {
 		t.Fatalf("unexpected error for empty dir: %v", err)
 	}
@@ -890,7 +896,7 @@ func TestFetchRegistry_HTTPUrl_ReturnsManifest(t *testing.T) {
 	}))
 	defer server.Close()
 
-	got, err := kitfx.FetchRegistry(".", server.URL)
+	got, err := kitfx.FetchRegistry(t.Context(), ".", server.URL)
 	if err != nil {
 		t.Fatalf("FetchRegistry HTTP: %v", err)
 	}
@@ -908,7 +914,7 @@ func TestFetchRegistry_HTTPUrl_Non200_Error(t *testing.T) {
 	}))
 	defer server.Close()
 
-	_, err := kitfx.FetchRegistry(".", server.URL)
+	_, err := kitfx.FetchRegistry(t.Context(), ".", server.URL)
 	if err == nil {
 		t.Fatal("expected error for HTTP 404 response")
 	}
@@ -923,9 +929,65 @@ func TestFetchRegistry_HTTPUrl_InvalidJSON_Error(t *testing.T) {
 	}))
 	defer server.Close()
 
-	_, err := kitfx.FetchRegistry(".", server.URL)
+	_, err := kitfx.FetchRegistry(t.Context(), ".", server.URL)
 	if err == nil {
 		t.Fatal("expected error for invalid JSON response")
+	}
+}
+
+func TestFetchRegistry_HTTPUrl_OversizedBody_Error(t *testing.T) {
+	t.Parallel()
+
+	// One byte past the 4 MiB registry response limit.
+	oversized := strings.Repeat(" ", 4<<20+1)
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(oversized))
+	}))
+	defer server.Close()
+
+	_, err := kitfx.FetchRegistry(t.Context(), ".", server.URL)
+	if !errors.Is(err, lib.ErrReadLimitExceeded) {
+		t.Fatalf("expected an error wrapping lib.ErrReadLimitExceeded, got %v", err)
+	}
+}
+
+func TestFetchRegistry_HTTPUrl_CancelledContext_Error(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"name":"never-read"}`))
+	}))
+	defer server.Close()
+
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+
+	_, err := kitfx.FetchRegistry(ctx, ".", server.URL)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected an error wrapping context.Canceled, got %v", err)
+	}
+}
+
+func TestApplyRecipe_CancelledContextStopsPostInstall(t *testing.T) {
+	t.Parallel()
+
+	recipe := &kitfx.Recipe{Name: "post-only", PostInstall: []string{"true", "true"}}
+
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+
+	result, err := kitfx.ApplyRecipe(ctx, recipe, kitfx.ApplyOptions{CWD: t.TempDir()})
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected an error wrapping context.Canceled, got %v", err)
+	}
+
+	if !strings.Contains(err.Error(), "after 0 of 2 commands") {
+		t.Errorf("expected the error to say how far post-install got, got %v", err)
+	}
+
+	if len(result.PostInstallRan) != 0 {
+		t.Errorf("expected no post-install command to run, got %v", result.PostInstallRan)
 	}
 }
 
@@ -937,7 +999,7 @@ func TestFetchRegistry_FilePath_NotFound_Error(t *testing.T) {
 	t.Parallel()
 
 	// Passing a non-existent file path (not http, not empty) → fetchRegistryFile → error.
-	_, err := kitfx.FetchRegistry(".", "/nonexistent-path/eser-registry.json")
+	_, err := kitfx.FetchRegistry(t.Context(), ".", "/nonexistent-path/eser-registry.json")
 	if err == nil {
 		t.Fatal("expected error for nonexistent registry file")
 	}
@@ -954,7 +1016,7 @@ func TestFetchRecipeFile_LocalProvider_FileNotFound_Error(t *testing.T) {
 		Provider: kitfx.RecipeFileProviderLocal,
 	}
 
-	_, err := kitfx.FetchRecipeFile(f, &kitfx.Recipe{}, "")
+	_, err := kitfx.FetchRecipeFile(t.Context(), f, &kitfx.Recipe{}, "")
 	if err == nil {
 		t.Fatal("expected error for nonexistent source file")
 	}
@@ -972,7 +1034,7 @@ func TestFetchRecipeFile_GitHubProvider_NonRepoURL_Error(t *testing.T) {
 	}
 
 	// "just-a-name" is a name specifier, not a repo specifier.
-	_, err := kitfx.FetchRecipeFile(f, &kitfx.Recipe{}, "just-a-name")
+	_, err := kitfx.FetchRecipeFile(t.Context(), f, &kitfx.Recipe{}, "just-a-name")
 	if err == nil {
 		t.Fatal("expected error for GitHub provider with non-repo registry URL")
 	}
@@ -990,7 +1052,7 @@ func TestFetchRecipeFolder_GitHubProvider_NonRepoURL_Error(t *testing.T) {
 		Kind:     kitfx.RecipeFileKindFolder,
 	}
 
-	_, err := kitfx.FetchRecipeFolder(f, &kitfx.Recipe{}, "not-a-repo-url")
+	_, err := kitfx.FetchRecipeFolder(t.Context(), f, &kitfx.Recipe{}, "not-a-repo-url")
 	if err == nil {
 		t.Fatal("expected error for GitHub provider with non-repo registry URL")
 	}

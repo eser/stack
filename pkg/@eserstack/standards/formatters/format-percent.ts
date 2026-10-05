@@ -13,8 +13,10 @@ const DEFAULT_DECIMALS = 1;
  *
  * @example
  * ```typescript
- * formatPercent(0.75, 1, true);  // "75.0%"
- * formatPercent(75.5, 1, false); // "75.5%"
+ * import * as standards from "@eserstack/standards";
+ *
+ * standards.formatters.formatPercent(0.75, 1, true);  // "75.0%"
+ * standards.formatters.formatPercent(75.5, 1, false); // "75.5%"
  * ```
  */
 export const formatPercent = (

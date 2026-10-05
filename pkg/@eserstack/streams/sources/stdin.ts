@@ -2,8 +2,13 @@
 
 import { runtime } from "@eserstack/standards/cross-runtime";
 import type { Source } from "../types.ts";
-import { createChunk } from "../chunk.ts";
+import * as chunk from "../chunk.ts";
 
+/**
+ * Creates a source that reads the process stdin as `bytes` chunks.
+ *
+ * @returns A source named `stdin`
+ */
 export const stdin = (): Source<Uint8Array> => {
   const stdinStream = runtime.process.stdin;
 
@@ -12,7 +17,7 @@ export const stdin = (): Source<Uint8Array> => {
     readable: stdinStream.pipeThrough(
       new TransformStream({
         transform(bytes, controller) {
-          controller.enqueue(createChunk(bytes, { kind: "bytes" }));
+          controller.enqueue(chunk.createChunk(bytes, { kind: "bytes" }));
         },
       }),
     ),

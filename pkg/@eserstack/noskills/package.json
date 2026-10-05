@@ -12,6 +12,7 @@
     "./go-noskills": "./go-noskills.ts"
   },
   "dependencies": {
+    "@eemeli/yaml": "npm:@jsr/eemeli__yaml@^2.9.1",
     "@eserstack/agents": "workspace:*",
     "@eserstack/ai": "workspace:*",
     "@eserstack/ajan": "workspace:*",
@@ -21,8 +22,7 @@
     "@eserstack/shell": "workspace:*",
     "@eserstack/standards": "workspace:*",
     "@eserstack/streams": "workspace:*",
-    "esbuild": "^0.28.2",
-    "yaml": "^2.9.1"
+    "esbuild": "^0.28.2"
   },
   "devDependencies": {
     "@std/assert": "npm:@jsr/std__assert@^1.0.19",

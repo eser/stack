@@ -6,9 +6,23 @@
  * @module
  */
 
-import { Module } from "@eserstack/shell/module";
+import * as module from "@eserstack/shell/module";
 
-export const moduleDef: Module = new Module({
+/** The command module type, `Module` from `@eserstack/shell/module`. */
+export type Module = module.Module;
+
+/**
+ * The `kit` command group: `add`, `list`, `new` (alias `create`), `clone` and
+ * `update`. A command's module loads when that command runs.
+ *
+ * @example
+ * ```typescript
+ * import * as kit from "@eserstack/kit/mod";
+ *
+ * const command = kit.moduleDef.toCommand("kit", "1.0.0");
+ * ```
+ */
+export const moduleDef: Module = new module.Module({
   description: "Kit — recipes, templates, project creation",
   modules: {
     add: {

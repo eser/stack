@@ -10,7 +10,7 @@
 
 import * as span from "@eserstack/streams/span";
 import * as symbols from "./symbols.ts";
-import * as types from "./types.ts";
+import type * as types from "./types.ts";
 
 /**
  * Frame the start of a CLI session.
@@ -69,17 +69,6 @@ export const messageDetached = (
 };
 
 /**
- * Semantic log messages using the alert span system.
- *
- * ```
- * ℹ  Processing...     (info — cyan)
- * ✓  All done!         (success — green)
- * ▲  Disk almost full  (warn — yellow)
- * ✗  Build failed      (error — red)
- * ◇  Step 1 of 3       (step — dim)
- * ```
- */
-/**
  * Visual separator between logical groups — a bare connector line.
  *
  * ```
@@ -90,6 +79,19 @@ export const gap = (ctx: types.TuiContext): void => {
   ctx.output.writeln(span.gray(symbols.BAR));
 };
 
+/**
+ * Semantic log messages using the alert span system. Each method writes one
+ * line to `ctx.output`; `message` takes an optional leading symbol instead of
+ * the bar.
+ *
+ * ```
+ * ℹ  Processing...     (info, cyan)
+ * ✓  All done!         (success, green)
+ * ▲  Disk almost full  (warn, yellow)
+ * ✗  Build failed      (error, red)
+ * ◇  Step 1 of 3       (step, dim)
+ * ```
+ */
 export const log = {
   info: (ctx: types.TuiContext, message: string): void => {
     ctx.output.writeln(span.alert("info", message));

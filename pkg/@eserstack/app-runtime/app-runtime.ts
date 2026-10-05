@@ -4,8 +4,8 @@ import * as runModes from "@eserstack/standards/run-modes";
 import * as events from "@eserstack/events";
 import * as services from "@eserstack/di/services";
 
-import { type Channel } from "./channel.ts";
-import { type Module } from "./module.ts";
+import type { Channel } from "./channel.ts";
+import type { Module } from "./module.ts";
 
 export type AppRuntimeState = {
   runMode: runModes.RunMode;
@@ -13,6 +13,8 @@ export type AppRuntimeState = {
   di: typeof services.di;
   channels: Map<string, Channel>;
   modules: Map<string, Module>;
+  // Public state type: narrowing it to `unknown` would change what code that
+  // reads the queue gets back.
   // deno-lint-ignore no-explicit-any
   awaits: Array<Promise<any>>;
 };
@@ -52,8 +54,14 @@ export class AppRuntime<S extends AppRuntimeState = AppRuntimeState> {
     this.state.di.set(AppRuntime.default, this);
   }
 
-  async awaitAll() {
-    await Promise.all(this.state.awaits);
-    this.state.awaits.splice(0);
+  /**
+   * Waits for the work queued in `state.awaits` and rejects with the first
+   * failure. The queue is emptied before the wait, so work queued meanwhile
+   * stays for the next call and a failed operation is not awaited twice.
+   */
+  async awaitAll(): Promise<void> {
+    const pending = this.state.awaits.splice(0);
+
+    await Promise.all(pending);
   }
 }

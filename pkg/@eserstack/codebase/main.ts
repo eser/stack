@@ -1,7 +1,14 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 /**
- * @eserstack/codebase — standalone CLI entry point.
+ * The standalone CLI of @eserstack/codebase. The package's `.` export runs this
+ * CLI, and the library is published at `/mod`:
+ *
+ * ```typescript
+ * import * as codebase from "@eserstack/codebase/mod";
+ *
+ * const packages = await codebase.discoverPackages(".");
+ * ```
  *
  * Usage:
  *   deno run --allow-all jsr:@eserstack/codebase versions
@@ -10,13 +17,14 @@
  * @module
  */
 
-import * as results from "@eserstack/primitives/results";
-import { moduleDef } from "./module.ts";
-import { exitCli } from "./cli-support.ts";
+import type * as results from "@eserstack/primitives/results";
+import * as module from "./module.ts";
+import * as cliSupport from "./cli-support.ts";
 import config from "./package.json" with { type: "json" };
 
-const app = moduleDef.toCommand("codebase", config.version);
+const app = module.moduleDef.toCommand("codebase", config.version);
 
+/** Parse the process arguments and run the matching codebase command. */
 export const main = async (): Promise<
   results.Result<void, { message?: string; exitCode: number }>
 > => {
@@ -24,5 +32,7 @@ export const main = async (): Promise<
 };
 
 if (import.meta.main) {
-  await exitCli(await main());
+  // Entry point: the await only runs when this file is executed directly.
+  // deno-lint-ignore no-top-level-await
+  await cliSupport.exitCli(await main());
 }

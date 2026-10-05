@@ -9,13 +9,8 @@
  */
 
 import type { Runtime, RuntimeCapabilities } from "../types.ts";
-import { posixPath } from "../polyfills/path.ts";
-import {
-  createStubEnv,
-  createStubExec,
-  createStubFs,
-  createStubProcess,
-} from "./shared.ts";
+import * as path from "../polyfills/path.ts";
+import * as shared from "./shared.ts";
 
 /**
  * Browser capabilities - very limited, no system access.
@@ -28,6 +23,7 @@ export const BROWSER_CAPABILITIES: RuntimeCapabilities = {
   env: false,
   stdin: false,
   stdout: false,
+  http: false,
   kv: false,
 } as const;
 
@@ -38,9 +34,10 @@ export const createBrowserRuntime = (): Runtime => ({
   name: "browser",
   version: globalThis.navigator?.userAgent ?? "unknown",
   capabilities: BROWSER_CAPABILITIES,
-  fs: createStubFs("browser"),
-  path: posixPath,
-  exec: createStubExec("browser"),
-  env: createStubEnv(),
-  process: createStubProcess("browser"),
+  fs: shared.createStubFs("browser"),
+  path: path.posixPath,
+  exec: shared.createStubExec("browser"),
+  env: shared.createStubEnv(),
+  process: shared.createStubProcess("browser"),
+  http: shared.createStubHttp("browser"),
 });

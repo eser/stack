@@ -1,31 +1,31 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 import * as assert from "@std/assert";
-import {
-  createTailwindRoot,
-  hasTailwindDirectives,
-  TailwindFeatures,
-} from "./tailwind-plugin.ts";
+import * as tailwindPlugin from "./tailwind-plugin.ts";
 
 // ============================================================================
 // TailwindFeatures tests
 // ============================================================================
 
 Deno.test("TailwindFeatures has correct flag values", () => {
-  assert.assertEquals(TailwindFeatures.None, 0);
-  assert.assertEquals(TailwindFeatures.AtApply, 1);
-  assert.assertEquals(TailwindFeatures.ThemeFunction, 2);
-  assert.assertEquals(TailwindFeatures.Utilities, 4);
-  assert.assertEquals(TailwindFeatures.JsPluginCompat, 8);
+  assert.assertEquals(tailwindPlugin.TailwindFeatures.None, 0);
+  assert.assertEquals(tailwindPlugin.TailwindFeatures.AtApply, 1);
+  assert.assertEquals(tailwindPlugin.TailwindFeatures.ThemeFunction, 2);
+  assert.assertEquals(tailwindPlugin.TailwindFeatures.Utilities, 4);
+  assert.assertEquals(tailwindPlugin.TailwindFeatures.JsPluginCompat, 8);
 });
 
 Deno.test("TailwindFeatures flags can be combined with bitwise OR", () => {
-  const combined = TailwindFeatures.AtApply | TailwindFeatures.Utilities;
+  const combined = tailwindPlugin.TailwindFeatures.AtApply |
+    tailwindPlugin.TailwindFeatures.Utilities;
 
   assert.assertEquals(combined, 5);
-  assert.assert((combined & TailwindFeatures.AtApply) !== 0);
-  assert.assert((combined & TailwindFeatures.Utilities) !== 0);
-  assert.assertEquals(combined & TailwindFeatures.ThemeFunction, 0);
+  assert.assert((combined & tailwindPlugin.TailwindFeatures.AtApply) !== 0);
+  assert.assert((combined & tailwindPlugin.TailwindFeatures.Utilities) !== 0);
+  assert.assertEquals(
+    combined & tailwindPlugin.TailwindFeatures.ThemeFunction,
+    0,
+  );
 });
 
 // ============================================================================
@@ -35,66 +35,66 @@ Deno.test("TailwindFeatures flags can be combined with bitwise OR", () => {
 Deno.test("hasTailwindDirectives detects @tailwind directive", () => {
   const css = "@tailwind base;\n.btn { color: red; }";
 
-  assert.assertEquals(hasTailwindDirectives(css), true);
+  assert.assertEquals(tailwindPlugin.hasTailwindDirectives(css), true);
 });
 
 Deno.test("hasTailwindDirectives detects @apply directive", () => {
   const css = ".btn { @apply px-4 py-2; }";
 
-  assert.assertEquals(hasTailwindDirectives(css), true);
+  assert.assertEquals(tailwindPlugin.hasTailwindDirectives(css), true);
 });
 
 Deno.test("hasTailwindDirectives detects @reference directive", () => {
   const css = '@reference "tailwindcss";\n.btn { color: blue; }';
 
-  assert.assertEquals(hasTailwindDirectives(css), true);
+  assert.assertEquals(tailwindPlugin.hasTailwindDirectives(css), true);
 });
 
 Deno.test("hasTailwindDirectives detects @theme directive", () => {
   const css = "@theme { --color-primary: blue; }";
 
-  assert.assertEquals(hasTailwindDirectives(css), true);
+  assert.assertEquals(tailwindPlugin.hasTailwindDirectives(css), true);
 });
 
 Deno.test("hasTailwindDirectives detects @import tailwindcss", () => {
   const css = '@import "tailwindcss";';
 
-  assert.assertEquals(hasTailwindDirectives(css), true);
+  assert.assertEquals(tailwindPlugin.hasTailwindDirectives(css), true);
 });
 
 Deno.test("hasTailwindDirectives detects @import with single quotes", () => {
   const css = "@import 'tailwindcss';";
 
-  assert.assertEquals(hasTailwindDirectives(css), true);
+  assert.assertEquals(tailwindPlugin.hasTailwindDirectives(css), true);
 });
 
 Deno.test("hasTailwindDirectives returns false for plain CSS", () => {
   const css = ".btn { color: red; background: blue; }";
 
-  assert.assertEquals(hasTailwindDirectives(css), false);
+  assert.assertEquals(tailwindPlugin.hasTailwindDirectives(css), false);
 });
 
 Deno.test("hasTailwindDirectives returns false for CSS with @media", () => {
   const css = "@media (min-width: 768px) { .btn { color: red; } }";
 
-  assert.assertEquals(hasTailwindDirectives(css), false);
+  assert.assertEquals(tailwindPlugin.hasTailwindDirectives(css), false);
 });
 
 Deno.test("hasTailwindDirectives returns false for CSS with @keyframes", () => {
   const css = "@keyframes fade { from { opacity: 0; } to { opacity: 1; } }";
 
-  assert.assertEquals(hasTailwindDirectives(css), false);
+  assert.assertEquals(tailwindPlugin.hasTailwindDirectives(css), false);
 });
 
 Deno.test("hasTailwindDirectives returns false for empty string", () => {
-  assert.assertEquals(hasTailwindDirectives(""), false);
+  assert.assertEquals(tailwindPlugin.hasTailwindDirectives(""), false);
 });
 
 Deno.test("hasTailwindDirectives handles CSS with comments", () => {
   const css = "/* @apply is commented out */\n.btn { color: red; }";
 
   // Note: This is a simple check, comments are included
-  assert.assertEquals(hasTailwindDirectives(css), true);
+  assert.assertEquals(tailwindPlugin.hasTailwindDirectives(css), true);
 });
 
 // ============================================================================
@@ -102,7 +102,7 @@ Deno.test("hasTailwindDirectives handles CSS with comments", () => {
 // ============================================================================
 
 Deno.test("createTailwindRoot returns object with compile and dispose methods", () => {
-  const root = createTailwindRoot({ base: "." });
+  const root = tailwindPlugin.createTailwindRoot({ base: "." });
 
   assert.assertExists(root.compile);
   assert.assertExists(root.dispose);
@@ -113,7 +113,7 @@ Deno.test("createTailwindRoot returns object with compile and dispose methods", 
 });
 
 Deno.test("createTailwindRoot.dispose can be called multiple times safely", () => {
-  const root = createTailwindRoot({ base: "." });
+  const root = tailwindPlugin.createTailwindRoot({ base: "." });
 
   // Should not throw
   root.dispose();
@@ -122,7 +122,7 @@ Deno.test("createTailwindRoot.dispose can be called multiple times safely", () =
 });
 
 Deno.test("createTailwindRoot accepts base option", () => {
-  const root = createTailwindRoot({ base: "/project/root" });
+  const root = tailwindPlugin.createTailwindRoot({ base: "/project/root" });
 
   assert.assertExists(root);
 
@@ -130,7 +130,10 @@ Deno.test("createTailwindRoot accepts base option", () => {
 });
 
 Deno.test("createTailwindRoot accepts sourceMaps option", () => {
-  const root = createTailwindRoot({ base: ".", sourceMaps: true });
+  const root = tailwindPlugin.createTailwindRoot({
+    base: ".",
+    sourceMaps: true,
+  });
 
   assert.assertExists(root);
 
@@ -138,7 +141,7 @@ Deno.test("createTailwindRoot accepts sourceMaps option", () => {
 });
 
 Deno.test("createTailwindRoot accepts minify option", () => {
-  const root = createTailwindRoot({ base: ".", minify: true });
+  const root = tailwindPlugin.createTailwindRoot({ base: ".", minify: true });
 
   assert.assertExists(root);
 
@@ -146,7 +149,7 @@ Deno.test("createTailwindRoot accepts minify option", () => {
 });
 
 Deno.test("createTailwindRoot accepts all options", () => {
-  const root = createTailwindRoot({
+  const root = tailwindPlugin.createTailwindRoot({
     base: "/app",
     sourceMaps: true,
     minify: true,
@@ -162,7 +165,7 @@ Deno.test("createTailwindRoot accepts all options", () => {
 // ============================================================================
 
 Deno.test("TailwindRoot.compile returns a Promise", () => {
-  const root = createTailwindRoot({ base: "." });
+  const root = tailwindPlugin.createTailwindRoot({ base: "." });
 
   // We can't actually run compile without Tailwind deps, but we can check return type
   const compileResult = root.compile(".btn { color: red; }", "test.css");
@@ -173,8 +176,8 @@ Deno.test("TailwindRoot.compile returns a Promise", () => {
 });
 
 Deno.test("Multiple TailwindRoot instances are independent", () => {
-  const root1 = createTailwindRoot({ base: "/project1" });
-  const root2 = createTailwindRoot({ base: "/project2" });
+  const root1 = tailwindPlugin.createTailwindRoot({ base: "/project1" });
+  const root2 = tailwindPlugin.createTailwindRoot({ base: "/project2" });
 
   assert.assertNotStrictEquals(root1, root2);
   assert.assertNotStrictEquals(root1.compile, root2.compile);
@@ -195,12 +198,12 @@ Deno.test("TailwindPluginOptions type can be constructed", () => {
   };
 
   // TypeScript compilation will fail if types are incorrect
-  const root = createTailwindRoot(options);
+  const root = tailwindPlugin.createTailwindRoot(options);
   root.dispose();
 });
 
 Deno.test("TailwindRoot methods have correct signatures", () => {
-  const root = createTailwindRoot({ base: "." });
+  const root = tailwindPlugin.createTailwindRoot({ base: "." });
 
   // compile takes (content: string, id: string) and returns Promise
   assert.assertEquals(root.compile.length, 2);
@@ -216,7 +219,10 @@ Deno.test("TailwindRoot methods have correct signatures", () => {
 // ============================================================================
 
 Deno.test("createTailwindRoot accepts autoInjectReference option", () => {
-  const root = createTailwindRoot({ base: ".", autoInjectReference: true });
+  const root = tailwindPlugin.createTailwindRoot({
+    base: ".",
+    autoInjectReference: true,
+  });
 
   assert.assertExists(root);
 
@@ -224,7 +230,10 @@ Deno.test("createTailwindRoot accepts autoInjectReference option", () => {
 });
 
 Deno.test("createTailwindRoot accepts autoInjectReference false", () => {
-  const root = createTailwindRoot({ base: ".", autoInjectReference: false });
+  const root = tailwindPlugin.createTailwindRoot({
+    base: ".",
+    autoInjectReference: false,
+  });
 
   assert.assertExists(root);
 
@@ -233,7 +242,7 @@ Deno.test("createTailwindRoot accepts autoInjectReference false", () => {
 
 Deno.test("createTailwindRoot defaults autoInjectReference to true", () => {
   // No explicit autoInjectReference - should default to true
-  const root = createTailwindRoot({ base: "." });
+  const root = tailwindPlugin.createTailwindRoot({ base: "." });
 
   assert.assertExists(root);
 
@@ -241,7 +250,7 @@ Deno.test("createTailwindRoot defaults autoInjectReference to true", () => {
 });
 
 Deno.test("createTailwindRoot with all options including autoInjectReference", () => {
-  const root = createTailwindRoot({
+  const root = tailwindPlugin.createTailwindRoot({
     base: "/app",
     sourceMaps: true,
     minify: true,
@@ -260,25 +269,25 @@ Deno.test("createTailwindRoot with all options including autoInjectReference", (
 Deno.test("hasTailwindDirectives detects @reference with relative file path", () => {
   const css = '@reference "./styles/global.css";\n.btn { @apply px-4; }';
 
-  assert.assertEquals(hasTailwindDirectives(css), true);
+  assert.assertEquals(tailwindPlugin.hasTailwindDirectives(css), true);
 });
 
 Deno.test("hasTailwindDirectives detects @reference with absolute file path", () => {
   const css = '@reference "/app/styles/global.css";\n.btn { color: red; }';
 
-  assert.assertEquals(hasTailwindDirectives(css), true);
+  assert.assertEquals(tailwindPlugin.hasTailwindDirectives(css), true);
 });
 
 Deno.test("hasTailwindDirectives detects @apply in nested selector", () => {
   const css = ".btn { &:hover { @apply bg-blue-500; } }";
 
-  assert.assertEquals(hasTailwindDirectives(css), true);
+  assert.assertEquals(tailwindPlugin.hasTailwindDirectives(css), true);
 });
 
 Deno.test("hasTailwindDirectives detects @apply in deeply nested selector", () => {
   const css = ".card { .header { &:active { @apply scale-95; } } }";
 
-  assert.assertEquals(hasTailwindDirectives(css), true);
+  assert.assertEquals(tailwindPlugin.hasTailwindDirectives(css), true);
 });
 
 Deno.test("hasTailwindDirectives detects multi-line @apply", () => {
@@ -287,17 +296,17 @@ Deno.test("hasTailwindDirectives detects multi-line @apply", () => {
       rounded-lg bg-blue-500;
   }`;
 
-  assert.assertEquals(hasTailwindDirectives(css), true);
+  assert.assertEquals(tailwindPlugin.hasTailwindDirectives(css), true);
 });
 
 Deno.test("hasTailwindDirectives detects @theme with custom properties", () => {
   const css = "@theme { --color-primary: blue; --spacing-lg: 2rem; }";
 
-  assert.assertEquals(hasTailwindDirectives(css), true);
+  assert.assertEquals(tailwindPlugin.hasTailwindDirectives(css), true);
 });
 
 Deno.test("hasTailwindDirectives detects @theme with OKLCH colors", () => {
   const css = "@theme { --color-primary-500: oklch(0.55 0.24 264); }";
 
-  assert.assertEquals(hasTailwindDirectives(css), true);
+  assert.assertEquals(tailwindPlugin.hasTailwindDirectives(css), true);
 });

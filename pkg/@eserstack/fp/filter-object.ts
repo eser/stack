@@ -1,5 +1,12 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+/**
+ * Returns the properties of an object for which `predicate` returns `true`.
+ *
+ * @param instance - The source object
+ * @param predicate - Decides whether a property stays
+ * @returns A new object
+ */
 export const filterObject = <T>(
   instance: Record<string | number | symbol, T>,
   predicate: (
@@ -21,5 +28,3 @@ export const filterObject = <T>(
 
   return result;
 };
-
-export { filterObject as default };

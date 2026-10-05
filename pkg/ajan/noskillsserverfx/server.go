@@ -42,9 +42,20 @@ type ServerConfig struct {
 	// would otherwise let a caller mint a fresh login-lockout bucket per request.
 	TrustedProxies []string
 
-	// GracefulShutdownTimeout caps shutdown wait time.
+	// AllowedOrigins lists the browser origins, besides the daemon's own,
+	// whose pages may open a WebTransport session, each an exact origin such
+	// as https://app.example.com. Empty by default: same-origin only.
+	AllowedOrigins []string
+
+	// GracefulShutdownTimeout caps shutdown wait time: once for the HTTP/3
+	// handlers, then once for the session pumps and push senders. Zero or
+	// less means defaultShutdownTimeout.
 	GracefulShutdownTimeout time.Duration
 }
+
+// defaultShutdownTimeout is the GracefulShutdownTimeout used when a config
+// leaves it unset.
+const defaultShutdownTimeout = 5 * time.Second
 
 // DefaultServerConfig returns sensible defaults for local development.
 func DefaultServerConfig() *ServerConfig {
@@ -52,7 +63,7 @@ func DefaultServerConfig() *ServerConfig {
 		H3Addr:                  ":4433",
 		DataDir:                 "",
 		SelfSigned:              true,
-		GracefulShutdownTimeout: 5 * time.Second,
+		GracefulShutdownTimeout: defaultShutdownTimeout,
 	}
 }
 
@@ -99,17 +110,23 @@ func New(config *ServerConfig, logger *logfx.Logger) *Server {
 		config.DataDir = dataDir
 	}
 
+	// An unset timeout would make shutdown wait for nothing at all.
+	if config.GracefulShutdownTimeout <= 0 {
+		config.GracefulShutdownTimeout = defaultShutdownTimeout
+	}
+
 	h3Config := &httpfx.Config{ //nolint:exhaustruct
 		H3Enabled:               true,
 		H3ListenAddr:            config.H3Addr,
 		H3MaxStreams:            100,
+		H3AllowedOrigins:        config.AllowedOrigins,
 		GracefulShutdownTimeout: config.GracefulShutdownTimeout,
 		CertString:              config.CertString,
 		KeyString:               config.KeyString,
 		SelfSigned:              config.SelfSigned,
 	}
 
-	router := httpfx.NewRouter("")
+	router := httpfx.NewRouter(logger)
 
 	// A malformed allowlist must not silently widen trust, so fall back to
 	// trusting nobody.
@@ -193,7 +210,14 @@ func (s *Server) AuthManager() *AuthManager {
 }
 
 // Start generates/loads the TLS certificate, opens the QUIC listener, and begins
-// serving. Returns a cleanup function for graceful shutdown.
+// serving.
+//
+// Everything that outlives a request (the push senders, the session pumps
+// and, through them, the workers) runs under a lifetime context derived from
+// ctx. The returned cleanup closes every connection and waits up to
+// GracefulShutdownTimeout for the handlers to return, then ends the lifetime
+// context and waits up to GracefulShutdownTimeout again for that work to stop.
+// Ending ctx ends the lifetime context too; cleanup still has to run.
 func (s *Server) Start(ctx context.Context) (func(), error) {
 	certInfo, err := s.buildCert()
 	if err != nil {
@@ -202,20 +226,28 @@ func (s *Server) Start(ctx context.Context) (func(), error) {
 
 	s.cert = certInfo
 
+	lifetime, endLifetime := context.WithCancel(ctx)
+
 	// Start push dispatcher; non-fatal — daemon runs without push if it fails.
-	push, err := newPushDispatcher(ctx, s.config.DataDir, s.logger)
+	push, err := newPushDispatcher(lifetime, s.config.DataDir, s.logger)
 	if err != nil {
-		s.logger.Warn("noskillsserverfx: push disabled", "err", err)
+		s.logger.WarnContext(ctx, "noskillsserverfx: push disabled", "err", err)
 	} else {
 		s.push = push
 	}
 
 	if err := s.h3svc.SetupTLS(ctx, certInfo.TLSConfig); err != nil {
+		s.stopBackgroundWork(ctx, endLifetime)
+
 		return nil, fmt.Errorf("noskillsserverfx: TLS setup: %w", err)
 	}
 
-	cleanup, err := s.h3svc.Start(ctx)
+	s.sessions.start(lifetime)
+
+	h3Cleanup, err := s.h3svc.Start(ctx)
 	if err != nil {
+		s.stopBackgroundWork(ctx, endLifetime)
+
 		return nil, fmt.Errorf("noskillsserverfx: HTTP3 start: %w", err)
 	}
 
@@ -224,7 +256,45 @@ func (s *Server) Start(ctx context.Context) (func(), error) {
 		"cert_fingerprint", certInfo.Fingerprint,
 	)
 
+	cleanup := func() {
+		// Connections first, so no attach is left to use a worker that is
+		// about to close.
+		h3Cleanup()
+		s.stopBackgroundWork(ctx, endLifetime)
+	}
+
 	return cleanup, nil
+}
+
+// stopBackgroundWork ends the lifetime context and waits, at most
+// GracefulShutdownTimeout, for the session pumps and push senders to return.
+// The pumps close their workers on the way out.
+func (s *Server) stopBackgroundWork(ctx context.Context, endLifetime context.CancelFunc) {
+	endLifetime()
+
+	stopped := make(chan struct{})
+
+	// Abandoned only if the timeout below fires, at which point the process
+	// is on its way out.
+	go func() {
+		defer close(stopped)
+
+		s.sessions.stop()
+
+		if s.push != nil {
+			s.push.wait()
+		}
+	}()
+
+	timer := time.NewTimer(s.config.GracefulShutdownTimeout)
+	defer timer.Stop()
+
+	select {
+	case <-stopped:
+	case <-timer.C:
+		s.logger.WarnContext(ctx, "noskillsserverfx: sessions and push senders did not stop within the shutdown timeout",
+			"shutdown_timeout", s.config.GracefulShutdownTimeout)
+	}
 }
 
 // registerRoutes wires all built-in routes. External callers add routes via

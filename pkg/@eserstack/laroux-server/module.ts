@@ -6,9 +6,50 @@
  * @module
  */
 
-import { Module } from "@eserstack/shell/module";
+import * as module from "@eserstack/shell/module";
 
-export const moduleDef: Module = new Module({
+/** The command module type, `Module` from `@eserstack/shell/module`. */
+export type Module = module.Module;
+
+// moduleDef is a Module from @eserstack/shell. These re-exports make the types
+// that Module's methods take and return part of this entry point, so its
+// generated documentation has no dangling type references.
+export type {
+  ModuleConfig,
+  SubmoduleRegistration,
+} from "@eserstack/shell/module";
+export type {
+  ArgsConfig,
+  ArgsValidation,
+  CliError,
+  CliResult,
+  Command,
+  CommandContext,
+  CommandHandler,
+  CommandLike,
+  DispatchableModule,
+  FallbackHandler,
+  FlagDef,
+  FlagType,
+  GroupOptions,
+  LazyCommandOptions,
+  ModuleEntry,
+} from "@eserstack/shell/args";
+export type { Shell } from "@eserstack/shell/completions";
+
+/**
+ * The `laroux` command group: `init`, `dev`, `build` and `serve`. A
+ * command's module loads when that command runs. The `eser` CLI mounts it as
+ * `eser laroux`, and the standalone `laroux` binary runs it as its root.
+ *
+ * @example
+ * ```typescript
+ * import * as larouxModule from "@eserstack/laroux-server/module";
+ *
+ * const command = larouxModule.moduleDef.toCommand("laroux", "1.0.0");
+ * ```
+ */
+export const moduleDef: Module = new module.Module({
   description: "laroux.js framework commands",
   modules: {
     init: {

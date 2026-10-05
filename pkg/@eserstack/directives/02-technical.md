@@ -12,6 +12,12 @@ believe a common philosophy can be adopted across the ecosystem.
   - Why: ES Modules is the official standard for JavaScript modules, supported
     by all modern browsers and WinterCG runtimes, whereas alternatives like
     CommonJS and AMD are not.
+- **DO** import modules as namespaces (`import * as path from "@std/path"`)
+  rather than importing names one by one.
+  - Why: A namespace shows where every symbol comes from (`path.join`, not a
+    bare `join`) and cannot collide with a local name. Bundlers keep only the
+    members the code accesses through the namespace, so the unused ones still
+    drop out of the bundle.
 - **DO** follow a consistent directory and file structure.
   - Why: A consistent and predictable structure makes it easier for developers
     to locate and manage the files.
@@ -197,10 +203,6 @@ believe a common philosophy can be adopted across the ecosystem.
   - Why: Truthy and falsy checks can lead to unexpected results because
     JavaScript considers several values to be falsy (e.g., `0`, `''`, `null`,
     `undefined`, `NaN`). Using a full condition makes the code more predictable.
-- **AVOID** `import *`. Instead, just use whatever needed.
-  - Why: Importing everything from a module can lead to unused code being
-    included in the final bundle and makes it harder to understand which parts
-    of the module are actually being used.
 - **AVOID** throwing generic errors. Instead, throw specific error types that
   provide more information.
   - Why: Throwing specific error types makes it easier to handle errors

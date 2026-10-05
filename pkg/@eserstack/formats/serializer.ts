@@ -1,75 +1,132 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 import type { WriteOptions } from "./types.ts";
-import { FormatNotFoundError } from "./types.ts";
-import { getFormat } from "./format-registry.ts";
-import { ensureLib, getLib } from "./ffi-client.ts";
+import * as types from "./types.ts";
+import * as formatRegistry from "./format-registry.ts";
+import * as ffiClient from "./ffi-client.ts";
 
-// Trim trailing separator from output (for YAML/TOML multi-doc)
+// Trim the separator YAML (---) and TOML (+++) write after their last document.
 const trimTrailingSeparator = (output: string): string => {
   return output.replace(/\n(---|\+\+\+)\n$/, "\n");
 };
 
+/** The loaded native library, as `ffiClient.getLib()` returns it. */
+export type NativeLibrary = NonNullable<ReturnType<typeof ffiClient.getLib>>;
+
+/**
+ * Encodes through the Go formats. Returns null when Go reports an error or the
+ * call itself fails, so the caller can try the TypeScript format instead; a
+ * custom format registered only in TypeScript takes that path.
+ */
+const encodeNative = (
+  lib: NativeLibrary,
+  data: unknown,
+  format: string,
+  options?: WriteOptions,
+): string | null => {
+  const pretty = options?.pretty ?? false;
+  const indent = options?.indent ?? 0;
+
+  try {
+    // An array is a list of items: WriteStart, WriteItem per item, WriteEnd.
+    // Any other value is one whole document, written by a single WriteItem.
+    const raw = Array.isArray(data)
+      ? lib.symbols.EserAjanFormatEncodeDocument(
+        JSON.stringify({ format, items: data, pretty, indent }),
+      )
+      : lib.symbols.EserAjanFormatEncode(
+        JSON.stringify({
+          format,
+          data,
+          pretty,
+          indent,
+          isFirst: true,
+          document: true,
+        }),
+      );
+    const parsed = JSON.parse(raw) as { result?: string; error?: string };
+
+    if (typeof parsed.error === "string" && parsed.error.length > 0) {
+      return null;
+    }
+
+    return trimTrailingSeparator(parsed.result ?? "");
+  } catch {
+    // A library without these symbols, or a reply that is not JSON, leaves the
+    // TypeScript formats to do the work, the same as a Go-side error.
+    return null;
+  }
+};
+
+/**
+ * Serializes `data` with an already loaded native library, or with only the
+ * TypeScript formats when `lib` is null. {@link serialize} loads the library
+ * and calls this; tests call it to reach either path.
+ */
+export const serializeWith = (
+  lib: NativeLibrary | null,
+  data: unknown,
+  format: string,
+  options?: WriteOptions,
+): string => {
+  if (lib !== null) {
+    const encoded = encodeNative(lib, data, format, options);
+    if (encoded !== null) {
+      return encoded;
+    }
+  }
+
+  const formatAdapter = formatRegistry.getFormat(format);
+  if (formatAdapter === undefined) {
+    throw new types.FormatNotFoundError(format);
+  }
+
+  // `_inArray` false tells the format that the value is the whole document,
+  // so JSON leaves out the array brackets around it.
+  const isList = Array.isArray(data);
+  const documentOptions: WriteOptions = { ...options, _inArray: isList };
+  const chunks: string[] = [];
+
+  const startOutput = formatAdapter.writeStart?.(documentOptions) ?? "";
+  if (startOutput !== "") chunks.push(startOutput);
+
+  const items: readonly unknown[] = isList ? data : [data];
+  for (const [index, item] of items.entries()) {
+    chunks.push(
+      formatAdapter.writeItem(item, {
+        ...documentOptions,
+        _isFirst: index === 0,
+      }),
+    );
+  }
+
+  const endOutput = formatAdapter.writeEnd?.(documentOptions) ?? "";
+  if (endOutput !== "") chunks.push(endOutput);
+
+  return trimTrailingSeparator(chunks.join(""));
+};
+
+/**
+ * Serializes `data` in the named format.
+ *
+ * An array becomes a list of its items: a JSON array, YAML sequence entries
+ * (Go) or YAML documents (TypeScript), CSV rows, JSONL lines or TOML tables
+ * separated by `+++` lines. Any other value becomes a single document, so
+ * `serialize({ a: 1 }, "json")` returns `{"a":1}` followed by a newline. The
+ * package README lists where the Go and TypeScript output differ.
+ *
+ * The Go encoders in `@eserstack/ajan` do the work when the native library
+ * loads and knows the format; otherwise the format from the registry does.
+ *
+ * @throws {types.FormatNotFoundError} when neither side knows the format
+ * @throws {types.SerializationError} when the format cannot encode the value
+ */
 export const serialize = async (
   data: unknown,
   format: string,
   options?: WriteOptions,
 ): Promise<string> => {
-  await ensureLib();
+  await ffiClient.ensureLib();
 
-  // FFI path: delegate full document assembly to Go (WriteStart + WriteItem×N + WriteEnd).
-  const lib = getLib();
-  if (lib !== null) {
-    try {
-      const items = Array.isArray(data) ? data : [data];
-      const requestJSON = JSON.stringify({
-        format,
-        items,
-        pretty: options?.pretty ?? false,
-        indent: options?.indent ?? 0,
-      });
-      const raw = lib.symbols.EserAjanFormatEncodeDocument(requestJSON);
-      const parsed = JSON.parse(raw) as { result?: string; error?: string };
-      if (!parsed.error) {
-        return parsed.result ?? "";
-      }
-      // Non-fatal: fall through to TS fallback (e.g. format only registered in TS)
-    } catch {
-      // Fall through to TS fallback
-    }
-  }
-
-  // TS fallback: pure TypeScript implementation.
-  const formatAdapter = getFormat(format);
-  if (formatAdapter === undefined) {
-    throw new FormatNotFoundError(format);
-  }
-
-  const chunks: string[] = [];
-
-  const startOutput = formatAdapter.writeStart?.(options) ?? "";
-  if (startOutput) chunks.push(startOutput);
-
-  if (Array.isArray(data)) {
-    for (let i = 0; i < data.length; i++) {
-      const itemOptions: WriteOptions = {
-        ...options,
-        _isFirst: i === 0,
-        _inArray: true,
-      };
-      chunks.push(formatAdapter.writeItem(data[i], itemOptions));
-    }
-  } else {
-    const finalOptions: WriteOptions = {
-      ...options,
-      _isFirst: true,
-      _inArray: true,
-    };
-    chunks.push(formatAdapter.writeItem(data, finalOptions));
-  }
-
-  const endOutput = formatAdapter.writeEnd?.(options) ?? "";
-  if (endOutput) chunks.push(endOutput);
-
-  return trimTrailingSeparator(chunks.join(""));
+  return serializeWith(ffiClient.getLib(), data, format, options);
 };

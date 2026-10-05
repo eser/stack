@@ -55,8 +55,12 @@ type Session struct {
 	permMu      sync.Mutex
 	permissions map[string]struct{}
 
-	closeOnce sync.Once
-	closed    chan struct{}
+	// ctx lives as long as the session and is what the pump hands to
+	// SessionUpdate. It is stored, against the usual rule, because the pump has
+	// no caller whose context it could borrow: it runs for the session's whole
+	// life. Close cancels it, which also stops the pump.
+	ctx    context.Context //nolint:containedctx // lifetime context, see the comment above
+	cancel context.CancelFunc
 }
 
 // ID returns the agent-assigned session identifier.
@@ -100,7 +104,7 @@ func (s *Session) Prompt(ctx context.Context, blocks []ContentBlock) (*PromptRes
 	// The caller gave up. Tell the agent, answer anything it is waiting on,
 	// then give the turn a bounded chance to end cleanly.
 	if ctx.Err() != nil {
-		return s.cancelAndDrain(err)
+		return s.cancelAndDrain(ctx, err)
 	}
 
 	return nil, fmt.Errorf("session/prompt: %w", err)
@@ -108,9 +112,11 @@ func (s *Session) Prompt(ctx context.Context, blocks []ContentBlock) (*PromptRes
 
 // cancelAndDrain notifies the agent of cancellation and waits briefly for the
 // turn to end, so the pending request is retired rather than orphaned.
-func (s *Session) cancelAndDrain(cause error) (*PromptResponse, error) {
+func (s *Session) cancelAndDrain(ctx context.Context, cause error) (*PromptResponse, error) {
 	// Detached: the caller's context is already dead, and this must still send.
-	grace, stop := context.WithTimeout(context.WithoutCancel(context.Background()), cancelGrace)
+	// WithoutCancel keeps the caller's values (trace ids) and drops only its
+	// cancellation; cancelGrace bounds the send on its own.
+	grace, stop := context.WithTimeout(context.WithoutCancel(ctx), cancelGrace)
 	defer stop()
 
 	if err := s.Cancel(grace); err != nil {
@@ -161,11 +167,11 @@ func (s *Session) SetMode(ctx context.Context, modeID string) error {
 	return nil
 }
 
-// Close stops the session's update pump. It does not close the connection.
+// Close stops the session's update pump and cancels the context its updates
+// are delivered with. It does not close the connection. Safe to call more than
+// once.
 func (s *Session) Close() {
-	s.closeOnce.Do(func() {
-		close(s.closed)
-	})
+	s.cancel()
 }
 
 // newSession builds a session with every channel and map already allocated.
@@ -175,15 +181,27 @@ func (s *Session) Close() {
 // queueOnce, and two different locks order nothing. Allocating before the
 // session is published removes the race by construction rather than by adding
 // a third lock.
-func newSession(client *Client, id string, modes *SessionModeState) *Session {
+//
+// ctx is the context of the call that opened the session (session/new or
+// session/load). The session keeps its values but not its cancellation or
+// deadline: the session outlives that call, and only Close ends it.
+func newSession(
+	ctx context.Context,
+	client *Client,
+	id string,
+	modes *SessionModeState,
+) *Session {
+	sessionCtx, cancel := context.WithCancel(context.WithoutCancel(ctx))
+
 	return &Session{ //nolint:exhaustruct
 		client:      client,
 		id:          id,
 		modes:       modes,
 		queue:       make(chan queuedUpdate, updateQueueDepth),
 		drained:     make(chan struct{}),
-		closed:      make(chan struct{}),
 		permissions: make(map[string]struct{}),
+		ctx:         sessionCtx,
+		cancel:      cancel,
 	}
 }
 
@@ -205,9 +223,9 @@ func (s *Session) pump() {
 				continue
 			}
 
-			s.client.handler.SessionUpdate(context.Background(), item.note)
+			s.client.handler.SessionUpdate(s.ctx, item.note)
 
-		case <-s.closed:
+		case <-s.ctx.Done():
 			return
 
 		case <-s.client.conn.Done():
@@ -223,7 +241,7 @@ func (s *Session) enqueue(ctx context.Context, note *SessionNotification) {
 
 	select {
 	case s.queue <- queuedUpdate{note: note, barrier: nil}:
-	case <-s.closed:
+	case <-s.ctx.Done():
 	case <-ctx.Done():
 	case <-s.client.conn.Done():
 	}
@@ -245,7 +263,7 @@ func (s *Session) flush(ctx context.Context) {
 	case s.queue <- queuedUpdate{note: nil, barrier: barrier}:
 	case <-s.drained:
 		return
-	case <-s.closed:
+	case <-s.ctx.Done():
 		return
 	case <-ctx.Done():
 		return
@@ -256,7 +274,7 @@ func (s *Session) flush(ctx context.Context) {
 	select {
 	case <-barrier:
 	case <-s.drained:
-	case <-s.closed:
+	case <-s.ctx.Done():
 	case <-ctx.Done():
 	case <-s.client.conn.Done():
 	}

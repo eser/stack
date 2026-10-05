@@ -1,17 +1,15 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import { assert, assertEquals } from "@std/assert";
-import { describe, it } from "@std/testing/bdd";
+import * as assert from "@std/assert";
+import * as bdd from "@std/testing/bdd";
 import * as results from "@eserstack/primitives/results";
-import { runTask, succeed, task } from "./task.ts";
-import {
-  type Adapter,
-  type AdaptError,
-  adaptError,
-  bind,
-  createTrigger,
-  type Handler,
-  type ResponseMapper,
+import * as task from "./task.ts";
+import * as handler from "./handler.ts";
+import type {
+  Adapter,
+  AdaptError,
+  Handler,
+  ResponseMapper,
 } from "./handler.ts";
 import type {
   CliEvent,
@@ -42,7 +40,7 @@ type AppCtx = {
 };
 
 const createOrder: Handler<OrderInput, Order, OrderError, AppCtx> = (input) =>
-  task((ctx) => {
+  task.task((ctx) => {
     const order = ctx.db.insert(input);
     return Promise.resolve(results.ok(order));
   });
@@ -59,17 +57,17 @@ const mockCtx: AppCtx = {
 
 // --- Adapter Binding ---
 
-describe("handler", () => {
-  describe("bind", () => {
-    it("binds an HTTP adapter to a handler", async () => {
+bdd.describe("handler", () => {
+  bdd.describe("bind", () => {
+    bdd.it("binds an HTTP adapter to a handler", async () => {
       const fromHttp: Adapter<HttpEvent, OrderInput> = (event) => {
         if (event.method !== "POST") {
-          return results.fail(adaptError("Method not allowed"));
+          return results.fail(handler.adaptError("Method not allowed"));
         }
         return results.ok(event.body as OrderInput);
       };
 
-      const httpHandler = bind(createOrder, fromHttp);
+      const httpHandler = handler.bind(createOrder, fromHttp);
 
       const event: HttpEvent = {
         method: "POST",
@@ -79,21 +77,21 @@ describe("handler", () => {
         body: { customerId: "cust-1", items: ["item-a"] },
       };
 
-      const result = await runTask(httpHandler(event), mockCtx);
-      assert(results.isOk(result));
-      assertEquals(result.value.customerId, "cust-1");
-      assertEquals(result.value.items, ["item-a"]);
+      const result = await task.runTask(httpHandler(event), mockCtx);
+      assert.assert(results.isOk(result));
+      assert.assertEquals(result.value.customerId, "cust-1");
+      assert.assertEquals(result.value.items, ["item-a"]);
     });
 
-    it("returns AdaptError when adapter rejects the event", async () => {
+    bdd.it("returns AdaptError when adapter rejects the event", async () => {
       const fromHttp: Adapter<HttpEvent, OrderInput> = (event) => {
         if (event.method !== "POST") {
-          return results.fail(adaptError("Method not allowed"));
+          return results.fail(handler.adaptError("Method not allowed"));
         }
         return results.ok(event.body as OrderInput);
       };
 
-      const httpHandler = bind(createOrder, fromHttp);
+      const httpHandler = handler.bind(createOrder, fromHttp);
 
       const event: HttpEvent = {
         method: "GET",
@@ -103,20 +101,20 @@ describe("handler", () => {
         body: null,
       };
 
-      const result = await runTask(httpHandler(event), mockCtx);
-      assert(results.isFail(result));
-      assertEquals((result.error as AdaptError)._tag, "AdaptError");
-      assertEquals(
+      const result = await task.runTask(httpHandler(event), mockCtx);
+      assert.assert(results.isFail(result));
+      assert.assertEquals((result.error as AdaptError)._tag, "AdaptError");
+      assert.assertEquals(
         (result.error as AdaptError).message,
         "Method not allowed",
       );
     });
 
-    it("binds a queue adapter to the same handler", async () => {
+    bdd.it("binds a queue adapter to the same handler", async () => {
       const fromQueue: Adapter<QueueEvent, OrderInput> = (event) =>
         results.ok(JSON.parse(event.body as string) as OrderInput);
 
-      const queueHandler = bind(createOrder, fromQueue);
+      const queueHandler = handler.bind(createOrder, fromQueue);
 
       const event: QueueEvent = {
         messageId: "msg-1",
@@ -128,19 +126,19 @@ describe("handler", () => {
         receiveCount: 1,
       };
 
-      const result = await runTask(queueHandler(event), mockCtx);
-      assert(results.isOk(result));
-      assertEquals(result.value.customerId, "cust-2");
+      const result = await task.runTask(queueHandler(event), mockCtx);
+      assert.assert(results.isOk(result));
+      assert.assertEquals(result.value.customerId, "cust-2");
     });
 
-    it("binds a CLI adapter to the same handler", async () => {
+    bdd.it("binds a CLI adapter to the same handler", async () => {
       const fromCli: Adapter<CliEvent, OrderInput> = (event) =>
         results.ok({
           customerId: event.flags["customer"] as string,
           items: event.args,
         });
 
-      const cliHandler = bind(createOrder, fromCli);
+      const cliHandler = handler.bind(createOrder, fromCli);
 
       const event: CliEvent = {
         command: "create-order",
@@ -148,20 +146,20 @@ describe("handler", () => {
         flags: { customer: "cust-3" },
       };
 
-      const result = await runTask(cliHandler(event), mockCtx);
-      assert(results.isOk(result));
-      assertEquals(result.value.customerId, "cust-3");
-      assertEquals(result.value.items, ["item-c", "item-d"]);
+      const result = await task.runTask(cliHandler(event), mockCtx);
+      assert.assert(results.isOk(result));
+      assert.assertEquals(result.value.customerId, "cust-3");
+      assert.assertEquals(result.value.items, ["item-c", "item-d"]);
     });
 
-    it("works with context-free handlers", async () => {
+    bdd.it("works with context-free handlers", async () => {
       const echo: Handler<string, string, never> = (input) =>
-        succeed(`Echo: ${input}`);
+        task.succeed(`Echo: ${input}`);
 
       const fromCli: Adapter<CliEvent, string> = (event) =>
         results.ok(event.args.join(" "));
 
-      const cliEcho = bind(echo, fromCli);
+      const cliEcho = handler.bind(echo, fromCli);
 
       const event: CliEvent = {
         command: "echo",
@@ -169,34 +167,34 @@ describe("handler", () => {
         flags: {},
       };
 
-      const result = await runTask(cliEcho(event));
-      assert(results.isOk(result));
-      assertEquals(result.value, "Echo: hello world");
+      const result = await task.runTask(cliEcho(event));
+      assert.assert(results.isOk(result));
+      assert.assertEquals(result.value, "Echo: hello world");
     });
   });
 
   // --- adaptError ---
 
-  describe("adaptError", () => {
-    it("creates an AdaptError with message", () => {
-      const err = adaptError("Missing field");
-      assertEquals(err._tag, "AdaptError");
-      assertEquals(err.message, "Missing field");
-      assertEquals(err.source, undefined);
+  bdd.describe("adaptError", () => {
+    bdd.it("creates an AdaptError with message", () => {
+      const err = handler.adaptError("Missing field");
+      assert.assertEquals(err._tag, "AdaptError");
+      assert.assertEquals(err.message, "Missing field");
+      assert.assertEquals(err.source, undefined);
     });
 
-    it("creates an AdaptError with source", () => {
+    bdd.it("creates an AdaptError with source", () => {
       const original = new Error("parse failed");
-      const err = adaptError("Invalid JSON", original);
-      assertEquals(err._tag, "AdaptError");
-      assertEquals(err.source, original);
+      const err = handler.adaptError("Invalid JSON", original);
+      assert.assertEquals(err._tag, "AdaptError");
+      assert.assertEquals(err.source, original);
     });
   });
 
   // --- createTrigger ---
 
-  describe("createTrigger", () => {
-    it("creates a full round-trip trigger (input + output)", async () => {
+  bdd.describe("createTrigger", () => {
+    bdd.it("creates a full round-trip trigger (input + output)", async () => {
       const fromHttp: Adapter<HttpEvent, OrderInput> = (event) =>
         results.ok(event.body as OrderInput);
 
@@ -219,7 +217,7 @@ describe("handler", () => {
         };
       };
 
-      const handleHttp = createTrigger({
+      const handleHttp = handler.createTrigger({
         handler: createOrder,
         adaptInput: fromHttp,
         adaptOutput: toHttpResponse,
@@ -234,17 +232,17 @@ describe("handler", () => {
       };
 
       const response = await handleHttp(event, mockCtx);
-      assertEquals(response.status, 201);
-      assertEquals(
+      assert.assertEquals(response.status, 201);
+      assert.assertEquals(
         (response.body as Order).customerId,
         "cust-1",
       );
     });
 
-    it("maps adapter errors to response", async () => {
+    bdd.it("maps adapter errors to response", async () => {
       const fromHttp: Adapter<HttpEvent, OrderInput> = (event) => {
         if (event.method !== "POST") {
-          return results.fail(adaptError("Method not allowed"));
+          return results.fail(handler.adaptError("Method not allowed"));
         }
         return results.ok(event.body as OrderInput);
       };
@@ -264,7 +262,7 @@ describe("handler", () => {
         return { status: 500, headers: {}, body: { error: "Internal error" } };
       };
 
-      const handleHttp = createTrigger({
+      const handleHttp = handler.createTrigger({
         handler: createOrder,
         adaptInput: fromHttp,
         adaptOutput: toHttpResponse,
@@ -279,16 +277,16 @@ describe("handler", () => {
       };
 
       const response = await handleHttp(event, mockCtx);
-      assertEquals(response.status, 400);
-      assertEquals(
+      assert.assertEquals(response.status, 400);
+      assert.assertEquals(
         (response.body as { error: string }).error,
         "Method not allowed",
       );
     });
 
-    it("works with context-free handler", async () => {
+    bdd.it("works with context-free handler", async () => {
       const echo: Handler<string, string, never> = (input) =>
-        succeed(`Echo: ${input}`);
+        task.succeed(`Echo: ${input}`);
 
       const fromCli: Adapter<CliEvent, string> = (event) =>
         results.ok(event.args.join(" "));
@@ -297,7 +295,7 @@ describe("handler", () => {
         result,
       ) => results.isOk(result) ? result.value : `Error: ${result.error}`;
 
-      const handleCli = createTrigger({
+      const handleCli = handler.createTrigger({
         handler: echo,
         adaptInput: fromCli,
         adaptOutput: toText,
@@ -310,7 +308,7 @@ describe("handler", () => {
       };
 
       const response = await handleCli(event);
-      assertEquals(response, "Echo: hello");
+      assert.assertEquals(response, "Echo: hello");
     });
   });
 });

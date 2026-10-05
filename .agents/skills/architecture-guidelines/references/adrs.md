@@ -9,10 +9,9 @@ When to write an ADR and what it contains.
 Scope: Decisions that change a package's architecture, a public contract, a
 dependency with lasting cost, or a product target
 
-Rule: Record the decision in `docs/adr/NNNN-kebab-title.md`, numbered after the
-highest existing file (`0001-http3-and-webtransport.md` through
-`0004-bundler-external-import-specifiers.md` exist). An ADR is written before or
-with the change, not after. It states:
+Rule: Record the decision in this codebase's ADR directory (`docs/adr/` by
+default) as `NNNN-kebab-title.md`, numbered after the highest existing file. An
+ADR is written before or with the change, not after. It states:
 
 - `## Status`: Proposed, Accepted, or Superseded by a named ADR.
 - `## Context and Problem Statement`: the forces and the question being decided.

@@ -72,6 +72,7 @@ workflow-facing (Tools).
 | [@eserstack/parsing](pkg/@eserstack/parsing/)         | Tokenizer, lexer, AST                                          |
 | [@eserstack/logging](pkg/@eserstack/logging/)         | Hierarchical logging, OpenTelemetry                            |
 | [@eserstack/http](pkg/@eserstack/http/)               | HTTP middleware, response helpers                              |
+| [@eserstack/httpclient](pkg/@eserstack/httpclient/)   | HTTP client with timeouts, retries and typed errors            |
 | [@eserstack/crypto](pkg/@eserstack/crypto/)           | Web Crypto wrappers                                            |
 | [@eserstack/cache](pkg/@eserstack/cache/)             | XDG cache directories                                          |
 | [@eserstack/config](pkg/@eserstack/config/)           | .env + env var configuration                                   |
@@ -79,21 +80,23 @@ workflow-facing (Tools).
 | [@eserstack/jsx-runtime](pkg/@eserstack/jsx-runtime/) | Server-side JSX                                                |
 | [@eserstack/collector](pkg/@eserstack/collector/)     | Export manifest generation                                     |
 | [@eserstack/cs](pkg/@eserstack/cs/)                   | Kubernetes ConfigMap/Secret sync from .env files               |
+| [@eserstack/agents](pkg/@eserstack/agents/)           | Coding agent discovery and the read-only git guard             |
 | [@eserstack/ajan](pkg/@eserstack/ajan/)               | Go/WASM FFI bridge                                             |
 | [@eserstack/kit](pkg/@eserstack/kit/)                 | Recipe registry, distribution protocol, handlers               |
 
 **Tools**
 
-| Package                                               | Description                                      |
-| ----------------------------------------------------- | ------------------------------------------------ |
-| [@eserstack/bundler](pkg/@eserstack/bundler/)         | Abstract bundler, snapshot AOT                   |
-| [@eserstack/shell](pkg/@eserstack/shell/)             | CLI framework: args, completions, exec, TUI      |
-| [@eserstack/codebase](pkg/@eserstack/codebase/)       | Git ops, scaffolding, version management         |
-| [@eserstack/workflows](pkg/@eserstack/workflows/)     | Event-driven workflow engine                     |
-| [@eserstack/kit](pkg/@eserstack/kit/)                 | Recipe + template distribution                   |
-| [@eserstack/cli](pkg/@eserstack/cli/)                 | Main entrypoint CLI                              |
-| [@eserstack/ai](pkg/@eserstack/ai/)                   | AI provider abstraction (Claude, OpenAI, Gemini) |
-| [@eserstack/app-runtime](pkg/@eserstack/app-runtime/) | Application lifecycle management                 |
+| Package                                               | Description                                           |
+| ----------------------------------------------------- | ----------------------------------------------------- |
+| [@eserstack/bundler](pkg/@eserstack/bundler/)         | Abstract bundler, snapshot AOT                        |
+| [@eserstack/shell](pkg/@eserstack/shell/)             | CLI framework: args, completions, exec, TUI           |
+| [@eserstack/mux](pkg/@eserstack/mux/)                 | Terminal multiplexer engine: tabs, panes, keybindings |
+| [@eserstack/codebase](pkg/@eserstack/codebase/)       | Git ops, scaffolding, version management              |
+| [@eserstack/workflows](pkg/@eserstack/workflows/)     | Event-driven workflow engine                          |
+| [@eserstack/kit](pkg/@eserstack/kit/)                 | Recipe + template distribution                        |
+| [@eserstack/cli](pkg/@eserstack/cli/)                 | Main entrypoint CLI                                   |
+| [@eserstack/ai](pkg/@eserstack/ai/)                   | AI provider abstraction (Claude, OpenAI, Gemini)      |
+| [@eserstack/app-runtime](pkg/@eserstack/app-runtime/) | Application lifecycle management                      |
 
 </details>
 
@@ -202,7 +205,7 @@ one.
 $ eser kit list
 
 PROJECTS
-  library-pkg          Deno library package with tests and README
+  library-pkg          Workspace library package with tests and README
   laroux-app           Laroux.js web application with SSR and React
   go-service           Go microservice with hexagonal architecture
   ...
@@ -249,8 +252,8 @@ $ eser kit add fp-pipe
 
 If you're going to report a bug or request a new feature, please ensure first
 that you comply with the conditions found under
-[@eserstack/directives](https://github.com/eser/stack/blob/dev/pkg/@eserstack/directives/README.md).
-After that, you can report an issue or request using
+[@eserstack/directives](./pkg/@eserstack/directives/README.md). After that, you
+can report an issue or request using
 [GitHub Issues](https://github.com/eser/stack/issues). Thanks in advance.
 
 ### Want to contribute?
@@ -259,7 +262,7 @@ It is publicly open for any contribution from the community. Bug fixes, new
 features and additional components are welcome.
 
 If you're interested in becoming a contributor and enhancing the ecosystem,
-please start by reading through our [CONTRIBUTING.md](CONTRIBUTING.md).
+please start by reading through our [CONTRIBUTING.md](.github/CONTRIBUTING.md).
 
 If you're not sure where to begin, take a look at the
 [issues](https://github.com/eser/stack/issues) labeled `good first issue` and

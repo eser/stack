@@ -8,10 +8,10 @@
  *
  * @example
  * ```typescript
- * import { detectShell, getShellConfig } from "@eserstack/shell/env";
+ * import * as shell from "@eserstack/shell";
  *
- * const shell = detectShell(); // "zsh" | "bash" | "fish"
- * const config = getShellConfig(shell, "myapp");
+ * const shellName = shell.env.detectShell(); // "zsh" | "bash" | "fish"
+ * const config = shell.env.getShellConfig(shellName, "myapp");
  * console.log(config.rcFile); // "/home/user/.zshrc"
  * ```
  *

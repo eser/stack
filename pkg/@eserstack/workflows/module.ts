@@ -9,13 +9,22 @@
  * @module
  */
 
-import { Module } from "@eserstack/shell/module";
+import * as module from "@eserstack/shell/module";
 import type * as types from "./types.ts";
 
+/** The command module type, `Module` from `@eserstack/shell/module`. */
+export type Module = module.Module;
+
+/**
+ * Build the `workflows` command module with its `run` and `list` subcommands.
+ *
+ * @param tools - Tools to register next to the built-in shell tool
+ * @returns The module, ready to mount with `toCommand()`
+ */
 export const createModuleDef = (
   tools?: readonly types.WorkflowTool[],
 ): Module =>
-  new Module({
+  new module.Module({
     description: "Workflow engine — run tool pipelines",
     modules: {
       run: {
@@ -43,5 +52,5 @@ export const createModuleDef = (
     },
   });
 
-// Default module with no pre-injected tools (standalone use)
+/** Module with only the built-in shell tool, for standalone use. */
 export const moduleDef: Module = createModuleDef();

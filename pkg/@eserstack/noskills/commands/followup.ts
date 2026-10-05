@@ -1,7 +1,11 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 /**
- * `noskills spec <name> followup <questionId> "question text"` — Add a follow-up question.
+ * `noskills spec <name> followup <questionId> "question text"` adds a
+ * follow-up question to a discovery answer;
+ * `followup <followUpId> --answer="text"` and `followup <followUpId> --skip`
+ * settle one. `noskills next` hands out pending follow-ups one at a time, and
+ * settling the last one, once the base answers are in, completes discovery.
  *
  * @module
  */
@@ -14,17 +18,24 @@ import type * as schema from "../state/schema.ts";
 import * as persistence from "../state/persistence.ts";
 import * as machine from "../state/machine.ts";
 import * as identity from "../state/identity.ts";
+import * as cmd from "../output/cmd.ts";
 
+/**
+ * Runs `followup`. `projectRoot` is the project to work on; without it the
+ * command finds the project from the working directory.
+ */
 export const main = async (
   args?: readonly string[],
+  projectRoot?: string,
 ): Promise<shellArgs.CliResult<void>> => {
   const out = streams.output({
     renderer: streams.renderers.ansi(),
     sink: streams.sinks.stdout(),
   });
 
-  const { root } = await persistence.resolveProjectRoot();
-  const specResult = persistence.requireSpecFlag(args);
+  const root = projectRoot ?? (await persistence.resolveProjectRoot()).root;
+  const prefix = await cmd.loadCommandPrefix(root);
+  const specResult = persistence.requireSpecFlag(args, prefix);
   if (!specResult.ok) {
     out.writeln(span.red(specResult.error));
     await out.close();
@@ -49,19 +60,31 @@ export const main = async (
     }
   }
 
-  if (!questionId) {
+  if (questionId === undefined || questionId === "") {
     out.writeln(
       span.red(
-        'Usage: noskills spec <name> followup <questionId> "question text"',
+        `Usage: ${
+          cmd.cmd(
+            `spec ${specResult.spec} followup <questionId> "question text"`,
+          )
+        }`,
       ),
     );
     out.writeln(
       span.dim(
-        '  Or: noskills spec <name> followup <followUpId> --answer="text"',
+        `  Or: ${
+          cmd.cmd(
+            `spec ${specResult.spec} followup <followUpId> --answer="text"`,
+          )
+        }`,
       ),
     );
     out.writeln(
-      span.dim("  Or: noskills spec <name> followup <followUpId> --skip"),
+      span.dim(
+        `  Or: ${
+          cmd.cmd(`spec ${specResult.spec} followup <followUpId> --skip`)
+        }`,
+      ),
     );
     await out.close();
     return results.fail({ exitCode: 1 });
@@ -69,7 +92,7 @@ export const main = async (
 
   let state: schema.StateFile;
   try {
-    state = await persistence.resolveState(root, specResult.spec);
+    state = await persistence.resolveState(root, specResult.spec, prefix);
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     out.writeln(span.red(msg));
@@ -77,20 +100,42 @@ export const main = async (
     return results.fail({ exitCode: 1 });
   }
 
-  // Answer an existing follow-up
-  if (answerText !== null) {
-    const newState = machine.answerFollowUp(state, questionId, answerText);
-    await persistence.writeSpecState(root, specResult.spec, newState);
-    out.writeln(span.green("✔"), ` Answered follow-up: ${questionId}`);
-    await out.close();
-    return results.ok(undefined);
-  }
+  // Answer or skip an existing follow-up
+  if (answerText !== null || skip) {
+    const pending = machine.getPendingFollowUps(state);
+    if (!pending.some((f) => f.id === questionId)) {
+      out.writeln(
+        span.red(
+          `No pending follow-up "${questionId}". Pending: ${
+            pending.length === 0 ? "none" : pending.map((f) => f.id).join(", ")
+          }.`,
+        ),
+      );
+      await out.close();
+      return results.fail({ exitCode: 1 });
+    }
 
-  // Skip an existing follow-up
-  if (skip) {
-    const newState = machine.skipFollowUp(state, questionId);
-    await persistence.writeSpecState(root, specResult.spec, newState);
-    out.writeln(span.green("✔"), ` Skipped follow-up: ${questionId}`);
+    const settled = answerText !== null
+      ? machine.answerFollowUp(state, questionId, answerText)
+      : machine.skipFollowUp(state, questionId);
+    // The last pending follow-up, once the base answers are in, completes
+    // discovery, as the last base answer does when none is pending.
+    const newState = machine.completeDiscoveryWhenReady(settled);
+    await persistence.writeStateAndSpec(root, newState);
+
+    out.writeln(
+      span.green("✔"),
+      ` ${
+        answerText !== null ? "Answered" : "Skipped"
+      } follow-up: ${questionId}`,
+    );
+    if (newState.phase !== state.phase) {
+      out.writeln(
+        `Discovery complete. Run \`${
+          cmd.cmd(`spec ${specResult.spec} next`)
+        }\` for the review.`,
+      );
+    }
     await out.close();
     return results.ok(undefined);
   }

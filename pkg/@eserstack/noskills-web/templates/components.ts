@@ -7,7 +7,7 @@
  */
 
 import type * as dashboard from "@eserstack/noskills/dashboard";
-import { escHtml } from "./escape.ts";
+import * as escape from "./escape.ts";
 
 // =============================================================================
 // Phase badge
@@ -30,7 +30,7 @@ export const phaseBadge = (phase: string): string => {
     .replace("SPEC_PROPOSAL", "PROPOSAL")
     .replace("SPEC_APPROVED", "APPROVED");
   return `<span class="phase-badge" style="background:${color}">${
-    escHtml(label)
+    escape.escHtml(label)
   }</span>`;
 };
 
@@ -49,8 +49,10 @@ export const specListItem = (
     ? `<span class="task-progress">${done}/${total}</span>`
     : "";
 
-  return `<a href="/spec/${escHtml(spec.slug)}" class="spec-item${active}">
-    <span class="spec-name">${escHtml(spec.name)}</span>
+  return `<a href="/spec/${
+    escape.escHtml(spec.slug)
+  }" class="spec-item${active}">
+    <span class="spec-name">${escape.escHtml(spec.name)}</span>
     ${phaseBadge(spec.phase)}
     ${progress}
   </a>`;
@@ -72,15 +74,18 @@ export const tabBar = (
 ): string => {
   const items = tabs.map((t, i) => {
     const active = t.id === activeTabId ? " active" : "";
+    const phase = t.phase !== null && t.phase !== ""
+      ? ` (${escape.escHtml(t.phase)})`
+      : "";
     const label = t.specName !== null
-      ? `${escHtml(t.specName)}${t.phase ? ` (${t.phase})` : ""}`
+      ? `${escape.escHtml(t.specName)}${phase}`
       : "IDLE";
     // data-index drives the client's gotoTab so SSR tabs are switchable before
     // the /mux socket re-renders the bar (the client keys off data-index).
     return `<button class="tab${active}" data-tab="${
-      escHtml(t.id)
+      escape.escHtml(t.id)
     }" data-index="${i}">${label}<span class="tab-close" data-close="${
-      escHtml(t.id)
+      escape.escHtml(t.id)
     }">&times;</span></button>`;
   }).join("");
 
@@ -97,12 +102,14 @@ export const ctaButton = (
   action: string,
   extraData?: Record<string, string>,
 ): string => {
-  const dataAttrs = Object.entries(extraData ?? {})
-    .map(([k, v]) => `data-${k}="${escHtml(v)}"`)
+  const dataAttrs = extraData === undefined ? "" : Object.entries(extraData)
+    .map(([k, v]) => `data-${k}="${escape.escHtml(v)}"`)
     .join(" ");
   return `<button class="cta-btn" data-spec="${
-    escHtml(specName)
-  }" data-action="${escHtml(action)}" ${dataAttrs}>${escHtml(label)}</button>`;
+    escape.escHtml(specName)
+  }" data-action="${escape.escHtml(action)}" ${dataAttrs}>${
+    escape.escHtml(label)
+  }</button>`;
 };
 
 // =============================================================================
@@ -115,13 +122,15 @@ export const pendingMentions = (
   if (mentions.length === 0) return "";
   const items = mentions.map((m) =>
     `<div class="mention-item">
-      <span class="mention-from">${escHtml(m.from)}</span> asks about <strong>${
-      escHtml(m.spec)
-    }</strong>:
-      <p>${escHtml(m.question)}</p>
+      <span class="mention-from">${
+      escape.escHtml(m.from)
+    }</span> asks about <strong>${escape.escHtml(m.spec)}</strong>:
+      <p>${escape.escHtml(m.question)}</p>
       <button class="cta-btn small" data-spec="${
-      escHtml(m.spec)
-    }" data-action="reply" data-mention-id="${escHtml(m.id)}">Reply</button>
+      escape.escHtml(m.spec)
+    }" data-action="reply" data-mention-id="${
+      escape.escHtml(m.id)
+    }">Reply</button>
     </div>`
   ).join("");
   return `<div class="pending-section"><h3>Pending Mentions (${mentions.length})</h3>${items}</div>`;

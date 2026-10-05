@@ -32,6 +32,18 @@
     "should_trigger": true
   },
   {
+    "query": "review docs/guide.md for voice and structure",
+    "should_trigger": true
+  },
+  {
+    "query": "this tutorial mixes how-to steps and an API reference, restructure it",
+    "should_trigger": true
+  },
+  {
+    "query": "the setup guide uses <TOKEN> placeholders and untagged code blocks, clean it up",
+    "should_trigger": true
+  },
+  {
     "query": "write an ADR structure",
     "should_trigger": false
   },

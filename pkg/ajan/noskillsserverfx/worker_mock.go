@@ -3,14 +3,15 @@ package noskillsserverfx
 import (
 	"context"
 	"encoding/json"
+	"sync"
 )
 
 // MockWorkerHandle is a chan-based WorkerHandle for tests that need worker
 // events without spawning a real Node process. Satisfies WorkerHandle.
 type MockWorkerHandle struct {
-	sid    string
-	events chan WorkerEvent
-	closed bool
+	sid       string
+	events    chan WorkerEvent
+	closeOnce sync.Once
 }
 
 // NewMockWorkerHandle returns a handle pre-loaded with canned events. The
@@ -27,20 +28,20 @@ func NewMockWorkerHandle(sid string, canned []WorkerEvent) *MockWorkerHandle {
 // Push injects a live event as if it arrived from the worker process.
 func (m *MockWorkerHandle) Push(e WorkerEvent) { m.events <- e }
 
-func (m *MockWorkerHandle) SendQueryStart(_ context.Context, _, _, _ string) error { return nil }
-func (m *MockWorkerHandle) PushMessage(_ string) error                             { return nil }
-func (m *MockWorkerHandle) PermissionResponse(_, _, _ string) error                { return nil }
-func (m *MockWorkerHandle) SendMux(_ json.RawMessage) error                        { return nil }
-func (m *MockWorkerHandle) SetMode(_ string) error                                 { return nil }
-func (m *MockWorkerHandle) StopTask() error                                        { return nil }
-func (m *MockWorkerHandle) Events() <-chan WorkerEvent                             { return m.events }
-func (m *MockWorkerHandle) SessionID() string                                      { return m.sid }
+func (m *MockWorkerHandle) SendQueryStart(_ context.Context, _, _, _ string) error     { return nil }
+func (m *MockWorkerHandle) PushMessage(_ context.Context, _ string) error              { return nil }
+func (m *MockWorkerHandle) PermissionResponse(_ context.Context, _, _, _ string) error { return nil }
+func (m *MockWorkerHandle) SendMux(_ context.Context, _ json.RawMessage) error         { return nil }
+func (m *MockWorkerHandle) SetMode(_ context.Context, _ string) error                  { return nil }
+func (m *MockWorkerHandle) StopTask(_ context.Context) error                           { return nil }
+func (m *MockWorkerHandle) Events() <-chan WorkerEvent                                 { return m.events }
+func (m *MockWorkerHandle) SessionID() string                                          { return m.sid }
 
+// Close closes the events channel, as a worker that exits does. It is safe to
+// call more than once and from several goroutines: the session pump closes the
+// worker at shutdown while a test may close it too.
 func (m *MockWorkerHandle) Close() error {
-	if !m.closed {
-		m.closed = true
-		close(m.events)
-	}
+	m.closeOnce.Do(func() { close(m.events) })
 
 	return nil
 }

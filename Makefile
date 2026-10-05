@@ -1,4 +1,4 @@
-.PHONY: help ok check lint fix test test-coverage build tools
+.PHONY: help ok check lint fix test test-coverage build tools vuln
 
 help: ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-15s\033[0m %s\n", $$1, $$2}'
@@ -29,7 +29,12 @@ test-coverage: ## Run tests with race detector and coverage report
 build: ## Build binaries
 	@mkdir -p bin
 	go build -o bin/noskills-server ./cmd/noskills-server/
-	go build -o bin/noskills ./cmd/noskills/
+
+vuln: ## Report known vulnerabilities reachable from both Go modules (needs network)
+	go tool govulncheck ./...
+	@# The bridge module cannot resolve the root module's tool directive, so
+	@# the root-built binary scans it with -C.
+	go tool govulncheck -C pkg/@eserstack/ajan ./...
 
 tools: ## Download tool dependencies declared in go.mod
 	go mod download

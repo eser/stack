@@ -2,6 +2,12 @@
 
 /** CLI adapter barrel. */
 
-export * from "./output.ts";
-export * from "./wiring.ts";
+export {
+  outputError,
+  outputPost,
+  outputPosts,
+  outputSuccess,
+} from "./output.ts";
+export { createAppContext } from "./wiring.ts";
+export type { AppContext } from "./wiring.ts";
 export * as commands from "./commands/mod.ts";

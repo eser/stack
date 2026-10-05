@@ -1,71 +1,74 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import { assert, assertEquals } from "@std/assert";
-import {
-  containsGitWriteBypass,
-  extractGitInvocations,
-  hasGitWrite,
-  isGitAllowed,
-  stripFlagValues,
-} from "./git.ts";
+import * as assert from "@std/assert";
+import * as git from "./git.ts";
 
 Deno.test("isGitAllowed permits read-only git", () => {
-  assertEquals(isGitAllowed("git log --oneline"), true);
-  assertEquals(isGitAllowed("git status"), true);
-  assertEquals(isGitAllowed("git -C /repo diff"), true);
-  assertEquals(isGitAllowed("git branch --show-current"), true);
-  assertEquals(isGitAllowed("ls -la"), true); // not git at all
+  assert.assertEquals(git.isGitAllowed("git log --oneline"), true);
+  assert.assertEquals(git.isGitAllowed("git status"), true);
+  assert.assertEquals(git.isGitAllowed("git -C /repo diff"), true);
+  assert.assertEquals(git.isGitAllowed("git branch --show-current"), true);
+  assert.assertEquals(git.isGitAllowed("ls -la"), true); // not git at all
 });
 
 Deno.test("isGitAllowed blocks writes", () => {
-  assertEquals(isGitAllowed("git push origin main"), false);
-  assertEquals(isGitAllowed("git commit -m x"), false);
-  assertEquals(isGitAllowed("git branch -d feature"), false);
-  assertEquals(isGitAllowed("git stash"), false); // bare stash = push
-  assertEquals(isGitAllowed("git reset --hard"), false);
+  assert.assertEquals(git.isGitAllowed("git push origin main"), false);
+  assert.assertEquals(git.isGitAllowed("git commit -m x"), false);
+  assert.assertEquals(git.isGitAllowed("git branch -d feature"), false);
+  assert.assertEquals(git.isGitAllowed("git stash"), false); // bare stash = push
+  assert.assertEquals(git.isGitAllowed("git reset --hard"), false);
 });
 
 Deno.test("containsGitWriteBypass catches subshell/pipe smuggling", () => {
-  assertEquals(containsGitWriteBypass(`bash -c "git push"`), true);
-  assertEquals(containsGitWriteBypass("echo x | git commit -F -"), true);
-  assertEquals(containsGitWriteBypass("foo && $(git reset --hard)"), true);
-  assertEquals(containsGitWriteBypass(`bash -c "git status"`), false);
+  assert.assertEquals(git.containsGitWriteBypass(`bash -c "git push"`), true);
+  assert.assertEquals(
+    git.containsGitWriteBypass("echo x | git commit -F -"),
+    true,
+  );
+  assert.assertEquals(
+    git.containsGitWriteBypass("foo && $(git reset --hard)"),
+    true,
+  );
+  assert.assertEquals(
+    git.containsGitWriteBypass(`bash -c "git status"`),
+    false,
+  );
 });
 
 Deno.test("hasGitWrite combines direct + bypass + flag stripping", () => {
-  assertEquals(hasGitWrite("git commit -m x && git push"), true);
-  assertEquals(hasGitWrite("git log && git diff"), false);
+  assert.assertEquals(git.hasGitWrite("git commit -m x && git push"), true);
+  assert.assertEquals(git.hasGitWrite("git log && git diff"), false);
   // user text in a flag value must not be scanned as a command
-  assertEquals(
-    hasGitWrite(`noskills next --answer="use git push workflow"`),
+  assert.assertEquals(
+    git.hasGitWrite(`noskills next --answer="use git push workflow"`),
     false,
   );
 });
 
 Deno.test("path-prefixed git is detected as a write (no bypass)", () => {
-  assertEquals(isGitAllowed("/usr/bin/git push"), false);
-  assertEquals(hasGitWrite("/usr/bin/git push"), true);
-  assertEquals(hasGitWrite("./git commit -m x"), true);
-  assertEquals(hasGitWrite("echo x | /usr/bin/git push"), true);
+  assert.assertEquals(git.isGitAllowed("/usr/bin/git push"), false);
+  assert.assertEquals(git.hasGitWrite("/usr/bin/git push"), true);
+  assert.assertEquals(git.hasGitWrite("./git commit -m x"), true);
+  assert.assertEquals(git.hasGitWrite("echo x | /usr/bin/git push"), true);
 });
 
 Deno.test("exotic subshell forms are detected", () => {
-  assertEquals(hasGitWrite(`bash -lc "git push"`), true);
-  assertEquals(hasGitWrite(`zsh -c "git push"`), true);
-  assertEquals(hasGitWrite(`bash -c $'git push'`), true);
+  assert.assertEquals(git.hasGitWrite(`bash -lc "git push"`), true);
+  assert.assertEquals(git.hasGitWrite(`zsh -c "git push"`), true);
+  assert.assertEquals(git.hasGitWrite(`bash -c $'git push'`), true);
 });
 
 Deno.test("git look-alike tools are NOT treated as git", () => {
-  assertEquals(isGitAllowed("github-cli pr create"), true);
-  assertEquals(isGitAllowed("git-lfs ls-files"), true);
-  assertEquals(hasGitWrite("gitleaks detect"), false);
+  assert.assertEquals(git.isGitAllowed("github-cli pr create"), true);
+  assert.assertEquals(git.isGitAllowed("git-lfs ls-files"), true);
+  assert.assertEquals(git.hasGitWrite("gitleaks detect"), false);
   // a path-prefixed read is still allowed
-  assertEquals(isGitAllowed("/usr/bin/git status"), true);
+  assert.assertEquals(git.isGitAllowed("/usr/bin/git status"), true);
 });
 
 Deno.test("stripFlagValues removes quoted flag values", () => {
-  assertEquals(
-    stripFlagValues(`x --answer="git push" --y=z`).includes("push"),
+  assert.assertEquals(
+    git.stripFlagValues(`x --answer="git push" --y=z`).includes("push"),
     false,
   );
 });
@@ -89,7 +92,7 @@ Deno.test("command separators split identically however they are padded", () => 
   ];
 
   for (const [command, write] of cases) {
-    assertEquals(hasGitWrite(command), write, command);
+    assert.assertEquals(git.hasGitWrite(command), write, command);
   }
 });
 
@@ -109,8 +112,8 @@ Deno.test("pipe segmentation is insensitive to surrounding whitespace", () => {
   ];
 
   for (const [command, write] of cases) {
-    assertEquals(containsGitWriteBypass(command), write, command);
-    assertEquals(hasGitWrite(command), write, command);
+    assert.assertEquals(git.containsGitWriteBypass(command), write, command);
+    assert.assertEquals(git.hasGitWrite(command), write, command);
   }
 });
 
@@ -128,7 +131,11 @@ Deno.test("extractGitInvocations splits chains regardless of padding", () => {
   ];
 
   for (const [command, invocations] of cases) {
-    assertEquals([...extractGitInvocations(command)], invocations, command);
+    assert.assertEquals(
+      [...git.extractGitInvocations(command)],
+      invocations,
+      command,
+    );
   }
 });
 
@@ -142,9 +149,97 @@ Deno.test("whitespace padding cannot stall the guard (ReDoS regression)", () => 
   const write = `git log${padding}| git push`;
 
   const started = performance.now();
-  assertEquals(hasGitWrite(read), false);
-  assertEquals(hasGitWrite(write), true);
+  assert.assertEquals(git.hasGitWrite(read), false);
+  assert.assertEquals(git.hasGitWrite(write), true);
   const elapsed = performance.now() - started;
 
-  assert(elapsed < 1_000, `guard took ${elapsed.toFixed(0)}ms on padded input`);
+  assert.assert(
+    elapsed < 1_000,
+    `guard took ${elapsed.toFixed(0)}ms on padded input`,
+  );
+});
+
+Deno.test("isGitArgsAllowed decides on the argument vector git receives", () => {
+  const cases: readonly [args: readonly string[], allowed: boolean][] = [
+    [[], true],
+    [["status"], true],
+    [["-C", "/repo", "log", "--oneline"], true],
+    [["--git-dir=/repo/.git", "diff"], true],
+    [["-P", "log"], true],
+    [["--no-pager", "-p", "show"], true],
+    [["--version"], true],
+    [["-v"], true],
+    [["--help", "push"], true],
+    [["--exec-path"], true],
+    [["branch", "--show-current"], true],
+    [["config", "--get", "user.name"], true],
+    [["commit", "-m", "x"], false],
+    [["push", "origin", "main"], false],
+    [["--exec-path=/tmp/x", "commit"], false],
+    [["-c", "log", "commit"], false],
+    [["branch", "-D", "feature"], false],
+    [["config", "user.name", "x"], false],
+  ];
+
+  for (const [args, allowed] of cases) {
+    assert.assertEquals(git.isGitArgsAllowed(args), allowed, args.join(" "));
+  }
+});
+
+Deno.test("isGitAllowed reads informational options and pager flags", () => {
+  assert.assertEquals(git.isGitAllowed("git --version"), true);
+  assert.assertEquals(git.isGitAllowed("git -P log"), true);
+  assert.assertEquals(git.isGitAllowed("git --exec-path=/x commit"), false);
+});
+
+Deno.test("splitGitArgs separates global options from the subcommand", () => {
+  assert.assertEquals(
+    git.splitGitArgs(["-C", "/repo", "--git-dir=/g", "commit", "-m", "x"]),
+    {
+      globalOptions: ["-C", "/repo", "--git-dir=/g"],
+      subcommand: "commit",
+      subcommandArgs: ["-m", "x"],
+    },
+  );
+  assert.assertEquals(git.splitGitArgs(["-C", "/repo"]), {
+    globalOptions: ["-C", "/repo"],
+    subcommand: "",
+    subcommandArgs: [],
+  });
+  // Global options of newer git versions, with and without a value.
+  assert.assertEquals(
+    git.splitGitArgs([
+      "--no-advice",
+      "--no-lazy-fetch",
+      "--attr-source",
+      "HEAD",
+      "-C",
+      "/repo",
+      "commit",
+    ]),
+    {
+      globalOptions: [
+        "--no-advice",
+        "--no-lazy-fetch",
+        "--attr-source",
+        "HEAD",
+        "-C",
+        "/repo",
+      ],
+      subcommand: "commit",
+      subcommandArgs: [],
+    },
+  );
+  assert.assertEquals(
+    git.splitGitArgs(["--attr-source=HEAD", "log"]).subcommand,
+    "log",
+  );
+});
+
+Deno.test("isGitRemoteWrite flags push however it is introduced", () => {
+  assert.assertEquals(git.isGitRemoteWrite(["push"]), true);
+  assert.assertEquals(git.isGitRemoteWrite(["-C", "/x", "push", "o"]), true);
+  assert.assertEquals(git.isGitRemoteWrite(["send-pack", "r"]), true);
+  assert.assertEquals(git.isGitRemoteWrite(["commit"]), false);
+  assert.assertEquals(git.isGitRemoteWrite(["log", "push"]), false);
 });

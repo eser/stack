@@ -11,9 +11,8 @@
  * @module
  */
 
-import { transform } from "lightningcss";
-import { Buffer } from "node:buffer";
-import { isRuntime, runtime } from "@eserstack/standards/cross-runtime";
+import * as lightningcss from "lightningcss";
+import * as crossRuntime from "@eserstack/standards/cross-runtime";
 import type {
   BrowserTargets,
   CssModuleExportData,
@@ -69,27 +68,19 @@ function convertTargets(targets?: BrowserTargets): LightningTargets {
 
 /**
  * Safely decode buffer data to string.
- * - Uses Buffer.toString() for Node.js (idiomatic)
- * - Uses TextDecoder for Deno/Browser
+ * - Uses TextDecoder, which also decodes a Node.js Buffer (a Uint8Array subclass)
  * - Validates input to prevent null/undefined errors
  *
  * @see https://github.com/denoland/deno/issues/7178 - TextDecoder throws on null/undefined
  */
 function decodeBufferToString(data: unknown): string {
-  // Validate input - this is the actual bug fix
+  // TextDecoder throws an unhelpful error on null/undefined, so name the source.
   if (data === null || data === undefined) {
     throw new TypeError(
       `Expected Uint8Array from Lightning CSS, got ${
         data === null ? "null" : "undefined"
       }`,
     );
-  }
-
-  // Node.js Buffer (most idiomatic)
-  if (
-    isRuntime("node") && typeof Buffer !== "undefined" && Buffer.isBuffer(data)
-  ) {
-    return data.toString("utf-8");
   }
 
   // Uint8Array (works for both Buffer and Uint8Array)
@@ -116,7 +107,10 @@ function decodeBufferToString(data: unknown): string {
  *
  * @example
  * ```ts
- * const result = transformWithLightningCss(cssContent, {
+ * import * as css from "@eserstack/bundler/css";
+ *
+ * const cssContent = ".card { display: flex; }";
+ * const result = css.transformWithLightningCss(cssContent, {
  *   minify: true,
  *   targets: { chrome: 90 << 16 },
  * });
@@ -144,9 +138,9 @@ export function transformWithLightningCss(
     targets: convertTargets(targets),
     cssModules,
     unusedSymbols: [...unusedSymbols],
-  } as Parameters<typeof transform>[0];
+  } as Parameters<typeof lightningcss.transform>[0];
 
-  const result = transform(transformOptions);
+  const result = lightningcss.transform(transformOptions);
 
   // Build exports map if CSS Modules enabled
   let exports: Record<string, CssModuleExportData> | undefined;
@@ -173,7 +167,10 @@ export function transformWithLightningCss(
 
   return {
     code: decodeBufferToString(result.code),
-    map: result.map != null ? decodeBufferToString(result.map) : undefined,
+    // lightningcss types define map as Uint8Array | void
+    map: result.map !== null && result.map !== undefined
+      ? decodeBufferToString(result.map)
+      : undefined,
     exports,
   };
 }
@@ -191,7 +188,7 @@ export async function transformCssFile(
   outputPath?: string,
   options: LightningCssOptions = {},
 ): Promise<LightningCssResult> {
-  const css = await runtime.fs.readTextFile(inputPath);
+  const css = await crossRuntime.runtime.fs.readTextFile(inputPath);
 
   const result = transformWithLightningCss(css, {
     ...options,
@@ -199,7 +196,7 @@ export async function transformCssFile(
   });
 
   const output = outputPath ?? inputPath;
-  await runtime.fs.writeTextFile(output, result.code);
+  await crossRuntime.runtime.fs.writeTextFile(output, result.code);
 
   return result;
 }
@@ -249,9 +246,11 @@ export function transformCssModules(
  *
  * @example
  * ```ts
+ * import * as css from "@eserstack/bundler/css";
+ *
  * const targets = {
- *   chrome: browserVersion(90),      // Chrome 90
- *   safari: browserVersion(14, 1),   // Safari 14.1
+ *   chrome: css.browserVersion(90), // Chrome 90
+ *   safari: css.browserVersion(14, 1), // Safari 14.1
  * };
  * ```
  */

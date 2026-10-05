@@ -55,7 +55,7 @@ in every context it loads into.
 Scope: Checking that the skill's rules are followed
 
 Rule: Write 2-3 realistic task prompts, the kind a person would type in this
-repo, and run each one twice in the same turn with separate subagents:
+codebase, and run each one twice in the same turn with separate subagents:
 
 - **With skill:** the subagent reads the skill under test.
 - **Baseline:** for a new skill, no skill at all. For a changed skill, the old
@@ -72,11 +72,12 @@ output with a pass or fail and one line of evidence (a file path, a quoted line,
 a command result). Check assertions with a script when possible. Then read the
 transcripts, not only the final output.
 
-Keep the work outside the tracked tree, under
-`etc/temp/_skill-evals/<skill>/iteration-<n>/<eval-name>/{with_skill,baseline}/`
-(`etc/temp/` is gitignored; the leading `_` keeps Go's `./...` from compiling Go
-files an eval writes there). Commit only the eval definitions:
-`.agents/skills/<skill>/evals/evals.json`.
+Keep the work outside the tracked tree, in a gitignored scratch directory such
+as
+`etc/temp/_skill-evals/<skill>/iteration-<n>/<eval-name>/{with_skill,baseline}/`.
+Start the eval directory's name with `_`: Go's `./...` skips such directories,
+so Go files an eval writes there are never compiled. Commit only the eval
+definitions: `.agents/skills/<skill>/evals/evals.json`.
 
 ```json
 {
@@ -88,7 +89,7 @@ files an eval writes there). Commit only the eval definitions:
       "prompt": "the config merge drops a timeout of 0 from the env, fix it",
       "assertions": [
         "A test reproducing the zero-value case is added",
-        "The commit body names the root cause with file:line"
+        "The report names the root cause with file:line"
       ]
     }
   ]
@@ -113,13 +114,13 @@ Rule: The description is what decides whether the skill loads at all. Write
   some that never name the skill's topic directly.
 - 8-10 should not trigger: near misses that share keywords but need a different
   skill. "Write a fibonacci function" is not a useful negative for a release
-  skill; "bump the Go module tag for ajan" is, because Go modules do not use the
-  version-bump script.
+  skill; "bump zod to 4.1 in the config package" is, because it shares "bump"
+  but is a dependency update.
 
 ```json
 [
   { "query": "cut v4.6.0 and push the tag", "should_trigger": true },
-  { "query": "tag pkg/ajan v0.9.2 for the Go module", "should_trigger": false }
+  { "query": "bump zod to 4.1 in the config package", "should_trigger": false }
 ]
 ```
 

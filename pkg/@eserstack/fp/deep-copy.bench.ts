@@ -1,6 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import { deepCopy, deepCopy2 } from "./deep-copy.ts";
+import * as deepCopy from "./deep-copy.ts";
 
 const group = "deep-copy";
 
@@ -15,13 +15,13 @@ class Dummy {
 Deno.bench("@eserstack/fp/deep-copy", { group, baseline: true }, () => {
   const obj1 = new Dummy({ value: 5 });
 
-  deepCopy(obj1);
+  deepCopy.deepCopy(obj1);
 });
 
 Deno.bench("@eserstack/fp/deep-copy-2", { group }, () => {
   const obj1 = new Dummy({ value: 5 });
 
-  deepCopy2(obj1);
+  deepCopy.deepCopy2(obj1);
 });
 
 Deno.bench("structuredClone", { group }, () => {

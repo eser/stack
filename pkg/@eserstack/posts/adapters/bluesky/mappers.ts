@@ -7,27 +7,34 @@
 
 import type { Post } from "../../domain/entities/post.ts";
 import type { User } from "../../domain/entities/user.ts";
-import { toHandle } from "../../domain/values/handle.ts";
-import { toPostId } from "../../domain/values/post-id.ts";
+import * as handle from "../../domain/values/handle.ts";
+import * as postId from "../../domain/values/post-id.ts";
 import type { BlueskyPostView, BlueskyProfileResponse } from "./types.ts";
 
 /**
  * Map a Bluesky post view to a domain Post entity.
- * Stores the AT-URI and CID in platformRef so reply chains can reference them.
+ * Stores the AT-URI and CID in platformRef so reply chains can reference them,
+ * and for a reply also its thread root (rootUri, rootCid), which a reply to
+ * this post must name as its root.
  */
 export function mapToDomainPost(raw: BlueskyPostView): Post {
   const replyRoot = raw.record.reply?.root;
   const inReplyToId = replyRoot !== undefined
-    ? toPostId(replyRoot.uri)
+    ? postId.toPostId(replyRoot.uri)
     : undefined;
 
   return {
-    id: toPostId(raw.uri),
+    id: postId.toPostId(raw.uri),
     text: raw.record.text,
-    authorHandle: toHandle(raw.author.handle),
+    authorHandle: handle.toHandle(raw.author.handle),
     createdAt: new Date(raw.indexedAt),
     platform: "bluesky",
-    platformRef: { uri: raw.uri, cid: raw.cid },
+    platformRef: {
+      uri: raw.uri,
+      cid: raw.cid,
+      ...(replyRoot !== undefined &&
+        { rootUri: replyRoot.uri, rootCid: replyRoot.cid }),
+    },
     ...(inReplyToId !== undefined && { inReplyToId }),
   };
 }
@@ -36,7 +43,7 @@ export function mapToDomainPost(raw: BlueskyPostView): Post {
 export function mapToDomainUser(raw: BlueskyProfileResponse): User {
   return {
     id: raw.did,
-    handle: toHandle(raw.handle),
+    handle: handle.toHandle(raw.handle),
     displayName: raw.displayName ?? raw.handle,
     platform: "bluesky",
     subscriptionTier: "free",

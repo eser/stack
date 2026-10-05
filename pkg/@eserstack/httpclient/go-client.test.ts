@@ -1,13 +1,19 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
-// Wave 4 Phase E — GoHttpError class and typed reconstruction.
 
-import { assertEquals, assertInstanceOf } from "@std/assert";
-import { describe, it } from "@std/testing/bdd";
+import * as assert from "@std/assert";
+import * as bdd from "@std/testing/bdd";
 import * as goClientModule from "./go-client.ts";
-import * as errors from "./errors.ts";
+import * as ffiClient from "./ffi-client.ts";
 
-describe("GoHttpError", () => {
-  it("constructs with all structured fields", () => {
+// Importing the package loads nothing, so this test module opens the bridge
+// before registering tests: the `ignore` flags below need to know whether it
+// loaded, and the load stays outside every test body.
+// deno-lint-ignore no-top-level-await
+await ffiClient.ensureLib();
+const withoutFfi = ffiClient.getLib() === null;
+
+bdd.describe("GoHttpError", () => {
+  bdd.it("constructs with all structured fields", () => {
     const err = new goClientModule.GoHttpError({
       error: "HTTP 429 Too Many Requests",
       status: 429,
@@ -17,28 +23,28 @@ describe("GoHttpError", () => {
       retries: 2,
     });
 
-    assertInstanceOf(err, goClientModule.GoHttpError);
-    assertInstanceOf(err, Error);
-    assertEquals(err.message, "HTTP 429 Too Many Requests");
-    assertEquals(err.name, "GoHttpError");
-    assertEquals(err.status, 429);
-    assertEquals(err.statusText, "Too Many Requests");
-    assertEquals(err.headers["Retry-After"], "30");
-    assertEquals(err.body, '{"error":"rate limited"}');
-    assertEquals(err.retries, 2);
+    assert.assertInstanceOf(err, goClientModule.GoHttpError);
+    assert.assertInstanceOf(err, Error);
+    assert.assertEquals(err.message, "HTTP 429 Too Many Requests");
+    assert.assertEquals(err.name, "GoHttpError");
+    assert.assertEquals(err.status, 429);
+    assert.assertEquals(err.statusText, "Too Many Requests");
+    assert.assertEquals(err.headers["Retry-After"], "30");
+    assert.assertEquals(err.body, '{"error":"rate limited"}');
+    assert.assertEquals(err.retries, 2);
   });
 
-  it("defaults missing fields to safe values", () => {
+  bdd.it("defaults missing fields to safe values", () => {
     const err = new goClientModule.GoHttpError({ error: "request failed" });
 
-    assertEquals(err.status, 0);
-    assertEquals(err.statusText, "");
-    assertEquals(err.headers, {});
-    assertEquals(err.body, "");
-    assertEquals(err.retries, 0);
+    assert.assertEquals(err.status, 0);
+    assert.assertEquals(err.statusText, "");
+    assert.assertEquals(err.headers, {});
+    assert.assertEquals(err.body, "");
+    assert.assertEquals(err.retries, 0);
   });
 
-  it("is identifiable via instanceof in catch blocks", () => {
+  bdd.it("is identifiable via instanceof in catch blocks", () => {
     let caught: unknown;
     try {
       throw new goClientModule.GoHttpError({
@@ -49,95 +55,54 @@ describe("GoHttpError", () => {
       caught = e;
     }
 
-    assertInstanceOf(caught, goClientModule.GoHttpError);
-    assertEquals((caught as goClientModule.GoHttpError).status, 404);
+    assert.assertInstanceOf(caught, goClientModule.GoHttpError);
+    assert.assertEquals((caught as goClientModule.GoHttpError).status, 404);
   });
 });
 
-describe("typed error reconstruction from GoHttpError", () => {
-  const classify = (
-    goErr: goClientModule.GoHttpError,
-  ): errors.HttpClientError => {
-    if (goErr.status > 0) {
-      let body: unknown = goErr.body;
-      try {
-        body = JSON.parse(goErr.body);
-      } catch {
-        /* keep string */
-      }
-      const retryAfterHeader = goErr.headers["Retry-After"] ??
-        goErr.headers["retry-after"] ?? null;
-      const retryAfterMs = retryAfterHeader !== null
-        ? (() => {
-          const s = Number(retryAfterHeader);
-          return !Number.isNaN(s) ? Math.round(s * 1000) : null;
-        })()
-        : null;
-      const opts: errors.HttpClientErrorOptions = {
-        statusCode: goErr.status,
-        body,
-        ...(retryAfterMs !== null && { retryAfter: retryAfterMs / 1000 }),
-      };
-      if (goErr.status === 429) {
-        return new errors.HttpRateLimitError(`HTTP ${goErr.status}`, opts);
-      }
-      return new errors.HttpResponseError(`HTTP ${goErr.status}`, opts);
-    }
-    return new errors.HttpNetworkError(goErr.message, { cause: goErr });
-  };
-
-  it("maps 429 to HttpRateLimitError with retryAfter", () => {
-    const goErr = new goClientModule.GoHttpError({
-      error: "HTTP 429 Too Many Requests",
-      status: 429,
-      headers: { "Retry-After": "60" },
-      body: "",
-      retries: 0,
-    });
-
-    const typed = classify(goErr);
-    assertInstanceOf(typed, errors.HttpRateLimitError);
-    assertEquals(typed.statusCode, 429);
-    assertEquals(typed.retryAfter, 60);
-  });
-
-  it("maps 404 to HttpResponseError", () => {
-    const goErr = new goClientModule.GoHttpError({
-      error: "HTTP 404 Not Found",
-      status: 404,
-      body: "not found",
-      retries: 0,
-    });
-
-    const typed = classify(goErr);
-    assertInstanceOf(typed, errors.HttpResponseError);
-    assertEquals(typed.statusCode, 404);
-    assertEquals(typed.body, "not found");
-  });
-
-  it("maps transport error (status=0) to HttpNetworkError", () => {
-    const goErr = new goClientModule.GoHttpError({
-      error: "request failed: ECONNREFUSED",
-    });
-
-    const typed = classify(goErr);
-    assertInstanceOf(typed, errors.HttpNetworkError);
-    assertEquals(typed.statusCode, null);
-  });
-
-  it("parses JSON body in error payload", () => {
-    const goErr = new goClientModule.GoHttpError({
-      error: "HTTP 422 Unprocessable Entity",
-      status: 422,
-      body: '{"message":"validation failed"}',
-      retries: 0,
-    });
-
-    const typed = classify(goErr);
-    assertInstanceOf(typed, errors.HttpResponseError);
-    assertEquals(
-      (typed.body as Record<string, string>)["message"],
-      "validation failed",
+bdd.describe("createGoHttpClient options", () => {
+  for (const timeoutMs of [0, -1, Number.NaN, Number.POSITIVE_INFINITY]) {
+    bdd.it(
+      `refuses timeoutMs ${timeoutMs}, which would leave calls unbounded`,
+      async () => {
+        await assert.assertRejects(
+          () => goClientModule.createGoHttpClient({ timeoutMs }),
+          RangeError,
+          "is not a positive number of milliseconds",
+        );
+      },
     );
+  }
+
+  // Needs the native library: the Go client itself enforces the limit.
+  bdd.it({
+    name:
+      "passes timeoutMs to the Go client, which ends a request with no answer",
+    ignore: withoutFfi,
+    fn: async () => {
+      // The kernel accepts the connection into the backlog and nothing ever
+      // answers, so only the Go client's timeout can end the request.
+      const listener = Deno.listen({ hostname: "127.0.0.1", port: 0 });
+      const client = await goClientModule.createGoHttpClient({
+        timeoutMs: 200,
+      });
+      const started = Date.now();
+      try {
+        const error = await assert.assertRejects(
+          () =>
+            client.request({
+              method: "GET",
+              url: `http://127.0.0.1:${listener.addr.port}/`,
+            }),
+          goClientModule.GoHttpError,
+        );
+
+        assert.assertEquals(error.status, 0);
+        assert.assertLess(Date.now() - started, 5_000);
+      } finally {
+        client.close();
+        listener.close();
+      }
+    },
   });
 });

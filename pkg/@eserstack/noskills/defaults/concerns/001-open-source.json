@@ -30,26 +30,26 @@
       "id": "contributor-guide",
       "title": "Contributor Guide",
       "placeholder": "_Describe the contributor pathway: forking, dev environment setup, submitting a PR. What is the Time-To-First-Contribution? List every manual step._",
-      "condition": null,
       "position": "after:acceptance-criteria"
     },
     {
       "id": "public-api-surface",
       "title": "Public API Surface",
       "placeholder": "_Map every public export, CLI flag, and config option touched by this change. Are names self-explanatory without docs? Any breaking changes?_",
-      "condition": null,
       "position": "after:acceptance-criteria"
     },
     {
       "id": "release-notes",
       "title": "Release Notes",
       "placeholder": "_Draft the release notes for this change. Audience: users upgrading from the previous version. Focus on what changes for them, not on implementation details._",
-      "condition": null,
       "position": "after:acceptance-criteria"
     }
   ],
   "reminders": [
-    "Endpoint should be documented in API docs",
+    {
+      "text": "Endpoint should be documented in API docs",
+      "scope": ["api"]
+    },
     "Consider contributor experience for new patterns",
     "Default to permissive, well-documented choices",
     "New features and API changes must be documented so contributors can discover and use them",

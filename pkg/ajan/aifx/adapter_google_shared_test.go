@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"reflect"
 	"testing"
 
 	"google.golang.org/genai"
@@ -273,7 +275,10 @@ func TestBuildGenerateContentConfig(t *testing.T) {
 		ThinkingBudget: &budget,
 	}
 
-	config := buildGenerateContentConfig(opts)
+	config, err := buildGenerateContentConfig(opts)
+	if err != nil {
+		t.Fatalf("buildGenerateContentConfig: %v", err)
+	}
 
 	if config.SystemInstruction == nil {
 		t.Error("expected SystemInstruction")
@@ -392,10 +397,41 @@ func TestApplyGenAIResponseFormat(t *testing.T) {
 			},
 		}
 
-		applyGenAIResponseFormat(config, opts)
+		err := applyGenAIResponseFormat(config, opts)
+		if err != nil {
+			t.Fatalf("applyGenAIResponseFormat: %v", err)
+		}
 
 		if config.ResponseMIMEType != "application/json" {
 			t.Errorf("unexpected MIME type: %s", config.ResponseMIMEType)
+		}
+
+		want := map[string]any{"type": "object"}
+		if !reflect.DeepEqual(config.ResponseJsonSchema, want) {
+			t.Errorf("ResponseJsonSchema = %v, want %v", config.ResponseJsonSchema, want)
+		}
+
+		// The API takes only one of the two schema fields.
+		if config.ResponseSchema != nil {
+			t.Errorf("ResponseSchema = %+v, want nil next to ResponseJsonSchema", config.ResponseSchema)
+		}
+	})
+
+	t.Run("json_object format sends only the MIME type", func(t *testing.T) {
+		t.Parallel()
+
+		config := &genai.GenerateContentConfig{} //nolint:exhaustruct
+		opts := &GenerateTextOptions{
+			ResponseFormat: &ResponseFormat{Type: "json_object"},
+		}
+
+		err := applyGenAIResponseFormat(config, opts)
+		if err != nil {
+			t.Fatalf("applyGenAIResponseFormat: %v", err)
+		}
+
+		if config.ResponseMIMEType != "application/json" || config.ResponseJsonSchema != nil {
+			t.Errorf("config = %+v, want the JSON MIME type and no schema", config)
 		}
 	})
 
@@ -407,7 +443,10 @@ func TestApplyGenAIResponseFormat(t *testing.T) {
 			ResponseFormat: &ResponseFormat{Type: "text"},
 		}
 
-		applyGenAIResponseFormat(config, opts)
+		err := applyGenAIResponseFormat(config, opts)
+		if err != nil {
+			t.Fatalf("applyGenAIResponseFormat: %v", err)
+		}
 
 		if config.ResponseMIMEType != "text/plain" {
 			t.Errorf("unexpected MIME type: %s", config.ResponseMIMEType)
@@ -420,7 +459,10 @@ func TestApplyGenAIResponseFormat(t *testing.T) {
 		config := &genai.GenerateContentConfig{} //nolint:exhaustruct
 		opts := &GenerateTextOptions{}
 
-		applyGenAIResponseFormat(config, opts)
+		err := applyGenAIResponseFormat(config, opts)
+		if err != nil {
+			t.Fatalf("applyGenAIResponseFormat: %v", err)
+		}
 
 		if config.ResponseMIMEType != "" {
 			t.Errorf("expected empty MIME type for nil format, got %s", config.ResponseMIMEType)
@@ -432,22 +474,34 @@ func TestMapGenAIFinishReason(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		input genai.FinishReason
-		want  StopReason
+		input      genai.FinishReason
+		calledTool bool
+		want       StopReason
 	}{
-		{genai.FinishReasonStop, StopReasonEndTurn},
-		{genai.FinishReasonMaxTokens, StopReasonMaxTokens},
-		{genai.FinishReasonSafety, StopReasonStop}, // default
-		{genai.FinishReasonOther, StopReasonStop},  // default
+		{genai.FinishReasonStop, false, StopReasonEndTurn},
+		{genai.FinishReasonStop, true, StopReasonToolUse},
+		{genai.FinishReasonMaxTokens, false, StopReasonMaxTokens},
+		{genai.FinishReasonSafety, false, StopReasonRefusal},
+		{genai.FinishReasonBlocklist, false, StopReasonRefusal},
+		{genai.FinishReasonProhibitedContent, false, StopReasonRefusal},
+		{genai.FinishReasonSPII, false, StopReasonRefusal},
+		{genai.FinishReasonRecitation, false, StopReasonRefusal},
+		{genai.FinishReasonImageSafety, false, StopReasonRefusal},
+		{genai.FinishReasonImageProhibitedContent, false, StopReasonRefusal},
+		{genai.FinishReasonImageRecitation, false, StopReasonRefusal},
+		{genai.FinishReasonSafety, true, StopReasonRefusal},
+		{genai.FinishReasonOther, false, StopReasonStop},
+		{genai.FinishReasonLanguage, false, StopReasonStop},
+		{genai.FinishReasonMalformedFunctionCall, false, StopReasonStop},
 	}
 
 	for _, tc := range tests {
-		t.Run(string(tc.input), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%s, called tool %v", tc.input, tc.calledTool), func(t *testing.T) {
 			t.Parallel()
 
-			got := mapGenAIFinishReason(tc.input)
+			got := mapGenAIFinishReason(tc.input, tc.calledTool)
 			if got != tc.want {
-				t.Errorf("mapGenAIFinishReason(%q) = %q, want %q", tc.input, got, tc.want)
+				t.Errorf("mapGenAIFinishReason(%q, %v) = %q, want %q", tc.input, tc.calledTool, got, tc.want)
 			}
 		})
 	}
@@ -644,7 +698,7 @@ func TestEmitStreamEventsFromResponse_WithContent(t *testing.T) {
 		},
 	}
 
-	emitStreamEventsFromResponse(ctx, ch, resp)
+	(&genAIStreamMapper{}).emit(ctx, ch, resp) //nolint:exhaustruct
 	close(ch)
 
 	var events []StreamEvent
@@ -667,7 +721,7 @@ func TestEmitStreamEventsFromResponse_NilResponse(t *testing.T) {
 	t.Parallel()
 
 	ch := make(chan StreamEvent, 4)
-	emitStreamEventsFromResponse(context.Background(), ch, nil)
+	(&genAIStreamMapper{}).emit(context.Background(), ch, nil) //nolint:exhaustruct
 	close(ch)
 
 	if len(ch) != 0 {
@@ -675,6 +729,8 @@ func TestEmitStreamEventsFromResponse_NilResponse(t *testing.T) {
 	}
 }
 
+// A chunk that ends the turn reports its stop reason even with no content: a
+// filtered answer arrives that way.
 func TestEmitStreamEventsFromResponse_NoContent(t *testing.T) {
 	t.Parallel()
 
@@ -685,11 +741,17 @@ func TestEmitStreamEventsFromResponse_NoContent(t *testing.T) {
 		},
 	}
 
-	emitStreamEventsFromResponse(context.Background(), ch, resp)
+	(&genAIStreamMapper{}).emit(context.Background(), ch, resp) //nolint:exhaustruct
 	close(ch)
 
-	if len(ch) != 0 {
-		t.Error("expected no events when candidate has nil content")
+	var events []StreamEvent
+
+	for ev := range ch {
+		events = append(events, ev)
+	}
+
+	if len(events) != 1 || events[0].Type != StreamEventMessageDone || events[0].StopReason != StopReasonEndTurn {
+		t.Fatalf("events = %+v, want one end_turn done event", events)
 	}
 }
 
@@ -721,19 +783,20 @@ func TestEmitGenAIContentParts_FunctionCall(t *testing.T) {
 	}
 }
 
-func TestEmitGenAIUsageMetadata_NilSkipped(t *testing.T) {
+func TestEmitGenAIDone_NoUsageMetadata(t *testing.T) {
 	t.Parallel()
 
 	ch := make(chan StreamEvent, 4)
-	emitGenAIUsageMetadata(context.Background(), ch, nil, genai.FinishReasonStop)
+	emitGenAIDone(context.Background(), ch, nil, StopReasonRefusal)
 	close(ch)
 
-	if len(ch) != 0 {
-		t.Error("expected no events for nil usage metadata")
+	event := <-ch
+	if event.Type != StreamEventMessageDone || event.StopReason != StopReasonRefusal || event.Usage != nil {
+		t.Errorf("event = %+v, want a refusal done event without usage", event)
 	}
 }
 
-func TestEmitGenAIUsageMetadata_WithData(t *testing.T) {
+func TestEmitGenAIDone_WithData(t *testing.T) {
 	t.Parallel()
 
 	ch := make(chan StreamEvent, 4)
@@ -743,7 +806,7 @@ func TestEmitGenAIUsageMetadata_WithData(t *testing.T) {
 		TotalTokenCount:      15,
 	}
 
-	emitGenAIUsageMetadata(context.Background(), ch, meta, genai.FinishReasonStop)
+	emitGenAIDone(context.Background(), ch, meta, StopReasonEndTurn)
 	close(ch)
 
 	var events []StreamEvent
@@ -779,7 +842,7 @@ func TestMapSafetySettings_Empty(t *testing.T) {
 	}
 }
 
-func TestEmitGenAIUsageMetadata_WithThinkingTokens(t *testing.T) {
+func TestEmitGenAIDone_WithThinkingTokens(t *testing.T) {
 	t.Parallel()
 
 	ch := make(chan StreamEvent, 2)
@@ -792,7 +855,7 @@ func TestEmitGenAIUsageMetadata_WithThinkingTokens(t *testing.T) {
 		ThoughtsTokenCount:   12,
 	}
 
-	emitGenAIUsageMetadata(ctx, ch, metadata, genai.FinishReasonStop)
+	emitGenAIDone(ctx, ch, metadata, StopReasonEndTurn)
 	close(ch)
 
 	var events []StreamEvent

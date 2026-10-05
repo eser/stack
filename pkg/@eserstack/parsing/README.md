@@ -48,7 +48,7 @@ brief descriptions and usage examples.
 
 **Basic usage:**
 
-```js
+```typescript
 import * as parsing from "@eserstack/parsing";
 
 const lexer = new parsing.Tokenizer(
@@ -62,32 +62,45 @@ for (const token of lexer.tokenizeFromString("1 + 2")) {
 
 **Using a different token dictionary:**
 
-```js
+A token dictionary maps each token kind to a literal string or a pattern
+function, and the first entry that matches wins. Put your own kinds before the
+ones from `simpleTokens`, so `<<` becomes one `T_SHIFT_LEFT` token instead of
+two `T_IS_SMALLER` tokens:
+
+```typescript
 import * as parsing from "@eserstack/parsing";
 
-const lexer = new parsing.Tokenizer(
-  parsing.createTokenizerState(parsing.extendedTokens),
-);
+const tokens: parsing.TokenDefinitions = {
+  T_SHIFT_LEFT: "<<",
+  ...parsing.simpleTokens,
+};
 
-const tokens = Array.from(
+const lexer = new parsing.Tokenizer(parsing.createTokenizerState(tokens));
+
+const kinds = Array.from(
   lexer.tokenizeFromString("cout << 'hello C++' << endl;"),
+  (token) => token.kind,
 );
 
-console.log(tokens);
+console.log(kinds);
 ```
 
 **Reading from a ReadableStream:**
 
-```js
+`tokenize()` reads a stream of string chunks, such as a file or a response body
+piped through a `TextDecoderStream`. A token that a pattern function matches may
+span two chunks:
+
+```typescript
 import * as parsing from "@eserstack/parsing";
 
-const response = await fetch("https://deno.land/x/eser@0.7.13/di/mod.ts");
+const input = ReadableStream.from(["const total", " = 1 + 2;"]);
 
 const lexer = new parsing.Tokenizer(
-  parsing.createTokenizerState(parsing.extendedTokens),
+  parsing.createTokenizerState(parsing.simpleTokens),
 );
 
-for await (const token of lexer.tokenize(response.body.getReader())) {
+for await (const token of lexer.tokenize(input)) {
   console.log(token);
 }
 ```
@@ -106,7 +119,8 @@ with a list of tokens.
 Tokenizes the given input string and returns an iterator for the tokens.
 
 **Tokenizer.tokenize(input: ReadableStream)**\
-Tokenizes the given readable stream and returns an iterator for the tokens.
+Tokenizes a readable stream of string chunks and returns an async iterator for
+the tokens.
 
 ---
 

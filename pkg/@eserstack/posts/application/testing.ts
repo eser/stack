@@ -1,10 +1,14 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 /**
- * Test utilities: mock adapter factories and test data factories.
- * Import from "@eserstack/posts/testing" in test files within this package.
+ * Test utilities: mock adapter factories and test data factories. Import them
+ * from `@eserstack/posts/testing` to test code built on the application layer
+ * without a network or a token file.
  *
- * All mocks track calls and allow per-method overrides for targeted failure injection.
+ * Every mock records its calls and takes per-method overrides, so a test can
+ * make one method fail and check what the code under test did next.
+ *
+ * @module
  */
 
 import * as results from "@eserstack/primitives/results";
@@ -25,7 +29,9 @@ import type { FeedAggregator } from "./feed-aggregator.ts";
 
 /** Record of a single method invocation, used in test assertions. */
 export interface CallRecord {
+  /** The name of the method that was called. */
   method: string;
+  /** The arguments it was called with, in order. */
   args: unknown[];
 }
 
@@ -69,10 +75,18 @@ export function createTestTokens(
 
 // ── Mock SocialApi ────────────────────────────────────────────────────────────
 
+/** A SocialApi mock that records every call. */
 export interface MockSocialApi extends SocialApi {
+  /** Every call made to the mock, in order. */
   readonly calls: CallRecord[];
 }
 
+/**
+ * Create a SocialApi mock. Each method records its call, then runs the
+ * override for that method when one is given, or returns test data.
+ *
+ * @param overrides Methods to replace, such as a createPost that rejects.
+ */
 export function createMockSocialApi(
   overrides?: Partial<SocialApi>,
 ): MockSocialApi {
@@ -162,22 +176,38 @@ export function createMockSocialApi(
 
 // ── Mock AuthProvider ─────────────────────────────────────────────────────────
 
+/** An AuthProvider mock that records every call. */
 export interface MockAuthProvider extends AuthProvider {
+  /** Every call made to the mock, in order. */
   readonly calls: CallRecord[];
 }
 
-/** Subset of AuthProvider that can be overridden. */
-interface MockAuthProviderOverrides {
+/** The parts of an AuthProvider mock that a test can replace. */
+export interface MockAuthProviderOverrides {
+  /** Whether the login opens a browser; false when left out. */
   requiresBrowser?: boolean;
+  /** Replaces isAuthenticated, which returns true when left out. */
   isAuthenticated?: () => boolean;
+  /** Replaces getAuthorizationUrl. */
   getAuthorizationUrl?: AuthProvider["getAuthorizationUrl"];
+  /** Replaces exchangeCode. */
   exchangeCode?: AuthProvider["exchangeCode"];
+  /** Replaces loginWithCredentials. */
   loginWithCredentials?: AuthProvider["loginWithCredentials"];
+  /** Replaces refreshToken. */
   refreshToken?: AuthProvider["refreshToken"];
+  /** Runs after setTokens records its call. */
   setTokens?: AuthProvider["setTokens"];
+  /** Runs after clearTokens records its call. */
   clearTokens?: AuthProvider["clearTokens"];
 }
 
+/**
+ * Create an AuthProvider mock that is logged in and returns test tokens,
+ * unless an override says otherwise.
+ *
+ * @param overrides Methods or values to replace.
+ */
 export function createMockAuthProvider(
   overrides?: MockAuthProviderOverrides,
 ): MockAuthProvider {
@@ -229,10 +259,18 @@ export function createMockAuthProvider(
 
 // ── Mock Translator ───────────────────────────────────────────────────────────
 
+/** A Translator mock that records every call. */
 export interface MockTranslator extends Translator {
+  /** Every call made to the mock, in order. */
   readonly calls: CallRecord[];
 }
 
+/**
+ * Create a Translator mock that returns the text prefixed with
+ * `[translated] `, unless an override says otherwise.
+ *
+ * @param overrides Methods to replace, such as a translate that fails.
+ */
 export function createMockTranslator(
   overrides?: Partial<Translator>,
 ): MockTranslator {
@@ -250,10 +288,18 @@ export function createMockTranslator(
 
 // ── Mock Scheduler ────────────────────────────────────────────────────────────
 
+/** A Scheduler mock that records every call. */
 export interface MockScheduler extends Scheduler {
+  /** Every call made to the mock, in order. */
   readonly calls: CallRecord[];
 }
 
+/**
+ * Create a Scheduler mock that accepts every post and has nothing pending,
+ * unless an override says otherwise.
+ *
+ * @param overrides Methods to replace.
+ */
 export function createMockScheduler(
   overrides?: Partial<Scheduler>,
 ): MockScheduler {
@@ -280,11 +326,15 @@ export function createMockScheduler(
 
 // ── Mock TokenStore ───────────────────────────────────────────────────────────
 
+/** An in-memory TokenStore that records every call. */
 export interface MockTokenStore extends TokenStore {
+  /** Every call made to the store, in order. */
   readonly calls: CallRecord[];
+  /** The saved tokens by platform; set an entry to give a test saved tokens. */
   readonly store: Map<Platform, OAuthTokens>;
 }
 
+/** Create an empty in-memory TokenStore. */
 export function createMockTokenStore(): MockTokenStore {
   const calls: CallRecord[] = [];
   const store = new Map<Platform, OAuthTokens>();
@@ -311,10 +361,18 @@ export function createMockTokenStore(): MockTokenStore {
 
 // ── Mock FeedAggregator ───────────────────────────────────────────────────────
 
+/** A FeedAggregator mock that records every call. */
 export interface MockFeedAggregator extends FeedAggregator {
+  /** Every call made to the mock, in order. */
   readonly calls: CallRecord[];
 }
 
+/**
+ * Create a FeedAggregator mock that returns one test post, unless an override
+ * says otherwise.
+ *
+ * @param overrides Methods to replace.
+ */
 export function createMockFeedAggregator(
   overrides?: Partial<FeedAggregator>,
 ): MockFeedAggregator {
@@ -329,3 +387,31 @@ export function createMockFeedAggregator(
     },
   };
 }
+
+// ── Referenced types ──────────────────────────────────────────────────────────
+
+// The mocks above implement these ports and return these domain types; this
+// module is published as @eserstack/posts/testing, so re-exporting them keeps
+// its documented API complete for `deno doc --lint`.
+export type {
+  AuthorizationRequest,
+  AuthProvider,
+  FeedAggregator,
+  ScheduledPost,
+  Scheduler,
+  SocialApi,
+  TokenStore,
+  Translator,
+} from "./mod.ts";
+export type {
+  DailyUsage,
+  Handle,
+  OAuthTokens,
+  Platform,
+  Post,
+  PostId,
+  SubscriptionTier,
+  UsageData,
+  User,
+} from "../domain/mod.ts";
+export type { Fail, Ok, Result } from "@eserstack/primitives/results";

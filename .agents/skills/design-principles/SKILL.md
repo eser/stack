@@ -1,12 +1,13 @@
 ---
 name: design-principles
-description: "Function and module design for eserstack in TypeScript and Go. Covers pure functions with thin effectful wrappers, readonly data, small injected interfaces, plain data objects, one clock read, cancellation handles, collections by access pattern, and side-effect-free modules. Use when shaping signatures, modules, state or collections. Not for system layout (use architecture-guidelines)."
+description: "How this codebase designs functions and modules in TypeScript and Go: pure functions with thin effectful wrappers, readonly data, small injected interfaces, plain data objects, one clock read, cancellation handles, collections by access pattern, side-effect-free modules. Use when shaping signatures, modules, state or collections. Not for system layout (use architecture-guidelines)."
 ---
 
 # Design Principles
 
-How functions, modules, data and state are shaped. System structure lives in
-architecture-guidelines; code-level quality rules in coding-practices.
+How functions, modules, data and state are shaped in this codebase. System
+structure lives in architecture-guidelines; code-level quality rules in
+coding-practices.
 
 ## Always
 

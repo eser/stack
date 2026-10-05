@@ -14,8 +14,9 @@ order.
   name them: a skill loaded late cannot change the plan
 - A new rule goes into the one skill that owns the topic; other skills point to
   it as `skill-name: Exact Section Title`
-- Write only what a strong model would not do by default here: project choices,
-  real paths and commands, and the reason for each rule
+- Write only what a strong model would not do by default in this codebase: its
+  conventions, the tools it uses and the reason for each rule; facts that vary
+  per codebase go in its AGENTS.md
 - Every example follows the other skills' rules
 - SKILL.md stays an overview of at most 80 lines that links every reference file
   with a "Read when"
@@ -30,15 +31,16 @@ order.
 | --------------------------- | ----------------------------------------------------- |
 | `enrichment`                | Round-based interview until no decision is left open  |
 | `handoff`                   | `/handoff`: a document a fresh session continues from |
-| `workflow-practices`        | Clarifying, roles, approvals, task flow, gates        |
+| `workflow-practices`        | Clarifying, roles, approvals, git, parallel agents    |
 | `architecture-guidelines`   | Hexagonal layers, API surface, testing, ADRs          |
 | `design-principles`         | Pure functions, immutability, interfaces, clocks      |
 | `coding-practices`          | Errors, logging, resources, config, readability       |
-| `javascript-practices`      | TS/JS modules, types, async, React                    |
+| `javascript-practices`      | TS/JS modules, types, async, tests                    |
+| `frontend-practices`        | React, UI, composition, bundling, a11y, laroux        |
 | `go-practices`              | Go conventions, context, data structures, perf        |
 | `security-practices`        | Secrets, input, SSRF, injection, LLM trust boundary   |
 | `tooling-standards`         | Tooling, dependencies, scripts, naming, packages      |
-| `documentation-conventions` | READMEs, docs and prose style                         |
+| `documentation-conventions` | READMEs, docs structure, prose style, doc review      |
 | `release-and-ci`            | Versions, releases, publishing, workflows, deploys    |
 
 ## References

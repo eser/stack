@@ -39,8 +39,16 @@ export const main = async (
     return results.fail({ exitCode: 1 });
   }
 
-  const { cliTriggers } = await wiring.createAppContext();
-  const resolvedPlatform: Platform = platform ?? "twitter";
+  const { cliTriggers, auths } = await wiring.createAppContext();
+  // Without --platform, reply on the first configured platform, the same
+  // default the other single-platform commands use.
+  const resolvedPlatform = platform ?? auths.keys().next().value;
+  if (resolvedPlatform === undefined) {
+    await output.outputError(
+      "No platforms are configured; set TWITTER_CLIENT_ID to enable Twitter/X.",
+    );
+    return results.fail({ exitCode: 1 });
+  }
 
   const postResult = await task.runTask(
     cliTriggers.reply({

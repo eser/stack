@@ -11,8 +11,17 @@
  */
 
 import type * as schema from "../state/schema.ts";
-import { DEFAULT_CONCERNS } from "../defaults/concerns/mod.ts";
+import * as concernScope from "../state/concern-scope.ts";
+import * as defaultConcerns from "../defaults/concerns/mod.ts";
 import { runtime } from "@eserstack/standards/cross-runtime";
+
+// Library consumers read `ConcernDefinition.reminders`, whose entries are
+// plain or scoped; these helpers read either shape.
+export {
+  CONCERN_SCOPES,
+  reminderScope,
+  reminderText,
+} from "../state/concern-scope.ts";
 
 // =============================================================================
 // Concern Loader
@@ -41,9 +50,9 @@ export const loadConcerns = async (
 
   entries.sort((a, b) => a.name.localeCompare(b.name));
 
-  const concerns: schema.ConcernDefinition[] = [];
-
-  for (const entry of entries) {
+  // Each concern is its own file, so they load concurrently; map keeps the
+  // sorted order.
+  return await Promise.all(entries.map(async (entry) => {
     const filePath = `${dirPath}/${entry.name}`;
     const content = await runtime.fs.readTextFile(filePath);
     let parsed: schema.ConcernDefinition;
@@ -56,9 +65,17 @@ export const loadConcerns = async (
       );
     }
 
+    const scopeProblem = concernScope.concernScopeProblem(parsed);
+    if (scopeProblem !== null) {
+      throw new Error(
+        `Invalid concern at ${filePath}: ${scopeProblem}. ` +
+          "See README-HOW.md#where-content-applies-scope",
+      );
+    }
+
     // Load promptFile content and append to reminders (relative to concern's own dir)
     if (parsed.promptFile !== undefined) {
-      const concernDir = filePath.substring(0, filePath.lastIndexOf("/"));
+      const concernDir = filePath.slice(0, filePath.lastIndexOf("/"));
       const promptFilePath = `${concernDir}/${parsed.promptFile}`;
       try {
         const promptContent = await runtime.fs.readTextFile(promptFilePath);
@@ -77,10 +94,8 @@ export const loadConcerns = async (
       }
     }
 
-    concerns.push(parsed);
-  }
-
-  return concerns;
+    return parsed;
+  }));
 };
 
 /**
@@ -90,7 +105,7 @@ export const loadConcerns = async (
 export const loadDefaultConcerns = (): Promise<
   readonly schema.ConcernDefinition[]
 > => {
-  return Promise.resolve(DEFAULT_CONCERNS);
+  return Promise.resolve(defaultConcerns.DEFAULT_CONCERNS);
 };
 
 // =============================================================================
@@ -114,6 +129,12 @@ export const getConcernExtras = (
   return extras;
 };
 
+/**
+ * Every reminder of the active concerns, prefixed with its concern id. With a
+ * classification, a scoped reminder is left out unless one of its scope
+ * values has its flag set; without one (not classified yet), every reminder
+ * is kept.
+ */
 export const getReminders = (
   concerns: readonly schema.ConcernDefinition[],
   classification?: schema.SpecClassification | null,
@@ -122,64 +143,51 @@ export const getReminders = (
 
   for (const concern of concerns) {
     for (const reminder of concern.reminders) {
-      // Filter by classification when available
-      if (classification !== null && classification !== undefined) {
-        const lower = reminder.toLowerCase();
-
-        // AI slop / design-specific → only when involvesWebUI
-        if (
-          (lower.includes("slop") || lower.includes("ui element") ||
-            lower.includes("design intentionality") ||
-            lower.includes("interaction states") ||
-            lower.includes("edge case check") ||
-            lower.includes("loading state")) &&
-          !classification.involvesWebUI
-        ) {
-          continue;
-        }
-
-        // API documentation → only when involvesPublicAPI
-        if (
-          (lower.includes("api doc") || lower.includes("endpoint should be")) &&
-          !classification.involvesPublicAPI
-        ) {
-          continue;
-        }
+      if (
+        classification !== null && classification !== undefined &&
+        !concernScope.scopeMatchesClassification(
+          concernScope.reminderScope(reminder),
+          classification,
+        )
+      ) {
+        continue;
       }
 
-      reminders.push(`${concern.id}: ${reminder}`);
+      reminders.push(`${concern.id}: ${concernScope.reminderText(reminder)}`);
     }
   }
 
   return reminders;
 };
 
-/** Check if a reminder is file-type-specific (UI/API/migration). */
-const isFileSpecificReminder = (reminder: string): boolean => {
-  const lower = reminder.toLowerCase();
-  return lower.includes("slop") || lower.includes("ui element") ||
-    lower.includes("design intentionality") ||
-    lower.includes("interaction states") ||
-    lower.includes("edge case check") ||
-    lower.includes("loading state") ||
-    lower.includes("api doc") || lower.includes("endpoint should be") ||
-    lower.includes("migration") || lower.includes("rollback");
-};
-
-/** Split reminders into tier1 (general, compile-time) and tier2 (file-specific, hook-time). */
+/**
+ * Splits reminders into tier1 (no scope: in the compiled EXECUTING
+ * instruction) and tier2 (scoped: file-specific, added by the PreToolUse hook
+ * through {@link getTier2RemindersForFile}). With a classification, tier2 keeps
+ * only the scoped reminders whose scope matches it.
+ */
 export const splitRemindersByTier = (
   concerns: readonly schema.ConcernDefinition[],
+  classification?: schema.SpecClassification | null,
 ): { tier1: readonly string[]; tier2: readonly string[] } => {
   const tier1: string[] = [];
   const tier2: string[] = [];
 
   for (const concern of concerns) {
     for (const reminder of concern.reminders) {
-      const prefixed = `${concern.id}: ${reminder}`;
-      if (isFileSpecificReminder(reminder)) {
-        tier2.push(prefixed);
-      } else {
+      const prefixed = `${concern.id}: ${concernScope.reminderText(reminder)}`;
+      const scope = concernScope.reminderScope(reminder);
+
+      if (scope.length === 0) {
         tier1.push(prefixed);
+        continue;
+      }
+
+      if (
+        classification === null || classification === undefined ||
+        concernScope.scopeMatchesClassification(scope, classification)
+      ) {
+        tier2.push(prefixed);
       }
     }
   }
@@ -187,46 +195,32 @@ export const splitRemindersByTier = (
   return { tier1, tier2 };
 };
 
-/** Get tier2 reminders applicable to a specific file extension. */
+/**
+ * The tier2 (scoped) reminders that apply to an edit of `filePath`: "ui"
+ * reminders for UI files, "api" reminders for source files, "data" and
+ * "migration" reminders for any file, each only when the spec's
+ * classification has the matching flag or is not known yet.
+ */
 export const getTier2RemindersForFile = (
   concerns: readonly schema.ConcernDefinition[],
   filePath: string,
   classification?: schema.SpecClassification | null,
 ): readonly string[] => {
-  const ext = filePath.includes(".") ? `.${filePath.split(".").pop()!}` : "";
-  const isUI = [".tsx", ".jsx", ".html", ".css", ".svelte", ".vue"].includes(
-    ext,
-  );
-  const isAPI = [".ts", ".go", ".py", ".rs"].includes(ext);
-
   const reminders: string[] = [];
 
   for (const concern of concerns) {
     for (const reminder of concern.reminders) {
-      if (!isFileSpecificReminder(reminder)) continue;
-
-      const lower = reminder.toLowerCase();
-
-      // UI reminders → only for UI files
       if (
-        (lower.includes("slop") || lower.includes("ui element") ||
-          lower.includes("design intentionality") ||
-          lower.includes("interaction states") ||
-          lower.includes("edge case check") ||
-          lower.includes("loading state")) && !isUI
+        concernScope.scopeMatchesFile(
+          concernScope.reminderScope(reminder),
+          filePath,
+          classification ?? null,
+        )
       ) {
-        continue;
+        reminders.push(
+          `${concern.id}: ${concernScope.reminderText(reminder)}`,
+        );
       }
-
-      // API reminders → only for API files with involvesPublicAPI
-      if (
-        (lower.includes("api doc") || lower.includes("endpoint should be")) &&
-        (!isAPI || !classification?.involvesPublicAPI)
-      ) {
-        continue;
-      }
-
-      reminders.push(`${concern.id}: ${reminder}`);
     }
   }
 
@@ -351,13 +345,14 @@ export const getReviewDimensions = (
 
   for (const concern of activeConcerns) {
     for (const dim of concern.reviewDimensions ?? []) {
-      // Scope filter — if classification is null/undefined, include all (safe default)
-      if (classification !== null && classification !== undefined) {
-        if (dim.scope === "ui" && !classification.involvesWebUI) continue;
-        if (dim.scope === "api" && !classification.involvesPublicAPI) continue;
-        if (dim.scope === "data" && !classification.involvesDataHandling) {
-          continue;
-        }
+      // Scope filter — if classification is null/undefined, include all (safe default).
+      // "all", and a value noskills does not know, keep the dimension.
+      if (
+        classification !== null && classification !== undefined &&
+        concernScope.isConcernScope(dim.scope) &&
+        !concernScope.scopeMatchesClassification([dim.scope], classification)
+      ) {
+        continue;
       }
 
       dimensions.push({ ...dim, concernId: concern.id });

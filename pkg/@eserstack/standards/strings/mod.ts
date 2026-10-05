@@ -7,14 +7,14 @@
  *
  * @example
  * ```typescript
- * import { interpolate, createInterpolator } from "@eserstack/standards/strings";
+ * import * as standards from "@eserstack/standards";
  *
  * // Simple interpolation
- * interpolate("Hello {name}!", { name: "World" });
+ * standards.strings.interpolate("Hello {name}!", { name: "World" });
  * // "Hello World!"
  *
  * // Create reusable interpolator
- * const greet = createInterpolator("Hello {name}!");
+ * const greet = standards.strings.createInterpolator("Hello {name}!");
  * greet({ name: "Alice" }); // "Hello Alice!"
  * greet({ name: "Bob" });   // "Hello Bob!"
  * ```

@@ -1,13 +1,13 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import * as promises from "@eserstack/primitives/promises";
-import * as functions from "@eserstack/primitives/functions";
-import {
-  type Factory,
-  type PromisableBuilder,
-  type ServiceKey,
-  type ServiceScope,
-  type ServiceValue,
+import type * as promises from "@eserstack/primitives/promises";
+import type * as functions from "@eserstack/primitives/functions";
+import type {
+  Factory,
+  PromisableBuilder,
+  ServiceKey,
+  ServiceScope,
+  ServiceValue,
 } from "./primitives.ts";
 
 export const factory = <K = ServiceKey, V = ServiceValue>(

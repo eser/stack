@@ -222,12 +222,28 @@ const ADAPTERS: readonly adapter.ToolAdapter[] = [
 // =============================================================================
 
 /** Default interaction hints (Claude Code behavior) used when no tool is configured. */
-const DEFAULT_INTERACTION: adapter.InteractionHints = {
-  hasAskUserTool: true,
-  optionPresentation: "tool",
-  hasSubAgentDelegation: true,
-  subAgentMethod: "task",
+const DEFAULT_INTERACTION: adapter.InteractionHints =
+  claudeCodeAdapterMod.claudeCodeAdapter.capabilities.interaction;
+
+/**
+ * The interaction hints of one tool, or the Claude Code defaults when no
+ * adapter serves `toolId`.
+ */
+export const interactionHintsFor = (
+  toolId: schema.CodingToolId,
+): adapter.InteractionHints => {
+  const found = ADAPTERS.find((a) => a.id === toolId);
+
+  return found?.capabilities.interaction ?? DEFAULT_INTERACTION;
 };
+
+/** The tools among `tools` whose adapter generates noskills hooks. */
+export const toolsWithHooks = (
+  tools: readonly schema.CodingToolId[],
+): readonly schema.CodingToolId[] =>
+  tools.filter((toolId) =>
+    ADAPTERS.find((a) => a.id === toolId)?.capabilities.hooks === true
+  );
 
 /**
  * Resolve the interaction hints for the primary active tool.
@@ -244,14 +260,50 @@ export const resolveInteractionHints = (
     return DEFAULT_INTERACTION;
   }
 
-  const found = ADAPTERS.find((a) => a.id === primaryId);
-
-  return found?.capabilities.interaction ?? DEFAULT_INTERACTION;
+  return interactionHintsFor(primaryId);
 };
 
 // =============================================================================
 // Sync
 // =============================================================================
+
+/** Runs every sync step one adapter supports, in a fixed order. */
+const syncTool = async (
+  found: adapter.ToolAdapter,
+  ctx: adapter.SyncContext,
+  syncOptions: adapter.SyncOptions,
+): Promise<void> => {
+  await found.syncRules(ctx, syncOptions);
+
+  if (found.capabilities.hooks && found.syncHooks !== undefined) {
+    await found.syncHooks(ctx, syncOptions);
+  }
+
+  if (found.capabilities.agents && found.syncAgents !== undefined) {
+    await found.syncAgents(ctx, syncOptions);
+  }
+
+  if (found.capabilities.specs && found.syncSpecs !== undefined) {
+    const specsDir = `${ctx.root}/${persistence.paths.specsDir}`;
+
+    try {
+      for await (
+        const entry of crossRuntime.runtime.fs.readDir(specsDir)
+      ) {
+        if (entry.isDirectory) {
+          const specPath = `${specsDir}/${entry.name}/spec.md`;
+          await found.syncSpecs(ctx, specPath);
+        }
+      }
+    } catch {
+      // No specs directory yet
+    }
+  }
+
+  if (found.capabilities.mcp && found.syncMcp !== undefined) {
+    await found.syncMcp(ctx);
+  }
+};
 
 export const syncAll = async (
   root: string,
@@ -260,8 +312,10 @@ export const syncAll = async (
 ): Promise<readonly string[]> => {
   const rules = await loadRules(root);
   const synced: string[] = [];
+  // Only the boolean true turns the git rules off, as in the hooks and the
+  // git wrapper's check.
   const syncOptions: adapter.SyncOptions = {
-    allowGit: config?.allowGit ?? false,
+    allowGit: config?.allowGit === true,
   };
   const commandPrefix = config?.command ?? "npx eser@latest noskills";
   cmd.setCommandPrefix(commandPrefix);
@@ -275,36 +329,10 @@ export const syncAll = async (
 
     const ctx: adapter.SyncContext = { root, rules, commandPrefix };
 
-    await found.syncRules(ctx, syncOptions);
-
-    if (found.capabilities.hooks && found.syncHooks !== undefined) {
-      await found.syncHooks(ctx, syncOptions);
-    }
-
-    if (found.capabilities.agents && found.syncAgents !== undefined) {
-      await found.syncAgents(ctx, syncOptions);
-    }
-
-    if (found.capabilities.specs && found.syncSpecs !== undefined) {
-      const specsDir = `${root}/${persistence.paths.specsDir}`;
-
-      try {
-        for await (
-          const entry of crossRuntime.runtime.fs.readDir(specsDir)
-        ) {
-          if (entry.isDirectory) {
-            const specPath = `${specsDir}/${entry.name}/spec.md`;
-            await found.syncSpecs(ctx, specPath);
-          }
-        }
-      } catch {
-        // No specs directory yet
-      }
-    }
-
-    if (found.capabilities.mcp && found.syncMcp !== undefined) {
-      await found.syncMcp(ctx);
-    }
+    // Tools sync one at a time: several adapters update the same files
+    // (AGENTS.md, files under .github/) with read-modify-write steps.
+    // deno-lint-ignore no-await-in-loop
+    await syncTool(found, ctx, syncOptions);
 
     synced.push(toolId);
   }

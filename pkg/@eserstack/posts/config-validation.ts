@@ -15,11 +15,19 @@ import type { PostsConfig } from "./config.ts";
 
 // ── Error type ────────────────────────────────────────────────────────────────
 
+/** Why a PostsConfig cannot be used: no platform has its credentials. */
 export type ConfigValidationError = {
+  /** Stable code for matching this error. */
   readonly code: "CONFIG_INVALID";
+  /** The environment variables to set, any one platform's set being enough. */
   readonly missing: readonly string[];
+  /** A message that names the missing variables. */
   readonly message: string;
 };
+
+/** True when a config value is present and not empty. */
+const isSet = (value: string | undefined): boolean =>
+  value !== undefined && value !== "";
 
 // ── Validator ─────────────────────────────────────────────────────────────────
 
@@ -39,17 +47,18 @@ export function validateConfig(
 ): results.Result<PostsConfig, ConfigValidationError> {
   const missing: string[] = [];
 
-  const hasTwitter = Boolean(cfg.twitter.clientId);
-  const hasBluesky = Boolean(cfg.bluesky.identifier && cfg.bluesky.appPassword);
+  const hasTwitter = isSet(cfg.twitter.clientId);
+  const hasBluesky = isSet(cfg.bluesky.identifier) &&
+    isSet(cfg.bluesky.appPassword);
 
   if (!hasTwitter && !hasBluesky) {
-    if (!cfg.twitter.clientId) {
+    if (!isSet(cfg.twitter.clientId)) {
       missing.push("TWITTER_CLIENT_ID");
     }
-    if (!cfg.bluesky.identifier) {
+    if (!isSet(cfg.bluesky.identifier)) {
       missing.push("BLUESKY_IDENTIFIER");
     }
-    if (!cfg.bluesky.appPassword) {
+    if (!isSet(cfg.bluesky.appPassword)) {
       missing.push("BLUESKY_APP_PASSWORD");
     }
   }

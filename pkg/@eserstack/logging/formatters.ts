@@ -3,7 +3,8 @@
 import * as logging from "@eserstack/standards/logging";
 import * as span from "@eserstack/streams/span";
 import type { FormatterFn, LogRecord, TextFormatterOptions } from "./types.ts";
-import { categoryToString } from "./category.ts";
+import * as category from "./category.ts";
+import * as serialize from "./serialize.ts";
 
 /**
  * Severity level abbreviations (OpenTelemetry order: Trace=1 to Emergency=23).
@@ -69,15 +70,11 @@ const formatTimestamp = (
 };
 
 /**
- * Safely stringifies a value, handling circular references.
+ * Stringifies a value with Error support, falling back to String() for a value
+ * JSON cannot hold (a cycle, a BigInt).
  */
-const safeStringify = (value: unknown): string => {
-  try {
-    return JSON.stringify(value);
-  } catch {
-    return String(value);
-  }
-};
+const safeStringify = (value: unknown): string =>
+  serialize.toJson(value) ?? String(value);
 
 /**
  * Formats properties and context as key=value pairs.
@@ -114,7 +111,7 @@ export const jsonFormatter: FormatterFn = (record: LogRecord): string => {
   const output: Record<string, unknown> = {
     level: logging.SeverityNames[record.severity],
     datetime: record.datetime.getTime(),
-    category: categoryToString(record.category),
+    category: category.categoryToString(record.category),
     message: record.message,
   };
 
@@ -127,7 +124,7 @@ export const jsonFormatter: FormatterFn = (record: LogRecord): string => {
     output["properties"] = mergedProps;
   }
 
-  return `${JSON.stringify(output)}\n`;
+  return `${JSON.stringify(output, serialize.jsonReplacer)}\n`;
 };
 
 /**
@@ -159,7 +156,9 @@ export const textFormatter = (
 
     // Category
     if (includeCategory && record.category.length > 0) {
-      parts.push(`[${categoryToString(record.category, categorySeparator)}]`);
+      parts.push(
+        `[${category.categoryToString(record.category, categorySeparator)}]`,
+      );
     }
 
     // Message
@@ -180,12 +179,12 @@ export const jsonLinesFormatter: FormatterFn = (record: LogRecord): string => {
     JSON.stringify({
       ts: record.datetime.getTime(),
       lvl: SEVERITY_ABBR[record.severity],
-      cat: categoryToString(record.category),
+      cat: category.categoryToString(record.category),
       msg: record.message,
       ...(record.args.length > 0 ? { args: record.args } : {}),
       ...record.context,
       ...record.properties,
-    }) + "\n"
+    }, serialize.jsonReplacer) + "\n"
   );
 };
 
@@ -235,7 +234,18 @@ export type SpanFormatterFn = (record: LogRecord) => span.Span[];
  * Pair with `getOutputSink(output)` and let the Output's renderer handle serialization.
  *
  * @example
- * const sink = getOutputSink(out, { formatter: spanFormatter });
+ * ```typescript
+ * import * as logging from "@eserstack/logging";
+ * import * as streams from "@eserstack/streams";
+ *
+ * const out = streams.output({
+ *   renderer: streams.renderers.plain(),
+ *   sink: streams.sinks.stdout(),
+ * });
+ * const sink = logging.sinks.getOutputSink(out, {
+ *   formatter: logging.formatters.spanFormatter,
+ * });
+ * ```
  */
 export const spanFormatter: SpanFormatterFn = (
   record: LogRecord,
@@ -243,7 +253,7 @@ export const spanFormatter: SpanFormatterFn = (
   const ts = formatTimestamp(record.datetime, "date-time-timezone");
   const abbr = SEVERITY_ABBR[record.severity] ?? "????";
   const cat = record.category.length > 0
-    ? categoryToString(record.category)
+    ? category.categoryToString(record.category)
     : "";
   const propsStr = formatProperties(record.properties, record.context);
 

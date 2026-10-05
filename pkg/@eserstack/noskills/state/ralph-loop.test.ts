@@ -5,8 +5,8 @@
  * Tests iteration tracking, resume hints, restart threshold, and progress persistence.
  */
 
-import { describe, it } from "@std/testing/bdd";
-import { assertEquals } from "@std/assert";
+import * as bdd from "@std/testing/bdd";
+import * as assert from "@std/assert";
 import * as compiler from "../context/compiler.ts";
 import * as machine from "./machine.ts";
 import * as schema from "./schema.ts";
@@ -44,8 +44,8 @@ const configWith = (
 // 11.2 Resume hint sufficient for cold start
 // =============================================================================
 
-describe("Resume hint for cold start", () => {
-  it("contains spec name, iteration, and progress", async () => {
+bdd.describe("Resume hint for cold start", () => {
+  bdd.it("contains spec name, iteration, and progress", async () => {
     let state = inExecuting();
     state = machine.advanceExecution(state, "task-2 in progress");
     state = machine.advanceExecution(state, "task-2 in progress");
@@ -54,19 +54,22 @@ describe("Resume hint for cold start", () => {
 
     const output = await compiler.compile(state, noConcerns, noRules);
 
-    assertEquals(output.meta.resumeHint.includes("test-spec"), true);
-    assertEquals(output.meta.resumeHint.includes("iteration 4"), true);
-    assertEquals(
+    assert.assertEquals(output.meta.resumeHint.includes("test-spec"), true);
+    assert.assertEquals(output.meta.resumeHint.includes("iteration 4"), true);
+    assert.assertEquals(
       output.meta.resumeHint.includes("implemented auth module"),
       true,
     );
   });
 
-  it("fresh execution has start instruction in resume hint", async () => {
+  bdd.it("fresh execution has start instruction in resume hint", async () => {
     const output = await compiler.compile(inExecuting(), noConcerns, noRules);
 
-    assertEquals(output.meta.resumeHint.includes("test-spec"), true);
-    assertEquals(output.meta.resumeHint.includes("Start the first task"), true);
+    assert.assertEquals(output.meta.resumeHint.includes("test-spec"), true);
+    assert.assertEquals(
+      output.meta.resumeHint.includes("Start the first task"),
+      true,
+    );
   });
 });
 
@@ -74,23 +77,23 @@ describe("Resume hint for cold start", () => {
 // 11.3 Iteration counter increments
 // =============================================================================
 
-describe("Iteration counter", () => {
-  it("increments on each advanceExecution", () => {
+bdd.describe("Iteration counter", () => {
+  bdd.it("increments on each advanceExecution", () => {
     let state = inExecuting();
 
     state = machine.advanceExecution(state, "step 1");
-    assertEquals(state.execution.iteration, 1);
+    assert.assertEquals(state.execution.iteration, 1);
 
     state = machine.advanceExecution(state, "step 2");
-    assertEquals(state.execution.iteration, 2);
+    assert.assertEquals(state.execution.iteration, 2);
 
     state = machine.advanceExecution(state, "step 3");
-    assertEquals(state.execution.iteration, 3);
+    assert.assertEquals(state.execution.iteration, 3);
   });
 
-  it("starts at 0 after startExecution", () => {
+  bdd.it("starts at 0 after startExecution", () => {
     const state = inExecuting();
-    assertEquals(state.execution.iteration, 0);
+    assert.assertEquals(state.execution.iteration, 0);
   });
 });
 
@@ -98,8 +101,8 @@ describe("Iteration counter", () => {
 // 11.4 Restart recommended at threshold
 // =============================================================================
 
-describe("Restart recommendation", () => {
-  it("restartRecommended=true when iteration >= threshold", async () => {
+bdd.describe("Restart recommendation", () => {
+  bdd.it("restartRecommended=true when iteration >= threshold", async () => {
     let state = inExecuting();
     for (let i = 0; i < 16; i++) {
       state = machine.advanceExecution(state, `step ${i}`);
@@ -112,11 +115,12 @@ describe("Restart recommendation", () => {
       configWith(15),
     ) as compiler.ExecutionOutput;
 
-    assertEquals(output.restartRecommended, true);
-    assertEquals(typeof output.restartInstruction, "string");
+    assert.assertEquals(output.restartRecommended, true);
+    // A flag only: the agent gets no restart prose.
+    assert.assertEquals("restartInstruction" in output, false);
   });
 
-  it("restartRecommended absent when iteration < threshold", async () => {
+  bdd.it("restartRecommended absent when iteration < threshold", async () => {
     let state = inExecuting();
     state = machine.advanceExecution(state, "step 1");
 
@@ -127,10 +131,10 @@ describe("Restart recommendation", () => {
       configWith(15),
     ) as compiler.ExecutionOutput;
 
-    assertEquals(output.restartRecommended, undefined);
+    assert.assertEquals(output.restartRecommended, undefined);
   });
 
-  it("threshold=14, iteration=14 → restartRecommended", async () => {
+  bdd.it("threshold=14, iteration=14 → restartRecommended", async () => {
     let state = inExecuting();
     for (let i = 0; i < 14; i++) {
       state = machine.advanceExecution(state, `step ${i}`);
@@ -147,7 +151,7 @@ describe("Restart recommendation", () => {
       config,
     ) as compiler.ExecutionOutput;
 
-    assertEquals(output.restartRecommended, true);
+    assert.assertEquals(output.restartRecommended, true);
   });
 });
 
@@ -155,8 +159,8 @@ describe("Restart recommendation", () => {
 // 11.5 Progress persists across simulated session restarts
 // =============================================================================
 
-describe("Progress persistence", () => {
-  it("state carries forward after simulated restart", async () => {
+bdd.describe("Progress persistence", () => {
+  bdd.it("state carries forward after simulated restart", async () => {
     // Simulate: agent worked 3 iterations, then "restart" (just read state again)
     let state = inExecuting();
     state = machine.advanceExecution(state, "task 1 done");
@@ -166,10 +170,10 @@ describe("Progress persistence", () => {
     const output = await compiler.compile(state, noConcerns, noRules);
 
     // The meta block carries forward everything
-    assertEquals(output.meta.iteration, 2);
-    assertEquals(output.meta.lastProgress, "task 2 in progress");
-    assertEquals(output.meta.spec, "test-spec");
-    assertEquals(output.meta.resumeHint.includes("iteration 2"), true);
+    assert.assertEquals(output.meta.iteration, 2);
+    assert.assertEquals(output.meta.lastProgress, "task 2 in progress");
+    assert.assertEquals(output.meta.spec, "test-spec");
+    assert.assertEquals(output.meta.resumeHint.includes("iteration 2"), true);
   });
 });
 
@@ -177,8 +181,8 @@ describe("Progress persistence", () => {
 // 11.1 One task at a time (via instruction)
 // =============================================================================
 
-describe("One task at a time", () => {
-  it("EXECUTING with parsed spec includes task inline", async () => {
+bdd.describe("One task at a time", () => {
+  bdd.it("EXECUTING with parsed spec includes task inline", async () => {
     const mockSpec = {
       name: "test",
       tasks: [
@@ -196,19 +200,19 @@ describe("One task at a time", () => {
       mockSpec,
     ) as compiler.ExecutionOutput;
 
-    assertEquals(output.task !== undefined, true);
-    assertEquals(output.task!.id, "task-1");
-    assertEquals(output.instruction.includes("task-1"), true);
+    assert.assertEquals(output.task !== undefined, true);
+    assert.assertEquals(output.task!.id, "task-1");
+    assert.assertEquals(output.instruction.includes("task-1"), true);
   });
 
-  it("EXECUTING without parsed spec says all tasks completed", async () => {
+  bdd.it("EXECUTING without parsed spec says all tasks completed", async () => {
     const output = await compiler.compile(
       inExecuting(),
       noConcerns,
       noRules,
     ) as compiler.ExecutionOutput;
 
-    assertEquals(output.instruction.includes("completed"), true);
+    assert.assertEquals(output.instruction.includes("completed"), true);
   });
 });
 
@@ -216,42 +220,42 @@ describe("One task at a time", () => {
 // Meta block completeness
 // =============================================================================
 
-describe("Meta block for every phase", () => {
-  it("IDLE meta has correct fields", async () => {
+bdd.describe("Meta block for every phase", () => {
+  bdd.it("IDLE meta has correct fields", async () => {
     const output = await compiler.compile(
       schema.createInitialState(),
       noConcerns,
       noRules,
     );
-    assertEquals(output.meta.spec, null);
-    assertEquals(output.meta.iteration, 0);
-    assertEquals(typeof output.meta.protocol, "string");
+    assert.assertEquals(output.meta.spec, null);
+    assert.assertEquals(output.meta.iteration, 0);
+    assert.assertEquals(typeof output.meta.protocol, "string");
   });
 
-  it("EXECUTING meta includes spec, branch, iteration", async () => {
+  bdd.it("EXECUTING meta includes spec, branch, iteration", async () => {
     const state = inExecuting();
     const output = await compiler.compile(state, noConcerns, noRules);
 
-    assertEquals(output.meta.spec, "test-spec");
-    assertEquals(output.meta.spec, "test-spec");
-    assertEquals(output.meta.branch, "spec/test-spec");
-    assertEquals(output.meta.iteration, 0);
+    assert.assertEquals(output.meta.spec, "test-spec");
+    assert.assertEquals(output.meta.spec, "test-spec");
+    assert.assertEquals(output.meta.branch, "spec/test-spec");
+    assert.assertEquals(output.meta.iteration, 0);
   });
 
-  it("BLOCKED meta includes blocked reason", async () => {
+  bdd.it("BLOCKED meta includes blocked reason", async () => {
     const state = machine.blockExecution(inExecuting(), "need decision");
     const output = await compiler.compile(state, noConcerns, noRules);
 
-    assertEquals(output.meta.resumeHint.includes("blocked"), true);
+    assert.assertEquals(output.meta.resumeHint.includes("blocked"), true);
   });
 
-  it("COMPLETED meta includes completion summary", async () => {
+  bdd.it("COMPLETED meta includes completion summary", async () => {
     let state = inExecuting();
     state = machine.advanceExecution(state, "all done");
     state = machine.completeSpec(state, "done");
     const output = await compiler.compile(state, noConcerns, noRules);
 
-    assertEquals(output.meta.resumeHint.includes("completed"), true);
-    assertEquals(output.meta.iteration, 1);
+    assert.assertEquals(output.meta.resumeHint.includes("completed"), true);
+    assert.assertEquals(output.meta.iteration, 1);
   });
 });

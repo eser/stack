@@ -8,30 +8,56 @@
  */
 
 import * as results from "@eserstack/primitives/results";
-import type { Generatable } from "@eserstack/primitives/promises";
 
-// State type for pipeline context
+/**
+ * State shared by every middleware of one pipeline run. Each run starts with
+ * an empty object, so a value one middleware writes is visible to the
+ * middleware after it in the same run and to no other run.
+ */
 export type State = Record<string | symbol, unknown>;
 
-// Context passed to each middleware function
-export type Context<S extends State = State> = {
+/**
+ * Context passed to each middleware function.
+ *
+ * `next()` runs the rest of the chain and yields its results, so a middleware
+ * that delegates with `yield* ctx.next()` yields the pipeline's own result
+ * types. A middleware may call `next()` once.
+ *
+ * @template S - State type shared by the middleware of one run
+ * @template T - Success value type of the pipeline
+ * @template E - Error type of the pipeline
+ */
+export type Context<S extends State = State, T = unknown, E = unknown> = {
   readonly state: S;
-  readonly next: () => AsyncGenerator<results.Result<unknown, unknown>>;
+  readonly next: () => AsyncGenerator<results.Result<T, E>>;
 };
 
-// Acceptable return types from middleware functions
+/** Acceptable return types from middleware functions. */
 export type CollectResult<T, E> =
-  | Generatable<results.Result<T, E>>
+  | AsyncGenerator<results.Result<T, E>>
+  | Generator<results.Result<T, E>>
   | Promise<results.Result<T, E>>
   | results.Result<T, E>;
 
-// Middleware function type
+/**
+ * A middleware function. It receives the context and the arguments the
+ * pipeline was run with, and returns one result, a promise of one, or a
+ * generator of results.
+ */
 export type Middleware<T, E, S extends State = State> = (
-  context: Context<S>,
+  context: Context<S, T, E>,
   ...args: ReadonlyArray<unknown>
 ) => CollectResult<T, E>;
 
-// Pipeline interface with chainable methods
+/**
+ * A middleware pipeline built by `collect()`. `use` adds middleware,
+ * `mapError` and `recover` handle failures once per failure, `iterate` yields
+ * every result, `run` collects them, and `runFirst` and `runLast` return one.
+ *
+ * @template T - Success value type of the pipeline
+ * @template E - Error type of the pipeline
+ * @template S - State type shared by the middleware of one run
+ */
 export type Pipeline<T, E, S extends State = State> = {
   readonly use: (
     ...fns: ReadonlyArray<Middleware<T, E, S>>
@@ -60,16 +86,15 @@ const ERROR_NEXT_CALLED_MULTIPLE_TIMES =
 const ERROR_NO_RESULTS = "Pipeline produced no results";
 
 // Internal Helpers
-const isIterator = (
-  value: unknown,
-): value is Generatable<unknown> =>
-  value !== null &&
-  typeof value === "object" &&
-  (Symbol.asyncIterator in (value as object) ||
-    Symbol.iterator in (value as object));
+const isPromise = <T, E>(
+  value: CollectResult<T, E>,
+): value is Promise<results.Result<T, E>> => value instanceof Promise;
 
-const isPromise = (value: unknown): value is Promise<unknown> =>
-  value instanceof Promise;
+// A Result is iterable too (for do-notation), so check it before treating the
+// value as a generator.
+const isResult = <T, E>(
+  value: CollectResult<T, E>,
+): value is results.Result<T, E> => "_tag" in value;
 
 /**
  * Create a pipeline for composing middleware functions that emit multiple results.
@@ -77,16 +102,16 @@ const isPromise = (value: unknown): value is Promise<unknown> =>
  *
  * @example
  * ```typescript
- * import { collect } from "@eserstack/functions/pipeline";
- * import { ok } from "@eserstack/primitives/results";
+ * import * as functions from "@eserstack/functions";
+ * import * as primitives from "@eserstack/primitives";
  *
- * const pipeline = collect<string, Error>()
+ * const pipeline = functions.collect<string, Error>()
  *   .use(async function* (ctx) {
- *     yield ok("hello");
+ *     yield primitives.results.ok("hello");
  *     yield* ctx.next();
  *   })
  *   .use(async function* () {
- *     yield ok("world");
+ *     yield primitives.results.ok("world");
  *   });
  *
  * const result = await pipeline.run();
@@ -115,48 +140,51 @@ export const collect = <T, E = Error, S extends State = State>(
   const iterate = async function* (
     ...args: ReadonlyArray<unknown>
   ): AsyncGenerator<results.Result<T, E>> {
-    let prevIndex = -1;
+    const state = {} as S;
+    let lastIndex = -1;
 
+    // Yields what the middleware at `index` and the rest of the chain emit,
+    // before error mapping or recovery.
     const executeMiddleware = async function* (
       index: number,
     ): AsyncGenerator<results.Result<T, E>> {
-      if (index === prevIndex) {
+      // A second next() from the same middleware asks for an index the chain
+      // has already reached.
+      if (index <= lastIndex) {
         throw new Error(ERROR_NEXT_CALLED_MULTIPLE_TIMES);
       }
-      prevIndex = index;
+      lastIndex = index;
 
       const middleware = stack[index];
       if (middleware === undefined) {
         return;
       }
 
-      const context: Context<S> = {
-        state: {} as S,
-        next: () =>
-          executeMiddleware(index + 1) as AsyncGenerator<
-            results.Result<unknown, unknown>
-          >,
+      const context: Context<S, T, E> = {
+        state,
+        next: () => executeMiddleware(index + 1),
       };
 
       const result = middleware(context, ...args);
 
-      if (isIterator(result)) {
-        for await (const item of result) {
-          yield processResult(item);
-        }
-        return;
-      }
-
       if (isPromise(result)) {
-        const awaited = await result;
-        yield processResult(awaited);
+        yield await result;
         return;
       }
 
-      yield processResult(result);
+      if (isResult(result)) {
+        yield result;
+        return;
+      }
+
+      yield* result;
     };
 
-    yield* executeMiddleware(0);
+    // Error mapping and recovery run once, on what the whole chain emits, so a
+    // failure that passes up through `yield* ctx.next()` is not mapped again.
+    for await (const item of executeMiddleware(0)) {
+      yield processResult(item);
+    }
   };
 
   const pipeline: Pipeline<T, E, S> = {

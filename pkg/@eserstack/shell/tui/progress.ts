@@ -14,20 +14,34 @@
 import * as span from "@eserstack/streams/span";
 import * as symbols from "./symbols.ts";
 import * as keypress from "./keypress.ts";
-import * as types from "./types.ts";
+import type * as types from "./types.ts";
 
+/** What a progress bar counts and how it looks. */
 export type ProgressOptions = {
+  /** The amount that means 100%. */
   readonly total: number;
+  /** Bar width in characters; 20 when unset. */
   readonly width?: number;
+  /** Text shown above and next to the bar. */
   readonly label?: string;
 };
 
+/** Controls for a progress bar from {@link createProgress}. */
 export type ProgressHandle = {
+  /** Write the label line and draw the bar at its current amount. */
   readonly start: (label?: string) => void;
+  /**
+   * Add `amount`, capped at the total, and redraw; ignored before `start()`.
+   */
   readonly advance: (amount: number, label?: string) => void;
+  /** Draw the bar full and end its line; ignored before `start()`. */
   readonly stop: (label?: string) => void;
 };
 
+/**
+ * Create a progress bar that writes to `ctx.output`. Nothing is drawn until
+ * `start()` is called.
+ */
 export const createProgress = (
   ctx: types.TuiContext,
   options: ProgressOptions,

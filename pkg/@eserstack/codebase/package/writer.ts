@@ -1,17 +1,17 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 import { runtime } from "@eserstack/standards/cross-runtime";
-import {
-  type ConfigFileType,
-  DEFAULT_FIELD_MAPPINGS,
-  type PackageConfig,
-  type PackageFieldName,
-  type RawConfigFile,
-  type TrackedField,
-  type UpdateOptions,
-  type UpdateResult,
+import * as types from "./types.ts";
+import type {
+  ConfigFileType,
+  PackageConfig,
+  PackageFieldName,
+  RawConfigFile,
+  TrackedField,
+  UpdateOptions,
+  UpdateResult,
 } from "./types.ts";
-import { getFilesWithField } from "./loader.ts";
+import * as loader from "./loader.ts";
 
 /**
  * Error thrown when updating package configuration fails.
@@ -169,13 +169,23 @@ const resolveTargetFiles = (
     }
 
     // Return files that have this field
-    return getFilesWithField(config, fieldName);
+    return loader.getFilesWithField(config, fieldName);
   }
 
   // Specific file types requested
   const requestedTypes = new Set(targetFiles);
   return config._loadedFiles.filter((f) => requestedTypes.has(f.fileType));
 };
+
+/** What happened to one target file in {@link updateField}. */
+type FileOutcome =
+  | { readonly kind: "updated"; readonly filepath: string }
+  | { readonly kind: "skipped"; readonly filepath: string }
+  | {
+    readonly kind: "failed";
+    readonly filepath: string;
+    readonly reason: string;
+  };
 
 /**
  * Updates a single field across config files.
@@ -209,29 +219,43 @@ export const updateField = async <T>(
     return { updated, failed, skipped };
   }
 
-  for (const file of targetFiles) {
-    const propertyPath = DEFAULT_FIELD_MAPPINGS[fieldName]?.[file.fileType];
+  // Each target is a different file, so they are written concurrently; the
+  // result lists keep the order of targetFiles.
+  const outcomes = await Promise.all(
+    targetFiles.map(async (file): Promise<FileOutcome> => {
+      const propertyPath = types.DEFAULT_FIELD_MAPPINGS[fieldName]
+        ?.[file.fileType];
 
-    if (!propertyPath) {
-      skipped.push(file.filepath);
-      continue;
-    }
+      if (propertyPath === undefined || propertyPath === "") {
+        return { kind: "skipped", filepath: file.filepath };
+      }
 
-    // Skip if value already matches
-    const currentValue = getPropertyByPath(file.content, propertyPath);
-    if (currentValue === value) {
-      skipped.push(file.filepath);
-      continue;
-    }
+      // Skip if value already matches
+      const currentValue = getPropertyByPath(file.content, propertyPath);
+      if (currentValue === value) {
+        return { kind: "skipped", filepath: file.filepath };
+      }
 
-    try {
-      await writeConfigFile(file, { [propertyPath]: value });
-      updated.push(file.filepath);
-    } catch (error) {
-      failed.push({
-        filepath: file.filepath,
-        reason: error instanceof Error ? error.message : String(error),
-      });
+      try {
+        await writeConfigFile(file, { [propertyPath]: value });
+        return { kind: "updated", filepath: file.filepath };
+      } catch (error) {
+        return {
+          kind: "failed",
+          filepath: file.filepath,
+          reason: error instanceof Error ? error.message : String(error),
+        };
+      }
+    }),
+  );
+
+  for (const outcome of outcomes) {
+    if (outcome.kind === "updated") {
+      updated.push(outcome.filepath);
+    } else if (outcome.kind === "skipped") {
+      skipped.push(outcome.filepath);
+    } else {
+      failed.push({ filepath: outcome.filepath, reason: outcome.reason });
     }
   }
 
@@ -246,7 +270,7 @@ export const updateField = async <T>(
         updated.includes(f.filepath)
       );
       if (firstUpdated) {
-        const propertyPath = DEFAULT_FIELD_MAPPINGS[fieldName]
+        const propertyPath = types.DEFAULT_FIELD_MAPPINGS[fieldName]
           ?.[firstUpdated.fileType];
         if (propertyPath) {
           // Cast to allow assignment
@@ -285,6 +309,9 @@ export const updateFields = async (
   const allSkipped: string[] = [];
 
   for (const [fieldName, value] of Object.entries(updates)) {
+    // Fields are updated one at a time: every field writes the same config
+    // files, so concurrent updates would overwrite each other.
+    // deno-lint-ignore no-await-in-loop
     const result = await updateField(
       config,
       fieldName as PackageFieldName,
@@ -353,7 +380,7 @@ export const getUpdateTargets = (
   const targetFiles = resolveTargetFiles(config, fieldName, options);
 
   return targetFiles
-    .filter((file) => DEFAULT_FIELD_MAPPINGS[fieldName]?.[file.fileType])
+    .filter((file) => types.DEFAULT_FIELD_MAPPINGS[fieldName]?.[file.fileType])
     .map((file) => ({
       filepath: file.filepath,
       fileType: file.fileType,

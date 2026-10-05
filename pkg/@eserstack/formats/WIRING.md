@@ -8,9 +8,22 @@ Four FFI functions:
 
 ```ts
 lib.symbols.EserAjanFormatEncode(
-  JSON.stringify({ format, data: <jsonValue>, pretty?, indent?, isFirst? }),
+  JSON.stringify({
+    format,
+    data: <jsonValue>,
+    pretty?,
+    indent?,
+    isFirst?,
+    document?,
+  }),
 );
 ```
+
+`serialize()` sends a value that is not an array here, with `isFirst: true` and
+`document: true`: the value is a whole document, not one entry of a list. The
+bridge passes `document` on as `formatfx.FormatOptions.Document`, so JSON writes
+the value without array separators, YAML writes it as itself instead of a
+one-item sequence, and TOML writes the table without a `+++` line.
 
 **Encode document** (`EserAjanFormatEncodeDocument`):
 
@@ -24,7 +37,7 @@ lib.symbols.EserAjanFormatEncodeDocument(
 
 ```ts
 lib.symbols.EserAjanFormatDecode(
-  JSON.stringify({ format: string, text: string }),
+  JSON.stringify({ format: string, text: string, headers?: string[] }),
 );
 ```
 
@@ -121,10 +134,16 @@ divergences resolved as of 2026-04-17 (Track B).
 | serialize() → should serialize CSV format                         | header row emitted first (`name,...`)                | `format_csv.go` `WriteItem` now auto-emits sorted header row when `opts.IsFirst && data is map[string]any`. Covered by `TestFormatCSV_HeaderRoundtrip`.                                                      | `RESOLVED_IN_GO` (`pkg/ajan/formatfx/format_csv.go`)  |
 | serialize() → should reject non-object data for TOML              | throws on non-object item                            | `format_toml.go` `WriteItem` now checks `map[string]any` and returns `ErrTOMLRootNotObject` for primitives/slices. Covered by `TestFormatTOML_RejectNonObjectRoot`.                                          | `RESOLVED_IN_GO` (`pkg/ajan/formatfx/format_toml.go`) |
 | deserialize() → should deserialize CSV with auto-detected headers | `result[0]["name"] === "app1"`                       | `csvReader.parseText` now auto-detects first record as header row when no headers provided. Covered by `TestFormatCSV_HeaderRoundtrip`.                                                                      | `RESOLVED_IN_GO` (`pkg/ajan/formatfx/format_csv.go`)  |
-| deserialize() → should deserialize CSV with provided headers      | `result[0]["name"] === "app1"` with provided headers | `deserializer.ts` now routes to TS fallback when `options?.headers != null` — Go FFI decode has no headers option.                                                                                           | `RESOLVED_IN_TS` (`deserializer.ts`)                  |
+| deserialize() → should deserialize CSV with provided headers      | `result[0]["name"] === "app1"` with provided headers | Go FFI decode now takes `headers` (`bridgeFormatDecode` passes them to `formatfx.FormatOptions`), and `deserializer.ts` sends `options.headers` to Go.                                                       | `RESOLVED_IN_GO` (`pkg/@eserstack/ajan/bridge.go`)    |
 | deserialize() → should throw error for malformed YAML             | throws on invalid YAML                               | `format_yaml.go` `Flush` now propagates non-`io.EOF` errors from `yaml.Decoder.Decode`. Go YAML properly rejects broken input. No TS change needed.                                                          | `RESOLVED_IN_GO` (`pkg/ajan/formatfx/format_yaml.go`) |
 | roundtrip → YAML serialize/deserialize                            | `[{name:"app1",...},{name:"app2",...}]`              | `format_yaml.go` `WriteItem` wraps each item in `[]any{data}` producing sequence entries; `Flush` expands top-level `[]any` via `items = append(items, seq...)`. Covered by `TestFormatYAML_ArrayRoundtrip`. | `RESOLVED_IN_GO` (`pkg/ajan/formatfx/format_yaml.go`) |
 | roundtrip → TOML serialize/deserialize                            | `[{name:"app1",...},{name:"app2",...}]`              | `format_toml.go` `WriteItem` appends `+++\n` separator; `Flush` splits on `+++\n` to decode each document. Covered by `TestFormatTOML_ArrayRoundtrip`.                                                       | `RESOLVED_IN_GO` (`pkg/ajan/formatfx/format_toml.go`) |
+
+Three more, found 2026-10-05 (TASK-128), are resolved in Go: the `document` flag
+above makes YAML write a single value as one mapping, `format_toml.go` writes
+whole-number `float64` values within +-2^53 as integers, and `format_json.go`
+lays out arrays as `JSON.stringify` does. The package README lists the
+differences that remain.
 
 Root causes (all resolved):
 
@@ -134,8 +153,8 @@ Root causes (all resolved):
    auto-detects header row on decode.
 3. **Error strictness**: Fixed in Go — YAML Flush propagates parse errors; TOML
    WriteItem rejects non-objects.
-4. **CSV provided-headers path**: Fixed in TS — `deserializer.ts` routes to TS
-   fallback when caller passes `options.headers`.
+4. **CSV provided-headers path**: Fixed in Go. The decode request carries
+   `headers`, and `deserializer.ts` sends `options.headers` with it.
 
 Note: `serializer.ts` called Go FFI inline before Wave 1 was written. These
 divergences were pre-existing at Wave 1 write time.

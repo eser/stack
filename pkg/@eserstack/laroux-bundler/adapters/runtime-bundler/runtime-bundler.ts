@@ -19,9 +19,13 @@ import type {
 } from "../../domain/chunk-manifest.ts";
 import { runtime } from "@eserstack/standards/cross-runtime";
 import * as logging from "@eserstack/logging";
-import type { BundleData, Bundler } from "../../domain/bundler.ts";
-import { DEVELOPMENT_SETTINGS } from "../../config.ts";
-import { type BundlerConfig, createBundler } from "@eserstack/bundler/backends";
+import * as larouxConfig from "@eserstack/laroux/config";
+import type { ResolvedBrowserShimsConfig } from "@eserstack/laroux/config";
+import * as bundler from "../../domain/bundler.ts";
+import * as settings from "../../config.ts";
+import * as importMapResolverPlugin from "../../import-map-resolver-plugin.ts";
+import * as backends from "@eserstack/bundler/backends";
+import type { BundlerConfig } from "@eserstack/bundler/backends";
 
 const runtimeLogger = logging.logger.getLogger([
   "laroux-bundler",
@@ -33,10 +37,21 @@ const runtimeLogger = logging.logger.getLogger([
  * Injected as dependency to avoid importing from parent
  */
 export type RuntimeBundlerConfig = {
-  srcDir: string; // Source directory path
-  projectRoot: string; // Project root directory path
-  debug?: boolean; // Enable debug logging
-  plugin: FrameworkPlugin; // Framework plugin for RSC functionality
+  /** Source directory path */
+  srcDir: string;
+  /** Project root: bare imports resolve from its import map and node_modules */
+  projectRoot: string;
+  /** Enable debug logging */
+  debug?: boolean;
+  /** Framework plugin for RSC functionality */
+  plugin: FrameworkPlugin;
+  /**
+   * Browser replacements for server-only modules, the same setting a
+   * production build takes (`BuildConfig.browserShims`). Defaults to
+   * `DEFAULT_BROWSER_SHIMS` from `@eserstack/laroux/config`, which replaces
+   * `@eserstack/logging` with laroux's browser logger.
+   */
+  browserShims?: ResolvedBrowserShimsConfig;
 };
 
 export type RuntimeBundle = {
@@ -110,8 +125,7 @@ class RuntimeCache {
   private async bundleClientCode(
     clientComponents: ClientComponent[],
   ): Promise<{ code: string; manifest: ChunkManifest }> {
-    const { plugin } = this.config;
-    const projectRoot = runtime.process.cwd();
+    const { plugin, projectRoot } = this.config;
 
     // Create a temporary directory for this bundling process inside project root
     // This allows the bundler to resolve node_modules correctly
@@ -131,30 +145,37 @@ class RuntimeCache {
         tempDir,
       );
 
-      // Bundle using @eserstack/bundler with deno-bundler backend
-      // Create bundler instance - uses same abstraction as prebuilt bundler
-      const bundler = createBundler("deno-bundler", { entryName: "client" });
+      // The same backend and import map resolver plugin as a production
+      // client build, so the browser shims apply here too: Deno.bundle()
+      // runs no plugins and would bundle the FFI-backed logger.
+      const clientBundler = backends.createBundler(
+        bundler.CLIENT_BUNDLER_BACKEND,
+        { entryName: "client" },
+      );
 
-      // Build entrypoints map - BundlerConfig expects Record<string, string>
-      const entrypoints: Record<string, string> = {
-        client: generatedEntry,
-      };
-      for (const component of clientComponents) {
-        // Use relative path as key for component entrypoints
-        entrypoints[component.relativePath] = component.filePath;
-      }
-
+      // One entry: the generated entry imports every client component, and
+      // the server sends the result as one file, so no chunk may split off.
       const bundlerConfig: BundlerConfig = {
-        entrypoints,
+        entrypoints: { client: generatedEntry },
         outputDir: tempDir,
+        projectRoot,
         format: "esm",
         platform: "browser",
-        codeSplitting: DEVELOPMENT_SETTINGS.codeSplitting,
-        minify: DEVELOPMENT_SETTINGS.minify,
+        codeSplitting: settings.DEVELOPMENT_SETTINGS.codeSplitting,
+        minify: settings.DEVELOPMENT_SETTINGS.minify,
         sourcemap: false,
+        plugins: [
+          importMapResolverPlugin.createImportMapResolverPlugin({
+            projectRoot,
+            browserShims: this.config.browserShims ??
+              larouxConfig.DEFAULT_BROWSER_SHIMS,
+            autoMarkExternal: false,
+          }),
+        ],
+        define: settings.DEVELOPMENT_SETTINGS.define,
       };
 
-      const result = await bundler.bundle(bundlerConfig);
+      const result = await clientBundler.bundle(bundlerConfig);
 
       if (!result.success) {
         const errorMsg = result.errors?.map((e) => e.message).join(", ") ??
@@ -162,8 +183,8 @@ class RuntimeCache {
         throw new Error(`Bundle failed: ${errorMsg}`);
       }
 
-      // Get the main bundle from outputs
-      // The deno-bundler backend normalizes the entry name to "client.js"
+      // Get the main bundle from outputs; the backend names the entry's
+      // output after entryName
       const mainOutput = result.outputs.get("client.js");
       if (!mainOutput) {
         throw new Error(
@@ -206,12 +227,8 @@ class RuntimeCache {
       const errorMessage = error instanceof Error
         ? error.message
         : String(error);
-      const errorStack = error instanceof Error ? error.stack : null;
-      runtimeLogger.error("❌ Runtime bundling failed:");
-      runtimeLogger.error(`  Error: ${errorMessage}`);
-      if (errorStack !== null) {
-        runtimeLogger.error(`  Stack trace:\n${errorStack}`);
-      }
+      // Handled here: logged once, then served as an error bundle
+      runtimeLogger.with({ error }).error("❌ Runtime bundling failed");
 
       // Fallback: return error code and empty manifest
       // Properly escape for HTML context to prevent XSS
@@ -253,9 +270,9 @@ document.getElementById("root").innerHTML = '<div class="error"><h2>Bundle Error
         await runtime.fs.remove(tempDir, { recursive: true });
       } catch (cleanupError) {
         // Cleanup failure is non-critical - temp files will be cleaned on next run
-        runtimeLogger.debug("Temp directory cleanup failed", {
-          error: cleanupError,
-        });
+        runtimeLogger.with({ error: cleanupError }).debug(
+          `remove temp directory ${tempDir}`,
+        );
       }
     }
   }
@@ -279,7 +296,7 @@ export function createRuntimeCache(config: RuntimeBundlerConfig): RuntimeCache {
 /**
  * Runtime bundler facade with dependency injection
  */
-export class RuntimeBundler implements Bundler {
+export class RuntimeBundler implements bundler.Bundler {
   private cache: RuntimeCache;
 
   constructor(config: RuntimeBundlerConfig) {
@@ -290,7 +307,7 @@ export class RuntimeBundler implements Bundler {
    * Get runtime bundle (cached, in-memory)
    * Implements Bundler interface
    */
-  async getBundle(): Promise<BundleData> {
+  async getBundle(): Promise<bundler.BundleData> {
     const bundle = await this.cache.getOrCreateBundle();
 
     return {

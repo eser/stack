@@ -11,8 +11,8 @@
  */
 
 import type { Runtime, RuntimeCapabilities, RuntimeEnv } from "../types.ts";
-import { posixPath } from "../polyfills/path.ts";
-import { createStubExec, createStubFs, createStubProcess } from "./shared.ts";
+import * as path from "../polyfills/path.ts";
+import * as shared from "./shared.ts";
 
 /**
  * Cloudflare Workers capabilities - very limited.
@@ -26,6 +26,7 @@ export const WORKERD_CAPABILITIES: RuntimeCapabilities = {
   env: true, // Available via handler context
   stdin: false,
   stdout: false,
+  http: false, // A Worker answers requests through its fetch export
   kv: true, // Cloudflare KV bindings
 } as const;
 
@@ -63,12 +64,19 @@ const createWorkerdEnv = (): RuntimeEnv => ({
  *
  * @example
  * ```typescript
+ * import * as standards from "@eserstack/standards";
+ * import { runtime } from "@eserstack/standards/cross-runtime";
+ *
+ * type Env = { readonly MY_SECRET: string };
+ *
  * export default {
- *   async fetch(request: Request, env: Env) {
- *     populateEnvFromContext(env);
+ *   fetch(_request: Request, env: Env): Response {
+ *     standards.crossRuntime.populateEnvFromContext(env);
  *     // Now runtime.env.get("MY_SECRET") works
- *   }
- * }
+ *     const configured = runtime.env.get("MY_SECRET") !== undefined;
+ *     return new Response(configured ? "ready" : "MY_SECRET is not bound");
+ *   },
+ * };
  * ```
  */
 export const populateEnvFromContext = (
@@ -95,15 +103,16 @@ export const clearEnv = (): void => {
 
 /**
  * Creates a Cloudflare Workers runtime instance.
- * Composes: shared stubs (fs, exec, process) + workerd-specific env.
+ * Composes: shared stubs (fs, exec, process, http) + workerd-specific env.
  */
 export const createWorkerdRuntime = (): Runtime => ({
   name: "workerd",
   version: "unknown",
   capabilities: WORKERD_CAPABILITIES as RuntimeCapabilities,
-  fs: createStubFs("workerd"),
-  path: posixPath,
-  exec: createStubExec("workerd"),
+  fs: shared.createStubFs("workerd"),
+  path: path.posixPath,
+  exec: shared.createStubExec("workerd"),
   env: createWorkerdEnv(),
-  process: createStubProcess("workerd"),
+  process: shared.createStubProcess("workerd"),
+  http: shared.createStubHttp("workerd"),
 });

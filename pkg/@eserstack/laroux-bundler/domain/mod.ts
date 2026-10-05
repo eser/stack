@@ -24,6 +24,25 @@ export type {
   UniversalCssResult,
 } from "./css-plugin.ts";
 
+export type { CssProcessor, CssProcessorOptions } from "./css-processor.ts";
+export { noopCssProcessor } from "./css-processor.ts";
+
+export type {
+  FontOptimizationOptions,
+  FontOptimizer,
+  OptimizedFonts,
+} from "./font-optimizer.ts";
+export { noopFontOptimizer } from "./font-optimizer.ts";
+
+export type {
+  ImageManifest,
+  ImageOptimizationRequest,
+  ImageOptimizer,
+  ImageVariant,
+  OptimizedImage,
+} from "./image-optimizer.ts";
+export { noopImageOptimizer } from "./image-optimizer.ts";
+
 export type {
   BundleData,
   BundleOptions,
@@ -49,6 +68,7 @@ export type {
   FileInfo,
 } from "./chunk-manifest.ts";
 export {
+  ChunkManifestError,
   generateChunkManifest,
   loadChunkManifest,
   logManifest,
@@ -56,25 +76,23 @@ export {
 } from "./chunk-manifest.ts";
 
 export type {
+  ClientComponentCache,
   ClientComponentCacheEntry,
   CSSModuleCacheEntry,
   RouteCacheEntry,
 } from "./build-cache.ts";
-export {
-  BuildCache,
-  getGlobalBuildCache,
-  resetGlobalBuildCache,
-} from "./build-cache.ts";
+export { BuildCache } from "./build-cache.ts";
 
 export type {
+  RouteScanCache,
   ScannedProxy,
   ScannedRoute,
   ScanResult,
+  ScanRoutesOptions,
 } from "./route-scanner.ts";
 export {
   getComponentName,
   getLayoutName,
-  invalidateRouteCache,
   scanRoutes,
 } from "./route-scanner.ts";
 
@@ -98,6 +116,7 @@ export {
 
 export type { BuildIsolationReport, FileViolation } from "./build-validator.ts";
 export {
+  BuildIsolationError,
   cleanSrcArtifacts,
   createIsolatedWriter,
   isWithinOutputDir,

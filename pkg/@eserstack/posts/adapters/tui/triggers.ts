@@ -18,7 +18,7 @@ import * as handler from "@eserstack/functions/handler";
 import * as task from "@eserstack/functions/task";
 import * as results from "@eserstack/primitives/results";
 import type { Platform } from "../../domain/values/platform.ts";
-import * as appHandlers from "../../application/handlers.ts";
+import type * as appHandlers from "../../application/handlers.ts";
 import type { BoundTriggers } from "../../application/wiring.ts";
 
 // ── TUI event type ─────────────────────────────────────────────────────────────

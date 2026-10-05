@@ -8,20 +8,21 @@
  *
  * @example
  * ```typescript
- * import { createCacheManager } from "@eserstack/cache";
+ * import * as cache from "@eserstack/cache";
+ * import { runtime } from "@eserstack/standards/cross-runtime";
  *
- * const cache = createCacheManager({
+ * const manager = cache.createCacheManager({
  *   app: { name: "my-cli", org: "eser" }
  * });
  *
  * // Get versioned cache path
- * const binaryPath = cache.getVersionedPath("1.0.0", "binary");
+ * const binaryPath = manager.getVersionedPath("1.0.0", "binary");
  *
  * // Ensure directory exists
- * await cache.ensureDir(runtime.path.dirname(binaryPath));
+ * await manager.ensureDir(runtime.path.dirname(binaryPath));
  *
  * // Check if cached
- * if (await cache.exists(binaryPath)) {
+ * if (await manager.exists(binaryPath)) {
  *   console.log("Using cached binary");
  * }
  * ```
@@ -36,7 +37,7 @@ import type {
   CacheManagerOptions,
 } from "./primitives.ts";
 import * as xdg from "./xdg.ts";
-import { ensureLib, getLib } from "./ffi-client.ts";
+import * as ffiClient from "./ffi-client.ts";
 
 /**
  * Creates a cache manager for the specified application.
@@ -46,11 +47,13 @@ import { ensureLib, getLib } from "./ffi-client.ts";
  *
  * @example
  * ```typescript
- * const cache = createCacheManager({
+ * import * as cache from "@eserstack/cache";
+ *
+ * const manager = cache.createCacheManager({
  *   app: { name: "my-cli", org: "eser" }
  * });
  *
- * const path = cache.getVersionedPath("1.0.0", "binary");
+ * const path = manager.getVersionedPath("1.0.0", "binary");
  * // On Linux: ~/.cache/eser/my-cli/v1.0.0/binary
  * // On macOS: ~/Library/Caches/eser/my-cli/v1.0.0/binary
  * ```
@@ -65,8 +68,8 @@ export const createCacheManager = (
 
   const getHandle = (): Promise<string> => {
     if (_handlePromise === null) {
-      _handlePromise = ensureLib().then(() => {
-        const lib = getLib();
+      _handlePromise = ffiClient.ensureLib().then(() => {
+        const lib = ffiClient.getLib();
         if (lib === null) {
           throw new Error("native library unavailable");
         }
@@ -122,7 +125,7 @@ export const createCacheManager = (
 
   const list = async (): Promise<CacheEntry[]> => {
     const handle = await getHandle();
-    const lib = getLib()!;
+    const lib = ffiClient.getLib()!;
     const raw = lib.symbols.EserAjanCacheList(JSON.stringify({ handle }));
     const result = JSON.parse(raw) as {
       entries: Array<{
@@ -148,7 +151,7 @@ export const createCacheManager = (
 
   const remove = async (path: string): Promise<void> => {
     const handle = await getHandle();
-    const lib = getLib()!;
+    const lib = ffiClient.getLib()!;
     // Resolve to absolute path — Go's Manager.Remove calls os.RemoveAll(path)
     // directly (not relative to cache dir), so we must pass the absolute path.
     const raw = lib.symbols.EserAjanCacheRemove(
@@ -162,7 +165,7 @@ export const createCacheManager = (
 
   const clear = async (): Promise<void> => {
     const handle = await getHandle();
-    const lib = getLib()!;
+    const lib = ffiClient.getLib()!;
     const raw = lib.symbols.EserAjanCacheClear(JSON.stringify({ handle }));
     const result = JSON.parse(raw) as { error?: string };
     if (result.error) {
@@ -182,7 +185,7 @@ export const createCacheManager = (
       return;
     }
     _handlePromise = null;
-    const lib = getLib();
+    const lib = ffiClient.getLib();
     if (lib !== null) {
       lib.symbols.EserAjanCacheClose(JSON.stringify({ handle }));
     }

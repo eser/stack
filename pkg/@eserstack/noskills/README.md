@@ -1,4 +1,4 @@
-# [@eserstack/noskills](./)
+# 🚦 [@eserstack/noskills](./)
 
 > **eserstack Product** — AI development orchestrator ·
 > [eser/stack](https://github.com/eser/stack) **Install:**
@@ -179,6 +179,12 @@ tracking. Not a plan the agent ignores — a contract it's held to.
 tasks in fresh context. Verifier checks the work. Test-writer ensures coverage.
 No context rot.
 
+**Transition validation** (opt-in): at the end of discovery and at the spec
+proposal, a second agent that sees only the spec, the answers and the transition
+reports findings before you approve. The findings are advice and never block.
+Turn it on with `next --validate` or a `validate` entry in the manifest; see
+[The transition validator](./README-HOW.md#the-transition-validator).
+
 **Verification backpressure** — tests must pass before a task is accepted.
 Unfinished items become debt that follows the agent around with increasing
 urgency.
@@ -204,6 +210,16 @@ Before the six questions, noskills asks which discovery mode to use:
 | explore         | Think bigger, find opportunities | Brainstorming, scope expansion    |
 
 The mode shapes how questions are asked and which concern extras appear.
+
+The agent asks the six questions together and submits your answers in one call.
+Follow-ups come after them, one at a time: when an answer is vague or risky, the
+agent registers a follow-up, and `noskills next` hands each one out on its own
+until you answer or skip it.
+
+```bash
+noskills spec upload followup reversibility "What's the rollback plan?"
+noskills spec upload followup reversibilitya --answer="Feature flag, off by default"
+```
 
 ### Listen-first merged entry
 
@@ -377,12 +393,18 @@ and performance degrades. The Ralph loop solves this by restarting the agent
 every iteration with fresh context while persisting state in files. noskills IS
 the Ralph loop — no separate bash script needed.
 
+Nobody answers the agent during a run, so the loop compiles its prompt without
+the rules that wait for you, such as AskUserQuestion prompts. When a decision
+needs you, the agent runs `block` and the loop stops at BLOCKED. The loop always
+runs Claude Code, so the prompt follows Claude Code's tool set whatever tools
+`manifest.yml` lists first.
+
 State persists in `.eser/.state/progresses/state.json` between iterations. The
 Stop hook snapshots git state automatically. Verification backpressure prevents
-advancing past broken tests. When `autoCommit: true` in `manifest.yml`, the
-`noskills run` CLI loop handles git commits between iterations — the agent never
-touches git. Git write operations are the CLI's responsibility, never the
-agent's.
+advancing past broken tests. When `autoCommit: true` is set in `manifest.yml`,
+the `noskills run` loop commits between iterations, whatever `allowGit` says:
+`allowGit` governs the agent's git, and the loop runs its commits outside the
+agent's git wrapper. Git writes are the CLI's responsibility, never the agent's.
 
 ### Behavioral Guardrails
 
@@ -400,10 +422,15 @@ rules. These tell the agent HOW to behave, not just WHAT to do:
 | BLOCKED    | "Brief. Decision time."          | Present decision as-is, don't suggest preferences             |
 | COMPLETED  | "Celebrate briefly, then stop"   | Don't start new work (done, cancelled, or wontfix)            |
 
+The rules name only what the agent's tool has. Claude Code gets AskUserQuestion
+and the plan-mode key (Shift+Tab); Cursor, Windsurf, Copilot, Kiro, Codex CLI
+and OpenCode get numbered lists and plain questions instead. `noskills next`
+takes these from the first tool in the manifest's `tools` list.
+
 **Git is read-only** for agents (configurable via `allowGit: true` in manifest).
 Agents may read (`git log`, `git diff`, `git status`) but never write
-(`git commit`, `git push`, `git checkout`). Three layers apply this: behavioral
-rules, the AGENTS.md instruction, and the PreToolUse hook.
+(`git commit`, `git push`, `git checkout`). Four layers apply this: behavioral
+rules, the AGENTS.md instruction, the PreToolUse hook and a git wrapper.
 
 The hook classifies the Bash command text. It catches git however it is quoted,
 cased or prefixed (`"git"`, `g''it`, `GIT`, `env X=1 git`), inside `sh -c`,
@@ -411,13 +438,160 @@ cased or prefixed (`"git"`, `g''it`, `GIT`, `env X=1 git`), inside `sh -c`,
 script file it can read before the command runs (`bash run.sh`). A script the
 same command writes and then runs is denied. What the hook cannot decide from
 text is a program an interpreter assembles at run time, such as
-`python -c "subprocess.run(['g'+'it','push'])"`. It is a guard against mistakes,
-not a sandbox. For a hard guarantee, protect branches on the remote and do not
-give agent sessions push credentials.
+`python -c "subprocess.run(['g'+'it','push'])"`.
 
-When the agent's iteration count exceeds `maxIterationsBeforeRestart` (default
-15), an `urgency` message warns that context is degrading and recommends a fresh
-session.
+The git wrapper covers that case. While `allowGit` is false, the SessionStart
+hook writes a `git` script to `.eser/.state/bin/` and puts that directory first
+on the PATH of the session's Bash commands through Claude Code's
+`CLAUDE_ENV_FILE`, and `noskills run` puts it first on the PATH of the agent it
+starts. Every git process the agent starts then runs through the script,
+whatever built the command:
+
+- Reads and clones run directly.
+- A push is refused from any repository, since a clone anywhere can push to the
+  project's remote.
+- Any other write is refused when it acts on the project's repository, however
+  the repository is named (`-C`, `--git-dir`, `GIT_DIR`). A command that starts
+  with a git option the wrapper does not know is refused too, since that option
+  may hide which repository it names.
+- Writes to other repositories run, so tests that commit to temporary
+  repositories still pass inside an agent session.
+
+The wrapper asks `noskills invoke-hook git-exec` about each command it does not
+run directly, and that check reads `allowGit` every time, so setting it to true
+takes effect at once. Setting it to false takes effect in the next session. The
+check has 30 seconds to answer. When it does not, the wrapper stops it and
+refuses the command, so a slow registry cannot hang the agent's git call. The
+default `command`, `npx eser@latest noskills`, can wait on the npm registry
+before the check starts; set `command` to an installed noskills to keep the
+check off the network.
+
+The PreToolUse hook also keeps the agent away from the settings these layers
+read. In every phase and session mode, it refuses an edit or a Bash command that
+would change the `noskills` section of `.eser/manifest.yml` (`allowGit`,
+`command` and the other settings) or anything in `.eser/.state/bin/`, including
+a command that moves or removes `.eser` or `.eser/.state` as a whole. Edits to
+the manifest's other sections and to rules, concerns and specs under `.eser/` go
+through, and so do noskills commands that update the manifest themselves
+(`concern add`, `concern remove`). Change the `noskills` section yourself.
+
+Which tools get the wrapper:
+
+- Claude Code: the SessionStart hook writes it and puts it on PATH through
+  `CLAUDE_ENV_FILE`. Claude Code does not always run that hook for a new
+  conversation
+  ([anthropics/claude-code#10373](https://github.com/anthropics/claude-code/issues/10373)).
+  When `command -v git` in the session does not print the wrapper's path, run
+  `/clear`, which runs the hook again, and check once more.
+- `noskills run`: puts it on the PATH of the agent it starts.
+- Codex, OpenCode, Copilot CLI and Kiro: their session-start hook writes the
+  wrapper, but a hook in these tools cannot change the PATH of the commands that
+  follow. Start the tool with the wrapper directory first on PATH, and check
+  that `command -v git` inside the tool prints the wrapper's path:
+
+  ```bash
+  PATH="$PWD/.eser/.state/bin:$PATH" codex
+  ```
+
+- Cursor, Windsurf and GitHub Copilot in the editor run no noskills hooks, so
+  neither the PreToolUse hook nor the wrapper applies. Only the generated rules
+  ask the agent to leave git alone.
+
+On Windows nothing is installed. The wrapper is a POSIX shell script, and a
+`git.cmd` shim would not take its place: programs that start git without a
+shell, such as Python's `subprocess`, Node's `child_process` and `Deno.Command`,
+look up `git.exe` and never run a `.cmd` file. The PreToolUse hook is then the
+only noskills check on git.
+
+These layers are guards against mistakes, not a sandbox. A program that starts
+git by its absolute path, such as
+`python -c "subprocess.run(['/usr/bin/g'+'it','push'])"`, or that sets its own
+PATH, skips both the hook and the wrapper, and noskills cannot see it. Two
+things stop it:
+
+- Claude Code's sandbox, which the operating system enforces for every Bash
+  command and the programs it starts. With `.git` in
+  `sandbox.filesystem.denyWrite`, no sandboxed command can write the repository,
+  whichever git binary it runs, and the sandbox's network proxy only lets a
+  command reach the hosts you allow, so keep your git host off that list.
+  noskills does not turn the sandbox on for you, because it changes how every
+  command in your sessions runs. To turn it on, add this to
+  `.claude/settings.json`:
+
+  ```json
+  {
+    "sandbox": {
+      "enabled": true,
+      "allowUnsandboxedCommands": false,
+      "filesystem": {
+        "denyWrite": ["./.git", "./.eser/manifest.yml", "./.eser/.state/bin"]
+      }
+    }
+  }
+  ```
+
+  `allowUnsandboxedCommands: false` stops the agent from asking to run a command
+  outside the sandbox. With the manifest in `denyWrite`, the noskills commands
+  that update it fail when the agent runs them; run those yourself.
+
+- Branch protection on the remote: require pull requests for your main branch,
+  block force pushes (GitHub branch protection rules or rulesets, GitLab
+  protected branches), and do not give agent sessions credentials that can push.
+
+#### The PreToolUse hook in each tool
+
+`noskills init` writes the hook config each tool reads, and each config runs
+`noskills invoke-hook pre-tool-use` before the tool's shell and file tools run:
+
+| Tool        | Config                          | Guarded tools                                                                                   |
+| ----------- | ------------------------------- | ----------------------------------------------------------------------------------------------- |
+| Claude Code | `.claude/settings.json`         | Bash, Write, Edit, MultiEdit                                                                    |
+| Codex       | `.codex/hooks.json`             | Bash (shell commands and exec_command), apply_patch                                             |
+| Copilot CLI | `.github/hooks/noskills.json`   | bash, powershell, create, edit, str_replace_editor, apply_patch                                 |
+| Kiro        | `.kiro/hooks/noskills.json`     | write, fs_write, fsWrite, fs_append, str_replace, delete_file, shell, execute_bash, execute_cmd |
+| OpenCode    | `.opencode/plugins/noskills.ts` | bash, edit, write, apply_patch                                                                  |
+
+The hook reads each tool's own tool names and input fields. It refuses a call by
+exiting with code 2 and writing the reason to stderr, which all five tools take
+as a denial. Codex runs a project's hooks only after you trust them: after
+`noskills init`, open `/hooks` in Codex and trust the noskills entries. Kiro
+reads `.kiro/hooks/` from IDE 1.0 and CLI 3.0 on. Copilot CLI also runs the
+hooks in `.claude/settings.json`, so with Claude Code set up as well it runs the
+check twice, and both runs refuse the same calls.
+
+The tools' documentation leaves two gaps:
+
+- Copilot CLI documents the `command` argument of its shell tools but not the
+  arguments of `create` and `edit`. noskills reads `path`, and `file_text` or
+  `old_str` and `new_str` when the call has them.
+- Kiro documents its hook payload and tool names but not the fields of each
+  tool's input. noskills reads `command` for the shell tools and `path` or
+  `file_path` for the write tools, with `file_text`, `content` or `old_str` and
+  `new_str` when the call has them.
+
+When a file tool's input does not show what the file holds afterwards (a patch,
+an append, a delete or an input of another shape), the phase gate still applies
+to the file's path, and a change to `.eser/manifest.yml` is refused as a whole,
+since noskills cannot tell whether it leaves the `noskills` section alone. A
+shell call whose input has no `command` field goes unchecked.
+
+**When the hook is slow.** Each config gives the PreToolUse hook 30 seconds, as
+long as the git wrapper's check. Claude Code, Codex, Copilot CLI and Kiro treat
+a hook that does not answer in time as a failed hook and let the tool call go
+ahead, so the git guard and the protected-file check do not apply to that call.
+The git wrapper, where it is on PATH, still refuses a git write whose own check
+times out, and the OpenCode plugin refuses the call and says why. The default
+`command`, `npx eser@latest noskills`, can wait on the npm registry before
+noskills starts, and `noskills init` warns when `command` runs through npx,
+`npm exec` or a remote `deno run` module. To keep the hook off the network,
+install the eser CLI (`npm install -g eser` or
+`deno install -g -A jsr:@eserstack/cli`) and run `eser noskills init`, which
+sets `command` to `eser noskills`.
+
+When a spec's iteration count reaches `maxIterationsBeforeRestart` (default 15),
+the Stop hook prints a notice for you on stderr and `noskills next` sets
+`restartRecommended: true`. The agent gets no countdown, because the count runs
+over the spec's whole life rather than one session.
 
 ### Concerns — The Project's DNA
 
@@ -442,9 +616,10 @@ data at once:
 - **DISCOVERY** — extra sub-questions, dream state prompts
 - **REFINEMENT** — review dimension checklist (scope-filtered by classification
   — UI dimensions only appear for UI specs)
-- **PROPOSAL** — spec sections, registry table skeletons
-- **EXECUTING** — reminders (tier 1 at compile-time, tier 2 per-file via hooks),
-  acceptance criteria, tension gates
+- **PROPOSAL** — spec sections (a section with a `scope` waits for a matching
+  classification), registry table skeletons
+- **EXECUTING** — reminders (tier 1 at compile-time, tier 2 per-file via hooks;
+  a reminder's `scope` puts it in tier 2), acceptance criteria, tension gates
 - **COMPLETED** — learning prompts (done, cancelled, or wontfix)
 
 When concerns conflict (e.g., move-fast + compliance), noskills surfaces the
@@ -476,6 +651,82 @@ Rules stack upward — `.folder-rules.md` files in parent directories also apply
 like CSS specificity. A rule at `pkg/` applies to all files under `pkg/`, while
 a rule at `pkg/@eserstack/streams/` applies only to that package. Zero token
 cost — derived from filesystem, not LLM.
+
+### Removing noskills and restoring it
+
+`noskills purge` takes noskills out of a project and leaves the rest of the
+project alone. It asks about each category; pass `--force` to take every
+category without asking, which agent mode requires:
+
+```bash
+eser noskills purge                # asks about each category
+eser noskills purge --force        # takes every category
+eser noskills purge --no-history   # deletes without keeping a copy
+```
+
+| Category            | What purge takes                                                                   |
+| ------------------- | ---------------------------------------------------------------------------------- |
+| `concerns`          | `.eser/concerns/`                                                                  |
+| `specs`             | `.eser/specs/` and the workflow state in `.eser/.state/progresses/`                |
+| `rules`             | `.eser/rules/`                                                                     |
+| `manifest`          | The `noskills` section of `.eser/manifest.yml`, which goes with any other category |
+| `agent-integration` | What sync writes for each tool, and noskills' part of the files it shares with you |
+
+For the agent integration, purge removes the files only noskills uses: the agent
+definitions (`.claude/agents/`, `.codex/agents/`, `.github/agents/`,
+`.kiro/agents/`, `.opencode/agents/`, all named `noskills-*`), the hook files
+`.kiro/hooks/noskills.json`, `.github/hooks/noskills.json` and
+`.opencode/plugins/noskills.ts`, the rule files `.cursorrules`,
+`.windsurfrules`, `.github/copilot-instructions.md` and the `noskills-*` files
+in `.kiro/steering/`, and the Kiro and OpenCode copies of each spec
+(`.kiro/specs/spec_name/` and `.opencode/skills/spec_name.md`). From the files
+you share with noskills it removes only noskills' part: the section in CLAUDE.md
+and AGENTS.md, the hooks in `.claude/settings.json` and `.codex/hooks.json`, and
+the noskills MCP server in `.codex/config.toml`, `.copilot/mcp.json`,
+`.kiro/settings/mcp.json` and `opencode.json`. A shared file with nothing else
+left in it, and a folder purge leaves empty, goes too. Sessions and the event
+log in `.eser/.state/` stay.
+
+#### Purge history
+
+Purge moves what it removes into a history entry instead of deleting it. An
+entry is a folder named after the UTC time of the purge, such as
+`.eser/.state/purge-history/2026-10-05T14-03-12-345Z/`, with one folder per
+category. Each category folder holds the removed paths at the place they had in
+the project, and `manifest/noskills.yml` holds the manifest section. The history
+keeps the 5 newest entries, and each purge drops the oldest beyond that.
+`.eser/.state/` is git-ignored, so the history stays out of your repository.
+
+If you purge to remove the content from disk, pass `--no-history`: purge then
+deletes it without a copy. Entries from earlier purges stay in
+`.eser/.state/purge-history/`; delete that folder to remove those copies too.
+
+#### Restoring
+
+`noskills purge restore` lists the history, newest first. In a terminal it then
+asks which entry and which categories to restore. Name an entry, or `latest` for
+the newest, to restore without questions:
+
+```bash
+eser noskills purge restore                       # lists the entries
+eser noskills purge restore latest                # every category of the newest entry
+eser noskills purge restore entry_id specs rules  # two categories of one entry
+eser noskills purge restore latest concerns --overwrite
+```
+
+Restore copies, so the entry stays in the history and you can restore from it
+again. When a file the entry holds already exists in the project, or the
+manifest already has a `noskills` section, restore leaves that category alone,
+names the paths and exits with code 1. Pass `--overwrite` to replace them; files
+the entry does not hold stay as they are.
+
+The agent integration comes back through sync, the step `noskills init` runs.
+Restore copies the tool files back, then sync writes noskills' part of the
+shared files (the CLAUDE.md and AGENTS.md sections, the hooks and the MCP
+server) for the tools the manifest lists. Sync reads the `noskills` section of
+the manifest, so restore `manifest` together with `agent-integration`, or run
+`noskills init` first. Restore puts categories back in the order of the table
+above, so sync also writes the rules restored in the same run.
 
 ## How noskills differs
 
@@ -660,6 +911,202 @@ State machine internals, JSON output format, hook implementation, CLI reference,
 directory structure, configuration, and library API — see
 **[README-HOW.md](./README-HOW.md)**.
 
+## Upgrading from 4.x
+
+These changes since 4.5.2 need a change in code, commands or files that use this
+package. The [changelog](https://github.com/eser/stack/blob/main/CHANGELOG.md)
+lists the changes in every package.
+
+Run `noskills init` (or `eser noskills init`) once after upgrading. It rewrites
+the hook files, the generated rule files and the copies of the built-in concerns
+in `.eser/concerns/`, which several entries below depend on.
+
+- `noskills invoke-hook pre-tool-use` refuses a call with exit code 2 and writes
+  `noskills: <reason>` to stderr. It used to exit 0 with JSON only; the JSON is
+  still on stdout for Claude Code, Codex and Copilot CLI. A script that calls
+  the hook treats 2 as a denial:
+
+  ```bash
+  noskills invoke-hook pre-tool-use < tool_call.json
+  # Before: any non-zero exit meant the hook crashed
+  # After: 0 allows the call, 2 refuses it, anything else is a failure
+  ```
+
+- Kiro hooks moved from `.kiro/settings/hooks.json`, which Kiro does not read,
+  to `.kiro/hooks/noskills.json` in Kiro's v1 format. `noskills init` writes the
+  new file and removes noskills' `_noskills` entries from the old one, deleting
+  it when nothing else is left. Kiro IDE 1.0 or CLI 3.0 is needed.
+- `.codex/hooks.json` uses Codex's event-to-matcher-group format. Codex no
+  longer gets a post-ask-user-question hook and now gets a post-bash hook. Run
+  `noskills init`, which also converts your own entries, then open `/hooks` in
+  Codex and trust the noskills hooks:
+
+  ```jsonc
+  // Before: a list of entries
+  {
+    "hooks": [
+      { "event": "PreToolUse", "command": "noskills invoke-hook pre-tool-use" }
+    ]
+  }
+  // After: events map to matcher groups
+  {
+    "hooks": {
+      "PreToolUse": [{
+        "matcher": "^(Bash|apply_patch)$",
+        "hooks": [{
+          "type": "command",
+          "command": "noskills invoke-hook pre-tool-use",
+          "timeout": 30
+        }]
+      }]
+    }
+  }
+  ```
+
+- `.github/hooks/noskills.json` uses Copilot CLI's camelCase event lists
+  (`"preToolUse": [{ "type": "command", "matcher": "...", "command": "...", "timeoutSec": 30 }]`)
+  instead of named objects such as `"noskills:preToolUse"` with a `command`
+  array, which Copilot CLI rejected. `noskills init` drops the old keys.
+- The OpenCode plugin `.opencode/plugins/noskills.ts` exports `NoskillsPlugin`
+  instead of `export default`, runs the stop hook on `session.idle` instead of
+  `session.deleted`, and refuses a guarded tool call when the PreToolUse check
+  times out, fails or cannot start. Run `noskills init`. If the noskills command
+  can be missing on a machine, install it there, or remove the plugin file
+  (`noskills purge` now removes it).
+- In agent mode, `noskills next` in DISCOVERY returns every unanswered base
+  question in `questions`, and `currentQuestion` is gone from the output and
+  from the `compiler.DiscoveryOutput` type. Send the answers as one JSON object
+  keyed by question id; plain text still answers the first open question. Run
+  `noskills init` (or sync) so the generated rule files state the new rule:
+
+  ```bash
+  # Before: one call per question, read from currentQuestion
+  noskills spec checkout-flow next --answer="Orders are copied by hand"
+  # After: one call with every answer
+  noskills spec checkout-flow next --answer='{"status_quo":"Orders are copied by hand","ambition":"..."}'
+  ```
+
+- A JSON answer that holds only some base question ids records those answers; it
+  used to be stored, as a whole string, as the answer to the current question. A
+  JSON answer whose key is not a base question id, whose value is not a string,
+  or that holds no answer is refused with `{error}` and exit code 1. Key each
+  answer by `status_quo`, `ambition`, `reversibility`, `user_impact`,
+  `verification` or `scope_boundary`.
+- Pending follow-ups now keep the base answers from completing discovery. `next`
+  hands them out one at a time, and settling the last one moves the spec to
+  DISCOVERY_REFINEMENT. `followup <id> --answer` and `--skip` on an id that is
+  not a pending follow-up fail with exit code 1 instead of reporting success.
+  Register follow-ups before you submit the base answers, then run the command
+  `next` gives for each one:
+
+  ```bash
+  noskills spec checkout-flow followup status_quo "Which teams copy orders?"
+  noskills spec checkout-flow next --answer='{"status_quo":"...",...}'
+  noskills spec checkout-flow followup followup_id --answer="Support and sales"
+  ```
+
+- noskills no longer guesses where a reminder applies from words in its text
+  ("slop", "ui element", "api doc", "migration", "rollback" and others). A
+  custom concern that relied on those words now puts those reminders in every
+  spec's EXECUTING instruction, and nothing is file-specific without a `scope`.
+  Add the scope (`ui`, `api`, `data` or `migration`) to those reminders, and run
+  `noskills init` to rewrite the built-in concern copies in `.eser/concerns/`,
+  or beautiful-product's UI reminders reach every spec:
+
+  ```jsonc
+  // Before
+  "reminders": ["Every UI element has an empty state"]
+  // After
+  "reminders": [
+    { "text": "Every UI element has an empty state", "scope": ["ui"] }
+  ]
+  ```
+
+- Built-in concerns changed where their content applies. Three beautiful-product
+  reminders (empty states, landing page rules, design rating rubric) and
+  qa-tested's Health Score Rubric now need a `ui` spec, and compliance's three
+  PII and data reminders a `data` spec. developer-experience DX Principle 1 and
+  documented's migration-guide reminder need `involvesMigration`. peer-reviewed
+  Suppressions, ship-ready CHANGELOG, deploy-ready Rollback plan and
+  production-ready Runbook moved from the per-edit hook into the EXECUTING
+  instruction. The sections compliance data-handling and retention-policy
+  (`data`), documented api-documentation (`api`) and long-lived
+  migration-deprecation (`migration`) stay hidden until the classification has
+  the flag. A spec already in flight shows the change when its classification is
+  next applied. Run `noskills init` to refresh the copies in `.eser/concerns/`.
+- A concern file with an unknown or malformed `scope`, such as `"UI"` or a value
+  that is not a list, is refused: `persistence.listConcerns` skips it with a
+  stderr warning naming the file and entry, `concerns.loadConcerns` throws, and
+  `noskills pack install` of a remote pack stops. Before: `"scope": "UI"`.
+  After: `"scope": ["ui"]`, with values from `ui`, `api`, `data` and
+  `migration`.
+- `noskills purge` moves what it removes into
+  `.eser/.state/purge-history/<entry_id>/` and keeps the 5 newest entries,
+  instead of deleting it. To remove the content from disk, pass `--no-history`,
+  and delete `.eser/.state/purge-history/` to drop copies from earlier purges.
+  Before: `noskills purge --force`. After:
+  `noskills purge --force --no-history`.
+- `noskills purge` refuses arguments it does not know, with exit code 1; it used
+  to ignore them. Only `--force`, `--no-history`, the mode flags and the
+  `restore` subcommand are accepted. Drop any other argument.
+- `noskills purge` exits with code 1 when a category could not be fully removed,
+  and names each path and the reason; it used to exit 0 and say nothing. A
+  script treats exit 1 as a partial purge and reads the output.
+- Purge's `agent-integration` category takes more files: the agent files for
+  Codex, Copilot CLI, Kiro and OpenCode, Kiro's `noskills-*` steering files, the
+  `.kiro/specs/<spec>/` and `.opencode/skills/<spec>.md` copies of each spec,
+  noskills' section of AGENTS.md, and the noskills MCP server in
+  `.codex/config.toml`, `.copilot/mcp.json`, `.kiro/settings/mcp.json` and
+  `opencode.json`. A shared file left empty, such as a CLAUDE.md that only held
+  the noskills section, is deleted, and so is a folder purge leaves empty. To
+  get a file back, run
+  `noskills purge restore latest manifest agent-integration`.
+- The PreToolUse hook refuses agent edits and Bash commands that change the
+  `noskills` section of `.eser/manifest.yml`, leave the manifest unparseable,
+  write under `.eser/.state/bin/`, or move or remove `.eser` or `.eser/.state`
+  as a whole (`rm -rf .eser/.state`, `mv .eser x`), in every phase and session
+  mode. Change that section yourself, run `noskills concern add` or
+  `concern remove`, and use `noskills purge` for cleanup.
+- With `allowGit` false, agent sessions (Claude Code through the SessionStart
+  hook, and `noskills run`) refuse at exec time every git write to the project's
+  repository and every push from any repository. That includes writes started by
+  tools, such as `gh pr create`, `npm version` or lint-staged. A git command
+  whose first argument is a global option the guard does not know (such as
+  `--list-cmds=...`) is refused too. Set `allowGit: true` in
+  `.eser/manifest.yml`, or run those commands outside the agent session.
+- `allowGit` counts as on only when it is the boolean `true`, in the hooks,
+  `noskills run` and `noskills sync`. Before: `allowGit: "yes"` turned the guard
+  off. After: write `allowGit: true`.
+- The git wrapper refuses a command when the noskills check does not answer
+  within 30 seconds; it used to wait with no limit. If the check is slow because
+  `command` is `npx eser@latest noskills`, set `command` in `.eser/manifest.yml`
+  to an installed noskills, such as `eser noskills`.
+- `noskills run` commits whenever `autoCommit: true` is set, also when
+  `allowGit` is false. Its commits include untracked files, run at the project
+  root and use the message `noskills: iteration N: <progress>`. Set
+  `autoCommit: false` (or remove it) to keep the loop from committing.
+- Generated `.cursorrules`, `.windsurfrules` and
+  `.github/copilot-instructions.md` use `<prefix> spec <name> next` forms. Run
+  sync again instead of editing the generated files.
+- `noskills next` JSON no longer has `behavioral.urgency` or
+  `restartInstruction`, and the TypeScript types `compiler.BehavioralBlock` and
+  `compiler.ExecutionOutput` lost the fields. Read `restartRecommended` on the
+  EXECUTING output and show your own notice. `behavioral.modeOverride` for
+  DISCOVERY, DISCOVERY_REFINEMENT and SPEC_PROPOSAL is "plan mode", and the
+  read-only rule appears once in `behavioral.rules`.
+
 ## License
 
 Apache-2.0
+
+## 🔗 Links
+
+- [README-HOW.md](./README-HOW.md): the state machine, JSON output, hooks, CLI
+  reference and library API
+- [`@eserstack/noskills-web`](https://github.com/eser/stack/tree/main/pkg/@eserstack/noskills-web):
+  the web dashboard for noskills specs and agent tabs
+- [`@eserstack/agents`](https://github.com/eser/stack/tree/main/pkg/@eserstack/agents):
+  coding-agent discovery and the read-only git guard the hooks use
+- [JSR package](https://jsr.io/@eserstack/noskills): the API reference generated
+  from source
+- [eser/stack on GitHub](https://github.com/eser/stack)

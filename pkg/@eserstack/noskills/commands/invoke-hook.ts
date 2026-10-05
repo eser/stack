@@ -9,39 +9,59 @@
  *   invoke-hook post-file-write — PostToolUse: log modified files
  *   invoke-hook post-bash       — PostToolUse: log noskills CLI calls
  *   invoke-hook session-start   — SessionStart: output current noskills instruction
+ *                                 and put the git wrapper on the session's PATH
+ *                                 (`--tool=copilot-cli` for Copilot CLI's output)
+ *   invoke-hook git-exec <args> — the agent-session git wrapper's check
  *
- * Each reads Claude Code hook JSON from stdin, performs logic, outputs
- * JSON to stdout. The LLM is completely unaware these exist.
+ * The hooks read the hook JSON of the tool that runs them from stdin, perform
+ * their logic and write the answer to stdout. Claude Code, Codex, Copilot
+ * CLI, Kiro and the OpenCode plugin each name tools and their inputs their own
+ * way; `hookDecisions.toolCallOf` maps them all to the checks' terms. A
+ * PreToolUse denial exits with code 2 and the reason on stderr, which every
+ * one of these tools takes as a denial. `git-exec` takes git's arguments
+ * instead and answers with its exit code. The LLM is completely unaware these
+ * exist.
+ *
+ * This module does the I/O: it reads the input, loads state and writes the
+ * answer. The decisions are pure functions in hook-decisions.ts, and
+ * `decidePreToolUse` and `processAskUserQuestionHook` take a parsed input, so
+ * tests reach both without stdin.
+ *
+ * pre-tool-use also refuses agent changes to the files the git guards read:
+ * the noskills section of `.eser/manifest.yml` (allowGit) and the wrapper in
+ * `.eser/.state/bin/`.
  *
  * @module
  */
 
 import * as results from "@eserstack/primitives/results";
 import type * as shellArgs from "@eserstack/shell/args";
+import type * as schema from "../state/schema.ts";
 import * as persistence from "../state/persistence.ts";
 import * as iteration_ from "../state/iteration.ts";
+import * as askToken from "../state/ask-token.ts";
 import * as compiler from "../context/compiler.ts";
 import * as syncEngine from "../sync/engine.ts";
 import * as hookDecisions from "./hook-decisions.ts";
 import * as folderRules from "../context/folder-rules.ts";
 import * as concerns from "../context/concerns.ts";
-import {
-  compareQuestions,
-  SIMILARITY_EXACT_THRESHOLD,
-} from "../context/question-similarity.ts";
-import { cmd } from "../output/cmd.ts";
+import * as cmd from "../output/cmd.ts";
+import * as gitWrapper from "./git-wrapper.ts";
+import * as gitWrapperInstall from "./git-wrapper-install.ts";
 import { runtime } from "@eserstack/standards/cross-runtime";
 
 // =============================================================================
 // Stdin reader
 // =============================================================================
 
-const readStdin = async (): Promise<Record<string, unknown>> => {
+const readHookInput = async (): Promise<hookDecisions.HookInput> => {
   const reader = runtime.process.stdin.getReader();
   const chunks: Uint8Array[] = [];
 
   try {
     while (true) {
+      // A stream is read one chunk at a time; each read waits for the last.
+      // deno-lint-ignore no-await-in-loop
       const { done, value } = await reader.read();
       if (done || value === undefined) break;
       chunks.push(value);
@@ -60,19 +80,30 @@ const readStdin = async (): Promise<Record<string, unknown>> => {
     offset += chunk.length;
   }
 
-  const decoded = new TextDecoder().decode(merged);
+  return hookDecisions.parseHookInput(new TextDecoder().decode(merged));
+};
 
-  try {
-    return JSON.parse(decoded) as Record<string, unknown>;
-  } catch {
-    return {};
-  }
+/** The project root for a hook call: see `hookDecisions.hookRoot`. */
+const rootOf = (input: hookDecisions.HookInput): string =>
+  hookDecisions.hookRoot(
+    input,
+    runtime.env.get("NOSKILLS_PROJECT_ROOT"),
+    runtime.process.cwd(),
+  );
+
+const writeStdoutText = async (text: string): Promise<void> => {
+  const writer = runtime.process.stdout.getWriter();
+  await writer.write(new TextEncoder().encode(text));
+  writer.releaseLock();
 };
 
 const writeStdout = async (data: unknown): Promise<void> => {
-  const encoder = new TextEncoder();
-  const writer = runtime.process.stdout.getWriter();
-  await writer.write(encoder.encode(JSON.stringify(data)));
+  await writeStdoutText(JSON.stringify(data));
+};
+
+const writeStderr = async (text: string): Promise<void> => {
+  const writer = runtime.process.stderr.getWriter();
+  await writer.write(new TextEncoder().encode(text));
   writer.releaseLock();
 };
 
@@ -95,9 +126,11 @@ export const main = async (
     case "post-bash":
       return await handlePostBash();
     case "session-start":
-      return await handleSessionStart();
+      return await handleSessionStart(args?.slice(1) ?? []);
     case "post-ask-user-question":
       return await handlePostAskUserQuestion();
+    case "git-exec":
+      return await handleGitExec(args?.slice(1) ?? []);
     default:
       return results.ok(undefined);
   }
@@ -107,25 +140,196 @@ export const main = async (
 // Shared helpers for hook handlers
 // =============================================================================
 
-const writeDeny = async (reason: string): Promise<void> => {
-  await writeStdout({
-    hookSpecificOutput: {
-      hookEventName: "PreToolUse",
-      permissionDecision: "deny",
-      permissionDecisionReason: `noskills: ${reason}`,
-    },
-  });
+/**
+ * What the PreToolUse hook answers for one tool call:
+ * - `none`: no output, so the tool call goes ahead.
+ * - `deny`: the call is refused with `reason`.
+ * - `allow-with-context`: the call goes ahead and the agent reads `context`.
+ */
+export type PreToolUseDecision =
+  | { readonly kind: "none" }
+  | { readonly kind: "deny"; readonly reason: string }
+  | { readonly kind: "allow-with-context"; readonly context: string };
+
+const NO_DECISION: PreToolUseDecision = { kind: "none" };
+
+const deny = (reason: string): PreToolUseDecision => ({ kind: "deny", reason });
+
+/** The exit code of a PreToolUse denial, which every supported tool honors. */
+export const PRE_TOOL_USE_DENIED_EXIT_CODE = 2;
+
+/** What `invoke-hook pre-tool-use` writes and the code it exits with. */
+export type PreToolUseAnswer = {
+  /** Text for stdout, or "" for none. */
+  readonly stdout: string;
+  /** Text for stderr, or "" for none. */
+  readonly stderr: string;
+  readonly exitCode: 0 | typeof PRE_TOOL_USE_DENIED_EXIT_CODE;
 };
 
-/** Allow tool use with advisory context the agent sees. */
-const writeAllowWithContext = async (context: string): Promise<void> => {
-  await writeStdout({
-    hookSpecificOutput: {
-      hookEventName: "PreToolUse",
-      permissionDecision: "allow",
-      additionalContext: context,
-    },
-  });
+/**
+ * The PreToolUse answer for `decision` in the form the tool that ran the hook
+ * reads (`hookDecisions.HookDialect`).
+ *
+ * A denial exits with code 2 and the reason on stderr: Claude Code, Codex,
+ * Copilot CLI and Kiro all refuse the call on that exit code, and the
+ * OpenCode plugin throws the reason. stdout also carries the denial as JSON
+ * where the tool reads one, so Copilot CLI shows the agent the reason.
+ *
+ * Context next to an allowed call goes out only where the tool adds it to the
+ * agent's context: as `hookSpecificOutput.additionalContext` for the claude
+ * dialect, and as plain text for Kiro. Copilot CLI's preToolUse output has no
+ * such field, and its `allow` would skip the user's permission prompt, so
+ * Copilot CLI gets no output.
+ */
+export const preToolUseAnswer = (
+  decision: PreToolUseDecision,
+  dialect: hookDecisions.HookDialect,
+): PreToolUseAnswer => {
+  switch (decision.kind) {
+    case "none":
+      return { stdout: "", stderr: "", exitCode: 0 };
+    case "deny": {
+      const reason = `noskills: ${decision.reason}`;
+      const json = dialect === "claude"
+        ? {
+          hookSpecificOutput: {
+            hookEventName: "PreToolUse",
+            permissionDecision: "deny",
+            permissionDecisionReason: reason,
+          },
+        }
+        : { permissionDecision: "deny", permissionDecisionReason: reason };
+
+      return {
+        stdout: dialect === "kiro" ? "" : JSON.stringify(json),
+        stderr: `${reason}\n`,
+        exitCode: PRE_TOOL_USE_DENIED_EXIT_CODE,
+      };
+    }
+    case "allow-with-context":
+      switch (dialect) {
+        case "claude":
+          return {
+            stdout: JSON.stringify({
+              hookSpecificOutput: {
+                hookEventName: "PreToolUse",
+                permissionDecision: "allow",
+                additionalContext: decision.context,
+              },
+            }),
+            stderr: "",
+            exitCode: 0,
+          };
+        case "kiro":
+          return { stdout: decision.context, stderr: "", exitCode: 0 };
+        case "copilot":
+          return { stdout: "", stderr: "", exitCode: 0 };
+      }
+  }
+};
+
+/**
+ * Appends JSON lines to a log under `.eser/.state/progresses/`. The log is
+ * bookkeeping, so a failure is left out of the agent's way.
+ */
+const appendProgressLog = async (
+  root: string,
+  fileName: string,
+  entries: readonly Readonly<Record<string, unknown>>[],
+): Promise<void> => {
+  if (entries.length === 0) return;
+
+  const dir = `${root}/${persistence.paths.progressesDir}`;
+
+  try {
+    await runtime.fs.mkdir(dir, { recursive: true });
+    // Appending, rather than reading the log and writing it back, keeps the
+    // entries of two hooks that run at once.
+    await runtime.fs.writeTextFile(
+      `${dir}/${fileName}`,
+      entries.map((entry) => `${JSON.stringify(entry)}\n`).join(""),
+      { append: true },
+    );
+  } catch {
+    // best effort
+  }
+};
+
+/**
+ * Returns the executor reminder on the first file edit of an iteration and
+ * null on later ones. A flag file records that it was shown; the Stop hook
+ * removes the flag when the iteration ends.
+ */
+export const takeExecutorReminder = async (
+  root: string,
+): Promise<string | null> => {
+  const dir = `${root}/${persistence.paths.progressesDir}`;
+  const flagFile = `${dir}/executor-warned.flag`;
+
+  try {
+    await runtime.fs.stat(flagFile);
+    return null;
+  } catch {
+    // No flag yet: this is the first edit of the iteration.
+  }
+
+  try {
+    await runtime.fs.mkdir(dir, { recursive: true });
+    await runtime.fs.writeTextFile(flagFile, new Date().toISOString());
+  } catch {
+    // Without the flag the reminder would repeat on every edit, so skip it.
+    return null;
+  }
+
+  return hookDecisions.EXECUTOR_REMINDER;
+};
+
+/**
+ * Collects the rules that apply to one file during execution: scoped rules,
+ * folder rules and concern reminders for its file type. Collection is best
+ * effort; a failure returns no rules rather than blocking the edit.
+ */
+const collectFileRules = async (
+  root: string,
+  state: hookDecisions.HookInput,
+  filePath: string,
+): Promise<readonly string[]> => {
+  try {
+    const notes: string[] = [];
+
+    // 1. Scoped rules matching this file
+    const scopedRules = await syncEngine.loadScopedRules(root);
+    notes.push(
+      ...syncEngine.getTier2RulesForFile(scopedRules, "EXECUTING", filePath),
+    );
+
+    // 2. Folder rules (walk up from file's directory)
+    const fRules = await folderRules.collectFolderRules(root, [filePath]);
+    for (const fr of fRules) {
+      notes.push(`(${fr.folder}/) ${fr.rule}`);
+    }
+
+    // 3. Concern reminders by file type
+    const classification =
+      (state["classification"] as schema.SpecClassification | null) ?? null;
+    const activeConcerns = await persistence.listConcerns(root);
+    const manifest = await persistence.readManifest(root);
+    const activeConcernDefs = activeConcerns.filter((c) =>
+      manifest !== null && manifest.concerns.includes(c.id)
+    );
+    notes.push(
+      ...concerns.getTier2RemindersForFile(
+        activeConcernDefs,
+        filePath,
+        classification,
+      ),
+    );
+
+    return notes;
+  } catch {
+    return [];
+  }
 };
 
 const GIT_WRITE_DENIAL =
@@ -144,6 +348,8 @@ const checkShellScripts = async (
   command: string,
   root: string,
 ): Promise<string | null> => {
+  // Scripts are checked in order and the first denial returns, so later
+  // scripts are not read once one is refused.
   for (const target of hookDecisions.shellScriptTargets(command)) {
     if (hookDecisions.writesFile(command, target)) {
       return "Running a shell script that this same command writes is not allowed while git is read-only: its content cannot be checked for git writes.";
@@ -152,10 +358,12 @@ const checkShellScripts = async (
     const path = target.startsWith("/") ? target : `${root}/${target}`;
     let content: string;
     try {
+      // deno-lint-ignore no-await-in-loop
       const info = await runtime.fs.stat(path);
       if (info.size > MAX_SCRIPT_BYTES) {
         return `Shell script ${target} is too large to check for git writes.`;
       }
+      // deno-lint-ignore no-await-in-loop
       content = await runtime.fs.readTextFile(path);
     } catch {
       continue;
@@ -175,7 +383,8 @@ const checkShellScripts = async (
  * This classifies command text. It catches quoting, case, env-prefix,
  * subshell, pipe and stdin-fed shell forms, and scripts it can read, but it
  * cannot decide what an interpreter computes at run time (for example
- * `python -c` building "git" from parts). See README "Git is read-only".
+ * `python -c` building "git" from parts). The git wrapper (git-wrapper.ts)
+ * covers that case where it is installed; see README "Git is read-only".
  */
 export const checkGitGuard = async (
   command: string,
@@ -206,293 +415,314 @@ export const checkGitGuard = async (
 };
 
 // =============================================================================
-// PreToolUse: phase gate + git write guard
+// Protected files: the manifest's noskills section and the git wrapper
 // =============================================================================
 
-const handlePreToolUse = async (): Promise<shellArgs.CliResult<void>> => {
-  const input = await readStdin();
-  const toolName = (input["tool_name"] as string) ?? "unknown";
-  const toolInput = (input["tool_input"] as Record<string, unknown>) ?? {};
+/**
+ * The absolute forms of a path a tool names: as written, and with symlinks
+ * resolved, so a link to the manifest counts as the manifest. A file that does
+ * not exist yet is resolved through the directory it would be created in.
+ */
+const absolutePathForms = async (
+  root: string,
+  filePath: string,
+): Promise<readonly string[]> => {
+  const absolute = runtime.path.resolve(root, filePath);
 
-  const root = (input["cwd"] as string) ??
-    runtime.env.get("NOSKILLS_PROJECT_ROOT") ?? runtime.process.cwd();
-  const config = await persistence.readManifest(root);
+  try {
+    return [absolute, await runtime.fs.realPath(absolute)];
+  } catch {
+    // Not there yet: the Write tool would create it.
+  }
 
-  // ── Session-based enforcement ──
-  const sessionId = runtime.env.get("NOSKILLS_SESSION") ?? null;
+  try {
+    const dir = await runtime.fs.realPath(runtime.path.dirname(absolute));
+    return [absolute, runtime.path.join(dir, runtime.path.basename(absolute))];
+  } catch {
+    // The directory is missing too; the path as written is all there is.
+    return [absolute];
+  }
+};
 
-  if (sessionId !== null) {
-    const session = await persistence.readSession(root, sessionId);
-    if (session !== null) {
-      // Free mode sessions → pass everything (git guard still applies)
-      if (session.mode === "free") {
-        // Still apply git guard even in free mode
-        if (toolName === "Bash") {
-          const command = ((toolInput["command"] as string) ?? "").trim();
-          const allowGit = config?.allowGit ?? false;
-          if (!allowGit) {
-            const gitResult = await checkGitGuard(command, allowGit, root);
-            if (gitResult !== null) {
-              await writeDeny(gitResult);
-              return results.ok(undefined);
-            }
-          }
-        }
-        return results.ok(undefined);
-      }
+/**
+ * The denial for one file change when it touches a protected file, or null.
+ * A change whose result is unknown (a patch, an append, a delete) is refused
+ * on the manifest as a whole, since noskills cannot tell whether it leaves
+ * the noskills section alone.
+ */
+const protectedChangeDenial = async (
+  change: hookDecisions.FileChange,
+  root: string,
+): Promise<string | null> => {
+  if (change.path === "") return null;
 
-      // Spec mode → use session's cached phase for enforcement
-      // (fall through to normal phase enforcement with session phase)
+  const forms = await absolutePathForms(root, change.path);
+  const file = forms.map(hookDecisions.protectedFileAt)
+    .find((found) => found !== null) ?? null;
+  if (file === null) return null;
+  if (file === "git-wrapper") {
+    return hookDecisions.protectedFileDenial(file, "edit");
+  }
+  if (change.edit === null) {
+    return hookDecisions.protectedFileDenial(file, "unknown-edit");
+  }
+
+  let current: string | null = null;
+  try {
+    current = await runtime.fs.readTextFile(forms[forms.length - 1]!);
+  } catch {
+    // Missing, or unreadable and so not writable either: the edit is judged
+    // as one that creates the file.
+  }
+
+  const after = hookDecisions.contentAfterEdit(
+    change.edit.tool,
+    change.edit.input,
+    current,
+  );
+  if (after === null || hookDecisions.changesNoskillsSection(current, after)) {
+    return hookDecisions.protectedFileDenial(file, "edit");
+  }
+
+  return null;
+};
+
+/**
+ * Refuses an agent's change to a file that controls the git guards
+ * (`hookDecisions.ProtectedFile`): the noskills section of
+ * `.eser/manifest.yml`, which holds allowGit, and the git wrapper directory.
+ * It applies in every phase and session mode, and whatever allowGit says.
+ * `toolName` and `toolInput` are the tool's own, as any supported agent tool
+ * sends them (`hookDecisions.toolCallOf`). Returns the denial reason, or null
+ * when the tool call may go on to the other checks. Edits to the manifest's
+ * other sections pass.
+ */
+export const checkProtectedFiles = async (
+  toolName: string,
+  toolInput: Readonly<Record<string, unknown>>,
+  root: string,
+): Promise<string | null> => {
+  const call = hookDecisions.toolCallOf(toolName, toolInput);
+
+  if (call.kind === "shell") {
+    const file = hookDecisions.bashProtectedFile(call.command);
+
+    return file === null
+      ? null
+      : hookDecisions.protectedFileDenial(file, "command");
+  }
+  if (call.kind === "other") return null;
+
+  // The changes are independent; the first denial in the call's order wins.
+  const denials = await Promise.all(
+    call.changes.map((change) => protectedChangeDenial(change, root)),
+  );
+
+  return denials.find((denial) => denial !== null) ?? null;
+};
+
+// =============================================================================
+// PreToolUse: protected files, git write guard, phase gate
+// =============================================================================
+
+/** What `decidePreToolUse` needs besides the hook input. */
+export type PreToolUseEnv = {
+  /** The project root (`hookDecisions.hookRoot`). */
+  readonly root: string;
+  /** NOSKILLS_SESSION, or null when it is not set. */
+  readonly sessionId: string | null;
+  /** Shows the user a notice on stderr; the agent does not see it. */
+  readonly warn: (notice: string) => Promise<void>;
+};
+
+/**
+ * The state the phase gate reads, as unchecked JSON, or null when file edits
+ * are not phase-gated: a free-mode session, a spec session that has no spec
+ * yet, or a spec whose state cannot be read. A NOSKILLS_SESSION that names no
+ * readable session gates like no session at all.
+ */
+const loadGateState = async (
+  env: PreToolUseEnv,
+  commandPrefix: string,
+): Promise<hookDecisions.HookInput | null> => {
+  const { root, sessionId } = env;
+
+  const session = sessionId === null
+    ? null
+    : await persistence.readSession(root, sessionId);
+
+  if (session !== null) {
+    if (session.mode === "free") return null;
+    // A spec session caches its phase; one without it loads its spec's state.
+    if (session.phase !== null) return { phase: session.phase };
+    if (session.spec === null) return null;
+
+    try {
+      return await persistence.resolveState(root, session.spec, commandPrefix);
+    } catch {
+      return null;
     }
   }
 
-  // Read state — prefer session phase if available, otherwise global state
-  let state: Record<string, unknown> = {};
-
-  if (sessionId !== null) {
-    const session = await persistence.readSession(root, sessionId);
-    if (session !== null && session.mode === "spec" && session.phase !== null) {
-      state = { phase: session.phase };
-    } else {
-      // Session exists but no valid phase — load spec state
-      if (session !== null && session.spec !== null) {
-        try {
-          const specState = await persistence.resolveState(root, session.spec);
-          state = specState as unknown as Record<string, unknown>;
-        } catch {
-          return results.ok(undefined);
-        }
-      } else {
-        return results.ok(undefined);
-      }
-    }
-  } else {
-    // No session — backward compat: load global state
-    // Warn if sessions exist but NOSKILLS_SESSION not set
-    const sessions = await persistence.listSessions(root);
-    if (sessions.length > 0) {
-      // Use most restrictive phase found
-      const phaseOrder: Record<string, number> = {
-        DISCOVERY: 10,
-        DISCOVERY_REFINEMENT: 10,
-        SPEC_PROPOSAL: 10,
-        SPEC_APPROVED: 8,
-        BLOCKED: 8,
-        EXECUTING: 2,
-        IDLE: 0,
-        COMPLETED: 0,
-      };
-      let mostRestrictive = "IDLE";
-      let maxRestriction = 0;
-      for (const s of sessions) {
-        const p = s.phase ?? "IDLE";
-        const restriction = phaseOrder[p] ?? 0;
-        if (restriction > maxRestriction) {
-          maxRestriction = restriction;
-          mostRestrictive = p;
-        }
-      }
-      state = { phase: mostRestrictive };
-
-      // Write warning to stderr
-      const encoder = new TextEncoder();
-      const writer = runtime.process.stderr.getWriter();
-      await writer.write(
-        encoder.encode(
-          `noskills: WARNING — ${sessions.length} session(s) active but NOSKILLS_SESSION not set. Using most restrictive phase (${mostRestrictive}). Set NOSKILLS_SESSION for correct per-instance enforcement.\n`,
-        ),
-      );
-      writer.releaseLock();
-    } else {
-      try {
-        const stateFile = await persistence.readState(root);
-
-        // When the global store names a spec, the per-spec file is the
-        // authoritative copy of its phase. Spec-scoped commands write there and
-        // the global copy goes stale, so reading the global store alone could
-        // still report EXECUTING after a `spec revisit` and let this gate permit
-        // file edits the state machine no longer allows. resolveState prefers
-        // the per-spec file and falls back to the global one itself.
-        let resolved = stateFile;
-
-        if (stateFile.spec !== null && stateFile.spec !== undefined) {
-          try {
-            resolved = await persistence.resolveState(root, stateFile.spec);
-          } catch {
-            // The spec directory is gone; the global store is all there is.
-          }
-        }
-
-        state = resolved as unknown as Record<string, unknown>;
-      } catch {
-        // No state — noskills not initialized, allow everything
-        return results.ok(undefined);
-      }
-    }
-  }
-
-  // ── Git write guard ──
-  if (toolName === "Bash") {
-    const command = ((toolInput["command"] as string) ?? "").trim();
-    const allowGit = config?.allowGit ?? false;
-
-    const gitDenial = await checkGitGuard(command, allowGit, root);
-    if (gitDenial !== null) {
-      await writeDeny(gitDenial);
-      return results.ok(undefined);
-    }
-
-    // Non-git or allowed git commands — allow
-    return results.ok(undefined);
-  }
-
-  // ── File edit phase guard ──
-  const gatedTools = ["Write", "Edit", "MultiEdit"];
-  if (!gatedTools.includes(toolName)) return results.ok(undefined);
-
-  const filePath = (toolInput["file_path"] as string) ??
-    (toolInput["path"] as string) ?? "";
-  if (filePath.includes(".eser/") || filePath.includes(".claude/")) {
-    return results.ok(undefined);
-  }
-
-  const phase = (state["phase"] as string) ?? "UNKNOWN";
-
-  // UNKNOWN phase = default-deny (Jidoka: if phase can't be determined, block)
-  if (phase === "UNKNOWN") {
-    await writeDeny(
-      "Phase unknown — file edit blocked. Run `noskills status` to check state.",
+  // Without a session to go by, any of the active sessions may have made this
+  // call, so the most restrictive phase among them applies.
+  const sessions = await persistence.listSessions(root);
+  if (sessions.length > 0) {
+    const phase = hookDecisions.mostRestrictivePhase(
+      sessions.map((s) => s.phase),
     );
-    return results.ok(undefined);
+    await env.warn(
+      `noskills: ${sessions.length} session(s) are active but NOSKILLS_SESSION does not name one, so file edits follow the most restrictive phase (${phase}). Set NOSKILLS_SESSION for per-instance enforcement.\n`,
+    );
+
+    return { phase };
   }
 
-  // Jidoka: block file edits during review gate (criteriaScope === "review-gate")
-  // The review gate is a read-only pass — the agent evaluates evidence, not edits code.
-  if (phase === "EXECUTING") {
-    const execution = state["execution"] as Record<string, unknown> | undefined;
-    if (execution?.["criteriaScope"] === "review-gate") {
-      await writeDeny(
-        'Review gate active — file edits blocked. Evaluate concern dimensions against the existing implementation and submit findings via `noskills next --answer=\'{"completed":[...],"remaining":[]}\'`.',
+  try {
+    const stateFile = await persistence.readState(root);
+
+    // When the global store names a spec, the per-spec file is the
+    // authoritative copy of its phase. Spec-scoped commands write there and
+    // the global copy goes stale, so reading the global store alone could
+    // still report EXECUTING after a `spec revisit` and let this gate permit
+    // file edits the state machine no longer allows. resolveState prefers
+    // the per-spec file and falls back to the global one itself.
+    if (stateFile.spec !== null && stateFile.spec !== undefined) {
+      try {
+        return await persistence.resolveState(
+          root,
+          stateFile.spec,
+          commandPrefix,
+        );
+      } catch {
+        // The spec directory is gone; the global store is all there is.
+      }
+    }
+
+    return stateFile;
+  } catch {
+    // The state cannot be read, so noskills does not gate this project.
+    return null;
+  }
+};
+
+/**
+ * The phase gate for a file tool call that changes `paths`. Each path goes
+ * through the gate of the spec the session works on
+ * (`hookDecisions.fileEditVerdict`), and the first refusal refuses the call.
+ * A call that names no path is gated as an edit of an unnamed file.
+ */
+const decideFileEdit = async (
+  paths: readonly string[],
+  env: PreToolUseEnv,
+): Promise<PreToolUseDecision> => {
+  const { root } = env;
+
+  // noskills and tool configuration are not phase-gated. The protected files
+  // among them were refused before the gate.
+  const gated = (paths.length === 0 ? [""] : paths).filter((path) =>
+    !hookDecisions.isToolConfigPath(path)
+  );
+  if (gated.length === 0) return NO_DECISION;
+
+  const commandPrefix = await cmd.loadCommandPrefix(root);
+  const state = await loadGateState(env, commandPrefix);
+  if (state === null) return NO_DECISION;
+
+  const gateState = hookDecisions.gateStateOf(state);
+  const executing: string[] = [];
+  for (const path of gated) {
+    const verdict = hookDecisions.fileEditVerdict(
+      path,
+      gateState,
+      commandPrefix,
+    );
+    if (verdict.kind === "deny") return deny(verdict.reason);
+    if (verdict.kind === "execute") executing.push(path);
+  }
+  if (executing.length === 0) return NO_DECISION;
+
+  // Both go out as additionalContext, which the agent reads. A message on
+  // stderr with exit code 0 is shown to the user only, so the reminder used
+  // to miss the agent it was written for.
+  const reminder = await takeExecutorReminder(root);
+  const rulesPerFile = await Promise.all(
+    executing.filter((path) => path !== "").map((path) =>
+      collectFileRules(root, state, path)
+    ),
+  );
+  const context = hookDecisions.preToolUseContext(reminder, [
+    ...new Set(rulesPerFile.flat()),
+  ]);
+
+  return context === null
+    ? NO_DECISION
+    : { kind: "allow-with-context", context };
+};
+
+/**
+ * The PreToolUse decision for one tool call, without the stdin and stdout
+ * plumbing. Changes to the protected files are refused first, and shell
+ * commands go through the git guard; both apply in every phase and session
+ * mode. A file tool call then goes through the phase gate
+ * (`decideFileEdit`). The input may come from any supported agent tool
+ * (`hookDecisions.hookToolCall`).
+ */
+export const decidePreToolUse = async (
+  input: hookDecisions.HookInput,
+  env: PreToolUseEnv,
+): Promise<PreToolUseDecision> => {
+  const { root } = env;
+  const toolName = hookDecisions.toolNameOf(input);
+  const toolInput = hookDecisions.toolInputOf(input);
+
+  // Checked before any phase or session logic: a free-mode session, or a
+  // project with no state yet, must not be able to turn the guards off either.
+  const protectedDenial = await checkProtectedFiles(toolName, toolInput, root);
+  if (protectedDenial !== null) return deny(protectedDenial);
+
+  const call = hookDecisions.toolCallOf(toolName, toolInput);
+  switch (call.kind) {
+    case "other":
+      return NO_DECISION;
+    case "shell": {
+      const config = await persistence.readManifest(root);
+      const gitDenial = await checkGitGuard(
+        call.command.trim(),
+        config?.allowGit === true,
+        root,
       );
-      return results.ok(undefined);
+
+      return gitDenial === null ? NO_DECISION : deny(gitDenial);
     }
+    case "file":
+      return await decideFileEdit(
+        call.changes.map((change) => change.path),
+        env,
+      );
   }
+};
 
-  // Allow writes in phases where the agent should be free to work
-  if (
-    phase === "EXECUTING" || phase === "IDLE" ||
-    phase === "COMPLETED"
-  ) {
-    // Sub-agent spawning reminder (once per session, non-blocking)
-    if (phase === "EXECUTING" && gatedTools.includes(toolName)) {
-      const flagFile =
-        `${root}/${persistence.paths.progressesDir}/executor-warned.flag`;
-      try {
-        await runtime.fs.readTextFile(flagFile);
-        // Flag exists — already warned this session
-      } catch {
-        // First write attempt in EXECUTING — show reminder
-        try {
-          await runtime.fs.mkdir(
-            `${root}/${persistence.paths.progressesDir}`,
-            { recursive: true },
-          );
-          await runtime.fs.writeTextFile(flagFile, new Date().toISOString());
-          const encoder = new TextEncoder();
-          const writer = runtime.process.stderr.getWriter();
-          await writer.write(
-            encoder.encode(
-              "noskills: REMINDER — You should be spawning a noskills-executor sub-agent for implementation work. If you're the main orchestrator agent, delegate to a sub-agent instead of editing directly. If you ARE a sub-agent, ignore this message and continue.\n",
-            ),
-          );
-          writer.releaseLock();
-        } catch {
-          // best effort
-        }
-      }
-    }
+const handlePreToolUse = async (): Promise<shellArgs.CliResult<void>> => {
+  const input = await readHookInput();
+  const sessionId = runtime.env.get("NOSKILLS_SESSION") ?? "";
 
-    // Tier 2: deliver file-specific rules via additionalContext
-    if (phase === "EXECUTING" && filePath.length > 0) {
-      try {
-        const notes: string[] = [];
+  const decision = await decidePreToolUse(input, {
+    root: rootOf(input),
+    sessionId: sessionId === "" ? null : sessionId,
+    warn: writeStderr,
+  });
+  const answer = preToolUseAnswer(
+    decision,
+    hookDecisions.hookDialectOf(input),
+  );
 
-        // 1. Scoped rules matching this file
-        const scopedRules = await syncEngine.loadScopedRules(root);
-        const tier2Rules = syncEngine.getTier2RulesForFile(
-          scopedRules,
-          "EXECUTING",
-          filePath,
-        );
-        notes.push(...tier2Rules);
+  if (answer.stdout !== "") await writeStdoutText(answer.stdout);
+  if (answer.stderr !== "") await writeStderr(answer.stderr);
 
-        // 2. Folder rules (walk up from file's directory)
-        const fRules = await folderRules.collectFolderRules(root, [filePath]);
-        for (const fr of fRules) {
-          notes.push(`(${fr.folder}/) ${fr.rule}`);
-        }
-
-        // 3. Concern reminders by file type
-        const stateFile = state as Record<string, unknown>;
-        const classification = (stateFile["classification"] as
-          | import("../state/schema.ts").SpecClassification
-          | null) ?? null;
-        const activeConcerns = await persistence.listConcerns(root);
-        const manifest = await persistence.readManifest(root);
-        const activeConcernDefs = activeConcerns.filter((c) =>
-          manifest !== null && manifest.concerns.includes(c.id)
-        );
-        const tier2Reminders = concerns.getTier2RemindersForFile(
-          activeConcernDefs,
-          filePath,
-          classification,
-        );
-        notes.push(...tier2Reminders);
-
-        if (notes.length > 0) {
-          const context = "[noskills] Rules for this file:\n" +
-            notes.map((n) => `- ${n}`).join("\n");
-          await writeAllowWithContext(context);
-          return results.ok(undefined);
-        }
-      } catch {
-        // best effort — don't block the tool on rule collection failure
-      }
-    }
-
-    return results.ok(undefined);
-  }
-
-  // Block writes only in conversation phases (DISCOVERY, DISCOVERY_REFINEMENT, SPEC_PROPOSAL, SPEC_APPROVED, BLOCKED)
-  const reasons: Record<string, string> = {
-    DISCOVERY:
-      `You are in DISCOVERY — this is a thinking phase, not an implementation phase. Read and discuss only. To write code, complete discovery and get the spec approved first. Run \`${
-        cmd("next")
-      }\` to continue.\n  modeDirective: ${
-        compiler.getPhaseModeDirective("DISCOVERY") ?? ""
-      }`,
-    DISCOVERY_REFINEMENT:
-      `You are in DISCOVERY_REFINEMENT — this is a thinking phase, not an implementation phase. Read and discuss only. To write code, complete discovery and get the spec approved first. Run \`${
-        cmd('next --answer="approve"')
-      }\` or revise answers.\n  modeDirective: ${
-        compiler.getPhaseModeDirective("DISCOVERY_REFINEMENT") ?? ""
-      }`,
-    SPEC_PROPOSAL:
-      `You are in SPEC_PROPOSAL — this is a thinking phase, not an implementation phase. Read and discuss only. To write code, approve the spec first. Run \`${
-        cmd("approve")
-      }\`\n  modeDirective: ${
-        compiler.getPhaseModeDirective("SPEC_PROPOSAL") ?? ""
-      }`,
-    SPEC_APPROVED: `You are in SPEC_APPROVED — start execution first: \`${
-      cmd('next --answer="start"')
-    }\``,
-    BLOCKED: `Execution blocked. Resolve with \`${
-      cmd('next --answer="resolution"')
-    }\`\n  modeDirective: ${compiler.getPhaseModeDirective("BLOCKED") ?? ""}`,
-  };
-
-  await writeDeny(reasons[phase] ?? `Run \`${cmd("next")}\` first.`);
-  return results.ok(undefined);
+  return answer.exitCode === 0
+    ? results.ok(undefined)
+    : results.fail({ exitCode: answer.exitCode });
 };
 
 // =============================================================================
@@ -500,26 +730,22 @@ const handlePreToolUse = async (): Promise<shellArgs.CliResult<void>> => {
 // =============================================================================
 
 const handleStop = async (): Promise<shellArgs.CliResult<void>> => {
-  const input = await readStdin();
+  const input = await readHookInput();
+  const root = rootOf(input);
 
-  // Guard: prevent infinite loop
-  if (input["stop_hook_active"] === true) return results.ok(undefined);
-
-  const root = (input["cwd"] as string) ??
-    runtime.env.get("NOSKILLS_PROJECT_ROOT") ?? runtime.process.cwd();
-
-  // Read state
-  let state: Record<string, unknown>;
+  let state: hookDecisions.HookInput;
   try {
-    const raw = await runtime.fs.readTextFile(
-      `${root}/${persistence.paths.stateFile}`,
+    state = hookDecisions.parseHookInput(
+      await runtime.fs.readTextFile(`${root}/${persistence.paths.stateFile}`),
     );
-    state = JSON.parse(raw) as Record<string, unknown>;
   } catch {
     return results.ok(undefined);
   }
 
-  if (state["phase"] !== "EXECUTING") return results.ok(undefined);
+  const phase = hookDecisions.stringField(state, "phase");
+  if (!hookDecisions.stopRecordsIteration(input, phase)) {
+    return results.ok(undefined);
+  }
 
   // Stand down when `noskills run` is driving the turn.
   //
@@ -561,16 +787,11 @@ const handleStop = async (): Promise<shellArgs.CliResult<void>> => {
     // use default
   }
 
-  if (record.iteration >= maxIter) {
-    // Write to stderr (user sees, agent doesn't)
-    const encoder = new TextEncoder();
-    const writer = runtime.process.stderr.getWriter();
-    await writer.write(
-      encoder.encode(
-        `noskills: iteration ${record.iteration} reached threshold (${maxIter}). Consider starting a fresh conversation.\n`,
-      ),
-    );
-    writer.releaseLock();
+  const notice = hookDecisions.restartNotice(record.iteration, maxIter);
+  if (notice !== null) {
+    // stderr on exit 0 reaches the user, not the agent: the threshold is the
+    // user's call, and the agent's prompt carries no countdown.
+    await writeStderr(notice);
   }
 
   return results.ok(undefined);
@@ -581,44 +802,17 @@ const handleStop = async (): Promise<shellArgs.CliResult<void>> => {
 // =============================================================================
 
 const handlePostFileWrite = async (): Promise<shellArgs.CliResult<void>> => {
-  const input = await readStdin();
-  const toolInput = (input["tool_input"] as Record<string, unknown>) ?? {};
-  const filePath = (toolInput["file_path"] as string) ??
-    (toolInput["path"] as string) ?? "";
+  const input = await readHookInput();
+  const call = hookDecisions.hookToolCall(input);
+  if (call.kind !== "file") return results.ok(undefined);
 
-  if (
-    !filePath || filePath.includes(".eser/") || filePath.includes(".claude/")
-  ) {
-    return results.ok(undefined);
-  }
+  const tool = hookDecisions.toolNameOf(input);
+  const ts = new Date().toISOString();
+  const entries = call.changes
+    .filter((change) => hookDecisions.isLoggedFileWrite(change.path))
+    .map((change) => ({ file: change.path, tool, ts }));
 
-  const root = (input["cwd"] as string) ??
-    runtime.env.get("NOSKILLS_PROJECT_ROOT") ?? runtime.process.cwd();
-  const logFile =
-    `${root}/${persistence.paths.progressesDir}/files-changed.jsonl`;
-
-  const entry = JSON.stringify({
-    file: filePath,
-    tool: input["tool_name"],
-    ts: new Date().toISOString(),
-  });
-
-  try {
-    await runtime.fs.mkdir(
-      `${root}/${persistence.paths.progressesDir}`,
-      { recursive: true },
-    );
-    // Append
-    let existing = "";
-    try {
-      existing = await runtime.fs.readTextFile(logFile);
-    } catch {
-      // File doesn't exist
-    }
-    await runtime.fs.writeTextFile(logFile, existing + entry + "\n");
-  } catch {
-    // best effort
-  }
+  await appendProgressLog(rootOf(input), "files-changed.jsonl", entries);
 
   return results.ok(undefined);
 };
@@ -628,37 +822,18 @@ const handlePostFileWrite = async (): Promise<shellArgs.CliResult<void>> => {
 // =============================================================================
 
 const handlePostBash = async (): Promise<shellArgs.CliResult<void>> => {
-  const input = await readStdin();
-  const toolInput = (input["tool_input"] as Record<string, unknown>) ?? {};
-  const command = (toolInput["command"] as string) ?? "";
+  const input = await readHookInput();
+  const call = hookDecisions.hookToolCall(input);
+  const command = call.kind === "shell" ? call.command : "";
 
-  if (!command.includes("noskills")) return results.ok(undefined);
+  if (!hookDecisions.isNoskillsCommand(command)) {
+    return results.ok(undefined);
+  }
 
-  const root = (input["cwd"] as string) ??
-    runtime.env.get("NOSKILLS_PROJECT_ROOT") ?? runtime.process.cwd();
-  const logFile =
-    `${root}/${persistence.paths.progressesDir}/noskills-calls.jsonl`;
-
-  const entry = JSON.stringify({
+  await appendProgressLog(rootOf(input), "noskills-calls.jsonl", [{
     command,
     ts: new Date().toISOString(),
-  });
-
-  try {
-    await runtime.fs.mkdir(
-      `${root}/${persistence.paths.progressesDir}`,
-      { recursive: true },
-    );
-    let existing = "";
-    try {
-      existing = await runtime.fs.readTextFile(logFile);
-    } catch {
-      // File doesn't exist
-    }
-    await runtime.fs.writeTextFile(logFile, existing + entry + "\n");
-  } catch {
-    // best effort
-  }
+  }]);
 
   return results.ok(undefined);
 };
@@ -667,7 +842,16 @@ const handlePostBash = async (): Promise<shellArgs.CliResult<void>> => {
 // SessionStart: output current noskills instruction
 // =============================================================================
 
-const handleSessionStart = async (): Promise<shellArgs.CliResult<void>> => {
+/**
+ * Puts the current noskills instruction into the agent's context and the git
+ * wrapper on its PATH. The hook reads no stdin: OpenCode plugins generated
+ * before the plugin passed stdin ran it with the terminal as stdin, where a
+ * read would wait for input. So the tool that runs it names itself in `args`:
+ * `--tool=copilot-cli` gives Copilot CLI's output shape.
+ */
+const handleSessionStart = async (
+  args: readonly string[],
+): Promise<shellArgs.CliResult<void>> => {
   const root = runtime.env.get("NOSKILLS_PROJECT_ROOT") ??
     runtime.process.cwd();
 
@@ -676,8 +860,12 @@ const handleSessionStart = async (): Promise<shellArgs.CliResult<void>> => {
     return results.ok(undefined);
   }
 
+  // The compiled commands and the git wrapper use the manifest's command.
+  const commandPrefix = await cmd.loadCommandPrefix(root);
   const state = await persistence.readState(root);
   const config = await persistence.readManifest(root);
+
+  await exportGitWrapper(root, config, commandPrefix);
 
   // Load concerns and rules
   const allConcerns = await persistence.listConcerns(root);
@@ -698,9 +886,92 @@ const handleSessionStart = async (): Promise<shellArgs.CliResult<void>> => {
     undefined,
     hints,
   );
-  await writeStdout(output);
+  await writeStdout(
+    hookDecisions.sessionStartOutput(
+      output,
+      args.includes("--tool=copilot-cli") ? "copilot" : "claude",
+    ),
+  );
 
   return results.ok(undefined);
+};
+
+/**
+ * Writes the git wrapper while allowGit is false. In a Claude Code session it
+ * also goes first on the PATH of every Bash command, through
+ * `CLAUDE_ENV_FILE`. Codex, OpenCode, Copilot CLI and Kiro call this hook too
+ * but have no such file; for them the wrapper is written so that a tool
+ * started with its directory first on PATH runs git through it (README "Git
+ * is read-only"). A failure is reported to the user and does not stop the
+ * session: the PreToolUse guard still applies.
+ */
+const exportGitWrapper = async (
+  root: string,
+  config: schema.NosManifest | null,
+  commandPrefix: string,
+): Promise<void> => {
+  if (config?.allowGit === true) return;
+
+  try {
+    const wrapper = await gitWrapperInstall.installGitWrapper(
+      root,
+      commandPrefix,
+    );
+    if (wrapper === null) return;
+
+    const envFile = runtime.env.get("CLAUDE_ENV_FILE") ?? "";
+    if (envFile === "") return;
+
+    await gitWrapperInstall.exportFromEnvFile(envFile, wrapper.binDir);
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    await writeStderr(
+      `noskills: the git wrapper was not installed in ${
+        gitWrapperInstall.wrapperDir(root)
+      }: ${detail}. Git writes are still refused by the PreToolUse hook, but not when a program builds the git command itself.\n`,
+    );
+  }
+};
+
+// =============================================================================
+// git-exec: the check behind the agent-session git wrapper
+// =============================================================================
+
+/**
+ * Called by the wrapper with git's arguments. Exits 0 when the command may
+ * run; otherwise prints the reason on stderr and exits with
+ * GIT_EXEC_DENIED_EXIT_CODE. The wrapper passes the project root, the real
+ * git binary and the directory git would run in; a call without them resolves
+ * them itself.
+ */
+const handleGitExec = async (
+  args: readonly string[],
+): Promise<shellArgs.CliResult<void>> => {
+  const root = runtime.env.get("NOSKILLS_PROJECT_ROOT") ??
+    (await persistence.resolveProjectRoot()).root;
+  const realGit = runtime.env.get("NOSKILLS_REAL_GIT") ??
+    await gitWrapperInstall.resolveRealGit(
+      runtime.env.get("PATH") ?? "",
+      gitWrapperInstall.wrapperDir(root),
+    );
+
+  if (realGit === null) {
+    await writeStderr(
+      "noskills: no git binary found on PATH outside the noskills wrapper directory.\n",
+    );
+    return results.fail({ exitCode: 1 });
+  }
+
+  const denial = await gitWrapperInstall.checkGitExec(args, {
+    root,
+    realGit,
+    cwd: runtime.env.get("NOSKILLS_GIT_CWD") ?? runtime.process.cwd(),
+  });
+
+  if (denial === null) return results.ok(undefined);
+
+  await writeStderr(`${denial}\n`);
+  return results.fail({ exitCode: gitWrapper.GIT_EXEC_DENIED_EXIT_CODE });
 };
 
 // =============================================================================
@@ -709,83 +980,55 @@ const handleSessionStart = async (): Promise<shellArgs.CliResult<void>> => {
 // =============================================================================
 
 /**
- * Pure-ish core: given a parsed Claude Code hook input and a project root,
- * write the ask-token.json that `noskills next` will later consume to mark
- * discovery answers as STATED vs INFERRED. Exported for testing so the logic
- * can be exercised without simulating stdin.
+ * The core of the AskUserQuestion hook, without stdin: writes the
+ * ask-token.json that `noskills next` later takes to mark discovery answers
+ * STATED rather than INFERRED. The token names the steps the call's
+ * questions belong to and whether the agent asked each as written ("exact")
+ * or rephrased it ("modified"). While discovery collects the base answers, a
+ * call adds its questions to those an earlier call of the same set recorded.
  */
 export const processAskUserQuestionHook = async (
-  input: Record<string, unknown>,
+  input: hookDecisions.HookInput,
   root: string,
 ): Promise<void> => {
-  const toolName = (input["tool_name"] as string) ?? "";
-  if (toolName !== "AskUserQuestion") return;
-
-  const toolInput = (input["tool_input"] as Record<string, unknown>) ?? {};
-  // Claude Code passes questions as an array; take the first question's text.
-  // Fall back to single-string shape if present.
-  let askedQuestion = "";
-  const questions = toolInput["questions"];
-  if (Array.isArray(questions) && questions.length > 0) {
-    const first = questions[0] as Record<string, unknown>;
-    askedQuestion = (first["question"] as string) ?? "";
-  } else if (typeof toolInput["question"] === "string") {
-    askedQuestion = toolInput["question"] as string;
+  if (hookDecisions.stringField(input, "tool_name") !== "AskUserQuestion") {
+    return;
   }
-  if (askedQuestion.length === 0) return;
 
-  // Best-effort state load to determine expected step id
-  let stepId = "unknown";
-  let specName: string | null = null;
-  const expectedText = "";
+  const asked = hookDecisions.askedQuestionsOf(
+    hookDecisions.toolInputOf(input),
+  );
+  if (asked.length === 0) return;
+
+  const tokenPath = `${root}/${persistence.paths.askTokenFile}`;
+  const now = new Date();
+
+  // Without a readable state the token still records the question, under the
+  // "unknown" step that no answer matches.
+  let state: schema.StateFile | null = null;
   try {
-    const state = await persistence.readState(root);
-    specName = (state as { spec?: string | null }).spec ?? null;
-    const discovery =
-      (state as { discovery?: Record<string, unknown> }).discovery ?? {};
-    const phase = (state as { phase?: string }).phase ?? "";
-    const currentQuestion =
-      (discovery["currentQuestion"] as number | undefined) ?? 0;
-
-    // Map state → expected step id
-    if (phase === "DISCOVERY") {
-      const questionIds = [
-        "status_quo",
-        "ambition",
-        "reversibility",
-        "user_impact",
-        "verification",
-        "scope_boundary",
-      ];
-      stepId = questionIds[currentQuestion] ?? `Q${currentQuestion + 1}`;
-    } else if (phase === "DISCOVERY_REFINEMENT") {
-      stepId = "refinement";
-    } else if (phase === "SPEC_PROPOSAL") {
-      stepId = "approval";
-    }
-    // expectedText is left empty for now — the similarity compare uses
-    // askedQuestion alone for 0, giving "modified" if empty. A future task
-    // can add expected-text lookup.
+    state = await persistence.readState(root);
   } catch {
-    // best-effort; fall through with defaults
+    // best effort; the token records the "unknown" step
+  }
+  const specName = state?.spec ?? null;
+
+  let prior: readonly askToken.AskTokenStep[] = [];
+  try {
+    const raw = await runtime.fs.readTextFile(tokenPath);
+    prior = askToken.validStepsOf(raw, specName, now.getTime()) ?? [];
+  } catch {
+    // no token yet
   }
 
-  // Compute similarity (against empty expected = 0; result will be "modified" by default)
-  const similarity = compareQuestions(expectedText, askedQuestion);
-  const match: "exact" | "modified" = similarity >= SIMILARITY_EXACT_THRESHOLD
-    ? "exact"
-    : "modified";
+  const steps = hookDecisions.askTokenStepsAfter(state, prior, asked);
+  if (steps === null) return;
 
-  // Generate token
-  const token = crypto.randomUUID().slice(0, 8);
-  const payload = {
-    token,
-    stepId,
+  const payload: askToken.AskToken = {
+    token: crypto.randomUUID().slice(0, 8),
     spec: specName,
-    match,
-    originalQuestion: expectedText,
-    askedQuestion,
-    createdAt: new Date().toISOString(),
+    steps,
+    createdAt: now.toISOString(),
   };
 
   // Best-effort write — never throw
@@ -793,10 +1036,7 @@ export const processAskUserQuestionHook = async (
     await runtime.fs.mkdir(`${root}/${persistence.paths.progressesDir}`, {
       recursive: true,
     });
-    await runtime.fs.writeTextFile(
-      `${root}/${persistence.paths.askTokenFile}`,
-      JSON.stringify(payload) + "\n",
-    );
+    await runtime.fs.writeTextFile(tokenPath, JSON.stringify(payload) + "\n");
   } catch {
     // Silently swallow — hook failure must never break the agent.
   }
@@ -805,9 +1045,7 @@ export const processAskUserQuestionHook = async (
 const handlePostAskUserQuestion = async (): Promise<
   shellArgs.CliResult<void>
 > => {
-  const input = await readStdin();
-  const root = (input["cwd"] as string) ??
-    runtime.env.get("NOSKILLS_PROJECT_ROOT") ?? runtime.process.cwd();
-  await processAskUserQuestionHook(input, root);
+  const input = await readHookInput();
+  await processAskUserQuestionHook(input, rootOf(input));
   return results.ok(undefined);
 };

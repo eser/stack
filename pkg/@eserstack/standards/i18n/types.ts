@@ -15,9 +15,13 @@ export type TextDirection = "ltr" | "rtl";
  * Locale metadata with name and direction.
  */
 export interface LocaleInfo {
+  /** Locale code, such as "en" or "pt-PT". */
   readonly code: string;
+  /** Name of the language in English. */
   readonly name: string;
+  /** Name of the language in the language itself. */
   readonly nativeName: string;
+  /** Text direction of the script. */
   readonly direction: TextDirection;
 }
 
@@ -25,6 +29,7 @@ export interface LocaleInfo {
  * Translation messages - nested namespace structure.
  */
 export interface Messages {
+  /** Messages of one namespace, keyed by message key. */
   readonly [namespace: string]: {
     readonly [key: string]: string;
   };

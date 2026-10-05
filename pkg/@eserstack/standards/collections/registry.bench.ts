@@ -1,6 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import { createRegistryBuilder } from "./builder.ts";
+import * as builder from "./builder.ts";
 
 // =============================================================================
 // Test Data
@@ -65,30 +65,30 @@ function createManualLazyMap<V>(
 
 // Registry with values only
 const registrySmall = (() => {
-  const builder = createRegistryBuilder<string, number>();
-  for (const [k, v] of smallEntries) builder.set(k, v);
-  return builder.build();
+  const registryBuilder = builder.createRegistryBuilder<string, number>();
+  for (const [k, v] of smallEntries) registryBuilder.set(k, v);
+  return registryBuilder.build();
 })();
 
 const registryMedium = (() => {
-  const builder = createRegistryBuilder<string, number>();
-  for (const [k, v] of mediumEntries) builder.set(k, v);
-  return builder.build();
+  const registryBuilder = builder.createRegistryBuilder<string, number>();
+  for (const [k, v] of mediumEntries) registryBuilder.set(k, v);
+  return registryBuilder.build();
 })();
 
 const registryLarge = (() => {
-  const builder = createRegistryBuilder<string, number>();
-  for (const [k, v] of largeEntries) builder.set(k, v);
-  return builder.build();
+  const registryBuilder = builder.createRegistryBuilder<string, number>();
+  for (const [k, v] of largeEntries) registryBuilder.set(k, v);
+  return registryBuilder.build();
 })();
 
 // Registry with lazy entries
 const registryLazyMedium = (() => {
-  const builder = createRegistryBuilder<string, number>();
+  const registryBuilder = builder.createRegistryBuilder<string, number>();
   for (const [k, v] of mediumEntries) {
-    builder.setLazy(k, () => v);
+    registryBuilder.setLazy(k, () => v);
   }
-  return builder.build();
+  return registryBuilder.build();
 })();
 
 // Native Map equivalents
@@ -107,9 +107,9 @@ Deno.bench("Registry.create (10 entries)", {
   group: "create-small",
   baseline: true,
 }, () => {
-  const builder = createRegistryBuilder<string, number>();
-  for (const [k, v] of smallEntries) builder.set(k, v);
-  builder.build();
+  const registryBuilder = builder.createRegistryBuilder<string, number>();
+  for (const [k, v] of smallEntries) registryBuilder.set(k, v);
+  registryBuilder.build();
 });
 
 Deno.bench("Map.create (10 entries)", { group: "create-small" }, () => {
@@ -120,9 +120,9 @@ Deno.bench("Registry.create (100 entries)", {
   group: "create-medium",
   baseline: true,
 }, () => {
-  const builder = createRegistryBuilder<string, number>();
-  for (const [k, v] of mediumEntries) builder.set(k, v);
-  builder.build();
+  const registryBuilder = builder.createRegistryBuilder<string, number>();
+  for (const [k, v] of mediumEntries) registryBuilder.set(k, v);
+  registryBuilder.build();
 });
 
 Deno.bench("Map.create (100 entries)", { group: "create-medium" }, () => {
@@ -133,9 +133,9 @@ Deno.bench("Registry.create (1000 entries)", {
   group: "create-large",
   baseline: true,
 }, () => {
-  const builder = createRegistryBuilder<string, number>();
-  for (const [k, v] of largeEntries) builder.set(k, v);
-  builder.build();
+  const registryBuilder = builder.createRegistryBuilder<string, number>();
+  for (const [k, v] of largeEntries) registryBuilder.set(k, v);
+  registryBuilder.build();
 });
 
 Deno.bench("Map.create (1000 entries)", { group: "create-large" }, () => {
@@ -150,11 +150,11 @@ Deno.bench("Registry.createLazy (100 entries)", {
   group: "create-lazy",
   baseline: true,
 }, () => {
-  const builder = createRegistryBuilder<string, number>();
+  const registryBuilder = builder.createRegistryBuilder<string, number>();
   for (const [k, v] of mediumEntries) {
-    builder.setLazy(k, () => v);
+    registryBuilder.setLazy(k, () => v);
   }
-  builder.build();
+  registryBuilder.build();
 });
 
 Deno.bench(
@@ -214,9 +214,9 @@ Deno.bench(
   { group: "lazy-first-access", baseline: true },
   () => {
     // Create fresh registry for each iteration to measure first access
-    const builder = createRegistryBuilder<string, number>();
-    builder.setLazy("lazy", () => 42);
-    const registry = builder.build();
+    const registryBuilder = builder.createRegistryBuilder<string, number>();
+    registryBuilder.setLazy("lazy", () => 42);
+    const registry = registryBuilder.build();
     registry.get("lazy");
   },
 );
@@ -338,12 +338,13 @@ Deno.bench("Promise.resolve + Map.get", { group: "getAsync" }, async () => {
 
 // Async lazy entry
 const asyncLazyRegistry = (() => {
-  const builder = createRegistryBuilder<string, number>();
+  const registryBuilder = builder.createRegistryBuilder<string, number>();
+  // An async factory with nothing to await is the case this group measures.
   // deno-lint-ignore require-await
-  builder.setLazy("async", async () => {
+  registryBuilder.setLazy("async", async () => {
     return 42;
   });
-  return builder.build();
+  return registryBuilder.build();
 })();
 
 Deno.bench("Registry.getAsync (async lazy)", {
@@ -354,6 +355,7 @@ Deno.bench("Registry.getAsync (async lazy)", {
 });
 
 Deno.bench("Manual async factory", { group: "getAsync-lazy" }, async () => {
+  // The bare async factory is the baseline for the lazy registry entry above.
   // deno-lint-ignore require-await
   await (async () => 42)();
 });

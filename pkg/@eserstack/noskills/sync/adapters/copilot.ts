@@ -25,7 +25,7 @@ export const copilotAdapter: adapter.ToolAdapter = {
       subAgentMethod: "none",
     },
   },
-  async syncRules(ctx: adapter.SyncContext): Promise<void> {
+  syncRules: async (ctx: adapter.SyncContext): Promise<void> => {
     await copilot.sync(ctx.root, ctx.rules, ctx.commandPrefix);
   },
 };

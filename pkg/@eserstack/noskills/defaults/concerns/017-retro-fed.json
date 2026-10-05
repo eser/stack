@@ -18,21 +18,18 @@
       "id": "retrospective-notes",
       "title": "Retrospective Notes",
       "placeholder": "_Written immediately at completion while context is fresh. What would you do differently if starting fresh today? Where did the plan diverge from reality? What assumptions were wrong?_",
-      "condition": null,
       "position": "after:acceptance-criteria"
     },
     {
       "id": "learnings",
       "title": "Learnings",
       "placeholder": "_At least one learning per spec. Tag mental model shifts with EUREKA: Promoted learnings should be added with `noskills learn --rule`. Cross-spec patterns belong here._",
-      "condition": null,
       "position": "after:acceptance-criteria"
     },
     {
       "id": "hotspots",
       "title": "Hotspots",
       "placeholder": "_Which files were touched most? Why? High-churn files signal wrong abstraction, misallocated responsibility, or wrong spec boundaries. Document each hotspot with a note on why it required so many changes._",
-      "condition": null,
       "position": "after:acceptance-criteria"
     }
   ],

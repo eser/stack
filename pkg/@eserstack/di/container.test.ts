@@ -2,86 +2,86 @@
 
 import * as assert from "@std/assert";
 import * as mock from "@std/testing/mock";
-import { Registry } from "./container.ts";
+import * as container from "./container.ts";
 
 Deno.test("non-existent key", () => {
-  const registry = new Registry();
+  const registry = new container.Registry();
 
-  const container = registry.build();
+  const scope = registry.build();
 
-  assert.assertStrictEquals(container.get("_"), undefined);
+  assert.assertStrictEquals(scope.get("_"), undefined);
 });
 
 Deno.test("symbol key", () => {
-  const registry = new Registry();
+  const registry = new container.Registry();
   const a = Symbol("a");
 
   registry.set(a, 6);
 
-  const container = registry.build();
+  const scope = registry.build();
 
-  assert.assertStrictEquals(container.get(a), 6);
+  assert.assertStrictEquals(scope.get(a), 6);
 });
 
 Deno.test("mixed keys", () => {
-  const registry = new Registry();
+  const registry = new container.Registry();
 
   registry.set(Object.keys, "Object.keys method");
   registry.set(Object.values, "Object.values method");
   registry.set(Object.entries, "Object.entries method");
 
-  const container = registry.build();
+  const scope = registry.build();
 
-  assert.assertStrictEquals(container.get(Object.keys), "Object.keys method");
+  assert.assertStrictEquals(scope.get(Object.keys), "Object.keys method");
   assert.assertStrictEquals(
-    container.get(Object.values),
+    scope.get(Object.values),
     "Object.values method",
   );
   assert.assertStrictEquals(
-    container.get(Object.entries),
+    scope.get(Object.entries),
     "Object.entries method",
   );
 });
 
 Deno.test("singleton value", () => {
-  const registry = new Registry();
+  const registry = new container.Registry();
 
   registry.set("b", 5);
 
-  const container = registry.build();
+  const scope = registry.build();
 
-  assert.assertStrictEquals(container.get("b"), 5);
+  assert.assertStrictEquals(scope.get("b"), 5);
 });
 
 Deno.test("singleton nullables", () => {
-  const registry = new Registry();
+  const registry = new container.Registry();
 
   registry.set("c", null);
   registry.set("d", undefined);
 
-  const container = registry.build();
+  const scope = registry.build();
 
-  assert.assertStrictEquals(container.get("c"), null);
-  assert.assertStrictEquals(container.get("d"), undefined);
-  assert.assertStrictEquals(container.get("e", "non-exists"), "non-exists");
-  assert.assertStrictEquals(container.get("f"), undefined);
+  assert.assertStrictEquals(scope.get("c"), null);
+  assert.assertStrictEquals(scope.get("d"), undefined);
+  assert.assertStrictEquals(scope.get("e", "non-exists"), "non-exists");
+  assert.assertStrictEquals(scope.get("f"), undefined);
 });
 
 Deno.test("singleton functions", () => {
-  const registry = new Registry();
+  const registry = new container.Registry();
 
   registry.set("g", (x: number) => x + 3);
 
-  const container = registry.build();
+  const scope = registry.build();
 
-  const result = container.get("g");
+  const result = scope.get("g");
 
   assert.assertStrictEquals(result.constructor, Function);
   assert.assertStrictEquals(result(5), 8);
 });
 
 Deno.test("lazy value", () => {
-  const registry = new Registry();
+  const registry = new container.Registry();
 
   const spyFn = mock.spy();
 
@@ -91,17 +91,17 @@ Deno.test("lazy value", () => {
     return ++number;
   });
 
-  const container = registry.build();
+  const scope = registry.build();
 
   assert.assertStrictEquals(number, 1);
-  assert.assertStrictEquals(container.get("h"), 2);
+  assert.assertStrictEquals(scope.get("h"), 2);
   assert.assertStrictEquals(number, 2);
 
   mock.assertSpyCalls(spyFn, 1);
 });
 
 Deno.test("lazy nullable", () => {
-  const registry = new Registry();
+  const registry = new container.Registry();
 
   const iSpyFn = mock.spy();
   const jSpyFn = mock.spy();
@@ -116,17 +116,17 @@ Deno.test("lazy nullable", () => {
     return undefined;
   });
 
-  const container = registry.build();
+  const scope = registry.build();
 
-  assert.assertStrictEquals(container.get("i"), null);
-  assert.assertStrictEquals(container.get("j"), undefined);
+  assert.assertStrictEquals(scope.get("i"), null);
+  assert.assertStrictEquals(scope.get("j"), undefined);
 
   mock.assertSpyCalls(iSpyFn, 1);
   mock.assertSpyCalls(jSpyFn, 1);
 });
 
 Deno.test("scoped value", () => {
-  const registry = new Registry();
+  const registry = new container.Registry();
 
   const kSpyFn = mock.spy();
   const lSpyFn = mock.spy();
@@ -141,19 +141,19 @@ Deno.test("scoped value", () => {
     return ++number;
   });
 
-  const container = registry.build();
-  const subScope = container.createScope();
+  const scope = registry.build();
+  const subScope = scope.createScope();
 
   assert.assertStrictEquals(number, 1);
-  assert.assertStrictEquals(container.get("k"), 2);
-  assert.assertStrictEquals(container.get("k"), 2);
-  assert.assertStrictEquals(container.get("l"), 3);
-  assert.assertStrictEquals(container.get("l"), 3);
+  assert.assertStrictEquals(scope.get("k"), 2);
+  assert.assertStrictEquals(scope.get("k"), 2);
+  assert.assertStrictEquals(scope.get("l"), 3);
+  assert.assertStrictEquals(scope.get("l"), 3);
   assert.assertStrictEquals(subScope.get("k"), 2);
   assert.assertStrictEquals(subScope.get("k"), 2);
   assert.assertStrictEquals(subScope.get("l"), 4);
   assert.assertStrictEquals(subScope.get("l"), 4);
-  assert.assertStrictEquals(container.get("l"), 3);
+  assert.assertStrictEquals(scope.get("l"), 3);
   assert.assertStrictEquals(number, 4);
 
   mock.assertSpyCalls(kSpyFn, 1);
@@ -161,30 +161,30 @@ Deno.test("scoped value", () => {
 });
 
 Deno.test("transient functions", () => {
-  const registry = new Registry();
+  const registry = new container.Registry();
 
   let number = 1;
   registry.setTransient("m", () => number++);
 
-  const container = registry.build();
+  const scope = registry.build();
 
-  assert.assertStrictEquals(container.get("m"), 1);
-  assert.assertStrictEquals(container.get("m"), 2);
-  assert.assertStrictEquals(container.get("m"), 3);
+  assert.assertStrictEquals(scope.get("m"), 1);
+  assert.assertStrictEquals(scope.get("m"), 2);
+  assert.assertStrictEquals(scope.get("m"), 3);
 });
 
 Deno.test("transient promise", async () => {
-  const registry = new Registry();
+  const registry = new container.Registry();
 
   registry.setTransient("n", () => Promise.resolve("test"));
 
-  const container = registry.build();
+  const scope = registry.build();
 
-  assert.assertStrictEquals(await container.get("n"), "test");
+  assert.assertStrictEquals(await scope.get("n"), "test");
 });
 
 Deno.test("getMany", () => {
-  const registry = new Registry();
+  const registry = new container.Registry();
 
   const lazySpyFn = mock.spy();
   const transientSpyFn = mock.spy();
@@ -200,11 +200,11 @@ Deno.test("getMany", () => {
     return ++number;
   });
 
-  const container = registry.build();
+  const scope = registry.build();
 
   assert.assertStrictEquals(number, 1);
 
-  const [o, p, q, r, s] = container.getMany("o", "p", "q", "q", "s");
+  const [o, p, q, r, s] = scope.getMany("o", "p", "q", "q", "s");
 
   assert.assertStrictEquals(number, 4);
   assert.assertStrictEquals(o, 1);
@@ -218,37 +218,37 @@ Deno.test("getMany", () => {
 });
 
 // Decorator tests
-import { inject, injectable } from "./decorators.ts";
-import { services } from "./services.ts";
+import * as decorators from "./decorators.ts";
+import * as services from "./services.ts";
 
 Deno.test("@injectable() should register class with class name", () => {
-  @injectable()
+  @decorators.injectable()
   class TestService {}
 
-  const instance = services.get("TestService");
+  const instance = services.services.get("TestService");
 
   assert.assertExists(instance);
   assert.assertInstanceOf(instance, TestService);
 });
 
 Deno.test("@injectable() with custom key should register with custom key", () => {
-  @injectable("customKey")
+  @decorators.injectable("customKey")
   class TestServiceCustom {}
 
-  const instance = services.get("customKey");
+  const instance = services.services.get("customKey");
 
   assert.assertExists(instance);
   assert.assertInstanceOf(instance, TestServiceCustom);
 });
 
 Deno.test("@injectable() creates new instance each time from lazy", () => {
-  @injectable("lazyService")
+  @decorators.injectable("lazyService")
   class _LazyService {
     value = Math.random();
   }
 
-  const instance1 = services.get("lazyService");
-  const instance2 = services.get("lazyService");
+  const instance1 = services.services.get("lazyService");
+  const instance2 = services.services.get("lazyService");
 
   // Lazy services are cached, should be same instance
   assert.assertStrictEquals(instance1, instance2);
@@ -257,7 +257,7 @@ Deno.test("@injectable() creates new instance each time from lazy", () => {
 Deno.test("@inject() decorator can be applied", () => {
   // @inject is currently a no-op but should not throw
   class Service {
-    @inject("someKey")
+    @decorators.inject("someKey")
     dependency: unknown;
   }
 
@@ -269,10 +269,10 @@ Deno.test("injectable with source.name fallback", () => {
   // Test calling injectable directly without decorator context
   const TestClass = class NamedClass {};
 
-  const decorator = injectable();
+  const decorator = decorators.injectable();
   decorator(TestClass, undefined);
 
-  const instance = services.get("NamedClass");
+  const instance = services.services.get("NamedClass");
 
   assert.assertExists(instance);
 });

@@ -1,9 +1,8 @@
 # Errors
 
-How code in this repository raises, wraps, reports and matches errors, in
-TypeScript and Go. Go idioms (`%w`, `errors.Is`, `errors.AsType`) are in
-go-practices: Error Handling; user-facing sanitization is in security-practices:
-Error Sanitization.
+How code raises, wraps, reports and matches errors, in TypeScript and Go. Go
+idioms (`%w`, `errors.Is`, `errors.AsType`) are in go-practices: Error Handling;
+user-facing sanitization is in security-practices: Error Sanitization.
 
 ## Contents
 

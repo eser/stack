@@ -2,15 +2,11 @@
 
 import * as jsonc from "@std/jsonc";
 import * as toml from "@std/toml";
-import * as yaml from "yaml";
+import * as yaml from "@eemeli/yaml";
 import { runtime } from "@eserstack/standards/cross-runtime";
-import { searchFileHierarchy } from "./file-search.ts";
+import * as fileSearch from "./file-search.ts";
 import * as primitives from "./primitives.ts";
 
-/**
- * Error thrown when parsing a configuration file fails.
- * Includes the filepath and format for better error messages.
- */
 const FileFormatNames: Record<primitives.FileFormat, string> = {
   [primitives.FileFormats.Unknown]: "unknown",
   [primitives.FileFormats.EnvironmentFile]: "environment",
@@ -20,12 +16,23 @@ const FileFormatNames: Record<primitives.FileFormat, string> = {
   [primitives.FileFormats.Yaml]: "YAML",
 };
 
+/**
+ * Thrown when a configuration file cannot be parsed in its format. The message
+ * names the format and the file, and `cause` holds the parser's error.
+ */
 export class ConfigParseError extends Error {
   /** The path to the file that failed to parse */
   readonly filepath: string;
   /** The format that was attempted */
   readonly format: primitives.FileFormat;
 
+  /**
+   * Creates the error.
+   *
+   * @param filepath - The file that failed to parse
+   * @param format - The format it was parsed as
+   * @param cause - The parser's error
+   */
   constructor(filepath: string, format: primitives.FileFormat, cause: Error) {
     super(
       `Failed to parse ${
@@ -52,9 +59,18 @@ export const locate = async (
   filenames: Array<string>,
   searchParents = false,
 ): Promise<string | undefined> => {
-  return await searchFileHierarchy(baseDir, filenames, { searchParents });
+  return await fileSearch.searchFileHierarchy(baseDir, filenames, {
+    searchParents,
+  });
 };
 
+/**
+ * Picks the format of a configuration file from its extension: `.json`,
+ * `.jsonc`, `.yaml` or `.yml`, `.toml` and `.env`.
+ *
+ * @param filepath - The file path
+ * @returns The format, or `FileFormats.Unknown` for any other extension
+ */
 export const getFileFormat = (filepath: string): primitives.FileFormat => {
   const ext = runtime.path.extname(filepath);
 
@@ -81,9 +97,13 @@ export const getFileFormat = (filepath: string): primitives.FileFormat => {
   return primitives.FileFormats.Unknown;
 };
 
+/** The parsed content of a configuration file, with its path and format. */
 export type ParseResult<T> = {
+  /** The parsed content; `undefined` when the format is unknown */
   content: T | undefined;
+  /** The file that was read; `undefined` when no file was found */
   filepath: string | undefined;
+  /** The format the file was parsed as */
   format: primitives.FileFormat;
 };
 
@@ -153,8 +173,33 @@ export const parse = async <T>(
   }
 };
 
+/** The result of `load()`: the same shape as `ParseResult`. */
 export type LoadResult<T> = ParseResult<T>;
 
+/**
+ * Finds the first of `filenames` in `baseDir` (and, when `searchParents` is
+ * set, in its parent directories) and parses it.
+ *
+ * @param baseDir - The directory to start searching from
+ * @param filenames - The file names to look for, in priority order
+ * @param forceFormat - The format to parse as; picked from the extension when
+ *   absent
+ * @param searchParents - Whether to search parent directories too
+ * @returns The parsed content, path and format; all `undefined` or
+ *   `FileFormats.Unknown` when no file was found
+ * @throws {ConfigParseError} When the file cannot be parsed in its format
+ *
+ * @example
+ * ```typescript
+ * import * as file from "@eserstack/config/file";
+ *
+ * const result = await file.load<{ port: number }>(".", [
+ *   "config.json",
+ *   "config.yaml",
+ * ]);
+ * const port = result.content?.port ?? 8080;
+ * ```
+ */
 export const load = async <T>(
   baseDir: string,
   filenames: Array<string>,

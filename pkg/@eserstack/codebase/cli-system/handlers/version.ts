@@ -13,7 +13,7 @@ import * as span from "@eserstack/streams/span";
 import * as streams from "@eserstack/streams";
 import type { CliApp } from "../app.ts";
 import * as results from "@eserstack/primitives/results";
-import * as shellArgs from "@eserstack/shell/args";
+import type * as shellArgs from "@eserstack/shell/args";
 import * as versionCheck from "./version-check.ts";
 
 const UPDATE_CHECK_TIMEOUT_MS = 200;

@@ -32,6 +32,24 @@ const (
 	// fakeAgentEcho answers with its own argv, so a test can see how the shim
 	// was invoked.
 	fakeAgentEcho = "echo"
+
+	// fakeAgentStructured answers a --json-schema request the way the claude
+	// CLI does: prose, then a StructuredOutput call that fails the schema, then
+	// one that passes. Without --json-schema it answers with prose only.
+	fakeAgentStructured = "structured"
+
+	// fakeAgentStructuredDeclined answers a --json-schema request with prose
+	// and no StructuredOutput call, as a model that declines does.
+	fakeAgentStructuredDeclined = "structured-declined"
+)
+
+// The replies of the structured fake. Only the last StructuredOutput call is
+// the reply; the first one stands for a call the CLI retried.
+const (
+	fakeStructuredProse   = "Here is the title."
+	fakeStructuredRetried = `{"title":7}`
+	fakeStructuredReply   = `{"title":"Deno workspaces"}`
+	fakeStructuredDecline = "I can't name this post."
 )
 
 // TestMain intercepts before flag parsing: the fake agent is spawned with the
@@ -106,6 +124,28 @@ func runFakeVendorCLI(mode string) {
 				}},
 			},
 		})
+
+	case fakeAgentStructured:
+		emit(assistantText(fakeStructuredProse))
+
+		if slices.Contains(os.Args, "--json-schema") {
+			for idx, reply := range []string{fakeStructuredRetried, fakeStructuredReply} {
+				emit(map[string]any{
+					"type": "assistant",
+					"message": map[string]any{
+						"content": []map[string]any{{
+							"type":  "tool_use",
+							"id":    fmt.Sprintf("call_%d", idx),
+							"name":  "StructuredOutput",
+							"input": json.RawMessage(reply),
+						}},
+					},
+				})
+			}
+		}
+
+	case fakeAgentStructuredDeclined:
+		emit(assistantText(fakeStructuredDecline))
 
 	case fakeAgentEcho:
 		// Report what it received AND how it was invoked, so a caller can prove
@@ -224,9 +264,9 @@ func TestACPModelStreamsText(t *testing.T) {
 
 // TestACPModelSurfacesToolCalls pins capability the CLI adapters never had.
 //
-// Only claude-code mapped tool_use before, and kiro and opencode did not even
-// declare CapabilityToolCalling. Going through ACP means a tool call is a
-// protocol event every backend reports the same way.
+// Through ACP a tool call is a protocol event, and the claude-code shim maps
+// the CLI's tool_use to it. The kiro and opencode shims have no tool-call path,
+// so those backends do not declare CapabilityToolCalling.
 func TestACPModelSurfacesToolCalls(t *testing.T) {
 	// claude-code, not opencode.
 	//
@@ -331,7 +371,7 @@ func TestACPBackendPerProvider(t *testing.T) {
 			t.Fatalf("%s did not produce an ACPModel", tc.factory.GetProvider())
 		}
 
-		backend, err := acpModel.backendImpl()
+		backend, err := acpModel.backendImpl(&GenerateTextOptions{}) //nolint:exhaustruct
 		if err != nil {
 			t.Fatalf("backendImpl %s: %v", tc.factory.GetProvider(), err)
 		}
@@ -343,6 +383,43 @@ func TestACPBackendPerProvider(t *testing.T) {
 		if args := acpModel.vendorArgs(); !slices.Contains(args, "test-model") {
 			t.Fatalf("%s dropped the model: %v", tc.factory.GetProvider(), args)
 		}
+	}
+}
+
+// TestACPCapabilitiesPerBackend pins what each backend declares. Only the
+// claude-code shim maps the CLI's tool calls to ACP tool_call updates, and only
+// the claude CLI takes a response schema, so kiro and opencode declare text
+// and streaming alone, like their TypeScript adapters and the bridge.
+func TestACPCapabilitiesPerBackend(t *testing.T) {
+	t.Parallel()
+
+	textOnly := []ProviderCapability{CapabilityTextGeneration, CapabilityStreaming}
+	cases := []struct {
+		factory ProviderFactory
+		want    []ProviderCapability
+	}{
+		{
+			factory: NewClaudeCodeModelFactory(),
+			want: []ProviderCapability{
+				CapabilityTextGeneration,
+				CapabilityStreaming,
+				CapabilityToolCalling,
+				CapabilityStructuredOut,
+			},
+		},
+		{factory: NewKiroModelFactory(), want: textOnly},
+		{factory: NewOpenCodeModelFactory(), want: textOnly},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.factory.GetProvider(), func(t *testing.T) {
+			t.Parallel()
+
+			got := newTestACPModel(t, tc.factory).GetCapabilities()
+			if !slices.Equal(got, tc.want) {
+				t.Errorf("GetCapabilities() = %v, want %v", got, tc.want)
+			}
+		})
 	}
 }
 
@@ -390,5 +467,83 @@ func TestACPProvidersStayRegistered(t *testing.T) {
 		if !strings.Contains(registered, provider) {
 			t.Fatalf("provider %q is no longer registered; have %s", provider, registered)
 		}
+	}
+}
+
+// structuredOptions asks for a reply that follows titleSchema.
+func structuredOptions() *GenerateTextOptions {
+	opts := promptOptions()
+	opts.ResponseFormat = &ResponseFormat{Type: "json_schema", Name: "post", JSONSchema: []byte(titleSchema)}
+
+	return opts
+}
+
+// TestACPModelReturnsTheStructuredReply pins TASK-158 end to end: with a
+// json_schema format the claude CLI gets --json-schema, and the reply is the
+// input of its last StructuredOutput call, not the prose around it or a tool
+// call. Not parallel: fakeACPModel sets the fake agent's mode in the
+// environment.
+func TestACPModelReturnsTheStructuredReply(t *testing.T) {
+	model := fakeACPModel(t, NewClaudeCodeModelFactory(), fakeAgentStructured)
+
+	result, err := model.GenerateText(t.Context(), structuredOptions())
+	if err != nil {
+		t.Fatalf("GenerateText: %v", err)
+	}
+
+	if got := result.Text(); got != fakeStructuredReply {
+		t.Fatalf("text = %q, want the structured reply %q", got, fakeStructuredReply)
+	}
+
+	for _, block := range result.Content {
+		if block.Type == ContentBlockToolCall {
+			t.Errorf("the StructuredOutput call leaked out as a tool call: %+v", block.ToolCall)
+		}
+	}
+
+	iter, err := model.StreamText(t.Context(), structuredOptions())
+	if err != nil {
+		t.Fatalf("StreamText: %v", err)
+	}
+
+	defer func() { _ = iter.Close() }()
+
+	streamed, err := iter.Collect()
+	if err != nil {
+		t.Fatalf("Collect: %v", err)
+	}
+
+	if got := streamed.Text(); got != fakeStructuredReply {
+		t.Fatalf("streamed text = %q, want the structured reply %q", got, fakeStructuredReply)
+	}
+}
+
+// TestACPModelKeepsTheProseWithoutAStructuredReply pins the fallback: a model
+// that never calls StructuredOutput still says why. Not parallel, as above.
+func TestACPModelKeepsTheProseWithoutAStructuredReply(t *testing.T) {
+	model := fakeACPModel(t, NewClaudeCodeModelFactory(), fakeAgentStructuredDeclined)
+
+	result, err := model.GenerateText(t.Context(), structuredOptions())
+	if err != nil {
+		t.Fatalf("GenerateText: %v", err)
+	}
+
+	if got := result.Text(); got != fakeStructuredDecline {
+		t.Fatalf("text = %q, want the prose %q", got, fakeStructuredDecline)
+	}
+}
+
+// TestACPModelLeavesPlainRepliesAlone pins that only a json_schema request
+// swaps the prose for the structured reply. Not parallel, as above.
+func TestACPModelLeavesPlainRepliesAlone(t *testing.T) {
+	model := fakeACPModel(t, NewClaudeCodeModelFactory(), fakeAgentStructured)
+
+	result, err := model.GenerateText(t.Context(), promptOptions())
+	if err != nil {
+		t.Fatalf("GenerateText: %v", err)
+	}
+
+	if got := result.Text(); got != fakeStructuredProse {
+		t.Fatalf("text = %q, want the prose %q", got, fakeStructuredProse)
 	}
 }

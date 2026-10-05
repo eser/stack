@@ -1,7 +1,8 @@
 # READMEs and Project Docs
 
-What package READMEs and project documents contain, where they live, and when
-they change.
+What this codebase's package READMEs and project documents contain, where they
+live, and when they change. Page structure, code examples and doc review are in
+docs-structure.md.
 
 ## Contents
 
@@ -21,10 +22,21 @@ they change.
 Scope: All package README.md files
 
 Rule: README code examples must use the **namespaced import pattern**
-(`import * as pkg from "@eserstack/pkg"`) and access everything through the
-namespace. Never show sub-path direct imports in README examples. Sub-path
-exports exist in deno.json for advanced users, but READMEs use the primary
-namespace pattern.
+(`import * as pkg from "@scope/pkg"`) and access everything through the
+namespace. Never show sub-path direct imports in README examples. Code may
+import a published sub-path to keep its module graph small
+(javascript-practices: Imports), but READMEs use the primary namespace pattern.
+Two cases are exceptions:
+
+- A CLI-first package maps its `.` export to the CLI's `main.ts`, so that
+  `deno run jsr:@scope/pkg` starts the CLI, and publishes its library as
+  `./mod`. Its README imports the library as
+  `import * as pkg from "@scope/pkg/mod"`, and the module JSDoc of `main.ts`
+  names that import. The notes linked from this codebase's AGENTS.md list these
+  packages.
+- A module that the package root does not re-export, such as an adapter kept out
+  of the root so its dependencies load only when used, is shown at the sub-path
+  the package publishes for it.
 
 Correct:
 
@@ -38,6 +50,13 @@ const myTask = functions.task.fromPromise(() => fetch("/api"));
 const data = await functions.resources.bracket(acquire, use, release);
 ```
 
+```typescript
+// A CLI-first package: "." runs the CLI, "./mod" is the library
+import * as workflows from "@eserstack/workflows/mod";
+
+const registry = workflows.createRegistry();
+```
+
 Incorrect:
 
 ```typescript
@@ -46,6 +65,11 @@ import { collect } from "@eserstack/functions";
 import * as resources from "@eserstack/functions/resources";
 import * as task from "@eserstack/functions/task";
 ```
+
+**Why:** the reader copies the form the README shows, and the root namespace
+reaches the whole public API with one import. Moving a CLI-first package's CLI
+off `.` would break every `deno run jsr:@scope/pkg` command already in use, so
+its library takes the `/mod` path instead.
 
 ---
 
@@ -59,7 +83,7 @@ Rule: Never remove existing emojis from files. Package README titles use emojis
 Correct:
 
 ```markdown
-# 🧱 @eserstack/primitives
+# 🧱 @scope/primitives
 
 ...
 
@@ -69,7 +93,7 @@ Correct:
 Incorrect:
 
 ```markdown
-# @eserstack/primitives <!-- ❌ Removed emoji from title -->
+# @scope/primitives <!-- ❌ Removed emoji from title -->
 
 ...
 
@@ -116,6 +140,10 @@ Rule: Each package README should include:
 4. **API sections**: grouped by category with examples
 5. **Links footer** with 🔗 emoji
 
+The vision paragraph under the title is the page's opening summary
+(docs-structure.md: Openings, Sections and Headings): one paragraph saying what
+the package does and for whom.
+
 ---
 
 ## Cross-Package References
@@ -124,7 +152,7 @@ Scope: Documentation that explains how packages relate
 
 Rule: State what each layer provides and how the layers differ, and show each
 import from the package that owns it, still as a namespace import of the package
-root.
+root (or of `/mod` for a CLI-first package, README Import Pattern).
 
 Correct:
 
@@ -155,8 +183,8 @@ not a follow-up. Before marking the task done, find each doc that describes the
 changed surface and make it describe the new state:
 
 - Exported function or type: its JSDoc in the package, which feeds the generated
-  reference in `docs/api/`. Edit the JSDoc, never `docs/api/`, and run
-  `deno task cli docs-lint`.
+  API reference. Edit the JSDoc, never the generated output, and run the doc
+  lint (`deno doc --lint`, or this codebase's docs-lint script).
 - Package usage: the package README Quick Start and API sections.
 - CLI command or flag: the command's help text and the README that shows it.
 - Install, configuration or first run: the root README and CONTRIBUTING.md.
@@ -177,24 +205,25 @@ finds it later, and stale instructions cost more than missing ones.
 
 ## Where Documentation Lives
 
-Scope: Adding or moving project documentation
+Scope: Adding or moving documentation
 
 Rule: Put a document where its kind already lives, and do not create a new
 top-level docs file when one of these fits:
 
-| Location                          | Holds                                                 |
-| --------------------------------- | ----------------------------------------------------- |
-| `README.md`                       | Project overview, install, first run                  |
-| `pkg/@eserstack/<name>/README.md` | Package usage (Package README Structure)              |
-| `.github/ARCHITECTURE.md`         | Repository architecture overview                      |
-| `.github/SECURITY.md`             | Security policy and reporting                         |
-| `CONTRIBUTING.md`                 | Contributor setup and workflow                        |
-| `docs/adr/`                       | Architectural decisions (architecture-guidelines)     |
-| `docs/api/`                       | Generated by `deno task cli docs`; never edit by hand |
-| `CHANGELOG.md`                    | Generated by `deno task cli changelog` at release     |
+| Location                   | Holds                                             |
+| -------------------------- | ------------------------------------------------- |
+| `README.md`                | Project overview, install, first run              |
+| Each package's `README.md` | Package usage (Package README Structure)          |
+| `ARCHITECTURE.md`          | Architecture overview                             |
+| `SECURITY.md`              | Security policy and reporting                     |
+| `CONTRIBUTING.md`          | Contributor setup and workflow                    |
+| `docs/adr/`                | Architectural decisions (architecture-guidelines) |
+| Generated API reference    | Built from JSDoc; never edited by hand            |
+| `CHANGELOG.md`             | Generated from commits at release                 |
 
-CONTRIBUTING.md exists both at the root and in `.github/`, and the two differ.
-Until one is chosen as canonical, a change to contributor setup updates both.
+This codebase may keep `ARCHITECTURE.md`, `SECURITY.md` or `CONTRIBUTING.md`
+under `.github/`; AGENTS.md says where. When the same document exists twice, a
+change updates both until one is made canonical.
 
 ---
 
@@ -203,10 +232,10 @@ Until one is chosen as canonical, a change to contributor setup updates both.
 Scope: Changes that add a tool, a required environment variable, a service, or a
 setup step
 
-Rule: A first-time contributor goes from `git clone` to a passing
-`deno task cli ok` using only CONTRIBUTING.md. A change that adds a prerequisite
-or a step updates CONTRIBUTING.md in the same change, and prefers folding the
-step into `deno task cli init` over documenting another manual step. Changes to
-noskills-server install or first run stay within the time-to-hello-world target
-in `docs/adr/0002-magical-moment-and-tthw-target.md`. A setup failure prints
-what is missing and the command that fixes it.
+Rule: A first-time contributor goes from `git clone` to a passing full gate (the
+one named in AGENTS.md) using only CONTRIBUTING.md. A change that adds a
+prerequisite or a step updates CONTRIBUTING.md in the same change, and prefers
+folding the step into this codebase's init script over documenting another
+manual step. When an ADR sets a first-run target, install and first-run changes
+stay within it. A setup failure prints what is missing and the command that
+fixes it.

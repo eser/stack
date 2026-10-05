@@ -11,8 +11,8 @@
  */
 
 import { runtime } from "@eserstack/standards/cross-runtime";
-import { walkFiles } from "@eserstack/collector";
-import { copy, ensureDir } from "@std/fs"; // copy not available in runtime
+import * as collector from "@eserstack/collector";
+import * as fs from "@std/fs"; // copy not available in runtime
 import * as logging from "@eserstack/logging";
 
 // Pattern to ignore node_modules and hidden directories
@@ -36,6 +36,27 @@ export interface FileViolation {
   relativePath: string;
   type: "created" | "modified";
   timestamp: Date;
+}
+
+/**
+ * The build wrote outside the output directory while strict validation was on.
+ */
+export class BuildIsolationError extends Error {
+  readonly violations: readonly FileViolation[];
+
+  // Explicit assignment, not parameter properties: Node's erase-only type
+  // stripping cannot emit the assignment a parameter property implies.
+  constructor(violations: readonly FileViolation[]) {
+    super(
+      `build isolation: ${violations.length} file(s) modified outside dist/: ${
+        violations.map((violation) =>
+          `${violation.relativePath} (${violation.type})`
+        ).join(", ")
+      }. Fix the build to write only to dist/, or validate without strict.`,
+    );
+    this.name = "BuildIsolationError";
+    this.violations = violations;
+  }
 }
 
 /**
@@ -72,7 +93,6 @@ export async function validateBuildIsolation(
     ignorePatterns?: string[]; // Additional patterns to ignore
   } = {},
 ): Promise<BuildIsolationReport> {
-  const violations: FileViolation[] = [];
   const resolvedDistDir = runtime.path.resolve(projectRoot, distDir);
 
   validatorLogger.debug("Validating build isolation...");
@@ -80,22 +100,25 @@ export async function validateBuildIsolation(
   validatorLogger.debug(`  Dist dir: ${resolvedDistDir}`);
   validatorLogger.debug(`  Build start: ${buildStartTime.toISOString()}`);
 
-  // Check each protected directory for modifications
-  for (const protectedDir of PROTECTED_DIRECTORIES) {
-    const dirPath = runtime.path.resolve(projectRoot, protectedDir);
+  // Check each protected directory for modifications; the scans are
+  // independent and their results are joined in directory order
+  const violationsPerDirectory = await Promise.all(
+    PROTECTED_DIRECTORIES.map(async (protectedDir) => {
+      const dirPath = runtime.path.resolve(projectRoot, protectedDir);
 
-    if (!(await runtime.fs.exists(dirPath))) {
-      continue;
-    }
+      if (!(await runtime.fs.exists(dirPath))) {
+        return [];
+      }
 
-    await scanForViolations(
-      dirPath,
-      projectRoot,
-      buildStartTime,
-      violations,
-      options.ignorePatterns ?? [],
-    );
-  }
+      return await scanForViolations(
+        dirPath,
+        projectRoot,
+        buildStartTime,
+        options.ignorePatterns ?? [],
+      );
+    }),
+  );
+  const violations = violationsPerDirectory.flat();
 
   const report: BuildIsolationReport = {
     valid: violations.length === 0,
@@ -105,36 +128,35 @@ export async function validateBuildIsolation(
     projectRoot,
   };
 
-  // Log results
   if (violations.length === 0) {
     validatorLogger.debug("Build isolation validated successfully");
-  } else {
-    const level = options.strict ? "error" : "warn";
+    return report;
+  }
 
-    validatorLogger[level](
-      `Build isolation violations detected: ${violations.length} file(s) modified outside dist/`,
+  // A failing strict check throws, and the caller that handles the error logs
+  // it; only the outcomes that do not throw are logged here
+  if (options.strict === true && options.warnOnly !== true) {
+    throw new BuildIsolationError(violations);
+  }
+
+  const level = options.strict === true ? "error" : "warn";
+
+  validatorLogger[level](
+    `Build isolation violations detected: ${violations.length} file(s) modified outside dist/`,
+  );
+
+  for (const violation of violations) {
+    const isKnown = KNOWN_SRC_ARTIFACTS.some((artifact) =>
+      violation.relativePath.includes(artifact)
     );
 
-    for (const violation of violations) {
-      const isKnown = KNOWN_SRC_ARTIFACTS.some((artifact) =>
-        violation.relativePath.includes(artifact)
+    if (isKnown) {
+      validatorLogger.warn(
+        `  Known artifact: ${violation.relativePath} (${violation.type})`,
       );
-
-      if (isKnown) {
-        validatorLogger.warn(
-          `  Known artifact: ${violation.relativePath} (${violation.type})`,
-        );
-      } else {
-        validatorLogger[level](
-          `  VIOLATION: ${violation.relativePath} (${violation.type})`,
-        );
-      }
-    }
-
-    if (options.strict && !options.warnOnly) {
-      throw new Error(
-        `Build isolation failed: ${violations.length} file(s) modified outside dist/. ` +
-          `Use --no-strict to allow or fix the build to only write to dist/.`,
+    } else {
+      validatorLogger[level](
+        `  VIOLATION: ${violation.relativePath} (${violation.type})`,
       );
     }
   }
@@ -149,11 +171,14 @@ async function scanForViolations(
   dirPath: string,
   projectRoot: string,
   buildStartTime: Date,
-  violations: FileViolation[],
   ignorePatterns: string[],
-): Promise<void> {
+): Promise<FileViolation[]> {
+  const violations: FileViolation[] = [];
+
   try {
-    for await (const relPath of walkFiles(dirPath, undefined, IGNORE_PATTERN)) {
+    for await (
+      const relPath of collector.walkFiles(dirPath, undefined, IGNORE_PATTERN)
+    ) {
       const filePath = runtime.path.join(dirPath, relPath);
 
       // Check if file matches ignore patterns
@@ -165,7 +190,7 @@ async function scanForViolations(
       try {
         const stat = await runtime.fs.stat(filePath);
 
-        if (stat.mtime && stat.mtime > buildStartTime) {
+        if (stat.mtime !== null && stat.mtime > buildStartTime) {
           violations.push({
             filePath,
             relativePath,
@@ -178,8 +203,12 @@ async function scanForViolations(
       }
     }
   } catch (error) {
-    validatorLogger.debug(`Could not scan ${dirPath}:`, { error });
+    validatorLogger.with({ error }).debug(
+      `scan ${dirPath} for files changed during the build; skipping it`,
+    );
   }
+
+  return violations;
 }
 
 /**
@@ -231,8 +260,8 @@ export function createIsolatedWriter(distDir: string): IsolatedWriter {
         );
       }
 
-      await ensureDir(runtime.path.dirname(dest));
-      await copy(src, dest, { overwrite: true });
+      await fs.ensureDir(runtime.path.dirname(dest));
+      await fs.copy(src, dest, { overwrite: true });
     },
   };
 }
@@ -252,7 +281,9 @@ export async function cleanSrcArtifacts(
   validatorLogger.debug("Cleaning build artifacts from src/...");
 
   try {
-    for await (const relPath of walkFiles(srcDir, undefined, /node_modules/)) {
+    for await (
+      const relPath of collector.walkFiles(srcDir, undefined, /node_modules/)
+    ) {
       const filePath = runtime.path.join(srcDir, relPath);
       const isArtifact = KNOWN_SRC_ARTIFACTS.some((pattern) =>
         filePath.endsWith(pattern)
@@ -265,12 +296,14 @@ export async function cleanSrcArtifacts(
           validatorLogger.debug(`  Deleted: ${filePath}`);
         } catch (error) {
           failed.push(runtime.path.relative(projectRoot, filePath));
-          validatorLogger.warn(`  Failed to delete: ${filePath}`, { error });
+          validatorLogger.with({ error }).warn(
+            `delete build artifact ${filePath}; delete it by hand`,
+          );
         }
       }
     }
   } catch (error) {
-    validatorLogger.error("Failed to scan src/ for artifacts", { error });
+    validatorLogger.with({ error }).error("scan src/ for build artifacts");
   }
 
   if (deleted.length > 0) {

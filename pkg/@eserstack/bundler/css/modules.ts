@@ -11,10 +11,10 @@
  * @module
  */
 
-import { expandGlob } from "@std/fs";
+import * as fs from "@std/fs";
 import { runtime } from "@eserstack/standards/cross-runtime";
 import type { CssModuleOptions, CssModuleResult } from "./types.ts";
-import { transformCssModules } from "./lightning.ts";
+import * as lightning from "./lightning.ts";
 
 /**
  * Process a single CSS module file.
@@ -25,19 +25,20 @@ import { transformCssModules } from "./lightning.ts";
  *
  * @example
  * ```ts
+ * import * as css from "@eserstack/bundler/css";
+ *
  * // Without Tailwind (pure Lightning CSS)
- * const result = await processCssModule("/path/to/button.module.css", {
+ * const result = await css.processCssModule("/path/to/button.module.css", {
  *   generateDts: true,
  * });
  * console.log(result.exports); // { container: "container_abc123" }
  *
  * // With Tailwind (@apply support)
- * import { createTailwindRoot } from "@eserstack/bundler/css/tailwind-plugin";
- * const tailwind = createTailwindRoot({ base: "." });
- * const result = await processCssModule("/path/to/button.module.css", {
- *   tailwind,
- *   generateDts: true,
- * });
+ * const tailwind = css.createTailwindRoot({ base: "." });
+ * const tailwindResult = await css.processCssModule(
+ *   "/path/to/button.module.css",
+ *   { tailwind, generateDts: true },
+ * );
  * tailwind.dispose();
  * ```
  */
@@ -68,7 +69,7 @@ export async function processCssModule(
   const filename = runtime.path.basename(cssPath);
 
   // Process with Lightning CSS for CSS Modules (class scoping)
-  const result = transformCssModules(cssContent, filename, {
+  const result = lightning.transformCssModules(cssContent, filename, {
     minify,
     targets,
     nesting: true,
@@ -201,7 +202,7 @@ export async function findCssModules(
 ): Promise<string[]> {
   const modules: string[] = [];
 
-  for await (const entry of expandGlob(runtime.path.join(dir, pattern))) {
+  for await (const entry of fs.expandGlob(runtime.path.join(dir, pattern))) {
     if (entry.isFile) {
       modules.push(entry.path);
     }
@@ -233,10 +234,13 @@ export async function buildCssModules(
   // Process all modules
   const results = await processCssModules(modulePaths, options);
 
-  // Save outputs
-  for (const [cssPath, result] of results) {
-    await saveCssModuleOutputs(cssPath, result, outputDir, srcDir);
-  }
+  // Save outputs; each module writes its own files, like processCssModules
+  // processes them in parallel
+  await Promise.all(
+    [...results].map(([cssPath, result]) =>
+      saveCssModuleOutputs(cssPath, result, outputDir, srcDir)
+    ),
+  );
 
   return results;
 }

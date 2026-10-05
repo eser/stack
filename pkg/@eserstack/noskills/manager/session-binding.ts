@@ -14,6 +14,7 @@
 import type * as mux from "@eserstack/mux";
 import { runtime } from "@eserstack/standards/cross-runtime";
 import * as persistence from "../state/persistence.ts";
+import * as cmd from "../output/cmd.ts";
 
 export type SessionBinding = {
   readonly sessionId: string;
@@ -111,7 +112,8 @@ export const createSpecSession = async (
 ): Promise<SessionBinding> => {
   let phase: string | null = null;
   try {
-    phase = (await persistence.resolveState(root, specName)).phase;
+    phase = (await persistence.resolveState(root, specName, cmd.cmdPrefix()))
+      .phase;
   } catch {
     // spec has no resolvable state yet
   }

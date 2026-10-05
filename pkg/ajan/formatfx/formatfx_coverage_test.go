@@ -3,7 +3,6 @@
 package formatfx_test
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/eser/stack/pkg/ajan/formatfx"
@@ -28,7 +27,6 @@ func TestFormatMetadata(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -58,86 +56,228 @@ func TestFormatMetadata(t *testing.T) {
 func TestJSONWriteStart(t *testing.T) {
 	t.Parallel()
 
-	s, err := formatfx.JSONFormat.WriteStart(nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if s != "[" {
-		t.Errorf("WriteStart(nil) = %q, want %q", s, "[")
+	cases := []struct {
+		name string
+		opts *formatfx.FormatOptions
+		want string
+	}{
+		{"nil options", nil, "["},
+		{"compact", &formatfx.FormatOptions{}, "["},                     //nolint:exhaustruct
+		{"pretty", &formatfx.FormatOptions{Pretty: true}, "["},          //nolint:exhaustruct
+		{"whole document", &formatfx.FormatOptions{Document: true}, ""}, //nolint:exhaustruct
 	}
 
-	sPretty, err := formatfx.JSONFormat.WriteStart(&formatfx.FormatOptions{Pretty: true}) //nolint:exhaustruct
-	if err != nil {
-		t.Fatal(err)
-	}
-	if sPretty != "[\n" {
-		t.Errorf("WriteStart(pretty) = %q, want %q", sPretty, "[\n")
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			got, err := formatfx.JSONFormat.WriteStart(tc.opts)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if got != tc.want {
+				t.Errorf("WriteStart = %q, want %q", got, tc.want)
+			}
+		})
 	}
 }
 
 func TestJSONWriteEnd(t *testing.T) {
 	t.Parallel()
 
-	e, err := formatfx.JSONFormat.WriteEnd(nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if e != "]\n" {
-		t.Errorf("WriteEnd(nil) = %q, want %q", e, "]\n")
+	cases := []struct {
+		name string
+		opts *formatfx.FormatOptions
+		want string
+	}{
+		{"nil options", nil, "]\n"},
+		{"compact", &formatfx.FormatOptions{}, "]\n"},                   //nolint:exhaustruct
+		{"pretty", &formatfx.FormatOptions{Pretty: true}, "\n]\n"},      //nolint:exhaustruct
+		{"whole document", &formatfx.FormatOptions{Document: true}, ""}, //nolint:exhaustruct
 	}
 
-	ePretty, err := formatfx.JSONFormat.WriteEnd(&formatfx.FormatOptions{Pretty: true}) //nolint:exhaustruct
-	if err != nil {
-		t.Fatal(err)
-	}
-	if ePretty != "\n]\n" {
-		t.Errorf("WriteEnd(pretty) = %q, want %q", ePretty, "\n]\n")
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			got, err := formatfx.JSONFormat.WriteEnd(tc.opts)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if got != tc.want {
+				t.Errorf("WriteEnd = %q, want %q", got, tc.want)
+			}
+		})
 	}
 }
 
 func TestJSONWriteItem(t *testing.T) {
 	t.Parallel()
 
-	t.Run("first item no separator", func(t *testing.T) {
-		t.Parallel()
-		got, err := formatfx.JSONFormat.WriteItem(map[string]any{"k": "v"}, &formatfx.FormatOptions{IsFirst: true}) //nolint:exhaustruct
-		if err != nil {
-			t.Fatal(err)
-		}
-		if !strings.HasPrefix(got, `{"k":"v"}`) {
-			t.Errorf("WriteItem first = %q, want prefix {\"k\":\"v\"}", got)
-		}
-	})
+	cases := []struct {
+		name string
+		data any
+		opts *formatfx.FormatOptions
+		want string
+	}{
+		{
+			name: "first element has no separator",
+			data: map[string]any{"k": "v"},
+			opts: &formatfx.FormatOptions{IsFirst: true}, //nolint:exhaustruct
+			want: `{"k":"v"}`,
+		},
+		{
+			name: "later element starts with a comma",
+			data: map[string]any{"n": 1},
+			opts: &formatfx.FormatOptions{IsFirst: false}, //nolint:exhaustruct
+			want: `,{"n":1}`,
+		},
+		{
+			name: "pretty first element starts on its own line, indented",
+			data: map[string]any{"x": 1},
+			opts: &formatfx.FormatOptions{IsFirst: true, Pretty: true}, //nolint:exhaustruct
+			want: "\n  {\n    \"x\": 1\n  }",
+		},
+		{
+			name: "pretty later element applies the indent width",
+			data: map[string]any{"x": 1},
+			opts: &formatfx.FormatOptions{Pretty: true, Indent: 4}, //nolint:exhaustruct
+			want: ",\n    {\n        \"x\": 1\n    }",
+		},
+		{
+			name: "whole document ends with a newline",
+			data: map[string]any{"k": "v"},
+			opts: &formatfx.FormatOptions{Document: true}, //nolint:exhaustruct
+			want: `{"k":"v"}` + "\n",
+		},
+		{
+			name: "pretty whole document is not shifted in",
+			data: map[string]any{"x": 1},
+			opts: &formatfx.FormatOptions{Document: true, Pretty: true}, //nolint:exhaustruct
+			want: "{\n  \"x\": 1\n}\n",
+		},
+		{
+			name: "HTML characters stay as they are",
+			data: "a<b&c>d",
+			opts: &formatfx.FormatOptions{Document: true}, //nolint:exhaustruct
+			want: `"a<b&c>d"` + "\n",
+		},
+	}
 
-	t.Run("subsequent item has comma separator", func(t *testing.T) {
-		t.Parallel()
-		got, err := formatfx.JSONFormat.WriteItem(map[string]any{"n": 1}, &formatfx.FormatOptions{IsFirst: false}) //nolint:exhaustruct
-		if err != nil {
-			t.Fatal(err)
-		}
-		if !strings.HasPrefix(got, ",") {
-			t.Errorf("WriteItem subsequent = %q, want comma prefix", got)
-		}
-	})
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 
-	t.Run("pretty mode indents", func(t *testing.T) {
-		t.Parallel()
-		got, err := formatfx.JSONFormat.WriteItem(map[string]any{"x": 1}, &formatfx.FormatOptions{IsFirst: true, Pretty: true}) //nolint:exhaustruct
-		if err != nil {
-			t.Fatal(err)
-		}
-		if !strings.Contains(got, "\n") {
-			t.Errorf("WriteItem pretty = %q, expected newlines", got)
-		}
-	})
+			got, err := formatfx.JSONFormat.WriteItem(tc.data, tc.opts)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if got != tc.want {
+				t.Errorf("WriteItem = %q, want %q", got, tc.want)
+			}
+		})
+	}
 
 	t.Run("serialization error", func(t *testing.T) {
 		t.Parallel()
+
 		_, err := formatfx.JSONFormat.WriteItem(make(chan int), nil)
 		if err == nil {
 			t.Fatal("expected error for unsupported type")
 		}
 	})
+}
+
+// TestJSONArrayLayout writes whole arrays through WriteStart, WriteItem and
+// WriteEnd and expects the text JSON.stringify(items, null, indent) produces.
+func TestJSONArrayLayout(t *testing.T) {
+	t.Parallel()
+
+	items := []any{
+		map[string]any{"name": "app1", "ports": []any{80, 443}},
+		map[string]any{"name": "app2"},
+	}
+
+	cases := []struct {
+		name   string
+		items  []any
+		pretty bool
+		indent int
+		want   string
+	}{
+		{
+			name:  "compact",
+			items: items,
+			want:  `[{"name":"app1","ports":[80,443]},{"name":"app2"}]` + "\n",
+		},
+		{
+			name:   "pretty",
+			items:  items,
+			pretty: true,
+			want: `[
+  {
+    "name": "app1",
+    "ports": [
+      80,
+      443
+    ]
+  },
+  {
+    "name": "app2"
+  }
+]
+`,
+		},
+		{
+			name:   "pretty with indent 4",
+			items:  items[1:],
+			pretty: true,
+			indent: 4,
+			want:   "[\n    {\n        \"name\": \"app2\"\n    }\n]\n",
+		},
+		{
+			name: "empty",
+			want: "[]\n",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			opts := &formatfx.FormatOptions{Pretty: tc.pretty, Indent: tc.indent} //nolint:exhaustruct
+
+			got, err := formatfx.JSONFormat.WriteStart(opts)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			for i, item := range tc.items {
+				itemOpts := &formatfx.FormatOptions{Pretty: tc.pretty, Indent: tc.indent, IsFirst: i == 0} //nolint:exhaustruct
+
+				out, err := formatfx.JSONFormat.WriteItem(item, itemOpts)
+				if err != nil {
+					t.Fatalf("WriteItem[%d]: %v", i, err)
+				}
+
+				got += out
+			}
+
+			end, err := formatfx.JSONFormat.WriteEnd(opts)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			got += end
+
+			if got != tc.want {
+				t.Errorf("array = %q, want %q", got, tc.want)
+			}
+		})
+	}
 }
 
 func TestJSONReaderRoundtrip(t *testing.T) {

@@ -367,6 +367,8 @@ Deno.test("results.tryCatch() returns Fail for throwing function", () => {
 Deno.test("results.tryCatch() uses custom error mapper", () => {
   const result = results.tryCatch(
     () => {
+      // The mapper exists for non-Error throws, so the test throws a string.
+      // deno-lint-ignore no-throw-literal
       throw "string error";
     },
     (e) => new Error(String(e)),

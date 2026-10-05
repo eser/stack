@@ -31,21 +31,29 @@ type Context struct {
 	index    int
 	// isAborted bool
 
-	// IsRaw is true for routes registered via RouteRaw (WebTransport, raw streaming).
-	// Middlewares that depend on Result body bytes (e.g. response_time timing log)
-	// must no-op when this flag is set.
+	// IsRaw is true for routes registered via RouteRaw (WebTransport, raw
+	// streaming). There the raw handler writes the response itself and Next
+	// returns a placeholder 204, so a middleware that reads the status or body
+	// of the Result it gets from Next skips that work when this flag is set.
 	IsRaw bool
 
 	// EarlyWritten is set by WriteEarly. When true, the raw handler and all
 	// downstream middleware steps must abort without writing a second response.
 	EarlyWritten bool
+
+	// rawStarted and rawReturned record the raw handler of a RouteRaw chain:
+	// RouteRaw writes the chain's Result only when the handler never started,
+	// and aborts the response when it started but did not return.
+	rawStarted  bool
+	rawReturned bool
 }
 
 // WriteEarly writes status and body directly to the ResponseWriter and marks
-// the context as EarlyWritten. Used by middlewares on raw routes (e.g. PIN auth
-// rejecting an unauth WebTransport upgrade) to short-circuit before the raw
-// handler hijacks the connection. Subsequent middleware steps and the raw
-// handler must check EarlyWritten and return without writing.
+// the context as EarlyWritten, for a middleware that must write a response
+// itself rather than return a Result. A middleware that only rejects returns
+// a Result instead, which Route and RouteRaw both write. Subsequent middleware
+// steps must check EarlyWritten and return without writing; RouteRaw skips the
+// raw handler and writes nothing more.
 func (c *Context) WriteEarly(status int, body []byte) error {
 	if c.EarlyWritten {
 		return ErrAlreadyWritten

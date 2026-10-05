@@ -13,12 +13,19 @@
 import * as ansi from "./ansi.ts";
 import type { Panel } from "./layout.ts";
 
+/** One row of a list drawn by {@link renderList}. */
 export type ListItem = {
+  /** The row's text. */
   readonly label: string;
+  /** Short text shown in brackets after the label. */
   readonly badge?: string;
+  /** Color of the badge; "dim" when unset. */
   readonly badgeColor?: "green" | "yellow" | "red" | "cyan" | "dim";
+  /** Shows a green bullet, for the item currently in use. */
   readonly active?: boolean;
+  /** Draws the label dimmed. */
   readonly dimmed?: boolean;
+  /** False for a row the selection skips, such as a heading; true when unset. */
   readonly selectable?: boolean;
 };
 

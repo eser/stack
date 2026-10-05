@@ -9,7 +9,7 @@
  * @module
  */
 
-import { ensureLib, getLib } from "./ffi-client.ts";
+import * as ffiClient from "./ffi-client.ts";
 import type { FileEntry } from "./file-tools-shared.ts";
 
 // =============================================================================
@@ -35,7 +35,7 @@ export class WalkStream implements AsyncIterable<FileEntry>, AsyncDisposable {
   }
 
   async *[Symbol.asyncIterator](): AsyncGenerator<FileEntry> {
-    const lib = getLib();
+    const lib = ffiClient.getLib();
     if (lib === null) {
       throw new Error("FFI library unavailable — cannot iterate walk stream");
     }
@@ -71,7 +71,7 @@ export class WalkStream implements AsyncIterable<FileEntry>, AsyncDisposable {
   }
 
   [Symbol.asyncDispose](): Promise<void> {
-    const lib = getLib();
+    const lib = ffiClient.getLib();
     if (lib !== null) {
       lib.symbols.EserAjanCodebaseWalkFilesStreamClose(this.#handle);
     }
@@ -86,8 +86,8 @@ export class WalkStream implements AsyncIterable<FileEntry>, AsyncDisposable {
 export const walkFilesStream = async (
   options: WalkStreamOptions = {},
 ): Promise<WalkStream> => {
-  await ensureLib();
-  const lib = getLib();
+  await ffiClient.ensureLib();
+  const lib = ffiClient.getLib();
 
   if (lib === null) {
     throw new Error(

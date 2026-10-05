@@ -1,26 +1,31 @@
 ---
 name: release-and-ci
-description: "Releases and CI for eserstack: the shared version of all packages, the release command, the tag-driven build.yml run, JSR and npm publishing, changelog and breaking changes, release recovery, GitHub Actions workflows, and Kubernetes and ArgoCD deploys. Use when bumping a version, cutting or recovering a release, writing changelog entries, editing a workflow, debugging CI or deploying."
+description: "Release and CI conventions of this codebase: one shared version, eser codebase release, tag-driven JSR and npm publishing over OIDC, changelog from commit subjects, migration entries, release recovery, GitHub Actions job rules, Dockerfiles, ArgoCD deploys. Use when bumping a version, cutting or recovering a release, writing a changelog, editing a workflow or a Dockerfile, fixing CI or deploying."
 ---
 
 # Releases and CI
 
-How eserstack versions, releases and publishes its packages, and how its
-workflows and deployments run.
+How this codebase versions, releases and publishes a package family, and how its
+workflows, images and deployments run. Facts that differ between codebases
+(workflow file and job names, publish targets, runner labels) are in this
+codebase's `AGENTS.md` or the docs it links.
 
 ## Always
 
-- Every package shares the version in `VERSION`; never edit a version by hand
-- `deno task cli codebase release <patch|minor|major|same>` bumps, writes the
-  changelog, commits, pushes and pushes the tag; run it only when the user asks
-  for a release, on a clean, pushed tree after `deno task cli ok` and
-  `deno task cli preflight`
-- The `v*.*.*` tag push starts the release in `build.yml`; CI never creates
-  tags. A version that reached JSR or npm is never retagged: resume the run or
-  cut a new patch
-- Commit subjects are the changelog: user-facing, typed and scoped. Breaking
-  changes get `!`, a `### Migration` entry and a README example
-- npm publishing is OIDC with provenance; no npm token exists
+- The packages of a family share one version (a root `VERSION` file); never edit
+  a version by hand
+- `eser codebase release <patch|minor|major|same>` bumps, writes the changelog,
+  commits, pushes and pushes the tag. Only the user starts a release: run it
+  when the user asks for one, on a clean, pushed tree after the full gate and
+  the release preflight, and never suggest or offer one
+- The version tag push starts the release in CI; CI never creates tags. A
+  version that reached a registry is never retagged: resume the run or cut a new
+  patch
+- Commit subjects are the changelog: user-facing, typed and scoped, one line
+  with no body. Breaking changes get `!`, a `### Migration` entry and a README
+  example
+- Registry publishing is OIDC with provenance; no long-lived registry token
+  exists
 - Inspect before acting: `gh run view <id> --log-failed`, `gh pr checks`,
   read-only `kubectl` with an explicit namespace
 - Workflow changes need the user's approval
@@ -33,8 +38,9 @@ workflows and deployments run.
 
 ## References
 
-| File                                                | Read when                                                                                                    |
-| --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| [release-process.md](references/release-process.md) | Cutting, verifying or recovering a release, choosing a bump, changelog or migration entries, publish targets |
-| [github-actions.md](references/github-actions.md)   | Editing a workflow or job, or debugging a CI run                                                             |
-| [deployments.md](references/deployments.md)         | Inspecting a cluster, deploying a service, or mapping tags to environments                                   |
+| File                                                  | Read when                                                                                                    |
+| ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| [release-process.md](references/release-process.md)   | Cutting, verifying or recovering a release, choosing a bump, changelog or migration entries, publish targets |
+| [github-actions.md](references/github-actions.md)     | Editing a workflow or job, or debugging a CI run                                                             |
+| [container-images.md](references/container-images.md) | Writing or reviewing a Dockerfile, choosing a base image                                                     |
+| [deployments.md](references/deployments.md)           | Inspecting a cluster, deploying a service, or mapping tags to environments                                   |

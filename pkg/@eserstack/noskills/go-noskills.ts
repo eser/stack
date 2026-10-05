@@ -14,7 +14,7 @@
  * @module
  */
 
-import { ensureLib, getLib } from "./ffi-client.ts";
+import * as ffiClient from "./ffi-client.ts";
 
 export type NoskillsInitOptions = {
   readonly configDir?: string;
@@ -67,8 +67,8 @@ export type NoskillsNextResult = {
 export const initNoskills = async (
   options: NoskillsInitOptions = {},
 ): Promise<NoskillsInitResult> => {
-  await ensureLib();
-  const lib = getLib();
+  await ffiClient.ensureLib();
+  const lib = ffiClient.getLib();
 
   if (lib === null) {
     throw new Error("native library not available for initNoskills");
@@ -77,7 +77,7 @@ export const initNoskills = async (
   const raw = lib.symbols.EserAjanNoskillsInit(JSON.stringify(options));
   const result = JSON.parse(raw) as NoskillsInitResult & { error?: string };
 
-  if (result.error) {
+  if (result.error !== undefined && result.error !== "") {
     throw new Error(result.error);
   }
 
@@ -102,8 +102,8 @@ export const initNoskills = async (
 export const newNoskillsSpec = async (
   options: NoskillsSpecNewOptions,
 ): Promise<NoskillsSpecNewResult> => {
-  await ensureLib();
-  const lib = getLib();
+  await ffiClient.ensureLib();
+  const lib = ffiClient.getLib();
 
   if (lib === null) {
     throw new Error("native library not available for newNoskillsSpec");
@@ -112,7 +112,7 @@ export const newNoskillsSpec = async (
   const raw = lib.symbols.EserAjanNoskillsSpecNew(JSON.stringify(options));
   const result = JSON.parse(raw) as NoskillsSpecNewResult & { error?: string };
 
-  if (result.error) {
+  if (result.error !== undefined && result.error !== "") {
     throw new Error(result.error);
   }
 
@@ -141,8 +141,8 @@ export const newNoskillsSpec = async (
 export const nextNoskillsStep = async (
   options: NoskillsNextOptions,
 ): Promise<NoskillsNextResult> => {
-  await ensureLib();
-  const lib = getLib();
+  await ffiClient.ensureLib();
+  const lib = ffiClient.getLib();
 
   if (lib === null) {
     throw new Error("native library not available for nextNoskillsStep");
@@ -151,7 +151,7 @@ export const nextNoskillsStep = async (
   const raw = lib.symbols.EserAjanNoskillsNext(JSON.stringify(options));
   const result = JSON.parse(raw) as NoskillsNextResult & { error?: string };
 
-  if (result.error) {
+  if (result.error !== undefined && result.error !== "") {
     throw new Error(result.error);
   }
 

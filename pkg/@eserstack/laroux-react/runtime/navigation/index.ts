@@ -5,4 +5,7 @@ export { Link } from "./link.tsx";
 export type { LinkProps } from "./link.tsx";
 
 export { useRouter } from "./use-router.ts";
-export type { NavigateOptions, RouterMethods } from "./use-router.ts";
+export type {
+  NavigateOptions,
+  RouterMethods,
+} from "@eserstack/laroux/navigation";

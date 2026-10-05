@@ -17,9 +17,9 @@ directories.
 ### Mock HTTP Server
 
 ```typescript
-import { fakeServer } from "@eserstack/testing";
+import * as testing from "@eserstack/testing";
 
-const server = new fakeServer.FakeServer((req) => {
+const server = new testing.fakeServer.FakeServer((req) => {
   if (req.url.endsWith("/api/users")) {
     return Response.json([{ id: 1, name: "Test" }]);
   }
@@ -33,9 +33,9 @@ const users = await response.json();
 ### Mock Filesystem
 
 ```typescript
-import { fakeFs } from "@eserstack/testing";
+import * as testing from "@eserstack/testing";
 
-const fs = fakeFs.createFakeFs({
+const fs = testing.fakeFs.createFakeFs({
   "/app/config.json": '{"port": 3000}',
   "/app/src/main.ts": 'console.log("hello")',
 });
@@ -51,11 +51,11 @@ for await (const entry of fs.walk("/app/src")) {
 ### Temporary Directory
 
 ```typescript
-import { tempDir } from "@eserstack/testing";
+import * as testing from "@eserstack/testing";
 import { runtime } from "@eserstack/standards/cross-runtime";
 
 // Automatic cleanup with await using
-await using temp = await tempDir.withTmpDir();
+await using temp = await testing.tempDir.withTmpDir();
 await runtime.fs.writeTextFile(`${temp.dir}/test.txt`, "hello");
 // Directory is automatically cleaned up when scope exits
 ```

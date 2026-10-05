@@ -11,10 +11,12 @@ const BYTES_PER_KB = 1024;
  *
  * @example
  * ```typescript
- * formatSize(500);        // "500.00 B"
- * formatSize(1536);       // "1.50 KB"
- * formatSize(1048576);    // "1.00 MB"
- * formatSize(1073741824); // "1.00 GB"
+ * import * as standards from "@eserstack/standards";
+ *
+ * standards.formatters.formatSize(500);        // "500.00 B"
+ * standards.formatters.formatSize(1536);       // "1.50 KB"
+ * standards.formatters.formatSize(1048576);    // "1.00 MB"
+ * standards.formatters.formatSize(1073741824); // "1.00 GB"
  * ```
  */
 export const formatSize = (bytes: number): string => {

@@ -32,8 +32,8 @@
     "@eserstack/streams": "workspace:*",
     "@std/media-types": "npm:@jsr/std__media-types@^1.1.0",
     "@std/path": "npm:@jsr/std__path@^1.1.6",
-    "react": "^19.3.0",
-    "react-dom": "^19.3.0"
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
   },
   "devDependencies": {
     "@std/assert": "npm:@jsr/std__assert@^1.0.19",

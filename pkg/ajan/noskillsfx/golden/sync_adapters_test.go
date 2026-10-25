@@ -113,7 +113,7 @@ func syncFixtures() []syncFixture {
 				".eser/specs/edge/spec.md":   "intro\n# Spec:   \n## tasks\nonly line\n## Verification\n\n## concerns",
 				".eser/specs/title/spec.md":  "# Spec:\n\n  Spaced title  \n\n## Discovery answers\nplain answer\n",
 			},
-			config: map[string]any{"command": "deno task cli noskills", "allowGit": true},
+			config: map[string]any{"command": "pnpm cli noskills", "allowGit": true},
 		},
 		{
 			name: "malformed",

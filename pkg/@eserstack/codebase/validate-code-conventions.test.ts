@@ -126,7 +126,6 @@ nodeTest.test("validate-code-conventions: ignores comments and strings", () => {
   assert.assertEquals(rules(source), []);
 });
 
-// sanitizeResources: false — file-tool.ts transitively loads the FFI DynamicLibrary
 nodeTest.test(
   "validate-code-conventions: fails only above the baseline",
   async () => {

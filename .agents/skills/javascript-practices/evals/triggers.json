@@ -20,7 +20,7 @@
     "should_trigger": true
   },
   {
-    "query": "fs access in this library uses Deno.readTextFile, is that ok",
+    "query": "this library reads files with node:fs directly, is that ok",
     "should_trigger": true
   },
   {
@@ -32,11 +32,15 @@
     "should_trigger": true
   },
   {
+    "query": "tsc says enums are not allowed with erasableSyntaxOnly, how do I model this status",
+    "should_trigger": true
+  },
+  {
     "query": "add a dependency on zod",
     "should_trigger": false
   },
   {
-    "query": "the deno.json in pkg/@eserstack/cache is wrong",
+    "query": "the exports map in pkg/@eserstack/cache/package.json is wrong",
     "should_trigger": false
   },
   {
@@ -44,7 +48,7 @@
     "should_trigger": false
   },
   {
-    "query": "add a CI job that runs deno test",
+    "query": "add a CI job that runs node --test",
     "should_trigger": false
   },
   {

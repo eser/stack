@@ -89,11 +89,11 @@ and let a caller swap one adapter without touching the others.
 Scope: All TypeScript library code
 
 Rule: Filesystem, process, exec and environment access goes through a runtime
-adapter, `@eserstack/standards/cross-runtime`, never `Deno.*` directly. The
-runtime is an adapter like any other, so the same code runs on Deno, Node and
-Bun and can be tested with a fake. CLI-only code may call `Deno.*` when
-cross-runtime does not expose the API it needs (for example
-`Deno.makeTempDir()`).
+adapter, `@eserstack/standards/cross-runtime`, never Node's `process` or
+`node:fs` directly. The runtime is an adapter like any other: tests pass a fake,
+and code that needs an API the adapter lacks adds it there instead of calling
+the runtime directly. The call-site rules are in javascript-practices:
+Cross-Runtime APIs.
 
 Correct:
 
@@ -106,8 +106,14 @@ const content = await runtime.fs.readTextFile(path);
 Incorrect:
 
 ```typescript
-const content = await Deno.readTextFile(path); // ties the library to Deno
+import * as fs from "node:fs/promises";
+
+const content = await fs.readFile(path, "utf8"); // ties the library to Node
 ```
+
+**Why:** the adapter keeps the runtime replaceable in one place, so a later
+change of the runtime layer, such as collapsing the adapter into `node:*` and
+Web APIs, does not touch the libraries that use it (ADR 0005).
 
 ---
 

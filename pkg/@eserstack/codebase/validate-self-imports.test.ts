@@ -40,7 +40,6 @@ const writeShellFile = async (
   );
 };
 
-// sanitizeResources: false — file-tool.ts transitively loads the FFI DynamicLibrary
 nodeTest.test(
   "validate-self-imports: flags a package importing itself by name",
   async () => {

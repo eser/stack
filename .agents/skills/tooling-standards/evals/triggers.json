@@ -8,11 +8,11 @@
     "should_trigger": true
   },
   {
-    "query": "jsr or npm for this package",
+    "query": "should this parser come from npm or can a Node built-in do it",
     "should_trigger": true
   },
   {
-    "query": "the per-package deno.json is out of sync with package.json",
+    "query": "I changed the exports in package.json, is there another manifest to update",
     "should_trigger": true
   },
   {
@@ -28,15 +28,11 @@
     "should_trigger": true
   },
   {
-    "query": "which tool runs formatting, deno or prettier",
+    "query": "which tool formats the code here, prettier or something else",
     "should_trigger": true
   },
   {
     "query": "add a new package pkg/@eserstack/queue",
-    "should_trigger": true
-  },
-  {
-    "query": "which files need the license header",
     "should_trigger": true
   },
   {
@@ -49,6 +45,14 @@
   },
   {
     "query": "the README says npm install && npm run dev, set the dashboard up locally",
+    "should_trigger": true
+  },
+  {
+    "query": "add playwright to the root package.json so the browser tests can run",
+    "should_trigger": true
+  },
+  {
+    "query": "pnpm exec rewrote pnpm-lock.yaml in my worktree, what now",
     "should_trigger": true
   },
   {
@@ -77,6 +81,14 @@
   },
   {
     "query": "make the logger structured",
+    "should_trigger": false
+  },
+  {
+    "query": "write node:test cases for the slug parser",
+    "should_trigger": false
+  },
+  {
+    "query": "can I use an enum for these status codes",
     "should_trigger": false
   }
 ]

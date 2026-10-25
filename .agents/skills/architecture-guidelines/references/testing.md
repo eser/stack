@@ -27,19 +27,22 @@ Rule:
   breaks, is not a test.
 - New code ships with its tests. A change never lowers the coverage of the
   packages it touches.
-- A skipped test (`ignore: true`, `.skip`, `t.Skip`) carries a comment with the
-  reason and a backlog task id.
+- A skipped test (the `skip` option in TypeScript, `t.Skip` in Go) carries the
+  reason and a backlog task id, in the skip message or a comment next to it. A
+  skip that depends on the environment (a platform, a missing build) names that
+  condition in its message instead.
 
 Correct:
 
 ```typescript
-import * as assert from "@std/assert";
+import * as nodeTest from "node:test";
+import * as assert from "@eserstack/test-kit/assert";
 
 const fakeRepo = {
   findUser: (id: string) => Promise.resolve({ id, name: "Test" }),
 };
 
-Deno.test("getUser returns the stored user", async () => {
+nodeTest.test("getUser returns the stored user", async () => {
   const service = createUserService(fakeRepo);
   const user = await service.getUser("test-id");
   assert.assertEquals(user.name, "Test");
@@ -63,20 +66,23 @@ Scope: TypeScript tests
 
 Rule:
 
-- Assertions come from `@std/assert`, imported as a namespace. Never add a
-  second runner or assertion library (chai, `node:assert`, vitest).
-- Both `Deno.test` and `@std/testing/bdd` (`describe`/`it`) are in use. In an
-  existing file follow its style; do not mix the two in one file.
-- Test files are co-located with the source as `*.test.ts`. Leave older
-  `_test.ts` files as they are unless asked, and name new files `*.test.ts`.
+- Tests run on `node:test`. Assertions and test doubles come from
+  `@eserstack/test-kit`, imported as namespaces. Never add a third-party runner
+  or assertion library (vitest, jest, chai).
+- Test files are co-located with the source as `*.test.ts`.
 - Run tests through this codebase's test command (the manifest script its
-  AGENTS.md names), in parallel with `--trace-leaks` and coverage on, and as
-  part of the precommit gate. CI uploads the coverage so a drop is visible in
-  review.
+  AGENTS.md names), with coverage on, and as part of the precommit gate. CI
+  uploads the LCOV report so a drop is visible in review.
 
-Because tests run in parallel in one process, a test that sets a process-wide
-value (an environment variable, the working directory) races the others. Pass
-the value as a parameter instead, or restore it in a `finally`.
+`node --test` runs each test file in its own process, several files at a time,
+and the tests of one file in order. A process-wide value (an environment
+variable, the working directory) set in one file never reaches another, but it
+stays set for every later test in the same file. Pass the value as a parameter
+instead, or restore it in a `finally`.
+
+**Why:** `node:test` ships with Node, so the tests need no runner dependency,
+and the test-kit seam lets the assertion library change in one package
+(ADR 0005).
 
 ---
 
@@ -91,7 +97,8 @@ describes the behavior, not the implementation. The Go form (subtests with
 Correct:
 
 ```typescript
-import * as assert from "@std/assert";
+import * as nodeTest from "node:test";
+import * as assert from "@eserstack/test-kit/assert";
 
 const cases = [
   { name: "handles zero", input: 0, expected: "zero" },
@@ -100,7 +107,7 @@ const cases = [
 ];
 
 for (const { name, input, expected } of cases) {
-  Deno.test(name, () => {
+  nodeTest.test(name, () => {
     assert.assertEquals(classifyNumber(input), expected);
   });
 }
@@ -109,6 +116,8 @@ for (const { name, input, expected } of cases) {
 Incorrect:
 
 ```typescript
-Deno.test("test1", () => assert.assertEquals(classifyNumber(0), "zero"));
-Deno.test("test2", () => assert.assertEquals(classifyNumber(-1), "negative"));
+nodeTest.test("test1", () => assert.assertEquals(classifyNumber(0), "zero"));
+nodeTest.test("test2", () =>
+  assert.assertEquals(classifyNumber(-1), "negative"),
+);
 ```

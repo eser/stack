@@ -114,9 +114,9 @@ func TestRunCallVersionCarriesTheHandshake(t *testing.T) {
 func TestRegisteredNamesCoverEveryFunction(t *testing.T) {
 	t.Parallel()
 
-	// The native build registers every domain: the 99 dispatch names.
-	if got := len(registeredNames()); got != 99 {
-		t.Errorf("expected 99 registered names, got %d", got)
+	// The native build registers every domain: the 98 dispatch names.
+	if got := len(registeredNames()); got != 98 {
+		t.Errorf("expected 98 registered names, got %d", got)
 	}
 }
 

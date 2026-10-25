@@ -34,8 +34,6 @@ const withFixture = async (
   }
 };
 
-// sanitizeResources: false — the FFI DynamicLibrary singleton persists for the
-// process lifetime.
 nodeTest.test(
   "validate-naming-and-todos fails a fixture with an untagged TODO comment",
   { skip: withoutFfi },

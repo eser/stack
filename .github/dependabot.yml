@@ -33,6 +33,28 @@ updates:
         patterns:
           - "*"
 
+  # The FFI bridge is a second Go module with its own go.mod and go.sum.
+  - package-ecosystem: "gomod"
+    directory: "/pkg/@eserstack/ajan"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "go"
+    # A replace directive points it at the root module in this tree, and the
+    # Go modules get no versions of their own, so there is nothing to bump.
+    ignore:
+      - dependency-name: "github.com/eser/stack"
+    groups:
+      go-ajan-deps:
+        patterns:
+          - "*"
+
+  # The pnpm workspace: the root package.json, pnpm-workspace.yaml and
+  # pnpm-lock.yaml cover every member under pkg/@eserstack/.
   - package-ecosystem: "npm"
     directory: "/"
     schedule:

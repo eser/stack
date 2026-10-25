@@ -146,6 +146,8 @@ var (
 	// The stored validator result's key hashes the spec document, which
 	// holds the date.
 	validationKey = regexp.MustCompile(`"key": "[0-9a-f]{64}"`) //nolint:gochecknoglobals
+	// A spinner frame shows only when the work outlasts one interval.
+	spinnerFrame = regexp.MustCompile("\r[⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏] [^\r\n]*") //nolint:gochecknoglobals
 )
 
 // normalize replaces what differs between runs and machines with placeholders.
@@ -163,6 +165,7 @@ func normalize(text string, replacements map[string]string) string {
 	}
 
 	text = ansiEsc.ReplaceAllString(text, "")
+	text = spinnerFrame.ReplaceAllString(text, "")
 	text = fileTime.ReplaceAllString(text, "<TIME_ID>")
 	text = isoTime.ReplaceAllString(text, "<TIME>")
 	text = isoDate.ReplaceAllString(text, "<DATE>$1")

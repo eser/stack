@@ -1,9 +1,10 @@
 ---
 id: TASK-228
 title: 'Skills, part one: tooling, JavaScript and testing rules'
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-10-15 20:38'
+updated_date: '2026-10-26 12:00'
 labels:
   - cutover
   - docs
@@ -38,7 +39,16 @@ Plan key: M1-T34. Effort: medium.
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 `git grep -ni 'deno\|jsr\|bun' .agents/skills/tooling-standards .agents/skills/javascript-practices .agents/skills/architecture-guidelines` returns nothing
-- [ ] #2 validate-skills and the eval trigger files pass
-- [ ] #3 Each rewritten rule keeps its Why line and cites ADR 0005 where the reason changed
+- [x] #1 `git grep -ni 'deno\|jsr\|bun' .agents/skills/tooling-standards .agents/skills/javascript-practices .agents/skills/architecture-guidelines` returns nothing
+- [x] #2 validate-skills and the eval trigger files pass
+- [x] #3 Each rewritten rule keeps its Why line and cites ADR 0005 where the reason changed
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+- tooling-standards: references/deno-and-packages.md is now node-and-packages.md (links updated in SKILL.md and scripts-and-editor.md). Tooling Preference names pnpm, `pnpm <script>`, `node --run`, `pnpm exec`, oxfmt, oxlint, `tsc --noEmit` and `node --test` (decision-20, decision-33). Configuration Files makes package.json the only manifest and lists tsconfig.json, .oxlintrc.json and .oxfmtrc.json. New rules Root devDependencies (ADR 0005 Appendix C) and Lockfile and Root Manifest Owner (Appendix D). Registry Preference is npm only (decision-5). Editor Configuration names oxfmt and the oxc extension. repo-conventions.md, the description, the Always list and evals/triggers.json are updated.
+- javascript-practices: Cross-Runtime APIs reframed per decision-16 (Node-only facade, runtime.exec and runtime.process.isStandalone, add missing APIs to the facade). New sections Erasable Syntax Only (erasableSyntaxOnly) and Explicit Export Types (isolatedDeclarations); Import Paths covers verbatimModuleSyntax and `with { type: "json" }`. testing.md: node:test, test-kit, the skip option, no .tsx tests, checkLeaks, no --test-force-exit, mitata benches.
+- architecture-guidelines: testing.md uses node:test and test-kit, describes per-file process isolation, drops the node:assert ban and the --trace-leaks rule; the runtime adapter rule in hexagonal-architecture.md and SKILL.md is reframed. docs/agents/architecture-and-code.md Tests section rewritten.
+- AC #1: `git grep -niw` on the three skills returns nothing; the literal (non-word) pattern matches only "bundle"/"bundler" substrings (laroux-bundler, the hexagonal bundler example). AC #2: validate-skills reports 0 errors and 0 warnings; the trigger files parse and were checked by hand against the new descriptions (the tree has no trigger runner). No behavior evals were run.
+<!-- SECTION:NOTES:END -->

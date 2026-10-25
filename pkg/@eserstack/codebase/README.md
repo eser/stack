@@ -119,11 +119,10 @@ npm has accepted the version — cut a new patch instead.
 | `validate-export-names`        | Validate export naming conventions             |
 | `validate-licenses`            | Validate license headers                       |
 | `validate-mod-exports`         | Detect modules no package entry point reaches  |
-| `validate-package-configs`     | Validate deno.json/package.json consistency    |
 | `validate-server-loc`          | Fail when a non-test file exceeds a line cap   |
 | `validate-error-coverage`      | Check error structs for required fields        |
 | `validate-self-imports`        | Detect a package importing its own name        |
-| `validate-runtime-js-apis`     | Detect `Deno.*`, `process.*` and `Bun.*` use   |
+| `validate-runtime-js-apis`     | Detect runtime globals outside `runtime`       |
 | `validate-code-conventions`    | Enforce namespace imports, `??`, no `export *` |
 
 Run any tool with `--help` for options:
@@ -169,9 +168,9 @@ workflows:
 
       # Shell commands for external tools
       - shell:
-          name: deno-formatter
-          command: deno fmt --check
-          fixCommand: deno fmt
+          name: formatter
+          command: oxfmt --check
+          fixCommand: oxfmt
       - shell:
           name: go-tests
           command: "go test -race ./..."
@@ -181,15 +180,14 @@ workflows:
 
 ### Baselines
 
-`validate-code-conventions` and `validate-runtime-js-apis` apply their rules to
-new code while existing code is migrated. They record the current violations per
-file in `.eser/baselines/code-conventions.json` and
-`.eser/baselines/runtime-js-apis.json` (the `baseline` step option points
+`validate-code-conventions` applies its rules to new code while existing code
+is migrated. It records the current violations per file in
+`.eser/baselines/code-conventions.json` (the `baseline` step option points
 elsewhere), and a file fails only when it has more violations than its baseline
 allows. After fixing violations, shrink the baseline:
 
 ```bash
-npx eser codebase validate-runtime-js-apis --write-baseline
+npx eser codebase validate-code-conventions --write-baseline
 ```
 
 ## 🔌 API Usage
@@ -255,7 +253,7 @@ package. The [changelog](https://github.com/eser/stack/blob/main/CHANGELOG.md)
 lists the changes in every package.
 
 - `versions()` rejects with `VersionWriteError` (with `targetVersion` and
-  `failures`) when a `package.json` or `deno.json` could not be written, and
+  `failures`) when a `package.json` could not be written, and
   does not write `VERSION`. It used to resolve and report those packages as
   updated. Catch it, fix the listed files, then rerun with the explicit target:
 
@@ -267,9 +265,9 @@ lists the changes in every package.
   ```
 
 - Validator help, `gh --help`, the `--write-baseline` result line of
-  `validate-code-conventions` and `validate-runtime-js-apis`, and the output of
+  `validate-code-conventions`, and the output of
   `validate-docs`, `validate-mod-exports`, `validate-export-names`,
-  `validate-package-configs`, `validate-circular-deps`, `validate-commit-msg`
+  `validate-circular-deps`, `validate-commit-msg`
   and the standalone `commitmsg` entry go through the shared CLI context. When
   stdout is not a TTY, that output is plain text on stderr instead of stdout.
   Capture both streams: `eser codebase validate-docs > report.txt` becomes
@@ -279,13 +277,23 @@ lists the changes in every package.
   path, so nothing was checked. Repeated `--exclude` flags all apply, where only
   the last one did. Pass real patterns and drop extra flags you relied on being
   ignored.
-- `validate-runtime-js-apis` also reports `process.*`, `globalThis.process.*`
-  and `Bun.*`, always runs the TypeScript check (no Go delegation), and skips
-  test files and `standards/cross-runtime/` on its own. Its message is now
-  `direct Deno API usage: X; use Y from @eserstack/standards/cross-runtime`.
-  Switch to `runtime` from `@eserstack/standards/cross-runtime`, list scripts
-  that run on one runtime by design in the step's `exclude`, or record existing
-  uses with `eser codebase validate-runtime-js-apis --write-baseline`.
+- `validate-runtime-js-apis` reports every reference to a runtime global other
+  than Node's in code (through `globalThis`, an alias or a `typeof` check
+  included), and members of Node's global `process`, in test files too;
+  only `standards/cross-runtime/` is skipped on its own. Text in comments and
+  string literals does not count. The check runs in Go and needs the native
+  library. Its message is `direct <runtime> API usage: X; use Y from
+  @eserstack/standards/cross-runtime`. It has no baseline any more:
+  `--write-baseline`, the `baseline` option and
+  `.eser/baselines/runtime-js-apis.json` are gone. Switch to `runtime` from
+  `@eserstack/standards/cross-runtime`, or list scripts that run without it by
+  design in the step's `exclude`.
+- `validate-package-configs` and the `./validate-package-configs` export are
+  removed: with package.json as the only package config there is nothing to
+  compare. Drop the step from `.eser/manifest.yml`.
+- The `./lint-plugin` export and its rules (`copyright-header`,
+  `no-top-level-arrow-exports`, `prefer-private-fields`) are removed;
+  `validate-licenses` still checks license headers.
 
 ---
 

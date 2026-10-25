@@ -67,7 +67,6 @@ const makeFixture = async (): Promise<string> => {
   return root;
 };
 
-// sanitizeResources: false — file-tool.ts transitively loads the FFI DynamicLibrary
 nodeTest.test(
   "validate-secrets: Go and TypeScript implementations agree",
   async () => {

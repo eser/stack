@@ -40,8 +40,9 @@ Rule:
 1. Start from the library recipe in `.eser/recipes/` (this codebase's
    `AGENTS.md` names it).
 2. Set the name, exports and dependencies in the recipe's `package.json`, which
-   already has `type: module` and declares internal dependencies as
-   `workspace:*`. Do not write `deno.json` by hand.
+   already has `type: module`, declares internal dependencies as `workspace:*`
+   and lists `@eserstack/test-kit` as a devDependency. It is the package's only
+   manifest.
 3. Give every source file the license header. `mod.ts` is the entry point and
    re-exports submodules as namespaces
    (`export * as results from
@@ -49,5 +50,6 @@ Rule:
    `main.ts`; there is no `index.ts`.
 4. Add `mod.test.ts` and a README (documentation-conventions: Package README
    Structure).
-5. Run `pnpm install` at the root to link it, then the full gate named in
-   AGENTS.md, which regenerates `deno.json` and validates everything.
+5. Run `pnpm install` at the root to link it, or ask the integration agent when
+   there is one (node-and-packages.md: Lockfile and Root Manifest Owner), then
+   the full gate named in AGENTS.md, which validates everything.

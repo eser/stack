@@ -115,6 +115,7 @@ workflows:
             # Release tooling: runs from a fresh checkout after publish and must
             # not depend on the workspace it just released (Deno-only scripts).
             - "etc/scripts/preflight-npm-consumer.ts"
+            - "etc/scripts/preflight-noskills-launcher.ts"
             # Run on a bare node with built-ins only, so they cannot import the
             # cross-runtime layer: a Claude Code hook, the skill validator and
             # the release-notes CI step.
@@ -258,6 +259,14 @@ workflows:
           command: "go test -race ./... &&
             cd pkg/@eserstack/ajan && go test -race ./..."
           timeout: 420
+      # flake.nix builds noskills with buildGoModule, whose vendorHash is the
+      # hash of `go mod vendor` and changes with go.sum (TASK-261). The fix
+      # command writes the new value.
+      - shell:
+          name: nix-vendor-hash
+          command: go run ./cmd/eser dev nix-vendor-hash --check
+          fixCommand: go run ./cmd/eser dev nix-vendor-hash
+          timeout: 300
 
   # Release preflight: every release-only step, run on main BEFORE a tag exists.
   #
@@ -322,14 +331,26 @@ workflows:
           name: compile-current
           command: go run ./cmd/eser dev compile --current-only
           timeout: 600
+      # The npm noskills launcher from a scratch install outside the repo:
+      # `npx noskills` must run this host's Go binary, staged into its
+      # platform package, and reach the TypeScript CLI it carries (TASK-261).
+      - shell:
+          name: npm-binaries-current
+          command: go run ./cmd/eser dev npm-binaries
+          timeout: 120
+      - shell:
+          name: noskills-launcher-install
+          command: deno run --allow-all ./etc/scripts/preflight-noskills-launcher.ts
+          timeout: 300
       # Installed v4.5.x laroux and noskills binaries update with the old
-      # TypeScript updater: it must find, verify and install the forwarding
-      # stubs, and the stubs must run the npm packages (decision-9). Local
-      # release and fake npx, no network; ESER_PREFLIGHT fails it without deno.
+      # TypeScript updater: it must find, verify and install the laroux
+      # forwarding stub, which must run the npm package (decision-9), and the
+      # Go noskills (TASK-261). Local release and fake npx, no network;
+      # ESER_PREFLIGHT fails it without deno.
       - shell:
           name: legacy-binary-update
           command: ESER_PREFLIGHT=1 go test -count=1 -run
-            TestLegacyBinariesUpdateToTheStubs ./cmd/legacy-forwarder
+            TestLegacyBinariesSelfUpdate ./cmd/legacy-forwarder
           timeout: 300
 
   - id: commit-validation

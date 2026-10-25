@@ -19,7 +19,8 @@ var errBuildsFailed = errors.New("some builds failed")
 
 // The release build commands (M3-T10, decision-39): `eser dev compile` writes
 // the release archives and SHA256SUMS.txt, `eser dev homebrew` and
-// `eser dev nix-hashes` follow a published release.
+// `eser dev nix-hashes` follow a published release, and dev_packages.go has
+// the npm platform packages and the flake's vendorHash.
 
 func (e *env) readVersion() (string, error) {
 	data, err := os.ReadFile(filepath.Join(e.cwd, "VERSION"))
@@ -90,7 +91,7 @@ func devCommand(e *env) *clifx.Command {
 			{
 				Name:  "compile",
 				Short: "Cross-compile the release binaries into archives and SHA256SUMS.txt",
-				Long: "Builds eser, noskills-server and the laroux and noskills forwarding stubs " +
+				Long: "Builds eser, noskills, noskills-server and the laroux forwarding stub " +
 					"(cmd/legacy-forwarder) with CGO_ENABLED=0 for the five release targets into " +
 					"<name>-v<version>-<triple>.tar.gz (.zip on Windows) and SHA256SUMS.txt. SOURCE_DATE_EPOCH " +
 					"sets the time stored in the archives.",
@@ -240,6 +241,8 @@ func devCommand(e *env) *clifx.Command {
 					return nil
 				},
 			},
+			devNpmBinariesCommand(e),
+			devNixVendorHashCommand(e),
 		},
 	}
 }

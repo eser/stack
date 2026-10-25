@@ -17,6 +17,10 @@ import (
 
 var errNotFound = errors.New("executable file not found in $PATH")
 
+// envPlugin is where the eser npm launcher lists plugin bins; the TypeScript
+// CLI lookup must not read it.
+const envPlugin = "ESER_PLUGIN_PATH"
+
 // processCall is one program the CLI started.
 type processCall struct {
 	name    string
@@ -170,6 +174,11 @@ func TestForwardFindsTheTypeScriptCLI(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	bundle := filepath.Join(t.TempDir(), "ts", "noskills.js")
+	writeFile(t, bundle, "// the TypeScript CLI bundle\n")
+
+	npx := map[string]string{"npx": "/bin/npx"}
+
 	cases := []struct {
 		name    string
 		vars    map[string]string
@@ -181,12 +190,19 @@ func TestForwardFindsTheTypeScriptCLI(t *testing.T) {
 		stderr  string
 	}{
 		{
-			name: "NOSKILLS_TS_CLI first", vars: map[string]string{envTSCLI: " node  /repo/main.ts ", envPlugin: pluginDir},
-			paths: map[string]string{"npx": "/bin/npx"}, program: "node", args: []string{"/repo/main.ts", "manager", "list"},
+			name: "NOSKILLS_TS_CLI first", vars: map[string]string{envTSCLI: " node  /repo/main.ts ", envTSBundle: bundle},
+			paths: npx, program: "node", args: []string{"/repo/main.ts", "manager", "list"},
 		},
-		{name: "the eser plugin path", vars: map[string]string{envPlugin: ":" + pluginDir}, program: filepath.Join(pluginDir, "noskills"), args: []string{"manager", "list"}},
-		{name: "npx with the version", paths: map[string]string{"npx": "/bin/npx"}, version: "4.5.2", program: "/bin/npx", args: []string{"--yes", "noskills@4.5.2", "manager", "list"}},
-		{name: "npx for a dev build", paths: map[string]string{"npx": "/bin/npx"}, version: "dev", program: "/bin/npx", args: []string{"--yes", "noskills", "manager", "list"}},
+		{
+			name: "the bundle of the npm launcher", vars: map[string]string{envTSBundle: bundle, envPlugin: pluginDir},
+			paths: map[string]string{"npx": "/bin/npx", "node": "/bin/node"}, program: "/bin/node", args: []string{bundle, "manager", "list"},
+		},
+		{name: "a bundle without node", vars: map[string]string{envTSBundle: bundle}, paths: npx, code: 1, stderr: "node is not on PATH"},
+		{name: "a missing bundle", vars: map[string]string{envTSBundle: bundle + ".gone"}, paths: npx, code: 1, stderr: "reinstall the noskills npm package"},
+		{name: "the eser plugin path is not the TypeScript CLI", vars: map[string]string{envPlugin: pluginDir}, paths: npx, program: "/bin/npx", args: []string{"--yes", "noskills@4.5.2", "manager", "list"}},
+		{name: "npx with the version", paths: npx, version: "4.5.2", program: "/bin/npx", args: []string{"--yes", "noskills@4.5.2", "manager", "list"}},
+		{name: "npx for a dev build", paths: npx, version: "dev", program: "/bin/npx", args: []string{"--yes", "noskills", "manager", "list"}},
+		{name: "no second npx hop", vars: map[string]string{envViaNpx: "1"}, paths: npx, code: 1, stderr: "ran this binary without its TypeScript CLI"},
 		{name: "nothing found", code: 1, stderr: "set NOSKILLS_TS_CLI"},
 		{name: "forwarding off", vars: map[string]string{envNoForward: "1", envTSCLI: "node x"}, code: 1, stderr: "NOSKILLS_NO_FORWARD is set"},
 	}
@@ -231,17 +247,37 @@ func TestForwardFindsTheTypeScriptCLI(t *testing.T) {
 	}
 }
 
-func TestForwardSkipsThisBinaryOnThePluginPath(t *testing.T) {
+// The npm noskills package is a launcher for this binary (TASK-261), so
+// `npx noskills@<version>` runs this binary again. The npx run is marked, and
+// a binary started from it never takes the npx step a second time.
+func TestForwardMarksTheNpxRun(t *testing.T) {
 	t.Parallel()
 
 	te := newTestEnv(t, t.TempDir())
-	te.vars[envPlugin] = filepath.Dir(te.self(t))
 	te.paths["npx"] = "/bin/npx"
 
 	run(context.Background(), te.env, []string{"manager"})
 
-	if len(te.calls) != 1 || te.calls[0].name != "/bin/npx" {
-		t.Errorf("ran %+v", te.calls)
+	if len(te.calls) != 1 || !slices.Contains(te.calls[0].environ, envViaNpx+"=1") {
+		t.Fatalf("ran %+v without %s=1", te.calls, envViaNpx)
+	}
+
+	again := newTestEnv(t, t.TempDir())
+	again.paths["npx"] = "/bin/npx"
+	again.vars[envViaNpx] = "1"
+
+	if code := run(context.Background(), again.env, []string{"manager"}); code != 1 || len(again.calls) != 0 {
+		t.Errorf("exit %d, ran %+v: the second binary went back to npx", code, again.calls)
+	}
+
+	bundled := newTestEnv(t, t.TempDir())
+	bundled.paths["node"] = "/bin/node"
+	bundled.vars[envTSBundle] = filepath.Join(t.TempDir(), "noskills.js")
+	bundled.vars[envViaNpx] = "1"
+	writeFile(t, bundled.vars[envTSBundle], "")
+
+	if code := run(context.Background(), bundled.env, []string{"manager"}); code != 0 || len(bundled.calls) != 1 || bundled.calls[0].name != "/bin/node" {
+		t.Errorf("exit %d, ran %+v: the launcher's bundle should run", code, bundled.calls)
 	}
 }
 

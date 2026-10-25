@@ -102,7 +102,7 @@ func TestDevHomebrewAndNixDryRun(t *testing.T) {
 		t.Fatalf("exit %d: %s", code, stderr)
 	}
 
-	// The forwarding stubs keep the laroux and noskills formulas updated.
+	// The laroux stub and the Go noskills keep their formulas updated.
 	if !strings.Contains(out, "Formulas: eser.rb, laroux.rb, noskills-server.rb, noskills.rb\n") || strings.Contains(out, "Left as they are") {
 		t.Errorf("homebrew dry run:\n%s", out)
 	}

@@ -70,3 +70,7 @@ docs/api/
 # output that `make ajan-packages` stages; the manifests are committed.
 /pkg/@eserstack/ajan-*/libeser_ajan.*
 /pkg/@eserstack/ajan-wasm/*.wasm
+# The noskills binaries that `eser dev npm-binaries` stages; the manifests are
+# committed.
+/pkg/@eserstack/noskills-*-*/noskills
+/pkg/@eserstack/noskills-*-*/noskills.exe

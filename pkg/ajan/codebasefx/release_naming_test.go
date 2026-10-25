@@ -136,3 +136,19 @@ func TestDistributionTriplesAreBuilt(t *testing.T) {
 		}
 	}
 }
+
+// install.ps1 installs any product of the release, so its messages name the
+// product it installs; it used to announce noskills-server for every one.
+func TestInstallPs1NamesTheProductItInstalls(t *testing.T) {
+	t.Parallel()
+
+	ps1 := readRepoFile(t, "etc/scripts/install.ps1")
+
+	if !strings.Contains(ps1, `"Installing $Product v$Version`) || strings.Contains(ps1, `"Installing noskills-server v$Version`) {
+		t.Error("install.ps1 should announce the product it installs, not noskills-server")
+	}
+
+	if !regexp.MustCompile(`if \(\$Product -eq 'noskills-server'\) \{\s+Write-Host ''\s+Write-Host 'Start the daemon:'`).MatchString(ps1) {
+		t.Error("install.ps1 should print the daemon's start hint for noskills-server only")
+	}
+}

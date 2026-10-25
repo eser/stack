@@ -3,7 +3,8 @@
 /**
  * Runs the self-update flow that installed v4.5.x laroux and noskills
  * binaries carry (update.ts, updateCompiledBinary) against a local release,
- * for legacy_update_test.go.
+ * for legacy_update_test.go: laroux updates to the forwarding stub, noskills
+ * to the Go noskills.
  *
  * It runs under `deno run`, not as a compiled binary, so it points execPath
  * at the binary fixture and sends the GitHub API and release download URLs

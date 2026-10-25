@@ -18,10 +18,20 @@ release-and-ci skill refers to.
 - The preflight builds the three npm bundles, installs the CLI outside the repo
   from a packed tarball, runs `deno publish --dry-run`, builds the native and
   wasm ajan libraries, runs the release compile for the host
-  (`eser dev compile --current-only`), runs `eser dev homebrew` and
-  `eser dev nix-hashes` in dry-run mode, and runs the old TypeScript updater of
-  a v4.5.2 laroux and noskills against a local release of the forwarding stubs
+  (`eser dev compile --current-only`), stages the host's noskills binary into
+  its npm platform package (`eser dev npm-binaries`) and installs the packed
+  noskills launcher outside the repo (`etc/scripts/preflight-noskills-launcher.ts`),
+  runs `eser dev homebrew` and `eser dev nix-hashes` in dry-run mode, and runs
+  the old TypeScript updater of a v4.5.2 laroux and noskills against a local
+  release of the laroux stub and the Go noskills
   (`cmd/legacy-forwarder/legacy_update_test.go`).
+- The install dry runs are Go tests in `cmd/noskills/install_dry_run_test.go`:
+  install.sh runs in `go test ./...`; install.ps1 needs Windows and
+  `ESER_INSTALL_PS1_DRY_RUN=1`, the Homebrew formula needs brew and
+  `ESER_HOMEBREW_DRY_RUN=1` (both change the machine while they run). The
+  flake's `noskills` package is checked with `nix build .#noskills`, and the
+  precommit step `nix-vendor-hash` keeps its `vendorHash` in step with
+  `go.sum`.
 - Tag runs are watched at https://github.com/eser/stack/actions.
 
 ## Release Run in build.yml
@@ -56,12 +66,20 @@ both Go modules).
   (`pkg/@eserstack/noskills/scripts/npm-build.ts`) and `laroux`
   (`pkg/@eserstack/laroux-server/scripts/npm-build.ts`). `smoke-test` builds
   them and `publish` runs `pnpm publish --provenance --access public` for each.
+  `noskills` is a launcher for the Go binary (`dist/noskills.js`) and carries
+  the TypeScript CLI in `dist/ts/` for the commands the binary forwards.
 - **Go modules:** not published. `noskills-server` and the bridge library are
   built from the release tag; the modules get no tags of their own.
 - **npm platform packages:** the six `@eserstack/ajan-*` packages carry the
   prebuilt Go library. `make ajan-lib TARGET=<id>` and `make ajan-wasm` build it
   and `make ajan-packages` stages it into each package;
-  `publish-ajan` publishes them before the bundles need them.
+  `publish-ajan` publishes them before the bundles need them. The five
+  `@eserstack/noskills-<platform>` packages (`darwin-arm64`, `darwin-x64`,
+  `linux-arm64`, `linux-x64`, `win32-x64`) carry the Go `noskills` binary:
+  `eser dev compile` builds it and `eser dev npm-binaries` stages it into each
+  package. They must be on npm before `noskills@<version>`, which pins them.
+  None of the five exists on npm yet, so each needs the one-time bootstrap
+  below and a trusted publisher.
 - **New npm packages:** published once by hand from the artifacts of
   `publish-ajan.yml` in bootstrap mode, then given a trusted publisher.
 - **Exact pins:** `cli` and `ajan` declare the platform packages with

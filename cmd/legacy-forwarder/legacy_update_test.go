@@ -19,18 +19,19 @@ import (
 // fixtures' 4.5.2 is an update for them.
 const legacyRelease = "5.0.0"
 
-// TestLegacyBinariesUpdateToTheStubs is the legacy-update preflight
-// (TASK-253, decision-9): `eser dev compile` builds the laroux and noskills
-// stubs for the host, a local server serves them as release v5.0.0, and the
-// TypeScript updater that installed v4.5.x binaries run
+// TestLegacyBinariesSelfUpdate is the legacy-update preflight (TASK-253,
+// TASK-261, decision-9): `eser dev compile` builds the laroux stub and the
+// Go noskills for the host, a local server serves them as release v5.0.0,
+// and the TypeScript updater that installed v4.5.x binaries run
 // (testdata/legacy_update.ts around update.ts) updates a v4.5.2 laroux and
-// noskills fixture from it, checksum included. The installed stub must then
-// run the npm package through npx. Nothing leaves the machine: the harness
-// fails any URL it does not send to the local server, and npx is a fake.
+// noskills fixture from it, checksum included. The laroux fixture must then
+// be the stub and run the npm package through npx; the noskills fixture must
+// be the Go noskills. Nothing leaves the machine: the harness fails any URL
+// it does not send to the local server, and npx is a fake.
 //
 // It needs deno, which runs update.ts; without deno it is skipped, unless
 // ESER_PREFLIGHT is set, as the preflight workflow does.
-func TestLegacyBinariesUpdateToTheStubs(t *testing.T) {
+func TestLegacyBinariesSelfUpdate(t *testing.T) {
 	t.Parallel()
 
 	if runtime.GOOS == "windows" {
@@ -38,7 +39,7 @@ func TestLegacyBinariesUpdateToTheStubs(t *testing.T) {
 	}
 
 	if testing.Short() {
-		t.Skip("builds the stubs and runs deno")
+		t.Skip("builds the release binaries and runs deno")
 	}
 
 	deno, err := exec.LookPath("deno")
@@ -60,15 +61,16 @@ func TestLegacyBinariesUpdateToTheStubs(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	stubs := make([]codebasefx.ReleaseBinary, 0, 2) //nolint:mnd // laroux and noskills
+	legacy := make(map[string]codebasefx.ReleaseBinary, 2) //nolint:mnd // laroux and noskills
 	for _, binary := range codebasefx.ReleaseBinaries {
-		if binary.Main == "./cmd/legacy-forwarder" {
-			stubs = append(stubs, binary)
+		if binary.Name == "laroux" || binary.Name == "noskills" {
+			legacy[binary.Name] = binary
 		}
 	}
 
-	if len(stubs) != 2 { //nolint:mnd // laroux and noskills
-		t.Fatalf("ReleaseBinaries has %d forwarding stubs, want laroux and noskills", len(stubs))
+	if legacy["laroux"].Main != "./cmd/legacy-forwarder" || legacy["noskills"].Main != "./cmd/noskills" {
+		t.Fatalf("ReleaseBinaries builds laroux from %q and noskills from %q, want the stub and cmd/noskills",
+			legacy["laroux"].Main, legacy["noskills"].Main)
 	}
 
 	downloads := t.TempDir()
@@ -78,54 +80,85 @@ func TestLegacyBinariesUpdateToTheStubs(t *testing.T) {
 		OutDir:   filepath.Join(downloads, "v"+legacyRelease),
 		Version:  legacyRelease,
 		Targets:  []codebasefx.ReleaseTarget{host},
-		Binaries: stubs,
+		Binaries: []codebasefx.ReleaseBinary{legacy["laroux"], legacy["noskills"]},
 	})
 	if err != nil || len(result.Failed) > 0 {
-		t.Fatalf("compile the stubs: %v %v", err, result)
+		t.Fatalf("compile laroux and noskills: %v %v", err, result)
 	}
 
 	server := httptest.NewServer(localRelease(downloads))
 	t.Cleanup(server.Close)
 
-	for _, stub := range stubs {
-		t.Run(stub.Name, func(t *testing.T) {
+	for _, binary := range []codebasefx.ReleaseBinary{legacy["laroux"], legacy["noskills"]} {
+		t.Run(binary.Name, func(t *testing.T) {
 			t.Parallel()
 
-			fixture := filepath.Join(t.TempDir(), stub.Name)
-			if err := os.WriteFile(fixture, []byte("#!/bin/sh\necho "+stub.Name+" 4.5.2\n"), 0o755); err != nil { //nolint:gosec // G306: an executable
+			fixture := filepath.Join(t.TempDir(), binary.Name)
+			if err := os.WriteFile(fixture, []byte("#!/bin/sh\necho "+binary.Name+" 4.5.2\n"), 0o755); err != nil { //nolint:gosec // G306: an executable
 				t.Fatal(err)
 			}
 
-			out := runOldUpdater(t, deno, root, server.URL, fixture, stub.Name)
+			out := runOldUpdater(t, deno, root, server.URL, fixture, binary.Name)
 
-			archive := codebasefx.ArchiveFileName(stub.Name, legacyRelease, host)
+			archive := codebasefx.ArchiveFileName(binary.Name, legacyRelease, host)
 			for _, want := range []string{"Downloading " + archive + "...", "Checksum verified.", "Updated to v" + legacyRelease + "!"} {
 				if !strings.Contains(out, want) {
 					t.Errorf("the update output should contain %q:\n%s", want, out)
 				}
 			}
 
-			version, err := exec.Command(fixture, "version").CombinedOutput() //nolint:gosec,noctx // the installed stub
-			if err != nil || !strings.HasPrefix(string(version), stub.Name+" "+legacyRelease+"\n") {
-				t.Fatalf("the fixture is not the stub after the update: %v\n%s", err, version)
+			version, err := exec.Command(fixture, "version").CombinedOutput() //nolint:gosec,noctx // the installed binary
+			if err != nil || !strings.HasPrefix(string(version), binary.Name+" "+legacyRelease+"\n") {
+				t.Fatalf("the fixture is not the v%s %s after the update: %v\n%s", legacyRelease, binary.Name, err, version)
 			}
 
-			npxDir := t.TempDir()
-			installFakeNpx(t, npxDir)
-
-			record := filepath.Join(t.TempDir(), "record")
-			run := exec.Command(fixture, "init", "--yes") //nolint:gosec,noctx // the installed stub
-			run.Env = []string{"PATH=" + npxDir, fakeNpxRecord + "=" + record, fakeNpxExit + "=0"}
-
-			if output, err := run.CombinedOutput(); err != nil {
-				t.Fatalf("the stub did not forward: %v\n%s", err, output)
-			}
-
-			data, _ := os.ReadFile(record) //nolint:gosec // the test's own file
-			if want := "guard=" + stub.Name + "\n--yes\n" + stub.Name + "@" + legacyRelease + "\ninit\n--yes"; string(data) != want {
-				t.Errorf("npx ran with %q, want %q", data, want)
+			if binary.Name == "noskills" {
+				assertGoNoskills(t, fixture)
+			} else {
+				assertForwardsToNpx(t, fixture, binary.Name)
 			}
 		})
+	}
+}
+
+// assertGoNoskills checks that the updated fixture is cmd/noskills: its JSON
+// version names the Go runtime, and it answers a hook itself.
+func assertGoNoskills(t *testing.T, fixture string) {
+	t.Helper()
+
+	out, err := exec.Command(fixture, "version", "--json").CombinedOutput() //nolint:gosec,noctx // the installed binary
+	if err != nil || !strings.Contains(string(out), `"runtime": "go"`) || !strings.Contains(string(out), `"version": "`+legacyRelease+`"`) {
+		t.Fatalf("noskills version --json: %v\n%s", err, out)
+	}
+
+	hook := exec.Command(fixture, "invoke-hook", "unknown-event") //nolint:gosec,noctx // the installed binary
+	hook.Dir = t.TempDir()
+	hook.Env = []string{"PATH=" + t.TempDir(), "NOSKILLS_NO_FORWARD=1"}
+
+	if output, err := hook.CombinedOutput(); err != nil {
+		t.Errorf("the Go noskills did not answer a hook itself: %v\n%s", err, output)
+	}
+}
+
+// assertForwardsToNpx checks that the updated fixture is the stub: it runs
+// the npm package through npx.
+func assertForwardsToNpx(t *testing.T, fixture, name string) {
+	t.Helper()
+
+	npxDir := t.TempDir()
+	installFakeNpx(t, npxDir)
+
+	record := filepath.Join(t.TempDir(), "record")
+	run := exec.Command(fixture, "init", "--yes") //nolint:gosec,noctx // the installed stub
+	run.Env = []string{"PATH=" + npxDir, fakeNpxRecord + "=" + record, fakeNpxExit + "=0"}
+
+	if output, err := run.CombinedOutput(); err != nil {
+		t.Fatalf("the stub did not forward: %v\n%s", err, output)
+	}
+
+	data, _ := os.ReadFile(record) //nolint:gosec // the test's own file
+	if want := "guard=" + name + "\n--yes\n" + name + "@" + legacyRelease + "\ninit\n--yes"; string(data) != want {
+		t.Errorf("npx ran with %q, want %q", data, want)
 	}
 }
 

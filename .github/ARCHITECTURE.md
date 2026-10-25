@@ -119,10 +119,14 @@ Go (module github.com/eser/ajan, pkg/@eserstack/ajan/go.mod)
 `@eserstack/ajan` and `@eserstack/cli` list the six platform packages as
 optional dependencies. The release binaries are Go commands built by
 `eser dev compile` (`ReleaseBinaries` in `pkg/ajan/codebasefx`): `eser`
-(`cmd/eser`) and `noskills-server` (decision-8). `noskills` and `laroux` ship on
-npm; under their archive names the release ships `cmd/legacy-forwarder`, a stub
-built once per name that installed v4.5.x binaries update to and that runs
-`npx --yes <name>@<version>` (decision-9).
+(`cmd/eser`), `noskills` (`cmd/noskills`) and `noskills-server` (decision-8). On
+npm, `noskills` is a launcher: its optional dependencies
+`@eserstack/noskills-<platform>` carry the binary (`eser dev npm-binaries`
+stages it), and it also carries the TypeScript CLI for the commands the binary
+forwards. `laroux` ships on npm only; under its archive name the release ships
+`cmd/legacy-forwarder`, a stub that installed v4.5.x laroux binaries update to
+and that runs `npx --yes laroux@<version>` (decision-9). The flake builds
+`noskills` from source with `buildGoModule`.
 
 ## Agent execution (ACP)
 
@@ -200,8 +204,8 @@ Developer runs:  eser codebase release patch
 │       │           └─ release-notes  changelog section       │
 │       │                              → GitHub Release       │
 │       └─ build-ajan-darwin                                  │
-│           └─ compile-binaries  eser, noskills, laroux       │
-│               │  (deno compile) + noskills-server (go)      │
+│           └─ compile-binaries  eser, noskills, laroux stub, │
+│               │  noskills-server (all Go)                   │
 │               │  → <binary>-v<version>-<triple>.tar.gz      │
 │               │    and SHA256SUMS.txt                       │
 │               ├─ publish-ajan  @eserstack/ajan platform     │

@@ -2,8 +2,9 @@
 
 // legacy-forwarder is the forwarding stub shipped under the release archive
 // names of tools that no longer ship as standalone binaries (decision-9).
-// Installed v4.5.x laroux and noskills binaries self-update to it, and from
-// then on it runs the npm package of the same name:
+// Installed v4.5.x laroux binaries self-update to it, and from then on it
+// runs the npm package of the same name (noskills had a stub too, until
+// cmd/noskills took its archive name in TASK-261):
 //
 //	<name> <args>      runs npx --yes <name>@<version> <args>, or prints
 //	                   `npm i -g <name>` when npx is not on PATH
@@ -17,7 +18,7 @@
 //
 //	go build -ldflags "-X main.name=laroux -X main.version=$(cat VERSION)" ./cmd/legacy-forwarder
 //
-// ADR 0005 records when the stubs stop being built.
+// ADR 0005 records when the laroux stub stops being built.
 package main
 
 import (

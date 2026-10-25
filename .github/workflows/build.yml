@@ -439,8 +439,11 @@ jobs:
       - name: Smoke test — eser validate-licenses
         run: node pkg/@eserstack/cli/dist/eser.js codebase validate-licenses || true
 
-      - name: Smoke test — noskills help
-        run: node pkg/@eserstack/noskills/dist/noskills.js --help
+      # dist/noskills.js is the launcher of the Go binary, which this job does
+      # not build (the preflight installs the packed launcher with it); the
+      # TypeScript CLI the launcher carries is smoke-tested here.
+      - name: Smoke test — noskills help (TypeScript CLI bundle)
+        run: node pkg/@eserstack/noskills/dist/ts/noskills.js --help
 
       - name: Smoke test — laroux help
         run: node pkg/@eserstack/laroux-server/dist/laroux.js --help
@@ -818,6 +821,16 @@ jobs:
             -ArchivePath noskills-server-v0.0.0-x86_64-pc-windows-msvc.zip `
             -InstallDir "$env:RUNNER_TEMP\eser-bin"
 
+      # install.ps1's download, checksum and install path for noskills, from
+      # a local release of the Go noskills built from this tree, with
+      # Invoke-RestMethod and Invoke-WebRequest answered locally
+      # (cmd/noskills/testdata/install_dry_run.ps1). It writes the runner's
+      # user PATH, which is why the test needs ESER_INSTALL_PS1_DRY_RUN.
+      - name: Dry-run install.ps1 for noskills
+        env:
+          ESER_INSTALL_PS1_DRY_RUN: "1"
+        run: go test -count=1 -run TestInstallPs1InstallsTheGoNoskills -v ./cmd/noskills
+
       - name: Assert the installed binaries resolve on PATH
         run: |
           # Re-read the stored user PATH the installer wrote. A fresh step gets a
@@ -1184,6 +1197,12 @@ jobs:
       - name: Compile for all platforms
         run: SOURCE_DATE_EPOCH="$(git log -1 --format=%ct)" go run ./cmd/eser dev compile
 
+      # Copies the noskills binary of each target into its workspace member
+      # (pkg/@eserstack/noskills-<platform>/), which the noskills npm launcher
+      # pins as an optional dependency; the manifests are committed.
+      - name: Stage noskills binaries into their npm packages
+        run: go run ./cmd/eser dev npm-binaries
+
       - name: Upload binary bundle
         uses: actions/upload-artifact@v7
         with:
@@ -1191,9 +1210,10 @@ jobs:
           path: etc/temp/binaries/
 
       # The least-common-ancestor of the paths is pkg/@eserstack/, so the
-      # artifact extracts as ajan-<platform>/ directories — each a complete,
-      # publishable package (committed manifest + staged binary).
-      - name: Upload ajan platform packages
+      # artifact extracts as ajan-<platform>/ and noskills-<platform>/
+      # directories — each a complete, publishable package (committed manifest
+      # + staged binary).
+      - name: Upload ajan and noskills platform packages
         uses: actions/upload-artifact@v7
         with:
           name: ajan-npm-packages
@@ -1202,6 +1222,10 @@ jobs:
             pkg/@eserstack/ajan-*/README.md
             pkg/@eserstack/ajan-*/libeser_ajan.*
             pkg/@eserstack/ajan-*/*.wasm
+            pkg/@eserstack/noskills-*-*/package.json
+            pkg/@eserstack/noskills-*-*/README.md
+            pkg/@eserstack/noskills-*-*/noskills
+            pkg/@eserstack/noskills-*-*/noskills.exe
           if-no-files-found: error
 
   # ── Release: publish ajan npm packages ─────────────────────
@@ -1259,13 +1283,13 @@ jobs:
       # A real publish error FAILS the job (only versions already on npm are
       # skipped) — the previous `|| echo "may already exist"` swallowed ENEEDAUTH
       # and published nothing while going green.
-      - name: Publish ajan platform packages to npm
+      - name: Publish ajan and noskills platform packages to npm
         run: |
           set -euo pipefail
           published=0
           skipped=0
           untrusted=""
-          for dir in ajan-npm/ajan-*/; do
+          for dir in ajan-npm/ajan-*/ ajan-npm/noskills-*-*/; do
             [ -f "$dir/package.json" ] || continue
             name=$(node -p "require('./$dir/package.json').name")
             version=$(node -p "require('./$dir/package.json').version")
@@ -1294,7 +1318,7 @@ jobs:
           echo "Done: $published published, $skipped already-present."
           if [ -n "$untrusted" ]; then
             {
-              echo "### ajan platform packages missing an npm trusted publisher"
+              echo "### platform packages missing an npm trusted publisher"
               echo ""
               echo "npm returned 404 on PUT for:$untrusted"
               echo ""
@@ -1304,7 +1328,8 @@ jobs:
             exit 1
           fi
           # No root @eserstack/ajan meta-package — the eser CLI lists
-          # @eserstack/ajan-* as optionalDependencies directly.
+          # @eserstack/ajan-* as optionalDependencies directly, and the
+          # noskills launcher lists @eserstack/noskills-* the same way.
 
   # ── Release: upload assets + sign ─────────────────────────────
   upload-assets:

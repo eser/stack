@@ -30,6 +30,7 @@ const detect = (
   envVars?: Record<string, string | undefined>,
   mainModule?: string,
   isDevContext?: boolean,
+  isStandalone?: boolean,
 ) =>
   execCtx.detectInvoker(
     execBasename,
@@ -38,6 +39,7 @@ const detect = (
     envVars ?? {},
     mainModule,
     isDevContext,
+    isStandalone,
   );
 
 // =============================================================================
@@ -46,6 +48,41 @@ const detect = (
 
 bdd.describe("detectInvoker", () => {
   bdd.describe("compiled binary detection", () => {
+    // A deno compile binary still has globalThis.Deno, so detectRuntime()
+    // reports "deno" there.
+    bdd.it(
+      "should detect deno compile output that reports runtime deno",
+      () => {
+        assert.assertEquals(
+          detect(
+            "laroux",
+            "deno",
+            ["/usr/local/bin/laroux", "update"],
+            {},
+            "file:///tmp/deno-compile-laroux/cli.ts",
+            false,
+            true,
+          ),
+          { invoker: "binary", mode: "installed" },
+        );
+      },
+    );
+
+    bdd.it("should detect deno compile output even when named deno", () => {
+      assert.assertEquals(
+        detect(
+          "deno",
+          "deno",
+          ["/usr/local/bin/deno"],
+          {},
+          undefined,
+          false,
+          true,
+        ),
+        { invoker: "binary", mode: "installed" },
+      );
+    });
+
     bdd.it("should detect deno compile output by custom binary name", () => {
       assert.assertEquals(
         detect("eser", "unknown", ["/usr/local/bin/eser", "init"]),

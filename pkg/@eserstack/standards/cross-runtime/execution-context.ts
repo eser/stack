@@ -138,6 +138,7 @@ const KNOWN_RUNTIMES = new Set(["deno", "node", "bun"]);
  *
  * Decision tree:
  * ```
+ * isStandalone=true               → binary/installed
  * runtime not in [deno,node,bun]  → binary/installed
  * runtime="bun":
  *   BUN_INSTALL set               → bun/installed
@@ -162,7 +163,13 @@ export const detectInvoker = (
   envVars: Record<string, string | undefined>,
   mainModule?: string,
   isDevContext?: boolean,
+  isStandalone?: boolean,
 ): { invoker: CliInvoker; mode: CliMode } => {
+  // A deno compile binary reports runtime "deno" and may even be named deno.
+  if (isStandalone === true) {
+    return { invoker: "binary", mode: "installed" };
+  }
+
   // Use execBasename when it's a known runtime, otherwise fall back to
   // runtimeName (from detectRuntime). Handles custom binary names like
   // "node20", "n25.0" from version managers (nvm, fnm, volta, etc.).
@@ -391,12 +398,15 @@ export const detectExecutionContext = async (
     mod.runtime.process.execPath(),
   );
   const runtimeName = shared.detectRuntime();
+  const isStandalone = shared.isStandaloneBinary();
   const argv = mod.runtime.process.argv;
   const mainModule = import.meta.url;
 
   // Resolve the effective runtime: prefer execBasename, fall back to
   // detectRuntime() for custom binary names (nvm, fnm, volta, etc.)
-  const effectiveRuntime = KNOWN_RUNTIMES.has(execBasename)
+  const effectiveRuntime = isStandalone
+    ? "compiled"
+    : KNOWN_RUNTIMES.has(execBasename)
     ? execBasename
     : runtimeName;
 
@@ -455,6 +465,7 @@ export const detectExecutionContext = async (
     envVars,
     mainModule,
     isDevContext,
+    isStandalone,
   );
 
   const runtime: CliRuntime = KNOWN_RUNTIMES.has(effectiveRuntime)

@@ -280,6 +280,13 @@ const PLATFORM_MAP: Record<string, Platform> = {
 };
 
 /**
+ * Reports whether this program is a `deno compile` binary. Such a binary
+ * still has `globalThis.Deno`, so `detectRuntime()` reports "deno" in it.
+ */
+export const isStandaloneBinary = (): boolean =>
+  typeof Deno !== "undefined" && Deno.build?.standalone === true;
+
+/**
  * Detects the current operating system platform.
  * Returns Go-style platform names for consistency.
  */

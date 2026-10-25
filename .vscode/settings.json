@@ -6,20 +6,12 @@
   "coverage-gutters.showGutterCoverage": true,
   "coverage-gutters.showLineCoverage": true,
   "coverage-gutters.showRulerCoverage": true,
-  "deno.cacheOnSave": true,
-  "deno.codeLens.implementations": true,
-  "deno.codeLens.references": true,
-  "deno.codeLens.referencesAllFunctions": true,
-  "deno.codeLens.test": true,
-  "deno.enable": true,
-  "deno.lint": true,
-  "deno.suggest.imports.autoDiscover": true,
-  "editor.defaultFormatter": "denoland.vscode-deno",
+  "editor.defaultFormatter": "oxc.oxc-vscode",
   "yaml.schemas": {
     "https://json.schemastore.org/github-workflow.json": "./.github/workflows/*.yml"
   },
-  "[typescript][typescriptreact][javascript][javascriptreact][markdown]": {
-    "editor.defaultFormatter": "denoland.vscode-deno"
+  "[typescript][typescriptreact][javascript][javascriptreact][json][jsonc][markdown]": {
+    "editor.defaultFormatter": "oxc.oxc-vscode"
   },
   "files.associations": {
     "*.mdoc": "markdown",

@@ -5,9 +5,9 @@
  * given as arguments) against the format in references/skill-format.md, and
  * checks that the eser-rules-manager tables list every skill.
  *
- * Uses only Node built-ins so it runs without an install:
+ * Uses only Node built-ins so it runs without an install, through Node's
+ * built-in type stripping:
  *   node .agents/skills/eser-rules-manager/scripts/validate-skills.ts
- *   deno run --allow-read .agents/skills/eser-rules-manager/scripts/validate-skills.ts
  *
  * `--fix` rewrites the `## Contents` list of every reference file longer than
  * the table-of-contents threshold before validating.

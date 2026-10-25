@@ -125,10 +125,8 @@
 
         devShells.default = pkgs.mkShell {
           buildInputs = with pkgs; [
-            deno
             go
             nodejs
-            bun
             git
           ];
         };

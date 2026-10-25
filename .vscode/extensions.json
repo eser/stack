@@ -1,6 +1,6 @@
 {
   "recommendations": [
-    "denoland.vscode-deno",
+    "oxc.oxc-vscode",
     "ryanluker.vscode-coverage-gutters"
   ]
 }

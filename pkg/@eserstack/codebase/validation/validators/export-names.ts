@@ -12,7 +12,7 @@ import type { Validator, ValidatorResult } from "../types.ts";
 /**
  * Validator for checking export naming conventions
  *
- * This validator requires the 'javascript' stack (Deno specific).
+ * This validator requires the 'javascript' stack.
  */
 export const exportNamesValidator: Validator = {
   name: "validate-export-names",

@@ -5,6 +5,7 @@ import * as bdd from "node:test";
 import * as tarStream from "@std/tar/tar-stream";
 import { runtime } from "@eserstack/standards/cross-runtime";
 import * as tarModule from "./tar.ts";
+import * as testing from "./testing.ts";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -34,11 +35,13 @@ const tarball = (
       type: "file",
       path: entry.path,
       size: bytes.length,
-      readable: ReadableStream.from([bytes]),
+      readable: testing.readableStreamFrom([bytes]),
     };
   });
 
-  return ReadableStream.from(inputs).pipeThrough(new tarStream.TarStream());
+  return testing
+    .readableStreamFrom(inputs)
+    .pipeThrough(new tarStream.TarStream());
 };
 
 /** Gzips the given byte streams, one after another, into one stream. */
@@ -51,12 +54,14 @@ const gzip = (
     }
   }
 
-  return ReadableStream.from(concat()).pipeThrough(
-    new CompressionStream("gzip") as unknown as TransformStream<
-      Uint8Array,
-      Uint8Array
-    >,
-  );
+  return testing
+    .readableStreamFrom(concat())
+    .pipeThrough(
+      new CompressionStream("gzip") as unknown as TransformStream<
+        Uint8Array,
+        Uint8Array
+      >,
+    );
 };
 
 /**
@@ -290,7 +295,7 @@ bdd.describe("extractTarball", () => {
   bdd.it("skips pax metadata entries instead of writing them", async () => {
     await withTempDir(async (dir) => {
       const archive = gzip(
-        ReadableStream.from([
+        testing.readableStreamFrom([
           rawTarEntry("pax_global_header", "g", "52 comment=0123abcd\n"),
         ]),
         tarball([{ type: "file", path: "real.txt", content: "real\n" }]),
@@ -332,7 +337,7 @@ bdd.describe("extractTarball", () => {
     bdd.it("extracts an archive of exactly maxBytes", async () => {
       await withTempDir(async (dir) => {
         const tarBytes = await collect(tarball(threeFiles));
-        const archive = gzip(ReadableStream.from([tarBytes]));
+        const archive = gzip(testing.readableStreamFrom([tarBytes]));
 
         await tarModule.extractTarball(archive, dir, {
           maxBytes: tarBytes.length,
@@ -345,7 +350,7 @@ bdd.describe("extractTarball", () => {
     bdd.it("fails one byte under the archive size", async () => {
       await withTempDir(async (dir) => {
         const tarBytes = await collect(tarball(threeFiles));
-        const archive = gzip(ReadableStream.from([tarBytes]));
+        const archive = gzip(testing.readableStreamFrom([tarBytes]));
 
         await assert.assertRejects(
           () =>
@@ -430,7 +435,7 @@ bdd.describe("extractTarball", () => {
         await assert.assertRejects(
           () =>
             tarModule.extractTarball(
-              ReadableStream.from([]),
+              testing.readableStreamFrom([]),
               "unused",
               options,
             ),

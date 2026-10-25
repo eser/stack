@@ -835,6 +835,15 @@ const takeManifestSection = async (
   }
 };
 
+/** True when the folder holds no entries. */
+const isEmptyDir = async (path: string): Promise<boolean> => {
+  for await (const _entry of crossRuntime.runtime.fs.readDir(path)) {
+    return false;
+  }
+
+  return true;
+};
+
 /**
  * Removes the folders above `path` that purge left empty, up to the project
  * root, so a tool's folder does not stay behind with nothing in it.
@@ -847,12 +856,16 @@ const removeEmptyParents = async (
 
   while (dir !== "." && dir !== "" && dir !== "/") {
     try {
-      // Without recursive, remove refuses a folder that still holds files.
-      // Each folder is checked after the one inside it is gone.
+      // Each folder is checked after the one inside it is gone. rm refuses
+      // any folder without `recursive`, so the emptiness check comes first.
       // oxlint-disable-next-line no-await-in-loop
-      await crossRuntime.runtime.fs.remove(`${root}/${dir}`);
+      if (!(await isEmptyDir(`${root}/${dir}`))) return;
+      // oxlint-disable-next-line no-await-in-loop
+      await crossRuntime.runtime.fs.remove(`${root}/${dir}`, {
+        recursive: true,
+      });
     } catch {
-      // Not empty, or already gone: the folders above stay as they are.
+      // Already gone or unreadable: the folders above stay as they are.
       return;
     }
 

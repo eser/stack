@@ -25,13 +25,13 @@ bdd.describe("Project detection coverage", () => {
       languages: ["typescript", "go"],
       frameworks: ["react"],
       ci: ["github-actions"],
-      testRunner: "deno",
+      testRunner: "node",
     };
 
     assert.assertEquals(traits.languages.length, 2);
     assert.assertEquals(traits.frameworks[0], "react");
     assert.assertEquals(traits.ci[0], "github-actions");
-    assert.assertEquals(traits.testRunner, "deno");
+    assert.assertEquals(traits.testRunner, "node");
   });
 });
 
@@ -135,7 +135,7 @@ bdd.describe("Manifest structure after init", () => {
         languages: ["typescript"],
         frameworks: ["react"],
         ci: ["github-actions"],
-        testRunner: "deno",
+        testRunner: "node",
       },
     );
 

@@ -43,7 +43,6 @@ eser kit clone gh:eser/monorepo/packages/foo
 | `gh:owner/repo/sub/path`     | Repo subpath, default branch |
 | `gh:owner/repo/sub/path#ref` | Repo subpath at ref          |
 | `npm:<package>`              | Not yet implemented          |
-| `jsr:@scope/name`            | Not yet implemented          |
 
 **Slash-bearing branches:** segments after `repo` are subpath until the first
 `#`. `gh:owner/repo/sub#feature/x` is subpath `sub`, ref `feature/x`. To use a

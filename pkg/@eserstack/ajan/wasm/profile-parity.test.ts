@@ -115,7 +115,6 @@ nodeTest.test(
         ["codebaseCheckCircularDeps", req({ dir: fixture })],
         ["codebaseCheckExportNames", req({ dir: fixture })],
         ["codebaseCheckModExports", req({ dir: fixture })],
-        ["codebaseCheckPackageConfigs", req({ dir: fixture })],
         ["codebaseCheckDocs", req({ dir: fixture })],
         [
           "csGenerate",

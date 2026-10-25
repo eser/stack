@@ -31,7 +31,7 @@ const config = (): schema.NosManifest =>
       languages: ["typescript"],
       frameworks: [],
       ci: [],
-      testRunner: "deno",
+      testRunner: "node",
     },
   );
 

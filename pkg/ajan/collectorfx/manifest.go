@@ -7,12 +7,12 @@ import (
 )
 
 // GenerateManifestSource generates a TypeScript manifest source string from
-// a list of ManifestEntry values. The output follows the pattern used by
-// Deno Fresh / @eserstack/collector: one import per file, plus an exported
-// manifest object listing every named export.
+// a list of ManifestEntry values. The output follows the pattern of
+// @eserstack/collector: one import per file, plus an exported manifest object
+// listing every named export.
 //
 // The generated source is not formatted. Callers that need canonical style
-// should pipe the output through `deno fmt -` (or equivalent).
+// should pipe the output through a formatter such as oxfmt.
 //
 // Example output for a single entry {RelPath: "routes/index.ts", Exports: ["default", "config"]}:
 //

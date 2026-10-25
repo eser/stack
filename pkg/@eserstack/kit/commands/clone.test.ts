@@ -6,6 +6,7 @@ import * as mock from "@eserstack/test-kit/mock";
 import * as results from "@eserstack/primitives/results";
 import * as cloneRecipe from "../recipes/handlers/clone-recipe.ts";
 import * as clone from "./clone.ts";
+import * as testing from "../recipes/testing.ts";
 
 nodeTest.test("parseSpecifier — owner/repo format", () => {
   const result = cloneRecipe.parseSpecifier("eser/ajan");
@@ -187,12 +188,14 @@ nodeTest.test(
         new Response("", { status: 404 }),
       "https://codeload.github.com/owner/repo/tar.gz/main": () =>
         new Response(
-          ReadableStream.from([new Uint8Array(2048)]).pipeThrough(
-            new CompressionStream("gzip") as unknown as TransformStream<
-              Uint8Array,
-              Uint8Array
-            >,
-          ),
+          testing
+            .readableStreamFrom([new Uint8Array(2048)])
+            .pipeThrough(
+              new CompressionStream("gzip") as unknown as TransformStream<
+                Uint8Array,
+                Uint8Array
+              >,
+            ),
         ),
     };
     using _fetch = mock.stub(globalThis, "fetch", (input) => {

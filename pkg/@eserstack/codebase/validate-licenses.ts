@@ -21,8 +21,8 @@
  * ```
  *
  * CLI usage:
- *   deno run --allow-all ./validate-licenses.ts        # Check licenses
- *   deno run --allow-all ./validate-licenses.ts --fix  # Auto-fix missing/incorrect headers
+ *   node ./validate-licenses.ts        # Check licenses
+ *   node ./validate-licenses.ts --fix  # Auto-fix missing/incorrect headers
  *
  * @module
  */

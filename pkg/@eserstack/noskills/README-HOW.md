@@ -200,7 +200,7 @@ Every `noskills next` call returns a structured JSON payload:
     "tone": "Direct. Orchestrate immediately — spawn sub-agents.",
   },
   "context": {
-    "rules": ["Use Deno for all TypeScript"],
+    "rules": ["Use Node for all TypeScript"],
     "concernReminders": [
       "open-source: Endpoint should be documented in API docs",
       "beautiful-product: Loading and error states must be designed",
@@ -721,8 +721,8 @@ as `questionMatch`.
 
 ## Verification Backpressure
 
-1. **Automated verification** — runs `verifyCommand` (e.g., `deno test`). Fail =
-   task rejected.
+1. **Automated verification** — runs `verifyCommand` (e.g., `node --test`).
+   Fail = task rejected.
 2. **Status report** — agent reports against acceptance criteria from spec +
    concerns.
 3. **Debt carry-forward** — remaining items persist across iterations with
@@ -905,9 +905,9 @@ noskills:
   project:
     languages: [typescript]
     frameworks: [react]
-    testRunner: deno
+    testRunner: node
   maxIterationsBeforeRestart: 15
-  verifyCommand: "deno test"
+  verifyCommand: "node --test"
   allowGit: false
   validate: # optional: see "The transition validator"
     agent: claude-code

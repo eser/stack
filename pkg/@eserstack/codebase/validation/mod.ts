@@ -234,7 +234,7 @@ export const main = async (
 
   if (args["help"]) {
     const { output: out } = cliSupport.createCliContext();
-    out.writeln("Usage: deno run --allow-all ./validation/mod.ts [options]");
+    out.writeln("Usage: node ./validation/mod.ts [options]");
     out.writeln();
     out.writeln("Options:");
     out.writeln("  --root <dir>           Root directory (default: cwd)");

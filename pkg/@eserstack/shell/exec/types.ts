@@ -75,7 +75,7 @@ export class CommandError extends Error {
   // properties. Node's type stripping is erase-only, and a parameter property
   // EMITS an assignment, so `node worker.ts` fails on it with
   // ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX. Writing the field out keeps the file
-  // runnable by Deno, Bun and Node alike.
+  // runnable by Node without a build step.
   /**
    * Create the error for a command that exited non-zero.
    *

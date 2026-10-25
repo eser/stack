@@ -44,11 +44,11 @@ workflows:
       # Shell commands for external tools
       - shell:
           name: format
-          command: deno fmt --check
-          fixCommand: deno fmt
+          command: npx oxfmt --check
+          fixCommand: npx oxfmt
       - shell:
           name: tests
-          command: deno task test:run
+          command: node --run test
           timeout: 300
 
   - id: commit-validation
@@ -156,8 +156,8 @@ The built-in `shell` tool executes commands via subprocess:
 ```yaml
 - shell:
     name: format
-    command: deno fmt --check # runs in check mode
-    fixCommand: deno fmt # runs when --fix is passed without --dry-run
+    command: npx oxfmt --check # runs in check mode
+    fixCommand: npx oxfmt # runs when --fix is passed without --dry-run
     workingDirectory: ./src/ # optional, relative to the project root
     timeout: 120 # timeout in seconds
     continueOnError: true # don't fail the whole workflow

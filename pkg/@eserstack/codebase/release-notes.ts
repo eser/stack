@@ -23,7 +23,7 @@
  * ```
  *
  * CLI usage:
- *   deno run --allow-all ./release-notes.ts --repo owner/repo [--tag v1.0.0] [--create-if-missing]
+ *   node ./release-notes.ts --repo owner/repo [--tag v1.0.0] [--create-if-missing]
  *
  * @module
  */

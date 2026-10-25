@@ -20,7 +20,7 @@
  * ```
  *
  * CLI usage:
- *   deno run --allow-all ./changelog-gen.ts [--dry-run]
+ *   node ./changelog-gen.ts [--dry-run]
  *
  * @module
  */

@@ -119,25 +119,24 @@ for (const toolAdapter of ADAPTERS) {
     });
 
     if (toolAdapter.syncAgents !== undefined) {
-      bdd.it(
-        "executor and verifier name the project's checks, not Deno's",
-        async () => {
-          const files = await generate(toolAdapter);
-          const agentFiles = [...files].filter(
-            ([path]) =>
-              path.includes("noskills-executor") ||
-              path.includes("noskills-verifier"),
-          );
+      bdd.it("executor and verifier name the project's checks", async () => {
+        const files = await generate(toolAdapter);
+        const agentFiles = [...files].filter(
+          ([path]) =>
+            path.includes("noskills-executor") ||
+            path.includes("noskills-verifier"),
+        );
 
-          assert.assertEquals(agentFiles.length, 2);
-          for (const [path, content] of agentFiles) {
-            assert.assertEquals(content.includes("deno check"), false, path);
-            assert.assertEquals(content.includes("deno test"), false, path);
-            assert.assertStringIncludes(content, "the project's type check");
-            assert.assertStringIncludes(content, "the project's tests");
-          }
-        },
-      );
+        assert.assertEquals(agentFiles.length, 2);
+        for (const [path, content] of agentFiles) {
+          assert.assertStringIncludes(
+            content,
+            "the project's type check",
+            path,
+          );
+          assert.assertStringIncludes(content, "the project's tests", path);
+        }
+      });
     }
   });
 }

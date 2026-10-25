@@ -2,11 +2,12 @@
 
 import * as assert from "@eserstack/test-kit/assert";
 import * as bdd from "node:test";
+import * as net from "node:net";
 import * as goClientModule from "./go-client.ts";
 import * as ffiClient from "./ffi-client.ts";
 
 // Importing the package loads nothing, so this test module opens the bridge
-// before registering tests: the `ignore` flags below need to know whether it
+// before registering tests: the `skip` flags below need to know whether it
 // loaded, and the load stays outside every test body.
 // oxlint-disable-next-line node/no-top-level-await
 await ffiClient.ensureLib();
@@ -79,9 +80,25 @@ bdd.describe("createGoHttpClient options", () => {
     "passes timeoutMs to the Go client, which ends a request with no answer",
     { skip: withoutFfi },
     async () => {
-      // The kernel accepts the connection into the backlog and nothing ever
-      // answers, so only the Go client's timeout can end the request.
-      const listener = Deno.listen({ hostname: "127.0.0.1", port: 0 });
+      // The server accepts the connection and never answers, so only the Go
+      // client's timeout can end the request. The sockets are destroyed in the
+      // finally, since close() waits for open connections.
+      const sockets = new Set<net.Socket>();
+      const server = net.createServer((socket) => {
+        sockets.add(socket);
+      });
+      await new Promise<void>((resolve, reject) => {
+        server.once("error", reject);
+        server.listen(0, "127.0.0.1", () => {
+          resolve();
+        });
+      });
+      const address = server.address();
+      if (address === null || typeof address === "string") {
+        throw new Error(
+          `the test server listens on ${String(address)}, not a TCP port`,
+        );
+      }
       const client = await goClientModule.createGoHttpClient({
         timeoutMs: 200,
       });
@@ -91,7 +108,7 @@ bdd.describe("createGoHttpClient options", () => {
           () =>
             client.request({
               method: "GET",
-              url: `http://127.0.0.1:${listener.addr.port}/`,
+              url: `http://127.0.0.1:${address.port}/`,
             }),
           goClientModule.GoHttpError,
         );
@@ -100,7 +117,14 @@ bdd.describe("createGoHttpClient options", () => {
         assert.assertLess(Date.now() - started, 5_000);
       } finally {
         client.close();
-        listener.close();
+        for (const socket of sockets) {
+          socket.destroy();
+        }
+        await new Promise<void>((resolve) => {
+          server.close(() => {
+            resolve();
+          });
+        });
       }
     },
   );

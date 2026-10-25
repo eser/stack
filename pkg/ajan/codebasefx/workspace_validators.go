@@ -3,7 +3,6 @@
 package codebasefx
 
 import (
-	"encoding/json"
 	"fmt"
 	"io/fs"
 	"os"
@@ -44,11 +43,6 @@ func buildDepGraph(packages []WorkspacePackage) map[string][]string {
 
 		for depName := range pkg.Config.DevDependencies {
 			addDep(depName)
-		}
-
-		// deno.json imports → keys are the import specifiers / package names.
-		for importKey := range pkg.Config.Imports {
-			addDep(importKey)
 		}
 
 		graph[pkg.Name] = deps
@@ -165,7 +159,7 @@ func isKebabCasePath(s string, ignoreWords []string) bool {
 	return true
 }
 
-// CheckExportNames validates that deno.json export paths use kebab-case.
+// CheckExportNames validates that package.json export paths use kebab-case.
 func CheckExportNames(root string, ignoreWords []string) (ExportNamesResult, error) {
 	packages, err := DiscoverWorkspacePackages(root)
 	if err != nil {
@@ -300,15 +294,10 @@ func packageModules(pkgDir string) (map[string]string, error) {
 }
 
 // packageEntryPoints returns the absolute paths of a package's entry modules:
-// mod.ts, every target of the exports map in deno.json and package.json, the
-// package.json bin, main and module targets, and every module that runs as a
-// program.
+// mod.ts, every target of the package.json exports map, its bin, main and
+// module targets, and every module that runs as a program.
 func packageEntryPoints(pkg *WorkspacePackage, modules map[string]string) []string {
 	targets := []string{"./mod.ts"}
-
-	if pkg.Config.RawDeno != nil {
-		targets = append(targets, exportTargets(pkg.Config.RawDeno["exports"])...)
-	}
 
 	if pkg.Config.RawPackage != nil {
 		for _, field := range []string{"exports", "bin", "main", "module"} {
@@ -435,164 +424,6 @@ func CheckModExports(root string) (ModExportsResult, error) {
 		IsComplete:      len(missing) == 0,
 		MissingExports:  missing,
 		PackagesChecked: len(packages),
-	}, nil
-}
-
-// =============================================================================
-// CheckPackageConfigs
-// =============================================================================
-
-func jsonString(v interface{}) string {
-	if v == nil {
-		return "null"
-	}
-	b, err := json.Marshal(v)
-	if err != nil {
-		return "<error>"
-	}
-	return string(b)
-}
-
-// isWorkspaceSpec returns true for workspace:* specs.
-func isWorkspaceSpec(spec string) bool {
-	return spec == "workspace:*" || strings.HasPrefix(spec, "workspace:")
-}
-
-// convertPkgDepToDenoSpec converts a package.json dep entry to the expected deno.json import.
-func convertPkgDepToDenoSpec(depName, spec string) string {
-	if strings.HasPrefix(spec, "npm:@jsr/") {
-		// npm:@jsr/scope__name@version → jsr:@scope/name@version
-		rest := spec[9:] // strip "npm:@jsr/"
-		idx := strings.Index(rest, "__")
-		if idx < 0 {
-			return spec
-		}
-		scope := rest[:idx]
-		after := rest[idx+2:]
-		atIdx := strings.Index(after, "@")
-		var pkgName, versionSuffix string
-		if atIdx < 0 {
-			pkgName = after
-		} else {
-			pkgName = after[:atIdx]
-			versionSuffix = after[atIdx:]
-		}
-		return "jsr:@" + scope + "/" + pkgName + versionSuffix
-	}
-	if strings.HasPrefix(spec, "npm:") {
-		return spec
-	}
-	return "npm:" + depName + "@" + spec
-}
-
-// checkPkgDependencies compares package.json deps against deno.json imports.
-// A deno.json without an `imports` map leaves dependency resolution to
-// package.json, so there is nothing to keep in step and no issue is reported.
-func checkPkgDependencies(packageName string, cfg WorkspacePackageConfig) []DependencyInconsistency {
-	if _, declared := cfg.RawDeno["imports"]; !declared {
-		return nil
-	}
-
-	var issues []DependencyInconsistency
-
-	allPkgDeps := make(map[string]string)
-	for k, v := range cfg.Dependencies {
-		allPkgDeps[k] = v
-	}
-	for k, v := range cfg.DevDependencies {
-		allPkgDeps[k] = v
-	}
-
-	// Check each package.json dep exists in deno.json imports.
-	for depName, depSpec := range allPkgDeps {
-		if isWorkspaceSpec(depSpec) {
-			continue
-		}
-
-		expected := convertPkgDepToDenoSpec(depName, depSpec)
-		actual, exists := cfg.Imports[depName]
-
-		if !exists {
-			issues = append(issues, DependencyInconsistency{
-				PackageName:    packageName,
-				DependencyName: depName,
-				Issue:          "missing_in_deno",
-				Expected:       expected,
-			})
-		} else if actual != expected {
-			issues = append(issues, DependencyInconsistency{
-				PackageName:    packageName,
-				DependencyName: depName,
-				Issue:          "version_mismatch",
-				Expected:       expected,
-				Actual:         actual,
-			})
-		}
-	}
-
-	// Check for imports in deno.json that aren't in package.json.
-	for importName, importSpec := range cfg.Imports {
-		if allPkgDeps[importName] != "" {
-			continue
-		}
-		issues = append(issues, DependencyInconsistency{
-			PackageName:    packageName,
-			DependencyName: importName,
-			Issue:          "missing_in_package",
-			Actual:         importSpec,
-		})
-	}
-
-	return issues
-}
-
-// CheckPackageConfigs validates that deno.json and package.json have consistent fields.
-func CheckPackageConfigs(root string) (PackageConfigsResult, error) {
-	packages, err := DiscoverWorkspacePackages(root)
-	if err != nil {
-		return PackageConfigsResult{}, err //nolint:exhaustruct
-	}
-
-	inconsistencies := []ConfigInconsistency{}
-	depInconsistencies := []DependencyInconsistency{}
-
-	for _, pkg := range packages {
-		cfg := pkg.Config
-		if cfg.RawDeno == nil || cfg.RawPackage == nil {
-			continue
-		}
-
-		for _, field := range []string{"name", "version", "exports"} {
-			denoVal := cfg.RawDeno[field]
-			pkgVal := cfg.RawPackage[field]
-
-			if denoVal == nil || pkgVal == nil {
-				continue
-			}
-
-			denoStr := jsonString(denoVal)
-			pkgStr := jsonString(pkgVal)
-
-			if denoStr != pkgStr {
-				inconsistencies = append(inconsistencies, ConfigInconsistency{
-					PackageName:  pkg.Name,
-					Field:        field,
-					DenoValue:    denoStr,
-					PackageValue: pkgStr,
-				})
-			}
-		}
-
-		depInconsistencies = append(depInconsistencies, checkPkgDependencies(pkg.Name, cfg)...)
-	}
-
-	hasIssues := len(inconsistencies) > 0 || len(depInconsistencies) > 0
-
-	return PackageConfigsResult{
-		IsConsistent:              !hasIssues,
-		Inconsistencies:           inconsistencies,
-		DependencyInconsistencies: depInconsistencies,
-		PackagesChecked:           len(packages),
 	}, nil
 }
 

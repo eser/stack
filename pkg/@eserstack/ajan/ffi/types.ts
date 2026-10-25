@@ -407,12 +407,6 @@ export interface FFILibrary {
      */
     EserAjanCodebaseCheckModExports: (requestJSON: string) => string;
     /**
-     * Validates field consistency between each package's JSR manifest and package.json.
-     * Accepts JSON: { dir? }
-     * Returns JSON: { isConsistent, inconsistencies, dependencyInconsistencies, packagesChecked } | { error: string }
-     */
-    EserAjanCodebaseCheckPackageConfigs: (requestJSON: string) => string;
-    /**
      * Validates JSDoc documentation on exported symbols.
      * Accepts JSON: { dir?, requireExamples? }
      * Returns JSON: { isValid, issues, filesChecked, symbolsChecked } | { error: string }

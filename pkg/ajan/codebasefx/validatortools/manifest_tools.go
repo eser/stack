@@ -4,7 +4,6 @@ package validatortools
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -92,12 +91,6 @@ func messages(format func(i int) string, n int) []workflowfx.WorkflowIssue {
 	return issues
 }
 
-func jsonText(v string) string {
-	data, _ := json.Marshal(v)
-
-	return string(data)
-}
-
 func treeTools() []workflowfx.WorkflowTool {
 	return []workflowfx.WorkflowTool{
 		&treeTool{
@@ -145,32 +138,6 @@ func treeTools() []workflowfx.WorkflowTool {
 
 					return fmt.Sprintf("%s: %q should be %q", v.PackageName, v.ExportPath, v.Suggestion)
 				}, len(result.Violations)), map[string]any{"packagesChecked": result.PackagesChecked}, err
-			},
-		},
-		&treeTool{
-			name: "validate-package-configs",
-			desc: "check that deno.json and package.json agree",
-			run: func(root string, _ map[string]any) ([]workflowfx.WorkflowIssue, map[string]any, error) {
-				result, err := codebasefx.CheckPackageConfigs(root)
-				issues := make([]workflowfx.WorkflowIssue, 0, len(result.Inconsistencies)+len(result.DependencyInconsistencies))
-
-				for _, c := range result.Inconsistencies {
-					issues = append(issues, workflowfx.WorkflowIssue{ //nolint:exhaustruct
-						Message: fmt.Sprintf("%s: %s mismatch - deno.json: %s, package.json: %s",
-							c.PackageName, c.Field, jsonText(c.DenoValue), jsonText(c.PackageValue)),
-					})
-				}
-
-				for _, d := range result.DependencyInconsistencies {
-					message := fmt.Sprintf("%s: %s - %s", d.PackageName, d.DependencyName, d.Issue)
-					if d.Expected != "" && d.Actual != "" {
-						message += fmt.Sprintf(" (expected: %s, actual: %s)", d.Expected, d.Actual)
-					}
-
-					issues = append(issues, workflowfx.WorkflowIssue{Message: message}) //nolint:exhaustruct
-				}
-
-				return issues, map[string]any{"packagesChecked": result.PackagesChecked}, err
 			},
 		},
 		&treeTool{

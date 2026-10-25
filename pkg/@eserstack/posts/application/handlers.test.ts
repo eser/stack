@@ -316,7 +316,7 @@ bdd.describe("cross-platform read defaults", () => {
         const world = createWorld();
 
         const result = await taskMod.runTask(
-          handlers.searchPostsAllHandler({ query: "deno" }),
+          handlers.searchPostsAllHandler({ query: "node" }),
           contextOf(world),
         );
 
@@ -326,7 +326,7 @@ bdd.describe("cross-platform read defaults", () => {
             (call) => call.method === "searchPosts",
           );
           assert.assertEquals(search?.args[0], {
-            query: "deno",
+            query: "node",
             maxResults: defaults.DEFAULT_MAX_RESULTS_PER_PLATFORM,
           });
         }
@@ -349,7 +349,7 @@ bdd.describe("cross-platform read defaults", () => {
         });
 
         const result = await taskMod.runTask(
-          handlers.searchPostsAllHandler({ query: "deno" }),
+          handlers.searchPostsAllHandler({ query: "node" }),
           contextOf(world),
         );
 
@@ -368,7 +368,7 @@ bdd.describe("cross-platform read defaults", () => {
 
         await taskMod.runTask(
           handlers.searchPostsAllHandler({
-            query: "deno",
+            query: "node",
             maxResultsPerPlatform: 3,
           }),
           contextOf(world),
@@ -377,7 +377,7 @@ bdd.describe("cross-platform read defaults", () => {
         const search = world.apis.bluesky.calls.find(
           (call) => call.method === "searchPosts",
         );
-        assert.assertEquals(search?.args[0], { query: "deno", maxResults: 3 });
+        assert.assertEquals(search?.args[0], { query: "node", maxResults: 3 });
       },
     );
   }

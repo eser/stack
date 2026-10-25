@@ -11,8 +11,8 @@
  * ```
  *
  * Usage:
- *   deno run --allow-all jsr:@eserstack/workflows run -e precommit
- *   deno run --allow-all ./main.ts list
+ *   npx eser workflows run -e precommit
+ *   node ./main.ts list
  *
  * @module
  */

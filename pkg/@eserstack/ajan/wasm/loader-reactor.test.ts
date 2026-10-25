@@ -35,7 +35,6 @@ const PROFILE_NAMES = [
   "codebaseCheckDocs",
   "codebaseCheckExportNames",
   "codebaseCheckModExports",
-  "codebaseCheckPackageConfigs",
   "codebaseValidateCommitMsg",
   "codebaseValidateFiles",
   "codebaseValidateFilesStreamClose",

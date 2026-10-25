@@ -41,16 +41,13 @@ bdd.describe("cmd.loadCommandPrefix", () => {
   };
 
   bdd.it("makes the manifest's command the prefix", async () => {
-    await writeManifest("deno task cli noskills");
+    await writeManifest("pnpm cli noskills");
 
     assert.assertEquals(
       await cmd.loadCommandPrefix(tempDir),
-      "deno task cli noskills",
+      "pnpm cli noskills",
     );
-    assert.assertEquals(
-      cmd.cmd("spec list"),
-      "deno task cli noskills spec list",
-    );
+    assert.assertEquals(cmd.cmd("spec list"), "pnpm cli noskills spec list");
   });
 
   const keeps: readonly { readonly name: string; readonly command: unknown }[] =

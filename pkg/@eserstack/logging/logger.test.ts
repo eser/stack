@@ -17,7 +17,7 @@ const beforeEach = async () => {
 };
 
 // Importing the package loads nothing, so this test module opens the bridge
-// before registering tests: the `ignore` flags below need to know whether it
+// before registering tests: the `skip` flags below need to know whether it
 // loaded, and the load stays outside every test body.
 // oxlint-disable-next-line node/no-top-level-await
 await ffiClient.ensureLib();

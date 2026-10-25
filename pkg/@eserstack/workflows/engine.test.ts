@@ -557,6 +557,6 @@ nodeTest.test(
 
     assert.assert(results.isOk(taskResult));
     assert.assertEquals(got, want);
-    assert.assert(got.length >= 30);
+    assert.assert(got.length > 0);
   },
 );

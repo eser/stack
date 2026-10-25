@@ -19,7 +19,7 @@ import * as patterns from "@eserstack/standards/patterns";
 // =============================================================================
 
 /** Binary file extensions to skip variable substitution (bare, no dots) */
-export const BINARY_EXTENSIONS = [
+export const BINARY_EXTENSIONS: string[] = [
   "png",
   "jpg",
   "jpeg",

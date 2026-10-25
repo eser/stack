@@ -11,8 +11,8 @@
  * ```
  *
  * Usage:
- *   deno run --allow-all jsr:@eserstack/codebase versions
- *   deno run --allow-all ./main.ts release
+ *   npx eser codebase versions
+ *   node ./main.ts release
  *
  * @module
  */

@@ -276,7 +276,7 @@ export class CommandBuilder {
       clearTimeout(timer);
     }
 
-    // Deno resolves with the killed process's exit status.
+    // The runtime resolves with the killed process's exit status.
     if (timeoutMs !== undefined && !result.success && timedOut()) {
       throw this.#timeoutError(timeoutMs);
     }
@@ -403,7 +403,7 @@ export class CommandBuilder {
    * import * as shell from "@eserstack/shell";
    *
    * const input = ReadableStream.from([new TextEncoder().encode("const a=1")]);
-   * const child = shell.exec.exec`deno fmt -`.child();
+   * const child = shell.exec.exec`cat`.child();
    * await input.pipeTo(child.stdin!);
    * const { stdout } = await child.output();
    * ```

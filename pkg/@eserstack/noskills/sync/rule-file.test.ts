@@ -19,7 +19,7 @@ import * as copilotAdapterMod from "./adapters/copilot.ts";
 import * as copilotCliAdapterMod from "./adapters/copilot-cli.ts";
 
 // Not "noskills" at the end, so a bare command cannot pass for a prefixed one.
-const PREFIX = "deno run -A ./tools/nos.ts";
+const PREFIX = "node ./tools/nos.ts";
 const RULES = ["Use tabs for indentation"];
 
 const TOOLS: readonly {

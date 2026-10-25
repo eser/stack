@@ -1,10 +1,10 @@
 ---
 id: TASK-214
 title: 'posts: pass tests on Node and move its deno tasks to package.json'
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-10-15 20:38'
-updated_date: '2026-10-25 16:00'
+updated_date: '2026-10-26 10:00'
 labels:
   - cutover
   - posts
@@ -31,9 +31,9 @@ Plan key: M1-T20. Effort: small.
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 `node --test pkg/@eserstack/posts` passes
-- [ ] #2 pkg/@eserstack/posts/deno.extra.json is deleted
-- [ ] #3 No Deno reference remains; tsc and oxlint are clean
+- [x] #1 `node --test pkg/@eserstack/posts` passes
+- [x] #2 pkg/@eserstack/posts/deno.extra.json is deleted
+- [x] #3 No Deno reference remains; tsc and oxlint are clean
 <!-- AC:END -->
 
 ## Implementation Notes
@@ -52,4 +52,11 @@ TASK-198 (2026-10-25): the test and bench codemods left no site for hand edits i
 - pkg/@eserstack/posts/adapters/tui/callback-server.test.ts: 3 failing, 2 passing; first error: see the run
 - pkg/@eserstack/posts/adapters/twitter/auth-provider.test.ts: 1 failing, 4 passing; first error: see the run
 - pkg/@eserstack/posts/config.test.ts: 2 failing, 15 passing; first error: see the run
+
+TASK-214 (2026-10-26, node 26.12.1):
+- Tests: config.test.ts, file-token-store.test.ts and output.test.ts use runtime.fs, runtime.process and runtime.exec (the child is `node --input-type=module --eval`); auth-provider.test.ts uses node:util inspect; callback-server.test.ts finds a free port and probes interfaces with node:net and node:os. Test query data "deno" became "node".
+- Bug: callback-server.ts resolved the callback inside the handler, before the success page was written, and the finally block then aborted the server. The Node adapter's stop calls closeAllConnections (standards node-http.ts:445-447), so the genuine redirect got "other side closed". The existing callback-server tests failed on it. The page is now a stream body that settles the callback one macrotask after the server has read it, or at once if the browser cancels it.
+- triggers.ts: TuiTriggers is a mapped type over BoundTriggers and the return type of createTuiTriggers, which clears the 17 TS9013 errors. social-api.ts: a justified oxlint pragma for no-redeclare, since the deprecated alias needs both a value and a type under one name.
+- deno.extra.json deleted; package.json scripts: tui (`node adapters/tui/app.ts`), test (`node --test "**/*.test.ts"`), test:coverage (the same with --experimental-test-coverage). This closes TASK-224 AC #3. README and comments no longer name Deno.
+- `node --test pkg/@eserstack/posts`: 308 tests, 308 pass, also without --test-force-exit. tsc: no errors under the package. oxlint and oxfmt --check: clean. `grep -rniw deno pkg/@eserstack/posts` (node_modules excluded): no matches.
 <!-- SECTION:NOTES:END -->

@@ -37,7 +37,7 @@ import * as parser from "./parser.ts";
  *
  * // Streaming I/O with child process
  * const raw = ReadableStream.from([new TextEncoder().encode("const a=1")]);
- * const child = shell.exec.exec`deno fmt -`.child();
+ * const child = shell.exec.exec`cat`.child();
  * await raw.pipeTo(child.stdin!);
  * const { stdout } = await child.output();
  * ```

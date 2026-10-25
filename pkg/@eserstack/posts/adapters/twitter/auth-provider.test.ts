@@ -1,6 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 import * as bdd from "node:test";
+import * as util from "node:util";
 import * as assert from "@eserstack/test-kit/assert";
 import * as authProvider from "./auth-provider.ts";
 import * as clientMod from "./client.ts";
@@ -95,11 +96,11 @@ bdd.describe("TwitterAuthProvider token requests", () => {
       false,
     );
     assert.assertEquals(
-      Deno.inspect(provider).includes("client-secret"),
+      util.inspect(provider).includes("client-secret"),
       false,
     );
     assert.assertEquals(
-      Deno.inspect(provider).includes(btoa("client-id:client-secret")),
+      util.inspect(provider).includes(btoa("client-id:client-secret")),
       false,
     );
   });

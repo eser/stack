@@ -8,7 +8,7 @@ import * as persistence from "./persistence.ts";
 import * as schema from "./schema.ts";
 import * as split from "./split.ts";
 
-const PREFIX = "deno run -A ./tools/nos.ts";
+const PREFIX = "node ./tools/nos.ts";
 
 const answer = (
   questionId: string,

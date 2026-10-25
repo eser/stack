@@ -21,7 +21,7 @@
  *
  * A host name is not resolved and checked, which leaves one case open: a name
  * that resolves to an internal address. `fetch` gives no hook at connect time
- * on Deno, Node or Bun, and a lookup made before the request can answer
+ * in Node, and a lookup made before the request can answer
  * differently from the one the connection makes (DNS rebinding), so such a
  * check would not hold. The request is allowed because what it can do is
  * small: it goes over https, so the internal host must present a certificate
@@ -35,7 +35,7 @@ import * as results from "@eserstack/primitives/results";
 import type * as packSchema from "./schema.ts";
 
 /** Largest registry document read, in bytes. */
-export const MAX_REGISTRY_BYTES = 1024 * 1024;
+export const MAX_REGISTRY_BYTES: number = 1024 * 1024;
 
 /** Most entries a registry may list. */
 export const MAX_REGISTRY_ENTRIES = 10_000;

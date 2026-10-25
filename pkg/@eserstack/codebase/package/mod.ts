@@ -3,13 +3,12 @@
 /**
  * Unified package configuration reading and writing.
  *
- * This module provides a unified interface for working with multiple
- * package configuration file formats (deno.json, deno.jsonc, jsr.json, package.json).
+ * This module reads and writes package.json, the one package manifest the
+ * workspace keeps.
  *
  * Features:
- * - Load from multiple config files with priority-based merging
  * - Track which file each field value originated from
- * - Update fields across all config files that contain them
+ * - Update fields in the config files that contain them
  * - Synchronized version bumping
  *
  * @example
@@ -21,9 +20,9 @@
  *
  * // Read values with origin tracking
  * console.log(config.name?.value); // "@scope/my-package"
- * console.log(config.name?.origin.filepath); // "./my-package/deno.json"
+ * console.log(config.name?.origin.filepath); // "./my-package/package.json"
  *
- * // Update version across all config files
+ * // Update the version
  * await pkg.updateVersion(config, "2.0.0");
  *
  * // Update specific field

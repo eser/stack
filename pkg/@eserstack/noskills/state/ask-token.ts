@@ -12,7 +12,7 @@
  */
 
 /** How long a token stays valid after the question was asked. */
-export const ASK_TOKEN_TTL_MS = 30 * 60 * 1000;
+export const ASK_TOKEN_TTL_MS: number = 30 * 60 * 1000;
 
 /** One question the user was asked, tied to the step it answers. */
 export type AskTokenStep = {

@@ -205,7 +205,7 @@ func RegisterAllValidators(r *workflowfx.Registry) {
 		},
 		{
 			name:    "codebase-runtime-js-apis",
-			desc:    "detect direct Deno API usage in JS/TS files",
+			desc:    "detect runtime globals used instead of @eserstack/standards/cross-runtime in JS/TS files",
 			factory: staticFactory(codebasefx.ValidateRuntimeJSAPIs),
 		},
 		{

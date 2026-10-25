@@ -93,7 +93,7 @@ const astralIdentifierCodes = [
 
 // Test whether a given character code starts an identifier.
 
-export const isIdentifierStart = (code: number) => {
+export const isIdentifierStart = (code: number): boolean => {
   if (code < charCodes.uppercaseA) {
     return code === charCodes.dollarSign;
   }
@@ -121,7 +121,7 @@ export const isIdentifierStart = (code: number) => {
 
 // Test whether a given character is part of an identifier.
 
-export const isIdentifierChar = (code: number) => {
+export const isIdentifierChar = (code: number): boolean => {
   if (code < charCodes.digit0) {
     return code === charCodes.dollarSign;
   }

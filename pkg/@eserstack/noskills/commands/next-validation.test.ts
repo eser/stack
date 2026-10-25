@@ -56,7 +56,7 @@ const manifest = (validate?: schema.ValidatorConfig): schema.NosManifest => ({
     languages: ["typescript"],
     frameworks: [],
     ci: [],
-    testRunner: "deno",
+    testRunner: "node",
   }),
   ...(validate === undefined ? {} : { validate }),
 });

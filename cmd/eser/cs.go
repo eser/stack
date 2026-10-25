@@ -20,7 +20,7 @@ func csFlags(fs *flag.FlagSet) {
 	for _, names := range [][2]string{{"env", "e"}, {"namespace", "n"}, {"output", "o"}} {
 		value := new(string)
 		usage := map[string]string{
-			"env":       "environment name (default: $ENV, $APP_ENV, $DENO_ENV, $NODE_ENV or development)",
+			"env":       "environment name (default: $ENV, $APP_ENV, $NODE_ENV or development)",
 			"namespace": "Kubernetes namespace",
 			"output":    "output format: yaml or json",
 		}[names[0]]

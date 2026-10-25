@@ -3,7 +3,7 @@
 /**
  * Export naming convention checker.
  *
- * Validates that export paths in deno.json follow kebab-case convention.
+ * Validates that export paths in package.json follow kebab-case convention.
  *
  * @module
  */

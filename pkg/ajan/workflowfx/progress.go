@@ -15,7 +15,7 @@ const progressColumn = 50
 // ProgressPrinter returns an OnStepEnd callback that prints each step as it
 // ends, in the TypeScript run command's format:
 //
-//	deno-formatter....................................Passed (0.5s)
+//	formatter.........................................Passed (0.5s)
 //	go-lint...........................................Failed (3.3s)
 //	  ✗ pkg/x.go:4: message
 //

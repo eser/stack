@@ -562,26 +562,6 @@ func bridgeCodebaseCheckModExports(requestJSON string) string {
 	return marshalResponse(result)
 }
 
-// bridgeCodebaseCheckPackageConfigs validates JSR manifest / package.json consistency.
-func bridgeCodebaseCheckPackageConfigs(requestJSON string) string {
-	var req workspaceCheckRequest
-	if err := json.Unmarshal([]byte(requestJSON), &req); err != nil {
-		return marshalError("invalid request JSON: " + err.Error())
-	}
-
-	root := req.Dir
-	if root == "" {
-		root = "."
-	}
-
-	result, err := codebasefx.CheckPackageConfigs(root)
-	if err != nil {
-		return marshalError(err.Error())
-	}
-
-	return marshalResponse(result)
-}
-
 // bridgeCodebaseCheckDocs validates JSDoc documentation on exported symbols.
 func bridgeCodebaseCheckDocs(requestJSON string) string {
 	var req workspaceCheckRequest
@@ -889,7 +869,6 @@ func init() {
 	register("codebaseCheckCircularDeps", []string{"requestJSON"}, func(a []string) string { return bridgeCodebaseCheckCircularDeps(a[0]) })
 	register("codebaseCheckExportNames", []string{"requestJSON"}, func(a []string) string { return bridgeCodebaseCheckExportNames(a[0]) })
 	register("codebaseCheckModExports", []string{"requestJSON"}, func(a []string) string { return bridgeCodebaseCheckModExports(a[0]) })
-	register("codebaseCheckPackageConfigs", []string{"requestJSON"}, func(a []string) string { return bridgeCodebaseCheckPackageConfigs(a[0]) })
 	register("codebaseCheckDocs", []string{"requestJSON"}, func(a []string) string { return bridgeCodebaseCheckDocs(a[0]) })
 	register("codebaseWalkFilesStreamCreate", []string{"requestJSON"}, func(a []string) string { return bridgeCodebaseWalkFilesStreamCreate(a[0]) })
 	register("codebaseWalkFilesStreamRead", []string{"handle"}, func(a []string) string { return bridgeCodebaseWalkFilesStreamRead(a[0]) })

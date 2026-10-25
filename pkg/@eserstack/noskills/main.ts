@@ -11,8 +11,7 @@
  * ```
  *
  * Usage:
- *   deno run --allow-all jsr:@eserstack/noskills <command> [options]
- *   deno run --allow-all ./main.ts <command> [options]
+ *   node ./main.ts <command> [options]
  *   npx noskills <command> [options]
  *
  * @module

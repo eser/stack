@@ -37,7 +37,7 @@ export type CliContext = {
 
 // Every Output created through the helpers below is registered here so
 // {@link exitCli} can drain it before a hard process exit. The streams Output
-// is sync-write / async-flush; `runtime.process.exit` (Deno.exit) terminates
+// is sync-write / async-flush; `runtime.process.exit` terminates
 // synchronously and would drop any not-yet-flushed buffer.
 const liveOutputs = new Set<streams.Output>();
 
@@ -161,7 +161,7 @@ export const runCliMain = (
  * Resolves the exit code from `result`, prints any error, drains buffered CLI
  * output, then **hard-exits** via `runtime.process.exit`. The hard exit is
  * deliberate: once the Go c-shared library is loaded it intermittently SIGSEGVs
- * the host on natural teardown and discards the exit code; `Deno.exit` commits
+ * the host on natural teardown and discards the exit code; a hard exit commits
  * the status deterministically. Because that skips the streams async flush, we
  * drain every helper-created Output first (see {@link liveOutputs}).
  *

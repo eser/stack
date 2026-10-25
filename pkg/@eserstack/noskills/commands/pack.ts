@@ -29,7 +29,7 @@ const PACKS_FILE = ".eser/packs.json";
 const FETCH_TIMEOUT_MS = 30_000;
 
 /** The largest pack manifest or pack file a remote install reads. */
-export const MAX_REMOTE_PACK_FILE_BYTES = 1 << 20;
+export const MAX_REMOTE_PACK_FILE_BYTES: number = 1 << 20;
 
 /**
  * Refuses a name that would leave its folder: a remote pack's name, rule

@@ -55,65 +55,28 @@ func TestValidateSecrets_NoSkip_StillDetects(t *testing.T) {
 
 // ─── CheckCircularDeps dual-source edges ─────────────────────────────────────
 
-// makeDenoWorkspace creates a root deno.json that lists the given member paths.
-func makeDenoWorkspace(t *testing.T, members []string) string {
+// makePackageWorkspace creates a root package.json whose workspaces field
+// lists the given member paths.
+func makePackageWorkspace(t *testing.T, members []string) string {
 	t.Helper()
 
 	root := t.TempDir()
-	writeJSON(t, filepath.Join(root, "deno.json"), map[string]any{
-		"workspace": members,
+	writeJSON(t, filepath.Join(root, "package.json"), map[string]any{
+		"workspaces": members,
 	})
 
 	return root
 }
 
-func TestCheckCircularDeps_DenoJsonOnly(t *testing.T) {
-	t.Parallel()
-
-	root := makeDenoWorkspace(t, []string{"./pkg-a", "./pkg-b"})
-
-	if err := os.MkdirAll(filepath.Join(root, "pkg-a"), 0o755); err != nil { //nolint:gosec
-		t.Fatal(err)
-	}
-
-	writeJSON(t, filepath.Join(root, "pkg-a", "deno.json"), map[string]any{
-		"name": "@scope/pkg-a",
-		"imports": map[string]any{
-			"@scope/pkg-b": "jsr:@scope/pkg-b@^1.0.0",
-		},
-	})
-
-	if err := os.MkdirAll(filepath.Join(root, "pkg-b"), 0o755); err != nil { //nolint:gosec
-		t.Fatal(err)
-	}
-
-	writeJSON(t, filepath.Join(root, "pkg-b", "deno.json"), map[string]any{
-		"name": "@scope/pkg-b",
-		"imports": map[string]any{
-			"@scope/pkg-a": "jsr:@scope/pkg-a@^1.0.0",
-		},
-	})
-
-	result, err := codebasefx.CheckCircularDeps(root)
-	if err != nil {
-		t.Fatalf("CheckCircularDeps: %v", err)
-	}
-
-	if !result.HasCycles {
-		t.Error("expected cycle detected via deno.json imports keys")
-	}
-}
-
 func TestCheckCircularDeps_PackageJsonOnly(t *testing.T) {
 	t.Parallel()
 
-	root := makeDenoWorkspace(t, []string{"./pkg-a", "./pkg-b"})
+	root := makePackageWorkspace(t, []string{"pkg-a", "pkg-b"})
 
 	if err := os.MkdirAll(filepath.Join(root, "pkg-a"), 0o755); err != nil { //nolint:gosec
 		t.Fatal(err)
 	}
 
-	writeJSON(t, filepath.Join(root, "pkg-a", "deno.json"), map[string]any{"name": "@scope/pkg-a"})
 	writeJSON(t, filepath.Join(root, "pkg-a", "package.json"), map[string]any{
 		"name": "@scope/pkg-a",
 		"dependencies": map[string]any{
@@ -125,7 +88,6 @@ func TestCheckCircularDeps_PackageJsonOnly(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	writeJSON(t, filepath.Join(root, "pkg-b", "deno.json"), map[string]any{"name": "@scope/pkg-b"})
 	writeJSON(t, filepath.Join(root, "pkg-b", "package.json"), map[string]any{
 		"name": "@scope/pkg-b",
 		"dependencies": map[string]any{
@@ -143,50 +105,25 @@ func TestCheckCircularDeps_PackageJsonOnly(t *testing.T) {
 	}
 }
 
-func TestCheckCircularDeps_HybridDedup(t *testing.T) {
+func TestCheckCircularDeps_DependencyKindsDedup(t *testing.T) {
 	t.Parallel()
 
-	// Both deno.json imports AND package.json deps express the same cycle.
-	// The per-package seen map deduplicates so each edge appears once.
-	root := makeDenoWorkspace(t, []string{"./pkg-a", "./pkg-b"})
+	// dependencies AND devDependencies express the same cycle. The
+	// per-package seen map deduplicates so each edge appears once.
+	root := makePackageWorkspace(t, []string{"pkg-a", "pkg-b"})
 
-	if err := os.MkdirAll(filepath.Join(root, "pkg-a"), 0o755); err != nil { //nolint:gosec
-		t.Fatal(err)
+	for _, pkg := range [][2]string{{"pkg-a", "@scope/pkg-b"}, {"pkg-b", "@scope/pkg-a"}} {
+		if err := os.MkdirAll(filepath.Join(root, pkg[0]), 0o755); err != nil { //nolint:gosec
+			t.Fatal(err)
+		}
+
+		writeJSON(t, filepath.Join(root, pkg[0], "package.json"), map[string]any{
+			"name":            "@scope/" + pkg[0],
+			"version":         "1.0.0",
+			"dependencies":    map[string]any{pkg[1]: "workspace:*"},
+			"devDependencies": map[string]any{pkg[1]: "workspace:*"},
+		})
 	}
-
-	writeJSON(t, filepath.Join(root, "pkg-a", "deno.json"), map[string]any{
-		"name":    "@scope/pkg-a",
-		"version": "1.0.0",
-		"imports": map[string]any{
-			"@scope/pkg-b": "jsr:@scope/pkg-b@^1.0.0",
-		},
-	})
-	writeJSON(t, filepath.Join(root, "pkg-a", "package.json"), map[string]any{
-		"name":    "@scope/pkg-a",
-		"version": "1.0.0",
-		"dependencies": map[string]any{
-			"@scope/pkg-b": "workspace:*",
-		},
-	})
-
-	if err := os.MkdirAll(filepath.Join(root, "pkg-b"), 0o755); err != nil { //nolint:gosec
-		t.Fatal(err)
-	}
-
-	writeJSON(t, filepath.Join(root, "pkg-b", "deno.json"), map[string]any{
-		"name":    "@scope/pkg-b",
-		"version": "1.0.0",
-		"imports": map[string]any{
-			"@scope/pkg-a": "jsr:@scope/pkg-a@^1.0.0",
-		},
-	})
-	writeJSON(t, filepath.Join(root, "pkg-b", "package.json"), map[string]any{
-		"name":    "@scope/pkg-b",
-		"version": "1.0.0",
-		"dependencies": map[string]any{
-			"@scope/pkg-a": "workspace:*",
-		},
-	})
 
 	result, err := codebasefx.CheckCircularDeps(root)
 	if err != nil {
@@ -194,7 +131,7 @@ func TestCheckCircularDeps_HybridDedup(t *testing.T) {
 	}
 
 	if !result.HasCycles {
-		t.Error("expected cycle detected in hybrid workspace")
+		t.Error("expected cycle detected")
 	}
 
 	if len(result.Cycles) != 1 {
@@ -213,7 +150,7 @@ func TestCheckCircularDeps_ActualWorkspace(t *testing.T) {
 	}
 
 	if result.PackagesChecked == 0 {
-		t.Skip("workspace has no deno.json workspace array — skipping edge count probe")
+		t.Skip("workspace has no package.json workspaces — skipping edge count probe")
 	}
 
 	t.Logf("actual workspace: %d packages checked, hasCycles=%v, cycles=%d",

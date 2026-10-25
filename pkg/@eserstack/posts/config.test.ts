@@ -187,21 +187,21 @@ bdd.describe("loadPostsConfig", () => {
     async () => {
       // An empty working directory, so no .env file sets the key either; the
       // package's .env template sets its own redirect URI.
-      const dir = await Deno.makeTempDir();
-      const previous = Deno.cwd();
+      const dir = await runtime.fs.makeTempDir();
+      const previous = runtime.process.cwd();
       const saved = runtime.env.get("TWITTER_REDIRECT_URI");
       try {
         runtime.env.delete("TWITTER_REDIRECT_URI");
-        Deno.chdir(dir);
+        runtime.process.chdir(dir);
         const cfg = await config.loadPostsConfig();
         assert.assertEquals(
           cfg.twitter.redirectUri,
           "http://127.0.0.1:8080/callback",
         );
       } finally {
-        Deno.chdir(previous);
+        runtime.process.chdir(previous);
         if (saved !== undefined) runtime.env.set("TWITTER_REDIRECT_URI", saved);
-        await Deno.remove(dir, { recursive: true });
+        await runtime.fs.remove(dir, { recursive: true });
       }
     },
   );
@@ -282,12 +282,12 @@ bdd.describe("credential routing keys", () => {
   bdd.it(
     "ignores routing keys set by a .env in the working directory",
     async () => {
-      const dir = await Deno.makeTempDir();
-      const previous = Deno.cwd();
+      const dir = await runtime.fs.makeTempDir();
+      const previous = runtime.process.cwd();
       const saved = ROUTING_KEYS.map((k) => [k, runtime.env.get(k)] as const);
       try {
         for (const k of ROUTING_KEYS) runtime.env.delete(k);
-        await Deno.writeTextFile(
+        await runtime.fs.writeTextFile(
           `${dir}/.env`,
           [
             "TWITTER_CLIENT_ID=from-dotenv",
@@ -296,7 +296,7 @@ bdd.describe("credential routing keys", () => {
             "POSTS_TOKEN_STORE_PATH=./leaked/tokens.json",
           ].join("\n") + "\n",
         );
-        Deno.chdir(dir);
+        runtime.process.chdir(dir);
         const cfg = await config.loadPostsConfig();
         // Non-routing keys still come from .env.
         assert.assertEquals(cfg.twitter.clientId, "from-dotenv");
@@ -304,12 +304,12 @@ bdd.describe("credential routing keys", () => {
         assert.assertEquals(cfg.bluesky.pdsHost, undefined);
         assert.assertEquals(cfg.tokenStorePath, undefined);
       } finally {
-        Deno.chdir(previous);
+        runtime.process.chdir(previous);
         for (const [k, v] of saved) {
           if (v === undefined) runtime.env.delete(k);
           else runtime.env.set(k, v);
         }
-        await Deno.remove(dir, { recursive: true });
+        await runtime.fs.remove(dir, { recursive: true });
       }
     },
   );

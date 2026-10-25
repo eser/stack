@@ -1,4 +1,4 @@
-#!/usr/bin/env -S deno run --allow-read --allow-write --allow-env --allow-run
+#!/usr/bin/env -S node
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 // This CLI prints manifests and kubectl commands on stdout for piping and
@@ -28,7 +28,8 @@ const HELP_TEXT = `
 @eserstack/cs - Kubernetes ConfigMap/Secret Sync Tool
 
 USAGE:
-  deno run --allow-all jsr:@eserstack/cs/cli [COMMAND] [OPTIONS]
+  eser cs [COMMAND] [OPTIONS]
+  node cli.ts [COMMAND] [OPTIONS]   (from this package; same commands)
 
 COMMANDS:
   generate    Generate ConfigMap/Secret YAML/JSON from .env files (requires -e flag)
@@ -46,22 +47,22 @@ OPTIONS:
 
 EXAMPLES:
   # Generate ConfigMap from environment
-  deno run --allow-all jsr:@eserstack/cs/cli generate cm/my-config -e development
+  eser cs generate cm/my-config -e development
 
   # Generate Secret and save to file
-  deno run --allow-all jsr:@eserstack/cs/cli generate secret/api-keys -n production -e production > secret.yaml
+  eser cs generate secret/api-keys -n production -e production > secret.yaml
 
   # Generate kubectl patch command for ConfigMap (JSON format)
-  deno run --allow-all jsr:@eserstack/cs/cli sync cm/default -n development -e development
+  eser cs sync cm/default -n development -e development
 
   # Generate YAML format patch command
-  deno run --allow-all jsr:@eserstack/cs/cli sync cm/default -n development -e development -o yaml
+  eser cs sync cm/default -n development -e development -o yaml
 
   # Output only patch string for saving to file
-  deno run --allow-all jsr:@eserstack/cs/cli sync secret/default -e development -s > patch.json
+  eser cs sync secret/default -e development -s > patch.json
 
   # Execute sync command directly
-  eval "$(deno run --allow-all jsr:@eserstack/cs/cli sync secret/default -n development -e development)"
+  eval "$(eser cs sync secret/default -n development -e development)"
 `;
 
 function showHelp(): void {

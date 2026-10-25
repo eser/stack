@@ -418,7 +418,7 @@ export function createMockFeedAggregator(
 
 // The mocks above implement these ports and return these domain types; this
 // module is published as @eserstack/posts/testing, so re-exporting them keeps
-// its documented API complete for `deno doc --lint`.
+// its documented API complete.
 export type {
   AuthorizationRequest,
   AuthProvider,

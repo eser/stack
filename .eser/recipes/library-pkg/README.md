@@ -3,6 +3,8 @@
 `@eserstack/package-name` builds greetings. Replace this paragraph with what the
 package does, who it is for and the design choice that shapes its API.
 
+> **Install:** `pnpm add @eserstack/package-name`
+
 ## Quick Start
 
 Import the package as a namespace and call `greet`. It returns a `Result` from
@@ -39,6 +41,5 @@ if (primitives.results.isFail(result)) {
 
 ## 🔗 Links
 
-- [JSR package](https://jsr.io/@eserstack/package-name): the API reference
-  generated from source
+- [npm package](https://www.npmjs.com/package/@eserstack/package-name)
 - [eser/stack on GitHub](https://github.com/eser/stack)

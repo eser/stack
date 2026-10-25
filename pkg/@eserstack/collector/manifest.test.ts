@@ -8,6 +8,7 @@
 
 import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
+import { runtime } from "@eserstack/standards/cross-runtime";
 import * as manifest from "./manifest.ts";
 
 nodeTest.test("specifierToIdentifier", () => {
@@ -64,3 +65,37 @@ nodeTest.test("specifierToIdentifier deals with duplicates", () => {
     "foo_bar_1",
   );
 });
+
+nodeTest.test(
+  "writeManifestToString writes the manifest in TypeScript with ESER_AJAN=disabled",
+  async () => {
+    const script = `
+      import * as manifest from ${JSON.stringify(
+        import.meta.resolve("./manifest.ts"),
+      )};
+      const handler = function handler() {};
+      process.stdout.write(
+        await manifest.writeManifestToString([
+          ["routes/index.ts", [["default", handler]]],
+        ]),
+      );
+    `;
+    const output = await runtime.exec.spawn(
+      runtime.process.execPath(),
+      ["--input-type=module", "--eval", script],
+      { env: { ESER_AJAN: "disabled" }, stdout: "piped", stderr: "piped" },
+    );
+
+    assert.assertEquals(
+      output.code,
+      0,
+      new TextDecoder().decode(output.stderr),
+    );
+    const source = new TextDecoder().decode(output.stdout);
+    assert.assertStringIncludes(
+      source,
+      'import * as $$routes_index from "./routes/index.ts";',
+    );
+    assert.assertStringIncludes(source, "$$routes_index.handler");
+  },
+);

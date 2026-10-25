@@ -19,7 +19,8 @@
 ## Getting Started
 
 ```bash
-deno task dev    # Start development server
-deno task build  # Build for production
-deno task serve  # Serve production build
+npm install       # Install dependencies
+node --run dev    # Start development server
+node --run build  # Build for production
+node --run serve  # Serve production build
 ```

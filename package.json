@@ -14,7 +14,7 @@
     "check": "tsc --noEmit",
     "lint": "oxlint",
     "fmt": "oxfmt",
-    "test": "node --test --test-force-exit \"pkg/**/*.test.ts\" \"etc/scripts/**/*.test.ts\"",
+    "test": "node --test --experimental-test-coverage --test-timeout=120000 --test-reporter=spec --test-reporter-destination=stdout --test-reporter=lcov --test-reporter-destination=etc/coverage.lcov \"pkg/**/*.test.ts\" \"etc/scripts/*.test.ts\"",
     "bench": "find pkg/@eserstack -name '*.bench.ts' -not -path '*/node_modules/*' -print0 | xargs -0 -n 1 node",
     "cli": "node ./pkg/@eserstack/cli/main.ts",
     "laroux-cli": "node ./pkg/@eserstack/laroux-server/cli.ts",

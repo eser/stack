@@ -4,14 +4,11 @@
  * Self-import checker — detects a workspace package importing itself through
  * its own published name (`@eserstack/shell` importing `@eserstack/shell/env`).
  *
- * Locally that resolves through the workspace, so every check passes. On
- * publish, `deno publish` rewrites the specifier to
- * `jsr:@eserstack/shell@^<version>/env`, and JSR's documentation pass then
- * tries to resolve it against the registry — where that version does not exist
- * yet, because it is the one being published. The package fails, and every
- * package that depends on it is skipped. `deno publish --dry-run` does not run
- * that pass, so this is the only check that catches it before the tag is
- * pushed (it cost the v4.5.0 release three attempts).
+ * Locally that resolves through the workspace, so every check passes. When
+ * the libraries were published to JSR (frozen at 4.5.x, decision-5), the
+ * publish rewrote the specifier to `jsr:@eserstack/shell@^<version>/env` and
+ * resolved it against the registry, where that version did not exist yet; the
+ * dry run skipped that step, and it cost the v4.5.0 release three attempts.
  *
  * Inside a package, import your own modules by relative path.
  *

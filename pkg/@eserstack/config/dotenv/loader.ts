@@ -1,15 +1,15 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import * as dotenv from "@std/dotenv";
 import * as crossRuntime from "@eserstack/standards/cross-runtime";
 import * as base from "./base.ts";
+import * as parser from "./parser.ts";
 import type { EnvMap } from "./base.ts";
 
 /**
  * Default maximum file size for .env files (1MB).
  * This prevents DoS attacks via excessively large .env files.
  */
-export const DEFAULT_MAX_FILE_SIZE = 1024 * 1024; // 1MB
+export const DEFAULT_MAX_FILE_SIZE: number = 1024 * 1024; // 1MB
 
 /**
  * Error thrown when an .env file exceeds the maximum allowed size.
@@ -66,15 +66,14 @@ export type LoaderOptions = {
 };
 
 /**
- * Parses the contents of a `.env` file.
+ * Parses the contents of a `.env` file. A name the file does not set expands
+ * from the process environment.
  *
  * @param rawDotenv - The file contents
  * @returns The variables by name
  */
-export const parseEnvString = (
-  rawDotenv: string,
-): ReturnType<typeof dotenv.parse> => {
-  return dotenv.parse(rawDotenv);
+export const parseEnvString = (rawDotenv: string): Record<string, string> => {
+  return parser.parse(rawDotenv, (name) => crossRuntime.runtime.env.get(name));
 };
 
 /**

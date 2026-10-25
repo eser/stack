@@ -45,7 +45,6 @@ const resolveCliCommand = async (): Promise<string> => {
     command: "eser",
     devCommand: "pnpm cli",
     npmPackage: "eser",
-    jsrPackage: "@eserstack/cli",
   });
 
   return ctx.command;

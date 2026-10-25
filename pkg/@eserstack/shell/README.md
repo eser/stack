@@ -68,8 +68,7 @@ Every command handler returns a `CliResult` from `@eserstack/primitives`:
 - **Template Literal Execution:** Execute shell commands using intuitive
   template strings.
 
-- **Runtime Agnostic:** Works with Deno, Node.js, and Bun via
-  `@eserstack/standards/cross-runtime`.
+- **Node.js:** Runs on Node.js through `@eserstack/standards/cross-runtime`.
 
 - **Type-Safe:** Written in TypeScript with full type support.
 
@@ -656,11 +655,10 @@ lists the changes in every package.
 - A command that does not run to an exit code throws
   `shell.exec.CommandRunError`, even with `noThrow()`: a missing program or
   working directory, a request the native library rejects, or a timeout. On the
-  runtime spawn path it used to be the runtime's own error
-  (`Deno.errors.NotFound`, Node's `ENOENT`), now in `error.cause`; with the
-  native library, `spawn()` used to retry through the runtime. A timeout on the
-  runtime path used to be a `CommandError` with the killed process's exit code.
-  Catch the new class:
+  runtime spawn path it used to be the runtime's own error (Node's `ENOENT`),
+  now in `error.cause`; with the native library, `spawn()` used to retry through
+  the runtime. A timeout on the runtime path used to be a `CommandError` with the
+  killed process's exit code. Catch the new class:
 
   ```typescript
   import * as shell from "@eserstack/shell";
@@ -668,7 +666,7 @@ lists the changes in every package.
   try {
     await shell.exec.exec`git fetch origin`.timeout(30_000).spawn();
   } catch (error) {
-    // Before: error instanceof Deno.errors.NotFound, or a CommandError on timeout
+    // Before: an ENOENT error, or a CommandError on timeout
     if (error instanceof shell.exec.CommandRunError) {
       console.error(`git did not finish: ${error.message}`, error.cause);
     }

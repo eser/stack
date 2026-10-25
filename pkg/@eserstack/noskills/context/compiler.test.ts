@@ -18,7 +18,7 @@ import * as discoveryAnswers from "./discovery-answers.ts";
 const allConcerns = defaultConcerns.DEFAULT_CONCERNS;
 const noRules: readonly string[] = [];
 const noConcerns: readonly schema.ConcernDefinition[] = [];
-const someRules = ["Use Deno", "No global state"];
+const someRules = ["Use Node", "No global state"];
 
 // A tool with neither AskUserQuestion nor sub-agents, such as Cursor.
 const noAskHints: compiler.InteractionHints = {

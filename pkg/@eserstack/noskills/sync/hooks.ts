@@ -12,7 +12,7 @@
  *   {commandPrefix} invoke-hook post-bash
  *   {commandPrefix} invoke-hook post-ask-user-question
  *
- * The hook logic lives in `commands/invoke-hook.ts` — native Deno TypeScript,
+ * The hook logic lives in `commands/invoke-hook.ts` — plain TypeScript,
  * testable, lintable, no `require()` issues. Each hook's timeout comes from
  * `hook-commands.ts`; PreToolUse gets 30 seconds, as long as the git
  * wrapper's check, because Claude Code lets the tool call go ahead when the
@@ -117,4 +117,4 @@ export const syncHooks = async (
 };
 
 // Re-export for backward compatibility
-export const syncHook = syncHooks;
+export const syncHook: typeof syncHooks = syncHooks;

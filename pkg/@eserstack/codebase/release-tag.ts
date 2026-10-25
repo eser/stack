@@ -14,7 +14,7 @@
  * ```
  *
  * CLI usage:
- *   deno run --allow-all ./release-tag.ts [--dry-run]
+ *   node ./release-tag.ts [--dry-run]
  *
  * @module
  */

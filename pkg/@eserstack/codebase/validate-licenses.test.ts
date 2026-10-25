@@ -117,7 +117,7 @@ nodeTest.test(
       await writeFile(
         dir,
         "script.ts",
-        `#!/usr/bin/env deno run\n${CORRECT_HEADER}\nexport {};\n`,
+        `#!/usr/bin/env node\n${CORRECT_HEADER}\nexport {};\n`,
       );
       const result = await validateLicenses.tool.run({ root: dir });
       assert.assertEquals(result.issues.length, 0);
@@ -135,7 +135,7 @@ nodeTest.test(
       await writeFile(
         dir,
         "script.ts",
-        "#!/usr/bin/env deno run\nexport {};\n",
+        "#!/usr/bin/env node\nexport {};\n",
       );
       const result = await validateLicenses.tool.run({ root: dir });
       assert.assertEquals(result.issues.length, 1);

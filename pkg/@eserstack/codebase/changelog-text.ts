@@ -24,7 +24,7 @@ export type ChangelogEntry = {
  * Matches a release heading: `## 1.2.3 - 2026-01-01`, or the legacy
  * `## [v1.2.3] - 2026-01-01`. The validate job in build.yml mirrors it.
  */
-export const HEADING_PATTERN =
+export const HEADING_PATTERN: RegExp =
   /^##\s{1,100}\[?([^\]\s]+)\]?\s{0,100}-?\s{0,100}([0-9]{4}-[0-9]{2}-[0-9]{2})?\s{0,100}$/;
 
 /**

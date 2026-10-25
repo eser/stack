@@ -127,13 +127,11 @@ type FilenameRule struct {
 	Exclude    []string `json:"exclude,omitempty"`
 }
 
-// WorkspacePackageConfig holds parsed fields from deno.json / package.json.
+// WorkspacePackageConfig holds parsed fields from a package.json.
 type WorkspacePackageConfig struct {
 	Exports         interface{}
 	Dependencies    map[string]string
 	DevDependencies map[string]string
-	Imports         map[string]string
-	RawDeno         map[string]interface{}
 	RawPackage      map[string]interface{}
 }
 
@@ -180,32 +178,6 @@ type ModExportsResult struct {
 	IsComplete      bool            `json:"isComplete"`
 	MissingExports  []MissingExport `json:"missingExports"`
 	PackagesChecked int             `json:"packagesChecked"`
-}
-
-// ConfigInconsistency describes a field that differs between deno.json and package.json.
-type ConfigInconsistency struct {
-	PackageName  string `json:"packageName"`
-	Field        string `json:"field"`
-	DenoValue    string `json:"denoValue"`
-	PackageValue string `json:"packageValue"`
-}
-
-// DependencyInconsistency describes a dep mismatch between package.json and deno.json.
-type DependencyInconsistency struct {
-	PackageName    string `json:"packageName"`
-	DependencyName string `json:"dependencyName"`
-	// Issue is one of: "missing_in_deno", "missing_in_package", "version_mismatch"
-	Issue    string `json:"issue"`
-	Expected string `json:"expected,omitempty"`
-	Actual   string `json:"actual,omitempty"`
-}
-
-// PackageConfigsResult is the outcome of CheckPackageConfigs.
-type PackageConfigsResult struct {
-	IsConsistent              bool                      `json:"isConsistent"`
-	Inconsistencies           []ConfigInconsistency     `json:"inconsistencies"`
-	DependencyInconsistencies []DependencyInconsistency `json:"dependencyInconsistencies"`
-	PackagesChecked           int                       `json:"packagesChecked"`
 }
 
 // DocIssue describes a documentation problem for one exported symbol.

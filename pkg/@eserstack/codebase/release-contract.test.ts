@@ -6,9 +6,7 @@
  * `git add` pathspecs are strings matched against the working tree, so an entry
  * that no longer matches a tracked file is only discovered when someone runs
  * `eser codebase release` — after the version bump is already written to disk.
- * The per-package deno.json pathspec was exactly that: the JSR manifests are
- * generated and gitignored, `git add` exited 128 on them, and every release
- * attempt died half-applied.
+ * `git add` exits 128 on such an entry, and the release dies half-applied.
  *
  * The order of the two pushes is likewise nothing but statement order. CI
  * triggers on the tag alone, so a tag pushed before the commit hands the
@@ -54,8 +52,8 @@ const releaseSourcePath = "pkg/@eserstack/codebase/release.ts";
 const stripComments = (source: string): string =>
   source
     // Line comments go first. Several of them quote git pathspecs such as
-    // `pkg/@eserstack/*/deno.json`, and the `/*` … `*/` inside one reads as a
-    // block comment that swallows the code below it.
+    // `pkg/*/package.json`, and the `/*` … `*/` inside one reads as a block
+    // comment that swallows the code below it.
     .split("\n")
     .filter((line) => !line.trimStart().startsWith("//"))
     .join("\n")
@@ -110,23 +108,17 @@ nodeTest.test(
   },
 );
 
-nodeTest.test("release stages no generated JSR manifest", async () => {
-  const source = stripComments(await read(releaseSourcePath));
-  const staged = parseStagedPathspecs(source);
+nodeTest.test(
+  "release formats CHANGELOG.md with the workspace's oxfmt script",
+  async () => {
+    const body = functionBody(
+      stripComments(await read(releaseSourcePath)),
+      "release",
+    );
 
-  assert.assertEquals(
-    staged.filter((pathspec) => pathspec.endsWith("deno.json")),
-    [],
-    "pkg/*/deno.json is gitignored; staging it exits 128 and aborts the " +
-      "release after the version bump is already on disk",
-  );
-
-  // The other half of that contract, in the file that creates it.
-  assert.assertStringIncludes(
-    await read(".gitignore"),
-    "/pkg/@eserstack/*/deno.json",
-  );
-});
+    assert.assertStringIncludes(body, "exec`node --run fmt -- CHANGELOG.md`");
+  },
+);
 
 // =============================================================================
 // The release commit message

@@ -2,7 +2,7 @@
 
 /**
  * The .env dialect shared with the Go loader (TASK-319): the same fixture
- * gives the same values through @std/dotenv here and through
+ * gives the same values through dotenv/parser.ts here and through
  * pkg/ajan/configfx/envparser in its Go test.
  *
  * @module

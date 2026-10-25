@@ -297,3 +297,21 @@ nodeTest.test(
     assert.assertStringIncludes(message, "-Product eser");
   },
 );
+
+nodeTest.test(
+  "updateConfig updates the app's npm package with npm, never from JSR",
+  () => {
+    assert.assertEquals(
+      update.updateConfig({
+        command: "noskills",
+        devCommand: "pnpm cli noskills",
+        npmPackage: "noskills",
+      }),
+      { cmd: "npm", args: ["update", "-g", "-f", "noskills"] },
+    );
+    assert.assertEquals(
+      update.updateConfig({ command: "eser", devCommand: "pnpm cli" }).args,
+      ["update", "-g", "-f", "eser"],
+    );
+  },
+);

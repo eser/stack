@@ -2,6 +2,7 @@
 
 import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
+import { runtime } from "@eserstack/standards/cross-runtime";
 import * as config from "./mod.ts";
 
 nodeTest.test("new Config", () => {
@@ -24,10 +25,10 @@ nodeTest.test("setting config meta", () => {
 });
 
 nodeTest.test("FFI round-trip: load values from json_file", async () => {
-  const tmpDir = await Deno.makeTempDir();
-  const configPath = `${tmpDir}/round-trip.json`;
+  const tmpDir = await runtime.fs.makeTempDir({ prefix: "config-" });
+  const configPath = runtime.path.join(tmpDir, "round-trip.json");
   try {
-    await Deno.writeTextFile(
+    await runtime.fs.writeTextFile(
       configPath,
       JSON.stringify({ ESER_TEST_KEY: "hello", ESER_TEST_NUM: 42 }),
     );
@@ -37,6 +38,6 @@ nodeTest.test("FFI round-trip: load values from json_file", async () => {
     assert.assertEquals(values["ESER_TEST_KEY"], "hello");
     assert.assertEquals(values["ESER_TEST_NUM"], "42"); // Go coerces all JSON values to strings
   } finally {
-    await Deno.remove(tmpDir, { recursive: true });
+    await runtime.fs.remove(tmpDir, { recursive: true });
   }
 });

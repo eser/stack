@@ -8,9 +8,9 @@
  * already speaks it there. This package has no HTTP/3 transport of its own:
  * outside a browser, `fetch` speaks whatever the runtime supports.
  *
- * It pins no certificate. Pin a self-signed certificate through the runtime
- * (for example `Deno.createHttpClient({ caCerts })`) or, for WebTransport,
- * through `serverCertificateHashes` in `@eserstack/webtransport`.
+ * It pins no certificate. Trust a self-signed certificate through the runtime
+ * (on Node, the `NODE_EXTRA_CA_CERTS` environment variable) or, for
+ * WebTransport, through `serverCertificateHashes` in `@eserstack/webtransport`.
  *
  * @module
  */
@@ -35,7 +35,7 @@
 export function createH3FetchFn(): typeof fetch {
   if (typeof globalThis.fetch !== "function") {
     throw new Error(
-      "createH3FetchFn: this runtime has no global fetch; use Node 18 or later, Deno or a browser, or pass your own fetchFn to createHttpClient",
+      "createH3FetchFn: this runtime has no global fetch; use Node 18 or later or a browser, or pass your own fetchFn to createHttpClient",
     );
   }
 

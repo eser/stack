@@ -31,7 +31,7 @@ const makeConfig = (tools: readonly string[]) => ({
     languages: ["typescript"] as readonly string[],
     frameworks: [] as readonly string[],
     ci: [] as readonly string[],
-    testRunner: "deno" as string | null,
+    testRunner: "node" as string | null,
   },
   maxIterationsBeforeRestart: 15,
   verifyCommand: null as string | null,

@@ -11,8 +11,8 @@
  * ```
  *
  * Usage:
- *   deno run --allow-all jsr:@eserstack/kit add recipe-name
- *   deno run --allow-all ./main.ts new my-project
+ *   npx eser kit add recipe-name
+ *   node ./main.ts new my-project
  *
  * @module
  */

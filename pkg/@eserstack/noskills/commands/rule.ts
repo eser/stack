@@ -92,7 +92,7 @@ const ruleAdd = async (
   if (ruleText.length === 0) {
     out.writeln(
       span.red("Please provide a rule: "),
-      span.bold(`${cmd.cmd('rule add "Use Deno Tests for all tests"')}`),
+      span.bold(`${cmd.cmd('rule add "Use node:test for all tests"')}`),
     );
     await out.close();
 

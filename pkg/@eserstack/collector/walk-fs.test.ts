@@ -177,12 +177,11 @@ nodeTest.test(
       )}, undefined, /\\.test\\./));
       console.log(JSON.stringify(files));
     `;
-      const output = await new Deno.Command(Deno.execPath(), {
-        args: ["eval", "--quiet", script],
-        env: { ESER_AJAN: "disabled" },
-        stdout: "piped",
-        stderr: "piped",
-      }).output();
+      const output = await runtime.exec.spawn(
+        runtime.process.execPath(),
+        ["--input-type=module", "--eval", script],
+        { env: { ESER_AJAN: "disabled" }, stdout: "piped", stderr: "piped" },
+      );
 
       assert.assertEquals(
         output.code,

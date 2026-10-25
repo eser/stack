@@ -13,7 +13,9 @@ import (
 
 // configFilePriority is the TypeScript loader's order (package/types.ts
 // CONFIG_FILE_PRIORITY): a field's value comes from the first file that has it.
-var configFilePriority = []string{"deno.json", "deno.jsonc", "jsr.json", "jsr.jsonc", "package.json"} //nolint:gochecknoglobals
+// The workspace publishes to npm only (decision-5), so package.json is the
+// one package config.
+var configFilePriority = []string{"package.json"} //nolint:gochecknoglobals
 
 var (
 	errNoWorkspaces    = errors.New("the root package config has no workspaces")
@@ -73,12 +75,7 @@ func loadPackageConfig(root, dir string) (packageConfig, bool, error) {
 			return config, false, fmt.Errorf("read %s: %w", rel, err)
 		}
 
-		source := data
-		if strings.HasSuffix(name, ".jsonc") {
-			source = stripJSONComments(data)
-		}
-
-		content, err := decodeOrdered(source)
+		content, err := decodeOrdered(data)
 		if err != nil {
 			return config, false, fmt.Errorf("parse %s: %w", rel, err)
 		}
@@ -107,12 +104,10 @@ func workspaceDirs(root string, rootConfig packageConfig) ([]string, error) {
 	var patterns []string
 
 	for _, file := range rootConfig.files {
-		for _, key := range []string{"workspaces", "workspace"} {
-			if v, ok := file.content.get(key); ok && v.kind == 'a' {
-				for _, item := range v.array {
-					if s, ok := item.scalar.(string); ok {
-						patterns = append(patterns, s)
-					}
+		if v, ok := file.content.get("workspaces"); ok && v.kind == 'a' {
+			for _, item := range v.array {
+				if s, ok := item.scalar.(string); ok {
+					patterns = append(patterns, s)
 				}
 			}
 		}

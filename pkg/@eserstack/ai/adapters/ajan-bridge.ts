@@ -468,9 +468,11 @@ export class AjanBridgeModel implements model.BatchCapableModel {
     try {
       const optionsJSON = buildOptionsJSON(options, requestId);
 
-      // Awaited, and on Deno genuinely off-thread. A blocking call here froze
-      // the isolate for the whole model round-trip, which also made the signal
-      // above unobservable: nothing could run to fire it.
+      // Awaited, so a backend that runs the call off the main thread keeps
+      // the event loop free and the signal above observable. node:ffi calls
+      // block today and freeze the loop for the whole model round-trip, so
+      // nothing can run to fire the signal; the worker threads of decision-37
+      // (M2-T8) move them off the main thread.
       const raw = await this.#lib.symbols.EserAjanAiGenerateText(
         this.#modelHandle,
         optionsJSON,

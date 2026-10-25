@@ -59,7 +59,7 @@ one:
 5. Process environment variables
 
 The environment name comes from `-e` (or the `env` option), then from the `ENV`,
-`APP_ENV`, `DENO_ENV` or `NODE_ENV` variable, then defaults to `development`.
+`APP_ENV` or `NODE_ENV` variable, then defaults to `development`.
 `generate` reads the `.env` files of the environment and no process environment
 variables, whether it runs on the native ajan library or in TypeScript.
 
@@ -73,28 +73,31 @@ Here you'll find examples of how to use `@eserstack/cs` for different scenarios.
 
 ### CLI Usage
 
+The `eser` CLI runs these commands as `eser cs`. From a checkout of this
+package, `node cli.ts` takes the same commands and flags.
+
 **Generate a ConfigMap from the `.env` files of an environment:**
 
 ```bash
-deno run --allow-all jsr:@eserstack/cs/cli generate cm/my-config -e development
+eser cs generate cm/my-config -e development
 ```
 
 **Generate a Secret with specific namespace:**
 
 ```bash
-deno run --allow-all jsr:@eserstack/cs/cli generate secret/api-keys -n production -e production
+eser cs generate secret/api-keys -n production -e production
 ```
 
 **Save output to a file:**
 
 ```bash
-deno run --allow-all jsr:@eserstack/cs/cli generate cm/my-config -e development > configmap.yaml
+eser cs generate cm/my-config -e development > configmap.yaml
 ```
 
 **Sync with existing Kubernetes resource:**
 
 ```bash
-deno run --allow-all jsr:@eserstack/cs/cli sync configmap/my-existing-config -e production
+eser cs sync configmap/my-existing-config -e production
 ```
 
 `sync` prints a warning on stderr for each key of the resource that the
@@ -103,7 +106,7 @@ environment does not define, and leaves that key out of the patch.
 **Generate patch string only (for saving to file):**
 
 ```bash
-deno run --allow-all jsr:@eserstack/cs/cli sync secret/api-keys -e production -s > patch.json
+eser cs sync secret/api-keys -e production -s > patch.json
 kubectl patch secret api-keys --type=merge --patch-file=patch.json
 ```
 

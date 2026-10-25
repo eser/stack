@@ -267,7 +267,7 @@ const cut = (text: string, limit: number): string =>
  * as one JSON document, never in this text, so nothing in the spec or the
  * answers can pose as an instruction.
  */
-export const VALIDATOR_SYSTEM_PROMPT = [
+export const VALIDATOR_SYSTEM_PROMPT: string = [
   "You check one phase transition of a software spec before a person approves it. You did not write the spec and you have no other context: judge only the data in the user message.",
   "",
   "The user message is one JSON document with three fields:",

@@ -125,7 +125,7 @@ that want explicit FFI semantics.
 
 ## Behavioral divergences from TS implementation
 
-Discovered 2026-04-17 via `deno test --allow-all` on `formats.test.ts`. All 8
+Discovered 2026-04-17 by running `formats.test.ts`. All 8
 divergences resolved as of 2026-04-17 (Track B).
 
 | Test                                                              | Expected (TS behavior)                               | Resolution                                                                                                                                                                                                   | Status                                                    |

@@ -14,10 +14,10 @@ Kiro) through a single `LanguageModel` abstraction.
 ## CLI
 
 ```bash
-# Standalone
-deno jsr:@eserstack/ai ask "explain closures in JS" -p cc
-deno jsr:@eserstack/ai ask "summarize this"              # auto-detect provider
-deno jsr:@eserstack/ai list                               # show available providers
+# Standalone, from the package directory
+node ./main.ts ask "explain closures in JS" -p cc
+node ./main.ts ask "summarize this"                # auto-detect provider
+node ./main.ts list                                # show available providers
 
 # Via eser CLI
 eser ai ask "hello" -p ollama -m llama3
@@ -180,7 +180,7 @@ import * as primitives from "@eserstack/primitives";
 
 const result = await model.generateText({
   messages: [
-    ai.textMessage("user", "Suggest a title for a post about Deno workspaces."),
+    ai.textMessage("user", "Suggest a title for a post about pnpm workspaces."),
   ],
   responseFormat: {
     type: "json_schema",

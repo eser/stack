@@ -20,9 +20,11 @@ import { runtime } from "@eserstack/standards/cross-runtime";
 
 export type { ProviderStatus } from "@eserstack/ai/mod";
 
-export const detectProviders = ai.detectAllProviders;
+export const detectProviders: typeof ai.detectAllProviders =
+  ai.detectAllProviders;
 
-export const getAvailableProviderNames = ai.getAvailableProviderNames;
+export const getAvailableProviderNames: typeof ai.getAvailableProviderNames =
+  ai.getAvailableProviderNames;
 
 // =============================================================================
 // Coding Tool Detection (checks for config files in repo)

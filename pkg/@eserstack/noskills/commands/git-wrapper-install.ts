@@ -13,7 +13,7 @@
  *
  * The wrapper is a POSIX shell script, so it is not installed on Windows. A
  * `git.cmd` shim would not take its place: programs that start git without a
- * shell (Python's subprocess, Node's child_process, Deno.Command) look up
+ * shell (Python's subprocess, Node's child_process) look up
  * `git.exe` and never run a `.cmd` file.
  *
  * @module

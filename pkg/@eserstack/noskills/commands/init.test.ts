@@ -21,14 +21,7 @@ const runNoskills = async (
 ): Promise<{ code: number; output: string }> => {
   const result = await crossRuntime.runtime.exec.spawn(
     crossRuntime.runtime.process.execPath(),
-    [
-      "run",
-      "-A",
-      "--config",
-      `${REPO_ROOT}/deno.json`,
-      `${REPO_ROOT}/pkg/@eserstack/noskills/main.ts`,
-      ...args,
-    ],
+    [`${REPO_ROOT}/pkg/@eserstack/noskills/main.ts`, ...args],
     { cwd, stdin: "null", stdout: "piped", stderr: "piped" },
   );
 
@@ -59,10 +52,6 @@ bdd.describe("noskills init", () => {
       const result = await crossRuntime.runtime.exec.spawn(
         crossRuntime.runtime.process.execPath(),
         [
-          "run",
-          "-A",
-          "--config",
-          `${REPO_ROOT}/deno.json`,
           `${REPO_ROOT}/pkg/@eserstack/noskills/main.ts`,
           "init",
           "--non-interactive",

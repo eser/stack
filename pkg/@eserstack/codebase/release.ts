@@ -28,7 +28,7 @@
  *   eser codebase unrelease [--yes]
  *
  * Only the release flow runs when this file is executed directly
- * (`deno run --allow-all ./release.ts patch`); rerelease and unrelease are
+ * (`node ./release.ts patch`); rerelease and unrelease are
  * separate entry points, not flags on it.
  *
  * @module
@@ -302,9 +302,10 @@ export const release = async (
   let tagPushed = false;
 
   if (!dryRun) {
-    // Format changelog
+    // Format changelog with the workspace's pinned oxfmt. `node --run` puts
+    // node_modules/.bin on PATH without the dependency check `pnpm exec` runs.
     if (changelogGenerated) {
-      await shellExec.exec`deno fmt CHANGELOG.md`.noThrow().spawn();
+      await shellExec.exec`node --run fmt -- CHANGELOG.md`.noThrow().spawn();
     }
 
     // Stage and commit
@@ -314,10 +315,6 @@ export const release = async (
     // that, so a dead entry aborts the release after the version bump has
     // already been written to disk.
     //
-    // pkg/@eserstack/*/deno.json is deliberately absent. Those are JSR
-    // manifests generated from package.json + VERSION by
-    // etc/scripts/gen-jsr-manifests.ts and gitignored (.gitignore), so a
-    // `pkg/*/deno.json` entry matched nothing and killed every release attempt.
     // Note `*` spans `/` in a git pathspec, so `pkg/*/package.json` does reach
     // the scoped packages.
     const filesToStage = [
@@ -701,7 +698,7 @@ const unreleaseResponseMapper: functions.handler.ResponseMapper<
     ctx,
     `The release commit remains in history. Run "eser codebase rerelease" to ` +
       `re-push the tag once the version is publishable again — but only if ` +
-      `nothing was published: npm and JSR both refuse a re-published version.`,
+      `nothing was published: npm refuses a re-published version.`,
   );
 
   return primitives.results.ok(undefined);

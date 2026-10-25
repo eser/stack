@@ -29,7 +29,7 @@ type Settings = {
   readonly hooks: Readonly<Record<string, readonly HookEntry[]>>;
 };
 
-const PREFIX = "deno task cli noskills";
+const PREFIX = "pnpm cli noskills";
 
 const readSettings = async (root: string): Promise<Settings> =>
   JSON.parse(

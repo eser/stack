@@ -110,3 +110,42 @@ nodeTest.test("load() keeps percent signs in values as written", async () => {
     await runtime.fs.remove(dir, { recursive: true });
   }
 });
+
+nodeTest.test(
+  "parseEnvString expands a name the file does not set from the process environment",
+  () => {
+    const variable = uniqueVariable();
+    runtime.env.set(variable, "from-process");
+
+    try {
+      assert.assertEquals(
+        { ...loader.parseEnvString(`VALUE=\${${variable}}-$${variable}`) },
+        { VALUE: "from-process-from-process" },
+      );
+    } finally {
+      runtime.env.delete(variable);
+    }
+  },
+);
+
+nodeTest.test(
+  "parseEnvString expands an unset name without a default to empty",
+  () => {
+    const variable = uniqueVariable();
+
+    assert.assertEquals(
+      { ...loader.parseEnvString(`VALUE=a\${${variable}}b`) },
+      { VALUE: "ab" },
+    );
+  },
+);
+
+nodeTest.test(
+  "parseEnvString stops expanding a value that refers to itself",
+  () => {
+    assert.assertEquals(
+      { ...loader.parseEnvString("LOOP=x$LOOP") },
+      { LOOP: `${"x".repeat(10)}x$LOOP` },
+    );
+  },
+);

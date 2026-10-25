@@ -10,7 +10,7 @@ import (
 
 // EnvNameVariables are the variables read for the environment name, in
 // order, when none is given (the @eserstack/config dotenv loader's envVars).
-var EnvNameVariables = []string{"ENV", "APP_ENV", "DENO_ENV", "NODE_ENV"} //nolint:gochecknoglobals
+var EnvNameVariables = []string{"ENV", "APP_ENV", "NODE_ENV"} //nolint:gochecknoglobals
 
 // DefaultEnvName is the environment name when none is given or set.
 const DefaultEnvName = "development"

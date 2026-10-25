@@ -286,14 +286,7 @@ bdd.describe("spec new --from-plan", () => {
     const run = (args: readonly string[]) =>
       crossRuntime.runtime.exec.spawn(
         crossRuntime.runtime.process.execPath(),
-        [
-          "run",
-          "-A",
-          "--config",
-          `${repo}/deno.json`,
-          `${repo}/pkg/@eserstack/noskills/main.ts`,
-          ...args,
-        ],
+        [`${repo}/pkg/@eserstack/noskills/main.ts`, ...args],
         { cwd: root, stdin: "null", stdout: "piped", stderr: "piped" },
       );
 

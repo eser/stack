@@ -36,7 +36,7 @@
  *
  * // Streaming I/O with child process
  * const input = ReadableStream.from([new TextEncoder().encode("const a=1")]);
- * const child = shell.exec.exec`deno fmt -`.child();
+ * const child = shell.exec.exec`cat`.child();
  * await input.pipeTo(child.stdin!);
  * const { stdout } = await child.output();
  * ```

@@ -26,11 +26,11 @@ export interface GenerateOptions {
    * Directory to resolve `.env` files from. Defaults to the process cwd.
    *
    * Exists so a caller can point at a directory WITHOUT calling chdir. chdir is
-   * process-global, and `deno test --parallel` runs test files concurrently, so
-   * a test that chdir'd into a temp directory changed the cwd of every other
-   * test running at that moment -- and deleted it on the way out. Anything that
-   * spawned a subprocess or resolved a relative path in that window failed for
-   * reasons having nothing to do with itself.
+   * process-global, so a test that chdir'd into a temp directory changed the
+   * cwd of every other test running in that process at that moment -- and
+   * deleted it on the way out. Anything that spawned a subprocess or resolved
+   * a relative path in that window failed for reasons having nothing to do
+   * with itself.
    */
   cwd?: string;
 }

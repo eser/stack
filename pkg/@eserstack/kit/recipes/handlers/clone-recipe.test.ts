@@ -12,6 +12,7 @@ import * as errorChain from "../error-chain.ts";
 import * as registryFetcher from "../registry-fetcher.ts";
 import * as tar from "../tar.ts";
 import * as cloneRecipe from "./clone-recipe.ts";
+import * as testing from "../testing.ts";
 
 const RECIPE_URL =
   "https://raw.githubusercontent.com/owner/repo/main/recipe.json";
@@ -40,10 +41,11 @@ const oneFileTarball = (): ReadableStream<Uint8Array> => {
     type: "file",
     path: "repo-main/data.txt",
     size: bytes.length,
-    readable: ReadableStream.from([bytes]),
+    readable: testing.readableStreamFrom([bytes]),
   };
 
-  return ReadableStream.from([input])
+  return testing
+    .readableStreamFrom([input])
     .pipeThrough(new tarStream.TarStream())
     .pipeThrough(
       new CompressionStream("gzip") as unknown as TransformStream<

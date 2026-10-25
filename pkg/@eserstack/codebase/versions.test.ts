@@ -147,6 +147,40 @@ nodeTest.test(
   },
 );
 
+nodeTest.test(
+  "versions: a bump reads and writes package.json only, never deno.json or jsr.json",
+  async () => {
+    const workspace = await makeWorkspace();
+    const memberDir = runtime.path.dirname(workspace.memberManifests[0]!);
+    const denoManifest = runtime.path.join(memberDir, "deno.json");
+    const jsrManifest = runtime.path.join(memberDir, "jsr.json");
+
+    try {
+      // A higher version in a stray manifest would win the sync if it were read.
+      await writeJson(denoManifest, {
+        name: "@fixture/alpha",
+        version: "9.0.0",
+      });
+      await writeJson(jsrManifest, {
+        name: "@fixture/alpha",
+        version: "9.0.0",
+      });
+
+      const result = await versions.versions("patch", { root: workspace.root });
+
+      assert.assertEquals(result.targetVersion, "1.0.1");
+      assert.assertEquals(
+        await Promise.all(workspace.memberManifests.map(readVersion)),
+        ["1.0.1", "1.0.1"],
+      );
+      assert.assertEquals(await readVersion(denoManifest), "9.0.0");
+      assert.assertEquals(await readVersion(jsrManifest), "9.0.0");
+    } finally {
+      await runtime.fs.remove(workspace.root, { recursive: true });
+    }
+  },
+);
+
 nodeTest.test("versions: a dry run writes nothing", async () => {
   const workspace = await makeWorkspace();
 

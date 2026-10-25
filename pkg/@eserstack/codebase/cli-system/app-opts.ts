@@ -23,5 +23,4 @@ export const appOpts = (
   command: app.command,
   devCommand: app.devCommand,
   npmPackage: app.npmPackage ?? app.command,
-  jsrPackage: app.jsrPackage ?? `@eserstack/${app.command}`,
 });

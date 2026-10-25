@@ -288,9 +288,9 @@ bdd.describe("routeToolCall", () => {
     },
     {
       name: "search_posts",
-      arguments: { query: "deno", platform: "bluesky", maxResults: 5 },
+      arguments: { query: "node", platform: "bluesky", maxResults: 5 },
     },
-    { name: "search_posts_all", arguments: { query: "deno" } },
+    { name: "search_posts_all", arguments: { query: "node" } },
     { name: "get_post", arguments: { id: "1234567890", platform: "twitter" } },
     {
       name: "bookmark_post",

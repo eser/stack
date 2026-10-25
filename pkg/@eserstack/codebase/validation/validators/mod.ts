@@ -10,6 +10,5 @@ export { circularDepsValidator } from "./circular-deps.ts";
 export { modExportsValidator } from "./mod-exports.ts";
 export { exportNamesValidator } from "./export-names.ts";
 export { docsValidator } from "./docs.ts";
-export { packageConfigsValidator } from "./package-configs.ts";
 export { serverLocValidator } from "./server-loc.ts";
 export { errorCoverageValidator } from "./error-coverage.ts";

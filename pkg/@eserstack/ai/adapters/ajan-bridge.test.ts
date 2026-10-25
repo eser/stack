@@ -391,8 +391,8 @@ const cancelSpy = (): CancelSpy => {
     sent,
     lib: {
       symbols: {
-        // Deliberately async, mirroring the nonblocking Deno symbol: the whole
-        // point is that JS keeps running while the model call is in flight.
+        // Deliberately async, mirroring an off-thread symbol: the whole point
+        // is that JS keeps running while the model call is in flight.
         EserAjanAiGenerateText: (_h: string, optionsJSON: string) => {
           sent.push(optionsJSON);
 

@@ -274,11 +274,21 @@ function withAdapter<I, O, E>(
 
 // ── Factory ────────────────────────────────────────────────────────────────────
 
+/** A bound trigger adapted to the TUI input bag; bad input fails with AdaptError. */
+type TuiTrigger<T> = T extends (input: never) => task.Task<infer O, infer E>
+  ? (input: TuiInput) => task.Task<O, E | handler.AdaptError>
+  : never;
+
+/** The TUI-adapted triggers, one per bound trigger. */
+export type TuiTriggers = {
+  [K in keyof BoundTriggers]: TuiTrigger<BoundTriggers[K]>;
+};
+
 /**
  * Produce context-free, TUI-adapted triggers from pre-bound handlers.
  * Pass the result to TuiMenu — it never needs to see PostsCtx.
  */
-export function createTuiTriggers(bound: BoundTriggers) {
+export function createTuiTriggers(bound: BoundTriggers): TuiTriggers {
   return {
     composeTweet: withAdapter(bound.composeTweet, tuiToCompose),
     composePostToAll: withAdapter(bound.composePostToAll, tuiToComposeAll),
@@ -305,5 +315,3 @@ export function createTuiTriggers(bound: BoundTriggers) {
     getUsage: withAdapter(bound.getUsage, tuiToGetUsage),
   };
 }
-
-export type TuiTriggers = ReturnType<typeof createTuiTriggers>;

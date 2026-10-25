@@ -59,7 +59,7 @@ export interface RecipeFile {
 export interface RecipeDependencies {
   /** Go module paths, installed with `go get`. */
   readonly go?: readonly string[];
-  /** JSR specifiers such as `jsr:@eserstack/fp@^4.1.0`, installed with `deno add`. */
+  /** JSR specifiers such as `jsr:@eserstack/fp@^4.1.0`, for projects that install from JSR. */
   readonly jsr?: readonly string[];
   /** npm package names, installed with `npm install`. */
   readonly npm?: readonly string[];

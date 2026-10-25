@@ -22,8 +22,6 @@ const mapErrorCode = (msg: string): string => {
   return errors.CONFIG_LOAD_FAILED;
 };
 
-// Arrow properties rather than method shorthand: deno lint's
-// no-top-level-await reports an await inside an object method as top level.
 /**
  * A `Loader` that reads configuration through the Go library. It throws a
  * `ConfigError` with `CONFIG_LOAD_FAILED` when the library is not available.

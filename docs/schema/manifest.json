@@ -86,7 +86,7 @@
             },
             "testRunner": {
               "type": ["string", "null"],
-              "description": "Primary test runner (e.g. \"deno\", \"jest\", \"go\").",
+              "description": "Primary test runner (e.g. \"node\", \"jest\", \"go\").",
               "default": null
             }
           },
@@ -100,7 +100,7 @@
         },
         "verifyCommand": {
           "type": ["string", "null"],
-          "description": "Shell command run after each execution turn to verify correctness (e.g. \"deno task ok\").",
+          "description": "Shell command run after each execution turn to verify correctness (e.g. \"node --run test\").",
           "default": null
         },
         "allowGit": {

@@ -1,7 +1,7 @@
 # @eserstack/codebase: Agent Guide
 
 Rules for writing and changing the check and fix tools in this package (the
-`validate-*` tools and everything run through `deno task cli codebase`). The
+`validate-*` tools and everything run through `pnpm cli codebase`). The
 repository-wide rules are in the root `AGENTS.md` and `.agents/skills/`.
 
 ---
@@ -97,7 +97,7 @@ Rule:
 1. Create `validate-<name>.ts` with `createFileTool()`, and export `tool`,
    `run`, `validator` and `main` like the existing tools.
 2. Register it in `validation/registry.ts` (both the validator list and the
-   workflow tool list) and in `module.ts` so `deno task cli codebase <name>`
+   workflow tool list) and in `module.ts` so `pnpm cli codebase <name>`
    finds it.
 3. Add it to the `precommit` steps in `.eser/manifest.yml`, with a comment on
    why it exists.
@@ -105,5 +105,6 @@ Rule:
    `run({ root })` against a temporary directory.
 5. When the rule has existing violations, record them in a baseline under
    `.eser/baselines/` and fail only above it, with the helpers in
-   `violation-baseline.ts` as `validate-code-conventions` and
-   `validate-runtime-js-apis` do, instead of excluding files.
+   `violation-baseline.ts` as `validate-code-conventions` does, instead of
+   excluding files. A rule that allows no exception, such as
+   `validate-runtime-js-apis`, has no baseline.

@@ -19,7 +19,7 @@ import { runtime } from "@eserstack/standards/cross-runtime";
  * `git archive HEAD | wc -c` on eser/stack, a large monorepo, gives about
  * 13 MiB; GitHub serves tarballs in the same format.
  */
-export const DEFAULT_MAX_BYTES = 256 * 1024 * 1024;
+export const DEFAULT_MAX_BYTES: number = 256 * 1024 * 1024;
 
 /**
  * Default upper bound on the number of archive entries. For scale,

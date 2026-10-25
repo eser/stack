@@ -144,7 +144,7 @@
       "--phases=EXECUTING"
     ],
     "exitCode": 1,
-    "stdout": "Please provide a rule: npx eser@latest noskills rule add \"Use Deno Tests for all tests\"\n",
+    "stdout": "Please provide a rule: npx eser@latest noskills rule add \"Use node:test for all tests\"\n",
     "files": {}
   },
   {

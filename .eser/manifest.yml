@@ -7,24 +7,18 @@ workflows:
     on: [precommit, prepush]
     steps:
       # Internal tools
-      # docs/api/ is `deno doc --html` output, regenerated wholesale by
-      # `deno task cli docs`. Linting it means every regeneration re-breaks the
-      # gate and has to be re-fixed by hand -- which is exactly what the
-      # previously committed, newline-fixed generated files show happened.
-      #
       # third-party/ holds in-tree forks that keep upstream's bytes as they are
       # (third-party/jsonschema/FORK.md).
       - validate-eof:
-          exclude: ["docs/api/", "third-party/"]
+          exclude: ["third-party/"]
       - validate-trailing-whitespace:
-          exclude: ["docs/api/", "third-party/"]
+          exclude: ["third-party/"]
       - validate-bom:
-          exclude: ["docs/api/", "third-party/"]
+          exclude: ["third-party/"]
       - validate-line-endings:
-          exclude: ["docs/api/", "third-party/"]
+          exclude: ["third-party/"]
       - validate-large-files:
           maxKb: 1024
-          exclude: ["docs/api/"]
       - validate-case-conflict
       - validate-merge-conflict
       - validate-json:
@@ -108,12 +102,8 @@ workflows:
             # The Deno-to-Node codemods are Node scripts (process, node:fs);
             # they go in M1-T37 (TASK-231).
             - "etc/codemods/"
-            - "etc/scripts/hybrid-sniffer.ts"
-            # Bootstrap: generates the package manifests, so it runs before the
-            # package graph exists and cannot import from it.
-            - "etc/scripts/gen-jsr-manifests.ts"
             # Release tooling: runs from a fresh checkout after publish and must
-            # not depend on the workspace it just released (Deno-only scripts).
+            # not depend on the workspace it just released.
             - "etc/scripts/preflight-npm-consumer.ts"
             # Run on a bare node with built-ins only, so they cannot import the
             # cross-runtime layer: a Claude Code hook, the skill validator and
@@ -121,7 +111,12 @@ workflows:
             - ".agents/hooks/decision-nudge.js"
             - ".agents/skills/eser-rules-manager/scripts/validate-skills.ts"
             - "etc/scripts/release-notes-from-changelog.ts"
-            # Tests and benches run only under Deno — exempt from the portable-API rule.
+            # The opt-in leak check of the test seam diffs
+            # process.getActiveResourcesInfo(), which only Node has and the
+            # cross-runtime layer does not wrap; it is loaded by tests only.
+            - "pkg/@eserstack/test-kit/leaks.ts"
+            # Tests run only under node --test, so they are exempt from the
+            # portable-API rule.
             - ".test.ts"
       - validate-self-imports:
           exclude:
@@ -131,7 +126,7 @@ workflows:
       # (javascript-practices). Existing
       # violations are listed in .eser/baselines/code-conventions.json; only
       # new ones fail. Shrink the baseline after migrating files with
-      # `deno run -A ./pkg/@eserstack/codebase/validate-code-conventions.ts --write-baseline`.
+      # `node ./pkg/@eserstack/codebase/validate-code-conventions.ts --write-baseline`.
       - validate-code-conventions
       # camelCase declared names and TODO(TASK-<number>) comments, which oxlint
       # does not check (decision-21, decision-34).
@@ -145,19 +140,6 @@ workflows:
           errorObjects:
             - NSError
 
-      # Regenerate the per-package JSR publish manifests.
-      #
-      # pkg/@eserstack/*/deno.json is derived from each package's package.json
-      # plus the root VERSION file (and deno.extra.json where a package needs
-      # `publish.include` or `tasks`, which package.json cannot express). They
-      # are gitignored: keeping them checked in duplicated every exports map in
-      # two places, which is what made a one-line version bump rewrite ~70
-      # files and had already drifted once.
-      - shell:
-          name: gen-jsr-manifests
-          command: deno run -A ./etc/scripts/gen-jsr-manifests.ts
-          timeout: 60
-
       # The Deno-to-Node codemods run under Node and have their own tests
       # (M0-T18, M0-T19); the folder goes in M1-T37.
       - shell:
@@ -165,7 +147,7 @@ workflows:
           command: node --test etc/codemods
           timeout: 120
 
-      # Build the native FFI library before any Deno step that loads it.
+      # Build the native FFI library before any step that loads it.
       #
       # ~20 TS packages reach Go through pkg/@eserstack/ajan's c-shared library.
       # Without this step the *.ffi.test.ts suites fail with "native library
@@ -184,39 +166,42 @@ workflows:
 
       # Workspace checks. They read the members from the root package.json
       # `workspaces` and fail when it lists none, so they run after the native
-      # library they call is rebuilt and the manifests they compare exist.
+      # library they call is rebuilt.
       # No dependency cycles between packages:
       - validate-circular-deps
       # Export sub-paths are kebab-case:
       - validate-export-names
-      # Each generated deno.json matches its package.json:
-      - validate-package-configs
 
-      # Deno checks
+      # TypeScript checks, on the tools pinned in the root package.json.
       - shell:
-          name: deno-formatter
-          command: deno fmt --check
-          fixCommand: deno fmt
-      - shell:
-          name: deno-linter
-          command: deno lint .
-          fixCommand: deno lint --fix .
-      # cli has no mod.ts, and its main.ts graph is what `deno compile` and
-      # publish check in strict mode, so it is a root of its own.
-      - shell:
-          name: deno-type-check
-          command: deno check ./pkg/@eserstack/*/mod.ts ./pkg/@eserstack/cli/main.ts
+          name: formatter
+          command: pnpm exec oxfmt --check
+          fixCommand: pnpm exec oxfmt
           timeout: 120
       - shell:
-          name: deno-tests
-          command: deno test --allow-sys --allow-net --allow-env --allow-read
-            --allow-write --allow-run --allow-ffi --parallel --trace-leaks
-            --coverage=./etc/coverage/
+          name: linter
+          command: pnpm exec oxlint
+          fixCommand: pnpm exec oxlint --fix
+          timeout: 120
+      # tsconfig.json sets noEmit; the flag keeps the step a check even if
+      # that changes.
+      - shell:
+          name: type-check
+          command: pnpm exec tsc --noEmit
           timeout: 300
+      # Spec output goes to the console and LCOV to etc/coverage.lcov, which
+      # the Build workflow uploads. --test-timeout fails a single test that
+      # runs too long. A file that keeps the event loop alive after its last
+      # test (a leaked timer or socket) hangs until the step timeout stops the
+      # run. Never add --test-force-exit: it hides exactly those leaks.
       - shell:
-          name: deno-publish-check
-          command: deno publish --dry-run --allow-dirty
-          timeout: 120
+          name: tests
+          command: node --test --experimental-test-coverage
+            --test-timeout=120000
+            --test-reporter=spec --test-reporter-destination=stdout
+            --test-reporter=lcov --test-reporter-destination=etc/coverage.lcov
+            "pkg/**/*.test.ts" "etc/scripts/*.test.ts"
+          timeout: 900
 
       # Go checks.
       #
@@ -263,7 +248,7 @@ workflows:
   #
   # Each entry here is a step that used to run only after the tag was pushed
   # and that failed at least one release in 2026 (wasip1 build, npm bundle
-  # externals, generated manifests, publish dry-run, release tooling). A tag
+  # externals, release tooling). A tag
   # is pushed onto a commit that already passed this, so the release run never
   # learns anything new. Kept under ten minutes on CI; heavier checks belong in
   # precommit or in the release run itself.
@@ -271,31 +256,23 @@ workflows:
     on: [preflight]
     steps:
       - shell:
-          name: gen-jsr-manifests
-          command: deno run -A ./etc/scripts/gen-jsr-manifests.ts
-          timeout: 60
-      - shell:
-          name: deno-publish-check
-          command: deno publish --dry-run --allow-dirty
-          timeout: 120
-      - shell:
           name: npm-build-cli
-          command: deno run --allow-all ./pkg/@eserstack/cli/scripts/npm-build.ts
+          command: node ./pkg/@eserstack/cli/scripts/npm-build.ts
           timeout: 180
       - shell:
           name: npm-build-noskills
-          command: deno run --allow-all ./pkg/@eserstack/noskills/scripts/npm-build.ts
+          command: node ./pkg/@eserstack/noskills/scripts/npm-build.ts
           timeout: 180
       - shell:
           name: npm-build-laroux
-          command: deno run --allow-all ./pkg/@eserstack/laroux-server/scripts/npm-build.ts
+          command: node ./pkg/@eserstack/laroux-server/scripts/npm-build.ts
           timeout: 180
-      # Installs the packed CLI OUTSIDE the repo and runs the no-Deno smoke
-      # commands; inside the monorepo, Node would resolve undeclared
-      # dependencies from the workspace and hide them.
+      # Installs the packed CLI OUTSIDE the repo and runs its smoke commands;
+      # inside the monorepo, Node would resolve undeclared dependencies from
+      # the workspace and hide them.
       - shell:
           name: npm-consumer-install
-          command: deno run --allow-all ./etc/scripts/preflight-npm-consumer.ts
+          command: node ./etc/scripts/preflight-npm-consumer.ts
           timeout: 300
       # Native (this platform) plus both WASM modules; the c-shared build is
       # what compile-binaries ships, the wasip1 build is what broke v4.5.0.
@@ -315,13 +292,6 @@ workflows:
           name: nix-dry-run
           command: go run ./cmd/eser dev nix-hashes --dry-run
           timeout: 120
-      # The release run's compile, for this host only, so a build that fails
-      # stops here and not after publish (v4.5.2 died at compile time after
-      # the registries were written).
-      - shell:
-          name: compile-current
-          command: go run ./cmd/eser dev compile --current-only
-          timeout: 600
 
   - id: commit-validation
     on: [commitmsg]
@@ -351,48 +321,46 @@ scripts:
   init: pnpm install && eser codebase install
 
   # Testing
+  # The same run as the precommit tests step: spec output, LCOV coverage in
+  # etc/coverage.lcov, a per-test timeout and never --test-force-exit.
   test:
-    command: deno test --allow-sys --allow-net --allow-env --allow-read
-      --allow-write --allow-run --allow-ffi --parallel --trace-leaks
-      --coverage=./etc/coverage/
+    command: node --test --experimental-test-coverage --test-timeout=120000
+      --test-reporter=spec --test-reporter-destination=stdout
+      --test-reporter=lcov --test-reporter-destination=etc/coverage.lcov
+      "pkg/**/*.test.ts" "etc/scripts/*.test.ts"
     description: Run tests with coverage
   test-watch:
-    command: deno test --allow-sys --allow-net --allow-env --allow-read
-      --allow-write --allow-run --allow-ffi --parallel --watch
+    command: node --test --watch "pkg/**/*.test.ts" "etc/scripts/*.test.ts"
     description: Run tests in watch mode
+  bench:
+    command:
+      find pkg/@eserstack -name '*.bench.ts' -not -path '*/node_modules/*'
+      -print0 | xargs -0 -n 1 node
+    description: Run every mitata bench under pkg/@eserstack
 
   # Code quality
-  lint: deno lint .
-  fmt: deno fmt
-  check: deno check ./pkg/@eserstack/*/mod.ts ./pkg/@eserstack/cli/main.ts
+  lint: pnpm exec oxlint
+  fmt: pnpm exec oxfmt
+  check: pnpm exec tsc --noEmit
 
   # Build
-  build: deno run --allow-all ./pkg/@eserstack/cli/scripts/npm-build.ts
+  build: node ./pkg/@eserstack/cli/scripts/npm-build.ts
   compile: go run ./cmd/eser dev compile
 
   # Documentation
-  # Generates into docs/api/, NOT docs/. docs/ also holds hand-written content --
-  # docs/adr/ and docs/schema/ -- and the previous `rm -rf ./docs/` deleted it.
-  # pkg/@cool/ was also globbed here and does not exist.
-  docs: "rm -rf ./docs/api/ && deno doc --name='eserstack' --output=./docs/api/
-    --html ./pkg/@eserstack/*/mod.ts"
-  # Lints every module a package publishes in its package.json exports, not
-  # only mod.ts; CLI-first packages map "." to main.ts.
-  docs-lint:
-    "roots=$(deno run --allow-read ./etc/scripts/package-export-roots.ts)
-    && deno doc --lint $roots"
-
-  # Docker
-  container-build: docker build -t eservm .
-  container-run: docker run --interactive --tty --rm eservm
+  # JSDoc presence on exported symbols, checked by the Go validator in
+  # pkg/ajan/codebasefx (decision-43: no generated HTML reference).
+  docs-lint: eser codebase validate-docs
 
   # Maintenance
-  clean: "rm -rf ./etc/coverage/* ./etc/coverage.lcov ./pnpm-lock.yaml && deno
-    check ./pkg/@eserstack/*/mod.ts"
+  clean: rm -rf ./etc/coverage/ ./etc/coverage.lcov
 
   # Coverage
-  coverage: deno coverage ./etc/coverage/
-  coverage-gen: deno coverage ./etc/coverage --lcov --output=./etc/coverage.lcov
+  # Prints the per-file coverage table without writing etc/coverage.lcov.
+  coverage:
+    command: node --test --experimental-test-coverage --test-timeout=120000
+      "pkg/**/*.test.ts" "etc/scripts/*.test.ts"
+    description: Run tests and print the coverage table
 
   # Release
   # `release <patch|minor|major|same>` bumps, changelogs, commits, pushes, then

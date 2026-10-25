@@ -4,7 +4,7 @@
  * Install command handler — installs eser CLI globally.
  *
  * For compiled binaries: copies self to ~/.local/bin or /usr/local/bin + sets up completions.
- * For runtime installs: runs the appropriate package manager install command.
+ * For Node installs: runs `npm install -g`.
  *
  * @module
  */
@@ -27,21 +27,12 @@ type InstallConfig = {
   readonly args: readonly string[];
 };
 
-// A function of the app, not a constant. The same table installs eser,
-// noskills or laroux; only the package coordinates differ.
-const installConfigs = (app: CliApp): Record<string, InstallConfig> => {
-  const pkg = app.npmPackage ?? app.command;
-  const jsr = app.jsrPackage ?? `@eserstack/${app.command}`;
-
-  return {
-    deno: {
-      cmd: "deno",
-      args: ["install", "-r", "-g", "-A", "--name", app.command, `jsr:${jsr}`],
-    },
-    node: { cmd: "npm", args: ["install", "-g", "-f", pkg] },
-    bun: { cmd: "bun", args: ["install", "-g", "-f", pkg] },
-  };
-};
+// A function of the app, not a constant. The same command installs eser,
+// noskills or laroux; only the npm package differs.
+const installConfig = (app: CliApp): InstallConfig => ({
+  cmd: "npm",
+  args: ["install", "-g", "-f", app.npmPackage ?? app.command],
+});
 
 /**
  * Determines the best install directory for a compiled binary.
@@ -59,6 +50,24 @@ const getInstallDir = async (): Promise<string> => {
   }
 
   return "/usr/local/bin";
+};
+
+/**
+ * Whether a file operation was refused for lack of permission: the runtime's
+ * PermissionDeniedError, or a raw EACCES or EPERM from node:fs.
+ */
+export const isPermissionDenied = (error: unknown): boolean => {
+  if (error instanceof standardsCrossRuntime.PermissionDeniedError) {
+    return true;
+  }
+
+  if (error instanceof Error && "code" in error) {
+    const code = (error as NodeJS.ErrnoException).code;
+
+    return code === "EACCES" || code === "EPERM";
+  }
+
+  return false;
 };
 
 /**
@@ -83,13 +92,7 @@ const installCompiledBinary = async (
     await runtime.fs.copyFile(currentPath, targetPath);
     await runtime.fs.chmod(targetPath, 0o755);
   } catch (error) {
-    if (
-      (error instanceof Error &&
-        "code" in error &&
-        (error as NodeJS.ErrnoException).code === "EACCES") ||
-      (typeof Deno !== "undefined" &&
-        error instanceof Deno.errors.PermissionDenied)
-    ) {
+    if (isPermissionDenied(error)) {
       out.writeln(
         span.red(
           `\nPermission denied writing to ${installDir}.\nTry: sudo ${app.command} install`,
@@ -156,14 +159,10 @@ export const installHandler = async (
     sink: streams.sinks.stdout(),
   });
 
-  // Runtime-based: use package manager
+  // Node install: use npm
   out.writeln(span.text("Detected runtime: "), span.cyan(execContext.runtime));
 
-  const config =
-    installConfigs(app)[execContext.runtime as string] ??
-    installConfigs(app)["node"]!;
-
-  const { cmd, args } = config;
+  const { cmd, args } = installConfig(app);
 
   out.writeln(span.dim(`Running: ${cmd} ${args.join(" ")}`));
   out.writeln();

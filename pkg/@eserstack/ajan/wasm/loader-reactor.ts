@@ -583,8 +583,6 @@ export const loadReactorWasm = async (
         call("codebaseCheckExportNames", requestJSON),
       EserAjanCodebaseCheckModExports: (requestJSON: string) =>
         call("codebaseCheckModExports", requestJSON),
-      EserAjanCodebaseCheckPackageConfigs: (requestJSON: string) =>
-        call("codebaseCheckPackageConfigs", requestJSON),
       EserAjanCodebaseCheckDocs: (requestJSON: string) =>
         call("codebaseCheckDocs", requestJSON),
       EserAjanCodebaseWalkFilesStreamCreate: (requestJSON: string) =>

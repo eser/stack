@@ -120,24 +120,6 @@ const checkManifest = async (out: streams.Output): Promise<void> => {
   fail(out, "Manifest", ".eser/manifest.yml not found");
 };
 
-const checkDeno = async (out: streams.Output): Promise<void> => {
-  try {
-    const output = await shellExec.exec`deno --version`
-      .noThrow()
-      .quiet()
-      .text();
-    const version = parseToolVersion(output, /deno\s+(\S+)/);
-
-    if (version !== undefined) {
-      ok(out, "Deno", version);
-    } else {
-      fail(out, "Deno", "Not found");
-    }
-  } catch {
-    fail(out, "Deno", "Not found");
-  }
-};
-
 const checkGo = async (out: streams.Output): Promise<void> => {
   try {
     const output = await shellExec.exec`go version`.noThrow().quiet().text();
@@ -213,7 +195,6 @@ export const doctorHandler = async (
   out.writeln();
 
   // Tool checks
-  await checkDeno(out);
   await checkGo(out);
   await checkNode(out);
 

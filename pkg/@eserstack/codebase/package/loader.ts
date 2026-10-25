@@ -183,7 +183,7 @@ const sortByPriority = (
  * ```typescript
  * const config = await load({ baseDir: "./pkg/@eserstack/config" });
  * console.log(config.name?.value); // "@eserstack/config"
- * console.log(config.name?.origin.filepath); // "./pkg/@eserstack/config/deno.json"
+ * console.log(config.name?.origin.filepath); // "./pkg/@eserstack/config/package.json"
  * ```
  */
 export const load = async (
@@ -237,7 +237,6 @@ export const load = async (
     private: extractField("private", loadedFiles, mergedMappings),
     exports: extractField("exports", loadedFiles, mergedMappings),
     workspaces: extractField("workspaces", loadedFiles, mergedMappings),
-    imports: extractField("imports", loadedFiles, mergedMappings),
     dependencies: extractField("dependencies", loadedFiles, mergedMappings),
     devDependencies: extractField(
       "devDependencies",

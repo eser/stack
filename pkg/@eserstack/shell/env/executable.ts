@@ -17,9 +17,9 @@ import * as crossRuntime from "@eserstack/standards/cross-runtime";
  */
 const isExecutableFile = async (path: string): Promise<boolean> => {
   try {
-    // runtime.fs.stat rather than a Deno global: this ships inside the npm CLI
-    // too, where `Deno` is undefined and the ReferenceError would be swallowed
-    // by this very catch, making every lookup silently return false.
+    // runtime.fs.stat rather than a runtime global: a global missing on the
+    // host would throw a ReferenceError that this very catch swallows, making
+    // every lookup silently return false.
     const info = await crossRuntime.runtime.fs.stat(path);
 
     if (!info.isFile) {

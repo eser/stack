@@ -5,7 +5,7 @@ export function main() {
   console.log(runtime.name);
 }
 
-// Learn more at https://docs.deno.com/runtime/manual/examples/module_metadata#concepts
+// import.meta.main is true when this file is the program Node started.
 if (import.meta.main) {
   main();
 }

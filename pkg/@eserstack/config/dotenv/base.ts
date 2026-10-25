@@ -4,7 +4,7 @@
 export const env: unique symbol = Symbol("env");
 
 /** The variables read for the environment name, in order. */
-export const envVars: string[] = ["ENV", "APP_ENV", "DENO_ENV", "NODE_ENV"];
+export const envVars: string[] = ["ENV", "APP_ENV", "NODE_ENV"];
 
 /** The environment name used when none of `envVars` is set. */
 export const defaultEnvValue = "development";

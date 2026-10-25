@@ -24,7 +24,7 @@ export async function main(): Promise<void> {
 
 if (import.meta.main) {
   // Script entry point: the await runs only when this file is executed
-  // directly (`deno task tui`), never when another module imports it.
+  // directly (`node --run tui`), never when another module imports it.
   // oxlint-disable-next-line node/no-top-level-await
   await main();
 }

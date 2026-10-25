@@ -52,7 +52,7 @@ export { createBoundTriggers } from "./wiring.ts";
 export type { BoundTriggers } from "./wiring.ts";
 // The domain, Result and Task types appear in the signatures above; this
 // entry point is published as @eserstack/posts/application, so re-exporting
-// them keeps its documented API complete for `deno doc --lint`.
+// them keeps its documented API complete.
 export type {
   DailyUsage,
   Handle,

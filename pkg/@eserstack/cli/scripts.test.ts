@@ -10,17 +10,17 @@ import * as scripts from "./scripts.ts";
 const buildShellArgsCases = [
   {
     name: "buildShellArgs runs the command as it is without forwarded arguments",
-    command: "deno test --allow-all",
+    command: "node --test --test-force-exit",
     extraArgs: [],
-    expected: ["-c", "deno test --allow-all"],
+    expected: ["-c", "node --test --test-force-exit"],
   },
   {
     name: "buildShellArgs passes forwarded arguments as positional parameters",
-    command: "deno test",
+    command: "pnpm test",
     extraArgs: ["--filter", "my test", `it's "quoted"`],
     expected: [
       "-c",
-      'deno test "$@"',
+      'pnpm test "$@"',
       "sh",
       "--filter",
       "my test",
@@ -41,9 +41,9 @@ const buildShellArgsCases = [
   },
   {
     name: "buildShellArgs drops the trailing newline of a block scalar command",
-    command: "cd lib\ndeno test\n",
+    command: "cd lib\npnpm test\n",
     extraArgs: ["--filter", "slug"],
-    expected: ["-c", 'cd lib\ndeno test "$@"', "sh", "--filter", "slug"],
+    expected: ["-c", 'cd lib\npnpm test "$@"', "sh", "--filter", "slug"],
   },
 ];
 
@@ -195,10 +195,10 @@ const settled = <T, E>(
 const parseScriptCases = [
   {
     name: "parseScript treats a string as the command",
-    entry: "deno test",
+    entry: "pnpm test",
     expected: {
       name: "test",
-      command: "deno test",
+      command: "pnpm test",
       description: "test",
       workingDirectory: undefined,
       depends: [],
@@ -207,14 +207,14 @@ const parseScriptCases = [
   {
     name: "parseScript keeps the fields of an object entry",
     entry: {
-      command: "deno test",
+      command: "pnpm test",
       description: "Run the tests",
       workingDirectory: "./lib",
       depends: ["build"],
     },
     expected: {
       name: "test",
-      command: "deno test",
+      command: "pnpm test",
       description: "Run the tests",
       workingDirectory: "./lib",
       depends: ["build"],
@@ -222,10 +222,10 @@ const parseScriptCases = [
   },
   {
     name: "parseScript fills the defaults of an object entry",
-    entry: { command: "deno test" },
+    entry: { command: "pnpm test" },
     expected: {
       name: "test",
-      command: "deno test",
+      command: "pnpm test",
       description: "test",
       workingDirectory: undefined,
       depends: [],
@@ -251,10 +251,10 @@ const malformedEntryCases = [
   },
   {
     name: "parseScript rejects a list entry",
-    entry: ["deno test"],
+    entry: ["pnpm test"],
     message:
       'script "test" must be a command string or an object with a ' +
-      '"command" string, not ["deno test"]',
+      '"command" string, not ["pnpm test"]',
   },
   {
     name: "parseScript rejects an object without a command",
@@ -265,12 +265,12 @@ const malformedEntryCases = [
   },
   {
     name: "parseScript rejects a description that is not a string",
-    entry: { command: "deno test", description: 5 },
+    entry: { command: "pnpm test", description: 5 },
     message: 'script "test" has a "description" that is not a string: 5',
   },
   {
     name: "parseScript rejects a workingDirectory that is not a string",
-    entry: { command: "deno test", workingDirectory: ["./lib"] },
+    entry: { command: "pnpm test", workingDirectory: ["./lib"] },
     message:
       'script "test" has a "workingDirectory" that is not a string: ["./lib"]',
   },
@@ -278,14 +278,14 @@ const malformedEntryCases = [
     // `depends: build` in YAML is a string, and looping over it would treat
     // every letter as a script name.
     name: "parseScript rejects depends written as one name",
-    entry: { command: "deno test", depends: "build" },
+    entry: { command: "pnpm test", depends: "build" },
     message:
       'script "test" has depends "build"; write a list of script ' +
       "names, for example depends: [build]",
   },
   {
     name: "parseScript rejects depends with an entry that is not a name",
-    entry: { command: "deno test", depends: ["build", 3] },
+    entry: { command: "pnpm test", depends: ["build", 3] },
     message:
       'script "test" has depends ["build",3]; write a list of script ' +
       "names, for example depends: [build]",
@@ -627,11 +627,11 @@ nodeTest.test(
 // --- eser self-invocation ---
 
 const shellQuoteCases = [
-  { name: "shellQuote quotes a plain word", value: "deno", expected: "'deno'" },
+  { name: "shellQuote quotes a plain word", value: "node", expected: "'node'" },
   {
     name: "shellQuote keeps a space inside one word",
-    value: "/opt/John Smith/deno",
-    expected: "'/opt/John Smith/deno'",
+    value: "/opt/John Smith/node",
+    expected: "'/opt/John Smith/node'",
   },
   {
     name: "shellQuote closes and reopens the quote around a single quote",
@@ -710,8 +710,8 @@ const resolveCommandCases = [
   },
   {
     name: "resolveCommand leaves other commands",
-    command: "deno test",
-    expected: "deno test",
+    command: "pnpm test",
+    expected: "pnpm test",
   },
 ];
 

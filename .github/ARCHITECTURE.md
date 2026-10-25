@@ -120,7 +120,9 @@ Go (module github.com/eser/ajan, pkg/@eserstack/ajan/go.mod)
 optional dependencies. The release binaries are Go commands built by
 `eser dev compile` (`ReleaseBinaries` in `pkg/ajan/codebasefx`): `eser`
 (`cmd/eser`) and `noskills-server` (decision-8). `noskills` and `laroux` ship on
-npm; their forwarding stubs for installed binaries come with TASK-253.
+npm; under their archive names the release ships `cmd/legacy-forwarder`, a stub
+built once per name that installed v4.5.x binaries update to and that runs
+`npx --yes <name>@<version>` (decision-9).
 
 ## Agent execution (ACP)
 

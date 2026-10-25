@@ -74,6 +74,20 @@ The third option, in one cutover (milestone M1) with preparation in M0.
   release after the cutover is 5.0.0 with a complete CHANGELOG Migration
   section (decision-29), held until M3-T11 so binary users keep self-update
   (decision-13).
+- **Installed v4.5.x binaries:** every release ships `cmd/legacy-forwarder`
+  under the `laroux` and `noskills` archive names, with the Rust triples
+  (decision-9, decision-38). The old updater of an installed binary replaces it
+  with this stub, which runs `npx --yes <name>@<version>`, or prints
+  `npm i -g <name>` when npx is missing. The stubs are retired by this rule:
+  - The noskills stub is built until TASK-261 (M4-T6) ships the Go `noskills`
+    binary under the same archive name, which then takes its place.
+  - The laroux stub is built in every release until the owner decides to stop
+    it. That decision goes into Appendix A with the first release that leaves
+    the stub out. That release's CHANGELOG Migration section tells users of
+    v4.5.x laroux binaries to run `npm i -g laroux`, and the same change drops
+    laroux from `ReleaseBinaries`, install.sh, install.ps1 and the Homebrew
+    tap.
+  - A stub is never dropped without that owner decision.
 - **Users' own Deno projects stay supported:** noskills and kit keep
   recognizing them (decision-12); Appendix B lists those files.
 

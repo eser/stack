@@ -47,7 +47,9 @@ func TestDevCompileCurrentOnly(t *testing.T) {
 	for _, want := range []string{
 		"eser-v4.6.0-aarch64-unknown-linux-gnu.tar.gz",
 		"noskills-server-v4.6.0-aarch64-unknown-linux-gnu.tar.gz",
-		"✓ 2/2 builds compiled successfully",
+		"laroux-v4.6.0-aarch64-unknown-linux-gnu.tar.gz",
+		"noskills-v4.6.0-aarch64-unknown-linux-gnu.tar.gz",
+		"✓ 4/4 builds compiled successfully",
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("output should contain %q:\n%s", want, out)
@@ -55,7 +57,7 @@ func TestDevCompileCurrentOnly(t *testing.T) {
 	}
 
 	sums, err := os.ReadFile(filepath.Join(e.cwd, "etc/temp/binaries/SHA256SUMS.txt"))
-	if err != nil || len(codebasefx.ParseSHA256Sums(string(sums))) != 2 {
+	if err != nil || len(codebasefx.ParseSHA256Sums(string(sums))) != 4 {
 		t.Errorf("SHA256SUMS.txt: %v\n%s", err, sums)
 	}
 
@@ -100,7 +102,8 @@ func TestDevHomebrewAndNixDryRun(t *testing.T) {
 		t.Fatalf("exit %d: %s", code, stderr)
 	}
 
-	if !strings.Contains(out, "Formulas: eser.rb, noskills-server.rb") || !strings.Contains(out, "Left as they are (no archives in this release): noskills, laroux") {
+	// The forwarding stubs keep the laroux and noskills formulas updated.
+	if !strings.Contains(out, "Formulas: eser.rb, laroux.rb, noskills-server.rb, noskills.rb\n") || strings.Contains(out, "Left as they are") {
 		t.Errorf("homebrew dry run:\n%s", out)
 	}
 

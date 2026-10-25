@@ -42,22 +42,30 @@ var ReleaseTargets = []ReleaseTarget{ //nolint:gochecknoglobals
 }
 
 // ReleaseBinary is one Go command the release ships: its name, its main
-// package and the variable -X sets to the version.
+// package, the variable -X sets to the version and, for a command built
+// once per name, the variable -X sets to Name.
 type ReleaseBinary struct {
 	Name       string
 	Main       string
 	VersionVar string
+	NameVar    string
 }
 
 // ReleaseBinaries are the commands `eser dev compile` builds (decision-8):
-// the Go eser and noskills-server.
+// the Go eser and noskills-server, and the forwarding stubs under the laroux
+// and noskills archive names that installed v4.5.x binaries update to
+// (decision-9). TASK-261 replaces the noskills stub with cmd/noskills; ADR
+// 0005 records when the laroux stub stops being built.
 var ReleaseBinaries = []ReleaseBinary{ //nolint:gochecknoglobals
-	{Name: "eser", Main: "./cmd/eser", VersionVar: "main.version"},
+	{Name: "eser", Main: "./cmd/eser", VersionVar: "main.version", NameVar: ""},
 	{
 		Name:       "noskills-server",
 		Main:       "./cmd/noskills-server",
 		VersionVar: "github.com/eser/stack/pkg/ajan/noskillsserverfx.Version",
+		NameVar:    "",
 	},
+	{Name: "laroux", Main: "./cmd/legacy-forwarder", VersionVar: "main.version", NameVar: "main.name"},
+	{Name: "noskills", Main: "./cmd/legacy-forwarder", VersionVar: "main.version", NameVar: "main.name"},
 }
 
 // ErrNoHostTarget is returned when --current-only finds no release target
@@ -89,7 +97,8 @@ func HostReleaseTarget(goos, goarch string) (ReleaseTarget, error) {
 // CompileOptions configures CompileRelease.
 type CompileOptions struct {
 	// Build compiles one binary for one target into out; nil runs go build
-	// with CGO_ENABLED=0, -trimpath and -ldflags "-s -w -X <VersionVar>=<v>".
+	// with CGO_ENABLED=0, -trimpath and -ldflags "-s -w -X <VersionVar>=<v>"
+	// (plus -X <NameVar>=<Name> when NameVar is set).
 	Build func(ctx context.Context, root string, binary ReleaseBinary, target ReleaseTarget, version, out string) error
 	// Log receives the progress lines; nil discards them.
 	Log io.Writer
@@ -248,8 +257,13 @@ func compileOne(
 
 // goBuild runs go build for one target, without cgo.
 func goBuild(ctx context.Context, root string, binary ReleaseBinary, target ReleaseTarget, version, out string) error {
+	ldflags := "-s -w -X " + binary.VersionVar + "=" + version
+	if binary.NameVar != "" {
+		ldflags += " -X " + binary.NameVar + "=" + binary.Name
+	}
+
 	cmd := exec.CommandContext(ctx, "go", "build", "-trimpath", //nolint:gosec // G204: fixed arguments from the release tables
-		"-ldflags", "-s -w -X "+binary.VersionVar+"="+version, "-o", out, binary.Main)
+		"-ldflags", ldflags, "-o", out, binary.Main)
 	cmd.Dir = root
 	cmd.Env = append(os.Environ(), "GOOS="+target.GOOS, "GOARCH="+target.GOARCH, "CGO_ENABLED=0")
 

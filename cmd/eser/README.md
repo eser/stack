@@ -53,13 +53,14 @@ bin/eser --help       # built-in commands and the manifest's scripts
 
 ## Release builds: `eser dev`
 
-- `eser dev compile [--current-only] [--out dir]` builds `eser` and
-  `noskills-server` with `CGO_ENABLED=0` for the five release targets and writes
-  `<name>-v<version>-<triple>.tar.gz` (`.zip` on Windows, the Rust triples of
-  decision-38) and `SHA256SUMS.txt` to `etc/temp/binaries/`. `SOURCE_DATE_EPOCH`
-  sets the time stored in the archives, so a rebuild of a commit gives the same
-  bytes. A failed build is reported and the others still run; the exit code
-  is 1.
+- `eser dev compile [--current-only] [--out dir]` builds `eser`,
+  `noskills-server` and the `laroux` and `noskills` forwarding stubs
+  (`cmd/legacy-forwarder`, decision-9) with `CGO_ENABLED=0` for the five release
+  targets and writes `<name>-v<version>-<triple>.tar.gz` (`.zip` on Windows, the
+  Rust triples of decision-38) and `SHA256SUMS.txt` to `etc/temp/binaries/`.
+  `SOURCE_DATE_EPOCH` sets the time stored in the archives, so a rebuild of a
+  commit gives the same bytes. A failed build is reported and the others still
+  run; the exit code is 1.
 - `eser dev homebrew` reads the release's `SHA256SUMS.txt` and pushes the
   formula of each binary it has archives for to `eser/homebrew-tap` with
   `GH_TOKEN`; the other formulas stay as they are.

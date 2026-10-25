@@ -90,7 +90,8 @@ func devCommand(e *env) *clifx.Command {
 			{
 				Name:  "compile",
 				Short: "Cross-compile the release binaries into archives and SHA256SUMS.txt",
-				Long: "Builds eser and noskills-server with CGO_ENABLED=0 for the five release targets into " +
+				Long: "Builds eser, noskills-server and the laroux and noskills forwarding stubs " +
+					"(cmd/legacy-forwarder) with CGO_ENABLED=0 for the five release targets into " +
 					"<name>-v<version>-<triple>.tar.gz (.zip on Windows) and SHA256SUMS.txt. SOURCE_DATE_EPOCH " +
 					"sets the time stored in the archives.",
 				Flags: func(fs *flag.FlagSet) {

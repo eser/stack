@@ -18,8 +18,10 @@ release-and-ci skill refers to.
 - The preflight builds the three npm bundles, installs the CLI outside the repo
   from a packed tarball, runs `deno publish --dry-run`, builds the native and
   wasm ajan libraries, runs the release compile for the host
-  (`eser dev compile --current-only`), and runs `eser dev homebrew` and
-  `eser dev nix-hashes` in dry-run mode.
+  (`eser dev compile --current-only`), runs `eser dev homebrew` and
+  `eser dev nix-hashes` in dry-run mode, and runs the old TypeScript updater of
+  a v4.5.2 laroux and noskills against a local release of the forwarding stubs
+  (`cmd/legacy-forwarder/legacy_update_test.go`).
 - Tag runs are watched at https://github.com/eser/stack/actions.
 
 ## Release Run in build.yml

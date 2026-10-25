@@ -21,10 +21,6 @@ import (
 // install time. (Ported from pkg/@eserstack/cli/scripts/release-naming.test.ts
 // with compile.ts.)
 
-// awaitingStubs are installable products the release does not build yet:
-// TASK-253 adds forwarding stubs under their archive names (decision-8).
-var awaitingStubs = []string{"laroux", "noskills"} //nolint:gochecknoglobals
-
 func readRepoFile(t *testing.T, rel string) string {
 	t.Helper()
 
@@ -65,7 +61,7 @@ func TestInstallersUseTheCompiledArchiveNames(t *testing.T) {
 }
 
 // Every product the release builds must be installable, and every installable
-// product built (or awaiting its stub).
+// product built (laroux and noskills as forwarding stubs, decision-9).
 func TestEveryBuiltBinaryIsInstallable(t *testing.T) {
 	t.Parallel()
 
@@ -87,7 +83,7 @@ func TestEveryBuiltBinaryIsInstallable(t *testing.T) {
 		psAccepts = append(psAccepts, m[1])
 	}
 
-	expected := slices.Clone(awaitingStubs)
+	expected := make([]string, 0, len(codebasefx.ReleaseBinaries))
 	for _, binary := range codebasefx.ReleaseBinaries {
 		expected = append(expected, binary.Name)
 	}

@@ -322,6 +322,15 @@ workflows:
           name: compile-current
           command: go run ./cmd/eser dev compile --current-only
           timeout: 600
+      # Installed v4.5.x laroux and noskills binaries update with the old
+      # TypeScript updater: it must find, verify and install the forwarding
+      # stubs, and the stubs must run the npm packages (decision-9). Local
+      # release and fake npx, no network; ESER_PREFLIGHT fails it without deno.
+      - shell:
+          name: legacy-binary-update
+          command: ESER_PREFLIGHT=1 go test -count=1 -run
+            TestLegacyBinariesUpdateToTheStubs ./cmd/legacy-forwarder
+          timeout: 300
 
   - id: commit-validation
     on: [commitmsg]

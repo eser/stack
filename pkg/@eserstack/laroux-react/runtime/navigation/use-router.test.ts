@@ -7,7 +7,7 @@ import * as useRouter from "./use-router.ts";
 
 const NAVIGATED = `event ${navigation.NAVIGATION_EVENT_NAME}`;
 
-// The router reads globalThis.window when it navigates. Deno has no window,
+// The router reads globalThis.window when it navigates. Node has no window,
 // so each test runs with a recording stand-in that is removed after.
 const withWindow = (fn: () => void): readonly string[] => {
   const calls: string[] = [];

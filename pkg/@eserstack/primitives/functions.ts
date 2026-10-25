@@ -21,24 +21,44 @@ export type ArgList<T> = ReadonlyArray<T>;
 export type GenericFunction<TR, TP> = (...args: ArgList<TP>) => TR;
 /** A class whose constructor takes arguments of type `TP` and builds `TC`. */
 export type GenericClass<TC, TP> = new (...args: ArgList<TP>) => TC;
+/**
+ * The constructor of one kind of function: called with or without `new`, it
+ * takes parameter names and a body source and builds a function `TF`.
+ */
+export type FunctionKindConstructor<TF> = {
+  new (...args: ArgList<string>): TF;
+  (...args: ArgList<string>): TF;
+  readonly prototype: TF;
+};
 
 /** An async generator function that yields nothing. */
 export const nullAsyncGeneratorFn = async function* <
   TR,
 >(): AsyncGenerator<TR> {};
 /** The constructor of async generator functions (`AsyncGeneratorFunction`). */
-export const AsyncGeneratorFunction: Function =
-  nullAsyncGeneratorFn.constructor;
+export const AsyncGeneratorFunction: FunctionKindConstructor<
+  (...args: ArgList<unknown>) => AsyncGenerator<unknown>
+> = nullAsyncGeneratorFn.constructor as FunctionKindConstructor<
+  (...args: ArgList<unknown>) => AsyncGenerator<unknown>
+>;
 
 /** A generator function that yields nothing. */
 export const nullGeneratorFn = function* <TR>(): Generator<TR> {};
 /** The constructor of generator functions (`GeneratorFunction`). */
-export const GeneratorFunction: Function = nullGeneratorFn.constructor;
+export const GeneratorFunction: FunctionKindConstructor<
+  (...args: ArgList<unknown>) => Generator<unknown>
+> = nullGeneratorFn.constructor as FunctionKindConstructor<
+  (...args: ArgList<unknown>) => Generator<unknown>
+>;
 
 /** An async function that resolves to `undefined`. */
 export const nullAsyncFn = async <TR = void>(): Promise<TR | void> => {};
 /** The constructor of async functions (`AsyncFunction`). */
-export const AsyncFunction: Function = nullAsyncFn.constructor;
+export const AsyncFunction: FunctionKindConstructor<
+  (...args: ArgList<unknown>) => Promise<unknown>
+> = nullAsyncFn.constructor as FunctionKindConstructor<
+  (...args: ArgList<unknown>) => Promise<unknown>
+>;
 
 /** A function that returns `undefined`. */
 export const nullFn = <TR = void>(): TR | void => {};

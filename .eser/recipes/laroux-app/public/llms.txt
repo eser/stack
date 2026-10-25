@@ -1,12 +1,12 @@
 # laroux.js Application
 
-> A React Server Components application built with laroux.js on Deno 2.x
+> A React Server Components application built with laroux.js on Node.js
 
 ## Tech Stack
 
 - laroux.js: Zero-configuration RSC framework
 - React 19: UI library with Server Components
-- Deno 2.x: Runtime
+- Node.js: Runtime
 - Tailwind CSS 4.x: Styling
 
 ## Project Structure

@@ -1,10 +1,10 @@
 ---
 id: TASK-201
 title: 'standards: make cross-runtime Node-only and synchronous'
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-10-15 20:38'
-updated_date: '2026-10-25 16:00'
+updated_date: '2026-10-25 18:00'
 labels:
   - cutover
   - standards
@@ -34,10 +34,10 @@ Plan key: M1-T7. Effort: large.
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 `node --test 'pkg/@eserstack/standards/**/*.test.ts'` passes
-- [ ] #2 From inside pkg/@eserstack/testing, which declares @eserstack/standards, `node -e "require('@eserstack/standards/cross-runtime')"` succeeds without ERR_REQUIRE_ASYNC_MODULE
-- [ ] #3 tsc reports no errors and oxlint is clean for files under pkg/@eserstack/standards
-- [ ] #4 `git grep -wn 'Deno\|Bun' pkg/@eserstack/standards` returns nothing, and the README lists only the remaining adapters
+- [x] #1 `node --test 'pkg/@eserstack/standards/**/*.test.ts'` passes
+- [x] #2 From inside pkg/@eserstack/testing, which declares @eserstack/standards, `node -e "require('@eserstack/standards/cross-runtime')"` succeeds without ERR_REQUIRE_ASYNC_MODULE
+- [x] #3 tsc reports no errors and oxlint is clean for files under pkg/@eserstack/standards
+- [x] #4 `git grep -wn 'Deno\|Bun' pkg/@eserstack/standards` returns nothing, and the README lists only the remaining adapters
 <!-- AC:END -->
 
 ## Implementation Notes
@@ -60,4 +60,14 @@ TASK-198 (2026-10-25): the test and bench codemods left no site for hand edits i
 - pkg/@eserstack/standards/cross-runtime/adapters/node.test.ts: 1 failing, 6 passing; first error: see the run
 - pkg/@eserstack/standards/cross-runtime/execution-context.test.ts: 1 failing, 125 passing; first error: AssertionError: Values are not equal.
 - pkg/@eserstack/standards/cross-runtime/mod.test.ts: 7 failing, 29 passing; first error: AssertionError: Values are not equal.
+
+2026-10-25 (TASK-201 implementation):
+- Deleted adapters/deno.ts, deno.test.ts, bun.ts, bun.test.ts and the ./cross-runtime/deno and ./cross-runtime/bun exports. RuntimeName is "node" | "workerd" | "browser" | "unknown". shared.ts lost the Deno and Bun branches, mapStdioToDeno, getDenoStdioOptions and DenoStdioMode; web-streams.ts lost the Bun-only createFileSinkWritable and FileSinkLike.
+- mod.ts imports the node, workerd and browser adapters statically and builds `runtime` synchronously, so require() loads it (no ERR_REQUIRE_ASYNC_MODULE). createRuntime keeps its Promise signature. The ./cross-runtime/browser entry is unchanged.
+- New API: runtime.process.isStandalone (node:sea isSea(); false in the stubs) and runtime.fs.statSync (throws NotFoundError; the stub fs throws RuntimeCapabilityError). fsSync stays and documents statSync.
+- execution-context.ts: CliRuntime is "node" | "compiled"; CliInvoker is "binary" | "npm" | "npx" | "pnpm" | "pnpx" | "dev" | "unknown". The deno and bun invokers and the jsr:/https: mainModule detection are gone; detectInvoker dropped its mainModule parameter (now execBasename, runtimeName, argv, envVars, isDevContext?). The dev context is ported to Node: a file:// module plus a "cli" script in the cwd's package.json gives dev/dev, checked before the npx/pnpx heuristics, so `pnpm cli` yields devCommand. detectExecutionContext treats a single executable application as a binary. CliCommandOptions.jsrPackage is optional and unused.
+- Fixes, failing tests first in adapters/node.test.ts: an aborted spawn and spawnChild resolve with the failed result (the AbortError no longer rejects); makeTempDir() with no prefix creates the directory inside the temp dir instead of a sibling.
+- Tests: probes and node.test.ts spawn process.execPath; node-http.test.ts uses node:net; mod.test.ts checks process.versions.node and adds a require() load test; execution-context tests are Node-only. isolatedDeclarations errors fixed in format-percent.ts, logging.ts, patterns.ts, server-websocket.ts, probes.ts. The benches were already on mitata (TASK-198) and run.
+- Verified: node --test over the package 507 pass, 0 fail; AC #2 prints the runtime; tsc reports no error under pkg/@eserstack/standards; oxlint and oxfmt --check clean; `git grep -wn 'Deno\|Bun'` is empty.
+- For M1-T36 (TASK-230): removed subpath exports @eserstack/standards/cross-runtime/deno and /bun; RuntimeName lost "deno" and "bun"; CliInvoker lost "deno", "bun", "bunx"; CliRuntime lost "deno", "bun"; detectInvoker lost its mainModule parameter; RuntimeFs gained statSync and RuntimeProcess gained isStandalone.
 <!-- SECTION:NOTES:END -->

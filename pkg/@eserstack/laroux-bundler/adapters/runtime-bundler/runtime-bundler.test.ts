@@ -1,14 +1,20 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as fsPromises from "node:fs/promises"; // symlinks are not available in runtime
 import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
-import * as fs from "@std/fs"; // symlinks are not available in runtime
 import { runtime } from "@eserstack/standards/cross-runtime";
 import type { ResolvedBrowserShimsConfig } from "@eserstack/laroux/config";
 import * as react from "../react/mod.ts";
 import * as rscClientEntry from "../react/rsc-client-entry.ts";
 import type { FrameworkPlugin } from "../../domain/framework-plugin.ts";
 import * as runtimeBundler from "./runtime-bundler.ts";
+
+/** Link linkPath to target, creating the parent directories of linkPath. */
+async function linkDir(target: string, linkPath: string): Promise<void> {
+  await fsPromises.mkdir(runtime.path.dirname(linkPath), { recursive: true });
+  await fsPromises.symlink(target, linkPath, "dir");
+}
 
 // Client code that logs the way server code does, through logger.with(...).
 const CHECKOUT_SOURCE = `import * as logging from "@eserstack/logging";
@@ -165,7 +171,7 @@ nodeTest.test(
       );
       await Promise.all(
         ["react", "react-dom", "@eserstack/laroux"].map((name) =>
-          fs.ensureSymlink(
+          linkDir(
             runtime.path.join(sourceModules, name),
             runtime.path.join(projectRoot, "node_modules", name),
           ),

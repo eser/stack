@@ -40,7 +40,7 @@ nodeTest.test("every binary gets the same system subcommands", () => {
     const help = cliSystem
       .createSystemCommand({
         command: name,
-        devCommand: `deno task cli ${name}`,
+        devCommand: `pnpm cli ${name}`,
       })
       .help();
 
@@ -57,7 +57,7 @@ nodeTest.test("the system tree names the binary it belongs to", () => {
   const help = cliSystem
     .createSystemCommand({
       command: "noskills",
-      devCommand: "deno task cli noskills",
+      devCommand: "pnpm cli noskills",
     })
     .help();
 

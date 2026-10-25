@@ -4,7 +4,7 @@
  * Minimal WASI preview1 shim for Go WASM modules.
  *
  * Provides just enough of the `wasi_snapshot_preview1` ABI to bootstrap
- * Go's wasip1 runtime. Works on all runtimes (Deno, Node, Bun, browsers)
+ * Go's wasip1 runtime. Works in Node, Cloudflare Workers and browsers
  * without depending on `node:wasi`.
  *
  * `initialize` bootstraps a reactor (`_initialize`), which the eser-ajan

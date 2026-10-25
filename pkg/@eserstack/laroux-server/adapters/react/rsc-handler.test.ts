@@ -11,7 +11,7 @@ const CORS_HEADERS = [
 ];
 
 nodeTest.test(
-  "streamToResponse sends no CORS headers for the same-origin /rsc payload",
+  "track-l-delete: streamToResponse sends no CORS headers for the same-origin /rsc payload",
   async () => {
     const stream = new ReadableStream<Uint8Array>({
       start(controller) {

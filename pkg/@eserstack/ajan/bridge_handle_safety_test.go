@@ -48,8 +48,8 @@ func safetyLogHandle(t *testing.T, configJSON string) string {
 // TestLogWriteAndConfigureDoNotRace pins that the filter chain and formatter on
 // a log handle are published safely.
 //
-// Deno declares the log FFI symbols nonblocking, so Write and Configure on one
-// handle genuinely land on different threads. Configure used to write
+// FFI calls from worker threads (decision-37) let Write and Configure on one
+// handle land on different threads. Configure used to write
 // entry.filters and entry.formatter with no lock at all while Write read both,
 // which -race reports as a data race on this exercise.
 //

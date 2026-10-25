@@ -39,6 +39,14 @@ export const NODE_CAPABILITIES: RuntimeCapabilities = {
 // Node-specific Spawn
 // =============================================================================
 
+/**
+ * True for the error a child process emits when its abort signal fires.
+ *
+ * The child is killed and still emits "close", which settles the result, so
+ * an abort ends the call with the failed result instead of a rejection.
+ */
+const isAbortError = (error: Error): boolean => error.name === "AbortError";
+
 const nodeSpawn = (
   cmd: string,
   args?: string[],
@@ -79,7 +87,11 @@ const nodeSpawn = (
       stderrChunks.push(chunk),
     );
 
-    proc.on("error", reject);
+    proc.on("error", (error) => {
+      if (!isAbortError(error)) {
+        reject(error);
+      }
+    });
     proc.on("close", (code) => {
       resolve({
         success: code === 0,
@@ -117,7 +129,11 @@ const nodeSpawnChild = (
   );
 
   const statusPromise = new Promise<ProcessStatus>((resolve, reject) => {
-    proc.on("error", reject);
+    proc.on("error", (error) => {
+      if (!isAbortError(error)) {
+        reject(error);
+      }
+    });
     proc.on("close", (code, signal) => {
       resolve({
         success: code === 0,

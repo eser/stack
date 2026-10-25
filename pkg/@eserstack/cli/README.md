@@ -182,8 +182,7 @@ eser kit create <template> [options]   # alias
 | `--local`           | Use local registry (auto-detected)                                 |
 
 **Available templates:** `library-pkg`, `laroux-app`, `go-service`,
-`cf-workers-app`, `vite-app`, `laroux-runtime-app`, `jsx-runtime-app`,
-`vanilla-app`
+`cf-workers-app`, `vite-app`, `vanilla-app`
 
 #### kit clone
 

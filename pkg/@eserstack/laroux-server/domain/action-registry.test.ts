@@ -4,20 +4,23 @@ import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as actionRegistry from "./action-registry.ts";
 
-nodeTest.test("invokeAction returns the action's result", async () => {
-  actionRegistry.clearActions();
-  actionRegistry.registerAction("actions.ts#add", (a, b) =>
-    Promise.resolve(Number(a) + Number(b)),
-  );
+nodeTest.test(
+  "track-l-delete: invokeAction returns the action's result",
+  async () => {
+    actionRegistry.clearActions();
+    actionRegistry.registerAction("actions.ts#add", (a, b) =>
+      Promise.resolve(Number(a) + Number(b)),
+    );
 
-  assert.assertEquals(
-    await actionRegistry.invokeAction("actions.ts#add", [2, 3]),
-    5,
-  );
-});
+    assert.assertEquals(
+      await actionRegistry.invokeAction("actions.ts#add", [2, 3]),
+      5,
+    );
+  },
+);
 
 nodeTest.test(
-  "invokeAction rejects an unknown id with the id and the fix",
+  "track-l-delete: invokeAction rejects an unknown id with the id and the fix",
   async () => {
     actionRegistry.clearActions();
 
@@ -33,7 +36,7 @@ nodeTest.test(
 );
 
 nodeTest.test(
-  "invokeAction wraps the action's error as the cause",
+  "track-l-delete: invokeAction wraps the action's error as the cause",
   async () => {
     actionRegistry.clearActions();
     const original = new RangeError("quantity must be positive");

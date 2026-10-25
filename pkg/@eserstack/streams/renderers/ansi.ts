@@ -16,7 +16,7 @@ import type { Renderer } from "./types.ts";
 
 const ESC = "\x1b[";
 /** The escape sequence that turns off every style and color. */
-export const RESET = `${ESC}0m`;
+export const RESET: string = `${ESC}0m`;
 
 /** The opening and closing escape sequences of each text style. */
 export const STYLE_CODES: Record<string, [string, string]> = {

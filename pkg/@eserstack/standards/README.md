@@ -17,7 +17,7 @@ portable applications.
 ```typescript
 import * as standards from "@eserstack/standards";
 
-// Runtime abstraction — works on Deno, Node.js, Bun, and browsers
+// Runtime abstraction on Node.js, with fallbacks for Workers and browsers
 const { runtime } = standards.crossRuntime;
 const content = await runtime.fs.readTextFile("config.json");
 const joined = runtime.path.join("src", "utils.ts");
@@ -44,7 +44,8 @@ const relative = standards.datetimes.getRelativeTime(
 - **String Interpolation**: Template-based string formatting
 - **Value Formatters**: Duration, size, number, and percentage formatting
 - **Internationalization**: Locale detection and RTL support
-- **Runtime Abstraction**: Cross-runtime API for Deno, Node.js, Bun, and more
+- **Runtime Abstraction**: One runtime API on Node.js, with fallbacks for
+  Workers and browsers
 - **Route Matching**: URL pattern matching utilities
 - **Registry**: Immutable, indexed data structures
 
@@ -182,9 +183,11 @@ standards.i18n.DEFAULT_LOCALE; // "en"
 
 ### Runtime Abstraction
 
-Cross-runtime support for Deno, Node.js, Bun, Cloudflare Workers, and browsers.
-Architecture: `adapters/shared.ts` (base layer) composed with runtime-specific
-adapters (`deno.ts`, `node.ts`, `bun.ts`, `browser.ts`, `workerd.ts`).
+One runtime API for Node.js, with limited fallbacks for Cloudflare Workers and
+browsers. Architecture: `adapters/shared.ts` (base layer) composed with the
+adapters `node.ts`, `browser.ts` and `workerd.ts`. The module imports them
+statically and has no top-level await, so `require()` loads it too. Client
+bundles import `@eserstack/standards/cross-runtime/browser` instead.
 
 ```typescript
 import * as standards from "@eserstack/standards";
@@ -192,8 +195,8 @@ import * as standards from "@eserstack/standards";
 const { runtime } = standards.crossRuntime;
 
 // Auto-detected runtime singleton
-runtime.name; // "deno" | "node" | "bun" | "workerd" | "browser"
-runtime.version; // "2.0.0"
+runtime.name; // "node" | "workerd" | "browser" | "unknown"
+runtime.version; // "26.12.1"
 
 // Check capabilities before use
 if (runtime.capabilities.fs) {
@@ -210,6 +213,12 @@ const apiKey = runtime.env.get("API_KEY");
 // Process info
 const cwd = runtime.process.cwd();
 const args = runtime.process.args;
+const isSea = runtime.process.isStandalone; // true in a single executable app
+
+// Synchronous stat, for code that cannot await
+if (runtime.capabilities.fsSync) {
+  const info = runtime.fs.statSync("package.json");
+}
 
 // Create runtime with mocks for testing
 const mockRuntime = await standards.crossRuntime.createRuntime({
@@ -255,14 +264,19 @@ false. It exists because "is the process that wrote this claim still running" is
 not answerable from a pid alone, and trusting a recorded pid forever turns any
 interrupted run into permanently wrong state.
 
-Both checks go through `runtime`, so code that needs them does not reach for
-`Deno.*` (which breaks under Node) or a runtime-specific global.
+Both checks go through `runtime`, so code that needs them does not reach for a
+runtime-specific global.
+
+A `signal` in the options of `runtime.exec.spawn` and `spawnChild` stops the
+process: an abort kills it, and the call resolves with the failed result rather
+than rejecting. `runtime.fs.makeTempDir()` creates the directory inside
+`options.dir`, or inside the system temp directory when there is none.
 
 #### HTTP server, WebSockets and signals
 
-`runtime.http.serve` answers HTTP requests with a fetch-style handler on Deno,
-Node and Bun; check `runtime.capabilities.http` first, since Workers and
-browsers have no server. It resolves once the server listens, binds to
+`runtime.http.serve` answers HTTP requests with a fetch-style handler on Node;
+check `runtime.capabilities.http` first, since Workers and browsers have no
+server. It resolves once the server listens, binds to
 `127.0.0.1` unless you pass `hostname`, and stops when its `signal` aborts,
 closing open connections and WebSockets. A handler that throws sends the client
 a 500 response, and the error is printed to stderr.
@@ -276,9 +290,7 @@ bound address, the chosen port when `port` is 0, before `serve` resolves.
 Inside a handler, `runtime.http.upgradeWebSocket(request)` accepts a WebSocket
 handshake. Add the socket's listeners, then return `response` unchanged from the
 handler. `runtime.process.addSignalListener` and `removeSignalListener` listen
-for OS signals such as `SIGINT`. Deno throws for a signal it cannot listen for
-on the platform (`SIGBREAK` outside Windows, anything but `SIGINT` and
-`SIGBREAK` on Windows); Node and Bun accept every name, and a listener for a
+for OS signals such as `SIGINT`. Node accepts every name, and a listener for a
 signal the platform never sends never runs.
 
 ```typescript
@@ -315,29 +327,30 @@ await server.finished;
 runtime.process.removeSignalListener("SIGINT", onInterrupt);
 ```
 
-On Deno, the socket is Deno's own `WebSocket`. On Node and Bun it is a
-`WebSocket` the adapter provides, and binary messages arrive as an `ArrayBuffer`
-by default, as on Deno. The Node adapter builds on `node:http`, speaks the
+The socket is a `WebSocket` the adapter provides, and binary messages arrive as
+an `ArrayBuffer` by default. The Node adapter builds on `node:http`, speaks the
 WebSocket protocol itself and refuses a client message over 16 MiB.
 
 ### CLI Execution Context
 
 Detect how the CLI was invoked and build reproducible commands for git hooks.
+The invoker is `dev` when the package.json in the current directory has a `cli`
+script, as in a workspace that runs `pnpm cli`, and `binary` inside a single
+executable application.
 
 ```typescript
 import * as standards from "@eserstack/standards";
 
 const cliOptions = {
   command: "eser",
-  devCommand: "deno task cli",
+  devCommand: "pnpm cli",
   npmPackage: "eser",
-  jsrPackage: "@eserstack/cli",
 };
 
 // Detect full execution context
 const ctx = await standards.crossRuntime.detectExecutionContext(cliOptions);
-ctx.runtime; // "deno" | "node" | "bun" | "compiled"
-ctx.invoker; // "npm" | "npx" | "pnpm" | "pnpx" | "bun" | "bunx" | "deno" | "dev" | "binary"
+ctx.runtime; // "node" | "compiled"
+ctx.invoker; // "npm" | "npx" | "pnpm" | "pnpx" | "dev" | "binary" | "unknown"
 ctx.command; // "npx eser" (canonical, reproducible command)
 
 // Find subcommand prefix for hooks/manifest
@@ -346,7 +359,7 @@ const prefix = await standards.crossRuntime.getCliPrefix(cliOptions, [
   "nos",
 ]);
 // "npx eser noskills"  (when invoked as: npx eser noskills init)
-// "deno task cli nos"  (when invoked as: deno task cli nos init)
+// "pnpm cli nos"       (when invoked as: pnpm cli nos init in the workspace)
 
 // Pure function for testing (no runtime access)
 standards.crossRuntime.matchCliPrefix(

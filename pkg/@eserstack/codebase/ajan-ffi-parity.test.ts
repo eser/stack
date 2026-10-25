@@ -4,17 +4,19 @@
  * Guards the eser-ajan C ABI, the other cross-cutting constraint in this repo
  * whose violation is silent. See ajan-ranges.test.ts for the version-range twin.
  *
- * The same ~100-symbol surface is restated by hand in six places: the cgo
- * exports in main.go, the FFILibrary interface in ffi/types.ts, the three
- * per-runtime backends, and the WASM reactor loader. `deno check` ties the
- * backends to types.ts structurally, but nothing tied any of them to the Go
- * side -- a symbol added to main.go and forgotten in one backend, or renamed on
- * one side only, compiled cleanly and then failed at dlopen time on whichever
- * runtime the developer happened not to be using.
+ * The same ~100-symbol surface is restated by hand in four places: the cgo
+ * exports in main.go, the FFILibrary interface in ffi/types.ts, the node:ffi
+ * symbol map in ffi/backend-node.ts, and the WASM reactor loader. The type
+ * checker ties the backend to types.ts structurally, but nothing tied any of
+ * them to the Go side -- a symbol added to main.go and forgotten in the
+ * backend, or renamed on one side only, compiled cleanly and then failed at
+ * dlopen time.
  *
  * These tests parse the declaration sites rather than importing them, because
- * four of the six are not loadable from a Deno test: cgo source, the node:ffi
- * backend's C prototype strings, bun:ffi maps, and Go source.
+ * two of the four are not loadable from a TypeScript test: cgo source and the
+ * node:ffi backend's C prototype strings. node:ffi also ignores a misspelled
+ * signature key silently (decision-37), so the prototypes are checked against
+ * the Go signatures for arity and return type, not only for their names.
  *
  * The extractors are deliberately loose -- essentially "an object key or
  * interface member named EserAjan*" -- so reformatting cannot break them. Each
@@ -63,6 +65,56 @@ const tsSymbolKeys = (source: string): string[] =>
 const cPrototypes = (source: string): string[] =>
   sortedUnique(matchAll(source, /"[^"]*?\b(EserAjan\w+)\s*\(/g));
 
+/** The shape node:ffi needs to know of one export: argument count and return kind. */
+interface ExportShape {
+  readonly arity: number;
+  readonly returns: "pointer" | "int32" | "void";
+}
+
+const GO_RETURNS: Readonly<Record<string, ExportShape["returns"]>> = {
+  "*C.char": "pointer",
+  "C.int": "int32",
+  "": "void",
+};
+
+const C_RETURNS: Readonly<Record<string, ExportShape["returns"]>> = {
+  "void*": "pointer",
+  int: "int32",
+  void: "void",
+};
+
+const countParams = (params: string): number =>
+  params.trim() === "" ? 0 : params.split(",").length;
+
+/** `func EserAjanFoo(a, b *C.char) *C.char {` -> { arity: 2, returns: "pointer" }. */
+const goShapes = (source: string): Record<string, ExportShape> =>
+  Object.fromEntries(
+    [
+      ...source.matchAll(/^func\s+(EserAjan\w+)\(([^)]*)\)\s*([^{]*?)\s*\{/gm),
+    ].map((match) => [
+      match[1] ?? "",
+      {
+        arity: countParams(match[2] ?? ""),
+        returns: GO_RETURNS[(match[3] ?? "").trim()] ?? "void",
+      },
+    ]),
+  );
+
+/** `"void* EserAjanFoo(const char* a)"` -> { arity: 1, returns: "pointer" }. */
+const cShapes = (source: string): Record<string, ExportShape> =>
+  Object.fromEntries(
+    [...source.matchAll(/"([^"(]*?)\s*\b(EserAjan\w+)\s*\(([^)"]*)\)"/g)].map(
+      (match) => [
+        match[2] ?? "",
+        {
+          arity: countParams(match[3] ?? ""),
+          returns:
+            C_RETURNS[(match[1] ?? "").replace(/\s+\*/g, "*").trim()] ?? "void",
+        },
+      ],
+    ),
+  );
+
 /** Dispatch names the bridge registers, e.g. `register("formatList", ...)`. */
 const registeredNames = (source: string): string[] =>
   sortedUnique(matchAll(source, /\bregister\(\s*"([a-zA-Z]\w*)"/g));
@@ -81,13 +133,11 @@ const assertExtracted = (label: string, names: string[]): void => {
 };
 
 nodeTest.test(
-  "ajan FFI: every cgo export is declared in types.ts and all four loaders",
+  "ajan FFI: every cgo export is declared in types.ts, the node:ffi map and the WASM loader",
   async () => {
-    const [main, types, deno, bun, node, wasm] = await Promise.all([
+    const [main, types, node, wasm] = await Promise.all([
       read("../ajan/main.go"),
       read("../ajan/ffi/types.ts"),
-      read("../ajan/ffi/backend-deno.ts"),
-      read("../ajan/ffi/backend-bun.ts"),
       read("../ajan/ffi/backend-node.ts"),
       read("../ajan/wasm/loader-reactor.ts"),
     ]);
@@ -97,8 +147,6 @@ nodeTest.test(
 
     const declarations: Array<[string, string[]]> = [
       ["ffi/types.ts", tsSymbolKeys(types)],
-      ["ffi/backend-deno.ts", tsSymbolKeys(deno)],
-      ["ffi/backend-bun.ts", tsSymbolKeys(bun)],
       ["ffi/backend-node.ts", tsSymbolKeys(node)],
       ["wasm/loader-reactor.ts", tsSymbolKeys(wasm)],
       ["ffi/backend-node.ts C prototypes", cPrototypes(node)],
@@ -110,10 +158,34 @@ nodeTest.test(
         actual,
         expected,
         `${label} does not match the cgo export list in main.go. Adding a Go ` +
-          `export means declaring it in types.ts, all three native backends ` +
-          `and the WASM loader; this diff shows what drifted.`,
+          `export means declaring it in types.ts, the node:ffi backend and ` +
+          `the WASM loader; this diff shows what drifted.`,
       );
     }
+  },
+);
+
+nodeTest.test(
+  "ajan FFI: the node:ffi prototypes match the cgo signatures",
+  async () => {
+    const [main, node] = await Promise.all([
+      read("../ajan/main.go"),
+      read("../ajan/ffi/backend-node.ts"),
+    ]);
+
+    const go = goShapes(main);
+    const c = cShapes(node);
+    assertExtracted("main.go func signatures", Object.keys(go));
+    assertExtracted("ffi/backend-node.ts C prototypes", Object.keys(c));
+
+    assert.assertEquals(
+      c,
+      go,
+      "A C prototype in ffi/backend-node.ts declares a different argument " +
+        "count or return type than its cgo function in main.go. node:ffi " +
+        "calls through whatever the prototype says, so the mismatch fails " +
+        "only at run time.",
+    );
   },
 );
 
@@ -168,7 +240,7 @@ nodeTest.test(
       assert.assertEquals(
         Object.keys(lib.symbols).sort(),
         expected,
-        "The symbols the active backend exposes differ from the cgo export " +
+        "The symbols the node:ffi backend exposes differ from the cgo export " +
           "list. If the built library predates a Go-side change, rebuild it " +
           "with `make ajan-lib`.",
       );

@@ -13,7 +13,7 @@
  * 4. Generates package.json for npm
  * 5. Copies README.md
  *
- * Usage: deno run --allow-all ./npm-build.ts
+ * Usage: node ./scripts/npm-build.ts
  *
  * @module
  */
@@ -114,9 +114,7 @@ const main = async (): Promise<void> => {
       minify: true,
       // @eserstack/* imports need no plugin: pnpm links each workspace package
       // into node_modules, and esbuild reads the exports of its package.json.
-      // esbuild cannot resolve Deno's npm: and jsr: specifiers, so they stay
-      // external.
-      external: [...EXTERNAL_PACKAGES, "npm:*", "jsr:*"],
+      external: [...EXTERNAL_PACKAGES],
       plugins: [createImportMetaMainPlugin(mainTsPath)],
       logLevel: "warning",
     });

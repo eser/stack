@@ -24,7 +24,7 @@ import * as serverWebSocket from "./server-websocket.ts";
 import * as shared from "./shared.ts";
 import * as frames from "./websocket-frames.ts";
 
-/** The largest WebSocket message a client may send: 16 MiB, as in Bun. */
+/** The largest WebSocket message a client may send: 16 MiB. */
 const MAX_MESSAGE_BYTES = 16 * 1024 * 1024;
 
 /**

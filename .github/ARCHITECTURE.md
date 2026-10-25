@@ -93,11 +93,9 @@ Layer 3: Services and Tooling
 └── @eserstack/posts                 # Posts on Twitter/X and Bluesky
 
 Layer 4: Framework
-├── @eserstack/jsx-runtime           # Custom JSX runtime
 ├── @eserstack/app-runtime           # Runtime abstraction
 ├── @eserstack/bundler               # Bundling system (Rolldown backend)
 ├── @eserstack/laroux                # Framework core
-├── @eserstack/laroux-runtime        # Application runtime (manifest loading, dev mode)
 ├── @eserstack/laroux-react          # React integration: Link, Image, RSC protocol and client
 ├── @eserstack/laroux-bundler        # Build pipeline and bundler adapters
 └── @eserstack/laroux-server         # Server-side runtime; the `laroux` binary

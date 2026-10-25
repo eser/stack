@@ -2,9 +2,11 @@
 
 import * as mitata from "mitata";
 import * as memoize from "./memoize.ts";
-// lodash.memoize is CommonJS whose module.exports is one function, so it has no
-// named exports to import as a namespace.
-import lodashMemoize from "lodash.memoize";
+import * as lodashMemoizeModule from "lodash.memoize";
+
+// lodash.memoize is CommonJS whose module.exports is one function; Node exposes
+// it as the namespace's default export (types in lodash-modules.d.ts).
+const lodashMemoize = lodashMemoizeModule.default;
 
 const group = "memoize";
 

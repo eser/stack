@@ -67,23 +67,25 @@ const postAction = (
   );
 
 nodeTest.test(
-  "POST /_rsc never imports a module outside dist/server",
+  "track-l-delete: POST /_rsc never imports a module outside dist/server",
   async () => {
-    const root = await Deno.makeTempDir();
+    const root = await runtime.fs.makeTempDir({
+      prefix: "laroux-containment-",
+    });
     try {
       const serverDir = path.join(root, "dist", "server");
       const outsideDir = path.join(root, "outside");
-      await Deno.mkdir(serverDir, { recursive: true });
-      await Deno.mkdir(outsideDir, { recursive: true });
+      await runtime.fs.mkdir(serverDir, { recursive: true });
+      await runtime.fs.mkdir(outsideDir, { recursive: true });
 
       const marker = `__laroux_outside_${crypto
         .randomUUID()
         .replaceAll("-", "")}`;
-      await Deno.writeTextFile(
+      await runtime.fs.writeTextFile(
         path.join(outsideDir, "evil.js"),
         `globalThis.${marker} = true;\nexport const pwn = () => "pwned";\n`,
       );
-      await Deno.writeTextFile(
+      await runtime.fs.writeTextFile(
         path.join(serverDir, "legit.js"),
         `export const hello = (x) => "hello " + x;
 Object.defineProperties(hello, {
@@ -94,7 +96,7 @@ Object.defineProperties(hello, {
       );
       // The manifest lists the outside paths too, so this test reaches the
       // containment check behind the manifest check.
-      await Deno.writeTextFile(
+      await runtime.fs.writeTextFile(
         path.join(serverDir, "actions-manifest.json"),
         JSON.stringify({
           actions: [
@@ -150,19 +152,23 @@ Object.defineProperties(hello, {
         "hello arg",
       );
     } finally {
-      await Deno.remove(root, { recursive: true });
+      await runtime.fs.remove(root, { recursive: true });
     }
   },
 );
 
 nodeTest.test(
-  "static routes reject absolute and sibling-prefix paths",
+  "track-l-delete: static routes reject absolute and sibling-prefix paths",
   async () => {
-    const root = await Deno.makeTempDir();
+    const root = await runtime.fs.makeTempDir({
+      prefix: "laroux-containment-",
+    });
     try {
-      await Deno.mkdir(path.join(root, "dist"), { recursive: true });
-      await Deno.mkdir(path.join(root, "dist-secret"), { recursive: true });
-      await Deno.writeTextFile(
+      await runtime.fs.mkdir(path.join(root, "dist"), { recursive: true });
+      await runtime.fs.mkdir(path.join(root, "dist-secret"), {
+        recursive: true,
+      });
+      await runtime.fs.writeTextFile(
         path.join(root, "dist-secret", "flag.txt"),
         "FLAG",
       );
@@ -174,13 +180,13 @@ nodeTest.test(
       const body = await res.text();
       assert.assertEquals(res.status === 200 && body === "FLAG", false);
     } finally {
-      await Deno.remove(root, { recursive: true });
+      await runtime.fs.remove(root, { recursive: true });
     }
   },
 );
 
 nodeTest.test(
-  "static routes do not serve server code or build inputs from dist",
+  "track-l-delete: static routes do not serve server code or build inputs from dist",
   async () => {
     const root = await runtime.fs.makeTempDir({ prefix: "laroux-static-" });
     try {

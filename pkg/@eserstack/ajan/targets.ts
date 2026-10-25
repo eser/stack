@@ -15,7 +15,7 @@
  *   Each target carries the ecosystem-specific translations:
  *     Go:    goos/goarch       (e.g. "darwin"/"arm64")
  *     npm:   os/cpu            (e.g. "darwin"/"arm64", note: "win32"/"x64")
- *     Deno:  target triple     (e.g. "aarch64-apple-darwin")
+ *     Release: Rust target triple (e.g. "aarch64-apple-darwin")
  *     Lib:   shared lib name   (e.g. "libeser_ajan.dylib")
  *
  * @module
@@ -43,9 +43,12 @@ export interface NativeTarget {
   /** npm package suffix (e.g. "darwin-arm64", "win32-x64") */
   readonly npmSuffix: string;
 
-  // ── Deno compile ──
-  /** Deno/Rust target triple (e.g. "aarch64-apple-darwin") */
-  readonly denoTarget: string;
+  // ── Release archives ──
+  /**
+   * Rust target triple the release archives are named with (decision-38),
+   * e.g. "aarch64-apple-darwin".
+   */
+  readonly releaseTriple: string;
 
   // ── Output ──
   /** Shared library filename */
@@ -83,7 +86,7 @@ export const NATIVE_TARGETS: readonly NativeTarget[] = [
     npmOs: "darwin",
     npmCpu: "arm64",
     npmSuffix: "darwin-arm64",
-    denoTarget: "aarch64-apple-darwin",
+    releaseTriple: "aarch64-apple-darwin",
     libFile: "libeser_ajan.dylib",
     description: "eser-ajan shared library for macOS ARM64 (Apple Silicon)",
   },
@@ -95,7 +98,7 @@ export const NATIVE_TARGETS: readonly NativeTarget[] = [
     npmOs: "darwin",
     npmCpu: "x64",
     npmSuffix: "darwin-x64",
-    denoTarget: "x86_64-apple-darwin",
+    releaseTriple: "x86_64-apple-darwin",
     libFile: "libeser_ajan.dylib",
     description: "eser-ajan shared library for macOS x64 (Intel)",
   },
@@ -107,7 +110,7 @@ export const NATIVE_TARGETS: readonly NativeTarget[] = [
     npmOs: "linux",
     npmCpu: "arm64",
     npmSuffix: "linux-arm64",
-    denoTarget: "aarch64-unknown-linux-gnu",
+    releaseTriple: "aarch64-unknown-linux-gnu",
     libFile: "libeser_ajan.so",
     description: "eser-ajan shared library for Linux ARM64",
   },
@@ -119,7 +122,7 @@ export const NATIVE_TARGETS: readonly NativeTarget[] = [
     npmOs: "linux",
     npmCpu: "x64",
     npmSuffix: "linux-x64",
-    denoTarget: "x86_64-unknown-linux-gnu",
+    releaseTriple: "x86_64-unknown-linux-gnu",
     libFile: "libeser_ajan.so",
     description: "eser-ajan shared library for Linux x64",
   },
@@ -131,7 +134,7 @@ export const NATIVE_TARGETS: readonly NativeTarget[] = [
     npmOs: "win32",
     npmCpu: "x64",
     npmSuffix: "win32-x64",
-    denoTarget: "x86_64-pc-windows-msvc",
+    releaseTriple: "x86_64-pc-windows-msvc",
     libFile: "libeser_ajan.dll",
     description: "eser-ajan shared library for Windows x64",
   },
@@ -178,9 +181,9 @@ export const findWasmTarget = (id: string): WasmTarget | undefined =>
 export const findTarget = (id: string): NativeTarget | WasmTarget | undefined =>
   findNativeTarget(id) ?? findWasmTarget(id);
 
-/** Look up a native target by its Deno compile triple. */
-export const findByDenoTarget = (triple: string): NativeTarget | undefined =>
-  NATIVE_TARGETS.find((t) => t.denoTarget === triple);
+/** Look up a native target by its release triple. */
+export const findByReleaseTriple = (triple: string): NativeTarget | undefined =>
+  NATIVE_TARGETS.find((t) => t.releaseTriple === triple);
 
 /** npm scope for platform packages. */
 export const NPM_SCOPE = "@eserstack";

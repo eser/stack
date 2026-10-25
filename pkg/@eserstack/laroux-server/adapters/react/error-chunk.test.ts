@@ -21,19 +21,22 @@ const components = {
   forwardRef: React.forwardRef(() => failing()),
 };
 
-nodeTest.test("toClientErrorValue carries only the message", () => {
-  const error = new Error("boom");
-  assert.assertEquals(errorChunk.toClientErrorValue(error), {
-    message: "boom",
-  });
-  assert.assertEquals(errorChunk.toClientErrorValue("plain"), {
-    message: "plain",
-  });
-});
+nodeTest.test(
+  "track-l-delete: toClientErrorValue carries only the message",
+  () => {
+    const error = new Error("boom");
+    assert.assertEquals(errorChunk.toClientErrorValue(error), {
+      message: "boom",
+    });
+    assert.assertEquals(errorChunk.toClientErrorValue("plain"), {
+      message: "plain",
+    });
+  },
+);
 
 for (const [name, Component] of Object.entries(components)) {
   nodeTest.test(
-    `flight stream error chunk has no stack (${name})`,
+    `track-l-delete: flight stream error chunk has no stack (${name})`,
     async () => {
       const element = React.createElement(
         "div",
@@ -52,23 +55,26 @@ for (const [name, Component] of Object.entries(components)) {
   );
 }
 
-nodeTest.test("SSR payload error chunk has no stack", async () => {
-  const element = React.createElement(
-    "div",
-    null,
-    React.createElement(components.sync),
-  );
-  const result = await ssrRenderer.renderSSR(element, {});
-  const serialized = JSON.stringify(result.rscPayload) + result.html;
-  assert.assertEquals(serialized.includes(SECRET_FRAME), false);
-  assert.assertEquals(
-    result.rscPayload.some(
-      (c) =>
-        c.type === "E" &&
-        typeof c.value === "object" &&
-        c.value !== null &&
-        "stack" in c.value,
-    ),
-    false,
-  );
-});
+nodeTest.test(
+  "track-l-delete: SSR payload error chunk has no stack",
+  async () => {
+    const element = React.createElement(
+      "div",
+      null,
+      React.createElement(components.sync),
+    );
+    const result = await ssrRenderer.renderSSR(element, {});
+    const serialized = JSON.stringify(result.rscPayload) + result.html;
+    assert.assertEquals(serialized.includes(SECRET_FRAME), false);
+    assert.assertEquals(
+      result.rscPayload.some(
+        (c) =>
+          c.type === "E" &&
+          typeof c.value === "object" &&
+          c.value !== null &&
+          "stack" in c.value,
+      ),
+      false,
+    );
+  },
+);

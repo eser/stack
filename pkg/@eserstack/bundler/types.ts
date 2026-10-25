@@ -37,7 +37,7 @@ export interface BundlerConfig {
   readonly external?: readonly string[];
   /** Bundler plugins. */
   readonly plugins?: readonly BundlerPlugin[];
-  /** Path to deno.json/tsconfig.json. */
+  /** Path to tsconfig.json. */
   readonly configPath?: string;
   /** Base path for URL rewriting. */
   readonly basePath?: string;

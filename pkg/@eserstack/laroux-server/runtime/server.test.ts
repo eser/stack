@@ -104,21 +104,24 @@ const postAction = (
   actionId: string,
   body: BodyInit,
   headers: Record<string, string> = {},
-): Promise<Response> =>
-  handler(
-    new Request("http://localhost/_rsc", {
-      method: "POST",
-      headers: {
-        "RSC-Action": actionId,
-        "Content-Type": "application/json",
-        ...headers,
-      },
-      body,
-    }),
-  );
+): Promise<Response> => {
+  // Node requires duplex for a stream body; the DOM RequestInit type lacks it
+  const init: RequestInit & { duplex: "half" } = {
+    method: "POST",
+    headers: {
+      "RSC-Action": actionId,
+      "Content-Type": "application/json",
+      ...headers,
+    },
+    body,
+    duplex: "half",
+  };
+
+  return handler(new Request("http://localhost/_rsc", init));
+};
 
 nodeTest.test(
-  "POST /_rsc sends an action's Date and Map result as RSC",
+  "track-l-delete: POST /_rsc sends an action's Date and Map result as RSC",
   async () => {
     await withActions(
       serverAction(
@@ -152,7 +155,7 @@ nodeTest.test(
 );
 
 nodeTest.test(
-  "POST /_rsc answers 400 when the arguments are not a JSON array",
+  "track-l-delete: POST /_rsc answers 400 when the arguments are not a JSON array",
   async () => {
     await withActions(
       serverAction("echo", "(value) => value"),
@@ -172,15 +175,16 @@ nodeTest.test(
 );
 
 nodeTest.test(
-  "POST /_rsc refuses an export that is not a server action, and does not run it",
+  "track-l-delete: POST /_rsc refuses an export that is not a server action, and does not run it",
   async () => {
     const root = await runtime.fs.makeTempDir({ prefix: "laroux-actions-" });
     try {
       const markerPath = runtime.path.join(root, "ran");
       await writeActions(
         root,
-        serverAction("echo", "(value) => value") +
-          `export const helper = () => Deno.writeTextFileSync(${JSON.stringify(
+        `import * as fs from "node:fs";\n` +
+          serverAction("echo", "(value) => value") +
+          `export const helper = () => fs.writeFileSync(${JSON.stringify(
             markerPath,
           )}, "ran");\n`,
       );
@@ -198,7 +202,7 @@ nodeTest.test(
 );
 
 nodeTest.test(
-  "POST /_rsc refuses a module the actions manifest does not list",
+  "track-l-delete: POST /_rsc refuses a module the actions manifest does not list",
   async () => {
     await withActions(
       serverAction("echo", "(value) => value"),
@@ -213,36 +217,39 @@ nodeTest.test(
   },
 );
 
-nodeTest.test("POST /_rsc refuses a body over the limit with 413", async () => {
-  await withActions(
-    serverAction("echo", "(value) => value"),
-    async (handler) => {
-      const oversized = `["${"a".repeat(1_048_576)}"]`;
+nodeTest.test(
+  "track-l-delete: POST /_rsc refuses a body over the limit with 413",
+  async () => {
+    await withActions(
+      serverAction("echo", "(value) => value"),
+      async (handler) => {
+        const oversized = `["${"a".repeat(1_048_576)}"]`;
 
-      const declared = await postAction(handler, "actions#echo", oversized);
-      assert.assertEquals(declared.status, 413);
-      await declared.body?.cancel();
+        const declared = await postAction(handler, "actions#echo", oversized);
+        assert.assertEquals(declared.status, 413);
+        await declared.body?.cancel();
 
-      // Without Content-Length the bytes read are counted.
-      const bytes = new TextEncoder().encode(oversized);
-      const chunked = await postAction(
-        handler,
-        "actions#echo",
-        new ReadableStream({
-          start(controller) {
-            controller.enqueue(bytes);
-            controller.close();
-          },
-        }),
-      );
-      assert.assertEquals(chunked.status, 413);
-      await chunked.body?.cancel();
-    },
-  );
-});
+        // Without Content-Length the bytes read are counted.
+        const bytes = new TextEncoder().encode(oversized);
+        const chunked = await postAction(
+          handler,
+          "actions#echo",
+          new ReadableStream({
+            start(controller) {
+              controller.enqueue(bytes);
+              controller.close();
+            },
+          }),
+        );
+        assert.assertEquals(chunked.status, 413);
+        await chunked.body?.cancel();
+      },
+    );
+  },
+);
 
 nodeTest.test(
-  "POST /_rsc refuses cross-site requests and accepts same-origin ones",
+  "track-l-delete: POST /_rsc refuses cross-site requests and accepts same-origin ones",
   async () => {
     await withActions(
       serverAction("echo", "(value) => value"),
@@ -280,7 +287,7 @@ const readActionResult = async (response: Response): Promise<unknown> => {
 };
 
 nodeTest.test(
-  "POST /_rsc runs the action of the build being served, also after a rebuild",
+  "track-l-delete: POST /_rsc runs the action of the build being served, also after a rebuild",
   async () => {
     const root = await runtime.fs.makeTempDir({ prefix: "laroux-actions-" });
     try {
@@ -312,7 +319,7 @@ nodeTest.test(
 );
 
 nodeTest.test(
-  "GET / links the client bundle of the build on disk, also after a rebuild",
+  "track-l-delete: GET / links the client bundle of the build on disk, also after a rebuild",
   async () => {
     const root = await runtime.fs.makeTempDir({ prefix: "laroux-page-" });
     try {
@@ -350,7 +357,7 @@ nodeTest.test(
 // ============================================================================
 
 nodeTest.test(
-  "/rsc renders concurrent requests with their own cookies",
+  "track-l-delete: /rsc renders concurrent requests with their own cookies",
   async () => {
     // Both pages wait until both renders have started, so the two requests
     // overlap: request data kept anywhere but the props would leak across.
@@ -460,7 +467,7 @@ const rootProxyRuns = (): string[] =>
   (globalThis as { rootProxyRuns?: string[] }).rootProxyRuns ?? [];
 
 nodeTest.test(
-  "GET /rsc runs the proxy chain of the requested page",
+  "track-l-delete: GET /rsc runs the proxy chain of the requested page",
   async () => {
     const root = await runtime.fs.makeTempDir({ prefix: "laroux-proxy-" });
     try {
@@ -501,42 +508,51 @@ nodeTest.test(
   },
 );
 
-nodeTest.test("POST /_rsc runs the root proxy chain", async () => {
-  const root = await runtime.fs.makeTempDir({ prefix: "laroux-proxy-" });
-  try {
-    await writeActions(root, serverAction("echo", "(value) => value"));
-    const handler = server.createHandler({
-      ...makeDeps(root),
-      middlewareDispatcher: await loadProxyFixture(root),
-    });
-    const before = rootProxyRuns().filter((path) => path === "/_rsc").length;
+nodeTest.test(
+  "track-l-delete: POST /_rsc runs the root proxy chain",
+  async () => {
+    const root = await runtime.fs.makeTempDir({ prefix: "laroux-proxy-" });
+    try {
+      await writeActions(root, serverAction("echo", "(value) => value"));
+      const handler = server.createHandler({
+        ...makeDeps(root),
+        middlewareDispatcher: await loadProxyFixture(root),
+      });
+      const before = rootProxyRuns().filter((path) => path === "/_rsc").length;
 
-    const response = await postAction(handler, "actions#echo", "[1]");
+      const response = await postAction(handler, "actions#echo", "[1]");
 
-    assert.assertEquals(response.status, 200);
-    await response.body?.cancel();
-    assert.assertEquals(
-      rootProxyRuns().filter((path) => path === "/_rsc").length,
-      before + 1,
-    );
-  } finally {
-    await runtime.fs.remove(root, { recursive: true });
-  }
-});
+      assert.assertEquals(response.status, 200);
+      await response.body?.cancel();
+      assert.assertEquals(
+        rootProxyRuns().filter((path) => path === "/_rsc").length,
+        before + 1,
+      );
+    } finally {
+      await runtime.fs.remove(root, { recursive: true });
+    }
+  },
+);
 
 // ============================================================================
 // Rate limiting
 // ============================================================================
 
 nodeTest.test(
-  "two peers with different remote addresses get separate rate-limit buckets",
+  "track-l-delete: two peers with different remote addresses get separate rate-limit buckets",
   async () => {
     const root = await runtime.fs.makeTempDir({ prefix: "laroux-rate-" });
+    // Aborting stops the rate limiter's cleanup timer, so the test process
+    // can exit
+    const stop = new AbortController();
     try {
-      const handler = server.createHandler({
-        ...makeDeps(root),
-        rateLimitConfig: { maxRequests: 1, windowMs: 60_000 },
-      });
+      const handler = server.createHandler(
+        {
+          ...makeDeps(root),
+          rateLimitConfig: { maxRequests: 1, windowMs: 60_000 },
+        },
+        { signal: stop.signal },
+      );
       const from = (hostname: string) => ({
         remoteAddr: { hostname, port: 40_000 },
       });
@@ -557,6 +573,7 @@ nodeTest.test(
       assert.assertEquals(second, 429);
       assert.assertNotEquals(otherPeer, 429);
     } finally {
+      stop.abort();
       await runtime.fs.remove(root, { recursive: true });
     }
   },
@@ -567,7 +584,7 @@ nodeTest.test(
 // ============================================================================
 
 nodeTest.test(
-  "startHTTPServer binds the configured host and serves the HMR WebSocket",
+  "track-l-delete: startHTTPServer binds the configured host and serves the HMR WebSocket",
   async () => {
     const root = await runtime.fs.makeTempDir({ prefix: "laroux-listen-" });
     const stop = new AbortController();

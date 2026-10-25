@@ -80,11 +80,6 @@ pkg:laroux:
           - "pkg/@eserstack/laroux/**"
           - "pkg/@eserstack/laroux-*/**"
 
-pkg:jsx-runtime:
-  - changed-files:
-      - any-glob-to-any-file:
-          - "pkg/@eserstack/jsx-runtime/**"
-
 pkg:cache:
   - changed-files:
       - any-glob-to-any-file:

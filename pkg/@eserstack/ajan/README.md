@@ -7,9 +7,9 @@
 > **eserstack Library** — [eser/stack on GitHub](https://github.com/eser/stack)
 > **Install:** `pnpm add jsr:@eserstack/ajan`
 
-C-shared library and WASM modules exposing the eser Go runtime bridge. Provides
-a two-tier architecture: native FFI (Deno/Bun/Node) + WASM fallback
-(browser/edge/any platform).
+C-shared library and WASM module exposing the eser Go runtime bridge. On Node it
+loads the native library through the built-in `node:ffi` module, and falls back
+to the WASM build when `node:ffi` cannot load.
 
 ## Quick Start
 
@@ -18,23 +18,22 @@ a two-tier architecture: native FFI (Deno/Bun/Node) + WASM fallback
 make ajan-lib
 
 # 2. Verify the Go bridge works
-deno task cli ajan version
+node --run cli -- ajan version
 # prints "eser-ajan version" followed by the repository's VERSION
 
-# 3. (Optional) Test on other runtimes
+# 3. (Optional) Load an explicit library file from a script
 ESER_AJAN_LIB_PATH=$(pwd)/pkg/@eserstack/ajan/dist/aarch64-darwin/libeser_ajan.dylib \
-  bun --eval 'import * as ffi from "./pkg/@eserstack/ajan/ffi/mod.ts"; const lib = await ffi.loadEserAjan(); console.log(lib.symbols.EserAjanVersion()); lib.close();'
+  node --input-type=module --eval 'import * as ffi from "./pkg/@eserstack/ajan/ffi/mod.ts"; const lib = await ffi.loadEserAjan(); console.log(lib.symbols.EserAjanVersion()); lib.close();'
 
-# 4. (Optional) Test WASM fallback
+# 4. (Optional) Test the WASM fallback
 make ajan-wasm
-ESER_AJAN_NATIVE=disabled deno task cli ajan version
+ESER_AJAN_NATIVE=disabled node --run cli -- ajan version
 ```
 
 ### Load from TypeScript
 
-`loadEserAjan()` opens the native library through the current runtime's FFI
-(Deno, Bun or Node) and falls back to WASM when the native library cannot be
-loaded:
+`loadEserAjan()` opens the native library through `node:ffi` and falls back to
+WASM when `node:ffi` or the native library cannot be loaded:
 
 ```typescript
 import * as ajan from "@eserstack/ajan";
@@ -46,6 +45,26 @@ lib.close();
 
 Most symbols take and return JSON strings. The request and response shape of
 each one is documented on `FFILibrary` in `ffi/types.ts`.
+
+### Loader order
+
+`loadEserAjan()` tries two steps, in this order (decision-37):
+
+1. The native library through `node:ffi`. The module is on by default since Node
+   26.9 and prints an `ExperimentalWarning` on first use. Under the permission
+   model (`--permission`), grant it with `--allow-ffi`.
+2. The WASM build (`eser-ajan.wasm`, see [WASM Usage](#wasm-usage)), when step 1
+   fails: Node before 26.9, a process started with `--no-experimental-ffi`, a
+   missing library, or `--permission` without `--allow-ffi`.
+
+When both fail, the error names both causes, the flags above and
+`ESER_AJAN_LIB_PATH`. Calls through `node:ffi` are synchronous: a long call such
+as `EserAjanAiGenerateText` blocks the event loop until it returns.
+
+```bash
+# Run with node:ffi turned off, so the WASM build serves the calls
+NODE_OPTIONS=--no-experimental-ffi node --run cli -- ajan version
+```
 
 ## Build
 
@@ -245,27 +264,26 @@ GOOS=wasip1 GOARCH=wasm CGO_ENABLED=0 go build -buildmode=c-shared \
 
 ## Feature Flags
 
-Environment variables control which FFI backends are enabled, supporting
-incremental rollout. Set any of these to `disabled` to skip the corresponding
-backend:
+Environment variables switch off steps of the loader order. Set any of these
+to `disabled` to skip the corresponding step:
 
-| Variable                    | Effect                                                               |
-| --------------------------- | -------------------------------------------------------------------- |
-| `ESER_AJAN=disabled`        | Disable ALL FFI (native + WASM); `loadEserAjan()` throws immediately |
-| `ESER_AJAN_NATIVE=disabled` | Disable native FFI; skip straight to WASM fallback                   |
-| `ESER_AJAN_WASM=disabled`   | Disable WASM fallback; only try native backends                      |
+| Variable                    | Effect                                                                  |
+| --------------------------- | ----------------------------------------------------------------------- |
+| `ESER_AJAN=disabled`        | Disable both steps (native + WASM); `loadEserAjan()` throws immediately |
+| `ESER_AJAN_NATIVE=disabled` | Skip `node:ffi`; go straight to the WASM fallback                       |
+| `ESER_AJAN_WASM=disabled`   | Disable the WASM fallback; only try `node:ffi`                          |
 
 ### Examples
 
 ```bash
-# Force WASM-only (skip native FFI)
-ESER_AJAN_NATIVE=disabled deno task cli ajan version
+# Force WASM-only (skip node:ffi)
+ESER_AJAN_NATIVE=disabled node --run cli -- ajan version
 
 # Disable all (useful for testing error paths)
-ESER_AJAN=disabled deno task cli ajan version
+ESER_AJAN=disabled node --run cli -- ajan version
 
 # Native only, no WASM fallback (for CI)
-ESER_AJAN_WASM=disabled deno task cli ajan version
+ESER_AJAN_WASM=disabled node --run cli -- ajan version
 ```
 
 ### Programmatic control
@@ -289,19 +307,19 @@ explicit.close();
 ```
 
 Environment variables always take precedence over programmatic options. If
-`ESER_AJAN_NATIVE=disabled` is set, `{ native: true }` will NOT re-enable native
-backends.
+`ESER_AJAN_NATIVE=disabled` is set, `{ native: true }` will NOT re-enable
+`node:ffi`.
 
-Set `ESER_AJAN_DEBUG` to any value to print, on stderr, why a backend was
-skipped or failed. Nothing is printed while it is unset.
+Set `ESER_AJAN_DEBUG` to any value to print, on stderr, why a step was skipped
+or failed. Nothing is printed while it is unset.
 
 ### Library and module paths
 
-| Variable              | Default                           | Purpose                                                            |
-| --------------------- | --------------------------------- | ------------------------------------------------------------------ |
-| `ESER_AJAN_LIB_PATH`  | unset: search the locations below | Full path of the native library, e.g. `/opt/eser/libeser_ajan.so`  |
-| `ESER_AJAN_WASM_PATH` | unset: search the locations below | Full path of the WASM module, e.g. `/opt/eser/eser-ajan.wasm`      |
-| `ESER_AJAN_DEBUG`     | unset: no diagnostics             | Any value prints backend selection diagnostics on stderr, e.g. `1` |
+| Variable              | Default                           | Purpose                                                           |
+| --------------------- | --------------------------------- | ----------------------------------------------------------------- |
+| `ESER_AJAN_LIB_PATH`  | unset: search the locations below | Full path of the native library, e.g. `/opt/eser/libeser_ajan.so` |
+| `ESER_AJAN_WASM_PATH` | unset: search the locations below | Full path of the WASM module, e.g. `/opt/eser/eser-ajan.wasm`     |
+| `ESER_AJAN_DEBUG`     | unset: no diagnostics             | Any value prints loader order diagnostics on stderr, e.g. `1`     |
 
 None is required. Without an override, the native library is looked up next to
 the module, in `dist/`, in the `@eserstack/ajan-{platform}` package and in
@@ -315,7 +333,7 @@ in `@eserstack/ajan-wasm` and in the same system directories.
 cd pkg/@eserstack/ajan && go test -race ./...
 
 # TypeScript loaders
-deno test --allow-all pkg/@eserstack/ajan/
+node --test --test-force-exit pkg/@eserstack/ajan/
 ```
 
 ## Upgrading from 4.x
@@ -324,11 +342,18 @@ These changes since 4.5.2 need a change in code, commands or files that use this
 package. The [changelog](https://github.com/eser/stack/blob/main/CHANGELOG.md)
 lists the changes in every package.
 
-- `@eserstack/ajan/wasm` probes files with `Deno.statSync` or
-  `process.getBuiltinModule("node:fs")`, as `ffi/resolve.ts` does. On a runtime
-  with neither (Node before 22.3, Bun before 1.1, browsers),
+- The bridge runs on Node only, through `node:ffi` with the WASM build as the
+  fallback; the other runtime backends and their native npm dependency are gone. Run on
+  Node 26.9 or later, and pass `--allow-ffi` under `--permission`.
+- `LoadOptions.backends`, `detectRuntime()`, `selectBackend()` and the
+  `FFIBackend` and `RuntimeId` types are removed. Drop `backends` from
+  `loadEserAjan()` calls; `native` and `wasm` still choose the steps.
+- `@eserstack/ajan/wasm` probes files with `process.getBuiltinModule("node:fs")`,
+  as `ffi/resolve.ts` does. On a host without it (browsers),
   `loadEserAjanWasm()` without `wasmPath` throws "Could not find eser-ajan WASM
-  module". Pass `wasmPath`, or use a supported runtime.
+  module". Pass `wasmPath`.
+- The WASM resolver no longer looks for `eser-ajan.wasm.bin`. Rename such a
+  copy to `eser-ajan.wasm`, or point `ESER_AJAN_WASM_PATH` at it.
 - The WASM fallback is one module, `eser-ajan.wasm`, the wasi-profile reactor.
   The per-call module that read a JSON request on stdin,
   `eser-ajan-reactor.wasm` and the `mode` option of `loadEserAjanWasm()` and

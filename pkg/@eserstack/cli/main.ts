@@ -8,7 +8,7 @@
  * loading for all command modules.
  *
  * Usage:
- *   deno run --allow-all ./main.ts <command> [subcommand] [options]
+ *   node ./main.ts <command> [subcommand] [options]
  *   npx eser <command> [subcommand] [options]
  *
  * @module
@@ -48,7 +48,7 @@ const app = cliSupport
   .attachStandardCommands(cliModule.toCommand("eser", config.version), {
     npmPackage: "eser",
     jsrPackage: "@eserstack/cli",
-    devCommand: "deno task cli",
+    devCommand: "pnpm cli",
   })
   // Lazy, not eager.
   //
@@ -123,9 +123,9 @@ const app = cliSupport
   });
 
 /**
- * The one-line notice for a run from a `deno install jsr:@eserstack/cli`
- * install, whose main module is served from jsr.io, or null for any other
- * install. JSR stays frozen at 4.5.x (decision-5).
+ * The one-line notice for a run from a `jsr:@eserstack/cli` install, whose
+ * main module is served from jsr.io, or null for any other install. JSR stays
+ * frozen at 4.5.x (decision-5).
  */
 export const jsrInstallNotice = (mainModuleUrl: string): string | null =>
   mainModuleUrl.startsWith("https://jsr.io/")

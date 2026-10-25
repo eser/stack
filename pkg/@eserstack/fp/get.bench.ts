@@ -2,9 +2,11 @@
 
 import * as mitata from "mitata";
 import * as get from "./get.ts";
-// lodash.get is CommonJS whose module.exports is one function, so it has no
-// named exports to import as a namespace.
-import lodashGet from "lodash.get";
+import * as lodashGetModule from "lodash.get";
+
+// lodash.get is CommonJS whose module.exports is one function; Node exposes
+// it as the namespace's default export (types in lodash-modules.d.ts).
+const lodashGet = lodashGetModule.default;
 
 const group = "get";
 

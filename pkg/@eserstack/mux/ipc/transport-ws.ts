@@ -3,8 +3,9 @@
 /**
  * WebSocket transport for the neutral mux protocol.
  *
- * Adapts a `WebSocket` (Deno's `upgradeWebSocket` result on the server, or the
- * browser's `WebSocket` on the client) to a {@link Transport}. Messages are
+ * Adapts a `WebSocket` (the socket `runtime.http.upgradeWebSocket` returns on
+ * the server, or the browser's `WebSocket` on the client) to a
+ * {@link Transport}. Messages are
  * JSON; pane output rides as a string field, so no binary framing is needed.
  *
  * Because the server keeps panes alive across disconnects, a dropped socket just

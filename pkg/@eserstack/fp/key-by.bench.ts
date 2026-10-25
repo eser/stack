@@ -2,9 +2,11 @@
 
 import * as mitata from "mitata";
 import * as keyBy from "./key-by.ts";
-// lodash.keyby is CommonJS whose module.exports is one function, so it has no
-// named exports to import as a namespace.
-import lodashKeyBy from "lodash.keyby";
+import * as lodashKeyByModule from "lodash.keyby";
+
+// lodash.keyby is CommonJS whose module.exports is one function; Node exposes
+// it as the namespace's default export (types in lodash-modules.d.ts).
+const lodashKeyBy = lodashKeyByModule.default;
 
 const group = "key-by";
 

@@ -2,9 +2,11 @@
 
 import * as mitata from "mitata";
 import * as groupBy from "./group-by.ts";
-// lodash.groupby is CommonJS whose module.exports is one function, so it has no
-// named exports to import as a namespace.
-import lodashGroupBy from "lodash.groupby";
+import * as lodashGroupByModule from "lodash.groupby";
+
+// lodash.groupby is CommonJS whose module.exports is one function; Node exposes
+// it as the namespace's default export (types in lodash-modules.d.ts).
+const lodashGroupBy = lodashGroupByModule.default;
 
 const group = "group-by";
 

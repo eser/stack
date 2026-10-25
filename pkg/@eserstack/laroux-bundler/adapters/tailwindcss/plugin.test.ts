@@ -1,10 +1,16 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as fsPromises from "node:fs/promises"; // symlinks are not available in runtime
 import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
-import * as fs from "@std/fs"; // symlinks are not available in runtime
 import { runtime } from "@eserstack/standards/cross-runtime";
 import * as plugin from "./plugin.ts";
+
+/** Link linkPath to target, creating the parent directories of linkPath. */
+async function linkDir(target: string, linkPath: string): Promise<void> {
+  await fsPromises.mkdir(runtime.path.dirname(linkPath), { recursive: true });
+  await fsPromises.symlink(target, linkPath, "dir");
+}
 
 nodeTest.test(
   "the Tailwind plugin compiles the utilities that source files use, at any depth",
@@ -27,7 +33,7 @@ nodeTest.test(
         }),
       );
       // The stylesheet's @import resolves from the app's node_modules
-      await fs.ensureSymlink(
+      await linkDir(
         runtime.path.resolve(
           import.meta.dirname ?? ".",
           "../../node_modules/tailwindcss",

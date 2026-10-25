@@ -1,10 +1,10 @@
 ---
 id: TASK-220
 title: 'fp: pass tests and benches on Node'
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-10-15 20:38'
-updated_date: '2026-10-25 16:00'
+updated_date: '2026-10-25 18:00'
 labels:
   - cutover
   - fp
@@ -28,8 +28,8 @@ Plan key: M1-T26. Effort: small.
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 `node --test pkg/@eserstack/fp` passes, and the benches run
-- [ ] #2 The code-conventions baseline only shrinks; tsc and oxlint are clean
+- [x] #1 `node --test pkg/@eserstack/fp` passes, and the benches run
+- [x] #2 The code-conventions baseline only shrinks; tsc and oxlint are clean
 <!-- AC:END -->
 
 ## Implementation Notes
@@ -42,4 +42,11 @@ Hand-work list (TASK-175 spike, 2026-10-24, node 26.12.1):
 - Source: 0 Deno, Bun or specifier uses. Docs: none.
 
 TASK-198 (2026-10-25): the test and bench codemods left no site for hand edits in this task's files (0 unhandled), and none of its test files fails under `node --test --test-force-exit` on Node 26.12.1 when run alone.
+
+TASK-220 (2026-10-25, node 26.12.1):
+- `node --test --test-force-exit pkg/@eserstack/fp`: 165 tests, 165 pass, 0 fail. All 11 benches run with `node <file>` (mitata), exit 0.
+- The five lodash benches imported untyped CommonJS packages (TS7016). Added fp/lodash-modules.d.ts, ambient declarations for the call forms the benches use, so no @types/* dependency is needed. The benches now use `import * as x from "lodash.*"` and call `x.default`, which drops the chunk cast and their namespace-import violations (fp has 0 now).
+- tsc reports nothing under pkg/@eserstack/fp/; oxlint and oxfmt --check are clean.
+- Left for AC #2: delete the five pkg/@eserstack/fp/*.bench.ts entries under `namespace-import` in .eser/baselines/code-conventions.json (outside this package's files).
+The integration agent removed the five fp bench entries from the namespace-import baseline in .eser/baselines/code-conventions.json, so AC #2 holds.
 <!-- SECTION:NOTES:END -->

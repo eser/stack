@@ -8,6 +8,7 @@
  * server sends for a recorded session; here mux-render.js paints them.
  */
 
+import * as fs from "node:fs/promises";
 import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 
@@ -16,11 +17,8 @@ import * as assert from "@eserstack/test-kit/assert";
 // =============================================================================
 
 /** The text of a file next to this one. */
-const readText = async (path: string): Promise<string> => {
-  const response = await fetch(new URL(path, import.meta.url));
-
-  return await response.text();
-};
+const readText = (path: string): Promise<string> =>
+  fs.readFile(new URL(path, import.meta.url), "utf8");
 
 /**
  * Runs static/`name` as the browser runs a classic script, with `globals`
@@ -84,8 +82,11 @@ class FakeEvent {
 
 class FakeText {
   parentNode: FakeElement | null = null;
+  readonly data: string;
 
-  constructor(readonly data: string) {}
+  constructor(data: string) {
+    this.data = data;
+  }
 
   get textContent(): string {
     return this.data;
@@ -127,11 +128,13 @@ class FakeElement {
   readonly dataset: Record<string, string> = {};
   readonly attributes = new Map<string, string>();
   readonly listeners = new Map<string, Listener[]>();
+  readonly document: FakeDocument;
+  readonly tagName: string;
 
-  constructor(
-    readonly document: FakeDocument,
-    readonly tagName: string,
-  ) {}
+  constructor(document: FakeDocument, tagName: string) {
+    this.document = document;
+    this.tagName = tagName;
+  }
 
   get classList() {
     const names = (): string[] =>
@@ -536,11 +539,12 @@ type ScreensFixture = {
 };
 
 const readScreensFixture = async (): Promise<ScreensFixture> => {
-  const response = await fetch(
+  const compressed = await fs.readFile(
     new URL("../testdata/claude_code_screens.json.gz", import.meta.url),
   );
-  assert.assertExists(response.body);
-  const stream = response.body.pipeThrough(new DecompressionStream("gzip"));
+  const stream = new Blob([compressed])
+    .stream()
+    .pipeThrough(new DecompressionStream("gzip"));
 
   return (await new Response(stream).json()) as ScreensFixture;
 };
@@ -1567,8 +1571,10 @@ nodeTest.test("client.js attaches /mux and feeds the renderer", async () => {
     onmessage: ((event: { data: string }) => void) | null = null;
     onclose: unknown = null;
     onerror: unknown = null;
+    readonly url: string;
 
-    constructor(readonly url: string) {
+    constructor(url: string) {
+      this.url = url;
       sockets.push(this);
     }
 
@@ -1586,6 +1592,8 @@ nodeTest.test("client.js attaches /mux and feeds the renderer", async () => {
   });
 
   const restore = await runScript("client.js", {
+    // The window's resize listener; Node has no window event target.
+    addEventListener: () => {},
     document: page,
     fetch: () => Promise.resolve(Response.json({})),
     location: { protocol: "http:", host: "127.0.0.1:3000" },

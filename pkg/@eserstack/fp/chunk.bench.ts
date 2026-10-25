@@ -2,17 +2,11 @@
 
 import * as mitata from "mitata";
 import * as chunk from "./chunk.ts";
-// lodash.chunk is CommonJS whose module.exports is one function, so it has no
-// named exports to import as a namespace.
-import lodashChunkUntyped from "lodash.chunk";
+import * as lodashChunkModule from "lodash.chunk";
 
-// lodash.chunk ships no types, and its JSDoc tags the internal `guard`
-// parameter as `@param-`, so the inferred signature requires a third argument.
-// The documented call is chunk(array, size), which is what this bench measures.
-const lodashChunk = lodashChunkUntyped as <T>(
-  array: ReadonlyArray<T>,
-  size?: number,
-) => Array<Array<T>>;
+// lodash.chunk is CommonJS whose module.exports is one function; Node exposes
+// it as the namespace's default export (types in lodash-modules.d.ts).
+const lodashChunk = lodashChunkModule.default;
 
 const group = "chunk";
 

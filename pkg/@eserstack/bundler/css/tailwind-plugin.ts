@@ -46,10 +46,10 @@ let tailwindOxide: typeof import("@tailwindcss/oxide") | null = null;
  */
 export const TailwindFeatures = {
   None: 0,
-  AtApply: 1 << 0,
-  ThemeFunction: 1 << 1,
-  Utilities: 1 << 2,
-  JsPluginCompat: 1 << 3,
+  AtApply: 0b0001,
+  ThemeFunction: 0b0010,
+  Utilities: 0b0100,
+  JsPluginCompat: 0b1000,
 } as const;
 
 /**

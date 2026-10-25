@@ -43,7 +43,7 @@ const MARKER = "# @eser managed hook";
 const resolveCliCommand = async (): Promise<string> => {
   const ctx = await standards.crossRuntime.detectExecutionContext({
     command: "eser",
-    devCommand: "deno task cli",
+    devCommand: "pnpm cli",
     npmPackage: "eser",
     jsrPackage: "@eserstack/cli",
   });

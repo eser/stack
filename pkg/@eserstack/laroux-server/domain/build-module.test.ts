@@ -5,21 +5,24 @@ import * as assert from "@eserstack/test-kit/assert";
 import { runtime } from "@eserstack/standards/cross-runtime";
 import * as buildModule from "./build-module.ts";
 
-nodeTest.test("toBuildModuleUrl gives each build of a file its own URL", () => {
-  const filePath = runtime.path.resolve("dist", "server", "api-routes.ts");
+nodeTest.test(
+  "track-l-delete: toBuildModuleUrl gives each build of a file its own URL",
+  () => {
+    const filePath = runtime.path.resolve("dist", "server", "api-routes.ts");
 
-  const first = buildModule.toBuildModuleUrl(filePath, "01J9AAAA");
-  const again = buildModule.toBuildModuleUrl(filePath, "01J9AAAA");
-  const next = buildModule.toBuildModuleUrl(filePath, "01J9BBBB");
+    const first = buildModule.toBuildModuleUrl(filePath, "01J9AAAA");
+    const again = buildModule.toBuildModuleUrl(filePath, "01J9AAAA");
+    const next = buildModule.toBuildModuleUrl(filePath, "01J9BBBB");
 
-  assert.assertEquals(first, again);
-  assert.assertNotEquals(first, next);
-  assert.assertEquals(new URL(first).protocol, "file:");
-  assert.assertEquals(new URL(first).searchParams.get("v"), "01J9AAAA");
-});
+    assert.assertEquals(first, again);
+    assert.assertNotEquals(first, next);
+    assert.assertEquals(new URL(first).protocol, "file:");
+    assert.assertEquals(new URL(first).searchParams.get("v"), "01J9AAAA");
+  },
+);
 
 nodeTest.test(
-  "toBuildModuleUrl escapes characters a file path may hold",
+  "track-l-delete: toBuildModuleUrl escapes characters a file path may hold",
   () => {
     const filePath = runtime.path.resolve("my app #2", "page?.js");
 
@@ -34,7 +37,7 @@ nodeTest.test(
 );
 
 nodeTest.test(
-  "importOptionalBuildModule returns null for a file the build did not write",
+  "track-l-delete: importOptionalBuildModule returns null for a file the build did not write",
   async () => {
     const dir = await runtime.fs.makeTempDir({ prefix: "laroux-module-" });
     try {
@@ -51,7 +54,7 @@ nodeTest.test(
 );
 
 nodeTest.test(
-  "importOptionalBuildModule loads the file again for the next build",
+  "track-l-delete: importOptionalBuildModule loads the file again for the next build",
   async () => {
     const dir = await runtime.fs.makeTempDir({ prefix: "laroux-module-" });
     try {

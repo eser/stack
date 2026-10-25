@@ -277,7 +277,7 @@ interface BundlerConfig {
   // Optional: Bundler plugins
   plugins?: bundler.BundlerPlugin[];
 
-  // Optional: Path to deno.json or tsconfig.json
+  // Optional: Path to tsconfig.json
   configPath?: string;
 
   // Optional: Base path for URL rewriting
@@ -432,7 +432,7 @@ These changes since 4.5.2 need a change in code, commands or files that use this
 package. The [changelog](https://github.com/eser/stack/blob/main/CHANGELOG.md)
 lists the changes in every package.
 
-- The backend on Deno's native bundle API is removed, together with
+- The backend on the native runtime bundle API is removed, together with
   `createDenoBundlerBackend`, `DenoBundlerBackend`, `DenoBundlerBackendOptions`
   and its subpath export; `BundlerBackend` is only `"rolldown"`. Call
   `createBundler("rolldown")` or `createRolldownBackend()` instead; it names

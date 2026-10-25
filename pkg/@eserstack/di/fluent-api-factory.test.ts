@@ -65,7 +65,7 @@ nodeTest.test("di.invoke(): lambda", () => {
   di.set("j", mock.spy());
 
   // oxfmt-ignore
-  const fn: (_: () => void) => void = (j) => j();
+  const fn: (_: () => void) => void = j => j();
 
   di.invoke(fn);
   di.invoke(fn);

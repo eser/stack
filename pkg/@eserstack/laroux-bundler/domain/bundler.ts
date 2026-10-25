@@ -301,7 +301,7 @@ export type ServerBundleResult = {
  * This function bundles server components for SSR/RSC runtime.
  * Key differences from client bundling:
  * - Platform: "node" (server-side)
- * - All npm/jsr packages marked as external (not inlined)
+ * - The given external packages stay bare imports (not inlined)
  * - No code splitting (each entry stays separate)
  * - Resolves imports at build time for runtime compatibility
  *
@@ -342,7 +342,7 @@ export async function bundleServerComponents(
     codeSplitting: false, // Each entry stays separate
     minify: options.minify ?? false,
     sourcemap: options.sourcemap ?? false,
-    external: options.externals, // Mark npm/jsr packages as external
+    external: options.externals, // Keep these packages as bare imports
     plugins: options.plugins,
   };
 

@@ -50,8 +50,21 @@ const trackedStream = (
   return { stream, pulls: () => pulls, cancelled: () => cancelled };
 };
 
-const post = (body: BodyInit, headers: Record<string, string> = {}): Request =>
-  new Request("http://localhost/items", { method: "POST", body, headers });
+// The Fetch standard requires `duplex: "half"` for a stream body; the DOM
+// lib's RequestInit does not declare the field yet.
+const post = (
+  body: BodyInit,
+  headers: Record<string, string> = {},
+): Request => {
+  const init: RequestInit & { readonly duplex: "half" } = {
+    method: "POST",
+    body,
+    headers,
+    duplex: "half",
+  };
+
+  return new Request("http://localhost/items", init);
+};
 
 const assertTooLarge = (
   result: results.Result<unknown, Error>,

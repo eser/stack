@@ -13,7 +13,7 @@
  * │    resolvePathDirs(pathStr, platform)    → string[]              │
  * │    detectInvoker(execBasename,                                   │
  * │                  runtimeName, argv,                              │
- * │                  envVars, mainMod?,                              │
+ * │                  envVars,                                        │
  * │                  isDevContext?)          → { invoker, mode }     │
  * │    buildCommand(invoker, mode, opts)     → string                │
  * │    matchCliPrefix(subs, argv)            → string | undefined    │
@@ -42,7 +42,7 @@ import type { Platform } from "./types.ts";
 // =============================================================================
 
 /** The JavaScript runtime the CLI is running under. */
-export type CliRuntime = "deno" | "node" | "bun" | "compiled";
+export type CliRuntime = "node" | "compiled";
 
 /** Whether the CLI was installed or invoked on-demand. */
 export type CliMode = "installed" | "on-demand" | "dev";
@@ -51,27 +51,21 @@ export type CliMode = "installed" | "on-demand" | "dev";
  * The specific mechanism used to invoke the CLI.
  *
  * ```
- * binary  — compiled standalone binary (deno compile output)
- * deno    — deno install -g / deno run
+ * binary  — single executable application (a Node SEA build)
  * npm     — npm install -g eser
  * npx     — npx eser (on-demand, never installed)
  * pnpm    — pnpm install -g eser
  * pnpx    — pnpx eser / pnpm dlx eser (on-demand)
- * bun     — bun install -g eser
- * bunx    — bunx eser (on-demand)
- * dev     — deno task cli (project-local workspace)
+ * dev     — pnpm cli (project-local workspace)
  * unknown — could not determine
  * ```
  */
 export type CliInvoker =
   | "binary"
-  | "deno"
   | "npm"
   | "npx"
   | "pnpm"
   | "pnpx"
-  | "bun"
-  | "bunx"
   | "dev"
   | "unknown";
 
@@ -95,12 +89,16 @@ export type CliExecutionContext = {
 export type CliCommandOptions = {
   /** Binary name to look for in PATH (e.g. "eser") */
   readonly command: string;
-  /** Command for dev/workspace mode (e.g. "deno task cli") */
+  /** Command for dev/workspace mode (e.g. "pnpm cli") */
   readonly devCommand: string;
-  /** npm package name for npx/pnpx/bunx (e.g. "eser") */
+  /** npm package name for npx/pnpx (e.g. "eser") */
   readonly npmPackage: string;
-  /** JSR package for deno fallback (e.g. "@eserstack/cli") */
-  readonly jsrPackage: string;
+  /**
+   * JSR package name (e.g. "@eserstack/cli"). No command is built from it
+   * since the CLI runs on Node only; it stays optional so callers that still
+   * pass it compile.
+   */
+  readonly jsrPackage?: string;
 };
 
 // =============================================================================
@@ -120,7 +118,7 @@ export const resolvePathDirs = (pathStr: string, os: Platform): string[] => {
 /**
  * Known runtime executable names.
  */
-const KNOWN_RUNTIMES = new Set(["deno", "node", "bun"]);
+const KNOWN_RUNTIMES: ReadonlySet<string> = new Set(["node"]);
 
 /**
  * Determines the CLI invoker and mode from process introspection data.
@@ -135,21 +133,15 @@ const KNOWN_RUNTIMES = new Set(["deno", "node", "bun"]);
  *
  * Decision tree:
  * ```
- * runtime not in [deno,node,bun]  → binary/installed
- * runtime="bun":
- *   BUN_INSTALL set               → bun/installed
- *   else                          → bunx/on-demand
+ * runtime not "node"              → binary/installed
  * runtime="node":
- *   argv[1] ~ "_npx" or "npx"    → npx/on-demand
- *   argv[1] ~ "pnpm" or "pnpx"   → pnpx/on-demand
+ *   isDevContext=true             → dev/dev
+ *   argv[1] ~ "_npx" or "npx"     → npx/on-demand
+ *   argv[1] ~ "pnpm" or "pnpx"    → pnpx/on-demand
  *   npm_execpath ~ "npx"          → npx/on-demand   (env fallback)
  *   npm_execpath ~ "pnpm"         → pnpx/on-demand  (env fallback)
  *   npm_config_user_agent~"pnpm"  → pnpm/installed
  *   else                          → npm/installed
- * runtime="deno":
- *   mainModule starts "jsr:|https:" → deno/on-demand
- *   isDevContext=true               → dev/dev
- *   else                            → deno/installed
  * ```
  */
 export const detectInvoker = (
@@ -157,7 +149,6 @@ export const detectInvoker = (
   runtimeName: string,
   argv: readonly string[],
   envVars: Record<string, string | undefined>,
-  mainModule?: string,
   isDevContext?: boolean,
 ): { invoker: CliInvoker; mode: CliMode } => {
   // Use execBasename when it's a known runtime, otherwise fall back to
@@ -170,13 +161,13 @@ export const detectInvoker = (
     return { invoker: "binary", mode: "installed" };
   }
 
-  if (runtime === "bun") {
-    return envVars["BUN_INSTALL"] !== undefined
-      ? { invoker: "bun", mode: "installed" }
-      : { invoker: "bunx", mode: "on-demand" };
-  }
-
   if (runtime === "node") {
+    // A workspace script such as `pnpm cli` also sets npm_execpath, so the
+    // dev context is checked before the package manager hints.
+    if (isDevContext === true) {
+      return { invoker: "dev", mode: "dev" };
+    }
+
     const scriptPath = argv[1] ?? "";
 
     // Check argv[1] (script path) for package manager hints
@@ -206,46 +197,26 @@ export const detectInvoker = (
     return { invoker: "npm", mode: "installed" };
   }
 
-  if (runtime === "deno") {
-    if (
-      mainModule !== undefined &&
-      (mainModule.startsWith("jsr:") || mainModule.startsWith("https:"))
-    ) {
-      return { invoker: "deno", mode: "on-demand" };
-    }
-    if (isDevContext === true) {
-      return { invoker: "dev", mode: "dev" };
-    }
-
-    return { invoker: "deno", mode: "installed" };
-  }
-
   return { invoker: "unknown", mode: "installed" };
 };
 
 /**
  * Builds the CLI command string from invoker context and options.
  *
- * | Invoker                          | Mode       | Command                             |
- * |----------------------------------|------------|-------------------------------------|
- * | binary/npm/pnpm/bun/deno/unknown | installed  | opts.command                        |
- * | npx                              | on-demand  | npx {opts.npmPackage}               |
- * | pnpx                             | on-demand  | pnpx {opts.npmPackage}              |
- * | bunx                             | on-demand  | bunx {opts.npmPackage}              |
- * | deno                             | on-demand  | deno run --allow-all jsr:{pkg}      |
- * | dev                              | dev        | opts.devCommand                     |
+ * | Invoker                  | Mode       | Command                 |
+ * |--------------------------|------------|-------------------------|
+ * | binary/npm/pnpm/unknown  | installed  | opts.command            |
+ * | npx                      | on-demand  | npx {opts.npmPackage}   |
+ * | pnpx                     | on-demand  | pnpx {opts.npmPackage}  |
+ * | dev                      | dev        | opts.devCommand         |
  */
 export const buildCommand = (
   invoker: CliInvoker,
-  mode: CliMode,
+  _mode: CliMode,
   opts: CliCommandOptions,
 ): string => {
   if (invoker === "npx") return `npx ${opts.npmPackage}`;
   if (invoker === "pnpx") return `pnpx ${opts.npmPackage}`;
-  if (invoker === "bunx") return `bunx ${opts.npmPackage}`;
-  if (invoker === "deno" && mode === "on-demand") {
-    return `deno run --allow-all jsr:${opts.jsrPackage}`;
-  }
   if (invoker === "dev") return opts.devCommand;
 
   return opts.command;
@@ -254,6 +225,28 @@ export const buildCommand = (
 // =============================================================================
 // Async functions (thin shells over pure functions — use real environment)
 // =============================================================================
+
+/**
+ * Reports whether the package.json in `dir` has a "cli" script. A missing or
+ * unparseable file counts as no.
+ */
+const hasCliScript = async (dir: string): Promise<boolean> => {
+  try {
+    const content = await mod.runtime.fs.readTextFile(
+      mod.runtime.path.join(dir, "package.json"),
+    );
+    const parsed: unknown = JSON.parse(content);
+    if (!(parsed instanceof Object)) {
+      return false;
+    }
+
+    const scripts: unknown = Reflect.get(parsed, "scripts");
+
+    return scripts instanceof Object && "cli" in scripts;
+  } catch {
+    return false;
+  }
+};
 
 /**
  * Checks if a named binary exists anywhere in PATH.
@@ -289,7 +282,7 @@ export const isCommandInPath = async (name: string): Promise<boolean> => {
  * the subcommand.
  *
  * Handles both exact matches (`["eser", "noskills", "init"]` → `"eser noskills"`)
- * and embedded matches (`["deno", "run", "-A", "npm:noskills", "init"]` → `"deno run -A npm:noskills"`).
+ * and embedded matches (`["npx", "-y", "npm:noskills", "init"]` → `"npx -y npm:noskills"`).
  *
  * Pure function for testability.
  */
@@ -338,14 +331,14 @@ export const matchCliPrefix = (
  *
  * const ESER_OPTS = {
  *   command: "eser",
- *   devCommand: "deno task cli",
+ *   devCommand: "pnpm cli",
  *   npmPackage: "eser",
  *   jsrPackage: "@eserstack/cli",
  * };
  *
  * await standards.crossRuntime.getCliPrefix(ESER_OPTS, ["noskills", "nos"]);
  * // → "npx eser noskills"  (when invoked via npx)
- * // → "deno task cli nos"  (when invoked via deno task)
+ * // → "pnpm cli nos"       (when invoked via pnpm cli)
  * // → "eser noskills"      (when installed globally)
  * ```
  */
@@ -381,7 +374,8 @@ export const getCliPrefix = async (
  * Detects the full CLI execution context by reading the real environment.
  *
  * Combines runtime detection, invoker detection, command resolution, and
- * PATH lookup into a single async call.
+ * PATH lookup into a single async call. A single executable application
+ * counts as a binary whatever its file is named.
  */
 export const detectExecutionContext = async (
   opts: CliCommandOptions,
@@ -389,7 +383,9 @@ export const detectExecutionContext = async (
   const execBasename = mod.runtime.path.basename(
     mod.runtime.process.execPath(),
   );
-  const runtimeName = shared.detectRuntime();
+  const runtimeName = mod.runtime.process.isStandalone
+    ? "compiled"
+    : shared.detectRuntime();
   const argv = mod.runtime.process.argv;
   const mainModule = import.meta.url;
 
@@ -399,52 +395,18 @@ export const detectExecutionContext = async (
     ? execBasename
     : runtimeName;
 
-  // Keys are the environment variable names that Bun and npm set.
+  // Keys are the environment variable names that npm and pnpm set.
   const envVars: Record<string, string | undefined> = {
-    BUN_INSTALL: mod.runtime.env.get("BUN_INSTALL"),
     npm_execpath: mod.runtime.env.get("npm_execpath"),
     npm_config_user_agent: mod.runtime.env.get("npm_config_user_agent"),
   };
 
-  // Dev context: file:// URL (local on-disk module) + "cli" task/script in cwd.
-  // Deno's `deno task` reads from both deno.json tasks AND package.json scripts,
-  // so we check both.
+  // Dev context: the module is a local file and the cwd's package.json has a
+  // "cli" script, as in the workspace where `pnpm cli` runs the CLI.
   let isDevContext = false;
 
-  if (effectiveRuntime === "deno" && mainModule.startsWith("file://")) {
-    const cwd = mod.runtime.process.cwd();
-
-    // Check deno.json tasks
-    try {
-      const denoJsonPath = mod.runtime.path.join(cwd, "deno.json");
-      const content = await mod.runtime.fs.readTextFile(denoJsonPath);
-      const parsed = JSON.parse(content) as Record<string, unknown>;
-      const tasks = parsed["tasks"] as Record<string, unknown> | undefined;
-
-      if (tasks !== undefined && "cli" in tasks) {
-        isDevContext = true;
-      }
-    } catch {
-      // deno.json not found or unparseable
-    }
-
-    // Check package.json scripts (deno task also reads these)
-    if (!isDevContext) {
-      try {
-        const pkgJsonPath = mod.runtime.path.join(cwd, "package.json");
-        const content = await mod.runtime.fs.readTextFile(pkgJsonPath);
-        const parsed = JSON.parse(content) as Record<string, unknown>;
-        const scripts = parsed["scripts"] as
-          | Record<string, unknown>
-          | undefined;
-
-        if (scripts !== undefined && "cli" in scripts) {
-          isDevContext = true;
-        }
-      } catch {
-        // package.json not found or unparseable
-      }
-    }
+  if (effectiveRuntime === "node" && mainModule.startsWith("file://")) {
+    isDevContext = await hasCliScript(mod.runtime.process.cwd());
   }
 
   const { invoker, mode } = detectInvoker(
@@ -452,7 +414,6 @@ export const detectExecutionContext = async (
     runtimeName,
     argv,
     envVars,
-    mainModule,
     isDevContext,
   );
 

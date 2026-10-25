@@ -13,23 +13,9 @@
 
 import * as ffiResolve from "../ffi/resolve.ts";
 
-/**
- * Reads an environment variable across runtimes.
- *
- * Uses `process.env` which works on Deno 2.7+, Node.js, and Bun.
- */
-const getEnvVar = (name: string): string | undefined => {
-  // globalThis does not declare Deno, Bun or process on every runtime.
-  // oxlint-disable-next-line typescript/no-explicit-any
-  const g = globalThis as any;
-
-  // process.env works on Node, Bun, and Deno 2.7+
-  if (typeof g.process !== "undefined" && typeof g.process.env === "object") {
-    return g.process.env[name] ?? undefined;
-  }
-
-  return undefined;
-};
+/** Reads an environment variable; `undefined` where there is no `process`. */
+const getEnvVar = (name: string): string | undefined =>
+  globalThis.process?.env[name];
 
 /** The WASM module's file name. */
 const WASM_FILENAME = "eser-ajan.wasm";
@@ -50,11 +36,15 @@ const WASM_FILENAME = "eser-ajan.wasm";
  */
 export const resolveWasmPath = (moduleDirHint?: string): string => {
   const wasmFile = WASM_FILENAME;
-  // Also try .wasm.bin — used in compiled binaries where .wasm is renamed
-  // to avoid Deno's static WASM import validation during deno compile.
-  const wasmVariants = [wasmFile, `${wasmFile}.bin`];
   const distSubdir = "wasi";
   const checkedPaths: string[] = [];
+
+  /** Records a candidate in the diagnostic list and reports whether it exists. */
+  const probe = (candidate: string): boolean => {
+    checkedPaths.push(candidate);
+
+    return ffiResolve.fileExists(candidate);
+  };
 
   // 1. Environment variable override
   const envPath = getEnvVar("ESER_AJAN_WASM_PATH");
@@ -68,72 +58,50 @@ export const resolveWasmPath = (moduleDirHint?: string): string => {
   const moduleDir = ffiResolve.getModuleDir(moduleDirHint);
 
   // 2. Adjacent to this module (wasm/ directory)
-  for (const variant of wasmVariants) {
-    const adjacentPath = `${moduleDir}/${variant}`;
-    checkedPaths.push(adjacentPath);
-    if (ffiResolve.fileExists(adjacentPath)) {
-      return adjacentPath;
-    }
+  const adjacentPath = `${moduleDir}/${wasmFile}`;
+  if (probe(adjacentPath)) {
+    return adjacentPath;
   }
 
   // 3. In the dist directory for the WASM build output
   // wasm/ is one level below the package root, so go up one level to reach dist/
   const pkgRoot = `${moduleDir}/..`;
-  for (const variant of wasmVariants) {
-    const distPath = `${pkgRoot}/dist/${distSubdir}/${variant}`;
-    checkedPaths.push(distPath);
-    if (ffiResolve.fileExists(distPath)) {
-      return distPath;
-    }
+  const distPath = `${pkgRoot}/dist/${distSubdir}/${wasmFile}`;
+  if (probe(distPath)) {
+    return distPath;
   }
 
   // Also try dist/ when moduleDir IS the package root (e.g. cwd fallback)
-  for (const variant of wasmVariants) {
-    const cwdDistPath = `${moduleDir}/dist/${distSubdir}/${variant}`;
-    checkedPaths.push(cwdDistPath);
-    if (ffiResolve.fileExists(cwdDistPath)) {
-      return cwdDistPath;
-    }
+  const cwdDistPath = `${moduleDir}/dist/${distSubdir}/${wasmFile}`;
+  if (probe(cwdDistPath)) {
+    return cwdDistPath;
   }
 
   // Try pkg/@eserstack/ajan/dist/ from the monorepo root (cwd)
-  // globalThis does not declare Deno, Bun or process on every runtime.
-  // oxlint-disable-next-line typescript/no-explicit-any
-  const g = globalThis as any;
-  const cwd =
-    typeof g.process !== "undefined" && typeof g.process.cwd === "function"
-      ? g.process.cwd()
-      : ".";
+  const cwd = globalThis.process?.cwd() ?? ".";
   if (cwd !== moduleDir) {
-    for (const variant of wasmVariants) {
-      const monoDistPath = `${cwd}/pkg/@eserstack/ajan/dist/${distSubdir}/${variant}`;
-      checkedPaths.push(monoDistPath);
-      if (ffiResolve.fileExists(monoDistPath)) {
-        return monoDistPath;
-      }
+    const monoDistPath = `${cwd}/pkg/@eserstack/ajan/dist/${distSubdir}/${wasmFile}`;
+    if (probe(monoDistPath)) {
+      return monoDistPath;
     }
   }
 
   // 4. npm package (e.g. node_modules/@eserstack/ajan-wasm/)
   const searchRoots = [moduleDir, pkgRoot, cwd];
   for (const root of searchRoots) {
-    for (const variant of wasmVariants) {
-      const npmPath = `${root}/node_modules/@eserstack/ajan-wasm/${variant}`;
-      checkedPaths.push(npmPath);
-      if (ffiResolve.fileExists(npmPath)) {
-        return npmPath;
-      }
+    const npmPath = `${root}/node_modules/@eserstack/ajan-wasm/${wasmFile}`;
+    if (probe(npmPath)) {
+      return npmPath;
     }
   }
 
   // 5. System paths
-  for (const variant of wasmVariants) {
-    const systemPaths = [`/usr/local/lib/${variant}`, `/usr/lib/${variant}`];
-    for (const sysPath of systemPaths) {
-      checkedPaths.push(sysPath);
-      if (ffiResolve.fileExists(sysPath)) {
-        return sysPath;
-      }
+  for (const sysPath of [
+    `/usr/local/lib/${wasmFile}`,
+    `/usr/lib/${wasmFile}`,
+  ]) {
+    if (probe(sysPath)) {
+      return sysPath;
     }
   }
 

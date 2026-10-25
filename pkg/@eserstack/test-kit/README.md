@@ -47,3 +47,26 @@ assert.assertInstanceOf(reason, RangeError);
 ```
 
 Both fail the test with an `AssertionError` when nothing is thrown.
+
+## Checking for leaked resources
+
+`checkLeaks` fails each test that ends with more active resources than it
+started with, such as a timer it never cleared or a server it never closed. It
+compares `process.getActiveResourcesInfo()` before and after each test, so it
+runs on Node only. Call it at the top of a file, or inside a `describe` block
+to check that suite only:
+
+```typescript
+import * as nodeTest from "node:test";
+import * as leaks from "@eserstack/test-kit/leaks";
+
+leaks.checkLeaks();
+
+nodeTest.test("clears its timer", () => {
+  const timer = setTimeout(() => {}, 1000);
+  clearTimeout(timer);
+});
+```
+
+A test that leaks fails with a message such as
+`the test leaked active resources: Timeout (+1)`.

@@ -10,7 +10,7 @@
 > `pnpm add jsr:@eserstack/laroux-server`
 
 Core runtime and utilities for [laroux.js](https://github.com/eser/stack) - A
-React Server Components framework for Deno. The server renders pages and RSC
+React Server Components framework for Node.js. The server renders pages and RSC
 payloads, serves static assets, runs API routes, proxies and server actions, and
 ships the `laroux` CLI that creates, develops, builds and serves an app.
 
@@ -120,16 +120,16 @@ The bundler has already logged the failing step and its error. `laroux dev`,
 In `dev` mode, a change under the source directory rebuilds the app. After a
 rebuild that succeeds, the server loads the rebuilt pages, layout, `route.ts`
 handlers, `proxy.ts` modules and server actions, then sends the HMR clients an
-update, so the change is served without a restart. Deno keeps an imported module
-under its URL until the process exits, so the server imports these modules by
-URLs that end in `?v=` and the build id: each rebuild loads fresh, and within
-one build each module loads once. Serve mode imports them the same way, with a
-build id that never changes. Pages and layouts are bundled with the modules they
-import, but `route.ts` and `proxy.ts` load from `src/`, and the modules they
-import keep the code they had when first loaded; restart the dev server after
-changing one of those. A change to CSS files alone rebuilds the stylesheets, CSS
-module styles included, and keeps the build id, so the loaded modules stay as
-they are.
+update, so the change is served without a restart. The runtime keeps an
+imported module under its URL until the process exits, so the server imports
+these modules by URLs that end in `?v=` and the build id: each rebuild loads
+fresh, and within one build each module loads once. Serve mode imports them the
+same way, with a build id that never changes. Pages and layouts are bundled with
+the modules they import, but `route.ts` and `proxy.ts` load from `src/`, and the
+modules they import keep the code they had when first loaded; restart the dev
+server after changing one of those. A change to CSS files alone rebuilds the
+stylesheets, CSS module styles included, and keeps the build id, so the loaded
+modules stay as they are.
 
 After a rebuild that fails, the server logs the failure and sends the clients an
 error message without detail instead of an update; the error itself is in the

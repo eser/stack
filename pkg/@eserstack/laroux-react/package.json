@@ -4,6 +4,16 @@
   "description": "React adapter for the laroux.js framework",
   "license": "Apache-2.0",
   "type": "module",
+  "files": [
+    "mod.ts",
+    "client.ts",
+    "protocol.ts",
+    "span-renderer.ts",
+    "use-function.ts",
+    "runtime/**/*.ts",
+    "client/**/*.ts",
+    "README.md"
+  ],
   "exports": {
     ".": "./mod.ts",
     "./client": "./client.ts",

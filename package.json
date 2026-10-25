@@ -16,9 +16,9 @@
     "fmt": "oxfmt",
     "test": "node --test --test-force-exit \"pkg/**/*.test.ts\" \"etc/scripts/**/*.test.ts\"",
     "bench": "find pkg/@eserstack -name '*.bench.ts' -not -path '*/node_modules/*' -print0 | xargs -0 -n 1 node",
-    "cli": "deno run --allow-all ./pkg/@eserstack/cli/main.ts",
-    "laroux-cli": "deno run --allow-all ./pkg/@eserstack/laroux-server/cli.ts",
-    "noskills-cli": "deno run --allow-all ./pkg/@eserstack/noskills/main.ts"
+    "cli": "node ./pkg/@eserstack/cli/main.ts",
+    "laroux-cli": "node ./pkg/@eserstack/laroux-server/cli.ts",
+    "noskills-cli": "node ./pkg/@eserstack/noskills/main.ts"
   },
   "devDependencies": {
     "@eserstack/test-kit": "workspace:*",

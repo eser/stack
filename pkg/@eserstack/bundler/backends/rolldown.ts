@@ -300,7 +300,6 @@ export class RolldownBackend implements Bundler {
 
     try {
       // Try to import rolldown - it should be installed via npm
-      // In Deno, this uses the npm: specifier
       // The optional dependency's types are not imported; the module is
       // narrowed to the RolldownModule interface right below.
       // oxlint-disable-next-line typescript/no-explicit-any

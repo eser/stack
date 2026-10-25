@@ -115,7 +115,7 @@ streams.span.codeBlock("const x = 42;", "typescript");
 
 streams.span.list([
   ["Install: ", streams.span.dim("pnpm install")],
-  ["Run: ", streams.span.dim("deno task dev")],
+  ["Run: ", streams.span.dim("pnpm run dev")],
 ]);
 ```
 

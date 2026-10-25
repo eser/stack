@@ -41,9 +41,8 @@ var (
 
 // releaseTriples maps GOOS-GOARCH to the Rust target triple the release
 // archives are named with (decision-38), from codebasefx.ReleaseTargets, the
-// table `eser dev compile` builds. It must match the releaseTriple (formerly
-// denoTarget) fields of pkg/@eserstack/ajan/targets.ts; a test compares the
-// two.
+// table `eser dev compile` builds. It must match the releaseTriple fields of
+// pkg/@eserstack/ajan/targets.ts; a test compares the two.
 var releaseTriples = func() map[string]string { //nolint:gochecknoglobals
 	triples := make(map[string]string, len(codebasefx.ReleaseTargets))
 	for _, target := range codebasefx.ReleaseTargets {

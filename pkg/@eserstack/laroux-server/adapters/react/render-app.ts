@@ -80,7 +80,15 @@ export function renderApp(
   return protocol.isClientReference(Layout)
     ? React.createElement(
         Layout as unknown as React.ComponentType<{ children: React.ReactNode }>,
-        { children: pageElement },
+        null,
+        pageElement,
       )
-    : React.createElement(Layout, { children: pageElement, request });
+    : React.createElement(
+        // children is the third argument, which the props type does not see
+        Layout as React.ComponentType<
+          Omit<larouxRouter.LayoutProps<React.ReactNode>, "children">
+        >,
+        { request },
+        pageElement,
+      );
 }

@@ -7,7 +7,6 @@ allowBuilds:
   # (162 exports) with the script never run. Nothing native to compile.
   "@google/genai": false
   esbuild: true
-  koffi: true
   protobufjs: false
   sharp: true
 # pnpm 11 enables a default minimum-release-age supply-chain gate that refuses to

@@ -18,9 +18,10 @@ package main
 // The Go runtime cannot be unloaded and reloaded. It starts OS threads (sysmon,
 // the cgo template thread, GC workers) that outlive any dlclose(), and it caches
 // an M per calling thread in a pthread key. When a host dlclose()s the image and
-// dlopen()s it again -- which Deno does on every test-file isolate teardown,
-// because each test file gets a fresh isolate and disposing it drops the
-// DynamicLibrary resource -- the whole runtime re-initializes while threads from
+// dlopen()s it again -- which Node does when a worker thread that opened it
+// exits, since node:ffi has no dlopen flags and dlcloses at worker teardown
+// (TASK-175 measured an unkillable hang on macOS without this pin) -- the
+// whole runtime re-initializes while threads from
 // the previous incarnation are still parked on the old m/g0 structures. The next
 // call in dies with "fatal error: morestack on g0", in a scheduler traceback
 // (acquirep <- stopm <- findRunnable <- schedule <- park_m) that names no
@@ -31,9 +32,9 @@ package main
 // already-loaded image, so the host's dlclose() drops the refcount but never
 // unmaps. RTLD_NOLOAD guarantees we never trigger a second load.
 //
-// This is also why the failure is intermittent: under `deno test --parallel`
-// the load count varies with scheduling, so a run either happens to reload the
-// image or does not.
+// This is also why the failure is intermittent: with parallel test files or
+// workers the load count varies with scheduling, so a run either happens to
+// reload the image or does not.
 __attribute__((constructor))
 static void eserAjanPinImage(void) {
 	Dl_info info;

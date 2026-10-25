@@ -7,11 +7,11 @@
  */
 
 /** Matches a JavaScript or TypeScript test file name, such as `app.test.ts`. */
-export const JS_TEST_FILE_PATTERN = /\.test\.(?:[cm]?[jt]sx?)$/;
+export const JS_TEST_FILE_PATTERN: RegExp = /\.test\.(?:[cm]?[jt]sx?)$/;
 /** Matches the extension of a JavaScript or TypeScript file. */
-export const JS_FILE_PATTERN = /\.(?:[cm]?[jt]sx?)$/;
+export const JS_FILE_PATTERN: RegExp = /\.(?:[cm]?[jt]sx?)$/;
 /** JavaScript and TypeScript file extensions, without the leading dot. */
-export const JS_FILE_EXTENSIONS = [
+export const JS_FILE_EXTENSIONS: string[] = [
   "tsx",
   "jsx",
   "ts",

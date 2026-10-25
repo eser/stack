@@ -26,30 +26,11 @@ import type * as types from "./types.ts";
  * Returns the shared library file extension for the current OS.
  */
 export const getLibraryExtension = (): types.LibraryExtension => {
-  // globalThis does not declare Deno, Bun or process on every runtime.
-  // oxlint-disable-next-line typescript/no-explicit-any
-  const g = globalThis as any;
+  const platform = globalThis.process?.platform;
 
-  // Deno
-  if (typeof g.Deno !== "undefined") {
-    const os = g.Deno.build.os as string;
-    if (os === "darwin") return ".dylib";
-    if (os === "windows") return ".dll";
-    return ".so";
-  }
+  if (platform === "darwin") return ".dylib";
+  if (platform === "win32") return ".dll";
 
-  // Node.js / Bun — use process.platform
-  if (
-    typeof g.process !== "undefined" &&
-    typeof g.process.platform === "string"
-  ) {
-    const platform = g.process.platform as string;
-    if (platform === "darwin") return ".dylib";
-    if (platform === "win32") return ".dll";
-    return ".so";
-  }
-
-  // Fallback
   return ".so";
 };
 
@@ -57,9 +38,8 @@ export const getLibraryExtension = (): types.LibraryExtension => {
  * Returns the platform-architecture slug used in npm optional dependency
  * package names (e.g. "darwin-arm64", "linux-x64", "win32-x64").
  *
- * Uses npm-canonical values: `darwin`, `linux`, `win32` for OS, and
- * `arm64`, `x64` for CPU — matching the npm `os` and `cpu` fields in the
- * platform-specific packages.
+ * `process.platform` already uses the npm-canonical OS values (`darwin`,
+ * `linux`, `win32`) that the `os` fields of the platform packages name.
  *
  * Only five targets are published (darwin-arm64, darwin-x64, linux-arm64,
  * linux-x64, win32-x64), so this assumes any non-arm64 CPU is x64 rather than
@@ -68,67 +48,35 @@ export const getLibraryExtension = (): types.LibraryExtension => {
  * ultimately to the WASM fallback, which is the correct outcome anyway.
  */
 const getPlatformSlug = (): string => {
-  // globalThis does not declare Deno, Bun or process on every runtime.
-  // oxlint-disable-next-line typescript/no-explicit-any
-  const g = globalThis as any;
-
-  let os = "linux";
-  let arch = "x64";
-
-  if (typeof g.Deno !== "undefined") {
-    const denoOs = g.Deno.build.os as string;
-    os = denoOs === "windows" ? "win32" : denoOs;
-    arch = g.Deno.build.arch === "aarch64" ? "arm64" : "x64";
-  } else if (typeof g.process !== "undefined") {
-    // Node.js / Bun: process.platform already uses npm-canonical values
-    // ("darwin", "linux", "win32")
-    os = g.process.platform as string;
-    const nodeArch = g.process.arch as string;
-    arch = nodeArch === "arm64" ? "arm64" : "x64";
-  }
+  const os = globalThis.process?.platform ?? "linux";
+  const arch = globalThis.process?.arch === "arm64" ? "arm64" : "x64";
 
   return `${os}-${arch}`;
 };
 
-/** Memoized `statSync`; `null` once the runtime is known to have none. */
+/** Memoized `fs.statSync`; `null` once the host is known to have none. */
 let statSyncImpl: ((path: string) => unknown) | null | undefined;
 
 /**
- * Resolves a synchronous `stat` lazily, treating its absence as a soft failure.
+ * Resolves `fs.statSync` lazily, treating its absence as a soft failure.
  *
  * `mod.ts` imports this module statically, so acquiring `node:fs` at module
- * scope took down the whole entry module on any runtime lacking it — before the
- * WASM fallback, the branch that exists for exactly those runtimes, could run.
- *
- * `process.getBuiltinModule` is the only synchronous route to `node:fs` from an
- * ES module; it exists on every runtime this package supports (Node 22.3+,
- * Bun 1.1+, Deno 2.x). Deno's own `statSync` is preferred where present so the
- * node compatibility layer is not involved at all.
+ * scope would take down the whole entry module on a host lacking it (the
+ * WASM fallback also runs on Cloudflare Workers) before the WASM fallback
+ * could run. `process.getBuiltinModule` is the synchronous route to `node:fs`
+ * from an ES module.
  */
 const getStatSync = (): ((path: string) => unknown) | null => {
   if (statSyncImpl !== undefined) {
     return statSyncImpl;
   }
 
-  // globalThis does not declare Deno, Bun or process on every runtime.
-  // oxlint-disable-next-line typescript/no-explicit-any
-  const g = globalThis as any;
-
   statSyncImpl = null;
 
-  if (typeof g.Deno?.statSync === "function") {
-    statSyncImpl = (path: string) => g.Deno.statSync(path);
-
-    return statSyncImpl;
-  }
-
   try {
-    const fs =
-      typeof g.process?.getBuiltinModule === "function"
-        ? g.process.getBuiltinModule("node:fs")
-        : undefined;
+    const fs = globalThis.process?.getBuiltinModule?.("node:fs");
 
-    if (typeof fs?.statSync === "function") {
+    if (fs !== undefined) {
       statSyncImpl = (path: string) => fs.statSync(path);
     }
   } catch {
@@ -140,7 +88,7 @@ const getStatSync = (): ((path: string) => unknown) | null => {
 
 /**
  * Checks whether a file exists at the given path.
- * Returns `false` when the runtime offers no synchronous filesystem access.
+ * Returns `false` when the host offers no synchronous filesystem access.
  * `wasm/resolve.ts` probes its candidates through this as well.
  */
 export const fileExists = (path: string): boolean => {
@@ -162,8 +110,7 @@ export const fileExists = (path: string): boolean => {
  * Returns `dir` and every ancestor directory above it, nearest first, stopping
  * before the filesystem root.
  *
- * Separators are normalized to `/`, which Windows accepts on every supported
- * runtime. The walk is textual, so it does not follow symlinks — that is the
+ * Separators are normalized to `/`, which Windows accepts. The walk is textual, so it does not follow symlinks — that is the
  * point: under pnpm it names the public `node_modules` tree the package is
  * linked into, not the store directory the link points at.
  */
@@ -203,20 +150,7 @@ export const getModuleDir = (hint?: string): string => {
     return hint;
   }
 
-  // globalThis does not declare Deno, Bun or process on every runtime.
-  // oxlint-disable-next-line typescript/no-explicit-any
-  const g = globalThis as any;
-
-  // Node / Bun: __dirname is available in CommonJS; for ESM, fallback to cwd
-  if (typeof g.__dirname === "string") {
-    return g.__dirname;
-  }
-
-  if (typeof g.process !== "undefined" && typeof g.process.cwd === "function") {
-    return g.process.cwd();
-  }
-
-  return ".";
+  return globalThis.process?.cwd() ?? ".";
 };
 
 /**
@@ -306,13 +240,7 @@ export const resolveLibraryPath = (moduleDirHint?: string): string => {
     return cwdDistPath;
   }
 
-  // globalThis does not declare Deno, Bun or process on every runtime.
-  // oxlint-disable-next-line typescript/no-explicit-any
-  const g = globalThis as any;
-  const cwd =
-    typeof g.process !== "undefined" && typeof g.process.cwd === "function"
-      ? g.process.cwd()
-      : ".";
+  const cwd = globalThis.process?.cwd() ?? ".";
 
   // 4. Platform npm package (e.g. node_modules/@eserstack/ajan-darwin-arm64/)
   //
@@ -365,20 +293,6 @@ export const resolveLibraryPath = (moduleDirHint?: string): string => {
   );
 };
 
-/**
- * Reads an environment variable across runtimes.
- *
- * Uses `process.env` which works on Deno 2.7+, Node.js, and Bun.
- */
-const getEnvVar = (name: string): string | undefined => {
-  // globalThis does not declare Deno, Bun or process on every runtime.
-  // oxlint-disable-next-line typescript/no-explicit-any
-  const g = globalThis as any;
-
-  // process.env works on Node, Bun, and Deno 2.7+
-  if (typeof g.process !== "undefined" && typeof g.process.env === "object") {
-    return g.process.env[name] ?? undefined;
-  }
-
-  return undefined;
-};
+/** Reads an environment variable; `undefined` where there is no `process`. */
+const getEnvVar = (name: string): string | undefined =>
+  globalThis.process?.env[name];

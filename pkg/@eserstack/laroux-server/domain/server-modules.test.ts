@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as fsPromises from "node:fs/promises";
 import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import { runtime } from "@eserstack/standards/cross-runtime";
@@ -129,8 +130,8 @@ nodeTest.test(
         runtime.path.join(distDir, "server/src/app/routes/home/page.js"),
         "export function HomePage( {\n",
       );
-      // Deno reports a module that does not parse as a TypeError
-      await assert.assertRejects(() => modules.load("build-2"), TypeError);
+      // Node reports a module that does not parse as a SyntaxError
+      await assert.assertRejects(() => modules.load("build-2"), SyntaxError);
 
       assert.assertEquals(modules.loadedBuildId(), "build-1");
       assert.assertEquals(await renderHome(modules), "home of build 1");
@@ -193,10 +194,12 @@ const writeApp = async (projectRoot: string): Promise<void> => {
   );
   await Promise.all(
     APP_DEPENDENCIES.map((name) =>
-      // runtime has no symlink API, and this test runs on Deno only
-      Deno.symlink(
+      // runtime has no symlink API; a junction also links a directory on
+      // Windows without elevated rights
+      fsPromises.symlink(
         runtime.path.join(packageNodeModules, name),
         runtime.path.join(projectRoot, "node_modules", name),
+        "junction",
       ),
     ),
   );

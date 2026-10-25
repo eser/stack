@@ -27,8 +27,8 @@
   "use strict";
 
   function startRemoteMux(cfg) {
-    // Browser globals come from globalThis: deno lint checks this file against
-    // Deno's globals, which have no DOM, WebTransport or MuxRender.
+    // Browser globals are read from globalThis, where browser_scripts.test.ts
+    // installs its stand-ins for them.
     const { document, MuxRender, WebTransport } = globalThis;
     if (WebTransport === undefined) {
       throw new Error("WebTransport is not supported in this browser");

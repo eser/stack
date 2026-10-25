@@ -8,7 +8,7 @@
  * them to `deno doc --lint`, so it checks every module consumers can import,
  * not only each package's mod.ts.
  *
- * Usage: deno run --allow-read ./etc/scripts/package-export-roots.ts
+ * Usage: node ./etc/scripts/package-export-roots.ts
  *
  * @module
  */

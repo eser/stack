@@ -1,8 +1,8 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 /**
- * Runs the probe programs in this directory under Deno, Node or Bun, for the
- * adapter tests. Each runtime must give the same answers.
+ * Runs the probe programs in this directory in a child Node process, for the
+ * adapter tests.
  *
  * @module
  */
@@ -20,12 +20,13 @@ export type ProbeRuntime = {
   readonly args: readonly string[];
 };
 
-/** The runtimes the probes run under; Node strips the types itself. */
-export const PROBE_RUNTIMES = {
-  deno: { command: "deno", args: ["run", "--allow-all"] },
-  node: { command: "node", args: [] },
-  bun: { command: "bun", args: [] },
-} as const satisfies Record<string, ProbeRuntime>;
+/**
+ * The runtimes the probes run under: the Node that runs the tests, which
+ * strips the types itself.
+ */
+export const PROBE_RUNTIMES: { readonly node: ProbeRuntime } = {
+  node: { command: crossRuntime.runtime.process.execPath(), args: [] },
+};
 
 const probePath = (name: string): string =>
   crossRuntime.runtime.path.join(import.meta.dirname ?? ".", name);

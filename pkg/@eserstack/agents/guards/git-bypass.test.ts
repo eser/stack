@@ -32,7 +32,7 @@ const BENIGN = [
   'rg "git push" src/',
   "ls | grep git",
   "cat README.md | sh",
-  "deno task test",
+  "pnpm test",
   "echo $HOME",
 ];
 

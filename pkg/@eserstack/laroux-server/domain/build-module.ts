@@ -2,11 +2,11 @@
 /**
  * Imports of the modules a laroux server loads from its build output.
  *
- * Deno keeps every imported module under its URL until the process exits, so
- * importing a rebuilt file by its plain file URL returns the code it had when
- * it was first imported. These imports add the build id to the URL: after a
- * dev rebuild the server loads the rebuilt modules, and within one build each
- * module loads once.
+ * The runtime keeps every imported module under its URL until the process
+ * exits, so importing a rebuilt file by its plain file URL returns the code it
+ * had when it was first imported. These imports add the build id to the URL:
+ * after a dev rebuild the server loads the rebuilt modules, and within one
+ * build each module loads once.
  *
  * @module
  */

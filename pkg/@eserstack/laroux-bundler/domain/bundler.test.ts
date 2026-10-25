@@ -89,15 +89,15 @@ export function Counter() {
       componentCode,
     );
 
-    // Create a deno.json for import resolution
-    const denoJson = {
-      imports: {
-        react: "npm:react@^19.0.0",
+    // Create a package.json for import resolution
+    const packageJson = {
+      dependencies: {
+        react: "^19.0.0",
       },
     };
     await runtime.fs.writeTextFile(
-      runtime.path.join(tempDir, "deno.json"),
-      JSON.stringify(denoJson, null, 2),
+      runtime.path.join(tempDir, "package.json"),
+      JSON.stringify(packageJson, null, 2),
     );
   });
 

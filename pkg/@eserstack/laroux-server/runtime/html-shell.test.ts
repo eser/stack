@@ -34,7 +34,7 @@ const payloadText = (html: string): string => {
 };
 
 nodeTest.test(
-  "createHtmlShell escapes comment and script openers in the RSC payload",
+  "track-l-delete: createHtmlShell escapes comment and script openers in the RSC payload",
   () => {
     const html = renderShell(JSON.stringify(HOSTILE_CHUNKS));
     const text = payloadText(html);
@@ -56,9 +56,12 @@ nodeTest.test(
   },
 );
 
-nodeTest.test("the escaped RSC payload parses back to the same chunks", () => {
-  const html = renderShell(JSON.stringify(HOSTILE_CHUNKS));
+nodeTest.test(
+  "track-l-delete: the escaped RSC payload parses back to the same chunks",
+  () => {
+    const html = renderShell(JSON.stringify(HOSTILE_CHUNKS));
 
-  // The client reads the element's textContent and passes it to JSON.parse.
-  assert.assertEquals(JSON.parse(payloadText(html)), HOSTILE_CHUNKS);
-});
+    // The client reads the element's textContent and passes it to JSON.parse.
+    assert.assertEquals(JSON.parse(payloadText(html)), HOSTILE_CHUNKS);
+  },
+);

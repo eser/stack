@@ -340,10 +340,22 @@ async function servePublicAsset(
   }
 }
 
+/** Options for {@link createHandler}. */
+export type CreateHandlerOptions = {
+  /**
+   * Stops the rate limiter's cleanup timer when aborted, so a stopped server
+   * lets the process exit.
+   */
+  readonly signal?: AbortSignal;
+};
+
 /**
  * Create request handler with injected dependencies
  */
-export function createHandler(deps: ServerDependencies) {
+export function createHandler(
+  deps: ServerDependencies,
+  options: CreateHandlerOptions = {},
+) {
   // The actions manifest of the build being served, read once per build id.
   let actionManifest: {
     buildId: string;
@@ -373,6 +385,15 @@ export function createHandler(deps: ServerDependencies) {
           ...(deps.rateLimitConfig ?? {}),
         })
       : null;
+  if (rateLimiter !== null) {
+    if (options.signal?.aborted === true) {
+      rateLimiter.stop();
+    } else {
+      options.signal?.addEventListener("abort", () => rateLimiter.stop(), {
+        once: true,
+      });
+    }
+  }
 
   return async (
     req: Request,
@@ -392,6 +413,10 @@ export function createHandler(deps: ServerDependencies) {
 
     serverLogger.debug(`${req.method} ${pathname}`);
 
+    // The handshake response runtime.http.upgradeWebSocket returned. The Node
+    // adapter recognizes it by identity, so it is returned without a copy.
+    let upgradeResponse: Response | null = null;
+
     const processRequest = async (): Promise<Response> => {
       // Route: /hmr -> WebSocket for HMR
       if (pathname === "/hmr" && hmrManager) {
@@ -402,6 +427,7 @@ export function createHandler(deps: ServerDependencies) {
         const { socket, response } =
           crossRuntime.runtime.http.upgradeWebSocket(req);
         hmrManager.handleConnection(socket);
+        upgradeResponse = response;
         return response;
       }
 
@@ -736,7 +762,7 @@ export function createHandler(deps: ServerDependencies) {
 
     try {
       const response = await processRequest();
-      if (response.headers.get("upgrade") === "websocket") {
+      if (response === upgradeResponse) {
         return response;
       }
       return withSecurityHeaders(response);
@@ -941,7 +967,7 @@ export async function startHTTPServer(
   options: StartHTTPServerOptions = {},
 ): Promise<crossRuntime.HttpServer> {
   const { config } = deps;
-  const handler = createHandler(deps);
+  const handler = createHandler(deps, { signal: options.signal });
 
   return await crossRuntime.runtime.http.serve(
     {

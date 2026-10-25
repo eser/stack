@@ -255,68 +255,6 @@
       }
     },
     {
-      "name": "laroux-runtime-app",
-      "description": "laroux.js runtime application that loads a manifest at startup",
-      "language": "typescript",
-      "scale": "project",
-      "tags": ["laroux", "runtime", "deno"],
-      "files": [
-        {
-          "source": "recipes/laroux-runtime-app/build.ts",
-          "target": "build.ts"
-        },
-        {
-          "source": "recipes/laroux-runtime-app/main.ts",
-          "target": "main.ts"
-        },
-        {
-          "source": "recipes/laroux-runtime-app/manifest.jsonc",
-          "target": "manifest.jsonc"
-        },
-        {
-          "source": "recipes/laroux-runtime-app/manifest.yaml",
-          "target": "manifest.yaml"
-        },
-        {
-          "source": "recipes/laroux-runtime-app/pkg/app/mod.tsx",
-          "target": "pkg/app/mod.tsx"
-        }
-      ],
-      "dependencies": {
-        "jsr": [
-          "jsr:@eserstack/laroux-runtime@^4.5.2",
-          "jsr:@eserstack/collector@^4.5.2"
-        ],
-        "npm": ["react"]
-      }
-    },
-    {
-      "name": "jsx-runtime-app",
-      "description": "JSX server-side rendering application",
-      "language": "typescript",
-      "scale": "project",
-      "tags": ["jsx", "ssr", "typescript"],
-      "files": [
-        { "source": "recipes/jsx-runtime-app/.npmrc", "target": ".npmrc" },
-        {
-          "source": "recipes/jsx-runtime-app/package.json",
-          "target": "package.json"
-        },
-        {
-          "source": "recipes/jsx-runtime-app/root.test.tsx",
-          "target": "root.test.tsx"
-        },
-        {
-          "source": "recipes/jsx-runtime-app/root.tsx",
-          "target": "root.tsx"
-        },
-        {
-          "source": "recipes/jsx-runtime-app/tsconfig.json",
-          "target": "tsconfig.json"
-        }
-      ]
-    },
-    {
       "name": "vanilla-app",
       "description": "Minimal TypeScript application",
       "language": "typescript",

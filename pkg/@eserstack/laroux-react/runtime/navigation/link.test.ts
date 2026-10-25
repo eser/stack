@@ -16,7 +16,7 @@ type ClickOptions = {
   readonly metaKey?: boolean;
 };
 
-// Link reads history, scrolling and events from globalThis.window. Deno has
+// Link reads history, scrolling and events from globalThis.window. Node has
 // no window, so each click gets a recording stand-in that is removed after.
 const click = (
   props: link.LinkProps,

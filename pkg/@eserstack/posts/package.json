@@ -22,7 +22,6 @@
     "@eserstack/streams": "workspace:*"
   },
   "devDependencies": {
-    "@eserstack/test-kit": "workspace:*",
-    "@std/testing": "npm:@jsr/std__testing@^1.0.20"
+    "@eserstack/test-kit": "workspace:*"
   }
 }

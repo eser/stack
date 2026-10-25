@@ -5,9 +5,8 @@
  * each other.
  *
  * `cli`, `noskills` and `laroux-server` each bundle a different entry point out
- * of the same workspace, so each one can reach `@eserstack/ajan` — and through
- * it `ffi/backend-bun.ts`, which imports `bun:ffi`, a Bun-only builtin that
- * exists in no registry and cannot be resolved by esbuild.
+ * of the same workspace, so each one can reach `@eserstack/ajan` and the
+ * per-platform shared libraries it loads at runtime.
  *
  * The list used to be copied into each builder and the copies drifted:
  * `noskills` broke the v4.3.0 run at the npm smoke test. It now lives in
@@ -75,13 +74,6 @@ nodeTest.test("every npm build reads the shared externals list", async () => {
       true,
       `${relative} must pass EXTERNAL_PACKAGES to esbuild`,
     );
-    assert.assertEquals(
-      /external:\s*\[\.\.\.EXTERNAL_PACKAGES,\s*"npm:\*",\s*"jsr:\*"\s*\]/.test(
-        code,
-      ),
-      true,
-      `${relative} must keep Deno's npm: and jsr: specifiers external`,
-    );
   }
 });
 
@@ -90,12 +82,12 @@ nodeTest.test(
   () => {
     const list = [...npmExternals.NPM_EXTERNAL_PACKAGES];
 
-    // bun:ffi is the one that actually breaks the build: it is a Bun-only builtin
-    // that esbuild cannot resolve. @eserstack/ajan is the opposite case -- it is
-    // published to JSR only, so leaving it external makes the npm package
-    // uninstallable (404 on the dependency) and, because every ffi-client.ts now
-    // imports the shared loader statically, unloadable even from a link install.
-    for (const required of ["bun:ffi", "koffi", "@eserstack/ajan-*"]) {
+    // The per-platform libraries are found at runtime, so they stay external.
+    // @eserstack/ajan is the opposite case -- it is published to JSR only, so
+    // leaving it external makes the npm package uninstallable (404 on the
+    // dependency) and, because every ffi-client.ts now imports the shared
+    // loader statically, unloadable even from a link install.
+    for (const required of ["@eserstack/ajan-*", "@eserstack/ajan-wasm"]) {
       assert.assertEquals(
         list.includes(required),
         true,

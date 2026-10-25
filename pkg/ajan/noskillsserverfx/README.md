@@ -204,7 +204,7 @@ the program takes mouse reports a click is the program's, and `Ctrl` or
 `Command` with the click opens the link.
 
 `web/browser_scripts.test.ts` runs the browser scripts against stand-ins for the
-DOM under `deno test`. It paints `testdata/claude_code_screens.json.gz`, the
+DOM under `node --test`. It paints `testdata/claude_code_screens.json.gz`, the
 screen messages the dashboard sends for the Claude Code session of the `muxfx`
 fidelity corpus (the trust prompt, the start screen and `/help`), and compares
 every row's text, the wide cells, each cell's style and the cursor with the

@@ -1,6 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 /**
- * React Flight Server - RSC Renderer for Deno
+ * React Flight Server - RSC Renderer
  *
  * This module implements the server-side RSC renderer that converts
  * React component trees into the RSC wire format for streaming to clients.

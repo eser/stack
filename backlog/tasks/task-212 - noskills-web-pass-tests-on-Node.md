@@ -1,10 +1,10 @@
 ---
 id: TASK-212
 title: 'noskills-web: pass tests on Node'
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-10-15 20:38'
-updated_date: '2026-10-25 16:00'
+updated_date: '2026-10-25 18:00'
 labels:
   - cutover
   - noskills-web
@@ -25,8 +25,8 @@ Plan key: M1-T18. Effort: small.
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 `node --test pkg/@eserstack/noskills-web` passes
-- [ ] #2 No Deno reference remains; tsc and oxlint are clean
+- [x] #1 `node --test pkg/@eserstack/noskills-web` passes
+- [x] #2 No Deno reference remains; tsc and oxlint are clean
 <!-- AC:END -->
 
 ## Implementation Notes
@@ -44,4 +44,14 @@ TASK-198 (2026-10-25): the test and bench codemods left no site for hand edits i
 - pkg/@eserstack/noskills-web/server-auth.test.ts: 2 failing, 8 passing; first error: see the run
 - pkg/@eserstack/noskills-web/server-log.test.ts: 1 failing, 0 passing; first error: AssertionError: Values are not equal: node:internal/modules/cjs/loader:1607
 - pkg/ajan/noskillsserverfx/web/browser_scripts.test.ts: 1 failing, 0 passing; first error: SyntaxError [ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX]: TypeScript parameter property is not supported in strip-only mode
+
+Done (2026-10-25, node 26.12.1):
+- server-log.test.ts spawns `node <probe>` (was `execPath() run --allow-all`).
+- server-auth.test.ts: the two /mux upgrade tests send the request over node:http (`upgradeStatus` helper); the sanitizer options were already gone after TASK-198.
+- browser-scripts.test.ts and pkg/ajan/noskillsserverfx/web/browser_scripts.test.ts: the client.js harness installs an `addEventListener` stand-in, since Node's globalThis is no event target.
+- pkg/ajan/noskillsserverfx/web/browser_scripts.test.ts: parameter properties became fields assigned in the constructor; fixtures are read with node:fs/promises, since Node's fetch does not read file: URLs. Static JS behavior is unchanged.
+- templates/layout.ts: `PAGE_CSP: string` for isolatedDeclarations (TS9010).
+- Static JS comments and README line 16 no longer name Deno.
+- Result: node --test on the package 67/67, browser_scripts.test.ts 24/24; tsc reports nothing under either path; oxlint 0 findings.
+- Left: package.json keeps the `@std/testing` devDependency, which nothing imports; dropping it needs a lockfile update.
 <!-- SECTION:NOTES:END -->

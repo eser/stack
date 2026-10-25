@@ -3,6 +3,9 @@
 import * as bdd from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as execCtx from "./execution-context.ts";
+import * as crossRuntime from "./mod.ts";
+
+const runtime = crossRuntime.runtime;
 
 // =============================================================================
 // Test fixtures
@@ -10,16 +13,14 @@ import * as execCtx from "./execution-context.ts";
 
 const ESER_OPTS: execCtx.CliCommandOptions = {
   command: "eser",
-  devCommand: "deno task cli",
+  devCommand: "pnpm cli",
   npmPackage: "eser",
-  jsrPackage: "@eserstack/cli",
 };
 
 const CUSTOM_OPTS: execCtx.CliCommandOptions = {
   command: "foo",
   devCommand: "make run",
   npmPackage: "bar",
-  jsrPackage: "@foo/bar",
 };
 
 // Helper to call detectInvoker with common defaults
@@ -28,7 +29,6 @@ const detect = (
   runtimeName: string,
   argv: readonly string[],
   envVars?: Record<string, string | undefined>,
-  mainModule?: string,
   isDevContext?: boolean,
 ) =>
   execCtx.detectInvoker(
@@ -36,7 +36,6 @@ const detect = (
     runtimeName,
     argv,
     envVars ?? {},
-    mainModule,
     isDevContext,
   );
 
@@ -46,12 +45,15 @@ const detect = (
 
 bdd.describe("detectInvoker", () => {
   bdd.describe("compiled binary detection", () => {
-    bdd.it("should detect deno compile output by custom binary name", () => {
-      assert.assertEquals(
-        detect("eser", "unknown", ["/usr/local/bin/eser", "init"]),
-        { invoker: "binary", mode: "installed" },
-      );
-    });
+    bdd.it(
+      "should detect a single executable application by its binary name",
+      () => {
+        assert.assertEquals(
+          detect("eser", "unknown", ["/usr/local/bin/eser", "init"]),
+          { invoker: "binary", mode: "installed" },
+        );
+      },
+    );
 
     bdd.it("should detect compiled binary with absolute path", () => {
       assert.assertEquals(
@@ -144,48 +146,6 @@ bdd.describe("detectInvoker", () => {
             "/home/user/.npm/_npx/abc/eser",
           ]),
           { invoker: "npx", mode: "on-demand" },
-        );
-      },
-    );
-
-    bdd.it(
-      "should fall back to runtimeName with mise custom deno binary",
-      () => {
-        assert.assertEquals(
-          detect("deno-canary", "deno", [
-            "/home/user/.local/share/mise/installs/deno/canary/bin/deno-canary",
-            "run",
-            "script.ts",
-          ]),
-          { invoker: "deno", mode: "installed" },
-        );
-      },
-    );
-
-    bdd.it(
-      "should fall back to runtimeName with custom bun binary + BUN_INSTALL",
-      () => {
-        assert.assertEquals(
-          detect(
-            "bun-canary",
-            "bun",
-            ["/home/user/.bun/bin/bun-canary", "/path/to/eser"],
-            { BUN_INSTALL: "/home/user/.bun" },
-          ),
-          { invoker: "bun", mode: "installed" },
-        );
-      },
-    );
-
-    bdd.it(
-      "should fall back to runtimeName with custom bun binary without BUN_INSTALL",
-      () => {
-        assert.assertEquals(
-          detect("bun-canary", "bun", [
-            "/home/user/.bun/bin/bun-canary",
-            "eser",
-          ]),
-          { invoker: "bunx", mode: "on-demand" },
         );
       },
     );
@@ -419,185 +379,43 @@ bdd.describe("detectInvoker", () => {
     });
   });
 
-  bdd.describe("Bun runtime", () => {
-    bdd.it("should detect bun global install when BUN_INSTALL is set", () => {
-      assert.assertEquals(
-        detect(
-          "bun",
-          "bun",
-          ["/usr/bin/bun", "/home/user/.bun/install/global/eser/bin/eser.js"],
-          {
-            BUN_INSTALL: "/home/user/.bun",
-          },
-        ),
-        { invoker: "bun", mode: "installed" },
-      );
-    });
-
-    bdd.it(
-      "should detect bun global install when BUN_INSTALL is empty string",
-      () => {
-        assert.assertEquals(
-          detect("bun", "bun", ["/usr/bin/bun", "/path/to/eser"], {
-            BUN_INSTALL: "",
-          }),
-          { invoker: "bun", mode: "installed" },
-        );
-      },
-    );
-
-    bdd.it("should detect bunx on-demand when no BUN_INSTALL", () => {
-      assert.assertEquals(
-        detect("bun", "bun", ["/usr/bin/bun", "x", "eser", "init"]),
-        { invoker: "bunx", mode: "on-demand" },
-      );
-    });
-
-    bdd.it("should detect bunx when BUN_INSTALL is undefined", () => {
-      assert.assertEquals(
-        detect("bun", "bun", ["/usr/bin/bun", "eser"], {
-          BUN_INSTALL: undefined,
-        }),
-        { invoker: "bunx", mode: "on-demand" },
-      );
-    });
-
-    bdd.it("should detect bunx with empty env", () => {
-      assert.assertEquals(detect("bun", "bun", ["/usr/bin/bun", "eser"]), {
-        invoker: "bunx",
-        mode: "on-demand",
-      });
-    });
-  });
-
-  bdd.describe("Deno: on-demand (jsr: and https:)", () => {
-    bdd.it("should detect on-demand from jsr: main module", () => {
-      assert.assertEquals(
-        detect(
-          "deno",
-          "deno",
-          ["/usr/bin/deno", "run", "jsr:@eserstack/cli"],
-          {},
-          "jsr:@eserstack/cli",
-        ),
-        { invoker: "deno", mode: "on-demand" },
-      );
-    });
-
-    bdd.it("should detect on-demand from jsr: with version", () => {
-      assert.assertEquals(
-        detect(
-          "deno",
-          "deno",
-          ["/usr/bin/deno", "run", "jsr:@eserstack/cli@4.0.0"],
-          {},
-          "jsr:@eserstack/cli@4.0.0",
-        ),
-        { invoker: "deno", mode: "on-demand" },
-      );
-    });
-
-    bdd.it("should detect on-demand from https: URL (deno.land)", () => {
-      assert.assertEquals(
-        detect(
-          "deno",
-          "deno",
-          ["/usr/bin/deno", "run", "https://deno.land/x/eser/main.ts"],
-          {},
-          "https://deno.land/x/eser/main.ts",
-        ),
-        { invoker: "deno", mode: "on-demand" },
-      );
-    });
-
-    bdd.it("should detect on-demand from https: URL (esm.sh)", () => {
-      assert.assertEquals(
-        detect(
-          "deno",
-          "deno",
-          ["/usr/bin/deno", "run", "https://esm.sh/eser"],
-          {},
-          "https://esm.sh/eser",
-        ),
-        { invoker: "deno", mode: "on-demand" },
-      );
-    });
-  });
-
-  bdd.describe("Deno: installed (deno install -g)", () => {
-    bdd.it("should detect installed from local file module", () => {
-      assert.assertEquals(
-        detect(
-          "deno",
-          "deno",
-          ["/usr/bin/deno", "run", "/home/user/.deno/bin/eser"],
-          {},
-          "/home/user/.deno/bin/eser",
-        ),
-        { invoker: "deno", mode: "installed" },
-      );
-    });
-
-    bdd.it(
-      "should detect installed from file:// URL when not dev context",
-      () => {
-        assert.assertEquals(
-          detect(
-            "deno",
-            "deno",
-            ["/usr/bin/deno", "run", "file:///home/user/.deno/bin/eser"],
-            {},
-            "file:///home/user/.deno/bin/eser",
-          ),
-          { invoker: "deno", mode: "installed" },
-        );
-      },
-    );
-
-    bdd.it("should detect installed when no main module provided", () => {
-      assert.assertEquals(detect("deno", "deno", ["/usr/bin/deno"]), {
-        invoker: "deno",
-        mode: "installed",
-      });
-    });
-
-    bdd.it("should detect installed when mainModule is undefined", () => {
-      assert.assertEquals(
-        detect(
-          "deno",
-          "deno",
-          ["/usr/bin/deno", "run", "script.ts"],
-          {},
-          undefined,
-        ),
-        { invoker: "deno", mode: "installed" },
-      );
-    });
-  });
-
-  bdd.describe("Deno: dev context", () => {
+  bdd.describe("Node.js: dev context", () => {
     bdd.it("should detect dev mode when isDevContext is true", () => {
       assert.assertEquals(
         detect(
-          "deno",
-          "deno",
-          ["/usr/bin/deno", "task", "cli"],
+          "node",
+          "node",
+          ["/usr/bin/node", "/workspace/pkg/@eserstack/cli/main.ts"],
           {},
-          "file:///workspace/pkg/@eserstack/cli/main.ts",
           true,
         ),
         { invoker: "dev", mode: "dev" },
       );
     });
 
-    bdd.it("should let isDevContext true override file:// installed", () => {
+    bdd.it("should let isDevContext beat the pnpm env of `pnpm cli`", () => {
       assert.assertEquals(
         detect(
-          "deno",
-          "deno",
-          ["/usr/bin/deno"],
+          "node",
+          "node",
+          ["/usr/bin/node", "/workspace/pkg/@eserstack/cli/main.ts"],
+          {
+            npm_execpath: "/usr/lib/node_modules/pnpm/bin/pnpm.cjs",
+            npm_config_user_agent: "pnpm/11.0.0 npm/? node/v26.12.1",
+          },
+          true,
+        ),
+        { invoker: "dev", mode: "dev" },
+      );
+    });
+
+    bdd.it("should let isDevContext beat an npx script path", () => {
+      assert.assertEquals(
+        detect(
+          "node",
+          "node",
+          ["/usr/bin/node", "/home/user/.npm/_npx/abc/eser"],
           {},
-          "file:///some/local/path.ts",
           true,
         ),
         { invoker: "dev", mode: "dev" },
@@ -605,90 +423,39 @@ bdd.describe("detectInvoker", () => {
     });
 
     bdd.it(
-      "should fall through to installed when isDevContext is false",
+      "should fall through to the package manager when isDevContext is false",
       () => {
         assert.assertEquals(
           detect(
-            "deno",
-            "deno",
-            ["/usr/bin/deno", "task", "cli"],
-            {},
-            "file:///workspace/main.ts",
+            "node",
+            "node",
+            ["/usr/bin/node", "/workspace/main.ts"],
+            { npm_execpath: "/usr/lib/node_modules/pnpm/bin/pnpm.cjs" },
             false,
           ),
-          { invoker: "deno", mode: "installed" },
+          { invoker: "pnpx", mode: "on-demand" },
         );
       },
     );
 
-    bdd.it("should let jsr: take priority over isDevContext", () => {
+    bdd.it("should ignore isDevContext for a compiled binary", () => {
       assert.assertEquals(
-        detect(
-          "deno",
-          "deno",
-          ["/usr/bin/deno"],
-          {},
-          "jsr:@eserstack/cli",
-          true,
-        ),
-        { invoker: "deno", mode: "on-demand" },
+        detect("eser", "compiled", ["/usr/bin/eser"], {}, true),
+        {
+          invoker: "binary",
+          mode: "installed",
+        },
       );
     });
   });
 
   bdd.describe("execBasename vs runtimeName resolution", () => {
     bdd.it(
-      "should use execBasename 'node' directly, ignoring runtimeName 'deno'",
+      "should use execBasename 'node' directly, ignoring runtimeName 'unknown'",
       () => {
         assert.assertEquals(
-          detect("node", "deno", ["/usr/bin/node", "/script.js"]),
+          detect("node", "unknown", ["/usr/bin/node", "/script.js"]),
           { invoker: "npm", mode: "installed" },
-        );
-      },
-    );
-
-    bdd.it(
-      "should use execBasename 'deno' directly, ignoring runtimeName 'node'",
-      () => {
-        assert.assertEquals(detect("deno", "node", ["/usr/bin/deno"]), {
-          invoker: "deno",
-          mode: "installed",
-        });
-      },
-    );
-
-    bdd.it(
-      "should use execBasename 'bun' directly, ignoring runtimeName 'node'",
-      () => {
-        assert.assertEquals(detect("bun", "node", ["/usr/bin/bun", "eser"]), {
-          invoker: "bunx",
-          mode: "on-demand",
-        });
-      },
-    );
-
-    bdd.it(
-      "should fall back to runtimeName 'deno' when execBasename is unknown",
-      () => {
-        assert.assertEquals(
-          detect("custom-deno", "deno", [
-            "/path/to/custom-deno",
-            "run",
-            "script.ts",
-          ]),
-          { invoker: "deno", mode: "installed" },
-        );
-      },
-    );
-
-    bdd.it(
-      "should fall back to runtimeName 'bun' + BUN_INSTALL when execBasename is unknown",
-      () => {
-        assert.assertEquals(
-          detect("custom-bun", "bun", ["/path/to/custom-bun", "eser"], {
-            BUN_INSTALL: "/home/user/.bun",
-          }),
-          { invoker: "bun", mode: "installed" },
         );
       },
     );
@@ -749,20 +516,6 @@ bdd.describe("buildCommand", () => {
       );
     });
 
-    bdd.it("should return opts.command for bun/installed", () => {
-      assert.assertEquals(
-        execCtx.buildCommand("bun", "installed", ESER_OPTS),
-        "eser",
-      );
-    });
-
-    bdd.it("should return opts.command for deno/installed", () => {
-      assert.assertEquals(
-        execCtx.buildCommand("deno", "installed", ESER_OPTS),
-        "eser",
-      );
-    });
-
     bdd.it("should return opts.command for unknown/installed", () => {
       assert.assertEquals(
         execCtx.buildCommand("unknown", "installed", ESER_OPTS),
@@ -785,30 +538,13 @@ bdd.describe("buildCommand", () => {
         "pnpx eser",
       );
     });
-
-    bdd.it("should return 'bunx {pkg}' for bunx/on-demand", () => {
-      assert.assertEquals(
-        execCtx.buildCommand("bunx", "on-demand", ESER_OPTS),
-        "bunx eser",
-      );
-    });
-
-    bdd.it(
-      "should return 'deno run --allow-all jsr:{pkg}' for deno/on-demand",
-      () => {
-        assert.assertEquals(
-          execCtx.buildCommand("deno", "on-demand", ESER_OPTS),
-          "deno run --allow-all jsr:@eserstack/cli",
-        );
-      },
-    );
   });
 
   bdd.describe("dev invoker → opts.devCommand", () => {
     bdd.it("should return opts.devCommand for dev/dev", () => {
       assert.assertEquals(
         execCtx.buildCommand("dev", "dev", ESER_OPTS),
-        "deno task cli",
+        "pnpm cli",
       );
     });
   });
@@ -818,13 +554,6 @@ bdd.describe("buildCommand", () => {
       assert.assertEquals(
         execCtx.buildCommand("npx", "on-demand", CUSTOM_OPTS),
         "npx bar",
-      );
-    });
-
-    bdd.it("should use custom jsrPackage for deno on-demand", () => {
-      assert.assertEquals(
-        execCtx.buildCommand("deno", "on-demand", CUSTOM_OPTS),
-        "deno run --allow-all jsr:@foo/bar",
       );
     });
 
@@ -1022,68 +751,44 @@ bdd.describe("matchCliPrefix", () => {
       );
     });
 
-    bdd.it("should handle: bunx eser nos init", () => {
+    bdd.it("should handle: pnpm dlx eser nos init", () => {
       assert.assertEquals(
-        execCtx.matchCliPrefix(SUBS, ["bunx", "eser", "nos", "init"]),
-        "bunx eser nos",
+        execCtx.matchCliPrefix(SUBS, ["pnpm", "dlx", "eser", "nos", "init"]),
+        "pnpm dlx eser nos",
       );
     });
 
-    bdd.it(
-      "should handle: deno run -A jsr:@eserstack/cli noskills init",
-      () => {
-        assert.assertEquals(
-          execCtx.matchCliPrefix(SUBS, [
-            "deno",
-            "run",
-            "-A",
-            "jsr:@eserstack/cli",
-            "noskills",
-            "init",
-          ]),
-          "deno run -A jsr:@eserstack/cli noskills",
-        );
-      },
-    );
-
-    bdd.it("should handle: deno -A npm:eser nos init", () => {
-      assert.assertEquals(
-        execCtx.matchCliPrefix(SUBS, ["deno", "-A", "npm:eser", "nos", "init"]),
-        "deno -A npm:eser nos",
-      );
-    });
-
-    bdd.it("should handle: deno task cli noskills init", () => {
+    bdd.it("should handle: pnpm dlx jsr:@eserstack/cli noskills init", () => {
       assert.assertEquals(
         execCtx.matchCliPrefix(SUBS, [
-          "deno",
-          "task",
-          "cli",
+          "pnpm",
+          "dlx",
+          "jsr:@eserstack/cli",
           "noskills",
           "init",
         ]),
-        "deno task cli noskills",
+        "pnpm dlx jsr:@eserstack/cli noskills",
       );
     });
 
-    bdd.it("should handle: deno task cli nos init", () => {
+    bdd.it("should handle: pnpm cli noskills init", () => {
       assert.assertEquals(
-        execCtx.matchCliPrefix(SUBS, ["deno", "task", "cli", "nos", "init"]),
-        "deno task cli nos",
+        execCtx.matchCliPrefix(SUBS, ["pnpm", "cli", "noskills", "init"]),
+        "pnpm cli noskills",
       );
     });
 
-    bdd.it("should handle: dx eser noskills init", () => {
+    bdd.it("should handle: pnpm cli nos init", () => {
       assert.assertEquals(
-        execCtx.matchCliPrefix(SUBS, ["dx", "eser", "noskills", "init"]),
-        "dx eser noskills",
+        execCtx.matchCliPrefix(SUBS, ["pnpm", "cli", "nos", "init"]),
+        "pnpm cli nos",
       );
     });
 
-    bdd.it("should handle: deno x eser nos init", () => {
+    bdd.it("should handle: pnpm exec eser nos init", () => {
       assert.assertEquals(
-        execCtx.matchCliPrefix(SUBS, ["deno", "x", "eser", "nos", "init"]),
-        "deno x eser nos",
+        execCtx.matchCliPrefix(SUBS, ["pnpm", "exec", "eser", "nos", "init"]),
+        "pnpm exec eser nos",
       );
     });
 
@@ -1105,46 +810,25 @@ bdd.describe("matchCliPrefix", () => {
   bdd.describe(
     "embedded match: subcommand in path or package specifier",
     () => {
-      bdd.it("should handle: deno run -A npm:noskills init", () => {
+      bdd.it("should handle: pnpm dlx jsr:@eserstack/noskills init", () => {
         assert.assertEquals(
           execCtx.matchCliPrefix(SUBS, [
-            "deno",
-            "run",
-            "-A",
-            "npm:noskills",
-            "init",
-          ]),
-          "deno run -A npm:noskills",
-        );
-      });
-
-      bdd.it("should handle: deno -A npm:noskills init", () => {
-        assert.assertEquals(
-          execCtx.matchCliPrefix(SUBS, ["deno", "-A", "npm:noskills", "init"]),
-          "deno -A npm:noskills",
-        );
-      });
-
-      bdd.it("should handle: deno run -A jsr:@eserstack/noskills init", () => {
-        assert.assertEquals(
-          execCtx.matchCliPrefix(SUBS, [
-            "deno",
-            "run",
-            "-A",
+            "pnpm",
+            "dlx",
             "jsr:@eserstack/noskills",
             "init",
           ]),
-          "deno run -A jsr:@eserstack/noskills",
+          "pnpm dlx jsr:@eserstack/noskills",
         );
       });
 
-      bdd.it("should handle: deno -A jsr:@eserstack/nos init", () => {
+      bdd.it("should handle: pnpm dlx jsr:@eserstack/nos init", () => {
         assert.assertEquals(
           execCtx.matchCliPrefix(
             ["noskills", "nos"],
-            ["deno", "-A", "jsr:@eserstack/nos", "init"],
+            ["pnpm", "dlx", "jsr:@eserstack/nos", "init"],
           ),
-          "deno -A jsr:@eserstack/nos",
+          "pnpm dlx jsr:@eserstack/nos",
         );
       });
 
@@ -1178,8 +862,8 @@ bdd.describe("matchCliPrefix", () => {
 
       bdd.it("should match npm:noskills colon specifier", () => {
         assert.assertEquals(
-          execCtx.matchCliPrefix(SUBS, ["deno", "run", "npm:noskills", "init"]),
-          "deno run npm:noskills",
+          execCtx.matchCliPrefix(SUBS, ["pnpm", "dlx", "npm:noskills", "init"]),
+          "pnpm dlx npm:noskills",
         );
       });
     },
@@ -1247,9 +931,21 @@ bdd.describe("matchCliPrefix", () => {
 // =============================================================================
 
 bdd.describe("isCommandInPath", () => {
-  bdd.it("should find deno in PATH", async () => {
-    const result = await execCtx.isCommandInPath("deno");
-    assert.assertEquals(result, true);
+  bdd.it("should find the running node in PATH", async () => {
+    const execPath = runtime.process.execPath();
+    const original = runtime.env.get("PATH");
+    runtime.env.set("PATH", runtime.path.dirname(execPath));
+
+    try {
+      const name = runtime.path.basename(execPath, ".exe");
+      assert.assertEquals(await execCtx.isCommandInPath(name), true);
+    } finally {
+      if (original === undefined) {
+        runtime.env.delete("PATH");
+      } else {
+        runtime.env.set("PATH", original);
+      }
+    }
   });
 
   bdd.it("should return false for nonexistent binary", async () => {
@@ -1262,7 +958,7 @@ bdd.describe("isCommandInPath", () => {
 
 bdd.describe("getCliPrefix", () => {
   bdd.it("should return a string when subcommand is not in argv", async () => {
-    // When running `deno test`, "noskills" won't be in argv — returns undefined
+    // When running `node --test`, "noskills" won't be in argv — returns undefined
     const result = await execCtx.getCliPrefix(ESER_OPTS, ["noskills", "nos"]);
     assert.assertEquals(result, undefined);
   });
@@ -1276,7 +972,7 @@ bdd.describe("getCliPrefix", () => {
     // When subcommand IS in argv (e.g., test runner args), the prefix
     // should start with the detected command from execution context
     const ctx = await execCtx.detectExecutionContext(ESER_OPTS);
-    // "test" is typically in deno test argv
+    // "--test" is in node --test argv only as a flag, so this may not match
     const result = await execCtx.getCliPrefix(ESER_OPTS, ["test"]);
     if (result !== undefined) {
       assert.assert(result.startsWith(ctx.command));
@@ -1294,22 +990,14 @@ bdd.describe("detectExecutionContext", () => {
     assert.assertExists(ctx.command);
     assert.assertEquals(typeof ctx.isInPath, "boolean");
 
-    const validRuntimes: execCtx.CliRuntime[] = [
-      "deno",
-      "node",
-      "bun",
-      "compiled",
-    ];
+    const validRuntimes: execCtx.CliRuntime[] = ["node", "compiled"];
     const validModes: execCtx.CliMode[] = ["installed", "on-demand", "dev"];
     const validInvokers: execCtx.CliInvoker[] = [
       "binary",
-      "deno",
       "npm",
       "npx",
       "pnpm",
       "pnpx",
-      "bun",
-      "bunx",
       "dev",
       "unknown",
     ];
@@ -1320,22 +1008,63 @@ bdd.describe("detectExecutionContext", () => {
     assert.assert(ctx.command.length > 0);
   });
 
-  bdd.it("should detect Deno runtime when running under Deno", async () => {
+  bdd.it("should detect the Node runtime when running under Node", async () => {
     const ctx = await execCtx.detectExecutionContext(ESER_OPTS);
-    assert.assertEquals(ctx.runtime, "deno");
+    assert.assertEquals(ctx.runtime, "node");
   });
+
+  bdd.it(
+    "should detect dev mode in a directory whose package.json has a cli script",
+    async () => {
+      const dir = await runtime.fs.makeTempDir({ prefix: "exec-ctx-" });
+      const original = runtime.process.cwd();
+
+      try {
+        await runtime.fs.writeTextFile(
+          runtime.path.join(dir, "package.json"),
+          JSON.stringify({ scripts: { cli: "node ./main.ts" } }),
+        );
+        runtime.process.chdir(dir);
+
+        const ctx = await execCtx.detectExecutionContext(ESER_OPTS);
+
+        assert.assertEquals(ctx.invoker, "dev");
+        assert.assertEquals(ctx.mode, "dev");
+        assert.assertEquals(ctx.command, "pnpm cli");
+      } finally {
+        runtime.process.chdir(original);
+        await runtime.fs.remove(dir, { recursive: true });
+      }
+    },
+  );
+
+  bdd.it(
+    "should not detect dev mode where package.json has no cli script",
+    async () => {
+      const dir = await runtime.fs.makeTempDir({ prefix: "exec-ctx-" });
+      const original = runtime.process.cwd();
+
+      try {
+        await runtime.fs.writeTextFile(
+          runtime.path.join(dir, "package.json"),
+          JSON.stringify({ scripts: { test: "node --test" } }),
+        );
+        runtime.process.chdir(dir);
+
+        const ctx = await execCtx.detectExecutionContext(ESER_OPTS);
+
+        assert.assertNotEquals(ctx.invoker, "dev");
+      } finally {
+        runtime.process.chdir(original);
+        await runtime.fs.remove(dir, { recursive: true });
+      }
+    },
+  );
 
   bdd.it("should produce a non-empty command string", async () => {
     const ctx = await execCtx.detectExecutionContext(ESER_OPTS);
     assert.assert(ctx.command.length > 0);
-    const validPatterns = [
-      "eser",
-      "npx eser",
-      "pnpx eser",
-      "bunx eser",
-      "deno run --allow-all jsr:@eserstack/cli",
-      "deno task cli",
-    ];
+    const validPatterns = ["eser", "npx eser", "pnpx eser", "pnpm cli"];
     assert.assert(
       validPatterns.includes(ctx.command),
       `Expected one of ${validPatterns.join(", ")}, got: ${ctx.command}`,

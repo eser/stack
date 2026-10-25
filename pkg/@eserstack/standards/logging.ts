@@ -31,7 +31,17 @@ export type SeverityKey = Exclude<keyof typeof Severities, number>;
 export type Severity = (typeof Severities)[SeverityKey];
 
 /** Level name for each severity number. */
-export const SeverityNames = {
+export const SeverityNames: {
+  readonly 1: "Trace";
+  readonly 5: "Debug";
+  readonly 9: "Info";
+  readonly 10: "Notice";
+  readonly 13: "Warning";
+  readonly 17: "Error";
+  readonly 21: "Critical";
+  readonly 22: "Alert";
+  readonly 23: "Emergency";
+} = {
   [Severities.Trace]: "Trace",
   [Severities.Debug]: "Debug",
   [Severities.Info]: "Info",

@@ -1,37 +1,38 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as path from "node:path";
+import * as process from "node:process";
 import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
-import * as path from "@std/path";
 import * as crossRuntime from "./mod.ts";
 
 // =============================================================================
 // Detection Tests
 // =============================================================================
 
-nodeTest.test("detectRuntime() should detect Deno runtime", () => {
-  assert.assertEquals(crossRuntime.detectRuntime(), "deno");
+nodeTest.test("detectRuntime() should detect the Node runtime", () => {
+  assert.assertEquals(crossRuntime.detectRuntime(), "node");
 });
 
-nodeTest.test("getRuntimeVersion() should return Deno version", () => {
+nodeTest.test("getRuntimeVersion() should return the Node version", () => {
   const version = crossRuntime.getRuntimeVersion();
   assert.assertExists(version);
-  assert.assertEquals(version, Deno.version.deno);
+  assert.assertEquals(version, process.versions.node);
 });
 
-nodeTest.test("isRuntime() should return true in Deno", () => {
-  assert.assertEquals(crossRuntime.isRuntime("deno"), true);
+nodeTest.test("isRuntime() should return true in Node", () => {
+  assert.assertEquals(crossRuntime.isRuntime("node"), true);
 });
 
-nodeTest.test("isRuntime() should return false in Deno", () => {
-  assert.assertEquals(crossRuntime.isRuntime("node"), false);
+nodeTest.test("isRuntime() should return false in Node", () => {
+  assert.assertEquals(crossRuntime.isRuntime("workerd"), false);
 });
 
-nodeTest.test("isBrowser() should return false in Deno", () => {
+nodeTest.test("isBrowser() should return false in Node", () => {
   assert.assertEquals(crossRuntime.isBrowser(), false);
 });
 
-nodeTest.test("isServer() should return true in Deno", () => {
+nodeTest.test("isServer() should return true in Node", () => {
   assert.assertEquals(crossRuntime.isServer(), true);
 });
 
@@ -39,15 +40,36 @@ nodeTest.test("isServer() should return true in Deno", () => {
 // Runtime Singleton Tests
 // =============================================================================
 
-nodeTest.test("current singleton should be Deno runtime", () => {
-  assert.assertEquals(crossRuntime.runtime.name, "deno");
+nodeTest.test("current singleton should be the Node runtime", () => {
+  assert.assertEquals(crossRuntime.runtime.name, "node");
   assert.assertExists(crossRuntime.runtime.version);
   assert.assertEquals(crossRuntime.runtime.capabilities.fs, true);
   assert.assertEquals(crossRuntime.runtime.capabilities.exec, true);
 });
 
+nodeTest.test(
+  "the module loads with require(), so it has no top-level await",
+  async () => {
+    const modPath = new URL("./mod.ts", import.meta.url).pathname;
+    const result = await crossRuntime.runtime.exec.spawn(
+      crossRuntime.runtime.process.execPath(),
+      [
+        "--eval",
+        `process.stdout.write(require(${JSON.stringify(modPath)}).runtime.name)`,
+      ],
+    );
+
+    assert.assertEquals(
+      result.success,
+      true,
+      new TextDecoder().decode(result.stderr),
+    );
+    assert.assertEquals(new TextDecoder().decode(result.stdout), "node");
+  },
+);
+
 nodeTest.test("runtime.path should work", () => {
-  // runtime.path is the platform-native path API (@std/path), so the
+  // runtime.path is the platform-native path API (node:path), so the
   // separator is "/" on POSIX and "\" on Windows. Derive the expected value
   // with the same API instead of hardcoding "/" to stay cross-platform.
   const joined = crossRuntime.runtime.path.join("src", "lib", "utils.ts");
@@ -80,7 +102,7 @@ nodeTest.test("runtime.env should work", () => {
 // =============================================================================
 
 nodeTest.test("runtime.fs.exists() should check file existence", async () => {
-  const exists = await crossRuntime.runtime.fs.exists("deno.json");
+  const exists = await crossRuntime.runtime.fs.exists("package.json");
   assert.assertEquals(exists, true);
 
   const notExists = await crossRuntime.runtime.fs.exists(
@@ -98,7 +120,7 @@ nodeTest.test("runtime.fs.readTextFile() should read files", async () => {
 });
 
 nodeTest.test("runtime.fs.stat() should return file info", async () => {
-  const stat = await crossRuntime.runtime.fs.stat("deno.json");
+  const stat = await crossRuntime.runtime.fs.stat("package.json");
   assert.assertEquals(stat.isFile, true);
   assert.assertEquals(stat.isDirectory, false);
 });
@@ -200,9 +222,9 @@ nodeTest.test(
 // Factory Tests
 // =============================================================================
 
-nodeTest.test("createRuntime() should create Deno runtime", async () => {
+nodeTest.test("createRuntime() should create the Node runtime", async () => {
   const rt = await crossRuntime.createRuntime();
-  assert.assertEquals(rt.name, "deno");
+  assert.assertEquals(rt.name, "node");
   assert.assertEquals(rt.capabilities.fs, true);
 });
 
@@ -242,7 +264,7 @@ nodeTest.test(
 
     assert.assertEquals(served, [8123]);
     assert.assertEquals(server.port, 8123);
-    assert.assertEquals(rt.name, "deno");
+    assert.assertEquals(rt.name, "node");
   },
 );
 

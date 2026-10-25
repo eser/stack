@@ -70,24 +70,23 @@ workflow-facing (Tools).
 
 **Libraries**
 
-| Package                                               | Description                                                    |
-| ----------------------------------------------------- | -------------------------------------------------------------- |
-| [@eserstack/formats](pkg/@eserstack/formats/)         | Bidirectional format conversion (JSON, YAML, CSV, TOML, JSONL) |
-| [@eserstack/streams](pkg/@eserstack/streams/)         | Pipeline I/O                                                   |
-| [@eserstack/parsing](pkg/@eserstack/parsing/)         | Tokenizer, lexer, AST                                          |
-| [@eserstack/logging](pkg/@eserstack/logging/)         | Hierarchical logging, OpenTelemetry                            |
-| [@eserstack/http](pkg/@eserstack/http/)               | HTTP middleware, response helpers                              |
-| [@eserstack/httpclient](pkg/@eserstack/httpclient/)   | HTTP client with timeouts, retries and typed errors            |
-| [@eserstack/crypto](pkg/@eserstack/crypto/)           | Web Crypto wrappers                                            |
-| [@eserstack/cache](pkg/@eserstack/cache/)             | XDG cache directories                                          |
-| [@eserstack/config](pkg/@eserstack/config/)           | .env + env var configuration                                   |
-| [@eserstack/testing](pkg/@eserstack/testing/)         | fakeFs, fakeServer, tempDir                                    |
-| [@eserstack/jsx-runtime](pkg/@eserstack/jsx-runtime/) | Server-side JSX                                                |
-| [@eserstack/collector](pkg/@eserstack/collector/)     | Export manifest generation                                     |
-| [@eserstack/cs](pkg/@eserstack/cs/)                   | Kubernetes ConfigMap/Secret sync from .env files               |
-| [@eserstack/agents](pkg/@eserstack/agents/)           | Coding agent discovery and the read-only git guard             |
-| [@eserstack/ajan](pkg/@eserstack/ajan/)               | Go/WASM FFI bridge                                             |
-| [@eserstack/kit](pkg/@eserstack/kit/)                 | Recipe registry, distribution protocol, handlers               |
+| Package                                             | Description                                                    |
+| --------------------------------------------------- | -------------------------------------------------------------- |
+| [@eserstack/formats](pkg/@eserstack/formats/)       | Bidirectional format conversion (JSON, YAML, CSV, TOML, JSONL) |
+| [@eserstack/streams](pkg/@eserstack/streams/)       | Pipeline I/O                                                   |
+| [@eserstack/parsing](pkg/@eserstack/parsing/)       | Tokenizer, lexer, AST                                          |
+| [@eserstack/logging](pkg/@eserstack/logging/)       | Hierarchical logging, OpenTelemetry                            |
+| [@eserstack/http](pkg/@eserstack/http/)             | HTTP middleware, response helpers                              |
+| [@eserstack/httpclient](pkg/@eserstack/httpclient/) | HTTP client with timeouts, retries and typed errors            |
+| [@eserstack/crypto](pkg/@eserstack/crypto/)         | Web Crypto wrappers                                            |
+| [@eserstack/cache](pkg/@eserstack/cache/)           | XDG cache directories                                          |
+| [@eserstack/config](pkg/@eserstack/config/)         | .env + env var configuration                                   |
+| [@eserstack/testing](pkg/@eserstack/testing/)       | fakeFs, fakeServer, tempDir                                    |
+| [@eserstack/collector](pkg/@eserstack/collector/)   | Export manifest generation                                     |
+| [@eserstack/cs](pkg/@eserstack/cs/)                 | Kubernetes ConfigMap/Secret sync from .env files               |
+| [@eserstack/agents](pkg/@eserstack/agents/)         | Coding agent discovery and the read-only git guard             |
+| [@eserstack/ajan](pkg/@eserstack/ajan/)             | Go/WASM FFI bridge                                             |
+| [@eserstack/kit](pkg/@eserstack/kit/)               | Recipe registry, distribution protocol, handlers               |
 
 **Tools**
 

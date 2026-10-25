@@ -15,8 +15,6 @@
     "./run-modes": "./run-modes.ts",
     "./cross-runtime": "./cross-runtime/mod.ts",
     "./cross-runtime/browser": "./cross-runtime/adapters/browser.ts",
-    "./cross-runtime/bun": "./cross-runtime/adapters/bun.ts",
-    "./cross-runtime/deno": "./cross-runtime/adapters/deno.ts",
     "./cross-runtime/node": "./cross-runtime/adapters/node.ts",
     "./cross-runtime/workerd": "./cross-runtime/adapters/workerd.ts",
     "./cross-runtime/execution-context": "./cross-runtime/execution-context.ts",
@@ -25,12 +23,9 @@
   },
   "dependencies": {
     "@eserstack/primitives": "workspace:*",
-    "@std/fs": "npm:@jsr/std__fs@^1.0.24",
-    "@std/path": "npm:@jsr/std__path@^1.1.6",
     "@std/semver": "npm:@jsr/std__semver@^1.0.8"
   },
   "devDependencies": {
-    "@eserstack/test-kit": "workspace:*",
-    "@std/testing": "npm:@jsr/std__testing@^1.0.20"
+    "@eserstack/test-kit": "workspace:*"
   }
 }

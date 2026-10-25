@@ -25,7 +25,7 @@ function divWithObjectChild(key: string): React.ReactElement {
 }
 
 nodeTest.test(
-  "renderSSR keeps markup from the error message out of the fallback",
+  "track-l-delete: renderSSR keeps markup from the error message out of the fallback",
   async () => {
     const result = await ssrRenderer.renderSSR(
       divWithObjectChild(INJECTED_MARKUP),
@@ -45,7 +45,7 @@ nodeTest.test(
 );
 
 nodeTest.test(
-  "renderSSR fallback shows a generic message and a correlation id",
+  "track-l-delete: renderSSR fallback shows a generic message and a correlation id",
   async () => {
     const result = await ssrRenderer.renderSSR(
       divWithObjectChild("notAChild"),
@@ -65,7 +65,7 @@ nodeTest.test(
 );
 
 nodeTest.test(
-  "renderSSR gives each failed render its own correlation id",
+  "track-l-delete: renderSSR gives each failed render its own correlation id",
   async () => {
     const render = async () => {
       const result = await ssrRenderer.renderSSR(
@@ -82,7 +82,7 @@ nodeTest.test(
 );
 
 nodeTest.test(
-  "renderSSR escapes text and props that start with $ in the payload",
+  "track-l-delete: renderSSR escapes text and props that start with $ in the payload",
   async () => {
     const result = await ssrRenderer.renderSSR(
       React.createElement("p", { title: "$5 off" }, "$D-day"),
@@ -103,7 +103,7 @@ nodeTest.test(
 );
 
 nodeTest.test(
-  "renderSSR escapes client component props that start with $",
+  "track-l-delete: renderSSR escapes client component props that start with $",
   async () => {
     const Badge = (props: { readonly label: string }) =>
       React.createElement("span", null, props.label);

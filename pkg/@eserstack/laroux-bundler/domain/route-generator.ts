@@ -27,8 +27,8 @@ export type GenerateRouteOptions = {
   srcDirName: string;
   /**
    * Added to each page and layout import as `?v=<moduleVersion>`, such as
-   * the build id. Deno keeps an imported module under its URL until the
-   * process exits, so without a new query a dev server that imports the
+   * the build id. The runtime keeps an imported module under its URL until
+   * the process exits, so without a new query a dev server that imports the
    * rebuilt routes file again still gets the pages of the first build.
    * Default: imports carry no query.
    */

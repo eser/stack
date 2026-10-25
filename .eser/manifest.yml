@@ -378,7 +378,8 @@ scripts:
     --html ./pkg/@eserstack/*/mod.ts"
   # Lints every module a package publishes in its package.json exports, not
   # only mod.ts; CLI-first packages map "." to main.ts.
-  docs-lint: "roots=$(deno run --allow-read ./etc/scripts/package-export-roots.ts)
+  docs-lint:
+    "roots=$(deno run --allow-read ./etc/scripts/package-export-roots.ts)
     && deno doc --lint $roots"
 
   # Docker

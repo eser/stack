@@ -77,10 +77,10 @@ const generateHookScript = (
  */
 const findGitDir = async (): Promise<string | null> => {
   try {
-    const output = await standards.crossRuntime.runtime.exec.exec(
-      "git",
-      ["rev-parse", "--git-dir"],
-    );
+    const output = await standards.crossRuntime.runtime.exec.exec("git", [
+      "rev-parse",
+      "--git-dir",
+    ]);
     const dir = output.trim();
     if (dir.length > 0) return dir;
   } catch {
@@ -103,9 +103,7 @@ const findGitDir = async (): Promise<string | null> => {
 /**
  * Extract unique events from a manifest's workflows array.
  */
-const extractEvents = (
-  raw: Record<string, unknown>,
-): string[] => {
+const extractEvents = (raw: Record<string, unknown>): string[] => {
   const workflows = raw["workflows"] as
     | readonly { on?: readonly string[] }[]
     | undefined;
@@ -193,9 +191,7 @@ export const main = async (
   // 3. Extract events
   const events = extractEvents(raw);
   if (events.length === 0) {
-    out.writeln(
-      span.yellow("No workflow events found — nothing to install."),
-    );
+    out.writeln(span.yellow("No workflow events found — nothing to install."));
     await out.close();
     return primitives.results.ok(undefined);
   }
@@ -234,9 +230,8 @@ export const main = async (
       // Hooks are written one at a time, so a failed write stops before the
       // next hook changes and the report follows the manifest order.
       // deno-lint-ignore no-await-in-loop
-      const existing = await standards.crossRuntime.runtime.fs.readTextFile(
-        hookPath,
-      );
+      const existing =
+        await standards.crossRuntime.runtime.fs.readTextFile(hookPath);
       exists = true;
       isManaged = existing.includes(MARKER);
     } catch {
@@ -245,17 +240,11 @@ export const main = async (
 
     if (dryRun) {
       if (!exists) {
-        out.writeln(
-          span.blue(`  would create  ${hookName}`),
-        );
+        out.writeln(span.blue(`  would create  ${hookName}`));
       } else if (isManaged) {
-        out.writeln(
-          span.blue(`  would update  ${hookName} (managed)`),
-        );
+        out.writeln(span.blue(`  would update  ${hookName} (managed)`));
       } else if (force) {
-        out.writeln(
-          span.yellow(`  would overwrite  ${hookName} (--force)`),
-        );
+        out.writeln(span.yellow(`  would overwrite  ${hookName} (--force)`));
       } else {
         out.writeln(
           span.yellow(
@@ -290,14 +279,10 @@ export const main = async (
     }
 
     if (exists && isManaged) {
-      out.writeln(
-        span.green(`  updated  ${hookName}`),
-      );
+      out.writeln(span.green(`  updated  ${hookName}`));
       updated++;
     } else {
-      out.writeln(
-        span.green(`  installed  ${hookName}`),
-      );
+      out.writeln(span.green(`  installed  ${hookName}`));
       installed++;
     }
   }
@@ -366,9 +351,8 @@ export const uninstallMain = async (
         hookName,
       );
       try {
-        const content = await standards.crossRuntime.runtime.fs.readTextFile(
-          hookPath,
-        );
+        const content =
+          await standards.crossRuntime.runtime.fs.readTextFile(hookPath);
         if (!content.includes(MARKER)) {
           return false;
         }
@@ -467,9 +451,8 @@ export const statusMain = async (
         mapping.hookName,
       );
       try {
-        const content = await standards.crossRuntime.runtime.fs.readTextFile(
-          hookPath,
-        );
+        const content =
+          await standards.crossRuntime.runtime.fs.readTextFile(hookPath);
         return content.includes(MARKER)
           ? span.green("managed (@eser)")
           : span.yellow("user hook");

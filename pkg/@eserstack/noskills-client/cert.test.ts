@@ -262,14 +262,17 @@ for (const { name, respond, status, message } of failureCases) {
 Deno.test("fetchAndPinCertFingerprint keeps the network error as the cause", async () => {
   const cause = new TypeError("network unreachable");
 
-  await withFetch(() => Promise.reject(cause), async () => {
-    const error = await assert.assertRejects(
-      () => cert.fetchAndPinCertFingerprint(BASE_URL),
-      errors.CertFingerprintError,
-    );
+  await withFetch(
+    () => Promise.reject(cause),
+    async () => {
+      const error = await assert.assertRejects(
+        () => cert.fetchAndPinCertFingerprint(BASE_URL),
+        errors.CertFingerprintError,
+      );
 
-    assert.assertStrictEquals(error.cause, cause);
-  });
+      assert.assertStrictEquals(error.cause, cause);
+    },
+  );
 });
 
 Deno.test("fetchAndPinCertFingerprint times out when the daemon never answers", async () => {
@@ -285,12 +288,15 @@ Deno.test("fetchAndPinCertFingerprint times out when the daemon never answers", 
 });
 
 Deno.test("fetchAndPinCertFingerprint times out even when fetch ignores the signal", async () => {
-  await withFetch(() => new Promise<Response>(() => {}), async () => {
-    await assert.assertRejects(
-      () => cert.fetchAndPinCertFingerprint(BASE_URL, { timeoutMs: 20 }),
-      errors.NoskillsTimeoutError,
-    );
-  });
+  await withFetch(
+    () => new Promise<Response>(() => {}),
+    async () => {
+      await assert.assertRejects(
+        () => cert.fetchAndPinCertFingerprint(BASE_URL, { timeoutMs: 20 }),
+        errors.NoskillsTimeoutError,
+      );
+    },
+  );
 });
 
 Deno.test("fetchAndPinCertFingerprint rejects with the caller's reason when the signal aborts", async () => {

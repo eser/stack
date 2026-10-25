@@ -40,9 +40,10 @@ export function buildPictureSources(
   if (formats.includes("avif")) {
     sources.push({
       type: "image/avif",
-      srcSet: srcSet !== undefined
-        ? srcsetBuilder.replaceSrcSetExtension(srcSet, ext, "avif")
-        : srcsetBuilder.inferSrcSet(`${basePath}.avif`),
+      srcSet:
+        srcSet !== undefined
+          ? srcsetBuilder.replaceSrcSetExtension(srcSet, ext, "avif")
+          : srcsetBuilder.inferSrcSet(`${basePath}.avif`),
       sizes,
     });
   }
@@ -51,9 +52,10 @@ export function buildPictureSources(
   if (formats.includes("webp")) {
     sources.push({
       type: "image/webp",
-      srcSet: srcSet !== undefined
-        ? srcsetBuilder.replaceSrcSetExtension(srcSet, ext, "webp")
-        : srcsetBuilder.inferSrcSet(`${basePath}.webp`),
+      srcSet:
+        srcSet !== undefined
+          ? srcsetBuilder.replaceSrcSetExtension(srcSet, ext, "webp")
+          : srcsetBuilder.inferSrcSet(`${basePath}.webp`),
       sizes,
     });
   }

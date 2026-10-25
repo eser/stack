@@ -190,9 +190,8 @@ export const classifyWireError = (
   kind?: string,
   statusCode?: number,
 ): AiError => {
-  const status = statusCode !== undefined && statusCode > 0
-    ? statusCode
-    : undefined;
+  const status =
+    statusCode !== undefined && statusCode > 0 ? statusCode : undefined;
 
   const ErrorClass = kind === undefined ? undefined : WIRE_KINDS.get(kind);
 

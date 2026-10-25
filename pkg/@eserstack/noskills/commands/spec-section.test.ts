@@ -37,7 +37,8 @@ const runNoskills = async (
 
   return {
     code: result.code,
-    output: new TextDecoder().decode(result.stdout) +
+    output:
+      new TextDecoder().decode(result.stdout) +
       new TextDecoder().decode(result.stderr),
   };
 };
@@ -97,46 +98,43 @@ bdd.describe("noskills spec <name> section", () => {
     assert.assertStringIncludes(output, `spec ${SPEC} section <id> fill`);
   });
 
-  bdd.it(
-    "fill writes the text into spec.md and both state files",
-    async () => {
-      // `next` makes state.json name the spec, as an agent's session does.
-      const next = await runNoskills(root, ["spec", SPEC, "next"]);
-      assert.assertEquals(next.code, 0, next.output);
+  bdd.it("fill writes the text into spec.md and both state files", async () => {
+    // `next` makes state.json name the spec, as an agent's session does.
+    const next = await runNoskills(root, ["spec", SPEC, "next"]);
+    assert.assertEquals(next.code, 0, next.output);
 
-      const { code, output } = await section(
-        root,
-        "summary",
-        "fill",
-        "Users upload photos from their phones.",
-      );
-      assert.assertEquals(code, 0, output);
-      assert.assertStringIncludes(output, "Section filled: ");
-      assert.assertStringIncludes(output, "Summary");
+    const { code, output } = await section(
+      root,
+      "summary",
+      "fill",
+      "Users upload photos from their phones.",
+    );
+    assert.assertEquals(code, 0, output);
+    assert.assertStringIncludes(output, "Section filled: ");
+    assert.assertStringIncludes(output, "Summary");
 
-      assert.assertEquals(
-        (await placeholderOf(root, "summary"))?.status,
-        "filled",
-      );
-      const global = await persistence.readState(root);
-      assert.assertEquals(
-        global.specState.placeholders.find((p) => p.sectionId === "summary")
-          ?.status,
-        "filled",
-      );
+    assert.assertEquals(
+      (await placeholderOf(root, "summary"))?.status,
+      "filled",
+    );
+    const global = await persistence.readState(root);
+    assert.assertEquals(
+      global.specState.placeholders.find((p) => p.sectionId === "summary")
+        ?.status,
+      "filled",
+    );
 
-      const markdown = await specMarkdown(root);
-      assert.assertStringIncludes(
-        markdown,
-        "Users upload photos from their phones.",
-      );
-      assert.assertEquals(
-        markdown.includes("<!-- PLACEHOLDER:summary -->"),
-        false,
-      );
-      assert.assertStringIncludes(markdown, "- ✓ Summary");
-    },
-  );
+    const markdown = await specMarkdown(root);
+    assert.assertStringIncludes(
+      markdown,
+      "Users upload photos from their phones.",
+    );
+    assert.assertEquals(
+      markdown.includes("<!-- PLACEHOLDER:summary -->"),
+      false,
+    );
+    assert.assertStringIncludes(markdown, "- ✓ Summary");
+  });
 
   bdd.it("na records the reason in spec.md and the state", async () => {
     const { code, output } = await section(root, "premises", "na", REASON);
@@ -159,15 +157,13 @@ bdd.describe("noskills spec <name> section", () => {
   });
 
   bdd.it("refuses an empty text, a short reason and a bad action", async () => {
-    for (
-      const [args, expected] of [
-        [["summary", "fill"], "Please provide the section text."],
-        [["summary", "fill", "  "], "Please provide the section text."],
-        [["premises", "na"], "Please provide the reason"],
-        [["premises", "na", "too short"], "too short (9 chars, minimum 20)"],
-        [["summary", "bogus", "x"], "Usage:"],
-      ] as const
-    ) {
+    for (const [args, expected] of [
+      [["summary", "fill"], "Please provide the section text."],
+      [["summary", "fill", "  "], "Please provide the section text."],
+      [["premises", "na"], "Please provide the reason"],
+      [["premises", "na", "too short"], "too short (9 chars, minimum 20)"],
+      [["summary", "bogus", "x"], "Usage:"],
+    ] as const) {
       // One command at a time, so a failure names it.
       // deno-lint-ignore no-await-in-loop
       const { code, output } = await section(root, ...args);
@@ -212,8 +208,8 @@ bdd.describe("noskills spec <name> section", () => {
 
   bdd.it("resolves every section so validate passes", async () => {
     const state = await persistence.readSpecState(root, SPEC);
-    const open = (state?.specState.placeholders ?? []).filter((p) =>
-      p.status === "placeholder"
+    const open = (state?.specState.placeholders ?? []).filter(
+      (p) => p.status === "placeholder",
     );
     assert.assertNotEquals(open.length, 0);
 

@@ -115,7 +115,8 @@ export type HttpErrorFactory = (message?: string) => HttpError;
  * Creates an error factory function for a specific HTTP status code.
  */
 const createErrorFactory =
-  (status: ErrorStatus): HttpErrorFactory => (message?: string): HttpError =>
+  (status: ErrorStatus): HttpErrorFactory =>
+  (message?: string): HttpError =>
     new HttpError(status, message);
 
 /** Creates an HttpError for a 400 Bad Request response. */

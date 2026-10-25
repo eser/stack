@@ -49,8 +49,9 @@ Deno.test("parseChangelogText reads a bracketed '## [<version>] - <date>' headin
 // vanished from the parse entirely.
 Deno.test("parseChangelogText reads a v-prefixed '## [v<version>]' heading", () => {
   const entries = releaseNotes.parseChangelogText(
-    ["## [v4.1.61] - 2025-01-01", "", "- fix: a legacy-style section", ""]
-      .join("\n"),
+    ["## [v4.1.61] - 2025-01-01", "", "- fix: a legacy-style section", ""].join(
+      "\n",
+    ),
   );
 
   assert.assertEquals(entries.length, 1);
@@ -79,11 +80,10 @@ Deno.test("parseChangelogText keeps all three heading styles in file order", () 
     ].join("\n"),
   );
 
-  assert.assertEquals(entries.map((entry) => entry.tag), [
-    "v4.3.0",
-    "v4.2.0",
-    "v4.1.61",
-  ]);
+  assert.assertEquals(
+    entries.map((entry) => entry.tag),
+    ["v4.3.0", "v4.2.0", "v4.1.61"],
+  );
 });
 
 // =============================================================================
@@ -110,7 +110,10 @@ Deno.test("parseChangelogText skips Unreleased in both heading styles", () => {
     ].join("\n"),
   );
 
-  assert.assertEquals(entries.map((entry) => entry.version), ["4.3.0"]);
+  assert.assertEquals(
+    entries.map((entry) => entry.version),
+    ["4.3.0"],
+  );
 });
 
 // =============================================================================

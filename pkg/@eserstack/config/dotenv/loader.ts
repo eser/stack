@@ -160,7 +160,8 @@ export const load = async (
   );
 
   const sysVars = crossRuntime.runtime.env.toObject();
-  const envName = options_.env ??
+  const envName =
+    options_.env ??
     getEnvName(sysVars, options_.envVars, options_.defaultEnvValue);
 
   const vars = new Map<typeof base.env | string, string>();

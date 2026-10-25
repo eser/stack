@@ -49,8 +49,7 @@ export const main = async (
   if (!ALLOWED_PHASES.has(state.phase)) {
     return results.fail({
       exitCode: 1,
-      message:
-        `Spec must be in SPEC_PROPOSAL, SPEC_APPROVED, or EXECUTING to export a plan (current: ${state.phase}).`,
+      message: `Spec must be in SPEC_PROPOSAL, SPEC_APPROVED, or EXECUTING to export a plan (current: ${state.phase}).`,
     });
   }
 

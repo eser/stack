@@ -47,7 +47,7 @@ const hashContent = (content: string): string => {
   let hash = 0;
   for (let i = 0; i < content.length; i++) {
     const chr = content.charCodeAt(i);
-    hash = ((hash << 5) - hash) + chr;
+    hash = (hash << 5) - hash + chr;
     hash |= 0;
   }
   return Math.abs(hash).toString(36);
@@ -128,7 +128,8 @@ const scanMarkdownFile = async (
     // ASCII diagrams (lines with box-drawing characters)
     if (
       /[┌─┬┐│└┴┘╔═╗║╚╝╭╮╰╯]/.test(line) &&
-      lines[i + 1] !== undefined && /[┌─┬┐│└┴┘╔═╗║╚╝╭╮╰╯]/.test(lines[i + 1]!)
+      lines[i + 1] !== undefined &&
+      /[┌─┬┐│└┴┘╔═╗║╚╝╭╮╰╯]/.test(lines[i + 1]!)
     ) {
       // Collect contiguous ASCII art lines
       let asciiContent = "";
@@ -202,9 +203,7 @@ export const scanProject = async (
   try {
     for await (const entry of runtime.fs.readDir(root)) {
       if (entry.isFile && entry.name.endsWith(".puml")) {
-        const content = await runtime.fs.readTextFile(
-          `${root}/${entry.name}`,
-        );
+        const content = await runtime.fs.readTextFile(`${root}/${entry.name}`);
         entries.push({
           file: entry.name,
           line: 1,
@@ -231,9 +230,7 @@ export const readRegistry = async (
   root: string,
 ): Promise<readonly DiagramEntry[]> => {
   try {
-    const content = await runtime.fs.readTextFile(
-      `${root}/${DIAGRAMS_FILE}`,
-    );
+    const content = await runtime.fs.readTextFile(`${root}/${DIAGRAMS_FILE}`);
     return JSON.parse(content) as DiagramEntry[];
   } catch {
     return [];
@@ -287,9 +284,7 @@ export const checkStaleness = async (
   const registry = await readRegistry(root);
   if (registry.length === 0) return [];
 
-  const modSet = new Set(
-    modifiedFiles.map((f) => f.replace(/^\.\//, "")),
-  );
+  const modSet = new Set(modifiedFiles.map((f) => f.replace(/^\.\//, "")));
 
   const stale: StaleDiagram[] = [];
 

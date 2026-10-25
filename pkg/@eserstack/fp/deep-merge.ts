@@ -91,7 +91,7 @@ export type DeepMergeOptions = {
 export const deepMerge = <
   T1 extends ObjectType,
   T2 extends ObjectType | undefined | null,
-  TR extends T2 extends ObjectType ? T1 & T2 : T1,
+  TR extends (T2 extends ObjectType ? T1 & T2 : T1),
 >(
   instance: T1,
   other: T2,
@@ -165,18 +165,18 @@ export const deepMerge = <
       for (let i = 0, len = instKeys.length; i < len; i++) {
         const itemKey = instKeys[i]!;
         const recordValue = inst[itemKey];
-        const otherKeyExists = (oth !== undefined) && (itemKey in oth);
+        const otherKeyExists = oth !== undefined && itemKey in oth;
         const otherValue = oth?.[itemKey];
 
         processedKeys.add(itemKey);
 
         // Skip undefined values in source unless noSkipUndefined is true
-        const shouldSkipOther = otherKeyExists &&
-          otherValue === undefined &&
-          !noSkipUndefined;
+        const shouldSkipOther =
+          otherKeyExists && otherValue === undefined && !noSkipUndefined;
 
         if (
-          recordValue instanceof Object && recordValue.constructor !== Array
+          recordValue instanceof Object &&
+          recordValue.constructor !== Array
         ) {
           let mergedValue: unknown;
 
@@ -188,7 +188,8 @@ export const deepMerge = <
               currentDepth + 1,
             );
           } else if (
-            otherKeyExists && otherValue instanceof Object &&
+            otherKeyExists &&
+            otherValue instanceof Object &&
             otherValue.constructor !== Array
           ) {
             // Both are objects - merge recursively
@@ -240,9 +241,7 @@ export const deepMerge = <
         }
 
         // For nested objects in 'other', we need to check for circular references
-        if (
-          otherValue instanceof Object && otherValue.constructor !== Array
-        ) {
+        if (otherValue instanceof Object && otherValue.constructor !== Array) {
           result[itemKey] = mergeRecursive(
             {} as U1,
             otherValue,

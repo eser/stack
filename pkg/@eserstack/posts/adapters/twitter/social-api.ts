@@ -42,9 +42,9 @@ const TWEET_ID_PATTERN = /^[0-9]{1,19}$/;
 const requireTweetId = (id: PostId): string => {
   if (!TWEET_ID_PATTERN.test(id)) {
     throw new Error(
-      `Twitter/X post ID ${
-        JSON.stringify(id)
-      } is not numeric; use the digits at the end of the post URL, such as 1460323737035677698`,
+      `Twitter/X post ID ${JSON.stringify(
+        id,
+      )} is not numeric; use the digits at the end of the post URL, such as 1460323737035677698`,
     );
   }
   return id;
@@ -61,15 +61,12 @@ export class TwitterSocialApi implements SocialApi {
     this.client = client;
   }
 
-  async createPost(
-    params: { text: string },
-  ): Promise<{ id: PostId; platformRef?: Record<string, string> }> {
+  async createPost(params: {
+    text: string;
+  }): Promise<{ id: PostId; platformRef?: Record<string, string> }> {
     const response = await this.client.post<
       TwitterApiSingleResponse<TwitterApiTweet>
-    >(
-      "/tweets",
-      { text: params.text },
-    );
+    >("/tweets", { text: params.text });
     return { id: postId.toPostId(response.data.id) };
   }
 
@@ -81,10 +78,7 @@ export class TwitterSocialApi implements SocialApi {
     if (this.cachedMe !== undefined) return this.cachedMe;
     const response = await this.client.get<
       TwitterApiSingleResponse<TwitterApiUser>
-    >(
-      "/users/me",
-      { "user.fields": USER_FIELDS },
-    );
+    >("/users/me", { "user.fields": USER_FIELDS });
     this.cachedMe = mappers.mapToDomainUser(response.data);
     return this.cachedMe;
   }
@@ -93,7 +87,7 @@ export class TwitterSocialApi implements SocialApi {
     const me = await this.getMe();
     const queryParams: Record<string, string> = {
       "tweet.fields": POST_FIELDS,
-      "expansions": EXPANSIONS,
+      expansions: EXPANSIONS,
       "user.fields": USER_FIELDS,
     };
     if (params.maxResults !== undefined) {
@@ -102,10 +96,7 @@ export class TwitterSocialApi implements SocialApi {
 
     const response = await this.client.get<
       TwitterApiListResponse<TwitterApiTweet>
-    >(
-      `/users/${me.id}/tweets`,
-      queryParams,
-    );
+    >(`/users/${me.id}/tweets`, queryParams);
 
     const tweets = response.data ?? [];
     const users = response.includes?.users ?? [];
@@ -117,9 +108,10 @@ export class TwitterSocialApi implements SocialApi {
     }
 
     return tweets.map((tweet) => {
-      const authorHandle = tweet.author_id !== undefined
-        ? (handleById.get(tweet.author_id) ?? handle.toHandle("unknown"))
-        : handle.toHandle("unknown");
+      const authorHandle =
+        tweet.author_id !== undefined
+          ? (handleById.get(tweet.author_id) ?? handle.toHandle("unknown"))
+          : handle.toHandle("unknown");
       return mappers.mapToDomainPost(tweet, authorHandle);
     });
   }
@@ -127,40 +119,36 @@ export class TwitterSocialApi implements SocialApi {
   async getPost(id: PostId): Promise<Post> {
     const response = await this.client.get<
       TwitterApiSingleResponse<TwitterApiTweet>
-    >(
-      `/tweets/${requireTweetId(id)}`,
-      {
-        "tweet.fields": POST_FIELDS,
-        expansions: EXPANSIONS,
-        "user.fields": USER_FIELDS,
-      },
-    );
+    >(`/tweets/${requireTweetId(id)}`, {
+      "tweet.fields": POST_FIELDS,
+      expansions: EXPANSIONS,
+      "user.fields": USER_FIELDS,
+    });
     const users = response.includes?.users ?? [];
     const authorUser = users.find((u) => u.id === response.data.author_id);
-    const authorHandle = authorUser !== undefined
-      ? handle.toHandle(authorUser.username)
-      : handle.toHandle("unknown");
+    const authorHandle =
+      authorUser !== undefined
+        ? handle.toHandle(authorUser.username)
+        : handle.toHandle("unknown");
     return mappers.mapToDomainPost(response.data, authorHandle);
   }
 
-  async replyToPost(
-    params: { text: string; inReplyToPost: Post },
-  ): Promise<{ id: PostId; platformRef?: Record<string, string> }> {
+  async replyToPost(params: {
+    text: string;
+    inReplyToPost: Post;
+  }): Promise<{ id: PostId; platformRef?: Record<string, string> }> {
     const response = await this.client.post<
       TwitterApiSingleResponse<TwitterApiTweet>
-    >(
-      "/tweets",
-      {
-        text: params.text,
-        reply: { in_reply_to_tweet_id: params.inReplyToPost.id },
-      },
-    );
+    >("/tweets", {
+      text: params.text,
+      reply: { in_reply_to_tweet_id: params.inReplyToPost.id },
+    });
     return { id: postId.toPostId(response.data.id) };
   }
 
-  async postThread(
-    params: { texts: ReadonlyArray<string> },
-  ): Promise<results.Result<{ posts: Post[] }, Error>> {
+  async postThread(params: {
+    texts: ReadonlyArray<string>;
+  }): Promise<results.Result<{ posts: Post[] }, Error>> {
     let me;
     try {
       me = await this.getMe();
@@ -173,9 +161,10 @@ export class TwitterSocialApi implements SocialApi {
     let conversationId: PostId | undefined;
 
     for (const text of params.texts) {
-      const body = previousId !== undefined
-        ? { text, reply: { in_reply_to_tweet_id: previousId } }
-        : { text };
+      const body =
+        previousId !== undefined
+          ? { text, reply: { in_reply_to_tweet_id: previousId } }
+          : { text };
 
       let response: TwitterApiSingleResponse<TwitterApiTweet>;
       try {
@@ -183,10 +172,7 @@ export class TwitterSocialApi implements SocialApi {
         // deno-lint-ignore no-await-in-loop
         response = await this.client.post<
           TwitterApiSingleResponse<TwitterApiTweet>
-        >(
-          "/tweets",
-          body,
-        );
+        >("/tweets", body);
       } catch (err) {
         return results.fail(
           new threadPostError.ThreadPartialError(
@@ -220,9 +206,10 @@ export class TwitterSocialApi implements SocialApi {
    * Fetch replies via conversation_id search.
    * @throws {Error} if the account does not have Basic API tier access.
    */
-  async getConversation(
-    params: { postId: PostId; maxResults?: number },
-  ): Promise<Post[]> {
+  async getConversation(params: {
+    postId: PostId;
+    maxResults?: number;
+  }): Promise<Post[]> {
     const queryParams: Record<string, string> = {
       query: `conversation_id:${requireTweetId(params.postId)}`,
       "tweet.fields": POST_FIELDS,
@@ -235,10 +222,7 @@ export class TwitterSocialApi implements SocialApi {
 
     const response = await this.client.get<
       TwitterApiListResponse<TwitterApiTweet>
-    >(
-      "/tweets/search/recent",
-      queryParams,
-    );
+    >("/tweets/search/recent", queryParams);
 
     const tweets = response.data ?? [];
     const users = response.includes?.users ?? [];
@@ -249,9 +233,10 @@ export class TwitterSocialApi implements SocialApi {
     }
 
     return tweets.map((tweet) => {
-      const authorHandle = tweet.author_id !== undefined
-        ? (handleById.get(tweet.author_id) ?? handle.toHandle("unknown"))
-        : handle.toHandle("unknown");
+      const authorHandle =
+        tweet.author_id !== undefined
+          ? (handleById.get(tweet.author_id) ?? handle.toHandle("unknown"))
+          : handle.toHandle("unknown");
       return mappers.mapToDomainPost(tweet, authorHandle);
     });
   }
@@ -283,24 +268,23 @@ export class TwitterSocialApi implements SocialApi {
     await this.client.delete(`/users/${me.id}/retweets/${tweetId}`);
   }
 
-  async quotePost(
-    params: { text: string; quotedPostId: PostId },
-  ): Promise<{ id: PostId }> {
+  async quotePost(params: {
+    text: string;
+    quotedPostId: PostId;
+  }): Promise<{ id: PostId }> {
     const response = await this.client.post<
       TwitterApiSingleResponse<TwitterApiTweet>
-    >(
-      "/tweets",
-      {
-        text: params.text,
-        quote_tweet_id: requireTweetId(params.quotedPostId),
-      },
-    );
+    >("/tweets", {
+      text: params.text,
+      quote_tweet_id: requireTweetId(params.quotedPostId),
+    });
     return { id: postId.toPostId(response.data.id) };
   }
 
-  async searchPosts(
-    params: { query: string; maxResults?: number },
-  ): Promise<Post[]> {
+  async searchPosts(params: {
+    query: string;
+    maxResults?: number;
+  }): Promise<Post[]> {
     const queryParams: Record<string, string> = {
       query: params.query,
       "tweet.fields": POST_FIELDS,
@@ -324,9 +308,10 @@ export class TwitterSocialApi implements SocialApi {
     }
 
     return tweets.map((tweet) => {
-      const authorHandle = tweet.author_id !== undefined
-        ? (handleById.get(tweet.author_id) ?? handle.toHandle("unknown"))
-        : handle.toHandle("unknown");
+      const authorHandle =
+        tweet.author_id !== undefined
+          ? (handleById.get(tweet.author_id) ?? handle.toHandle("unknown"))
+          : handle.toHandle("unknown");
       return mappers.mapToDomainPost(tweet, authorHandle);
     });
   }
@@ -370,9 +355,10 @@ export class TwitterSocialApi implements SocialApi {
     }
 
     return tweets.map((tweet) => {
-      const authorHandle = tweet.author_id !== undefined
-        ? (handleById.get(tweet.author_id) ?? handle.toHandle("unknown"))
-        : handle.toHandle("unknown");
+      const authorHandle =
+        tweet.author_id !== undefined
+          ? (handleById.get(tweet.author_id) ?? handle.toHandle("unknown"))
+          : handle.toHandle("unknown");
       return mappers.mapToDomainPost(tweet, authorHandle);
     });
   }

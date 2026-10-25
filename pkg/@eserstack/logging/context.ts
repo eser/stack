@@ -33,9 +33,7 @@ const getDefaultContextStorage = (): ContextLocalStorage => {
  */
 const getDefaultCategoryPrefixStorage = (): ContextLocalStorage<Category> => {
   if (defaultCategoryPrefixStorage === undefined) {
-    defaultCategoryPrefixStorage = new asyncHooks.AsyncLocalStorage<
-      Category
-    >();
+    defaultCategoryPrefixStorage = new asyncHooks.AsyncLocalStorage<Category>();
   }
 
   return defaultCategoryPrefixStorage;
@@ -241,7 +239,7 @@ export const applyPrefixToCategory = (baseCategory: Category): Category => {
  */
 export const createContextScope = (
   context: Record<string, unknown>,
-): <T>(fn: () => T) => T => {
+): (<T>(fn: () => T) => T) => {
   return <T>(fn: () => T): T => withContext(context, fn);
 };
 
@@ -262,7 +260,7 @@ export const createContextScope = (
  */
 export const createCategoryPrefixScope = (
   prefix: string | Category,
-): <T>(fn: () => T) => T => {
+): (<T>(fn: () => T) => T) => {
   return <T>(fn: () => T): T => withCategoryPrefix(prefix, fn);
 };
 

@@ -72,12 +72,14 @@ const tuiToCompose: handler.Adapter<TuiInput, appHandlers.ComposeInput> = (
   return results.ok({ text: textResult.value, platform: input.platform });
 };
 
-const tuiToComposeAll: handler.Adapter<TuiInput, appHandlers.ComposeAllInput> =
-  (input) => {
-    const textResult = requireText(input);
-    if (results.isFail(textResult)) return textResult;
-    return results.ok({ text: textResult.value });
-  };
+const tuiToComposeAll: handler.Adapter<
+  TuiInput,
+  appHandlers.ComposeAllInput
+> = (input) => {
+  const textResult = requireText(input);
+  if (results.isFail(textResult)) return textResult;
+  return results.ok({ text: textResult.value });
+};
 
 const tuiToGetPost: handler.Adapter<TuiInput, appHandlers.GetPostInput> = (
   input,
@@ -105,15 +107,15 @@ const tuiToReply: handler.Adapter<TuiInput, appHandlers.ReplyInput> = (
   });
 };
 
-const tuiToPostThread: handler.Adapter<TuiInput, appHandlers.PostThreadInput> =
-  (input) => {
-    if (!input.texts || input.texts.length < 2) {
-      return results.fail(
-        handler.adaptError("Thread requires at least 2 posts"),
-      );
-    }
-    return results.ok({ texts: input.texts, platform: input.platform });
-  };
+const tuiToPostThread: handler.Adapter<
+  TuiInput,
+  appHandlers.PostThreadInput
+> = (input) => {
+  if (!input.texts || input.texts.length < 2) {
+    return results.fail(handler.adaptError("Thread requires at least 2 posts"));
+  }
+  return results.ok({ texts: input.texts, platform: input.platform });
+};
 
 const tuiToRepost: handler.Adapter<TuiInput, appHandlers.RepostInput> = (
   input,
@@ -125,17 +127,19 @@ const tuiToRepost: handler.Adapter<TuiInput, appHandlers.RepostInput> = (
   return results.ok({ id: postIdResult.value, platform: platformResult.value });
 };
 
-const tuiToUndoRepost: handler.Adapter<TuiInput, appHandlers.UndoRepostInput> =
-  (input) => {
-    const postIdResult = requirePostId(input);
-    if (results.isFail(postIdResult)) return postIdResult;
-    const platformResult = requirePlatform(input);
-    if (results.isFail(platformResult)) return platformResult;
-    return results.ok({
-      id: postIdResult.value,
-      platform: platformResult.value,
-    });
-  };
+const tuiToUndoRepost: handler.Adapter<
+  TuiInput,
+  appHandlers.UndoRepostInput
+> = (input) => {
+  const postIdResult = requirePostId(input);
+  if (results.isFail(postIdResult)) return postIdResult;
+  const platformResult = requirePlatform(input);
+  if (results.isFail(platformResult)) return platformResult;
+  return results.ok({
+    id: postIdResult.value,
+    platform: platformResult.value,
+  });
+};
 
 const tuiToQuotePost: handler.Adapter<TuiInput, appHandlers.QuotePostInput> = (
   input,
@@ -171,9 +175,7 @@ const tuiToSearchPosts: handler.Adapter<
 const tuiToSearchPostsAll: handler.Adapter<
   TuiInput,
   appHandlers.SearchPostsAllInput
-> = (
-  input,
-) => {
+> = (input) => {
   const textResult = requireText(input);
   if (results.isFail(textResult)) return textResult;
   return results.ok({
@@ -219,9 +221,7 @@ const tuiToBookmarkPost: handler.Adapter<
 const tuiToRemoveBookmark: handler.Adapter<
   TuiInput,
   appHandlers.RemoveBookmarkInput
-> = (
-  input,
-) => {
+> = (input) => {
   const postIdResult = requirePostId(input);
   if (results.isFail(postIdResult)) return postIdResult;
   const platformResult = requirePlatform(input);
@@ -232,9 +232,7 @@ const tuiToRemoveBookmark: handler.Adapter<
 const tuiToTranslateAndPost: handler.Adapter<
   TuiInput,
   appHandlers.TranslateAndPostInput
-> = (
-  input,
-) => {
+> = (input) => {
   const textResult = requireText(input);
   if (results.isFail(textResult)) return textResult;
   if (!input.from) {

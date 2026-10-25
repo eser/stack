@@ -29,8 +29,7 @@ export const modExportsValidator: Validator = {
       passed: result.isComplete,
       issues: result.missingExports.map((missing) => ({
         severity: "error",
-        message:
-          `${missing.packageName}: ${missing.file} is not reached from mod.ts, the exports or another entry point; export it or remove it`,
+        message: `${missing.packageName}: ${missing.file} is not reached from mod.ts, the exports or another entry point; export it or remove it`,
         file: missing.file,
       })),
       stats: { packagesChecked: result.packagesChecked },

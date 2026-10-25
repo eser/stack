@@ -13,7 +13,9 @@ export interface Translator {
    * Translate text from one language to another.
    * Language codes follow BCP 47 (e.g., "tr", "en", "de").
    */
-  translate(
-    params: { text: string; from: string; to: string },
-  ): Promise<results.Result<string, Error>>;
+  translate(params: {
+    text: string;
+    from: string;
+    to: string;
+  }): Promise<results.Result<string, Error>>;
 }

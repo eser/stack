@@ -61,9 +61,7 @@ function pathToFileUrl(filePath: string): string {
 /**
  * Load user configuration file if it exists
  */
-async function loadUserConfig(
-  projectRoot: string,
-): Promise<UserConfig | null> {
+async function loadUserConfig(projectRoot: string): Promise<UserConfig | null> {
   const configPath = runtime.path.join(projectRoot, "laroux.config.ts");
 
   if (await runtime.fs.exists(configPath)) {
@@ -73,9 +71,9 @@ async function loadUserConfig(
       const mod = await import(fileUrl);
       return mod.default ?? {};
     } catch (error) {
-      configLogger.with({ error }).warn(
-        `load ${configPath}; using the default configuration`,
-      );
+      configLogger
+        .with({ error })
+        .warn(`load ${configPath}; using the default configuration`);
       return null;
     }
   }

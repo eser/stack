@@ -64,9 +64,9 @@ const summaryLines = (summary: ledger.LedgerSummary | null): string[] => {
     `- Resolved decisions: ${summary.resolved_decisions} (ratified ${breakdown?.ratified}, inferred ${breakdown?.inferred}, default ${breakdown?.default})`,
     `- Open questions: ${summary.open_questions}`,
     `- Named artifacts: ${summary.specificity?.named_artifacts_count}`,
-    `- Acceptance criteria: ${
-      presence(summary.specificity?.acceptance_criteria_present)
-    }`,
+    `- Acceptance criteria: ${presence(
+      summary.specificity?.acceptance_criteria_present,
+    )}`,
     `- Out of scope: ${presence(summary.specificity?.out_of_scope_present)}`,
   ];
 };
@@ -101,9 +101,10 @@ export const formatLedger = (
     return formatter.format(output, fmt);
   }
 
-  const decisions = output.records.length === 0
-    ? ["No decisions recorded."]
-    : output.records.map((record) => decisionLine(record, record.state));
+  const decisions =
+    output.records.length === 0
+      ? ["No decisions recorded."]
+      : output.records.map((record) => decisionLine(record, record.state));
 
   return layout(fmt, `Decision ledger: ${output.spec}`, [
     ["Decisions", decisions],
@@ -118,9 +119,10 @@ export const formatMeasurementDraft = (
 ): string => {
   if (fmt !== "markdown" && fmt !== "text") return formatter.format(draft, fmt);
 
-  const decisions = draft.guided.decisions.length === 0
-    ? ["No decisions recorded."]
-    : draft.guided.decisions.map((entry) => decisionLine(entry, entry.phase));
+  const decisions =
+    draft.guided.decisions.length === 0
+      ? ["No decisions recorded."]
+      : draft.guided.decisions.map((entry) => decisionLine(entry, entry.phase));
 
   return layout(fmt, draft.title, [["Decisions", decisions]]);
 };
@@ -131,7 +133,8 @@ const parseShape = (args: readonly string[]): LedgerShape => {
     if (arg.startsWith("--format=")) {
       const value = arg.slice("--format=".length).toLowerCase();
       if (
-        value === "measurement-draft" || value === "measurement" ||
+        value === "measurement-draft" ||
+        value === "measurement" ||
         value === "draft"
       ) {
         return "measurement-draft";

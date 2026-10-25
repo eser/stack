@@ -41,9 +41,7 @@ export class WalkStream implements AsyncIterable<FileEntry>, AsyncDisposable {
     }
 
     while (true) {
-      const raw = lib.symbols.EserAjanCodebaseWalkFilesStreamRead(
-        this.#handle,
-      );
+      const raw = lib.symbols.EserAjanCodebaseWalkFilesStreamRead(this.#handle);
 
       if (raw === "null") {
         break;
@@ -90,9 +88,7 @@ export const walkFilesStream = async (
   const lib = ffiClient.getLib();
 
   if (lib === null) {
-    throw new Error(
-      "FFI library unavailable — cannot create walk stream",
-    );
+    throw new Error("FFI library unavailable — cannot create walk stream");
   }
 
   const raw = lib.symbols.EserAjanCodebaseWalkFilesStreamCreate(

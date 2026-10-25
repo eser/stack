@@ -40,9 +40,10 @@ export function mapToDomainPost(
   raw: TwitterApiTweet,
   authorHandle: Handle,
 ): Post {
-  const conversationId = raw.conversation_id !== undefined
-    ? postId.toPostId(raw.conversation_id)
-    : undefined;
+  const conversationId =
+    raw.conversation_id !== undefined
+      ? postId.toPostId(raw.conversation_id)
+      : undefined;
   const referencedPosts = raw.referenced_tweets?.flatMap((rt) => {
     const type = toReferenceType(rt.type);
     if (type === undefined) return [];
@@ -53,9 +54,8 @@ export function mapToDomainPost(
     id: postId.toPostId(raw.id),
     text: raw.text,
     authorHandle,
-    createdAt: raw.created_at !== undefined
-      ? new Date(raw.created_at)
-      : new Date(0),
+    createdAt:
+      raw.created_at !== undefined ? new Date(raw.created_at) : new Date(0),
     platform: "twitter",
     ...(conversationId !== undefined && { conversationId }),
     ...(referencedPosts !== undefined && { referencedPosts }),
@@ -86,9 +86,10 @@ export function mapToOAuthTokens(raw: TwitterApiOAuthToken): OAuthTokens {
   return {
     accessToken: raw.access_token,
     refreshToken: raw.refresh_token,
-    expiresAt: raw.expires_in !== undefined
-      ? new Date(Date.now() + raw.expires_in * 1000)
-      : undefined,
+    expiresAt:
+      raw.expires_in !== undefined
+        ? new Date(Date.now() + raw.expires_in * 1000)
+        : undefined,
   };
 }
 

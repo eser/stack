@@ -186,7 +186,7 @@ async function encodeValue(
   if (Array.isArray(value)) {
     return await Promise.all(
       value.map((item, index) =>
-        encodeValue(item, context, `${path}[${index}]`, innerAncestors)
+        encodeValue(item, context, `${path}[${index}]`, innerAncestors),
       ),
     );
   }
@@ -220,7 +220,7 @@ async function encodeValue(
             `${path}[map value ${index}]`,
             innerAncestors,
           ),
-        ])
+        ]),
       ),
     );
     addChunk(context, { type: "J", id, value: entries });
@@ -236,7 +236,7 @@ async function encodeValue(
           context,
           `${path}[set value ${index}]`,
           innerAncestors,
-        )
+        ),
       ),
     );
     addChunk(context, { type: "J", id, value: items });
@@ -259,11 +259,12 @@ async function encodeValue(
   }
 
   const entries = await Promise.all(
-    Object.entries(object).map(async ([key, item]) =>
-      [
-        key,
-        await encodeValue(item, context, `${path}.${key}`, innerAncestors),
-      ] as const
+    Object.entries(object).map(
+      async ([key, item]) =>
+        [
+          key,
+          await encodeValue(item, context, `${path}.${key}`, innerAncestors),
+        ] as const,
     ),
   );
   return Object.fromEntries(entries);
@@ -346,7 +347,8 @@ async function renderElement(
 
     // Client component (type is a client reference object)
     if (
-      type !== null && typeof type === "object" &&
+      type !== null &&
+      typeof type === "object" &&
       protocol.isClientReference(type)
     ) {
       const moduleId = type.$$id;
@@ -403,9 +405,11 @@ async function renderElement(
         // Handled here: logged once, and the client receives the error chunk
         // in place of the component.
         const id = context.nextId++;
-        flightLogger.with({ error }).error(
-          "render RSC: a forwardRef component threw; sent an error chunk in its place",
-        );
+        flightLogger
+          .with({ error })
+          .error(
+            "render RSC: a forwardRef component threw; sent an error chunk in its place",
+          );
         addChunk(context, {
           type: "E",
           id,
@@ -449,9 +453,11 @@ async function renderElement(
               context.pendingChunks.delete(id);
             })
             .catch((error) => {
-              flightLogger.with({ error }).error(
-                "render RSC: an async server component rejected; sent an error chunk in its place",
-              );
+              flightLogger
+                .with({ error })
+                .error(
+                  "render RSC: an async server component rejected; sent an error chunk in its place",
+                );
               addChunk(context, {
                 type: "E",
                 id,
@@ -471,9 +477,11 @@ async function renderElement(
         // Handled here: logged once, and the client receives the error chunk
         // in place of the component.
         const id = context.nextId++;
-        flightLogger.with({ error }).error(
-          "render RSC: a server component threw; sent an error chunk in its place",
-        );
+        flightLogger
+          .with({ error })
+          .error(
+            "render RSC: a server component threw; sent an error chunk in its place",
+          );
         addChunk(context, {
           type: "E",
           id,
@@ -531,9 +539,11 @@ async function renderElement(
   } catch (error) {
     // Handled here: React cannot render the object either, so the child
     // renders as nothing and the render goes on.
-    flightLogger.with({ error }).warn(
-      "render RSC: a child object cannot be encoded as JSON; rendering null in its place",
-    );
+    flightLogger
+      .with({ error })
+      .warn(
+        "render RSC: a child object cannot be encoded as JSON; rendering null in its place",
+      );
     value = null;
   }
   addChunk(context, { type: "J", id, value });
@@ -579,7 +589,9 @@ async function renderProps(
         );
         renderedProps[key] = childIds.map((childId) => `$${childId}`);
       } else if (
-        value !== null && typeof value === "object" && "$$typeof" in value
+        value !== null &&
+        typeof value === "object" &&
+        "$$typeof" in value
       ) {
         // It's a React element - render it, in prop order like above
         // deno-lint-ignore no-await-in-loop
@@ -638,9 +650,9 @@ function createRenderStream(
       controller.enqueue(bytes);
     } catch (error) {
       if (!streamClosed) {
-        flightLogger.with({ error }).error(
-          `emit RSC chunk ${chunk.id}; closing the stream`,
-        );
+        flightLogger
+          .with({ error })
+          .error(`emit RSC chunk ${chunk.id}; closing the stream`);
         streamClosed = true;
       }
     }
@@ -687,9 +699,9 @@ function createRenderStream(
           controller.close();
         }
       } catch (error) {
-        flightLogger.with({ error }).error(
-          "render RSC stream; erroring the stream",
-        );
+        flightLogger
+          .with({ error })
+          .error("render RSC stream; erroring the stream");
         if (!streamClosed && controller) {
           streamClosed = true;
           controller.error(error);
@@ -774,9 +786,11 @@ export function renderValueToReadableStream(
     } catch (error) {
       // Handled here: logged once, and the client receives the message as
       // the error of chunk 0.
-      await flightLogger.with({ error }).error(
-        "encode RSC value: the value cannot be sent to the client; sent an error chunk",
-      );
+      await flightLogger
+        .with({ error })
+        .error(
+          "encode RSC value: the value cannot be sent to the client; sent an error chunk",
+        );
       addChunk(context, {
         type: "E",
         id: rootId,

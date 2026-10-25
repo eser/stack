@@ -26,10 +26,7 @@ export const updateSpecStatus = async (
 
   try {
     let content = await runtime.fs.readTextFile(specFile);
-    content = content.replace(
-      /^## Status: .+$/m,
-      `## Status: ${newStatus}`,
-    );
+    content = content.replace(/^## Status: .+$/m, `## Status: ${newStatus}`);
     await runtime.fs.writeTextFile(specFile, content);
   } catch {
     // spec.md doesn't exist yet
@@ -47,10 +44,7 @@ export const markTaskCompleted = async (
   try {
     let content = await runtime.fs.readTextFile(specFile);
     // Replace "- [ ] task-N:" with "- [x] task-N:"
-    const pattern = new RegExp(
-      `^(- )\\[ \\]( ${taskId}:.*)$`,
-      "m",
-    );
+    const pattern = new RegExp(`^(- )\\[ \\]( ${taskId}:.*)$`, "m");
     content = content.replace(pattern, "$1[x]$2");
     await runtime.fs.writeTextFile(specFile, content);
   } catch {
@@ -69,9 +63,9 @@ export const updateProgressTask = async (
   taskId: string,
   status: "pending" | "done",
 ): Promise<void> => {
-  const progressFile = `${root}/${
-    persistence.paths.specDir(specName)
-  }/progress.json`;
+  const progressFile = `${root}/${persistence.paths.specDir(
+    specName,
+  )}/progress.json`;
 
   try {
     const content = await runtime.fs.readTextFile(progressFile);
@@ -102,9 +96,9 @@ export const updateProgressStatus = async (
   specName: string,
   status: string,
 ): Promise<void> => {
-  const progressFile = `${root}/${
-    persistence.paths.specDir(specName)
-  }/progress.json`;
+  const progressFile = `${root}/${persistence.paths.specDir(
+    specName,
+  )}/progress.json`;
 
   try {
     const content = await runtime.fs.readTextFile(progressFile);

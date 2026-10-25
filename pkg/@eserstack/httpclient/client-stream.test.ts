@@ -69,11 +69,10 @@ const collectStream = async (
 
 bdd.describe("HttpClient — requestStream success", () => {
   bdd.it("returns ReadableStream without consuming the body", async () => {
-    const client = makeClient(
-      (_req) =>
-        Promise.resolve(
-          makeStreamResponse(['{"token":"hello"}', '{"token":"world"}']),
-        ),
+    const client = makeClient((_req) =>
+      Promise.resolve(
+        makeStreamResponse(['{"token":"hello"}', '{"token":"world"}']),
+      ),
     );
     const resp = await client.requestStream(
       "POST",
@@ -86,8 +85,8 @@ bdd.describe("HttpClient — requestStream success", () => {
   });
 
   bdd.it("includes retries count on first-attempt success", async () => {
-    const client = makeClient(
-      (_req) => Promise.resolve(makeStreamResponse(["data"])),
+    const client = makeClient((_req) =>
+      Promise.resolve(makeStreamResponse(["data"])),
     );
     const resp = await client.requestStream(
       "POST",
@@ -97,14 +96,13 @@ bdd.describe("HttpClient — requestStream success", () => {
   });
 
   bdd.it("includes rateLimit info when headers are present", async () => {
-    const client = makeClient(
-      (_req) =>
-        Promise.resolve(
-          makeStreamResponse(["data"], 200, {
-            "X-RateLimit-Remaining": "42",
-            "X-RateLimit-Limit": "100",
-          }),
-        ),
+    const client = makeClient((_req) =>
+      Promise.resolve(
+        makeStreamResponse(["data"], 200, {
+          "X-RateLimit-Remaining": "42",
+          "X-RateLimit-Limit": "100",
+        }),
+      ),
     );
     const resp = await client.requestStream(
       "POST",
@@ -159,9 +157,13 @@ bdd.describe("HttpClient — requestStream retry on 429", () => {
         callCount++;
         if (callCount === 1) {
           return Promise.resolve(
-            makeErrorResponse(429, { error: "rate limited" }, {
-              "Retry-After": "2",
-            }),
+            makeErrorResponse(
+              429,
+              { error: "rate limited" },
+              {
+                "Retry-After": "2",
+              },
+            ),
           );
         }
         return Promise.resolve(makeStreamResponse(["ok"]));
@@ -230,12 +232,10 @@ bdd.describe("HttpClient — requestStream non-2xx", () => {
 bdd.describe("HttpClient — postStream convenience", () => {
   bdd.it("delegates to POST requestStream", async () => {
     let capturedMethod: string | undefined;
-    const client = makeClient(
-      (req) => {
-        capturedMethod = (req as Request).method;
-        return Promise.resolve(makeStreamResponse(["data"]));
-      },
-    );
+    const client = makeClient((req) => {
+      capturedMethod = (req as Request).method;
+      return Promise.resolve(makeStreamResponse(["data"]));
+    });
     const resp = await client.postStream("https://example.com/stream");
     assert.assertEquals(resp.status, 200);
     assert.assertEquals(capturedMethod, "POST");
@@ -248,8 +248,8 @@ bdd.describe("HttpClient — postStream convenience", () => {
 
 bdd.describe("HttpClient — requestStreamResult Result wrapping", () => {
   bdd.it("wraps success in Ok", async () => {
-    const client = makeClient(
-      (_req) => Promise.resolve(makeStreamResponse(["data"])),
+    const client = makeClient((_req) =>
+      Promise.resolve(makeStreamResponse(["data"])),
     );
     const r = await client.requestStreamResult(
       "POST",
@@ -299,8 +299,8 @@ bdd.describe("HttpClient — requestStreamResult Result wrapping", () => {
 
 bdd.describe("HttpClient — postStreamResult convenience", () => {
   bdd.it("wraps POST stream success in Ok", async () => {
-    const client = makeClient(
-      (_req) => Promise.resolve(makeStreamResponse(["ndjson"])),
+    const client = makeClient((_req) =>
+      Promise.resolve(makeStreamResponse(["ndjson"])),
     );
     const r = await client.postStreamResult("https://example.com/stream");
     assert.assertEquals(results.isOk(r), true);

@@ -402,7 +402,8 @@ import * as standards from "@eserstack/standards";
 type User = { name: string };
 
 // Simple registry
-const registry = standards.collections.createRegistryBuilder<string, User>()
+const registry = standards.collections
+  .createRegistryBuilder<string, User>()
   .set("alice", { name: "Alice" })
   .setLazy("bob", () => ({ name: "Bob" })) // created on first read
   .build();
@@ -416,15 +417,13 @@ const extended = registry.toBuilder().set("carol", { name: "Carol" }).build();
 // Indexed registry for lookups by a secondary key
 type Format = { name: string; extensions: string[] };
 
-const formats = standards.collections.createIndexedRegistryBuilder<
-  string,
-  Format
->([
-  standards.collections.createExtensionIndex<Format>(
-    "byExtension",
-    (f) => f.extensions,
-  ),
-])
+const formats = standards.collections
+  .createIndexedRegistryBuilder<string, Format>([
+    standards.collections.createExtensionIndex<Format>(
+      "byExtension",
+      (f) => f.extensions,
+    ),
+  ])
   .set("yaml", { name: "yaml", extensions: ["yaml", "yml"] })
   .build();
 

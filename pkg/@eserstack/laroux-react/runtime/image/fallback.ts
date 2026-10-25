@@ -56,7 +56,9 @@ export type FallbackDocument = {
 };
 
 const isFallbackImage = (value: unknown): value is FallbackImageElement =>
-  typeof value === "object" && value !== null && "tagName" in value &&
+  typeof value === "object" &&
+  value !== null &&
+  "tagName" in value &&
   value.tagName === "IMG";
 
 /**
@@ -74,7 +76,8 @@ export function applyImageFallback(image: FallbackImageElement): boolean {
   const fallback = image.getAttribute(FALLBACK_ATTRIBUTE);
 
   if (
-    fallback === null || fallback === "" ||
+    fallback === null ||
+    fallback === "" ||
     image.getAttribute("src") === fallback
   ) {
     return false;
@@ -113,11 +116,12 @@ export function installImageFallbacks(document: FallbackDocument): () => void {
 
   document.addEventListener("error", onError, true);
 
-  for (
-    const candidate of document.querySelectorAll(`img[${FALLBACK_ATTRIBUTE}]`)
-  ) {
+  for (const candidate of document.querySelectorAll(
+    `img[${FALLBACK_ATTRIBUTE}]`,
+  )) {
     if (
-      isFallbackImage(candidate) && candidate.complete &&
+      isFallbackImage(candidate) &&
+      candidate.complete &&
       candidate.naturalWidth === 0
     ) {
       // A loaded SVG without its own size reports a zero width too; only a

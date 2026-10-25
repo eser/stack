@@ -99,9 +99,7 @@ export const isConfigured = (): boolean => {
  * });
  * ```
  */
-export const configure = async (
-  options: ConfigureOptions,
-): Promise<void> => {
+export const configure = async (options: ConfigureOptions): Promise<void> => {
   // Reset if requested or if no previous state
   if (options.reset || registryState === null) {
     await reset();
@@ -347,8 +345,8 @@ export const getLoggerCategories = (): Category[] => {
     return [];
   }
 
-  return Array.from(registryState.loggers.values()).map(
-    (config) => category.normalizeCategory(config.category),
+  return Array.from(registryState.loggers.values()).map((config) =>
+    category.normalizeCategory(config.category),
   );
 };
 

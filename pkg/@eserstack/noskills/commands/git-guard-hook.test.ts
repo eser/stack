@@ -131,7 +131,7 @@ Deno.test("hook guard allows git reads and refuses git writes", async () => {
   try {
     const verdicts = await Promise.all(
       GUARD_CASES.map(({ command, allowGit }) =>
-        invokeHook.checkGitGuard(command, allowGit, root)
+        invokeHook.checkGitGuard(command, allowGit, root),
       ),
     );
 

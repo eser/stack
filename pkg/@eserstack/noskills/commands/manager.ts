@@ -41,8 +41,8 @@ export const main = async (
     });
   }
 
-  const adapter = agents.getAgentAdapter("claude-code") ??
-    agents.defaultAgentAdapter();
+  const adapter =
+    agents.getAgentAdapter("claude-code") ?? agents.defaultAgentAdapter();
 
   // ── noskills-owned UI state ──
   let specs: specList.SpecInfo[] = (await dashboard.getState(root)).specs.map(
@@ -138,12 +138,10 @@ export const main = async (
   // deno-lint-ignore prefer-const
   let frontend: mux.Frontend;
 
-  const decorate = (
-    ctx: {
-      regions: mux.engine.geometry.DecorationRegions;
-      scene: mux.scene.Scene;
-    },
-  ): string => {
+  const decorate = (ctx: {
+    regions: mux.engine.geometry.DecorationRegions;
+    scene: mux.scene.Scene;
+  }): string => {
     // Reconcile metadata against the live scene: clean up closed tabs.
     const liveIds = new Set(ctx.scene.tabs.map((t) => t.id));
     for (const id of [...tabInfo.keys()]) {
@@ -158,19 +156,16 @@ export const main = async (
     let out = "";
 
     if (ctx.regions.left !== undefined) {
-      out += specList.render(
-        specs,
-        tabs,
-        selectedSpec,
-        { id: "specs", ...ctx.regions.left },
-      );
+      out += specList.render(specs, tabs, selectedSpec, {
+        id: "specs",
+        ...ctx.regions.left,
+      });
     }
 
     if (ctx.regions.top !== undefined) {
       const activeId = ctx.scene.tabs[ctx.scene.activeTab]?.id;
-      const activeInfo = activeId !== undefined
-        ? tabInfo.get(activeId) ?? null
-        : null;
+      const activeInfo =
+        activeId !== undefined ? (tabInfo.get(activeId) ?? null) : null;
       out += monitor.render(activeInfo, { id: "monitor", ...ctx.regions.top });
     }
 
@@ -306,7 +301,7 @@ export const main = async (
     // the still-open tabs are torn down without that, so sweep them here.
     await Promise.all(
       [...tabInfo.values()].map((info) =>
-        persistence.deleteSession(root, info.sessionId).catch(() => {})
+        persistence.deleteSession(root, info.sessionId).catch(() => {}),
       ),
     );
     await server.dispose();

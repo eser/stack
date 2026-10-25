@@ -14,9 +14,7 @@ export type { FontDefinition, FontDisplay, FontStyle, FontWeight };
 /**
  * Filter fonts by provider
  */
-function getGoogleFonts(
-  fonts: readonly FontDefinition[],
-): FontDefinition[] {
+function getGoogleFonts(fonts: readonly FontDefinition[]): FontDefinition[] {
   return fonts.filter((font) => font.provider === "google");
 }
 

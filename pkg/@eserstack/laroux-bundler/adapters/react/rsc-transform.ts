@@ -91,9 +91,10 @@ export async function transformAllClientComponents(
     // deno-lint-ignore no-await-in-loop
     const result = await transformClientComponent(component, outputDir);
     transformLogger.debug(
-      `  ✓ ${component.relativePath} → ${
-        runtime.path.relative(projectRoot, result.transformedPath)
-      }`,
+      `  ✓ ${component.relativePath} → ${runtime.path.relative(
+        projectRoot,
+        result.transformedPath,
+      )}`,
     );
     results.push(result);
   }
@@ -142,8 +143,9 @@ export async function generateTransformManifest(
 
   await runtime.fs.writeTextFile(outputPath, JSON.stringify(manifest, null, 2));
   transformLogger.debug(
-    `📝 Transform manifest saved to: ${
-      runtime.path.relative(projectRoot, outputPath)
-    }`,
+    `📝 Transform manifest saved to: ${runtime.path.relative(
+      projectRoot,
+      outputPath,
+    )}`,
   );
 }

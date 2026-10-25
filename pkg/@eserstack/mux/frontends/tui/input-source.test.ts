@@ -54,8 +54,7 @@ Deno.test("locked mode forwards everything except ctrl+g", () => {
       key({ name: "p", ctrl: true, raw: new Uint8Array([16]) }),
       "locked",
       keybindings.defaultKeymap,
-    )
-      .length,
+    ).length,
     1, // passthrough
   );
   assert.assertEquals(
@@ -64,9 +63,7 @@ Deno.test("locked mode forwards everything except ctrl+g", () => {
       "locked",
       keybindings.defaultKeymap,
     ),
-    [
-      { t: "action", action: { type: "switchMode", mode: "normal" } },
-    ],
+    [{ t: "action", action: { type: "switchMode", mode: "normal" } }],
   );
 });
 

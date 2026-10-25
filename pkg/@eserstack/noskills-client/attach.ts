@@ -212,7 +212,7 @@ function configuredPins(
   }
   if (config.certHashes !== undefined && config.certHashes.length > 0) {
     return config.certHashes.map((hash, index) =>
-      checkPin(hash, `config.certHashes[${index}]`)
+      checkPin(hash, `config.certHashes[${index}]`),
     );
   }
   return null;
@@ -221,8 +221,10 @@ function configuredPins(
 function sameBytes(a: ArrayBuffer, b: ArrayBuffer): boolean {
   const left = new Uint8Array(a);
   const right = new Uint8Array(b);
-  return left.length === right.length &&
-    left.every((byte, index) => byte === right[index]);
+  return (
+    left.length === right.length &&
+    left.every((byte, index) => byte === right[index])
+  );
 }
 
 /** Dials the daemon with `pins` and opens the session's bidi stream. */
@@ -310,9 +312,9 @@ export async function attachSession(
     params.set("kind", opts.kind);
   }
   const query = params.size > 0 ? `?${params.toString()}` : "";
-  const path = `/attach/${encodeURIComponent(slug)}/${
-    encodeURIComponent(sessionId)
-  }${query}`;
+  const path = `/attach/${encodeURIComponent(slug)}/${encodeURIComponent(
+    sessionId,
+  )}${query}`;
 
   return await deadline.withDeadline(
     `attach ${slug}/${sessionId}`,

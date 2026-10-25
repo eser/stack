@@ -41,10 +41,7 @@ export type BatchCapableModel = LanguageModel & {
     signal?: AbortSignal,
   ): Promise<batch.BatchJob>;
 
-  getBatchJob(
-    jobId: string,
-    signal?: AbortSignal,
-  ): Promise<batch.BatchJob>;
+  getBatchJob(jobId: string, signal?: AbortSignal): Promise<batch.BatchJob>;
 
   listBatchJobs(
     options?: batch.ListBatchOptions,
@@ -56,10 +53,7 @@ export type BatchCapableModel = LanguageModel & {
     signal?: AbortSignal,
   ): Promise<readonly batch.BatchResult[]>;
 
-  cancelBatchJob(
-    jobId: string,
-    signal?: AbortSignal,
-  ): Promise<void>;
+  cancelBatchJob(jobId: string, signal?: AbortSignal): Promise<void>;
 };
 
 // =============================================================================

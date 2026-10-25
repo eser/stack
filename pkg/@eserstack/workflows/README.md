@@ -85,7 +85,8 @@ registry.register({
 });
 
 // Build a workflow
-const workflow = workflows.createWorkflow("ci")
+const workflow = workflows
+  .createWorkflow("ci")
   .on("precommit")
   .step("my-check", { strict: true })
   .build();
@@ -125,9 +126,10 @@ registry.register({
     return {
       name: "status-check",
       passed: response.status === 200,
-      issues: response.status === 200
-        ? []
-        : [{ message: `${url} answered ${response.status}` }],
+      issues:
+        response.status === 200
+          ? []
+          : [{ message: `${url} answered ${response.status}` }],
       mutations: [],
       stats: { status: response.status },
     };

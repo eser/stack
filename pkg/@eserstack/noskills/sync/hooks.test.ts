@@ -63,7 +63,7 @@ bdd.describe("syncHooks", () => {
     const settings = await readSettings(root);
 
     const commands = Object.values(settings.hooks).flatMap((entries) =>
-      entries.flatMap((entry) => entry.hooks.map((hook) => hook.command))
+      entries.flatMap((entry) => entry.hooks.map((hook) => hook.command)),
     );
 
     assert.assertEquals(commands.toSorted(), [
@@ -119,10 +119,12 @@ bdd.describe("syncHooks", () => {
       `${root}/.claude/settings.json`,
       JSON.stringify({
         hooks: {
-          PreToolUse: [{
-            matcher: "Bash",
-            hooks: [{ type: "command", command: "./scripts/policy.sh" }],
-          }],
+          PreToolUse: [
+            {
+              matcher: "Bash",
+              hooks: [{ type: "command", command: "./scripts/policy.sh" }],
+            },
+          ],
         },
       }),
     );

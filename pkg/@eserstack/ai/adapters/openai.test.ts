@@ -17,8 +17,8 @@ const fakeClient = (sent: Record<string, unknown>[]): unknown => ({
         sent.push(params);
 
         return Promise.resolve({
-          choices: [{ message: { content: "ok" }, "finish_reason": "stop" }],
-          usage: { "prompt_tokens": 10, "completion_tokens": 5 },
+          choices: [{ message: { content: "ok" }, finish_reason: "stop" }],
+          usage: { prompt_tokens: 10, completion_tokens: 5 },
         });
       },
     },
@@ -92,10 +92,12 @@ const modelReplying = (reply: unknown): openai.OpenAIModel =>
     config.withDefaults({ provider: "openai", model: "gpt-test" }),
   );
 
-const hi = [{
-  role: "user" as const,
-  content: [{ kind: "text" as const, text: "hi" }],
-}];
+const hi = [
+  {
+    role: "user" as const,
+    content: [{ kind: "text" as const, text: "hi" }],
+  },
+];
 
 const resultCases: ReadonlyArray<{
   readonly name: string;
@@ -151,8 +153,8 @@ const resultCases: ReadonlyArray<{
 for (const tc of resultCases) {
   Deno.test(`stop reason: ${tc.name}`, async () => {
     const model = modelReplying({
-      choices: [{ message: tc.message, "finish_reason": tc.finishReason }],
-      usage: { "prompt_tokens": 5, "completion_tokens": 3 },
+      choices: [{ message: tc.message, finish_reason: tc.finishReason }],
+      usage: { prompt_tokens: 5, completion_tokens: 3 },
     });
 
     const result = await model.generateText({ messages: hi });
@@ -199,10 +201,12 @@ for (const tc of streamCases) {
       for (const [index, delta] of tc.deltas.entries()) {
         const last = index === tc.deltas.length - 1;
         yield {
-          choices: [{
-            delta,
-            "finish_reason": last ? tc.finishReason : null,
-          }],
+          choices: [
+            {
+              delta,
+              finish_reason: last ? tc.finishReason : null,
+            },
+          ],
         };
       }
     }

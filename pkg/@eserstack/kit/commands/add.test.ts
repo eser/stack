@@ -17,11 +17,7 @@ Deno.test("add — succeeds with no recipe (shows usage)", async () => {
 });
 
 Deno.test("add — fails for unknown recipe", async () => {
-  const result = await add.main([
-    "nonexistent",
-    "--registry",
-    REGISTRY_PATH,
-  ]);
+  const result = await add.main(["nonexistent", "--registry", REGISTRY_PATH]);
 
   assert.assertEquals(results.isOk(result), false);
 });

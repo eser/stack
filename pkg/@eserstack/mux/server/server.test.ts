@@ -249,7 +249,10 @@ Deno.test("exitOnEmpty:false keeps the server alive when the last tab closes", (
   server.dispatch({ type: "closeTab" }); // last tab → would normally exit
 
   // No exit was emitted, and the server still accepts a fresh tab afterwards.
-  assert.assertEquals(received.some((m) => m.t === "exit"), false);
+  assert.assertEquals(
+    received.some((m) => m.t === "exit"),
+    false,
+  );
   assert.assertEquals(server.getState().tabs.length, 0);
   server.dispatch({ type: "newTab" });
   assert.assertEquals(server.getState().tabs.length, 1);
@@ -265,5 +268,8 @@ Deno.test("a pane exiting on its own removes it (no kill) and emits exit on the 
 
   // last pane gone → tab closes → server signals exit
   assert.assertEquals(fake.killed.includes(pane), false);
-  assert.assertEquals(received.some((m) => m.t === "exit"), true);
+  assert.assertEquals(
+    received.some((m) => m.t === "exit"),
+    true,
+  );
 });

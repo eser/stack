@@ -51,11 +51,7 @@ const versionHandler = async (
     // usual reason for landing here.
     if (crossRuntime.detectRuntime() === "deno") {
       out.writeln(span.text("To fix this, build the native library:"));
-      out.writeln(
-        span.text(
-          "  make ajan-lib",
-        ),
-      );
+      out.writeln(span.text("  make ajan-lib"));
     } else {
       out.writeln(
         span.text(
@@ -66,9 +62,7 @@ const versionHandler = async (
         span.text("  reinstall eser and allow optional dependencies"),
       );
       out.writeln(
-        span.text(
-          "  (it pulls @eserstack/ajan-<os>-<arch> for your platform)",
-        ),
+        span.text("  (it pulls @eserstack/ajan-<os>-<arch> for your platform)"),
       );
     }
 

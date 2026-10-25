@@ -119,7 +119,8 @@ const runLoop = async (
 
   return {
     code: result.code,
-    output: new TextDecoder().decode(result.stdout) +
+    output:
+      new TextDecoder().decode(result.stdout) +
       new TextDecoder().decode(result.stderr),
   };
 };
@@ -136,7 +137,7 @@ bdd.describe({
     bdd.afterEach(async () => {
       await Promise.all(
         [project.root, project.fakeDir, project.binDir].map((dir) =>
-          runtime.fs.remove(dir, { recursive: true })
+          runtime.fs.remove(dir, { recursive: true }),
         ),
       );
     });

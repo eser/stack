@@ -18,16 +18,19 @@ Deno.test("getAllComponents lists the script files at any depth, without tests a
       "app/routes/home/page.module.css",
       "app/notes.md",
     ];
-    await Promise.all(files.map(async (file) => {
-      const filePath = runtime.path.join(srcDir, file);
-      await runtime.fs.ensureDir(runtime.path.dirname(filePath));
-      await runtime.fs.writeTextFile(filePath, "\n");
-    }));
+    await Promise.all(
+      files.map(async (file) => {
+        const filePath = runtime.path.join(srcDir, file);
+        await runtime.fs.ensureDir(runtime.path.dirname(filePath));
+        await runtime.fs.writeTextFile(filePath, "\n");
+      }),
+    );
 
     const components = await rscAnalyze.getAllComponents(srcDir);
 
     assert.assertEquals(
-      components.map((filePath) => runtime.path.relative(srcDir, filePath))
+      components
+        .map((filePath) => runtime.path.relative(srcDir, filePath))
         .map((filePath) => filePath.replaceAll("\\", "/"))
         .toSorted(),
       [

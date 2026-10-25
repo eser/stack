@@ -36,10 +36,12 @@ const SUBCOMMANDS = [
 
 Deno.test("every binary gets the same system subcommands", () => {
   for (const name of ["eser", "noskills", "laroux"]) {
-    const help = cliSystem.createSystemCommand({
-      command: name,
-      devCommand: `deno task cli ${name}`,
-    }).help();
+    const help = cliSystem
+      .createSystemCommand({
+        command: name,
+        devCommand: `deno task cli ${name}`,
+      })
+      .help();
 
     for (const sub of SUBCOMMANDS) {
       assert.assertStringIncludes(help, sub);
@@ -51,10 +53,12 @@ Deno.test("every binary gets the same system subcommands", () => {
 // binary it belongs to. A shared tree that said "eser" everywhere would be a
 // worse lie than three copies.
 Deno.test("the system tree names the binary it belongs to", () => {
-  const help = cliSystem.createSystemCommand({
-    command: "noskills",
-    devCommand: "deno task cli noskills",
-  }).help();
+  const help = cliSystem
+    .createSystemCommand({
+      command: "noskills",
+      devCommand: "deno task cli noskills",
+    })
+    .help();
 
   assert.assertStringIncludes(help, "Install noskills globally");
   assert.assertEquals(help.includes("Install eser globally"), false);
@@ -62,9 +66,10 @@ Deno.test("the system tree names the binary it belongs to", () => {
 
 Deno.test("root aliases exist for the common operations", () => {
   const listed = listedCommands(
-    cliSupport.attachStandardCommands(
-      new shellArgs.Command("noskills").version("9.9.9"),
-    )
+    cliSupport
+      .attachStandardCommands(
+        new shellArgs.Command("noskills").version("9.9.9"),
+      )
       .help(),
   );
 

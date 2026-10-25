@@ -239,7 +239,8 @@ match the schema, so check `stopReason` before you parse it.
 import * as streams from "@eserstack/streams";
 import * as aiStreams from "@eserstack/ai/streams";
 
-await streams.pipeline()
+await streams
+  .pipeline()
   .from(aiStreams.aiTextSource(model, { messages }))
   .to(streams.sinks.stdout())
   .run();
@@ -348,9 +349,7 @@ import * as primitives from "@eserstack/primitives";
 
 const result = await model.generateText({ messages });
 
-if (
-  primitives.results.isOk(result) && result.value.stopReason === "refusal"
-) {
+if (primitives.results.isOk(result) && result.value.stopReason === "refusal") {
   throw new Error(`${result.value.modelId} declined the request`);
 }
 ```
@@ -379,9 +378,15 @@ import * as primitives from "@eserstack/primitives";
 const result = await model.generateText({ messages });
 
 if (primitives.results.isFail(result)) {
-  if (result.error instanceof ai.RateLimitedError) { /* 429 */ }
-  if (result.error instanceof ai.AuthFailedError) { /* 401 */ }
-  if (result.error instanceof ai.BadRequestError) { /* 400 */ }
+  if (result.error instanceof ai.RateLimitedError) {
+    /* 429 */
+  }
+  if (result.error instanceof ai.AuthFailedError) {
+    /* 401 */
+  }
+  if (result.error instanceof ai.BadRequestError) {
+    /* 400 */
+  }
 }
 ```
 

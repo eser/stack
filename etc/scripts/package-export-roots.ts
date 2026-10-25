@@ -66,11 +66,9 @@ const packageRoots = async (pkgDir: string): Promise<string[]> => {
 const main = async (): Promise<void> => {
   const pkgDirs: string[] = [];
 
-  for await (
-    const entry of runtime.fs.readDir(
-      runtime.path.join(REPO_ROOT, PACKAGES_DIR),
-    )
-  ) {
+  for await (const entry of runtime.fs.readDir(
+    runtime.path.join(REPO_ROOT, PACKAGES_DIR),
+  )) {
     if (entry.isDirectory) {
       pkgDirs.push(runtime.path.join(PACKAGES_DIR, entry.name));
     }

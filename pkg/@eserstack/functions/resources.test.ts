@@ -228,10 +228,7 @@ Deno.test("createScope() collects errors from finalizers", async () => {
     throw new Error("second error");
   });
 
-  await assert.assertRejects(
-    () => scope.close(),
-    AggregateError,
-  );
+  await assert.assertRejects(() => scope.close(), AggregateError);
 });
 
 Deno.test("createScope() works with async finalizers", async () => {
@@ -352,13 +349,10 @@ Deno.test("ensure() runs finalizer on failure", async () => {
 Deno.test("retry() succeeds on first attempt", async () => {
   let attempts = 0;
 
-  const result = await resources.retry(
-    () => {
-      attempts++;
-      return Promise.resolve(results.ok("success"));
-    },
-    3,
-  );
+  const result = await resources.retry(() => {
+    attempts++;
+    return Promise.resolve(results.ok("success"));
+  }, 3);
 
   assert.assertEquals(results.isOk(result), true);
   assert.assertEquals(attempts, 1);
@@ -367,16 +361,13 @@ Deno.test("retry() succeeds on first attempt", async () => {
 Deno.test("retry() retries until success", async () => {
   let attempts = 0;
 
-  const result = await resources.retry(
-    () => {
-      attempts++;
-      if (attempts < 3) {
-        return Promise.resolve(results.fail<string>("not yet"));
-      }
-      return Promise.resolve(results.ok("success"));
-    },
-    5,
-  );
+  const result = await resources.retry(() => {
+    attempts++;
+    if (attempts < 3) {
+      return Promise.resolve(results.fail<string>("not yet"));
+    }
+    return Promise.resolve(results.ok("success"));
+  }, 5);
 
   assert.assertEquals(results.isOk(result), true);
   assert.assertEquals(attempts, 3);
@@ -385,13 +376,10 @@ Deno.test("retry() retries until success", async () => {
 Deno.test("retry() returns last failure after all attempts", async () => {
   let attempts = 0;
 
-  const result = await resources.retry(
-    () => {
-      attempts++;
-      return Promise.resolve(results.fail<string>(`attempt-${attempts}`));
-    },
-    3,
-  );
+  const result = await resources.retry(() => {
+    attempts++;
+    return Promise.resolve(results.fail<string>(`attempt-${attempts}`));
+  }, 3);
 
   assert.assertEquals(results.isFail(result), true);
   if (results.isFail(result)) {

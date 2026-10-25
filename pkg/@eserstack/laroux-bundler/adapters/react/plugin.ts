@@ -75,9 +75,7 @@ export const reactPlugin: FrameworkPlugin = {
     );
   },
 
-  createModuleMap: (
-    components: ClientComponent[],
-  ): Promise<ModuleMap> => {
+  createModuleMap: (components: ClientComponent[]): Promise<ModuleMap> => {
     // RSC's generateModuleMap returns Record<string, ModuleMapEntry>
     // which matches our ModuleMap type
     return Promise.resolve(rscModuleMap.generateModuleMap(components));
@@ -90,9 +88,7 @@ export const reactPlugin: FrameworkPlugin = {
     await rscModuleMap.saveModuleMap(moduleMap as RscModuleMap, outputPath);
   },
 
-  createClientManifest: (
-    components: ClientComponent[],
-  ): Promise<ModuleMap> => {
+  createClientManifest: (components: ClientComponent[]): Promise<ModuleMap> => {
     return Promise.resolve(rscModuleMap.createClientManifest(components));
   },
 

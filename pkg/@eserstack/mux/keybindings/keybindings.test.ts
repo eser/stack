@@ -35,9 +35,7 @@ Deno.test("parseChord encodes modifiers canonically", () => {
 Deno.test("default normal-mode reserved keys map to mode switches", () => {
   assert.assertEquals(
     registry.lookup(defaults.defaultKeymap, "normal", "ctrl+p"),
-    [
-      { type: "switchMode", mode: "pane" },
-    ],
+    [{ type: "switchMode", mode: "pane" }],
   );
   assert.assertEquals(
     registry.lookup(defaults.defaultKeymap, "normal", "ctrl+q"),
@@ -55,9 +53,7 @@ Deno.test("default pane-mode split returns to normal afterwards", () => {
 Deno.test("locked mode only binds ctrl+g (everything else passes through)", () => {
   assert.assertEquals(
     registry.lookup(defaults.defaultKeymap, "locked", "ctrl+g"),
-    [
-      { type: "switchMode", mode: "normal" },
-    ],
+    [{ type: "switchMode", mode: "normal" }],
   );
   assert.assertEquals(
     registry.lookup(defaults.defaultKeymap, "locked", "ctrl+p"),
@@ -74,9 +70,11 @@ Deno.test("mergeOverrides replaces a binding without dropping the rest", () => {
     normal: { "ctrl+q": { type: "detach" } },
   });
 
-  assert.assertEquals(registry.lookup(overridden, "normal", "ctrl+q"), [{
-    type: "detach",
-  }]);
+  assert.assertEquals(registry.lookup(overridden, "normal", "ctrl+q"), [
+    {
+      type: "detach",
+    },
+  ]);
   // untouched binding still present
   assert.assertEquals(registry.lookup(overridden, "normal", "ctrl+p"), [
     { type: "switchMode", mode: "pane" },

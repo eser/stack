@@ -127,9 +127,8 @@ Deno.test("csp should pass through response from next handler", async () => {
   const middleware = csp.csp();
   const req = createRequest();
 
-  const response = await middleware(
-    req,
-    () => Response.json({ data: "test" }, { status: 201 }),
+  const response = await middleware(req, () =>
+    Response.json({ data: "test" }, { status: 201 }),
   );
 
   assert.assertEquals(response.status, 201);
@@ -141,14 +140,14 @@ Deno.test("csp should preserve response headers", async () => {
   const middleware = csp.csp();
   const req = createRequest();
 
-  const response = await middleware(req, () =>
-    new Response("OK", {
-      headers: { "X-Custom-Header": "custom-value" },
-    }));
-
-  assert.assertEquals(
-    response.headers.get("X-Custom-Header"),
-    "custom-value",
+  const response = await middleware(
+    req,
+    () =>
+      new Response("OK", {
+        headers: { "X-Custom-Header": "custom-value" },
+      }),
   );
+
+  assert.assertEquals(response.headers.get("X-Custom-Header"), "custom-value");
   assert.assertExists(response.headers.get("Content-Security-Policy"));
 });

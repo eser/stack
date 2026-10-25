@@ -69,23 +69,19 @@ const renderSpan = (node: span.Span): string => {
     case "code-block": {
       const dimOpen = STYLE_CODES["dim"]![0];
       const dimClose = STYLE_CODES["dim"]![1];
-      return node.value
-        .split("\n")
-        .map((line) => `${dimOpen}  ${line}${dimClose}`)
-        .join("\n") + "\n";
+      return (
+        node.value
+          .split("\n")
+          .map((line) => `${dimOpen}  ${line}${dimClose}`)
+          .join("\n") + "\n"
+      );
     }
     case "table": {
       const widths = node.headers.map((h, i) => {
-        const maxRow = node.rows.reduce(
-          (max, row) => {
-            const cell = row[i];
-            return Math.max(
-              max,
-              cell !== undefined ? span.plainLength(cell) : 0,
-            );
-          },
-          0,
-        );
+        const maxRow = node.rows.reduce((max, row) => {
+          const cell = row[i];
+          return Math.max(max, cell !== undefined ? span.plainLength(cell) : 0);
+        }, 0);
         return Math.max(span.plainLength(h), maxRow);
       });
 
@@ -103,24 +99,26 @@ const renderSpan = (node: span.Span): string => {
       const header = node.headers
         .map((h, i) => `${boldOpen}${padCell(h, widths[i]!)}${boldClose}`)
         .join("  ");
-      const sep = `${dimOpen}${
-        widths.map((w) => "─".repeat(w)).join("──")
-      }${dimClose}`;
+      const sep = `${dimOpen}${widths
+        .map((w) => "─".repeat(w))
+        .join("──")}${dimClose}`;
       const rows = node.rows
         .map((row) =>
-          row.map((cell, i) => padCell(cell, widths[i]!)).join("  ")
+          row.map((cell, i) => padCell(cell, widths[i]!)).join("  "),
         )
         .join("\n");
 
       return `${header}\n${sep}\n${rows}\n`;
     }
     case "list":
-      return node.items
-        .map((item) => `  • ${item.map(renderSpan).join("")}`)
-        .join("\n") + "\n";
+      return (
+        node.items
+          .map((item) => `  • ${item.map(renderSpan).join("")}`)
+          .join("\n") + "\n"
+      );
     case "gauge": {
       const w = node.width ?? 20;
-      const filled = Math.round(w * node.percent / 100);
+      const filled = Math.round((w * node.percent) / 100);
       const empty = w - filled;
       const bar = `${COLOR_CODES["green"]!}${"█".repeat(filled)}${COLOR_RESET}${
         STYLE_CODES["dim"]![0]
@@ -155,9 +153,9 @@ const renderSpan = (node: span.Span): string => {
       } as const;
       const icon = icons[node.level];
       const colorCode = COLOR_CODES[colors[node.level]]!;
-      return `${colorCode}${icon}${COLOR_RESET} ${
-        node.children.map(renderSpan).join("")
-      }`;
+      return `${colorCode}${icon}${COLOR_RESET} ${node.children
+        .map(renderSpan)
+        .join("")}`;
     }
   }
 };

@@ -56,11 +56,7 @@ export type ConventionalCommit = {
 /**
  * CHANGELOG section name from Keep a Changelog format.
  */
-export type ChangelogSection =
-  | "Added"
-  | "Fixed"
-  | "Changed"
-  | "Removed";
+export type ChangelogSection = "Added" | "Fixed" | "Changed" | "Removed";
 
 /**
  * Options for generating a changelog.
@@ -327,13 +323,13 @@ export const insertIntoChangelog = (
 
   // No existing section — insert after [Unreleased]
   const unreleased = lines.findIndex((line) =>
-    /^##\s+\[Unreleased\]/i.test(line)
+    /^##\s+\[Unreleased\]/i.test(line),
   );
 
   if (unreleased === -1) {
     // No [Unreleased] section — prepend after the first line (title)
-    const titleEnd = lines.findIndex((line, i) =>
-      i > 0 && line.startsWith("## ")
+    const titleEnd = lines.findIndex(
+      (line, i) => i > 0 && line.startsWith("## "),
     );
     const insertAt = titleEnd === -1 ? lines.length : titleEnd;
     lines.splice(insertAt, 0, "", newSection, "");
@@ -408,9 +404,10 @@ const cliResponseMapper: functions.handler.ResponseMapper<
   const { ctx } = cliSupport.getCliContext();
 
   if (primitives.results.isFail(result)) {
-    const message = result.error instanceof Error
-      ? result.error.message
-      : String(result.error);
+    const message =
+      result.error instanceof Error
+        ? result.error.message
+        : String(result.error);
     tui.log.error(ctx, message);
     return primitives.results.fail({ exitCode: 1 });
   }
@@ -443,10 +440,10 @@ export const handleCli: (
 export const main = async (
   cliArgs?: readonly string[],
 ): Promise<shellArgs.CliResult<void>> => {
-  const parsed = cliParseArgs.parseArgs(
-    (cliArgs ?? []) as string[],
-    { boolean: ["dry-run"], alias: { n: "dry-run" } },
-  );
+  const parsed = cliParseArgs.parseArgs((cliArgs ?? []) as string[], {
+    boolean: ["dry-run"],
+    alias: { n: "dry-run" },
+  });
   const event = cliSupport.toCliEvent("changelog-gen", parsed);
   return await handleCli(event);
 };

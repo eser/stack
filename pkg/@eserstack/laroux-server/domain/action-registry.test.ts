@@ -5,9 +5,8 @@ import * as actionRegistry from "./action-registry.ts";
 
 Deno.test("invokeAction returns the action's result", async () => {
   actionRegistry.clearActions();
-  actionRegistry.registerAction(
-    "actions.ts#add",
-    (a, b) => Promise.resolve(Number(a) + Number(b)),
+  actionRegistry.registerAction("actions.ts#add", (a, b) =>
+    Promise.resolve(Number(a) + Number(b)),
   );
 
   assert.assertEquals(
@@ -32,9 +31,8 @@ Deno.test("invokeAction rejects an unknown id with the id and the fix", async ()
 Deno.test("invokeAction wraps the action's error as the cause", async () => {
   actionRegistry.clearActions();
   const original = new RangeError("quantity must be positive");
-  actionRegistry.registerAction(
-    "actions.ts#order",
-    () => Promise.reject(original),
+  actionRegistry.registerAction("actions.ts#order", () =>
+    Promise.reject(original),
   );
 
   const error = await assert.assertRejects(

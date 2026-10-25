@@ -35,8 +35,11 @@ const SPECIFIER_LINE_PATTERN =
 
 const isCommentLine = (line: string): boolean => {
   const trimmed = line.trimStart();
-  return trimmed.startsWith("//") || trimmed.startsWith("*") ||
-    trimmed.startsWith("/*");
+  return (
+    trimmed.startsWith("//") ||
+    trimmed.startsWith("*") ||
+    trimmed.startsWith("/*")
+  );
 };
 
 const escapeRe = (s: string): string =>
@@ -76,8 +79,7 @@ export const tool: FileTool = fileTool.createFileTool({
       issues.push({
         path: file.path,
         line: i + 1,
-        message:
-          `package imports itself as "${specifier}" — use a relative path; JSR cannot resolve jsr:${ownName} while that version is still being published`,
+        message: `package imports itself as "${specifier}" — use a relative path; JSR cannot resolve jsr:${ownName} while that version is still being published`,
       });
     }
 

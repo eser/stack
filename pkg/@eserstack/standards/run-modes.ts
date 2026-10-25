@@ -20,7 +20,7 @@ export const RunModes = {
 export type RunModeKey = Exclude<keyof typeof RunModes, number>;
 
 /** Value of a run mode flag. */
-export type RunMode = typeof RunModes[RunModeKey];
+export type RunMode = (typeof RunModes)[RunModeKey];
 
 /** Reports whether `mode` lacks the Development bit. */
 export const inProductionMode = (mode: RunMode): boolean => {

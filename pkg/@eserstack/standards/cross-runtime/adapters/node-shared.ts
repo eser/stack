@@ -62,10 +62,7 @@ const handleFsError = (error: unknown, path: string): never => {
 
 export const createNodeCompatFs = (): RuntimeFs => {
   return {
-    async readFile(
-      path: string,
-      options?: FileOptions,
-    ): Promise<Uint8Array> {
+    async readFile(path: string, options?: FileOptions): Promise<Uint8Array> {
       try {
         const buffer = await deps.fsPromises.readFile(path, {
           signal: options?.signal,
@@ -287,18 +284,13 @@ export const createNodeCompatFs = (): RuntimeFs => {
       await deps.fsPromises.chmod(path, mode);
     },
 
-    async *walk(
-      root: string,
-      options?: WalkOptions,
-    ): AsyncIterable<WalkEntry> {
+    async *walk(root: string, options?: WalkOptions): AsyncIterable<WalkEntry> {
       const includeDirs = options?.includeDirs ?? true;
       const includeFiles = options?.includeFiles ?? true;
       const exts = options?.exts;
       const skip = options?.skip;
 
-      const walkDir = async function* (
-        dir: string,
-      ): AsyncIterable<WalkEntry> {
+      const walkDir = async function* (dir: string): AsyncIterable<WalkEntry> {
         const entries = await deps.fsPromises.readdir(dir, {
           withFileTypes: true,
         });
@@ -330,7 +322,7 @@ export const createNodeCompatFs = (): RuntimeFs => {
             if (
               exts !== undefined &&
               !exts.some((ext) =>
-                entry.name.endsWith(ext.startsWith(".") ? ext : `.${ext}`)
+                entry.name.endsWith(ext.startsWith(".") ? ext : `.${ext}`),
               )
             ) {
               continue;
@@ -462,22 +454,25 @@ export const createNodeCompatProcess = (): RuntimeProcess => ({
   // The runtime is created when cross-runtime is imported, so the web streams
   // bind to the process streams on first use instead. A stdin converted here
   // would flow at once and keep the process alive while its pipe stays open.
-  stdin: webStreams.createLazyReadable(() =>
-    deps.stream.Readable.toWeb(deps.process.stdin) as ReadableStream<
-      Uint8Array
-    >
+  stdin: webStreams.createLazyReadable(
+    () =>
+      deps.stream.Readable.toWeb(
+        deps.process.stdin,
+      ) as ReadableStream<Uint8Array>,
   ),
 
-  stdout: webStreams.createLazyWritable(() =>
-    deps.stream.Writable.toWeb(deps.process.stdout) as WritableStream<
-      Uint8Array
-    >
+  stdout: webStreams.createLazyWritable(
+    () =>
+      deps.stream.Writable.toWeb(
+        deps.process.stdout,
+      ) as WritableStream<Uint8Array>,
   ),
 
-  stderr: webStreams.createLazyWritable(() =>
-    deps.stream.Writable.toWeb(deps.process.stderr) as WritableStream<
-      Uint8Array
-    >
+  stderr: webStreams.createLazyWritable(
+    () =>
+      deps.stream.Writable.toWeb(
+        deps.process.stderr,
+      ) as WritableStream<Uint8Array>,
   ),
 
   isTerminal(stream: "stdin" | "stdout" | "stderr"): boolean {

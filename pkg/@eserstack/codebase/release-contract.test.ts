@@ -226,9 +226,9 @@ Deno.test("the changelog version key matches the Go struct tag", async () => {
 
   // The key as it goes onto the wire, read out of the payload literal rather
   // than from the file at large — "version" appears throughout both sources.
-  const payload = ts.slice(
-    ts.indexOf("EserAjanCodebaseGenerateChangelog("),
-  ).slice(0, 400);
+  const payload = ts
+    .slice(ts.indexOf("EserAjanCodebaseGenerateChangelog("))
+    .slice(0, 400);
 
   assert.assertStringIncludes(
     payload,

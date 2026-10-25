@@ -62,9 +62,9 @@ const generate = async (
     }
 
     const paths: string[] = [];
-    for await (
-      const entry of crossRuntime.runtime.fs.walk(root, { includeDirs: false })
-    ) {
+    for await (const entry of crossRuntime.runtime.fs.walk(root, {
+      includeDirs: false,
+    })) {
       paths.push(entry.path);
     }
     const contents = await Promise.all(
@@ -89,7 +89,7 @@ for (const toolAdapter of ADAPTERS) {
 
       // Copilot CLI writes two instruction files, so count at least one.
       const withRule = [...files.values()].filter((content) =>
-        content.includes(rule)
+        content.includes(rule),
       );
       assert.assertGreater(withRule.length, 0);
     });
@@ -99,7 +99,7 @@ for (const toolAdapter of ADAPTERS) {
       const rule = discoveryAnswers.discoveryQuestionRule();
 
       const withRule = [...files.values()].filter((content) =>
-        content.includes(rule)
+        content.includes(rule),
       );
       assert.assertGreater(withRule.length, 0);
     });
@@ -123,9 +123,10 @@ for (const toolAdapter of ADAPTERS) {
         "executor and verifier name the project's checks, not Deno's",
         async () => {
           const files = await generate(toolAdapter);
-          const agentFiles = [...files].filter(([path]) =>
-            path.includes("noskills-executor") ||
-            path.includes("noskills-verifier")
+          const agentFiles = [...files].filter(
+            ([path]) =>
+              path.includes("noskills-executor") ||
+              path.includes("noskills-verifier"),
           );
 
           assert.assertEquals(agentFiles.length, 2);

@@ -156,9 +156,10 @@ export const syncReleaseNotes = async (
     throw new Error("No release headings found in CHANGELOG.md.");
   }
 
-  const targetTag = options.tag !== undefined
-    ? changelogText.normalizeTag(options.tag)
-    : entries[0]!.tag;
+  const targetTag =
+    options.tag !== undefined
+      ? changelogText.normalizeTag(options.tag)
+      : entries[0]!.tag;
 
   const entry = entries.find((e) => e.tag === targetTag);
   if (entry === undefined) {
@@ -178,13 +179,12 @@ export const syncReleaseNotes = async (
     if (exists) {
       try {
         await shell.exec
-          .exec`gh release edit ${targetTag} --repo ${repo} --notes-file ${notesPath}`
-          .spawn();
+          .exec`gh release edit ${targetTag} --repo ${repo} --notes-file ${notesPath}`.spawn();
       } catch (editErr) {
         throw new Error(
-          `gh release edit ${targetTag} failed.${
-            cliSupport.commandFailureDetail(editErr)
-          }`,
+          `gh release edit ${targetTag} failed.${cliSupport.commandFailureDetail(
+            editErr,
+          )}`,
           { cause: editErr },
         );
       }
@@ -199,8 +199,7 @@ export const syncReleaseNotes = async (
 
     try {
       await shell.exec
-        .exec`gh release create ${targetTag} --repo ${repo} --title ${title} --notes-file ${notesPath}`
-        .spawn();
+        .exec`gh release create ${targetTag} --repo ${repo} --title ${title} --notes-file ${notesPath}`.spawn();
       return { tag: targetTag, entry, action: "created" };
     } catch (createErr) {
       // Falling back to `edit` is only right when someone else created the
@@ -210,16 +209,15 @@ export const syncReleaseNotes = async (
       // stderr — it is the only place the real reason lives.
       if (!(await hasGitHubRelease(targetTag, repo))) {
         throw new Error(
-          `gh release create ${targetTag} failed.${
-            cliSupport.commandFailureDetail(createErr)
-          }`,
+          `gh release create ${targetTag} failed.${cliSupport.commandFailureDetail(
+            createErr,
+          )}`,
           { cause: createErr },
         );
       }
 
       await shell.exec
-        .exec`gh release edit ${targetTag} --repo ${repo} --notes-file ${notesPath}`
-        .spawn();
+        .exec`gh release edit ${targetTag} --repo ${repo} --notes-file ${notesPath}`.spawn();
       return { tag: targetTag, entry, action: "updated" };
     }
   } finally {
@@ -244,11 +242,11 @@ export const syncReleaseNotesHandler: functions.handler.Handler<
 const cliAdapter: functions.handler.Adapter<
   functions.triggers.CliEvent,
   SyncReleaseNotesOptions
-> = (
-  event,
-) => {
-  const repo = (event.flags["repo"] as string | undefined) ??
-    standards.crossRuntime.runtime.env.get("GITHUB_REPOSITORY") ?? "";
+> = (event) => {
+  const repo =
+    (event.flags["repo"] as string | undefined) ??
+    standards.crossRuntime.runtime.env.get("GITHUB_REPOSITORY") ??
+    "";
 
   if (repo === "") {
     return primitives.results.fail(
@@ -277,9 +275,10 @@ const cliResponseMapper: functions.handler.ResponseMapper<
 
   if (primitives.results.isFail(result)) {
     const err = result.error;
-    const message = err instanceof Error
-      ? err.message
-      : (err as functions.handler.AdaptError).message ?? String(err);
+    const message =
+      err instanceof Error
+        ? err.message
+        : ((err as functions.handler.AdaptError).message ?? String(err));
     tui.log.error(ctx, message);
     return primitives.results.fail({ exitCode: 1 });
   }
@@ -322,14 +321,11 @@ export const handleCli: (
 export const main = async (
   cliArgs?: readonly string[],
 ): Promise<shellArgs.CliResult<void>> => {
-  const parsed = cliParseArgs.parseArgs(
-    (cliArgs ?? []) as string[],
-    {
-      string: ["repo", "tag"],
-      boolean: ["create-if-missing"],
-      alias: { h: "help" },
-    },
-  );
+  const parsed = cliParseArgs.parseArgs((cliArgs ?? []) as string[], {
+    string: ["repo", "tag"],
+    boolean: ["create-if-missing"],
+    alias: { h: "help" },
+  });
   const event = cliSupport.toCliEvent("release-notes", parsed);
   return await handleCli(event);
 };

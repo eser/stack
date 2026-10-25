@@ -37,9 +37,10 @@ const defaultLogger = logging.logger.getLogger(["noskills-web"]);
 // import.meta.dirname is a native path on every platform (no "/C:/..." on
 // Windows). It is undefined when the module is loaded from a remote URL; the
 // static files are not on disk then, and serveStatic answers 404.
-const STATIC_DIR: string | null = import.meta.dirname === undefined
-  ? null
-  : runtime.path.join(import.meta.dirname, "static");
+const STATIC_DIR: string | null =
+  import.meta.dirname === undefined
+    ? null
+    : runtime.path.join(import.meta.dirname, "static");
 
 const serveStatic = (path: string): Promise<Response> =>
   staticRoute.serveStatic(STATIC_DIR, path);
@@ -55,7 +56,7 @@ const readJsonObject = async (
   const body: unknown = await request.json().catch(() => null);
 
   return body instanceof Object && !Array.isArray(body)
-    ? body as Record<string, unknown>
+    ? (body as Record<string, unknown>)
     : {};
 };
 
@@ -74,8 +75,11 @@ const route = async (
   // multiplexer socket must clear the trust boundary first. Reads of static
   // assets and pages stay open so the dashboard can bootstrap and hand the
   // browser its token.
-  const isMutating = method === "POST" || method === "DELETE" ||
-    method === "PUT" || method === "PATCH";
+  const isMutating =
+    method === "POST" ||
+    method === "DELETE" ||
+    method === "PUT" ||
+    method === "PATCH";
 
   if (path === "/mux" || isMutating) {
     if (!auth.isOriginAllowed(request, guard.port)) {
@@ -205,24 +209,25 @@ export type ContextHandler = (
  * @param logger - Receives the error records
  * @returns The handler to serve
  */
-export const withFaultBoundary = (
-  handler: ContextHandler,
-  logger: requestContext.RequestLogger,
-): (request: Request) => Promise<Response> =>
-async (request) => {
-  const context = requestContext.createRequestContext(request, logger);
+export const withFaultBoundary =
+  (
+    handler: ContextHandler,
+    logger: requestContext.RequestLogger,
+  ): ((request: Request) => Promise<Response>) =>
+  async (request) => {
+    const context = requestContext.createRequestContext(request, logger);
 
-  try {
-    return await handler(request, context);
-  } catch (error) {
-    return await api.faultResponse(
-      context,
-      "Request could not be completed",
-      500,
-      error,
-    );
-  }
-};
+    try {
+      return await handler(request, context);
+    } catch (error) {
+      return await api.faultResponse(
+        context,
+        "Request could not be completed",
+        500,
+        error,
+      );
+    }
+  };
 
 // =============================================================================
 // Server lifecycle

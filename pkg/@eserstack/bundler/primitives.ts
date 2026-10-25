@@ -26,6 +26,6 @@ export type BuildSnapshot = {
 
 /** The snapshot.json file format; its snake_case keys are part of the format. */
 export type BuildSnapshotSerialized = {
-  "build_id": string;
+  build_id: string;
   files: Record<string, Array<string>>;
 };

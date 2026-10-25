@@ -130,11 +130,13 @@ const out = streams.output({
 
 await logging.config.configure({
   sinks: { console: logging.sinks.getOutputSink(out) },
-  loggers: [{
-    category: ["app"],
-    sinks: ["console"],
-    lowestLevel: logging.Severities.Debug,
-  }],
+  loggers: [
+    {
+      category: ["app"],
+      sinks: ["console"],
+      lowestLevel: logging.Severities.Debug,
+    },
+  ],
 });
 
 // Stands in for your own request handling
@@ -254,9 +256,7 @@ await logging.config.configure({
     production: logging.filters.getLevelFilter(logging.Severities.Warning),
     httpOnly: logging.filters.getCategoryFilter(["app", "http"]),
   },
-  loggers: [
-    { category: ["app"], sinks: ["console"], filters: ["production"] },
-  ],
+  loggers: [{ category: ["app"], sinks: ["console"], filters: ["production"] }],
 });
 ```
 
@@ -340,9 +340,9 @@ const out = streams.output({
 });
 
 const customFormatter: logging.FormatterFn = (record) => {
-  return `[${record.datetime.toISOString()}] ${
-    record.category.join(".")
-  } - ${record.message}\n`;
+  return `[${record.datetime.toISOString()}] ${record.category.join(
+    ".",
+  )} - ${record.message}\n`;
 };
 
 const textSink: logging.Sink = (record) => {

@@ -90,17 +90,16 @@ function createStreamingOptimalResponse(
         serverLogger.debug(
           `Embedding ${syncChunks.length} sync RSC chunks inline`,
         );
-        const inlinePayload =
-          `<script id="__RSC_PAYLOAD__" type="application/json">${
-            scriptJson.escapeJsonForScript(JSON.stringify(syncChunks))
-          }</script>\n`;
+        const inlinePayload = `<script id="__RSC_PAYLOAD__" type="application/json">${scriptJson.escapeJsonForScript(
+          JSON.stringify(syncChunks),
+        )}</script>\n`;
         await writer.write(encoder.encode(inlinePayload));
       }
 
       const manifestScript = shellOptions.chunkManifest
-        ? `<script>globalThis.__CHUNK_MANIFEST__ = ${
-          JSON.stringify(shellOptions.chunkManifest)
-        };</script>\n`
+        ? `<script>globalThis.__CHUNK_MANIFEST__ = ${JSON.stringify(
+            shellOptions.chunkManifest,
+          )};</script>\n`
         : "";
       await writer.write(encoder.encode(manifestScript));
 
@@ -117,9 +116,11 @@ function createStreamingOptimalResponse(
 
       await writer.close();
     } catch (error) {
-      serverLogger.with({ error }).error(
-        "stream the page in streaming-optimal mode; aborting the response",
-      );
+      serverLogger
+        .with({ error })
+        .error(
+          "stream the page in streaming-optimal mode; aborting the response",
+        );
       try {
         await writer.abort(error);
       } catch {
@@ -256,8 +257,8 @@ async function serveStatic(
     }
 
     const fileInfo = await crossRuntime.runtime.fs.stat(filePath);
-    const lastModified = fileInfo.mtime?.toUTCString() ??
-      new Date().toUTCString();
+    const lastModified =
+      fileInfo.mtime?.toUTCString() ?? new Date().toUTCString();
     const etag = `"${fileInfo.size}-${fileInfo.mtime?.getTime() ?? 0}"`;
 
     const file = await crossRuntime.runtime.fs.readFile(filePath);
@@ -268,7 +269,7 @@ async function serveStatic(
       "Content-Type": mimeType,
       "Cache-Control": CACHE_CONTROL_STATIC,
       "Last-Modified": lastModified,
-      "ETag": etag,
+      ETag: etag,
     };
 
     if (ext === ".js") {
@@ -312,8 +313,8 @@ async function servePublicAsset(
     }
 
     const fileInfo = await crossRuntime.runtime.fs.stat(filePath);
-    const lastModified = fileInfo.mtime?.toUTCString() ??
-      new Date().toUTCString();
+    const lastModified =
+      fileInfo.mtime?.toUTCString() ?? new Date().toUTCString();
     const etag = `"${fileInfo.size}-${fileInfo.mtime?.getTime() ?? 0}"`;
 
     const file = await crossRuntime.runtime.fs.readFile(filePath);
@@ -325,7 +326,7 @@ async function servePublicAsset(
         "Content-Type": mimeType,
         "Cache-Control": CACHE_CONTROL_STATIC,
         "Last-Modified": lastModified,
-        "ETag": etag,
+        ETag: etag,
       },
     });
   } catch (error) {
@@ -344,9 +345,10 @@ async function servePublicAsset(
  */
 export function createHandler(deps: ServerDependencies) {
   // The actions manifest of the build being served, read once per build id.
-  let actionManifest:
-    | { buildId: string; manifest: Promise<actionGuard.ActionManifest> }
-    | null = null;
+  let actionManifest: {
+    buildId: string;
+    manifest: Promise<actionGuard.ActionManifest>;
+  } | null = null;
   const getActionManifest = (
     serverDir: string,
     buildId: string,
@@ -360,16 +362,17 @@ export function createHandler(deps: ServerDependencies) {
     return actionManifest.manifest;
   };
 
-  const rateLimiter = deps.rateLimitConfig !== false
-    // Key on the socket peer. Forwarded headers are believed only from a
-    // trusted proxy (loopback by default), so a direct client can neither
-    // exempt itself with a forged X-Forwarded-For nor share one bucket with
-    // every other direct client.
-    ? http.middlewares.rateLimiter.createRateLimiter({
-      trustProxy: true,
-      ...(deps.rateLimitConfig ?? {}),
-    })
-    : null;
+  const rateLimiter =
+    deps.rateLimitConfig !== false
+      ? // Key on the socket peer. Forwarded headers are believed only from a
+        // trusted proxy (loopback by default), so a direct client can neither
+        // exempt itself with a forged X-Forwarded-For nor share one bucket with
+        // every other direct client.
+        http.middlewares.rateLimiter.createRateLimiter({
+          trustProxy: true,
+          ...(deps.rateLimitConfig ?? {}),
+        })
+      : null;
 
   return async (
     req: Request,
@@ -396,8 +399,8 @@ export function createHandler(deps: ServerDependencies) {
           return new Response("Expected WebSocket", { status: 426 });
         }
 
-        const { socket, response } = crossRuntime.runtime.http
-          .upgradeWebSocket(req);
+        const { socket, response } =
+          crossRuntime.runtime.http.upgradeWebSocket(req);
         hmrManager.handleConnection(socket);
         return response;
       }
@@ -429,9 +432,10 @@ export function createHandler(deps: ServerDependencies) {
       if (middlewareDispatcher) {
         // For /rsc the chain runs for the requested page, as it does for that
         // page's document request, so route-scoped proxies cover its payload.
-        const proxyRequest = rscPagePathname !== null
-          ? new Request(new URL(rscPagePathname, url.origin), req)
-          : req;
+        const proxyRequest =
+          rscPagePathname !== null
+            ? new Request(new URL(rscPagePathname, url.origin), req)
+            : req;
         const { result, finalPathname } = await middlewareDispatcher.runProxies(
           proxyRequest,
           rscPagePathname ?? pathname,
@@ -475,9 +479,11 @@ export function createHandler(deps: ServerDependencies) {
           // Defense in depth against cross-site request forgery: a browser
           // page of another origin cannot run an action.
           if (!actionGuard.isSameOriginRequest(req)) {
-            await rscLogger.with({ actionId }).warn(
-              "run server action: refused a cross-site request; answered 403",
-            );
+            await rscLogger
+              .with({ actionId })
+              .warn(
+                "run server action: refused a cross-site request; answered 403",
+              );
             return jsonResponse({ error: "Cross-site action request" }, 403);
           }
 
@@ -499,9 +505,11 @@ export function createHandler(deps: ServerDependencies) {
             if (!actionGuard.isListedActionModule(manifest, modulePath)) {
               // The id goes into a log attribute; the response does not
               // echo it.
-              await rscLogger.with({ actionId }).warn(
-                "run server action: the module is not in the actions manifest; answered 404",
-              );
+              await rscLogger
+                .with({ actionId })
+                .warn(
+                  "run server action: the module is not in the actions manifest; answered 404",
+                );
               return jsonResponse({ error: "Action not found" }, 404);
             }
 
@@ -523,10 +531,12 @@ export function createHandler(deps: ServerDependencies) {
               bodyBytes = await actionGuard.readBoundedBody(req);
             } catch (error) {
               if (error instanceof actionGuard.ActionBodyTooLargeError) {
-                return jsonResponse({
-                  error:
-                    `Action request body is over the ${error.limitBytes}-byte limit`,
-                }, 413);
+                return jsonResponse(
+                  {
+                    error: `Action request body is over the ${error.limitBytes}-byte limit`,
+                  },
+                  413,
+                );
               }
               throw error;
             }
@@ -553,10 +563,13 @@ export function createHandler(deps: ServerDependencies) {
                 body = null;
               }
               if (!Array.isArray(body)) {
-                return jsonResponse({
-                  error:
-                    "Action arguments must be a JSON array or multipart form data",
-                }, 400);
+                return jsonResponse(
+                  {
+                    error:
+                      "Action arguments must be a JSON array or multipart form data",
+                  },
+                  400,
+                );
               }
               args = body;
             }
@@ -570,9 +583,11 @@ export function createHandler(deps: ServerDependencies) {
             // actions; other exports of the module cannot be called.
             const actionFn = actionModule[exportName];
             if (!actionGuard.isServerAction(actionFn, actionId)) {
-              await rscLogger.with({ actionId }).warn(
-                "run server action: the module has no server action with this id; answered 404",
-              );
+              await rscLogger
+                .with({ actionId })
+                .warn(
+                  "run server action: the module has no server action with this id; answered 404",
+                );
               return jsonResponse({ error: "Action not found" }, 404);
             }
 
@@ -593,9 +608,11 @@ export function createHandler(deps: ServerDependencies) {
           } catch (error) {
             // Handled here: logged once with the action id, and the client
             // receives a fixed message.
-            await rscLogger.with({ actionId, error }).error(
-              "run server action: the request or the action failed; answered 500",
-            );
+            await rscLogger
+              .with({ actionId, error })
+              .error(
+                "run server action: the request or the action failed; answered 500",
+              );
             return jsonResponse({ error: "Server action failed" }, 500);
           }
         }
@@ -687,8 +704,10 @@ export function createHandler(deps: ServerDependencies) {
 
       // Route: Public assets
       if (
-        pathname !== "/" && !pathname.startsWith("/dist/") &&
-        !pathname.startsWith("/rsc") && !pathname.startsWith("/action")
+        pathname !== "/" &&
+        !pathname.startsWith("/dist/") &&
+        !pathname.startsWith("/rsc") &&
+        !pathname.startsWith("/action")
       ) {
         const distResponse = await serveStatic(config, `/dist${pathname}`);
         if (distResponse) {
@@ -722,9 +741,9 @@ export function createHandler(deps: ServerDependencies) {
       }
       return withSecurityHeaders(response);
     } catch (error) {
-      serverLogger.with({ error, method: req.method, pathname }).error(
-        "handle request; answering 500",
-      );
+      serverLogger
+        .with({ error, method: req.method, pathname })
+        .error("handle request; answering 500");
 
       // Don't expose error details to client - only log server-side
       return withSecurityHeaders(
@@ -774,9 +793,8 @@ async function handlePageRequest(
       "fonts.css",
     );
 
-    const fontPreloadsContent = await crossRuntime.runtime.fs.readTextFile(
-      fontPreloadsPath,
-    );
+    const fontPreloadsContent =
+      await crossRuntime.runtime.fs.readTextFile(fontPreloadsPath);
     fontPreloads = JSON.parse(fontPreloadsContent);
     fontCSS = await crossRuntime.runtime.fs.readTextFile(fontCssPath);
   } catch {
@@ -794,9 +812,8 @@ async function handlePageRequest(
       "client",
       "styles.critical.css",
     );
-    criticalPageCSS = await crossRuntime.runtime.fs.readTextFile(
-      criticalCssPath,
-    );
+    criticalPageCSS =
+      await crossRuntime.runtime.fs.readTextFile(criticalCssPath);
     deferredCSSPath = "/styles.deferred.css";
   } catch {
     serverLogger.debug("Critical page CSS not found, using defaults");
@@ -808,16 +825,16 @@ async function handlePageRequest(
       "client",
       "styles.universal.css",
     );
-    criticalUniversalCSS = await crossRuntime.runtime.fs.readTextFile(
-      universalCssPath,
-    );
+    criticalUniversalCSS =
+      await crossRuntime.runtime.fs.readTextFile(universalCssPath);
   } catch {
     serverLogger.debug("Critical universal CSS not found, using defaults");
   }
 
   // Check if SSR is enabled
   const ssrMode = config.ssr?.mode ?? "disabled";
-  const ssrEnabled = ssrMode !== "disabled" &&
+  const ssrEnabled =
+    ssrMode !== "disabled" &&
     (ssrMode === "always" ||
       (ssrMode === "production-only" && !config.mode.isWatch));
 
@@ -846,9 +863,7 @@ async function handlePageRequest(
       const streamMode = config.ssr?.streamMode ?? "streaming-optimal";
 
       if (streamMode === "streaming-optimal") {
-        serverLogger.debug(
-          `Using streaming-optimal mode for SSR: ${pathname}`,
-        );
+        serverLogger.debug(`Using streaming-optimal mode for SSR: ${pathname}`);
         return createStreamingOptimalResponse({
           element: rscComponent,
           moduleMap: bundle.moduleMap,
@@ -865,11 +880,9 @@ async function handlePageRequest(
         });
       }
 
-      const ssrResult = await react.renderSSR(
-        rscComponent,
-        bundle.moduleMap,
-        { streamMode },
-      );
+      const ssrResult = await react.renderSSR(rscComponent, bundle.moduleMap, {
+        streamMode,
+      });
 
       ssrContent = ssrResult.html;
       if (streamMode === "await-all") {
@@ -881,9 +894,9 @@ async function handlePageRequest(
         `SSR complete for ${pathname}: ${ssrContent.length} bytes HTML`,
       );
     } catch (error) {
-      serverLogger.with({ error }).error(
-        `render SSR for ${pathname}; falling back to CSR`,
-      );
+      serverLogger
+        .with({ error })
+        .error(`render SSR for ${pathname}; falling back to CSR`);
       ssrContent = undefined;
       rscPayload = undefined;
       clientModules = undefined;
@@ -930,10 +943,13 @@ export async function startHTTPServer(
   const { config } = deps;
   const handler = createHandler(deps);
 
-  return await crossRuntime.runtime.http.serve({
-    port: config.server.port,
-    hostname: config.server.host,
-    onListen: options.onListen,
-    signal: options.signal,
-  }, handler);
+  return await crossRuntime.runtime.http.serve(
+    {
+      port: config.server.port,
+      hostname: config.server.host,
+      onListen: options.onListen,
+      signal: options.signal,
+    },
+    handler,
+  );
 }

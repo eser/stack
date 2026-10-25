@@ -12,9 +12,7 @@ import type { Chunk, Sink } from "../types.ts";
  * @param sinks - The sinks that receive every chunk
  * @returns A sink named `multiplex(<names>)`
  */
-export const multiplex = <T = unknown>(
-  ...sinks: Sink<T>[]
-): Sink<T> => {
+export const multiplex = <T = unknown>(...sinks: Sink<T>[]): Sink<T> => {
   const writers = sinks.map((s) => ({
     name: s.name,
     writer: s.writable.getWriter(),

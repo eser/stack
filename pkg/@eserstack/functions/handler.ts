@@ -160,10 +160,7 @@ export type TriggerBinding<TriggerEvent, TriggerResponse, I, O, E, R> = {
  *     : primitives.results.ok(event.body as OrderInput);
  * ```
  */
-export const adaptError = (
-  message: string,
-  source?: unknown,
-): AdaptError => ({
+export const adaptError = (message: string, source?: unknown): AdaptError => ({
   _tag: "AdaptError",
   message,
   source,
@@ -199,19 +196,20 @@ export const adaptError = (
  * @param adapter - Transforms trigger events into handler input
  * @returns A new handler accepting the trigger event type
  */
-export const bind = <TriggerEvent, I, O, E, R = void>(
-  handler: Handler<I, O, E, R>,
-  adapter: Adapter<TriggerEvent, I>,
-): Handler<TriggerEvent, O, E | AdaptError, R> =>
-(event: TriggerEvent) => {
-  const adapted = adapter(event);
+export const bind =
+  <TriggerEvent, I, O, E, R = void>(
+    handler: Handler<I, O, E, R>,
+    adapter: Adapter<TriggerEvent, I>,
+  ): Handler<TriggerEvent, O, E | AdaptError, R> =>
+  (event: TriggerEvent) => {
+    const adapted = adapter(event);
 
-  if (results.isFail(adapted)) {
-    return task.failTask(adapted.error) as Task<O, E | AdaptError, R>;
-  }
+    if (results.isFail(adapted)) {
+      return task.failTask(adapted.error) as Task<O, E | AdaptError, R>;
+    }
 
-  return handler(adapted.value) as Task<O, E | AdaptError, R>;
-};
+    return handler(adapted.value) as Task<O, E | AdaptError, R>;
+  };
 
 /**
  * Create a runnable function from a complete trigger binding.
@@ -248,24 +246,18 @@ export const bind = <TriggerEvent, I, O, E, R = void>(
  * @param binding - Complete trigger binding (input adapter + handler + output mapper)
  * @returns An async function from (event, ctx) → response
  */
-export const createTrigger = <
-  TriggerEvent,
-  TriggerResponse,
-  I,
-  O,
-  E,
-  R = void,
->(
-  binding: TriggerBinding<TriggerEvent, TriggerResponse, I, O, E, R>,
-): (
-  event: TriggerEvent,
-  ...args: R extends void ? [] : [ctx: R]
-) => Promise<TriggerResponse> =>
-async (event, ...args) => {
-  const boundHandler = bind(binding.handler, binding.adaptInput);
-  const result = await task.runTask(
-    boundHandler(event),
-    ...args as R extends void ? [] : [ctx: R],
-  );
-  return binding.adaptOutput(result);
-};
+export const createTrigger =
+  <TriggerEvent, TriggerResponse, I, O, E, R = void>(
+    binding: TriggerBinding<TriggerEvent, TriggerResponse, I, O, E, R>,
+  ): ((
+    event: TriggerEvent,
+    ...args: R extends void ? [] : [ctx: R]
+  ) => Promise<TriggerResponse>) =>
+  async (event, ...args) => {
+    const boundHandler = bind(binding.handler, binding.adaptInput);
+    const result = await task.runTask(
+      boundHandler(event),
+      ...(args as R extends void ? [] : [ctx: R]),
+    );
+    return binding.adaptOutput(result);
+  };

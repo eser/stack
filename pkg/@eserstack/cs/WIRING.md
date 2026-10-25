@@ -27,12 +27,14 @@ lib.symbols.EserAjanCsGenerate(JSON.stringify({
 an existing resource. `sync.ts` does not call it; see D2 below.
 
 ```ts
-lib.symbols.EserAjanCsSync(JSON.stringify({
-  resource: { type, name, namespace },
-  envFile: absoluteFilePath,
-  format: "json" | "yaml",
-  stringOnly: boolean,
-}));
+lib.symbols.EserAjanCsSync(
+  JSON.stringify({
+    resource: { type, name, namespace },
+    envFile: absoluteFilePath,
+    format: "json" | "yaml",
+    stringOnly: boolean,
+  }),
+);
 ```
 
 ## 2. Output marshalling

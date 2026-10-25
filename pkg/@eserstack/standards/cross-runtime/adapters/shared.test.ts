@@ -46,7 +46,8 @@ Deno.test("getPlatformInfo returns complete info", () => {
 
   // Verify types match expected values
   assert.assert(
-    result.platform === "darwin" || result.platform === "linux" ||
+    result.platform === "darwin" ||
+      result.platform === "linux" ||
       result.platform === "windows",
   );
   assert.assert(result.arch === "amd64" || result.arch === "arm64");
@@ -155,7 +156,7 @@ Deno.test("createSafeHandler passes the handler's response through", async () =>
 Deno.test("createSafeHandler passes the handler info through", async () => {
   const info = { remoteAddr: { hostname: "10.0.0.7", port: 5123 } };
   const respond = shared.createSafeHandler((_request, received) =>
-    Response.json(received)
+    Response.json(received),
   );
 
   const response = await respond(new Request("http://127.0.0.1/"), info);
@@ -180,12 +181,10 @@ Deno.test("createSafeHandler turns a thrown error into a 500 response", async ()
 Deno.test("createStubHttp throws a capability error for every call", () => {
   const http = shared.createStubHttp("workerd");
 
-  for (
-    const call of [
-      () => http.serve({ port: 0 }, () => new Response()),
-      () => http.upgradeWebSocket(new Request("http://127.0.0.1/")),
-    ]
-  ) {
+  for (const call of [
+    () => http.serve({ port: 0 }, () => new Response()),
+    () => http.upgradeWebSocket(new Request("http://127.0.0.1/")),
+  ]) {
     const error = assert.assertThrows(call, types.RuntimeCapabilityError);
     assert.assertEquals(error.capability, "http");
     assert.assertEquals(error.runtimeName, "workerd");

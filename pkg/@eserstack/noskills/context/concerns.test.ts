@@ -140,7 +140,10 @@ bdd.describe("getReviewDimensions", () => {
 
     // long-lived has 7 dimensions, beautiful-product has 7
     assert.assertEquals(result.length >= 10, true);
-    assert.assertEquals(result.some((d) => d.concernId === "long-lived"), true);
+    assert.assertEquals(
+      result.some((d) => d.concernId === "long-lived"),
+      true,
+    );
     assert.assertEquals(
       result.some((d) => d.concernId === "beautiful-product"),
       true,
@@ -199,8 +202,9 @@ bdd.describe("getRegistryDimensionIds", () => {
       mockConcern as unknown as typeof longLived,
     ]);
 
-    const errorRescueCount = result.filter((id) => id === "error-rescue")
-      .length;
+    const errorRescueCount = result.filter(
+      (id) => id === "error-rescue",
+    ).length;
     assert.assertEquals(errorRescueCount, 1);
   });
 
@@ -702,9 +706,9 @@ bdd.describe("getReviewDimensions: migration scope", () => {
 
   bdd.it("keeps a migration dimension for a migration spec only", () => {
     const ids = (classification: schema.SpecClassification) =>
-      concerns.getReviewDimensions([withDimensions], classification).map((
-        d,
-      ) => d.id);
+      concerns
+        .getReviewDimensions([withDimensions], classification)
+        .map((d) => d.id);
 
     assert.assertEquals(ids(migrationSpec), ["everywhere", "schema-change"]);
     assert.assertEquals(ids(otherSpec), ["everywhere"]);
@@ -760,13 +764,15 @@ bdd.describe("loadConcerns: declared scopes", () => {
     {
       name: "refuses a spec section scope value it does not know",
       reminders: [],
-      specSections: [{
-        id: "cli-help",
-        title: "CLI Help",
-        placeholder: "_Describe the help text._",
-        scope: ["cli"],
-        position: "after:acceptance-criteria",
-      }],
+      specSections: [
+        {
+          id: "cli-help",
+          title: "CLI Help",
+          placeholder: "_Describe the help text._",
+          scope: ["cli"],
+          position: "after:acceptance-criteria",
+        },
+      ],
       message: 'specSections[0].scope has "cli"',
     },
   ];

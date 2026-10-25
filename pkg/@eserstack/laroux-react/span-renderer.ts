@@ -78,181 +78,162 @@ export const renderSpan = (
       return React.createElement("br", { key: key });
 
     case "bold":
-      return (
-        React.createElement(
-          "strong",
-          { key: key },
-          span.children.map((child, i) => renderSpan(child, i)),
-        )
+      return React.createElement(
+        "strong",
+        { key: key },
+        span.children.map((child, i) => renderSpan(child, i)),
       );
 
     case "dim":
-      return (
-        React.createElement(
-          "span",
-          { key: key, className: "opacity-50" },
-          span.children.map((child, i) => renderSpan(child, i)),
-        )
+      return React.createElement(
+        "span",
+        { key: key, className: "opacity-50" },
+        span.children.map((child, i) => renderSpan(child, i)),
       );
 
     case "italic":
-      return (
-        React.createElement(
-          "em",
-          { key: key },
-          span.children.map((child, i) => renderSpan(child, i)),
-        )
+      return React.createElement(
+        "em",
+        { key: key },
+        span.children.map((child, i) => renderSpan(child, i)),
       );
 
     case "underline":
-      return (
-        React.createElement(
-          "span",
-          { key: key, className: "underline" },
-          span.children.map((child, i) => renderSpan(child, i)),
-        )
+      return React.createElement(
+        "span",
+        { key: key, className: "underline" },
+        span.children.map((child, i) => renderSpan(child, i)),
       );
 
     case "strikethrough":
-      return (
-        React.createElement(
-          "s",
-          { key: key },
-          span.children.map((child, i) => renderSpan(child, i)),
-        )
+      return React.createElement(
+        "s",
+        { key: key },
+        span.children.map((child, i) => renderSpan(child, i)),
       );
 
     case "color": {
       const className = COLOR_CLASSES[span.color] ?? "";
-      return (
-        React.createElement("span", {
+      return React.createElement(
+        "span",
+        {
           key: key,
           className: className,
           "data-color": span.color,
-        }, span.children.map((child, i) => renderSpan(child, i)))
+        },
+        span.children.map((child, i) => renderSpan(child, i)),
       );
     }
 
     case "group":
-      return (
-        React.createElement(
-          React.Fragment,
-          { key: key },
-          span.children.map((child, i) => renderSpan(child, i)),
-        )
+      return React.createElement(
+        React.Fragment,
+        { key: key },
+        span.children.map((child, i) => renderSpan(child, i)),
       );
 
     case "code-block":
-      return (
+      return React.createElement(
+        "pre",
+        { key: key },
         React.createElement(
-          "pre",
-          { key: key },
-          React.createElement("code", {
+          "code",
+          {
             className: hasText(span.language)
               ? `language-${span.language}`
               : undefined,
-          }, span.value),
-        )
+          },
+          span.value,
+        ),
       );
 
     case "table":
-      return (
+      return React.createElement(
+        "table",
+        { key: key },
         React.createElement(
-          "table",
-          { key: key },
+          "thead",
+          null,
           React.createElement(
-            "thead",
+            "tr",
             null,
-            React.createElement(
-              "tr",
-              null,
-              span.headers.map((header, i) => (
-                React.createElement("th", { key: i }, renderSpan(header, i))
-              )),
+            span.headers.map((header, i) =>
+              React.createElement("th", { key: i }, renderSpan(header, i)),
             ),
           ),
-          React.createElement(
-            "tbody",
-            null,
-            span.rows.map((row, rowIdx) => (
-              React.createElement(
-                "tr",
-                { key: rowIdx },
-                row.map((cell, cellIdx) => (
-                  React.createElement(
-                    "td",
-                    { key: cellIdx },
-                    renderSpan(cell, cellIdx),
-                  )
-                )),
-              )
-            )),
+        ),
+        React.createElement(
+          "tbody",
+          null,
+          span.rows.map((row, rowIdx) =>
+            React.createElement(
+              "tr",
+              { key: rowIdx },
+              row.map((cell, cellIdx) =>
+                React.createElement(
+                  "td",
+                  { key: cellIdx },
+                  renderSpan(cell, cellIdx),
+                ),
+              ),
+            ),
           ),
-        )
+        ),
       );
 
     case "list":
-      return (
-        React.createElement(
-          "ul",
-          { key: key },
-          span.items.map((item, i) => (
-            React.createElement(
-              "li",
-              { key: i },
-              item.map((child, j) => renderSpan(child, j)),
-            )
-          )),
-        )
+      return React.createElement(
+        "ul",
+        { key: key },
+        span.items.map((item, i) =>
+          React.createElement(
+            "li",
+            { key: i },
+            item.map((child, j) => renderSpan(child, j)),
+          ),
+        ),
       );
 
     case "gauge":
-      return (
-        React.createElement(
-          "span",
-          { key: key, className: "inline-flex items-center gap-2" },
-          React.createElement("meter", {
-            min: 0,
-            max: 100,
-            value: span.percent,
-            "aria-label": hasText(span.label) ? span.label : "Percentage",
-            style: span.width === undefined
-              ? undefined
-              : { width: `${span.width}ch` },
-          }),
-          React.createElement("span", null, `${span.percent}%`),
-          hasText(span.label)
-            ? React.createElement("span", null, span.label)
-            : null,
-        )
+      return React.createElement(
+        "span",
+        { key: key, className: "inline-flex items-center gap-2" },
+        React.createElement("meter", {
+          min: 0,
+          max: 100,
+          value: span.percent,
+          "aria-label": hasText(span.label) ? span.label : "Percentage",
+          style:
+            span.width === undefined ? undefined : { width: `${span.width}ch` },
+        }),
+        React.createElement("span", null, `${span.percent}%`),
+        hasText(span.label)
+          ? React.createElement("span", null, span.label)
+          : null,
       );
 
     case "separator":
       return hasText(span.label)
-        ? (
-          React.createElement(
+        ? React.createElement(
             "div",
             { key: key, className: "flex items-center gap-2 text-gray-400" },
             React.createElement("hr", { className: "flex-1" }),
             React.createElement("span", null, span.label),
             React.createElement("hr", { className: "flex-1" }),
           )
-        )
         : React.createElement("hr", { key: key });
 
     case "alert":
-      return (
-        React.createElement(
-          "div",
-          {
-            key: key,
-            role: "note",
-            className: ALERT_CLASSES[span.level],
-            "data-level": span.level,
-          },
-          React.createElement("strong", null, `${ALERT_LABELS[span.level]}: `),
-          span.children.map((child, i) => renderSpan(child, i)),
-        )
+      return React.createElement(
+        "div",
+        {
+          key: key,
+          role: "note",
+          className: ALERT_CLASSES[span.level],
+          "data-level": span.level,
+        },
+        React.createElement("strong", null, `${ALERT_LABELS[span.level]}: `),
+        span.children.map((child, i) => renderSpan(child, i)),
       );
   }
 };
@@ -294,9 +275,9 @@ export const react = (): streams.renderers.Renderer<React.ReactElement> => ({
  * <larouxReact.SpanView>{[streams.span.bold("Recipe")]}</larouxReact.SpanView>;
  * ```
  */
-export const SpanView = (
-  props: { readonly children: readonly streams.span.SpanInput[] },
-): React.ReactElement => {
+export const SpanView = (props: {
+  readonly children: readonly streams.span.SpanInput[];
+}): React.ReactElement => {
   const spans = streams.span.normalize(props.children);
   const renderer = react();
   return renderer.render(spans);

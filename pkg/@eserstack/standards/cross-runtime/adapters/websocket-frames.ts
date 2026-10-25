@@ -289,8 +289,8 @@ const headerLength = (header: Uint8Array, filled: number): number => {
     return 2;
   }
 
-  const length7 = new DataView(header.buffer, header.byteOffset).getUint8(1) &
-    0x7f;
+  const length7 =
+    new DataView(header.buffer, header.byteOffset).getUint8(1) & 0x7f;
   if (length7 === 126) {
     return 2 + 2 + 4;
   }
@@ -332,7 +332,8 @@ const checkFirstBytes = (header: Uint8Array): void => {
   const fin = (first & 0x80) !== 0;
   const length7 = second & 0x7f;
   if (
-    opcode >= OPCODES.close && (!fin || length7 > MAX_CONTROL_PAYLOAD_BYTES)
+    opcode >= OPCODES.close &&
+    (!fin || length7 > MAX_CONTROL_PAYLOAD_BYTES)
   ) {
     throw new WebSocketProtocolError(
       CLOSE_CODES.protocolError,

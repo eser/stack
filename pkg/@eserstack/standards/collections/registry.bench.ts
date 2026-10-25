@@ -29,11 +29,13 @@ const largeEntries: [string, number][] = Array.from(
 // Helper: Manual Lazy Map (for comparison)
 // =============================================================================
 
-type LazyEntry<V> = { type: "value"; value: V } | {
-  type: "lazy";
-  factory: () => V;
-  cached?: V;
-};
+type LazyEntry<V> =
+  | { type: "value"; value: V }
+  | {
+      type: "lazy";
+      factory: () => V;
+      cached?: V;
+    };
 
 function createManualLazyMap<V>(
   entries: Array<[string, V | (() => V), "value" | "lazy"]>,
@@ -103,40 +105,52 @@ const manualLazyMedium = createManualLazyMap<number>(
 // Creation Benchmarks
 // =============================================================================
 
-Deno.bench("Registry.create (10 entries)", {
-  group: "create-small",
-  baseline: true,
-}, () => {
-  const registryBuilder = builder.createRegistryBuilder<string, number>();
-  for (const [k, v] of smallEntries) registryBuilder.set(k, v);
-  registryBuilder.build();
-});
+Deno.bench(
+  "Registry.create (10 entries)",
+  {
+    group: "create-small",
+    baseline: true,
+  },
+  () => {
+    const registryBuilder = builder.createRegistryBuilder<string, number>();
+    for (const [k, v] of smallEntries) registryBuilder.set(k, v);
+    registryBuilder.build();
+  },
+);
 
 Deno.bench("Map.create (10 entries)", { group: "create-small" }, () => {
   new Map(smallEntries);
 });
 
-Deno.bench("Registry.create (100 entries)", {
-  group: "create-medium",
-  baseline: true,
-}, () => {
-  const registryBuilder = builder.createRegistryBuilder<string, number>();
-  for (const [k, v] of mediumEntries) registryBuilder.set(k, v);
-  registryBuilder.build();
-});
+Deno.bench(
+  "Registry.create (100 entries)",
+  {
+    group: "create-medium",
+    baseline: true,
+  },
+  () => {
+    const registryBuilder = builder.createRegistryBuilder<string, number>();
+    for (const [k, v] of mediumEntries) registryBuilder.set(k, v);
+    registryBuilder.build();
+  },
+);
 
 Deno.bench("Map.create (100 entries)", { group: "create-medium" }, () => {
   new Map(mediumEntries);
 });
 
-Deno.bench("Registry.create (1000 entries)", {
-  group: "create-large",
-  baseline: true,
-}, () => {
-  const registryBuilder = builder.createRegistryBuilder<string, number>();
-  for (const [k, v] of largeEntries) registryBuilder.set(k, v);
-  registryBuilder.build();
-});
+Deno.bench(
+  "Registry.create (1000 entries)",
+  {
+    group: "create-large",
+    baseline: true,
+  },
+  () => {
+    const registryBuilder = builder.createRegistryBuilder<string, number>();
+    for (const [k, v] of largeEntries) registryBuilder.set(k, v);
+    registryBuilder.build();
+  },
+);
 
 Deno.bench("Map.create (1000 entries)", { group: "create-large" }, () => {
   new Map(largeEntries);
@@ -146,16 +160,20 @@ Deno.bench("Map.create (1000 entries)", { group: "create-large" }, () => {
 // Create with Lazy Entries
 // =============================================================================
 
-Deno.bench("Registry.createLazy (100 entries)", {
-  group: "create-lazy",
-  baseline: true,
-}, () => {
-  const registryBuilder = builder.createRegistryBuilder<string, number>();
-  for (const [k, v] of mediumEntries) {
-    registryBuilder.setLazy(k, () => v);
-  }
-  registryBuilder.build();
-});
+Deno.bench(
+  "Registry.createLazy (100 entries)",
+  {
+    group: "create-lazy",
+    baseline: true,
+  },
+  () => {
+    const registryBuilder = builder.createRegistryBuilder<string, number>();
+    for (const [k, v] of mediumEntries) {
+      registryBuilder.setLazy(k, () => v);
+    }
+    registryBuilder.build();
+  },
+);
 
 Deno.bench(
   "ManualLazyMap.create (100 entries)",
@@ -183,23 +201,31 @@ Deno.bench("Map.get (10 entries)", { group: "get-small" }, () => {
   nativeMapMedium.get("key5");
 });
 
-Deno.bench("Registry.get (100 entries)", {
-  group: "get-medium",
-  baseline: true,
-}, () => {
-  registryMedium.get("key50");
-});
+Deno.bench(
+  "Registry.get (100 entries)",
+  {
+    group: "get-medium",
+    baseline: true,
+  },
+  () => {
+    registryMedium.get("key50");
+  },
+);
 
 Deno.bench("Map.get (100 entries)", { group: "get-medium" }, () => {
   nativeMapMedium.get("key50");
 });
 
-Deno.bench("Registry.get (1000 entries)", {
-  group: "get-large",
-  baseline: true,
-}, () => {
-  registryLarge.get("key500");
-});
+Deno.bench(
+  "Registry.get (1000 entries)",
+  {
+    group: "get-large",
+    baseline: true,
+  },
+  () => {
+    registryLarge.get("key500");
+  },
+);
 
 Deno.bench("Map.get (1000 entries)", { group: "get-large" }, () => {
   new Map(largeEntries).get("key500");
@@ -221,12 +247,16 @@ Deno.bench(
   },
 );
 
-Deno.bench("ManualLazyMap.get lazy first access", {
-  group: "lazy-first-access",
-}, () => {
-  const map = createManualLazyMap<number>([["lazy", () => 42, "lazy"]]);
-  map.get("lazy");
-});
+Deno.bench(
+  "ManualLazyMap.get lazy first access",
+  {
+    group: "lazy-first-access",
+  },
+  () => {
+    const map = createManualLazyMap<number>([["lazy", () => 42, "lazy"]]);
+    map.get("lazy");
+  },
+);
 
 // =============================================================================
 // Get Benchmarks (Lazy Entries - Cached Access)
@@ -308,12 +338,16 @@ Deno.bench("Map.entries", { group: "entries" }, () => {
 // toBuilder (Copy-on-Write) Benchmarks
 // =============================================================================
 
-Deno.bench("Registry.toBuilder.set.build", {
-  group: "copy-on-write",
-  baseline: true,
-}, () => {
-  registryMedium.toBuilder().set("newKey", 999).build();
-});
+Deno.bench(
+  "Registry.toBuilder.set.build",
+  {
+    group: "copy-on-write",
+    baseline: true,
+  },
+  () => {
+    registryMedium.toBuilder().set("newKey", 999).build();
+  },
+);
 
 Deno.bench("Map.copy-on-write", { group: "copy-on-write" }, () => {
   const newMap = new Map(nativeMapMedium);
@@ -347,12 +381,16 @@ const asyncLazyRegistry = (() => {
   return registryBuilder.build();
 })();
 
-Deno.bench("Registry.getAsync (async lazy)", {
-  group: "getAsync-lazy",
-  baseline: true,
-}, async () => {
-  await asyncLazyRegistry.getAsync("async");
-});
+Deno.bench(
+  "Registry.getAsync (async lazy)",
+  {
+    group: "getAsync-lazy",
+    baseline: true,
+  },
+  async () => {
+    await asyncLazyRegistry.getAsync("async");
+  },
+);
 
 Deno.bench("Manual async factory", { group: "getAsync-lazy" }, async () => {
   // The bare async factory is the baseline for the lazy registry entry above.

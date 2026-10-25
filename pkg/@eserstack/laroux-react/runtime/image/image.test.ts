@@ -160,9 +160,10 @@ Deno.test("Image without a fallback renders no fallback attribute", () => {
   assert.assertEquals(html.includes(FALLBACK_ATTRIBUTE), false);
 });
 
-const serializableCases: ReadonlyArray<
-  { name: string; props: image.ImageProps }
-> = [
+const serializableCases: ReadonlyArray<{
+  name: string;
+  props: image.ImageProps;
+}> = [
   {
     name: "img",
     props: { src: "/a.jpg", alt: "", fallback: "/b.jpg" },

@@ -263,9 +263,9 @@ async function preprocessTree(
 
     // Debug: log what type we're processing
     ssrLogger.debug(
-      `Processing React element with type: ${typeof type}, name: ${
-        describeType(type)
-      }`,
+      `Processing React element with type: ${typeof type}, name: ${describeType(
+        type,
+      )}`,
     );
 
     // Client component element (type is a client reference)
@@ -337,7 +337,7 @@ async function preprocessTree(
         type: "J",
         id: elementChunkId,
         value: {
-          "$$typeof": "react.element",
+          $$typeof: "react.element",
           type: `$M${moduleChunkId}`,
           props: `$${propsChunkId}`,
         },
@@ -358,9 +358,11 @@ async function preprocessTree(
         const result = type.render(props, null);
         return await preprocessTree(result, context);
       } catch (error) {
-        ssrLogger.with({ error }).error(
-          "render SSR: a forwardRef component threw; sent an error chunk in its place",
-        );
+        ssrLogger
+          .with({ error })
+          .error(
+            "render SSR: a forwardRef component threw; sent an error chunk in its place",
+          );
         const errorId = context.nextId++;
         context.chunks.push({
           type: "E",
@@ -398,9 +400,10 @@ async function preprocessTree(
           // This prevents duplicate execution - async components only run via /rsc
           if (context.streamMode === "streaming-classic") {
             ssrLogger.debug(
-              `Async server component ${
-                componentName(type, "anonymous")
-              } skipped in SSR (streaming-classic mode) - client will fetch via /rsc`,
+              `Async server component ${componentName(
+                type,
+                "anonymous",
+              )} skipped in SSR (streaming-classic mode) - client will fetch via /rsc`,
             );
             const id = context.nextId++;
 
@@ -438,9 +441,10 @@ async function preprocessTree(
           // Validate resolved result
           if (resolved === undefined) {
             ssrLogger.warn(
-              `Async server component ${
-                componentName(type, "anonymous")
-              } returned undefined`,
+              `Async server component ${componentName(
+                type,
+                "anonymous",
+              )} returned undefined`,
             );
           }
           return await preprocessTree(resolved, context);
@@ -449,20 +453,24 @@ async function preprocessTree(
         // Validate sync result
         if (result === undefined) {
           ssrLogger.warn(
-            `Server component ${
-              componentName(type, "anonymous")
-            } returned undefined`,
+            `Server component ${componentName(
+              type,
+              "anonymous",
+            )} returned undefined`,
           );
         }
 
         // Recursively process the result
         return await preprocessTree(result, context);
       } catch (error) {
-        ssrLogger.with({ error }).error(
-          `render SSR: server component ${
-            componentName(type, "anonymous")
-          } threw; sent an error chunk in its place`,
-        );
+        ssrLogger
+          .with({ error })
+          .error(
+            `render SSR: server component ${componentName(
+              type,
+              "anonymous",
+            )} threw; sent an error chunk in its place`,
+          );
         const errorId = context.nextId++;
         context.chunks.push({
           type: "E",
@@ -491,9 +499,10 @@ async function preprocessTree(
         ? ensureArrayKeys(processedChildren)
         : processedChildren;
       // Preserve the original key if present
-      const processedProps = originalKey !== null && originalKey !== undefined
-        ? { ...props, key: originalKey, children: safeChildren }
-        : { ...props, children: safeChildren };
+      const processedProps =
+        originalKey !== null && originalKey !== undefined
+          ? { ...props, key: originalKey, children: safeChildren }
+          : { ...props, children: safeChildren };
       const processedElement = React.createElement(type, processedProps);
 
       // Create RSC chunk for this element
@@ -514,7 +523,7 @@ async function preprocessTree(
         type: "J",
         id,
         value: {
-          "$$typeof": "react.element",
+          $$typeof: "react.element",
           type,
           props: chunkProps,
         },
@@ -596,9 +605,10 @@ async function preprocessTree(
         ? ensureArrayKeys(processedChildren)
         : processedChildren;
       // Preserve the original key if present
-      const fragmentProps = originalKey !== null && originalKey !== undefined
-        ? { ...props, key: originalKey, children: safeChildren }
-        : { ...props, children: safeChildren };
+      const fragmentProps =
+        originalKey !== null && originalKey !== undefined
+          ? { ...props, key: originalKey, children: safeChildren }
+          : { ...props, children: safeChildren };
       const processedElement = React.createElement(type, fragmentProps);
 
       const id = context.nextId++;
@@ -740,9 +750,11 @@ export async function renderSSR(
 
     await Promise.all(
       boundaryErrors.map((error) =>
-        ssrLogger.with({ error }).error(
-          "render page to HTML: a Suspense boundary failed; the client renders it again",
-        )
+        ssrLogger
+          .with({ error })
+          .error(
+            "render page to HTML: a Suspense boundary failed; the client renders it again",
+          ),
       ),
     );
 
@@ -757,9 +769,11 @@ export async function renderSSR(
     // Handled here: the error is logged once, under the id the visitor sees,
     // and the response carries only that id and a fixed message.
     const correlationId = crypto.randomUUID();
-    await ssrLogger.with({ correlationId, error }).error(
-      "render page to HTML: rendering failed; sent the error fallback with this correlationId",
-    );
+    await ssrLogger
+      .with({ correlationId, error })
+      .error(
+        "render page to HTML: rendering failed; sent the error fallback with this correlationId",
+      );
 
     return createSSRErrorFallback(correlationId);
   }
@@ -785,8 +799,7 @@ function createSSRErrorFallback(correlationId: string): SSRResult {
   const message = `${SSR_ERROR_MESSAGE} ${correlationId}`;
 
   return {
-    html:
-      `<div data-ssr-error="true" data-error-id="${correlationId}" role="alert">${message}</div>`,
+    html: `<div data-ssr-error="true" data-error-id="${correlationId}" role="alert">${message}</div>`,
     rscPayload: [{ type: "E", id: 0, value: { message } }],
     clientModules: [],
   };

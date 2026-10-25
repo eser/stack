@@ -75,9 +75,7 @@ export const main = async (
   const maxIterations = parseFlag(args, "--max-iterations") ?? 50;
 
   if (!(await persistence.isInitialized(root))) {
-    out.writeln(
-      span.red(`noskills not initialized. Run: ${cmd.cmd("init")}`),
-    );
+    out.writeln(span.red(`noskills not initialized. Run: ${cmd.cmd("init")}`));
     await out.close();
 
     return results.fail({ exitCode: 1 });
@@ -85,20 +83,14 @@ export const main = async (
 
   // Validate starting phase
   const specFlag = persistence.parseSpecFlag(args);
-  const initialState = await persistence.resolveState(
-    root,
-    specFlag,
-    prefix,
-  );
+  const initialState = await persistence.resolveState(root, specFlag, prefix);
 
   if (
     initialState.phase !== "EXECUTING" &&
     initialState.phase !== "SPEC_APPROVED"
   ) {
     out.writeln(span.red(`Cannot run from phase: ${initialState.phase}`));
-    out.writeln(
-      span.dim("Must be in SPEC_APPROVED or EXECUTING to start."),
-    );
+    out.writeln(span.dim("Must be in SPEC_APPROVED or EXECUTING to start."));
     await out.close();
 
     return results.fail({ exitCode: 1 });
@@ -277,11 +269,7 @@ const runTurn = async (
   if (state.phase === "BLOCKED") {
     const reason = state.execution.lastProgress ?? "Unknown";
     out.writeln("");
-    out.writeln(
-      span.yellow("⚠"),
-      " Execution blocked: ",
-      span.dim(reason),
-    );
+    out.writeln(span.yellow("⚠"), " Execution blocked: ", span.dim(reason));
 
     if (unattended) {
       // Log to file and exit — user resolves later
@@ -327,7 +315,7 @@ const runTurn = async (
   // ── Build agent prompt from compiler output ──
   const allConcerns = await persistence.listConcerns(root);
   const activeConcerns = allConcerns.filter((c) =>
-    config.concerns.includes(c.id)
+    config.concerns.includes(c.id),
   );
   const rules = await syncEngine.loadRules(root);
   const hints = headlessHints();
@@ -442,9 +430,7 @@ const runTurn = async (
       const failure = turn.error as { message?: string };
 
       out.writeln(
-        span.red(
-          `  Agent turn failed: ${failure.message ?? "unknown error"}`,
-        ),
+        span.red(`  Agent turn failed: ${failure.message ?? "unknown error"}`),
       );
       return STOP_FAILED;
     }
@@ -491,9 +477,7 @@ const runTurn = async (
   // A turn that ended for any reason other than finishing normally is worth
   // surfacing: the loop would otherwise re-prompt into the same wall.
   if (stopReason !== "end_turn") {
-    out.writeln(
-      span.yellow(`  Turn ended early: ${stopReason}`),
-    );
+    out.writeln(span.yellow(`  Turn ended early: ${stopReason}`));
   }
 
   // ── Auto-commit if configured (CLI commits, not agent) ──
@@ -555,9 +539,9 @@ const guardAgentGit = async (
     const detail = error instanceof Error ? error.message : String(error);
     out.writeln(
       span.yellow(
-        `Git wrapper not installed in ${
-          gitWrapperInstall.wrapperDir(root)
-        }: ${detail}`,
+        `Git wrapper not installed in ${gitWrapperInstall.wrapperDir(
+          root,
+        )}: ${detail}`,
       ),
     );
     return unguarded;
@@ -597,10 +581,13 @@ export const autoCommit = async (
   wrapper: gitWrapperInstall.InstalledGitWrapper | null,
   env: Readonly<Record<string, string>> = runtime.env.toObject(),
 ): Promise<boolean> => {
-  const gitEnv = wrapper === null ? env : {
-    ...env,
-    PATH: gitWrapper.removeFromPath(env["PATH"] ?? "", wrapper.binDir),
-  };
+  const gitEnv =
+    wrapper === null
+      ? env
+      : {
+          ...env,
+          PATH: gitWrapper.removeFromPath(env["PATH"] ?? "", wrapper.binDir),
+        };
   const git = (args: string[], timeoutMs: number): shellExec.CommandBuilder =>
     new shellExec.CommandBuilder(wrapper?.realGit ?? "git", args)
       .cwd(root)
@@ -644,9 +631,7 @@ export const headlessHints = (): compiler.InteractionHints => ({
 });
 
 /** Builds the prompt one loop turn sends to the agent. */
-export const buildAgentPrompt = (
-  output: compiler.NextOutput,
-): string => {
+export const buildAgentPrompt = (output: compiler.NextOutput): string => {
   const lines: string[] = [];
 
   // Resume context
@@ -725,9 +710,9 @@ export const buildAgentPrompt = (
   const specCommand = (sub: string): string =>
     spec === null ? cmd.cmd(sub) : cmd.cmd(`spec ${spec} ${sub}`);
   lines.push(
-    `When done, report progress: ${
-      specCommand('next --answer="your progress"')
-    }`,
+    `When done, report progress: ${specCommand(
+      'next --answer="your progress"',
+    )}`,
   );
   lines.push(`If blocked, run: ${specCommand('block "reason"')}`);
   lines.push(`When all tasks are complete: ${specCommand("done")}`);
@@ -767,9 +752,7 @@ export const logBlocked = async (
   iteration: number,
 ): Promise<void> => {
   const logFile = `${root}/${persistence.paths.progressesDir}/blocked.log`;
-  const entry = `[${
-    new Date().toISOString()
-  }] iteration=${iteration} reason=${reason}\n`;
+  const entry = `[${new Date().toISOString()}] iteration=${iteration} reason=${reason}\n`;
 
   try {
     await runtime.fs.ensureDir(runtime.path.dirname(logFile));

@@ -152,9 +152,11 @@ bdd.describe("detectMimeFromUrl", () => {
   bdd.it(
     "should return null for extensions named after Object.prototype members",
     () => {
-      for (
-        const url of ["file.constructor", "file.__proto__", "file.valueOf"]
-      ) {
+      for (const url of [
+        "file.constructor",
+        "file.__proto__",
+        "file.valueOf",
+      ]) {
         assert.assertEquals(contentModule.detectMimeFromUrl(url), null, url);
       }
     },

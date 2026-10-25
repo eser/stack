@@ -77,7 +77,8 @@ export const goExec = async (
       `goExec ${command}: the @eserstack/ajan native library is not ` +
         `available; install the @eserstack/ajan platform package for this OS ` +
         `and architecture, or run the command through shell.exec, which falls ` +
-        `back to the runtime spawn` + ffiClient.describeNativeLoadFailure(),
+        `back to the runtime spawn` +
+        ffiClient.describeNativeLoadFailure(),
     );
   }
 

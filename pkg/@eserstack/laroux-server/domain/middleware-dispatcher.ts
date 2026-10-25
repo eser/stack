@@ -116,7 +116,7 @@ export class MiddlewareDispatcher {
           // Loaded lazily inside the chain: a proxy that an earlier one cuts
           // off by a response or redirect is never imported.
           // deno-lint-ignore no-await-in-loop
-          module = await import(moduleUrl) as { default: Proxy };
+          module = (await import(moduleUrl)) as { default: Proxy };
           loaded.moduleCache.set(resolvedPath, module);
         }
 
@@ -165,11 +165,13 @@ export class MiddlewareDispatcher {
         // fixed message without the error's details. The chain ends with
         // this response, so the await runs once.
         // deno-lint-ignore no-await-in-loop
-        await proxyLogger.with({
-          pathPrefix: proxy.pathPrefix,
-          modulePath: proxy.modulePath,
-          error,
-        }).error("proxy failed to load or threw; answered 500");
+        await proxyLogger
+          .with({
+            pathPrefix: proxy.pathPrefix,
+            modulePath: proxy.modulePath,
+            error,
+          })
+          .error("proxy failed to load or threw; answered 500");
         return {
           result: {
             type: "response",

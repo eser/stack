@@ -97,7 +97,8 @@ export const getDependencyInstructions = (
   const projectType = project.type;
 
   if (projectType !== "unknown") {
-    const isMatch = (recipeLanguage === "go" && projectType === "go") ||
+    const isMatch =
+      (recipeLanguage === "go" && projectType === "go") ||
       (recipeLanguage === "typescript" &&
         (projectType === "deno" || projectType === "node")) ||
       (recipeLanguage === "javascript" &&

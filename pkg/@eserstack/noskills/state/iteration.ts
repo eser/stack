@@ -88,8 +88,10 @@ const trackedFileOf = (line: string): string | null => {
     return null;
   }
 
-  return entry instanceof Object && "file" in entry &&
-      typeof entry.file === "string" && entry.file !== ""
+  return entry instanceof Object &&
+    "file" in entry &&
+    typeof entry.file === "string" &&
+    entry.file !== ""
     ? entry.file
     : null;
 };
@@ -115,7 +117,8 @@ export const readTrackedFiles = async (
     return [];
   }
 
-  const files = content.split("\n")
+  const files = content
+    .split("\n")
     .map(trackedFileOf)
     .filter((file): file is string => file !== null);
 
@@ -185,7 +188,10 @@ const readGitChanges = async (
   const lines = stat.trim().split("\n");
 
   return {
-    files: diff.trim().split("\n").filter((file) => file !== ""),
+    files: diff
+      .trim()
+      .split("\n")
+      .filter((file) => file !== ""),
     stat: lines[lines.length - 1] ?? "",
   };
 };
@@ -318,7 +324,10 @@ const copyExecutionToSpec = async (
   execution: Record<string, unknown>,
 ): Promise<void> => {
   if (
-    typeof spec !== "string" || spec === "" || spec === "." || spec === ".." ||
+    typeof spec !== "string" ||
+    spec === "" ||
+    spec === "." ||
+    spec === ".." ||
     /[/\\\0]/.test(spec)
   ) {
     return;

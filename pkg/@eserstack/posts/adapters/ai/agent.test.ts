@@ -192,12 +192,10 @@ bdd.describe("runPostsAgent", () => {
 
   bdd.it("returns fail when maxTurns is exceeded", async () => {
     // Model always returns a tool call — never a text-only turn
-    const toolCallResponses = Array.from(
-      { length: 5 },
-      (_, i) =>
-        results.ok(
-          toolCallResult(`call-${i}`, "compose_post", { text: `Turn ${i}` }),
-        ),
+    const toolCallResponses = Array.from({ length: 5 }, (_, i) =>
+      results.ok(
+        toolCallResult(`call-${i}`, "compose_post", { text: `Turn ${i}` }),
+      ),
     );
     const model = createMockModel(toolCallResponses);
     const bound = createMockBound();

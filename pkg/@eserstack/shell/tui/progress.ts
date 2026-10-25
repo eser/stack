@@ -51,9 +51,8 @@ export const createProgress = (
   let started = false;
 
   const render = (): void => {
-    const percent = options.total > 0
-      ? Math.round((current / options.total) * 100)
-      : 0;
+    const percent =
+      options.total > 0 ? Math.round((current / options.total) * 100) : 0;
 
     keypress.eraseLine(ctx.output);
     ctx.output.write(

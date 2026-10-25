@@ -98,7 +98,11 @@ Correct:
 
 ```tsx
 function Stats(props: { followers: number; posts: number }) {
-  return <p>{props.followers} followers, {props.posts} posts</p>;
+  return (
+    <p>
+      {props.followers} followers, {props.posts} posts
+    </p>
+  );
 }
 
 export function UserProfile(props: UserProfileProps) {
@@ -149,7 +153,7 @@ export function EditMessageComposer(props: { messageId: string }) {
 Incorrect:
 
 ```tsx
-<Composer isThread isEditing={false} channelId="abc" showAttachments />;
+<Composer isThread isEditing={false} channelId="abc" showAttachments />
 ```
 
 **Why:** each boolean doubles the possible states and most combinations are
@@ -193,11 +197,13 @@ function useComposer(): ComposerContextValue {
   return value;
 }
 
-function ComposerProvider(
-  props: { value: ComposerContextValue; children: React.ReactNode },
-) {
-  return <ComposerContext value={props.value}>{props.children}
-  </ComposerContext>;
+function ComposerProvider(props: {
+  value: ComposerContextValue;
+  children: React.ReactNode;
+}) {
+  return (
+    <ComposerContext value={props.value}>{props.children}</ComposerContext>
+  );
 }
 
 function ComposerInput() {
@@ -207,7 +213,8 @@ function ComposerInput() {
       ref={composer.meta.inputRef}
       value={composer.state.input}
       onChange={(event) =>
-        composer.actions.update((s) => ({ ...s, input: event.target.value }))}
+        composer.actions.update((s) => ({ ...s, input: event.target.value }))
+      }
     />
   );
 }
@@ -290,7 +297,7 @@ Incorrect:
 <Composer
   renderHeader={() => <CustomHeader />}
   renderActions={() => <SubmitButton />}
-/>;
+/>
 ```
 
 **Why:** children read as the markup they produce; a render prop makes the
@@ -318,11 +325,7 @@ type TextFieldProps = {
 
 export function TextField(props: TextFieldProps) {
   return (
-    <input
-      ref={props.ref}
-      value={props.value}
-      onChange={props.onChange}
-    />
+    <input ref={props.ref} value={props.value} onChange={props.onChange} />
   );
 }
 ```

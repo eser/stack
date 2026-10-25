@@ -66,9 +66,11 @@ export function getProtocol(specifier: string): string | null {
  * Check if specifier is a relative or absolute path.
  */
 export function isPathSpecifier(specifier: string): boolean {
-  return specifier.startsWith("./") ||
+  return (
+    specifier.startsWith("./") ||
     specifier.startsWith("../") ||
-    specifier.startsWith("/");
+    specifier.startsWith("/")
+  );
 }
 
 /**
@@ -242,9 +244,11 @@ async function loadDenoJson(
     const content = await runtime.fs.readTextFile(denoJsonPath);
     return JSON.parse(content) as DenoJsonConfig;
   } catch (error) {
-    importMapLogger.with({ error }).debug(
-      `load deno.json from ${projectRoot}; resolving without its import map`,
-    );
+    importMapLogger
+      .with({ error })
+      .debug(
+        `load deno.json from ${projectRoot}; resolving without its import map`,
+      );
     return null;
   }
 }
@@ -266,9 +270,9 @@ async function loadPackageJson(
     const content = await runtime.fs.readTextFile(packageJsonPath);
     return JSON.parse(content) as PackageJsonConfig;
   } catch (error) {
-    importMapLogger.with({ error }).debug(
-      `load ${packageJsonPath}; resolving without its dependencies`,
-    );
+    importMapLogger
+      .with({ error })
+      .debug(`load ${packageJsonPath}; resolving without its dependencies`);
     return null;
   }
 }

@@ -17,7 +17,7 @@ function makePostView(
     cid: "bafyreiabc123",
     author: { did: "did:plc:testuser", handle: "testuser.bsky.social" },
     record: {
-      "$type": "app.bsky.feed.post",
+      $type: "app.bsky.feed.post",
       text: "Hello Bluesky!",
       createdAt: "2026-01-01T00:00:00Z",
     },
@@ -76,7 +76,7 @@ bdd.describe("Bluesky mappers", () => {
     bdd.it("should set inReplyToId from reply.root.uri", () => {
       const raw = makePostView({
         record: {
-          "$type": "app.bsky.feed.post",
+          $type: "app.bsky.feed.post",
           text: "This is a reply",
           createdAt: "2026-01-01T00:01:00Z",
           reply: {
@@ -104,7 +104,7 @@ bdd.describe("Bluesky mappers", () => {
     bdd.it("should keep the thread root of a reply in platformRef", () => {
       const raw = makePostView({
         record: {
-          "$type": "app.bsky.feed.post",
+          $type: "app.bsky.feed.post",
           text: "This is a reply",
           createdAt: "2026-01-01T00:01:00Z",
           reply: {

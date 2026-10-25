@@ -50,7 +50,8 @@ const generateCommandCompletions = (
   if (path.length === 0) {
     condition = "-n __fish_use_subcommand";
   } else {
-    const pathConditions = path.map((p) => `__fish_seen_subcommand_from ${p}`)
+    const pathConditions = path
+      .map((p) => `__fish_seen_subcommand_from ${p}`)
       .join("; and ");
     condition = `-n "${pathConditions}"`;
   }

@@ -203,11 +203,10 @@ export class TuiMenu {
     if (restored.size > 0) {
       tui.log.info(
         this.ctx,
-        `Session restored for: ${
-          Array.from(restored.keys(), (p) => costs.PLATFORM_LABELS[p]).join(
-            ", ",
-          )
-        }`,
+        `Session restored for: ${Array.from(
+          restored.keys(),
+          (p) => costs.PLATFORM_LABELS[p],
+        ).join(", ")}`,
       );
     }
   }
@@ -293,9 +292,8 @@ export class TuiMenu {
     const identifier = await tui.text(this.ctx, {
       message: "Handle (e.g. you.bsky.social)",
       placeholder: "handle.bsky.social",
-      validate: (
-        v,
-      ) => (v.trim().length === 0 ? "Handle cannot be empty." : undefined),
+      validate: (v) =>
+        v.trim().length === 0 ? "Handle cannot be empty." : undefined,
     });
     if (tui.isCancel(identifier)) return;
 
@@ -303,9 +301,8 @@ export class TuiMenu {
       message:
         "App password (from Settings → App passwords — NOT your main password)",
       placeholder: "xxxx-xxxx-xxxx-xxxx",
-      validate: (
-        v,
-      ) => (v.trim().length === 0 ? "Password cannot be empty." : undefined),
+      validate: (v) =>
+        v.trim().length === 0 ? "Password cannot be empty." : undefined,
     });
     if (tui.isCancel(password)) return;
 
@@ -440,12 +437,16 @@ export class TuiMenu {
       value: p as PostTarget,
       label: costs.PLATFORM_LABELS[p],
     }));
-    const options = this.tokens.size > 1
-      ? [...platformOptions, {
-        value: "all" as const,
-        label: "Both (cross-post)",
-      }]
-      : platformOptions;
+    const options =
+      this.tokens.size > 1
+        ? [
+            ...platformOptions,
+            {
+              value: "all" as const,
+              label: "Both (cross-post)",
+            },
+          ]
+        : platformOptions;
 
     let target: PostTarget | null = null;
     if (options.length === 1 && options[0] !== undefined) {
@@ -459,13 +460,14 @@ export class TuiMenu {
       target = choice;
     }
 
-    const charLimit = target === "all"
-      ? Math.min(
-        ...Array.from(this.tokens.keys()).map((p) =>
-          costs.PLATFORM_CHAR_LIMITS[p]
-        ),
-      )
-      : costs.PLATFORM_CHAR_LIMITS[target];
+    const charLimit =
+      target === "all"
+        ? Math.min(
+            ...Array.from(this.tokens.keys()).map(
+              (p) => costs.PLATFORM_CHAR_LIMITS[p],
+            ),
+          )
+        : costs.PLATFORM_CHAR_LIMITS[target];
 
     const content = await tui.text(this.ctx, {
       message: `Post text (max ${charLimit} chars)`,
@@ -628,9 +630,8 @@ export class TuiMenu {
 
     const rawId = await tui.text(this.ctx, {
       message: "Post ID to reply to",
-      placeholder: platform === "twitter"
-        ? "1234567890"
-        : "at://did:plc:.../...",
+      placeholder:
+        platform === "twitter" ? "1234567890" : "at://did:plc:.../...",
       validate: (value) => {
         if (value.trim().length === 0) return "Post ID cannot be empty.";
         return undefined;
@@ -964,17 +965,17 @@ export class TuiMenu {
     const query = await tui.text(this.ctx, {
       message: "Search query:",
       placeholder: "Enter keywords or hashtags",
-      validate: (
-        value,
-      ) => (value.trim().length === 0 ? "Query cannot be empty." : undefined),
+      validate: (value) =>
+        value.trim().length === 0 ? "Query cannot be empty." : undefined,
     });
     if (tui.isCancel(query)) return;
 
-    const searchAll = this.tokens.size > 1
-      ? await tui.confirm(this.ctx, {
-        message: "Search all authenticated platforms?",
-      })
-      : false;
+    const searchAll =
+      this.tokens.size > 1
+        ? await tui.confirm(this.ctx, {
+            message: "Search all authenticated platforms?",
+          })
+        : false;
     if (tui.isCancel(searchAll)) return;
 
     let searchResult;
@@ -1163,9 +1164,7 @@ export class TuiMenu {
       tui.log.warn(this.ctx, `Note: ${note}`);
     }
 
-    const result = await task.runTask(
-      this.triggers.getUsage({ platform }),
-    );
+    const result = await task.runTask(this.triggers.getUsage({ platform }));
     const label = costs.PLATFORM_LABELS[platform];
     primitiveResults.match(result, {
       ok: (usage) => {

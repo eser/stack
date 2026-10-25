@@ -201,7 +201,8 @@ const mapContent = (
     // calling a tool therefore produced an empty content array, which reads as
     // "the model said nothing" rather than "the transport discarded it".
     if (
-      block.type === "tool_call" && block.id !== undefined &&
+      block.type === "tool_call" &&
+      block.id !== undefined &&
       block.name !== undefined
     ) {
       result.push({
@@ -242,9 +243,8 @@ const mapBatchJob = (j: BridgeBatchJob): batch.BatchJob => {
     id: j.id,
     status: j.status,
     createdAt: new Date(j.createdAt),
-    completedAt: j.completedAt !== undefined
-      ? new Date(j.completedAt)
-      : undefined,
+    completedAt:
+      j.completedAt !== undefined ? new Date(j.completedAt) : undefined,
     totalCount: j.totalCount,
     doneCount: j.doneCount,
     failedCount: j.failedCount,
@@ -275,9 +275,10 @@ const buildContentBlock = (block: types.ContentBlock): unknown => {
           detail: block.image.detail,
           // Base64: a Uint8Array does not survive JSON.stringify, which turns
           // it into {"0":..,"1":..} rather than anything Go can decode.
-          data: block.image.data === undefined
-            ? undefined
-            : encodeBase64(block.image.data),
+          data:
+            block.image.data === undefined
+              ? undefined
+              : encodeBase64(block.image.data),
         },
       };
 
@@ -287,9 +288,10 @@ const buildContentBlock = (block: types.ContentBlock): unknown => {
         audio: {
           url: block.audio.url,
           mimeType: block.audio.mimeType,
-          data: block.audio.data === undefined
-            ? undefined
-            : encodeBase64(block.audio.data),
+          data:
+            block.audio.data === undefined
+              ? undefined
+              : encodeBase64(block.audio.data),
         },
       };
 
@@ -517,9 +519,10 @@ export class AjanBridgeModel implements model.BatchCapableModel {
 
       yield {
         kind: "error",
-        error: signal?.aborted === true
-          ? abortError(this.provider)
-          : wireError(this.provider, streamResp, "stream start failed"),
+        error:
+          signal?.aborted === true
+            ? abortError(this.provider)
+            : wireError(this.provider, streamResp, "stream start failed"),
       };
 
       return;
@@ -541,9 +544,8 @@ export class AjanBridgeModel implements model.BatchCapableModel {
         // The bridge hands out one stream event per read, in order, and the
         // abort check above must run before each read.
         // deno-lint-ignore no-await-in-loop
-        const eventRaw = await this.#lib.symbols.EserAjanAiStreamRead(
-          streamHandle,
-        );
+        const eventRaw =
+          await this.#lib.symbols.EserAjanAiStreamRead(streamHandle);
 
         if (eventRaw === "null" || eventRaw === "") {
           break;
@@ -563,11 +565,14 @@ export class AjanBridgeModel implements model.BatchCapableModel {
             yield {
               kind: "tool_call_delta",
               textDelta: event.textDelta,
-              toolCall: event.toolCallId === undefined ? undefined : {
-                id: event.toolCallId,
-                name: event.toolCallName ?? "",
-                arguments: event.argumentsDelta ?? {},
-              },
+              toolCall:
+                event.toolCallId === undefined
+                  ? undefined
+                  : {
+                      id: event.toolCallId,
+                      name: event.toolCallName ?? "",
+                      arguments: event.argumentsDelta ?? {},
+                    },
             };
             break;
 
@@ -726,14 +731,15 @@ export class AjanBridgeModel implements model.BatchCapableModel {
 
       return (resp.results ?? []).map((item) => ({
         customId: item.customId,
-        result: item.result !== undefined
-          ? {
-            content: mapContent(item.result.content),
-            stopReason: mapStopReason(item.result.stopReason),
-            usage: mapUsage(item.result.usage),
-            modelId: item.result.modelId ?? this.modelId,
-          }
-          : undefined,
+        result:
+          item.result !== undefined
+            ? {
+                content: mapContent(item.result.content),
+                stopReason: mapStopReason(item.result.stopReason),
+                usage: mapUsage(item.result.usage),
+                modelId: item.result.modelId ?? this.modelId,
+              }
+            : undefined,
         error: item.error,
       }));
     } finally {

@@ -88,13 +88,13 @@ export type SplitDirection = "vertical" | "horizontal";
 export type SplitNode =
   | { readonly kind: "leaf"; readonly pane: PaneId }
   | {
-    readonly kind: "branch";
-    readonly direction: SplitDirection;
-    readonly first: SplitNode;
-    readonly second: SplitNode;
-    /** Fraction of the parent allotted to `first` (0..1). */
-    readonly ratio: number;
-  };
+      readonly kind: "branch";
+      readonly direction: SplitDirection;
+      readonly first: SplitNode;
+      readonly second: SplitNode;
+      /** Fraction of the parent allotted to `first` (0..1). */
+      readonly ratio: number;
+    };
 
 /** A tab is a named workspace holding a split tree of panes. */
 export type Tab = {
@@ -147,15 +147,15 @@ export type Action =
   | { readonly type: "switchMode"; readonly mode: InputMode }
   | { readonly type: "splitPane"; readonly direction: SplitDirection }
   | {
-    readonly type: "newPane";
-    readonly direction?: SplitDirection;
-    readonly kind?: PaneKind;
-    readonly command?: string;
-    readonly args?: readonly string[];
-    readonly cwd?: string;
-    readonly title?: string;
-    readonly meta?: Readonly<Record<string, string>>;
-  }
+      readonly type: "newPane";
+      readonly direction?: SplitDirection;
+      readonly kind?: PaneKind;
+      readonly command?: string;
+      readonly args?: readonly string[];
+      readonly cwd?: string;
+      readonly title?: string;
+      readonly meta?: Readonly<Record<string, string>>;
+    }
   | { readonly type: "closeFocusedPane" }
   | { readonly type: "focusDirection"; readonly direction: Direction }
   | { readonly type: "focusNext" }
@@ -163,19 +163,19 @@ export type Action =
   | { readonly type: "focusPane"; readonly pane: PaneId }
   | { readonly type: "toggleFullscreen" }
   | {
-    readonly type: "resizePane";
-    readonly direction: Direction;
-    readonly step?: number;
-  }
+      readonly type: "resizePane";
+      readonly direction: Direction;
+      readonly step?: number;
+    }
   | {
-    readonly type: "newTab";
-    readonly kind?: PaneKind;
-    readonly command?: string;
-    readonly args?: readonly string[];
-    readonly cwd?: string;
-    readonly title?: string;
-    readonly meta?: Readonly<Record<string, string>>;
-  }
+      readonly type: "newTab";
+      readonly kind?: PaneKind;
+      readonly command?: string;
+      readonly args?: readonly string[];
+      readonly cwd?: string;
+      readonly title?: string;
+      readonly meta?: Readonly<Record<string, string>>;
+    }
   | { readonly type: "closeTab"; readonly index?: number }
   | { readonly type: "gotoTab"; readonly index: number }
   | { readonly type: "nextTab" }
@@ -183,19 +183,19 @@ export type Action =
   | { readonly type: "scroll"; readonly action: ScrollAction }
   | { readonly type: "writeInput"; readonly data: string }
   | {
-    readonly type: "writeToPane";
-    readonly pane: PaneId;
-    readonly data: string;
-  }
+      readonly type: "writeToPane";
+      readonly pane: PaneId;
+      readonly data: string;
+    }
   | {
-    readonly type: "resizeViewport";
-    readonly cols: number;
-    readonly rows: number;
-  }
+      readonly type: "resizeViewport";
+      readonly cols: number;
+      readonly rows: number;
+    }
   | {
-    readonly type: "paneExited";
-    readonly pane: PaneId;
-    readonly code: number;
-  }
+      readonly type: "paneExited";
+      readonly pane: PaneId;
+      readonly code: number;
+    }
   | { readonly type: "detach" }
   | { readonly type: "quit" };

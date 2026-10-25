@@ -24,9 +24,9 @@ const createBrowserAuth = () =>
   });
 
 const exchangedWith = (auth: ReturnType<typeof createBrowserAuth>) =>
-  auth.calls.filter((call) => call.method === "exchangeCode").map((call) =>
-    call.args[0]
-  );
+  auth.calls
+    .filter((call) => call.method === "exchangeCode")
+    .map((call) => call.args[0]);
 
 bdd.describe("runBrowserLogin", () => {
   bdd.it("exchanges the code from the loopback redirect", async () => {

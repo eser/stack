@@ -76,8 +76,8 @@ export const buildAgentSpawnResolver = (
       cwd: pane.cwd ?? here,
       env: {
         ...baseEnv,
-        NOSKILLS_SESSION: pane.meta?.["sessionId"] ?? options.sessionId?.() ??
-          "",
+        NOSKILLS_SESSION:
+          pane.meta?.["sessionId"] ?? options.sessionId?.() ?? "",
         NOSKILLS_PROJECT_ROOT: here,
       },
     };

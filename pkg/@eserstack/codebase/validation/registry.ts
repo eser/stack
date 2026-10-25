@@ -153,9 +153,7 @@ export const getValidatorNames = (): readonly string[] => {
 export type WorkflowCompatibleTool = {
   readonly name: string;
   readonly description: string;
-  readonly run: (
-    options: Record<string, unknown>,
-  ) => Promise<{
+  readonly run: (options: Record<string, unknown>) => Promise<{
     readonly name: string;
     readonly passed: boolean;
     readonly issues: readonly {
@@ -289,7 +287,8 @@ export const getWorkflowTools = (): readonly WorkflowCompatibleTool[] => {
     name: "validate-commit-msg",
     description: "Validate conventional commit format",
     run: async (options) => {
-      const commitMsgFile = (options["commitMsgFile"] as string | undefined) ??
+      const commitMsgFile =
+        (options["commitMsgFile"] as string | undefined) ??
         (options["_args"] as string[] | undefined)?.[0] ??
         ".git/COMMIT_EDITMSG";
 
@@ -301,9 +300,11 @@ export const getWorkflowTools = (): readonly WorkflowCompatibleTool[] => {
         return {
           name: "validate-commit-msg",
           passed: false,
-          issues: [{
-            message: `cannot read commit message file: ${commitMsgFile}`,
-          }],
+          issues: [
+            {
+              message: `cannot read commit message file: ${commitMsgFile}`,
+            },
+          ],
           mutations: [],
           stats: {},
         };

@@ -13,7 +13,8 @@ import * as errors from "../errors.ts";
 // =============================================================================
 
 export class OpenAIModel
-  implements model.LanguageModel, model.BatchCapableModel {
+  implements model.LanguageModel, model.BatchCapableModel
+{
   readonly capabilities: readonly types.ProviderCapability[] = [
     "text_generation",
     "streaming",
@@ -92,7 +93,8 @@ export class OpenAIModel
         // A refusal arrives in its own field and explains why there is no
         // answer, so it streams as text too.
         if (
-          delta?.refusal !== undefined && delta.refusal !== null &&
+          delta?.refusal !== undefined &&
+          delta.refusal !== null &&
           delta.refusal !== ""
         ) {
           refused = true;
@@ -117,7 +119,8 @@ export class OpenAIModel
         }
 
         if (
-          choice.finish_reason !== undefined && choice.finish_reason !== null
+          choice.finish_reason !== undefined &&
+          choice.finish_reason !== null
         ) {
           // Emit completed tool calls
           for (const [, tc] of toolCalls) {
@@ -275,10 +278,7 @@ export class OpenAIModel
     }
   }
 
-  async cancelBatchJob(
-    jobId: string,
-    signal?: AbortSignal,
-  ): Promise<void> {
+  async cancelBatchJob(jobId: string, signal?: AbortSignal): Promise<void> {
     try {
       await this.client.batches.cancel(jobId, { signal });
     } catch (err) {
@@ -335,7 +335,7 @@ const buildParams = (
   const params: Record<string, unknown> = {
     model: cfg.model,
     messages,
-    "max_tokens": options.maxTokens ?? cfg.maxTokens,
+    max_tokens: options.maxTokens ?? cfg.maxTokens,
   };
 
   if (options.temperature !== undefined) {
@@ -518,7 +518,8 @@ const mapResponse = (
 
   if (choice !== undefined) {
     if (
-      choice.message?.content !== undefined && choice.message.content !== null
+      choice.message?.content !== undefined &&
+      choice.message.content !== null
     ) {
       contentBlocks.push({ kind: "text", text: choice.message.content });
     }
@@ -601,9 +602,10 @@ const mapBatchJob = (result: any): batch.BatchJob => {
     id: result.id,
     status: mapBatchStatus(result.status),
     createdAt: new Date(result.created_at * 1000),
-    completedAt: result.completed_at !== undefined
-      ? new Date(result.completed_at * 1000)
-      : undefined,
+    completedAt:
+      result.completed_at !== undefined
+        ? new Date(result.completed_at * 1000)
+        : undefined,
     totalCount: result.request_counts?.total ?? 0,
     doneCount: result.request_counts?.completed ?? 0,
     failedCount: result.request_counts?.failed ?? 0,

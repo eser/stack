@@ -179,34 +179,46 @@ Deno.bench(
 // Primary Key Lookup Benchmarks
 // =============================================================================
 
-Deno.bench("IndexedRegistry.get (10 entries)", {
-  group: "get-small",
-  baseline: true,
-}, () => {
-  indexedRegistrySmall.get("format5");
-});
+Deno.bench(
+  "IndexedRegistry.get (10 entries)",
+  {
+    group: "get-small",
+    baseline: true,
+  },
+  () => {
+    indexedRegistrySmall.get("format5");
+  },
+);
 
 Deno.bench("ManualIndexedMap.get (10 entries)", { group: "get-small" }, () => {
   manualIndexedSmall.get("format5");
 });
 
-Deno.bench("IndexedRegistry.get (50 entries)", {
-  group: "get-medium",
-  baseline: true,
-}, () => {
-  indexedRegistryMedium.get("format25");
-});
+Deno.bench(
+  "IndexedRegistry.get (50 entries)",
+  {
+    group: "get-medium",
+    baseline: true,
+  },
+  () => {
+    indexedRegistryMedium.get("format25");
+  },
+);
 
 Deno.bench("ManualIndexedMap.get (50 entries)", { group: "get-medium" }, () => {
   manualIndexedMedium.get("format25");
 });
 
-Deno.bench("IndexedRegistry.get (200 entries)", {
-  group: "get-large",
-  baseline: true,
-}, () => {
-  indexedRegistryLarge.get("format100");
-});
+Deno.bench(
+  "IndexedRegistry.get (200 entries)",
+  {
+    group: "get-large",
+    baseline: true,
+  },
+  () => {
+    indexedRegistryLarge.get("format100");
+  },
+);
 
 Deno.bench("ManualIndexedMap.get (200 entries)", { group: "get-large" }, () => {
   manualIndexedLarge.get("format100");
@@ -224,11 +236,15 @@ Deno.bench(
   },
 );
 
-Deno.bench("ManualIndexedMap.getByExtension (10 entries)", {
-  group: "getByIndex-small",
-}, () => {
-  manualIndexedSmall.getByExtension(".ext5");
-});
+Deno.bench(
+  "ManualIndexedMap.getByExtension (10 entries)",
+  {
+    group: "getByIndex-small",
+  },
+  () => {
+    manualIndexedSmall.getByExtension(".ext5");
+  },
+);
 
 Deno.bench(
   "IndexedRegistry.getByIndex (50 entries)",
@@ -238,11 +254,15 @@ Deno.bench(
   },
 );
 
-Deno.bench("ManualIndexedMap.getByExtension (50 entries)", {
-  group: "getByIndex-medium",
-}, () => {
-  manualIndexedMedium.getByExtension(".ext25");
-});
+Deno.bench(
+  "ManualIndexedMap.getByExtension (50 entries)",
+  {
+    group: "getByIndex-medium",
+  },
+  () => {
+    manualIndexedMedium.getByExtension(".ext25");
+  },
+);
 
 Deno.bench(
   "IndexedRegistry.getByIndex (200 entries)",
@@ -252,11 +272,15 @@ Deno.bench(
   },
 );
 
-Deno.bench("ManualIndexedMap.getByExtension (200 entries)", {
-  group: "getByIndex-large",
-}, () => {
-  manualIndexedLarge.getByExtension(".ext100");
-});
+Deno.bench(
+  "ManualIndexedMap.getByExtension (200 entries)",
+  {
+    group: "getByIndex-large",
+  },
+  () => {
+    manualIndexedLarge.getByExtension(".ext100");
+  },
+);
 
 // =============================================================================
 // Alternate Extension Lookup (tests normalization)
@@ -270,22 +294,30 @@ Deno.bench(
   },
 );
 
-Deno.bench("ManualIndexedMap.getByExtension alternate ext", {
-  group: "getByIndex-alt",
-}, () => {
-  manualIndexedMedium.getByExtension(".alt25");
-});
+Deno.bench(
+  "ManualIndexedMap.getByExtension alternate ext",
+  {
+    group: "getByIndex-alt",
+  },
+  () => {
+    manualIndexedMedium.getByExtension(".alt25");
+  },
+);
 
 // =============================================================================
 // hasInIndex Benchmarks
 // =============================================================================
 
-Deno.bench("IndexedRegistry.hasInIndex", {
-  group: "hasInIndex",
-  baseline: true,
-}, () => {
-  indexedRegistryMedium.hasInIndex("byExtension", ".ext25");
-});
+Deno.bench(
+  "IndexedRegistry.hasInIndex",
+  {
+    group: "hasInIndex",
+    baseline: true,
+  },
+  () => {
+    indexedRegistryMedium.hasInIndex("byExtension", ".ext25");
+  },
+);
 
 Deno.bench("ManualIndexedMap.hasExtension", { group: "hasInIndex" }, () => {
   manualIndexedMedium.hasExtension(".ext25");
@@ -331,16 +363,23 @@ Deno.bench(
 // toBuilder (Copy-on-Write) Benchmarks
 // =============================================================================
 
-Deno.bench("IndexedRegistry.toBuilder.set.build", {
-  group: "copy-on-write",
-  baseline: true,
-}, () => {
-  indexedRegistryMedium.toBuilder().set("newFormat", {
-    name: "newFormat",
-    extensions: [".new"],
-    mimeType: "application/x-new",
-  }).build();
-});
+Deno.bench(
+  "IndexedRegistry.toBuilder.set.build",
+  {
+    group: "copy-on-write",
+    baseline: true,
+  },
+  () => {
+    indexedRegistryMedium
+      .toBuilder()
+      .set("newFormat", {
+        name: "newFormat",
+        extensions: [".new"],
+        mimeType: "application/x-new",
+      })
+      .build();
+  },
+);
 
 Deno.bench("ManualIndexedMap.copy-and-add", { group: "copy-on-write" }, () => {
   const newFormat: Format = {

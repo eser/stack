@@ -27,7 +27,7 @@ Deno.test("the page has no inline script, so the CSP needs no unsafe-inline for 
   const inline = [...page.matchAll(/<script\b(?![^>]*\bsrc=)[^>]*>/g)];
   assert.assertEquals(inline.length, 0);
   const scriptSrc = layout.PAGE_CSP.split("; ").find((d) =>
-    d.startsWith("script-src")
+    d.startsWith("script-src"),
   );
   assert.assert(scriptSrc !== undefined);
   assert.assertEquals(scriptSrc.includes("unsafe-inline"), false);

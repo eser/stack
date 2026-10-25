@@ -104,16 +104,20 @@ bdd.describe("userHookGroups and mergeHookGroups", () => {
     hooks: [{ type: "command", command: "./policy.sh" }],
   };
   const settingsHooks = {
-    PreToolUse: [{
-      ...userGroup,
-      hooks: [
-        ...userGroup.hooks,
-        { type: "command", command: "x noskills invoke-hook pre-tool-use" },
-      ],
-    }],
-    Stop: [{
-      hooks: [{ type: "command", command: "x noskills invoke-hook stop" }],
-    }],
+    PreToolUse: [
+      {
+        ...userGroup,
+        hooks: [
+          ...userGroup.hooks,
+          { type: "command", command: "x noskills invoke-hook pre-tool-use" },
+        ],
+      },
+    ],
+    Stop: [
+      {
+        hooks: [{ type: "command", command: "x noskills invoke-hook stop" }],
+      },
+    ],
     Broken: "not a list",
   };
 

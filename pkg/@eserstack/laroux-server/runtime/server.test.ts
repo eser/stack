@@ -171,9 +171,9 @@ Deno.test("POST /_rsc refuses an export that is not a server action, and does no
     await writeActions(
       root,
       serverAction("echo", "(value) => value") +
-        `export const helper = () => Deno.writeTextFileSync(${
-          JSON.stringify(markerPath)
-        }, "ran");\n`,
+        `export const helper = () => Deno.writeTextFileSync(${JSON.stringify(
+          markerPath,
+        )}, "ran");\n`,
     );
     const handler = server.createHandler(makeDeps(root));
 
@@ -235,9 +235,9 @@ Deno.test("POST /_rsc refuses cross-site requests and accepts same-origin ones",
       const cases: Array<[Record<string, string>, number]> = [
         [{ "Sec-Fetch-Site": "cross-site" }, 403],
         [{ "Sec-Fetch-Site": "same-site" }, 403],
-        [{ "Origin": "https://evil.example" }, 403],
+        [{ Origin: "https://evil.example" }, 403],
         [{ "Sec-Fetch-Site": "same-origin" }, 200],
-        [{ "Origin": "http://localhost" }, 200],
+        [{ Origin: "http://localhost" }, 200],
       ];
 
       for (const [headers, status] of cases) {
@@ -539,14 +539,17 @@ Deno.test("startHTTPServer binds the configured host and serves the HMR WebSocke
   try {
     const hmr = new hmrManager.HMRManager();
     const deps = makeDeps(root);
-    const listening = await server.startHTTPServer({
-      ...deps,
-      config: {
-        ...deps.config,
-        server: { ...deps.config.server, host: "127.0.0.1", port: 0 },
-      } as ServerDependencies["config"],
-      hmrManager: hmr,
-    }, { signal: stop.signal });
+    const listening = await server.startHTTPServer(
+      {
+        ...deps,
+        config: {
+          ...deps.config,
+          server: { ...deps.config.server, host: "127.0.0.1", port: 0 },
+        } as ServerDependencies["config"],
+        hmrManager: hmr,
+      },
+      { signal: stop.signal },
+    );
 
     assert.assertEquals(listening.hostname, "127.0.0.1");
 
@@ -571,7 +574,7 @@ Deno.test("startHTTPServer binds the configured host and serves the HMR WebSocke
     await received.promise;
 
     const closed = new Promise((resolve) =>
-      socket.addEventListener("close", resolve, { once: true })
+      socket.addEventListener("close", resolve, { once: true }),
     );
     socket.close();
     await closed;

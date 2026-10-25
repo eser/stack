@@ -214,7 +214,7 @@ bdd.describe("Compiler with Claude Code hints", () => {
       CLAUDE_CODE_HINTS,
     );
     const has = output.behavioral.rules.some((r) =>
-      r.includes("AskUserQuestion")
+      r.includes("AskUserQuestion"),
     );
     assert.assertEquals(has, true);
   });
@@ -231,7 +231,7 @@ bdd.describe("Compiler with Claude Code hints", () => {
       CLAUDE_CODE_HINTS,
     );
     const has = output.behavioral.rules.some((r) =>
-      r.includes("numbered list")
+      r.includes("numbered list"),
     );
     assert.assertEquals(has, false);
   });
@@ -248,7 +248,7 @@ bdd.describe("Compiler with Claude Code hints", () => {
       CLAUDE_CODE_HINTS,
     );
     const has = output.behavioral.rules.some((r) =>
-      r.includes("AskUserQuestion")
+      r.includes("AskUserQuestion"),
     );
     assert.assertEquals(has, true);
   });
@@ -280,7 +280,7 @@ bdd.describe("Compiler with Claude Code hints", () => {
       CLAUDE_CODE_HINTS,
     );
     const has = output.behavioral.rules.some((r) =>
-      r.includes("Execute tasks sequentially")
+      r.includes("Execute tasks sequentially"),
     );
     assert.assertEquals(has, false);
   });
@@ -303,7 +303,7 @@ bdd.describe("Compiler with Kiro hints", () => {
       KIRO_HINTS,
     );
     const has = output.behavioral.rules.some((r) =>
-      r.includes("numbered list")
+      r.includes("numbered list"),
     );
     assert.assertEquals(has, true);
   });
@@ -320,8 +320,8 @@ bdd.describe("Compiler with Kiro hints", () => {
       KIRO_HINTS,
     );
     // The decision point rule should use numbered list, not AskUserQuestion
-    const optionRule = output.behavioral.rules.find((r) =>
-      r.includes("numbered list") || r.includes("decision point")
+    const optionRule = output.behavioral.rules.find(
+      (r) => r.includes("numbered list") || r.includes("decision point"),
     );
     assert.assertEquals(optionRule !== undefined, true);
     assert.assertEquals(optionRule!.includes("AskUserQuestion"), false);
@@ -339,8 +339,8 @@ bdd.describe("Compiler with Kiro hints", () => {
       KIRO_HINTS,
     );
     // The question-asking rule should use a message, not AskUserQuestion
-    const questionRule = output.behavioral.rules.find((r) =>
-      r.includes("base questions") && r.includes("as a numbered list")
+    const questionRule = output.behavioral.rules.find(
+      (r) => r.includes("base questions") && r.includes("as a numbered list"),
     );
     assert.assertEquals(questionRule !== undefined, true);
     assert.assertEquals(questionRule!.includes("AskUserQuestion"), false);
@@ -357,8 +357,8 @@ bdd.describe("Compiler with Kiro hints", () => {
       undefined,
       KIRO_HINTS,
     );
-    const has = output.behavioral.rules.some((r) =>
-      r.includes("Kiro") && r.includes("delegation")
+    const has = output.behavioral.rules.some(
+      (r) => r.includes("Kiro") && r.includes("delegation"),
     );
     assert.assertEquals(has, true);
   });
@@ -396,7 +396,7 @@ bdd.describe("Compiler with Cursor hints", () => {
       CURSOR_HINTS,
     );
     const has = output.behavioral.rules.some((r) =>
-      r.includes("Execute tasks sequentially")
+      r.includes("Execute tasks sequentially"),
     );
     assert.assertEquals(has, true);
   });
@@ -412,9 +412,10 @@ bdd.describe("Compiler with Cursor hints", () => {
       undefined,
       CURSOR_HINTS,
     );
-    const has = output.behavioral.rules.some((r) =>
-      r.includes("Execute tasks sequentially yourself") ||
-      r.includes("does not support agent delegation")
+    const has = output.behavioral.rules.some(
+      (r) =>
+        r.includes("Execute tasks sequentially yourself") ||
+        r.includes("does not support agent delegation"),
     );
     assert.assertEquals(has, true);
   });
@@ -433,10 +434,10 @@ bdd.describe("Compiler with Cursor hints", () => {
         CURSOR_HINTS,
       );
       const hasAgent = output.behavioral.rules.some((r) =>
-        r.includes("Agent tool")
+        r.includes("Agent tool"),
       );
       const hasDelegation = output.behavioral.rules.some((r) =>
-        r.includes("Kiro's agent delegation")
+        r.includes("Kiro's agent delegation"),
       );
       assert.assertEquals(hasAgent, false);
       assert.assertEquals(hasDelegation, false);
@@ -455,10 +456,10 @@ bdd.describe("Compiler with Cursor hints", () => {
       CURSOR_HINTS,
     );
     const hasNumbered = output.behavioral.rules.some((r) =>
-      r.includes("numbered list")
+      r.includes("numbered list"),
     );
-    const hasAsk = output.behavioral.rules.some((r) =>
-      r.includes("AskUserQuestion") && r.includes("options")
+    const hasAsk = output.behavioral.rules.some(
+      (r) => r.includes("AskUserQuestion") && r.includes("options"),
     );
     assert.assertEquals(hasNumbered, true);
     assert.assertEquals(hasAsk, false);
@@ -541,7 +542,7 @@ bdd.describe("Default hints (backward compat)", () => {
   bdd.it("compile without hints uses Claude Code defaults", async () => {
     const output = await compiler.compile(idle(), noConcerns, noRules);
     const has = output.behavioral.rules.some((r) =>
-      r.includes("AskUserQuestion")
+      r.includes("AskUserQuestion"),
     );
     assert.assertEquals(has, true);
   });
@@ -666,8 +667,7 @@ bdd.describe("Compiler output for a tool without AskUserQuestion", () => {
       const text = JSON.stringify(
         await compileWith(
           state(),
-          claudeCode.claudeCodeAdapter.capabilities
-            .interaction,
+          claudeCode.claudeCodeAdapter.capabilities.interaction,
         ),
       );
       assert.assertStringIncludes(text, claudeCodeText);
@@ -693,7 +693,7 @@ bdd.describe("Compiler output for a tool without AskUserQuestion", () => {
       const output = await compileWith(inDiscovery(), CURSOR_HINTS);
       assert.assertEquals(
         output.behavioral.rules.filter((r) =>
-          r.startsWith("This phase is read-only:")
+          r.startsWith("This phase is read-only:"),
         ).length,
         1,
       );

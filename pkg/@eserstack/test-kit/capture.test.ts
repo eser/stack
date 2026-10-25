@@ -33,7 +33,7 @@ Deno.test("captureThrow fails when nothing is thrown", () => {
 
 Deno.test("captureRejection returns the rejection reason", async () => {
   const error = await capture.captureRejection(() =>
-    Promise.reject(new RangeError("too far"))
+    Promise.reject(new RangeError("too far")),
   );
 
   assert.assertInstanceOf(error, RangeError);

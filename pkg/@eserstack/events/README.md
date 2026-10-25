@@ -24,9 +24,8 @@ import * as events from "@eserstack/events";
 
 // Register event listeners
 events.registry
-  .add(
-    "user:login",
-    (e) => console.log("User logged in:", (e as CustomEvent).detail),
+  .add("user:login", (e) =>
+    console.log("User logged in:", (e as CustomEvent).detail),
   )
   .add("user:logout", () => console.log("User logged out"));
 

@@ -38,10 +38,7 @@ export const main = async (
     p.available ? p.detail : span.dim(p.detail),
   ]);
 
-  out.writeln(span.table(
-    ["", "Provider", "Type", "Status"],
-    rows,
-  ));
+  out.writeln(span.table(["", "Provider", "Type", "Status"], rows));
 
   const availableCount = providers.filter((p) => p.available).length;
   out.writeln(

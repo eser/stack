@@ -52,50 +52,52 @@ export const loadConcerns = async (
 
   // Each concern is its own file, so they load concurrently; map keeps the
   // sorted order.
-  return await Promise.all(entries.map(async (entry) => {
-    const filePath = `${dirPath}/${entry.name}`;
-    const content = await runtime.fs.readTextFile(filePath);
-    let parsed: schema.ConcernDefinition;
-    try {
-      parsed = JSON.parse(content) as schema.ConcernDefinition;
-    } catch (err) {
-      throw new Error(
-        `Failed to parse concern at ${filePath}: ${(err as Error).message}. ` +
-          `Expected ConcernDefinition shape — see README-HOW.md#authoring-a-concern`,
-      );
-    }
-
-    const scopeProblem = concernScope.concernScopeProblem(parsed);
-    if (scopeProblem !== null) {
-      throw new Error(
-        `Invalid concern at ${filePath}: ${scopeProblem}. ` +
-          "See README-HOW.md#where-content-applies-scope",
-      );
-    }
-
-    // Load promptFile content and append to reminders (relative to concern's own dir)
-    if (parsed.promptFile !== undefined) {
-      const concernDir = filePath.slice(0, filePath.lastIndexOf("/"));
-      const promptFilePath = `${concernDir}/${parsed.promptFile}`;
+  return await Promise.all(
+    entries.map(async (entry) => {
+      const filePath = `${dirPath}/${entry.name}`;
+      const content = await runtime.fs.readTextFile(filePath);
+      let parsed: schema.ConcernDefinition;
       try {
-        const promptContent = await runtime.fs.readTextFile(promptFilePath);
-        if (promptContent.trim().length > 0) {
-          parsed = {
-            ...parsed,
-            reminders: [...parsed.reminders, promptContent.trim()],
-          };
-        }
-      } catch {
+        parsed = JSON.parse(content) as schema.ConcernDefinition;
+      } catch (err) {
         throw new Error(
-          `promptFile not found for concern "${parsed.id}" at ${promptFilePath}. ` +
-            `Resolve path relative to the concern's own JSON file. ` +
-            `See README-HOW.md#authoring-a-concern`,
+          `Failed to parse concern at ${filePath}: ${(err as Error).message}. ` +
+            `Expected ConcernDefinition shape — see README-HOW.md#authoring-a-concern`,
         );
       }
-    }
 
-    return parsed;
-  }));
+      const scopeProblem = concernScope.concernScopeProblem(parsed);
+      if (scopeProblem !== null) {
+        throw new Error(
+          `Invalid concern at ${filePath}: ${scopeProblem}. ` +
+            "See README-HOW.md#where-content-applies-scope",
+        );
+      }
+
+      // Load promptFile content and append to reminders (relative to concern's own dir)
+      if (parsed.promptFile !== undefined) {
+        const concernDir = filePath.slice(0, filePath.lastIndexOf("/"));
+        const promptFilePath = `${concernDir}/${parsed.promptFile}`;
+        try {
+          const promptContent = await runtime.fs.readTextFile(promptFilePath);
+          if (promptContent.trim().length > 0) {
+            parsed = {
+              ...parsed,
+              reminders: [...parsed.reminders, promptContent.trim()],
+            };
+          }
+        } catch {
+          throw new Error(
+            `promptFile not found for concern "${parsed.id}" at ${promptFilePath}. ` +
+              `Resolve path relative to the concern's own JSON file. ` +
+              `See README-HOW.md#authoring-a-concern`,
+          );
+        }
+      }
+
+      return parsed;
+    }),
+  );
 };
 
 /**
@@ -144,7 +146,8 @@ export const getReminders = (
   for (const concern of concerns) {
     for (const reminder of concern.reminders) {
       if (
-        classification !== null && classification !== undefined &&
+        classification !== null &&
+        classification !== undefined &&
         !concernScope.scopeMatchesClassification(
           concernScope.reminderScope(reminder),
           classification,
@@ -184,7 +187,8 @@ export const splitRemindersByTier = (
       }
 
       if (
-        classification === null || classification === undefined ||
+        classification === null ||
+        classification === undefined ||
         concernScope.scopeMatchesClassification(scope, classification)
       ) {
         tier2.push(prefixed);
@@ -219,9 +223,7 @@ export const getTier2RemindersForFile = (
           classification ?? null,
         )
       ) {
-        reminders.push(
-          `${concern.id}: ${concernScope.reminderText(reminder)}`,
-        );
+        reminders.push(`${concern.id}: ${concernScope.reminderText(reminder)}`);
       }
     }
   }
@@ -350,7 +352,8 @@ export const getReviewDimensions = (
       // Scope filter — if classification is null/undefined, include all (safe default).
       // "all", and a value noskills does not know, keep the dimension.
       if (
-        classification !== null && classification !== undefined &&
+        classification !== null &&
+        classification !== undefined &&
         concernScope.isConcernScope(dim.scope) &&
         !concernScope.scopeMatchesClassification([dim.scope], classification)
       ) {
@@ -382,8 +385,8 @@ export const getDreamStatePrompts = (
   activeConcerns: readonly schema.ConcernDefinition[],
 ): readonly string[] => {
   return activeConcerns
-    .filter((c) =>
-      c.dreamStatePrompt !== undefined && c.dreamStatePrompt.length > 0
+    .filter(
+      (c) => c.dreamStatePrompt !== undefined && c.dreamStatePrompt.length > 0,
     )
     .map((c) => c.dreamStatePrompt!);
 };

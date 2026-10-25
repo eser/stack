@@ -111,11 +111,12 @@ const buildPtyCommand = (
   if (platform === "linux") {
     // Linux: script -qc "<command> <args...>" /dev/null
     // Same stderr suppression for tcgetattr noise.
-    const fullCmd = args.length > 0
-      ? `${command} ${
-        args.map((a) => `'${a.replace(/'/g, "'\\''")}'`).join(" ")
-      }`
-      : command;
+    const fullCmd =
+      args.length > 0
+        ? `${command} ${args
+            .map((a) => `'${a.replace(/'/g, "'\\''")}'`)
+            .join(" ")}`
+        : command;
     return {
       cmd: "sh",
       args: [

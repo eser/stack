@@ -91,7 +91,7 @@ const ROUTE_FILE_BASES = ["page", "layout", "route", "proxy"];
 // Generate all valid route file names with supported extensions
 const ROUTE_FILES = new Set(
   ROUTE_FILE_BASES.flatMap((base) =>
-    patterns.JS_FILE_EXTENSIONS.map((ext) => `${base}.${ext}`)
+    patterns.JS_FILE_EXTENSIONS.map((ext) => `${base}.${ext}`),
   ),
 );
 
@@ -101,7 +101,8 @@ const ROUTE_FILES = new Set(
 function getRouteFileBase(fileName: string): string | null {
   for (const base of ROUTE_FILE_BASES) {
     if (
-      fileName.startsWith(`${base}.`) && patterns.JS_FILE_PATTERN.test(fileName)
+      fileName.startsWith(`${base}.`) &&
+      patterns.JS_FILE_PATTERN.test(fileName)
     ) {
       return base;
     }
@@ -142,9 +143,8 @@ export async function scanRoutes(
   options: ScanRoutesOptions = {},
 ): Promise<ScanResult> {
   const { cache } = options;
-  const routesDirMtime = cache !== undefined
-    ? await readRoutesDirMtime(routesDir)
-    : null;
+  const routesDirMtime =
+    cache !== undefined ? await readRoutesDirMtime(routesDir) : null;
 
   if (cache !== undefined && routesDirMtime !== null) {
     const cached = cache.getRouteScan(routesDir, routesDirMtime);
@@ -160,13 +160,11 @@ export async function scanRoutes(
   const dirEntries = new Map<string, DirectoryEntry>();
 
   // Walk all files using @eserstack/collector
-  for await (
-    const relativePath of collector.walkFiles(
-      routesDir,
-      undefined,
-      IGNORE_PATTERN,
-    )
-  ) {
+  for await (const relativePath of collector.walkFiles(
+    routesDir,
+    undefined,
+    IGNORE_PATTERN,
+  )) {
     const fileName = crossRuntime.runtime.path.basename(relativePath);
 
     // Only process route files

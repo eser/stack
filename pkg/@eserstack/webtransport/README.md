@@ -102,8 +102,7 @@ const client = webtransport.createWebTransportClient({
 const session = await client.connect("/your_endpoint_path");
 const stream = await session.openBidirectionalStream();
 
-const reader = stream.readable.pipeThrough(new TextDecoderStream())
-  .getReader();
+const reader = stream.readable.pipeThrough(new TextDecoderStream()).getReader();
 const { value } = await reader.read();
 console.log(value);
 

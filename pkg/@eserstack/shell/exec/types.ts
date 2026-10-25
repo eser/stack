@@ -84,12 +84,7 @@ export class CommandError extends Error {
    * @param code - Its exit code.
    * @param stderr - Its captured stderr.
    */
-  constructor(
-    message: string,
-    command: string,
-    code: number,
-    stderr: string,
-  ) {
+  constructor(message: string, command: string, code: number, stderr: string) {
     super(message);
     this.name = "CommandError";
     this.command = command;

@@ -140,14 +140,17 @@ Rule: Check object types with `instanceof` (or `Array.isArray`), not
 Correct:
 
 ```typescript
-if (value instanceof Date) {}
-if (Array.isArray(value)) {}
+if (value instanceof Date) {
+}
+if (Array.isArray(value)) {
+}
 ```
 
 Incorrect:
 
 ```typescript
-if (typeof value === "object") {} // also true for arrays and null
+if (typeof value === "object") {
+} // also true for arrays and null
 ```
 
 ---

@@ -25,10 +25,9 @@ const setupTempDir = async (): Promise<void> => {
   tempDir = await crossRuntime.runtime.fs.makeTempDir({
     prefix: "plan_export_test_",
   });
-  await crossRuntime.runtime.fs.mkdir(
-    `${tempDir}/.eser/specs/my-spec`,
-    { recursive: true },
-  );
+  await crossRuntime.runtime.fs.mkdir(`${tempDir}/.eser/specs/my-spec`, {
+    recursive: true,
+  });
   await crossRuntime.runtime.fs.mkdir(
     `${tempDir}/.eser/.state/progresses/specs`,
     { recursive: true },
@@ -193,14 +192,8 @@ bdd.describe({
           content.includes("Files up to 10MB upload successfully"),
           true,
         );
-        assert.assertEquals(
-          content.includes("No admin panel changes"),
-          true,
-        );
-        assert.assertEquals(
-          content.includes("Run unit tests"),
-          true,
-        );
+        assert.assertEquals(content.includes("No admin panel changes"), true);
+        assert.assertEquals(content.includes("Run unit tests"), true);
 
         // Tasks rendered as checkboxes
         assert.assertEquals(

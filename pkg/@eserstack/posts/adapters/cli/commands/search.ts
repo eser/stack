@@ -42,13 +42,18 @@ export const main = async (
 
   const { cliTriggers } = await wiring.createAppContext();
 
-  const postsResult = platform !== undefined
-    ? await task.runTask(
-      cliTriggers.searchPosts({ rawText: query.trim(), platform, maxResults }),
-    )
-    : await task.runTask(
-      cliTriggers.searchPostsAll({ rawText: query.trim(), maxResults }),
-    );
+  const postsResult =
+    platform !== undefined
+      ? await task.runTask(
+          cliTriggers.searchPosts({
+            rawText: query.trim(),
+            platform,
+            maxResults,
+          }),
+        )
+      : await task.runTask(
+          cliTriggers.searchPostsAll({ rawText: query.trim(), maxResults }),
+        );
 
   if (results.isFail(postsResult)) {
     await output.outputError(postsResult.error.message);

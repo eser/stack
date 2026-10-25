@@ -72,7 +72,7 @@ const findSourceProblems = async (
   const localSources: ListedSource[] = manifest.recipes.flatMap((recipe) =>
     (recipe.files ?? [])
       .filter((file) => file.provider !== "github")
-      .map((file) => ({ recipe: recipe.name ?? "<unnamed>", file }))
+      .map((file) => ({ recipe: recipe.name ?? "<unnamed>", file })),
   );
 
   // Each check is an independent stat; the results keep the listing order.
@@ -95,9 +95,9 @@ const findSourceProblems = async (
     return problems;
   }
 
-  for await (
-    const entry of runtime.fs.walk(recipesDir, { includeDirs: false })
-  ) {
+  for await (const entry of runtime.fs.walk(recipesDir, {
+    includeDirs: false,
+  })) {
     if (OS_METADATA_FILES.has(runtime.path.basename(entry.path))) {
       continue;
     }
@@ -105,7 +105,8 @@ const findSourceProblems = async (
     const relative = toRegistryPath(
       runtime.path.relative(registryDir, entry.path),
     );
-    const isListed = listedFiles.has(relative) ||
+    const isListed =
+      listedFiles.has(relative) ||
       listedFolders.some((folder) => relative.startsWith(folder));
 
     if (!isListed) {
@@ -141,11 +142,12 @@ Deno.test(".eser/recipes.json github sources exist in this repository", async ()
   // against this repository's root (registryFetcher.sourceBaseFor).
   const githubSources: ListedSource[] = manifest.recipes.flatMap((recipe) =>
     (recipe.files ?? [])
-      .filter((file) =>
-        file.provider === "github" &&
-        !NOT_IN_THIS_REPOSITORY.has(recipe.name ?? "")
+      .filter(
+        (file) =>
+          file.provider === "github" &&
+          !NOT_IN_THIS_REPOSITORY.has(recipe.name ?? ""),
       )
-      .map((file) => ({ recipe: recipe.name ?? "<unnamed>", file }))
+      .map((file) => ({ recipe: recipe.name ?? "<unnamed>", file })),
   );
 
   assert.assertEquals(githubSources.length > 0, true);
@@ -153,7 +155,10 @@ Deno.test(".eser/recipes.json github sources exist in this repository", async ()
   const problems = await Promise.all(
     githubSources.map((source) => checkSource(repoRoot, source)),
   );
-  assert.assertEquals(problems.filter((p) => p !== null), []);
+  assert.assertEquals(
+    problems.filter((p) => p !== null),
+    [],
+  );
 });
 
 Deno.test(".eser/recipes.json lists every recipe file and nothing else", async () => {
@@ -249,11 +254,13 @@ for (const { name, onDisk, files, expected } of sourceProblemCases) {
     });
     try {
       // The fixture files are independent writes.
-      await Promise.all(onDisk.map(async (relative) => {
-        const target = runtime.path.join(registryDir, relative);
-        await runtime.fs.ensureDir(runtime.path.dirname(target));
-        await runtime.fs.writeTextFile(target, "");
-      }));
+      await Promise.all(
+        onDisk.map(async (relative) => {
+          const target = runtime.path.join(registryDir, relative);
+          await runtime.fs.ensureDir(runtime.path.dirname(target));
+          await runtime.fs.writeTextFile(target, "");
+        }),
+      );
 
       assert.assertEquals(
         await findSourceProblems(manifestOf(files), registryDir),

@@ -101,8 +101,10 @@ const parseOptions = (): {
   runtime: "node" | "bun";
   requireNative: boolean;
 } => {
-  const runtimeArg = Deno.args.find((a) => a.startsWith("--runtime="))
-    ?.slice("--runtime=".length) ?? "node";
+  const runtimeArg =
+    Deno.args
+      .find((a) => a.startsWith("--runtime="))
+      ?.slice("--runtime=".length) ?? "node";
 
   if (runtimeArg !== "node" && runtimeArg !== "bun") {
     throw new Error(`--runtime must be node or bun, got "${runtimeArg}"`);

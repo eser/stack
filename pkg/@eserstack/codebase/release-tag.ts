@@ -79,9 +79,7 @@ export const pushReleaseTag = async (
 
   const version = await versions.readVersionFile({ root });
   if (version === undefined || !/^\d+\.\d+\.\d+$/.test(version)) {
-    throw new Error(
-      `Invalid or missing version in VERSION file: "${version}"`,
-    );
+    throw new Error(`Invalid or missing version in VERSION file: "${version}"`);
   }
 
   const tag = `${tagPrefix}${version}`;
@@ -112,9 +110,8 @@ export const pushReleaseTagHandler: functions.handler.Handler<
 const cliAdapter: functions.handler.Adapter<
   functions.triggers.CliEvent,
   PushReleaseTagOptions
-> = (
-  event,
-) => primitives.results.ok({ dryRun: event.flags["dry-run"] === true });
+> = (event) =>
+  primitives.results.ok({ dryRun: event.flags["dry-run"] === true });
 
 // --- CLI ResponseMapper ---
 
@@ -127,9 +124,10 @@ const cliResponseMapper: functions.handler.ResponseMapper<
   const { ctx } = cliSupport.getCliContext();
 
   if (primitives.results.isFail(result)) {
-    const message = result.error instanceof Error
-      ? result.error.message
-      : String(result.error);
+    const message =
+      result.error instanceof Error
+        ? result.error.message
+        : String(result.error);
     tui.log.error(ctx, message);
     return primitives.results.fail({ exitCode: 1 });
   }
@@ -137,10 +135,7 @@ const cliResponseMapper: functions.handler.ResponseMapper<
   const { value } = result;
 
   if (value.dryRun) {
-    tui.log.warn(
-      ctx,
-      `[DRY RUN] Would create and push tag ${value.tag}`,
-    );
+    tui.log.warn(ctx, `[DRY RUN] Would create and push tag ${value.tag}`);
   } else {
     tui.log.success(ctx, `Created tag ${value.tag}`);
     tui.log.info(ctx, `Pushed tag ${value.tag} to ${value.remote}`);
@@ -164,10 +159,10 @@ export const handleCli: (
 export const main = async (
   cliArgs?: readonly string[],
 ): Promise<shellArgs.CliResult<void>> => {
-  const parsed = cliParseArgs.parseArgs(
-    (cliArgs ?? []) as string[],
-    { boolean: ["dry-run"], alias: { n: "dry-run" } },
-  );
+  const parsed = cliParseArgs.parseArgs((cliArgs ?? []) as string[], {
+    boolean: ["dry-run"],
+    alias: { n: "dry-run" },
+  });
   const event = cliSupport.toCliEvent("release-tag", parsed);
   return await handleCli(event);
 };

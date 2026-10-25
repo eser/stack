@@ -88,9 +88,7 @@ export const renderList = (
     const row = panel.y + 1 + i;
 
     if (idx >= items.length) {
-      lines.push(
-        ansi.moveTo(row, panel.x + 1) + " ".repeat(innerWidth),
-      );
+      lines.push(ansi.moveTo(row, panel.x + 1) + " ".repeat(innerWidth));
       continue;
     }
 
@@ -100,11 +98,12 @@ export const renderList = (
     const bullet = item.active
       ? ansi.green("\u25CF")
       : selected
-      ? "\u25B8"
-      : " ";
-    const badge = item.badge !== undefined
-      ? " " + colorize(`[${item.badge}]`, item.badgeColor ?? "dim")
-      : "";
+        ? "\u25B8"
+        : " ";
+    const badge =
+      item.badge !== undefined
+        ? " " + colorize(`[${item.badge}]`, item.badgeColor ?? "dim")
+        : "";
     const label = item.dimmed ? ansi.dim(item.label) : item.label;
     const line = ` ${bullet} ${label}${badge}`;
     const truncated = ansi.truncate(line, innerWidth);
@@ -116,9 +115,7 @@ export const renderList = (
           ansi.inverse(truncated + " ".repeat(pad)),
       );
     } else {
-      lines.push(
-        ansi.moveTo(row, panel.x + 1) + truncated + " ".repeat(pad),
-      );
+      lines.push(ansi.moveTo(row, panel.x + 1) + truncated + " ".repeat(pad));
     }
   }
 

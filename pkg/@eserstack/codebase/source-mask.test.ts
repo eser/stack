@@ -7,7 +7,10 @@ import * as sourceMask from "./source-mask.ts";
 const codeOf = (source: string): string => {
   const mask = sourceMask.codeMask(source);
 
-  return source.split("").map((ch, i) => mask[i] === 1 ? "_" : ch).join("");
+  return source
+    .split("")
+    .map((ch, i) => (mask[i] === 1 ? "_" : ch))
+    .join("");
 };
 
 const cases: ReadonlyArray<{

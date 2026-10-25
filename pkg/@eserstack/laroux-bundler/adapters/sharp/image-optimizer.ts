@@ -299,14 +299,14 @@ export async function optimizeImages(
       totalOptimizedSize += variantSize;
 
       imageLogger.debug(
-        `Optimized: ${
-          runtime.path.basename(imagePath)
-        } → ${optimized.variants.length} variants`,
+        `Optimized: ${runtime.path.basename(
+          imagePath,
+        )} → ${optimized.variants.length} variants`,
       );
     } catch (error) {
-      imageLogger.with({ error }).warn(
-        `optimize ${imagePath}; leaving it out of the image manifest`,
-      );
+      imageLogger
+        .with({ error })
+        .warn(`optimize ${imagePath}; leaving it out of the image manifest`);
     }
   }
 
@@ -323,9 +323,10 @@ export async function optimizeImages(
     JSON.stringify(manifest, null, 2),
   );
 
-  const savedPercent = totalOriginalSize > 0
-    ? ((1 - totalOptimizedSize / totalOriginalSize) * 100).toFixed(1)
-    : 0;
+  const savedPercent =
+    totalOriginalSize > 0
+      ? ((1 - totalOptimizedSize / totalOriginalSize) * 100).toFixed(1)
+      : 0;
 
   imageLogger.info(
     `Image optimization complete: ${imagePaths.length} images, ${savedPercent}% size reduction`,
@@ -345,9 +346,7 @@ export function generateSrcset(
     .filter((v) => v.format === format)
     .sort((a, b) => a.width - b.width);
 
-  return variants
-    .map((v) => `${v.path} ${v.width}w`)
-    .join(", ");
+  return variants.map((v) => `${v.path} ${v.width}w`).join(", ");
 }
 
 /**

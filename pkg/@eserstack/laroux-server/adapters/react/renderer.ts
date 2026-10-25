@@ -82,9 +82,7 @@ export function createReactRenderer(): Renderer {
         result.rscPayload,
       );
 
-      rendererLogger.debug(
-        `Page rendered, HTML length: ${result.html.length}`,
-      );
+      rendererLogger.debug(`Page rendered, HTML length: ${result.html.length}`);
 
       return {
         html: result.html,

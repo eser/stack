@@ -158,7 +158,10 @@ Deno.test("track-l-delete: RSC Protocol - encodeJsonValue keeps JSON semantics a
 
 Deno.test("track-l-delete: RSC Protocol - encodeJsonValue drops what JSON.stringify drops", () => {
   assert.assertEquals(protocol.encodeJsonValue(undefined), undefined);
-  assert.assertEquals(protocol.encodeJsonValue(() => {}), undefined);
+  assert.assertEquals(
+    protocol.encodeJsonValue(() => {}),
+    undefined,
+  );
   assert.assertEquals(protocol.encodeJsonValue(Symbol("s")), undefined);
   assert.assertEquals(protocol.encodeJsonValue(null), null);
   assert.assertEquals(protocol.encodeJsonValue(0), 0);

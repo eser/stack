@@ -25,22 +25,18 @@ const renderSpan = (node: span.Span): string => {
     case "group":
       return node.children.map(renderSpan).join("");
     case "code-block":
-      return node.value
-        .split("\n")
-        .map((line) => `  ${line}`)
-        .join("\n") + "\n";
+      return (
+        node.value
+          .split("\n")
+          .map((line) => `  ${line}`)
+          .join("\n") + "\n"
+      );
     case "table": {
       const widths = node.headers.map((h, i) => {
-        const maxRow = node.rows.reduce(
-          (max, row) => {
-            const cell = row[i];
-            return Math.max(
-              max,
-              cell !== undefined ? span.plainLength(cell) : 0,
-            );
-          },
-          0,
-        );
+        const maxRow = node.rows.reduce((max, row) => {
+          const cell = row[i];
+          return Math.max(max, cell !== undefined ? span.plainLength(cell) : 0);
+        }, 0);
         return Math.max(span.plainLength(h), maxRow);
       });
 
@@ -56,19 +52,21 @@ const renderSpan = (node: span.Span): string => {
       const sep = widths.map((w) => "-".repeat(w)).join("  ");
       const rows = node.rows
         .map((row) =>
-          row.map((cell, i) => padCell(cell, widths[i]!)).join("  ")
+          row.map((cell, i) => padCell(cell, widths[i]!)).join("  "),
         )
         .join("\n");
 
       return `${header}\n${sep}\n${rows}\n`;
     }
     case "list":
-      return node.items
-        .map((item) => `  - ${item.map(renderSpan).join("")}`)
-        .join("\n") + "\n";
+      return (
+        node.items
+          .map((item) => `  - ${item.map(renderSpan).join("")}`)
+          .join("\n") + "\n"
+      );
     case "gauge": {
       const w = node.width ?? 20;
-      const filled = Math.round(w * node.percent / 100);
+      const filled = Math.round((w * node.percent) / 100);
       const empty = w - filled;
       const bar = `[${"=".repeat(filled)}${" ".repeat(empty)}]`;
       const label = node.label ? ` ${node.label}` : "";

@@ -37,7 +37,8 @@ const runNoskills = async (
 
   return {
     code: result.code,
-    output: new TextDecoder().decode(result.stdout) +
+    output:
+      new TextDecoder().decode(result.stdout) +
       new TextDecoder().decode(result.stderr),
   };
 };
@@ -109,16 +110,14 @@ bdd.describe("noskills spec state commands", () => {
 
   // ac, task and note on a spec that does not exist crashed uncaught.
   bdd.it("ac, task and note on a missing spec refuse", async () => {
-    for (
-      const args of [
-        ["ac", "add", "x"],
-        ["ac", "list"],
-        ["task", "add", "x"],
-        ["task", "list"],
-        ["note", "add", "x"],
-        ["note", "list"],
-      ]
-    ) {
+    for (const args of [
+      ["ac", "add", "x"],
+      ["ac", "list"],
+      ["task", "add", "x"],
+      ["task", "list"],
+      ["note", "add", "x"],
+      ["note", "list"],
+    ]) {
       // One command at a time, so a failure names it.
       // deno-lint-ignore no-await-in-loop
       const { code, output } = await runNoskills(root, [
@@ -168,14 +167,12 @@ bdd.describe("noskills spec state commands", () => {
 bdd.describe("noskills review: the question number", () => {
   bdd.it("is a whole number or nothing", () => {
     assert.assertEquals(review.questionIndexOf("--question=2"), 1);
-    for (
-      const arg of [
-        "--question=1x",
-        "--question=",
-        "--question=0x1",
-        "--question=1.5",
-      ]
-    ) {
+    for (const arg of [
+      "--question=1x",
+      "--question=",
+      "--question=0x1",
+      "--question=1.5",
+    ]) {
       assert.assertEquals(review.questionIndexOf(arg), null, arg);
     }
   });

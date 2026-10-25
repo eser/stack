@@ -82,7 +82,8 @@ bdd.describe("SocialApi postThread Result contract", () => {
       3,
       new Error("network timeout"),
     );
-    const r: results.Result<{ posts: typeof p1[] }, Error> = results.fail(err);
+    const r: results.Result<{ posts: (typeof p1)[] }, Error> =
+      results.fail(err);
 
     assert.assertEquals(results.isFail(r), true);
     if (results.isFail(r)) {

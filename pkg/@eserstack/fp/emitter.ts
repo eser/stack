@@ -34,7 +34,7 @@ export const emitter = async (
   loggers?: ReadonlyArray<LoggerType>,
 ): Promise<void> => {
   const isEventWildcard = eventName === "*";
-  const argsPass = (args !== undefined) ? args : [];
+  const argsPass = args !== undefined ? args : [];
 
   for (const [eventKey, value] of Object.entries(events)) {
     if (!isEventWildcard && eventName !== eventKey) {
@@ -43,9 +43,11 @@ export const emitter = async (
 
     for (const eventSubscriber of value) {
       loggers?.forEach((logger: LoggerType) => {
-        logger(
-          { event: eventKey, subscriber: eventSubscriber.name, args: args },
-        );
+        logger({
+          event: eventKey,
+          subscriber: eventSubscriber.name,
+          args: args,
+        });
       });
 
       // Subscribers run one at a time in registration order, so a subscriber

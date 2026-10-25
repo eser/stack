@@ -39,9 +39,10 @@ const createImage = (options: FakeImageOptions): FakeImage => {
     tagName: "IMG",
     complete: options.complete ?? false,
     naturalWidth: options.naturalWidth ?? 0,
-    parentElement: sources.length > 0
-      ? { tagName: "PICTURE", querySelectorAll: () => sources }
-      : { tagName: "DIV", querySelectorAll: () => [] },
+    parentElement:
+      sources.length > 0
+        ? { tagName: "PICTURE", querySelectorAll: () => sources }
+        : { tagName: "DIV", querySelectorAll: () => [] },
     getAttribute: (name) => attributes.get(name) ?? null,
     setAttribute: (name, value) => {
       attributes.set(name, value);
@@ -127,9 +128,10 @@ Deno.test("applyImageFallback clears the picture sources", () => {
   assert.assertEquals(image.attributes.get("src"), "/placeholder.jpg");
 });
 
-const unchangedCases: ReadonlyArray<
-  { name: string; attributes: Record<string, string> }
-> = [
+const unchangedCases: ReadonlyArray<{
+  name: string;
+  attributes: Record<string, string>;
+}> = [
   { name: "has no fallback", attributes: { src: "/hero.jpg" } },
   {
     name: "has an empty fallback",

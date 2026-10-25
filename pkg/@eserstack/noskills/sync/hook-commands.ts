@@ -89,8 +89,9 @@ export const userHookGroups = (hooks: unknown): Record<string, unknown[]> => {
     const userGroups = groups.flatMap((group: unknown) => {
       if (!isRecord(group) || !Array.isArray(group["hooks"])) return [group];
 
-      const handlers = group["hooks"].filter((handler: unknown) =>
-        !(isRecord(handler) && isNoskillsHookCommand(handler["command"]))
+      const handlers = group["hooks"].filter(
+        (handler: unknown) =>
+          !(isRecord(handler) && isNoskillsHookCommand(handler["command"])),
       );
 
       return handlers.length === 0 ? [] : [{ ...group, hooks: handlers }];
@@ -149,8 +150,8 @@ const REMOTE_MODULE = /^(?:jsr|npm|https?):/;
  */
 export const networkRunnerOf = (command: string): string | null => {
   const words = command.trim().split(/\s+/);
-  const start = words.findIndex((word) =>
-    !/^[A-Za-z_][A-Za-z0-9_]*=/.test(word)
+  const start = words.findIndex(
+    (word) => !/^[A-Za-z_][A-Za-z0-9_]*=/.test(word),
   );
   if (start === -1) return null;
 

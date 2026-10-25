@@ -85,10 +85,7 @@ function generateStubFunction(
  * @param exports - List of exported function names
  * @returns Generated stub file content
  */
-function generateStubContent(
-  relativePath: string,
-  exports: string[],
-): string {
+function generateStubContent(relativePath: string, exports: string[]): string {
   const header = `/**
  * Auto-generated client stubs for server actions
  * Original file: ${relativePath}
@@ -122,9 +119,9 @@ export async function generateClientStub(
   try {
     content = await runtime.fs.readTextFile(filePath);
   } catch (error) {
-    stubLogger.with({ error }).warn(
-      `read ${filePath}; skipping its client action stubs`,
-    );
+    stubLogger
+      .with({ error })
+      .warn(`read ${filePath}; skipping its client action stubs`);
     return null;
   }
 
@@ -157,9 +154,7 @@ export async function generateClientStub(
   // Overwrite the file with stubs (in virtual source, not original)
   await runtime.fs.writeTextFile(filePath, stubContent);
 
-  stubLogger.debug(
-    `Generated client stubs: ${namedExports.join(", ")}`,
-  );
+  stubLogger.debug(`Generated client stubs: ${namedExports.join(", ")}`);
 
   return namedExports;
 }

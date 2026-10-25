@@ -49,9 +49,8 @@ const generateCommandFunction = (
   node: CompletionNode,
   path: string[],
 ): string => {
-  const funcName = path.length === 0
-    ? `_${appName}`
-    : `_${appName}_${path.join("_")}`;
+  const funcName =
+    path.length === 0 ? `_${appName}` : `_${appName}_${path.join("_")}`;
 
   let output = `${funcName}() {\n`;
   output += `    local -a commands\n`;

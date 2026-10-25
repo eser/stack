@@ -41,7 +41,7 @@ import * as violationBaseline from "./violation-baseline.ts";
 /** The rules this validator reports; each is a key of the baseline. */
 export const RULES = ["namespace-import", "or-default", "export-star"] as const;
 
-export type Rule = typeof RULES[number];
+export type Rule = (typeof RULES)[number];
 
 export type Violation = violationBaseline.RuleViolation<Rule>;
 
@@ -90,9 +90,10 @@ const isAllowedImport = (clause: string, specifier: string): boolean => {
   // `import { type A, type B }` imports types only.
   const named = trimmed.match(/^\{([\s\S]*)\}$/);
   if (named !== null) {
-    const parts = named[1]!.split(",").map((p) => p.trim()).filter((p) =>
-      p !== ""
-    );
+    const parts = named[1]!
+      .split(",")
+      .map((p) => p.trim())
+      .filter((p) => p !== "");
     return parts.length > 0 && parts.every((p) => p.startsWith("type "));
   }
   return false;
@@ -113,8 +114,7 @@ export const findViolations = (content: string): Violation[] => {
     violations.push({
       rule: "namespace-import",
       line: sourceMask.lineOf(content, start),
-      message:
-        `import from "${specifier}" is not a namespace import; use \`import * as name from "${specifier}"\` (javascript-practices: Imports)`,
+      message: `import from "${specifier}" is not a namespace import; use \`import * as name from "${specifier}"\` (javascript-practices: Imports)`,
     });
   }
 
@@ -135,8 +135,7 @@ export const findViolations = (content: string): Violation[] => {
     violations.push({
       rule: "export-star",
       line: sourceMask.lineOf(content, start),
-      message:
-        `\`export * from "${specifier}"\` re-exports the whole module; export the names explicitly (\`export { name } from "${specifier}"\`) or as a namespace (\`export * as name from "${specifier}"\`) (javascript-practices: Avoid Re-exports)`,
+      message: `\`export * from "${specifier}"\` re-exports the whole module; export the names explicitly (\`export { name } from "${specifier}"\`) or as a namespace (\`export * as name from "${specifier}"\`) (javascript-practices: Avoid Re-exports)`,
     });
   }
 
@@ -171,7 +170,7 @@ export const tool: FileTool = fileTool.createFileTool({
     );
 
     return found.flatMap((file) =>
-      violationBaseline.issuesAboveBaseline(baseline, file)
+      violationBaseline.issuesAboveBaseline(baseline, file),
     );
   },
 });

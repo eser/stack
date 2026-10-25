@@ -202,8 +202,8 @@ export function createBuildContext(
     cssPlugin: plugins?.css,
     cssProcessor: plugins?.cssProcessor ?? cssProcessor.noopCssProcessor,
     fontOptimizer: plugins?.fontOptimizer ?? fontOptimizer.noopFontOptimizer,
-    imageOptimizer: plugins?.imageOptimizer ??
-      imageOptimizer.noopImageOptimizer,
+    imageOptimizer:
+      plugins?.imageOptimizer ?? imageOptimizer.noopImageOptimizer,
   };
 }
 
@@ -334,10 +334,10 @@ export async function build(
     buildLogger.debug("🔄 Step 4: Transforming client components...");
     const transformResults = plugin.transformClientComponents
       ? await plugin.transformClientComponents(
-        clientComponents,
-        crossRuntime.runtime.path.resolve(distDir, SERVER_DIR),
-        projectRoot,
-      )
+          clientComponents,
+          crossRuntime.runtime.path.resolve(distDir, SERVER_DIR),
+          projectRoot,
+        )
       : [];
 
     // Generate transform manifest
@@ -350,17 +350,15 @@ export async function build(
     }
 
     // Step 5: Rewrite server component imports
-    buildLogger.debug(
-      "✏️  Step 5: Rewriting server component imports...",
-    );
+    buildLogger.debug("✏️  Step 5: Rewriting server component imports...");
     const allComponents = plugin.getAllComponents
       ? await plugin.getAllComponents(srcDir)
       : [];
     const clientComponentPaths = new Set(
       clientComponents.map((c) => c.filePath),
     );
-    const serverComponentPaths = allComponents.filter((path) =>
-      !clientComponentPaths.has(path)
+    const serverComponentPaths = allComponents.filter(
+      (path) => !clientComponentPaths.has(path),
     );
 
     if (plugin.rewriteServerComponents) {
@@ -382,8 +380,8 @@ export async function build(
       distDir,
       SERVER_DIR,
     );
-    const serverActionResults = await serverActionTransform
-      .transformServerActions(serverDistDir);
+    const serverActionResults =
+      await serverActionTransform.transformServerActions(serverDistDir);
     if (serverActionResults.length > 0) {
       const totalActions = serverActionResults.reduce(
         (sum, r) => sum + r.transformedActions.length,
@@ -463,8 +461,8 @@ export async function build(
         virtualSrcDir,
         srcDirName,
       );
-      const clientStubResults = await clientActionStub
-        .generateClientActionStubs(
+      const clientStubResults =
+        await clientActionStub.generateClientActionStubs(
           virtualSrcSubdirForStubs,
           virtualSrcDir,
         );
@@ -493,7 +491,7 @@ export async function build(
 
         // Translate CSS module paths to virtual source
         const virtualCssModulePaths = cssModulePaths.map((p) =>
-          virtualSource.translateToVirtualPath(p, srcDir, virtualSrcDir)
+          virtualSource.translateToVirtualPath(p, srcDir, virtualSrcDir),
         );
 
         // Process and generate JSON files in virtual source
@@ -571,7 +569,7 @@ export async function build(
         );
         await copyCssModuleJsonFilesFromSrc(
           cssModulePaths.map((p) =>
-            virtualSource.translateToVirtualPath(p, srcDir, virtualSrcDir)
+            virtualSource.translateToVirtualPath(p, srcDir, virtualSrcDir),
           ),
           virtualSrcDir,
           clientOutputDir,
@@ -583,7 +581,7 @@ export async function build(
         );
         await copyCssModuleJsonFilesFromSrc(
           cssModulePaths.map((p) =>
-            virtualSource.translateToVirtualPath(p, srcDir, virtualSrcDir)
+            virtualSource.translateToVirtualPath(p, srcDir, virtualSrcDir),
           ),
           virtualSrcDir,
           crossRuntime.runtime.path.resolve(distDir, SERVER_DIR),
@@ -659,15 +657,15 @@ export async function build(
         crossRuntime.runtime.path.join(
           serverOutputDir,
           crossRuntime.runtime.path.relative(projectRoot, srcPath),
-        )
+        ),
       );
       const candidateExists = await Promise.all(
         candidatePaths.map((distPath) =>
-          crossRuntime.runtime.fs.exists(distPath)
+          crossRuntime.runtime.fs.exists(distPath),
         ),
       );
-      const serverEntrypoints = candidatePaths.filter((_, index) =>
-        candidateExists[index] === true
+      const serverEntrypoints = candidatePaths.filter(
+        (_, index) => candidateExists[index] === true,
       );
 
       buildLogger.info(
@@ -685,8 +683,8 @@ export async function build(
         // e.g., "@eserstack/laroux-server" matches "@eserstack/laroux-server/action-registry"
         // This ensures singleton modules like action-registry are shared between
         // bundled server components and the laroux-server runtime.
-        const externalsPlugin = serverExternalsPlugin
-          .createServerExternalsPlugin({
+        const externalsPlugin =
+          serverExternalsPlugin.createServerExternalsPlugin({
             externals: serverExternals,
           });
 
@@ -724,7 +722,7 @@ export async function build(
     // Convert source paths to bundled output paths:
     // Preserves full path structure (src/app/actions.ts → src/app/actions.js)
     const actionFiles = serverActionMatches.map((match) =>
-      patterns.replaceJsExtension(match.relativePath, ".js")
+      patterns.replaceJsExtension(match.relativePath, ".js"),
     );
 
     // Write actions manifest
@@ -825,9 +823,10 @@ async function needsRebuild(context: BuildContext): Promise<boolean> {
   }
 
   buildLogger.debug(
-    `  Changed: ${
-      crossRuntime.runtime.path.relative(context.projectRoot, changedFile)
-    }`,
+    `  Changed: ${crossRuntime.runtime.path.relative(
+      context.projectRoot,
+      changedFile,
+    )}`,
   );
   return true;
 }
@@ -884,16 +883,16 @@ async function findChangedBuildInput(
     ...sourceFiles,
     ...publicFiles,
     ...PROJECT_BUILD_INPUTS.map((name) =>
-      crossRuntime.runtime.path.resolve(projectRoot, name)
+      crossRuntime.runtime.path.resolve(projectRoot, name),
     ),
   ];
 
   const modifiedTimes = await Promise.all(inputFiles.map(readModifiedTime));
-  const changedIndex = modifiedTimes.findIndex((mtime) =>
-    mtime !== null && mtime > buildTimestamp
+  const changedIndex = modifiedTimes.findIndex(
+    (mtime) => mtime !== null && mtime > buildTimestamp,
   );
 
-  return changedIndex === -1 ? null : inputFiles[changedIndex] ?? null;
+  return changedIndex === -1 ? null : (inputFiles[changedIndex] ?? null);
 }
 
 /**
@@ -909,12 +908,10 @@ async function listBuildInputFiles(
   }
 
   const files: string[] = [];
-  for await (
-    const entry of crossRuntime.runtime.fs.walk(dir, {
-      includeDirs: false,
-      skip: STALENESS_SKIP_PATTERNS,
-    })
-  ) {
+  for await (const entry of crossRuntime.runtime.fs.walk(dir, {
+    includeDirs: false,
+    skip: STALENESS_SKIP_PATTERNS,
+  })) {
     if (!buildValidator.isWithinOutputDir(entry.path, distDir)) {
       files.push(entry.path);
     }
@@ -951,9 +948,8 @@ async function loadExistingBuild(context: BuildContext): Promise<BuildResult> {
     CLIENT_DIR,
   );
 
-  const manifestContent = await crossRuntime.runtime.fs.readTextFile(
-    chunkManifestFile,
-  );
+  const manifestContent =
+    await crossRuntime.runtime.fs.readTextFile(chunkManifestFile);
   const manifest: ChunkManifest = JSON.parse(manifestContent);
 
   // A framework plugin without saveModuleMap writes no module map
@@ -961,10 +957,11 @@ async function loadExistingBuild(context: BuildContext): Promise<BuildResult> {
     clientOutputDir,
     MODULE_MAP_FILENAME,
   );
-  const moduleMap: ModuleMap =
-    await crossRuntime.runtime.fs.exists(moduleMapPath)
-      ? JSON.parse(await crossRuntime.runtime.fs.readTextFile(moduleMapPath))
-      : {};
+  const moduleMap: ModuleMap = (await crossRuntime.runtime.fs.exists(
+    moduleMapPath,
+  ))
+    ? JSON.parse(await crossRuntime.runtime.fs.readTextFile(moduleMapPath))
+    : {};
 
   return {
     success: true,
@@ -995,9 +992,7 @@ export function watch(
   onChange: (result: BuildResult) => void | Promise<void>,
 ): FsWatcher {
   const { srcDir, distDir, projectRoot } = context;
-  buildLogger.debug(
-    "👁️  Watch mode enabled, monitoring for changes...",
-  );
+  buildLogger.debug("👁️  Watch mode enabled, monitoring for changes...");
 
   // The cache lives as long as this watcher, unless the caller passed one
   const cache = context.cache ?? new buildCache.BuildCache();
@@ -1045,15 +1040,15 @@ export function watch(
         // Invalidate cache entries for changed files
         cache.invalidateFiles(
           changedFilesList.map((f) =>
-            crossRuntime.runtime.path.resolve(projectRoot, f)
+            crossRuntime.runtime.path.resolve(projectRoot, f),
           ),
         );
 
         const hasCssChanges = changedFilesList.some((file) =>
-          file.endsWith(".css")
+          file.endsWith(".css"),
         );
         const hasJsChanges = changedFilesList.some((file) =>
-          file.match(/\.(tsx?|jsx?)$/)
+          file.match(/\.(tsx?|jsx?)$/),
         );
 
         // Determine build mode:
@@ -1066,7 +1061,7 @@ export function watch(
         // Convert changed files to absolute paths for incremental virtual source
         const changedFilesAbsolute = new Set(
           changedFilesList.map((f) =>
-            crossRuntime.runtime.path.resolve(projectRoot, f)
+            crossRuntime.runtime.path.resolve(projectRoot, f),
           ),
         );
 
@@ -1112,7 +1107,8 @@ export function watch(
   (async () => {
     for await (const event of watcher) {
       if (
-        event.kind === "modify" || event.kind === "create" ||
+        event.kind === "modify" ||
+        event.kind === "create" ||
         event.kind === "remove"
       ) {
         const eventPath = event.paths[0];
@@ -1210,8 +1206,8 @@ async function bundleClient(
     // Uses both deno.json and package.json for import resolution
     // autoMarkExternal: false ensures npm packages are bundled inline for browsers
     // (browsers can't resolve bare specifiers without an import map)
-    const importMapPlugin = importMapResolverPlugin
-      .createImportMapResolverPlugin({
+    const importMapPlugin =
+      importMapResolverPlugin.createImportMapResolverPlugin({
         projectRoot,
         browserShims: config.browserShims,
         autoMarkExternal: false,
@@ -1322,9 +1318,9 @@ async function copyTranslationFiles(
 
   if (await crossRuntime.runtime.fs.exists(appMessagesSourceDir)) {
     await crossRuntime.runtime.fs.ensureDir(appMessagesDestDir);
-    for await (
-      const entry of crossRuntime.runtime.fs.readDir(appMessagesSourceDir)
-    ) {
+    for await (const entry of crossRuntime.runtime.fs.readDir(
+      appMessagesSourceDir,
+    )) {
       if (entry.isFile && entry.name.endsWith(".json")) {
         const sourcePath = crossRuntime.runtime.path.resolve(
           appMessagesSourceDir,
@@ -1353,9 +1349,9 @@ async function copyTranslationFiles(
 
   if (await crossRuntime.runtime.fs.exists(i18nMessagesSourceDir)) {
     await crossRuntime.runtime.fs.ensureDir(i18nMessagesDestDir);
-    for await (
-      const entry of crossRuntime.runtime.fs.readDir(i18nMessagesSourceDir)
-    ) {
+    for await (const entry of crossRuntime.runtime.fs.readDir(
+      i18nMessagesSourceDir,
+    )) {
       if (entry.isFile && entry.name.endsWith(".json")) {
         const sourcePath = crossRuntime.runtime.path.resolve(
           i18nMessagesSourceDir,
@@ -1470,28 +1466,30 @@ async function rebuildStylesheets(
   // The CSS modules are compiled before styles.css is touched, so a module
   // that fails to compile leaves the previous styles.css in place.
   const cssModulePaths = await scanCssModuleFiles(srcDir);
-  const cssModuleResults = cssModulePaths.length > 0
-    ? await processCssModulesFiles(
-      projectRoot,
-      clientOutputDir,
-      context.config,
-      {
-        skipCss: true,
-        cssModulePaths,
-        cache: context.cache,
-        plugin: cssPlugin,
-      },
-    )
-    : new Map<string, CSSModuleResult>();
+  const cssModuleResults =
+    cssModulePaths.length > 0
+      ? await processCssModulesFiles(
+          projectRoot,
+          clientOutputDir,
+          context.config,
+          {
+            skipCss: true,
+            cssModulePaths,
+            cache: context.cache,
+            plugin: cssPlugin,
+          },
+        )
+      : new Map<string, CSSModuleResult>();
 
-  const wroteGlobalStyles = cssPlugin !== undefined &&
-    await processCssFiles({
+  const wroteGlobalStyles =
+    cssPlugin !== undefined &&
+    (await processCssFiles({
       plugin: cssPlugin,
       processor: context.cssProcessor,
       srcDir,
       projectRoot,
       outputDir: clientOutputDir,
-    });
+    }));
   if (!wroteGlobalStyles) {
     // As in a full build, the CSS module styles then make up styles.css on
     // their own; appending them to the previous file would repeat them.
@@ -1740,9 +1738,9 @@ async function extractCriticalPageCssFiles(
     return { criticalPath, deferredPath };
   } catch (error) {
     // Non-fatal: pages fall back to loading the full stylesheet
-    buildLogger.with({ error }).warn(
-      "Critical CSS extraction failed, loading full CSS instead",
-    );
+    buildLogger
+      .with({ error })
+      .warn("Critical CSS extraction failed, loading full CSS instead");
     return null;
   }
 }
@@ -1790,16 +1788,14 @@ async function generateCriticalUniversalCssFile(
     );
     await crossRuntime.runtime.fs.writeTextFile(universalPath, result.css);
 
-    buildLogger.debug(
-      `✓ Universal CSS generated: ${result.css.length} bytes`,
-    );
+    buildLogger.debug(`✓ Universal CSS generated: ${result.css.length} bytes`);
 
     return universalPath;
   } catch (error) {
     // Non-fatal: the server falls back to its default universal CSS
-    buildLogger.with({ error }).warn(
-      "Universal CSS generation failed, using the default instead",
-    );
+    buildLogger
+      .with({ error })
+      .warn("Universal CSS generation failed, using the default instead");
     return null;
   }
 }
@@ -1812,7 +1808,7 @@ async function cleanBuildDir(
   distDir: string,
   preserveCss?: boolean,
 ): Promise<void> {
-  if (!await crossRuntime.runtime.fs.exists(distDir)) {
+  if (!(await crossRuntime.runtime.fs.exists(distDir))) {
     return;
   }
 
@@ -1905,15 +1901,15 @@ async function optimizeFonts(
     );
 
     buildLogger.debug(
-      `✓ Fonts optimized: ${result.fileCount} file(s), ${
-        (result.totalSize / 1024).toFixed(2)
-      } KB`,
+      `✓ Fonts optimized: ${result.fileCount} file(s), ${(
+        result.totalSize / 1024
+      ).toFixed(2)} KB`,
     );
   } catch (error) {
     // Font optimization is optional, so the build continues without it
-    buildLogger.with({ error }).warn(
-      "Font optimization failed, continuing without it",
-    );
+    buildLogger
+      .with({ error })
+      .warn("Font optimization failed, continuing without it");
   }
 }
 
@@ -1962,8 +1958,8 @@ async function processCssModulesFiles(
   },
 ): Promise<Map<string, CSSModuleResult>> {
   // Use pre-scanned paths if provided, otherwise scan using config.srcDir
-  const cssModuleFiles = options?.cssModulePaths ??
-    await scanCssModuleFiles(config.srcDir);
+  const cssModuleFiles =
+    options?.cssModulePaths ?? (await scanCssModuleFiles(config.srcDir));
 
   if (cssModuleFiles.length === 0) {
     buildLogger.debug("No CSS modules found, skipping CSS module processing");
@@ -2034,9 +2030,7 @@ async function copyCssModuleJsonFilesFromSrc(
   }
 
   if (copiedCount > 0) {
-    buildLogger.debug(
-      `✓ Copied ${copiedCount} CSS module JSON file(s)`,
-    );
+    buildLogger.debug(`✓ Copied ${copiedCount} CSS module JSON file(s)`);
   }
 }
 
@@ -2078,9 +2072,9 @@ async function copyCssModuleJsonFile(
     await fs.copy(sourceJsonPath, targetJsonPath, { overwrite: true });
     return true;
   } catch (error) {
-    buildLogger.with({ error }).warn(
-      `copy the CSS module class map of ${relativePath}; skipping it`,
-    );
+    buildLogger
+      .with({ error })
+      .warn(`copy the CSS module class map of ${relativePath}; skipping it`);
     return false;
   }
 }
@@ -2118,10 +2112,9 @@ async function appendCssModulesToStyles(
     existingStyles = existingStyles.replace(/\x1B\[[0-9;]*[a-zA-Z]/g, "");
     const cleanedContents = cssModuleContents.map((content) =>
       // deno-lint-ignore no-control-regex
-      content.replace(/\x1B\[[0-9;]*[a-zA-Z]/g, "")
+      content.replace(/\x1B\[[0-9;]*[a-zA-Z]/g, ""),
     );
-    const combinedStyles = existingStyles + "\n" +
-      cleanedContents.join("\n");
+    const combinedStyles = existingStyles + "\n" + cleanedContents.join("\n");
     await crossRuntime.runtime.fs.writeTextFile(stylesPath, combinedStyles);
     buildLogger.debug(
       `✓ Appended ${cssModuleContents.length} CSS module(s) to styles.css`,
@@ -2176,8 +2169,8 @@ async function optimizeImagesStep(
     buildLogger.debug(`✓ Optimized ${imageCount} image(s)`);
   } catch (error) {
     // Image optimization is optional, so the build continues without it
-    buildLogger.with({ error }).warn(
-      "Image optimization failed, continuing without it",
-    );
+    buildLogger
+      .with({ error })
+      .warn("Image optimization failed, continuing without it");
   }
 }

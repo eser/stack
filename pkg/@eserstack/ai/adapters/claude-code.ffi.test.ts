@@ -16,10 +16,12 @@ const claudeConfig = config.withDefaults({
   provider: "claude-code",
   model: "",
 });
-const hi = [{
-  role: "user" as const,
-  content: [{ kind: "text" as const, text: "hi" }],
-}];
+const hi = [
+  {
+    role: "user" as const,
+    content: [{ kind: "text" as const, text: "hi" }],
+  },
+];
 const titleSchema: Record<string, unknown> = {
   type: "object",
   properties: { title: { type: "string" } },

@@ -36,9 +36,7 @@ export const main = async (
     renderer: streams.renderers.ansi(),
     sink: streams.sinks.stdout(),
   });
-  out.writeln(
-    `Usage: ${prefix} session <start | end | list | gc>`,
-  );
+  out.writeln(`Usage: ${prefix} session <start | end | list | gc>`);
   out.writeln("");
   out.writeln(span.dim("  start --spec=<name>   Bind to a spec"));
   out.writeln(
@@ -94,12 +92,11 @@ const sessionStart = async (
 
   // The modes exclude each other: a free session that names a spec, or an
   // auto pick that drops the spec asked for, would bind something else.
-  const modeCount =
-    [specName !== null, freeMode, autoMode].filter((set) => set).length;
+  const modeCount = [specName !== null, freeMode, autoMode].filter(
+    (set) => set,
+  ).length;
   if (modeCount > 1) {
-    out.writeln(
-      span.red("Use only one of --spec=<name>, --free or --auto."),
-    );
+    out.writeln(span.red("Use only one of --spec=<name>, --free or --auto."));
     await out.close();
     return results.fail({ exitCode: 1 });
   }
@@ -107,9 +104,7 @@ const sessionStart = async (
   if (specName === "") {
     out.writeln(span.red("--spec needs a spec name."));
     out.writeln(
-      span.dim(
-        `Example: ${cmd.cmdPrefix()} session start --spec=my-feature`,
-      ),
+      span.dim(`Example: ${cmd.cmdPrefix()} session start --spec=my-feature`),
     );
     await out.close();
     return results.fail({ exitCode: 1 });
@@ -130,13 +125,9 @@ const sessionStart = async (
   }
 
   if (specName === null && !freeMode) {
+    out.writeln(span.red("Specify --spec=<name>, --free, or --auto."));
     out.writeln(
-      span.red("Specify --spec=<name>, --free, or --auto."),
-    );
-    out.writeln(
-      span.dim(
-        `Example: ${cmd.cmdPrefix()} session start --spec=my-feature`,
-      ),
+      span.dim(`Example: ${cmd.cmdPrefix()} session start --spec=my-feature`),
     );
     await out.close();
     return results.fail({ exitCode: 1 });
@@ -179,14 +170,9 @@ const sessionStart = async (
 
   await persistence.createSession(root, session);
 
-  out.writeln(
-    span.green("Session started."),
-  );
+  out.writeln(span.green("Session started."));
   out.writeln("  ID:   ", span.bold(sessionId));
-  out.writeln(
-    "  Mode: ",
-    span.bold(freeMode ? "free" : "spec"),
-  );
+  out.writeln("  Mode: ", span.bold(freeMode ? "free" : "spec"));
   if (specName !== null) {
     out.writeln("  Spec: ", span.bold(specName));
     if (phase !== null) {
@@ -195,12 +181,8 @@ const sessionStart = async (
   }
   out.writeln("");
   out.writeln("Run:");
-  out.writeln(
-    span.bold(`  export NOSKILLS_SESSION=${sessionId}`),
-  );
-  out.writeln(
-    span.bold(`  export NOSKILLS_PROJECT_ROOT=${root}`),
-  );
+  out.writeln(span.bold(`  export NOSKILLS_SESSION=${sessionId}`));
+  out.writeln(span.bold(`  export NOSKILLS_PROJECT_ROOT=${root}`));
   await out.close();
 
   return results.ok(undefined);
@@ -281,9 +263,9 @@ const sessionList = async (): Promise<shellArgs.CliResult<void>> => {
   if (sessions.length === 0) {
     out.writeln(
       span.dim(
-        `  No active sessions. Start one with: ${
-          cmd.cmd("session start --spec=<name>")
-        }`,
+        `  No active sessions. Start one with: ${cmd.cmd(
+          "session start --spec=<name>",
+        )}`,
       ),
     );
   } else {
@@ -330,9 +312,7 @@ const sessionGc = async (): Promise<shellArgs.CliResult<void>> => {
   if (removed.length === 0) {
     out.writeln(span.dim("No stale sessions to remove."));
   } else {
-    out.writeln(
-      span.green(`Removed ${removed.length} stale session(s):`),
-    );
+    out.writeln(span.green(`Removed ${removed.length} stale session(s):`));
     for (const id of removed) {
       out.writeln("  ", span.dim(id));
     }

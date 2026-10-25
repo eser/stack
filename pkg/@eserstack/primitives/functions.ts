@@ -23,9 +23,9 @@ export type GenericFunction<TR, TP> = (...args: ArgList<TP>) => TR;
 export type GenericClass<TC, TP> = new (...args: ArgList<TP>) => TC;
 
 /** An async generator function that yields nothing. */
-export const nullAsyncGeneratorFn = async function* <TR>(): AsyncGenerator<
-  TR
-> {};
+export const nullAsyncGeneratorFn = async function* <
+  TR,
+>(): AsyncGenerator<TR> {};
 /** The constructor of async generator functions (`AsyncGeneratorFunction`). */
 export const AsyncGeneratorFunction: Function =
   nullAsyncGeneratorFn.constructor;

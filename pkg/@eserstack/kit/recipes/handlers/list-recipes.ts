@@ -140,7 +140,8 @@ export const listRecipes = (
       if (lib !== null) {
         // The same source the TypeScript path below loads: Go would search
         // for a local registry whether or not --local was given.
-        const registryUrl = input.registrySource ??
+        const registryUrl =
+          input.registrySource ??
           (input.local === true
             ? await registryFetcher.detectLocalRegistry()
             : undefined) ??
@@ -202,8 +203,8 @@ export const listRecipes = (
         recipes = recipes.filter((r) => r.scale === input.scale);
       }
       if (input.tag !== undefined) {
-        recipes = recipes.filter((r) =>
-          r.tags !== undefined && r.tags.includes(input.tag!)
+        recipes = recipes.filter(
+          (r) => r.tags !== undefined && r.tags.includes(input.tag!),
         );
       }
 

@@ -48,8 +48,8 @@ export function validateConfig(
   const missing: string[] = [];
 
   const hasTwitter = isSet(cfg.twitter.clientId);
-  const hasBluesky = isSet(cfg.bluesky.identifier) &&
-    isSet(cfg.bluesky.appPassword);
+  const hasBluesky =
+    isSet(cfg.bluesky.identifier) && isSet(cfg.bluesky.appPassword);
 
   if (!hasTwitter && !hasBluesky) {
     if (!isSet(cfg.twitter.clientId)) {
@@ -67,10 +67,9 @@ export function validateConfig(
     return results.fail({
       code: "CONFIG_INVALID",
       missing,
-      message:
-        `Missing required configuration — set at least one platform's credentials: ${
-          missing.join(", ")
-        }`,
+      message: `Missing required configuration — set at least one platform's credentials: ${missing.join(
+        ", ",
+      )}`,
     });
   }
 

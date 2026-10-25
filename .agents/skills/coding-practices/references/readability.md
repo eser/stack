@@ -106,20 +106,28 @@ explicitly: `=== null`, `=== undefined`, `=== ""`, `.length === 0`, `=== 0`,
 Correct:
 
 ```typescript
-if (value === null) {}
-if (name === "") {}
-if (items.length === 0) {}
-if (index !== -1) {}
-if (!response.ok) {} // boolean
+if (value === null) {
+}
+if (name === "") {
+}
+if (items.length === 0) {
+}
+if (index !== -1) {
+}
+if (!response.ok) {
+} // boolean
 const port = config.port ?? 8000;
 ```
 
 Incorrect:
 
 ```typescript
-if (!value) {} // also true for 0, "" and false
-if (!items.length) {}
-if (user) {}
+if (!value) {
+} // also true for 0, "" and false
+if (!items.length) {
+}
+if (user) {
+}
 const port = config.port || 8000; // replaces a valid 0
 ```
 

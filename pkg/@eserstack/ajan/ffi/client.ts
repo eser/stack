@@ -39,7 +39,8 @@ const asError = (cause: unknown): Error =>
  */
 export const ensureLib = (): Promise<void> => {
   if (loadPromise === null) {
-    loadPromise = ffi.loadEserAjan()
+    loadPromise = ffi
+      .loadEserAjan()
       .then((loaded) => {
         library = loaded;
         loadError = null;

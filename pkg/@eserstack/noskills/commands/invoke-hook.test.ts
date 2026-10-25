@@ -75,8 +75,8 @@ bdd.describe("processAskUserQuestionHook — token writing", () => {
     "writes token file with correct structure for AskUserQuestion input",
     async () => {
       const input: Record<string, unknown> = {
-        "tool_name": "AskUserQuestion",
-        "tool_input": {
+        tool_name: "AskUserQuestion",
+        tool_input: {
           questions: [
             { question: "What is the current behavior of the upload flow?" },
           ],
@@ -93,12 +93,14 @@ bdd.describe("processAskUserQuestionHook — token writing", () => {
       assert.assertEquals(token["spec"], null);
       assert.assertEquals(typeof token["createdAt"], "string");
       // Outside DISCOVERY the call records one step that no answer takes.
-      assert.assertEquals(token["steps"], [{
-        stepId: "unknown",
-        match: "modified",
-        originalQuestion: "",
-        askedQuestion: "What is the current behavior of the upload flow?",
-      }]);
+      assert.assertEquals(token["steps"], [
+        {
+          stepId: "unknown",
+          match: "modified",
+          originalQuestion: "",
+          askedQuestion: "What is the current behavior of the upload flow?",
+        },
+      ]);
     },
   );
 
@@ -106,8 +108,8 @@ bdd.describe("processAskUserQuestionHook — token writing", () => {
     "skips non-AskUserQuestion tools (no token file written)",
     async () => {
       const input: Record<string, unknown> = {
-        "tool_name": "Bash",
-        "tool_input": { command: "ls" },
+        tool_name: "Bash",
+        tool_input: { command: "ls" },
         cwd: tempDir,
       };
 
@@ -122,8 +124,8 @@ bdd.describe("processAskUserQuestionHook — token writing", () => {
     "handles missing questions array gracefully (no throw, no file)",
     async () => {
       const input: Record<string, unknown> = {
-        "tool_name": "AskUserQuestion",
-        "tool_input": {},
+        tool_name: "AskUserQuestion",
+        tool_input: {},
         cwd: tempDir,
       };
 
@@ -139,8 +141,8 @@ bdd.describe("processAskUserQuestionHook — token writing", () => {
     "falls back to legacy single-string `question` field shape",
     async () => {
       const input: Record<string, unknown> = {
-        "tool_name": "AskUserQuestion",
-        "tool_input": {
+        tool_name: "AskUserQuestion",
+        tool_input: {
           question: "Legacy single-string shape",
         },
         cwd: tempDir,
@@ -163,8 +165,8 @@ bdd.describe(
   "processAskUserQuestionHook: base questions asked together",
   () => {
     const ask = (asked: readonly string[]): Record<string, unknown> => ({
-      "tool_name": "AskUserQuestion",
-      "tool_input": { questions: asked.map((question) => ({ question })) },
+      tool_name: "AskUserQuestion",
+      tool_input: { questions: asked.map((question) => ({ question })) },
       cwd: tempDir,
     });
 
@@ -331,9 +333,9 @@ const PROTECTED_CASES: readonly {
     name: "an Edit that sets allowGit",
     toolName: "Edit",
     toolInput: {
-      "file_path": ".eser/manifest.yml",
-      "old_string": "allowGit: false",
-      "new_string": "allowGit: true",
+      file_path: ".eser/manifest.yml",
+      old_string: "allowGit: false",
+      new_string: "allowGit: true",
     },
     denied: true,
   },
@@ -341,7 +343,7 @@ const PROTECTED_CASES: readonly {
     name: "a Write to the wrapper path",
     toolName: "Write",
     toolInput: {
-      "file_path": ".eser/.state/bin/git",
+      file_path: ".eser/.state/bin/git",
       content: '#!/bin/sh\nexec /usr/bin/git "$@"\n',
     },
     denied: true,
@@ -350,7 +352,7 @@ const PROTECTED_CASES: readonly {
     name: "a Write that replaces the manifest with allowGit on",
     toolName: "Write",
     toolInput: {
-      "file_path": ".eser/manifest.yml",
+      file_path: ".eser/manifest.yml",
       content: PROTECTED_MANIFEST.replace("false", "true"),
     },
     denied: true,
@@ -359,11 +361,13 @@ const PROTECTED_CASES: readonly {
     name: "a MultiEdit that changes the wrapper's command",
     toolName: "MultiEdit",
     toolInput: {
-      "file_path": ".eser/manifest.yml",
-      edits: [{
-        "old_string": "npx eser@latest noskills",
-        "new_string": "true",
-      }],
+      file_path: ".eser/manifest.yml",
+      edits: [
+        {
+          old_string: "npx eser@latest noskills",
+          new_string: "true",
+        },
+      ],
     },
     denied: true,
   },
@@ -371,9 +375,9 @@ const PROTECTED_CASES: readonly {
     name: "an Edit that reaches the manifest through ..",
     toolName: "Edit",
     toolInput: {
-      "file_path": "src/../.eser/manifest.yml",
-      "old_string": "allowGit: false",
-      "new_string": "allowGit: true",
+      file_path: "src/../.eser/manifest.yml",
+      old_string: "allowGit: false",
+      new_string: "allowGit: true",
     },
     denied: true,
   },
@@ -390,22 +394,22 @@ const PROTECTED_CASES: readonly {
     name: "an Edit to another section of the manifest",
     toolName: "Edit",
     toolInput: {
-      "file_path": ".eser/manifest.yml",
-      "old_string": "[fmt]",
-      "new_string": "[fmt, lint]",
+      file_path: ".eser/manifest.yml",
+      old_string: "[fmt]",
+      new_string: "[fmt, lint]",
     },
     denied: false,
   },
   {
     name: "a Write to a rule under .eser",
     toolName: "Write",
-    toolInput: { "file_path": ".eser/rules/naming.md", content: "# Naming\n" },
+    toolInput: { file_path: ".eser/rules/naming.md", content: "# Naming\n" },
     denied: false,
   },
   {
     name: "a Write to project code",
     toolName: "Write",
-    toolInput: { "file_path": "src/main.ts", content: "export {};\n" },
+    toolInput: { file_path: "src/main.ts", content: "export {};\n" },
     denied: false,
   },
   {
@@ -447,11 +451,15 @@ bdd.describe("checkProtectedFiles", () => {
     );
     assert.assertEquals(link.success, true);
 
-    const reason = await invokeHook.checkProtectedFiles("Edit", {
-      "file_path": `${root}/m.yml`,
-      "old_string": "allowGit: false",
-      "new_string": "allowGit: true",
-    }, root);
+    const reason = await invokeHook.checkProtectedFiles(
+      "Edit",
+      {
+        file_path: `${root}/m.yml`,
+        old_string: "allowGit: false",
+        new_string: "allowGit: true",
+      },
+      root,
+    );
 
     assert.assertNotEquals(reason, null);
   });
@@ -461,10 +469,14 @@ bdd.describe("checkProtectedFiles", () => {
       `${root}/${persistence.paths.manifestFile}`,
     );
 
-    const reason = await invokeHook.checkProtectedFiles("Write", {
-      "file_path": `${root}/${persistence.paths.manifestFile}`,
-      content: "noskills:\n  allowGit: true\n",
-    }, root);
+    const reason = await invokeHook.checkProtectedFiles(
+      "Write",
+      {
+        file_path: `${root}/${persistence.paths.manifestFile}`,
+        content: "noskills:\n  allowGit: true\n",
+      },
+      root,
+    );
 
     assert.assertNotEquals(reason, null);
   });
@@ -533,10 +545,10 @@ bdd.describe("pre-tool-use hook: protected files", () => {
       const runs = await Promise.all(
         picked.map((c) =>
           runPreToolUseHook({
-            "tool_name": c.toolName,
-            "tool_input": c.toolInput,
+            tool_name: c.toolName,
+            tool_input: c.toolInput,
             cwd: root,
-          })
+          }),
         ),
       );
 
@@ -577,15 +589,15 @@ bdd.describe("pre-tool-use hook: protected files", () => {
           toolName: "edit",
           toolArgs: JSON.stringify({
             path: ".eser/manifest.yml",
-            "old_str": "allowGit: false",
-            "new_str": "allowGit: true",
+            old_str: "allowGit: false",
+            new_str: "allowGit: true",
           }),
           cwd: root,
         }),
         runPreToolUseHook({
-          "hook_event_name": "preToolUse",
-          "tool_name": "execute_bash",
-          "tool_input": { command: "git push origin main" },
+          hook_event_name: "preToolUse",
+          tool_name: "execute_bash",
+          tool_input: { command: "git push origin main" },
           cwd: root,
         }),
       ]);
@@ -627,35 +639,34 @@ const MANIFEST = ".eser/manifest.yml";
 const TOOL_PAYLOADS: Readonly<Record<string, ToolPayloads>> = {
   "Claude Code": {
     shell: (command) => ({
-      "hook_event_name": "PreToolUse",
-      "tool_name": "Bash",
-      "tool_input": { command },
+      hook_event_name: "PreToolUse",
+      tool_name: "Bash",
+      tool_input: { command },
     }),
     allowGitEdit: {
-      "hook_event_name": "PreToolUse",
-      "tool_name": "Edit",
-      "tool_input": {
-        "file_path": MANIFEST,
-        "old_string": "allowGit: false",
-        "new_string": "allowGit: true",
+      hook_event_name: "PreToolUse",
+      tool_name: "Edit",
+      tool_input: {
+        file_path: MANIFEST,
+        old_string: "allowGit: false",
+        new_string: "allowGit: true",
       },
     },
   },
   Codex: {
     shell: (command) => ({
-      "hook_event_name": "PreToolUse",
-      "tool_name": "Bash",
-      "tool_use_id": "call_1",
-      "turn_id": "turn_1",
-      "tool_input": { command },
+      hook_event_name: "PreToolUse",
+      tool_name: "Bash",
+      tool_use_id: "call_1",
+      turn_id: "turn_1",
+      tool_input: { command },
     }),
     allowGitEdit: {
-      "hook_event_name": "PreToolUse",
-      "tool_name": "apply_patch",
-      "turn_id": "turn_1",
-      "tool_input": {
-        command:
-          `*** Begin Patch\n*** Update File: ${MANIFEST}\n@@\n noskills:\n-  allowGit: false\n+  allowGit: true\n*** End Patch`,
+      hook_event_name: "PreToolUse",
+      tool_name: "apply_patch",
+      turn_id: "turn_1",
+      tool_input: {
+        command: `*** Begin Patch\n*** Update File: ${MANIFEST}\n@@\n noskills:\n-  allowGit: false\n+  allowGit: true\n*** End Patch`,
       },
     },
   },
@@ -670,58 +681,58 @@ const TOOL_PAYLOADS: Readonly<Record<string, ToolPayloads>> = {
       toolName: "edit",
       toolArgs: {
         path: MANIFEST,
-        "old_str": "allowGit: false",
-        "new_str": "allowGit: true",
+        old_str: "allowGit: false",
+        new_str: "allowGit: true",
       },
     },
   },
   "Copilot CLI (PascalCase)": {
     shell: (command) => ({
-      "hook_event_name": "PreToolUse",
+      hook_event_name: "PreToolUse",
       timestamp: "2026-10-05T00:00:00.000Z",
-      "tool_name": "Bash",
-      "tool_input": { command },
+      tool_name: "Bash",
+      tool_input: { command },
     }),
     allowGitEdit: {
-      "hook_event_name": "PreToolUse",
-      "tool_name": "Write",
-      "tool_input": {
+      hook_event_name: "PreToolUse",
+      tool_name: "Write",
+      tool_input: {
         path: MANIFEST,
-        "file_text": "noskills:\n  allowGit: true\n",
+        file_text: "noskills:\n  allowGit: true\n",
       },
     },
   },
   Kiro: {
     shell: (command) => ({
-      "hook_event_name": "preToolUse",
-      "session_id": "abc123",
-      "tool_name": "execute_bash",
-      "tool_input": { command },
+      hook_event_name: "preToolUse",
+      session_id: "abc123",
+      tool_name: "execute_bash",
+      tool_input: { command },
     }),
     allowGitEdit: {
-      "hook_event_name": "preToolUse",
-      "session_id": "abc123",
-      "tool_name": "fs_write",
-      "tool_input": {
+      hook_event_name: "preToolUse",
+      session_id: "abc123",
+      tool_name: "fs_write",
+      tool_input: {
         command: "str_replace",
         path: MANIFEST,
-        "old_str": "allowGit: false",
-        "new_str": "allowGit: true",
+        old_str: "allowGit: false",
+        new_str: "allowGit: true",
       },
     },
   },
   OpenCode: {
     shell: (command) => ({
-      "hook_event_name": "PreToolUse",
-      "session_id": "ses_1",
-      "tool_name": "bash",
-      "tool_input": { command, description: "run" },
+      hook_event_name: "PreToolUse",
+      session_id: "ses_1",
+      tool_name: "bash",
+      tool_input: { command, description: "run" },
     }),
     allowGitEdit: {
-      "hook_event_name": "PreToolUse",
-      "session_id": "ses_1",
-      "tool_name": "edit",
-      "tool_input": {
+      hook_event_name: "PreToolUse",
+      session_id: "ses_1",
+      tool_name: "edit",
+      tool_input: {
         filePath: MANIFEST,
         oldString: "allowGit: false",
         newString: "allowGit: true",
@@ -798,11 +809,15 @@ bdd.describe("each agent tool's PreToolUse payload", () => {
     "lets an OpenCode edit to another section of the manifest through",
     async () => {
       assert.assertEquals(
-        await invokeHook.checkProtectedFiles("edit", {
-          filePath: MANIFEST,
-          oldString: "[fmt]",
-          newString: "[fmt, lint]",
-        }, root),
+        await invokeHook.checkProtectedFiles(
+          "edit",
+          {
+            filePath: MANIFEST,
+            oldString: "[fmt]",
+            newString: "[fmt, lint]",
+          },
+          root,
+        ),
         null,
       );
     },
@@ -811,10 +826,13 @@ bdd.describe("each agent tool's PreToolUse payload", () => {
   bdd.it(
     "refuses a patch to the manifest, whose result it cannot work out",
     async () => {
-      const reason = await invokeHook.checkProtectedFiles("apply_patch", {
-        patchText:
-          `*** Begin Patch\n*** Update File: src/a.ts\n*** Update File: ${MANIFEST}\n*** End Patch`,
-      }, root);
+      const reason = await invokeHook.checkProtectedFiles(
+        "apply_patch",
+        {
+          patchText: `*** Begin Patch\n*** Update File: src/a.ts\n*** Update File: ${MANIFEST}\n*** End Patch`,
+        },
+        root,
+      );
 
       assert.assertNotEquals(reason, null);
       assert.assertStringIncludes(
@@ -974,13 +992,13 @@ const addSession = async (
 };
 
 const bash = (command: string): Record<string, unknown> => ({
-  "tool_name": "Bash",
-  "tool_input": { command },
+  tool_name: "Bash",
+  tool_input: { command },
 });
 
 const writeCode: Record<string, unknown> = {
-  "tool_name": "Write",
-  "tool_input": { "file_path": "src/upload.ts", content: "export {};\n" },
+  tool_name: "Write",
+  tool_input: { file_path: "src/upload.ts", content: "export {};\n" },
 };
 
 const reasonOf = (decision: invokeHook.PreToolUseDecision): string =>
@@ -1003,9 +1021,11 @@ bdd.describe("decidePreToolUse", () => {
     // for the tests that run after these.
     cmd.setCommandPrefix(schema.DEFAULT_COMMAND_PREFIX);
     await Promise.all(
-      projects.splice(0).map((root) =>
-        crossRuntime.runtime.fs.remove(root, { recursive: true })
-      ),
+      projects
+        .splice(0)
+        .map((root) =>
+          crossRuntime.runtime.fs.remove(root, { recursive: true }),
+        ),
     );
   });
 
@@ -1051,11 +1071,14 @@ bdd.describe("decidePreToolUse", () => {
 
     const decisions = await Promise.all(
       ["git status", "git log --oneline -5", "deno test -A"].map((command) =>
-        invokeHook.decidePreToolUse(bash(command), env(null))
+        invokeHook.decidePreToolUse(bash(command), env(null)),
       ),
     );
 
-    assert.assertEquals(decisions.map((d) => d.kind), ["none", "none", "none"]);
+    assert.assertEquals(
+      decisions.map((d) => d.kind),
+      ["none", "none", "none"],
+    );
   });
 
   bdd.it("lets git writes through when allowGit is true", async () => {
@@ -1075,14 +1098,17 @@ bdd.describe("decidePreToolUse", () => {
       const { root, env } = await project("IDLE");
       await addSession(root, "free-2", "free", null);
 
-      const decision = await invokeHook.decidePreToolUse({
-        "tool_name": "Write",
-        "tool_input": {
-          "file_path": ".eser/.state/bin/git",
-          content: "#!/bin/sh\n",
+      const decision = await invokeHook.decidePreToolUse(
+        {
+          tool_name: "Write",
+          tool_input: {
+            file_path: ".eser/.state/bin/git",
+            content: "#!/bin/sh\n",
+          },
+          cwd: root,
         },
-        cwd: root,
-      }, env("free-2"));
+        env("free-2"),
+      );
 
       assert.assertEquals(decision.kind, "deny");
     },
@@ -1109,12 +1135,12 @@ bdd.describe("decidePreToolUse", () => {
       const { env } = await project("DISCOVERY");
       const edits = [
         {
-          "hook_event_name": "preToolUse",
-          "tool_name": "fs_write",
-          "tool_input": {
+          hook_event_name: "preToolUse",
+          tool_name: "fs_write",
+          tool_input: {
             command: "create",
             path: "src/upload.ts",
-            "file_text": "export {};\n",
+            file_text: "export {};\n",
           },
         },
         {
@@ -1122,8 +1148,8 @@ bdd.describe("decidePreToolUse", () => {
           toolArgs: '{"path":"src/upload.ts","file_text":"export {};"}',
         },
         {
-          "tool_name": "apply_patch",
-          "tool_input": {
+          tool_name: "apply_patch",
+          tool_input: {
             patchText:
               "*** Begin Patch\n*** Add File: src/upload.ts\n+export {};\n*** End Patch",
           },
@@ -1145,13 +1171,16 @@ bdd.describe("decidePreToolUse", () => {
     async () => {
       const { env } = await project("DISCOVERY");
 
-      const decision = await invokeHook.decidePreToolUse({
-        "tool_name": "apply_patch",
-        "tool_input": {
-          command:
-            "*** Begin Patch\n*** Update File: .eser/rules/a.md\n*** Update File: src/upload.ts\n*** End Patch",
+      const decision = await invokeHook.decidePreToolUse(
+        {
+          tool_name: "apply_patch",
+          tool_input: {
+            command:
+              "*** Begin Patch\n*** Update File: .eser/rules/a.md\n*** Update File: src/upload.ts\n*** End Patch",
+          },
         },
-      }, env(null));
+        env(null),
+      );
 
       assert.assertEquals(decision.kind, "deny");
     },
@@ -1218,14 +1247,17 @@ bdd.describe("decidePreToolUse", () => {
   bdd.it("lets a Codex patch through in EXECUTING", async () => {
     const { env } = await project("EXECUTING");
 
-    const decision = await invokeHook.decidePreToolUse({
-      "hook_event_name": "PreToolUse",
-      "tool_name": "apply_patch",
-      "tool_input": {
-        command:
-          "*** Begin Patch\n*** Update File: src/a.ts\n*** Add File: src/b.ts\n+x\n*** End Patch",
+    const decision = await invokeHook.decidePreToolUse(
+      {
+        hook_event_name: "PreToolUse",
+        tool_name: "apply_patch",
+        tool_input: {
+          command:
+            "*** Begin Patch\n*** Update File: src/a.ts\n*** Add File: src/b.ts\n+x\n*** End Patch",
+        },
       },
-    }, env(null));
+      env(null),
+    );
 
     assert.assertNotEquals(decision.kind, "deny");
   });
@@ -1234,7 +1266,7 @@ bdd.describe("decidePreToolUse", () => {
     const { env } = await project("DISCOVERY");
 
     const decision = await invokeHook.decidePreToolUse(
-      { "tool_name": "Read", "tool_input": { "file_path": "src/upload.ts" } },
+      { tool_name: "Read", tool_input: { file_path: "src/upload.ts" } },
       env(null),
     );
 

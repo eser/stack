@@ -132,13 +132,16 @@ const NEWLINE = 0x0a;
 
 /** Parse each non-empty line, skipping the lines that are not JSON. */
 const parseLines = (text: string): DashboardEvent[] =>
-  text.split("\n").filter((line) => line.length > 0).flatMap((line) => {
-    try {
-      return [JSON.parse(line) as DashboardEvent];
-    } catch {
-      return [];
-    }
-  });
+  text
+    .split("\n")
+    .filter((line) => line.length > 0)
+    .flatMap((line) => {
+      try {
+        return [JSON.parse(line) as DashboardEvent];
+      } catch {
+        return [];
+      }
+    });
 
 /**
  * Open a tail at the current end of the log, so only the events appended from
@@ -206,7 +209,7 @@ export const watchEvents = (
   root: string,
   callback: (event: DashboardEvent) => void,
   options?: WatchOptions,
-): () => void => {
+): (() => void) => {
   const tail = openEventTail(root);
   let aborted = false;
   let polling = false;

@@ -7,8 +7,10 @@ import * as React from "react";
 import * as linkNavigation from "./link-navigation.ts";
 
 /** Props of {@link Link}: the anchor's attributes plus the navigation options. */
-export interface LinkProps
-  extends Omit<React.AnchorHTMLAttributes<HTMLAnchorElement>, "href"> {
+export interface LinkProps extends Omit<
+  React.AnchorHTMLAttributes<HTMLAnchorElement>,
+  "href"
+> {
   /** The URL to navigate to; relative paths navigate on the client */
   href: string;
   /** The link's content */
@@ -61,11 +63,13 @@ export function Link(props: LinkProps): React.JSX.Element {
     linkNavigation.navigateOnClient(globalThis.window, props.href, options);
   };
 
-  return (
-    React.createElement("a", {
+  return React.createElement(
+    "a",
+    {
       ...anchorProps,
       ...linkNavigation.buildLinkAttributes(options),
       onClick: handleClick,
-    }, children)
+    },
+    children,
   );
 }

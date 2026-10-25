@@ -103,11 +103,11 @@ const withVerifyPassed = (state: schema.StateFile): schema.StateFile => ({
 bdd.describe("Status report request", () => {
   bdd.it("awaitingStatusReport=true triggers criteria in output", async () => {
     const state = withAwaitingReport(inExecuting());
-    const output = await compiler.compile(
+    const output = (await compiler.compile(
       state,
       noConcerns,
       noRules,
-    ) as compiler.ExecutionOutput;
+    )) as compiler.ExecutionOutput;
 
     assert.assertEquals(output.statusReportRequired, true);
     assert.assertEquals(output.statusReport !== undefined, true);
@@ -120,11 +120,11 @@ bdd.describe("Status report request", () => {
   bdd.it(
     "awaitingStatusReport=false shows normal execution instruction",
     async () => {
-      const output = await compiler.compile(
+      const output = (await compiler.compile(
         inExecuting(),
         noConcerns,
         noRules,
-      ) as compiler.ExecutionOutput;
+      )) as compiler.ExecutionOutput;
 
       assert.assertEquals(output.statusReportRequired, undefined);
     },
@@ -138,48 +138,49 @@ bdd.describe("Status report request", () => {
 bdd.describe("Concern-injected criteria", () => {
   bdd.it("beautiful-product adds UI state criteria", async () => {
     const state = withAwaitingReport(inExecuting());
-    const output = await compiler.compile(
+    const output = (await compiler.compile(
       state,
       [beautiful],
       noRules,
-    ) as compiler.ExecutionOutput;
+    )) as compiler.ExecutionOutput;
 
     const criteria = output.statusReport?.criteria ?? [];
-    const hasUIStates = criteria.some((c) =>
-      c.text.includes("beautiful-product") && c.text.includes("UI states")
+    const hasUIStates = criteria.some(
+      (c) =>
+        c.text.includes("beautiful-product") && c.text.includes("UI states"),
     );
     assert.assertEquals(hasUIStates, true);
   });
 
   bdd.it("open-source adds documentation criteria", async () => {
     const state = withAwaitingReport(inExecuting());
-    const output = await compiler.compile(
+    const output = (await compiler.compile(
       state,
       [openSource],
       noRules,
-    ) as compiler.ExecutionOutput;
+    )) as compiler.ExecutionOutput;
 
     const criteria = output.statusReport?.criteria ?? [];
-    const hasDocs = criteria.some((c) =>
-      c.text.includes("open-source") && c.text.includes("documented")
+    const hasDocs = criteria.some(
+      (c) => c.text.includes("open-source") && c.text.includes("documented"),
     );
     assert.assertEquals(hasDocs, true);
   });
 
   bdd.it("multiple concerns stack criteria", async () => {
     const state = withAwaitingReport(inExecuting());
-    const output = await compiler.compile(
+    const output = (await compiler.compile(
       state,
       [beautiful, openSource],
       noRules,
-    ) as compiler.ExecutionOutput;
+    )) as compiler.ExecutionOutput;
 
     const criteria = output.statusReport?.criteria ?? [];
     const beautifulCount = criteria.filter((c) =>
-      c.text.includes("beautiful-product")
+      c.text.includes("beautiful-product"),
     ).length;
     const osCount = criteria.filter((c) =>
-      c.text.includes("open-source")
+      c.text.includes("open-source"),
     ).length;
     assert.assertEquals(beautifulCount > 0, true);
     assert.assertEquals(osCount > 0, true);
@@ -205,18 +206,18 @@ bdd.describe("Folder rules in acceptance criteria", () => {
           rule: "All commands use dynamic prefix",
         },
       ];
-      const output = await compiler.compile(
+      const output = (await compiler.compile(
         state,
         noConcerns,
         noRules,
         undefined,
         undefined,
         folderRuleCriteria,
-      ) as compiler.ExecutionOutput;
+      )) as compiler.ExecutionOutput;
 
       const criteria = output.statusReport?.criteria ?? [];
       const folderCriteria = criteria.filter((c) =>
-        c.text.startsWith("(folder:")
+        c.text.startsWith("(folder:"),
       );
       assert.assertEquals(folderCriteria.length, 2);
       assert.assertEquals(
@@ -228,18 +229,18 @@ bdd.describe("Folder rules in acceptance criteria", () => {
 
   bdd.it("no folder rules when empty array passed", async () => {
     const state = withAwaitingReport(inExecuting());
-    const output = await compiler.compile(
+    const output = (await compiler.compile(
       state,
       noConcerns,
       noRules,
       undefined,
       undefined,
       [],
-    ) as compiler.ExecutionOutput;
+    )) as compiler.ExecutionOutput;
 
     const criteria = output.statusReport?.criteria ?? [];
     const folderCriteria = criteria.filter((c) =>
-      c.text.startsWith("(folder:")
+      c.text.startsWith("(folder:"),
     );
     assert.assertEquals(folderCriteria.length, 0);
   });
@@ -249,18 +250,18 @@ bdd.describe("Folder rules in acceptance criteria", () => {
     const folderRuleCriteria = [
       { folder: "pkg/sync", rule: "Hook scripts must be self-contained" },
     ];
-    const output = await compiler.compile(
+    const output = (await compiler.compile(
       state,
       [openSource],
       noRules,
       undefined,
       undefined,
       folderRuleCriteria,
-    ) as compiler.ExecutionOutput;
+    )) as compiler.ExecutionOutput;
 
     const criteria = output.statusReport?.criteria ?? [];
     const hasFolderRule = criteria.some((c) =>
-      c.text.includes("self-contained")
+      c.text.includes("self-contained"),
     );
     const hasConcernRule = criteria.some((c) => c.text.includes("open-source"));
     assert.assertEquals(hasFolderRule, true);
@@ -281,11 +282,11 @@ bdd.describe("Debt carry-forward", () => {
         debtItems(["error UI", "API docs"], 3),
         3,
       );
-      const output = await compiler.compile(
+      const output = (await compiler.compile(
         state,
         noConcerns,
         noRules,
-      ) as compiler.ExecutionOutput;
+      )) as compiler.ExecutionOutput;
 
       assert.assertEquals(output.previousIterationDebt !== undefined, true);
       assert.assertEquals(output.previousIterationDebt!.items.length, 2);
@@ -311,11 +312,11 @@ bdd.describe("Debt carry-forward", () => {
 
   bdd.it("8.7: debt note says address BEFORE new work", async () => {
     const state = withDebt(inExecuting(), debtItems(["stale item"]), 1);
-    const output = await compiler.compile(
+    const output = (await compiler.compile(
       state,
       noConcerns,
       noRules,
-    ) as compiler.ExecutionOutput;
+    )) as compiler.ExecutionOutput;
 
     assert.assertEquals(
       output.previousIterationDebt!.note.includes("BEFORE starting new work"),
@@ -333,11 +334,11 @@ bdd.describe("Debt in status report criteria", () => {
     const state = withAwaitingReport(
       withDebt(inExecuting(), debtItems(["error UI design"], 2), 2),
     );
-    const output = await compiler.compile(
+    const output = (await compiler.compile(
       state,
       noConcerns,
       noRules,
-    ) as compiler.ExecutionOutput;
+    )) as compiler.ExecutionOutput;
 
     const criteria = output.statusReport?.criteria ?? [];
     const debtCriteria = criteria.filter((c) => c.text.includes("[DEBT"));
@@ -363,31 +364,28 @@ bdd.describe("Verification backpressure", () => {
           "FAIL: test_upload expected 200 got 500",
         ),
       );
-      const output = await compiler.compile(
+      const output = (await compiler.compile(
         state,
         noConcerns,
         noRules,
-      ) as compiler.ExecutionOutput;
+      )) as compiler.ExecutionOutput;
 
       assert.assertEquals(output.verificationFailed, true);
       const criteria = output.statusReport?.criteria ?? [];
       const failedCriteria = criteria.filter((c) =>
-        c.text.includes("[FAILED]")
+        c.text.includes("[FAILED]"),
       );
       assert.assertEquals(failedCriteria.length, 1);
     },
   );
 
   bdd.it("8.9: verification failure instruction says fix tests", async () => {
-    const state = withVerifyFailed(
-      inExecuting(),
-      "2 tests failed",
-    );
-    const output = await compiler.compile(
+    const state = withVerifyFailed(inExecuting(), "2 tests failed");
+    const output = (await compiler.compile(
       state,
       noConcerns,
       noRules,
-    ) as compiler.ExecutionOutput;
+    )) as compiler.ExecutionOutput;
 
     assert.assertEquals(output.instruction.includes("FAILED"), true);
     assert.assertEquals(output.verificationFailed, true);
@@ -395,11 +393,11 @@ bdd.describe("Verification backpressure", () => {
 
   bdd.it("8.10: verification success shows normal instruction", async () => {
     const state = withVerifyPassed(inExecuting());
-    const output = await compiler.compile(
+    const output = (await compiler.compile(
       state,
       noConcerns,
       noRules,
-    ) as compiler.ExecutionOutput;
+    )) as compiler.ExecutionOutput;
 
     assert.assertEquals(output.verificationFailed, undefined);
     assert.assertEquals(output.instruction.includes("FAILED"), false);
@@ -430,11 +428,11 @@ bdd.describe("Verification gates status report", () => {
       };
 
       // Compiler should show failure, NOT status report
-      const output = await compiler.compile(
+      const output = (await compiler.compile(
         state,
         noConcerns,
         noRules,
-      ) as compiler.ExecutionOutput;
+      )) as compiler.ExecutionOutput;
 
       assert.assertEquals(output.verificationFailed, true);
       assert.assertEquals(output.statusReportRequired, undefined);
@@ -446,11 +444,11 @@ bdd.describe("Verification gates status report", () => {
     "verify passes → awaitingStatusReport triggers status report",
     async () => {
       const state = withAwaitingReport(withVerifyPassed(inExecuting()));
-      const output = await compiler.compile(
+      const output = (await compiler.compile(
         state,
         noConcerns,
         noRules,
-      ) as compiler.ExecutionOutput;
+      )) as compiler.ExecutionOutput;
 
       assert.assertEquals(output.statusReportRequired, true);
       assert.assertEquals(output.verificationFailed, undefined);
@@ -459,11 +457,11 @@ bdd.describe("Verification gates status report", () => {
 
   bdd.it("no verify configured → status report asked directly", async () => {
     const state = withAwaitingReport(inExecuting());
-    const output = await compiler.compile(
+    const output = (await compiler.compile(
       state,
       noConcerns,
       noRules,
-    ) as compiler.ExecutionOutput;
+    )) as compiler.ExecutionOutput;
 
     assert.assertEquals(output.statusReportRequired, true);
   });
@@ -476,11 +474,11 @@ bdd.describe("Verification gates status report", () => {
 bdd.describe("Debt urgency escalation", () => {
   bdd.it("unaddressedIterations < 3 → normal note", async () => {
     const state = withDebt(inExecuting(), debtItems(["error UI"]), 1, 2);
-    const output = await compiler.compile(
+    const output = (await compiler.compile(
       state,
       noConcerns,
       noRules,
-    ) as compiler.ExecutionOutput;
+    )) as compiler.ExecutionOutput;
 
     assert.assertEquals(
       output.previousIterationDebt!.note.includes("BEFORE starting new work"),
@@ -494,11 +492,11 @@ bdd.describe("Debt urgency escalation", () => {
 
   bdd.it("unaddressedIterations >= 3 → URGENT note", async () => {
     const state = withDebt(inExecuting(), debtItems(["error UI"]), 1, 3);
-    const output = await compiler.compile(
+    const output = (await compiler.compile(
       state,
       noConcerns,
       noRules,
-    ) as compiler.ExecutionOutput;
+    )) as compiler.ExecutionOutput;
 
     assert.assertEquals(
       output.previousIterationDebt!.note.includes("have been open for"),
@@ -512,11 +510,11 @@ bdd.describe("Debt urgency escalation", () => {
 
   bdd.it("unaddressedIterations = 5 → shows correct count", async () => {
     const state = withDebt(inExecuting(), debtItems(["stale item"]), 1, 5);
-    const output = await compiler.compile(
+    const output = (await compiler.compile(
       state,
       noConcerns,
       noRules,
-    ) as compiler.ExecutionOutput;
+    )) as compiler.ExecutionOutput;
 
     assert.assertEquals(
       output.previousIterationDebt!.note.includes("5 iterations"),
@@ -534,11 +532,11 @@ bdd.describe("Empty remaining clears debt", () => {
     "remaining=[] and no old debt → no previousIterationDebt in output",
     async () => {
       const state = inExecuting();
-      const output = await compiler.compile(
+      const output = (await compiler.compile(
         state,
         noConcerns,
         noRules,
-      ) as compiler.ExecutionOutput;
+      )) as compiler.ExecutionOutput;
 
       assert.assertEquals(output.previousIterationDebt, undefined);
     },
@@ -562,11 +560,11 @@ bdd.describe("Debt persists across session restart", () => {
     assert.assertEquals(reloaded.execution.debt!.unaddressedIterations, 2);
 
     // Compiler still shows debt after reload
-    const output = await compiler.compile(
+    const output = (await compiler.compile(
       reloaded,
       noConcerns,
       noRules,
-    ) as compiler.ExecutionOutput;
+    )) as compiler.ExecutionOutput;
 
     assert.assertEquals(output.previousIterationDebt !== undefined, true);
   });

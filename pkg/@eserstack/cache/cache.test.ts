@@ -97,10 +97,7 @@ Deno.test("ensureDir creates directory", async () => {
   const { manager, cleanup } = await createTempCacheManager();
 
   try {
-    const testDir = runtime.path.join(
-      manager.getCacheDir(),
-      "subdir",
-    );
+    const testDir = runtime.path.join(manager.getCacheDir(), "subdir");
 
     await manager.ensureDir(testDir);
 
@@ -142,21 +139,24 @@ Deno.test("exists returns true for existing path", async () => {
   }
 });
 
-Deno.test({
-  name: "list returns empty array for empty cache",
-  sanitizeResources: false,
-}, async () => {
-  const { manager, cleanup } = await createTempCacheManager();
+Deno.test(
+  {
+    name: "list returns empty array for empty cache",
+    sanitizeResources: false,
+  },
+  async () => {
+    const { manager, cleanup } = await createTempCacheManager();
 
-  try {
-    const entries = await manager.list();
+    try {
+      const entries = await manager.list();
 
-    assert.assertExists(entries);
-    assert.assertEquals(entries.length, 0);
-  } finally {
-    await cleanup();
-  }
-});
+      assert.assertExists(entries);
+      assert.assertEquals(entries.length, 0);
+    } finally {
+      await cleanup();
+    }
+  },
+);
 
 Deno.test("list returns entries for non-empty cache", async () => {
   const { manager, cleanup } = await createTempCacheManager();
@@ -170,9 +170,7 @@ Deno.test("list returns entries for non-empty cache", async () => {
       runtime.path.join(cacheDir, "file1"),
       "content1",
     );
-    await runtime.fs.mkdir(
-      runtime.path.join(cacheDir, "dir1"),
-    );
+    await runtime.fs.mkdir(runtime.path.join(cacheDir, "dir1"));
 
     const entries = await manager.list();
 
@@ -241,23 +239,26 @@ Deno.test("clear removes all cache contents", async () => {
   }
 });
 
-Deno.test({
-  name: "close() releases handle without error",
-  sanitizeResources: false,
-}, async () => {
-  const { manager, tempDir } = await createTempCacheManager();
+Deno.test(
+  {
+    name: "close() releases handle without error",
+    sanitizeResources: false,
+  },
+  async () => {
+    const { manager, tempDir } = await createTempCacheManager();
 
-  try {
-    await manager.list(); // trigger handle creation
-    await manager.close(); // must not throw
-  } finally {
     try {
-      await runtime.fs.remove(tempDir, { recursive: true });
-    } catch {
-      // ignore
+      await manager.list(); // trigger handle creation
+      await manager.close(); // must not throw
+    } finally {
+      try {
+        await runtime.fs.remove(tempDir, { recursive: true });
+      } catch {
+        // ignore
+      }
     }
-  }
-});
+  },
+);
 
 Deno.test(
   { name: "double-close is safe", sanitizeResources: false },

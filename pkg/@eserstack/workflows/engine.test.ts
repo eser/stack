@@ -151,8 +151,7 @@ for (const { name, value } of invalidTimeouts) {
 // ---------------------------------------------------------------------------
 
 Deno.test({
-  name:
-    "runWorkflow — 2 passing tools → result.passed === true, durationMs > 0",
+  name: "runWorkflow — 2 passing tools → result.passed === true, durationMs > 0",
   sanitizeOps: false,
   sanitizeResources: false,
   fn: async () => {
@@ -235,8 +234,7 @@ Deno.test({
 });
 
 Deno.test({
-  name:
-    "runWorkflow — continueOnError:true + tool throws → continues, step marked failed",
+  name: "runWorkflow — continueOnError:true + tool throws → continues, step marked failed",
   sanitizeOps: false,
   sanitizeResources: false,
   fn: async () => {
@@ -246,10 +244,7 @@ Deno.test({
     const workflow = {
       id: "continue-wf",
       on: ["precommit"],
-      steps: [
-        { "throw-tool": { continueOnError: true } },
-        "pass-tool",
-      ],
+      steps: [{ "throw-tool": { continueOnError: true } }, "pass-tool"],
     } as const;
 
     const taskResult = await task.runTask(
@@ -261,17 +256,13 @@ Deno.test({
     assert.assertEquals(result.passed, false);
     assert.assertEquals(result.steps.length, 2);
     assert.assertEquals(result.steps[0]!.passed, false);
-    assert.assertEquals(
-      result.steps[0]!.issues[0]!.message,
-      "tool exploded",
-    );
+    assert.assertEquals(result.steps[0]!.issues[0]!.message, "tool exploded");
     assert.assertEquals(result.steps[1]!.passed, true);
   },
 });
 
 Deno.test({
-  name:
-    "runWorkflow — onMutations callback invoked when tool returns mutations",
+  name: "runWorkflow — onMutations callback invoked when tool returns mutations",
   sanitizeOps: false,
   sanitizeResources: false,
   fn: async () => {
@@ -354,12 +345,16 @@ Deno.test("runWorkflow passes the run flags to the tool next to its options", as
     },
   };
 
-  const taskResult = await runOne(tool, { strict: true }, {
-    root: "project",
-    fix: true,
-    dryRun: true,
-    args: ["msg.txt"],
-  });
+  const taskResult = await runOne(
+    tool,
+    { strict: true },
+    {
+      root: "project",
+      fix: true,
+      dryRun: true,
+      args: ["msg.txt"],
+    },
+  );
 
   assert.assert(results.isOk(taskResult));
   assert.assertEquals(seen, {
@@ -389,9 +384,15 @@ Deno.test("runWorkflow gives the tool the step's time limit and a signal that ab
 
   assert.assert(results.isOk(withStepTimeout));
   assert.assert(results.isOk(withDefault));
-  assert.assertEquals(contexts.map((c) => c.timeoutMs), [2_000, 1_500]);
+  assert.assertEquals(
+    contexts.map((c) => c.timeoutMs),
+    [2_000, 1_500],
+  );
   assert.assertEquals(abortedWhileRunning, [false, false]);
-  assert.assertEquals(contexts.map((c) => c.signal.aborted), [true, true]);
+  assert.assertEquals(
+    contexts.map((c) => c.signal.aborted),
+    [true, true],
+  );
 });
 
 const invalidDefaultTimeouts = [0, -1, Number.NaN, 3_000_000_000];

@@ -29,10 +29,9 @@ const createRuleFile = async (
     .replace(/^-|-$/g, "")
     .slice(0, 50);
 
-  const content =
-    `---\nphases: [EXECUTING]\nsource: learned from spec "${sourceSpec}" on ${
-      new Date().toISOString().slice(0, 10)
-    }\n---\n${text}\n`;
+  const content = `---\nphases: [EXECUTING]\nsource: learned from spec "${sourceSpec}" on ${new Date()
+    .toISOString()
+    .slice(0, 10)}\n---\n${text}\n`;
 
   const filePath = `${root}/${persistence.paths.rulesDir}/${slug}.md`;
   await runtime.fs.mkdir(`${root}/${persistence.paths.rulesDir}`, {
@@ -46,10 +45,16 @@ const createRuleFile = async (
 /** Detect if text sounds like a permanent rule. */
 const looksLikeRule = (text: string): boolean => {
   const lower = text.toLowerCase();
-  return lower.includes("always ") || lower.includes("never ") ||
-    lower.includes("every time") || lower.includes("must ") ||
-    lower.includes("do not ") || lower.startsWith("use ") ||
-    lower.includes("convention:") || lower.includes("rule:");
+  return (
+    lower.includes("always ") ||
+    lower.includes("never ") ||
+    lower.includes("every time") ||
+    lower.includes("must ") ||
+    lower.includes("do not ") ||
+    lower.startsWith("use ") ||
+    lower.includes("convention:") ||
+    lower.includes("rule:")
+  );
 };
 
 export const main = async (
@@ -79,13 +84,11 @@ export const main = async (
 
     for (let i = 0; i < all.length; i++) {
       const l = all[i]!;
-      const icon = l.type === "mistake"
-        ? span.red("\u26A0")
-        : span.green("\u2713");
+      const icon =
+        l.type === "mistake" ? span.red("\u26A0") : span.green("\u2713");
       const typeLabel = span.dim(`[${l.type}]`);
-      const severity = l.severity === "high"
-        ? span.red("HIGH")
-        : span.dim(l.severity);
+      const severity =
+        l.severity === "high" ? span.red("HIGH") : span.dim(l.severity);
 
       // Spans go in as their own arguments; inside a template string they
       // print as "[object Object]".
@@ -204,13 +207,15 @@ export const main = async (
 
   const lower = text.toLowerCase();
   if (
-    lower.includes("mistake") || lower.includes("wrong") ||
+    lower.includes("mistake") ||
+    lower.includes("wrong") ||
     lower.includes("assumed")
   ) {
     type = "mistake";
     severity = "high";
   } else if (
-    lower.includes("convention") || lower.includes("pattern") ||
+    lower.includes("convention") ||
+    lower.includes("pattern") ||
     lower.includes("always use")
   ) {
     type = "convention";

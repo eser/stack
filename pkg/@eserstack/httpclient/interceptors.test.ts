@@ -7,25 +7,22 @@ import type * as types from "./types.ts";
 
 bdd.describe("InterceptorChain", () => {
   bdd.it("should start empty", () => {
-    const chain = new interceptorsModule.InterceptorChain<
-      types.RequestInterceptor
-    >();
+    const chain =
+      new interceptorsModule.InterceptorChain<types.RequestInterceptor>();
     assert.assertEquals(chain.length, 0);
   });
 
   bdd.it("should add interceptors and update length", () => {
-    const chain = new interceptorsModule.InterceptorChain<
-      types.RequestInterceptor
-    >();
+    const chain =
+      new interceptorsModule.InterceptorChain<types.RequestInterceptor>();
     chain.add({ name: "auth", intercept: (r) => r });
     chain.add({ name: "logger", intercept: (r) => r });
     assert.assertEquals(chain.length, 2);
   });
 
   bdd.it("should remove interceptor by name and return true", () => {
-    const chain = new interceptorsModule.InterceptorChain<
-      types.RequestInterceptor
-    >();
+    const chain =
+      new interceptorsModule.InterceptorChain<types.RequestInterceptor>();
     chain.add({ name: "auth", intercept: (r) => r });
     chain.add({ name: "logger", intercept: (r) => r });
     const removed = chain.remove("auth");
@@ -34,16 +31,14 @@ bdd.describe("InterceptorChain", () => {
   });
 
   bdd.it("should return false when removing non-existent interceptor", () => {
-    const chain = new interceptorsModule.InterceptorChain<
-      types.RequestInterceptor
-    >();
+    const chain =
+      new interceptorsModule.InterceptorChain<types.RequestInterceptor>();
     assert.assertFalse(chain.remove("nonexistent"));
   });
 
   bdd.it("should clear all interceptors", () => {
-    const chain = new interceptorsModule.InterceptorChain<
-      types.RequestInterceptor
-    >();
+    const chain =
+      new interceptorsModule.InterceptorChain<types.RequestInterceptor>();
     chain.add({ name: "a", intercept: (r) => r });
     chain.add({ name: "b", intercept: (r) => r });
     chain.clear();
@@ -51,9 +46,8 @@ bdd.describe("InterceptorChain", () => {
   });
 
   bdd.it("should be iterable", () => {
-    const chain = new interceptorsModule.InterceptorChain<
-      types.RequestInterceptor
-    >();
+    const chain =
+      new interceptorsModule.InterceptorChain<types.RequestInterceptor>();
     const i1 = { name: "a", intercept: (r: Request) => r };
     const i2 = { name: "b", intercept: (r: Request) => r };
     chain.add(i1).add(i2);
@@ -64,9 +58,8 @@ bdd.describe("InterceptorChain", () => {
   });
 
   bdd.it("should return this from add() and clear() for chaining", () => {
-    const chain = new interceptorsModule.InterceptorChain<
-      types.RequestInterceptor
-    >();
+    const chain =
+      new interceptorsModule.InterceptorChain<types.RequestInterceptor>();
     const result = chain.add({ name: "x", intercept: (r) => r });
     assert.assertEquals(result, chain);
     const result2 = chain.clear();

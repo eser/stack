@@ -45,20 +45,17 @@ export const ffiLoader: Loader = {
   },
 
   simpleTokens: async (): Promise<SimpleTokensResult> => {
-    const result = await client.callJson<
-      { definitions?: { name: string; pattern: string }[] }
-    >(
-      (lib) => lib.symbols.EserAjanParsingSimpleTokens(),
-      {
-        onUnavailable: () =>
-          new errors.ParsingError(
-            "native library unavailable",
-            errors.PARSING_TOKENIZE_FAILED,
-          ),
-        onError: (msg) =>
-          new errors.ParsingError(msg, errors.PARSING_TOKENIZE_FAILED),
-      },
-    );
+    const result = await client.callJson<{
+      definitions?: { name: string; pattern: string }[];
+    }>((lib) => lib.symbols.EserAjanParsingSimpleTokens(), {
+      onUnavailable: () =>
+        new errors.ParsingError(
+          "native library unavailable",
+          errors.PARSING_TOKENIZE_FAILED,
+        ),
+      onError: (msg) =>
+        new errors.ParsingError(msg, errors.PARSING_TOKENIZE_FAILED),
+    });
 
     return { definitions: result.definitions ?? [] };
   },

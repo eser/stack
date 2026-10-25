@@ -93,13 +93,11 @@ const BUILT_IN_EXTRAS: readonly {
 }[] = [
   {
     questionId: "verification",
-    text:
-      "What tests should be written? (unit, integration, e2e — be specific about what behavior to test)",
+    text: "What tests should be written? (unit, integration, e2e — be specific about what behavior to test)",
   },
   {
     questionId: "verification",
-    text:
-      "What documentation needs updating? (README, API docs, CHANGELOG, inline comments)",
+    text: "What documentation needs updating? (README, API docs, CHANGELOG, inline comments)",
   },
 ];
 
@@ -179,9 +177,9 @@ export const discoveryAnswersOf = (
   for (const [id, value] of Object.entries(parsed)) {
     if (!ids.includes(id)) {
       throw new DiscoveryAnswerError(
-        `Cannot record the discovery answers: "${id}" is not a question id. Key each answer by one of: ${
-          ids.join(", ")
-        }.`,
+        `Cannot record the discovery answers: "${id}" is not a question id. Key each answer by one of: ${ids.join(
+          ", ",
+        )}.`,
       );
     }
     if (typeof value !== "string") {
@@ -194,9 +192,9 @@ export const discoveryAnswersOf = (
 
   if (Object.keys(answers).length === 0) {
     throw new DiscoveryAnswerError(
-      `Cannot record the discovery answers: the object holds no answer. Key each answer by one of: ${
-        ids.join(", ")
-      }.`,
+      `Cannot record the discovery answers: the object holds no answer. Key each answer by one of: ${ids.join(
+        ", ",
+      )}.`,
     );
   }
 
@@ -223,23 +221,26 @@ export const discoveryStageOf = (state: schema.StateFile): DiscoveryStage => {
   const discovery = state.discovery;
   // A state file written before specDescription existed has no such key.
   const description: unknown = state.specDescription;
-  const hasDescription = typeof description === "string" &&
-    description.length > 0;
+  const hasDescription =
+    typeof description === "string" && description.length > 0;
 
   // A new spec with a description and no plan: listen first, then the mode.
   if (
-    discovery.mode === undefined && hasDescription &&
-    discovery.answers.length === 0 && discovery.planPath === null
+    discovery.mode === undefined &&
+    hasDescription &&
+    discovery.answers.length === 0 &&
+    discovery.planPath === null
   ) {
-    const hasUserContext = discovery.userContext !== undefined &&
-      discovery.userContext.length > 0;
+    const hasUserContext =
+      discovery.userContext !== undefined && discovery.userContext.length > 0;
 
     return hasUserContext ? "mode" : "listen";
   }
 
   // States from before modes existed have no mode and skip the premises.
   if (
-    discovery.mode !== undefined && discovery.premisesCompleted !== true &&
+    discovery.mode !== undefined &&
+    discovery.premisesCompleted !== true &&
     !isDiscoveryComplete(discovery.answers)
   ) {
     return "premises";

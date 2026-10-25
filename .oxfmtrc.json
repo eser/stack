@@ -25,6 +25,7 @@
     ".eser/recipes/",
     "node_modules/",
     "dist/",
+    "**/testdata/",
     "pnpm-lock.yaml"
   ]
 }

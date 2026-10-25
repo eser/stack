@@ -7,12 +7,14 @@ import type { ScanResult } from "./route-scanner.ts";
 
 /** One page with its own layout, as the route scanner reports it. */
 const SCAN_RESULT: ScanResult = {
-  routes: [{
-    routePath: "/stories",
-    componentPath: "src/app/routes/stories/page.tsx",
-    layoutPath: "src/app/routes/stories/layout.tsx",
-    isApiRoute: false,
-  }],
+  routes: [
+    {
+      routePath: "/stories",
+      componentPath: "src/app/routes/stories/page.tsx",
+      layoutPath: "src/app/routes/stories/layout.tsx",
+      isApiRoute: false,
+    },
+  ],
   apiRoutes: [],
   proxies: [],
 };

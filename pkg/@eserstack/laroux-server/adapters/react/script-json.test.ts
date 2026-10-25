@@ -31,19 +31,16 @@ Deno.test("createInlineRSCStream escapes rendered strings and props", async () =
   const element = React.createElement("div", { title: PAYLOAD }, PAYLOAD);
   const html = await new Response(
     inlineRscEmitter.createInlineRSCStream(element, {}),
-  )
-    .text();
+  ).text();
   const scripts = count(html, "<script");
   assert.assertEquals(count(html, "</script"), scripts);
   assert.assertEquals(count(html, "<img"), 0);
 });
 
 Deno.test("generateRSCPayloadScript cannot be closed or commented out by a value", () => {
-  const html = ssrRenderer.generateRSCPayloadScript(
-    [
-      { type: "J", id: 0, value: PAYLOAD },
-    ] as Parameters<typeof ssrRenderer.generateRSCPayloadScript>[0],
-  );
+  const html = ssrRenderer.generateRSCPayloadScript([
+    { type: "J", id: 0, value: PAYLOAD },
+  ] as Parameters<typeof ssrRenderer.generateRSCPayloadScript>[0]);
   assert.assertEquals(count(html, "</script"), 1);
   assert.assertEquals(count(html, "<!--"), 0);
 });

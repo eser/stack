@@ -90,7 +90,7 @@ reactorTest(
 
 Deno.test("checkHandshake refuses a module with another ABI version", () => {
   const error = assert.assertThrows(() =>
-    reactor.checkHandshake({ ok: true, abi: 99, result: "x" }, "/m.wasm")
+    reactor.checkHandshake({ ok: true, abi: 99, result: "x" }, "/m.wasm"),
   );
   assert.assertStringIncludes(
     (error as Error).message,
@@ -120,9 +120,9 @@ reactorTest("warm calls cost microseconds on one instance", async () => {
 
   // deno-lint-ignore no-console
   console.log(
-    `reactor load ${loadMs.toFixed(1)} ms; formatEncode median ${
-      (median * 1000).toFixed(1)
-    } us, p99 ${(p99 * 1000).toFixed(1)} us`,
+    `reactor load ${loadMs.toFixed(1)} ms; formatEncode median ${(
+      median * 1000
+    ).toFixed(1)} us, p99 ${(p99 * 1000).toFixed(1)} us`,
   );
   assert.assert(median < 0.1, `median ${median} ms is over 0.1 ms`);
   assert.assert(p99 < 10, `p99 ${p99} ms is over 10 ms`);
@@ -139,7 +139,7 @@ reactorTest(
         return {
           ...exports,
           memory: exports.memory,
-          "eser_ajan_call": (...args) => {
+          eser_ajan_call: (...args) => {
             if (failNext) {
               failNext = false;
               throw new WebAssembly.RuntimeError("unreachable");

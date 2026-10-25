@@ -38,11 +38,9 @@ bdd.describe("state persistence — atomic writes", () => {
     await persistence.writeState(tempDir, schema.createInitialState());
 
     const entries: string[] = [];
-    for await (
-      const entry of crossRuntime.runtime.fs.readDir(
-        `${tempDir}/${persistence.paths.progressesDir}`,
-      )
-    ) {
+    for await (const entry of crossRuntime.runtime.fs.readDir(
+      `${tempDir}/${persistence.paths.progressesDir}`,
+    )) {
       entries.push(entry.name);
     }
 

@@ -54,20 +54,17 @@ const url = "https://jsr.io/@eserstack/fp";
 const doubled = primitives.results.map(primitives.results.ok(21), (x) => x * 2); // ok(42)
 
 // Chain operations
-const chained = primitives.results.flatMap(
-  primitives.results.ok(5),
-  (x) => primitives.results.ok(x + 1),
+const chained = primitives.results.flatMap(primitives.results.ok(5), (x) =>
+  primitives.results.ok(x + 1),
 ); // ok(6)
 
 // Error type widening — E1 | E2 union automatically
 type Lookup = primitives.results.Result<number, "NotFound">;
 const found: Lookup = primitives.results.ok(5);
-const widened = primitives.results.flatMapW(
-  found,
-  (x) =>
-    x > 0
-      ? primitives.results.ok(x)
-      : primitives.results.fail("Negative" as const),
+const widened = primitives.results.flatMapW(found, (x) =>
+  x > 0
+    ? primitives.results.ok(x)
+    : primitives.results.fail("Negative" as const),
 ); // Result<number, "NotFound" | "Negative">
 
 // Pattern matching

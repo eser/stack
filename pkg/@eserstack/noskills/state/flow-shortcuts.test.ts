@@ -212,12 +212,12 @@ bdd.describe("Skip classification: approve without classifying", () => {
         execution: { ...s.execution, awaitingStatusReport: true },
       };
 
-      const output = await compiler.compile(
+      const output = (await compiler.compile(
         s,
         activeConcerns,
         noRules,
         config(),
-      ) as compiler.ExecutionOutput;
+      )) as compiler.ExecutionOutput;
 
       const criteria = output.statusReport?.criteria ?? [];
       const concernCriteria = criteria.filter(
@@ -261,11 +261,11 @@ bdd.describe("Skip concerns: init with zero concerns", () => {
       execution: { ...s.execution, awaitingStatusReport: true },
     };
 
-    const output = await compiler.compile(
+    const output = (await compiler.compile(
       s,
       [],
       noRules,
-    ) as compiler.ExecutionOutput;
+    )) as compiler.ExecutionOutput;
 
     const criteria = output.statusReport?.criteria ?? [];
     const concernCriteria = criteria.filter(
@@ -393,19 +393,19 @@ bdd.describe("Edge case: concern added mid-execution", () => {
       const s = inExecuting();
 
       // Initially compile with no concerns
-      const output1 = await compiler.compile(
+      const output1 = (await compiler.compile(
         s,
         [],
         noRules,
-      ) as compiler.ExecutionOutput;
+      )) as compiler.ExecutionOutput;
       const reminders1 = output1.context.concernReminders;
 
       // Now compile with open-source concern added
-      const output2 = await compiler.compile(
+      const output2 = (await compiler.compile(
         s,
         [openSource],
         noRules,
-      ) as compiler.ExecutionOutput;
+      )) as compiler.ExecutionOutput;
       const reminders2 = output2.context.concernReminders;
 
       assert.assertEquals(reminders1.length, 0);
@@ -430,24 +430,24 @@ bdd.describe("Edge case: concern removed mid-execution", () => {
       const moveFast = allConcerns.find((c) => c.id === "move-fast")!;
 
       // Compile with both concerns
-      const output1 = await compiler.compile(
+      const output1 = (await compiler.compile(
         s,
         [openSource, moveFast],
         noRules,
-      ) as compiler.ExecutionOutput;
+      )) as compiler.ExecutionOutput;
 
       // Compile with only open-source (move-fast removed)
-      const output2 = await compiler.compile(
+      const output2 = (await compiler.compile(
         s,
         [openSource],
         noRules,
-      ) as compiler.ExecutionOutput;
+      )) as compiler.ExecutionOutput;
 
       const hasMoveFast1 = output1.context.concernReminders.some((r) =>
-        r.includes("move-fast")
+        r.includes("move-fast"),
       );
       const hasMoveFast2 = output2.context.concernReminders.some((r) =>
-        r.includes("move-fast")
+        r.includes("move-fast"),
       );
 
       assert.assertEquals(hasMoveFast1, true);
@@ -469,11 +469,11 @@ bdd.describe(
         const s: schema.StateFile = { ...inSpecDraft(), classification: null };
         assert.assertEquals(s.classification, null);
 
-        const output = await compiler.compile(
+        const output = (await compiler.compile(
           s,
           activeConcerns,
           noRules,
-        ) as compiler.SpecDraftOutput;
+        )) as compiler.SpecDraftOutput;
 
         assert.assertEquals(output.phase, "SPEC_PROPOSAL");
         assert.assertEquals(output.classificationRequired, true);
@@ -495,11 +495,11 @@ bdd.describe(
           },
         };
 
-        const output = await compiler.compile(
+        const output = (await compiler.compile(
           s,
           activeConcerns,
           noRules,
-        ) as compiler.SpecDraftOutput;
+        )) as compiler.SpecDraftOutput;
 
         assert.assertEquals(output.phase, "SPEC_PROPOSAL");
         assert.assertEquals(output.classificationRequired, undefined);

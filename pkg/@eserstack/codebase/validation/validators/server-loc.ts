@@ -22,10 +22,12 @@ export const serverLocValidator: Validator = {
       return {
         name: "validate-server-loc",
         passed: false,
-        issues: [{
-          severity: "error" as const,
-          message: "validate-server-loc requires a `directory` parameter",
-        }],
+        issues: [
+          {
+            severity: "error" as const,
+            message: "validate-server-loc requires a `directory` parameter",
+          },
+        ],
         stats: { checked: 0, violations: 0 },
       };
     }

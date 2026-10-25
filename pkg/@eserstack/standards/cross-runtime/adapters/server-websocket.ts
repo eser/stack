@@ -189,9 +189,10 @@ export class ServerWebSocket extends EventTarget implements WebSocket {
     // A Blob is read asynchronously, so it and every message sent after it
     // wait their turn, which keeps the messages in the order they were sent.
     const pending = (this.#pending ?? Promise.resolve()).then(async () => {
-      const payload = data instanceof Blob
-        ? new Uint8Array(await data.arrayBuffer())
-        : toWireData(data);
+      const payload =
+        data instanceof Blob
+          ? new Uint8Array(await data.arrayBuffer())
+          : toWireData(data);
 
       if (this.readyState === OPEN) {
         this.bufferedAmount = this.#wire.send(payload);
@@ -231,9 +232,7 @@ export class ServerWebSocket extends EventTarget implements WebSocket {
    * for a longer reason
    */
   close(code?: number, reason?: string): void {
-    if (
-      code !== undefined && code !== 1000 && (code < 3000 || code > 4999)
-    ) {
+    if (code !== undefined && code !== 1000 && (code < 3000 || code > 4999)) {
       throw new DOMException(
         `WebSocket close: code ${code} is reserved; use 1000 or a code from 3000 to 4999`,
         "InvalidAccessError",

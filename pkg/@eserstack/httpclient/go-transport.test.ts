@@ -201,14 +201,16 @@ bdd.describe("HttpClient transport native: interceptors", () => {
   bdd.it("runs request interceptors before the Go call", async () => {
     const { client, fake } = makeNativeClient([ok({})], {
       interceptors: {
-        request: [{
-          name: "auth",
-          intercept: (request) => {
-            const headers = new Headers(request.headers);
-            headers.set("Authorization", "Bearer your_access_token");
-            return new Request(request, { headers });
+        request: [
+          {
+            name: "auth",
+            intercept: (request) => {
+              const headers = new Headers(request.headers);
+              headers.set("Authorization", "Bearer your_access_token");
+              return new Request(request, { headers });
+            },
           },
-        }],
+        ],
       },
     });
 
@@ -223,13 +225,15 @@ bdd.describe("HttpClient transport native: interceptors", () => {
   bdd.it("runs response interceptors on the parsed response", async () => {
     const { client } = makeNativeClient([ok({ name: "ada" })], {
       interceptors: {
-        response: [{
-          name: "upper",
-          intercept: <T>(response: types.HttpResponse<T>) => ({
-            ...response,
-            data: { name: "ADA" } as T,
-          }),
-        }],
+        response: [
+          {
+            name: "upper",
+            intercept: <T>(response: types.HttpResponse<T>) => ({
+              ...response,
+              data: { name: "ADA" } as T,
+            }),
+          },
+        ],
       },
     });
 
@@ -281,11 +285,12 @@ bdd.describe("HttpClient transport native: retries and errors", () => {
   });
 
   bdd.it("reports a 429 with its Retry-After", async () => {
-    const { client } = makeNativeClient([
-      httpError(429, { "Retry-After": "7" }),
-    ], {
-      retry: false,
-    });
+    const { client } = makeNativeClient(
+      [httpError(429, { "Retry-After": "7" })],
+      {
+        retry: false,
+      },
+    );
 
     const error = await assert.assertRejects(
       () => client.request("GET", "https://api.example.com/users"),

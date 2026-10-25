@@ -4,15 +4,11 @@ import * as appendToObject from "./append-to-object.ts";
 
 const group = "append-to-object";
 
-Deno.bench(
-  "@eserstack/fp/append-to-object",
-  { group, baseline: true },
-  () => {
-    const obj1 = { a: 1, b: 2 };
+Deno.bench("@eserstack/fp/append-to-object", { group, baseline: true }, () => {
+  const obj1 = { a: 1, b: 2 };
 
-    appendToObject.appendToObject(obj1, { c: 3 });
-  },
-);
+  appendToObject.appendToObject(obj1, { c: 3 });
+});
 
 Deno.bench("Object.assign", { group }, () => {
   const obj1 = { a: 1, b: 2 };

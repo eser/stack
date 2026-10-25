@@ -106,9 +106,11 @@ import * as resources from "./resources.ts";
  * - `MergeContext<R, void>` → `R`
  * - `MergeContext<R1, R2>` → `R1 & R2`
  */
-export type MergeContext<R1, R2> = R1 extends void ? R2
-  : R2 extends void ? R1
-  : R1 & R2;
+export type MergeContext<R1, R2> = R1 extends void
+  ? R2
+  : R2 extends void
+    ? R1
+    : R1 & R2;
 
 /**
  * Context type requiring an `AbortSignal` for cancellation support.
@@ -322,10 +324,8 @@ export const runTask = <T, E, R = void>(
  * const result = await functions.task.runTask(ready); // no context needed
  * ```
  */
-export const provideContext = <T, E, R>(
-  t: Task<T, E, R>,
-  ctx: R,
-): Task<T, E> => task(() => t.execute(ctx));
+export const provideContext = <T, E, R>(t: Task<T, E, R>, ctx: R): Task<T, E> =>
+  task(() => t.execute(ctx));
 
 // --- Cancellation ---
 
@@ -470,14 +470,15 @@ export const withLogging = <T, E, R = void>(
  * @param message - Error message on failure
  * @returns A function that takes a value and returns a Task
  */
-export const validate = <T>(
-  predicate: (value: T) => boolean,
-  message: string,
-): (value: T) => Task<T, ValidationError> =>
-(value: T) =>
-  predicate(value)
-    ? (succeed(value) as Task<T, ValidationError>)
-    : failTask<ValidationError>({ _tag: "ValidationError", message });
+export const validate =
+  <T>(
+    predicate: (value: T) => boolean,
+    message: string,
+  ): ((value: T) => Task<T, ValidationError>) =>
+  (value: T) =>
+    predicate(value)
+      ? (succeed(value) as Task<T, ValidationError>)
+      : failTask<ValidationError>({ _tag: "ValidationError", message });
 
 // --- Collection ---
 
@@ -530,7 +531,7 @@ export const withRetry = <T, E, R = void>(
   delay = 0,
 ): Task<T, E, R> =>
   task<T, E, R>((ctx) =>
-    resources.retry(() => t.execute(ctx), attempts, delay)
+    resources.retry(() => t.execute(ctx), attempts, delay),
   );
 
 /**
@@ -543,5 +544,5 @@ export const withTimeout = <T, E, R = void>(
   timeoutError: E,
 ): Task<T, E, R> =>
   task<T, E, R>((ctx) =>
-    resources.withTimeout(() => t.execute(ctx), timeoutMs, timeoutError)
+    resources.withTimeout(() => t.execute(ctx), timeoutMs, timeoutError),
   );

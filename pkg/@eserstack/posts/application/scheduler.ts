@@ -18,9 +18,10 @@ export interface ScheduledPost {
 /** Outbound port: post scheduling persistence. */
 export interface Scheduler {
   /** Persist a post to be sent at the given time; returns the job id. */
-  schedule(
-    params: { text: string; scheduledAt: Date },
-  ): Promise<{ id: string }>;
+  schedule(params: {
+    text: string;
+    scheduledAt: Date;
+  }): Promise<{ id: string }>;
   /** Remove a pending job; no-op if already sent or not found. */
   cancel(id: string): Promise<void>;
   /** List all jobs that have not yet been dispatched. */

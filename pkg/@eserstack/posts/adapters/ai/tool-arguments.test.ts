@@ -7,8 +7,8 @@ import * as toolArguments from "./tool-arguments.ts";
 import * as toolDefinitions from "./tool-definitions.ts";
 
 const schemaOf = (name: string): toolArguments.ToolSchema => {
-  const definition = toolDefinitions.postToolDefinitions.find((d) =>
-    d.name === name
+  const definition = toolDefinitions.postToolDefinitions.find(
+    (d) => d.name === name,
   );
   if (definition === undefined) throw new Error(`no tool named ${name}`);
   return definition.parameters as toolArguments.ToolSchema;
@@ -151,11 +151,10 @@ bdd.describe("validateToolArguments", () => {
 
   bdd.it("reports every bad argument at once", () => {
     const issues = issuesOf("quote_post", { text: 7, platform: "x" });
-    assert.assertEquals(issues.map((issue) => issue.field), [
-      "quotedPostId",
-      "text",
-      "platform",
-    ]);
+    assert.assertEquals(
+      issues.map((issue) => issue.field),
+      ["quotedPostId", "text", "platform"],
+    );
   });
 
   bdd.it("shortens a long string it quotes back", () => {
@@ -215,9 +214,8 @@ bdd.describe("postToolDefinitions schemas", () => {
     for (const definition of toolDefinitions.postToolDefinitions) {
       const schema = definition.parameters as toolArguments.ToolSchema;
       if (schema.required === undefined) continue;
-      const declared = schema.properties !== undefined
-        ? Object.keys(schema.properties)
-        : [];
+      const declared =
+        schema.properties !== undefined ? Object.keys(schema.properties) : [];
       for (const name of schema.required) {
         assert.assertArrayIncludes(declared, [name], definition.name);
       }

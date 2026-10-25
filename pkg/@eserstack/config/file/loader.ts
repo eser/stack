@@ -165,11 +165,7 @@ export const parse = async <T>(
     if (error instanceof Error) {
       throw new ConfigParseError(filepath, formatFinal, error);
     }
-    throw new ConfigParseError(
-      filepath,
-      formatFinal,
-      new Error(String(error)),
-    );
+    throw new ConfigParseError(filepath, formatFinal, new Error(String(error)));
   }
 };
 

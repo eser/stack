@@ -10,8 +10,7 @@ import * as diff from "./diff.ts";
 const twoPanes = (): MuxState => {
   let s = reducer.reduce(reducer.createInitialState({ cols: 80, rows: 24 }), {
     type: "newTab",
-  })
-    .state;
+  }).state;
   s = reducer.reduce(s, { type: "splitPane", direction: "vertical" }).state;
 
   return s;

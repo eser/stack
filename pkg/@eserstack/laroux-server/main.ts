@@ -101,12 +101,12 @@ export class BuildFailedError extends Error {
 // Map our LogLevel to @eserstack/logging Severity
 const mapLogLevel = (level: LogLevel): logging.Severity => {
   const mapping: Record<LogLevel, logging.Severity> = {
-    "trace": logging.Severities.Debug,
-    "debug": logging.Severities.Debug,
-    "info": logging.Severities.Info,
-    "warn": logging.Severities.Warning,
-    "error": logging.Severities.Error,
-    "fatal": logging.Severities.Critical,
+    trace: logging.Severities.Debug,
+    debug: logging.Severities.Debug,
+    info: logging.Severities.Info,
+    warn: logging.Severities.Warning,
+    error: logging.Severities.Error,
+    fatal: logging.Severities.Critical,
   };
   return mapping[level];
 };
@@ -224,9 +224,7 @@ async function initializeServer(
   // Dynamically import server module to avoid loading react-dom/server during build
   const server = await import("./runtime/server.ts");
   const listening = await server.startHTTPServer(completeDeps);
-  serverLogger.info(
-    `   Local: http://${config.server.host}:${listening.port}`,
-  );
+  serverLogger.info(`   Local: http://${config.server.host}:${listening.port}`);
 
   return completeDeps;
 }
@@ -247,12 +245,12 @@ export async function startServer(options: ServerOptions): Promise<void> {
   const buildPlugins: BuildPlugins | null =
     options.frameworkPlugin !== undefined
       ? {
-        framework: options.frameworkPlugin,
-        css: options.cssPlugin,
-        cssProcessor: options.cssProcessor,
-        fontOptimizer: options.fontOptimizer,
-        imageOptimizer: options.imageOptimizer,
-      }
+          framework: options.frameworkPlugin,
+          css: options.cssPlugin,
+          cssProcessor: options.cssProcessor,
+          fontOptimizer: options.fontOptimizer,
+          imageOptimizer: options.imageOptimizer,
+        }
       : null;
 
   await configureLogging(logLevel);
@@ -352,13 +350,9 @@ function openBrowser(url: string): void {
 
   if (command !== undefined) {
     const [program, ...args] = command;
-    crossRuntime.runtime.exec.spawnChild(
-      program,
-      [...args, url],
-      {
-        stdout: "null",
-        stderr: "null",
-      },
-    );
+    crossRuntime.runtime.exec.spawnChild(program, [...args, url], {
+      stdout: "null",
+      stderr: "null",
+    });
   }
 }

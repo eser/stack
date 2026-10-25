@@ -42,10 +42,7 @@ export const main = async (
     return results.fail({ exitCode: 1 });
   }
 
-  if (
-    state.phase === "IDLE" ||
-    state.phase === "UNINITIALIZED"
-  ) {
+  if (state.phase === "IDLE" || state.phase === "UNINITIALIZED") {
     out.writeln(span.dim("Already idle. Nothing to reset."));
     await out.close();
 

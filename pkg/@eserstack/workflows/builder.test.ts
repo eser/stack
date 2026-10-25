@@ -4,7 +4,8 @@ import * as assert from "@eserstack/test-kit/assert";
 import * as builder from "./builder.ts";
 
 Deno.test("createWorkflow — builds a valid definition with string steps", () => {
-  const wf = builder.createWorkflow("my-wf")
+  const wf = builder
+    .createWorkflow("my-wf")
     .on("precommit")
     .step("fix-eof")
     .step("check-json")
@@ -16,7 +17,8 @@ Deno.test("createWorkflow — builds a valid definition with string steps", () =
 });
 
 Deno.test("createWorkflow — step with options produces record format", () => {
-  const wf = builder.createWorkflow("opts-wf")
+  const wf = builder
+    .createWorkflow("opts-wf")
     .on("precommit", "prepush")
     .step("check-json", { exclude: ["tsconfig.json"] })
     .step("fix-eof")

@@ -119,13 +119,16 @@ const matchesType = (type: ToolSchemaType, value: unknown): boolean => {
 /** A short, JSON-escaped rendering of a value for an issue message. */
 const describeValue = (value: unknown): string => {
   if (typeof value === "string") {
-    const quoted = value.length > MAX_QUOTED_LENGTH
-      ? `${value.slice(0, MAX_QUOTED_LENGTH)}...`
-      : value;
+    const quoted =
+      value.length > MAX_QUOTED_LENGTH
+        ? `${value.slice(0, MAX_QUOTED_LENGTH)}...`
+        : value;
     return JSON.stringify(quoted);
   }
   if (
-    typeof value === "number" || typeof value === "boolean" || value === null
+    typeof value === "number" ||
+    typeof value === "boolean" ||
+    value === null
   ) {
     return String(value);
   }
@@ -163,11 +166,12 @@ const checkObject = (
       const names = declared !== undefined ? Object.keys(declared) : [];
       issues.push({
         field: childField(field, name),
-        problem: names.length === 0
-          ? "is not a parameter of this tool, which takes none"
-          : `is not a parameter of this tool; its parameters are ${
-            names.join(", ")
-          }`,
+        problem:
+          names.length === 0
+            ? "is not a parameter of this tool, which takes none"
+            : `is not a parameter of this tool; its parameters are ${names.join(
+                ", ",
+              )}`,
       });
       continue;
     }
@@ -185,9 +189,9 @@ const checkValue = (
   if (schema.type !== undefined && !matchesType(schema.type, value)) {
     issues.push({
       field,
-      problem: `must be ${TYPE_NAMES[schema.type]}; got ${
-        describeValue(value)
-      }`,
+      problem: `must be ${TYPE_NAMES[schema.type]}; got ${describeValue(
+        value,
+      )}`,
     });
     return;
   }
@@ -196,9 +200,9 @@ const checkValue = (
     const allowed = schema.enum.map((option) => JSON.stringify(option));
     issues.push({
       field,
-      problem: `must be one of ${allowed.join(", ")}; got ${
-        describeValue(value)
-      }`,
+      problem: `must be one of ${allowed.join(", ")}; got ${describeValue(
+        value,
+      )}`,
     });
     return;
   }
@@ -209,11 +213,12 @@ const checkValue = (
     if (schema.minLength !== undefined && length < schema.minLength) {
       issues.push({
         field,
-        problem: schema.minLength === 1
-          ? "must not be empty"
-          : `must be at least ${schema.minLength} characters long; got ${
-            describeValue(value)
-          }`,
+        problem:
+          schema.minLength === 1
+            ? "must not be empty"
+            : `must be at least ${schema.minLength} characters long; got ${describeValue(
+                value,
+              )}`,
       });
     }
     if (
@@ -222,15 +227,16 @@ const checkValue = (
     ) {
       issues.push({
         field,
-        problem: `must match the pattern ${schema.pattern}; got ${
-          describeValue(value)
-        }`,
+        problem: `must match the pattern ${schema.pattern}; got ${describeValue(
+          value,
+        )}`,
       });
     }
   }
 
   if (
-    typeof value === "number" && schema.minimum !== undefined &&
+    typeof value === "number" &&
+    schema.minimum !== undefined &&
     value < schema.minimum
   ) {
     issues.push({
@@ -243,8 +249,7 @@ const checkValue = (
     if (schema.minItems !== undefined && value.length < schema.minItems) {
       issues.push({
         field,
-        problem:
-          `must have at least ${schema.minItems} items; got ${value.length}`,
+        problem: `must have at least ${schema.minItems} items; got ${value.length}`,
       });
     }
     if (schema.items !== undefined) {
@@ -296,15 +301,17 @@ export const describeArgumentIssues = (
   toolName: string,
   issues: readonly ToolArgumentIssue[],
 ): string => {
-  const listed = issues.slice(0, MAX_REPORTED_ISSUES).map((issue) =>
-    issue.field === ""
-      ? `the arguments ${issue.problem}`
-      : `argument "${issue.field}" ${issue.problem}`
-  );
+  const listed = issues
+    .slice(0, MAX_REPORTED_ISSUES)
+    .map((issue) =>
+      issue.field === ""
+        ? `the arguments ${issue.problem}`
+        : `argument "${issue.field}" ${issue.problem}`,
+    );
   const unlisted = issues.length - listed.length;
   const more = unlisted > 0 ? `; ${unlisted} more not shown` : "";
 
-  return `${toolName} did not run because its arguments do not match the tool schema: ${
-    listed.join("; ")
-  }${more}. Correct the arguments and call ${toolName} again.`;
+  return `${toolName} did not run because its arguments do not match the tool schema: ${listed.join(
+    "; ",
+  )}${more}. Correct the arguments and call ${toolName} again.`;
 };

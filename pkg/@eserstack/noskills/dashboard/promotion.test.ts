@@ -31,10 +31,9 @@ const createRuleFile = async (
     .replace(/^-|-$/g, "")
     .slice(0, 50);
 
-  const content =
-    `---\nphases: [EXECUTING]\nsource: learned from spec "${sourceSpec}" on ${
-      new Date().toISOString().slice(0, 10)
-    }\n---\n${text}\n`;
+  const content = `---\nphases: [EXECUTING]\nsource: learned from spec "${sourceSpec}" on ${new Date()
+    .toISOString()
+    .slice(0, 10)}\n---\n${text}\n`;
 
   const filePath = `${root}/${persistence.paths.rulesDir}/${slug}.md`;
   await runtime.fs.mkdir(`${root}/${persistence.paths.rulesDir}`, {
@@ -147,8 +146,12 @@ bdd.describe("rule auto-detection patterns", () => {
   bdd.it("'always' pattern detected as rule-like", () => {
     const looksLikeRule = (text: string): boolean => {
       const lower = text.toLowerCase();
-      return lower.includes("always ") || lower.includes("never ") ||
-        lower.includes("every time") || lower.includes("must ");
+      return (
+        lower.includes("always ") ||
+        lower.includes("never ") ||
+        lower.includes("every time") ||
+        lower.includes("must ")
+      );
     };
 
     assert.assert(looksLikeRule("Always use Result types"));

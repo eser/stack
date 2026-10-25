@@ -93,10 +93,7 @@ bdd.describe("purgeRestore.findEntry", () => {
   ];
 
   bdd.it("finds an entry by id", () => {
-    assert.assertEquals(
-      purgeRestore.findEntry(entries, OLDER_ID),
-      entries[1],
-    );
+    assert.assertEquals(purgeRestore.findEntry(entries, OLDER_ID), entries[1]);
   });
 
   bdd.it("takes latest as the newest entry", () => {

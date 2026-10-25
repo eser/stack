@@ -103,9 +103,9 @@ export const writeTextFileAtomic = async (
 ): Promise<void> => {
   const separator = filePath.lastIndexOf("/");
   const dirPath = separator === -1 ? "." : filePath.slice(0, separator);
-  const tempPath = `${dirPath}/.${
-    filePath.slice(separator + 1)
-  }.${crypto.randomUUID()}.tmp`;
+  const tempPath = `${dirPath}/.${filePath.slice(
+    separator + 1,
+  )}.${crypto.randomUUID()}.tmp`;
 
   try {
     await crossRuntime.runtime.fs.writeTextFile(tempPath, contents);
@@ -290,11 +290,7 @@ const normalizeStateShape = (state: schema.StateFile): schema.StateFile => {
 export class SpecNotFoundError extends Error {
   readonly specName: string;
 
-  constructor(
-    specName: string,
-    commandPrefix: string,
-    options?: ErrorOptions,
-  ) {
+  constructor(specName: string, commandPrefix: string, options?: ErrorOptions) {
     super(
       `Spec '${specName}' not found. Run \`${commandPrefix} spec list\` to see available specs.`,
       options,
@@ -353,9 +349,7 @@ export const resolveState = async (
 /**
  * Check if old --spec= format was used (for deprecation warnings).
  */
-export const usesOldSpecFlag = (
-  args?: readonly string[],
-): boolean => {
+export const usesOldSpecFlag = (args?: readonly string[]): boolean => {
   if (args === undefined) return false;
   return args.some((a) => a.startsWith("--spec="));
 };
@@ -365,9 +359,7 @@ export const usesOldSpecFlag = (
  * - New positional format (spec name passed directly by spec.ts dispatcher)
  * - Old --spec=<name> format (backward compat with deprecation warning)
  */
-export const parseSpecFlag = (
-  args?: readonly string[],
-): string | null => {
+export const parseSpecFlag = (args?: readonly string[]): string | null => {
   if (args === undefined) return null;
   for (const arg of args) {
     if (arg.startsWith("--spec=")) {
@@ -392,8 +384,7 @@ export const requireSpecFlag = (
   if (spec === null || spec.length === 0) {
     return {
       ok: false,
-      error:
-        `Error: spec name is required. Use \`${commandPrefix} spec <name> <command>\` format.`,
+      error: `Error: spec name is required. Use \`${commandPrefix} spec <name> <command>\` format.`,
     };
   }
   return { ok: true, spec };
@@ -419,9 +410,7 @@ export type ActiveSpecIndex = {
 };
 
 /** Read active spec name from state.json's "spec" field. */
-export const readActiveSpec = async (
-  root: string,
-): Promise<string | null> => {
+export const readActiveSpec = async (root: string): Promise<string | null> => {
   const state = await readState(root);
 
   return state.spec;
@@ -859,7 +848,7 @@ export const scaffoldEserDir = async (root: string): Promise<void> => {
   // directories are created concurrently.
   await Promise.all(
     dirs.map((dir) =>
-      crossRuntime.runtime.fs.mkdir(`${root}/${dir}`, { recursive: true })
+      crossRuntime.runtime.fs.mkdir(`${root}/${dir}`, { recursive: true }),
     ),
   );
 
@@ -998,10 +987,7 @@ export const createSession = async (
   await crossRuntime.runtime.fs.mkdir(`${root}/${SESSIONS_DIR}`, {
     recursive: true,
   });
-  await writeTextFileAtomic(
-    path,
-    JSON.stringify(session, null, 2) + "\n",
-  );
+  await writeTextFileAtomic(path, JSON.stringify(session, null, 2) + "\n");
 };
 
 export const readSession = async (
@@ -1132,7 +1118,9 @@ export const generateSessionId = (): string => {
   // 8-char random hex
   const bytes = new Uint8Array(4);
   crypto.getRandomValues(bytes);
-  return Array.from(bytes).map((b) => b.toString(16).padStart(2, "0")).join("");
+  return Array.from(bytes)
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
 };
 
 export const isInitialized = async (root: string): Promise<boolean> => {
@@ -1195,9 +1183,10 @@ export const findProjectRoot = async (
  *
  * Returns `{ root, found }` — found=false means .eser/ not found anywhere.
  */
-export const resolveProjectRoot = async (): Promise<
-  { root: string; found: boolean }
-> => {
+export const resolveProjectRoot = async (): Promise<{
+  root: string;
+  found: boolean;
+}> => {
   const cwd = crossRuntime.runtime.process.cwd();
 
   // 1. Explicit env var (set by session or manager)

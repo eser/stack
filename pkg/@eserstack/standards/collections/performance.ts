@@ -218,9 +218,7 @@ export const clearParameterCache = (fn: Function): void => {
 export const parallelImport = async <T>(
   imports: ReadonlyArray<readonly [path: string, exportName: string]>,
 ): Promise<T[]> => {
-  const modules = await Promise.all(
-    imports.map(([path]) => import(path)),
-  );
+  const modules = await Promise.all(imports.map(([path]) => import(path)));
 
   return imports.map(([, exportName], index) => {
     const module = modules[index];
@@ -251,7 +249,7 @@ export const parallelImport = async <T>(
 export const parallelImportModules = async <T extends Record<string, unknown>>(
   paths: ReadonlyArray<string>,
 ): Promise<T[]> => {
-  return await Promise.all(paths.map((path) => import(path))) as T[];
+  return (await Promise.all(paths.map((path) => import(path)))) as T[];
 };
 
 // =============================================================================
@@ -276,7 +274,7 @@ export const freezeArray = <T>(arr: readonly T[]): readonly T[] => {
  */
 export const memoizeArray = <T, A extends unknown[]>(
   fn: (...args: A) => readonly T[],
-): (...args: A) => readonly T[] => {
+): ((...args: A) => readonly T[]) => {
   let cached: readonly T[] | null = null;
   let lastArgs: A | null = null;
 
@@ -318,7 +316,7 @@ export const memoizeArray = <T, A extends unknown[]>(
  * const same = expensiveValue();  // Returns cached value
  * ```
  */
-export const lazy = <T>(factory: () => T): () => T => {
+export const lazy = <T>(factory: () => T): (() => T) => {
   let cached: T | undefined;
   let computed = false;
 
@@ -335,7 +333,7 @@ export const lazy = <T>(factory: () => T): () => T => {
 /**
  * Create an async lazy value that is computed once on first access.
  */
-export const lazyAsync = <T>(factory: () => Promise<T>): () => Promise<T> => {
+export const lazyAsync = <T>(factory: () => Promise<T>): (() => Promise<T>) => {
   let cached: T | undefined;
   let promise: Promise<T> | null = null;
 

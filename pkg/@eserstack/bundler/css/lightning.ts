@@ -147,14 +147,12 @@ export function transformWithLightningCss(
   // Explicit null/undefined check: lightningcss types define exports as CSSModuleExports | void
   if (result.exports !== null && result.exports !== undefined) {
     exports = {};
-    for (
-      const [className, exportData] of Object.entries(
-        result.exports as Record<
-          string,
-          { name: string; composes?: Array<{ name: string; from?: unknown }> }
-        >,
-      )
-    ) {
+    for (const [className, exportData] of Object.entries(
+      result.exports as Record<
+        string,
+        { name: string; composes?: Array<{ name: string; from?: unknown }> }
+      >,
+    )) {
       exports[className] = {
         name: exportData.name,
         composes: exportData.composes?.map((c) => ({
@@ -168,9 +166,10 @@ export function transformWithLightningCss(
   return {
     code: decodeBufferToString(result.code),
     // lightningcss types define map as Uint8Array | void
-    map: result.map !== null && result.map !== undefined
-      ? decodeBufferToString(result.map)
-      : undefined,
+    map:
+      result.map !== null && result.map !== undefined
+        ? decodeBufferToString(result.map)
+        : undefined,
     exports,
   };
 }

@@ -28,7 +28,7 @@ Deno.test("Deno adapter runtime.http.serve rejects a port in use", async () => {
 
   try {
     await assert.assertRejects(() =>
-      runtime.http.serve({ port: first.port }, () => new Response("second"))
+      runtime.http.serve({ port: first.port }, () => new Response("second")),
     );
   } finally {
     controller.abort();
@@ -46,8 +46,7 @@ Deno.test("Deno adapter runtime.http.serve stops at once on an aborted signal", 
 });
 
 Deno.test({
-  name:
-    "Deno adapter signal listener runs, then its removal lets the process end",
+  name: "Deno adapter signal listener runs, then its removal lets the process end",
   ignore: noPosixSignals,
   fn: async () => {
     const outcome = await probes.runSignalProbe(probes.PROBE_RUNTIMES.deno);

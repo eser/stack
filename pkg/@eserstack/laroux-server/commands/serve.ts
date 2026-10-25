@@ -53,8 +53,8 @@ export const main = async (
   const logLevelInput = (flags["log-level"] as string) ?? "info";
 
   const logLevel: LogLevel = VALID_LOG_LEVELS.includes(
-      logLevelInput.toLowerCase() as LogLevel,
-    )
+    logLevelInput.toLowerCase() as LogLevel,
+  )
     ? (logLevelInput.toLowerCase() as LogLevel)
     : "info";
 

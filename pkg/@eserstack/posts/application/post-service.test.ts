@@ -13,13 +13,15 @@ import * as testing from "./testing.ts";
 
 // ── Test helper ───────────────────────────────────────────────────────────────
 
-function makeService(overrides: {
-  socialApi?: ReturnType<typeof testing.createMockSocialApi>;
-  translator?: Translator;
-  scheduler?: Scheduler;
-  feedAggregator?: FeedAggregator;
-  platform?: "twitter" | "bluesky";
-} = {}): postServiceMod.PostService {
+function makeService(
+  overrides: {
+    socialApi?: ReturnType<typeof testing.createMockSocialApi>;
+    translator?: Translator;
+    scheduler?: Scheduler;
+    feedAggregator?: FeedAggregator;
+    platform?: "twitter" | "bluesky";
+  } = {},
+): postServiceMod.PostService {
   const socialApi = overrides.socialApi ?? testing.createMockSocialApi();
   const platform = overrides.platform ?? "twitter";
   return new postServiceMod.PostService(
@@ -62,10 +64,7 @@ bdd.describe("PostService", () => {
       if (!results.isOk(r)) return;
       assert.assertEquals(r.value.text, "Hello world");
       assert.assertEquals(r.value.id, postIdMod.toPostId("new-post-1"));
-      assert.assertEquals(
-        r.value.authorHandle,
-        handleMod.toHandle("testuser"),
-      );
+      assert.assertEquals(r.value.authorHandle, handleMod.toHandle("testuser"));
       assert.assertEquals(r.value.platform, "twitter");
     });
 
@@ -106,8 +105,8 @@ bdd.describe("PostService", () => {
 
       await service.translateAndPost({ text: "Merhaba", from: "tr", to: "en" });
 
-      const translateCall = translator.calls.find((c) =>
-        c.method === "translate"
+      const translateCall = translator.calls.find(
+        (c) => c.method === "translate",
       );
       assert.assertEquals(translateCall !== undefined, true);
       const createCall = socialApi.calls.find((c) => c.method === "createPost");
@@ -131,8 +130,8 @@ bdd.describe("PostService", () => {
           to: "en",
         });
 
-        const createCall = socialApi.calls.find((c) =>
-          c.method === "createPost"
+        const createCall = socialApi.calls.find(
+          (c) => c.method === "createPost",
         );
         assert.assertEquals(createCall?.args[0], { text: "Hello" });
       },
@@ -180,8 +179,8 @@ bdd.describe("PostService", () => {
 
         await service.replyToPost({ text: "My reply", inReplyToPost: parent });
 
-        const replyCall = socialApi.calls.find((c) =>
-          c.method === "replyToPost"
+        const replyCall = socialApi.calls.find(
+          (c) => c.method === "replyToPost",
         );
         assert.assertEquals(replyCall !== undefined, true);
       },
@@ -307,8 +306,8 @@ bdd.describe("PostService", () => {
 
       await service.getUnifiedTimeline({ maxResultsPerPlatform: 3 });
 
-      const call = feedAggregator.calls.find((c) =>
-        c.method === "getUnifiedTimeline"
+      const call = feedAggregator.calls.find(
+        (c) => c.method === "getUnifiedTimeline",
       );
       assert.assertEquals(call?.args[0], { maxResultsPerPlatform: 3 });
     });
@@ -472,11 +471,11 @@ bdd.describe("PostService", () => {
         if (!results.isOk(r)) return;
         const postResults = r.value;
         assert.assertEquals(postResults.length, 2);
-        const twitterResult = postResults.find((pr) =>
-          pr.platform === "twitter"
+        const twitterResult = postResults.find(
+          (pr) => pr.platform === "twitter",
         );
-        const blueskyResult = postResults.find((pr) =>
-          pr.platform === "bluesky"
+        const blueskyResult = postResults.find(
+          (pr) => pr.platform === "bluesky",
         );
         assert.assertEquals(twitterResult?.error?.message, "Twitter down");
         assert.assertEquals(twitterResult?.post, undefined);
@@ -672,22 +671,19 @@ bdd.describe("PostService", () => {
       });
     });
 
-    bdd.it(
-      "should return Fail when platform is not configured",
-      async () => {
-        const service = makeService({ platform: "twitter" });
+    bdd.it("should return Fail when platform is not configured", async () => {
+      const service = makeService({ platform: "twitter" });
 
-        const r = await service.searchPosts({
-          query: "test",
-          platform: "bluesky",
-        });
+      const r = await service.searchPosts({
+        query: "test",
+        platform: "bluesky",
+      });
 
-        assert.assertEquals(results.isFail(r), true);
-        if (results.isFail(r)) {
-          assert.assertMatch(r.error.message, /bluesky/);
-        }
-      },
-    );
+      assert.assertEquals(results.isFail(r), true);
+      if (results.isFail(r)) {
+        assert.assertMatch(r.error.message, /bluesky/);
+      }
+    });
   });
 
   bdd.describe("searchPostsAll", () => {
@@ -793,22 +789,19 @@ bdd.describe("PostService", () => {
       },
     );
 
-    bdd.it(
-      "should return Fail when platform is not configured",
-      async () => {
-        const service = makeService({ platform: "twitter" });
+    bdd.it("should return Fail when platform is not configured", async () => {
+      const service = makeService({ platform: "twitter" });
 
-        const r = await service.bookmarkPost({
-          id: postIdMod.toPostId("post-1"),
-          platform: "bluesky",
-        });
+      const r = await service.bookmarkPost({
+        id: postIdMod.toPostId("post-1"),
+        platform: "bluesky",
+      });
 
-        assert.assertEquals(results.isFail(r), true);
-        if (results.isFail(r)) {
-          assert.assertMatch(r.error.message, /bluesky/);
-        }
-      },
-    );
+      assert.assertEquals(results.isFail(r), true);
+      if (results.isFail(r)) {
+        assert.assertMatch(r.error.message, /bluesky/);
+      }
+    });
 
     bdd.it(
       "should return Fail when socialApi.bookmarkPost rejects",
@@ -862,18 +855,15 @@ bdd.describe("PostService", () => {
       assert.assertEquals(call?.args[0], { maxResults: 5 });
     });
 
-    bdd.it(
-      "should return Fail when platform is not configured",
-      async () => {
-        const service = makeService({ platform: "twitter" });
+    bdd.it("should return Fail when platform is not configured", async () => {
+      const service = makeService({ platform: "twitter" });
 
-        const r = await service.getBookmarks({ platform: "bluesky" });
+      const r = await service.getBookmarks({ platform: "bluesky" });
 
-        assert.assertEquals(results.isFail(r), true);
-        if (results.isFail(r)) {
-          assert.assertMatch(r.error.message, /bluesky/);
-        }
-      },
-    );
+      assert.assertEquals(results.isFail(r), true);
+      if (results.isFail(r)) {
+        assert.assertMatch(r.error.message, /bluesky/);
+      }
+    });
   });
 });

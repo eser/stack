@@ -38,8 +38,9 @@ ffiTest("spawn: a timed-out command is not run a second time", async () => {
 
 ffiTest("spawn: a missing program throws even with noThrow()", async () => {
   // There is no exit code to return, so noThrow() cannot apply.
-  const command = new exec.CommandBuilder("eserstack-no-such-program")
-    .noThrow();
+  const command = new exec.CommandBuilder(
+    "eserstack-no-such-program",
+  ).noThrow();
 
   const error = await assert.assertRejects(
     () => command.spawn(),
@@ -54,7 +55,10 @@ ffiTest("spawn: env reaches the command through the bridge", async () => {
   const output = await new exec.CommandBuilder("sh", [
     "-c",
     'printf %s "$GREETING"',
-  ]).env("GREETING", "hello").timeout(5_000).text();
+  ])
+    .env("GREETING", "hello")
+    .timeout(5_000)
+    .text();
 
   assert.assertEquals(output, "hello");
 });

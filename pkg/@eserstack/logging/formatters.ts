@@ -94,9 +94,8 @@ const formatProperties = (
     " " +
     entries
       .map(([key, value]) => {
-        const strValue = typeof value === "string"
-          ? value
-          : safeStringify(value);
+        const strValue =
+          typeof value === "string" ? value : safeStringify(value);
         return `${key}=${strValue}`;
       })
       .join(" ")
@@ -176,15 +175,18 @@ export const textFormatter = (
  */
 export const jsonLinesFormatter: FormatterFn = (record: LogRecord): string => {
   return (
-    JSON.stringify({
-      ts: record.datetime.getTime(),
-      lvl: SEVERITY_ABBR[record.severity],
-      cat: category.categoryToString(record.category),
-      msg: record.message,
-      ...(record.args.length > 0 ? { args: record.args } : {}),
-      ...record.context,
-      ...record.properties,
-    }, serialize.jsonReplacer) + "\n"
+    JSON.stringify(
+      {
+        ts: record.datetime.getTime(),
+        lvl: SEVERITY_ABBR[record.severity],
+        cat: category.categoryToString(record.category),
+        msg: record.message,
+        ...(record.args.length > 0 ? { args: record.args } : {}),
+        ...record.context,
+        ...record.properties,
+      },
+      serialize.jsonReplacer,
+    ) + "\n"
   );
 };
 
@@ -252,9 +254,10 @@ export const spanFormatter: SpanFormatterFn = (
 ): span.Span[] => {
   const ts = formatTimestamp(record.datetime, "date-time-timezone");
   const abbr = SEVERITY_ABBR[record.severity] ?? "????";
-  const cat = record.category.length > 0
-    ? category.categoryToString(record.category)
-    : "";
+  const cat =
+    record.category.length > 0
+      ? category.categoryToString(record.category)
+      : "";
   const propsStr = formatProperties(record.properties, record.context);
 
   const spans: span.Span[] = [];

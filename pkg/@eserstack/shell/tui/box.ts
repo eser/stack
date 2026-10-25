@@ -91,16 +91,21 @@ export const drawBox = (
     // Border-only: draw left and right edges, skip interior
     for (let r = 1; r < opts.height - 1; r++) {
       lines.push(
-        ansi.moveTo(opts.y + r, opts.x) + b.v +
-          ansi.moveTo(opts.y + r, opts.x + opts.width - 1) + b.v,
+        ansi.moveTo(opts.y + r, opts.x) +
+          b.v +
+          ansi.moveTo(opts.y + r, opts.x + opts.width - 1) +
+          b.v,
       );
     }
   } else {
     // Full box: reset SGR before interior spaces to prevent color bleeding
     for (let r = 1; r < opts.height - 1; r++) {
       lines.push(
-        ansi.moveTo(opts.y + r, opts.x) + b.v + ansi.reset() +
-          " ".repeat(inner) + b.v,
+        ansi.moveTo(opts.y + r, opts.x) +
+          b.v +
+          ansi.reset() +
+          " ".repeat(inner) +
+          b.v,
       );
     }
   }

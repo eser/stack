@@ -119,10 +119,10 @@ Deno.test("versions: an unwritable package file fails the bump with its path and
     // The writable root manifest was bumped, but VERSION still names the old
     // version so the bump does not look complete.
     assert.assertEquals(await readVersion(workspace.rootManifest), "1.0.1");
-    assert.assertEquals(
-      await Promise.all(lockedFiles.map(readVersion)),
-      ["1.0.0", "1.0.0"],
-    );
+    assert.assertEquals(await Promise.all(lockedFiles.map(readVersion)), [
+      "1.0.0",
+      "1.0.0",
+    ]);
     assert.assertEquals(
       await runtime.fs.readTextFile(
         runtime.path.join(workspace.root, "VERSION"),

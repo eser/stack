@@ -13,6 +13,7 @@ noskills-server needed a clear, testable user-experience target before Phase 5b 
 ### Persona: Solo Indie Hacker on macOS
 
 Single-tenant, personal laptop, side-project work. Values:
+
 - Zero manual cert steps
 - No sysadmin-style setup (no `openssl`, no `keytool`, no port-forwarding)
 - "It just works in Arc/Chrome"
@@ -21,6 +22,7 @@ Single-tenant, personal laptop, side-project work. Values:
 ### TTHW target: Champion < 2 minutes
 
 Competitive landscape at decision time:
+
 - Claude CLI: ~30 s (one-shot, no persistence)
 - Aider: ~2 min (Python install + API key)
 - OpenInterpreter: ~2 min
@@ -33,6 +35,7 @@ Target: beat Aider on TTHW and win on persistence. Stretch goal < 90 s with ever
 ### Magical moment: "daemon survives my laptop reboot"
 
 The differentiator no competitor delivers:
+
 - Claude CLI: one-shot, no history
 - Aider: keeps local history but loses live state on exit
 - Continue: restarts on IDE close

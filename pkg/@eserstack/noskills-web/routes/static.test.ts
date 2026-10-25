@@ -8,18 +8,7 @@ Deno.test("serveStatic answers a binary file byte for byte", async () => {
   const dir = await runtime.fs.makeTempDir();
   // A PNG signature, then bytes that are not valid UTF-8.
   const bytes = new Uint8Array([
-    0x89,
-    0x50,
-    0x4e,
-    0x47,
-    0x0d,
-    0x0a,
-    0x1a,
-    0x0a,
-    0x00,
-    0xff,
-    0xfe,
-    0x80,
+    0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0xff, 0xfe, 0x80,
   ]);
   await runtime.fs.writeFile(runtime.path.join(dir, "icon.png"), bytes);
 

@@ -108,9 +108,7 @@ export function fileUrlToPath(urlString: string): string {
  */
 function jsrSpecifierToUrl(specifier: string): string {
   // Parse: jsr:@scope/package@version/path
-  const match = specifier.match(
-    /^jsr:@([^/]+)\/([^@]+)@[\^~]?([^/]+)(.*)$/,
-  );
+  const match = specifier.match(/^jsr:@([^/]+)\/([^@]+)@[\^~]?([^/]+)(.*)$/);
   if (match) {
     const [, scope, pkg, version, subpath] = match;
     // Construct URL using URL API for proper encoding
@@ -153,10 +151,7 @@ function transformJsrImports(content: string): string {
       )
       // Transform jsr: imports to bare specifiers
       // "jsr:@eserstack/package@^X.Y.Z/path" -> "@eserstack/package/path"
-      .replace(
-        /from\s+["']jsr:(@[^@]+)@[^"'/]+([^"']*)["']/g,
-        'from "$1$2"',
-      )
+      .replace(/from\s+["']jsr:(@[^@]+)@[^"'/]+([^"']*)["']/g, 'from "$1$2"')
       .replace(
         /import\s*\(\s*["']jsr:(@[^@]+)@[^"'/]+([^"']*)["']\s*\)/g,
         'import("$1$2")',
@@ -164,10 +159,7 @@ function transformJsrImports(content: string): string {
       // Transform npm: imports to bare specifiers
       // "npm:react@^X.Y.Z" -> "react"
       // "npm:/react-dom@^X.Y.Z/client" -> "react-dom/client" (note: also handles extra /)
-      .replace(
-        /from\s+["']npm:\/?([^@]+)@[^"'/]+([^"']*)["']/g,
-        'from "$1$2"',
-      )
+      .replace(/from\s+["']npm:\/?([^@]+)@[^"'/]+([^"']*)["']/g, 'from "$1$2"')
       .replace(
         /import\s*\(\s*["']npm:\/?([^@]+)@[^"'/]+([^"']*)["']\s*\)/g,
         'import("$1$2")',
@@ -249,7 +241,7 @@ async function copyBootstrapFiles(copyDir: string): Promise<void> {
 
   await Promise.all(
     BOOTSTRAP_SOURCE_FILES.map((relativePath) =>
-      copyBootstrapFile(relativePath, source, copyDir)
+      copyBootstrapFile(relativePath, source, copyDir),
     ),
   );
 }
@@ -277,18 +269,22 @@ export async function createClientEntry(
   await copyBootstrapFiles(runtime.path.resolve(distDir, BOOTSTRAP_COPY_DIR));
 
   // Generate import statements for all client components
-  const componentImports = clientComponents.map((component, index) => {
-    // Use the absolute path to the component file
-    return `import * as __component_${index} from "${component.filePath}";`;
-  }).join("\n");
+  const componentImports = clientComponents
+    .map((component, index) => {
+      // Use the absolute path to the component file
+      return `import * as __component_${index} from "${component.filePath}";`;
+    })
+    .join("\n");
 
   // Generate registry assignments for all client components
-  const componentRegistry = clientComponents.map((component, index) => {
-    // Register using the relative path as the key (matching module map)
-    // Use ./ prefix to match the module IDs sent by the server
-    const moduleId = `./${component.relativePath}`;
-    return `  __RUNTIME_MODULES__["${moduleId}"] = __component_${index};`;
-  }).join("\n");
+  const componentRegistry = clientComponents
+    .map((component, index) => {
+      // Register using the relative path as the key (matching module map)
+      // Use ./ prefix to match the module IDs sent by the server
+      const moduleId = `./${component.relativePath}`;
+      return `  __RUNTIME_MODULES__["${moduleId}"] = __component_${index};`;
+    })
+    .join("\n");
 
   // Create the entry file content that imports components and bootstrap code
   const content = `/**

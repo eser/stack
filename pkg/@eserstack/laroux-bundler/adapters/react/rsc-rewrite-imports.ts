@@ -64,14 +64,18 @@ function isInsideStringLiteral(content: string, position: number): boolean {
  *          import { Bar } from "../Bar.tsx"
  *          import type { X } from "./types.ts"
  */
-function parseImports(
-  content: string,
-): Array<
-  { original: string; path: string; startIndex: number; endIndex: number }
-> {
-  const imports: Array<
-    { original: string; path: string; startIndex: number; endIndex: number }
-  > = [];
+function parseImports(content: string): Array<{
+  original: string;
+  path: string;
+  startIndex: number;
+  endIndex: number;
+}> {
+  const imports: Array<{
+    original: string;
+    path: string;
+    startIndex: number;
+    endIndex: number;
+  }> = [];
 
   // Match import statements with various patterns
   // Handles: import X from "y", import { X } from "y", import type { X } from "y", import * as X from "y"
@@ -94,7 +98,8 @@ function parseImports(
 
     // Process relative imports AND @/ path alias imports
     if (
-      importPath.startsWith("./") || importPath.startsWith("../") ||
+      importPath.startsWith("./") ||
+      importPath.startsWith("../") ||
       importPath.startsWith("@/")
     ) {
       imports.push({
@@ -214,9 +219,7 @@ export async function rewriteServerComponentImports(
         : `${importInfo.path}.module.css.json`;
 
       // Detect if this is a side-effect import (no bindings)
-      const isSideEffectImport = importInfo.original.match(
-        /^import\s+["']/,
-      );
+      const isSideEffectImport = importInfo.original.match(/^import\s+["']/);
 
       let newImport: string;
       if (isSideEffectImport) {
@@ -244,7 +247,8 @@ export async function rewriteServerComponentImports(
       const startIndex = importInfo.startIndex + offset;
       const endIndex = importInfo.endIndex + offset;
 
-      rewrittenContent = rewrittenContent.slice(0, startIndex) +
+      rewrittenContent =
+        rewrittenContent.slice(0, startIndex) +
         newImport +
         rewrittenContent.slice(endIndex);
 
@@ -279,18 +283,15 @@ export async function rewriteServerComponentImports(
         : `./${relativePath}`;
 
       // Replace the import path in the content
-      const newImport = importInfo.original.replace(
-        `"${importInfo.path}"`,
-        `"${normalizedPath}"`,
-      ).replace(
-        `'${importInfo.path}'`,
-        `'${normalizedPath}'`,
-      );
+      const newImport = importInfo.original
+        .replace(`"${importInfo.path}"`, `"${normalizedPath}"`)
+        .replace(`'${importInfo.path}'`, `'${normalizedPath}'`);
 
       const startIndex = importInfo.startIndex + offset;
       const endIndex = importInfo.endIndex + offset;
 
-      rewrittenContent = rewrittenContent.slice(0, startIndex) +
+      rewrittenContent =
+        rewrittenContent.slice(0, startIndex) +
         newImport +
         rewrittenContent.slice(endIndex);
 
@@ -326,18 +327,15 @@ export async function rewriteServerComponentImports(
         : `./${relativePath}`;
 
       // Replace the import path
-      const newImport = importInfo.original.replace(
-        `"${importInfo.path}"`,
-        `"${normalizedPath}"`,
-      ).replace(
-        `'${importInfo.path}'`,
-        `'${normalizedPath}'`,
-      );
+      const newImport = importInfo.original
+        .replace(`"${importInfo.path}"`, `"${normalizedPath}"`)
+        .replace(`'${importInfo.path}'`, `'${normalizedPath}'`);
 
       const startIndex = importInfo.startIndex + offset;
       const endIndex = importInfo.endIndex + offset;
 
-      rewrittenContent = rewrittenContent.slice(0, startIndex) +
+      rewrittenContent =
+        rewrittenContent.slice(0, startIndex) +
         newImport +
         rewrittenContent.slice(endIndex);
 
@@ -441,15 +439,17 @@ export async function rewriteAllServerComponents(
 
     if (result.importsRewritten > 0) {
       rewriteLogger.debug(
-        `  ✓ ${
-          runtime.path.relative(projectRoot, componentPath)
-        } (${result.importsRewritten} import(s) rewritten)`,
+        `  ✓ ${runtime.path.relative(
+          projectRoot,
+          componentPath,
+        )} (${result.importsRewritten} import(s) rewritten)`,
       );
     } else {
       rewriteLogger.debug(
-        `  ✓ ${
-          runtime.path.relative(projectRoot, componentPath)
-        } (no client imports)`,
+        `  ✓ ${runtime.path.relative(
+          projectRoot,
+          componentPath,
+        )} (no client imports)`,
       );
     }
 
@@ -493,9 +493,7 @@ async function rewriteClientComponentCSSImports(
         : `${importInfo.path}.module.css.json`;
 
       // Detect if this is a side-effect import (no bindings)
-      const isSideEffectImport = importInfo.original.match(
-        /^import\s+["']/,
-      );
+      const isSideEffectImport = importInfo.original.match(/^import\s+["']/);
 
       let newImport: string;
       if (isSideEffectImport) {
@@ -522,7 +520,8 @@ async function rewriteClientComponentCSSImports(
       const startIndex = importInfo.startIndex + offset;
       const endIndex = importInfo.endIndex + offset;
 
-      rewrittenContent = rewrittenContent.slice(0, startIndex) +
+      rewrittenContent =
+        rewrittenContent.slice(0, startIndex) +
         newImport +
         rewrittenContent.slice(endIndex);
 
@@ -572,9 +571,10 @@ export async function rewriteAllClientComponentCSSImports(
 
     if (result.importsRewritten > 0) {
       rewriteLogger.debug(
-        `  ✓ ${
-          runtime.path.relative(projectRoot, component.filePath)
-        } (${result.importsRewritten} CSS import(s) rewritten)`,
+        `  ✓ ${runtime.path.relative(
+          projectRoot,
+          component.filePath,
+        )} (${result.importsRewritten} CSS import(s) rewritten)`,
       );
       totalRewritten += result.importsRewritten;
     }
@@ -602,9 +602,7 @@ export async function rewriteAllSrcCSSModuleImports(
   cssModulePaths: string[],
   projectRoot: string,
 ): Promise<void> {
-  rewriteLogger.debug(
-    `🔄 Rewriting CSS module imports in all src files...`,
-  );
+  rewriteLogger.debug(`🔄 Rewriting CSS module imports in all src files...`);
 
   const cssModuleMap = createCSSModuleMap(cssModulePaths);
 
@@ -612,17 +610,17 @@ export async function rewriteAllSrcCSSModuleImports(
   // here: the glob filter of walkFiles supports only * and **, so a
   // "*.{tsx,ts}" list would match no file.
   const srcFiles: string[] = [];
-  for await (
-    const relPath of collector.walkFiles(srcDir, undefined, /node_modules/)
-  ) {
+  for await (const relPath of collector.walkFiles(
+    srcDir,
+    undefined,
+    /node_modules/,
+  )) {
     if (patterns.hasExtension(relPath, CSS_IMPORTER_EXTENSIONS)) {
       srcFiles.push(runtime.path.join(srcDir, relPath));
     }
   }
 
-  rewriteLogger.debug(
-    `   Found ${srcFiles.length} source file(s) to check`,
-  );
+  rewriteLogger.debug(`   Found ${srcFiles.length} source file(s) to check`);
 
   let totalRewritten = 0;
 
@@ -638,9 +636,10 @@ export async function rewriteAllSrcCSSModuleImports(
 
     if (result.importsRewritten > 0) {
       rewriteLogger.debug(
-        `  ✓ ${
-          runtime.path.relative(projectRoot, filePath)
-        } (${result.importsRewritten} CSS import(s) rewritten)`,
+        `  ✓ ${runtime.path.relative(
+          projectRoot,
+          filePath,
+        )} (${result.importsRewritten} CSS import(s) rewritten)`,
       );
       totalRewritten += result.importsRewritten;
     }

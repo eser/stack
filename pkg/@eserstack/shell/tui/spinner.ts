@@ -71,9 +71,7 @@ export const createSpinner = (
   let intervalId: ReturnType<typeof setInterval> | undefined;
 
   const clearLine = (): void => {
-    ctx.output.write(
-      span.text(`\r${" ".repeat(message.length + 4)}\r`),
-    );
+    ctx.output.write(span.text(`\r${" ".repeat(message.length + 4)}\r`));
   };
 
   const stopTimer = (): void => {

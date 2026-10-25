@@ -228,7 +228,9 @@ body {
   font-family: var(--font-mono);
   white-space: nowrap;
   border-bottom: 2px solid transparent;
-  transition: color 0.1s, border-color 0.1s;
+  transition:
+    color 0.1s,
+    border-color 0.1s;
 }
 
 .tab:hover {

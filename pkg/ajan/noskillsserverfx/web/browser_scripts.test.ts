@@ -32,8 +32,8 @@ const runScript = async (
 ): Promise<() => void> => {
   const source = await readText(`./static/${name}`);
 
-  const saved = Object.keys(globals).map((key) =>
-    [key, Object.getOwnPropertyDescriptor(globalThis, key)] as const
+  const saved = Object.keys(globals).map(
+    (key) => [key, Object.getOwnPropertyDescriptor(globalThis, key)] as const,
   );
   const restore = (): void => {
     for (const [key, descriptor] of saved) {
@@ -101,8 +101,10 @@ const matches = (element: FakeElement, selector: string): boolean =>
       return element.id === tag.slice(1);
     }
 
-    return (tag === "" || element.tagName === tag) &&
-      classes.every((name) => element.classList.contains(name));
+    return (
+      (tag === "" || element.tagName === tag) &&
+      classes.every((name) => element.classList.contains(name))
+    );
   });
 
 /** The parts of a DOM element the scripts use, without HTML parsing. */
@@ -125,7 +127,10 @@ class FakeElement {
   readonly attributes = new Map<string, string>();
   readonly listeners = new Map<string, Listener[]>();
 
-  constructor(readonly document: FakeDocument, readonly tagName: string) {}
+  constructor(
+    readonly document: FakeDocument,
+    readonly tagName: string,
+  ) {}
 
   get classList() {
     const names = (): string[] =>
@@ -136,7 +141,9 @@ class FakeElement {
       }
     };
     const remove = (name: string): void => {
-      this.className = names().filter((other) => other !== name).join(" ");
+      this.className = names()
+        .filter((other) => other !== name)
+        .join(" ");
     };
 
     return {
@@ -264,7 +271,7 @@ class FakeElement {
   closest(selector: string): FakeElement | null {
     return matches(this, selector)
       ? this
-      : this.parentNode?.closest(selector) ?? null;
+      : (this.parentNode?.closest(selector) ?? null);
   }
 
   querySelectorAll(selector: string): FakeElement[] {
@@ -534,7 +541,7 @@ const readScreensFixture = async (): Promise<ScreensFixture> => {
   assert.assertExists(response.body);
   const stream = response.body.pipeThrough(new DecompressionStream("gzip"));
 
-  return await new Response(stream).json() as ScreensFixture;
+  return (await new Response(stream).json()) as ScreensFixture;
 };
 
 /** A corpus colour key ("16:1", "256:208", "rgb:d77757") as a vt.Color. */
@@ -616,7 +623,7 @@ Deno.test("mux-render.js paints Claude Code's start screen and /help as the corp
 
       // Each cell's style, from the spans' widths and CSS.
       const keys = want.lines.map(() =>
-        Array.from({ length: fixture.cols }, () => "")
+        Array.from({ length: fixture.cols }, () => ""),
       );
       for (const run of want.styles ?? []) {
         for (let col = run.col; col < run.col + run.len; col++) {
@@ -624,9 +631,9 @@ Deno.test("mux-render.js paints Claude Code's start screen and /help as the corp
         }
       }
       const wide = new Set(
-        (want.widths ?? []).filter(([, , width]) => width === 2).map((
-          [row, col],
-        ) => `${row}:${col}`),
+        (want.widths ?? [])
+          .filter(([, , width]) => width === 2)
+          .map(([row, col]) => `${row}:${col}`),
       );
 
       for (const [row, element] of rowElements(page, fixture.pane).entries()) {
@@ -685,9 +692,11 @@ Deno.test("mux-render.js paints Claude Code's start screen and /help as the corp
 
 Deno.test("mux-render.js repaints only the rows a patch changed", async () => {
   await withRenderer((page) => {
-    page.renderer.applyFrame(screen({
-      lines: [textLine(0, "one"), textLine(1, "two"), textLine(2, "three")],
-    }));
+    page.renderer.applyFrame(
+      screen({
+        lines: [textLine(0, "one"), textLine(1, "two"), textLine(2, "three")],
+      }),
+    );
     const before = rowElements(page).map((row) => [...row.childNodes]);
 
     page.renderer.applyFrame(patch({ lines: [textLine(1, "TWO")] }));
@@ -702,24 +711,36 @@ Deno.test("mux-render.js repaints only the rows a patch changed", async () => {
 
 Deno.test("mux-render.js gives each wide character two cells and keeps the grid", async () => {
   await withRenderer((page) => {
-    page.renderer.applyFrame(screen({
-      lines: [[0, [
-        ["ok "],
-        ["漢字", 0, 4, 2],
-        2,
-        ["é", 0, 1, 1, 1],
-        ["", 0, 1, 0],
-        ["|"],
-      ]]],
-    }));
+    page.renderer.applyFrame(
+      screen({
+        lines: [
+          [
+            0,
+            [
+              ["ok "],
+              ["漢字", 0, 4, 2],
+              2,
+              ["é", 0, 1, 1, 1],
+              ["", 0, 1, 0],
+              ["|"],
+            ],
+          ],
+        ],
+      }),
+    );
 
     const spans = runSpans(at(rowElements(page), 0));
     assert.assertEquals(
       spans.map((span) => [span.textContent, cellsOf(span)]),
-      [["ok ", 3], ["漢", 2], ["字", 2], ["  ", 2], ["é", 1], [" ", 1], [
-        "|",
-        1,
-      ]],
+      [
+        ["ok ", 3],
+        ["漢", 2],
+        ["字", 2],
+        ["  ", 2],
+        ["é", 1],
+        [" ", 1],
+        ["|", 1],
+      ],
     );
     assert.assertEquals(view(page).rows[0], "ok 漢字  é |");
   });
@@ -727,27 +748,32 @@ Deno.test("mux-render.js gives each wide character two cells and keeps the grid"
 
 Deno.test("mux-render.js skips runs and rows of a shape the protocol does not have", async () => {
   await withRenderer((page) => {
-    page.renderer.applyFrame(screen({
-      cols: 10,
-      lines: [
-        [0, [
-          ["ab", 99],
-          { text: "old", width: 1, cells: 3 },
-          -4,
-          ["cd", "x"],
-          ["fg", 0, 2, 7],
-          "zz",
-          null,
-          3,
-          ["h"],
-          ["cut off"],
-        ]],
-        { row: 1, runs: [["lost"]] },
-        [7, [["lost"]]],
-        [-1, [["lost"]]],
-        [2, "runs", 1],
-      ],
-    }));
+    page.renderer.applyFrame(
+      screen({
+        cols: 10,
+        lines: [
+          [
+            0,
+            [
+              ["ab", 99],
+              { text: "old", width: 1, cells: 3 },
+              -4,
+              ["cd", "x"],
+              ["fg", 0, 2, 7],
+              "zz",
+              null,
+              3,
+              ["h"],
+              ["cut off"],
+            ],
+          ],
+          { row: 1, runs: [["lost"]] },
+          [7, [["lost"]]],
+          [-1, [["lost"]]],
+          [2, "runs", 1],
+        ],
+      }),
+    );
 
     assert.assertEquals(view(page).rows, ["abcdfg   h", "", ""]);
   });
@@ -755,14 +781,16 @@ Deno.test("mux-render.js skips runs and rows of a shape the protocol does not ha
 
 Deno.test("mux-render.js keeps a run's text inside the cells it claims", async () => {
   await withRenderer((page) => {
-    page.renderer.applyFrame(screen({
-      cols: 10,
-      lines: [
-        [0, [["abcdef", 0, 2], ["xyz"]]],
-        [1, [["日本語", 0, 3, 2], ["ok"]]],
-        [2, [["0123456789abc"]]],
-      ],
-    }));
+    page.renderer.applyFrame(
+      screen({
+        cols: 10,
+        lines: [
+          [0, [["abcdef", 0, 2], ["xyz"]]],
+          [1, [["日本語", 0, 3, 2], ["ok"]]],
+          [2, [["0123456789abc"]]],
+        ],
+      }),
+    );
 
     assert.assertEquals(view(page).rows, ["abxyz", "日ok", "0123456789"]);
   });
@@ -777,10 +805,10 @@ Deno.test("mux-render.js paints 256 colours, truecolour and every attribute", as
       color: "rgb(204, 0, 0)",
     });
     // Bold draws the first eight colours bright, as xterm.js does.
-    assert.assertEquals(
-      styleCSS({ fg: { mode: 1, value: 1 }, flags: 1 }).css,
-      { color: "rgb(239, 41, 41)", fontWeight: "bold" },
-    );
+    assert.assertEquals(styleCSS({ fg: { mode: 1, value: 1 }, flags: 1 }).css, {
+      color: "rgb(239, 41, 41)",
+      fontWeight: "bold",
+    });
     assert.assertEquals(styleCSS({ fg: { mode: 2, value: 208 } }).css, {
       color: "rgb(255, 135, 0)",
     });
@@ -825,10 +853,12 @@ Deno.test("mux-render.js paints 256 colours, truecolour and every attribute", as
     assert.assertEquals(styleCSS({ flags: 64 }).css, { color: "transparent" });
     assert.assertEquals(styleCSS({ flags: 16 }).blink, true);
 
-    page.renderer.applyFrame(screen({
-      styles: [{}, { fg: { mode: 2, value: 33 }, flags: 1 | 16 }],
-      lines: [textLine(0, "hot", 1)],
-    }));
+    page.renderer.applyFrame(
+      screen({
+        styles: [{}, { fg: { mode: 2, value: 33 }, flags: 1 | 16 }],
+        lines: [textLine(0, "hot", 1)],
+      }),
+    );
     const span = at(runSpans(at(rowElements(page), 0)), 0);
     assert.assertEquals(span.className, "mux-run mux-blink");
     assert.assertEquals(span.style["color"], "rgb(0, 135, 255)");
@@ -845,18 +875,22 @@ Deno.test("mux-render.js draws the cursor's shape, blink and visibility", async 
       return found;
     };
 
-    page.renderer.applyFrame(screen({
-      cursor: { x: 4, y: 2, visible: true, shape: "bar", blink: true },
-    }));
+    page.renderer.applyFrame(
+      screen({
+        cursor: { x: 4, y: 2, visible: true, shape: "bar", blink: true },
+      }),
+    );
     assert.assertEquals(cursor().className, "mux-cursor bar blink");
     assert.assertEquals(cursor().style["left"], "32px");
     assert.assertEquals(cursor().style["top"], "32px");
     assert.assertEquals(cursor().getAttribute("aria-hidden"), "true");
     assert.assertFalse(cursor().hidden);
 
-    page.renderer.applyFrame(patch({
-      cursor: { x: 0, y: 0, visible: true, shape: "underline", blink: false },
-    }));
+    page.renderer.applyFrame(
+      patch({
+        cursor: { x: 0, y: 0, visible: true, shape: "underline", blink: false },
+      }),
+    );
     assert.assertEquals(cursor().className, "mux-cursor underline");
 
     page.renderer.applyFrame(patch({ cursor: { x: 0, y: 0, visible: false } }));
@@ -867,10 +901,12 @@ Deno.test("mux-render.js draws the cursor's shape, blink and visibility", async 
 
 Deno.test("mux-render.js builds text nodes, never markup, from row text and tab names", async () => {
   await withRenderer((page) => {
-    page.renderer.applyFrame(screen({
-      cols: 40,
-      lines: [textLine(0, "<img src=x onerror=alert(1)>")],
-    }));
+    page.renderer.applyFrame(
+      screen({
+        cols: 40,
+        lines: [textLine(0, "<img src=x onerror=alert(1)>")],
+      }),
+    );
     const span = at(runSpans(at(rowElements(page), 0)), 0);
     assert.assertEquals(span.childNodes.length, 1);
     assert.assert(at(span.childNodes, 0) instanceof FakeText);
@@ -879,7 +915,10 @@ Deno.test("mux-render.js builds text nodes, never markup, from row text and tab 
     page.renderer.applyFrame({
       t: "scene",
       delta: {
-        tabs: [{ id: "t1", name: "upload" }, { id: "t2", name: '<b>"x"' }],
+        tabs: [
+          { id: "t1", name: "upload" },
+          { id: "t2", name: '<b>"x"' },
+        ],
         activeTab: 0,
       },
     });
@@ -912,18 +951,16 @@ Deno.test("mux-render.js opens only http, https and mailto links", async () => {
     assert.assert(mux.isSafeLinkURI("https://example.com/a"));
     assert.assert(mux.isSafeLinkURI("HTTP://example.com"));
     assert.assert(mux.isSafeLinkURI("mailto:someone@example.com"));
-    for (
-      const uri of [
-        "javascript:alert(1)",
-        "JaVaScRiPt:alert(1)",
-        "data:text/html,<b>x</b>",
-        "file:///etc/passwd",
-        "vbscript:x",
-        "custom-app://open",
-        "/relative/path",
-        "",
-      ]
-    ) {
+    for (const uri of [
+      "javascript:alert(1)",
+      "JaVaScRiPt:alert(1)",
+      "data:text/html,<b>x</b>",
+      "file:///etc/passwd",
+      "vbscript:x",
+      "custom-app://open",
+      "/relative/path",
+      "",
+    ]) {
       assert.assertFalse(mux.isSafeLinkURI(uri), uri);
     }
   });
@@ -931,13 +968,15 @@ Deno.test("mux-render.js opens only http, https and mailto links", async () => {
 
 Deno.test("mux-render.js links OSC 8 hyperlinks with a safe scheme", async () => {
   await withRenderer((page) => {
-    page.renderer.applyFrame(screen({
-      links: [
-        { link: 1, uri: "https://example.com/docs" },
-        { link: 2, uri: "javascript:alert(1)" },
-      ],
-      lines: [[0, [["docs", 0, 4, 1, 0, 1], [" "], ["evil", 0, 4, 1, 0, 2]]]],
-    }));
+    page.renderer.applyFrame(
+      screen({
+        links: [
+          { link: 1, uri: "https://example.com/docs" },
+          { link: 2, uri: "javascript:alert(1)" },
+        ],
+        lines: [[0, [["docs", 0, 4, 1, 0, 1], [" "], ["evil", 0, 4, 1, 0, 2]]]],
+      }),
+    );
 
     const row = at(rowElements(page), 0);
     const links = row.querySelectorAll("a.mux-link");
@@ -964,11 +1003,13 @@ Deno.test("mux-render.js links plain URLs in row text without their trailing pun
     );
     assert.assertEquals(page.mux.findPlainLinks("file:///etc/passwd"), []);
 
-    page.renderer.applyFrame(screen({
-      cols: 40,
-      styles: [{}, { fg: { mode: 1, value: 4 } }],
-      lines: [[0, [["go to https://exa"], ["mple.com/x.", 1]]]],
-    }));
+    page.renderer.applyFrame(
+      screen({
+        cols: 40,
+        styles: [{}, { fg: { mode: 1, value: 4 } }],
+        lines: [[0, [["go to https://exa"], ["mple.com/x.", 1]]]],
+      }),
+    );
 
     const row = at(rowElements(page), 0);
     const link = at(row.querySelectorAll("a.mux-link"), 0);
@@ -976,18 +1017,25 @@ Deno.test("mux-render.js links plain URLs in row text without their trailing pun
     assert.assertEquals(link.textContent, "https://example.com/x");
     assert.assertEquals(
       runSpans(row).map((span) => [span.textContent, cellsOf(span)]),
-      [["go to ", 6], ["https://exa", 11], ["mple.com/x", 10], [".", 1]],
+      [
+        ["go to ", 6],
+        ["https://exa", 11],
+        ["mple.com/x", 10],
+        [".", 1],
+      ],
     );
   });
 });
 
 Deno.test("mux-render.js leaves a link click to the program that takes mouse reports", async () => {
   await withRenderer((page) => {
-    page.renderer.applyFrame(screen({
-      mouse: "any",
-      links: [{ link: 1, uri: "https://example.com" }],
-      lines: [[0, [["x", 0, 1, 1, 0, 1]]]],
-    }));
+    page.renderer.applyFrame(
+      screen({
+        mouse: "any",
+        links: [{ link: 1, uri: "https://example.com" }],
+        lines: [[0, [["x", 0, 1, 1, 0, 1]]]],
+      }),
+    );
     const link = at(at(rowElements(page), 0).querySelectorAll("a.mux-link"), 0);
     const span = at(runSpans(link), 0);
 
@@ -1058,17 +1106,15 @@ Deno.test("mux-render.js leaves browser chords, modifiers and composition alone"
   await withRenderer((page) => {
     page.renderer.applyFrame(screen());
 
-    for (
-      const fields of [
-        { key: "Shift", code: "ShiftLeft", shiftKey: true },
-        { key: "c", code: "KeyC", metaKey: true },
-        { key: "v", code: "KeyV", metaKey: true },
-        { key: "V", code: "KeyV", ctrlKey: true, shiftKey: true },
-        { key: "Dead", code: "Quote" },
-        { key: "a", code: "KeyA", isComposing: true },
-        { key: "Process", code: "KeyA", keyCode: 229 },
-      ]
-    ) {
+    for (const fields of [
+      { key: "Shift", code: "ShiftLeft", shiftKey: true },
+      { key: "c", code: "KeyC", metaKey: true },
+      { key: "v", code: "KeyV", metaKey: true },
+      { key: "V", code: "KeyV", ctrlKey: true, shiftKey: true },
+      { key: "Dead", code: "Quote" },
+      { key: "a", code: "KeyA", isComposing: true },
+      { key: "Process", code: "KeyA", keyCode: 229 },
+    ]) {
       assert.assertFalse(keydown(page, fields).defaultPrevented, fields.key);
     }
     assert.assertEquals(page.sent, []);
@@ -1100,7 +1146,7 @@ Deno.test("mux-render.js sends pastes and IME text as paste messages", async () 
 
     const pasted = textarea.dispatch("paste", {
       clipboardData: {
-        getData: (type: string) => type === "text/plain" ? "echo hi\n" : "",
+        getData: (type: string) => (type === "text/plain" ? "echo hi\n" : ""),
       },
     });
     assert.assert(pasted.defaultPrevented);
@@ -1233,48 +1279,50 @@ Deno.test("mux-render.js sends mouse messages by the pane's mouse mode", async (
         shiftKey: true,
         clientX: 0,
         clientY: 0,
-      })
-        .defaultPrevented,
+      }).defaultPrevented,
     );
     mouse(page, "wheel", { deltaY: -16, deltaMode: 0, clientX: 0, clientY: 0 });
 
-    assert.assertEquals(page.sent.filter((frame) => frame["t"] === "mouse"), [
-      {
-        t: "mouse",
-        pane: "pane-1",
-        mouse: {
-          kind: "press",
-          row: 1,
-          col: 2,
-          x: 20,
-          y: 20,
-          alt: true,
-          button: "left",
+    assert.assertEquals(
+      page.sent.filter((frame) => frame["t"] === "mouse"),
+      [
+        {
+          t: "mouse",
+          pane: "pane-1",
+          mouse: {
+            kind: "press",
+            row: 1,
+            col: 2,
+            x: 20,
+            y: 20,
+            alt: true,
+            button: "left",
+          },
         },
-      },
-      {
-        t: "mouse",
-        pane: "pane-1",
-        mouse: { kind: "move", row: 1, col: 4, x: 36, y: 20, button: "left" },
-      },
-      {
-        t: "mouse",
-        pane: "pane-1",
-        mouse: {
-          kind: "release",
-          row: 1,
-          col: 4,
-          x: 36,
-          y: 20,
-          button: "left",
+        {
+          t: "mouse",
+          pane: "pane-1",
+          mouse: { kind: "move", row: 1, col: 4, x: 36, y: 20, button: "left" },
         },
-      },
-      {
-        t: "mouse",
-        pane: "pane-1",
-        mouse: { kind: "wheel", row: 0, col: 0, x: 0, y: 0, wheel: "up" },
-      },
-    ]);
+        {
+          t: "mouse",
+          pane: "pane-1",
+          mouse: {
+            kind: "release",
+            row: 1,
+            col: 4,
+            x: 36,
+            y: 20,
+            button: "left",
+          },
+        },
+        {
+          t: "mouse",
+          pane: "pane-1",
+          mouse: { kind: "wheel", row: 0, col: 0, x: 0, y: 0, wheel: "up" },
+        },
+      ],
+    );
   });
 });
 
@@ -1284,10 +1332,16 @@ const historyLines = (count: number): unknown[] =>
 
 Deno.test("mux-render.js scrolls its own history with the wheel and the keyboard", async () => {
   await withRenderer((page) => {
-    page.renderer.applyFrame(screen({
-      history: { reset: true, lines: historyLines(10) },
-      lines: [textLine(0, "now 0"), textLine(1, "now 1"), textLine(2, "now 2")],
-    }));
+    page.renderer.applyFrame(
+      screen({
+        history: { reset: true, lines: historyLines(10) },
+        lines: [
+          textLine(0, "now 0"),
+          textLine(1, "now 1"),
+          textLine(2, "now 2"),
+        ],
+      }),
+    );
     assert.assertEquals(view(page).historyLength, 10);
 
     // Two rows up.
@@ -1297,12 +1351,18 @@ Deno.test("mux-render.js scrolls its own history with the wheel and the keyboard
     assert.assertEquals(page.sent, []);
 
     // Lines that scroll into the history keep the view where it is.
-    page.renderer.applyFrame(patch({
-      history: {
-        lines: [[[["now 0"]]]],
-      },
-      lines: [textLine(0, "now 1"), textLine(1, "now 2"), textLine(2, "now 3")],
-    }));
+    page.renderer.applyFrame(
+      patch({
+        history: {
+          lines: [[[["now 0"]]]],
+        },
+        lines: [
+          textLine(0, "now 1"),
+          textLine(1, "now 2"),
+          textLine(2, "now 3"),
+        ],
+      }),
+    );
     assert.assertEquals(view(page).rows, ["old 8", "old 9", "now 0"]);
     assert.assertEquals(view(page).scroll, 3);
 
@@ -1322,10 +1382,12 @@ Deno.test("mux-render.js scrolls its own history with the wheel and the keyboard
 
 Deno.test("mux-render.js sends the wheel as cursor keys on the alternate screen", async () => {
   await withRenderer((page) => {
-    page.renderer.applyFrame(screen({
-      altScreen: true,
-      history: { reset: true, lines: historyLines(4) },
-    }));
+    page.renderer.applyFrame(
+      screen({
+        altScreen: true,
+        history: { reset: true, lines: historyLines(4) },
+      }),
+    );
 
     mouse(page, "wheel", { deltaY: 3, deltaMode: 1 });
     assert.assertEquals(view(page).scroll, 0);
@@ -1341,11 +1403,13 @@ Deno.test("mux-render.js sends the wheel as cursor keys on the alternate screen"
     // Shift+Page Up is the program's there.
     page.sent.length = 0;
     keydown(page, { key: "PageUp", code: "PageUp", shiftKey: true });
-    assert.assertEquals(page.sent, [{
-      t: "key",
-      pane: "pane-1",
-      key: { key: "PageUp", code: "PageUp", shift: true },
-    }]);
+    assert.assertEquals(page.sent, [
+      {
+        t: "key",
+        pane: "pane-1",
+        key: { key: "PageUp", code: "PageUp", shift: true },
+      },
+    ]);
   });
 });
 
@@ -1409,7 +1473,7 @@ Deno.test("client.js attaches /mux and feeds the renderer", async () => {
       selector === 'meta[name="noskills-token"]'
         ? { content: "page-token" }
         : null,
-    getElementById: (id: string) => id === "terminal-container" ? root : null,
+    getElementById: (id: string) => (id === "terminal-container" ? root : null),
   });
 
   const restore = await runScript("client.js", {
@@ -1444,10 +1508,12 @@ Deno.test("client.js attaches /mux and feeds the renderer", async () => {
     at(sockets, 0).onmessage?.({ data: '{"t":"screen","pane":"pane-1"}' });
     at(sockets, 0).onmessage?.({ data: "not json" });
 
-    assert.assertEquals(at(sockets, 0).sent, [{
-      t: "attach",
-      viewport: { cols: 80, rows: 24 },
-    }]);
+    assert.assertEquals(at(sockets, 0).sent, [
+      {
+        t: "attach",
+        viewport: { cols: 80, rows: 24 },
+      },
+    ]);
     assert.assertEquals(applied, [{ t: "screen", pane: "pane-1" }]);
   } finally {
     restore();

@@ -15,11 +15,12 @@ export const createChunk = <T>(
   data: T,
   overrides?: Partial<ChunkMeta>,
 ): Chunk<T> => {
-  const kind = typeof data === "string"
-    ? "text" as const
-    : data instanceof Uint8Array
-    ? "bytes" as const
-    : "structured" as const;
+  const kind =
+    typeof data === "string"
+      ? ("text" as const)
+      : data instanceof Uint8Array
+        ? ("bytes" as const)
+        : ("structured" as const);
 
   return {
     data,

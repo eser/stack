@@ -27,8 +27,8 @@ export const compose = (
 ): ComposableFunction => {
   return funcs.reduce(
     (previousFunction, currentFunction) =>
-    // deno-lint-ignore no-explicit-any
-    (...args: functions.ArgList<any>) =>
-      previousFunction(currentFunction(...args)),
+      // deno-lint-ignore no-explicit-any
+      (...args: functions.ArgList<any>) =>
+        previousFunction(currentFunction(...args)),
   );
 };

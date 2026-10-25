@@ -351,9 +351,7 @@ const buildExecutorAgent = (commandPrefix: string): KiroAgent => ({
     "Executes a single noskills task. Follows spec behavioral rules and reports structured results.",
   tools: ["read", "write", "glob", "grep", "shell", "delegate"],
   allowedTools: ["read", "write", "glob", "grep", "shell", "delegate"],
-  resources: [
-    "file://.kiro/steering/noskills-protocol.md",
-  ],
+  resources: ["file://.kiro/steering/noskills-protocol.md"],
   prompt: [
     "You are executing a single task from a noskills spec.",
     "Your ONLY job is to complete the task described in the prompt.",
@@ -382,9 +380,7 @@ const buildVerifierAgent = (): KiroAgent => ({
     "Independently verifies completed task work. Read-only. Never sees the executor's context.",
   tools: ["read", "glob", "grep", "shell", "use_subagent"],
   allowedTools: ["read", "glob", "grep", "shell"],
-  resources: [
-    "file://.kiro/steering/noskills-protocol.md",
-  ],
+  resources: ["file://.kiro/steering/noskills-protocol.md"],
   prompt: [
     "You are verifying another agent's work. You have NO context about how it was done.",
     "Read the changed files. Run the test suite. Check each acceptance criterion independently.",
@@ -431,9 +427,12 @@ const removeLegacyHooks = async (path: string): Promise<void> => {
   const hooks = file["hooks"];
   if (!Array.isArray(hooks)) return;
 
-  const userHooks = hooks.filter((hook: unknown) =>
-    !(hook instanceof Object &&
-      (hook as Readonly<Record<string, unknown>>)["_noskills"] === true)
+  const userHooks = hooks.filter(
+    (hook: unknown) =>
+      !(
+        hook instanceof Object &&
+        (hook as Readonly<Record<string, unknown>>)["_noskills"] === true
+      ),
   );
   if (userHooks.length === hooks.length) return;
 
@@ -531,9 +530,9 @@ const buildRequirementsMd = (spec: ParsedSpec): string => {
   ];
 
   // Extract requirements from discovery answers — use subsection headings as items
-  const reqLines = spec.discoveryAnswers.split("\n").filter((l) =>
-    l.startsWith("### ")
-  );
+  const reqLines = spec.discoveryAnswers
+    .split("\n")
+    .filter((l) => l.startsWith("### "));
 
   if (reqLines.length > 0) {
     for (const line of reqLines) {
@@ -549,9 +548,9 @@ const buildRequirementsMd = (spec: ParsedSpec): string => {
 
   // Map verification items to acceptance criteria
   if (spec.verification !== "") {
-    const verLines = spec.verification.split("\n").filter((l) =>
-      l.trim() !== ""
-    );
+    const verLines = spec.verification
+      .split("\n")
+      .filter((l) => l.trim() !== "");
     for (const line of verLines) {
       const trimmed = line.replace(/^[-*]\s*/, "").trim();
 
@@ -571,12 +570,7 @@ const buildRequirementsMd = (spec: ParsedSpec): string => {
 };
 
 const buildDesignMd = (spec: ParsedSpec): string => {
-  const lines = [
-    `# Design: ${spec.title}`,
-    "",
-    "## Architecture",
-    "",
-  ];
+  const lines = [`# Design: ${spec.title}`, "", "## Architecture", ""];
 
   // Extract architecture info from discovery answers
   if (spec.discoveryAnswers !== "") {
@@ -614,10 +608,7 @@ const buildDesignMd = (spec: ParsedSpec): string => {
 };
 
 const buildTasksMd = (spec: ParsedSpec): string => {
-  const lines = [
-    `# Tasks: ${spec.title}`,
-    "",
-  ];
+  const lines = [`# Tasks: ${spec.title}`, ""];
 
   if (spec.tasks !== "") {
     lines.push(spec.tasks);
@@ -769,9 +760,7 @@ export const kiroAdapter: adapter.ToolAdapter = {
     );
   },
 
-  syncMcp: async (
-    ctx: adapter.SyncContext,
-  ): Promise<void> => {
+  syncMcp: async (ctx: adapter.SyncContext): Promise<void> => {
     const settingsDir = `${ctx.root}/${SETTINGS_DIR}`;
     const mcpPath = `${settingsDir}/${MCP_FILE}`;
 

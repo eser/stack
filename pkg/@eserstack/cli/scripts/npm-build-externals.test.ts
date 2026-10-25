@@ -75,8 +75,9 @@ Deno.test("every npm build reads the shared externals list", async () => {
       `${relative} must pass EXTERNAL_PACKAGES to esbuild`,
     );
     assert.assertEquals(
-      /external:\s*\[\.\.\.EXTERNAL_PACKAGES,\s*"npm:\*",\s*"jsr:\*"\s*\]/
-        .test(code),
+      /external:\s*\[\.\.\.EXTERNAL_PACKAGES,\s*"npm:\*",\s*"jsr:\*"\s*\]/.test(
+        code,
+      ),
       true,
       `${relative} must keep Deno's npm: and jsr: specifiers external`,
     );

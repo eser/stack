@@ -105,9 +105,7 @@ const concernAdd = async (
     if (concern === null) {
       out.writeln(span.red(`Unknown concern: ${concernId}`));
       out.writeln(
-        span.dim(
-          `  Available: ${defaults.map((c) => c.id).join(", ")}`,
-        ),
+        span.dim(`  Available: ${defaults.map((c) => c.id).join(", ")}`),
       );
       continue;
     }
@@ -127,10 +125,7 @@ const concernAdd = async (
     };
     await persistence.writeManifest(root, newConfig);
 
-    out.writeln(
-      span.green("✔"),
-      ` Activated concerns: ${added.join(", ")}`,
-    );
+    out.writeln(span.green("✔"), ` Activated concerns: ${added.join(", ")}`);
   }
 
   await out.close();
@@ -215,7 +210,7 @@ const concernList = async (
   const allConcerns = await concerns.loadDefaultConcerns();
   const activeConcernIds = config?.concerns ?? [];
   const activeConcernDefs = allConcerns.filter((c) =>
-    activeConcernIds.includes(c.id)
+    activeConcernIds.includes(c.id),
   );
 
   if (jsonMode) {

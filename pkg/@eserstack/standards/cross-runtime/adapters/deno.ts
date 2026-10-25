@@ -80,10 +80,7 @@ const createDenoFs = (): RuntimeFs => {
   });
 
   return {
-    async readFile(
-      path: string,
-      options?: FileOptions,
-    ): Promise<Uint8Array> {
+    async readFile(path: string, options?: FileOptions): Promise<Uint8Array> {
       try {
         return await Deno.readFile(path, { signal: options?.signal });
       } catch (error) {
@@ -265,18 +262,13 @@ const createDenoFs = (): RuntimeFs => {
       };
     },
 
-    async *walk(
-      root: string,
-      options?: WalkOptions,
-    ): AsyncIterable<WalkEntry> {
+    async *walk(root: string, options?: WalkOptions): AsyncIterable<WalkEntry> {
       const includeDirs = options?.includeDirs ?? true;
       const includeFiles = options?.includeFiles ?? true;
       const exts = options?.exts;
       const skip = options?.skip;
 
-      const walkDir = async function* (
-        dir: string,
-      ): AsyncIterable<WalkEntry> {
+      const walkDir = async function* (dir: string): AsyncIterable<WalkEntry> {
         for await (const entry of Deno.readDir(dir)) {
           const entryPath = denoPath.join(dir, entry.name);
 
@@ -302,7 +294,7 @@ const createDenoFs = (): RuntimeFs => {
             if (
               exts !== undefined &&
               !exts.some((ext) =>
-                entry.name.endsWith(ext.startsWith(".") ? ext : `.${ext}`)
+                entry.name.endsWith(ext.startsWith(".") ? ext : `.${ext}`),
               )
             ) {
               continue;
@@ -452,9 +444,9 @@ const createDenoExec = (): RuntimeExec => {
         if (mode !== "piped" || stream === null) {
           return Promise.resolve(new Uint8Array());
         }
-        return new Response(stream).arrayBuffer().then((b) =>
-          new Uint8Array(b)
-        );
+        return new Response(stream)
+          .arrayBuffer()
+          .then((b) => new Uint8Array(b));
       };
 
       return {
@@ -462,13 +454,11 @@ const createDenoExec = (): RuntimeExec => {
         stdin: modes.stdin === "piped" ? process.stdin : null,
         stdout: modes.stdout === "piped" ? process.stdout : null,
         stderr: modes.stderr === "piped" ? process.stderr : null,
-        status: process.status.then(
-          (status): ProcessStatus => ({
-            success: status.success,
-            code: status.code,
-            signal: status.signal ?? undefined,
-          }),
-        ),
+        status: process.status.then((status): ProcessStatus => ({
+          success: status.success,
+          code: status.code,
+          signal: status.signal ?? undefined,
+        })),
         output: async (): Promise<ProcessOutput> => {
           const stdoutStream = modes.stdout === "piped" ? process.stdout : null;
           const stderrStream = modes.stderr === "piped" ? process.stderr : null;
@@ -642,9 +632,10 @@ const createDenoHttp = (): RuntimeHttp => ({
         (request, info) => {
           const addr = info.remoteAddr;
           return respond(request, {
-            remoteAddr: addr.transport === "tcp" || addr.transport === "udp"
-              ? { hostname: addr.hostname, port: addr.port }
-              : null,
+            remoteAddr:
+              addr.transport === "tcp" || addr.transport === "udp"
+                ? { hostname: addr.hostname, port: addr.port }
+                : null,
           });
         },
       );

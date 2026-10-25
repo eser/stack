@@ -73,8 +73,8 @@ export const isWasmAvailable = (): boolean => {
 export const loadEserAjanWasm = async (
   options?: LoadWasmOptions,
 ): Promise<types.FFILibrary> => {
-  const wasmPath = options?.wasmPath ??
-    resolve.resolveWasmPath(WASM_MODULE_DIR);
+  const wasmPath =
+    options?.wasmPath ?? resolve.resolveWasmPath(WASM_MODULE_DIR);
   const { loadReactorWasm } = await import("./loader-reactor.ts");
 
   return await loadReactorWasm(wasmPath);

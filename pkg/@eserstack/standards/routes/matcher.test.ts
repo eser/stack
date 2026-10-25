@@ -197,9 +197,7 @@ for (const pathname of catchAllPaths) {
 }
 
 Deno.test("findMatchingRoute sends a normalized index path to its catch-all", () => {
-  const routes = [
-    { path: "/docs/[...path]", data: "docs" },
-  ];
+  const routes = [{ path: "/docs/[...path]", data: "docs" }];
 
   const result = matcher.findMatchingRoute(
     matcher.normalizePath("/docs/"),
@@ -260,9 +258,7 @@ Deno.test("findMatchingRoute - falls back to dynamic route", () => {
 });
 
 Deno.test("findMatchingRoute - returns null when no routes match", () => {
-  const routes = [
-    { path: "/stories/[slug]", data: "story" },
-  ];
+  const routes = [{ path: "/stories/[slug]", data: "story" }];
 
   const result = matcher.findMatchingRoute("/about", routes);
   assert.assertEquals(result, null);

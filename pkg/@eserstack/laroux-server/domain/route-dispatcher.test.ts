@@ -12,8 +12,7 @@ const API_ROUTES_SOURCE = `export const apiRoutes = [
 ];
 `;
 
-const ECHO_ROUTE_SOURCE =
-  `export const GET = (context: { params: unknown }): Response =>
+const ECHO_ROUTE_SOURCE = `export const GET = (context: { params: unknown }): Response =>
   Response.json(context.params);
 `;
 
@@ -120,9 +119,9 @@ const writeHelloRoute = async (distDir: string, text: string) => {
   );
   await runtime.fs.writeTextFile(
     runtime.path.join(serverDir, "routes", "hello.ts"),
-    `export const GET = (): Response => new Response(${
-      JSON.stringify(text)
-    });\n`,
+    `export const GET = (): Response => new Response(${JSON.stringify(
+      text,
+    )});\n`,
   );
 };
 

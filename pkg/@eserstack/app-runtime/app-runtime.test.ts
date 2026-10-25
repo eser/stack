@@ -96,7 +96,7 @@ Deno.test("awaitAll waits for the queued work and empties the queue", async () =
       setTimeout(() => {
         finished.push(name);
         resolve();
-      }, ms)
+      }, ms),
     );
   app.state.awaits.push(later("slow", 20), later("fast", 1));
 

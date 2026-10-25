@@ -26,9 +26,7 @@ const showGhHelp = (): void => {
   out.writeln("  contributors     Update contributor list in README.md");
   out.writeln("  release-notes    Sync CHANGELOG to GitHub Releases");
   out.writeln("  release-tag      Create and push release git tags");
-  out.writeln(
-    "\nRun 'eser codebase gh <subcommand> --help' for details.",
-  );
+  out.writeln("\nRun 'eser codebase gh <subcommand> --help' for details.");
 };
 
 /** CLI entry point for dispatcher compatibility. */
@@ -40,7 +38,8 @@ export const main = async (
   const remaining = args.slice(1);
 
   if (
-    subcommand === undefined || subcommand === "--help" ||
+    subcommand === undefined ||
+    subcommand === "--help" ||
     subcommand === "-h"
   ) {
     showGhHelp();

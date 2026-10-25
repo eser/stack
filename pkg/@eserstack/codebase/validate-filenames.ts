@@ -68,10 +68,7 @@ const DEFAULT_EXCLUDES = [
 ];
 
 /** Check if a path matches any exclude pattern */
-const isExcluded = (
-  path: string,
-  excludes: readonly string[],
-): boolean => {
+const isExcluded = (path: string, excludes: readonly string[]): boolean => {
   for (const pattern of excludes) {
     if (pattern.includes("*")) {
       // Simple glob: "pkg/*/README.md" or "etc/templates/*/Makefile"
@@ -102,15 +99,15 @@ export const tool: FileTool = fileTool.withGoValidator(
       // Read config-driven rules or use defaults
       const configRules = options["rules"] as
         | Array<{
-          directory: string;
-          convention: string;
-          exclude?: string[];
-        }>
+            directory: string;
+            convention: string;
+            exclude?: string[];
+          }>
         | undefined;
 
       // Build exclude list from config or defaults
-      const globalExcludes = (options["exclude"] as string[] | undefined) ??
-        DEFAULT_EXCLUDES;
+      const globalExcludes =
+        (options["exclude"] as string[] | undefined) ?? DEFAULT_EXCLUDES;
 
       for (const file of files) {
         // Skip globally excluded paths
@@ -134,9 +131,7 @@ export const tool: FileTool = fileTool.withGoValidator(
         if (configRules !== undefined) {
           let matched = false;
           for (const rule of configRules) {
-            if (
-              rule.directory === "*" || file.path.includes(rule.directory)
-            ) {
+            if (rule.directory === "*" || file.path.includes(rule.directory)) {
               // Check rule-level excludes
               if (
                 rule.exclude !== undefined &&
@@ -146,9 +141,8 @@ export const tool: FileTool = fileTool.withGoValidator(
                 break;
               }
 
-              const pattern = rule.convention === "snake_case"
-                ? SNAKE_CASE
-                : KEBAB_CASE;
+              const pattern =
+                rule.convention === "snake_case" ? SNAKE_CASE : KEBAB_CASE;
 
               if (!pattern.test(basename)) {
                 issues.push({

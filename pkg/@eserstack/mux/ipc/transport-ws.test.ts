@@ -55,7 +55,10 @@ Deno.test("wsTransport round-trips JSON messages between two sockets", async () 
   ta.send({ t: "ping", n: 2 });
   await new Promise((r) => queueMicrotask(() => r(undefined)));
 
-  assert.assertEquals(received, [{ t: "ping", n: 1 }, { t: "ping", n: 2 }]);
+  assert.assertEquals(received, [
+    { t: "ping", n: 1 },
+    { t: "ping", n: 2 },
+  ]);
 });
 
 Deno.test("wsTransport drops sends when the socket is not open", () => {

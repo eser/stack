@@ -45,8 +45,8 @@ export class MuxHost {
   readonly #root: string;
   /** The mux server behind every tab; {@link attachSocket} connects to it. */
   readonly #server: mux.MuxServer;
-  readonly #adapter = agents.getAgentAdapter("claude-code") ??
-    agents.defaultAgentAdapter();
+  readonly #adapter =
+    agents.getAgentAdapter("claude-code") ?? agents.defaultAgentAdapter();
   /** mux tab id → noskills tab metadata. */
   readonly #tabs = new Map<string, WebTab>();
   readonly #resolveCommandOverride: (() => Promise<string>) | undefined;
@@ -110,9 +110,10 @@ export class MuxHost {
 
   async #resolveCommand(): Promise<string> {
     if (this.#command === null) {
-      this.#command = this.#resolveCommandOverride !== undefined
-        ? await this.#resolveCommandOverride()
-        : (await this.#adapter.resolveCommand()) ?? "claude";
+      this.#command =
+        this.#resolveCommandOverride !== undefined
+          ? await this.#resolveCommandOverride()
+          : ((await this.#adapter.resolveCommand()) ?? "claude");
     }
     return this.#command;
   }
@@ -120,9 +121,10 @@ export class MuxHost {
   /** Create a tab running a coding agent, optionally bound to a spec. */
   async createTab(specName?: string): Promise<WebTab> {
     // Reuse the canonical session factories (spec-bound loads the live phase).
-    const binding = specName !== undefined
-      ? await sessionBinding.createSpecSession(this.#root, specName, "web")
-      : await sessionBinding.createFreeSession(this.#root, "web");
+    const binding =
+      specName !== undefined
+        ? await sessionBinding.createSpecSession(this.#root, specName, "web")
+        : await sessionBinding.createFreeSession(this.#root, "web");
 
     const command = await this.#resolveCommand();
     this.#server.dispatch({

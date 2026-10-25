@@ -163,7 +163,10 @@ bdd.describe({ name: "serialize()", sanitizeResources: false }, () => {
 
 bdd.describe("serializeWith() without the native library", () => {
   const app = { name: "app", replicas: 3 };
-  const apps = [{ name: "app1", replicas: 1 }, { name: "app2", replicas: 2 }];
+  const apps = [
+    { name: "app1", replicas: 1 },
+    { name: "app2", replicas: 2 },
+  ];
 
   const documentCases = [
     {
@@ -276,7 +279,8 @@ bdd.describe("serializeWith() without the native library", () => {
 
 bdd.describe("streamLayers.writerLayer()", () => {
   bdd.it("writes the chunks as one JSON array", async () => {
-    const chunks = await streams.pipeline()
+    const chunks = await streams
+      .pipeline()
       .from(streams.sources.values({ id: 1 }, { id: 2 }))
       .through(streamLayers.writerLayer("json"))
       .collect<string>();
@@ -285,7 +289,8 @@ bdd.describe("streamLayers.writerLayer()", () => {
   });
 
   bdd.it("writes the CSV header before the first chunk only", async () => {
-    const chunks = await streams.pipeline()
+    const chunks = await streams
+      .pipeline()
       .from(streams.sources.values({ id: 1 }, { id: 2 }))
       .through(streamLayers.writerLayer("csv"))
       .collect<string>();
@@ -438,28 +443,40 @@ bdd.describe("deserialize()", () => {
 
 bdd.describe("roundtrip", () => {
   bdd.it("JSON serialize/deserialize", async () => {
-    const data = [{ name: "app1", count: 42 }, { name: "app2", count: 7 }];
+    const data = [
+      { name: "app1", count: 42 },
+      { name: "app2", count: 7 },
+    ];
     const serialized = await serializer.serialize(data, "json");
     const deserialized = await deserializer.deserialize(serialized, "json");
     assert.assertEquals(deserialized, data);
   });
 
   bdd.it("JSONL serialize/deserialize", async () => {
-    const data = [{ name: "app1", count: 42 }, { name: "app2", count: 7 }];
+    const data = [
+      { name: "app1", count: 42 },
+      { name: "app2", count: 7 },
+    ];
     const serialized = await serializer.serialize(data, "jsonl");
     const deserialized = await deserializer.deserialize(serialized, "jsonl");
     assert.assertEquals(deserialized, data);
   });
 
   bdd.it("YAML serialize/deserialize", async () => {
-    const data = [{ name: "app1", count: 42 }, { name: "app2", count: 7 }];
+    const data = [
+      { name: "app1", count: 42 },
+      { name: "app2", count: 7 },
+    ];
     const serialized = await serializer.serialize(data, "yaml");
     const deserialized = await deserializer.deserialize(serialized, "yaml");
     assert.assertEquals(deserialized, data);
   });
 
   bdd.it("TOML serialize/deserialize", async () => {
-    const data = [{ name: "app1", count: 42 }, { name: "app2", count: 7 }];
+    const data = [
+      { name: "app1", count: 42 },
+      { name: "app2", count: 7 },
+    ];
     const serialized = await serializer.serialize(data, "toml");
     const deserialized = await deserializer.deserialize(serialized, "toml");
     assert.assertEquals(deserialized, data);
@@ -478,14 +495,8 @@ bdd.describe("FormatReader streaming", () => {
 
     const items2 = reader.push('p1"}\n{"name":"app2"}\n');
     assert.assertEquals(items2.length, 2);
-    assert.assertEquals(
-      (items2[0] as Record<string, unknown>)["name"],
-      "app1",
-    );
-    assert.assertEquals(
-      (items2[1] as Record<string, unknown>)["name"],
-      "app2",
-    );
+    assert.assertEquals((items2[0] as Record<string, unknown>)["name"], "app1");
+    assert.assertEquals((items2[1] as Record<string, unknown>)["name"], "app2");
   });
 
   bdd.it("JSONL should flush remaining buffer", () => {

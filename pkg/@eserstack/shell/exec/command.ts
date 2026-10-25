@@ -45,9 +45,10 @@ export class CommandBuilder {
       stdout: "piped",
       stderr: "piped",
       ...options,
-      timeout: options.timeout !== undefined
-        ? execGo.normalizeTimeout(options.timeout)
-        : undefined,
+      timeout:
+        options.timeout !== undefined
+          ? execGo.normalizeTimeout(options.timeout)
+          : undefined,
     };
   }
 
@@ -184,7 +185,8 @@ export class CommandBuilder {
    *   past its timeout.
    */
   async spawn(): Promise<CommandResult> {
-    const attachedToTerminal = this.#options.stdin === "inherit" ||
+    const attachedToTerminal =
+      this.#options.stdin === "inherit" ||
       this.#options.stdout === "inherit" ||
       this.#options.stderr === "inherit";
 
@@ -216,12 +218,15 @@ export class CommandBuilder {
       }),
     );
 
-    return this.#checkExit({
-      code: reply.code,
-      success: reply.code === 0,
-      stdout: encoder.encode(reply.stdout),
-      stderr: encoder.encode(reply.stderr),
-    }, reply.stderr);
+    return this.#checkExit(
+      {
+        code: reply.code,
+        success: reply.code === 0,
+        stdout: encoder.encode(reply.stdout),
+        stderr: encoder.encode(reply.stderr),
+      },
+      reply.stderr,
+    );
   }
 
   async #spawnRuntime(attachedToTerminal: boolean): Promise<CommandResult> {
@@ -230,17 +235,18 @@ export class CommandBuilder {
     // A captured command gets the bridge's default, so the outcome does not
     // depend on whether the native library is installed. One attached to the
     // terminal gets none; see timeout().
-    const timeoutMs = this.#options.timeout ??
+    const timeoutMs =
+      this.#options.timeout ??
       (attachedToTerminal ? undefined : execGo.DEFAULT_TIMEOUT_MS);
 
     // An own timer rather than AbortSignal.timeout(), so it is cleared the
     // moment the command exits instead of staying pending for the full delay.
-    const controller = timeoutMs !== undefined
-      ? new AbortController()
-      : undefined;
-    const timer = controller !== undefined
-      ? setTimeout(() => controller.abort(), timeoutMs)
-      : undefined;
+    const controller =
+      timeoutMs !== undefined ? new AbortController() : undefined;
+    const timer =
+      controller !== undefined
+        ? setTimeout(() => controller.abort(), timeoutMs)
+        : undefined;
     const timedOut = (): boolean => controller?.signal.aborted === true;
 
     let result: CommandResult;

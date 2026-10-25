@@ -80,10 +80,10 @@ Deno.test("renderSSR escapes text and props that start with $ in the payload", a
   // The HTML keeps the text; only the payload for the client is escaped.
   assert.assertStringIncludes(result.html, "$D-day");
 
-  const element = await larouxClient.createElementFromChunk(
+  const element = (await larouxClient.createElementFromChunk(
     result.rscPayload,
     0,
-  ) as React.ReactElement<{ title: string; children: string }>;
+  )) as React.ReactElement<{ title: string; children: string }>;
   assert.assertEquals(element.type, "p");
   assert.assertEquals(element.props.title, "$5 off");
   assert.assertEquals(element.props.children, "$D-day");
@@ -103,11 +103,11 @@ Deno.test("renderSSR escapes client component props that start with $", async ()
     {},
   );
 
-  const element = await larouxClient.createElementFromChunk(
+  const element = (await larouxClient.createElementFromChunk(
     result.rscPayload,
     0,
     () => Badge,
-  ) as React.ReactElement<{ label: string }>;
+  )) as React.ReactElement<{ label: string }>;
   assert.assertStrictEquals(element.type, Badge);
   assert.assertEquals(element.props.label, "$5");
 });

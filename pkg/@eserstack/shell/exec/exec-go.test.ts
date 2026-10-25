@@ -106,11 +106,13 @@ Deno.test("runExecGo returns a non-zero exit as a normal reply", () => {
   const reply = execGo.runExecGo(lib, request);
 
   assert.assertEquals(reply, { stdout: "out", stderr: "err", code: 3 });
-  assert.assertEquals(requests, [{
-    command: "sh",
-    args: ["-c", "exit 3"],
-    timeout: "5000ms",
-  }]);
+  assert.assertEquals(requests, [
+    {
+      command: "sh",
+      args: ["-c", "exit 3"],
+      timeout: "5000ms",
+    },
+  ]);
 });
 
 Deno.test("runExecGo fills in the output the bridge omits when empty", () => {
@@ -125,7 +127,8 @@ Deno.test("runExecGo throws the bridge's error as a CommandRunError", () => {
   const { lib } = fakeLib(
     JSON.stringify({
       code: 0,
-      error: 'exec "sleep": context deadline exceeded: the command ran past ' +
+      error:
+        'exec "sleep": context deadline exceeded: the command ran past ' +
         "its 100ms timeout",
     }),
   );

@@ -132,13 +132,11 @@ export const getPackageFiles = async (
 ): Promise<string[]> => {
   const files: string[] = [];
 
-  for await (
-    const entry of runtime.fs.walk(packagePath, {
-      exts: patterns.JS_FILE_EXTENSIONS,
-      includeDirs: false,
-      skip: [/node_modules/, /\.git/],
-    })
-  ) {
+  for await (const entry of runtime.fs.walk(packagePath, {
+    exts: patterns.JS_FILE_EXTENSIONS,
+    includeDirs: false,
+    skip: [/node_modules/, /\.git/],
+  })) {
     const relativePath = runtime.path.relative(packagePath, entry.path);
     const fileName = runtime.path.basename(relativePath);
 

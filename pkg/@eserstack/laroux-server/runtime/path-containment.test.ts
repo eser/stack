@@ -73,9 +73,9 @@ Deno.test("POST /_rsc never imports a module outside dist/server", async () => {
     await Deno.mkdir(serverDir, { recursive: true });
     await Deno.mkdir(outsideDir, { recursive: true });
 
-    const marker = `__laroux_outside_${
-      crypto.randomUUID().replaceAll("-", "")
-    }`;
+    const marker = `__laroux_outside_${crypto
+      .randomUUID()
+      .replaceAll("-", "")}`;
     await Deno.writeTextFile(
       path.join(outsideDir, "evil.js"),
       `globalThis.${marker} = true;\nexport const pwn = () => "pwned";\n`,
@@ -196,19 +196,17 @@ Deno.test("static routes do not serve server code or build inputs from dist", as
       return { status: res.status, body: await res.text() };
     };
 
-    for (
-      const url of [
-        "http://localhost/dist/server/src/app/actions.js",
-        "http://localhost/server/src/app/actions.js",
-        "http://localhost/dist/client/../server/src/app/actions.js",
-        // A case-insensitive file system (macOS, Windows) finds the same file
-        // under another spelling.
-        "http://localhost/dist/SERVER/src/app/actions.js",
-        "http://localhost/Server/src/app/actions.js",
-        "http://localhost/_laroux-react/client.ts",
-        "http://localhost/transform-manifest.json",
-      ]
-    ) {
+    for (const url of [
+      "http://localhost/dist/server/src/app/actions.js",
+      "http://localhost/server/src/app/actions.js",
+      "http://localhost/dist/client/../server/src/app/actions.js",
+      // A case-insensitive file system (macOS, Windows) finds the same file
+      // under another spelling.
+      "http://localhost/dist/SERVER/src/app/actions.js",
+      "http://localhost/Server/src/app/actions.js",
+      "http://localhost/_laroux-react/client.ts",
+      "http://localhost/transform-manifest.json",
+    ]) {
       // Sequential: each request goes through the same handler and its logs.
       // deno-lint-ignore no-await-in-loop
       const { status, body } = await fetchBody(url);

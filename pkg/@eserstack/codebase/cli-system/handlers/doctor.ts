@@ -20,11 +20,7 @@ const runtime = standardsCrossRuntime.runtime;
 
 const LABEL_WIDTH = 17;
 
-const ok = (
-  out: streams.Output,
-  label: string,
-  value: string,
-): void => {
+const ok = (out: streams.Output, label: string, value: string): void => {
   const padded = `${label}:`.padEnd(LABEL_WIDTH);
 
   out.writeln(
@@ -34,11 +30,7 @@ const ok = (
   );
 };
 
-const fail = (
-  out: streams.Output,
-  label: string,
-  value: string,
-): void => {
+const fail = (out: streams.Output, label: string, value: string): void => {
   const padded = `${label}:`.padEnd(LABEL_WIDTH);
 
   out.writeln(
@@ -48,21 +40,13 @@ const fail = (
   );
 };
 
-const info = (
-  out: streams.Output,
-  label: string,
-  value: string,
-): void => {
+const info = (out: streams.Output, label: string, value: string): void => {
   const padded = `${label}:`.padEnd(LABEL_WIDTH);
 
   out.writeln(span.text(`  ${padded}${value}`));
 };
 
-const neutral = (
-  out: streams.Output,
-  label: string,
-  value: string,
-): void => {
+const neutral = (out: streams.Output, label: string, value: string): void => {
   const padded = `${label}:`.padEnd(LABEL_WIDTH);
 
   out.writeln(span.text(`  ${padded}`), span.dim("-"), span.text(` ${value}`));
@@ -98,12 +82,7 @@ const checkGitHooks = async (
   out: streams.Output,
   appName: string,
 ): Promise<void> => {
-  const hookPath = runtime.path.join(
-    ".",
-    ".git",
-    "hooks",
-    "pre-commit",
-  );
+  const hookPath = runtime.path.join(".", ".git", "hooks", "pre-commit");
   const exists = await fileExists(hookPath);
 
   if (!exists) {
@@ -123,15 +102,8 @@ const checkGitHooks = async (
 };
 
 const checkManifest = async (out: streams.Output): Promise<void> => {
-  const newPath = runtime.path.join(
-    ".",
-    ".eser",
-    "manifest.yml",
-  );
-  const legacyPath = runtime.path.join(
-    ".",
-    ".manifest.yml",
-  );
+  const newPath = runtime.path.join(".", ".eser", "manifest.yml");
+  const legacyPath = runtime.path.join(".", ".manifest.yml");
 
   const newExists = await fileExists(newPath);
   if (newExists) {
@@ -150,7 +122,9 @@ const checkManifest = async (out: streams.Output): Promise<void> => {
 
 const checkDeno = async (out: streams.Output): Promise<void> => {
   try {
-    const output = await shellExec.exec`deno --version`.noThrow().quiet()
+    const output = await shellExec.exec`deno --version`
+      .noThrow()
+      .quiet()
       .text();
     const version = parseToolVersion(output, /deno\s+(\S+)/);
 
@@ -181,7 +155,9 @@ const checkGo = async (out: streams.Output): Promise<void> => {
 
 const checkNode = async (out: streams.Output): Promise<void> => {
   try {
-    const output = await shellExec.exec`node --version`.noThrow().quiet()
+    const output = await shellExec.exec`node --version`
+      .noThrow()
+      .quiet()
       .text();
     const version = output.trim();
 

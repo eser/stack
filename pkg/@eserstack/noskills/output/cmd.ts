@@ -79,5 +79,5 @@ export const prefixFromEnv = (value: string | undefined): string | null => {
  */
 export const extractPrefix = async (): Promise<string> =>
   prefixFromEnv(crossRuntime.runtime.env.get(CLI_PREFIX_ENV)) ??
-    (await crossRuntime.getCliPrefix(ESER_OPTS, ["noskills", "nos"])) ??
-    schema.DEFAULT_COMMAND_PREFIX;
+  (await crossRuntime.getCliPrefix(ESER_OPTS, ["noskills", "nos"])) ??
+  schema.DEFAULT_COMMAND_PREFIX;

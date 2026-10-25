@@ -253,8 +253,9 @@ const files = await shell.exec.exec`ls -la`.lines();
 console.log(files);
 
 // Parse JSON output
-const data = await shell.exec.exec`curl -s https://api.example.com/data`
-  .json<{ id: number }>();
+const data = await shell.exec.exec`curl -s https://api.example.com/data`.json<{
+  id: number;
+}>();
 console.log(data.id);
 
 // Get exit code
@@ -554,7 +555,9 @@ Skip re-rendering unchanged panels:
 ```typescript
 import * as shell from "@eserstack/shell";
 
-const renderSidebar = (): void => {/* draw the sidebar panel */};
+const renderSidebar = (): void => {
+  /* draw the sidebar panel */
+};
 
 let tracker = shell.tui.dirtyTracker.createDirtyTracker(["sidebar", "main"]);
 if (shell.tui.dirtyTracker.isDirty(tracker, "sidebar")) {

@@ -193,7 +193,7 @@ bdd.describe("follow-up hint generation", () => {
     if ("followUpHints" in output && output.followUpHints !== undefined) {
       assert.assert(
         (output.followUpHints as string[]).some((h: string) =>
-          h.toLowerCase().includes("websocket")
+          h.toLowerCase().includes("websocket"),
         ),
       );
     }

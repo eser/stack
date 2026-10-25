@@ -40,9 +40,8 @@ export const tool: FileTool = fileTool.withGoValidator(
         }
         return [];
       } catch (error) {
-        const message = error instanceof SyntaxError
-          ? error.message
-          : "invalid JSON";
+        const message =
+          error instanceof SyntaxError ? error.message : "invalid JSON";
         return [{ path: file.path, message }];
       }
     },

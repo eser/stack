@@ -39,12 +39,14 @@ export const readActionManifest = async (
   const parsed: unknown = JSON.parse(
     await runtime.fs.readTextFile(manifestPath),
   );
-  const actions = typeof parsed === "object" && parsed !== null &&
-      Array.isArray((parsed as { actions?: unknown }).actions)
-    ? (parsed as { actions: unknown[] }).actions.filter((entry) =>
-      typeof entry === "string"
-    )
-    : [];
+  const actions =
+    typeof parsed === "object" &&
+    parsed !== null &&
+    Array.isArray((parsed as { actions?: unknown }).actions)
+      ? (parsed as { actions: unknown[] }).actions.filter(
+          (entry) => typeof entry === "string",
+        )
+      : [];
 
   return { actions: new Set(actions as string[]) };
 };
@@ -102,9 +104,7 @@ export class ActionBodyTooLargeError extends Error {
   readonly limitBytes: number;
 
   constructor(limitBytes: number) {
-    super(
-      `server action request body is over the ${limitBytes}-byte limit`,
-    );
+    super(`server action request body is over the ${limitBytes}-byte limit`);
     this.limitBytes = limitBytes;
     this.name = "ActionBodyTooLargeError";
   }
@@ -122,7 +122,8 @@ export const readBoundedBody = async (
 ): Promise<Uint8Array<ArrayBuffer>> => {
   const declared = req.headers.get("content-length");
   if (
-    declared !== null && /^\d+$/.test(declared.trim()) &&
+    declared !== null &&
+    /^\d+$/.test(declared.trim()) &&
     Number(declared.trim()) > limitBytes
   ) {
     await req.body?.cancel();

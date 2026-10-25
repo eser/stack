@@ -8,10 +8,7 @@ export const writeStart = (_options?: FormatOptions): string => {
   return "";
 };
 
-export const writeItem = (
-  data: unknown,
-  options?: FormatOptions,
-): string => {
+export const writeItem = (data: unknown, options?: FormatOptions): string => {
   try {
     if (typeof data !== "object" || data === null) {
       throw new Error("TOML format requires each document to be an object");
@@ -23,11 +20,11 @@ export const writeItem = (
       tomlOptions.keyAlignment = true;
     }
 
-    const separator = options?.separator === "" ? "+++" : (options?.separator ??
-      "+++");
-    return `${
-      toml.stringify(data as Record<string, unknown>, tomlOptions).trim()
-    }\n${separator}\n`;
+    const separator =
+      options?.separator === "" ? "+++" : (options?.separator ?? "+++");
+    return `${toml
+      .stringify(data as Record<string, unknown>, tomlOptions)
+      .trim()}\n${separator}\n`;
   } catch (error) {
     throw new types.SerializationError(
       `Failed to serialize TOML: ${

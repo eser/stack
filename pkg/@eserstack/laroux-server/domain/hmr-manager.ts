@@ -43,9 +43,9 @@ export class HMRManager {
 
     // Handle errors
     socket.addEventListener("error", (event) => {
-      hmrLogger.with({ event }).error(
-        "HMR WebSocket error; dropping the client",
-      );
+      hmrLogger
+        .with({ event })
+        .error("HMR WebSocket error; dropping the client");
       this.clients.delete(socket);
     });
   }
@@ -91,9 +91,9 @@ export class HMRManager {
       try {
         client.send(JSON.stringify(message));
       } catch (error) {
-        hmrLogger.with({ error }).error(
-          `send HMR ${message.type} message to a client`,
-        );
+        hmrLogger
+          .with({ error })
+          .error(`send HMR ${message.type} message to a client`);
       }
     }
   }

@@ -237,7 +237,7 @@ bdd.describe("purgeHistory: keeping and restoring", () => {
       await writeFile(`${root}/.eser/.state/progresses/state.json`, "{}");
       await Promise.all(
         purgeHistory.CATEGORY_PATHS.specs.map((path) =>
-          purgeHistory.keepPath(root, ID, "specs", path)
+          purgeHistory.keepPath(root, ID, "specs", path),
         ),
       );
 
@@ -332,33 +332,28 @@ bdd.describe("purgeHistory: keeping and restoring", () => {
     ]);
   });
 
-  bdd.it(
-    "creates the manifest when the project has none",
-    async () => {
-      const section = yaml.parseDocument("noskills:\n  tools: [cursor]\n");
-      await purgeHistory.keepManifestSection(
-        root,
-        ID,
-        section.get("noskills", true),
-      );
+  bdd.it("creates the manifest when the project has none", async () => {
+    const section = yaml.parseDocument("noskills:\n  tools: [cursor]\n");
+    await purgeHistory.keepManifestSection(
+      root,
+      ID,
+      section.get("noskills", true),
+    );
 
-      await purgeHistory.restoreManifestSection(root, ID, {
-        overwrite: false,
-      });
+    await purgeHistory.restoreManifestSection(root, ID, {
+      overwrite: false,
+    });
 
-      assert.assertEquals(
-        yaml.parse(await runtime.fs.readTextFile(`${root}/.eser/manifest.yml`)),
-        { noskills: { tools: ["cursor"] } },
-      );
-    },
-  );
+    assert.assertEquals(
+      yaml.parse(await runtime.fs.readTextFile(`${root}/.eser/manifest.yml`)),
+      { noskills: { tools: ["cursor"] } },
+    );
+  });
 
   bdd.it(
     "writes the section as a block when purge left an empty manifest",
     async () => {
-      const section = yaml.parseDocument(
-        "noskills:\n  tools:\n    - cursor\n",
-      );
+      const section = yaml.parseDocument("noskills:\n  tools:\n    - cursor\n");
       await purgeHistory.keepManifestSection(
         root,
         ID,
@@ -377,41 +372,38 @@ bdd.describe("purgeHistory: keeping and restoring", () => {
     },
   );
 
-  bdd.it(
-    "refuses to replace a noskills section unless asked",
-    async () => {
-      const section = yaml.parseDocument("noskills:\n  tools: [cursor]\n");
-      await purgeHistory.keepManifestSection(
-        root,
-        ID,
-        section.get("noskills", true),
-      );
-      await writeFile(
-        `${root}/.eser/manifest.yml`,
-        "noskills:\n  tools: [kiro]\n",
-      );
+  bdd.it("refuses to replace a noskills section unless asked", async () => {
+    const section = yaml.parseDocument("noskills:\n  tools: [cursor]\n");
+    await purgeHistory.keepManifestSection(
+      root,
+      ID,
+      section.get("noskills", true),
+    );
+    await writeFile(
+      `${root}/.eser/manifest.yml`,
+      "noskills:\n  tools: [kiro]\n",
+    );
 
-      const refused = await purgeHistory.restoreManifestSection(root, ID, {
-        overwrite: false,
-      });
+    const refused = await purgeHistory.restoreManifestSection(root, ID, {
+      overwrite: false,
+    });
 
-      assert.assertEquals(refused, {
-        status: "refused",
-        conflicts: [".eser/manifest.yml (noskills section)"],
-      });
-      assert.assertEquals(
-        yaml.parse(await runtime.fs.readTextFile(`${root}/.eser/manifest.yml`)),
-        { noskills: { tools: ["kiro"] } },
-      );
+    assert.assertEquals(refused, {
+      status: "refused",
+      conflicts: [".eser/manifest.yml (noskills section)"],
+    });
+    assert.assertEquals(
+      yaml.parse(await runtime.fs.readTextFile(`${root}/.eser/manifest.yml`)),
+      { noskills: { tools: ["kiro"] } },
+    );
 
-      await purgeHistory.restoreManifestSection(root, ID, { overwrite: true });
+    await purgeHistory.restoreManifestSection(root, ID, { overwrite: true });
 
-      assert.assertEquals(
-        yaml.parse(await runtime.fs.readTextFile(`${root}/.eser/manifest.yml`)),
-        { noskills: { tools: ["cursor"] } },
-      );
-    },
-  );
+    assert.assertEquals(
+      yaml.parse(await runtime.fs.readTextFile(`${root}/.eser/manifest.yml`)),
+      { noskills: { tools: ["cursor"] } },
+    );
+  });
 
   bdd.it("names the entry when its manifest copy is unreadable", async () => {
     await writeFile(
@@ -432,16 +424,15 @@ bdd.describe("purgeHistory: keeping and restoring", () => {
     "drops the oldest entries beyond the limit and nothing else",
     async () => {
       const ids = [0, 1, 2, 3, 4, 5, 6].map((day) =>
-        purgeHistory.entryIdFor(NOW + day * 86_400_000, new Set())
+        purgeHistory.entryIdFor(NOW + day * 86_400_000, new Set()),
       );
       await Promise.all(
         [
           ...ids.map((id) => purgeHistory.entryPath(id)),
           ".eser/.state/purge-history/notes",
-        ]
-          .map((path) =>
-            runtime.fs.mkdir(`${root}/${path}`, { recursive: true })
-          ),
+        ].map((path) =>
+          runtime.fs.mkdir(`${root}/${path}`, { recursive: true }),
+        ),
       );
 
       const dropped = await purgeHistory.pruneHistory(

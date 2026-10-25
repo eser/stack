@@ -108,18 +108,12 @@ const cases: ReadonlyArray<{
   },
   {
     name: "treats process destructured from runtime as a local binding",
-    source: [
-      "const { process } = runtime;",
-      "process.exit(1);",
-    ],
+    source: ["const { process } = runtime;", "process.exit(1);"],
     expected: [],
   },
   {
     name: "does not take a commented-out declaration for a binding",
-    source: [
-      "// const process = spawnChild(cmd);",
-      "process.exit(1);",
-    ],
+    source: ["// const process = spawnChild(cmd);", "process.exit(1);"],
     expected: ["2:process"],
   },
 ];
@@ -144,9 +138,11 @@ Deno.test("validate-runtime-js-apis: names the cross-runtime replacement", () =>
 });
 
 Deno.test("validate-runtime-js-apis: gives a general hint for other members", () => {
-  const messages = runtimeJsApis.findViolations(
-    "const t = process.hrtime();\nconst c = process.constructor;",
-  ).map((v) => v.message);
+  const messages = runtimeJsApis
+    .findViolations(
+      "const t = process.hrtime();\nconst c = process.constructor;",
+    )
+    .map((v) => v.message);
 
   assert.assertEquals(messages.length, 2);
   for (const message of messages) {
@@ -184,8 +180,7 @@ const foundIn = (
 // sanitizeResources is off because file-tool.ts loads the FFI DynamicLibrary,
 // which stays open after the test.
 Deno.test({
-  name:
-    "validate-runtime-js-apis: skips tests and the cross-runtime layer, and fails only above the baseline",
+  name: "validate-runtime-js-apis: skips tests and the cross-runtime layer, and fails only above the baseline",
   sanitizeResources: false,
   sanitizeOps: false,
   fn: () =>
@@ -220,8 +215,8 @@ Deno.test({
         "lib.ts:2",
         "new.ts:1",
       ]);
-      const overBaseline = result.issues.find((i) =>
-        path.basename(i.path) === "lib.ts"
+      const overBaseline = result.issues.find(
+        (i) => path.basename(i.path) === "lib.ts",
       );
       assert.assertStringIncludes(
         overBaseline!.message,
@@ -237,14 +232,10 @@ Deno.test({
   fn: () =>
     withTempRoot(async (root) => {
       await writeFile(root, "lib.ts", "const a = process.env.A;\n");
-      await writeFile(
-        root,
-        runtimeJsApis.DEFAULT_BASELINE_PATH,
-        "{ not json",
-      );
+      await writeFile(root, runtimeJsApis.DEFAULT_BASELINE_PATH, "{ not json");
 
       const error = await assert.assertRejects(() =>
-        runtimeJsApis.run({ root })
+        runtimeJsApis.run({ root }),
       );
       assert.assertStringIncludes(String(error), "is not valid JSON");
       assert.assertStringIncludes(String(error), "--write-baseline");
@@ -260,7 +251,7 @@ Deno.test({
       await writeFile(root, "lib.ts", "export const a = 1;\n");
 
       const error = await assert.assertRejects(() =>
-        runtimeJsApis.run({ root, baseline: 42 })
+        runtimeJsApis.run({ root, baseline: 42 }),
       );
       assert.assertStringIncludes(String(error), "baseline option");
       assert.assertStringIncludes(String(error), ".eser/manifest.yml");

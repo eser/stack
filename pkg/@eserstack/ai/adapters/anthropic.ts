@@ -14,7 +14,8 @@ import * as errors from "../errors.ts";
 // =============================================================================
 
 export class AnthropicModel
-  implements model.LanguageModel, model.BatchCapableModel {
+  implements model.LanguageModel, model.BatchCapableModel
+{
   readonly capabilities: readonly types.ProviderCapability[] = [
     "text_generation",
     "streaming",
@@ -90,11 +91,14 @@ export class AnthropicModel
             currentToolCallArgs = "";
           } else {
             const started = toThinkingPart(event.content_block);
-            currentThinking = started === null ? null : {
-              text: started.text,
-              signature: started.signature ?? "",
-              redactedData: started.redactedData ?? null,
-            };
+            currentThinking =
+              started === null
+                ? null
+                : {
+                    text: started.text,
+                    signature: started.signature ?? "",
+                    redactedData: started.redactedData ?? null,
+                  };
           }
         } else if (event.type === "content_block_delta") {
           if (event.delta?.type === "text_delta") {
@@ -106,11 +110,13 @@ export class AnthropicModel
               textDelta: event.delta.partial_json,
             };
           } else if (
-            event.delta?.type === "thinking_delta" && currentThinking !== null
+            event.delta?.type === "thinking_delta" &&
+            currentThinking !== null
           ) {
             currentThinking.text += event.delta.thinking ?? "";
           } else if (
-            event.delta?.type === "signature_delta" && currentThinking !== null
+            event.delta?.type === "signature_delta" &&
+            currentThinking !== null
           ) {
             currentThinking.signature += event.delta.signature ?? "";
           }
@@ -187,10 +193,9 @@ export class AnthropicModel
     signal?: AbortSignal,
   ): Promise<batch.BatchJob> {
     try {
-      const result = await this.client.beta.messages.batches.retrieve(
-        jobId,
-        { signal },
-      );
+      const result = await this.client.beta.messages.batches.retrieve(jobId, {
+        signal,
+      });
 
       return mapBatchJob(result);
     } catch (err) {
@@ -227,10 +232,9 @@ export class AnthropicModel
     signal?: AbortSignal,
   ): Promise<readonly batch.BatchResult[]> {
     try {
-      const results = await this.client.beta.messages.batches.results(
-        job.id,
-        { signal },
-      );
+      const results = await this.client.beta.messages.batches.results(job.id, {
+        signal,
+      });
 
       const batchResults: batch.BatchResult[] = [];
       for await (const item of results) {
@@ -253,10 +257,7 @@ export class AnthropicModel
     }
   }
 
-  async cancelBatchJob(
-    jobId: string,
-    signal?: AbortSignal,
-  ): Promise<void> {
+  async cancelBatchJob(jobId: string, signal?: AbortSignal): Promise<void> {
     try {
       await this.client.beta.messages.batches.cancel(jobId, { signal });
     } catch (err) {
@@ -320,7 +321,7 @@ const buildParams = (
   // Keys follow the Anthropic Messages API request body.
   const params: Record<string, unknown> = {
     model: cfg.model,
-    "max_tokens": options.maxTokens ?? cfg.maxTokens,
+    max_tokens: options.maxTokens ?? cfg.maxTokens,
     messages: mapMessages(options.messages),
   };
 
@@ -358,7 +359,8 @@ const buildParams = (
 
   // An explicit effort wins over the level the budget maps to. With neither,
   // nothing is sent and the model's default applies.
-  const effort = options.effort ??
+  const effort =
+    options.effort ??
     (options.thinkingBudget === undefined
       ? undefined
       : mapEffort(options.thinkingBudget));
@@ -549,7 +551,8 @@ const mapResponse = (
     usage: {
       inputTokens: response.usage?.input_tokens ?? 0,
       outputTokens: response.usage?.output_tokens ?? 0,
-      totalTokens: (response.usage?.input_tokens ?? 0) +
+      totalTokens:
+        (response.usage?.input_tokens ?? 0) +
         (response.usage?.output_tokens ?? 0),
     },
     modelId,
@@ -628,9 +631,8 @@ const mapBatchJob = (result: any): batch.BatchJob => {
     id: result.id,
     status: mapBatchStatus(result.processing_status),
     createdAt: new Date(result.created_at),
-    completedAt: result.ended_at !== undefined
-      ? new Date(result.ended_at)
-      : undefined,
+    completedAt:
+      result.ended_at !== undefined ? new Date(result.ended_at) : undefined,
     totalCount: result.request_counts?.total ?? 0,
     doneCount: result.request_counts?.succeeded ?? 0,
     failedCount: result.request_counts?.errored ?? 0,

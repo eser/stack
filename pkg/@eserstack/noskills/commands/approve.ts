@@ -83,9 +83,7 @@ export const main = async (
       );
     }
     out.writeln("");
-    out.writeln(
-      span.dim("All delegations must be answered before approval."),
-    );
+    out.writeln(span.dim("All delegations must be answered before approval."));
     await out.close();
     return results.fail({ exitCode: 1 });
   }
@@ -95,8 +93,8 @@ export const main = async (
     // (defaults all concern sections to not relevant — clean spec)
     if (state.classification === null && state.spec !== null) {
       const allConcerns = await persistence.listConcerns(root);
-      const active = allConcerns.filter((c) =>
-        config?.concerns.includes(c.id) ?? false
+      const active = allConcerns.filter(
+        (c) => config?.concerns.includes(c.id) ?? false,
       );
 
       try {

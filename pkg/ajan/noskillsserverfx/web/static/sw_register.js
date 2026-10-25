@@ -7,21 +7,25 @@
 // local `noskills web` dashboard) has no certificate to pin, and its server
 // has no such route.
 if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("/sw.js").then((reg) => {
-    if (location.protocol !== "https:") return;
-    fetch("/api/cert-fingerprint")
-      .then((r) => r.json())
-      .then((d) => {
-        if (
-          typeof d.fingerprint === "string" && d.fingerprint !== "" &&
-          reg.active !== null
-        ) {
-          reg.active.postMessage({
-            type: "store_cert_fingerprint",
-            fingerprint: d.fingerprint,
-          });
-        }
-      })
-      .catch(() => {});
-  }).catch(() => {});
+  navigator.serviceWorker
+    .register("/sw.js")
+    .then((reg) => {
+      if (location.protocol !== "https:") return;
+      fetch("/api/cert-fingerprint")
+        .then((r) => r.json())
+        .then((d) => {
+          if (
+            typeof d.fingerprint === "string" &&
+            d.fingerprint !== "" &&
+            reg.active !== null
+          ) {
+            reg.active.postMessage({
+              type: "store_cert_fingerprint",
+              fingerprint: d.fingerprint,
+            });
+          }
+        })
+        .catch(() => {});
+    })
+    .catch(() => {});
 }

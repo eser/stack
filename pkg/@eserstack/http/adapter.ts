@@ -45,14 +45,11 @@ export class RequestBodyTooLargeError extends Error {
   readonly bodyBytes: number;
   readonly source: BodyLimitSource;
 
-  constructor(
-    limitBytes: number,
-    bodyBytes: number,
-    source: BodyLimitSource,
-  ) {
-    const found = source === "content-length"
-      ? `Content-Length declares ${bodyBytes} bytes`
-      : `${bodyBytes} bytes arrived before reading stopped`;
+  constructor(limitBytes: number, bodyBytes: number, source: BodyLimitSource) {
+    const found =
+      source === "content-length"
+        ? `Content-Length declares ${bodyBytes} bytes`
+        : `${bodyBytes} bytes arrived before reading stopped`;
     super(
       `request body is over the ${limitBytes}-byte limit (${found}); send a body of at most ${limitBytes} bytes`,
     );

@@ -198,12 +198,16 @@ export async function renderSSR(
         if (key === "children" || typeof value === "function") continue;
         serializableProps[key] = value;
       }
-      return createElement("div", {
-        "data-client-component": id,
-        "data-export-name": name,
-        "data-props": JSON.stringify(serializableProps),
-        style: { display: "contents" },
-      }, props.children);
+      return createElement(
+        "div",
+        {
+          "data-client-component": id,
+          "data-export-name": name,
+          "data-props": JSON.stringify(serializableProps),
+          style: { display: "contents" },
+        },
+        props.children,
+      );
     };
   };
 

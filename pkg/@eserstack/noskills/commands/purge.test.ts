@@ -59,7 +59,10 @@ bdd.describe({
     });
 
     bdd.it("refuses an argument it does not know", async () => {
-      const cases = [["--agent", "--some-flag"], ["--agent", "--force", "x"]];
+      const cases = [
+        ["--agent", "--some-flag"],
+        ["--agent", "--force", "x"],
+      ];
 
       for (const args of cases) {
         // Each case runs on its own; none of them may touch the project.
@@ -85,16 +88,23 @@ noskills:
 const SETTINGS = JSON.stringify({
   permissions: { allow: [] },
   hooks: {
-    PreToolUse: [{
-      matcher: "Bash",
-      hooks: [
-        { type: "command", command: "./scripts/policy.sh" },
-        { type: "command", command: "eser noskills invoke-hook pre-tool-use" },
-      ],
-    }],
-    Stop: [{
-      hooks: [{ type: "command", command: "eser noskills invoke-hook stop" }],
-    }],
+    PreToolUse: [
+      {
+        matcher: "Bash",
+        hooks: [
+          { type: "command", command: "./scripts/policy.sh" },
+          {
+            type: "command",
+            command: "eser noskills invoke-hook pre-tool-use",
+          },
+        ],
+      },
+    ],
+    Stop: [
+      {
+        hooks: [{ type: "command", command: "eser noskills invoke-hook stop" }],
+      },
+    ],
   },
 });
 
@@ -144,10 +154,13 @@ bdd.describe({
       assert.assertEquals(results.isOk(result), true);
       const left = await Promise.all(
         Object.keys(SEEDED_FILES).map(async (path) =>
-          (await runtime.fs.exists(`${root}/${path}`)) ? path : null
+          (await runtime.fs.exists(`${root}/${path}`)) ? path : null,
         ),
       );
-      assert.assertEquals(left.filter((path) => path !== null), []);
+      assert.assertEquals(
+        left.filter((path) => path !== null),
+        [],
+      );
 
       const manifest = await runtime.fs.readTextFile(
         `${root}/.eser/manifest.yml`,
@@ -160,10 +173,12 @@ bdd.describe({
         await runtime.fs.readTextFile(`${root}/.claude/settings.json`),
       );
       assert.assertEquals(settings.hooks, {
-        PreToolUse: [{
-          matcher: "Bash",
-          hooks: [{ type: "command", command: "./scripts/policy.sh" }],
-        }],
+        PreToolUse: [
+          {
+            matcher: "Bash",
+            hooks: [{ type: "command", command: "./scripts/policy.sh" }],
+          },
+        ],
       });
       assert.assertEquals("permissions" in settings, true);
       assert.assertEquals(await runtime.fs.exists(`${root}/keep.txt`), true);
@@ -188,17 +203,22 @@ bdd.describe({
           const category = path.startsWith(".eser/concerns")
             ? "concerns"
             : path.startsWith(".eser/rules")
-            ? "rules"
-            : path.startsWith(".eser/")
-            ? "specs"
-            : "agent-integration";
+              ? "rules"
+              : path.startsWith(".eser/")
+                ? "specs"
+                : "agent-integration";
 
-          return (await runtime.fs.readTextFile(
-            `${entryDir}/${category}/${path}`,
-          )) === content;
+          return (
+            (await runtime.fs.readTextFile(
+              `${entryDir}/${category}/${path}`,
+            )) === content
+          );
         }),
       );
-      assert.assertEquals(kept.every((same) => same), true);
+      assert.assertEquals(
+        kept.every((same) => same),
+        true,
+      );
     });
 
     bdd.it("deletes without a copy with --no-history", async () => {
@@ -213,9 +233,7 @@ bdd.describe({
         false,
       );
       assert.assertEquals(
-        await runtime.fs.exists(
-          `${root}/${persistence.paths.purgeHistoryDir}`,
-        ),
+        await runtime.fs.exists(`${root}/${persistence.paths.purgeHistoryDir}`),
         false,
       );
     });
@@ -314,21 +332,21 @@ const snapshot = async (
   root: string,
 ): Promise<Readonly<Record<string, string>>> => {
   const paths: string[] = [];
-  for await (
-    const entry of runtime.fs.walk(root, {
-      includeDirs: false,
-      skip: [/purge-history/],
-    })
-  ) {
+  for await (const entry of runtime.fs.walk(root, {
+    includeDirs: false,
+    skip: [/purge-history/],
+  })) {
     paths.push(runtime.path.relative(root, entry.path));
   }
 
   return Object.fromEntries(
     await Promise.all(
-      paths.sort().map(async (path) => [
-        path,
-        await runtime.fs.readTextFile(`${root}/${path}`),
-      ]),
+      paths
+        .sort()
+        .map(async (path) => [
+          path,
+          await runtime.fs.readTextFile(`${root}/${path}`),
+        ]),
     ),
   );
 };
@@ -352,9 +370,9 @@ bdd.describe({
       await runtime.fs.remove(root, { recursive: true });
     });
 
-    for (
-      const [category, [path, content]] of Object.entries(CATEGORY_SAMPLES)
-    ) {
+    for (const [category, [path, content]] of Object.entries(
+      CATEGORY_SAMPLES,
+    )) {
       bdd.it(`restores ${category} on its own`, async () => {
         await purge.main(["--agent", "--force"], root);
         assert.assertEquals(await runtime.fs.exists(`${root}/${path}`), false);
@@ -367,12 +385,12 @@ bdd.describe({
           content,
         );
         // Only the chosen category comes back.
-        const others = Object.entries(CATEGORY_SAMPLES).filter(([name]) =>
-          name !== category
+        const others = Object.entries(CATEGORY_SAMPLES).filter(
+          ([name]) => name !== category,
         );
         const back = await Promise.all(
           others.map(([, [otherPath]]) =>
-            runtime.fs.exists(`${root}/${otherPath}`)
+            runtime.fs.exists(`${root}/${otherPath}`),
           ),
         );
         assert.assertEquals(back, [false, false]);
@@ -385,9 +403,7 @@ bdd.describe({
       await restore(root, "latest", "specs");
 
       assert.assertEquals(
-        await runtime.fs.readTextFile(
-          `${root}/${persistence.paths.stateFile}`,
-        ),
+        await runtime.fs.readTextFile(`${root}/${persistence.paths.stateFile}`),
         "{}",
       );
     });
@@ -457,7 +473,7 @@ bdd.describe({
         );
         assert.assertEquals(
           commands.some((command) =>
-            command.includes("eser noskills invoke-hook pre-tool-use")
+            command.includes("eser noskills invoke-hook pre-tool-use"),
           ),
           true,
         );
@@ -558,7 +574,7 @@ bdd.describe({
       assert.assertEquals(results.isOk(result), true);
       const restored = await Promise.all(
         Object.values(CATEGORY_SAMPLES).map(([path]) =>
-          runtime.fs.exists(`${root}/${path}`)
+          runtime.fs.exists(`${root}/${path}`),
         ),
       );
       assert.assertEquals(restored, [true, true, true]);
@@ -589,7 +605,7 @@ bdd.describe({
         entries.map((entry) =>
           runtime.fs.readTextFile(
             `${root}/${purgeHistory.entryPath(entry.id)}/rules/${path}`,
-          )
+          ),
         ),
       );
       assert.assertEquals(kept, [
@@ -628,32 +644,29 @@ bdd.describe({
       }
     });
 
-    bdd.it(
-      "rejects a category the entry did not keep",
-      async () => {
-        const rulesOnly = await runtime.fs.makeTempDir({
-          prefix: "nos_restore_rules_",
+    bdd.it("rejects a category the entry did not keep", async () => {
+      const rulesOnly = await runtime.fs.makeTempDir({
+        prefix: "nos_restore_rules_",
+      });
+      try {
+        const [path, content] = CATEGORY_SAMPLES.rules;
+        await runtime.fs.mkdir(`${rulesOnly}/.eser/rules`, {
+          recursive: true,
         });
-        try {
-          const [path, content] = CATEGORY_SAMPLES.rules;
-          await runtime.fs.mkdir(`${rulesOnly}/.eser/rules`, {
-            recursive: true,
-          });
-          await runtime.fs.writeTextFile(`${rulesOnly}/${path}`, content);
-          await purge.main(["--agent", "--force"], rulesOnly);
+        await runtime.fs.writeTextFile(`${rulesOnly}/${path}`, content);
+        await purge.main(["--agent", "--force"], rulesOnly);
 
-          const result = await restore(rulesOnly, "latest", "concerns");
+        const result = await restore(rulesOnly, "latest", "concerns");
 
-          assert.assertEquals(results.isFail(result), true);
-          assert.assertEquals(
-            (await purgeHistory.listEntries(rulesOnly))[0]?.categories,
-            ["rules"],
-          );
-        } finally {
-          await runtime.fs.remove(rulesOnly, { recursive: true });
-        }
-      },
-    );
+        assert.assertEquals(results.isFail(result), true);
+        assert.assertEquals(
+          (await purgeHistory.listEntries(rulesOnly))[0]?.categories,
+          ["rules"],
+        );
+      } finally {
+        await runtime.fs.remove(rulesOnly, { recursive: true });
+      }
+    });
 
     bdd.it(
       "takes every tool's files out and restores the project as it was",

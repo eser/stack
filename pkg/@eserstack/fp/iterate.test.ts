@@ -25,10 +25,7 @@ Deno.test("basic", async () => {
 Deno.test("async", async () => {
   const delay = (ms: number, value: number): Promise<number> =>
     new Promise((resolve, _reject) => {
-      setTimeout(
-        () => resolve(value),
-        ms,
-      );
+      setTimeout(() => resolve(value), ms);
     });
 
   const gen1 = function* () {
@@ -58,19 +55,12 @@ Deno.test("pipe", async () => {
   let total = 0;
 
   const getValue = (x: { value: number }) => Promise.resolve(x.value);
-  const add5 = async (value: Promise<number>) => await value + 5;
+  const add5 = async (value: Promise<number>) => (await value) + 5;
   const sumWithTotal = async (value: Promise<number>) => {
     total += await value;
   };
 
-  await iterate.iterate(
-    gen1(),
-    flow.flow(
-      getValue,
-      add5,
-      sumWithTotal,
-    ),
-  );
+  await iterate.iterate(gen1(), flow.flow(getValue, add5, sumWithTotal));
 
   assert.assertEquals(total, 21);
 });

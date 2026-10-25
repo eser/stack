@@ -150,9 +150,11 @@ const unknownScriptMessage = (path: readonly string[]): string => {
   }
 
   const chain = path.length > 2 ? ` (${path.join(" -> ")})` : "";
-  return `script "${parent}" depends on "${missing}"${chain}, which the ` +
+  return (
+    `script "${parent}" depends on "${missing}"${chain}, which the ` +
     `manifest does not define; add a "${missing}" script or correct the ` +
-    `name in the depends of "${parent}"`;
+    `name in the depends of "${parent}"`
+  );
 };
 
 /**
@@ -310,9 +312,9 @@ export const buildCliPrefix = (
     default: {
       const unreachable: never = invoker;
       throw new Error(
-        `build the eser self-invocation: unhandled invoker ${
-          JSON.stringify(unreachable)
-        }`,
+        `build the eser self-invocation: unhandled invoker ${JSON.stringify(
+          unreachable,
+        )}`,
       );
     }
   }
@@ -360,9 +362,10 @@ const resolveCliPrefix = (): string => {
   const dir = import.meta.dirname;
   // `import.meta.dirname` is the native module directory (no file: URL pathname
   // quirks). The remote-execution fallback is already a URL, so it is used as-is.
-  const mainPath = dir !== undefined
-    ? crossRuntime.toPosix(path.join(dir, "main.ts"))
-    : new URL("./main.ts", import.meta.url).href;
+  const mainPath =
+    dir !== undefined
+      ? crossRuntime.toPosix(path.join(dir, "main.ts"))
+      : new URL("./main.ts", import.meta.url).href;
 
   return buildCliPrefix(detectCliInvoker(execPath), {
     execPath,
@@ -479,7 +482,8 @@ export const runScript = async (
 
       if (dependencyCode !== 0) {
         return results.fail({
-          message: `script "${name}" did not run: its dependency ` +
+          message:
+            `script "${name}" did not run: its dependency ` +
             `"${dependency.name}" exited with code ${dependencyCode}`,
           exitCode: dependencyCode,
         });

@@ -31,10 +31,9 @@ export class LarouxManifestLoadError extends Error {
 
   /** Wraps `cause`, the error from reading the manifest in `searchDir`. */
   constructor(searchDir: string, cause: unknown) {
-    super(
-      `load laroux manifest from "${searchDir}": ${describeCause(cause)}`,
-      { cause },
-    );
+    super(`load laroux manifest from "${searchDir}": ${describeCause(cause)}`, {
+      cause,
+    });
     this.name = "LarouxManifestLoadError";
     this.searchDir = searchDir;
   }
@@ -51,10 +50,12 @@ const readManifest = async (
   searchDir: string,
 ): Promise<LarouxManifest | null> => {
   try {
-    const result = await fileLoader.load<LarouxManifest>(
-      searchDir,
-      ["manifest.yaml", "manifest.jsonc", "manifest.json", "manifest.toml"],
-    );
+    const result = await fileLoader.load<LarouxManifest>(searchDir, [
+      "manifest.yaml",
+      "manifest.jsonc",
+      "manifest.json",
+      "manifest.toml",
+    ]);
 
     return result.content ?? null;
   } catch (error) {
@@ -69,10 +70,7 @@ export const createLarouxRuntimeState = (
     ...appRuntime.createAppRuntimeState(),
     baseUrl: null,
     manifests: [],
-    options: Object.assign(
-      { basePath: "" },
-      options,
-    ),
+    options: Object.assign({ basePath: "" }, options),
   };
 };
 

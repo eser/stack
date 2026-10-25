@@ -158,9 +158,10 @@ function shouldIncludeSelector(selector: string): boolean {
     }
     // Handle comma-separated selectors like "html, :host"
     const selectorParts = normalizedSelector.split(",").map((s) => s.trim());
-    const criticalParts = critical.toLowerCase().split(",").map((s) =>
-      s.trim()
-    );
+    const criticalParts = critical
+      .toLowerCase()
+      .split(",")
+      .map((s) => s.trim());
 
     if (
       selectorParts.some((sp) => criticalParts.includes(sp)) ||
@@ -239,8 +240,8 @@ export function extractCriticalUniversalCss(
       );
       if (nextBase) {
         allBaseBlocks.push(nextBase);
-        searchStart += compiledCss.slice(searchStart).indexOf(nextBase) +
-          nextBase.length;
+        searchStart +=
+          compiledCss.slice(searchStart).indexOf(nextBase) + nextBase.length;
       } else {
         break;
       }

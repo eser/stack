@@ -158,37 +158,37 @@ export type UndoStack = {
 export type TextareaAction =
   | { readonly type: "insert"; readonly text: string }
   | {
-    readonly type: "delete";
-    readonly direction: "backward" | "forward";
-  }
+      readonly type: "delete";
+      readonly direction: "backward" | "forward";
+    }
   | {
-    readonly type: "deleteWord";
-    readonly direction: "backward" | "forward";
-  }
+      readonly type: "deleteWord";
+      readonly direction: "backward" | "forward";
+    }
   | {
-    readonly type: "moveCursor";
-    readonly direction: "up" | "down" | "left" | "right";
-  }
+      readonly type: "moveCursor";
+      readonly direction: "up" | "down" | "left" | "right";
+    }
   | {
-    readonly type: "moveCursorWord";
-    readonly direction: "left" | "right";
-  }
+      readonly type: "moveCursorWord";
+      readonly direction: "left" | "right";
+    }
   | {
-    readonly type: "moveCursorLine";
-    readonly direction: "home" | "end";
-  }
+      readonly type: "moveCursorLine";
+      readonly direction: "home" | "end";
+    }
   | {
-    readonly type: "moveCursorDoc";
-    readonly direction: "top" | "bottom";
-  }
+      readonly type: "moveCursorDoc";
+      readonly direction: "top" | "bottom";
+    }
   | {
-    readonly type: "select";
-    readonly direction: "up" | "down" | "left" | "right";
-  }
+      readonly type: "select";
+      readonly direction: "up" | "down" | "left" | "right";
+    }
   | {
-    readonly type: "selectWord";
-    readonly direction: "left" | "right";
-  }
+      readonly type: "selectWord";
+      readonly direction: "left" | "right";
+    }
   | { readonly type: "selectAll" }
   | { readonly type: "undo" }
   | { readonly type: "redo" }

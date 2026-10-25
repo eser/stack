@@ -88,15 +88,13 @@ export const DEFAULT_EXCLUDES: readonly RegExp[] = [
  * Get list of files tracked by git (respects .gitignore).
  * Returns null if not in a git repo or git is unavailable.
  */
-const getGitTrackedFiles = async (
-  root: string,
-): Promise<string[] | null> => {
+const getGitTrackedFiles = async (root: string): Promise<string[] | null> => {
   try {
-    const files = await shellExec
-      .exec`git ls-files --cached --others --exclude-standard`
-      .cwd(root)
-      .noThrow()
-      .lines();
+    const files =
+      await shellExec.exec`git ls-files --cached --others --exclude-standard`
+        .cwd(root)
+        .noThrow()
+        .lines();
     return files.length > 0 ? files : null;
   } catch {
     return null;
@@ -119,12 +117,13 @@ export const walkSourceFiles = async (
   if (lib !== null) {
     try {
       // Go expects dot-prefixed extensions (".ts"), TS uses bare ("ts")
-      const goExtensions = extensions !== undefined && extensions.length > 0
-        ? extensions.map((e) => e.startsWith(".") ? e : `.${e}`)
-        : undefined;
+      const goExtensions =
+        extensions !== undefined && extensions.length > 0
+          ? extensions.map((e) => (e.startsWith(".") ? e : `.${e}`))
+          : undefined;
       // Pass only string patterns to Go; regex patterns are applied post-fetch
-      const goExcludes = exclude.filter((e): e is string =>
-        typeof e === "string"
+      const goExcludes = exclude.filter(
+        (e): e is string => typeof e === "string",
       );
 
       const raw = lib.symbols.EserAjanCodebaseWalkFiles(
@@ -136,9 +135,12 @@ export const walkSourceFiles = async (
         }),
       );
       const parsed = JSON.parse(raw) as {
-        files?: Array<
-          { path: string; name: string; size: number; isSymlink: boolean }
-        >;
+        files?: Array<{
+          path: string;
+          name: string;
+          size: number;
+          isSymlink: boolean;
+        }>;
         error?: string;
       };
 
@@ -163,19 +165,22 @@ export const walkSourceFiles = async (
           }));
 
         if (
-          options.includeOnly !== undefined && options.includeOnly.length > 0
+          options.includeOnly !== undefined &&
+          options.includeOnly.length > 0
         ) {
           const allowList = options.includeOnly;
           files = files.filter((file) =>
-            allowList.some((entry) =>
-              file.path.endsWith(entry) || file.path.includes(entry)
-            )
+            allowList.some(
+              (entry) => file.path.endsWith(entry) || file.path.includes(entry),
+            ),
           );
         }
 
         return files;
       }
-    } catch { /* fall through to TS */ }
+    } catch {
+      /* fall through to TS */
+    }
   }
 
   const allExcludes = [
@@ -206,8 +211,8 @@ export const walkSourceFiles = async (
       // POSIX). No-op on POSIX runtimes.
       const posixFullPath = crossRuntime.toPosix(fullPath);
       if (
-        allExcludes.some((re) =>
-          re.test(posixFullPath) || re.test(relativePath)
+        allExcludes.some(
+          (re) => re.test(posixFullPath) || re.test(relativePath),
         )
       ) {
         continue;
@@ -234,14 +239,12 @@ export const walkSourceFiles = async (
     }
   } else {
     // Fallback: filesystem walk (existing behavior)
-    for await (
-      const entry of crossRuntime.runtime.fs.walk(root, {
-        includeDirs: options.includeDirs ?? false,
-        includeFiles: true,
-        exts: extensions as string[] | undefined,
-        skip: allExcludes,
-      })
-    ) {
+    for await (const entry of crossRuntime.runtime.fs.walk(root, {
+      includeDirs: options.includeDirs ?? false,
+      includeFiles: true,
+      exts: extensions as string[] | undefined,
+      skip: allExcludes,
+    })) {
       if (!entry.isFile && !entry.isSymlink) {
         continue;
       }
@@ -273,14 +276,12 @@ export const walkSourceFiles = async (
   }
 
   // Incremental mode: filter to only changed files when includeOnly is set
-  if (
-    options.includeOnly !== undefined && options.includeOnly.length > 0
-  ) {
+  if (options.includeOnly !== undefined && options.includeOnly.length > 0) {
     const allowList = options.includeOnly;
     return files.filter((file) =>
-      allowList.some((entry) =>
-        file.path.endsWith(entry) || file.path.includes(entry)
-      )
+      allowList.some(
+        (entry) => file.path.endsWith(entry) || file.path.includes(entry),
+      ),
     );
   }
 

@@ -91,14 +91,11 @@ export const main = async (
   cliArgs?: readonly string[],
   cliOptions?: ListCliOptions,
 ): Promise<shellArgs.CliResult<void>> => {
-  const parsed = cliParseArgs.parseArgs(
-    (cliArgs ?? []) as string[],
-    {
-      string: ["config"],
-      boolean: ["help"],
-      alias: { h: "help" },
-    },
-  );
+  const parsed = cliParseArgs.parseArgs((cliArgs ?? []) as string[], {
+    string: ["config"],
+    boolean: ["help"],
+    alias: { h: "help" },
+  });
 
   const out = streams.output({
     renderer: streams.renderers.ansi(),

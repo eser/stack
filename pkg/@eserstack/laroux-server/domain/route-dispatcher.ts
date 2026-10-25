@@ -123,9 +123,9 @@ export class ApiRouteHandler {
       // Load module (with caching)
       let module = loaded.moduleCache.get(resolvedPath);
       if (module === undefined) {
-        module = await import(
+        module = (await import(
           buildModule.toBuildModuleUrl(resolvedPath, loaded.buildId)
-        ) as ApiRouteModule;
+        )) as ApiRouteModule;
         loaded.moduleCache.set(resolvedPath, module);
       }
 
@@ -136,7 +136,7 @@ export class ApiRouteHandler {
         return new Response("Method Not Allowed", {
           status: 405,
           headers: {
-            "Allow": this.getAllowedMethods(module).join(", "),
+            Allow: this.getAllowedMethods(module).join(", "),
           },
         });
       }
@@ -150,9 +150,9 @@ export class ApiRouteHandler {
     } catch (error) {
       // Handled here: logged once with the route, and the client gets a
       // fixed message without the error's details.
-      await apiLogger.with({ route: route.path, method, error }).error(
-        "API route handler failed to load or threw; answered 500",
-      );
+      await apiLogger
+        .with({ route: route.path, method, error })
+        .error("API route handler failed to load or threw; answered 500");
       return new Response(
         JSON.stringify({
           error: "Internal Server Error",

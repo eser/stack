@@ -55,7 +55,9 @@ export async function StoryPage(props: StoryPageProps) {
 Incorrect:
 
 ```tsx
-function StoryPage(props: StoryPageProps) {/* ... */}
+function StoryPage(props: StoryPageProps) {
+  /* ... */
+}
 export default StoryPage; // pages are loaded by name, not through default
 ```
 
@@ -96,6 +98,7 @@ export function LikeButton(props: { initialCount: number }) {
 
 Incorrect:
 
+<!-- prettier-ignore -->
 ```tsx
 import * as React from "react";
 
@@ -126,13 +129,13 @@ the client component.
 Correct:
 
 ```tsx
-<PostMeta title={post.title} createdAt={post.createdAt.toISOString()} />;
+<PostMeta title={post.title} createdAt={post.createdAt.toISOString()} />
 ```
 
 Incorrect:
 
 ```tsx
-<PostMeta post={post} onShare={() => share(post.id)} />; // onShare is dropped
+<PostMeta post={post} onShare={() => share(post.id)} /> // onShare is dropped
 ```
 
 ---
@@ -212,7 +215,7 @@ Incorrect:
 ```tsx
 <div className="border rounded-lg p-4 shadow-md flex flex-col gap-2">
   <h3 style={{ fontSize: "20px" }}>{props.product.name}</h3>
-</div>;
+</div>
 ```
 
 **Why:** semantic class names keep markup readable and put a component's styles
@@ -277,7 +280,7 @@ Correct:
   width={1600}
   height={900}
   priority
-/>;
+/>
 ```
 
 ---
@@ -322,5 +325,5 @@ Incorrect:
 
 ```tsx
 // AccountMenu is a client component: the cookies reach the browser
-<AccountMenu request={props.request} />;
+<AccountMenu request={props.request} />
 ```

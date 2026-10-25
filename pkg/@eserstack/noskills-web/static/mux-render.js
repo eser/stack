@@ -23,8 +23,7 @@
 
   function measureCell(fontFamily, fontSize) {
     const span = document.createElement("span");
-    span.style.cssText =
-      `position:absolute;visibility:hidden;white-space:pre;font-family:${fontFamily};font-size:${fontSize}px;line-height:normal;`;
+    span.style.cssText = `position:absolute;visibility:hidden;white-space:pre;font-family:${fontFamily};font-size:${fontSize}px;line-height:normal;`;
     span.textContent = "W".repeat(50);
     document.body.appendChild(span);
     const rect = span.getBoundingClientRect();
@@ -33,7 +32,10 @@
   }
 
   const esc = (s) =>
-    String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    String(s)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
       .replace(/"/g, "&quot;");
 
   /**
@@ -115,7 +117,9 @@
     function renderTabBar() {
       const bar = opts.tabBar;
       if (
-        bar === undefined || bar === null || scene === null ||
+        bar === undefined ||
+        bar === null ||
+        scene === null ||
         !Array.isArray(scene.tabs)
       ) {
         return;
@@ -123,17 +127,18 @@
 
       // Two sibling buttons per tab, so each takes keyboard focus; a button
       // inside a button is invalid HTML and cannot.
-      const items = scene.tabs.map((t, i) => {
-        const active = i === scene.activeTab ? " active" : "";
-        const name = esc(t.name);
-        return `<div class="tab${active}" data-tab="${
-          esc(t.id)
-        }"><button type="button" class="tab-select" data-index="${i}">${name}</button><button type="button" class="tab-close" data-close="${
-          esc(t.id)
-        }" aria-label="Close ${name}">&times;</button></div>`;
-      }).join("");
-      bar.innerHTML =
-        `${items}<button type="button" class="tab-add" id="add-tab" aria-label="New tab">+</button>`;
+      const items = scene.tabs
+        .map((t, i) => {
+          const active = i === scene.activeTab ? " active" : "";
+          const name = esc(t.name);
+          return `<div class="tab${active}" data-tab="${esc(
+            t.id,
+          )}"><button type="button" class="tab-select" data-index="${i}">${name}</button><button type="button" class="tab-close" data-close="${esc(
+            t.id,
+          )}" aria-label="Close ${name}">&times;</button></div>`;
+        })
+        .join("");
+      bar.innerHTML = `${items}<button type="button" class="tab-add" id="add-tab" aria-label="New tab">+</button>`;
     }
 
     function renderPanes() {
@@ -178,7 +183,8 @@
         renderTabBar();
       }
       if (
-        delta.panes !== undefined || delta.focusedPane !== undefined ||
+        delta.panes !== undefined ||
+        delta.focusedPane !== undefined ||
         delta.viewport !== undefined
       ) {
         renderPanes();

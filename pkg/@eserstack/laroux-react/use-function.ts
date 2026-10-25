@@ -83,10 +83,10 @@ export const runFunction = async <T, E>(
 
   // React Server Components use Error Boundaries for error handling
   const error = result.error;
-  const message = typeof error === "object" && error !== null &&
-      "message" in error
-    ? String((error as Record<string, unknown>)["message"])
-    : String(error);
+  const message =
+    typeof error === "object" && error !== null && "message" in error
+      ? String((error as Record<string, unknown>)["message"])
+      : String(error);
 
   throw new Error(message);
 };

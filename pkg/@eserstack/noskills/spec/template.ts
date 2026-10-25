@@ -20,9 +20,9 @@ import * as concernScope from "../state/concern-scope.ts";
  */
 const toBulletList = (text: string): string[] => {
   // Split on line breaks first
-  const lines = text.split(/\n/).flatMap((line) =>
-    line.trim().length > 0 ? [line.trim()] : []
-  );
+  const lines = text
+    .split(/\n/)
+    .flatMap((line) => (line.trim().length > 0 ? [line.trim()] : []));
 
   if (lines.length > 1) return lines;
 
@@ -62,11 +62,12 @@ export const deriveTasks = (
     // Extract the highest star description as the implementation target
     const tenStarMatch = text.match(/10[- ]?star[:\s]+(.+?)(?:\n|$)/is);
     const fiveStarMatch = text.match(/5[- ]?star[:\s]+(.+?)(?:\n|$)/is);
-    const goalText = tenStarMatch !== null
-      ? tenStarMatch[1]!.trim()
-      : fiveStarMatch !== null
-      ? fiveStarMatch[1]!.trim()
-      : text.replace(/1[- ]?star[:\s]+[^.]*\.\s*/i, "").trim();
+    const goalText =
+      tenStarMatch !== null
+        ? tenStarMatch[1]!.trim()
+        : fiveStarMatch !== null
+          ? fiveStarMatch[1]!.trim()
+          : text.replace(/1[- ]?star[:\s]+[^.]*\.\s*/i, "").trim();
 
     // Clean: strip leading articles/filler, garbled prefixes
     let cleaned = goalText
@@ -121,8 +122,7 @@ export const deriveTasks = (
         .replace(/^should\s+(we|i)\s+/i, "")
         .replace(/\?+$/, "")
         .trim();
-      const capitalized = taskText.charAt(0).toUpperCase() +
-        taskText.slice(1);
+      const capitalized = taskText.charAt(0).toUpperCase() + taskText.slice(1);
       tasks.push(capitalized);
     }
   }
@@ -165,9 +165,10 @@ const normalizeSpecSection = (
 ): NormalizedSection => {
   if (typeof raw === "string") {
     return {
-      id: `${concernId}-${
-        raw.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")
-      }`,
+      id: `${concernId}-${raw
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-|-$/g, "")}`,
       title: raw,
       placeholder: "_To be addressed during execution._",
       scope: [],

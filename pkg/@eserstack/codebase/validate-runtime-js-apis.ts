@@ -46,7 +46,7 @@ import * as violationBaseline from "./violation-baseline.ts";
 /** The rules this validator reports; each is a key of the baseline. */
 export const RULES = ["deno", "process", "bun"] as const;
 
-export type Rule = typeof RULES[number];
+export type Rule = (typeof RULES)[number];
 
 export type Violation = violationBaseline.RuleViolation<Rule>;
 
@@ -181,7 +181,7 @@ export const findViolations = (content: string): Violation[] => {
   }
 
   const shadowsProcess = LOCAL_PROCESS_BINDINGS.some((binding) =>
-    hasCodeMatch(content, mask, binding)
+    hasCodeMatch(content, mask, binding),
   );
   for (const match of content.matchAll(PROCESS_PATTERN)) {
     if (mask[match.index] === 1) continue;
@@ -191,9 +191,9 @@ export const findViolations = (content: string): Violation[] => {
     violations.push({
       rule: "process",
       line: sourceMask.lineOf(content, match.index),
-      message: `direct Node.js API usage: ${match[0]}; ${
-        advice(PROCESS_REPLACEMENTS.get(member) ?? DEFAULT_REPLACEMENT)
-      }`,
+      message: `direct Node.js API usage: ${match[0]}; ${advice(
+        PROCESS_REPLACEMENTS.get(member) ?? DEFAULT_REPLACEMENT,
+      )}`,
     });
   }
 
@@ -203,9 +203,9 @@ export const findViolations = (content: string): Violation[] => {
     violations.push({
       rule: "bun",
       line: sourceMask.lineOf(content, match.index),
-      message: `direct Bun API usage: ${match[0]}; ${
-        advice(BUN_REPLACEMENTS.get(member) ?? DEFAULT_REPLACEMENT)
-      }`,
+      message: `direct Bun API usage: ${match[0]}; ${advice(
+        BUN_REPLACEMENTS.get(member) ?? DEFAULT_REPLACEMENT,
+      )}`,
     });
   }
 
@@ -238,7 +238,7 @@ export const tool: FileTool = fileTool.createFileTool({
     );
 
     return found.flatMap((file) =>
-      violationBaseline.issuesAboveBaseline(baseline, file)
+      violationBaseline.issuesAboveBaseline(baseline, file),
     );
   },
 });

@@ -13,16 +13,12 @@ import type * as schema from "../../pack/schema.ts";
 import type * as stateSchema from "../../state/schema.ts";
 
 import typescriptManifest from "./typescript/pack.json" with { type: "json" };
-import tsQuality from "./typescript/concerns/ts-quality.json" with {
-  type: "json",
-};
+import tsQuality from "./typescript/concerns/ts-quality.json" with { type: "json" };
 
 import reactManifest from "./react/pack.json" with { type: "json" };
 
 import securityManifest from "./security/pack.json" with { type: "json" };
-import securityAudit from "./security/concerns/security-audit.json" with {
-  type: "json",
-};
+import securityAudit from "./security/concerns/security-audit.json" with { type: "json" };
 
 // =============================================================================
 // Embedded rule content (source .md files live in the pack directories)
@@ -68,9 +64,7 @@ const reactPack: schema.BuiltinPack = {
 const securityPack: schema.BuiltinPack = {
   manifest: securityManifest as unknown as schema.PackManifest,
   ruleContents: SECURITY_RULES,
-  concernContents: [
-    securityAudit as unknown as stateSchema.ConcernDefinition,
-  ],
+  concernContents: [securityAudit as unknown as stateSchema.ConcernDefinition],
 };
 
 /** All built-in packs, keyed by name. */

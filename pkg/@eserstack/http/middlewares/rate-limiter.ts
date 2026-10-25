@@ -181,9 +181,8 @@ export const getClientIp = (
   remote?: RemoteAddress,
   trustedProxies: readonly string[] = DEFAULT_TRUSTED_PROXIES,
 ): string => {
-  const peer = remote?.hostname !== undefined
-    ? normalizeIp(remote.hostname)
-    : undefined;
+  const peer =
+    remote?.hostname !== undefined ? normalizeIp(remote.hostname) : undefined;
   const peerIsValid = peer !== undefined && isValidIP(peer);
   const trusted = trustedProxies.map(normalizeIp);
 
@@ -312,7 +311,8 @@ export const createRateLimiter = (
     }
 
     // Get client identifier
-    const clientIp = keyGenerator?.(req) ??
+    const clientIp =
+      keyGenerator?.(req) ??
       getClientIp(req, trustProxy, remote, trustedProxies);
 
     // No identity: counting these requests in one shared bucket would let a

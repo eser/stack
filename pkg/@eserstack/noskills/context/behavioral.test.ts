@@ -63,7 +63,7 @@ bdd.describe("EXECUTING behavioral guardrails", () => {
   bdd.it("includes anti-exploration rule", async () => {
     const output = await compiler.compile(inExecuting(), noConcerns, noRules);
     const hasAntiExplore = output.behavioral.rules.some((r) =>
-      r.includes("Do not explore")
+      r.includes("Do not explore"),
     );
     assert.assertEquals(hasAntiExplore, true);
   });
@@ -71,7 +71,7 @@ bdd.describe("EXECUTING behavioral guardrails", () => {
   bdd.it("includes no-refactor rule", async () => {
     const output = await compiler.compile(inExecuting(), noConcerns, noRules);
     const hasNoRefactor = output.behavioral.rules.some((r) =>
-      r.includes("Do not refactor")
+      r.includes("Do not refactor"),
     );
     assert.assertEquals(hasNoRefactor, true);
   });
@@ -79,7 +79,7 @@ bdd.describe("EXECUTING behavioral guardrails", () => {
   bdd.it("includes no-unasked-features rule", async () => {
     const output = await compiler.compile(inExecuting(), noConcerns, noRules);
     const has = output.behavioral.rules.some((r) =>
-      r.includes("Do not add features")
+      r.includes("Do not add features"),
     );
     assert.assertEquals(has, true);
   });
@@ -87,7 +87,7 @@ bdd.describe("EXECUTING behavioral guardrails", () => {
   bdd.it("keeps work inside the current task's scope", async () => {
     const output = await compiler.compile(inExecuting(), noConcerns, noRules);
     const has = output.behavioral.rules.some((r) =>
-      r.includes("Do not refactor outside scope")
+      r.includes("Do not refactor outside scope"),
     );
     assert.assertEquals(has, true);
   });
@@ -137,7 +137,7 @@ bdd.describe("DISCOVERY behavioral", () => {
   bdd.it("blocks file writes", async () => {
     const output = await compiler.compile(inDiscovery(), noConcerns, noRules);
     const has = output.behavioral.rules.some((r) =>
-      r.includes("create or edit nothing")
+      r.includes("create or edit nothing"),
     );
     assert.assertEquals(has, true);
   });
@@ -145,7 +145,7 @@ bdd.describe("DISCOVERY behavioral", () => {
   bdd.it("says push back on vague answers", async () => {
     const output = await compiler.compile(inDiscovery(), noConcerns, noRules);
     const has = output.behavioral.rules.some((r) =>
-      r.includes("Push back on vague")
+      r.includes("Push back on vague"),
     );
     assert.assertEquals(has, true);
   });
@@ -153,7 +153,7 @@ bdd.describe("DISCOVERY behavioral", () => {
   bdd.it("includes pre-discovery codebase scan rule", async () => {
     const output = await compiler.compile(inDiscovery(), noConcerns, noRules);
     const has = output.behavioral.rules.some((r) =>
-      r.includes("pre-discovery codebase scan")
+      r.includes("pre-discovery codebase scan"),
     );
     assert.assertEquals(has, true);
   });
@@ -161,7 +161,7 @@ bdd.describe("DISCOVERY behavioral", () => {
   bdd.it("includes premise challenge rule", async () => {
     const output = await compiler.compile(inDiscovery(), noConcerns, noRules);
     const has = output.behavioral.rules.some((r) =>
-      r.includes("challenge the user's initial spec description")
+      r.includes("challenge the user's initial spec description"),
     );
     assert.assertEquals(has, true);
   });
@@ -169,49 +169,53 @@ bdd.describe("DISCOVERY behavioral", () => {
   bdd.it("includes options over open-ended rule", async () => {
     const output = await compiler.compile(inDiscovery(), noConcerns, noRules);
     const has = output.behavioral.rules.some((r) =>
-      r.includes("offer concrete options")
+      r.includes("offer concrete options"),
     );
     assert.assertEquals(has, true);
   });
 
   bdd.it("includes dream state framing rule", async () => {
     const output = await compiler.compile(inDiscovery(), noConcerns, noRules);
-    const has = output.behavioral.rules.some((r) =>
-      r.includes("CURRENT STATE") && r.includes("6-MONTH IDEAL")
+    const has = output.behavioral.rules.some(
+      (r) => r.includes("CURRENT STATE") && r.includes("6-MONTH IDEAL"),
     );
     assert.assertEquals(has, true);
   });
 
   bdd.it("includes expansion proposals with scoring rule", async () => {
     const output = await compiler.compile(inDiscovery(), noConcerns, noRules);
-    const has = output.behavioral.rules.some((r) =>
-      r.includes("expansion opportunities") && r.includes("completeness delta")
+    const has = output.behavioral.rules.some(
+      (r) =>
+        r.includes("expansion opportunities") &&
+        r.includes("completeness delta"),
     );
     assert.assertEquals(has, true);
   });
 
   bdd.it("includes architectural decision resolution rule", async () => {
     const output = await compiler.compile(inDiscovery(), noConcerns, noRules);
-    const has = output.behavioral.rules.some((r) =>
-      r.includes("Architectural decisions") ||
-      (r.includes("architectural decisions") && r.includes("RECOMMENDATION"))
+    const has = output.behavioral.rules.some(
+      (r) =>
+        r.includes("Architectural decisions") ||
+        (r.includes("architectural decisions") && r.includes("RECOMMENDATION")),
     );
     assert.assertEquals(has, true);
   });
 
   bdd.it("includes error and rescue map rule", async () => {
     const output = await compiler.compile(inDiscovery(), noConcerns, noRules);
-    const has = output.behavioral.rules.some((r) =>
-      r.includes("Error/rescue map") ||
-      (r.includes("error") && r.includes("CRITICAL GAPS"))
+    const has = output.behavioral.rules.some(
+      (r) =>
+        r.includes("Error/rescue map") ||
+        (r.includes("error") && r.includes("CRITICAL GAPS")),
     );
     assert.assertEquals(has, true);
   });
 
   bdd.it("includes post-discovery synthesis rule", async () => {
     const output = await compiler.compile(inDiscovery(), noConcerns, noRules);
-    const has = output.behavioral.rules.some((r) =>
-      r.includes("DISCOVERY SUMMARY") || r.includes("confirmation")
+    const has = output.behavioral.rules.some(
+      (r) => r.includes("DISCOVERY SUMMARY") || r.includes("confirmation"),
     );
     assert.assertEquals(has, true);
   });
@@ -219,15 +223,15 @@ bdd.describe("DISCOVERY behavioral", () => {
   bdd.it("blocks state-modifying shell commands", async () => {
     const output = await compiler.compile(inDiscovery(), noConcerns, noRules);
     const has = output.behavioral.rules.some((r) =>
-      r.includes("run nothing that changes state")
+      r.includes("run nothing that changes state"),
     );
     assert.assertEquals(has, true);
   });
 
   bdd.it("allows read-only commands", async () => {
     const output = await compiler.compile(inDiscovery(), noConcerns, noRules);
-    const has = output.behavioral.rules.some((r) =>
-      r.includes("read files") && r.includes("read-only commands")
+    const has = output.behavioral.rules.some(
+      (r) => r.includes("read files") && r.includes("read-only commands"),
     );
     assert.assertEquals(has, true);
   });
@@ -235,11 +239,7 @@ bdd.describe("DISCOVERY behavioral", () => {
   bdd.it(
     "asks the base questions together and each follow-up on its own",
     async () => {
-      const output = await compiler.compile(
-        inDiscovery(),
-        noConcerns,
-        noRules,
-      );
+      const output = await compiler.compile(inDiscovery(), noConcerns, noRules);
       const rules = output.behavioral.rules;
 
       assert.assertEquals(
@@ -248,15 +248,17 @@ bdd.describe("DISCOVERY behavioral", () => {
         1,
       );
       assert.assertEquals(
-        rules.some((r) =>
-          r.includes("each follow-up in a call of its own") &&
-          r.includes("as many as fit in each call (it takes up to 4)")
+        rules.some(
+          (r) =>
+            r.includes("each follow-up in a call of its own") &&
+            r.includes("as many as fit in each call (it takes up to 4)"),
         ),
         true,
       );
       assert.assertEquals(
-        rules.some((r) =>
-          r.includes("ONE AT A TIME") || r.includes("One question per call")
+        rules.some(
+          (r) =>
+            r.includes("ONE AT A TIME") || r.includes("One question per call"),
         ),
         false,
       );
@@ -268,7 +270,7 @@ bdd.describe("DISCOVERY behavioral", () => {
     async () => {
       const output = await compiler.compile(inDiscovery(), noConcerns, noRules);
       const followUpRule = output.behavioral.rules.find((r) =>
-        r.startsWith("Discovery questions are adaptive.")
+        r.startsWith("Discovery questions are adaptive."),
       );
 
       assert.assertExists(followUpRule);
@@ -285,9 +287,10 @@ bdd.describe("DISCOVERY behavioral", () => {
 
   bdd.it("includes vague answer pushback", async () => {
     const output = await compiler.compile(inDiscovery(), noConcerns, noRules);
-    const has = output.behavioral.rules.some((r) =>
-      r.includes("vague") ||
-      (r.includes("short answer") && r.includes("more specific"))
+    const has = output.behavioral.rules.some(
+      (r) =>
+        r.includes("vague") ||
+        (r.includes("short answer") && r.includes("more specific")),
     );
     assert.assertEquals(has, true);
   });
@@ -297,8 +300,8 @@ bdd.describe("DISCOVERY behavioral", () => {
     // The submit command goes through the configured prefix and names the
     // spec, so it reads "<prefix> spec test-spec next --answer".
     const submit = cmd.cmd("spec test-spec next --answer");
-    const answerRules = output.behavioral.rules.filter((r) =>
-      r.includes(submit) && r.includes("transition.onComplete")
+    const answerRules = output.behavioral.rules.filter(
+      (r) => r.includes(submit) && r.includes("transition.onComplete"),
     );
     assert.assertEquals(answerRules.length, 1);
     assert.assertStringIncludes(answerRules[0]!, "[STATED]");
@@ -310,9 +313,11 @@ bdd.describe("DISCOVERY behavioral", () => {
     "has no rule that forbids pre-filling or batch submission",
     async () => {
       const output = await compiler.compile(inDiscovery(), noConcerns, noRules);
-      const conflicting = output.behavioral.rules.filter((r) =>
-        r.includes("batch-submit") || r.includes("Do NOT pre-fill") ||
-        r.includes("One noskills call per interaction")
+      const conflicting = output.behavioral.rules.filter(
+        (r) =>
+          r.includes("batch-submit") ||
+          r.includes("Do NOT pre-fill") ||
+          r.includes("One noskills call per interaction"),
       );
       assert.assertEquals(conflicting, []);
     },
@@ -323,10 +328,10 @@ bdd.describe("DISCOVERY behavioral", () => {
     async () => {
       const output = await compiler.compile(inDiscovery(), noConcerns, noRules);
       const readOnly = output.behavioral.rules.filter((r) =>
-        r.includes("This phase is read-only")
+        r.includes("This phase is read-only"),
       );
       const repeats = output.behavioral.rules.filter((r) =>
-        r.includes("DO NOT create, edit, or write any files")
+        r.includes("DO NOT create, edit, or write any files"),
       );
       assert.assertEquals(readOnly.length, 1);
       assert.assertEquals(repeats, []);
@@ -343,7 +348,7 @@ bdd.describe("BLOCKED behavioral", () => {
   bdd.it("says present decision as described", async () => {
     const output = await compiler.compile(inBlocked(), noConcerns, noRules);
     const has = output.behavioral.rules.some((r) =>
-      r.includes("exactly as described")
+      r.includes("exactly as described"),
     );
     assert.assertEquals(has, true);
   });
@@ -351,7 +356,7 @@ bdd.describe("BLOCKED behavioral", () => {
   bdd.it("says don't suggest preference unless asked", async () => {
     const output = await compiler.compile(inBlocked(), noConcerns, noRules);
     const has = output.behavioral.rules.some((r) =>
-      r.includes("Do not suggest")
+      r.includes("Do not suggest"),
     );
     assert.assertEquals(has, true);
   });
@@ -366,7 +371,7 @@ bdd.describe("BLOCKED behavioral", () => {
     async () => {
       const output = await compiler.compile(inBlocked(), noConcerns, noRules);
       const submit = output.behavioral.rules.filter((r) =>
-        r.includes(cmd.cmd("spec test-spec next --answer"))
+        r.includes(cmd.cmd("spec test-spec next --answer")),
       );
       assert.assertEquals(submit.length, 1);
       assert.assertEquals(
@@ -402,8 +407,8 @@ bdd.describe("No iteration countdown", () => {
       assert.assertEquals("urgency" in output.behavioral, false);
       assert.assertEquals("restartInstruction" in output, false);
       assert.assertEquals(
-        output.behavioral.rules.some((r) =>
-          r.includes("degrading") || r.includes("fresh session")
+        output.behavioral.rules.some(
+          (r) => r.includes("degrading") || r.includes("fresh session"),
         ),
         false,
       );
@@ -413,12 +418,12 @@ bdd.describe("No iteration countdown", () => {
   bdd.it(
     "iteration=15, threshold=15 → restartRecommended flag stays",
     async () => {
-      const output = await compiler.compile(
+      const output = (await compiler.compile(
         atIteration(15),
         noConcerns,
         noRules,
         config15,
-      ) as compiler.ExecutionOutput;
+      )) as compiler.ExecutionOutput;
       assert.assertEquals(output.restartRecommended, true);
     },
   );
@@ -432,7 +437,7 @@ bdd.describe("No iteration countdown", () => {
     );
     assert.assertEquals(
       output.behavioral.rules.some((r) =>
-        r.includes("Work through the spec's tasks to the end")
+        r.includes("Work through the spec's tasks to the end"),
       ),
       true,
     );
@@ -447,7 +452,7 @@ bdd.describe("Git read-only rule", () => {
   bdd.it("EXECUTING includes git read-only in behavioral rules", async () => {
     const output = await compiler.compile(inExecuting(), noConcerns, noRules);
     const hasGitRule = output.behavioral.rules.some((r) =>
-      r.includes("git write commands")
+      r.includes("git write commands"),
     );
     assert.assertEquals(hasGitRule, true);
   });
@@ -455,7 +460,7 @@ bdd.describe("Git read-only rule", () => {
   bdd.it("DISCOVERY includes git read-only", async () => {
     const output = await compiler.compile(inDiscovery(), noConcerns, noRules);
     const hasGitRule = output.behavioral.rules.some((r) =>
-      r.includes("git write commands")
+      r.includes("git write commands"),
     );
     assert.assertEquals(hasGitRule, true);
   });
@@ -469,7 +474,7 @@ bdd.describe("Git read-only rule", () => {
       config,
     );
     const hasGitRule = output.behavioral.rules.some((r) =>
-      r.includes("git write commands")
+      r.includes("git write commands"),
     );
     assert.assertEquals(hasGitRule, false);
   });
@@ -486,7 +491,8 @@ bdd.describe("No commit in behavioral", () => {
     for (const rule of output.behavioral.rules) {
       // "commit" as an action verb (not inside "git commit" which is a block)
       const lower = rule.toLowerCase();
-      const hasCommitAction = lower.includes("then commit") ||
+      const hasCommitAction =
+        lower.includes("then commit") ||
         lower.includes("make a commit") ||
         lower.includes("create a commit");
       assert.assertEquals(hasCommitAction, false);
@@ -502,7 +508,7 @@ bdd.describe("COMPLETED behavioral", () => {
   bdd.it("says report summary, do not start new work", async () => {
     const output = await compiler.compile(inCompleted(), noConcerns, noRules);
     const hasStop = output.behavioral.rules.some((r) =>
-      r.includes("Do not start new work")
+      r.includes("Do not start new work"),
     );
     assert.assertEquals(hasStop, true);
   });
@@ -535,11 +541,7 @@ bdd.describe("Behavioral with concerns active", () => {
   );
 
   bdd.it("concern reminders appear in context, not behavioral", async () => {
-    const output = await compiler.compile(
-      inExecuting(),
-      [openSource],
-      noRules,
-    );
+    const output = await compiler.compile(inExecuting(), [openSource], noRules);
     const exec = output as compiler.ExecutionOutput;
     assert.assertEquals(exec.context.concernReminders.length > 0, true);
     assert.assertEquals(
@@ -566,7 +568,7 @@ bdd.describe("IDLE behavioral — AskUserQuestion, concerns, user intent", () =>
   bdd.it("tells agent to use multiSelect for concerns", async () => {
     const output = await compiler.compile(idle(), noConcerns, noRules);
     const has = output.behavioral.rules.some((r) =>
-      r.includes("multiSelect:true")
+      r.includes("multiSelect:true"),
     );
     assert.assertEquals(has, true);
   });
@@ -586,10 +588,11 @@ bdd.describe("IDLE behavioral — AskUserQuestion, concerns, user intent", () =>
 
   bdd.it("IDLE behavioral includes user intent rule", async () => {
     const output = await compiler.compile(idle(), noConcerns, noRules);
-    const has = output.behavioral.rules.some((r) =>
-      r.includes("described a feature") ||
-      r.includes("create a spec immediately") ||
-      r.includes("Do NOT present menus")
+    const has = output.behavioral.rules.some(
+      (r) =>
+        r.includes("described a feature") ||
+        r.includes("create a spec immediately") ||
+        r.includes("Do NOT present menus"),
     );
     assert.assertEquals(has, true);
   });
@@ -615,7 +618,7 @@ bdd.describe("DISCOVERY_REFINEMENT behavioral", () => {
       noRules,
     );
     const has = output.behavioral.rules.some((r) =>
-      r.includes("COMPLETENESS ASSESSMENT")
+      r.includes("COMPLETENESS ASSESSMENT"),
     );
     assert.assertEquals(has, true);
   });
@@ -626,9 +629,10 @@ bdd.describe("DISCOVERY_REFINEMENT behavioral", () => {
       noConcerns,
       noRules,
     );
-    const readOnly = output.behavioral.rules.filter((r) =>
-      r.includes("This phase is read-only") &&
-      r.includes("create or edit nothing")
+    const readOnly = output.behavioral.rules.filter(
+      (r) =>
+        r.includes("This phase is read-only") &&
+        r.includes("create or edit nothing"),
     );
     assert.assertEquals(readOnly.length, 1);
     assert.assertEquals(output.behavioral.modeOverride, "plan mode");
@@ -654,16 +658,16 @@ bdd.describe("DISCOVERY_REFINEMENT behavioral", () => {
 bdd.describe("EXECUTING sub-agent behavioral rules", () => {
   bdd.it("includes sub-agent spawning rule", async () => {
     const output = await compiler.compile(inExecuting(), noConcerns, noRules);
-    const has = output.behavioral.rules.some((r) =>
-      r.includes("noskills-executor") || r.includes("sub-agent")
+    const has = output.behavioral.rules.some(
+      (r) => r.includes("noskills-executor") || r.includes("sub-agent"),
     );
     assert.assertEquals(has, true);
   });
 
   bdd.it("includes sub-agent failure fallback rule", async () => {
     const output = await compiler.compile(inExecuting(), noConcerns, noRules);
-    const has = output.behavioral.rules.some((r) =>
-      r.includes("fall back") || r.includes("failure")
+    const has = output.behavioral.rules.some(
+      (r) => r.includes("fall back") || r.includes("failure"),
     );
     assert.assertEquals(has, true);
   });
@@ -683,22 +687,22 @@ bdd.describe("DISCOVERY flow in agent mode", () => {
 
   // Keys are the discovery question ids `next` takes, so they keep snake case.
   const baseAnswers = {
-    "status_quo": "Users email files to support and wait a day",
+    status_quo: "Users email files to support and wait a day",
     ambition: "1-star: upload button; 10-star: drag and drop with previews",
     reversibility: "Nothing irreversible; uploads land in a new bucket",
-    "user_impact": "Existing users keep email and gain the upload page",
+    user_impact: "Existing users keep email and gain the upload page",
     verification: "Integration test that uploads a file and reads it back",
-    "scope_boundary": "No image editing and no admin moderation queue",
+    scope_boundary: "No image editing and no admin moderation queue",
   };
 
   const discoveryOf = async (
     state: schema.StateFile,
   ): Promise<compiler.DiscoveryOutput> =>
-    await compiler.compile(
+    (await compiler.compile(
       state,
       noConcerns,
       noRules,
-    ) as compiler.DiscoveryOutput;
+    )) as compiler.DiscoveryOutput;
 
   bdd.it(
     "takes the base answers in one call, then hands out each follow-up alone",
@@ -745,9 +749,10 @@ bdd.describe("DISCOVERY flow in agent mode", () => {
 
         // 3. The follow-ups come one per output.
         const second = await discoveryOf(state);
-        assert.assertEquals(second.questions.map((q) => q.id), [
-          "reversibilitya",
-        ]);
+        assert.assertEquals(
+          second.questions.map((q) => q.id),
+          ["reversibilitya"],
+        );
         state = machine.completeDiscoveryWhenReady(
           machine.answerFollowUp(
             state,
@@ -758,9 +763,10 @@ bdd.describe("DISCOVERY flow in agent mode", () => {
         assert.assertEquals(state.phase, "DISCOVERY");
 
         const third = await discoveryOf(state);
-        assert.assertEquals(third.questions.map((q) => q.id), [
-          "verificationa",
-        ]);
+        assert.assertEquals(
+          third.questions.map((q) => q.id),
+          ["verificationa"],
+        );
 
         // 4. Settling the last follow-up completes discovery.
         state = machine.completeDiscoveryWhenReady(

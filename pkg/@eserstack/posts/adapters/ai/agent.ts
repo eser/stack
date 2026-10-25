@@ -49,9 +49,7 @@ export const runPostsAgent = async (
   const { model, bound, system, maxTurns = 10 } = options;
   const toolCallTrigger = triggers.createToolCallTrigger(bound);
 
-  const messages: ai.Message[] = [
-    ai.textMessage("user", prompt),
-  ];
+  const messages: ai.Message[] = [ai.textMessage("user", prompt)];
 
   for (let turn = 0; turn < maxTurns; turn++) {
     const genOptions: ai.GenerateTextOptions = {
@@ -73,9 +71,9 @@ export const runPostsAgent = async (
       if (result.stopReason === "refusal") {
         return results.fail(
           new Error(
-            `${result.modelId} declined the request (stop reason "refusal"): ${
-              ai.text(result)
-            }`,
+            `${result.modelId} declined the request (stop reason "refusal"): ${ai.text(
+              result,
+            )}`,
           ),
         );
       }

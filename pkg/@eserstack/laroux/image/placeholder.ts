@@ -37,7 +37,9 @@ export function buildPlaceholderStyles(
   blurDataURL?: string,
 ): PlaceholderStyles | undefined {
   if (
-    placeholder !== "blur" || blurDataURL === undefined || blurDataURL === ""
+    placeholder !== "blur" ||
+    blurDataURL === undefined ||
+    blurDataURL === ""
   ) {
     return undefined;
   }
@@ -60,6 +62,7 @@ export function shouldShowPlaceholder(
   placeholder?: PlaceholderType,
   blurDataURL?: string,
 ): boolean {
-  return placeholder === "blur" && blurDataURL !== undefined &&
-    blurDataURL !== "";
+  return (
+    placeholder === "blur" && blurDataURL !== undefined && blurDataURL !== ""
+  );
 }

@@ -742,7 +742,9 @@ in `.eser/concerns/`, which several entries below depend on.
   import type * as laroux from "@eserstack/laroux";
 
   // Before: export function StoryPage(props: Record<string, unknown>)
-  export function StoryPage(props: laroux.PageProps) {/* ... */}
+  export function StoryPage(props: laroux.PageProps) {
+    /* ... */
+  }
   // Before: export function RootLayout(props: { children: React.ReactNode })
   export function RootLayout(props: laroux.LayoutProps<React.ReactNode>) {
     /* ... */
@@ -1740,6 +1742,7 @@ in `.eser/concerns/`, which several entries below depend on.
   implementation. GoReleaser is gone entirely: `compile.ts` cross-builds
   `noskills-server` alongside the deno-compiled binaries, so one pipeline
   releases the whole family at one version into one `SHA256SUMS.txt`.
+
 - **acp:** the `eser-acp` binary is gone. `pkg/ajan/acpfx/shim` is Go code
   linked into the same binary as its callers, so reaching it through a
   subprocess meant `aifx` and `noskillsserverfx` serialising JSON down a pipe to
@@ -1761,6 +1764,7 @@ in `.eser/concerns/`, which several entries below depend on.
   passed only because the fake replaced the whole shim. `mapOpenCodeEvent`
   classifies text, done and error and has no tool-call path, so opencode cannot
   surface one. That test now runs against `claude-code`, which does.
+
 - **repo:** the top-level `scripts/` directory is gone; its files moved into
   `etc/scripts/`, which already held the repo's tooling. The installers
   collapsed into **one** `etc/scripts/install.sh` that takes the product as an

@@ -109,56 +109,49 @@ bdd.describe("migrateLegacyLayout", () => {
     assert.assertEquals(ran, false);
   });
 
-  bdd.it(
-    "moves legacy .state sub-entries into progresses/",
-    async () => {
-      await seedLegacyLayout(tempDir);
-      const ran = await persistence.migrateLegacyLayout(tempDir);
-      assert.assertEquals(ran, true);
+  bdd.it("moves legacy .state sub-entries into progresses/", async () => {
+    await seedLegacyLayout(tempDir);
+    const ran = await persistence.migrateLegacyLayout(tempDir);
+    assert.assertEquals(ran, true);
 
-      // New locations exist with expected contents
-      assert.assertEquals(
-        await exists(`${tempDir}/.eser/.state/progresses/state.json`),
-        true,
-      );
-      assert.assertEquals(
-        await exists(`${tempDir}/.eser/.state/progresses/active.json`),
-        true,
-      );
-      assert.assertEquals(
-        await exists(
-          `${tempDir}/.eser/.state/progresses/specs/demo.json`,
-        ),
-        true,
-      );
-      assert.assertEquals(
-        await exists(
-          `${tempDir}/.eser/.state/progresses/files-changed.jsonl`,
-        ),
-        true,
-      );
-      assert.assertEquals(
-        await exists(
-          `${tempDir}/.eser/.state/progresses/iterations/iteration-1.json`,
-        ),
-        true,
-      );
+    // New locations exist with expected contents
+    assert.assertEquals(
+      await exists(`${tempDir}/.eser/.state/progresses/state.json`),
+      true,
+    );
+    assert.assertEquals(
+      await exists(`${tempDir}/.eser/.state/progresses/active.json`),
+      true,
+    );
+    assert.assertEquals(
+      await exists(`${tempDir}/.eser/.state/progresses/specs/demo.json`),
+      true,
+    );
+    assert.assertEquals(
+      await exists(`${tempDir}/.eser/.state/progresses/files-changed.jsonl`),
+      true,
+    );
+    assert.assertEquals(
+      await exists(
+        `${tempDir}/.eser/.state/progresses/iterations/iteration-1.json`,
+      ),
+      true,
+    );
 
-      const stateContent = await readFile(
-        `${tempDir}/.eser/.state/progresses/state.json`,
-      );
-      assert.assertEquals(
-        (JSON.parse(stateContent) as { phase: string }).phase,
-        "IDLE",
-      );
+    const stateContent = await readFile(
+      `${tempDir}/.eser/.state/progresses/state.json`,
+    );
+    assert.assertEquals(
+      (JSON.parse(stateContent) as { phase: string }).phase,
+      "IDLE",
+    );
 
-      // Old flat state.json is gone
-      assert.assertEquals(
-        await exists(`${tempDir}/.eser/.state/state.json`),
-        false,
-      );
-    },
-  );
+    // Old flat state.json is gone
+    assert.assertEquals(
+      await exists(`${tempDir}/.eser/.state/state.json`),
+      false,
+    );
+  });
 
   bdd.it("moves .sessions → .state/sessions", async () => {
     await seedLegacyLayout(tempDir);
@@ -168,10 +161,7 @@ bdd.describe("migrateLegacyLayout", () => {
       await exists(`${tempDir}/.eser/.state/sessions/sess1234.json`),
       true,
     );
-    assert.assertEquals(
-      await exists(`${tempDir}/.eser/.sessions`),
-      false,
-    );
+    assert.assertEquals(await exists(`${tempDir}/.eser/.sessions`), false);
   });
 
   bdd.it("moves .events → .state/events", async () => {
@@ -263,8 +253,7 @@ bdd.describe("migrateLegacyLayout", () => {
 
   bdd.it("leaves the purge history where it is", async () => {
     await seedLegacyLayout(tempDir);
-    const kept =
-      `${tempDir}/${persistence.paths.purgeHistoryDir}/2026-10-05T14-03-12-345Z/rules/r.md`;
+    const kept = `${tempDir}/${persistence.paths.purgeHistoryDir}/2026-10-05T14-03-12-345Z/rules/r.md`;
     await crossRuntime.runtime.fs.mkdir(
       crossRuntime.runtime.path.dirname(kept),
       { recursive: true },
@@ -284,10 +273,7 @@ bdd.describe("migrateLegacyLayout", () => {
     await crossRuntime.runtime.fs.mkdir(`${tempDir}/.eser/.sessions`, {
       recursive: true,
     });
-    await writeFile(
-      `${tempDir}/.eser/.sessions/s1.json`,
-      '{"id":"s1"}',
-    );
+    await writeFile(`${tempDir}/.eser/.sessions/s1.json`, '{"id":"s1"}');
 
     const ran = await persistence.migrateLegacyLayout(tempDir);
     assert.assertEquals(ran, true);

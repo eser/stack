@@ -66,10 +66,8 @@ const rateLimiter = http.middlewares.rateLimiter.createRateLimiter({
 // Run them outermost first; each one calls the next. The rate limiter is not a
 // MiddlewareFn: call rateLimiter.check() in the handler (see Rate Limiter).
 const app = (req: Request) =>
-  corsMiddleware(
-    req,
-    () =>
-      cspMiddleware(req, () => csrfMiddleware(req, () => new Response("OK"))),
+  corsMiddleware(req, () =>
+    cspMiddleware(req, () => csrfMiddleware(req, () => new Response("OK"))),
   );
 
 Deno.serve(app);
@@ -243,9 +241,10 @@ Deno.serve(async (req) => {
   const event = await http.adapter.fromRequest(req, { maxBodyBytes: 65_536 });
 
   if (primitives.results.isFail(event)) {
-    const status = event.error instanceof http.adapter.RequestBodyTooLargeError
-      ? event.error.status // 413 Content Too Large
-      : 400;
+    const status =
+      event.error instanceof http.adapter.RequestBodyTooLargeError
+        ? event.error.status // 413 Content Too Large
+        : 400;
     return new Response(event.error.message, { status });
   }
 

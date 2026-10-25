@@ -219,10 +219,8 @@ export const createGoHttpClient = async (
         throw new Error("native library unavailable");
       }
 
-      const raw2 = await withSignal(
-        handle,
-        req,
-        (json) => lib2.symbols.EserAjanHttpRequest(json),
+      const raw2 = await withSignal(handle, req, (json) =>
+        lib2.symbols.EserAjanHttpRequest(json),
       );
       const res = JSON.parse(raw2) as GoHttpResponse & { error?: string };
 
@@ -239,10 +237,8 @@ export const createGoHttpClient = async (
         throw new Error("native library unavailable");
       }
 
-      const raw2 = await withSignal(
-        handle,
-        req,
-        (json) => lib2.symbols.EserAjanHttpRequestStream(json),
+      const raw2 = await withSignal(handle, req, (json) =>
+        lib2.symbols.EserAjanHttpRequestStream(json),
       );
       const init = JSON.parse(raw2) as {
         handle?: string;
@@ -256,10 +252,12 @@ export const createGoHttpClient = async (
       const streamHandle = init.handle;
       if (
         (init.error !== undefined && init.error !== "") ||
-        streamHandle === undefined || streamHandle === ""
+        streamHandle === undefined ||
+        streamHandle === ""
       ) {
         throw new GoHttpError({
-          error: init.error ??
+          error:
+            init.error ??
             "open HTTP stream: the Go bridge returned no stream handle",
           status: init.status,
           statusText: init.statusText,
@@ -280,9 +278,8 @@ export const createGoHttpClient = async (
             return;
           }
 
-          const readRaw = await lib3.symbols.EserAjanHttpStreamRead(
-            streamHandle,
-          );
+          const readRaw =
+            await lib3.symbols.EserAjanHttpStreamRead(streamHandle);
           const chunk = JSON.parse(readRaw) as {
             chunk?: string;
             done?: boolean;

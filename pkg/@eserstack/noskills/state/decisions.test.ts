@@ -125,11 +125,11 @@ bdd.describe("Promote prompt after resolution", () => {
         },
       };
 
-      const output = await compiler.compile(
+      const output = (await compiler.compile(
         state,
         noConcerns,
         noRules,
-      ) as compiler.ExecutionOutput;
+      )) as compiler.ExecutionOutput;
 
       assert.assertEquals(output.promotePrompt !== undefined, true);
       assert.assertEquals(output.promotePrompt!.choice, "PostgreSQL");
@@ -156,11 +156,11 @@ bdd.describe("Promote prompt after resolution", () => {
       },
     };
 
-    const output = await compiler.compile(
+    const output = (await compiler.compile(
       state,
       noConcerns,
       noRules,
-    ) as compiler.ExecutionOutput;
+    )) as compiler.ExecutionOutput;
 
     // No unpromoted decisions → no prompt
     assert.assertEquals(output.promotePrompt, undefined);
@@ -170,11 +170,11 @@ bdd.describe("Promote prompt after resolution", () => {
     "no promotePrompt during normal execution (no resolution)",
     async () => {
       const state = inExecuting();
-      const output = await compiler.compile(
+      const output = (await compiler.compile(
         state,
         noConcerns,
         noRules,
-      ) as compiler.ExecutionOutput;
+      )) as compiler.ExecutionOutput;
 
       assert.assertEquals(output.promotePrompt, undefined);
     },
@@ -255,9 +255,11 @@ bdd.describe("Convention discovery behavioral rule", () => {
       const state = inExecuting();
       const output = await compiler.compile(state, noConcerns, noRules);
 
-      const hasConventionRule = output.behavioral.rules.some((r) =>
-        r.includes("Permanent rule") || r.includes("permanent rule") ||
-        r.includes("rule add")
+      const hasConventionRule = output.behavioral.rules.some(
+        (r) =>
+          r.includes("Permanent rule") ||
+          r.includes("permanent rule") ||
+          r.includes("rule add"),
       );
       assert.assertEquals(hasConventionRule, true);
     },
@@ -268,7 +270,7 @@ bdd.describe("Convention discovery behavioral rule", () => {
     const output = await compiler.compile(state, noConcerns, noRules);
 
     const hasRuleAdd = output.behavioral.rules.some((r) =>
-      r.includes("rule add")
+      r.includes("rule add"),
     );
     assert.assertEquals(hasRuleAdd, true);
   });
@@ -280,7 +282,7 @@ bdd.describe("Convention discovery behavioral rule", () => {
       const output = await compiler.compile(state, noConcerns, noRules);
 
       const hasDirect = output.behavioral.rules.some((r) =>
-        r.includes("Never write to")
+        r.includes("Never write to"),
       );
       assert.assertEquals(hasDirect, true);
     },

@@ -24,9 +24,9 @@ export function generateMetaTags(
 
   if (meta.keywords && meta.keywords.length > 0) {
     tags.push(
-      `<meta name="keywords" content="${
-        escapeHtml(meta.keywords.join(", "))
-      }">`,
+      `<meta name="keywords" content="${escapeHtml(
+        meta.keywords.join(", "),
+      )}">`,
     );
   }
 
@@ -57,9 +57,9 @@ export function generateMetaTags(
 
   if (meta.description) {
     tags.push(
-      `<meta property="og:description" content="${
-        escapeHtml(meta.description)
-      }">`,
+      `<meta property="og:description" content="${escapeHtml(
+        meta.description,
+      )}">`,
     );
   }
 
@@ -92,9 +92,9 @@ export function generateMetaTags(
 
   if (meta.description) {
     tags.push(
-      `<meta name="twitter:description" content="${
-        escapeHtml(meta.description)
-      }">`,
+      `<meta name="twitter:description" content="${escapeHtml(
+        meta.description,
+      )}">`,
     );
   }
 
@@ -103,9 +103,9 @@ export function generateMetaTags(
       `<meta name="twitter:site" content="${escapeHtml(meta.twitterHandle)}">`,
     );
     tags.push(
-      `<meta name="twitter:creator" content="${
-        escapeHtml(meta.twitterHandle)
-      }">`,
+      `<meta name="twitter:creator" content="${escapeHtml(
+        meta.twitterHandle,
+      )}">`,
     );
   }
 
@@ -161,12 +161,14 @@ export function generateJsonLd(
   }
 
   return schemas
-    .map((schema) =>
-      // "<" is escaped so a "</script>" inside any string value cannot close
-      // the tag.
-      `<script type="application/ld+json">${
-        JSON.stringify(schema).replace(/</g, "\\u003c")
-      }</script>`
+    .map(
+      (schema) =>
+        // "<" is escaped so a "</script>" inside any string value cannot close
+        // the tag.
+        `<script type="application/ld+json">${JSON.stringify(schema).replace(
+          /</g,
+          "\\u003c",
+        )}</script>`,
     )
     .join("\n  ");
 }

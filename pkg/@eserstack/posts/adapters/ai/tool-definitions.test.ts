@@ -48,20 +48,14 @@ bdd.describe("postToolDefinitions", () => {
 
   bdd.it("compose_post_all has text as required", () => {
     const params = toolDefinitions.composePostToAllDefinition
-      .parameters as Record<
-        string,
-        unknown
-      >;
+      .parameters as Record<string, unknown>;
     const required = params["required"] as string[];
     assert.assertArrayIncludes(required, ["text"]);
   });
 
   bdd.it("translate_and_post requires text, from, and to", () => {
     const params = toolDefinitions.translateAndPostDefinition
-      .parameters as Record<
-        string,
-        unknown
-      >;
+      .parameters as Record<string, unknown>;
     const required = params["required"] as string[];
     assert.assertArrayIncludes(required, ["text", "from", "to"]);
     assert.assertEquals(required.includes("platform"), false);
@@ -87,12 +81,10 @@ bdd.describe("postToolDefinitions", () => {
   });
 
   bdd.it("repost and undo_repost both require id and platform", () => {
-    for (
-      const def of [
-        toolDefinitions.repostDefinition,
-        toolDefinitions.undoRepostDefinition,
-      ]
-    ) {
+    for (const def of [
+      toolDefinitions.repostDefinition,
+      toolDefinitions.undoRepostDefinition,
+    ]) {
       const params = def.parameters as Record<string, unknown>;
       const required = params["required"] as string[];
       assert.assertArrayIncludes(required, ["id", "platform"]);
@@ -123,10 +115,7 @@ bdd.describe("postToolDefinitions", () => {
 
   bdd.it("search_posts_all requires only query", () => {
     const params = toolDefinitions.searchPostsAllDefinition
-      .parameters as Record<
-        string,
-        unknown
-      >;
+      .parameters as Record<string, unknown>;
     const required = params["required"] as string[];
     assert.assertArrayIncludes(required, ["query"]);
     assert.assertEquals(required.includes("platform"), false);
@@ -144,12 +133,10 @@ bdd.describe("postToolDefinitions", () => {
   bdd.it(
     "bookmark_post and remove_bookmark both require id and platform",
     () => {
-      for (
-        const def of [
-          toolDefinitions.bookmarkPostDefinition,
-          toolDefinitions.removeBookmarkDefinition,
-        ]
-      ) {
+      for (const def of [
+        toolDefinitions.bookmarkPostDefinition,
+        toolDefinitions.removeBookmarkDefinition,
+      ]) {
         const params = def.parameters as Record<string, unknown>;
         const required = params["required"] as string[];
         assert.assertArrayIncludes(required, ["id", "platform"]);
@@ -192,8 +179,8 @@ bdd.describe("postToolDefinitions descriptions", () => {
   bdd.it("each names a sibling tool", () => {
     for (const def of toolDefinitions.postToolDefinitions) {
       const words = new Set(def.description.split(/[^a-z_]+/));
-      const siblings = [...toolNames].filter((name) =>
-        name !== def.name && words.has(name)
+      const siblings = [...toolNames].filter(
+        (name) => name !== def.name && words.has(name),
       );
 
       assert.assertNotEquals(
@@ -206,8 +193,8 @@ bdd.describe("postToolDefinitions descriptions", () => {
 
   bdd.it("names only tools that exist", () => {
     for (const def of toolDefinitions.postToolDefinitions) {
-      const snakeCaseNames = def.description.match(/\b[a-z]+(?:_[a-z]+)+\b/g) ??
-        [];
+      const snakeCaseNames =
+        def.description.match(/\b[a-z]+(?:_[a-z]+)+\b/g) ?? [];
 
       for (const name of snakeCaseNames) {
         assert.assert(toolNames.has(name), `${def.name} names unknown ${name}`);
@@ -331,8 +318,9 @@ bdd.describe("postToolDefinitions results without a value", () => {
 
 bdd.describe("postToolDefinitions defaults", () => {
   bdd.it("search_posts_all states the per-platform default", () => {
-    const properties = toolDefinitions.searchPostsAllDefinition.parameters
-      ?.["properties"] as Record<string, { description: string }>;
+    const properties = toolDefinitions.searchPostsAllDefinition.parameters?.[
+      "properties"
+    ] as Record<string, { description: string }>;
 
     assert.assertMatch(
       properties["maxResultsPerPlatform"]?.description ?? "",

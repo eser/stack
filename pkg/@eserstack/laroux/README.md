@@ -335,7 +335,9 @@ lists the changes in every package.
   import type * as laroux from "@eserstack/laroux";
 
   // Before: export function StoryPage(props: Record<string, unknown>)
-  export function StoryPage(props: laroux.PageProps) {/* ... */}
+  export function StoryPage(props: laroux.PageProps) {
+    /* ... */
+  }
   // Before: export function RootLayout(props: { children: React.ReactNode })
   export function RootLayout(props: laroux.LayoutProps<React.ReactNode>) {
     /* ... */

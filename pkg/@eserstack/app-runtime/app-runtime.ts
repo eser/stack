@@ -35,7 +35,7 @@ export class AppRuntime<S extends AppRuntimeState = AppRuntimeState> {
   readonly state: S;
 
   constructor(state?: S) {
-    this.state = state ?? createAppRuntimeState() as S;
+    this.state = state ?? (createAppRuntimeState() as S);
   }
 
   addModule(module: Module) {

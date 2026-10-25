@@ -56,7 +56,7 @@ export const createEnvReader = (state: EnvMap): EnvReader => {
       key: string,
       defaultValue?: T,
     ): T | undefined => {
-      return state.get(key) as T ?? defaultValue;
+      return (state.get(key) as T) ?? defaultValue;
     },
     readEnum: <T extends string>(
       key: string,

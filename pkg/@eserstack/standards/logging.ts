@@ -28,7 +28,7 @@ export const Severities = {
 export type SeverityKey = Exclude<keyof typeof Severities, number>;
 
 /** Severity number of a level, such as 9 for Info. */
-export type Severity = typeof Severities[SeverityKey];
+export type Severity = (typeof Severities)[SeverityKey];
 
 /** Level name for each severity number. */
 export const SeverityNames = {
@@ -73,8 +73,7 @@ export interface Logger {
       // Any function type must match here so that a function message is always
       // treated as a lazy producer, whatever its parameters and return type.
       // deno-lint-ignore no-explicit-any
-      | (T extends (...args: ReadonlyArray<any>) => any ? never : T)
-      | (() => T),
+      (T extends (...args: ReadonlyArray<any>) => any ? never : T) | (() => T),
     // Log arguments are free-form values passed through to the sink.
     // deno-lint-ignore no-explicit-any
     ...args: ReadonlyArray<any>

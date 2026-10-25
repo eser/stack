@@ -80,14 +80,16 @@ export function shouldNavigateOnClient(click: LinkClick): boolean {
   }
 
   if (
-    click.target !== undefined && click.target !== "" &&
+    click.target !== undefined &&
+    click.target !== "" &&
     click.target !== "_self"
   ) {
     return false;
   }
 
   if (
-    click.download !== undefined && click.download !== null &&
+    click.download !== undefined &&
+    click.download !== null &&
     click.download !== false
   ) {
     return false;
@@ -167,11 +169,15 @@ type ClosestTarget = {
 };
 
 const hasClosest = (value: unknown): value is ClosestTarget =>
-  typeof value === "object" && value !== null && "closest" in value &&
+  typeof value === "object" &&
+  value !== null &&
+  "closest" in value &&
   typeof value.closest === "function";
 
 const isAnchorElement = (value: unknown): value is LinkAnchorElement =>
-  typeof value === "object" && value !== null && "getAttribute" in value &&
+  typeof value === "object" &&
+  value !== null &&
+  "getAttribute" in value &&
   typeof value.getAttribute === "function";
 
 /** The `Link` anchor a click landed in, or null for any other click. */

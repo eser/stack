@@ -51,9 +51,11 @@ const withEnvironment = <T>(
  * Creates `<temp>/proj/node_modules/@eserstack/ajan/ffi`, the location this
  * module occupies after `npm install @eserstack/ajan`.
  */
-const createInstallTree = async (): Promise<
-  { tempRoot: string; projectRoot: string; moduleDir: string }
-> => {
+const createInstallTree = async (): Promise<{
+  tempRoot: string;
+  projectRoot: string;
+  moduleDir: string;
+}> => {
   const tempRoot = await Deno.makeTempDir({ prefix: "ajan-resolve-" });
   const projectRoot = `${tempRoot}/proj`;
   const moduleDir = `${projectRoot}/node_modules/@eserstack/ajan/ffi`;
@@ -91,10 +93,8 @@ Deno.test("resolveLibraryPath — finds the hoisted sibling package from any cwd
     // The project root is the only cwd the previous implementation handled;
     // the other two are what an installed CLI invocation actually looks like.
     for (const cwd of [projectRoot, subdirectory, tempRoot]) {
-      const resolved = withEnvironment(
-        cwd,
-        undefined,
-        () => resolve.resolveLibraryPath(moduleDir),
+      const resolved = withEnvironment(cwd, undefined, () =>
+        resolve.resolveLibraryPath(moduleDir),
       );
 
       assertSameFile(resolved, expected);
@@ -112,10 +112,8 @@ Deno.test("resolveLibraryPath — finds a nested (non-hoisted) install", async (
       `${projectRoot}/node_modules/@eserstack/ajan/node_modules/@eserstack/ajan-${platformSlug}`,
     );
 
-    const resolved = withEnvironment(
-      tempRoot,
-      undefined,
-      () => resolve.resolveLibraryPath(moduleDir),
+    const resolved = withEnvironment(tempRoot, undefined, () =>
+      resolve.resolveLibraryPath(moduleDir),
     );
 
     assertSameFile(resolved, expected);
@@ -137,10 +135,8 @@ Deno.test("resolveLibraryPath — finds a package installed above the cwd", asyn
 
     // No usable module directory: the JSR/remote case, where `getModuleDir()`
     // falls back to the cwd and resolution has nothing else to work with.
-    const resolved = withEnvironment(
-      subdirectory,
-      undefined,
-      () => resolve.resolveLibraryPath(subdirectory),
+    const resolved = withEnvironment(subdirectory, undefined, () =>
+      resolve.resolveLibraryPath(subdirectory),
     );
 
     assertSameFile(resolved, expected);
@@ -158,10 +154,8 @@ Deno.test("resolveLibraryPath — ESER_AJAN_LIB_PATH overrides an installed pack
     );
     const override = await writeDummyLibrary(`${tempRoot}/explicit`);
 
-    const resolved = withEnvironment(
-      tempRoot,
-      override,
-      () => resolve.resolveLibraryPath(moduleDir),
+    const resolved = withEnvironment(tempRoot, override, () =>
+      resolve.resolveLibraryPath(moduleDir),
     );
 
     assert.assertEquals(resolved, override);
@@ -176,10 +170,8 @@ Deno.test("resolveLibraryPath — reports every probed location when nothing mat
   try {
     const error = assert.assertThrows(
       () =>
-        withEnvironment(
-          tempRoot,
-          `${tempRoot}/missing/${libName}`,
-          () => resolve.resolveLibraryPath(moduleDir),
+        withEnvironment(tempRoot, `${tempRoot}/missing/${libName}`, () =>
+          resolve.resolveLibraryPath(moduleDir),
         ),
       Error,
     );

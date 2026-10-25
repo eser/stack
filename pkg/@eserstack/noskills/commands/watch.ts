@@ -59,9 +59,7 @@ export type WatchSnapshot = {
 // Build snapshot from filesystem
 // =============================================================================
 
-export const buildSnapshot = async (
-  root: string,
-): Promise<WatchSnapshot> => {
+export const buildSnapshot = async (root: string): Promise<WatchSnapshot> => {
   const state = await persistence.readState(root);
   const config = await persistence.readManifest(root);
 
@@ -203,31 +201,24 @@ export const renderTerminal = (snap: WatchSnapshot): string => {
     for (const s of snap.allSpecs) {
       const pc = phaseColor(s.phase);
       const nameCol = s.name.slice(0, 18).padEnd(18);
-      const phaseCol = `${pc}${s.phase}${RESET}`.padEnd(
-        s.phase.length + 10,
-      );
+      const phaseCol = `${pc}${s.phase}${RESET}`.padEnd(s.phase.length + 10);
 
-      if (
-        s.phase === "EXECUTING" || s.phase === "BLOCKED"
-      ) {
+      if (s.phase === "EXECUTING" || s.phase === "BLOCKED") {
         // Show inline progress bar for executing specs
         const bar = progressBar(snap.completedTaskCount, snap.totalTasks, 10);
-        const pct = snap.totalTasks > 0
-          ? Math.round((snap.completedTaskCount / snap.totalTasks) * 100)
-          : 0;
+        const pct =
+          snap.totalTasks > 0
+            ? Math.round((snap.completedTaskCount / snap.totalTasks) * 100)
+            : 0;
         lines.push(
           row(
             `  ${nameCol} ${phaseCol} ${bar} ${snap.completedTaskCount}/${snap.totalTasks} (${pct}%)`,
           ),
         );
       } else if (s.phase === "COMPLETED") {
-        lines.push(
-          row(`  ${nameCol} ${phaseCol} done`),
-        );
+        lines.push(row(`  ${nameCol} ${phaseCol} done`));
       } else {
-        lines.push(
-          row(`  ${nameCol} ${phaseCol}`),
-        );
+        lines.push(row(`  ${nameCol} ${phaseCol}`));
       }
     }
   } else if (snap.spec !== null) {
@@ -245,9 +236,9 @@ export const renderTerminal = (snap: WatchSnapshot): string => {
   if (snap.phase === "DISCOVERY" || snap.phase === "DISCOVERY_REFINEMENT") {
     lines.push(
       row(
-        `Phase: ${
-          phaseColor(snap.phase)
-        }${snap.phase}${RESET}  Discovery: ${snap.discoveryAnswered}/${snap.discoveryTotal} questions answered`,
+        `Phase: ${phaseColor(
+          snap.phase,
+        )}${snap.phase}${RESET}  Discovery: ${snap.discoveryAnswered}/${snap.discoveryTotal} questions answered`,
       ),
     );
   } else if (snap.phase === "SPEC_PROPOSAL") {
@@ -265,9 +256,7 @@ export const renderTerminal = (snap: WatchSnapshot): string => {
   } else if (snap.phase === "EXECUTING" || snap.phase === "BLOCKED") {
     if (snap.spec !== null) {
       lines.push(
-        row(
-          `${BOLD}${snap.spec}${RESET} (iteration ${snap.iteration}):`,
-        ),
+        row(`${BOLD}${snap.spec}${RESET} (iteration ${snap.iteration}):`),
       );
     }
 
@@ -283,9 +272,10 @@ export const renderTerminal = (snap: WatchSnapshot): string => {
 
     // Progress bar
     const bar = progressBar(snap.completedTaskCount, snap.totalTasks, 12);
-    const pct = snap.totalTasks > 0
-      ? Math.round((snap.completedTaskCount / snap.totalTasks) * 100)
-      : 0;
+    const pct =
+      snap.totalTasks > 0
+        ? Math.round((snap.completedTaskCount / snap.totalTasks) * 100)
+        : 0;
     lines.push(
       row(
         `  Progress: ${GREEN}${bar} ${snap.completedTaskCount}/${snap.totalTasks} tasks (${pct}%)${RESET}`,
@@ -296,9 +286,7 @@ export const renderTerminal = (snap: WatchSnapshot): string => {
     // Last update + progress
     lines.push(row(`  Last update: ${formatTime(snap.timeSinceUpdate)}`));
     if (snap.lastProgress !== null) {
-      lines.push(
-        row(`  ${DIM}${snap.lastProgress.slice(0, w - 4)}${RESET}`),
-      );
+      lines.push(row(`  ${DIM}${snap.lastProgress.slice(0, w - 4)}${RESET}`));
     }
 
     if (snap.phase === "BLOCKED") {
@@ -306,9 +294,7 @@ export const renderTerminal = (snap: WatchSnapshot): string => {
         /^BLOCKED:\s*/,
         "",
       );
-      lines.push(
-        row(`  ${RED}BLOCKED: ${reason.slice(0, w - 14)}${RESET}`),
-      );
+      lines.push(row(`  ${RED}BLOCKED: ${reason.slice(0, w - 14)}${RESET}`));
       lines.push(row(`  ${YELLOW}Human input needed${RESET}`));
     }
 
@@ -329,17 +315,14 @@ export const renderTerminal = (snap: WatchSnapshot): string => {
         lines.push(row(`   └─ ${item.text.slice(0, w - 10)}`));
       }
       if (snap.debt.items.length > 3) {
-        lines.push(
-          row(`   └─ ... and ${snap.debt.items.length - 3} more`),
-        );
+        lines.push(row(`   └─ ... and ${snap.debt.items.length - 3} more`));
       }
     }
 
     // Files changed
     if (snap.trackedFiles.length > 0 || snap.modifiedFiles.length > 0) {
-      const files = snap.trackedFiles.length > 0
-        ? snap.trackedFiles
-        : snap.modifiedFiles;
+      const files =
+        snap.trackedFiles.length > 0 ? snap.trackedFiles : snap.modifiedFiles;
       lines.push(row(`  Files changed: ${files.length}`));
       for (const f of files.slice(0, 5)) {
         const short = f.length > w - 10 ? "..." + f.slice(-(w - 13)) : f;
@@ -363,14 +346,13 @@ export const renderTerminal = (snap: WatchSnapshot): string => {
 
   // ── Footer: concerns + context ──
   if (snap.concerns.length > 0) {
-    lines.push(
-      row(`Concerns: ${snap.concerns.join(", ").slice(0, w - 14)}`),
-    );
+    lines.push(row(`Concerns: ${snap.concerns.join(", ").slice(0, w - 14)}`));
   }
 
-  const ctxWarn = snap.iteration >= snap.maxIterations
-    ? `${RED}RESTART RECOMMENDED${RESET}`
-    : `${GREEN}ok${RESET} (${snap.iteration}/${snap.maxIterations})`;
+  const ctxWarn =
+    snap.iteration >= snap.maxIterations
+      ? `${RED}RESTART RECOMMENDED${RESET}`
+      : `${GREEN}ok${RESET} (${snap.iteration}/${snap.maxIterations})`;
   lines.push(row(`Context: ${ctxWarn}`));
 
   lines.push(`${DIM}╰${border}╯${RESET}`);
@@ -395,9 +377,8 @@ export const renderJsonLine = (snap: WatchSnapshot): string => {
     tasks: { completed: snap.completedTaskCount, total: snap.totalTasks },
     progress: snap.lastProgress,
     debt: snap.debt?.items.length ?? 0,
-    filesChanged: snap.trackedFiles.length > 0
-      ? snap.trackedFiles
-      : snap.modifiedFiles,
+    filesChanged:
+      snap.trackedFiles.length > 0 ? snap.trackedFiles : snap.modifiedFiles,
     timeSinceUpdate: snap.timeSinceUpdate,
     verificationPassed: snap.verificationPassed,
   });
@@ -413,16 +394,15 @@ export const main = async (
   const { root } = await persistence.resolveProjectRoot();
   // Watch defaults to terminal dashboard (not JSON like other commands).
   // Only use JSON/markdown when explicitly requested via -o flag.
-  const hasExplicitFormat = args !== undefined &&
+  const hasExplicitFormat =
+    args !== undefined &&
     args.some((a) => a === "-o" || a.startsWith("--output"));
   const fmt = hasExplicitFormat ? formatter.parseOutputFormat(args) : "ansi";
 
   if (!(await persistence.isInitialized(root))) {
     const encoder = new TextEncoder();
     const writer = runtime.process.stdout.getWriter();
-    await writer.write(
-      encoder.encode("noskills not initialized.\n"),
-    );
+    await writer.write(encoder.encode("noskills not initialized.\n"));
     writer.releaseLock();
 
     return results.fail({ exitCode: 1 });
@@ -434,11 +414,12 @@ export const main = async (
   let lastRender = "";
   const render = async (): Promise<boolean> => {
     const snap = await buildSnapshot(root);
-    const output = fmt === "json"
-      ? renderJsonLine(snap)
-      : fmt === "markdown"
-      ? formatter.format(snap, "markdown")
-      : renderTerminal(snap);
+    const output =
+      fmt === "json"
+        ? renderJsonLine(snap)
+        : fmt === "markdown"
+          ? formatter.format(snap, "markdown")
+          : renderTerminal(snap);
 
     if (fmt === "json") {
       // JSON line mode: emit one line per change
@@ -463,10 +444,12 @@ export const main = async (
     }
 
     // Auto-exit when ALL specs are COMPLETED (nothing left to watch)
-    const allDone = snap.allSpecs.length > 0 &&
+    const allDone =
+      snap.allSpecs.length > 0 &&
       snap.allSpecs.every((s) => s.phase === "COMPLETED");
-    return allDone ||
-      (snap.allSpecs.length === 0 && snap.phase === "COMPLETED");
+    return (
+      allDone || (snap.allSpecs.length === 0 && snap.phase === "COMPLETED")
+    );
   };
 
   // Initial render

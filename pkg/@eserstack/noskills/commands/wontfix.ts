@@ -41,9 +41,9 @@ export const main = async (
   if (reason.length === 0) {
     out.writeln(
       span.red(
-        `A reason is required: ${
-          cmd.cmd(`spec ${specResult.spec} wontfix "reason text"`)
-        }`,
+        `A reason is required: ${cmd.cmd(
+          `spec ${specResult.spec} wontfix "reason text"`,
+        )}`,
       ),
     );
     await out.close();
@@ -63,7 +63,8 @@ export const main = async (
 
   if (
     state.phase === "IDLE" ||
-    state.phase === "UNINITIALIZED" || state.phase === "COMPLETED"
+    state.phase === "UNINITIALIZED" ||
+    state.phase === "COMPLETED"
   ) {
     out.writeln(span.red(`Cannot mark as won't fix in phase: ${state.phase}`));
     await out.close();
@@ -100,11 +101,7 @@ export const main = async (
 
   // Per-spec: preserve COMPLETED state for history
   if (completedState.spec !== null) {
-    await persistence.writeSpecState(
-      root,
-      completedState.spec,
-      completedState,
-    );
+    await persistence.writeSpecState(root, completedState.spec, completedState);
   }
 
   // Global: return to IDLE

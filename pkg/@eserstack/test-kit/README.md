@@ -41,7 +41,7 @@ const error = capture.captureThrow(() => JSON.parse("{"));
 assert.assertInstanceOf(error, SyntaxError);
 
 const reason = await capture.captureRejection(() =>
-  Promise.reject(new RangeError("too far"))
+  Promise.reject(new RangeError("too far")),
 );
 assert.assertInstanceOf(reason, RangeError);
 ```

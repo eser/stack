@@ -50,7 +50,8 @@ Deno.test("the Makefile lists the WASM targets of targets.ts", async () => {
 
   assert.assertEquals(
     vars.get("AJAN_WASM")?.split(/\s+/).sort(),
-    targets.WASM_TARGETS.map((t) => `${t.id}:${t.outputFile}:${t.tags ?? ""}`)
-      .sort(),
+    targets.WASM_TARGETS.map(
+      (t) => `${t.id}:${t.outputFile}:${t.tags ?? ""}`,
+    ).sort(),
   );
 });

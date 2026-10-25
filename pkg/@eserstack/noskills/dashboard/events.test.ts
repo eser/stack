@@ -83,9 +83,8 @@ bdd.describe("appendEvent", () => {
     const count = 40;
 
     await Promise.all(
-      Array.from(
-        { length: count },
-        (_, i) => events.appendEvent(root, makeEvent("note", `spec-${i}`)),
+      Array.from({ length: count }, (_, i) =>
+        events.appendEvent(root, makeEvent("note", `spec-${i}`)),
       ),
     );
 
@@ -208,7 +207,10 @@ bdd.describe("openEventTail", () => {
     await events.appendEvent(root, makeEvent("note", "new"));
 
     const read = await tail.poll();
-    assert.assertEquals(read.map((event) => event.spec), ["new"]);
+    assert.assertEquals(
+      read.map((event) => event.spec),
+      ["new"],
+    );
     assert.assertEquals(await tail.poll(), []);
   });
 
@@ -224,7 +226,10 @@ bdd.describe("openEventTail", () => {
 
     await appendBytes(root, line.slice(20));
     const read = await tail.poll();
-    assert.assertEquals(read.map((event) => event.spec), ["split"]);
+    assert.assertEquals(
+      read.map((event) => event.spec),
+      ["split"],
+    );
   });
 
   bdd.it("reads a line split inside a multi-byte character", async () => {
@@ -255,7 +260,10 @@ bdd.describe("openEventTail", () => {
 
     await events.appendEvent(root, makeEvent("note", "first"));
     const read = await tail.poll();
-    assert.assertEquals(read.map((event) => event.spec), ["first"]);
+    assert.assertEquals(
+      read.map((event) => event.spec),
+      ["first"],
+    );
   });
 });
 
@@ -301,9 +309,13 @@ bdd.describe("watchEvents", () => {
       }
 
       const received: events.DashboardEvent[] = [];
-      const unsub = events.watchEvents(root, (event) => {
-        received.push(event);
-      }, { intervalMs: 1 });
+      const unsub = events.watchEvents(
+        root,
+        (event) => {
+          received.push(event);
+        },
+        { intervalMs: 1 },
+      );
 
       try {
         await new Promise((r) => setTimeout(r, 50));
@@ -313,7 +325,10 @@ bdd.describe("watchEvents", () => {
         unsub();
       }
 
-      assert.assertEquals(received.map((event) => event.spec), ["new"]);
+      assert.assertEquals(
+        received.map((event) => event.spec),
+        ["new"],
+      );
     },
   );
 });

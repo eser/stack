@@ -148,10 +148,7 @@ export class VersionWriteError extends Error {
   /** Every file that was not written, with the reason */
   readonly failures: readonly VersionWriteFailure[];
 
-  constructor(
-    targetVersion: string,
-    failures: readonly VersionWriteFailure[],
-  ) {
+  constructor(targetVersion: string, failures: readonly VersionWriteFailure[]) {
     const message = [
       `bump versions to ${targetVersion}: could not write ${failures.length} package file(s):`,
       ...failures.map((failure) => `  ${failure.filepath}: ${failure.reason}`),
@@ -177,9 +174,8 @@ export const readVersionFile = async (
   const { root = "." } = options;
   const versionFilePath = stdPath.join(root, "VERSION");
   try {
-    const content = await standards.crossRuntime.runtime.fs.readTextFile(
-      versionFilePath,
-    );
+    const content =
+      await standards.crossRuntime.runtime.fs.readTextFile(versionFilePath);
     return content.trim();
   } catch {
     return undefined;
@@ -402,10 +398,10 @@ export const versions = async (
 export type VersionsInput =
   | { readonly mode: "show" }
   | {
-    readonly mode: "update";
-    readonly command: VersionCommand;
-    readonly options: VersionOptions;
-  };
+      readonly mode: "update";
+      readonly command: VersionCommand;
+      readonly options: VersionOptions;
+    };
 
 /**
  * Discriminated output from the versions functions.handler.
@@ -421,24 +417,18 @@ export const versionsHandler: functions.handler.Handler<
   VersionsInput,
   VersionsOutput,
   Error
-> = (
-  input,
-) => {
+> = (input) => {
   if (input.mode === "show") {
-    return functions.task.fromPromise(
-      async () => {
-        const result = await showVersions();
-        return { mode: "show" as const, result };
-      },
-    );
+    return functions.task.fromPromise(async () => {
+      const result = await showVersions();
+      return { mode: "show" as const, result };
+    });
   }
 
-  return functions.task.fromPromise(
-    async () => {
-      const result = await versions(input.command, input.options);
-      return { mode: "update" as const, result };
-    },
-  );
+  return functions.task.fromPromise(async () => {
+    const result = await versions(input.command, input.options);
+    return { mode: "update" as const, result };
+  });
 };
 
 /**
@@ -515,19 +505,19 @@ const cliResponseMapper: functions.handler.ResponseMapper<
       `Setting all versions to ${updateResult.targetVersion}...`,
     );
   } else {
-    tui.log.info(
-      ctx,
-      `Bumping all versions (${updateResult.command})...`,
-    );
+    tui.log.info(ctx, `Bumping all versions (${updateResult.command})...`);
   }
 
   tui.log.info(ctx, `Target version: ${updateResult.targetVersion}`);
   out.writeln(
     span.table(
       ["name", "from", "to", "changed"],
-      updateResult.updates.map((
-        u,
-      ) => [u.name, u.from, u.to, String(u.changed)]),
+      updateResult.updates.map((u) => [
+        u.name,
+        u.from,
+        u.to,
+        String(u.changed),
+      ]),
     ),
   );
 
@@ -570,10 +560,9 @@ export const handleCli: (
 export const main = async (
   cliArgs?: readonly string[],
 ): Promise<shellArgs.CliResult<void>> => {
-  const parsed = cliParseArgs.parseArgs(
-    (cliArgs ?? []) as string[],
-    { boolean: ["dry-run"] },
-  );
+  const parsed = cliParseArgs.parseArgs((cliArgs ?? []) as string[], {
+    boolean: ["dry-run"],
+  });
   const event = cliSupport.toCliEvent("versions", parsed);
   return await handleCli(event);
 };

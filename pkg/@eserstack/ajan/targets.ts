@@ -167,25 +167,19 @@ export const ALL_TARGET_IDS: readonly string[] = [
 ];
 
 /** Look up a native target by its canonical ID. */
-export const findNativeTarget = (
-  id: string,
-): NativeTarget | undefined => NATIVE_TARGETS.find((t) => t.id === id);
+export const findNativeTarget = (id: string): NativeTarget | undefined =>
+  NATIVE_TARGETS.find((t) => t.id === id);
 
 /** Look up a WASM target by its canonical ID. */
-export const findWasmTarget = (
-  id: string,
-): WasmTarget | undefined => WASM_TARGETS.find((t) => t.id === id);
+export const findWasmTarget = (id: string): WasmTarget | undefined =>
+  WASM_TARGETS.find((t) => t.id === id);
 
 /** Look up any target (native or WASM) by canonical ID. */
-export const findTarget = (
-  id: string,
-): NativeTarget | WasmTarget | undefined =>
+export const findTarget = (id: string): NativeTarget | WasmTarget | undefined =>
   findNativeTarget(id) ?? findWasmTarget(id);
 
 /** Look up a native target by its Deno compile triple. */
-export const findByDenoTarget = (
-  triple: string,
-): NativeTarget | undefined =>
+export const findByDenoTarget = (triple: string): NativeTarget | undefined =>
   NATIVE_TARGETS.find((t) => t.denoTarget === triple);
 
 /** npm scope for platform packages. */

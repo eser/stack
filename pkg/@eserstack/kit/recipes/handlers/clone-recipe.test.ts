@@ -21,18 +21,17 @@ const TARBALL_URL = "https://codeload.github.com/owner/repo/tar.gz/main";
  * Stands in for globalThis.fetch: answers each URL in `routes` and rejects
  * any other request, so a test cannot reach the network by accident.
  */
-const fakeFetch = (
-  routes: Readonly<Record<string, () => Response>>,
-): typeof globalThis.fetch =>
-(input) => {
-  const url = input instanceof Request ? input.url : String(input);
-  const route = routes[url];
-  if (route === undefined) {
-    return Promise.reject(new TypeError(`fake fetch: no route for ${url}`));
-  }
+const fakeFetch =
+  (routes: Readonly<Record<string, () => Response>>): typeof globalThis.fetch =>
+  (input) => {
+    const url = input instanceof Request ? input.url : String(input);
+    const route = routes[url];
+    if (route === undefined) {
+      return Promise.reject(new TypeError(`fake fetch: no route for ${url}`));
+    }
 
-  return Promise.resolve(route());
-};
+    return Promise.resolve(route());
+  };
 
 /** A gzipped tarball with one 1 KiB file, as codeload.github.com serves it. */
 const oneFileTarball = (): ReadableStream<Uint8Array> => {
@@ -178,13 +177,10 @@ bdd.describe("cloneRecipe: recipe.json failures", () => {
         result.error.cause,
         registryFetcher.RecipeLoadError,
       );
-      assert.assertEquals(
-        result.error.message.split("\n"),
-        [
-          "load recipe owner/repo@main/recipe.json: download it; check that the repository exists: https://github.com/owner/repo",
-          `  caused by: GET ${RECIPE_URL}: HTTP 500; the host had an error, so retry later`,
-        ],
-      );
+      assert.assertEquals(result.error.message.split("\n"), [
+        "load recipe owner/repo@main/recipe.json: download it; check that the repository exists: https://github.com/owner/repo",
+        `  caused by: GET ${RECIPE_URL}: HTTP 500; the host had an error, so retry later`,
+      ]);
     });
   });
 });

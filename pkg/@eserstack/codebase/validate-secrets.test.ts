@@ -20,10 +20,13 @@ const HEADER =
   "// Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.\n";
 
 const FIXTURE: Record<string, string> = {
-  "src/config.ts": HEADER + "export const apiKey = 'abcdefghijklmnop';\n" +
+  "src/config.ts":
+    HEADER +
+    "export const apiKey = 'abcdefghijklmnop';\n" +
     'export const password = "correct horse battery";\n' +
     "export const name = 'service';\n",
-  "src/notes.md": "The token: abcdefghijklmnop rotates daily.\n" +
+  "src/notes.md":
+    "The token: abcdefghijklmnop rotates daily.\n" +
     "password = unquotedvalue123\n",
   "src/keys.pem": "-----BEGIN RSA PRIVATE KEY-----\nMIIE...\n",
   "src/aws.txt": "id AKIAIOSFODNN7EXAMPLE\n",

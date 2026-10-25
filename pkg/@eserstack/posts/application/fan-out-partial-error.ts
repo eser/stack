@@ -35,9 +35,11 @@ const describeFanOut = (
   }
 
   const published = posted.map((post) => post.platform).join(", ");
-  return `Cross-post published on ${published} but failed on ${failures}; ` +
+  return (
+    `Cross-post published on ${published} but failed on ${failures}; ` +
     `${posted.length} of ${totalPlatforms} platforms succeeded. ` +
-    "The published posts stay up, so retry only the failed platforms.";
+    "The published posts stay up, so retry only the failed platforms."
+  );
 };
 
 /**

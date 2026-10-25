@@ -62,17 +62,16 @@ type ShimModule = {
  * over between tests.
  */
 const loadShim = async (): Promise<ShimModule> => {
-  const source =
-    `${loggingBrowserShim.LOGGING_BROWSER_SHIM}\n// copy ${crypto.randomUUID()}\n`;
+  const source = `${loggingBrowserShim.LOGGING_BROWSER_SHIM}\n// copy ${crypto.randomUUID()}\n`;
 
-  return await import(
+  return (await import(
     `data:text/javascript,${encodeURIComponent(source)}`
-  ) as ShimModule;
+  )) as ShimModule;
 };
 
 const CONSOLE_METHODS = ["debug", "info", "warn", "error"] as const;
 
-type ConsoleMethod = typeof CONSOLE_METHODS[number];
+type ConsoleMethod = (typeof CONSOLE_METHODS)[number];
 
 type ConsoleCall = {
   readonly method: ConsoleMethod;
@@ -132,20 +131,23 @@ Deno.test("logger.with(...).warn(...) writes to console.warn with the category a
   let returned: unknown;
 
   const calls = await recordConsole(async () => {
-    returned = await shim.logger.getLogger(["app", "checkout"])
+    returned = await shim.logger
+      .getLogger(["app", "checkout"])
       .with({ orderId: "order-1" })
       .with({ durationMs: 1200 })
       .warn("payment took longer than a second");
   });
 
   assert.assertEquals(returned, "payment took longer than a second");
-  assert.assertEquals(calls, [{
-    method: "warn",
-    args: [
-      "[app.checkout] payment took longer than a second",
-      { orderId: "order-1", durationMs: 1200 },
-    ],
-  }]);
+  assert.assertEquals(calls, [
+    {
+      method: "warn",
+      args: [
+        "[app.checkout] payment took longer than a second",
+        { orderId: "order-1", durationMs: 1200 },
+      ],
+    },
+  ]);
 });
 
 Deno.test("the logging shim drops records below Warning by default", async () => {
@@ -167,12 +169,7 @@ Deno.test("the logging shim drops records below Warning by default", async () =>
   assert.assertEquals(built, []);
 });
 
-const ERROR_LEVEL_CASES = [
-  "error",
-  "critical",
-  "alert",
-  "emergency",
-] as const;
+const ERROR_LEVEL_CASES = ["error", "critical", "alert", "emergency"] as const;
 
 for (const level of ERROR_LEVEL_CASES) {
   Deno.test(`the logging shim writes ${level} records to console.error`, async () => {
@@ -182,10 +179,12 @@ for (const level of ERROR_LEVEL_CASES) {
       await shim.logger.getLogger("app")[level]("checkout failed");
     });
 
-    assert.assertEquals(calls, [{
-      method: "error",
-      args: ["[app] checkout failed"],
-    }]);
+    assert.assertEquals(calls, [
+      {
+        method: "error",
+        args: ["[app] checkout failed"],
+      },
+    ]);
   });
 }
 
@@ -196,15 +195,18 @@ Deno.test("the logging shim puts extra arguments in an args attribute", async ()
     await shim.logger.getLogger("app").warn("retrying", { attempt: 2 });
   });
 
-  assert.assertEquals(calls, [{
-    method: "warn",
-    args: ["[app] retrying", { args: [{ attempt: 2 }] }],
-  }]);
+  assert.assertEquals(calls, [
+    {
+      method: "warn",
+      args: ["[app] retrying", { args: [{ attempt: 2 }] }],
+    },
+  ]);
 });
 
 Deno.test("getChild extends the category and keeps the properties", async () => {
   const shim = await loadShim();
-  const child = shim.logger.getLogger("app.http")
+  const child = shim.logger
+    .getLogger("app.http")
     .with({ requestId: "req-7" })
     .getChild(["routes", "stories"]);
 
@@ -213,10 +215,12 @@ Deno.test("getChild extends the category and keeps the properties", async () => 
   });
 
   assert.assertEquals(child.category, ["app", "http", "routes", "stories"]);
-  assert.assertEquals(calls, [{
-    method: "warn",
-    args: ["[app.http.routes.stories] slow route", { requestId: "req-7" }],
-  }]);
+  assert.assertEquals(calls, [
+    {
+      method: "warn",
+      args: ["[app.http.routes.stories] slow route", { requestId: "req-7" }],
+    },
+  ]);
 });
 
 Deno.test("config.configure sends records to a configured sink at the configured level", async () => {
@@ -224,15 +228,19 @@ Deno.test("config.configure sends records to a configured sink at the configured
   const records: ShimRecord[] = [];
   await shim.config.configure({
     sinks: { memory: (record) => records.push(record) },
-    loggers: [{
-      category: ["app"],
-      lowestLevel: shim.Severities.Debug,
-      sinks: ["memory"],
-    }],
+    loggers: [
+      {
+        category: ["app"],
+        lowestLevel: shim.Severities.Debug,
+        sinks: ["memory"],
+      },
+    ],
   });
 
   const calls = await recordConsole(async () => {
-    await shim.logger.getLogger(["app", "cart"]).with({ cartId: "cart-3" })
+    await shim.logger
+      .getLogger(["app", "cart"])
+      .with({ cartId: "cart-3" })
       .debug("item added", "sku-9");
     await shim.logger.getLogger("other").info("not configured, dropped");
     await shim.logger.getLogger("other").warn("not configured, console");
@@ -247,18 +255,22 @@ Deno.test("config.configure sends records to a configured sink at the configured
       properties: record.properties,
       args: record.args,
     })),
-    [{
-      message: "item added",
-      severity: shim.Severities.Debug,
-      category: ["app", "cart"],
-      properties: { cartId: "cart-3" },
-      args: ["sku-9"],
-    }],
+    [
+      {
+        message: "item added",
+        severity: shim.Severities.Debug,
+        category: ["app", "cart"],
+        properties: { cartId: "cart-3" },
+        args: ["sku-9"],
+      },
+    ],
   );
-  assert.assertEquals(calls, [{
-    method: "warn",
-    args: ["[other] not configured, console"],
-  }]);
+  assert.assertEquals(calls, [
+    {
+      method: "warn",
+      args: ["[other] not configured, console"],
+    },
+  ]);
 });
 
 Deno.test("parentSinks override keeps the sinks of less specific configurations out", async () => {
@@ -321,8 +333,10 @@ Deno.test("config.reset restores console output at Warning", async () => {
 
   assert.assertEquals(shim.config.isConfigured(), false);
   assert.assertEquals(records, []);
-  assert.assertEquals(calls, [{
-    method: "warn",
-    args: ["[app] after reset"],
-  }]);
+  assert.assertEquals(calls, [
+    {
+      method: "warn",
+      args: ["[app] after reset"],
+    },
+  ]);
 });

@@ -40,12 +40,8 @@ export const main = async (
   const rawArgs = args ?? [];
   const specName = rawArgs[0] ?? null;
   if (specName === null) {
-    out.writeln(
-      span.red("Error: spec name is required."),
-    );
-    out.writeln(
-      span.dim(`Usage: ${cmd.cmdPrefix()} validate <spec-name>`),
-    );
+    out.writeln(span.red("Error: spec name is required."));
+    out.writeln(span.dim(`Usage: ${cmd.cmdPrefix()} validate <spec-name>`));
     await out.close();
     return results.fail({ exitCode: 1 });
   }
@@ -55,13 +51,9 @@ export const main = async (
   try {
     state = await persistence.readSpecState(root, specName);
   } catch {
+    out.writeln(span.red(`Spec "${specName}" not found.`));
     out.writeln(
-      span.red(`Spec "${specName}" not found.`),
-    );
-    out.writeln(
-      span.dim(
-        `Run \`${cmd.cmdPrefix()} spec list\` to see available specs.`,
-      ),
+      span.dim(`Run \`${cmd.cmdPrefix()} spec list\` to see available specs.`),
     );
     await out.close();
     return results.fail({ exitCode: 1 });

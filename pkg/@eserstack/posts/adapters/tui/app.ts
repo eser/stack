@@ -10,8 +10,8 @@ import * as triggers from "./triggers.ts";
 import * as menu from "./menu.ts";
 
 export async function main(): Promise<void> {
-  const { bound, auths, tokenStore, twitterRedirectUri } = await wiring
-    .createAppContext();
+  const { bound, auths, tokenStore, twitterRedirectUri } =
+    await wiring.createAppContext();
   const tuiTriggers = triggers.createTuiTriggers(bound);
   const tuiMenu = new menu.TuiMenu(
     tuiTriggers,

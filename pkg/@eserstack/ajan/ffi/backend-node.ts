@@ -25,8 +25,8 @@ type FfiDefinition = { arguments: string[]; return: string };
 const FFI_TYPES: Readonly<Record<string, string>> = {
   "void*": "pointer",
   "const char*": "string",
-  "int": "int32",
-  "void": "void",
+  int: "int32",
+  void: "void",
 };
 
 /**
@@ -59,10 +59,13 @@ export const parseSignature = (
     name: match[2]!,
     definition: {
       return: toType(match[1]!),
-      arguments: params === "" ? [] : params.split(",").map((param) =>
-        // Drop the parameter name: "const char* path" -> "const char*".
-        toType(param.trim().replace(/\s*\b\w+$/, ""))
-      ),
+      arguments:
+        params === ""
+          ? []
+          : params.split(",").map((param) =>
+              // Drop the parameter name: "const char* path" -> "const char*".
+              toType(param.trim().replace(/\s*\b\w+$/, "")),
+            ),
     },
   };
 };
@@ -142,9 +145,7 @@ export const backend: types.FFIBackend = {
     const rawConfigLoad = lib.func(
       "void* EserAjanConfigLoad(const char* path)",
     );
-    const rawDIResolve = lib.func(
-      "void* EserAjanDIResolve(const char* name)",
-    );
+    const rawDIResolve = lib.func("void* EserAjanDIResolve(const char* name)");
     const rawAiCreateModel = lib.func(
       "void* EserAjanAiCreateModel(const char* configJSON)",
     );
@@ -197,9 +198,7 @@ export const backend: types.FFIBackend = {
     const rawLogWrite = lib.func(
       "void* EserAjanLogWrite(const char* requestJSON)",
     );
-    const rawLogClose = lib.func(
-      "void* EserAjanLogClose(const char* handle)",
-    );
+    const rawLogClose = lib.func("void* EserAjanLogClose(const char* handle)");
     const rawLogShouldLog = lib.func(
       "void* EserAjanLogShouldLog(const char* requestJSON)",
     );
@@ -263,9 +262,7 @@ export const backend: types.FFIBackend = {
     const rawCsGenerate = lib.func(
       "void* EserAjanCsGenerate(const char* requestJSON)",
     );
-    const rawCsSync = lib.func(
-      "void* EserAjanCsSync(const char* requestJSON)",
-    );
+    const rawCsSync = lib.func("void* EserAjanCsSync(const char* requestJSON)");
     const rawKitListRecipes = lib.func(
       "void* EserAjanKitListRecipes(const char* requestJSON)",
     );

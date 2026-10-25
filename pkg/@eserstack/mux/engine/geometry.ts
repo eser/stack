@@ -57,8 +57,8 @@ export const effectiveChrome = (viewport: Viewport, chrome: Chrome): Chrome => {
     rightCols = 0;
   }
 
-  const verticalChrome = chrome.tabBarRows + chrome.statusBarRows + topRows +
-    bottomRows;
+  const verticalChrome =
+    chrome.tabBarRows + chrome.statusBarRows + topRows + bottomRows;
   if (viewport.rows - verticalChrome < MIN_PANE_ROWS) {
     topRows = 0;
     bottomRows = 0;
@@ -243,9 +243,10 @@ export const neighborInDirection = (
     const center = horizontal ? g.x + g.width / 2 : g.y + g.height / 2;
     const selfCenter = horizontal ? selfCx : selfCy;
 
-    const onSide = direction === "left" || direction === "up"
-      ? center < selfCenter
-      : center > selfCenter;
+    const onSide =
+      direction === "left" || direction === "up"
+        ? center < selfCenter
+        : center > selfCenter;
     if (!onSide) continue;
 
     const dist = Math.abs(center - selfCenter);

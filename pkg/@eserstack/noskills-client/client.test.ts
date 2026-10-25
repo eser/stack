@@ -23,9 +23,8 @@ const createFakeFetch = (
       url: String(input),
       method: init?.method ?? "GET",
       headers: (init?.headers ?? {}) as Record<string, string>,
-      body: init?.body === undefined
-        ? undefined
-        : JSON.parse(String(init.body)),
+      body:
+        init?.body === undefined ? undefined : JSON.parse(String(init.body)),
       signal: init?.signal ?? undefined,
     };
     calls.push(call);
@@ -204,12 +203,8 @@ Deno.test("responses are parsed as JSON", async () => {
 
 Deno.test("login sends the PIN without a token and keeps the token it gets", async () => {
   const login = { token: "t-new", expiresAt: "2026-12-31T00:00:00Z" };
-  const { client, calls } = createClient(
-    {},
-    (call) =>
-      call.url.endsWith("/auth/login")
-        ? Response.json(login)
-        : Response.json([]),
+  const { client, calls } = createClient({}, (call) =>
+    call.url.endsWith("/auth/login") ? Response.json(login) : Response.json([]),
   );
 
   assert.assertEquals(await client.login("428591"), login);
@@ -223,9 +218,8 @@ Deno.test("login sends the PIN without a token and keeps the token it gets", asy
 });
 
 Deno.test("setup sends the PIN without a token", async () => {
-  const { client, calls } = createClient(
-    { token: "t-1" },
-    () => Response.json({ ok: true }),
+  const { client, calls } = createClient({ token: "t-1" }, () =>
+    Response.json({ ok: true }),
   );
 
   await client.setup("428591");
@@ -236,9 +230,8 @@ Deno.test("setup sends the PIN without a token", async () => {
 });
 
 Deno.test("logout sends the token, then forgets it", async () => {
-  const { client, calls } = createClient(
-    { token: "t-1" },
-    () => Response.json({ ok: true }),
+  const { client, calls } = createClient({ token: "t-1" }, () =>
+    Response.json({ ok: true }),
   );
 
   await client.logout();
@@ -272,9 +265,8 @@ Deno.test("setToken replaces the token later requests send", async () => {
 });
 
 Deno.test("getVapidPublicKey returns the key from the public endpoint", async () => {
-  const { client, calls } = createClient(
-    { token: "t-1" },
-    () => Response.json({ publicKey: "BPk" }),
+  const { client, calls } = createClient({ token: "t-1" }, () =>
+    Response.json({ publicKey: "BPk" }),
   );
 
   assert.assertEquals(await client.getVapidPublicKey(), "BPk");
@@ -412,9 +404,13 @@ Deno.test("a call rejects with the caller's reason when its signal aborts", asyn
   const controller = new AbortController();
   const reason = new Error("user closed the page");
 
-  const pending = client.createSession("app", {}, {
-    signal: controller.signal,
-  });
+  const pending = client.createSession(
+    "app",
+    {},
+    {
+      signal: controller.signal,
+    },
+  );
   controller.abort(reason);
 
   assert.assertStrictEquals(
@@ -429,9 +425,9 @@ Deno.test("a call with an aborted signal does not wait for the daemon", async ()
   const reason = new Error("cancelled before it started");
 
   assert.assertStrictEquals(
-    await client.health({ signal: AbortSignal.abort(reason) }).catch((
-      error: unknown,
-    ) => error),
+    await client
+      .health({ signal: AbortSignal.abort(reason) })
+      .catch((error: unknown) => error),
     reason,
   );
 });
@@ -445,10 +441,12 @@ Deno.test("registerProject with a git URL waits longer than other calls", async 
   try {
     // The 20 ms client limit does not apply: only the caller's abort ends it.
     assert.assertStrictEquals(
-      await client.registerProject(
-        { git: "https://github.com/eser/stack.git" },
-        { signal: controller.signal },
-      ).catch((error: unknown) => error),
+      await client
+        .registerProject(
+          { git: "https://github.com/eser/stack.git" },
+          { signal: controller.signal },
+        )
+        .catch((error: unknown) => error),
       reason,
     );
   } finally {

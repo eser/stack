@@ -59,9 +59,7 @@ const manifest = (
 });
 
 /** Assert a single-record diff and return that record (narrowed non-null). */
-const only = (
-  recs: readonly ledger.LedgerRecord[],
-): ledger.LedgerRecord => {
+const only = (recs: readonly ledger.LedgerRecord[]): ledger.LedgerRecord => {
   assert.assertEquals(recs.length, 1);
   return recs[0]!;
 };
@@ -112,12 +110,12 @@ bdd.describe("diffDecisions: discovery answers", () => {
 
   bdd.it("maps every base questionId to its category", () => {
     const expected: Record<string, ledger.LedgerCategory> = {
-      "status_quo": "scope",
+      status_quo: "scope",
       ambition: "scope",
       reversibility: "constraint",
-      "user_impact": "constraint",
+      user_impact: "constraint",
       verification: "acceptance-criteria",
-      "scope_boundary": "out-of-scope",
+      scope_boundary: "out-of-scope",
     };
     for (const [qid, category] of Object.entries(expected)) {
       const prev = base({ spec: "s", phase: "DISCOVERY" });
@@ -173,13 +171,15 @@ bdd.describe("diffDecisions: decisions", () => {
     const next = base({
       spec: "s",
       phase: "DISCOVERY_REFINEMENT",
-      decisions: [{
-        id: "decision-split-keep-1",
-        question: "Split spec?",
-        choice: "keep",
-        promoted: false,
-        timestamp: "2024-01-02T00:00:00.000Z",
-      }],
+      decisions: [
+        {
+          id: "decision-split-keep-1",
+          question: "Split spec?",
+          choice: "keep",
+          promoted: false,
+          timestamp: "2024-01-02T00:00:00.000Z",
+        },
+      ],
     });
     const rec = only(ledger.diffDecisions(prev, next, null));
     assert.assertEquals(rec.provenance, "ratified");
@@ -191,13 +191,15 @@ bdd.describe("diffDecisions: decisions", () => {
     const next = base({
       spec: "s",
       phase: "EXECUTING",
-      decisions: [{
-        id: "d1",
-        question: "Which lib?",
-        choice: "use foo",
-        promoted: false,
-        timestamp: "2024-01-02T00:00:00.000Z",
-      }],
+      decisions: [
+        {
+          id: "d1",
+          question: "Which lib?",
+          choice: "use foo",
+          promoted: false,
+          timestamp: "2024-01-02T00:00:00.000Z",
+        },
+      ],
     });
     const rec = only(ledger.diffDecisions(prev, next, null));
     assert.assertEquals(rec.provenance, "ratified");
@@ -219,13 +221,15 @@ bdd.describe("diffDecisions: phase transitions", () => {
         spec: "s",
         phase: "SPEC_APPROVED",
         specState: { ...prev.specState, path: ".eser/specs/s/spec.md" },
-        transitionHistory: [{
-          from: "SPEC_PROPOSAL",
-          to: "SPEC_APPROVED",
-          user: "Tester",
-          email: "t@example.com",
-          timestamp: "2024-01-03T00:00:00.000Z",
-        }],
+        transitionHistory: [
+          {
+            from: "SPEC_PROPOSAL",
+            to: "SPEC_APPROVED",
+            user: "Tester",
+            email: "t@example.com",
+            timestamp: "2024-01-03T00:00:00.000Z",
+          },
+        ],
       });
       const rec = only(ledger.diffDecisions(prev, next, null));
       assert.assertEquals(rec.provenance, "ratified");
@@ -248,22 +252,26 @@ bdd.describe("diffDecisions: review posture", () => {
 
   bdd.it("labels posture equal to the manifest default as 'default'", () => {
     const prev = base({ spec: "s", phase: "DISCOVERY_REFINEMENT" });
-    const rec = only(ledger.diffDecisions(
-      prev,
-      postureState(),
-      manifest({ defaultReviewPosture: "hold-scope" }),
-    ));
+    const rec = only(
+      ledger.diffDecisions(
+        prev,
+        postureState(),
+        manifest({ defaultReviewPosture: "hold-scope" }),
+      ),
+    );
     assert.assertEquals(rec.provenance, "default");
     assert.assertEquals(rec.category, "scope");
   });
 
   bdd.it("labels a posture differing from the default as 'ratified'", () => {
     const prev = base({ spec: "s", phase: "DISCOVERY_REFINEMENT" });
-    const rec = only(ledger.diffDecisions(
-      prev,
-      postureState(),
-      manifest({ defaultReviewPosture: "scope-expansion" }),
-    ));
+    const rec = only(
+      ledger.diffDecisions(
+        prev,
+        postureState(),
+        manifest({ defaultReviewPosture: "scope-expansion" }),
+      ),
+    );
     assert.assertEquals(rec.provenance, "ratified");
   });
 
@@ -335,14 +343,16 @@ bdd.describe("diffDecisions: custom ACs and no-op", () => {
     const next = base({
       spec: "s",
       phase: "EXECUTING",
-      customACs: [{
-        id: "custom-ac-1",
-        text: "Must handle empty input",
-        user: "Tester",
-        email: "t@example.com",
-        timestamp: "2024-01-04T00:00:00.000Z",
-        addedInPhase: "EXECUTING",
-      }],
+      customACs: [
+        {
+          id: "custom-ac-1",
+          text: "Must handle empty input",
+          user: "Tester",
+          email: "t@example.com",
+          timestamp: "2024-01-04T00:00:00.000Z",
+          addedInPhase: "EXECUTING",
+        },
+      ],
     });
     const rec = only(ledger.diffDecisions(prev, next, null));
     assert.assertEquals(rec.provenance, "ratified");
@@ -424,15 +434,17 @@ bdd.describe("countOpenQuestions", () => {
           answer("status_quo", "a", "STATED"),
           answer("ambition", "a", "STATED"),
         ]), // 4 of 6 base questions unanswered
-        followUps: [{
-          id: "f1",
-          parentQuestionId: "status_quo",
-          question: "?",
-          answer: null,
-          status: "pending",
-          createdBy: "agent",
-          createdAt: "2024-01-01T00:00:00.000Z",
-        }],
+        followUps: [
+          {
+            id: "f1",
+            parentQuestionId: "status_quo",
+            question: "?",
+            answer: null,
+            status: "pending",
+            createdBy: "agent",
+            createdAt: "2024-01-01T00:00:00.000Z",
+          },
+        ],
       });
       const withFindings: schema.StateFile = {
         ...state,

@@ -42,9 +42,10 @@ export async function generateRouteFile(
   options: GenerateRouteOptions,
 ): Promise<void> {
   const { scanResult, outputPath, projectRoot, moduleVersion } = options;
-  const importQuery = moduleVersion === undefined
-    ? ""
-    : `?v=${encodeURIComponent(moduleVersion)}`;
+  const importQuery =
+    moduleVersion === undefined
+      ? ""
+      : `?v=${encodeURIComponent(moduleVersion)}`;
   const { routes } = scanResult;
 
   generatorLogger.debug(`Generating routes file: ${outputPath}`);
@@ -60,9 +61,10 @@ export async function generateRouteFile(
     // We want to import from the bundled file "./src/app/routes/home/page.js"
     // Both bundlers output to dist/server/src/app/* (preserves src/ structure)
     // Strip source extension before adding .js
-    const componentImportPath = `./${
-      patterns.replaceJsExtension(route.componentPath, "")
-    }.js${importQuery}`;
+    const componentImportPath = `./${patterns.replaceJsExtension(
+      route.componentPath,
+      "",
+    )}.js${importQuery}`;
 
     // One route's sources at a time keeps open file handles bounded; a
     // project can have more routes than the open-file limit.
@@ -84,14 +86,13 @@ export async function generateRouteFile(
     if (route.layoutPath && layoutName) {
       // Import from bundled files in dist/server/src/app/ (both bundlers preserve src/ structure)
       // Strip source extension before adding .js
-      const layoutImportPath = `./${
-        patterns.replaceJsExtension(route.layoutPath, "")
-      }.js${importQuery}`;
+      const layoutImportPath = `./${patterns.replaceJsExtension(
+        route.layoutPath,
+        "",
+      )}.js${importQuery}`;
 
       if (!importedComponents.has(route.layoutPath)) {
-        imports.push(
-          `import { ${layoutName} } from "${layoutImportPath}";`,
-        );
+        imports.push(`import { ${layoutName} } from "${layoutImportPath}";`);
         importedComponents.set(route.layoutPath, layoutName);
       }
     }

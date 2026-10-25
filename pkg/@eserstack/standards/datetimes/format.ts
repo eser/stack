@@ -51,10 +51,7 @@ const DAY = 24 * HOUR;
  * @param now - Reference date for comparison (defaults to current time)
  * @returns Human-readable relative time string
  */
-export const getRelativeTime = (
-  date: Date,
-  now: Date = new Date(),
-): string => {
+export const getRelativeTime = (date: Date, now: Date = new Date()): string => {
   const diffMs = now.getTime() - date.getTime();
   const absDiffMs = Math.abs(diffMs);
   const isPast = diffMs > 0;

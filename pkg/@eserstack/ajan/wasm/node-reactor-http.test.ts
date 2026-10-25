@@ -25,9 +25,7 @@ const hasWasm = ((): boolean => {
 
 const readNodeMajor = async (): Promise<number | null> => {
   try {
-    const { success, stdout } = await runtime.exec.spawn("node", [
-      "--version",
-    ]);
+    const { success, stdout } = await runtime.exec.spawn("node", ["--version"]);
     const version = new TextDecoder().decode(stdout).trim();
     return success ? Number(version.slice(1).split(".")[0]) : null;
   } catch {

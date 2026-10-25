@@ -106,8 +106,9 @@ export function buildLinkConfig(
  */
 export function isExternalUrl(href: string): boolean {
   const protocol = getUrlProtocol(href);
-  return protocol === "http:" || protocol === "https:" ||
-    isProtocolRelative(href);
+  return (
+    protocol === "http:" || protocol === "https:" || isProtocolRelative(href)
+  );
 }
 
 /**

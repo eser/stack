@@ -109,7 +109,7 @@ const fetchFollowing = async (
   let body: string | undefined = request.body === "" ? undefined : request.body;
   const headers = new Headers(request.headers ?? {});
 
-  for (let hops = 0;; hops += 1) {
+  for (let hops = 0; ; hops += 1) {
     // Each redirect hop needs the previous response.
     // deno-lint-ignore no-await-in-loop
     const response = await fetch(url, {
@@ -122,7 +122,8 @@ const fetchFollowing = async (
 
     const location = response.headers.get("location");
     if (
-      !REDIRECT_STATUSES.has(response.status) || location === null ||
+      !REDIRECT_STATUSES.has(response.status) ||
+      location === null ||
       hops >= MAX_REDIRECTS
     ) {
       return response;
@@ -185,9 +186,10 @@ export const createHostImports = (
   const doFetch = async (ptr: number, n: number): Promise<number> => {
     const request = readRequest<FetchRequest>(ptr, n);
     const caller = requestSignals.requestSignal(request.requestId);
-    const timeout = request.timeoutMs !== undefined && request.timeoutMs > 0
-      ? AbortSignal.timeout(request.timeoutMs)
-      : undefined;
+    const timeout =
+      request.timeoutMs !== undefined && request.timeoutMs > 0
+        ? AbortSignal.timeout(request.timeoutMs)
+        : undefined;
     const signal = AbortSignal.any(
       [caller, timeout].filter((s): s is AbortSignal => s !== undefined),
     );
@@ -290,17 +292,19 @@ export const createHostImports = (
     };
   }
 
-  const Suspending = (WebAssembly as unknown as {
-    Suspending: new (fn: (...args: number[]) => Promise<unknown>) => unknown;
-  }).Suspending;
+  const Suspending = (
+    WebAssembly as unknown as {
+      Suspending: new (fn: (...args: number[]) => Promise<unknown>) => unknown;
+    }
+  ).Suspending;
 
   return {
     http_fetch: new Suspending(doFetch),
     http_read: new Suspending(doRead),
     http_release: release,
     http_take: take,
-    sleep: new Suspending((ms: number) =>
-      new Promise<void>((resolve) => setTimeout(resolve, ms))
+    sleep: new Suspending(
+      (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)),
     ),
   } as WebAssembly.ModuleImports;
 };

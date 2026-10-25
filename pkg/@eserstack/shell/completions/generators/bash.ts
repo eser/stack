@@ -30,17 +30,15 @@ const generateSubcommandCase = (
   }
 
   const subcommandNames = node.children.map((c) => c.name).join(" ");
-  const flagCompletions = node.flags !== undefined
-    ? generateFlagCompletions(node.flags)
-    : "";
+  const flagCompletions =
+    node.flags !== undefined ? generateFlagCompletions(node.flags) : "";
 
   const completions = [subcommandNames, flagCompletions]
     .filter((s) => s.length > 0)
     .join(" ");
 
   let output = `        ${prefix})\n`;
-  output +=
-    `            COMPREPLY=( $(compgen -W "${completions}" -- "\${cur}") )\n`;
+  output += `            COMPREPLY=( $(compgen -W "${completions}" -- "\${cur}") )\n`;
   output += `            return 0\n`;
   output += `            ;;\n`;
 
@@ -59,9 +57,8 @@ const generateSubcommandCase = (
  */
 export const generate = (appName: string, tree: CompletionNode): string => {
   const topLevelCommands = tree.children?.map((c) => c.name).join(" ") ?? "";
-  const topLevelFlags = tree.flags !== undefined
-    ? generateFlagCompletions(tree.flags)
-    : "";
+  const topLevelFlags =
+    tree.flags !== undefined ? generateFlagCompletions(tree.flags) : "";
 
   const topLevel = [topLevelCommands, topLevelFlags]
     .filter((s) => s.length > 0)

@@ -147,7 +147,8 @@ export const installGitWrapper = async (
   );
   if (realGit === null) return null;
 
-  const projectGitDir = await gitCommonDir(realGit, [], root) ??
+  const projectGitDir =
+    (await gitCommonDir(realGit, [], root)) ??
     `${await crossRuntime.runtime.fs.realPath(root)}/.git`;
 
   const script = gitWrapper.buildWrapperScript({

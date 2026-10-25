@@ -158,9 +158,10 @@ export const getShellConfig = (
     shell: detectedShell,
     rcFile: getRcFilePath(detectedShell),
     completionType,
-    completionsFile: completionType === "file"
-      ? getCompletionsFilePath(detectedShell, appName)
-      : undefined,
+    completionsFile:
+      completionType === "file"
+        ? getCompletionsFilePath(detectedShell, appName)
+        : undefined,
   };
 };
 

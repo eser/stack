@@ -111,10 +111,7 @@ export type CliCommandOptions = {
  * Splits a PATH environment variable string into individual directory entries.
  * Filters out empty segments (e.g. from `::` on Unix or `;;` on Windows).
  */
-export const resolvePathDirs = (
-  pathStr: string,
-  os: Platform,
-): string[] => {
+export const resolvePathDirs = (pathStr: string, os: Platform): string[] => {
   const sep = os === "windows" ? ";" : ":";
 
   return pathStr.split(sep).filter((dir) => dir.length > 0);
@@ -309,10 +306,11 @@ export const matchCliPrefix = (
 
     // Embedded match — subcommand in a path or package specifier
     // e.g., /path/to/noskills, npm:noskills, jsr:@eserstack/noskills
-    const embeddedIdx = argv.findIndex((arg) =>
-      arg.endsWith(`/${sub}`) ||
-      arg.endsWith(`\\${sub}`) ||
-      arg.includes(`:${sub}`)
+    const embeddedIdx = argv.findIndex(
+      (arg) =>
+        arg.endsWith(`/${sub}`) ||
+        arg.endsWith(`\\${sub}`) ||
+        arg.includes(`:${sub}`),
     );
     if (embeddedIdx >= 0) {
       return argv.slice(0, embeddedIdx + 1).join(" ");
@@ -365,10 +363,11 @@ export const getCliPrefix = async (
     }
 
     // Embedded in package specifier / path
-    const hasEmbedded = argv.some((arg) =>
-      arg.endsWith(`/${sub}`) ||
-      arg.endsWith(`\\${sub}`) ||
-      arg.includes(`:${sub}`)
+    const hasEmbedded = argv.some(
+      (arg) =>
+        arg.endsWith(`/${sub}`) ||
+        arg.endsWith(`\\${sub}`) ||
+        arg.includes(`:${sub}`),
     );
     if (hasEmbedded) {
       return ctx.command;
@@ -403,8 +402,8 @@ export const detectExecutionContext = async (
   // Keys are the environment variable names that Bun and npm set.
   const envVars: Record<string, string | undefined> = {
     BUN_INSTALL: mod.runtime.env.get("BUN_INSTALL"),
-    "npm_execpath": mod.runtime.env.get("npm_execpath"),
-    "npm_config_user_agent": mod.runtime.env.get("npm_config_user_agent"),
+    npm_execpath: mod.runtime.env.get("npm_execpath"),
+    npm_config_user_agent: mod.runtime.env.get("npm_config_user_agent"),
   };
 
   // Dev context: file:// URL (local on-disk module) + "cli" task/script in cwd.
@@ -458,7 +457,7 @@ export const detectExecutionContext = async (
   );
 
   const runtime: CliRuntime = KNOWN_RUNTIMES.has(effectiveRuntime)
-    ? effectiveRuntime as CliRuntime
+    ? (effectiveRuntime as CliRuntime)
     : "compiled";
 
   const command = buildCommand(invoker, mode, opts);

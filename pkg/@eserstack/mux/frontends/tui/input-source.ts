@@ -34,10 +34,12 @@ export const keyToMessages = (
   }
 
   if (mode === "normal" || mode === "locked") {
-    return [{
-      t: "action",
-      action: { type: "writeInput", data: decoder.decode(key.raw) },
-    }];
+    return [
+      {
+        t: "action",
+        action: { type: "writeInput", data: decoder.decode(key.raw) },
+      },
+    ];
   }
 
   return [];
@@ -55,8 +57,10 @@ export const mouseToMessages = (
     const x0 = pane.geom.x + 1;
     const y0 = pane.geom.y + 1;
     if (
-      ev.x >= x0 && ev.x < x0 + pane.geom.width &&
-      ev.y >= y0 && ev.y < y0 + pane.geom.height
+      ev.x >= x0 &&
+      ev.x < x0 + pane.geom.width &&
+      ev.y >= y0 &&
+      ev.y < y0 + pane.geom.height
     ) {
       return [{ t: "action", action: { type: "focusPane", pane: pane.id } }];
     }

@@ -128,10 +128,7 @@ export class Command implements CommandLike {
   }
 
   /** Configure argument validation */
-  args(
-    validation: ArgsValidation,
-    count?: number | [number, number],
-  ): this {
+  args(validation: ArgsValidation, count?: number | [number, number]): this {
     if (validation === "exact" && typeof count === "number") {
       this.#argsConfig = { validation, count };
     } else if (validation === "min" && typeof count === "number") {
@@ -330,7 +327,8 @@ export class Command implements CommandLike {
     const allFlags = this.#getAllFlags();
     const parseOptions = flags.buildParseOptions(allFlags);
 
-    const hasSubcommands = this.#children.length > 0 ||
+    const hasSubcommands =
+      this.#children.length > 0 ||
       this.#lazyChildren.size > 0 ||
       this.#groups.size > 0 ||
       this.#groupOptions !== undefined ||
@@ -401,8 +399,8 @@ export class Command implements CommandLike {
 
       // 3. Check direct modules (flat dispatch, no namespace prefix)
       if (this.#groupOptions !== undefined) {
-        const resolvedDirect = this.#groupOptions.aliases?.[firstArg] ??
-          firstArg;
+        const resolvedDirect =
+          this.#groupOptions.aliases?.[firstArg] ?? firstArg;
         const directEntry = this.#groupOptions.modules[resolvedDirect];
 
         if (directEntry !== undefined) {
@@ -417,7 +415,8 @@ export class Command implements CommandLike {
         const moduleName = positional[1];
 
         if (
-          moduleName === undefined || moduleName === "--help" ||
+          moduleName === undefined ||
+          moduleName === "--help" ||
           moduleName === "-h"
         ) {
           this.#showModuleGroupHelp(firstArg, group);
@@ -475,10 +474,7 @@ export class Command implements CommandLike {
   }
 
   /** Show help for a group */
-  #showModuleGroupHelp(
-    name: string,
-    group: GroupOptions,
-  ): void {
+  #showModuleGroupHelp(name: string, group: GroupOptions): void {
     console.log(`${this.#name} ${name} - ${group.description}\n`);
     console.log(`Usage: ${this.#name} ${name} <module> [options]\n`);
 
@@ -499,9 +495,7 @@ export class Command implements CommandLike {
       console.log();
     }
 
-    if (
-      group.aliases !== undefined && Object.keys(group.aliases).length > 0
-    ) {
+    if (group.aliases !== undefined && Object.keys(group.aliases).length > 0) {
       console.log("Aliases:");
       for (const [alias, target] of Object.entries(group.aliases)) {
         console.log(`  ${alias.padEnd(24)} → ${target}`);
@@ -529,23 +523,22 @@ export class Command implements CommandLike {
         // Rendered the same as an eager command's, so `workflows, wf` reads
         // like `codebase, cb, .`. Without this a lazily-loaded command's alias
         // works but is undiscoverable, which is worse than not having one.
-        aliases: opts.aliases !== undefined && opts.aliases.length > 0
-          ? [...opts.aliases]
-          : undefined,
+        aliases:
+          opts.aliases !== undefined && opts.aliases.length > 0
+            ? [...opts.aliases]
+            : undefined,
         description: opts.description,
         flags: [] as FlagDef[],
         children: [] as HelpCommandMeta[],
       })),
       // Direct modules (flat dispatch)
       ...(this.#groupOptions !== undefined
-        ? Object.entries(this.#groupOptions.modules).map(
-          ([name, entry]) => ({
+        ? Object.entries(this.#groupOptions.modules).map(([name, entry]) => ({
             name,
             description: entry.description,
             flags: (entry.flags ?? []) as FlagDef[],
             children: [] as HelpCommandMeta[],
-          }),
-        )
+          }))
         : []),
       // Groups (exclude aliases, they are shown inline with primary)
       ...[...this.#groups.entries()]
@@ -609,33 +602,34 @@ export class Command implements CommandLike {
 
       // Include direct modules (flat dispatch)
       if (cmd.#groupOptions !== undefined) {
-        for (
-          const [modName, entry] of Object.entries(
-            cmd.#groupOptions.modules,
-          )
-        ) {
+        for (const [modName, entry] of Object.entries(
+          cmd.#groupOptions.modules,
+        )) {
           children.push({
             name: modName,
             description: entry.description,
             children: [],
-            flags: entry.flags !== undefined
-              ? flagsToCompletionFlags(entry.flags)
-              : [],
+            flags:
+              entry.flags !== undefined
+                ? flagsToCompletionFlags(entry.flags)
+                : [],
           });
         }
       }
 
       // Include groups
       for (const [name, group] of cmd.#groups) {
-        const moduleChildren: CompletionNode[] = Object.entries(group.modules)
-          .map(([modName, entry]) => ({
-            name: modName,
-            description: entry.description,
-            children: [],
-            flags: entry.flags !== undefined
+        const moduleChildren: CompletionNode[] = Object.entries(
+          group.modules,
+        ).map(([modName, entry]) => ({
+          name: modName,
+          description: entry.description,
+          children: [],
+          flags:
+            entry.flags !== undefined
               ? flagsToCompletionFlags(entry.flags)
               : [],
-          }));
+        }));
 
         children.push({
           name,

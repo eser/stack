@@ -38,10 +38,13 @@ export type GoPostService = {
     maxResults?: number;
   }): Promise<GoPost[]>;
   /** Search posts. */
-  search(query: string, options?: {
-    platform?: GoPlatform;
-    maxResults?: number;
-  }): Promise<GoPost[]>;
+  search(
+    query: string,
+    options?: {
+      platform?: GoPlatform;
+      maxResults?: number;
+    },
+  ): Promise<GoPost[]>;
   /** Release the Go handle. */
   close(): void;
 };

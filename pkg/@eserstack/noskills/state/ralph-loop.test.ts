@@ -28,9 +28,7 @@ const inExecuting = (): schema.StateFile => {
   return s;
 };
 
-const configWith = (
-  maxIter: number,
-): schema.NosManifest => ({
+const configWith = (maxIter: number): schema.NosManifest => ({
   ...schema.createInitialManifest([], [], [], {
     languages: [],
     frameworks: [],
@@ -108,12 +106,12 @@ bdd.describe("Restart recommendation", () => {
       state = machine.advanceExecution(state, `step ${i}`);
     }
 
-    const output = await compiler.compile(
+    const output = (await compiler.compile(
       state,
       noConcerns,
       noRules,
       configWith(15),
-    ) as compiler.ExecutionOutput;
+    )) as compiler.ExecutionOutput;
 
     assert.assertEquals(output.restartRecommended, true);
     // A flag only: the agent gets no restart prose.
@@ -124,12 +122,12 @@ bdd.describe("Restart recommendation", () => {
     let state = inExecuting();
     state = machine.advanceExecution(state, "step 1");
 
-    const output = await compiler.compile(
+    const output = (await compiler.compile(
       state,
       noConcerns,
       noRules,
       configWith(15),
-    ) as compiler.ExecutionOutput;
+    )) as compiler.ExecutionOutput;
 
     assert.assertEquals(output.restartRecommended, undefined);
   });
@@ -144,12 +142,12 @@ bdd.describe("Restart recommendation", () => {
       ...configWith(15),
       maxIterationsBeforeRestart: 14,
     };
-    const output = await compiler.compile(
+    const output = (await compiler.compile(
       state,
       noConcerns,
       noRules,
       config,
-    ) as compiler.ExecutionOutput;
+    )) as compiler.ExecutionOutput;
 
     assert.assertEquals(output.restartRecommended, true);
   });
@@ -192,13 +190,13 @@ bdd.describe("One task at a time", () => {
       outOfScope: [],
       verification: [],
     };
-    const output = await compiler.compile(
+    const output = (await compiler.compile(
       inExecuting(),
       noConcerns,
       noRules,
       undefined,
       mockSpec,
-    ) as compiler.ExecutionOutput;
+    )) as compiler.ExecutionOutput;
 
     assert.assertEquals(output.task !== undefined, true);
     assert.assertEquals(output.task!.id, "task-1");
@@ -206,11 +204,11 @@ bdd.describe("One task at a time", () => {
   });
 
   bdd.it("EXECUTING without parsed spec says all tasks completed", async () => {
-    const output = await compiler.compile(
+    const output = (await compiler.compile(
       inExecuting(),
       noConcerns,
       noRules,
-    ) as compiler.ExecutionOutput;
+    )) as compiler.ExecutionOutput;
 
     assert.assertEquals(output.instruction.includes("completed"), true);
   });

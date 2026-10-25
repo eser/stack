@@ -130,9 +130,9 @@ export async function analyzeClientComponents(
     });
 
     analyzeLogger.debug(
-      `  ✓ Found client component: ${match.relativePath} (exports: ${
-        exportNames.join(", ")
-      })`,
+      `  ✓ Found client component: ${match.relativePath} (exports: ${exportNames.join(
+        ", ",
+      )})`,
     );
   }
 
@@ -161,9 +161,11 @@ export async function getAllComponents(srcDir: string): Promise<string[]> {
 
   // The extension check is done here: the glob filter of walkFiles supports
   // only * and **, so a "*.{tsx,ts}" list would match no file.
-  for await (
-    const relPath of collector.walkFiles(srcDir, undefined, IGNORE_PATTERN)
-  ) {
+  for await (const relPath of collector.walkFiles(
+    srcDir,
+    undefined,
+    IGNORE_PATTERN,
+  )) {
     if (patterns.hasExtension(relPath, COMPONENT_EXTENSIONS)) {
       components.push(runtime.path.join(srcDir, relPath));
     }

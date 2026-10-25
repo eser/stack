@@ -29,7 +29,8 @@ export type ValidateStreamOptions = {
 // =============================================================================
 
 export class ValidateStream
-  implements AsyncIterable<ValidatorResult>, AsyncDisposable {
+  implements AsyncIterable<ValidatorResult>, AsyncDisposable
+{
   readonly #handle: string;
 
   constructor(handle: string) {
@@ -104,9 +105,7 @@ export const validateFilesStream = async (
   const lib = ffiClient.getLib();
 
   if (lib === null) {
-    throw new Error(
-      "FFI library unavailable — cannot create validate stream",
-    );
+    throw new Error("FFI library unavailable — cannot create validate stream");
   }
 
   const raw = lib.symbols.EserAjanCodebaseValidateFilesStreamCreate(

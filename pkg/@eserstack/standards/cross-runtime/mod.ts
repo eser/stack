@@ -140,9 +140,7 @@ import type { RuntimeName } from "./types.ts";
  * Runtime factory lookup table — each factory lazily imports its adapter.
  * Only the detected runtime's adapter module is loaded.
  */
-const runtimeFactories: Partial<
-  Record<RuntimeName, () => Promise<Runtime>>
-> = {
+const runtimeFactories: Partial<Record<RuntimeName, () => Promise<Runtime>>> = {
   deno: async () => {
     const mod = await import("./adapters/deno.ts");
     return mod.createDenoRuntime();
@@ -215,14 +213,16 @@ export const createRuntime = async (
   const runtimeName = shared.detectRuntime();
   const factory = runtimeFactories[runtimeName];
 
-  const baseRuntime = factory !== undefined
-    ? await factory()
-    : shared.createFallbackRuntime(runtimeName);
+  const baseRuntime =
+    factory !== undefined
+      ? await factory()
+      : shared.createFallbackRuntime(runtimeName);
 
   // Apply capability overrides if provided
-  const capabilities = options?.capabilities !== undefined
-    ? { ...baseRuntime.capabilities, ...options.capabilities }
-    : baseRuntime.capabilities;
+  const capabilities =
+    options?.capabilities !== undefined
+      ? { ...baseRuntime.capabilities, ...options.capabilities }
+      : baseRuntime.capabilities;
 
   if (options !== undefined && hasOverrides(options)) {
     return mergeRuntime(baseRuntime, options, capabilities);

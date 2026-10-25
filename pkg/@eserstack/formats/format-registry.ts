@@ -71,9 +71,7 @@ export const unregisterFormat = (name: string): void => {
   formatRegistry.unregister(name);
 };
 
-export const getFormat = (
-  nameOrExtension: string,
-): Format | undefined => {
+export const getFormat = (nameOrExtension: string): Format | undefined => {
   return formatRegistry.get(nameOrExtension);
 };
 

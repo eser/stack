@@ -93,11 +93,12 @@ const formatStepLine = (
 };
 
 const formatIssueLine = (issue: WorkflowIssue): span.Span[] => {
-  const location = issue.path === undefined
-    ? ""
-    : issue.line === undefined
-    ? issue.path
-    : `${issue.path}:${issue.line}`;
+  const location =
+    issue.path === undefined
+      ? ""
+      : issue.line === undefined
+        ? issue.path
+        : `${issue.path}:${issue.line}`;
   const prefix = location.length > 0 ? `${location}: ` : "";
 
   return [
@@ -153,9 +154,7 @@ type RunSummary = {
   readonly issues: number;
 };
 
-const summarize = (
-  workflowResults: readonly WorkflowResult[],
-): RunSummary => {
+const summarize = (workflowResults: readonly WorkflowResult[]): RunSummary => {
   let failedSteps = 0;
   let issues = 0;
   for (const workflowResult of workflowResults) {
@@ -342,10 +341,7 @@ const runCommand = async (
   } catch (error) {
     // The engine throws for circular or unknown includes and malformed steps,
     // and writing a fixed file to disk can fail.
-    return failRun(
-      out,
-      error instanceof Error ? error.message : String(error),
-    );
+    return failRun(out, error instanceof Error ? error.message : String(error));
   }
 };
 
@@ -373,14 +369,11 @@ export const main = async (
   cliArgs?: readonly string[],
   cliOptions?: RunCliOptions,
 ): Promise<shellArgs.CliResult<void>> => {
-  const parsed = cliParseArgs.parseArgs(
-    (cliArgs ?? []) as string[],
-    {
-      string: ["event", "workflow", "only", "config"],
-      boolean: ["fix", "dry-run", "help", "verbose", "json", "changed"],
-      alias: { e: "event", w: "workflow", h: "help", v: "verbose" },
-    },
-  );
+  const parsed = cliParseArgs.parseArgs((cliArgs ?? []) as string[], {
+    string: ["event", "workflow", "only", "config"],
+    boolean: ["fix", "dry-run", "help", "verbose", "json", "changed"],
+    alias: { e: "event", w: "workflow", h: "help", v: "verbose" },
+  });
 
   const out = createLineWriter();
 

@@ -101,8 +101,10 @@ export function createMockSocialApi(
     calls,
     createPost(params) {
       calls.push({ method: "createPost", args: [params] });
-      return overrides?.createPost?.(params) ??
-        Promise.resolve({ id: postIdMod.toPostId("new-post-1") });
+      return (
+        overrides?.createPost?.(params) ??
+        Promise.resolve({ id: postIdMod.toPostId("new-post-1") })
+      );
     },
     deletePost(id) {
       calls.push({ method: "deletePost", args: [id] });
@@ -110,8 +112,9 @@ export function createMockSocialApi(
     },
     getTimeline(params) {
       calls.push({ method: "getTimeline", args: [params] });
-      return overrides?.getTimeline?.(params) ??
-        Promise.resolve([createTestPost()]);
+      return (
+        overrides?.getTimeline?.(params) ?? Promise.resolve([createTestPost()])
+      );
     },
     getMe() {
       calls.push({ method: "getMe", args: [] });
@@ -119,18 +122,23 @@ export function createMockSocialApi(
     },
     getPost(id) {
       calls.push({ method: "getPost", args: [id] });
-      return overrides?.getPost?.(id) ??
-        Promise.resolve(createTestPost({ id }));
+      return (
+        overrides?.getPost?.(id) ?? Promise.resolve(createTestPost({ id }))
+      );
     },
     replyToPost(params) {
       calls.push({ method: "replyToPost", args: [params] });
-      return overrides?.replyToPost?.(params) ??
-        Promise.resolve({ id: postIdMod.toPostId("reply-post-1") });
+      return (
+        overrides?.replyToPost?.(params) ??
+        Promise.resolve({ id: postIdMod.toPostId("reply-post-1") })
+      );
     },
     postThread(params) {
       calls.push({ method: "postThread", args: [params] });
-      return overrides?.postThread?.(params) ??
-        Promise.resolve(results.ok({ posts: [createTestPost()] }));
+      return (
+        overrides?.postThread?.(params) ??
+        Promise.resolve(results.ok({ posts: [createTestPost()] }))
+      );
     },
     getConversation(params) {
       calls.push({ method: "getConversation", args: [params] });
@@ -150,13 +158,17 @@ export function createMockSocialApi(
     },
     quotePost(params) {
       calls.push({ method: "quotePost", args: [params] });
-      return overrides?.quotePost?.(params) ??
-        Promise.resolve({ id: postIdMod.toPostId("mock-quote-id") });
+      return (
+        overrides?.quotePost?.(params) ??
+        Promise.resolve({ id: postIdMod.toPostId("mock-quote-id") })
+      );
     },
     searchPosts(params) {
       calls.push({ method: "searchPosts", args: [params] });
-      return overrides?.searchPosts?.(params) ??
-        Promise.resolve([createTestPost({ text: "search result" })]);
+      return (
+        overrides?.searchPosts?.(params) ??
+        Promise.resolve([createTestPost({ text: "search result" })])
+      );
     },
     bookmarkPost(id) {
       calls.push({ method: "bookmarkPost", args: [id] });
@@ -168,8 +180,10 @@ export function createMockSocialApi(
     },
     getBookmarks(params) {
       calls.push({ method: "getBookmarks", args: [params] });
-      return overrides?.getBookmarks?.(params) ??
-        Promise.resolve([createTestPost({ text: "bookmarked" })]);
+      return (
+        overrides?.getBookmarks?.(params) ??
+        Promise.resolve([createTestPost({ text: "bookmarked" })])
+      );
     },
   };
 }
@@ -224,27 +238,33 @@ export function createMockAuthProvider(
     },
     getAuthorizationUrl() {
       calls.push({ method: "getAuthorizationUrl", args: [] });
-      return overrides?.getAuthorizationUrl?.() ??
+      return (
+        overrides?.getAuthorizationUrl?.() ??
         Promise.resolve({
           url: "https://auth.example.com/authorize?state=test",
           codeVerifier: "test-verifier",
           state: "test",
-        });
+        })
+      );
     },
     exchangeCode(params) {
       calls.push({ method: "exchangeCode", args: [params] });
-      return overrides?.exchangeCode?.(params) ??
-        Promise.resolve(createTestTokens());
+      return (
+        overrides?.exchangeCode?.(params) ?? Promise.resolve(createTestTokens())
+      );
     },
     loginWithCredentials(params) {
       calls.push({ method: "loginWithCredentials", args: [params] });
-      return overrides?.loginWithCredentials?.(params) ??
-        Promise.resolve(createTestTokens());
+      return (
+        overrides?.loginWithCredentials?.(params) ??
+        Promise.resolve(createTestTokens())
+      );
     },
     refreshToken(token) {
       calls.push({ method: "refreshToken", args: [token] });
-      return overrides?.refreshToken?.(token) ??
-        Promise.resolve(createTestTokens());
+      return (
+        overrides?.refreshToken?.(token) ?? Promise.resolve(createTestTokens())
+      );
     },
     setTokens(tokens) {
       calls.push({ method: "setTokens", args: [tokens] });
@@ -280,8 +300,10 @@ export function createMockTranslator(
     calls,
     translate(params) {
       calls.push({ method: "translate", args: [params] });
-      return overrides?.translate?.(params) ??
-        Promise.resolve(results.ok(`[translated] ${params.text}`));
+      return (
+        overrides?.translate?.(params) ??
+        Promise.resolve(results.ok(`[translated] ${params.text}`))
+      );
     },
   };
 }
@@ -310,8 +332,10 @@ export function createMockScheduler(
     calls,
     schedule(params) {
       calls.push({ method: "schedule", args: [params] });
-      return overrides?.schedule?.(params) ??
-        Promise.resolve({ id: "scheduled-job-1" });
+      return (
+        overrides?.schedule?.(params) ??
+        Promise.resolve({ id: "scheduled-job-1" })
+      );
     },
     cancel(id) {
       calls.push({ method: "cancel", args: [id] });
@@ -382,8 +406,10 @@ export function createMockFeedAggregator(
     calls,
     getUnifiedTimeline(params) {
       calls.push({ method: "getUnifiedTimeline", args: [params] });
-      return overrides?.getUnifiedTimeline?.(params) ??
-        Promise.resolve([createTestPost()]);
+      return (
+        overrides?.getUnifiedTimeline?.(params) ??
+        Promise.resolve([createTestPost()])
+      );
     },
   };
 }

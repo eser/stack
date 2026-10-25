@@ -64,8 +64,10 @@ export const resolveExecutable = async (
   }
 
   const isWindows = crossRuntime.getPlatform() === "windows";
-  const pathValue = crossRuntime.runtime.env.get("PATH") ??
-    crossRuntime.runtime.env.get("Path") ?? "";
+  const pathValue =
+    crossRuntime.runtime.env.get("PATH") ??
+    crossRuntime.runtime.env.get("Path") ??
+    "";
 
   if (pathValue === "") {
     return null;
@@ -76,10 +78,11 @@ export const resolveExecutable = async (
   // one.
   const extensions = isWindows
     ? [
-      "",
-      ...(crossRuntime.runtime.env.get("PATHEXT") ?? ".COM;.EXE;.BAT;.CMD")
-        .split(";"),
-    ]
+        "",
+        ...(
+          crossRuntime.runtime.env.get("PATHEXT") ?? ".COM;.EXE;.BAT;.CMD"
+        ).split(";"),
+      ]
     : [""];
 
   const separator = isWindows ? "\\" : "/";

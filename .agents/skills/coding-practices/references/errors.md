@@ -40,7 +40,7 @@ export async function fetchManifest(
   if (!response.ok) {
     throw new ManifestFetchError(url, response.status);
   }
-  return await response.json() as Manifest;
+  return (await response.json()) as Manifest;
 }
 ```
 

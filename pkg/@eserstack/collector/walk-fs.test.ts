@@ -160,12 +160,12 @@ Deno.test({
 Deno.test("walkFiles walks in TypeScript with ESER_AJAN=disabled", async () => {
   await withFixture(async (dir) => {
     const script = `
-      import * as collector from ${
-      JSON.stringify(import.meta.resolve("./collector.ts"))
-    };
-      const files = await Array.fromAsync(collector.walkFiles(${
-      JSON.stringify(dir)
-    }, undefined, /\\.test\\./));
+      import * as collector from ${JSON.stringify(
+        import.meta.resolve("./collector.ts"),
+      )};
+      const files = await Array.fromAsync(collector.walkFiles(${JSON.stringify(
+        dir,
+      )}, undefined, /\\.test\\./));
       console.log(JSON.stringify(files));
     `;
     const output = await new Deno.Command(Deno.execPath(), {

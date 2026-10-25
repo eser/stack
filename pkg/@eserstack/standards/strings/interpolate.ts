@@ -44,10 +44,10 @@ export const interpolate = (
  * @param template - The template string with {key} placeholders
  * @returns A function that takes params and returns the interpolated string
  */
-export const createInterpolator = (
-  template: string,
-): (params: Readonly<Record<string, unknown>>) => string =>
-(params) => interpolate(template, params);
+export const createInterpolator =
+  (template: string): ((params: Readonly<Record<string, unknown>>) => string) =>
+  (params) =>
+    interpolate(template, params);
 
 /**
  * Extract placeholder keys from a template string.
@@ -61,7 +61,7 @@ export const createInterpolator = (
  */
 export const extractPlaceholders = (template: string): readonly string[] => {
   const matches = template.matchAll(/\{(\w+)\}/g);
-  return [...matches].map((match) => match[1]).filter((x): x is string =>
-    x !== undefined
-  );
+  return [...matches]
+    .map((match) => match[1])
+    .filter((x): x is string => x !== undefined);
 };

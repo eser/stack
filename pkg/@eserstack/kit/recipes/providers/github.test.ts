@@ -68,17 +68,11 @@ bdd.describe("github provider — parse", () => {
   });
 
   bdd.it("throws on single segment", () => {
-    assert.assertThrows(
-      () => github.provider.parse("gh:singleword"),
-      Error,
-    );
+    assert.assertThrows(() => github.provider.parse("gh:singleword"), Error);
   });
 
   bdd.it("throws on empty owner or repo", () => {
-    assert.assertThrows(
-      () => github.provider.parse("gh:/repo"),
-      Error,
-    );
+    assert.assertThrows(() => github.provider.parse("gh:/repo"), Error);
   });
 
   bdd.it("providerName is github", () => {

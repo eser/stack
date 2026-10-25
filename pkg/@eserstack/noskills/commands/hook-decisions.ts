@@ -95,8 +95,9 @@ export const toolNameOf = (input: HookInput): string => {
  * parsed here.
  */
 export const toolInputOf = (input: HookInput): HookInput =>
-  toolArgumentsOf(input["tool_input"]) ?? toolArgumentsOf(input["toolArgs"]) ??
-    {};
+  toolArgumentsOf(input["tool_input"]) ??
+  toolArgumentsOf(input["toolArgs"]) ??
+  {};
 
 /**
  * The file a file tool's input names: `file_path` (Claude Code), `filePath`
@@ -235,9 +236,9 @@ const replacementInputOf = (value: unknown): HookInput | null => {
     const newString = value[newKey];
     if (typeof oldString === "string" && typeof newString === "string") {
       return {
-        "old_string": oldString,
-        "new_string": newString,
-        "replace_all": value[allKey] === true,
+        old_string: oldString,
+        new_string: newString,
+        replace_all: value[allKey] === true,
       };
     }
   }
@@ -336,9 +337,8 @@ export const toolCallOf = (
 
   return {
     kind: "file",
-    changes: path === ""
-      ? []
-      : [{ path, edit: fileEditOf(toolName, toolInput) }],
+    changes:
+      path === "" ? [] : [{ path, edit: fileEditOf(toolName, toolInput) }],
   };
 };
 
@@ -378,10 +378,12 @@ export const hookDialectOf = (input: HookInput): HookDialect => {
 export const isNoskillsCommand = (command: string): boolean => {
   const trimmed = command.trim();
 
-  return trimmed.includes("noskills") ||
+  return (
+    trimmed.includes("noskills") ||
     trimmed.includes(" nos ") ||
     trimmed.endsWith(" nos") ||
-    trimmed.startsWith("nos ");
+    trimmed.startsWith("nos ")
+  );
 };
 
 // =============================================================================
@@ -541,14 +543,12 @@ const noskillsSectionOf = (manifestText: string): ManifestSection => {
 
 /** JSON with object keys sorted, so key order does not count as a change. */
 const canonicalJson = (value: unknown): string | undefined =>
-  JSON.stringify(
-    value,
-    (_key, item: unknown) =>
-      item instanceof Object && !Array.isArray(item)
-        ? Object.fromEntries(
-          Object.entries(item).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0),
+  JSON.stringify(value, (_key, item: unknown) =>
+    item instanceof Object && !Array.isArray(item)
+      ? Object.fromEntries(
+          Object.entries(item).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)),
         )
-        : item,
+      : item,
   );
 
 /**
@@ -566,9 +566,10 @@ export const changesNoskillsSection = (
 
   // A manifest that does not parse gives noskills no section, as a missing one.
   const beforeSection = before === null ? undefined : noskillsSectionOf(before);
-  const beforeValue = beforeSection !== undefined && beforeSection.parsed
-    ? beforeSection.value
-    : undefined;
+  const beforeValue =
+    beforeSection !== undefined && beforeSection.parsed
+      ? beforeSection.value
+      : undefined;
 
   return canonicalJson(beforeValue) !== canonicalJson(afterSection.value);
 };
@@ -617,8 +618,10 @@ const READ_ONLY_PROGRAMS: ReadonlySet<string> = new Set([
 const IN_PLACE_PROGRAMS: ReadonlySet<string> = new Set(["sed", "yq"]);
 
 const isInPlaceFlag = (word: string): boolean =>
-  word === "--in-place" || word.startsWith("--in-place=") ||
-  word === "--inplace" || /^-[a-zA-Z]*i/.test(word);
+  word === "--in-place" ||
+  word.startsWith("--in-place=") ||
+  word === "--inplace" ||
+  /^-[a-zA-Z]*i/.test(word);
 
 // Redirections that write no file: `>&2`, `2>&1`, `>/dev/null`, `&>/dev/null`.
 const NON_FILE_REDIRECT = /\d*>&\d+|&?\d*>>?\s*\/dev\/null\b/g;
@@ -636,7 +639,10 @@ const isReadOnlyShellCommand = (command: string): boolean => {
   if (withoutNonFileRedirects.includes(">")) return false;
 
   return withoutNonFileRedirects.split(/&&|\|\||[;|&\n]/).every((part) => {
-    const words = part.trim().split(/\s+/).filter((word) => word !== "");
+    const words = part
+      .trim()
+      .split(/\s+/)
+      .filter((word) => word !== "");
     const programIndex = words.findIndex((word) => !/^\w+=/.test(word));
     if (programIndex === -1) return true;
 
@@ -701,17 +707,17 @@ export const protectedFileDenial = (
   via: "edit" | "unknown-edit" | "command",
 ): string => {
   if (file === "git-wrapper") {
-    const action = via === "command"
-      ? `This command may change ${gitWrapper.WRAPPER_DIR}/ or a directory that holds it. That directory holds`
-      : `${gitWrapper.WRAPPER_DIR}/ holds`;
+    const action =
+      via === "command"
+        ? `This command may change ${gitWrapper.WRAPPER_DIR}/ or a directory that holds it. That directory holds`
+        : `${gitWrapper.WRAPPER_DIR}/ holds`;
 
     return `${action} the git wrapper that noskills writes when a session starts; the agent may not change it. Ask the user if git has to work differently.`;
   }
 
   const actions = {
     edit: `This edit changes the noskills section of ${MANIFEST_PATH}`,
-    "unknown-edit":
-      `This change to ${MANIFEST_PATH} does not show what the file holds afterwards, so it may change the noskills section`,
+    "unknown-edit": `This change to ${MANIFEST_PATH} does not show what the file holds afterwards, so it may change the noskills section`,
     command: `This command may change ${MANIFEST_PATH}`,
   } as const;
   const action = actions[via];
@@ -791,7 +797,8 @@ export const mostRestrictivePhase = (
   let maxRestriction = 0;
 
   for (const phase of phases) {
-    const restriction = phase === null ? 0 : PHASE_RESTRICTION.get(phase) ?? 0;
+    const restriction =
+      phase === null ? 0 : (PHASE_RESTRICTION.get(phase) ?? 0);
     if (phase !== null && restriction > maxRestriction) {
       maxRestriction = restriction;
       mostRestrictive = phase;
@@ -811,7 +818,8 @@ export type GateState = {
   readonly criteriaScope: string | null;
 };
 
-const nonEmpty = (value: string): string | null => value === "" ? null : value;
+const nonEmpty = (value: string): string | null =>
+  value === "" ? null : value;
 
 /** Reads the phase gate's fields from state JSON whose shape is unchecked. */
 export const gateStateOf = (state: HookInput): GateState => {
@@ -866,30 +874,29 @@ const conversationDenial = (
   const modeDirective = `\n  modeDirective: ${
     compiler.getPhaseModeDirective(phase) ?? ""
   }`;
-  const thinking =
-    `You are in ${phase}: this is a thinking phase, not an implementation phase. Read and discuss only.`;
+  const thinking = `You are in ${phase}: this is a thinking phase, not an implementation phase. Read and discuss only.`;
 
   switch (phase) {
     case "DISCOVERY":
-      return `${thinking} To write code, complete discovery and get the spec approved first. Run \`${
-        specCommand("next")
-      }\` to continue.${modeDirective}`;
+      return `${thinking} To write code, complete discovery and get the spec approved first. Run \`${specCommand(
+        "next",
+      )}\` to continue.${modeDirective}`;
     case "DISCOVERY_REFINEMENT":
-      return `${thinking} To write code, complete discovery and get the spec approved first. Run \`${
-        specCommand('next --answer="approve"')
-      }\` or revise answers.${modeDirective}`;
+      return `${thinking} To write code, complete discovery and get the spec approved first. Run \`${specCommand(
+        'next --answer="approve"',
+      )}\` or revise answers.${modeDirective}`;
     case "SPEC_PROPOSAL":
-      return `${thinking} To write code, approve the spec first. Run \`${
-        specCommand("approve")
-      }\`${modeDirective}`;
+      return `${thinking} To write code, approve the spec first. Run \`${specCommand(
+        "approve",
+      )}\`${modeDirective}`;
     case "SPEC_APPROVED":
-      return `You are in SPEC_APPROVED. Start execution first: \`${
-        specCommand('next --answer="start"')
-      }\``;
+      return `You are in SPEC_APPROVED. Start execution first: \`${specCommand(
+        'next --answer="start"',
+      )}\``;
     case "BLOCKED":
-      return `Execution blocked. Resolve with \`${
-        specCommand('next --answer="resolution"')
-      }\`${modeDirective}`;
+      return `Execution blocked. Resolve with \`${specCommand(
+        'next --answer="resolution"',
+      )}\`${modeDirective}`;
   }
 };
 
@@ -915,9 +922,9 @@ export const fileEditVerdict = (
 
   if (state.phase === null) {
     return deny(
-      `Phase unknown, so the file edit is blocked. Run \`${
-        command("status")
-      }\` to check state.`,
+      `Phase unknown, so the file edit is blocked. Run \`${command(
+        "status",
+      )}\` to check state.`,
     );
   }
   if (state.phase === "IDLE" || state.phase === "COMPLETED") {
@@ -928,10 +935,10 @@ export const fileEditVerdict = (
     // edits no code.
     return state.criteriaScope === "review-gate"
       ? deny(
-        `Review gate active: file edits are blocked. Evaluate concern dimensions against the existing implementation and submit findings via \`${
-          specCommand('next --answer=\'{"completed":[...],"remaining":[]}\'')
-        }\`.`,
-      )
+          `Review gate active: file edits are blocked. Evaluate concern dimensions against the existing implementation and submit findings via \`${specCommand(
+            'next --answer=\'{"completed":[...],"remaining":[]}\'',
+          )}\`.`,
+        )
       : { kind: "execute" };
   }
   if (isConversationPhase(state.phase)) {
@@ -985,14 +992,18 @@ export const sessionStartOutput = (
   compiled: unknown,
   dialect: HookDialect = "claude",
 ): HookInput => {
-  const additionalContext =
-    `[noskills] The current noskills state and instruction for this project:\n${
-      JSON.stringify(compiled)
-    }`;
+  const additionalContext = `[noskills] The current noskills state and instruction for this project:\n${JSON.stringify(
+    compiled,
+  )}`;
 
-  return dialect === "copilot" ? { additionalContext } : {
-    hookSpecificOutput: { hookEventName: "SessionStart", additionalContext },
-  };
+  return dialect === "copilot"
+    ? { additionalContext }
+    : {
+        hookSpecificOutput: {
+          hookEventName: "SessionStart",
+          additionalContext,
+        },
+      };
 };
 
 // =============================================================================
@@ -1010,7 +1021,7 @@ export const askedQuestionsOf = (toolInput: HookInput): readonly string[] => {
   if (Array.isArray(asked) && asked.length > 0) {
     return asked
       .map((entry: unknown) =>
-        isRecord(entry) ? stringField(entry, "question") : ""
+        isRecord(entry) ? stringField(entry, "question") : "",
       )
       .filter((question) => question !== "");
   }
@@ -1098,7 +1109,8 @@ export const askTokenStepsAfter = (
   asked: readonly string[],
 ): readonly askToken.AskTokenStep[] | null => {
   if (
-    state !== null && state.phase === "DISCOVERY" &&
+    state !== null &&
+    state.phase === "DISCOVERY" &&
     questions.discoveryStageOf(state) === "questions"
   ) {
     const recorded = new Set([
@@ -1113,12 +1125,14 @@ export const askTokenStepsAfter = (
   }
 
   // These steps have no question of noskills' own to compare with.
-  return [{
-    stepId: askStepOf(state?.phase ?? ""),
-    match: "modified",
-    originalQuestion: "",
-    askedQuestion: asked[0] ?? "",
-  }];
+  return [
+    {
+      stepId: askStepOf(state?.phase ?? ""),
+      match: "modified",
+      originalQuestion: "",
+      askedQuestion: asked[0] ?? "",
+    },
+  ];
 };
 
 /**
@@ -1131,7 +1145,7 @@ export const askMatch = (
   askedQuestion: string,
 ): "exact" | "modified" =>
   questionSimilarity.compareQuestions(expectedQuestion, askedQuestion) >=
-      questionSimilarity.SIMILARITY_EXACT_THRESHOLD
+  questionSimilarity.SIMILARITY_EXACT_THRESHOLD
     ? "exact"
     : "modified";
 

@@ -55,9 +55,11 @@ const parseFrontmatter = (
 
     // Parse array syntax: [a, b, c]
     if (val.startsWith("[") && val.endsWith("]")) {
-      const items = val.slice(1, -1).split(",").map((s) =>
-        s.trim().replace(/^["']|["']$/g, "")
-      ).filter((s) => s.length > 0);
+      const items = val
+        .slice(1, -1)
+        .split(",")
+        .map((s) => s.trim().replace(/^["']|["']$/g, ""))
+        .filter((s) => s.length > 0);
       meta[key] = items;
     } else {
       meta[key] = val.replace(/^["']|["']$/g, "");
@@ -95,10 +97,10 @@ export const loadScopedRules = async (
         rules.push({
           text: firstLine,
           phases: Array.isArray(meta["phases"])
-            ? meta["phases"] as string[]
+            ? (meta["phases"] as string[])
             : undefined,
           appliesTo: Array.isArray(meta["applies_to"])
-            ? meta["applies_to"] as string[]
+            ? (meta["applies_to"] as string[])
             : undefined,
         });
       }
@@ -127,8 +129,10 @@ export const filterRules = (
       // File filter: if appliesTo set, at least one file must match a glob
       // (simplified: check if any file path contains the pattern stem)
       if (
-        r.appliesTo !== undefined && r.appliesTo.length > 0 &&
-        _currentFiles !== undefined && _currentFiles.length > 0
+        r.appliesTo !== undefined &&
+        r.appliesTo.length > 0 &&
+        _currentFiles !== undefined &&
+        _currentFiles.length > 0
       ) {
         const match = r.appliesTo.some((pat) => {
           const ext = pat.startsWith("*.") ? pat.slice(1) : null;
@@ -247,8 +251,9 @@ export const interactionHintsFor = (
 export const toolsWithHooks = (
   tools: readonly schema.CodingToolId[],
 ): readonly schema.CodingToolId[] =>
-  tools.filter((toolId) =>
-    ADAPTERS.find((a) => a.id === toolId)?.capabilities.hooks === true
+  tools.filter(
+    (toolId) =>
+      ADAPTERS.find((a) => a.id === toolId)?.capabilities.hooks === true,
   );
 
 /**
@@ -293,9 +298,7 @@ const syncTool = async (
     const specsDir = `${ctx.root}/${persistence.paths.specsDir}`;
 
     try {
-      for await (
-        const entry of crossRuntime.runtime.fs.readDir(specsDir)
-      ) {
+      for await (const entry of crossRuntime.runtime.fs.readDir(specsDir)) {
         if (entry.isDirectory) {
           const specPath = `${specsDir}/${entry.name}/spec.md`;
           await found.syncSpecs(ctx, specPath);

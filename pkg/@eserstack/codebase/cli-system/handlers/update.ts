@@ -180,16 +180,19 @@ export const missingArchiveMessage = (
   isWindows: boolean,
 ): string => {
   const installScript = isWindows
-    ? `& ([scriptblock]::Create((irm ${
-      INSTALL_SCRIPT_URL.replace(/\.sh$/, ".ps1")
-    }))) -Product ${app.command}`
+    ? `& ([scriptblock]::Create((irm ${INSTALL_SCRIPT_URL.replace(
+        /\.sh$/,
+        ".ps1",
+      )}))) -Product ${app.command}`
     : `curl -fsSL ${INSTALL_SCRIPT_URL} | sh -s ${app.command}`;
 
-  return `Release ${tag} has no ${archiveName}, so this ${app.command} binary ` +
+  return (
+    `Release ${tag} has no ${archiveName}, so this ${app.command} binary ` +
     "cannot update itself.\n" +
     "Install the current version with one of:\n" +
     `  npm install -g ${app.npmPackage ?? app.command}\n` +
-    `  ${installScript}`;
+    `  ${installScript}`
+  );
 };
 
 const DENO_TARGET_MAP: Record<string, string> = {
@@ -209,10 +212,10 @@ export type ExtractCommand = {
 /** Where a release archive is unpacked: Windows (zip) or Unix (tar.gz). */
 export type ExtractTarget =
   | {
-    readonly platform: "windows";
-    /** The `SystemRoot` environment variable, e.g. `C:\Windows` */
-    readonly systemRoot: string | undefined;
-  }
+      readonly platform: "windows";
+      /** The `SystemRoot` environment variable, e.g. `C:\Windows` */
+      readonly systemRoot: string | undefined;
+    }
   | { readonly platform: "unix" };
 
 /**
@@ -235,9 +238,8 @@ export const extractArchiveCommand = (
   }
 
   const systemRoot = target.systemRoot?.replace(/[\\/]+$/, "") ?? "";
-  const cmd = systemRoot !== ""
-    ? `${systemRoot}\\System32\\tar.exe`
-    : "tar.exe";
+  const cmd =
+    systemRoot !== "" ? `${systemRoot}\\System32\\tar.exe` : "tar.exe";
 
   return { cmd, args: ["-xf", archivePath, "-C", destDir] };
 };
@@ -265,10 +267,7 @@ const updateCompiledBinary = async (
     sink: streams.sinks.stdout(),
   });
 
-  out.writeln(
-    span.text("Install method: "),
-    span.cyan("compiled binary"),
-  );
+  out.writeln(span.text("Install method: "), span.cyan("compiled binary"));
   out.writeln(
     span.text("Current version: "),
     span.cyan(currentVersion),
@@ -302,9 +301,7 @@ const updateCompiledBinary = async (
     const os = standardsCrossRuntime.getPlatform();
     const arch = standardsCrossRuntime.getArch();
 
-    out.writeln(
-      span.red(`\nUnsupported platform: ${os}-${arch}`),
-    );
+    out.writeln(span.red(`\nUnsupported platform: ${os}-${arch}`));
     await out.close();
     return results.fail({ exitCode: 1 });
   }
@@ -326,9 +323,7 @@ const updateCompiledBinary = async (
     // binary, which is not a network problem a retry would fix.
     await archiveResponse.body?.cancel();
     out.writeln(
-      span.red(
-        `\n${missingArchiveMessage(app, tag, archiveName, isWindows)}`,
-      ),
+      span.red(`\n${missingArchiveMessage(app, tag, archiveName, isWindows)}`),
     );
     await out.close();
     return results.fail({ exitCode: 1 });
@@ -407,7 +402,8 @@ const updateCompiledBinary = async (
     }
   } catch (error) {
     if (
-      (error instanceof Error && "code" in error &&
+      (error instanceof Error &&
+        "code" in error &&
         (error as NodeJS.ErrnoException).code === "EACCES") ||
       (typeof Deno !== "undefined" &&
         error instanceof Deno.errors.PermissionDenied)
@@ -456,12 +452,10 @@ export const updateHandler = async (
   });
 
   // Runtime-based: use package manager
-  out.writeln(
-    span.text("Detected runtime: "),
-    span.cyan(execContext.runtime),
-  );
+  out.writeln(span.text("Detected runtime: "), span.cyan(execContext.runtime));
 
-  const runtimeConfig = updateConfigs(app)[execContext.runtime as string] ??
+  const runtimeConfig =
+    updateConfigs(app)[execContext.runtime as string] ??
     updateConfigs(app)["node"]!;
 
   const { cmd, args } = runtimeConfig;

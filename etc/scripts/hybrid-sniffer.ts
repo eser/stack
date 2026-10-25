@@ -61,12 +61,14 @@ async function* walkDir(dir: string): AsyncGenerator<string> {
   for await (const entry of Deno.readDir(dir)) {
     const path = `${dir}/${entry.name}`;
     if (
-      entry.isDirectory && !entry.name.startsWith(".") &&
+      entry.isDirectory &&
+      !entry.name.startsWith(".") &&
       entry.name !== "node_modules"
     ) {
       yield* walkDir(path);
     } else if (
-      entry.isFile && entry.name.endsWith(".ts") &&
+      entry.isFile &&
+      entry.name.endsWith(".ts") &&
       !entry.name.endsWith(".test.ts")
     ) {
       yield path;
@@ -91,10 +93,13 @@ function classifyFile(source: string, filePath: string): FileReport {
   // (i.e., FFI only runs when format equals a specific value)
   const hybridMatch = FORMAT_ROUTING_RE.exec(source);
   if (hybridMatch) {
-    const snippet = source.slice(
-      Math.max(0, hybridMatch.index - 30),
-      Math.min(source.length, hybridMatch.index + 120),
-    ).replace(/\n/g, " ").trim();
+    const snippet = source
+      .slice(
+        Math.max(0, hybridMatch.index - 30),
+        Math.min(source.length, hybridMatch.index + 120),
+      )
+      .replace(/\n/g, " ")
+      .trim();
     return {
       file: filePath,
       ffiSymbols: uniqueSymbols,
@@ -141,9 +146,10 @@ function classifyFile(source: string, filePath: string): FileReport {
         file: filePath,
         ffiSymbols: uniqueSymbols,
         classification: "PURE_FFI",
-        evidence: `lib null-guard + throw (Option B — requires native lib): "${
-          throwWindow.slice(0, 80).replace(/\n/g, " ").trim()
-        }"`,
+        evidence: `lib null-guard + throw (Option B — requires native lib): "${throwWindow
+          .slice(0, 80)
+          .replace(/\n/g, " ")
+          .trim()}"`,
       };
     }
 
@@ -159,9 +165,10 @@ function classifyFile(source: string, filePath: string): FileReport {
         file: filePath,
         ffiSymbols: uniqueSymbols,
         classification: "FFI_WITH_EMPTY_FALLBACK",
-        evidence: `lib null-guard with noop/null fallback near: "${
-          afterGuard.slice(0, 80).replace(/\n/g, " ").trim()
-        }"`,
+        evidence: `lib null-guard with noop/null fallback near: "${afterGuard
+          .slice(0, 80)
+          .replace(/\n/g, " ")
+          .trim()}"`,
       };
     }
 
@@ -169,9 +176,10 @@ function classifyFile(source: string, filePath: string): FileReport {
       file: filePath,
       ffiSymbols: uniqueSymbols,
       classification: "FFI_WITH_TS_FALLBACK",
-      evidence: `lib null-guard with substantial TS fallback near: "${
-        afterGuard.slice(0, 80).replace(/\n/g, " ").trim()
-      }"`,
+      evidence: `lib null-guard with substantial TS fallback near: "${afterGuard
+        .slice(0, 80)
+        .replace(/\n/g, " ")
+        .trim()}"`,
     };
   }
 
@@ -228,26 +236,28 @@ function renderTable(reports: FileReport[]): void {
   }
 
   const colWidths = { file: 55, cls: 28, evidence: 60 };
-  const header = `| ${"file".padEnd(colWidths.file)} | ${
-    "classification".padEnd(colWidths.cls)
-  } | ${"evidence".padEnd(colWidths.evidence)} |`;
-  const sep = `|${"-".repeat(colWidths.file + 2)}|${
-    "-".repeat(colWidths.cls + 2)
-  }|${"-".repeat(colWidths.evidence + 2)}|`;
+  const header = `| ${"file".padEnd(colWidths.file)} | ${"classification".padEnd(
+    colWidths.cls,
+  )} | ${"evidence".padEnd(colWidths.evidence)} |`;
+  const sep = `|${"-".repeat(colWidths.file + 2)}|${"-".repeat(
+    colWidths.cls + 2,
+  )}|${"-".repeat(colWidths.evidence + 2)}|`;
   console.log(header);
   console.log(sep);
 
   for (const r of reports) {
-    const evidence = r.evidence.length > colWidths.evidence
-      ? r.evidence.slice(0, colWidths.evidence - 3) + "..."
-      : r.evidence;
-    const file = r.file.length > colWidths.file
-      ? "..." + r.file.slice(-(colWidths.file - 3))
-      : r.file;
+    const evidence =
+      r.evidence.length > colWidths.evidence
+        ? r.evidence.slice(0, colWidths.evidence - 3) + "..."
+        : r.evidence;
+    const file =
+      r.file.length > colWidths.file
+        ? "..." + r.file.slice(-(colWidths.file - 3))
+        : r.file;
     console.log(
-      `| ${file.padEnd(colWidths.file)} | ${
-        r.classification.padEnd(colWidths.cls)
-      } | ${evidence.padEnd(colWidths.evidence)} |`,
+      `| ${file.padEnd(colWidths.file)} | ${r.classification.padEnd(
+        colWidths.cls,
+      )} | ${evidence.padEnd(colWidths.evidence)} |`,
     );
   }
 }

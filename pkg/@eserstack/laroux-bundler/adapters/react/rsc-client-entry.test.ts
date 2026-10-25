@@ -65,7 +65,7 @@ async function withMinimalApp(
         type: "module",
         dependencies: {
           "@eserstack/laroux": "^4.5.2",
-          "react": "^19.3.0",
+          react: "^19.3.0",
           "react-dom": "^19.3.0",
         },
       }),
@@ -77,15 +77,17 @@ async function withMinimalApp(
         fs.ensureSymlink(
           runtime.path.join(sourceModules, name),
           runtime.path.join(appRoot, "node_modules", name),
-        )
+        ),
       ),
     );
 
-    await fn(appRoot, [{
-      filePath: componentPath,
-      relativePath: "src/app/counter.tsx",
-      exportNames: ["Counter"],
-    }]);
+    await fn(appRoot, [
+      {
+        filePath: componentPath,
+        relativePath: "src/app/counter.tsx",
+        exportNames: ["Counter"],
+      },
+    ]);
   } finally {
     await runtime.fs.remove(appRoot, { recursive: true });
   }
@@ -176,7 +178,7 @@ Deno.test("the client entry of a minimal laroux app bundles with the copied boot
     );
     const outputCode = await Promise.all(
       Object.keys(result.outputs).map((file) =>
-        runtime.fs.readTextFile(runtime.path.join(outputDir, file))
+        runtime.fs.readTextFile(runtime.path.join(outputDir, file)),
       ),
     );
     const bundled = outputCode.join("\n");

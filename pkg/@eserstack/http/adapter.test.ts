@@ -24,32 +24,32 @@ const trackedStream = (
 ): TrackedStream => {
   let pulls = 0;
   let cancelled = false;
-  const stream = new ReadableStream<Uint8Array>({
-    pull(controller) {
-      pulls++;
-      if (chunks === null) {
-        controller.enqueue(fill);
-        return;
-      }
-      const chunk = chunks[pulls - 1];
-      if (chunk === undefined) {
-        controller.close();
-        return;
-      }
-      controller.enqueue(chunk);
+  const stream = new ReadableStream<Uint8Array>(
+    {
+      pull(controller) {
+        pulls++;
+        if (chunks === null) {
+          controller.enqueue(fill);
+          return;
+        }
+        const chunk = chunks[pulls - 1];
+        if (chunk === undefined) {
+          controller.close();
+          return;
+        }
+        controller.enqueue(chunk);
+      },
+      cancel() {
+        cancelled = true;
+      },
     },
-    cancel() {
-      cancelled = true;
-    },
-  }, { highWaterMark: 0 });
+    { highWaterMark: 0 },
+  );
 
   return { stream, pulls: () => pulls, cancelled: () => cancelled };
 };
 
-const post = (
-  body: BodyInit,
-  headers: Record<string, string> = {},
-): Request =>
+const post = (body: BodyInit, headers: Record<string, string> = {}): Request =>
   new Request("http://localhost/items", { method: "POST", body, headers });
 
 const assertTooLarge = (
@@ -117,10 +117,9 @@ const withinLimitCases: ReadonlyArray<{
     name: "joins chunks before decoding a chunked body",
     request: () => {
       const bytes = encoder.encode('{"name":"café"}');
-      return post(
-        trackedStream([bytes.slice(0, 13), bytes.slice(13)]).stream,
-        { "content-type": "application/json" },
-      );
+      return post(trackedStream([bytes.slice(0, 13), bytes.slice(13)]).stream, {
+        "content-type": "application/json",
+      });
     },
     maxBodyBytes: 64,
     expected: { name: "café" },

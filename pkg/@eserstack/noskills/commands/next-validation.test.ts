@@ -23,11 +23,13 @@ const SPEC = "upload";
 
 const REPLY = JSON.stringify({
   summary: "One gap.",
-  findings: [{
-    severity: "medium",
-    issue: "The scope boundary does not name the file types.",
-    suggestion: "List the accepted file types.",
-  }],
+  findings: [
+    {
+      severity: "medium",
+      issue: "The scope boundary does not name the file types.",
+      suggestion: "List the accepted file types.",
+    },
+  ],
 });
 
 /** A spec whose discovery answers are all in, waiting for review. */
@@ -49,9 +51,7 @@ const inRefinement = (): schema.StateFile => {
   return machine.completeDiscovery(state);
 };
 
-const manifest = (
-  validate?: schema.ValidatorConfig,
-): schema.NosManifest => ({
+const manifest = (validate?: schema.ValidatorConfig): schema.NosManifest => ({
   ...schema.createInitialManifest([], ["claude-code"], [], {
     languages: ["typescript"],
     frameworks: [],
@@ -130,12 +130,14 @@ const fakeDeps = (
 };
 
 const answer = (text: string) => () =>
-  Promise.resolve(results.ok<ai.GenerateTextResult>({
-    content: [{ kind: "text", text }],
-    stopReason: "end_turn",
-    usage: { inputTokens: 1, outputTokens: 1, totalTokens: 2 },
-    modelId: "judge-1",
-  }));
+  Promise.resolve(
+    results.ok<ai.GenerateTextResult>({
+      content: [{ kind: "text", text }],
+      stopReason: "end_turn",
+      usage: { inputTokens: 1, outputTokens: 1, totalTokens: 2 },
+      modelId: "judge-1",
+    }),
+  );
 
 bdd.describe("noskills next: the transition validator step", () => {
   let root: string;
@@ -166,13 +168,11 @@ bdd.describe("noskills next: the transition validator step", () => {
       const outside = `${root}-secret.md`;
       await runtime.fs.writeTextFile(outside, "TOP SECRET\n");
       try {
-        for (
-          const path of [
-            "../" + outside.split("/").pop(),
-            outside,
-            "a/../../x.md",
-          ]
-        ) {
+        for (const path of [
+          "../" + outside.split("/").pop(),
+          outside,
+          "a/../../x.md",
+        ]) {
           const { deps, recorded } = fakeDeps(answer(REPLY));
           const crafted = {
             ...state,
@@ -460,7 +460,7 @@ bdd.describe("noskills next: the transition validator step", () => {
       deps,
     );
 
-    const record = await persistence.readValidationRecord(root, SPEC) as {
+    const record = (await persistence.readValidationRecord(root, SPEC)) as {
       key: string;
       validation: transitionValidation.TransitionValidation;
     };

@@ -15,7 +15,7 @@ import type * as layoutTypes from "./layout-types.ts";
 /** Map a badge colour hint to the corresponding ANSI colour function. */
 const badgeColorFn = (
   color: layoutTypes.TabDefinition["badgeColor"],
-): (text: string) => string => {
+): ((text: string) => string) => {
   switch (color) {
     case "green":
       return ansi.green;

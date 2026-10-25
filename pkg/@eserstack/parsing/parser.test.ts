@@ -14,12 +14,9 @@ Deno.test("tokens", () => {
   const tokenGenerator = tokenizer.tokenizeFromString("5");
   const result = parse(tokenGenerator);
 
-  assert.assertEquals(
-    result,
-    [
-      { kind: "token", token: { kind: "T_NUMERIC", value: "5" } },
-    ],
-  );
+  assert.assertEquals(result, [
+    { kind: "token", token: { kind: "T_NUMERIC", value: "5" } },
+  ]);
 });
 
 Deno.test("sequence", () => {
@@ -37,16 +34,13 @@ Deno.test("sequence", () => {
   const tokenGenerator = tokenizer.tokenizeFromString("1 + 2 * 3");
   const result = parse(tokenGenerator);
 
-  assert.assertEquals(
-    result,
-    [
-      { kind: "token", token: { kind: "T_NUMERIC", value: "1" } },
-      { kind: "token", token: { kind: "T_WHITESPACE", value: " " } },
-      { kind: "token", token: { kind: "T_PLUS", value: "+" } },
-      { kind: "token", token: { kind: "T_WHITESPACE", value: " " } },
-      { kind: "token", token: { kind: "T_NUMERIC", value: "2" } },
-    ],
-  );
+  assert.assertEquals(result, [
+    { kind: "token", token: { kind: "T_NUMERIC", value: "1" } },
+    { kind: "token", token: { kind: "T_WHITESPACE", value: " " } },
+    { kind: "token", token: { kind: "T_PLUS", value: "+" } },
+    { kind: "token", token: { kind: "T_WHITESPACE", value: " " } },
+    { kind: "token", token: { kind: "T_NUMERIC", value: "2" } },
+  ]);
 });
 
 Deno.test("token returns null on kind mismatch", () => {

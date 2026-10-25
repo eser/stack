@@ -25,10 +25,12 @@ export const tool: FileTool = fileTool.withGoValidator(
       }
 
       if (content.includes("\r")) {
-        return [{
-          path: file.path,
-          message: "file contains CRLF or CR line endings",
-        }];
+        return [
+          {
+            path: file.path,
+            message: "file contains CRLF or CR line endings",
+          },
+        ];
       }
 
       return [];

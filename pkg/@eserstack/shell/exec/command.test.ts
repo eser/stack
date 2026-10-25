@@ -57,11 +57,10 @@ Deno.test("exec: an empty interpolation still occupies an argv slot", () => {
     raw: ["cmd -p ", " --flag"],
   }) as unknown as TemplateStringsArray;
 
-  assert.assertEquals(exec.parseCommand(strings, [""]), ["cmd", [
-    "-p",
-    "",
-    "--flag",
-  ]]);
+  assert.assertEquals(exec.parseCommand(strings, [""]), [
+    "cmd",
+    ["-p", "", "--flag"],
+  ]);
 });
 
 Deno.test("exec: pipe() refuses rather than returning a wrong answer", () => {

@@ -32,9 +32,7 @@ export class CyclicDependencyError extends Error {
    * @param cycle - The recipe names from the start recipe to the one that repeats
    */
   constructor(cycle: readonly string[]) {
-    super(
-      `Circular dependency detected: ${cycle.join(" → ")}`,
-    );
+    super(`Circular dependency detected: ${cycle.join(" → ")}`);
     this.name = "CyclicDependencyError";
   }
 }

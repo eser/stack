@@ -200,10 +200,9 @@ bdd.describe("dashboard confidence", () => {
     );
     state = machine.addConfidenceFinding(state, "Low", 3, "guessing");
 
-    await runtime.fs.mkdir(
-      `${root}/${persistence.paths.specDir("test")}`,
-      { recursive: true },
-    );
+    await runtime.fs.mkdir(`${root}/${persistence.paths.specDir("test")}`, {
+      recursive: true,
+    });
     await persistence.writeSpecState(root, "test", state);
 
     const summary = await dashboardState.getSpecSummary(root, "test");
@@ -215,10 +214,9 @@ bdd.describe("dashboard confidence", () => {
     const root = await makeTempDir();
     const state = createExecutingSpec();
 
-    await runtime.fs.mkdir(
-      `${root}/${persistence.paths.specDir("test")}`,
-      { recursive: true },
-    );
+    await runtime.fs.mkdir(`${root}/${persistence.paths.specDir("test")}`, {
+      recursive: true,
+    });
     await persistence.writeSpecState(root, "test", state);
 
     const summary = await dashboardState.getSpecSummary(root, "test");
@@ -238,8 +236,8 @@ bdd.describe("compiler confidence rule", () => {
     const output = await compile(state, [], []);
 
     const allRules = output.behavioral.rules;
-    const hasConfidence = allRules.some((r) =>
-      r.includes("Confidence scoring") || r.includes("confidence score")
+    const hasConfidence = allRules.some(
+      (r) => r.includes("Confidence scoring") || r.includes("confidence score"),
     );
     assert.assertEquals(hasConfidence, true);
   });

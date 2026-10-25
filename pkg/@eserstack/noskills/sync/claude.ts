@@ -33,19 +33,18 @@ const buildSection = (
     `    ${commandPrefix} spec <name> next --answer="response"       # submit and advance`,
     `    ${commandPrefix} spec new "description"                     # create spec (name auto-generated)`,
     "",
-    "Every spec command MUST include `spec <name>`. Use `" + commandPrefix +
-    " spec list` for available specs.",
+    "Every spec command MUST include `spec <name>`. Use `" +
+      commandPrefix +
+      " spec list` for available specs.",
     "",
     "### Core rules",
     "",
     `- ${discoveryAnswers.discoveryQuestionRule()}`,
     "- Never answer discovery questions yourself.",
     "- Call `next` at: conversation start, before file edits, after completing work, at decisions.",
-    `- ${
-      discoveryAnswers.discoveryAnswerRule(
-        `${commandPrefix} spec <name> next --answer`,
-      )
-    }`,
+    `- ${discoveryAnswers.discoveryAnswerRule(
+      `${commandPrefix} spec <name> next --answer`,
+    )}`,
     "- Never skip steps or infer decisions. Ask first. Explicit > Clever.",
     "- NEVER suggest bypassing or skipping noskills. Discovery is not overhead.",
     "- Run the next noskills command as soon as the current step is done; each step has exactly one next step, so there is nothing to ask permission for.",
@@ -56,7 +55,8 @@ const buildSection = (
     "",
     "- Use AskUserQuestion for `interactiveOptions`. Use `commandMap` to resolve selections.",
     "- On recurring patterns or corrections: ask 'Permanent rule?' → `" +
-    commandPrefix + ' rule add "description"`.',
+      commandPrefix +
+      ' rule add "description"`.',
   ];
 
   if (!(options?.allowGit ?? false)) {
@@ -146,7 +146,9 @@ export const sync = async (
     const endIdx = content.indexOf(NOS_SECTION_END);
 
     if (startIdx !== -1 && endIdx !== -1) {
-      content = content.slice(0, startIdx) + section +
+      content =
+        content.slice(0, startIdx) +
+        section +
         content.slice(endIdx + NOS_SECTION_END.length);
     } else {
       content = content.trimEnd() + "\n\n" + section + "\n";

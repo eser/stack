@@ -56,10 +56,9 @@ Deno.test("FakeServer should handle different HTTP methods", async () => {
 });
 
 Deno.test("FakeServer should use custom base URL", async () => {
-  const server = new fakeServer.FakeServer(
-    (req) => new Response(req.url),
-    { baseUrl: "https://api.example.com" },
-  );
+  const server = new fakeServer.FakeServer((req) => new Response(req.url), {
+    baseUrl: "https://api.example.com",
+  });
 
   const response = await server.get("/users");
   const url = await response.text();
@@ -77,7 +76,7 @@ Deno.test("FakeServer should handle headers", async () => {
   });
 
   const authResponse = await server.get("/protected", {
-    "Authorization": "Bearer valid-token",
+    Authorization: "Bearer valid-token",
   });
   assert.assertEquals(authResponse.status, 200);
 

@@ -34,8 +34,7 @@ export const main = async (
       if (!Number.isInteger(port) || port < 1 || port > 65535) {
         return results.fail({
           exitCode: 1,
-          message:
-            `--port "${rawPort}" is not a port number; pass an integer from 1 to 65535`,
+          message: `--port "${rawPort}" is not a port number; pass an integer from 1 to 65535`,
         });
       }
     }
@@ -47,9 +46,11 @@ export const main = async (
   // Dynamic import — opaque specifier prevents esbuild from bundling it
   // (avoids circular dep: noskills → noskills-web → noskills)
   const specifier = "@eserstack/noskills-web";
-  let startServer: (
-    opts: { root: string; port: number; open: boolean },
-  ) => Promise<void>;
+  let startServer: (opts: {
+    root: string;
+    port: number;
+    open: boolean;
+  }) => Promise<void>;
   try {
     const mod = await import(specifier);
     startServer = mod.startServer;

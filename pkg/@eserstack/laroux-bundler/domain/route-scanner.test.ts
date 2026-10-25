@@ -28,20 +28,24 @@ const FIXTURE_FILES = [
  * "_", so a test also shows that only segments below the routes directory
  * decide what is private.
  */
-async function createRoutesFixture(): Promise<
-  { root: string; projectRoot: string; routesDir: string }
-> {
+async function createRoutesFixture(): Promise<{
+  root: string;
+  projectRoot: string;
+  routesDir: string;
+}> {
   const root = await runtime.fs.makeTempDir({ prefix: "laroux-routes-" });
   const projectRoot = runtime.path.join(root, "_workspace", "app");
   const routesDir = runtime.path.join(projectRoot, "src", "app", "routes");
 
-  await Promise.all(FIXTURE_FILES.map(async (relativePath) => {
-    const filePath = runtime.path.join(routesDir, relativePath);
-    await runtime.fs.mkdir(runtime.path.dirname(filePath), {
-      recursive: true,
-    });
-    await runtime.fs.writeTextFile(filePath, "export {};\n");
-  }));
+  await Promise.all(
+    FIXTURE_FILES.map(async (relativePath) => {
+      const filePath = runtime.path.join(routesDir, relativePath);
+      await runtime.fs.mkdir(runtime.path.dirname(filePath), {
+        recursive: true,
+      });
+      await runtime.fs.writeTextFile(filePath, "export {};\n");
+    }),
+  );
 
   return { root, projectRoot, routesDir };
 }
@@ -114,13 +118,15 @@ async function createProject(
   const projectRoot = runtime.path.join(root, name);
   const routesDir = runtime.path.join(projectRoot, "src", "app", "routes");
 
-  await Promise.all(pages.map(async (relativePath) => {
-    const filePath = runtime.path.join(routesDir, relativePath);
-    await runtime.fs.mkdir(runtime.path.dirname(filePath), {
-      recursive: true,
-    });
-    await runtime.fs.writeTextFile(filePath, "export {};\n");
-  }));
+  await Promise.all(
+    pages.map(async (relativePath) => {
+      const filePath = runtime.path.join(routesDir, relativePath);
+      await runtime.fs.mkdir(runtime.path.dirname(filePath), {
+        recursive: true,
+      });
+      await runtime.fs.writeTextFile(filePath, "export {};\n");
+    }),
+  );
 
   return { projectRoot, routesDir };
 }

@@ -20,10 +20,7 @@ import * as compile from "./compile.ts";
 import * as criticalPageCss from "./critical-page-css.ts";
 import * as criticalUniversalCss from "./critical-universal-css.ts";
 
-const logger = logging.logger.getLogger([
-  "laroux-bundler",
-  "tailwindcss",
-]);
+const logger = logging.logger.getLogger(["laroux-bundler", "tailwindcss"]);
 
 /** Extensions of the source files scanned for utility class candidates. */
 const SCANNED_EXTENSIONS: readonly string[] = ["tsx", "ts", "jsx", "js"];
@@ -68,7 +65,8 @@ export function createTailwindPlugin(
         // build turns it off for an app that sets noCssModuleAutoReference
         const hasReferenceDirective = /^@reference\s+/m.test(css);
         if (
-          autoInjectReference && context.injectReference !== false &&
+          autoInjectReference &&
+          context.injectReference !== false &&
           !hasReferenceDirective
         ) {
           // Calculate relative path from CSS module to global.css
@@ -92,10 +90,7 @@ export function createTailwindPlugin(
       return css;
     },
 
-    async compile(
-      css: string,
-      context: CssPluginContext,
-    ): Promise<string> {
+    async compile(css: string, context: CssPluginContext): Promise<string> {
       const cssDir = runtime.path.dirname(context.cssPath);
       const srcDir = runtime.path.resolve(context.projectRoot, "src");
 
@@ -105,9 +100,11 @@ export function createTailwindPlugin(
       // Walk src directory using @eserstack/collector walkFiles. The
       // extension check is done here: its glob filter supports only * and
       // **, so a "*.{tsx,ts}" list would match no file.
-      for await (
-        const relPath of collector.walkFiles(srcDir, undefined, /node_modules/)
-      ) {
+      for await (const relPath of collector.walkFiles(
+        srcDir,
+        undefined,
+        /node_modules/,
+      )) {
         if (!patterns.hasExtension(relPath, SCANNED_EXTENSIONS)) {
           continue;
         }
@@ -164,9 +161,8 @@ export function createTailwindPlugin(
     },
 
     extractUniversalCss(compiledCss: string): UniversalCssResult {
-      const result = criticalUniversalCss.extractCriticalUniversalCss(
-        compiledCss,
-      );
+      const result =
+        criticalUniversalCss.extractCriticalUniversalCss(compiledCss);
 
       return {
         css: result.css,

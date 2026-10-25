@@ -80,8 +80,7 @@ Rule:
 - Create temporary files with `os.CreateTemp` (unpredictable name, mode 0600)
   and remove them when done.
 - Permissions: 0600 for files holding secrets or tokens, 0750 for directories,
-  0644 only for data that is safe for every local user to read. Never 0666 or
-  0777.
+  0644 only for data that is safe for every local user to read. Never 0666 or 0777.
 
 Correct:
 

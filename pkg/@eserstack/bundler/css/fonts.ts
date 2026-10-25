@@ -67,8 +67,8 @@ export async function downloadFont(
   const format = filename.endsWith(".woff2")
     ? "woff2"
     : filename.endsWith(".woff")
-    ? "woff"
-    : "truetype";
+      ? "woff"
+      : "truetype";
 
   return {
     url,
@@ -119,7 +119,8 @@ export function extractFontUrls(fontCss: string): string[] {
     if (from > scanned) {
       scanned = from;
       while (
-        scanned < fontCss.length && !URL_TERMINATORS.has(fontCss[scanned]!)
+        scanned < fontCss.length &&
+        !URL_TERMINATORS.has(fontCss[scanned]!)
       ) {
         scanned += 1;
       }
@@ -146,7 +147,9 @@ export function extractFontUrls(fontCss: string): string[] {
 
       // Only include actual font files (.woff2, .woff, .ttf)
       if (
-        url.includes(".woff2") || url.includes(".woff") || url.includes(".ttf")
+        url.includes(".woff2") ||
+        url.includes(".woff") ||
+        url.includes(".ttf")
       ) {
         urls.push(url);
       }

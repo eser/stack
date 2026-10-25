@@ -43,10 +43,7 @@ type BuilderState<K extends string, V> = {
  * const registry = builder.build();
  * ```
  */
-export const createRegistryBuilder = <
-  K extends string = string,
-  V = unknown,
->(
+export const createRegistryBuilder = <K extends string = string, V = unknown>(
   initialEntries?: ReadonlyMap<K, EntryDescriptor<V>>,
 ): RegistryBuilder<K, V> => {
   const state: BuilderState<K, V> = {
@@ -164,9 +161,10 @@ export const fromEntries = <K extends string, V>(
  * ```
  */
 export const mergeBuilders = <K extends string, V>(
-  ...registries: ReadonlyArray<
-    { keys: () => readonly K[]; get: (key: K) => V | undefined }
-  >
+  ...registries: ReadonlyArray<{
+    keys: () => readonly K[];
+    get: (key: K) => V | undefined;
+  }>
 ): RegistryBuilder<K, V> => {
   const result = createRegistryBuilder<K, V>();
 

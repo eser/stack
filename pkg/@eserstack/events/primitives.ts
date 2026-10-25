@@ -60,10 +60,8 @@ export type EventDispatcher = {
  * used as a tag (``events`user:login` ``) it returns a function that
  * dispatches that event type. It also has `add` and `remove` for listeners.
  */
-export type Factory =
-  & EventRegistryWritable
-  & {
-    (
-      strings?: TemplateStringsArray,
-    ): EventDispatcher | (<T>(eventInitDict?: CustomEventInit<T>) => boolean);
-  };
+export type Factory = EventRegistryWritable & {
+  (
+    strings?: TemplateStringsArray,
+  ): EventDispatcher | (<T>(eventInitDict?: CustomEventInit<T>) => boolean);
+};

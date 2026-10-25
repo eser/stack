@@ -66,10 +66,7 @@ export const compareTextVersions = (
  * Returns the larger of two release types: `major` over `minor` over `patch`.
  * Any other release type counts as `patch`.
  */
-export function maxVersion(
-  v0: ReleaseType,
-  v1: ReleaseType,
-): ReleaseType {
+export function maxVersion(v0: ReleaseType, v1: ReleaseType): ReleaseType {
   if (v0 === "major" || v1 === "major") {
     return "major";
   }

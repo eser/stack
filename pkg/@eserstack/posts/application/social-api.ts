@@ -14,9 +14,9 @@ import type { PostId } from "../domain/values/post-id.ts";
 /** Outbound port: operations against a social platform. */
 export interface SocialApi {
   /** Publish a new post and return the platform-assigned id + any platform refs. */
-  createPost(
-    params: { text: string },
-  ): Promise<{ id: PostId; platformRef?: Record<string, string> }>;
+  createPost(params: {
+    text: string;
+  }): Promise<{ id: PostId; platformRef?: Record<string, string> }>;
   /** Delete a post by its platform identifier. */
   deletePost(id: PostId): Promise<void>;
   /** Retrieve the authenticated user's home timeline. */
@@ -29,23 +29,25 @@ export interface SocialApi {
    * Post a reply to an existing post.
    * The full parent Post is required so Bluesky can extract platformRef (uri + cid).
    */
-  replyToPost(
-    params: { text: string; inReplyToPost: Post },
-  ): Promise<{ id: PostId; platformRef?: Record<string, string> }>;
+  replyToPost(params: {
+    text: string;
+    inReplyToPost: Post;
+  }): Promise<{ id: PostId; platformRef?: Record<string, string> }>;
   /**
    * Post a thread — texts posted sequentially, each replying to the previous.
    * Returns Fail with ThreadPartialError when posting fails partway through.
    */
-  postThread(
-    params: { texts: ReadonlyArray<string> },
-  ): Promise<results.Result<{ posts: Post[] }, Error>>;
+  postThread(params: {
+    texts: ReadonlyArray<string>;
+  }): Promise<results.Result<{ posts: Post[] }, Error>>;
   /**
    * Fetch replies to a post using platform-specific search.
    * NOTE: May require elevated API access depending on the platform.
    */
-  getConversation(
-    params: { postId: PostId; maxResults?: number },
-  ): Promise<Post[]>;
+  getConversation(params: {
+    postId: PostId;
+    maxResults?: number;
+  }): Promise<Post[]>;
   /**
    * Retrieve API usage data for the current billing period.
    * NOTE: Bluesky has no billing API — implementations may return empty data.
@@ -73,9 +75,10 @@ export interface SocialApi {
    * Twitter: POST /2/tweets with quote_tweet_id
    * Bluesky: createRecord with app.bsky.embed.record embed
    */
-  quotePost(
-    params: { text: string; quotedPostId: PostId },
-  ): Promise<{ id: PostId }>;
+  quotePost(params: {
+    text: string;
+    quotedPostId: PostId;
+  }): Promise<{ id: PostId }>;
 
   /**
    * Search for posts matching a query string.

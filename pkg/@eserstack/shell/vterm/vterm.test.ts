@@ -304,13 +304,17 @@ bdd.describe("renderScreen", () => {
     const state: RenderState = { prevCursorRow: -1, prevCursorCol: -1 };
 
     await writeAndFlush(term, "hello");
-    renderer.renderScreen(term, {
-      offsetRow: 1,
-      offsetCol: 1,
-      width: 10,
-      height: 5,
-      fullRedraw: true,
-    }, state);
+    renderer.renderScreen(
+      term,
+      {
+        offsetRow: 1,
+        offsetCol: 1,
+        width: 10,
+        height: 5,
+        fullRedraw: true,
+      },
+      state,
+    );
 
     assert.assertEquals(state.prevCursorRow, term.cursorRow);
     assert.assertEquals(state.prevCursorCol, term.cursorCol);

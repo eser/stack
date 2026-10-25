@@ -219,8 +219,12 @@ export const retryWithBackoff = async <T, E>(
     factor?: number;
   },
 ): Promise<results.Result<T, E>> => {
-  const { maxAttempts, initialDelay, maxDelay = Infinity, factor = 2 } =
-    options;
+  const {
+    maxAttempts,
+    initialDelay,
+    maxDelay = Infinity,
+    factor = 2,
+  } = options;
   let lastResult: results.Result<T, E> = results.fail(
     new Error("No attempts made") as E,
   );

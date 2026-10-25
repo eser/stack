@@ -14,7 +14,8 @@ Deno.test(
     assert.assert(tokens.length > 0);
     const kinds = tokens.map((t) => t.kind);
     assert.assert(
-      kinds.includes("word") || kinds.includes("identifier") ||
+      kinds.includes("word") ||
+        kinds.includes("identifier") ||
         kinds.length > 0,
     );
     // token fields are typed (not string-coerced): offset and length are numbers

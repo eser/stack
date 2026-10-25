@@ -41,8 +41,8 @@ const makeClient = (
 
 bdd.describe("HttpClient — basic requests", () => {
   bdd.it("should perform a GET request and return parsed JSON", async () => {
-    const client = makeClient(
-      (_req) => Promise.resolve(makeJsonResponse({ id: 1, name: "Alice" })),
+    const client = makeClient((_req) =>
+      Promise.resolve(makeJsonResponse({ id: 1, name: "Alice" })),
     );
     const resp = await client.get<{ id: number; name: string }>(
       "https://example.com/users/1",
@@ -123,12 +123,10 @@ bdd.describe("HttpClient — basic requests", () => {
   );
 
   bdd.it("should handle 204 No Content", async () => {
-    const client = makeClient(
-      (_req) => Promise.resolve(new Response(null, { status: 204 })),
+    const client = makeClient((_req) =>
+      Promise.resolve(new Response(null, { status: 204 })),
     );
-    const resp = await client.delete<undefined>(
-      "https://example.com/users/1",
-    );
+    const resp = await client.delete<undefined>("https://example.com/users/1");
     assert.assertEquals(resp.status, 204);
     assert.assertEquals(resp.data, undefined);
   });
@@ -287,8 +285,8 @@ bdd.describe("HttpClient — retry", () => {
 
 bdd.describe("HttpClient — Result-style API", () => {
   bdd.it("should return Ok result on success", async () => {
-    const client = makeClient(
-      (_req) => Promise.resolve(makeJsonResponse({ value: 42 })),
+    const client = makeClient((_req) =>
+      Promise.resolve(makeJsonResponse({ value: 42 })),
     );
     const result = await client.getResult<{ value: number }>(
       "https://example.com/data",
@@ -313,8 +311,8 @@ bdd.describe("HttpClient — Result-style API", () => {
   });
 
   bdd.it("should work with do-notation run pattern", async () => {
-    const client = makeClient(
-      (_req) => Promise.resolve(makeJsonResponse({ id: 99 })),
+    const client = makeClient((_req) =>
+      Promise.resolve(makeJsonResponse({ id: 99 })),
     );
 
     const runResult = await (async () => {
@@ -377,29 +375,26 @@ bdd.describe("HttpClient — withDefaults", () => {
 bdd.describe("HttpClient — interceptors", () => {
   bdd.it("should apply request interceptors in order", async () => {
     const log: string[] = [];
-    const client = makeClient(
-      (_req) => Promise.resolve(makeJsonResponse({})),
-      {
-        interceptors: {
-          request: [
-            {
-              name: "a",
-              intercept: (r) => {
-                log.push("a");
-                return r;
-              },
+    const client = makeClient((_req) => Promise.resolve(makeJsonResponse({})), {
+      interceptors: {
+        request: [
+          {
+            name: "a",
+            intercept: (r) => {
+              log.push("a");
+              return r;
             },
-            {
-              name: "b",
-              intercept: (r) => {
-                log.push("b");
-                return r;
-              },
+          },
+          {
+            name: "b",
+            intercept: (r) => {
+              log.push("b");
+              return r;
             },
-          ],
-        },
+          },
+        ],
       },
-    );
+    });
     await client.get("https://example.com/");
     assert.assertEquals(log, ["a", "b"]);
   });
@@ -440,14 +435,13 @@ bdd.describe("HttpClient — interceptors", () => {
 
 bdd.describe("HttpClient — rate limit headers", () => {
   bdd.it("should extract rate limit info from response headers", async () => {
-    const client = makeClient(
-      (_req) =>
-        Promise.resolve(
-          makeJsonResponse({ data: "ok" }, 200, {
-            "X-RateLimit-Remaining": "42",
-            "X-RateLimit-Limit": "100",
-          }),
-        ),
+    const client = makeClient((_req) =>
+      Promise.resolve(
+        makeJsonResponse({ data: "ok" }, 200, {
+          "X-RateLimit-Remaining": "42",
+          "X-RateLimit-Limit": "100",
+        }),
+      ),
     );
     const resp = await client.get<{ data: string }>("https://example.com/api");
     assert.assertEquals(resp.rateLimit?.remaining, 42);
@@ -457,8 +451,8 @@ bdd.describe("HttpClient — rate limit headers", () => {
   bdd.it(
     "should not set rateLimit when no rate limit headers present",
     async () => {
-      const client = makeClient(
-        (_req) => Promise.resolve(makeJsonResponse({ data: "ok" })),
+      const client = makeClient((_req) =>
+        Promise.resolve(makeJsonResponse({ data: "ok" })),
       );
       const resp = await client.get("https://example.com/api");
       assert.assertEquals(resp.rateLimit, undefined);

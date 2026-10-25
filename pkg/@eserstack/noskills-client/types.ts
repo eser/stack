@@ -299,27 +299,25 @@ export interface MuxFrameEvent {
 // stamps it on every outbound message. Clients save the last received seq and
 // pass it as ?after=<seq> on reconnect so the server replays only the ledger
 // events they missed (mobile network partition recovery).
-export type DaemonEvent =
-  & (
-    | SessionMetaEvent
-    | TranscriptReplayStartEvent
-    | TranscriptReplayEndEvent
-    | SdkEvent
-    | QueryDoneEvent
-    | PermissionRequestEvent
-    | PermissionResponseRejectedEvent
-    | PermissionDecisionEvent
-    | ClientCountEvent
-    | FanoutEvent
-    | WorkerDiedEvent
-    | WorkerReadyEvent
-    | SpawnProgressEvent
-    | ForkCreatedEvent
-    | ErrorEvent
-    | CertRotatingEvent
-    | MuxFrameEvent
-  )
-  & { seq?: number };
+export type DaemonEvent = (
+  | SessionMetaEvent
+  | TranscriptReplayStartEvent
+  | TranscriptReplayEndEvent
+  | SdkEvent
+  | QueryDoneEvent
+  | PermissionRequestEvent
+  | PermissionResponseRejectedEvent
+  | PermissionDecisionEvent
+  | ClientCountEvent
+  | FanoutEvent
+  | WorkerDiedEvent
+  | WorkerReadyEvent
+  | SpawnProgressEvent
+  | ForkCreatedEvent
+  | ErrorEvent
+  | CertRotatingEvent
+  | MuxFrameEvent
+) & { seq?: number };
 
 // =============================================================================
 // Client → server messages (sent over the bidi stream)

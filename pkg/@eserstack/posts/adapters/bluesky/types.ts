@@ -16,7 +16,7 @@ export interface BlueskySession {
 
 /** A post record stored in the repo. */
 export interface BlueskyPostRecord {
-  "$type": string;
+  $type: string;
   text: string;
   createdAt: string;
   reply?: {
@@ -72,7 +72,7 @@ export interface BlueskyProfileResponse {
 
 /** Thread node — may be a post view, a not-found sentinel, or a blocked sentinel. */
 export interface BlueskyThreadNode {
-  "$type": string;
+  $type: string;
   post?: BlueskyPostView;
   replies?: BlueskyThreadNode[];
 }
@@ -87,7 +87,7 @@ export interface BlueskyRepostRecord {
   uri: string;
   cid: string;
   value: {
-    "$type": "app.bsky.feed.repost";
+    $type: "app.bsky.feed.repost";
     subject: { uri: string; cid: string };
     createdAt: string;
   };
@@ -101,7 +101,7 @@ export interface BlueskyListRecordsResponse<T> {
 
 /** An embed that quotes another post (app.bsky.embed.record). */
 export interface BlueskyEmbedRecord {
-  "$type": "app.bsky.embed.record";
+  $type: "app.bsky.embed.record";
   record: { uri: string; cid: string };
 }
 

@@ -42,7 +42,9 @@ const getPropertyByPath = (
       return undefined;
     }
     if (
-      current === null || current === undefined || typeof current !== "object"
+      current === null ||
+      current === undefined ||
+      typeof current !== "object"
     ) {
       return undefined;
     }
@@ -152,8 +154,8 @@ const resolveTargetFiles = (
       const firstFile = config._loadedFiles[0];
       return createIfMissing && firstFile !== undefined ? [firstFile] : [];
     }
-    const originFile = config._loadedFiles.find((f) =>
-      f.filepath === field.origin.filepath
+    const originFile = config._loadedFiles.find(
+      (f) => f.filepath === field.origin.filepath,
     );
     return originFile ? [originFile] : [];
   }
@@ -182,10 +184,10 @@ type FileOutcome =
   | { readonly kind: "updated"; readonly filepath: string }
   | { readonly kind: "skipped"; readonly filepath: string }
   | {
-    readonly kind: "failed";
-    readonly filepath: string;
-    readonly reason: string;
-  };
+      readonly kind: "failed";
+      readonly filepath: string;
+      readonly reason: string;
+    };
 
 /**
  * Updates a single field across config files.
@@ -223,8 +225,8 @@ export const updateField = async <T>(
   // result lists keep the order of targetFiles.
   const outcomes = await Promise.all(
     targetFiles.map(async (file): Promise<FileOutcome> => {
-      const propertyPath = types.DEFAULT_FIELD_MAPPINGS[fieldName]
-        ?.[file.fileType];
+      const propertyPath =
+        types.DEFAULT_FIELD_MAPPINGS[fieldName]?.[file.fileType];
 
       if (propertyPath === undefined || propertyPath === "") {
         return { kind: "skipped", filepath: file.filepath };
@@ -267,11 +269,11 @@ export const updateField = async <T>(
     } else {
       // Create new tracked field
       const firstUpdated = config._loadedFiles.find((f) =>
-        updated.includes(f.filepath)
+        updated.includes(f.filepath),
       );
       if (firstUpdated) {
-        const propertyPath = types.DEFAULT_FIELD_MAPPINGS[fieldName]
-          ?.[firstUpdated.fileType];
+        const propertyPath =
+          types.DEFAULT_FIELD_MAPPINGS[fieldName]?.[firstUpdated.fileType];
         if (propertyPath) {
           // Cast to allow assignment
           (config as Record<string, unknown>)[fieldName] = {

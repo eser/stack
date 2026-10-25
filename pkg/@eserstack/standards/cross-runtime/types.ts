@@ -1153,10 +1153,7 @@ export class RuntimeCapabilityError extends Error {
    * @param capability - The capability that was requested
    * @param runtimeName - The runtime that lacks it
    */
-  constructor(
-    capability: keyof RuntimeCapabilities,
-    runtimeName: RuntimeName,
-  ) {
+  constructor(capability: keyof RuntimeCapabilities, runtimeName: RuntimeName) {
     super(
       `Capability "${capability}" is not available on runtime "${runtimeName}"`,
     );
@@ -1243,11 +1240,7 @@ export class ProcessError extends Error {
    * @param code - Its exit code
    * @param stderr - What it wrote to stderr
    */
-  constructor(
-    cmd: string,
-    code: number,
-    stderr: string,
-  ) {
+  constructor(cmd: string, code: number, stderr: string) {
     super(`Command "${cmd}" failed with exit code ${code}: ${stderr}`);
     this.name = "ProcessError";
     this.cmd = cmd;

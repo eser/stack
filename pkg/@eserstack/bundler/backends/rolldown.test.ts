@@ -237,9 +237,7 @@ Deno.test("ChunkGroup regex patterns match expected paths", () => {
   assert.assert(
     reactVendorGroup.test.test("/node_modules/react-dom/client.js"),
   );
-  assert.assert(
-    reactVendorGroup.test.test("/node_modules/scheduler/index.js"),
-  );
+  assert.assert(reactVendorGroup.test.test("/node_modules/scheduler/index.js"));
 
   // Should NOT match other packages
   assert.assertEquals(

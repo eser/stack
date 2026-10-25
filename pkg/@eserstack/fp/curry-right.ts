@@ -25,9 +25,12 @@ export const curryRight = <
   // deno-lint-ignore no-explicit-any
   TF extends functions.GenericFunction<any, any>,
   TP extends Partial<Parameters<TF>>,
->(func: TF, ...argsOnRight: TP): (
+>(
+  func: TF,
+  ...argsOnRight: TP
+): ((
   ...argsOnLeft: typeSlices.RemainingParametersRight<Parameters<TF>, TP>
-) => ReturnType<TF> => {
+) => ReturnType<TF>) => {
   return (
     ...argsOnLeft: typeSlices.RemainingParametersRight<Parameters<TF>, TP>
   ) => func(...argsOnLeft, ...argsOnRight);

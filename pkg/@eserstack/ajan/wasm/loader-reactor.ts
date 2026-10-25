@@ -74,22 +74,22 @@ export class UnsupportedInWasmError extends Error {
 /** The exports of the reactor module. */
 export type ReactorExports = {
   readonly memory: WebAssembly.Memory;
-  readonly "eser_ajan_alloc": (size: number) => number;
-  readonly "eser_ajan_call": (
+  readonly eser_ajan_alloc: (size: number) => number;
+  readonly eser_ajan_call: (
     namePtr: number,
     nameLen: number,
     argsPtr: number,
     argsLen: number,
   ) => number;
-  readonly "eser_ajan_result_ptr": () => number;
+  readonly eser_ajan_result_ptr: () => number;
   /** The same call for the names that wait on the host (ABI 2, TASK-277). */
-  readonly "eser_ajan_call_async": (
+  readonly eser_ajan_call_async: (
     namePtr: number,
     nameLen: number,
     argsPtr: number,
     argsLen: number,
   ) => number;
-  readonly "eser_ajan_async_result_ptr": () => number;
+  readonly eser_ajan_async_result_ptr: () => number;
 };
 
 /** The WASI side of one instance. */
@@ -272,15 +272,20 @@ export const createReactorHost = async (
     const exports = options.wrapExports?.(raw) ?? raw;
     memory = exports.memory;
 
-    const promising = (WebAssembly as unknown as {
-      promising?: (fn: unknown) => (...args: number[]) => Promise<number>;
-    }).promising;
-    const callAsync = hostFetch.hasJspi() && promising !== undefined
-      ? promising(exports.eser_ajan_call_async)
-      : (...args: number[]) =>
-        Promise.resolve().then(() =>
-          (exports.eser_ajan_call_async as (...a: number[]) => number)(...args)
-        );
+    const promising = (
+      WebAssembly as unknown as {
+        promising?: (fn: unknown) => (...args: number[]) => Promise<number>;
+      }
+    ).promising;
+    const callAsync =
+      hostFetch.hasJspi() && promising !== undefined
+        ? promising(exports.eser_ajan_call_async)
+        : (...args: number[]) =>
+            Promise.resolve().then(() =>
+              (exports.eser_ajan_call_async as (...a: number[]) => number)(
+                ...args,
+              ),
+            );
 
     return { exports, host, callAsync };
   };

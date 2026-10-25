@@ -8,7 +8,5 @@
     "rules/validate-input.md",
     "rules/no-eval.md"
   ],
-  "concerns": [
-    "concerns/security-audit.json"
-  ]
+  "concerns": ["concerns/security-audit.json"]
 }

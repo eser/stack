@@ -99,7 +99,11 @@ Go `error` strings → typed `ConfigError`:
 
 ```ts
 export class ConfigError extends Error {
-  constructor(message: string, public readonly code: string, cause?: unknown) {
+  constructor(
+    message: string,
+    public readonly code: string,
+    cause?: unknown,
+  ) {
     super(message);
     this.name = "ConfigError";
   }

@@ -22,10 +22,7 @@ const tokenize = (text: string): Set<string> => {
 /**
  * Jaccard similarity: |A ∩ B| / |A ∪ B|. Returns 0..1. Empty inputs → 0.
  */
-export const compareQuestions = (
-  expected: string,
-  asked: string,
-): number => {
+export const compareQuestions = (expected: string, asked: string): number => {
   const a = tokenize(expected);
   const b = tokenize(asked);
   if (a.size === 0 || b.size === 0) return 0;

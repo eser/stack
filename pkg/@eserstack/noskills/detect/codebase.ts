@@ -43,8 +43,8 @@ const detectLanguages = async (root: string): Promise<readonly string[]> => {
   const languages: string[] = [];
 
   if (
-    await pathExists(`${root}/package.json`) ||
-    await pathExists(`${root}/deno.json`)
+    (await pathExists(`${root}/package.json`)) ||
+    (await pathExists(`${root}/deno.json`))
   ) {
     languages.push("typescript");
   }
@@ -55,8 +55,8 @@ const detectLanguages = async (root: string): Promise<readonly string[]> => {
     languages.push("rust");
   }
   if (
-    await pathExists(`${root}/pyproject.toml`) ||
-    await pathExists(`${root}/setup.py`)
+    (await pathExists(`${root}/pyproject.toml`)) ||
+    (await pathExists(`${root}/setup.py`))
   ) {
     languages.push("python");
   }

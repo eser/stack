@@ -1,6 +1,3 @@
 {
-  "recommendations": [
-    "oxc.oxc-vscode",
-    "ryanluker.vscode-coverage-gutters"
-  ]
+  "recommendations": ["oxc.oxc-vscode", "ryanluker.vscode-coverage-gutters"]
 }

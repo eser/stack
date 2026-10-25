@@ -51,9 +51,13 @@
     // The renderer emits FrontendToServer frames; wrap each as a mux command.
     const send = (frame) => {
       if (writer === null) return;
-      writer.write(
-        new TextEncoder().encode(JSON.stringify({ type: "mux", frame }) + "\n"),
-      ).catch(() => {});
+      writer
+        .write(
+          new TextEncoder().encode(
+            JSON.stringify({ type: "mux", frame }) + "\n",
+          ),
+        )
+        .catch(() => {});
     };
 
     const renderer = MuxRender.createRenderer({
@@ -72,9 +76,12 @@
       const tabButton = t.closest(".tab-select");
       if (closeButton !== null && closeButton.dataset.close !== undefined) {
         const scene = renderer.getScene();
-        const idx = scene !== null && Array.isArray(scene.tabs)
-          ? scene.tabs.findIndex((tab) => tab.id === closeButton.dataset.close)
-          : -1;
+        const idx =
+          scene !== null && Array.isArray(scene.tabs)
+            ? scene.tabs.findIndex(
+                (tab) => tab.id === closeButton.dataset.close,
+              )
+            : -1;
         if (idx !== -1) {
           send({ t: "action", action: { type: "closeTab", index: idx } });
         }
@@ -115,9 +122,9 @@
       if (typeof cfg.token === "string" && cfg.token !== "") {
         q.set("token", cfg.token);
       }
-      const url = `${cfg.baseUrl}/attach/${encodeURIComponent(cfg.slug)}/${
-        encodeURIComponent(cfg.sid)
-      }?${q.toString()}`;
+      const url = `${cfg.baseUrl}/attach/${encodeURIComponent(cfg.slug)}/${encodeURIComponent(
+        cfg.sid,
+      )}?${q.toString()}`;
 
       try {
         wt = new WebTransport(url, wtOpts);

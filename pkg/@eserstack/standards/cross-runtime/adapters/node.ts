@@ -53,9 +53,10 @@ const nodeSpawn = (
 
     const proc = deps.childProcess.spawn(cmd, args ?? [], {
       cwd: options?.cwd,
-      env: options?.env !== undefined
-        ? { ...deps.process.env, ...options.env }
-        : undefined,
+      env:
+        options?.env !== undefined
+          ? { ...deps.process.env, ...options.env }
+          : undefined,
       stdio,
       signal: options?.signal,
     });
@@ -71,13 +72,11 @@ const nodeSpawn = (
     const stdoutChunks: deps.buffer.Buffer[] = [];
     const stderrChunks: deps.buffer.Buffer[] = [];
 
-    proc.stdout?.on(
-      "data",
-      (chunk: deps.buffer.Buffer) => stdoutChunks.push(chunk),
+    proc.stdout?.on("data", (chunk: deps.buffer.Buffer) =>
+      stdoutChunks.push(chunk),
     );
-    proc.stderr?.on(
-      "data",
-      (chunk: deps.buffer.Buffer) => stderrChunks.push(chunk),
+    proc.stderr?.on("data", (chunk: deps.buffer.Buffer) =>
+      stderrChunks.push(chunk),
     );
 
     proc.on("error", reject);
@@ -99,9 +98,10 @@ const nodeSpawnChild = (
 ): ChildProcess => {
   const proc = deps.childProcess.spawn(cmd, args ?? [], {
     cwd: options?.cwd,
-    env: options?.env !== undefined
-      ? { ...deps.process.env, ...options.env }
-      : undefined,
+    env:
+      options?.env !== undefined
+        ? { ...deps.process.env, ...options.env }
+        : undefined,
     stdio: shared.getNodeStdioArray(options),
     signal: options?.signal,
   });
@@ -109,13 +109,11 @@ const nodeSpawnChild = (
   const stdoutChunks: deps.buffer.Buffer[] = [];
   const stderrChunks: deps.buffer.Buffer[] = [];
 
-  proc.stdout?.on(
-    "data",
-    (chunk: deps.buffer.Buffer) => stdoutChunks.push(chunk),
+  proc.stdout?.on("data", (chunk: deps.buffer.Buffer) =>
+    stdoutChunks.push(chunk),
   );
-  proc.stderr?.on(
-    "data",
-    (chunk: deps.buffer.Buffer) => stderrChunks.push(chunk),
+  proc.stderr?.on("data", (chunk: deps.buffer.Buffer) =>
+    stderrChunks.push(chunk),
   );
 
   const statusPromise = new Promise<ProcessStatus>((resolve, reject) => {
@@ -131,15 +129,22 @@ const nodeSpawnChild = (
 
   return {
     pid: proc.pid!,
-    stdin: proc.stdin !== null
-      ? (deps.stream.Writable.toWeb(proc.stdin) as WritableStream<Uint8Array>)
-      : null,
-    stdout: proc.stdout !== null
-      ? (deps.stream.Readable.toWeb(proc.stdout) as ReadableStream<Uint8Array>)
-      : null,
-    stderr: proc.stderr !== null
-      ? (deps.stream.Readable.toWeb(proc.stderr) as ReadableStream<Uint8Array>)
-      : null,
+    stdin:
+      proc.stdin !== null
+        ? (deps.stream.Writable.toWeb(proc.stdin) as WritableStream<Uint8Array>)
+        : null,
+    stdout:
+      proc.stdout !== null
+        ? (deps.stream.Readable.toWeb(
+            proc.stdout,
+          ) as ReadableStream<Uint8Array>)
+        : null,
+    stderr:
+      proc.stderr !== null
+        ? (deps.stream.Readable.toWeb(
+            proc.stderr,
+          ) as ReadableStream<Uint8Array>)
+        : null,
     status: statusPromise,
     output: async (): Promise<ProcessOutput> => {
       const status = await statusPromise;

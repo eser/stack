@@ -118,8 +118,9 @@ bdd.describe("mergeSections", () => {
     "legacy string[] sections are auto-migrated with synthetic ids",
     () => {
       const sections = living.mergeSections([legacyConcern]);
-      const legacySection = sections.find((s) =>
-        s.id.startsWith("legacy-") && s.id.includes("legacy-section-title")
+      const legacySection = sections.find(
+        (s) =>
+          s.id.startsWith("legacy-") && s.id.includes("legacy-section-title"),
       );
       assert.assertEquals(legacySection !== undefined, true);
       assert.assertEquals(legacySection?.title, "Legacy Section Title");
@@ -222,8 +223,8 @@ bdd.describe("generateInitialSpec", () => {
         creator,
         now,
       });
-      const designStates = placeholders.find((p) =>
-        p.sectionId === "design-states"
+      const designStates = placeholders.find(
+        (p) => p.sectionId === "design-states",
       );
       assert.assertEquals(designStates?.status, "conditional-hidden");
       // Marker should NOT be in the document body
@@ -244,8 +245,8 @@ bdd.describe("generateInitialSpec", () => {
         creator,
         now,
       });
-      const designStates = placeholders.find((p) =>
-        p.sectionId === "design-states"
+      const designStates = placeholders.find(
+        (p) => p.sectionId === "design-states",
       );
       assert.assertEquals(designStates?.status, "placeholder");
       assert.assertEquals(
@@ -682,11 +683,13 @@ bdd.describe("checkSpecCompleteness", () => {
     const { canAdvance, pendingDecisions } = living.checkSpecCompleteness(
       makeSpecState(
         [{ sectionId: "summary", sectionTitle: "Summary", status: "filled" }],
-        [{
-          section: "auth",
-          question: "Which provider?",
-          waitingFor: ["@alice"],
-        }],
+        [
+          {
+            section: "auth",
+            question: "Which provider?",
+            waitingFor: ["@alice"],
+          },
+        ],
       ),
     );
     assert.assertEquals(canAdvance, false);
@@ -730,11 +733,13 @@ bdd.describe("parseFrontmatter / renderFrontmatter", () => {
         },
         { user: "Bob", lastAction: "answer", date: "2026-04-06T01:00:00.000Z" },
       ],
-      approvals: [{
-        user: "Alice",
-        status: "approved",
-        date: "2026-04-06T02:00:00.000Z",
-      }],
+      approvals: [
+        {
+          user: "Alice",
+          status: "approved",
+          date: "2026-04-06T02:00:00.000Z",
+        },
+      ],
       pendingDecisions: [
         {
           section: "auth",
@@ -747,9 +752,8 @@ bdd.describe("parseFrontmatter / renderFrontmatter", () => {
     const rendered = living.renderFrontmatter(metadata);
     const body = "\n\n# Spec: foo\n\n## Summary\n\ncontent";
     const full = `${rendered}\n${body}`;
-    const { metadata: parsed, body: parsedBody } = living.parseFrontmatter(
-      full,
-    );
+    const { metadata: parsed, body: parsedBody } =
+      living.parseFrontmatter(full);
 
     assert.assertEquals(parsed.created.user, metadata.created.user);
     assert.assertEquals(parsed.lastModified.user, metadata.lastModified.user);
@@ -1017,9 +1021,9 @@ bdd.describe("declared section scopes", () => {
       name: "hides scoped sections until the spec is classified",
       classification: null,
       expected: {
-        "screens": "conditional-hidden",
-        "endpoints": "conditional-hidden",
-        "rollout": "placeholder",
+        screens: "conditional-hidden",
+        endpoints: "conditional-hidden",
+        rollout: "placeholder",
         "cli-help": "conditional-hidden",
       },
     },
@@ -1027,9 +1031,9 @@ bdd.describe("declared section scopes", () => {
       name: "shows the ui section for a UI spec",
       classification: uiClassification,
       expected: {
-        "screens": "placeholder",
-        "endpoints": "conditional-hidden",
-        "rollout": "placeholder",
+        screens: "placeholder",
+        endpoints: "conditional-hidden",
+        rollout: "placeholder",
         "cli-help": "conditional-hidden",
       },
     },
@@ -1037,9 +1041,9 @@ bdd.describe("declared section scopes", () => {
       name: "shows the api section for an API spec",
       classification: { ...allFalseClassification, involvesPublicAPI: true },
       expected: {
-        "screens": "conditional-hidden",
-        "endpoints": "placeholder",
-        "rollout": "placeholder",
+        screens: "conditional-hidden",
+        endpoints: "placeholder",
+        rollout: "placeholder",
         "cli-help": "conditional-hidden",
       },
     },
@@ -1047,9 +1051,9 @@ bdd.describe("declared section scopes", () => {
       name: "shows only unscoped sections and matching conditions otherwise",
       classification: { ...allFalseClassification, involvesCLI: true },
       expected: {
-        "screens": "conditional-hidden",
-        "endpoints": "conditional-hidden",
-        "rollout": "placeholder",
+        screens: "conditional-hidden",
+        endpoints: "conditional-hidden",
+        rollout: "placeholder",
         "cli-help": "placeholder",
       },
     },

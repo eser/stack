@@ -35,9 +35,7 @@ Deno.test("createAotSnapshotState creates state with files and dependencies", ()
     ["main.js", "/path/to/main.js"],
     ["chunk-abc.js", "/path/to/chunk-abc.js"],
   ]);
-  const dependencies = new Map([
-    ["main.js", ["chunk-abc.js"]],
-  ]);
+  const dependencies = new Map([["main.js", ["chunk-abc.js"]]]);
 
   const state = aotSnapshot.createAotSnapshotState(files, dependencies);
 
@@ -93,10 +91,7 @@ Deno.test("AotSnapshot.read returns ReadableStream for existing file", async () 
   const { tempDir, cleanup } = await createTestContext();
 
   try {
-    const testFilePath = runtime.path.join(
-      tempDir,
-      "test.js",
-    );
+    const testFilePath = runtime.path.join(tempDir, "test.js");
     const testContent = 'console.log("hello");';
     await runtime.fs.writeTextFile(testFilePath, testContent);
 
@@ -133,10 +128,7 @@ Deno.test("AotSnapshot.read returns null when file is deleted", async () => {
   const { tempDir, cleanup } = await createTestContext();
 
   try {
-    const testFilePath = runtime.path.join(
-      tempDir,
-      "deleted.js",
-    );
+    const testFilePath = runtime.path.join(tempDir, "deleted.js");
     await runtime.fs.writeTextFile(testFilePath, "content");
 
     const files = new Map([["deleted.js", testFilePath]]);
@@ -174,9 +166,7 @@ Deno.test("AotSnapshot.dependencies returns dependencies for known path", () => 
 });
 
 Deno.test("AotSnapshot.dependencies returns empty array for unknown path", () => {
-  const dependencies = new Map([
-    ["main.js", ["chunk-a.js"]],
-  ]);
+  const dependencies = new Map([["main.js", ["chunk-a.js"]]]);
   const state = aotSnapshot.createAotSnapshotState(new Map(), dependencies);
   const snapshot = new aotSnapshot.AotSnapshot(state);
 
@@ -186,9 +176,7 @@ Deno.test("AotSnapshot.dependencies returns empty array for unknown path", () =>
 });
 
 Deno.test("AotSnapshot.dependencies returns empty array when no dependencies", () => {
-  const dependencies = new Map([
-    ["main.js", []],
-  ]);
+  const dependencies = new Map([["main.js", []]]);
   const state = aotSnapshot.createAotSnapshotState(new Map(), dependencies);
   const snapshot = new aotSnapshot.AotSnapshot(state);
 
@@ -207,7 +195,7 @@ Deno.test("loadAotSnapshot loads valid snapshot from directory", async () => {
   try {
     // Create snapshot.json
     const snapshotData = {
-      "build_id": "test-build-id-12345",
+      build_id: "test-build-id-12345",
       files: {
         "main.js": ["chunk-a.js"],
         "chunk-a.js": [],
@@ -265,7 +253,7 @@ Deno.test("loadAotSnapshot sets build ID from snapshot", async () => {
   try {
     const expectedBuildId = "snapshot-build-id-abc123";
     const snapshotData = {
-      "build_id": expectedBuildId,
+      build_id: expectedBuildId,
       files: {
         "app.js": [],
       },
@@ -296,7 +284,7 @@ Deno.test("loadAotSnapshot loads dependencies correctly", async () => {
 
   try {
     const snapshotData = {
-      "build_id": "deps-test-build",
+      build_id: "deps-test-build",
       files: {
         "entry.js": ["chunk-1.js", "chunk-2.js"],
         "chunk-1.js": ["vendor.js"],
@@ -312,7 +300,10 @@ Deno.test("loadAotSnapshot loads dependencies correctly", async () => {
     // Create all files
     await Promise.all(
       Object.keys(snapshotData.files).map((file) =>
-        runtime.fs.writeTextFile(runtime.path.join(tempDir, file), `// ${file}`)
+        runtime.fs.writeTextFile(
+          runtime.path.join(tempDir, file),
+          `// ${file}`,
+        ),
       ),
     );
 

@@ -72,10 +72,7 @@ enforces it. Mutation of a local value that nobody else can see is fine.
 Correct:
 
 ```typescript
-export function addTag(
-  session: Readonly<Session>,
-  tag: string,
-): Session {
+export function addTag(session: Readonly<Session>, tag: string): Session {
   return { ...session, tags: [...session.tags, tag] };
 }
 ```

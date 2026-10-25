@@ -5,10 +5,8 @@ import * as auth from "./auth.ts";
 
 const PORT = 3000;
 
-const req = (
-  url: string,
-  init?: RequestInit,
-): Request => new Request(url, init);
+const req = (url: string, init?: RequestInit): Request =>
+  new Request(url, init);
 
 Deno.test("createToken mints a fresh 32-byte hex token each call", () => {
   const a = auth.createToken();
@@ -72,13 +70,11 @@ Deno.test("header token: only the exact value is accepted", () => {
 });
 
 Deno.test("origin allowlist covers the three loopback spellings", () => {
-  for (
-    const origin of [
-      `http://localhost:${PORT}`,
-      `http://127.0.0.1:${PORT}`,
-      `http://[::1]:${PORT}`,
-    ]
-  ) {
+  for (const origin of [
+    `http://localhost:${PORT}`,
+    `http://127.0.0.1:${PORT}`,
+    `http://[::1]:${PORT}`,
+  ]) {
     assert.assert(
       auth.isOriginAllowed(
         req(`http://localhost:${PORT}/mux`, { headers: { origin } }),
@@ -90,14 +86,12 @@ Deno.test("origin allowlist covers the three loopback spellings", () => {
 });
 
 Deno.test("origin allowlist rejects foreign and same-host-other-port origins", () => {
-  for (
-    const origin of [
-      "https://evil.example",
-      "http://localhost:9999",
-      "http://192.168.1.10:3000",
-      "null",
-    ]
-  ) {
+  for (const origin of [
+    "https://evil.example",
+    "http://localhost:9999",
+    "http://192.168.1.10:3000",
+    "null",
+  ]) {
     assert.assertFalse(
       auth.isOriginAllowed(
         req(`http://localhost:${PORT}/mux`, { headers: { origin } }),

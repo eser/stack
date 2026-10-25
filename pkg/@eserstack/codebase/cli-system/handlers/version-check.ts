@@ -153,7 +153,7 @@ const VERSION_CHECK_TIMEOUT_MS = 5_000;
 const fetchLatestVersion = async (): Promise<string | undefined> => {
   try {
     const response = await fetch(RELEASES_URL, {
-      headers: { "Accept": "application/vnd.github.v3+json" },
+      headers: { Accept: "application/vnd.github.v3+json" },
       signal: AbortSignal.timeout(VERSION_CHECK_TIMEOUT_MS),
     });
 
@@ -184,9 +184,7 @@ const fetchLatestVersion = async (): Promise<string | undefined> => {
  */
 export const checkForUpdate = async (
   currentVersionArg: string,
-): Promise<
-  UpdateCheckResult | undefined
-> => {
+): Promise<UpdateCheckResult | undefined> => {
   try {
     const currentVersion = currentVersionArg;
 

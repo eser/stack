@@ -52,18 +52,16 @@ export class OllamaModel implements model.LanguageModel {
       return results.ok(mapChatResponse(resp.data, this.modelId));
     } catch (err) {
       if (err instanceof errors.AiError) return results.fail(err);
-      const statusCode = err instanceof httpclient.HttpClientError
-        ? (err.statusCode ?? undefined)
-        : undefined;
+      const statusCode =
+        err instanceof httpclient.HttpClientError
+          ? (err.statusCode ?? undefined)
+          : undefined;
       return results.fail(
-        new errors.AiError(
-          err instanceof Error ? err.message : String(err),
-          {
-            provider: "ollama",
-            statusCode,
-            cause: err instanceof Error ? err : undefined,
-          },
-        ),
+        new errors.AiError(err instanceof Error ? err.message : String(err), {
+          provider: "ollama",
+          statusCode,
+          cause: err instanceof Error ? err : undefined,
+        }),
       );
     }
   }
@@ -89,9 +87,10 @@ export class OllamaModel implements model.LanguageModel {
       if (err instanceof errors.AiError) {
         yield { kind: "error", error: err };
       } else {
-        const statusCode = err instanceof httpclient.HttpClientError
-          ? (err.statusCode ?? undefined)
-          : undefined;
+        const statusCode =
+          err instanceof httpclient.HttpClientError
+            ? (err.statusCode ?? undefined)
+            : undefined;
         yield {
           kind: "error",
           error: new errors.AiError(
@@ -122,11 +121,9 @@ export class OllamaModel implements model.LanguageModel {
 
 export const ollamaFactory: model.ProviderFactory = {
   provider: "ollama",
-  createModel(
-    cfg: config.ResolvedConfigTarget,
-  ): Promise<model.LanguageModel> {
-    const baseUrl = (cfg.properties?.["baseUrl"] as string | undefined) ??
-      DEFAULT_BASE_URL;
+  createModel(cfg: config.ResolvedConfigTarget): Promise<model.LanguageModel> {
+    const baseUrl =
+      (cfg.properties?.["baseUrl"] as string | undefined) ?? DEFAULT_BASE_URL;
 
     return Promise.resolve(new OllamaModel(baseUrl, cfg));
   },
@@ -141,9 +138,9 @@ type OllamaChatResponse = {
   // The mappers below read the message field by field.
   // deno-lint-ignore no-explicit-any
   message?: any;
-  "done_reason"?: string;
-  "prompt_eval_count"?: number;
-  "eval_count"?: number;
+  done_reason?: string;
+  prompt_eval_count?: number;
+  eval_count?: number;
 };
 
 // =============================================================================
@@ -278,9 +275,7 @@ const mapChatResponse = (
   };
 };
 
-const mapStreamEvent = (
-  event: unknown,
-): generation.StreamEvent | null => {
+const mapStreamEvent = (event: unknown): generation.StreamEvent | null => {
   if (event === null || typeof event !== "object") {
     return null;
   }

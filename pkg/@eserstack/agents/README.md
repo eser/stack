@@ -21,8 +21,8 @@ Look up an adapter and build the spawn spec for it:
 ```typescript
 import * as agents from "@eserstack/agents";
 
-const adapter = agents.getAgentAdapter("claude-code") ??
-  agents.defaultAgentAdapter();
+const adapter =
+  agents.getAgentAdapter("claude-code") ?? agents.defaultAgentAdapter();
 const spec = await adapter.buildSpawnSpec({
   cwd: "your_project_dir",
   cols: 120,

@@ -19,10 +19,7 @@ import type {
 } from "@eserstack/bundler/backends";
 import type { BundlerBackend } from "../config.ts";
 
-const bundlerLogger = logging.logger.getLogger([
-  "laroux-bundler",
-  "bundler",
-]);
+const bundlerLogger = logging.logger.getLogger(["laroux-bundler", "bundler"]);
 
 /**
  * Backend for client bundles. Its import map resolver plugin applies
@@ -210,7 +207,8 @@ export async function bundle(
   }
 
   // Convert sourcemap to boolean for @eserstack/bundler
-  const sourcemapEnabled = options.sourcemap === true ||
+  const sourcemapEnabled =
+    options.sourcemap === true ||
     options.sourcemap === "external" ||
     options.sourcemap === "inline";
 
@@ -231,8 +229,8 @@ export async function bundle(
   const result = await bundler.bundle(config);
 
   if (!result.success) {
-    const errors = result.errors?.map((e) => e.message).join("\n") ??
-      "Unknown error";
+    const errors =
+      result.errors?.map((e) => e.message).join("\n") ?? "Unknown error";
     throw new Error(`Bundle failed: ${errors}`);
   }
 
@@ -242,14 +240,16 @@ export async function bundle(
   const manifest: Record<string, string[]> = {};
   const realPaths = await Promise.all(
     clientComponents.map((component) =>
-      runtime.fs.realPath(component.filePath)
+      runtime.fs.realPath(component.filePath),
     ),
   );
 
   for (const [index, component] of clientComponents.entries()) {
     const realPath = realPaths[index] ?? component.filePath;
-    const chunks = result.entrypointManifest?.[component.filePath] ??
-      result.entrypointManifest?.[realPath] ?? [];
+    const chunks =
+      result.entrypointManifest?.[component.filePath] ??
+      result.entrypointManifest?.[realPath] ??
+      [];
     if (chunks.length > 0) {
       manifest[component.filePath] = [...chunks];
     }
@@ -325,7 +325,8 @@ export async function bundleServerComponents(
   const entrypoints: Record<string, string> = {};
   for (const filePath of options.entrypoints) {
     // Use relative path from project root as entry name
-    let relativePath = filePath.replace(options.projectRoot, "")
+    let relativePath = filePath
+      .replace(options.projectRoot, "")
       .replace(/^\//, "");
 
     // Strip file extension (src/app/layout.tsx → src/app/layout)
@@ -349,8 +350,8 @@ export async function bundleServerComponents(
   const result = await bundler.bundle(config);
 
   if (!result.success) {
-    const errors = result.errors?.map((e) => e.message).join("\n") ??
-      "Unknown error";
+    const errors =
+      result.errors?.map((e) => e.message).join("\n") ?? "Unknown error";
     throw new Error(`Server bundle failed: ${errors}`);
   }
 
@@ -359,9 +360,9 @@ export async function bundleServerComponents(
   for (const [outputPath, output] of result.outputs) {
     if (output.isEntry && result.entrypointManifest !== undefined) {
       // Find the original entry point for this output
-      for (
-        const [entryPath, chunks] of Object.entries(result.entrypointManifest)
-      ) {
+      for (const [entryPath, chunks] of Object.entries(
+        result.entrypointManifest,
+      )) {
         if (chunks.includes(outputPath)) {
           outputMap.set(entryPath, outputPath);
           break;

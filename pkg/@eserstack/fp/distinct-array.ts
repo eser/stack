@@ -12,9 +12,10 @@ export const distinctArray = <T>(
   instance: Iterable<T>,
   predicate: (value: T, index: number, instance: Iterable<T>) => unknown,
 ): Array<T> => {
-  const arrInstance = (instance.constructor === Array)
-    ? instance as ReadonlyArray<T>
-    : [...instance];
+  const arrInstance =
+    instance.constructor === Array
+      ? (instance as ReadonlyArray<T>)
+      : [...instance];
 
   const predicateValue = predicate ?? ((value: T) => value);
   const result: Array<T> = [];

@@ -51,9 +51,7 @@ const tryLoadConfigFile = async (
   const rawText = await runtime.fs.readTextFile(filepath);
 
   // Use the file loader for parsing
-  const parseResult = await fileLoader.parse<Record<string, unknown>>(
-    filepath,
-  );
+  const parseResult = await fileLoader.parse<Record<string, unknown>>(filepath);
   const content = parseResult.content;
 
   if (content === undefined) {
@@ -79,7 +77,7 @@ const findConfigFiles = async (
   // result keeps the priority order of includeFiles.
   const loaded = await Promise.all(
     includeFiles.map((fileType) =>
-      tryLoadConfigFile(runtime.path.join(baseDir, fileType), fileType)
+      tryLoadConfigFile(runtime.path.join(baseDir, fileType), fileType),
     ),
   );
 
@@ -224,9 +222,9 @@ export const load = async (
 
   if (loadedFiles.length === 0) {
     throw new PackageLoadError(
-      `No config files found in ${baseDir}. Looked for: ${
-        sortedFiles.join(", ")
-      }`,
+      `No config files found in ${baseDir}. Looked for: ${sortedFiles.join(
+        ", ",
+      )}`,
     );
   }
 

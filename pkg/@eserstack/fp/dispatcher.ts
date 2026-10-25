@@ -38,22 +38,17 @@ export const dispatcher = <T>(
 
     index += 1;
 
-    return await layer(
-      newState,
-      (currentState: T) => {
-        loggers?.forEach((logger: LoggerType<T>) => {
-          logger(
-            {
-              action: layer.name,
-              previousState: newState,
-              newState: currentState,
-            },
-          );
+    return await layer(newState, (currentState: T) => {
+      loggers?.forEach((logger: LoggerType<T>) => {
+        logger({
+          action: layer.name,
+          previousState: newState,
+          newState: currentState,
         });
+      });
 
-        return next(currentState);
-      },
-    );
+      return next(currentState);
+    });
   };
 
   return next(state);

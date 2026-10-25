@@ -29,12 +29,12 @@ const makeTempDir = async (): Promise<string> => {
   // Write minimal manifest
   await persistence.writeManifest(
     dir,
-    noskills.createInitialManifest(
-      [],
-      ["claude-code"],
-      [],
-      { languages: ["typescript"], frameworks: [], ci: [], testRunner: null },
-    ),
+    noskills.createInitialManifest([], ["claude-code"], [], {
+      languages: ["typescript"],
+      frameworks: [],
+      ci: [],
+      testRunner: null,
+    }),
   );
   await persistence.writeState(dir, noskills.createInitialState());
   return dir;
@@ -45,7 +45,9 @@ const makeTempDir = async (): Promise<string> => {
 // out via `where`/`which`, which goes through the native ajan FFI). This mirrors
 // the fake host used in @eserstack/mux's own server tests. Pass `writes` to
 // collect what reaches the PTYs.
-const fakeHostOpts = (writes: string[] = []): {
+const fakeHostOpts = (
+  writes: string[] = [],
+): {
   createHost: (cb: mux.PtyHostCallbacks) => mux.PtyHost;
   resolveCommand: () => Promise<string>;
 } => ({
@@ -396,9 +398,9 @@ bdd.describe("Spec page actions", () => {
       assert.assertEquals(spec.phase, phase);
 
       const html = specDetail.renderSpecDetail(spec, "", null);
-      const actions = [...html.matchAll(/data-action="([^"]+)"/g)].map((
-        match,
-      ) => match[1]!);
+      const actions = [...html.matchAll(/data-action="([^"]+)"/g)].map(
+        (match) => match[1]!,
+      );
       assert.assertNotEquals(actions, []);
 
       const host = new muxHost.MuxHost(root);
@@ -528,13 +530,10 @@ bdd.describe("withFaultBoundary", () => {
     async () => {
       const records: ErrorRecord[] = [];
       const seen: requestContext.RequestContext[] = [];
-      const handler = server.withFaultBoundary(
-        (_request, context) => {
-          seen.push(context);
-          return Promise.resolve(new Response("fine", { status: 202 }));
-        },
-        recordingLogger(records),
-      );
+      const handler = server.withFaultBoundary((_request, context) => {
+        seen.push(context);
+        return Promise.resolve(new Response("fine", { status: 202 }));
+      }, recordingLogger(records));
 
       const first = await handler(new Request("http://localhost:3000/"));
       const second = await handler(new Request("http://localhost:3000/"));

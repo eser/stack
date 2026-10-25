@@ -38,9 +38,10 @@ export class BlueskyAuthProvider implements AuthProvider {
     );
   }
 
-  exchangeCode(
-    _params: { code: string; codeVerifier: string },
-  ): Promise<OAuthTokens> {
+  exchangeCode(_params: {
+    code: string;
+    codeVerifier: string;
+  }): Promise<OAuthTokens> {
     return Promise.reject(
       new Error(
         "Bluesky uses direct credential login, not OAuth code exchange.",

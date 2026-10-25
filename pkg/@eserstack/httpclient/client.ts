@@ -75,14 +75,16 @@ const parseRetryAfterMs = (header: string | null): number | null => {
 export const extractRateLimitInfo = (
   hdrs: Headers,
 ): types.RateLimitInfo | undefined => {
-  const remaining = hdrs.get("X-RateLimit-Remaining") ??
-    hdrs.get("x-rate-limit-remaining");
+  const remaining =
+    hdrs.get("X-RateLimit-Remaining") ?? hdrs.get("x-rate-limit-remaining");
   const limit = hdrs.get("X-RateLimit-Limit") ?? hdrs.get("x-rate-limit-limit");
   const reset = hdrs.get("X-RateLimit-Reset") ?? hdrs.get("x-rate-limit-reset");
   const retryAfterHeader = hdrs.get("Retry-After");
 
   if (
-    remaining === null && limit === null && reset === null &&
+    remaining === null &&
+    limit === null &&
+    reset === null &&
     retryAfterHeader === null
   ) {
     return undefined;
@@ -129,7 +131,10 @@ const extractErrorBody = async (raw: Response): Promise<unknown> => {
   try {
     return await raw.clone().json();
   } catch {
-    return await raw.clone().text().catch(() => undefined);
+    return await raw
+      .clone()
+      .text()
+      .catch(() => undefined);
   }
 };
 
@@ -261,9 +266,7 @@ export class HttpClient {
     method: types.HttpMethod,
     url: string,
     options?: types.RequestOptions,
-  ): Promise<
-    results.Result<types.HttpResponse<T>, errors.HttpClientError>
-  > {
+  ): Promise<results.Result<types.HttpResponse<T>, errors.HttpClientError>> {
     return results.fromPromise(
       this._execute<T>(method, url, options),
       toHttpClientError,
@@ -417,8 +420,10 @@ export class HttpClient {
     }
 
     if (
-      this.config.transport === "native" && body !== undefined &&
-      typeof body !== "string" && !(body instanceof URLSearchParams)
+      this.config.transport === "native" &&
+      body !== undefined &&
+      typeof body !== "string" &&
+      !(body instanceof URLSearchParams)
     ) {
       throw new errors.HttpClientError(
         `${method} request: transport "native" sends text bodies only (a string, URLSearchParams, or an object sent as JSON); send binary, form and stream bodies with the default fetch transport`,
@@ -431,9 +436,10 @@ export class HttpClient {
     // A stream body is consumed by the first attempt and cannot be sent again,
     // so a request with one is never retried.
     const replayable = !(body instanceof ReadableStream);
-    const maxAttempts = retryCfg === false || !replayable
-      ? 1
-      : (retryCfg.maxAttempts ?? DEFAULT_RETRY.maxAttempts);
+    const maxAttempts =
+      retryCfg === false || !replayable
+        ? 1
+        : (retryCfg.maxAttempts ?? DEFAULT_RETRY.maxAttempts);
     const requestInterceptors = this.config.interceptors?.request ?? [];
     const fetchFn = await this.#resolveFetch(stream);
 
@@ -452,9 +458,10 @@ export class HttpClient {
         // Build combined abort signal
         const userSignal = options?.signal;
         const timeoutSignal = AbortSignal.timeout(timeout);
-        const signal = userSignal !== undefined
-          ? AbortSignal.any([timeoutSignal, userSignal])
-          : timeoutSignal;
+        const signal =
+          userSignal !== undefined
+            ? AbortSignal.any([timeoutSignal, userSignal])
+            : timeoutSignal;
 
         const init: RequestInit & { duplex?: "half" } = {
           method,
@@ -510,40 +517,44 @@ export class HttpClient {
         // The error body decides whether and how this attempt is retried.
         // deno-lint-ignore no-await-in-loop
         const errorBody = await extractErrorBody(raw);
-        const statusMsg = errorMessageFromBody(errorBody) ??
-          `HTTP ${raw.status}`;
-        const retryAfterMs = rateLimit !== undefined
-          ? parseRetryAfterMs(raw.headers.get("Retry-After"))
-          : null;
+        const statusMsg =
+          errorMessageFromBody(errorBody) ?? `HTTP ${raw.status}`;
+        const retryAfterMs =
+          rateLimit !== undefined
+            ? parseRetryAfterMs(raw.headers.get("Retry-After"))
+            : null;
 
-        const httpError = raw.status === 429
-          ? new errors.HttpRateLimitError(statusMsg, {
-            statusCode: raw.status,
-            response: raw,
-            body: errorBody,
-            ...(retryAfterMs !== null && {
-              retryAfter: retryAfterMs / 1_000,
-            }),
-          })
-          : new errors.HttpResponseError(statusMsg, {
-            statusCode: raw.status,
-            response: raw,
-            body: errorBody,
-          });
+        const httpError =
+          raw.status === 429
+            ? new errors.HttpRateLimitError(statusMsg, {
+                statusCode: raw.status,
+                response: raw,
+                body: errorBody,
+                ...(retryAfterMs !== null && {
+                  retryAfter: retryAfterMs / 1_000,
+                }),
+              })
+            : new errors.HttpResponseError(statusMsg, {
+                statusCode: raw.status,
+                response: raw,
+                body: errorBody,
+              });
 
-        const retryableStatuses = retryCfg !== false
-          ? retryCfg.retryableStatuses
-          : [];
+        const retryableStatuses =
+          retryCfg !== false ? retryCfg.retryableStatuses : [];
 
         if (
-          retryableStatuses.includes(raw.status) && attempt < maxAttempts - 1
+          retryableStatuses.includes(raw.status) &&
+          attempt < maxAttempts - 1
         ) {
           lastError = httpError;
 
           // Honour Retry-After for 429
           if (
-            raw.status === 429 && retryCfg !== false &&
-            retryCfg.respectRetryAfter && retryAfterMs !== null
+            raw.status === 429 &&
+            retryCfg !== false &&
+            retryCfg.respectRetryAfter &&
+            retryAfterMs !== null
           ) {
             // The server's Retry-After wait must elapse before the next
             // attempt.
@@ -571,10 +582,12 @@ export class HttpClient {
       return await onSuccess(raw, sentRequest, retries, rateLimit);
     }
 
-    throw lastError ??
+    throw (
+      lastError ??
       new errors.HttpClientError(
         `Request failed after ${maxAttempts} attempt(s)`,
-      );
+      )
+    );
   }
 
   /** JSON-parsing variant — parses body, builds HttpResponse<T>, runs response interceptors. */
@@ -593,14 +606,15 @@ export class HttpClient {
         // Parse response body
         let data: T;
         if (
-          raw.status === 204 || raw.status === 304 ||
+          raw.status === 204 ||
+          raw.status === 304 ||
           raw.headers.get("Content-Length") === "0"
         ) {
           data = undefined as unknown as T;
         } else {
           const contentType = raw.headers.get("Content-Type") ?? "";
           if (contentType.includes("application/json")) {
-            data = await raw.json() as T;
+            data = (await raw.json()) as T;
           } else {
             const text = await raw.text();
             try {
@@ -691,8 +705,8 @@ export class HttpClient {
       return this.#goClientInit;
     }
 
-    const create = this.config._createGoClient ??
-      goClientModule.createGoHttpClient;
+    const create =
+      this.config._createGoClient ?? goClientModule.createGoHttpClient;
     // Retries stay off in Go: the retry policy above runs on both transports.
     // The Go timeout bounds each blocking call.
     const init = create({

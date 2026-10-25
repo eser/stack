@@ -106,8 +106,7 @@ export const resolveWasmPath = (moduleDirHint?: string): string => {
       : ".";
   if (cwd !== moduleDir) {
     for (const variant of wasmVariants) {
-      const monoDistPath =
-        `${cwd}/pkg/@eserstack/ajan/dist/${distSubdir}/${variant}`;
+      const monoDistPath = `${cwd}/pkg/@eserstack/ajan/dist/${distSubdir}/${variant}`;
       checkedPaths.push(monoDistPath);
       if (ffiResolve.fileExists(monoDistPath)) {
         return monoDistPath;
@@ -129,10 +128,7 @@ export const resolveWasmPath = (moduleDirHint?: string): string => {
 
   // 5. System paths
   for (const variant of wasmVariants) {
-    const systemPaths = [
-      `/usr/local/lib/${variant}`,
-      `/usr/lib/${variant}`,
-    ];
+    const systemPaths = [`/usr/local/lib/${variant}`, `/usr/lib/${variant}`];
     for (const sysPath of systemPaths) {
       checkedPaths.push(sysPath);
       if (ffiResolve.fileExists(sysPath)) {

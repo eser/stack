@@ -45,12 +45,10 @@ export const checkServerLoc = async (
   const violations: { path: string; lines: number }[] = [];
   let checked = 0;
 
-  for await (
-    const entry of runtime.fs.walk(dirPath, {
-      exts: [ext],
-      includeDirs: false,
-    })
-  ) {
+  for await (const entry of runtime.fs.walk(dirPath, {
+    exts: [ext],
+    includeDirs: false,
+  })) {
     if (entry.path.endsWith(excludeSuffix)) {
       continue;
     }

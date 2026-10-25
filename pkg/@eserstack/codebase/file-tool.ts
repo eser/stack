@@ -185,9 +185,10 @@ export const createFileTool = (config: FileToolConfig): FileTool => {
       root: options.root,
       extensions: config.extensions,
       exclude: options.exclude,
-      includeOnly: changedFiles !== undefined && changedFiles.length > 0
-        ? changedFiles
-        : undefined,
+      includeOnly:
+        changedFiles !== undefined && changedFiles.length > 0
+          ? changedFiles
+          : undefined,
     };
 
     const files = await fileToolsShared.walkSourceFiles(walkOpts);
@@ -295,10 +296,7 @@ export const createFileTool = (config: FileToolConfig): FileTool => {
 
       if (result.mutations.length > 0) {
         const written = await fileToolsShared.writeMutations(result.mutations);
-        tui.log.success(
-          ctx,
-          `Fixed ${written} file(s) for ${config.name}.`,
-        );
+        tui.log.success(ctx, `Fixed ${written} file(s) for ${config.name}.`);
       }
 
       if (result.issues.length === 0 && result.mutations.length === 0) {
@@ -312,9 +310,10 @@ export const createFileTool = (config: FileToolConfig): FileTool => {
       const unfixed = result.issues.filter((i) => !i.fixed);
       if (unfixed.length > 0) {
         for (const issue of unfixed) {
-          const loc = issue.line !== undefined
-            ? `${issue.path}:${issue.line}`
-            : issue.path;
+          const loc =
+            issue.line !== undefined
+              ? `${issue.path}:${issue.line}`
+              : issue.path;
           tui.log.error(ctx, `${loc}: ${issue.message}`);
         }
         return primitives.results.fail({ exitCode: 1 });
@@ -336,16 +335,13 @@ export const createFileTool = (config: FileToolConfig): FileTool => {
     cliArgs?: readonly string[],
   ): Promise<shellArgs.CliResult<void>> => {
     const flags = config.canFix ? ["fix"] : [];
-    const parsed = cliParseArgs.parseArgs(
-      [...(cliArgs ?? [])],
-      {
-        boolean: [...flags, "help"],
-        string: ["root", "exclude"],
-        // Each --exclude adds a pattern, the way the manifest lists several.
-        collect: ["exclude"],
-        alias: { h: "help" },
-      },
-    );
+    const parsed = cliParseArgs.parseArgs([...(cliArgs ?? [])], {
+      boolean: [...flags, "help"],
+      string: ["root", "exclude"],
+      // Each --exclude adds a pattern, the way the manifest lists several.
+      collect: ["exclude"],
+      alias: { h: "help" },
+    });
 
     if (parsed["help"]) {
       const { output: out } = cliSupport.getCliContext();
@@ -389,9 +385,10 @@ export const withGoValidator = (
 ): FileTool => {
   // Pre-compute dot-prefixed extensions from the tool config (e.g. "ts" → ".ts").
   // Passed to Go so the walker only reads relevant files — saves I/O.
-  const goExtensions = tool.config.extensions !== undefined
-    ? [...tool.config.extensions.map((e) => `.${e}`)]
-    : undefined;
+  const goExtensions =
+    tool.config.extensions !== undefined
+      ? [...tool.config.extensions.map((e) => `.${e}`)]
+      : undefined;
 
   const goValidator: Validator = {
     ...tool.validator,

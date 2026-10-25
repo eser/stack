@@ -104,13 +104,13 @@ export const detectAllProviders = async (): Promise<
       // credentialEnvVars. Checking only the key would report anthropic
       // unavailable on a token-only machine that the providers themselves
       // authenticate fine — telling the user to set something they do not need.
-      available: checkEnvVar("ANTHROPIC_API_KEY") ||
-        checkEnvVar("ANTHROPIC_AUTH_TOKEN"),
+      available:
+        checkEnvVar("ANTHROPIC_API_KEY") || checkEnvVar("ANTHROPIC_AUTH_TOKEN"),
       detail: checkEnvVar("ANTHROPIC_API_KEY")
         ? "ANTHROPIC_API_KEY set"
         : checkEnvVar("ANTHROPIC_AUTH_TOKEN")
-        ? "ANTHROPIC_AUTH_TOKEN set"
-        : "ANTHROPIC_API_KEY not set",
+          ? "ANTHROPIC_AUTH_TOKEN set"
+          : "ANTHROPIC_API_KEY not set",
     },
     {
       name: "openai",
@@ -126,9 +126,10 @@ export const detectAllProviders = async (): Promise<
       alias: "gem",
       type: "API",
       available: checkEnvVar("GEMINI_API_KEY") || checkEnvVar("GOOGLE_API_KEY"),
-      detail: (checkEnvVar("GEMINI_API_KEY") || checkEnvVar("GOOGLE_API_KEY"))
-        ? "API key set"
-        : "GEMINI_API_KEY not set",
+      detail:
+        checkEnvVar("GEMINI_API_KEY") || checkEnvVar("GOOGLE_API_KEY")
+          ? "API key set"
+          : "GEMINI_API_KEY not set",
     },
     {
       name: "vertexai",

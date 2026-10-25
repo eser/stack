@@ -78,9 +78,9 @@ export const resolveBaselinePath = (
 ): string => {
   if (typeof option !== "string" || option === "") {
     throw new Error(
-      `${validatorName}: the baseline option must be a file path relative to the root, got ${
-        JSON.stringify(option)
-      }; fix the ${validatorName} step options in .eser/manifest.yml`,
+      `${validatorName}: the baseline option must be a file path relative to the root, got ${JSON.stringify(
+        option,
+      )}; fix the ${validatorName} step options in .eser/manifest.yml`,
     );
   }
 
@@ -165,9 +165,10 @@ export const issuesAboveBaseline = <R extends string>(
       issues.push({
         path: file.path,
         line: violation.line,
-        message: allowed === 0
-          ? violation.message
-          : `${violation.message} [${found.length} in this file, baseline allows ${allowed}]`,
+        message:
+          allowed === 0
+            ? violation.message
+            : `${violation.message} [${found.length} in this file, baseline allows ${allowed}]`,
       });
     }
   }
@@ -196,9 +197,9 @@ export const baselineTotal = <R extends string>(
   baseline: Baseline<R>,
 ): number => {
   let total = 0;
-  for (
-    const byFile of Object.values<Readonly<Record<string, number>>>(baseline)
-  ) {
+  for (const byFile of Object.values<Readonly<Record<string, number>>>(
+    baseline,
+  )) {
     for (const count of Object.values(byFile)) {
       total += count;
     }
@@ -216,14 +217,14 @@ export const writeBaselineFile = async <R extends string>(
   baseline: Baseline<R>,
 ): Promise<void> => {
   const sorted = Object.fromEntries(
-    Object.entries<Readonly<Record<string, number>>>(baseline).map((
-      [rule, byFile],
-    ) => [
-      rule,
-      Object.fromEntries(
-        Object.entries(byFile).sort(([a], [b]) => a.localeCompare(b)),
-      ),
-    ]),
+    Object.entries<Readonly<Record<string, number>>>(baseline).map(
+      ([rule, byFile]) => [
+        rule,
+        Object.fromEntries(
+          Object.entries(byFile).sort(([a], [b]) => a.localeCompare(b)),
+        ),
+      ],
+    ),
   );
 
   await runtime.fs.mkdir(path.dirname(file), { recursive: true });

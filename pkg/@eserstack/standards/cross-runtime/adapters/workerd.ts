@@ -78,9 +78,7 @@ const createWorkerdEnv = (): RuntimeEnv => ({
  * };
  * ```
  */
-export const populateEnvFromContext = (
-  env: Record<string, unknown>,
-): void => {
+export const populateEnvFromContext = (env: Record<string, unknown>): void => {
   for (const [key, value] of Object.entries(env)) {
     if (value !== null && value !== undefined && value.constructor === String) {
       envStorage.set(key, value as string);

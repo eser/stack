@@ -46,7 +46,7 @@ async function resolveFromDenoModules(
     const parts = specifier.split("/");
     const packageName = specifier.startsWith("@")
       ? parts.slice(0, 2).join("/")
-      : parts[0] ?? specifier;
+      : (parts[0] ?? specifier);
     const subpath = specifier.startsWith("@")
       ? parts.slice(2).join("/")
       : parts.slice(1).join("/");
@@ -68,17 +68,17 @@ async function resolveFromDenoModules(
         // If there's a subpath, resolve it directly
         if (subpath) {
           const subpathFile = runtime.path.join(pkgDir, subpath);
-          const subpathStat = await runtime.fs.stat(subpathFile).catch(
-            () => null,
-          );
+          const subpathStat = await runtime.fs
+            .stat(subpathFile)
+            .catch(() => null);
           if (subpathStat) {
             return subpathFile;
           }
           // Try with .js extension
           const subpathJs = `${subpathFile}.js`;
-          const subpathJsStat = await runtime.fs.stat(subpathJs).catch(
-            () => null,
-          );
+          const subpathJsStat = await runtime.fs
+            .stat(subpathJs)
+            .catch(() => null);
           if (subpathJsStat) {
             return subpathJs;
           }
@@ -106,8 +106,11 @@ async function resolveFromDenoModules(
                 mainEntry = dotExport;
               } else if (typeof dotExport === "object") {
                 const conditional = dotExport as Record<string, string>;
-                mainEntry = conditional["import"] ?? conditional["module"] ??
-                  conditional["default"] ?? conditional["require"];
+                mainEntry =
+                  conditional["import"] ??
+                  conditional["module"] ??
+                  conditional["default"] ??
+                  conditional["require"];
               }
             }
           }
@@ -308,9 +311,9 @@ export function createImportMapResolverPlugin(
             );
             return {};
           } catch (error) {
-            resolverLogger.with({ error }).debug(
-              `resolve ${resolved}; leaving it to the next resolver`,
-            );
+            resolverLogger
+              .with({ error })
+              .debug(`resolve ${resolved}; leaving it to the next resolver`);
             // Fall through to let other resolvers handle it
           }
         }
@@ -372,9 +375,9 @@ export function createImportMapResolverPlugin(
           resolverLogger.debug(`Marking ${specifier} as external (remote JSR)`);
           return { external: true };
         } catch (error) {
-          resolverLogger.with({ error }).debug(
-            `resolve ${specifier}; leaving it to the next resolver`,
-          );
+          resolverLogger
+            .with({ error })
+            .debug(`resolve ${specifier}; leaving it to the next resolver`);
           return {};
         }
       });

@@ -15,9 +15,7 @@ const allConcerns = defaultConcerns.DEFAULT_CONCERNS;
 const noConcerns: readonly schema.ConcernDefinition[] = [];
 
 const openSourceConcern = allConcerns.find((c) => c.id === "open-source")!;
-const beautifulConcern = allConcerns.find(
-  (c) => c.id === "beautiful-product",
-)!;
+const beautifulConcern = allConcerns.find((c) => c.id === "beautiful-product")!;
 
 const allAnswers = (): readonly schema.DiscoveryAnswer[] =>
   questions.QUESTIONS.map((q) => ({

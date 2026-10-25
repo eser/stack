@@ -28,14 +28,17 @@ Deno.test("import-map-resolver-plugin", async (t) => {
     () => {
       const importMap: ImportMap = {
         entries: new Map([
-          ["react", {
-            specifier: "react",
-            target: "npm:react@^19.0.0",
-            source: "deno.json",
-            isNpmPackage: true,
-            isJsrPackage: false,
-            isLocalPath: false,
-          }],
+          [
+            "react",
+            {
+              specifier: "react",
+              target: "npm:react@^19.0.0",
+              source: "deno.json",
+              isNpmPackage: true,
+              isJsrPackage: false,
+              isLocalPath: false,
+            },
+          ],
         ]),
         externals: ["react"],
         projectRoot: "/tmp",
@@ -97,7 +100,7 @@ Deno.test("import-map-resolver-plugin", async (t) => {
 
       const denoJson = {
         imports: {
-          "react": "npm:react@^19.0.0",
+          react: "npm:react@^19.0.0",
           "@/": "./src/",
         },
       };
@@ -129,7 +132,7 @@ Deno.test("import-map-resolver-plugin with fixtures", async (t) => {
     // Create deno.json
     const denoJson = {
       imports: {
-        "react": "npm:react@^19.0.0",
+        react: "npm:react@^19.0.0",
         "react-dom": "npm:react-dom@^19.0.0",
         "@eserstack/logging": "jsr:@eserstack/logging@^4.0.0",
         "@/": "./src/",
@@ -165,8 +168,7 @@ Deno.test("import-map-resolver-plugin with fixtures", async (t) => {
       projectRoot: tempDir,
       browserShims: {
         jsr: {
-          "@eserstack/logging":
-            `export const logger = { getLogger: () => ({ debug: () => {}, info: () => {}, warn: () => {}, error: () => {} }) };`,
+          "@eserstack/logging": `export const logger = { getLogger: () => ({ debug: () => {}, info: () => {}, warn: () => {}, error: () => {} }) };`,
         },
         nodeBuiltins: {},
       },

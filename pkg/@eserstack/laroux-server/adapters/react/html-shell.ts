@@ -70,9 +70,9 @@ export function createReactHtmlShellBuilder(): HtmlShellBuilder {
 
       // Serialize manifest for client-side chunk loading
       const manifestScript = manifest
-        ? `<script id="__CHUNK_MANIFEST__" type="application/json">${
-          scriptJson.escapeJsonForScript(JSON.stringify(manifest))
-        }</script>`
+        ? `<script id="__CHUNK_MANIFEST__" type="application/json">${scriptJson.escapeJsonForScript(
+            JSON.stringify(manifest),
+          )}</script>`
         : "";
 
       return `<!DOCTYPE html>
@@ -123,19 +123,15 @@ export function createReactHtmlShellBuilder(): HtmlShellBuilder {
     },
 
     createStreamingEnd(options: HtmlShellOptions): string {
-      const {
-        scripts = [],
-        rscPayload,
-        manifest,
-      } = options;
+      const { scripts = [], rscPayload, manifest } = options;
 
       const scriptsTags = generateScriptTags(scripts);
 
       // Serialize manifest for client-side chunk loading
       const manifestScript = manifest
-        ? `<script id="__CHUNK_MANIFEST__" type="application/json">${
-          scriptJson.escapeJsonForScript(JSON.stringify(manifest))
-        }</script>`
+        ? `<script id="__CHUNK_MANIFEST__" type="application/json">${scriptJson.escapeJsonForScript(
+            JSON.stringify(manifest),
+          )}</script>`
         : "";
 
       return `</div>

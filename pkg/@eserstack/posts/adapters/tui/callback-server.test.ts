@@ -26,10 +26,10 @@ Deno.test("expectationFor accepts loopback redirect URIs only", () => {
     "::1",
   );
   assert.assertThrows(() =>
-    callbackServer.expectationFor("http://0.0.0.0:8080/callback", "s")
+    callbackServer.expectationFor("http://0.0.0.0:8080/callback", "s"),
   );
   assert.assertThrows(() =>
-    callbackServer.expectationFor("http://example.com/callback", "s")
+    callbackServer.expectationFor("http://example.com/callback", "s"),
   );
 });
 
@@ -76,7 +76,10 @@ Deno.test("a foreign request does not end the pending login", async () => {
       return res.status;
     }),
   );
-  assert.assertEquals(foreignStatuses, foreignQueries.map(() => 400));
+  assert.assertEquals(
+    foreignStatuses,
+    foreignQueries.map(() => 400),
+  );
 
   const ok = await fetch(
     `http://127.0.0.1:${port}/callback?code=GENUINE&state=issued-state`,
@@ -99,8 +102,8 @@ Deno.test("the receiver binds loopback, not every interface", async () => {
   const pending = callbackServer.waitForOAuthCallback(expected, 5_000);
   await new Promise((r) => setTimeout(r, 50));
 
-  const external = Deno.networkInterfaces().find((i) =>
-    i.family === "IPv4" && !i.address.startsWith("127.")
+  const external = Deno.networkInterfaces().find(
+    (i) => i.family === "IPv4" && !i.address.startsWith("127."),
   );
   if (external !== undefined) {
     let reachable = true;

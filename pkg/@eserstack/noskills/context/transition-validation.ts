@@ -135,9 +135,9 @@ export const validatorSettingsOf = (
 
   if (entry === null || typeof entry !== "object" || Array.isArray(entry)) {
     return results.fail(
-      `noskills.validate in .eser/manifest.yml is ${
-        describeValue(entry)
-      }; set it to a mapping with agent and model, for example agent: ${DEFAULT_VALIDATOR_AGENT} and model: ${DEFAULT_VALIDATOR_MODEL}.`,
+      `noskills.validate in .eser/manifest.yml is ${describeValue(
+        entry,
+      )}; set it to a mapping with agent and model, for example agent: ${DEFAULT_VALIDATOR_AGENT} and model: ${DEFAULT_VALIDATOR_MODEL}.`,
     );
   }
 
@@ -145,18 +145,18 @@ export const validatorSettingsOf = (
   const agent = record["agent"];
   if (typeof agent !== "string" || agent.trim() === "") {
     return results.fail(
-      `noskills.validate.agent in .eser/manifest.yml is ${
-        describeValue(agent)
-      }; set it to an @eserstack/ai provider: ${KNOWN_AGENTS}.`,
+      `noskills.validate.agent in .eser/manifest.yml is ${describeValue(
+        agent,
+      )}; set it to an @eserstack/ai provider: ${KNOWN_AGENTS}.`,
     );
   }
 
   const model = record["model"];
   if (typeof model !== "string" || model.trim() === "") {
     return results.fail(
-      `noskills.validate.model in .eser/manifest.yml is ${
-        describeValue(model)
-      }; set it to a model id that ${agent.trim()} runs, for example ${DEFAULT_VALIDATOR_MODEL} for ${DEFAULT_VALIDATOR_AGENT}.`,
+      `noskills.validate.model in .eser/manifest.yml is ${describeValue(
+        model,
+      )}; set it to a model id that ${agent.trim()} runs, for example ${DEFAULT_VALIDATOR_MODEL} for ${DEFAULT_VALIDATOR_AGENT}.`,
     );
   }
 
@@ -220,9 +220,7 @@ export const validationInputOf = (
     }
   }
 
-  const questionText = new Map(
-    questions.QUESTIONS.map((q) => [q.id, q.text]),
-  );
+  const questionText = new Map(questions.QUESTIONS.map((q) => [q.id, q.text]));
   const answers: ValidationAnswer[] = [...texts].map(([questionId, list]) => ({
     questionId,
     question: questionText.get(questionId) ?? questionId,
@@ -245,9 +243,10 @@ export const validationInputOf = (
     spec: {
       name: state.spec ?? "",
       description: state.specDescription,
-      document: specDocument === null
-        ? null
-        : cut(specDocument, MAX_SPEC_DOCUMENT_CHARS),
+      document:
+        specDocument === null
+          ? null
+          : cut(specDocument, MAX_SPEC_DOCUMENT_CHARS),
     },
     answers,
   };
@@ -406,9 +405,8 @@ const findingOf = (raw: unknown): ValidationFinding | null => {
   return {
     severity: severity as FindingSeverity,
     issue: cutReply(issue.trim()),
-    suggestion: typeof suggestion === "string"
-      ? cutReply(suggestion.trim())
-      : "",
+    suggestion:
+      typeof suggestion === "string" ? cutReply(suggestion.trim()) : "",
   };
 };
 
@@ -458,9 +456,10 @@ export const reviewedValidation = (
   model: settings.model,
   summary: reply.summary,
   findings: reply.findings,
-  instruction: reply.findings.length === 0
-    ? "A second model checked this transition in an isolated context and found no problems. Tell the user, then ask for approval as usual."
-    : "A second model checked this transition in an isolated context: it saw only the spec, the discovery answers and the transition. Present its findings to the user before asking for approval. The findings are advice: they do not block the transition, and the user decides what to change.",
+  instruction:
+    reply.findings.length === 0
+      ? "A second model checked this transition in an isolated context and found no problems. Tell the user, then ask for approval as usual."
+      : "A second model checked this transition in an isolated context: it saw only the spec, the discovery answers and the transition. Present its findings to the user before asking for approval. The findings are advice: they do not block the transition, and the user decides what to change.",
 });
 
 /**
@@ -478,8 +477,7 @@ export const skippedValidation = (
   agent: settings?.agent ?? null,
   model: settings?.model ?? null,
   reason,
-  instruction:
-    `Validation was skipped: ${reason} Tell the user, then continue the review: the transition goes to the user's approval as usual. To run the validator again, run \`${retryCommand}\`.`,
+  instruction: `Validation was skipped: ${reason} Tell the user, then continue the review: the transition goes to the user's approval as usual. To run the validator again, run \`${retryCommand}\`.`,
 });
 
 // =============================================================================

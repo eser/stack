@@ -98,14 +98,10 @@ export const defineWorkflow = (
     throw new Error("Workflow id is required");
   }
   if (definition.on.length === 0) {
-    throw new Error(
-      `Workflow '${definition.id}' must have at least one event`,
-    );
+    throw new Error(`Workflow '${definition.id}' must have at least one event`);
   }
   if (definition.steps.length === 0) {
-    throw new Error(
-      `Workflow '${definition.id}' must have at least one step`,
-    );
+    throw new Error(`Workflow '${definition.id}' must have at least one step`);
   }
 
   return definition;

@@ -86,10 +86,12 @@ const badFormats: ReadonlyArray<{
   },
 ];
 
-const hi = [{
-  role: "user" as const,
-  content: [{ kind: "text" as const, text: "name this post" }],
-}];
+const hi = [
+  {
+    role: "user" as const,
+    content: [{ kind: "text" as const, text: "name this post" }],
+  },
+];
 
 for (const provider of providers) {
   for (const format of badFormats) {

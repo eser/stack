@@ -34,7 +34,8 @@ const runNoskills = async (
 
   return {
     code: result.code,
-    output: new TextDecoder().decode(result.stdout) +
+    output:
+      new TextDecoder().decode(result.stdout) +
       new TextDecoder().decode(result.stderr),
   };
 };
@@ -71,13 +72,8 @@ bdd.describe("noskills state commands", () => {
   // The commands printed the default prefix, because they never loaded the
   // manifest's command before using it.
   bdd.it("rule and concern name the manifest's command", async () => {
-    await editManifest(
-      root,
-      (text) =>
-        text.replace(
-          "command: npx eser@latest noskills",
-          "command: my-noskills",
-        ),
+    await editManifest(root, (text) =>
+      text.replace("command: npx eser@latest noskills", "command: my-noskills"),
     );
 
     for (const command of ["rule", "concern"]) {
@@ -96,9 +92,8 @@ bdd.describe("noskills state commands", () => {
   // `config.tools.length` threw when the manifest had no tools list, after
   // the rule file was already written.
   bdd.it("rule add works with a manifest without a tools list", async () => {
-    await editManifest(
-      root,
-      (text) => text.replace("  tools:\n    - claude-code\n", ""),
+    await editManifest(root, (text) =>
+      text.replace("  tools:\n    - claude-code\n", ""),
     );
 
     const { code, output } = await runNoskills(root, [

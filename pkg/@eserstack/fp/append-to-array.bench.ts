@@ -4,15 +4,11 @@ import * as appendToArray from "./append-to-array.ts";
 
 const group = "append-to-array";
 
-Deno.bench(
-  "@eserstack/fp/append-to-array",
-  { group, baseline: true },
-  () => {
-    const arr1 = ["a", "b"];
+Deno.bench("@eserstack/fp/append-to-array", { group, baseline: true }, () => {
+  const arr1 = ["a", "b"];
 
-    appendToArray.appendToArray(arr1, "c");
-  },
-);
+  appendToArray.appendToArray(arr1, "c");
+});
 
 Deno.bench("spread operator", { group }, () => {
   const arr1 = ["a", "b"];

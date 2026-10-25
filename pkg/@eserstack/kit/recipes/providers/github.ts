@@ -75,8 +75,7 @@ const fetchGitHub = async (
 ): Promise<ReadableStream<Uint8Array>> => {
   const { owner, repo, ref } = parsed as GitHubParsedSpec;
 
-  const tarballUrl =
-    `https://codeload.github.com/${owner}/${repo}/tar.gz/${ref}`;
+  const tarballUrl = `https://codeload.github.com/${owner}/${repo}/tar.gz/${ref}`;
 
   // Covers the whole download: the returned body is read under the same
   // signal.

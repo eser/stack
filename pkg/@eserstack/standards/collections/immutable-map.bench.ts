@@ -42,14 +42,18 @@ const objectLarge = Object.fromEntries(largeEntries);
 // Creation Benchmarks
 // =============================================================================
 
-Deno.bench("ImmutableMap.create (10 entries)", {
-  group: "create-small",
-  baseline: true,
-}, () => {
-  const builder = immutableMap.createMapBuilder<string, number>();
-  for (const [k, v] of smallEntries) builder.set(k, v);
-  builder.build();
-});
+Deno.bench(
+  "ImmutableMap.create (10 entries)",
+  {
+    group: "create-small",
+    baseline: true,
+  },
+  () => {
+    const builder = immutableMap.createMapBuilder<string, number>();
+    for (const [k, v] of smallEntries) builder.set(k, v);
+    builder.build();
+  },
+);
 
 Deno.bench("Map.create (10 entries)", { group: "create-small" }, () => {
   new Map(smallEntries);
@@ -59,14 +63,18 @@ Deno.bench("Object.create (10 entries)", { group: "create-small" }, () => {
   Object.fromEntries(smallEntries);
 });
 
-Deno.bench("ImmutableMap.create (100 entries)", {
-  group: "create-medium",
-  baseline: true,
-}, () => {
-  const builder = immutableMap.createMapBuilder<string, number>();
-  for (const [k, v] of mediumEntries) builder.set(k, v);
-  builder.build();
-});
+Deno.bench(
+  "ImmutableMap.create (100 entries)",
+  {
+    group: "create-medium",
+    baseline: true,
+  },
+  () => {
+    const builder = immutableMap.createMapBuilder<string, number>();
+    for (const [k, v] of mediumEntries) builder.set(k, v);
+    builder.build();
+  },
+);
 
 Deno.bench("Map.create (100 entries)", { group: "create-medium" }, () => {
   new Map(mediumEntries);
@@ -76,14 +84,18 @@ Deno.bench("Object.create (100 entries)", { group: "create-medium" }, () => {
   Object.fromEntries(mediumEntries);
 });
 
-Deno.bench("ImmutableMap.create (1000 entries)", {
-  group: "create-large",
-  baseline: true,
-}, () => {
-  const builder = immutableMap.createMapBuilder<string, number>();
-  for (const [k, v] of largeEntries) builder.set(k, v);
-  builder.build();
-});
+Deno.bench(
+  "ImmutableMap.create (1000 entries)",
+  {
+    group: "create-large",
+    baseline: true,
+  },
+  () => {
+    const builder = immutableMap.createMapBuilder<string, number>();
+    for (const [k, v] of largeEntries) builder.set(k, v);
+    builder.build();
+  },
+);
 
 Deno.bench("Map.create (1000 entries)", { group: "create-large" }, () => {
   new Map(largeEntries);
@@ -97,12 +109,16 @@ Deno.bench("Object.create (1000 entries)", { group: "create-large" }, () => {
 // Get Benchmarks
 // =============================================================================
 
-Deno.bench("ImmutableMap.get (10 entries)", {
-  group: "get-small",
-  baseline: true,
-}, () => {
-  immutableMapSmall.get("key5");
-});
+Deno.bench(
+  "ImmutableMap.get (10 entries)",
+  {
+    group: "get-small",
+    baseline: true,
+  },
+  () => {
+    immutableMapSmall.get("key5");
+  },
+);
 
 Deno.bench("Map.get (10 entries)", { group: "get-small" }, () => {
   nativeMapSmall.get("key5");
@@ -112,12 +128,16 @@ Deno.bench("Object.get (10 entries)", { group: "get-small" }, () => {
   objectSmall["key5"];
 });
 
-Deno.bench("ImmutableMap.get (100 entries)", {
-  group: "get-medium",
-  baseline: true,
-}, () => {
-  immutableMapMedium.get("key50");
-});
+Deno.bench(
+  "ImmutableMap.get (100 entries)",
+  {
+    group: "get-medium",
+    baseline: true,
+  },
+  () => {
+    immutableMapMedium.get("key50");
+  },
+);
 
 Deno.bench("Map.get (100 entries)", { group: "get-medium" }, () => {
   nativeMapMedium.get("key50");
@@ -127,12 +147,16 @@ Deno.bench("Object.get (100 entries)", { group: "get-medium" }, () => {
   objectMedium["key50"];
 });
 
-Deno.bench("ImmutableMap.get (1000 entries)", {
-  group: "get-large",
-  baseline: true,
-}, () => {
-  immutableMapLarge.get("key500");
-});
+Deno.bench(
+  "ImmutableMap.get (1000 entries)",
+  {
+    group: "get-large",
+    baseline: true,
+  },
+  () => {
+    immutableMapLarge.get("key500");
+  },
+);
 
 Deno.bench("Map.get (1000 entries)", { group: "get-large" }, () => {
   nativeMapLarge.get("key500");
@@ -166,14 +190,18 @@ Deno.bench("Object.has (hasOwnProperty)", { group: "has" }, () => {
 // Iteration Benchmarks
 // =============================================================================
 
-Deno.bench("ImmutableMap.iterate (100 entries)", {
-  group: "iterate",
-  baseline: true,
-}, () => {
-  for (const [_k, _v] of immutableMapMedium) {
-    // consume
-  }
-});
+Deno.bench(
+  "ImmutableMap.iterate (100 entries)",
+  {
+    group: "iterate",
+    baseline: true,
+  },
+  () => {
+    for (const [_k, _v] of immutableMapMedium) {
+      // consume
+    }
+  },
+);
 
 Deno.bench("Map.iterate (100 entries)", { group: "iterate" }, () => {
   for (const [_k, _v] of nativeMapMedium) {
@@ -211,12 +239,16 @@ Deno.bench("Object.keys (100 entries)", { group: "keys" }, () => {
 // Values Benchmarks
 // =============================================================================
 
-Deno.bench("ImmutableMap.values (100 entries)", {
-  group: "values",
-  baseline: true,
-}, () => {
-  immutableMapMedium.values();
-});
+Deno.bench(
+  "ImmutableMap.values (100 entries)",
+  {
+    group: "values",
+    baseline: true,
+  },
+  () => {
+    immutableMapMedium.values();
+  },
+);
 
 Deno.bench("Map.values (100 entries)", { group: "values" }, () => {
   [...nativeMapMedium.values()];
@@ -230,12 +262,16 @@ Deno.bench("Object.values (100 entries)", { group: "values" }, () => {
 // Entries Benchmarks
 // =============================================================================
 
-Deno.bench("ImmutableMap.entries (100 entries)", {
-  group: "entries",
-  baseline: true,
-}, () => {
-  immutableMapMedium.entries();
-});
+Deno.bench(
+  "ImmutableMap.entries (100 entries)",
+  {
+    group: "entries",
+    baseline: true,
+  },
+  () => {
+    immutableMapMedium.entries();
+  },
+);
 
 Deno.bench("Map.entries (100 entries)", { group: "entries" }, () => {
   [...nativeMapMedium.entries()];
@@ -275,12 +311,16 @@ Deno.bench("Object.map (manual, 100 entries)", { group: "map" }, () => {
 // Filter Benchmarks
 // =============================================================================
 
-Deno.bench("ImmutableMap.filter (100 entries)", {
-  group: "filter",
-  baseline: true,
-}, () => {
-  immutableMapMedium.filter((v) => v % 2 === 0);
-});
+Deno.bench(
+  "ImmutableMap.filter (100 entries)",
+  {
+    group: "filter",
+    baseline: true,
+  },
+  () => {
+    immutableMapMedium.filter((v) => v % 2 === 0);
+  },
+);
 
 Deno.bench("Map.filter (manual, 100 entries)", { group: "filter" }, () => {
   const result = new Map<string, number>();
@@ -300,16 +340,22 @@ Deno.bench("Object.filter (manual, 100 entries)", { group: "filter" }, () => {
 // Merge Benchmarks
 // =============================================================================
 
-const mergeSource1 = immutableMap.createMap<string, number>([["a", 1], [
-  "b",
-  2,
-]]);
-const mergeSource2 = immutableMap.createMap<string, number>([["c", 3], [
-  "d",
-  4,
-]]);
-const nativeMerge1 = new Map([["a", 1], ["b", 2]]);
-const nativeMerge2 = new Map([["c", 3], ["d", 4]]);
+const mergeSource1 = immutableMap.createMap<string, number>([
+  ["a", 1],
+  ["b", 2],
+]);
+const mergeSource2 = immutableMap.createMap<string, number>([
+  ["c", 3],
+  ["d", 4],
+]);
+const nativeMerge1 = new Map([
+  ["a", 1],
+  ["b", 2],
+]);
+const nativeMerge2 = new Map([
+  ["c", 3],
+  ["d", 4],
+]);
 const objectMerge1 = { a: 1, b: 2 };
 const objectMerge2 = { c: 3, d: 4 };
 
@@ -329,12 +375,16 @@ Deno.bench("Object.merge (spread)", { group: "merge" }, () => {
 // Copy-on-Write Benchmarks
 // =============================================================================
 
-Deno.bench("ImmutableMap.toBuilder.set.build", {
-  group: "copy-on-write",
-  baseline: true,
-}, () => {
-  immutableMapMedium.toBuilder().set("newKey", 999).build();
-});
+Deno.bench(
+  "ImmutableMap.toBuilder.set.build",
+  {
+    group: "copy-on-write",
+    baseline: true,
+  },
+  () => {
+    immutableMapMedium.toBuilder().set("newKey", 999).build();
+  },
+);
 
 Deno.bench("Map.copy-on-write", { group: "copy-on-write" }, () => {
   const newMap = new Map(nativeMapMedium);

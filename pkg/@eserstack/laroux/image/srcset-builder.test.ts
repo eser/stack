@@ -26,7 +26,8 @@ const inferCases: ReadonlyArray<{
   {
     name: "keeps a host and directories that contain dots",
     src: "https://img.example.com/v1.2/photo.webp",
-    expected: "https://img.example.com/v1.2/photo-400w.webp 400w, " +
+    expected:
+      "https://img.example.com/v1.2/photo-400w.webp 400w, " +
       "https://img.example.com/v1.2/photo-800w.webp 800w",
   },
   {
@@ -38,13 +39,15 @@ const inferCases: ReadonlyArray<{
   {
     name: "appends the width to a URL without an extension",
     src: "https://img.example.com/avatar",
-    expected: "https://img.example.com/avatar-400w 400w, " +
+    expected:
+      "https://img.example.com/avatar-400w 400w, " +
       "https://img.example.com/avatar-800w 800w",
   },
   {
     name: "keeps a query string after the extension",
     src: "/images/photo.jpg?v=1.2",
-    expected: "/images/photo-400w.jpg?v=1.2 400w, " +
+    expected:
+      "/images/photo-400w.jpg?v=1.2 400w, " +
       "/images/photo-800w.jpg?v=1.2 800w",
   },
 ];
@@ -124,8 +127,7 @@ Deno.test("buildFormatSrcSet builds the srcset of one format from a base path", 
     "/images/photo-320w.webp 320w, /images/photo-640w.webp 640w",
   );
   assert.assertEquals(
-    srcsetBuilder.buildFormatSrcSet("/images/photo", "avif").split(", ")
-      .length,
+    srcsetBuilder.buildFormatSrcSet("/images/photo", "avif").split(", ").length,
     5,
   );
 });

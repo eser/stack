@@ -275,7 +275,9 @@ export const handleSignal = (
     showCursor(ctx.output);
     try {
       runtime.process.setStdinRaw(false);
-    } catch { /* may not be in raw mode */ }
+    } catch {
+      /* may not be in raw mode */
+    }
     runtime.process.exit(130);
   }
 

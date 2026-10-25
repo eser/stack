@@ -202,9 +202,7 @@ export const isRecipeFile = (value: unknown): value is RecipeFile => {
   return true;
 };
 
-const isRecipeDependencies = (
-  value: unknown,
-): value is RecipeDependencies => {
+const isRecipeDependencies = (value: unknown): value is RecipeDependencies => {
   if (typeof value !== "object" || value === null) {
     return false;
   }
@@ -241,7 +239,8 @@ export const isTemplateVariable = (
     return false;
   }
   if (
-    obj["description"] !== undefined && typeof obj["description"] !== "string"
+    obj["description"] !== undefined &&
+    typeof obj["description"] !== "string"
   ) {
     return false;
   }
@@ -289,7 +288,8 @@ export const isRecipe = (value: unknown): value is Recipe => {
   }
   // description — if present, must be a string
   if (
-    obj["description"] !== undefined && typeof obj["description"] !== "string"
+    obj["description"] !== undefined &&
+    typeof obj["description"] !== "string"
   ) {
     return false;
   }
@@ -419,7 +419,7 @@ export const validateRegistryManifest = (data: unknown): RegistryManifest => {
   if (obj["$schema"] !== undefined) {
     const schema = String(obj["$schema"]);
     const hasSupported = SUPPORTED_SCHEMA_VERSIONS.some((v) =>
-      schema.includes(v)
+      schema.includes(v),
     );
 
     if (!hasSupported) {
@@ -453,9 +453,10 @@ export const validateRegistryManifest = (data: unknown): RegistryManifest => {
   // Validate each recipe (strict — registry entries require all five fields)
   for (const recipe of obj["recipes"]) {
     if (!isRegistryRecipe(recipe)) {
-      const name = typeof recipe === "object" && recipe !== null
-        ? (recipe as Record<string, unknown>)["name"] ?? "<unknown>"
-        : "<invalid>";
+      const name =
+        typeof recipe === "object" && recipe !== null
+          ? ((recipe as Record<string, unknown>)["name"] ?? "<unknown>")
+          : "<invalid>";
       throw new Error(`Invalid recipe definition: '${name}'`);
     }
   }

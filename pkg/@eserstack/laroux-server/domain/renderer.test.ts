@@ -121,9 +121,9 @@ Deno.test("RenderContext", async (t) => {
       config: {} as RenderContext["config"],
       bundler: {
         getBundle: () =>
-          Promise.resolve({} as Awaited<
-            ReturnType<RenderContext["bundler"]["getBundle"]>
-          >),
+          Promise.resolve(
+            {} as Awaited<ReturnType<RenderContext["bundler"]["getBundle"]>>,
+          ),
       },
       params: { id: "123" },
       request: new Request("http://localhost:3000/page?id=123"),
@@ -139,9 +139,9 @@ Deno.test("RenderContext", async (t) => {
       config: {} as RenderContext["config"],
       bundler: {
         getBundle: () =>
-          Promise.resolve({} as Awaited<
-            ReturnType<RenderContext["bundler"]["getBundle"]>
-          >),
+          Promise.resolve(
+            {} as Awaited<ReturnType<RenderContext["bundler"]["getBundle"]>>,
+          ),
       },
       params: { tags: ["react", "typescript"] },
       request: new Request("http://localhost:3000/tags"),

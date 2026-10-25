@@ -37,8 +37,9 @@ const pending = <T>(): Promise<T> => new Promise<T>(() => {});
 
 const withFakeWebTransport = async (
   fn: (dials: ReadonlyArray<Dial>) => Promise<void>,
-  behave: (options: WebTransportOptions | undefined) => DialBehavior =
-    () => ({}),
+  behave: (
+    options: WebTransportOptions | undefined,
+  ) => DialBehavior = () => ({}),
 ): Promise<void> => {
   const dials: Dial[] = [];
 
@@ -172,12 +173,10 @@ const attach = (
   config: Partial<noskillsClient.NoskillsClientConfig> = {},
   options: noskillsClient.AttachOptions = {},
 ) =>
-  noskillsClient.attachSession(
-    { baseUrl: BASE_URL, ...config },
-    "app",
-    "s-1",
-    { certHash: null, ...options },
-  );
+  noskillsClient.attachSession({ baseUrl: BASE_URL, ...config }, "app", "s-1", {
+    certHash: null,
+    ...options,
+  });
 
 Deno.test("attachSession puts the token, resume point and kind in the query", async () => {
   await withFakeWebTransport(async (dials) => {
@@ -232,9 +231,8 @@ for (const { name, configHashes, certHash, expected } of pinCases) {
   Deno.test(`attachSession ${name}`, async () => {
     await withFetch(failFetch, async (fetches) => {
       await withFakeWebTransport(async (dials) => {
-        const options: noskillsClient.AttachOptions = certHash === undefined
-          ? {}
-          : { certHash };
+        const options: noskillsClient.AttachOptions =
+          certHash === undefined ? {} : { certHash };
         await noskillsClient.attachSession(
           { baseUrl: BASE_URL, certHashes: configHashes },
           "app",
@@ -244,8 +242,7 @@ for (const { name, configHashes, certHash, expected } of pinCases) {
 
         assert.assertEquals(pinnedFills(dials[0]), expected);
         assert.assertEquals(
-          dials[0]?.options?.serverCertificateHashes?.[0]?.algorithm ??
-            null,
+          dials[0]?.options?.serverCertificateHashes?.[0]?.algorithm ?? null,
           expected === null ? null : "sha-256",
         );
         assert.assertEquals(fetches, []);
@@ -416,9 +413,8 @@ Deno.test("attachSession times out when the stream never opens, and closes the s
 Deno.test("attachSession times out when the fingerprint fetch never answers", async () => {
   const neverAnswers = (init?: RequestInit) =>
     new Promise<Response>((_resolve, reject) => {
-      init?.signal?.addEventListener(
-        "abort",
-        () => reject(init.signal?.reason),
+      init?.signal?.addEventListener("abort", () =>
+        reject(init.signal?.reason),
       );
     });
 

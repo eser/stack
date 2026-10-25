@@ -27,9 +27,8 @@ if (rawTag === undefined || outFile === undefined) {
 }
 
 const tag = changelogText.normalizeTag(rawTag);
-const entry = changelogText.parseChangelogText(
-  fs.readFileSync("CHANGELOG.md", "utf8"),
-)
+const entry = changelogText
+  .parseChangelogText(fs.readFileSync("CHANGELOG.md", "utf8"))
   .find((e) => e.tag === tag);
 
 if (entry === undefined) {

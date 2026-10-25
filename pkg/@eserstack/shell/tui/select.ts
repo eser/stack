@@ -62,12 +62,11 @@ const renderFrame = <T>(
     const label = isDisabled
       ? span.dim(` ${opt.label}`)
       : isSelected
-      ? span.text(` ${opt.label}`)
-      : span.dim(` ${opt.label}`);
+        ? span.text(` ${opt.label}`)
+        : span.dim(` ${opt.label}`);
 
-    const hint = opt.hint !== undefined
-      ? span.dim(`  (${opt.hint})`)
-      : span.text("");
+    const hint =
+      opt.hint !== undefined ? span.dim(`  (${opt.hint})`) : span.text("");
 
     ctx.output.writeln(
       span.dim(symbols.BAR),
@@ -115,8 +114,8 @@ export const select = async <T>(
   let cursor = 0;
 
   if (options.initialValue !== undefined) {
-    const idx = options.options.findIndex((o) =>
-      o.value === options.initialValue
+    const idx = options.options.findIndex(
+      (o) => o.value === options.initialValue,
     );
     if (idx >= 0) cursor = idx;
   }

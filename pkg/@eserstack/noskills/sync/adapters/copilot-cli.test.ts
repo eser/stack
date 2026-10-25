@@ -248,12 +248,15 @@ bdd.describe("Copilot CLI adapter: snapshot tests", () => {
         );
         const parsed = await readHooks(tempDir);
 
-        assert.assertEquals(parsed.hooks["preToolUse"], [{
-          type: "command",
-          matcher: "bash|powershell|create|edit|str_replace_editor|apply_patch",
-          command: `${CMD_PREFIX} invoke-hook pre-tool-use`,
-          timeoutSec: 30,
-        }]);
+        assert.assertEquals(parsed.hooks["preToolUse"], [
+          {
+            type: "command",
+            matcher:
+              "bash|powershell|create|edit|str_replace_editor|apply_patch",
+            command: `${CMD_PREFIX} invoke-hook pre-tool-use`,
+            timeoutSec: 30,
+          },
+        ]);
       },
     );
 
@@ -500,8 +503,8 @@ bdd.describe("Copilot CLI adapter: snapshot tests", () => {
         );
 
         // Count noskills:start markers — should be exactly one
-        const startMarkers = content.split("<!-- noskills:start -->").length -
-          1;
+        const startMarkers =
+          content.split("<!-- noskills:start -->").length - 1;
         assert.assertEquals(startMarkers, 1);
 
         // Count noskills:end markers — should be exactly one

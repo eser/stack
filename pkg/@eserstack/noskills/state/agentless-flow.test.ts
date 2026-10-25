@@ -73,12 +73,12 @@ bdd.describe("Agentless flow: complete lifecycle via CLI", () => {
       assert.assertEquals(qs.length, 6);
 
       const answers: Record<string, string> = {
-        "status_quo": "Users drag files manually into a folder",
+        status_quo: "Users drag files manually into a folder",
         ambition: "1-star: basic upload. 10-star: AI auto-categorization",
         reversibility: "No irreversible decisions - can always re-upload",
-        "user_impact": "New feature, no breaking changes",
+        user_impact: "New feature, no breaking changes",
         verification: "Unit tests for endpoint, e2e test for upload flow",
-        "scope_boundary": "No video support, no batch upload in v1",
+        scope_boundary: "No video support, no batch upload in v1",
       };
 
       // Simulate: noskills next → returns ALL questions at once
@@ -253,13 +253,13 @@ bdd.describe("Agentless flow: complete lifecycle via CLI", () => {
       // Classification filters keyword-specific ACs — involvesWebUI=false means no "Mobile layout" etc.
       assert.assertEquals(
         execWithReport.statusReport!.criteria.some((c) =>
-          c.text.includes("Mobile layout")
+          c.text.includes("Mobile layout"),
         ),
         false,
       );
       assert.assertEquals(
         execWithReport.statusReport!.criteria.some((c) =>
-          c.text.includes("Public API documented")
+          c.text.includes("Public API documented"),
         ),
         false,
       );

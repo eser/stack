@@ -104,38 +104,40 @@ const getStdinStream = (): ReadableStream<Uint8Array> => {
  * stdout and reads stdin; non-interactive mode writes plain text to stderr, so
  * stdout stays clean for machine-readable output.
  */
-export const createTuiContext = (
-  options?: TuiContextOptions,
-): TuiContext => {
+export const createTuiContext = (options?: TuiContextOptions): TuiContext => {
   // Resolve interaction: explicit interaction > legacy target > default
-  const interaction: Interaction = options?.interaction ??
+  const interaction: Interaction =
+    options?.interaction ??
     (options?.target === "non-interactive" ? "non-interactive" : "interactive");
   const audience: Audience = options?.audience ?? "human";
 
   // Legacy target stays in sync
-  const target: TuiTarget = interaction === "non-interactive"
-    ? "non-interactive"
-    : "interactive";
+  const target: TuiTarget =
+    interaction === "non-interactive" ? "non-interactive" : "interactive";
 
   // Non-interactive output goes to stderr with plain renderer (stdout stays clean)
   const isInteractive = interaction === "interactive";
 
   return {
-    output: options?.output ?? streams.output({
-      renderer: isInteractive
-        ? streams.renderers.ansi()
-        : streams.renderers.plain(),
-      sink: isInteractive ? streams.sinks.stdout() : streams.sinks.stderr(),
-    }),
+    output:
+      options?.output ??
+      streams.output({
+        renderer: isInteractive
+          ? streams.renderers.ansi()
+          : streams.renderers.plain(),
+        sink: isInteractive ? streams.sinks.stdout() : streams.sinks.stderr(),
+      }),
     input: options?.input ?? getStdinStream(),
     target,
     interaction,
     audience,
     signals: { ...DEFAULT_SIGNALS, ...options?.signals },
-    stderr: options?.stderr ?? streams.output({
-      renderer: streams.renderers.plain(),
-      sink: streams.sinks.stderr(),
-    }),
+    stderr:
+      options?.stderr ??
+      streams.output({
+        renderer: streams.renderers.plain(),
+        sink: streams.sinks.stderr(),
+      }),
   };
 };
 

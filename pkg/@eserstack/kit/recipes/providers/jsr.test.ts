@@ -25,10 +25,7 @@ bdd.describe("jsr provider — parse", () => {
   });
 
   bdd.it("throws on empty jsr: specifier", () => {
-    assert.assertThrows(
-      () => jsr.provider.parse("jsr:"),
-      Error,
-    );
+    assert.assertThrows(() => jsr.provider.parse("jsr:"), Error);
   });
 });
 

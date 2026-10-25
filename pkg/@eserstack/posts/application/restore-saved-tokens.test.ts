@@ -8,9 +8,9 @@ import * as restoreTokens from "./restore-saved-tokens.ts";
 import * as testing from "./testing.ts";
 
 const installedTokens = (auth: testing.MockAuthProvider) =>
-  auth.calls.filter((call) => call.method === "setTokens").map((call) =>
-    call.args[0]
-  );
+  auth.calls
+    .filter((call) => call.method === "setTokens")
+    .map((call) => call.args[0]);
 
 bdd.describe("restoreSavedTokens", () => {
   bdd.it(

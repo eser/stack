@@ -86,9 +86,9 @@ export async function transformServerActionFile(
   try {
     content = await runtime.fs.readTextFile(filePath);
   } catch (error) {
-    transformLogger.with({ error }).warn(
-      `read ${filePath}; skipping its server action transform`,
-    );
+    transformLogger
+      .with({ error })
+      .warn(`read ${filePath}; skipping its server action transform`);
     return null;
   }
 
@@ -120,7 +120,7 @@ export async function transformServerActionFile(
   // Build the server reference markers
   const markers = namedExports
     .map((exportName) =>
-      generateServerReferenceMarker(relativePath, exportName)
+      generateServerReferenceMarker(relativePath, exportName),
     )
     .join("\n");
 
@@ -200,9 +200,7 @@ export async function transformServerActions(
     }
   }
 
-  transformLogger.info(
-    `Transformed ${results.length} server action file(s)`,
-  );
+  transformLogger.info(`Transformed ${results.length} server action file(s)`);
 
   return results;
 }

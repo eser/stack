@@ -268,7 +268,10 @@ bdd.describe("diagram scan and staleness (TASK-328)", () => {
 
     assert.assertEquals(
       entries.map((e) => [e.type, e.line]),
-      [["ascii", 3], ["ascii", 7]],
+      [
+        ["ascii", 3],
+        ["ascii", 7],
+      ],
     );
   });
 

@@ -72,9 +72,7 @@ const readHookInput = async (): Promise<hookDecisions.HookInput> => {
 
   // Reassemble chunks
   let offset = 0;
-  const merged = new Uint8Array(
-    chunks.reduce((acc, c) => acc + c.length, 0),
-  );
+  const merged = new Uint8Array(chunks.reduce((acc, c) => acc + c.length, 0));
   for (const chunk of chunks) {
     merged.set(chunk, offset);
     offset += chunk.length;
@@ -191,15 +189,16 @@ export const preToolUseAnswer = (
       return { stdout: "", stderr: "", exitCode: 0 };
     case "deny": {
       const reason = `noskills: ${decision.reason}`;
-      const json = dialect === "claude"
-        ? {
-          hookSpecificOutput: {
-            hookEventName: "PreToolUse",
-            permissionDecision: "deny",
-            permissionDecisionReason: reason,
-          },
-        }
-        : { permissionDecision: "deny", permissionDecisionReason: reason };
+      const json =
+        dialect === "claude"
+          ? {
+              hookSpecificOutput: {
+                hookEventName: "PreToolUse",
+                permissionDecision: "deny",
+                permissionDecisionReason: reason,
+              },
+            }
+          : { permissionDecision: "deny", permissionDecisionReason: reason };
 
       return {
         stdout: dialect === "kiro" ? "" : JSON.stringify(json),
@@ -315,8 +314,8 @@ const collectFileRules = async (
       (state["classification"] as schema.SpecClassification | null) ?? null;
     const activeConcerns = await persistence.listConcerns(root);
     const manifest = await persistence.readManifest(root);
-    const activeConcernDefs = activeConcerns.filter((c) =>
-      manifest !== null && manifest.concerns.includes(c.id)
+    const activeConcernDefs = activeConcerns.filter(
+      (c) => manifest !== null && manifest.concerns.includes(c.id),
     );
     notes.push(
       ...concerns.getTier2RemindersForFile(
@@ -457,8 +456,9 @@ const protectedChangeDenial = async (
   if (change.path === "") return null;
 
   const forms = await absolutePathForms(root, change.path);
-  const file = forms.map(hookDecisions.protectedFileAt)
-    .find((found) => found !== null) ?? null;
+  const file =
+    forms.map(hookDecisions.protectedFileAt).find((found) => found !== null) ??
+    null;
   if (file === null) return null;
   if (file === "git-wrapper") {
     return hookDecisions.protectedFileDenial(file, "edit");
@@ -547,9 +547,8 @@ const loadGateState = async (
 ): Promise<hookDecisions.HookInput | null> => {
   const { root, sessionId } = env;
 
-  const session = sessionId === null
-    ? null
-    : await persistence.readSession(root, sessionId);
+  const session =
+    sessionId === null ? null : await persistence.readSession(root, sessionId);
 
   if (session !== null) {
     if (session.mode === "free") return null;
@@ -620,8 +619,8 @@ const decideFileEdit = async (
 
   // noskills and tool configuration are not phase-gated. The protected files
   // among them were refused before the gate.
-  const gated = (paths.length === 0 ? [""] : paths).filter((path) =>
-    !hookDecisions.isToolConfigPath(path)
+  const gated = (paths.length === 0 ? [""] : paths).filter(
+    (path) => !hookDecisions.isToolConfigPath(path),
   );
   if (gated.length === 0) return NO_DECISION;
 
@@ -647,9 +646,9 @@ const decideFileEdit = async (
   // to miss the agent it was written for.
   const reminder = await takeExecutorReminder(root);
   const rulesPerFile = await Promise.all(
-    executing.filter((path) => path !== "").map((path) =>
-      collectFileRules(root, state, path)
-    ),
+    executing
+      .filter((path) => path !== "")
+      .map((path) => collectFileRules(root, state, path)),
   );
   const context = hookDecisions.preToolUseContext(reminder, [
     ...new Set(rulesPerFile.flat()),
@@ -712,10 +711,7 @@ const handlePreToolUse = async (): Promise<shellArgs.CliResult<void>> => {
     sessionId: sessionId === "" ? null : sessionId,
     warn: writeStderr,
   });
-  const answer = preToolUseAnswer(
-    decision,
-    hookDecisions.hookDialectOf(input),
-  );
+  const answer = preToolUseAnswer(decision, hookDecisions.hookDialectOf(input));
 
   if (answer.stdout !== "") await writeStdoutText(answer.stdout);
   if (answer.stderr !== "") await writeStderr(answer.stderr);
@@ -829,10 +825,12 @@ const handlePostBash = async (): Promise<shellArgs.CliResult<void>> => {
     return results.ok(undefined);
   }
 
-  await appendProgressLog(rootOf(input), "noskills-calls.jsonl", [{
-    command,
-    ts: new Date().toISOString(),
-  }]);
+  await appendProgressLog(rootOf(input), "noskills-calls.jsonl", [
+    {
+      command,
+      ts: new Date().toISOString(),
+    },
+  ]);
 
   return results.ok(undefined);
 };
@@ -851,8 +849,8 @@ const handlePostBash = async (): Promise<shellArgs.CliResult<void>> => {
 const handleSessionStart = async (
   args: readonly string[],
 ): Promise<shellArgs.CliResult<void>> => {
-  const root = runtime.env.get("NOSKILLS_PROJECT_ROOT") ??
-    runtime.process.cwd();
+  const root =
+    runtime.env.get("NOSKILLS_PROJECT_ROOT") ?? runtime.process.cwd();
 
   // Not initialized — silently skip
   if (!(await persistence.isInitialized(root))) {
@@ -868,8 +866,8 @@ const handleSessionStart = async (
 
   // Load concerns and rules
   const allConcerns = await persistence.listConcerns(root);
-  const activeConcerns = allConcerns.filter((c) =>
-    config !== null && config.concerns.includes(c.id)
+  const activeConcerns = allConcerns.filter(
+    (c) => config !== null && config.concerns.includes(c.id),
   );
   const rules = await syncEngine.loadRules(root);
 
@@ -925,9 +923,9 @@ const exportGitWrapper = async (
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
     await writeStderr(
-      `noskills: the git wrapper was not installed in ${
-        gitWrapperInstall.wrapperDir(root)
-      }: ${detail}. Git writes are still refused by the PreToolUse hook, but not when a program builds the git command itself.\n`,
+      `noskills: the git wrapper was not installed in ${gitWrapperInstall.wrapperDir(
+        root,
+      )}: ${detail}. Git writes are still refused by the PreToolUse hook, but not when a program builds the git command itself.\n`,
     );
   }
 };
@@ -946,15 +944,15 @@ const exportGitWrapper = async (
 const handleGitExec = async (
   args: readonly string[],
 ): Promise<shellArgs.CliResult<void>> => {
-  const root = runtime.env.get("NOSKILLS_PROJECT_ROOT") ??
+  const root =
+    runtime.env.get("NOSKILLS_PROJECT_ROOT") ??
     (await persistence.resolveProjectRoot()).root;
-  const realGit = hookDecisions.explicitRealGit(
-    runtime.env.get("NOSKILLS_REAL_GIT"),
-  ) ??
-    await gitWrapperInstall.resolveRealGit(
+  const realGit =
+    hookDecisions.explicitRealGit(runtime.env.get("NOSKILLS_REAL_GIT")) ??
+    (await gitWrapperInstall.resolveRealGit(
       runtime.env.get("PATH") ?? "",
       gitWrapperInstall.wrapperDir(root),
-    );
+    ));
 
   if (realGit === null) {
     await writeStderr(

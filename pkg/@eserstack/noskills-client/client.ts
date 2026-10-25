@@ -60,7 +60,7 @@ function buildHeaders(token?: string): Record<string, string> {
 }
 
 const readJson = async <T>(response: Response): Promise<T> =>
-  await response.json() as T;
+  (await response.json()) as T;
 
 const discardBody = async (response: Response): Promise<void> => {
   await response.body?.cancel();
@@ -203,8 +203,10 @@ export class NoskillsClient {
     req: RegisterProjectRequest,
     options?: CallOptions,
   ): Promise<Project> {
-    const clones = (req.path === undefined || req.path === "") &&
-      req.git !== undefined && req.git !== "";
+    const clones =
+      (req.path === undefined || req.path === "") &&
+      req.git !== undefined &&
+      req.git !== "";
     return this.#send(
       { method: "POST", path: "/api/projects", body: req, token: this.#token },
       options,
@@ -275,9 +277,9 @@ export class NoskillsClient {
     return this.#json(
       {
         method: "POST",
-        path: `/api/projects/${encodeURIComponent(slug)}/sessions/${
-          encodeURIComponent(sessionId)
-        }/fork`,
+        path: `/api/projects/${encodeURIComponent(slug)}/sessions/${encodeURIComponent(
+          sessionId,
+        )}/fork`,
         body: { at_message_id: atMessageId, label },
         token: this.#token,
       },
@@ -294,9 +296,9 @@ export class NoskillsClient {
     return this.#json(
       {
         method: "GET",
-        path: `/api/projects/${encodeURIComponent(slug)}/sessions/${
-          encodeURIComponent(sessionId)
-        }/lineage`,
+        path: `/api/projects/${encodeURIComponent(slug)}/sessions/${encodeURIComponent(
+          sessionId,
+        )}/lineage`,
         token: this.#token,
       },
       options,

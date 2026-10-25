@@ -92,7 +92,9 @@ export const validateCommitMsg = (
       if (!parsed.error && parsed.valid !== undefined) {
         return { valid: parsed.valid, issues: parsed.issues ?? [] };
       }
-    } catch { /* fall through to TS */ }
+    } catch {
+      /* fall through to TS */
+    }
   }
 
   return validateCommitMsgLocal(message, options);
@@ -150,9 +152,7 @@ export const validateCommitMsgLocal = (
   if (scope !== undefined && scope.trim() !== "") {
     // Check asterisk scope
     if (scope === "*" && !allowAsterisk) {
-      issues.push(
-        'wildcard scope "*" is not allowed (allowAsterisk is false)',
-      );
+      issues.push('wildcard scope "*" is not allowed (allowAsterisk is false)');
     }
 
     // Check multiple scopes
@@ -189,14 +189,11 @@ export const main = async (
   cliArgs?: readonly string[],
 ): Promise<shellArgs.CliResult<void>> => {
   const { output: out } = cliSupport.getCliContext();
-  const parsed = cliParseArgs.parseArgs(
-    (cliArgs ?? []) as string[],
-    {
-      string: ["message"],
-      boolean: ["help"],
-      alias: { h: "help", m: "message" },
-    },
-  );
+  const parsed = cliParseArgs.parseArgs((cliArgs ?? []) as string[], {
+    string: ["message"],
+    boolean: ["help"],
+    alias: { h: "help", m: "message" },
+  });
 
   if (parsed.help) {
     out.writeln(
@@ -204,9 +201,7 @@ export const main = async (
     );
     out.writeln("Usage:");
     out.writeln("  eser codebase validate-commit-msg <commit-msg-file>");
-    out.writeln(
-      "  eser codebase validate-commit-msg --message 'feat(x): msg'",
-    );
+    out.writeln("  eser codebase validate-commit-msg --message 'feat(x): msg'");
     return primitives.results.ok(undefined);
   }
 

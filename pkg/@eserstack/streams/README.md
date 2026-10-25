@@ -199,7 +199,8 @@ For stream processing pipelines:
 import * as streams from "@eserstack/streams";
 
 // Transform pipeline
-const items = await streams.pipeline()
+const items = await streams
+  .pipeline()
   .from(streams.sources.values(1, 2, 3, 4, 5))
   .through(streams.layers.filter((n: number) => n > 2))
   .through(streams.layers.map((n: number) => n * 10))

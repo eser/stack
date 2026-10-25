@@ -150,9 +150,7 @@ const bunSpawn = async (
   args?: string[],
   options?: SpawnOptions,
 ): Promise<ProcessOutput> => {
-  const [stdinMode, stdoutMode, stderrMode] = shared.getNodeStdioArray(
-    options,
-  );
+  const [stdinMode, stdoutMode, stderrMode] = shared.getNodeStdioArray(options);
   const proc = Bun.spawn([cmd, ...(args ?? [])], {
     cwd: options?.cwd,
     env: mergeEnv(options?.env),
@@ -186,9 +184,7 @@ const bunSpawnChild = (
   args?: string[],
   options?: SpawnOptions,
 ): ChildProcess => {
-  const [stdinMode, stdoutMode, stderrMode] = shared.getNodeStdioArray(
-    options,
-  );
+  const [stdinMode, stdoutMode, stderrMode] = shared.getNodeStdioArray(options);
   const proc = Bun.spawn([cmd, ...(args ?? [])], {
     cwd: options?.cwd,
     env: mergeEnv(options?.env),
@@ -198,19 +194,18 @@ const bunSpawnChild = (
     signal: options?.signal,
   });
 
-  const statusPromise = proc.exited.then(
-    (code): ProcessStatus => ({
-      success: code === 0,
-      code,
-      signal: proc.signalCode ?? undefined,
-    }),
-  );
+  const statusPromise = proc.exited.then((code): ProcessStatus => ({
+    success: code === 0,
+    code,
+    signal: proc.signalCode ?? undefined,
+  }));
 
   return {
     pid: proc.pid,
-    stdin: proc.stdin !== undefined
-      ? webStreams.createFileSinkWritable(proc.stdin)
-      : null,
+    stdin:
+      proc.stdin !== undefined
+        ? webStreams.createFileSinkWritable(proc.stdin)
+        : null,
     stdout: proc.stdout ?? null,
     stderr: proc.stderr ?? null,
     status: statusPromise,
@@ -282,9 +277,10 @@ const createBunHttp = (): RuntimeHttp => {
           try {
             const peer = bunServer.requestIP(request);
             response = await respond(request, {
-              remoteAddr: peer === null
-                ? null
-                : { hostname: peer.address, port: peer.port },
+              remoteAddr:
+                peer === null
+                  ? null
+                  : { hostname: peer.address, port: peer.port },
             });
           } finally {
             upgrades.delete(request);

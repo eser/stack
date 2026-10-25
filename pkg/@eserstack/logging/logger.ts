@@ -75,14 +75,15 @@ const writeFallbackRecord = (
   message: string,
   attrs: Record<string, unknown>,
 ): void => {
-  const suffix = Object.keys(attrs).length > 0
-    ? ` ${serialize.toJson(attrs) ?? '{"attrs":"unserializable"}'}`
-    : "";
+  const suffix =
+    Object.keys(attrs).length > 0
+      ? ` ${serialize.toJson(attrs) ?? '{"attrs":"unserializable"}'}`
+      : "";
 
   writeStderrLine(
-    `${new Date().toISOString()} ${severityToGoLevel(severity)} ${
-      category.categoryToString(loggerCategory)
-    }: ${message}${suffix}`,
+    `${new Date().toISOString()} ${severityToGoLevel(severity)} ${category.categoryToString(
+      loggerCategory,
+    )}: ${message}${suffix}`,
   );
 };
 
@@ -346,11 +347,9 @@ export class Logger implements logging.Logger {
         return JSON.stringify(data);
       }
 
-      return `{${
-        Object.entries(data)
-          .map(([k, v]) => `"${k}":${this.asString(v, true)}`)
-          .join(",")
-      }}`;
+      return `{${Object.entries(data)
+        .map(([k, v]) => `"${k}":${this.asString(v, true)}`)
+        .join(",")}}`;
     }
 
     return "undefined";
@@ -365,8 +364,7 @@ export class Logger implements logging.Logger {
     severity: logging.Severity,
     message:
       // deno-lint-ignore no-explicit-any
-      | (T extends (...args: ReadonlyArray<any>) => any ? never : T)
-      | (() => T),
+      (T extends (...args: ReadonlyArray<any>) => any ? never : T) | (() => T),
     // deno-lint-ignore no-explicit-any
     ...args: ReadonlyArray<any>
   ): Promise<T | undefined> {
@@ -434,8 +432,7 @@ export class Logger implements logging.Logger {
   debug<T>(
     message:
       // deno-lint-ignore no-explicit-any
-      | (T extends (...args: ReadonlyArray<any>) => any ? never : T)
-      | (() => T),
+      (T extends (...args: ReadonlyArray<any>) => any ? never : T) | (() => T),
     // deno-lint-ignore no-explicit-any
     ...args: ReadonlyArray<any>
   ): Promise<T | undefined> {
@@ -471,8 +468,7 @@ export class Logger implements logging.Logger {
   info<T>(
     message:
       // deno-lint-ignore no-explicit-any
-      | (T extends (...args: ReadonlyArray<any>) => any ? never : T)
-      | (() => T),
+      (T extends (...args: ReadonlyArray<any>) => any ? never : T) | (() => T),
     // deno-lint-ignore no-explicit-any
     ...args: ReadonlyArray<any>
   ): Promise<T | undefined> {
@@ -508,8 +504,7 @@ export class Logger implements logging.Logger {
   warn<T>(
     message:
       // deno-lint-ignore no-explicit-any
-      | (T extends (...args: ReadonlyArray<any>) => any ? never : T)
-      | (() => T),
+      (T extends (...args: ReadonlyArray<any>) => any ? never : T) | (() => T),
     // deno-lint-ignore no-explicit-any
     ...args: ReadonlyArray<any>
   ): Promise<T | undefined> {
@@ -545,8 +540,7 @@ export class Logger implements logging.Logger {
   error<T>(
     message:
       // deno-lint-ignore no-explicit-any
-      | (T extends (...args: ReadonlyArray<any>) => any ? never : T)
-      | (() => T),
+      (T extends (...args: ReadonlyArray<any>) => any ? never : T) | (() => T),
     // deno-lint-ignore no-explicit-any
     ...args: ReadonlyArray<any>
   ): Promise<T | undefined> {
@@ -582,8 +576,7 @@ export class Logger implements logging.Logger {
   critical<T>(
     message:
       // deno-lint-ignore no-explicit-any
-      | (T extends (...args: ReadonlyArray<any>) => any ? never : T)
-      | (() => T),
+      (T extends (...args: ReadonlyArray<any>) => any ? never : T) | (() => T),
     // deno-lint-ignore no-explicit-any
     ...args: ReadonlyArray<any>
   ): Promise<T | undefined> {
@@ -619,8 +612,7 @@ export class Logger implements logging.Logger {
   emergency<T>(
     message:
       // deno-lint-ignore no-explicit-any
-      | (T extends (...args: ReadonlyArray<any>) => any ? never : T)
-      | (() => T),
+      (T extends (...args: ReadonlyArray<any>) => any ? never : T) | (() => T),
     // deno-lint-ignore no-explicit-any
     ...args: ReadonlyArray<any>
   ): Promise<T | undefined> {
@@ -656,8 +648,7 @@ export class Logger implements logging.Logger {
   alert<T>(
     message:
       // deno-lint-ignore no-explicit-any
-      | (T extends (...args: ReadonlyArray<any>) => any ? never : T)
-      | (() => T),
+      (T extends (...args: ReadonlyArray<any>) => any ? never : T) | (() => T),
     // deno-lint-ignore no-explicit-any
     ...args: ReadonlyArray<any>
   ): Promise<T | undefined> {
@@ -693,8 +684,7 @@ export class Logger implements logging.Logger {
   notice<T>(
     message:
       // deno-lint-ignore no-explicit-any
-      | (T extends (...args: ReadonlyArray<any>) => any ? never : T)
-      | (() => T),
+      (T extends (...args: ReadonlyArray<any>) => any ? never : T) | (() => T),
     // deno-lint-ignore no-explicit-any
     ...args: ReadonlyArray<any>
   ): Promise<T | undefined> {
@@ -730,8 +720,7 @@ export class Logger implements logging.Logger {
   trace<T>(
     message:
       // deno-lint-ignore no-explicit-any
-      | (T extends (...args: ReadonlyArray<any>) => any ? never : T)
-      | (() => T),
+      (T extends (...args: ReadonlyArray<any>) => any ? never : T) | (() => T),
     // deno-lint-ignore no-explicit-any
     ...args: ReadonlyArray<any>
   ): Promise<T | undefined> {

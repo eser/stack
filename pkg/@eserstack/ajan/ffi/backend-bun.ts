@@ -602,9 +602,7 @@ export const backend: types.FFIBackend = {
           return readAndFree(symbols.EserAjanLogCreate(toCString(configJSON)));
         },
         EserAjanLogWrite: (requestJSON: string): string => {
-          return readAndFree(
-            symbols.EserAjanLogWrite(toCString(requestJSON)),
-          );
+          return readAndFree(symbols.EserAjanLogWrite(toCString(requestJSON)));
         },
         EserAjanLogClose: (handle: string): string => {
           return readAndFree(symbols.EserAjanLogClose(toCString(handle)));
@@ -620,9 +618,7 @@ export const backend: types.FFIBackend = {
           );
         },
         EserAjanHttpCreate: (configJSON: string): string => {
-          return readAndFree(
-            symbols.EserAjanHttpCreate(toCString(configJSON)),
-          );
+          return readAndFree(symbols.EserAjanHttpCreate(toCString(configJSON)));
         },
         EserAjanHttpRequest: (requestJSON: string): string => {
           return readAndFree(
@@ -709,9 +705,7 @@ export const backend: types.FFIBackend = {
           );
         },
         EserAjanCsSync: (requestJSON: string): string => {
-          return readAndFree(
-            symbols.EserAjanCsSync(toCString(requestJSON)),
-          );
+          return readAndFree(symbols.EserAjanCsSync(toCString(requestJSON)));
         },
         EserAjanKitListRecipes: (requestJSON: string): string => {
           return readAndFree(
@@ -909,9 +903,7 @@ export const backend: types.FFIBackend = {
           );
         },
         EserAjanShellExec: (requestJSON: string): string => {
-          return readAndFree(
-            symbols.EserAjanShellExec(toCString(requestJSON)),
-          );
+          return readAndFree(symbols.EserAjanShellExec(toCString(requestJSON)));
         },
         EserAjanShellTuiKeypressCreate: (requestJSON: string): string => {
           return readAndFree(
@@ -944,9 +936,7 @@ export const backend: types.FFIBackend = {
           );
         },
         EserAjanShellExecRead: (handle: string): string => {
-          return readAndFree(
-            symbols.EserAjanShellExecRead(toCString(handle)),
-          );
+          return readAndFree(symbols.EserAjanShellExecRead(toCString(handle)));
         },
         EserAjanShellExecWrite: (requestJSON: string): string => {
           return readAndFree(
@@ -954,9 +944,7 @@ export const backend: types.FFIBackend = {
           );
         },
         EserAjanShellExecClose: (handle: string): string => {
-          return readAndFree(
-            symbols.EserAjanShellExecClose(toCString(handle)),
-          );
+          return readAndFree(symbols.EserAjanShellExecClose(toCString(handle)));
         },
         EserAjanShellPtySpawn: (requestJSON: string): string => {
           return readAndFree(
@@ -990,9 +978,7 @@ export const backend: types.FFIBackend = {
           );
         },
         EserAjanShellPtyClose: (handle: string): string => {
-          return readAndFree(
-            symbols.EserAjanShellPtyClose(toCString(handle)),
-          );
+          return readAndFree(symbols.EserAjanShellPtyClose(toCString(handle)));
         },
       },
       () => {

@@ -125,10 +125,7 @@ Deno.test("extractFontUrls handles quoted, unquoted and malformed values", () =>
     // A quote ends the outer value, so the inner url() is what matches.
     ["url(x'url(a.woff2)", ["a.woff2"]],
     // Unquoted values keep their padding, as CSS url() tokens do not trim.
-    [
-      "src: url( https://x/f.woff2 ) format('woff2');",
-      [" https://x/f.woff2 "],
-    ],
+    ["src: url( https://x/f.woff2 ) format('woff2');", [" https://x/f.woff2 "]],
   ];
 
   for (const [css, urls] of cases) {

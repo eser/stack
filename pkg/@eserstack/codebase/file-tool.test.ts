@@ -38,7 +38,7 @@ const withFixtureRoot = async (
   try {
     await Promise.all(
       FIXTURE_FILES.map((name) =>
-        runtime.fs.writeTextFile(runtime.path.join(root, name), "content\n")
+        runtime.fs.writeTextFile(runtime.path.join(root, name), "content\n"),
       ),
     );
     await fn(root);

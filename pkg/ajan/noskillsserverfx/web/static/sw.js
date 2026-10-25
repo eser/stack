@@ -52,9 +52,10 @@ self.addEventListener("notificationclick", (event) => {
   event.notification.close();
 
   const { url, sessionId } = event.notification.data ?? {};
-  const targetUrl = typeof sessionId === "string" && sessionId !== ""
-    ? `/?session=${encodeURIComponent(sessionId)}`
-    : (url ?? "/");
+  const targetUrl =
+    typeof sessionId === "string" && sessionId !== ""
+      ? `/?session=${encodeURIComponent(sessionId)}`
+      : (url ?? "/");
 
   event.waitUntil(
     self.clients
@@ -99,8 +100,10 @@ self.addEventListener("message", (event) => {
   const { fingerprint } = event.data;
   if (typeof fingerprint !== "string" || fingerprint === "") return;
 
-  openCertDB().then((db) => {
-    const tx = db.transaction(DB_STORE, "readwrite");
-    tx.objectStore(DB_STORE).put(fingerprint, "active");
-  }).catch(() => {});
+  openCertDB()
+    .then((db) => {
+      const tx = db.transaction(DB_STORE, "readwrite");
+      tx.objectStore(DB_STORE).put(fingerprint, "active");
+    })
+    .catch(() => {});
 });

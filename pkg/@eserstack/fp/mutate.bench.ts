@@ -11,7 +11,7 @@ Deno.bench("@eserstack/fp/mutate", { group, baseline: true }, () => {
     aliases: [],
   };
 
-  mutate.mutate(obj1, (x) => x.firstName = "Helo");
+  mutate.mutate(obj1, (x) => (x.firstName = "Helo"));
 });
 
 Deno.bench("Object.assign", { group }, () => {

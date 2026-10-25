@@ -65,7 +65,8 @@ const SPEC_NAME_MAX_LENGTH = 50;
  * at most 50 characters, and not a reserved subcommand name.
  */
 export const isValidSpecName = (name: string): boolean =>
-  name.length <= SPEC_NAME_MAX_LENGTH && SPEC_NAME_PATTERN.test(name) &&
+  name.length <= SPEC_NAME_MAX_LENGTH &&
+  SPEC_NAME_PATTERN.test(name) &&
   !RESERVED_NAMES.has(name);
 
 // Stop words to strip when generating slugs from descriptions
@@ -168,9 +169,9 @@ export const looksLikeDescription = (value: string): boolean => {
 // Subcommands that can appear after spec <name>
 const SPEC_SUBCOMMANDS: ReadonlyMap<
   string,
-  () => Promise<
-    { main: (args?: readonly string[]) => Promise<shellArgs.CliResult<void>> }
-  >
+  () => Promise<{
+    main: (args?: readonly string[]) => Promise<shellArgs.CliResult<void>>;
+  }>
 > = new Map([
   ["next", () => import("./next.ts")],
   ["approve", () => import("./approve.ts")],
@@ -232,7 +233,10 @@ const dispatch = async (
   // noskills spec help (also --help and -h, which would otherwise be taken
   // for a spec name)
   if (
-    arg1 === "help" || arg1 === "--help" || arg1 === "-h" || arg1 === undefined
+    arg1 === "help" ||
+    arg1 === "--help" ||
+    arg1 === "-h" ||
+    arg1 === undefined
   ) {
     const prefix = cmd.cmdPrefix();
     const out = streams.output({
@@ -261,9 +265,7 @@ const dispatch = async (
         `    ${prefix} spec new my-feature "Add upload support"       # explicit name`,
       ),
     );
-    out.writeln(
-      span.dim(`    ${prefix} spec my-feature next`),
-    );
+    out.writeln(span.dim(`    ${prefix} spec my-feature next`));
     out.writeln(
       span.dim(`    ${prefix} spec my-feature next --answer="approve"`),
     );
@@ -289,10 +291,7 @@ const dispatch = async (
   }
 
   if (subcommand === "revisit") {
-    return await specRevisit([
-      `--spec=${specName}`,
-      ...(args?.slice(2) ?? []),
-    ]);
+    return await specRevisit([`--spec=${specName}`, ...(args?.slice(2) ?? [])]);
   }
 
   // Check for spec-specific sub-commands: ac, task, note
@@ -316,9 +315,7 @@ const dispatch = async (
     renderer: streams.renderers.ansi(),
     sink: streams.sinks.stdout(),
   });
-  out.writeln(
-    span.red(`Unknown command: spec ${specName} ${subcommand}`),
-  );
+  out.writeln(span.red(`Unknown command: spec ${specName} ${subcommand}`));
   out.writeln(
     span.dim(
       `  Valid: next, approve, done, block, reset, cancel, wontfix, reopen, revisit, split, ac, task, note, section, ledger`,
@@ -456,10 +453,7 @@ const specNew = async (
   }
 
   if (!isValidSpecName(specName)) {
-    out.writeln(
-      span.red("Invalid spec name: "),
-      span.bold(specName),
-    );
+    out.writeln(span.red("Invalid spec name: "), span.bold(specName));
     out.writeln(
       span.dim(
         `Must be lowercase, hyphens, numbers only. Max ${SPEC_NAME_MAX_LENGTH} chars. Regex: ${SPEC_NAME_PATTERN}`,
@@ -473,9 +467,7 @@ const specNew = async (
   if (description.length === 0) {
     out.writeln(
       span.red("Please provide a description: "),
-      span.bold(
-        `${cmd.cmdPrefix()} spec new "Add photo upload support"`,
-      ),
+      span.bold(`${cmd.cmdPrefix()} spec new "Add photo upload support"`),
     );
     await out.close();
 
@@ -543,17 +535,14 @@ const specNew = async (
   }
 
   // Create spec directory and save state
-  await runtime.fs.mkdir(
-    `${root}/${persistence.paths.specDir(specName)}`,
-    {
-      recursive: true,
-    },
-  );
+  await runtime.fs.mkdir(`${root}/${persistence.paths.specDir(specName)}`, {
+    recursive: true,
+  });
   // Materialize spec.md immediately (Living Spec feature)
   const allConcerns = await persistence.listConcerns(root);
   const config = await persistence.readManifest(root);
-  const activeConcerns = allConcerns.filter((c) =>
-    config?.concerns.includes(c.id) ?? false
+  const activeConcerns = allConcerns.filter(
+    (c) => config?.concerns.includes(c.id) ?? false,
   );
   const now = new Date();
   const creator = { name: user?.name ?? "unknown", email: user?.email ?? "" };
@@ -589,10 +578,7 @@ const specNew = async (
   });
 
   out.writeln(span.green("✔"), " Spec started: ", span.bold(specName));
-  out.writeln(
-    "  Directory: ",
-    span.dim(persistence.paths.specDir(specName)),
-  );
+  out.writeln("  Directory: ", span.dim(persistence.paths.specDir(specName)));
   out.writeln("  Branch:    ", span.dim(branch));
   out.writeln("  Phase:     ", span.yellow("DISCOVERY"));
   if (planPath !== null) {
@@ -673,17 +659,19 @@ const specList = async (
     out.writeln(span.dim("  No specs yet."));
   } else {
     for (const spec of allSpecs) {
-      const phaseStr = spec.phase === "COMPLETED"
-        ? span.green(spec.phase)
-        : spec.phase === "EXECUTING"
-        ? span.cyan(spec.phase)
-        : spec.phase === "BLOCKED"
-        ? span.red(spec.phase)
-        : span.yellow(spec.phase);
+      const phaseStr =
+        spec.phase === "COMPLETED"
+          ? span.green(spec.phase)
+          : spec.phase === "EXECUTING"
+            ? span.cyan(spec.phase)
+            : spec.phase === "BLOCKED"
+              ? span.red(spec.phase)
+              : span.yellow(spec.phase);
 
-      const iterStr = spec.phase === "EXECUTING"
-        ? span.dim(` iteration ${spec.iteration}`)
-        : "";
+      const iterStr =
+        spec.phase === "EXECUTING"
+          ? span.dim(` iteration ${spec.iteration}`)
+          : "";
 
       out.writeln("  ", span.dim("○"), " ", spec.name, "  ", phaseStr, iterStr);
     }
@@ -707,9 +695,7 @@ type IntoEntry = {
  * Parse --into flags from args.
  * Format: --into name1 "desc1" --into name2 "desc2"
  */
-const parseIntoFlags = (
-  args: readonly string[],
-): readonly IntoEntry[] => {
+const parseIntoFlags = (args: readonly string[]): readonly IntoEntry[] => {
   const entries: IntoEntry[] = [];
   let i = 0;
 
@@ -757,9 +743,7 @@ const specSplit = async (
   // Parse --spec flag
   const specFlag = persistence.parseSpecFlag(args ?? []);
   if (specFlag === null) {
-    out.writeln(
-      span.red("Error: --spec=<name> is required."),
-    );
+    out.writeln(span.red("Error: --spec=<name> is required."));
     out.writeln(
       span.dim("Example: "),
       span.bold(
@@ -853,7 +837,7 @@ const specSplit = async (
       name: item.name,
       description: item.description,
       answers: parentState.discovery.answers.filter((a) =>
-        item.relevantAnswers.includes(a.questionId)
+        item.relevantAnswers.includes(a.questionId),
       ),
     }));
   }
@@ -885,10 +869,7 @@ const specSplit = async (
   for (const child of children) {
     out.writeln("  ", span.dim("○"), " ", span.bold(child.name));
   }
-  out.writeln(
-    "",
-    span.dim(`Parent spec "${specFlag}" cancelled.`),
-  );
+  out.writeln("", span.dim(`Parent spec "${specFlag}" cancelled.`));
   await out.close();
 
   return results.ok(undefined);
@@ -924,9 +905,7 @@ const specRevisit = async (
     out.writeln(span.red("Error: --spec=<name> is required."));
     out.writeln(
       span.dim("Example: "),
-      span.bold(
-        `${cmd.cmdPrefix()} spec my-spec revisit "reason for revisit"`,
-      ),
+      span.bold(`${cmd.cmdPrefix()} spec my-spec revisit "reason for revisit"`),
     );
     await out.close();
 
@@ -934,15 +913,15 @@ const specRevisit = async (
   }
 
   // Parse reason — positional arg that isn't a flag
-  const reason = (args ?? []).find((a) =>
-    !a.startsWith("--") && a !== specFlag
+  const reason = (args ?? []).find(
+    (a) => !a.startsWith("--") && a !== specFlag,
   );
   if (reason === undefined || reason.trim().length === 0) {
     out.writeln(
       span.red(
-        `Error: Reason is required: ${
-          cmd.cmd(`spec ${specFlag} revisit "reason"`)
-        }`,
+        `Error: Reason is required: ${cmd.cmd(
+          `spec ${specFlag} revisit "reason"`,
+        )}`,
       ),
     );
     await out.close();
@@ -965,11 +944,10 @@ const specRevisit = async (
   if (
     specState.phase === "DISCOVERY" ||
     specState.phase === "DISCOVERY_REFINEMENT" ||
-    specState.phase === "SPEC_PROPOSAL" || specState.phase === "SPEC_APPROVED"
+    specState.phase === "SPEC_PROPOSAL" ||
+    specState.phase === "SPEC_APPROVED"
   ) {
-    out.writeln(
-      span.red("Already in planning phase, no need to revisit."),
-    );
+    out.writeln(span.red("Already in planning phase, no need to revisit."));
     await out.close();
 
     return results.fail({ exitCode: 1 });
@@ -1038,9 +1016,7 @@ const specAC = async (
   const action = args?.[0];
 
   if (specName === undefined || action === undefined) {
-    out.writeln(
-      `Usage: ${cmd.cmdPrefix()} spec <name> ac <add "text" | list>`,
-    );
+    out.writeln(`Usage: ${cmd.cmdPrefix()} spec <name> ac <add "text" | list>`);
     await out.close();
     return results.ok(undefined);
   }
@@ -1105,9 +1081,7 @@ const specAC = async (
     return results.ok(undefined);
   }
 
-  out.writeln(
-    `Usage: ${cmd.cmdPrefix()} spec <name> ac <add "text" | list>`,
-  );
+  out.writeln(`Usage: ${cmd.cmdPrefix()} spec <name> ac <add "text" | list>`);
   await out.close();
   return results.ok(undefined);
 };
@@ -1182,7 +1156,7 @@ const specTask = async (
       cmd.cmdPrefix(),
     );
     const notes = (state.specNotes ?? []).filter((n) =>
-      n.text.startsWith("[TASK] ")
+      n.text.startsWith("[TASK] "),
     );
 
     out.writeln(span.bold(`Custom tasks for ${specName}`));
@@ -1201,9 +1175,7 @@ const specTask = async (
     return results.ok(undefined);
   }
 
-  out.writeln(
-    `Usage: ${cmd.cmdPrefix()} spec <name> task <add "text" | list>`,
-  );
+  out.writeln(`Usage: ${cmd.cmdPrefix()} spec <name> task <add "text" | list>`);
   await out.close();
   return results.ok(undefined);
 };
@@ -1265,8 +1237,8 @@ const specNote = async (
       specName,
       cmd.cmdPrefix(),
     );
-    const notes = (state.specNotes ?? []).filter((n) =>
-      !n.text.startsWith("[TASK] ")
+    const notes = (state.specNotes ?? []).filter(
+      (n) => !n.text.startsWith("[TASK] "),
     );
 
     out.writeln(span.bold(`Notes for ${specName}`));
@@ -1275,19 +1247,14 @@ const specNote = async (
       out.writeln(span.dim("  No notes."));
     } else {
       for (const n of notes) {
-        out.writeln(
-          `  - ${n.text}`,
-          span.dim(` -- ${n.user}, ${n.phase}`),
-        );
+        out.writeln(`  - ${n.text}`, span.dim(` -- ${n.user}, ${n.phase}`));
       }
     }
     await out.close();
     return results.ok(undefined);
   }
 
-  out.writeln(
-    `Usage: ${cmd.cmdPrefix()} spec <name> note <add "text" | list>`,
-  );
+  out.writeln(`Usage: ${cmd.cmdPrefix()} spec <name> note <add "text" | list>`);
   await out.close();
   return results.ok(undefined);
 };
@@ -1321,11 +1288,7 @@ const specSection = async (
     sink: streams.sinks.stdout(),
   });
   const { root } = await persistence.resolveProjectRoot();
-  const state = await persistence.resolveState(
-    root,
-    specName,
-    cmd.cmdPrefix(),
-  );
+  const state = await persistence.resolveState(root, specName, cmd.cmdPrefix());
   const sectionId = args[0];
 
   if (sectionId === undefined || sectionId === "list") {
@@ -1355,11 +1318,12 @@ const writeSectionList = (
     out.writeln(span.dim("  No sections."));
   }
   for (const p of placeholders) {
-    const note = p.status === "na" && p.naReason !== undefined
-      ? ` (N/A: ${p.naReason})`
-      : p.status === "conditional-hidden"
-      ? " (hidden: condition not met)"
-      : "";
+    const note =
+      p.status === "na" && p.naReason !== undefined
+        ? ` (N/A: ${p.naReason})`
+        : p.status === "conditional-hidden"
+          ? " (hidden: condition not met)"
+          : "";
     out.writeln(
       `  ${livingSpec.placeholderSymbol(p.status)} ${p.sectionId}`,
       span.dim(`  ${p.sectionTitle}${note}`),
@@ -1367,9 +1331,7 @@ const writeSectionList = (
   }
   out.writeln("");
   out.writeln(
-    span.dim(
-      `Fill: ${cmd.cmd(`spec ${specName} section <id> fill "text"`)}`,
-    ),
+    span.dim(`Fill: ${cmd.cmd(`spec ${specName} section <id> fill "text"`)}`),
   );
   out.writeln(
     span.dim(`N/A:  ${cmd.cmd(`spec ${specName} section <id> na "reason"`)}`),
@@ -1448,20 +1410,21 @@ const resolveSection = async (
   const now = new Date();
   let updated: readonly schema.PlaceholderStatus[];
   try {
-    updated = action === "fill"
-      ? livingSpec.markPlaceholderFilled(
-        placeholders,
-        sectionId,
-        user.name,
-        now,
-      )
-      : livingSpec.markPlaceholderNa(
-        placeholders,
-        sectionId,
-        text,
-        user.name,
-        now,
-      );
+    updated =
+      action === "fill"
+        ? livingSpec.markPlaceholderFilled(
+            placeholders,
+            sectionId,
+            user.name,
+            now,
+          )
+        : livingSpec.markPlaceholderNa(
+            placeholders,
+            sectionId,
+            text,
+            user.name,
+            now,
+          );
   } catch (err) {
     // markPlaceholderNa refuses a reason the gate would not accept.
     return refuse([span.red((err as Error).message)]);
@@ -1511,13 +1474,15 @@ const resolveSection = async (
     await persistence.writeSpecState(root, specName, newState);
   }
 
-  const lines: OutputLine[] = [[
-    span.green(
-      action === "fill" ? "Section filled: " : "Section marked N/A: ",
-    ),
-    placeholder.sectionTitle,
-    span.dim(` (by ${identity.shortUser(user)})`),
-  ]];
+  const lines: OutputLine[] = [
+    [
+      span.green(
+        action === "fill" ? "Section filled: " : "Section marked N/A: ",
+      ),
+      placeholder.sectionTitle,
+      span.dim(` (by ${identity.shortUser(user)})`),
+    ],
+  ];
   if (!fileUpdated) {
     lines.push([
       span.yellow(
@@ -1530,9 +1495,9 @@ const resolveSection = async (
   if (after.unresolvedSections.length > 0) {
     lines.push([
       span.dim(
-        `Still open: ${
-          after.unresolvedSections.map((s) => s.sectionId).join(", ")
-        }`,
+        `Still open: ${after.unresolvedSections
+          .map((s) => s.sectionId)
+          .join(", ")}`,
       ),
     ]);
   } else if (after.pendingDecisions.length > 0) {

@@ -113,85 +113,85 @@ All accepted. decision-1 to decision-44 on 2026-10-15; decision-45 on
 2026-10-15 and amended on 2026-10-24; decision-46 to decision-54 on 2026-10-23;
 decision-55 to decision-60 on 2026-10-24.
 
-| Decision | Answer |
-| --- | --- |
-| 1 red-window-commits | Integration agent from M0-T20; M1 on a cutover branch with owner-disabled hooks and a worktree per agent; the owner merges after a green `pnpm cli ok` with deno off PATH |
-| 2 root-devdeps | An explicit allow list for the root package.json (Appendix C) |
-| 3 seam-location | The private leaf package `@eserstack/test-kit` |
-| 4 std-during-cutover | Keep @std through M1, remove it in M2 before the first release |
-| 5 jsr-publishing | Freeze JSR at 4.5.x and publish to npm only |
-| 6 jsr-deprecation-notice | A 4.5.3 release with the notice (M0-T21) |
-| 7 test-stack | node:test with the test-kit seam |
-| 8 binaries | Go binaries for eser and noskills; laroux on npm only, with no SEA |
-| 9 legacy-binary-updates | Go forwarding stubs under the old archive names, plus the 4.5.3 updater; the owner retires them |
-| 10 npx-noskills-hooks | The launcher dependency with ESER_PLUGIN_PATH, replaced by the Go launcher after M4-T6 |
-| 11 install-script-fallback | install.sh and install.ps1 decide from the release's archives |
-| 12 user-deno-projects | Keep support for users' Deno projects and allowlist those files (Appendix B) |
-| 13 first-release-timing | Hold the first release until M3-T11 |
-| 14 node-floor | `>=26.9`; CI pins the exact minor that passed M0-T2 |
-| 15 bun-support | Drop Bun in M1 |
-| 16 cross-runtime-facade | Keep the facade Node-only; decide on collapsing it in M6-T4 |
-| 17 jsx-approach | Rewrite laroux-react's JSX with React.createElement in M0 |
-| 18 legacy-packages | Delete @eserstack/jsx-runtime and @eserstack/laroux-runtime in M1 |
-| 19 formatter-settings | One oxfmt reformat commit first in M1, printWidth 80, exact pin |
-| 20 command-form | `pnpm cli <script>` in M1, `eser ok` from M3-T7 |
-| 21 todo-tag-form | `TODO(TASK-<number>)` in comments only |
-| 22 go-ts-boundary | Go owns binaries, working parts and business logic; TypeScript delegates through the bridge; no sidecar |
-| 23 external-repos | Template repos and the homebrew tap get patches the owner applies |
-| 24 gate-runner | The TS CLI on Node runs the gate in M1; the Go runner takes over in M3-T7 |
-| 25 noskills-binary-layout | A separate cmd/noskills with its own archive |
-| 26 go-cli-deps | An in-house clifx plus one vetted prompt dependency |
-| 27 vt-emulator | Vet a Go VT dependency in M5-T1; build in-house only if none passes |
-| 28 posts-future | posts stays in Node with an `eser-posts` bin; revisit after M6 |
-| 29 release-version | 5.0.0 |
-| 30 std-deps | Replace the JSR-hosted runtime dependencies in M2 |
-| 31 laroux-server-future | Node only for now |
-| 32 ast-validators | Port the TypeScript-source validators to Go on the M0-T16 lexer |
-| 33 type-checker | tsc 7 `--noEmit` in the gate, tsconfig.build.json for emit |
-| 34 lint-gaps | The Go validator from M0-T16; delete the Deno lint plugin |
-| 35 codemod-parser | oxc-parser as a root devDependency |
-| 36 benches | mitata through the bench codemod |
-| 37 ffi-on-node | node:ffi, then the WASM build, then a clear error; koffi removed; a dispatcher ABI and worker threads for blocking calls |
-| 38 archive-naming | Keep the Rust triples in archive names permanently |
-| 39 release-build-tool | `eser dev compile` |
-| 40 ajan-build-tool | Makefile targets for the native and WASM libraries |
-| 41 pnpm-version | `pnpm@11.18.0` |
-| 42 di-decorators | Keep the decorator API and document the transform requirement |
-| 43 docs-api | Drop the HTML API docs |
-| 44 deno-permission-rule | Drop the rule from workflow-practices |
-| 45 wasm-fallback | One slim wasi-profile reactor, on Node and Cloudflare Workers; command mode deleted; 10 ms budget per call; fs preopen; optional OTel; early host fetch import |
-| 46 laroux-package-layout | Three packages: laroux, laroux-server, bundler |
-| 47 laroux-npm-imports | Apps import `@eserstack/laroux` from npm; `laroux` is the tool |
-| 48 laroux-vite-optional | Vite and webpack are optional; Flight runtime and transforms as dependencies |
-| 49 laroux-srvx | Superseded by decision-53 |
-| 50 laroux-native-kept | laroux keeps its own framework |
-| 51 laroux-hmr-day-one | HMR and Fast Refresh in the first release |
-| 52 laroux-deploy-targets | Node and Cloudflare Workers from the first release |
-| 53 laroux-no-start-adapter | No TanStack Start adapter |
-| 54 laroux-r1-scope | R1 adds server islands, partial prerendering, the env split, onRequestError, sessions, i18n routing and composable handlers |
-| 55 aifx-net-http | aifx providers on net/http; the vendor SDKs leave |
-| 56 jsonschema-fork | An in-tree fork of jsonschema/v6 with no upstream PR |
-| 57 laroux-browser-driver | Playwright |
-| 58 laroux-versioning | Additive in 5.x; the old laroux pipeline is deleted in 6.0.0 right after R1 |
-| 59 laroux-react-range | A tilde range on the newest stable React, kept current |
-| 60 laroux-headerless | Unsafe requests without Origin or Fetch Metadata get 403 unless an action opts in |
+| Decision                   | Answer                                                                                                                                                                    |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1 red-window-commits       | Integration agent from M0-T20; M1 on a cutover branch with owner-disabled hooks and a worktree per agent; the owner merges after a green `pnpm cli ok` with deno off PATH |
+| 2 root-devdeps             | An explicit allow list for the root package.json (Appendix C)                                                                                                             |
+| 3 seam-location            | The private leaf package `@eserstack/test-kit`                                                                                                                            |
+| 4 std-during-cutover       | Keep @std through M1, remove it in M2 before the first release                                                                                                            |
+| 5 jsr-publishing           | Freeze JSR at 4.5.x and publish to npm only                                                                                                                               |
+| 6 jsr-deprecation-notice   | A 4.5.3 release with the notice (M0-T21)                                                                                                                                  |
+| 7 test-stack               | node:test with the test-kit seam                                                                                                                                          |
+| 8 binaries                 | Go binaries for eser and noskills; laroux on npm only, with no SEA                                                                                                        |
+| 9 legacy-binary-updates    | Go forwarding stubs under the old archive names, plus the 4.5.3 updater; the owner retires them                                                                           |
+| 10 npx-noskills-hooks      | The launcher dependency with ESER_PLUGIN_PATH, replaced by the Go launcher after M4-T6                                                                                    |
+| 11 install-script-fallback | install.sh and install.ps1 decide from the release's archives                                                                                                             |
+| 12 user-deno-projects      | Keep support for users' Deno projects and allowlist those files (Appendix B)                                                                                              |
+| 13 first-release-timing    | Hold the first release until M3-T11                                                                                                                                       |
+| 14 node-floor              | `>=26.9`; CI pins the exact minor that passed M0-T2                                                                                                                       |
+| 15 bun-support             | Drop Bun in M1                                                                                                                                                            |
+| 16 cross-runtime-facade    | Keep the facade Node-only; decide on collapsing it in M6-T4                                                                                                               |
+| 17 jsx-approach            | Rewrite laroux-react's JSX with React.createElement in M0                                                                                                                 |
+| 18 legacy-packages         | Delete @eserstack/jsx-runtime and @eserstack/laroux-runtime in M1                                                                                                         |
+| 19 formatter-settings      | One oxfmt reformat commit first in M1, printWidth 80, exact pin                                                                                                           |
+| 20 command-form            | `pnpm cli <script>` in M1, `eser ok` from M3-T7                                                                                                                           |
+| 21 todo-tag-form           | `TODO(TASK-<number>)` in comments only                                                                                                                                    |
+| 22 go-ts-boundary          | Go owns binaries, working parts and business logic; TypeScript delegates through the bridge; no sidecar                                                                   |
+| 23 external-repos          | Template repos and the homebrew tap get patches the owner applies                                                                                                         |
+| 24 gate-runner             | The TS CLI on Node runs the gate in M1; the Go runner takes over in M3-T7                                                                                                 |
+| 25 noskills-binary-layout  | A separate cmd/noskills with its own archive                                                                                                                              |
+| 26 go-cli-deps             | An in-house clifx plus one vetted prompt dependency                                                                                                                       |
+| 27 vt-emulator             | Vet a Go VT dependency in M5-T1; build in-house only if none passes                                                                                                       |
+| 28 posts-future            | posts stays in Node with an `eser-posts` bin; revisit after M6                                                                                                            |
+| 29 release-version         | 5.0.0                                                                                                                                                                     |
+| 30 std-deps                | Replace the JSR-hosted runtime dependencies in M2                                                                                                                         |
+| 31 laroux-server-future    | Node only for now                                                                                                                                                         |
+| 32 ast-validators          | Port the TypeScript-source validators to Go on the M0-T16 lexer                                                                                                           |
+| 33 type-checker            | tsc 7 `--noEmit` in the gate, tsconfig.build.json for emit                                                                                                                |
+| 34 lint-gaps               | The Go validator from M0-T16; delete the Deno lint plugin                                                                                                                 |
+| 35 codemod-parser          | oxc-parser as a root devDependency                                                                                                                                        |
+| 36 benches                 | mitata through the bench codemod                                                                                                                                          |
+| 37 ffi-on-node             | node:ffi, then the WASM build, then a clear error; koffi removed; a dispatcher ABI and worker threads for blocking calls                                                  |
+| 38 archive-naming          | Keep the Rust triples in archive names permanently                                                                                                                        |
+| 39 release-build-tool      | `eser dev compile`                                                                                                                                                        |
+| 40 ajan-build-tool         | Makefile targets for the native and WASM libraries                                                                                                                        |
+| 41 pnpm-version            | `pnpm@11.18.0`                                                                                                                                                            |
+| 42 di-decorators           | Keep the decorator API and document the transform requirement                                                                                                             |
+| 43 docs-api                | Drop the HTML API docs                                                                                                                                                    |
+| 44 deno-permission-rule    | Drop the rule from workflow-practices                                                                                                                                     |
+| 45 wasm-fallback           | One slim wasi-profile reactor, on Node and Cloudflare Workers; command mode deleted; 10 ms budget per call; fs preopen; optional OTel; early host fetch import            |
+| 46 laroux-package-layout   | Three packages: laroux, laroux-server, bundler                                                                                                                            |
+| 47 laroux-npm-imports      | Apps import `@eserstack/laroux` from npm; `laroux` is the tool                                                                                                            |
+| 48 laroux-vite-optional    | Vite and webpack are optional; Flight runtime and transforms as dependencies                                                                                              |
+| 49 laroux-srvx             | Superseded by decision-53                                                                                                                                                 |
+| 50 laroux-native-kept      | laroux keeps its own framework                                                                                                                                            |
+| 51 laroux-hmr-day-one      | HMR and Fast Refresh in the first release                                                                                                                                 |
+| 52 laroux-deploy-targets   | Node and Cloudflare Workers from the first release                                                                                                                        |
+| 53 laroux-no-start-adapter | No TanStack Start adapter                                                                                                                                                 |
+| 54 laroux-r1-scope         | R1 adds server islands, partial prerendering, the env split, onRequestError, sessions, i18n routing and composable handlers                                               |
+| 55 aifx-net-http           | aifx providers on net/http; the vendor SDKs leave                                                                                                                         |
+| 56 jsonschema-fork         | An in-tree fork of jsonschema/v6 with no upstream PR                                                                                                                      |
+| 57 laroux-browser-driver   | Playwright                                                                                                                                                                |
+| 58 laroux-versioning       | Additive in 5.x; the old laroux pipeline is deleted in 6.0.0 right after R1                                                                                               |
+| 59 laroux-react-range      | A tilde range on the newest stable React, kept current                                                                                                                    |
+| 60 laroux-headerless       | Unsafe requests without Origin or Fetch Metadata get 403 unless an action opts in                                                                                         |
 
 ## Appendix B: Deno and Bun reference allowlist
 
 After M1, `git grep -wi deno` and `git grep -wi bun` must return only these
 paths, each for the reason given (M1-T37 audits against this list):
 
-| Path | Reason |
-| --- | --- |
-| `CHANGELOG.md` | Release history |
-| `docs/adr/0001-*.md` to `docs/adr/0004-*.md` and this ADR | Decision history |
-| `backlog/` | Task and decision history |
-| Validator patterns in `pkg/@eserstack/codebase/` and `pkg/ajan/codebasefx/` | They name `Deno.*` and `Bun.*` APIs in order to ban them |
-| `pkg/@eserstack/noskills/detect/codebase.ts` | Detects users' Deno projects (decision-12) |
-| `pkg/@eserstack/noskills/sync/hook-commands.ts` | Recognizes `deno run` and `deno x` as network commands in users' hooks |
-| `pkg/@eserstack/noskills/defaults/concerns/*.json` | Default concern texts that mention Deno projects |
-| `pkg/ajan/kitfx/deps.go`, `pkg/ajan/kitfx/types.go` | ProjectTypeDeno and its `deno add` hints for users' projects |
-| `pkg/ajan/codebasefx/workspace*.go` and its tests | Reads `deno.json` in users' repositories |
+| Path                                                                        | Reason                                                                 |
+| --------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| `CHANGELOG.md`                                                              | Release history                                                        |
+| `docs/adr/0001-*.md` to `docs/adr/0004-*.md` and this ADR                   | Decision history                                                       |
+| `backlog/`                                                                  | Task and decision history                                              |
+| Validator patterns in `pkg/@eserstack/codebase/` and `pkg/ajan/codebasefx/` | They name `Deno.*` and `Bun.*` APIs in order to ban them               |
+| `pkg/@eserstack/noskills/detect/codebase.ts`                                | Detects users' Deno projects (decision-12)                             |
+| `pkg/@eserstack/noskills/sync/hook-commands.ts`                             | Recognizes `deno run` and `deno x` as network commands in users' hooks |
+| `pkg/@eserstack/noskills/defaults/concerns/*.json`                          | Default concern texts that mention Deno projects                       |
+| `pkg/ajan/kitfx/deps.go`, `pkg/ajan/kitfx/types.go`                         | ProjectTypeDeno and its `deno add` hints for users' projects           |
+| `pkg/ajan/codebasefx/workspace*.go` and its tests                           | Reads `deno.json` in users' repositories                               |
 
 Any other match is fixed, or added here with a reason in the same change.
 decision-12 is revisited when Deno support ends, about October 2027.

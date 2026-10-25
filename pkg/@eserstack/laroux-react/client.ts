@@ -452,7 +452,9 @@ function initializeModelChunk(chunk: ResolvedModelChunk): void {
     // If so, re-throw it - don't treat it as an error!
     // Type assertion needed: checking if thrown error is a pending chunk (Suspense throw pattern)
     if (
-      typeof error === "object" && error !== null && "status" in error &&
+      typeof error === "object" &&
+      error !== null &&
+      "status" in error &&
       ((error as any)._status === PENDING || (error as any)._status === BLOCKED)
     ) {
       // Reset chunk back to RESOLVED_MODEL so it can be retried
@@ -582,9 +584,10 @@ function parseModel(model: any, context: ClientContext): any {
   // not replace the object's prototype.
   if (Object.getPrototypeOf(model) === Object.prototype) {
     return Object.fromEntries(
-      Object.entries(model).map((
-        [key, val],
-      ) => [key, parseModel(val, context)]),
+      Object.entries(model).map(([key, val]) => [
+        key,
+        parseModel(val, context),
+      ]),
     );
   }
 
@@ -667,9 +670,10 @@ function parseReference(ref: string, context: ClientContext): any {
   // - $M123: Module reference
   // - $F123: Server action (function) reference
   // - $123: Regular JSON reference
-  const id = ref.startsWith("$M") || ref.startsWith("$F")
-    ? parseChunkId(ref.slice(2))
-    : parseChunkId(ref.slice(1));
+  const id =
+    ref.startsWith("$M") || ref.startsWith("$F")
+      ? parseChunkId(ref.slice(2))
+      : parseChunkId(ref.slice(1));
 
   if (id === null) {
     // Not a valid reference, return as-is
@@ -732,9 +736,10 @@ function parseReactElement(element: any, context: ClientContext): any {
 
     // Check if raw props has children that's a reference. A tagged value or
     // an escaped string ("$$5 off") is not one.
-    const childId = rawProps !== null && typeof rawProps === "object"
-      ? parseChunkReference(rawProps.children)
-      : null;
+    const childId =
+      rawProps !== null && typeof rawProps === "object"
+        ? parseChunkReference(rawProps.children)
+        : null;
 
     if (childId !== null) {
       const childChunk = getChunk(childId, context);
@@ -758,14 +763,14 @@ function parseReactElement(element: any, context: ClientContext): any {
 
         // Parse fallback - it could be a reference like "$252" or a plain object
         // Use parseModel to resolve references and reconstruct React elements
-        const parsedFallback = fallback === undefined
-          ? undefined
-          : parseModel(fallback, context);
+        const parsedFallback =
+          fallback === undefined ? undefined : parseModel(fallback, context);
 
         // Parse other props (excluding children and fallback)
-        const parsedOtherProps = Object.keys(otherRawProps).length > 0
-          ? parseModel(otherRawProps, context)
-          : {};
+        const parsedOtherProps =
+          Object.keys(otherRawProps).length > 0
+            ? parseModel(otherRawProps, context)
+            : {};
 
         // Return Suspense with ChunkReader as children
         return React.createElement(type, {
@@ -783,7 +788,9 @@ function parseReactElement(element: any, context: ClientContext): any {
   // Handle children arrays to avoid React key warnings
   // When children is an array, use Children.toArray() for stable keys
   if (
-    props !== null && typeof props === "object" && Array.isArray(props.children)
+    props !== null &&
+    typeof props === "object" &&
+    Array.isArray(props.children)
   ) {
     const { children, ...restProps } = props;
     const keyedChildren = applyChildKeys(children);
@@ -838,7 +845,8 @@ async function processChunk(
         // Update existing PENDING/BLOCKED chunk to RESOLVED_MODEL
         // Wake listeners FIRST before changing status, in case they're waiting
         if (
-          existingChunk._status === PENDING || existingChunk._status === BLOCKED
+          existingChunk._status === PENDING ||
+          existingChunk._status === BLOCKED
         ) {
           wakeChunkListeners(existingChunk as PendingChunk, value);
         }
@@ -1080,7 +1088,9 @@ async function consumeRSCStream(
  */
 function unwrapRootValue(root: any): any {
   if (
-    root === null || typeof root !== "object" || !("children" in root) ||
+    root === null ||
+    typeof root !== "object" ||
+    !("children" in root) ||
     root.$$typeof !== undefined
   ) {
     return root;
@@ -1144,8 +1154,12 @@ export function createFromReadableStream(
 
 /** Whether a value thrown by readChunk is a chunk to wait for. */
 function isPendingChunk(thrown: unknown): thrown is PendingChunk {
-  return typeof thrown === "object" && thrown !== null &&
-    "_status" in thrown && thrown._status === PENDING;
+  return (
+    typeof thrown === "object" &&
+    thrown !== null &&
+    "_status" in thrown &&
+    thrown._status === PENDING
+  );
 }
 
 /** Wait until a PENDING chunk arrives; rejects when it fails instead. */
@@ -1328,9 +1342,11 @@ export function getEmbeddedPayload(): RSCChunk[] | null {
     return JSON.parse(payloadText) as RSCChunk[];
   } catch (error) {
     // Handled here: callers treat a payload they cannot read as missing.
-    getClientLogger().with({ error }).error(
-      "parse the embedded RSC payload in #__RSC_PAYLOAD__; continuing without it",
-    );
+    getClientLogger()
+      .with({ error })
+      .error(
+        "parse the embedded RSC payload in #__RSC_PAYLOAD__; continuing without it",
+      );
     return null;
   }
 }
@@ -1345,8 +1361,9 @@ export function getEmbeddedPayload(): RSCChunk[] | null {
  */
 export function hasStreamingOptimalRSC(): boolean {
   if (typeof globalThis.document === "undefined") return false;
-  return globalThis.document.getElementById("__RSC_INLINE_BOOTSTRAP__") !==
-    null;
+  return (
+    globalThis.document.getElementById("__RSC_INLINE_BOOTSTRAP__") !== null
+  );
 }
 
 /**
@@ -1471,9 +1488,11 @@ export function createHybridRSCTree(
       // Handled here, like a failed stream: the pending root chunk fails
       // with the error, and the error boundary around the tree shows it.
       closeContext(context, toError(error));
-      await getClientLogger().with({
-        error,
-      }).error("fetch the RSC stream from /rsc");
+      await getClientLogger()
+        .with({
+          error,
+        })
+        .error("fetch the RSC stream from /rsc");
       return;
     }
 

@@ -154,17 +154,16 @@ function validateOptions(
   if (command === "generate" || command === "sync") {
     if (kubectlResource === undefined) {
       return results.fail({
-        message:
-          `Error: ${command} command requires a resource (e.g., cm/default, secret/default)`,
+        message: `Error: ${command} command requires a resource (e.g., cm/default, secret/default)`,
         exitCode: 1,
       });
     }
   }
 
   // For commands that require a resource, we've validated it exists above
-  return results.ok(undefined) as unknown as shellArgs.CliResult<
-    KubectlResourceReference
-  >;
+  return results.ok(
+    undefined,
+  ) as unknown as shellArgs.CliResult<KubectlResourceReference>;
 }
 
 async function handleGenerate(

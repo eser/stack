@@ -110,8 +110,7 @@ export const analyzeForSplit = (
 
   return {
     detected: true,
-    reason:
-      `Discovery answers cover ${areas.length} independent areas that could be separate specs.`,
+    reason: `Discovery answers cover ${areas.length} independent areas that could be separate specs.`,
     proposals: areas,
   };
 };
@@ -169,12 +168,10 @@ const detectNumberedLists = (
   ambition: string,
 ): readonly RawArea[] => {
   // Check each source text for numbered patterns
-  for (
-    const [text, questionId] of [
-      [statusQuo, "status_quo"],
-      [ambition, "ambition"],
-    ] as const
-  ) {
+  for (const [text, questionId] of [
+    [statusQuo, "status_quo"],
+    [ambition, "ambition"],
+  ] as const) {
     if (!NUMBERED_LIST_PATTERN.test(text)) continue;
 
     const items = splitNumberedList(text);
@@ -196,17 +193,22 @@ const splitNumberedList = (text: string): readonly string[] => {
   // Try parenthesized numbers: (1) ... (2) ...
   const parenParts = text.split(/\(\d+\)\s*/);
   // First element is preamble before (1) — drop it, keep only numbered items
-  const parenItems = parenParts.slice(1).map((p) => p.trim()).filter(
-    (p) => p.length > 0,
-  );
+  const parenItems = parenParts
+    .slice(1)
+    .map((p) => p.trim())
+    .filter((p) => p.length > 0);
   if (parenItems.length >= 2) return parenItems;
 
   // Try "N. " pattern — can appear at start of line or after sentence boundary
   const dotParts = text.split(/(?:^|\n|(?<=\.)\s+)\s*\d+\.\s+/);
   // Drop preamble (first element before "1. "), keep numbered items
-  const dotItems = dotParts.length > 1
-    ? dotParts.slice(1).map((p) => p.trim()).filter((p) => p.length > 0)
-    : [];
+  const dotItems =
+    dotParts.length > 1
+      ? dotParts
+          .slice(1)
+          .map((p) => p.trim())
+          .filter((p) => p.length > 0)
+      : [];
   if (dotItems.length >= 2) return dotItems;
 
   // Try "First: ... Second: ..." pattern — can appear anywhere
@@ -214,9 +216,13 @@ const splitNumberedList = (text: string): readonly string[] => {
     /(?:^|\n|(?<=\.)\s+)\s*(?:first|second|third|fourth|fifth)[:;,]\s*/i;
   const ordinalParts = text.split(ordinalPattern);
   // Drop preamble, keep ordinal items
-  const ordinalItems = ordinalParts.length > 1
-    ? ordinalParts.slice(1).map((p) => p.trim()).filter((p) => p.length > 0)
-    : [];
+  const ordinalItems =
+    ordinalParts.length > 1
+      ? ordinalParts
+          .slice(1)
+          .map((p) => p.trim())
+          .filter((p) => p.length > 0)
+      : [];
   if (ordinalItems.length >= 2) return ordinalItems;
 
   return [];
@@ -229,12 +235,10 @@ const detectBySeparators = (
   statusQuo: string,
   ambition: string,
 ): readonly RawArea[] => {
-  for (
-    const [text, questionId] of [
-      [statusQuo, "status_quo"],
-      [ambition, "ambition"],
-    ] as const
-  ) {
+  for (const [text, questionId] of [
+    [statusQuo, "status_quo"],
+    [ambition, "ambition"],
+  ] as const) {
     // Check for "also" at sentence boundary
     if (ALSO_SENTENCE_PATTERN.test(text)) {
       const parts = splitOnSeparator(text, ALSO_SENTENCE_PATTERN);
@@ -249,9 +253,10 @@ const detectBySeparators = (
     // Check other separator patterns
     for (const pattern of SEPARATOR_PATTERNS) {
       if (pattern.test(text)) {
-        const parts = text.split(pattern).map((p) => p.trim()).filter(
-          (p) => p.length > 0,
-        );
+        const parts = text
+          .split(pattern)
+          .map((p) => p.trim())
+          .filter((p) => p.length > 0);
         if (parts.length >= 2) {
           return parts.map((p) => ({
             text: p,
@@ -268,10 +273,7 @@ const detectBySeparators = (
 /**
  * Split text on a separator pattern, keeping both sides.
  */
-const splitOnSeparator = (
-  text: string,
-  pattern: RegExp,
-): readonly string[] => {
+const splitOnSeparator = (text: string, pattern: RegExp): readonly string[] => {
   const match = text.match(pattern);
   if (match === null || match.index === undefined) return [];
 
@@ -292,12 +294,10 @@ const detectByAndPattern = (
   statusQuo: string,
   ambition: string,
 ): readonly RawArea[] => {
-  for (
-    const [text, questionId] of [
-      [statusQuo, "status_quo"],
-      [ambition, "ambition"],
-    ] as const
-  ) {
+  for (const [text, questionId] of [
+    [statusQuo, "status_quo"],
+    [ambition, "ambition"],
+  ] as const) {
     const match = AND_VERB_PATTERN.exec(text);
     if (match !== null && match.index !== undefined) {
       // Split on the AND
@@ -403,10 +403,7 @@ const slugify = (text: string): string => {
   const slug = words.slice(0, 4).join("-");
 
   // Ensure valid slug format (a-z, 0-9, hyphens, max 50 chars)
-  const cleaned = slug
-    .replace(/--+/g, "-")
-    .replace(/^-|-$/g, "")
-    .slice(0, 50);
+  const cleaned = slug.replace(/--+/g, "-").replace(/^-|-$/g, "").slice(0, 50);
 
   return cleaned.length > 0 ? cleaned : "area";
 };
@@ -436,9 +433,7 @@ const estimateTasks = (text: string): number => {
  * - Areas share the same file paths
  * - One area is explicitly labeled as a prerequisite
  */
-const areTightlyCoupled = (
-  areas: readonly SplitProposalItem[],
-): boolean => {
+const areTightlyCoupled = (areas: readonly SplitProposalItem[]): boolean => {
   for (let i = 0; i < areas.length; i++) {
     for (let j = i + 1; j < areas.length; j++) {
       const a = areas[i]!;

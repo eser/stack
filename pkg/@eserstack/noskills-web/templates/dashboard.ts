@@ -17,11 +17,14 @@ export const renderDashboard = (
   token?: string,
 ): string => {
   // Spec list
-  const specItems = state.specs.length > 0
-    ? state.specs.map((s) =>
-      components.specListItem(s, state.activeSpec?.slug === s.slug)
-    ).join("")
-    : '<div class="empty-state">No specs yet. Create one from the terminal.</div>';
+  const specItems =
+    state.specs.length > 0
+      ? state.specs
+          .map((s) =>
+            components.specListItem(s, state.activeSpec?.slug === s.slug),
+          )
+          .join("")
+      : '<div class="empty-state">No specs yet. Create one from the terminal.</div>';
 
   // Pending items
   const pending = components.pendingMentions(state.pendingMentions);

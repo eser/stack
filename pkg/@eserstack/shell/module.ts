@@ -64,9 +64,10 @@ export class Module {
   readonly description: string;
   readonly #modules: Readonly<Record<string, ModuleEntry>>;
   readonly #aliases: Readonly<Record<string, string>>;
-  readonly #submodules: Array<
-    { registration: SubmoduleRegistration; module: Module }
-  > = [];
+  readonly #submodules: Array<{
+    registration: SubmoduleRegistration;
+    module: Module;
+  }> = [];
 
   /**
    * Create a module from its description, entries and aliases.
@@ -109,9 +110,8 @@ export class Module {
     return {
       description: this.description,
       modules: this.#modules,
-      aliases: Object.keys(this.#aliases).length > 0
-        ? this.#aliases
-        : undefined,
+      aliases:
+        Object.keys(this.#aliases).length > 0 ? this.#aliases : undefined,
     };
   }
 

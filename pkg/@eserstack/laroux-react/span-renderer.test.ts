@@ -22,14 +22,16 @@ const CASES = [
   {
     name: "renders a gauge as a meter with its percentage and label",
     span: streams.span.gauge(42, { width: 10, label: "Disk" }),
-    expected: '<span class="inline-flex items-center gap-2">' +
+    expected:
+      '<span class="inline-flex items-center gap-2">' +
       '<meter min="0" max="100" value="42" aria-label="Disk" style="width:10ch"></meter>' +
       "<span>42%</span><span>Disk</span></span>",
   },
   {
     name: "names a gauge without a label",
     span: streams.span.gauge(150),
-    expected: '<span class="inline-flex items-center gap-2">' +
+    expected:
+      '<span class="inline-flex items-center gap-2">' +
       '<meter min="0" max="100" value="100" aria-label="Percentage"></meter>' +
       "<span>100%</span></span>",
   },
@@ -41,13 +43,15 @@ const CASES = [
   {
     name: "renders a separator label between two rules",
     span: streams.span.separator("Results"),
-    expected: '<div class="flex items-center gap-2 text-gray-400">' +
+    expected:
+      '<div class="flex items-center gap-2 text-gray-400">' +
       '<hr class="flex-1"/><span>Results</span><hr class="flex-1"/></div>',
   },
   {
     name: "renders an alert with its level in text",
     span: streams.span.alert("warning", "Disk is ", streams.span.bold("full")),
-    expected: '<div role="note" class="text-yellow-500" data-level="warning">' +
+    expected:
+      '<div role="note" class="text-yellow-500" data-level="warning">' +
       "<strong>Warning: </strong>Disk is <strong>full</strong></div>",
   },
 ];

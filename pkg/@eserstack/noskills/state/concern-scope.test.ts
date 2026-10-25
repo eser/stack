@@ -210,16 +210,23 @@ bdd.describe("concernScopeProblem", () => {
     assert.assertEquals(
       concernScope.concernScopeProblem({
         ...base,
-        reminders: ["Plain", { text: "Scoped", scope: ["ui", "data"] }, {
-          text: "No scope",
-        }],
-        specSections: ["Legacy title", {
-          id: "s",
-          title: "S",
-          placeholder: "_s_",
-          scope: ["migration"],
-          position: "after:tasks",
-        }],
+        reminders: [
+          "Plain",
+          { text: "Scoped", scope: ["ui", "data"] },
+          {
+            text: "No scope",
+          },
+        ],
+        specSections: [
+          "Legacy title",
+          {
+            id: "s",
+            title: "S",
+            placeholder: "_s_",
+            scope: ["migration"],
+            position: "after:tasks",
+          },
+        ],
       }),
       null,
     );
@@ -243,13 +250,14 @@ bdd.describe("concernScopeProblem", () => {
   });
 
   bdd.it("finds no problem in the built-in concerns and packs", () => {
-    const packConcerns = [...defaultPacks.BUILTIN_PACKS.values()].flatMap((
-      pack,
-    ) => pack.concernContents);
+    const packConcerns = [...defaultPacks.BUILTIN_PACKS.values()].flatMap(
+      (pack) => pack.concernContents,
+    );
 
-    for (
-      const concern of [...defaultConcerns.DEFAULT_CONCERNS, ...packConcerns]
-    ) {
+    for (const concern of [
+      ...defaultConcerns.DEFAULT_CONCERNS,
+      ...packConcerns,
+    ]) {
       assert.assertEquals(
         concernScope.concernScopeProblem(concern),
         null,
@@ -304,11 +312,15 @@ bdd.describe("listConcerns: declared scopes", () => {
     try {
       const listed = await persistence.listConcerns(tempDir);
 
-      assert.assertEquals(listed.map((c) => c.id), ["fine"]);
+      assert.assertEquals(
+        listed.map((c) => c.id),
+        ["fine"],
+      );
       assert.assert(
-        warnings.some((line) =>
-          line.includes("broken.json") &&
-          line.includes('reminders[0].scope has "UI"')
+        warnings.some(
+          (line) =>
+            line.includes("broken.json") &&
+            line.includes('reminders[0].scope has "UI"'),
         ),
         `expected a scope warning, got: ${JSON.stringify(warnings)}`,
       );

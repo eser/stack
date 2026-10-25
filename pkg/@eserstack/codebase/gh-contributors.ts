@@ -41,8 +41,8 @@ import * as cliSupport from "./cli-support.ts";
  */
 export type Contributor = {
   readonly login: string;
-  readonly "avatar_url": string;
-  readonly "html_url": string;
+  readonly avatar_url: string;
+  readonly html_url: string;
   readonly contributions: number;
 };
 
@@ -83,11 +83,11 @@ const END_MARKER = "<!-- CONTRIBUTORS:END -->";
  * @returns Object with owner and name fields
  * @throws If not in a GitHub repository or gh CLI is unavailable
  */
-export const getRepoInfo = async (): Promise<
-  { readonly owner: string; readonly name: string }
-> => {
-  const json = await shell.exec
-    .exec`gh repo view --json owner,name`.text();
+export const getRepoInfo = async (): Promise<{
+  readonly owner: string;
+  readonly name: string;
+}> => {
+  const json = await shell.exec.exec`gh repo view --json owner,name`.text();
   const parsed = JSON.parse(json) as {
     owner: { login: string };
     name: string;
@@ -138,9 +138,9 @@ export const generateContributorMarkdown = (
     rows.push(`  <tr>\n${cells.join("\n")}\n  </tr>`);
   }
 
-  return `${START_MARKER}\n<table>\n${
-    rows.join("\n")
-  }\n</table>\n${END_MARKER}`;
+  return `${START_MARKER}\n<table>\n${rows.join(
+    "\n",
+  )}\n</table>\n${END_MARKER}`;
 };
 
 /**
@@ -201,9 +201,8 @@ export const updateContributors = async (
   const markdown = generateContributorMarkdown(contributors, columnsPerRow);
 
   // Read README and replace section
-  const currentContent = await standards.crossRuntime.runtime.fs.readTextFile(
-    resolvedPath,
-  );
+  const currentContent =
+    await standards.crossRuntime.runtime.fs.readTextFile(resolvedPath);
   const { content: newContent, changed } = replaceContributorSection(
     currentContent,
     markdown,
@@ -220,8 +219,7 @@ export const updateContributors = async (
     if (shouldCommit) {
       await shell.exec.exec`git add ${resolvedPath}`.spawn();
       await shell.exec
-        .exec`git -c user.name=${"github-actions[bot]"} -c user.email=${"github-actions[bot]@users.noreply.github.com"} commit -m ${"docs: update contributors list"}`
-        .spawn();
+        .exec`git -c user.name=${"github-actions[bot]"} -c user.email=${"github-actions[bot]@users.noreply.github.com"} commit -m ${"docs: update contributors list"}`.spawn();
       await shell.exec.exec`git push`.spawn();
       committed = true;
     }
@@ -273,9 +271,10 @@ const cliResponseMapper: functions.handler.ResponseMapper<
 
   if (primitives.results.isFail(result)) {
     const err = result.error;
-    const message = err instanceof Error
-      ? err.message
-      : (err as functions.handler.AdaptError).message ?? String(err);
+    const message =
+      err instanceof Error
+        ? err.message
+        : ((err as functions.handler.AdaptError).message ?? String(err));
     tui.log.error(ctx, message);
     return primitives.results.fail({ exitCode: 1 });
   }
@@ -317,25 +316,18 @@ export const handleCli: (
 export const main = async (
   cliArgs?: readonly string[],
 ): Promise<shellArgs.CliResult<void>> => {
-  const parsed = cliParseArgs.parseArgs(
-    (cliArgs ?? []) as string[],
-    {
-      string: ["columns", "readme"],
-      boolean: ["commit"],
-      alias: { h: "help" },
-    },
-  );
+  const parsed = cliParseArgs.parseArgs((cliArgs ?? []) as string[], {
+    string: ["columns", "readme"],
+    boolean: ["commit"],
+    alias: { h: "help" },
+  });
 
   if (parsed["help"]) {
     const { output: out } = cliSupport.getCliContext();
     out.writeln("eser codebase gh contributors — Update contributor list\n");
     out.writeln("Options:");
-    out.writeln(
-      "  --columns <n>    Number of columns per row (default: 8)",
-    );
-    out.writeln(
-      "  --readme <path>  Path to README.md (default: README.md)",
-    );
+    out.writeln("  --columns <n>    Number of columns per row (default: 8)");
+    out.writeln("  --readme <path>  Path to README.md (default: README.md)");
     out.writeln("  --commit         Auto-commit and push changes");
     out.writeln("  --help, -h       Show this help");
     return primitives.results.ok(undefined);

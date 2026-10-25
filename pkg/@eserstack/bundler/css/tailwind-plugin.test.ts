@@ -16,7 +16,8 @@ Deno.test("TailwindFeatures has correct flag values", () => {
 });
 
 Deno.test("TailwindFeatures flags can be combined with bitwise OR", () => {
-  const combined = tailwindPlugin.TailwindFeatures.AtApply |
+  const combined =
+    tailwindPlugin.TailwindFeatures.AtApply |
     tailwindPlugin.TailwindFeatures.Utilities;
 
   assert.assertEquals(combined, 5);

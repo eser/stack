@@ -89,8 +89,8 @@ export const main = async (
 
   const logLevelInput = (flags["log-level"] as string) ?? "info";
   const logLevel: LogLevel = VALID_LOG_LEVELS.includes(
-      logLevelInput.toLowerCase() as LogLevel,
-    )
+    logLevelInput.toLowerCase() as LogLevel,
+  )
     ? (logLevelInput.toLowerCase() as LogLevel)
     : "info";
 
@@ -198,7 +198,7 @@ export const runBuild = async (
     },
   };
 
-  if (clean && await runtime.fs.exists(buildConfig.distDir)) {
+  if (clean && (await runtime.fs.exists(buildConfig.distDir))) {
     await runtime.fs.remove(buildConfig.distDir, { recursive: true });
     bundlerLogger.debug(`Cleaned ${buildConfig.distDir}`);
   }
@@ -218,8 +218,7 @@ export const runBuild = async (
   if (!buildResult.success) {
     await out.close();
     return results.fail({
-      message:
-        `laroux build: building ${projectRoot} failed; the "Build failed" log entry above names the step and its error`,
+      message: `laroux build: building ${projectRoot} failed; the "Build failed" log entry above names the step and its error`,
       exitCode: BUILD_FAILED_EXIT_CODE,
     });
   }
@@ -236,15 +235,11 @@ export const runBuild = async (
       const manifest = JSON.parse(manifestText);
 
       out.writeln(span.text("Chunks:"));
-      for (
-        const [file, info] of Object.entries(
-          manifest.files as Record<string, { name: string; size: number }>,
-        )
-      ) {
+      for (const [file, info] of Object.entries(
+        manifest.files as Record<string, { name: string; size: number }>,
+      )) {
         const sizeKB = (info.size / 1024).toFixed(2);
-        out.writeln(
-          span.text(`  ${file.padEnd(30)} ${sizeKB.padStart(8)} KB`),
-        );
+        out.writeln(span.text(`  ${file.padEnd(30)} ${sizeKB.padStart(8)} KB`));
       }
 
       const totalSize = Object.values(

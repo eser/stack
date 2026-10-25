@@ -60,10 +60,7 @@ export const checkErrorCoverage = async (
     const missing: string[] = [];
 
     for (const field of requiredFields) {
-      const fieldRe = new RegExp(
-        `^\\s*${escapeRe(field)}:\\s*"([^"]*)"`,
-        "m",
-      );
+      const fieldRe = new RegExp(`^\\s*${escapeRe(field)}:\\s*"([^"]*)"`, "m");
       const fieldMatch = body.match(fieldRe);
 
       if (!fieldMatch || (fieldMatch[1] ?? "").trim() === "") {
@@ -99,13 +96,15 @@ export const main = async (
     return primitives.results.fail({ exitCode: 1 });
   }
 
-  const errorObjects = parsed["error-objects"] !== undefined
-    ? (parsed["error-objects"] as string).split(",").map((s) => s.trim())
-    : undefined;
+  const errorObjects =
+    parsed["error-objects"] !== undefined
+      ? (parsed["error-objects"] as string).split(",").map((s) => s.trim())
+      : undefined;
 
-  const requiredFields = parsed["required-fields"] !== undefined
-    ? (parsed["required-fields"] as string).split(",").map((s) => s.trim())
-    : undefined;
+  const requiredFields =
+    parsed["required-fields"] !== undefined
+      ? (parsed["required-fields"] as string).split(",").map((s) => s.trim())
+      : undefined;
 
   try {
     const result = await checkErrorCoverage({

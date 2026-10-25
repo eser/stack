@@ -72,16 +72,16 @@ export type AddRecipeOutput = {
  */
 export type AddRecipeError =
   | {
-    readonly _tag: "RegistryError";
-    readonly message: string;
-    readonly cause: unknown;
-  }
+      readonly _tag: "RegistryError";
+      readonly message: string;
+      readonly cause: unknown;
+    }
   | { readonly _tag: "RecipeNotFound"; readonly message: string }
   | {
-    readonly _tag: "ApplyError";
-    readonly message: string;
-    readonly cause: unknown;
-  };
+      readonly _tag: "ApplyError";
+      readonly message: string;
+      readonly cause: unknown;
+    };
 
 // =============================================================================
 // Handler
@@ -203,8 +203,7 @@ export const addRecipe = (
           ) {
             return results.fail({
               _tag: "RecipeNotFound" as const,
-              message:
-                `Recipe '${input.recipeName}' not found. Run \`eser kit list\` to see available recipes.`,
+              message: `Recipe '${input.recipeName}' not found. Run \`eser kit list\` to see available recipes.`,
             });
           }
         }
@@ -222,8 +221,7 @@ export const addRecipe = (
         if (recipe === undefined) {
           return results.fail({
             _tag: "RecipeNotFound" as const,
-            message:
-              `Recipe '${input.recipeName}' not found. Run \`eser kit list\` to see available recipes.`,
+            message: `Recipe '${input.recipeName}' not found. Run \`eser kit list\` to see available recipes.`,
           });
         }
 
@@ -288,7 +286,9 @@ export const addRecipe = (
           | undefined;
 
         if (
-          !input.noInstall && !input.dryRun && depInfo.instructions.length > 0
+          !input.noInstall &&
+          !input.dryRun &&
+          depInfo.instructions.length > 0
         ) {
           ctx.out.writeln(span.dim("\nInstalling dependencies..."));
           installResults = await dependencyResolver.installDependencies(

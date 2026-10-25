@@ -93,7 +93,9 @@ export const prependToPath = (pathValue: string, dir: string): string =>
 
 /** PATH without `dir`. */
 export const removeFromPath = (pathValue: string, dir: string): string =>
-  pathEntries(pathValue).filter((entry) => entry !== dir).join(":");
+  pathEntries(pathValue)
+    .filter((entry) => entry !== dir)
+    .join(":");
 
 // =============================================================================
 // Script text
@@ -132,7 +134,7 @@ export type WrapperScriptOptions = {
 };
 
 const casePattern = (values: Iterable<string>): string =>
-  [...values].map((value) => value === "" ? "''" : value).join("|");
+  [...values].map((value) => (value === "" ? "''" : value)).join("|");
 
 /**
  * The wrapper script. It only allows on its own; every refusal comes from the
@@ -141,8 +143,7 @@ const casePattern = (values: Iterable<string>): string =>
  * and the command is refused.
  */
 export const buildWrapperScript = (options: WrapperScriptOptions): string => {
-  const checkTimeout = options.checkTimeoutSeconds ??
-    GIT_CHECK_TIMEOUT_SECONDS;
+  const checkTimeout = options.checkTimeoutSeconds ?? GIT_CHECK_TIMEOUT_SECONDS;
   if (!Number.isInteger(checkTimeout) || checkTimeout <= 0) {
     throw new Error(
       `checkTimeoutSeconds must be a positive whole number of seconds, got ${checkTimeout}`,
@@ -165,13 +166,14 @@ export const buildWrapperScript = (options: WrapperScriptOptions): string => {
     ...gitGuard.GIT_INFO_OPTIONS,
     "clone",
   ]);
-  const conditionalReads = [...gitGuard.GIT_CONDITIONAL_READS].map((
-    [subcommand, firstArgs],
-  ) =>
-    `  ${subcommand})\n    case $first_arg in\n      ${
-      casePattern(firstArgs)
-    }) exec "$real_git" "$@" ;;\n    esac\n    ;;`
-  ).join("\n");
+  const conditionalReads = [...gitGuard.GIT_CONDITIONAL_READS]
+    .map(
+      ([subcommand, firstArgs]) =>
+        `  ${subcommand})\n    case $first_arg in\n      ${casePattern(
+          firstArgs,
+        )}) exec "$real_git" "$@" ;;\n    esac\n    ;;`,
+    )
+    .join("\n");
   const remoteWrites = casePattern(gitGuard.GIT_REMOTE_WRITE_SUBCOMMANDS);
   const projectRoot = shellQuote(options.projectRoot);
 

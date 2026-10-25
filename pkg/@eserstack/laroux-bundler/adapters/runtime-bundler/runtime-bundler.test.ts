@@ -60,9 +60,9 @@ async function withCheckoutProject(
 
 /** Import bundled code as a module, the way the browser runs it. */
 async function importBundle(code: string): Promise<CheckoutModule> {
-  return await import(
+  return (await import(
     `data:text/javascript,${encodeURIComponent(code)}`
-  ) as CheckoutModule;
+  )) as CheckoutModule;
 }
 
 /** Run fn with console.warn replaced by a recorder, and return its calls. */
@@ -98,13 +98,16 @@ Deno.test("RuntimeBundler gives client code the default browser logger", async (
 
     const checkout = await importBundle(bundle.clientCode);
     const warnings = await recordWarnings(() =>
-      checkout.reportSlowPayment("order-1")
+      checkout.reportSlowPayment("order-1"),
     );
 
     assert.assertEquals(warnings, [
-      ["[app.checkout] payment took longer than a second", {
-        orderId: "order-1",
-      }],
+      [
+        "[app.checkout] payment took longer than a second",
+        {
+          orderId: "order-1",
+        },
+      ],
     ]);
   });
 });
@@ -156,7 +159,7 @@ Deno.test("RuntimeBundler keeps the native logger out of a React app's bundle", 
         fs.ensureSymlink(
           runtime.path.join(sourceModules, name),
           runtime.path.join(projectRoot, "node_modules", name),
-        )
+        ),
       ),
     );
 

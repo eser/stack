@@ -76,10 +76,7 @@ const installCompiledBinary = async (
     sink: streams.sinks.stdout(),
   });
 
-  out.writeln(
-    span.text("Install method: "),
-    span.cyan("compiled binary"),
-  );
+  out.writeln(span.text("Install method: "), span.cyan("compiled binary"));
   out.writeln(span.dim(`Copying to ${targetPath}...`));
 
   try {
@@ -87,7 +84,8 @@ const installCompiledBinary = async (
     await runtime.fs.chmod(targetPath, 0o755);
   } catch (error) {
     if (
-      (error instanceof Error && "code" in error &&
+      (error instanceof Error &&
+        "code" in error &&
         (error as NodeJS.ErrnoException).code === "EACCES") ||
       (typeof Deno !== "undefined" &&
         error instanceof Deno.errors.PermissionDenied)
@@ -161,7 +159,8 @@ export const installHandler = async (
   // Runtime-based: use package manager
   out.writeln(span.text("Detected runtime: "), span.cyan(execContext.runtime));
 
-  const config = installConfigs(app)[execContext.runtime as string] ??
+  const config =
+    installConfigs(app)[execContext.runtime as string] ??
     installConfigs(app)["node"]!;
 
   const { cmd, args } = config;

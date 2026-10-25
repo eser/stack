@@ -47,11 +47,11 @@ export type WorkflowDefinition = {
 export type ScriptConfig =
   | string
   | {
-    readonly command: string;
-    readonly description?: string;
-    readonly workingDirectory?: string;
-    readonly depends?: readonly string[];
-  };
+      readonly command: string;
+      readonly description?: string;
+      readonly workingDirectory?: string;
+      readonly depends?: readonly string[];
+    };
 
 /** Top-level configuration (can be loaded from .eser/manifest.yml or built programmatically). */
 export type WorkflowsConfig = {

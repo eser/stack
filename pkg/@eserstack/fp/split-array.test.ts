@@ -1,6 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import * as assert from "@std/assert";
+import * as assert from "@eserstack/test-kit/assert";
 import * as splitArray from "./split-array.ts";
 
 Deno.test("basic", () => {
@@ -33,12 +33,12 @@ Deno.test("with-generator", () => {
   const result = splitArray.splitArray(generated1, int1);
 
   // deno-lint-ignore no-explicit-any
-  assert.assertNotStrictEquals(<any> result.items, <any> generated1);
+  assert.assertNotStrictEquals(result.items as any, generated1 as any);
   assert.assertEquals(result.items.length, 3);
   assert.assertEquals(result.items, [1, 2, 3]);
 
   // deno-lint-ignore no-explicit-any
-  assert.assertNotStrictEquals(<any> result.rest, <any> generated1);
+  assert.assertNotStrictEquals(result.rest as any, generated1 as any);
   assert.assertEquals(result.rest.length, 2);
   assert.assertEquals(result.rest, [4, 5]);
 });

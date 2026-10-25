@@ -1,7 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 import * as bdd from "@std/testing/bdd";
-import * as assert from "@std/assert";
+import * as assert from "@eserstack/test-kit/assert";
 import * as dashboardState from "./state.ts";
 import * as actions from "./actions.ts";
 import * as events from "./events.ts";
@@ -135,6 +135,52 @@ bdd.describe("dashboard.getSpecSummary", () => {
 
     const summary = await dashboardState.getSpecSummary(root, "exec-spec");
     assert.assertEquals(summary.phase, "EXECUTING");
+  });
+
+  bdd.it(
+    "reads the active state of a spec that has no state file",
+    async () => {
+      const root = await makeTempDir();
+      const name = "active-only";
+      await runtime.fs.mkdir(`${root}/${persistence.paths.specDir(name)}`, {
+        recursive: true,
+      });
+      await persistence.writeState(
+        root,
+        machine.startSpec(
+          schema.createInitialState(),
+          name,
+          `spec/${name}`,
+          "Lives in state.json",
+        ),
+      );
+
+      const summary = await dashboardState.getSpecSummary(root, name);
+
+      assert.assertEquals(summary.phase, "DISCOVERY");
+      assert.assertEquals(summary.description, "Lives in state.json");
+    },
+  );
+
+  bdd.it("does not read the active state of another spec", async () => {
+    const root = await makeTempDir();
+    await runtime.fs.mkdir(`${root}/${persistence.paths.specDir("idle")}`, {
+      recursive: true,
+    });
+    await persistence.writeState(
+      root,
+      machine.startSpec(
+        schema.createInitialState(),
+        "busy",
+        "spec/busy",
+        "Another spec",
+      ),
+    );
+
+    const summary = await dashboardState.getSpecSummary(root, "idle");
+
+    assert.assertEquals(summary.phase, "IDLE");
+    assert.assertEquals(summary.description, "");
   });
 });
 

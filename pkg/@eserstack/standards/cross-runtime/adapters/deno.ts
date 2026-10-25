@@ -61,7 +61,6 @@ export const DENO_CAPABILITIES: RuntimeCapabilities = {
   stdin: true,
   stdout: true,
   http: true,
-  kv: true,
 } as const;
 
 // =============================================================================
@@ -632,6 +631,7 @@ const createDenoHttp = (): RuntimeHttp => ({
     // executor that throw rejects the promise. An empty onListen keeps Deno
     // from printing its "Listening on" line.
     return new Promise((resolve) => {
+      const respond = shared.createSafeHandler(handler);
       const server = Deno.serve(
         {
           port: options.port,
@@ -639,7 +639,14 @@ const createDenoHttp = (): RuntimeHttp => ({
           signal: options.signal,
           onListen: () => {},
         },
-        shared.createSafeHandler(handler),
+        (request, info) => {
+          const addr = info.remoteAddr;
+          return respond(request, {
+            remoteAddr: addr.transport === "tcp" || addr.transport === "udp"
+              ? { hostname: addr.hostname, port: addr.port }
+              : null,
+          });
+        },
       );
 
       // Deno.serve stops on an abort, but not on a signal that was already
@@ -650,6 +657,10 @@ const createDenoHttp = (): RuntimeHttp => ({
         });
       }
 
+      options.onListen?.({
+        hostname: server.addr.hostname,
+        port: server.addr.port,
+      });
       resolve({
         hostname: server.addr.hostname,
         port: server.addr.port,

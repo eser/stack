@@ -1,5 +1,9 @@
 # 🎛️ [@eserstack/laroux-runtime](./)
 
+> **Note:** JSR is frozen at 4.5.x. `@eserstack/laroux-runtime` is removed in
+> 5.0.0 and is not published to npm; its JSR versions stay available but get no
+> updates. The CHANGELOG Migration section names its replacement.
+
 > **eserstack Product-Candidate** · Application runtime for laroux.js ·
 > [eser/stack on GitHub](https://github.com/eser/stack) · **Install:**
 > `pnpm add jsr:@eserstack/laroux-runtime`

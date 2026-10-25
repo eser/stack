@@ -15,7 +15,7 @@ export const splitArray = <T>(
   n: number,
 ): SplitArrayResult<T> => {
   const arrInstance = (instance.constructor === Array)
-    ? <ReadonlyArray<T>> instance
+    ? instance as ReadonlyArray<T>
     : [...instance];
 
   // take n items

@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/eser/stack/pkg/ajan/codebasefx"
+	"github.com/eser/stack/pkg/ajan/codebasefx/validatortools"
 	"github.com/eser/stack/pkg/ajan/workflowfx"
 )
 
@@ -123,7 +124,7 @@ func TestValidatorTool_MalformedOptionsFailBeforeWalk(t *testing.T) {
 	}
 
 	r := workflowfx.NewRegistry()
-	codebasefx.RegisterAllValidators(r)
+	validatortools.RegisterAllValidators(r)
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -149,7 +150,7 @@ func TestValidatorTool_LargeFileAcceptsIntMaxKb(t *testing.T) {
 	}
 
 	r := workflowfx.NewRegistry()
-	codebasefx.RegisterAllValidators(r)
+	validatortools.RegisterAllValidators(r)
 
 	// YAML decodes whole numbers as int; before, that type fell back to 1024 KB.
 	result, err := r.MustGet("codebase-large-file").Run(t.Context(), map[string]any{
@@ -170,7 +171,7 @@ func TestRunSingleValidator_MalformedOptions(t *testing.T) {
 
 	files := []codebasefx.FileEntry{{Path: "unused.txt", Name: "unused.txt"}}
 
-	_, err := codebasefx.RunSingleValidator(t.Context(), "large-file", files, map[string]any{"maxKb": "big"})
+	_, err := validatortools.RunSingleValidator(t.Context(), "large-file", files, map[string]any{"maxKb": "big"})
 	if err == nil || !strings.Contains(err.Error(), "maxKb option has type string") {
 		t.Fatalf("expected a maxKb option error, got %v", err)
 	}

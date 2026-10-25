@@ -1,5 +1,9 @@
 # ⚙️ [@eserstack/cs](./)
 
+> **Note:** JSR is frozen at 4.5.x. From 5.0.0, `@eserstack/cs` is published on
+> npm under the same name (`pnpm add @eserstack/cs`); the JSR versions stay
+> available but get no updates.
+
 > **eserstack Library** — [eser/stack on GitHub](https://github.com/eser/stack)
 > **Install:** `pnpm add jsr:@eserstack/cs`
 
@@ -57,7 +61,11 @@ one:
 The environment name comes from `-e` (or the `env` option), then from the `ENV`,
 `APP_ENV`, `DENO_ENV` or `NODE_ENV` variable, then defaults to `development`.
 `generate` reads the `.env` files of the environment and no process environment
-variables.
+variables, whether it runs on the native ajan library or in TypeScript.
+
+The data keys of a generated resource are sorted, and Secret values are the
+base64 of their UTF-8 bytes. A YAML manifest is one document. The Go `eser cs`
+in `cmd/eser` takes the same commands and flags.
 
 ## 🛠 Usage
 
@@ -180,6 +188,11 @@ key-value pairs.
 - `--namespace <ns>`: Kubernetes namespace
 - `-e, --env <name>`: Environment name
 - `-o, --output <format>`: Output format (yaml/json)
+
+YAML output is one document, which `kubectl apply -f` reads as it is. JSON
+output is a one-item array (`[{...}]`), the shape `serialize()` gives a list of
+resources, and scripts read it as such; `kubectl apply` takes one object, so
+pick it first: `... -o json | jq '.[0]' | kubectl apply -f -`.
 
 **sync**
 

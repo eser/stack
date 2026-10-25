@@ -219,6 +219,12 @@ export const moduleDef: Module = new module.Module({
       category: "Validation",
       load: () => import("./validate-runtime-js-apis.ts"),
     },
+    "validate-naming-and-todos": {
+      description:
+        "Enforce camelCase declared names and task-tagged to-do comments",
+      category: "Validation",
+      load: () => import("./validate-naming-and-todos.ts"),
+    },
     "validate-code-conventions": {
       description:
         "Detect non-namespace imports, `||` defaults and `export *` beyond the recorded baseline",

@@ -5,19 +5,41 @@
  * TypeScript source, so the pattern-based validators skip a match that sits
  * in a comment, a JSDoc example or a string.
  *
- * This is a scanner, not a lexer. A quote or backtick inside a regular
- * expression literal reads as the start of a string; a single- or
- * double-quoted string ends at the end of its line, which bounds that error to
- * one line.
+ * This is a scanner, not a lexer. It tells a regular expression literal from
+ * a division by the previous significant token, as the Go lexer in
+ * pkg/ajan/codebasefx does, so a quote or backtick inside a regex is not read
+ * as the start of a string. A single- or double-quoted string ends at the end
+ * of its line, which bounds any other misreading to one line.
  *
  * @module
  */
 
 /**
- * Marks with 1 every position of `content` that sits inside a comment or a
- * string literal. The text of a template literal is masked; its `${...}`
- * interpolations are code, so `${process.env.X}` still counts as code.
+ * Marks with 1 every position of `content` that sits inside a comment, a
+ * string literal or a regular expression literal. The text of a template
+ * literal is masked; its `${...}` interpolations are code, so
+ * `${process.env.X}` still counts as code.
  */
+const IDENT_CHAR = /[A-Za-z0-9_$]/;
+
+// Keywords after which a slash starts a regular expression, not a division.
+const REGEX_AFTER_KEYWORD: ReadonlySet<string> = new Set([
+  "return",
+  "typeof",
+  "instanceof",
+  "in",
+  "of",
+  "new",
+  "delete",
+  "void",
+  "throw",
+  "case",
+  "do",
+  "else",
+  "yield",
+  "await",
+]);
+
 export const codeMask = (content: string): Uint8Array => {
   const mask = new Uint8Array(content.length);
   const length = content.length;
@@ -26,6 +48,9 @@ export const codeMask = (content: string): Uint8Array => {
   const interpolations: number[] = [];
   let depth = 0;
   let i = 0;
+  // The previous significant token, which decides whether a `/` starts a
+  // regular expression: "value" for a literal, a word, or a punctuator.
+  let previous = "";
 
   // Masks template text up to the closing backtick or the next `${`.
   const scanTemplateText = (): void => {
@@ -66,6 +91,37 @@ export const codeMask = (content: string): Uint8Array => {
     }
   };
 
+  // Masks a regular expression literal and its flags; it cannot span lines.
+  const scanRegex = (): void => {
+    let inClass = false;
+    mask[i++] = 1;
+    while (i < length) {
+      const ch = content[i];
+      if (ch === "\n") return;
+      if (ch === "\\") {
+        mask[i++] = 1;
+        if (i < length && content[i] !== "\n") mask[i++] = 1;
+        continue;
+      }
+      mask[i++] = 1;
+      if (ch === "[") inClass = true;
+      else if (ch === "]") inClass = false;
+      else if (ch === "/" && !inClass) break;
+    }
+    while (i < length && IDENT_CHAR.test(content[i]!)) mask[i++] = 1;
+  };
+
+  const regexAllowed = (): boolean => {
+    if (previous === "" || previous === "value") {
+      return previous === "";
+    }
+    if (IDENT_CHAR.test(previous[0]!)) {
+      return REGEX_AFTER_KEYWORD.has(previous);
+    }
+
+    return previous !== ")" && previous !== "]";
+  };
+
   while (i < length) {
     const ch = content[i];
     const next = content[i + 1];
@@ -83,10 +139,24 @@ export const codeMask = (content: string): Uint8Array => {
     if (ch === "`") {
       mask[i++] = 1;
       scanTemplateText();
+      previous = "value";
       continue;
     }
     if (ch === '"' || ch === "'") {
       scanQuoted(ch);
+      previous = "value";
+      continue;
+    }
+    if (ch === "/" && regexAllowed()) {
+      scanRegex();
+      previous = "value";
+      continue;
+    }
+    if (IDENT_CHAR.test(ch!)) {
+      const start = i;
+      while (i < length && IDENT_CHAR.test(content[i]!)) i++;
+      const word = content.slice(start, i);
+      previous = /^[0-9]/.test(word) ? "value" : word;
       continue;
     }
     if (ch === "{") {
@@ -96,9 +166,13 @@ export const codeMask = (content: string): Uint8Array => {
         interpolations.pop();
         mask[i++] = 1;
         scanTemplateText();
+        previous = "value";
         continue;
       }
       depth--;
+    }
+    if (ch !== " " && ch !== "\t" && ch !== "\n" && ch !== "\r") {
+      previous = ch!;
     }
     i++;
   }

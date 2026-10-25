@@ -119,7 +119,10 @@ const canUseFfiPath = (
   const hasNameSubstitution = recipe.files.some(
     (f) => f.source.includes("{{.") || f.target.includes("{{."),
   );
-  if (hasNameSubstitution) return false; // FFI substitutes content only
+  // Files mode writes {{.var}} in source and target paths literally on both
+  // engines (only whole-repo mode substitutes paths); such recipes stay on
+  // the TypeScript engine.
+  if (hasNameSubstitution) return false;
 
   const hasPatternedVar = recipe.variables?.some(
     (v) => v.pattern !== undefined,
@@ -223,7 +226,7 @@ export const cloneRecipe = (
             const goResult = JSON.parse(raw) as {
               recipes?: Array<{
                 name: string;
-                written: string[];
+                written?: string[];
                 skipped: string[];
                 total: number;
                 postInstallRan: string[];
@@ -236,7 +239,7 @@ export const cloneRecipe = (
             ) {
               let totalWritten = 0;
               for (const entry of goResult.recipes) {
-                totalWritten += entry.written.length;
+                totalWritten += (entry.written ?? []).length;
               }
 
               const targetDir = input.projectName !== undefined
@@ -253,7 +256,7 @@ export const cloneRecipe = (
               ) ?? goResult.recipes[0];
 
               if (mainRecipe !== undefined) {
-                for (const file of mainRecipe.written) {
+                for (const file of mainRecipe.written ?? []) {
                   ctx.out.writeln(`  → ${file}`);
                 }
               }
@@ -262,7 +265,7 @@ export const cloneRecipe = (
                 name: specifier.repo,
               } as unknown as registrySchema.Recipe;
               const fakeResult = {
-                written: goResult.recipes.flatMap((r) => r.written),
+                written: goResult.recipes.flatMap((r) => r.written ?? []),
                 skipped: goResult.recipes.flatMap((r) => r.skipped ?? []),
                 total: goResult.recipes.reduce((s, r) => s + r.total, 0),
                 postInstallRan: goResult.recipes.flatMap(

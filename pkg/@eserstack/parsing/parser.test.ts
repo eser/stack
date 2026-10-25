@@ -1,6 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import * as assert from "@std/assert";
+import * as assert from "@eserstack/test-kit/assert";
 import * as simple from "./lexer/tokens/simple.ts";
 import * as lexer from "./lexer/lexer.ts";
 import * as parser from "./parser.ts";

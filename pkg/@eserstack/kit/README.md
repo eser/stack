@@ -1,5 +1,9 @@
 # 🧰 [@eserstack/kit](./)
 
+> **Note:** JSR is frozen at 4.5.x. From 5.0.0, `@eserstack/kit` is published on
+> npm under the same name (`pnpm add @eserstack/kit`); the JSR versions stay
+> available but get no updates.
+
 Recipe-based project scaffolding for the eser stack. `kit clone` copies any
 GitHub repository (or subpath) into your working directory, with optional
 `recipe.json` support for variable substitution, selective file lists, and

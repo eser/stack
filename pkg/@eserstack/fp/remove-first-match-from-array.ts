@@ -13,7 +13,7 @@ export const removeFirstMatchFromArray = <T>(
   predicate: (value: T, index: number, instance: Iterable<T>) => boolean,
 ): Array<T> => {
   const arrInstance = (instance.constructor === Array)
-    ? <ReadonlyArray<T>> instance
+    ? instance as ReadonlyArray<T>
     : [...instance];
 
   let notFound = true;

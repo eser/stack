@@ -68,9 +68,11 @@ export const isDriverAuthoritative = (
   // mechanism exists to prevent.
   const owner = execution["driverPid"];
 
-  if (typeof owner !== "number") {
+  if (typeof owner !== "number" || !Number.isInteger(owner) || owner <= 0) {
     // No pid recorded: an older or hand-edited state file. Treat the claim as
-    // unverifiable and therefore not binding, so the hook keeps working.
+    // unverifiable and therefore not binding, so the hook keeps working. A pid
+    // of 0 or less is no process: kill(0) would signal our own process group
+    // and report it alive.
     return false;
   }
 
@@ -219,7 +221,11 @@ export const recordIteration = async (
   ]);
 
   const modifiedFiles = [...new Set([...trackedFiles, ...git.files])];
-  const iteration = ((execution["iteration"] as number) ?? 0) + 1;
+  // A hand-edited state may hold the counter as a string; "3" + 1 would be
+  // "31", so anything that is not a finite number counts as 0.
+  const stored = execution["iteration"];
+  const iteration =
+    (typeof stored === "number" && Number.isFinite(stored) ? stored : 0) + 1;
   const gitStat = git.stat.trim();
 
   // Per-iteration log, best effort: it is a record for humans, and failing the
@@ -263,13 +269,19 @@ export const recordIteration = async (
   state["lastCalledAt"] = new Date().toISOString();
 
   try {
-    await runtime.fs.writeTextFile(
+    await persistence.writeTextFileAtomic(
       `${root}/${persistence.paths.stateFile}`,
       JSON.stringify(state, null, 2) + "\n",
     );
   } catch {
     // best effort
   }
+
+  await copyExecutionToSpec(
+    root,
+    state["spec"],
+    state["execution"] as Record<string, unknown>,
+  );
 
   // Reset the tracking log so the next iteration starts from empty.
   try {
@@ -293,6 +305,45 @@ export const recordIteration = async (
  * observed by the process it would need to reach. state.json is read by the
  * Stop hook already, so it is the one channel guaranteed to arrive.
  */
+/**
+ * Copies `execution` into the spec's own state file, when state.json names a
+ * spec whose file exists. The agent's `spec <name> next` and `block` write
+ * that file over state.json, so execution kept only in state.json (the
+ * driver claim, the recorded count) would be lost after the agent's first
+ * report. Best effort, as the state.json write is.
+ */
+const copyExecutionToSpec = async (
+  root: string,
+  spec: unknown,
+  execution: Record<string, unknown>,
+): Promise<void> => {
+  if (
+    typeof spec !== "string" || spec === "" || spec === "." || spec === ".." ||
+    /[/\\\0]/.test(spec)
+  ) {
+    return;
+  }
+
+  const path = `${root}/${persistence.paths.specStateFile(spec)}`;
+
+  try {
+    const own = JSON.parse(await runtime.fs.readTextFile(path)) as Record<
+      string,
+      unknown
+    >;
+    if (own["spec"] !== spec) {
+      return;
+    }
+
+    await persistence.writeTextFileAtomic(
+      path,
+      JSON.stringify({ ...own, execution }, null, 2) + "\n",
+    );
+  } catch {
+    // No spec file, or not one we can read: state.json alone holds it.
+  }
+};
+
 export const setDriver = async (
   root: string,
   driver: ExecutionDriver | null,
@@ -326,11 +377,13 @@ export const setDriver = async (
   state["execution"] = execution;
 
   try {
-    await runtime.fs.writeTextFile(
+    await persistence.writeTextFileAtomic(
       `${root}/${persistence.paths.stateFile}`,
       JSON.stringify(state, null, 2) + "\n",
     );
   } catch {
     // best effort
   }
+
+  await copyExecutionToSpec(root, state["spec"], execution);
 };

@@ -10,7 +10,7 @@
  * @module
  */
 
-import * as assert from "@std/assert";
+import * as assert from "@eserstack/test-kit/assert";
 import * as primitives from "@eserstack/primitives";
 import { runtime } from "@eserstack/standards/cross-runtime";
 import * as fileTool from "./file-tool.ts";

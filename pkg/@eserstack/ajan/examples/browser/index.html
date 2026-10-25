@@ -60,8 +60,8 @@
   <body>
     <h1>eser-ajan WASM Browser Example</h1>
     <p class="desc">
-      Loads <code>eser-ajan.wasm</code> via a minimal WASI shim and calls
-      functions using the command-mode JSON protocol (stdin/stdout).
+      Loads <code>eser-ajan.wasm</code>, the wasi-profile reactor, through a
+      minimal WASI shim, and calls its functions on one reused instance.
     </p>
 
     <button id="btn-version">Call version</button>
@@ -73,9 +73,9 @@
     <!--
     HOW TO SERVE THIS EXAMPLE
     ==========================
-    1. Build the WASM:     deno run --allow-all scripts/build.ts --wasm
-    2. Copy the binary:    cp dist/wasm/eser-ajan.wasm pkg/@eser/ajan/examples/browser/
-    3. Serve this folder:  cd pkg/@eser/ajan/examples/browser && python3 -m http.server 8080
+    1. Build the WASM:     make ajan-wasm (from the repository root)
+    2. Copy the binary:    cp pkg/@eserstack/ajan/dist/wasi/eser-ajan.wasm pkg/@eserstack/ajan/examples/browser/
+    3. Serve this folder:  cd pkg/@eserstack/ajan/examples/browser && python3 -m http.server 8080
        (or: npx serve -p 8080)
     4. Open:               http://localhost:8080
     -->
@@ -85,8 +85,9 @@
     // Minimal WASI preview1 shim — browser-only, no Node.js dependencies.
     //
     // Implements just enough of the wasi_snapshot_preview1 ABI for the
-    // eser-ajan command-mode WASM binary (Go wasip1). Each invocation gets a
-    // fresh shim instance with stdin pre-loaded and stdout captured.
+    // eser-ajan reactor (Go wasip1, -buildmode=c-shared). It has no
+    // filesystem, so the codebase, collector and cache functions answer the
+    // WASI error here.
     // ========================================================================
 
     const ERRNO_SUCCESS = 0;
@@ -134,10 +135,10 @@
         return new Uint8Array(this.#instance.exports.memory.buffer);
       }
 
-      start(instance) {
+      initialize(instance) {
         this.#instance = instance;
         try {
-          instance.exports._start();
+          instance.exports._initialize();
         } catch (err) {
           if (err instanceof WasiExitError) {
             this.#exitCode = err.code;
@@ -328,34 +329,63 @@
       return wasmModule;
     }
 
-    /**
-     * Invoke a command-mode function in eser-ajan.wasm.
-     *
-     * Each call creates a fresh WASI shim + WASM instance so there is
-     * no shared mutable state between calls (same approach as loader-command.ts).
-     */
-    function invoke(module, request) {
-      const stdinBytes = new TextEncoder().encode(JSON.stringify(request));
-      const wasi = new WasiShim(stdinBytes);
+    let reactor = null;
 
+    /** One instance for every call; the module keeps its handles in it. */
+    async function ensureReactor() {
+      if (reactor) return reactor;
+      const module = await ensureModule();
+      const wasi = new WasiShim(new Uint8Array(0));
       const instance = new WebAssembly.Instance(module, {
         wasi_snapshot_preview1: wasi.wasiImport,
       });
+      wasi.initialize(instance);
+      reactor = instance.exports;
+      return reactor;
+    }
 
-      wasi.start(instance);
-
-      const text = wasi.getStdout().trim();
-      if (!text) return { ok: false, error: "WASM produced no output" };
+    /**
+     * Calls one function of the reactor: the name and the length-prefixed
+     * arguments go into the module's input arena, and the JSON envelope comes
+     * back from eser_ajan_result_ptr (see main_wasi_reactor.go).
+     */
+    function invoke(exports, fn, args) {
+      const encoder = new TextEncoder();
+      const name = encoder.encode(fn);
+      const parts = args.map((arg) => encoder.encode(arg));
+      const argsLen = parts.reduce((n, p) => n + 4 + p.length, 0);
+      const ptr = exports.eser_ajan_alloc(name.length + argsLen);
+      const input = new Uint8Array(
+        exports.memory.buffer,
+        ptr,
+        name.length + argsLen,
+      );
+      input.set(name, 0);
+      const view = new DataView(input.buffer, input.byteOffset);
+      let offset = name.length;
+      for (const part of parts) {
+        view.setUint32(offset, part.length, true);
+        input.set(part, offset + 4);
+        offset += 4 + part.length;
+      }
+      const length = exports.eser_ajan_call(
+        ptr,
+        name.length,
+        ptr + name.length,
+        argsLen,
+      );
+      const resultPtr = exports.eser_ajan_result_ptr();
+      const text = new TextDecoder().decode(
+        new Uint8Array(exports.memory.buffer, resultPtr, length).slice(),
+      );
       return JSON.parse(text);
     }
 
-    async function callFn(fn, args) {
+    async function callFn(fn, args = []) {
       try {
-        const mod = await ensureModule();
-        log(
-          `> {"fn":"${fn}"${args ? ',"args":' + JSON.stringify(args) : ""}}`,
-        );
-        const resp = invoke(mod, { fn, ...(args ? { args } : {}) });
+        const exports = await ensureReactor();
+        log(`> ${fn}(${args.map((a) => JSON.stringify(a)).join(", ")})`);
+        const resp = invoke(exports, fn, args);
         if (resp.ok) {
           log(`< ${JSON.stringify(resp)}`);
         } else {
@@ -379,10 +409,14 @@
     });
 
     document.getElementById("btn-custom").addEventListener("click", () => {
-      const fn = prompt("Function name (e.g. version, init, configLoad):");
+      const fn = prompt("Function name (e.g. formatList, cryptoHash):");
       if (!fn) return;
+      const arg = prompt(
+        "Request JSON (leave empty for none):",
+        '{"data":"aGVsbG8=","algorithm":"sha256"}',
+      );
       output.textContent = "";
-      callFn(fn);
+      callFn(fn, arg ? [arg] : []);
     });
     </script>
   </body>

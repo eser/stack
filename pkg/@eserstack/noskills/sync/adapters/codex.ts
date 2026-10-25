@@ -199,14 +199,39 @@ const buildVerifierAgentToml = (): string => {
 // MCP Config Generator
 // =============================================================================
 
+/**
+ * A TOML basic string: backslashes, quotes and control characters escaped,
+ * so a command prefix with a Windows path or a quote stays valid TOML.
+ */
+const tomlString = (value: string): string =>
+  `"${
+    // Control characters are what the class matches, on purpose.
+    // deno-lint-ignore no-control-regex
+    value.replace(/[\\"\u0000-\u001f\u007f]/g, (c) => {
+      switch (c) {
+        case "\\":
+          return "\\\\";
+        case '"':
+          return '\\"';
+        case "\n":
+          return "\\n";
+        case "\t":
+          return "\\t";
+        case "\r":
+          return "\\r";
+        default:
+          return `\\u${c.charCodeAt(0).toString(16).padStart(4, "0")}`;
+      }
+    })}"`;
+
 const buildMcpToml = (commandPrefix: string): string => {
   const parts = commandPrefix.split(/\s+/);
   const command = parts[0] ?? "npx";
-  const args = [...parts.slice(1), "mcp-serve"].map((a) => `"${a}"`).join(
-    ", ",
-  );
+  const args = [...parts.slice(1), "mcp-serve"].map(tomlString).join(", ");
 
-  return `[mcp_servers.noskills]\ncommand = "${command}"\nargs = [${args}]\n`;
+  return `[mcp_servers.noskills]\ncommand = ${
+    tomlString(command)
+  }\nargs = [${args}]\n`;
 };
 
 // A TOML table header line: `[name]` or `[[name]]` with a bare or dotted key,

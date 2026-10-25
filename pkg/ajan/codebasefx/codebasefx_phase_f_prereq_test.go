@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/eser/stack/pkg/ajan/codebasefx"
+	"github.com/eser/stack/pkg/ajan/codebasefx/validatortools"
 )
 
 // ── RunSingleValidator ────────────────────────────────────────────────────────
@@ -32,7 +33,7 @@ func TestRunSingleValidator_ShortName_Resolves(t *testing.T) {
 	files := []codebasefx.FileEntry{tempFileEntry(t, "ok.ts", []byte("export const x = 1;\n"))}
 
 	// "eof" is the short name; full name is "codebase-eof".
-	res, err := codebasefx.RunSingleValidator(context.Background(), "eof", files, nil)
+	res, err := validatortools.RunSingleValidator(context.Background(), "eof", files, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -47,7 +48,7 @@ func TestRunSingleValidator_FullName_Resolves(t *testing.T) {
 
 	files := []codebasefx.FileEntry{tempFileEntry(t, "ok.ts", []byte("export const x = 1;\n"))}
 
-	res, err := codebasefx.RunSingleValidator(context.Background(), "codebase-eof", files, nil)
+	res, err := validatortools.RunSingleValidator(context.Background(), "codebase-eof", files, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -62,7 +63,7 @@ func TestRunSingleValidator_UnknownName_Error(t *testing.T) {
 
 	files := []codebasefx.FileEntry{tempFileEntry(t, "ok.ts", []byte("hello\n"))}
 
-	_, err := codebasefx.RunSingleValidator(context.Background(), "nonexistent-validator", files, nil)
+	_, err := validatortools.RunSingleValidator(context.Background(), "nonexistent-validator", files, nil)
 	if err == nil {
 		t.Fatal("expected error for unknown validator, got nil")
 	}
@@ -74,7 +75,7 @@ func TestRunSingleValidator_SuccessfulValidation_Passes(t *testing.T) {
 	// File ends with exactly one newline — passes eof validator.
 	files := []codebasefx.FileEntry{tempFileEntry(t, "good.ts", []byte("const x = 1;\n"))}
 
-	res, err := codebasefx.RunSingleValidator(context.Background(), "eof", files, nil)
+	res, err := validatortools.RunSingleValidator(context.Background(), "eof", files, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -94,7 +95,7 @@ func TestRunSingleValidator_FailedValidation_HasIssues(t *testing.T) {
 	// File missing trailing newline — fails eof validator.
 	files := []codebasefx.FileEntry{tempFileEntry(t, "bad.ts", []byte("const x = 1;"))}
 
-	res, err := codebasefx.RunSingleValidator(context.Background(), "eof", files, nil)
+	res, err := validatortools.RunSingleValidator(context.Background(), "eof", files, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -113,7 +114,7 @@ func TestRunSingleValidator_EmptyFileList_Passes(t *testing.T) {
 
 	files := []codebasefx.FileEntry{}
 
-	res, err := codebasefx.RunSingleValidator(context.Background(), "eof", files, nil)
+	res, err := validatortools.RunSingleValidator(context.Background(), "eof", files, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

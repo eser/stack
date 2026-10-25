@@ -7,8 +7,6 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
-
-	"google.golang.org/genai"
 )
 
 // These tests pin TASK-156: a declined or filtered answer is a refusal and a
@@ -215,20 +213,20 @@ func TestOpenAIStopReasonStream(t *testing.T) {
 	}
 }
 
-func genAITextCandidate(text string, reason genai.FinishReason) *genai.Candidate {
-	var content *genai.Content
+func genAITextCandidate(text string, reason genaiFinishReason) *genaiCandidate {
+	var content *genaiContent
 
 	if text != "" {
-		content = &genai.Content{Role: genaiRoleModel, Parts: []*genai.Part{{Text: text}}} //nolint:exhaustruct
+		content = &genaiContent{Role: genaiRoleModel, Parts: []*genaiPart{{Text: text}}} //nolint:exhaustruct
 	}
 
-	return &genai.Candidate{Content: content, FinishReason: reason} //nolint:exhaustruct
+	return &genaiCandidate{Content: content, FinishReason: reason} //nolint:exhaustruct
 }
 
-func genAIBlockedPrompt() *genai.GenerateContentResponse {
-	return &genai.GenerateContentResponse{ //nolint:exhaustruct
-		PromptFeedback: &genai.GenerateContentResponsePromptFeedback{ //nolint:exhaustruct
-			BlockReason: genai.BlockedReasonSafety,
+func genAIBlockedPrompt() *genaiGenerateContentResponse {
+	return &genaiGenerateContentResponse{ //nolint:exhaustruct
+		PromptFeedback: &genaiPromptFeedback{ //nolint:exhaustruct
+			BlockReason: "SAFETY",
 		},
 	}
 }
@@ -236,39 +234,39 @@ func genAIBlockedPrompt() *genai.GenerateContentResponse {
 func TestMapGenAIResponseStopReason(t *testing.T) {
 	t.Parallel()
 
-	toolCall := &genai.Candidate{ //nolint:exhaustruct
-		Content: &genai.Content{ //nolint:exhaustruct
+	toolCall := &genaiCandidate{ //nolint:exhaustruct
+		Content: &genaiContent{ //nolint:exhaustruct
 			Role: genaiRoleModel,
-			Parts: []*genai.Part{{ //nolint:exhaustruct
-				FunctionCall: &genai.FunctionCall{Name: "get_weather", Args: map[string]any{"city": "Istanbul"}}, //nolint:exhaustruct
+			Parts: []*genaiPart{{ //nolint:exhaustruct
+				FunctionCall: &genaiFunctionCall{Name: "get_weather", Args: map[string]any{"city": "Istanbul"}}, //nolint:exhaustruct
 			}},
 		},
-		FinishReason: genai.FinishReasonStop,
+		FinishReason: genaiFinishReasonStop,
 	}
 
 	cases := []struct {
 		name string
-		resp *genai.GenerateContentResponse
+		resp *genaiGenerateContentResponse
 		want StopReason
 	}{
 		{
 			name: "a safety filter is a refusal",
-			resp: &genai.GenerateContentResponse{ //nolint:exhaustruct
-				Candidates: []*genai.Candidate{genAITextCandidate("Partial", genai.FinishReasonSafety)},
+			resp: &genaiGenerateContentResponse{ //nolint:exhaustruct
+				Candidates: []*genaiCandidate{genAITextCandidate("Partial", genaiFinishReasonSafety)},
 			},
 			want: StopReasonRefusal,
 		},
 		{
 			name: "prohibited content is a refusal",
-			resp: &genai.GenerateContentResponse{ //nolint:exhaustruct
-				Candidates: []*genai.Candidate{genAITextCandidate("", genai.FinishReasonProhibitedContent)},
+			resp: &genaiGenerateContentResponse{ //nolint:exhaustruct
+				Candidates: []*genaiCandidate{genAITextCandidate("", genaiFinishReasonProhibitedContent)},
 			},
 			want: StopReasonRefusal,
 		},
 		{
 			name: "a blocklist match is a refusal",
-			resp: &genai.GenerateContentResponse{ //nolint:exhaustruct
-				Candidates: []*genai.Candidate{genAITextCandidate("", genai.FinishReasonBlocklist)},
+			resp: &genaiGenerateContentResponse{ //nolint:exhaustruct
+				Candidates: []*genaiCandidate{genAITextCandidate("", genaiFinishReasonBlocklist)},
 			},
 			want: StopReasonRefusal,
 		},
@@ -279,20 +277,20 @@ func TestMapGenAIResponseStopReason(t *testing.T) {
 		},
 		{
 			name: "the output limit is max_tokens",
-			resp: &genai.GenerateContentResponse{ //nolint:exhaustruct
-				Candidates: []*genai.Candidate{genAITextCandidate("cut sho", genai.FinishReasonMaxTokens)},
+			resp: &genaiGenerateContentResponse{ //nolint:exhaustruct
+				Candidates: []*genaiCandidate{genAITextCandidate("cut sho", genaiFinishReasonMaxTokens)},
 			},
 			want: StopReasonMaxTokens,
 		},
 		{
 			name: "a turn that called a tool is tool_use",
-			resp: &genai.GenerateContentResponse{Candidates: []*genai.Candidate{toolCall}}, //nolint:exhaustruct
+			resp: &genaiGenerateContentResponse{Candidates: []*genaiCandidate{toolCall}}, //nolint:exhaustruct
 			want: StopReasonToolUse,
 		},
 		{
 			name: "a normal answer is end_turn",
-			resp: &genai.GenerateContentResponse{ //nolint:exhaustruct
-				Candidates: []*genai.Candidate{genAITextCandidate("done", genai.FinishReasonStop)},
+			resp: &genaiGenerateContentResponse{ //nolint:exhaustruct
+				Candidates: []*genaiCandidate{genAITextCandidate("done", genaiFinishReasonStop)},
 			},
 			want: StopReasonEndTurn,
 		},
@@ -317,52 +315,52 @@ func TestMapGenAIResponseStopReason(t *testing.T) {
 func TestGenAIStreamStopReason(t *testing.T) {
 	t.Parallel()
 
-	functionCall := &genai.GenerateContentResponse{ //nolint:exhaustruct
-		Candidates: []*genai.Candidate{{ //nolint:exhaustruct
-			Content: &genai.Content{ //nolint:exhaustruct
+	functionCall := &genaiGenerateContentResponse{ //nolint:exhaustruct
+		Candidates: []*genaiCandidate{{ //nolint:exhaustruct
+			Content: &genaiContent{ //nolint:exhaustruct
 				Role: genaiRoleModel,
-				Parts: []*genai.Part{{ //nolint:exhaustruct
-					FunctionCall: &genai.FunctionCall{Name: "get_weather"}, //nolint:exhaustruct
+				Parts: []*genaiPart{{ //nolint:exhaustruct
+					FunctionCall: &genaiFunctionCall{Name: "get_weather"}, //nolint:exhaustruct
 				}},
 			},
 		}},
 	}
 
-	chunk := func(candidate *genai.Candidate) *genai.GenerateContentResponse {
-		return &genai.GenerateContentResponse{Candidates: []*genai.Candidate{candidate}} //nolint:exhaustruct
+	chunk := func(candidate *genaiCandidate) *genaiGenerateContentResponse {
+		return &genaiGenerateContentResponse{Candidates: []*genaiCandidate{candidate}} //nolint:exhaustruct
 	}
 
 	cases := []struct {
 		name   string
-		chunks []*genai.GenerateContentResponse
+		chunks []*genaiGenerateContentResponse
 		want   StopReason
 	}{
 		{
 			name: "a filter that blocks the rest of the answer is a refusal",
-			chunks: []*genai.GenerateContentResponse{
+			chunks: []*genaiGenerateContentResponse{
 				chunk(genAITextCandidate("Partial", "")),
 				// The filtered chunk has a finish reason and no content.
-				chunk(genAITextCandidate("", genai.FinishReasonSafety)),
+				chunk(genAITextCandidate("", genaiFinishReasonSafety)),
 			},
 			want: StopReasonRefusal,
 		},
 		{
 			name:   "a blocked prompt is a refusal",
-			chunks: []*genai.GenerateContentResponse{genAIBlockedPrompt()},
+			chunks: []*genaiGenerateContentResponse{genAIBlockedPrompt()},
 			want:   StopReasonRefusal,
 		},
 		{
 			name: "the output limit is max_tokens",
-			chunks: []*genai.GenerateContentResponse{
-				chunk(genAITextCandidate("cut sho", genai.FinishReasonMaxTokens)),
+			chunks: []*genaiGenerateContentResponse{
+				chunk(genAITextCandidate("cut sho", genaiFinishReasonMaxTokens)),
 			},
 			want: StopReasonMaxTokens,
 		},
 		{
 			name: "a tool call in an earlier chunk makes the turn tool_use",
-			chunks: []*genai.GenerateContentResponse{
+			chunks: []*genaiGenerateContentResponse{
 				functionCall,
-				chunk(genAITextCandidate("", genai.FinishReasonStop)),
+				chunk(genAITextCandidate("", genaiFinishReasonStop)),
 			},
 			want: StopReasonToolUse,
 		},
@@ -394,19 +392,10 @@ func TestGenAIStreamStopReason(t *testing.T) {
 }
 
 // newGenAITestClient builds a Gemini API client that sends to srv.
-func newGenAITestClient(t *testing.T, srv *httptest.Server) *genai.Client {
+func newGenAITestClient(t *testing.T, srv *httptest.Server) *googleClient {
 	t.Helper()
 
-	client, err := genai.NewClient(t.Context(), &genai.ClientConfig{ //nolint:exhaustruct
-		APIKey:      "test-key",
-		Backend:     genai.BackendGeminiAPI,
-		HTTPOptions: genai.HTTPOptions{BaseURL: srv.URL}, //nolint:exhaustruct
-	})
-	if err != nil {
-		t.Fatalf("genai.NewClient: %v", err)
-	}
-
-	return client
+	return newGeminiClient(&ConfigTarget{BaseURL: srv.URL}, "test-key", srv.Client()) //nolint:exhaustruct
 }
 
 // TestGeminiStreamReportsAFilteredAnswer runs the SSE stream end to end: the

@@ -5,6 +5,7 @@
  */
 
 import type { ChunkManifest } from "@eserstack/laroux-bundler";
+import * as scriptJson from "../adapters/react/script-json.ts";
 import type { SeoConfig } from "./seo/index.ts";
 import * as seo from "./seo/index.ts";
 
@@ -334,7 +335,7 @@ export function createHtmlShell(options: HtmlShellOptions): string {
     options.rscPayload
       ? `<!-- RSC payload for hydration -->
   <script id="__RSC_PAYLOAD__" type="application/json">${
-        options.rscPayload.replace(/<\/script/gi, "<\\/script")
+        scriptJson.escapeJsonForScript(options.rscPayload)
       }</script>`
       : ""
   }

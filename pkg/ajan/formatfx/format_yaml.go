@@ -83,6 +83,10 @@ func (r *yamlReader) Flush() ([]any, error) {
 		return nil, nil
 	}
 
+	if err := CheckYAMLDepth(text); err != nil {
+		return nil, newDeserializationError("yaml", "failed to deserialize YAML: "+err.Error(), err)
+	}
+
 	decoder := yaml.NewDecoder(strings.NewReader(text))
 
 	var items []any

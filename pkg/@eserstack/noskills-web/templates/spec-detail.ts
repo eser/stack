@@ -15,6 +15,7 @@ export const renderSpecDetail = (
   spec: dashboard.SpecSummary,
   specContent: string,
   _currentUser: dashboard.User | null,
+  token?: string,
 ): string => {
   // Phase-specific CTAs. Each action must be one routes/api.ts handles.
   // SPEC_APPROVED has none: the dashboard layer has no action that starts
@@ -120,5 +121,6 @@ export const renderSpecDetail = (
   }
   </div>`;
 
-  return layout.layout(`${spec.name} — noskills`, body);
+  // The token lets the action buttons pass the guard on mutating requests.
+  return layout.layout(`${spec.name} — noskills`, body, { token });
 };

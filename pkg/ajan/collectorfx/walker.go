@@ -67,7 +67,11 @@ func WalkCollectableFiles(ctx context.Context, opts WalkOptions) ([]CollectableF
 
 	walkErr := filepath.WalkDir(base, func(abs string, d fs.DirEntry, err error) error {
 		if err != nil {
-			return nil // skip unreadable
+			if abs == base {
+				return fmt.Errorf("%w: %s: %w", ErrUnreadableWalkRoot, base, err)
+			}
+
+			return nil // skip unreadable entries below the root
 		}
 
 		if d.IsDir() {

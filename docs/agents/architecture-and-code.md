@@ -8,9 +8,10 @@ design-principles and coding-practices skills refer to.
 - TypeScript packages live in `pkg/@eserstack/<name>/`. Packages with external
   dependencies follow the double-layered hexagonal layout (`domain/` and
   `adapters/`); `@eserstack/laroux-bundler` is the reference example.
-- Go business code follows the same split under `pkg/ajan/api/business/` and
-  `pkg/ajan/api/adapters/`, wired in
-  `pkg/ajan/api/adapters/appcontext/appcontext.go`.
+- Go domain code lives in the `pkg/ajan/<name>fx/` packages, which the Go
+  binaries use directly and the TypeScript libraries reach through the bridge
+  (ADR 0005). `pkg/ajan/api/business/` is empty; `pkg/ajan/api/adapters/` holds
+  the API service wiring in `appcontext/appcontext.go`.
 - The cross-runtime adapter is `pkg/@eserstack/standards/cross-runtime/`;
   `validate-runtime-js-apis` enforces it for the `Deno.*`, `process.*` and
   `Bun.*` APIs it lists, outside the paths `.eser/manifest.yml` excludes.

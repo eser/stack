@@ -304,15 +304,6 @@ type SpecState struct {
 	Placeholders []PlaceholderStatus `json:"placeholders"`
 }
 
-// EmptySpecMetadata returns a zero SpecMetadata (matches EMPTY_SPEC_METADATA).
-func EmptySpecMetadata() SpecMetadata {
-	return SpecMetadata{
-		Contributors:     []ContributorEntry{},
-		Approvals:        []ApprovalEntry{},
-		PendingDecisions: []PendingDecision{},
-	}
-}
-
 // =============================================================================
 // Execution
 // =============================================================================
@@ -428,50 +419,6 @@ type StateFile struct {
 	TransitionHistory []PhaseTransition   `json:"transitionHistory,omitempty"`
 	CustomACs         []CustomAC          `json:"customACs,omitempty"`
 	SpecNotes         []SpecNote          `json:"specNotes,omitempty"`
-}
-
-// CreateInitialState returns a fresh IDLE state (matches createInitialState() in TS).
-func CreateInitialState() StateFile {
-	return StateFile{
-		Version:         "0.1.0",
-		Phase:           PhaseIdle,
-		Spec:            nil,
-		SpecDescription: nil,
-		Branch:          nil,
-		Discovery: DiscoveryState{
-			Answers:         []DiscoveryAnswer{},
-			Completed:       false,
-			CurrentQuestion: 0,
-			Audience:        "human",
-			Approved:        false,
-			PlanPath:        nil,
-		},
-		SpecState: SpecState{
-			Path:         nil,
-			Status:       "none",
-			Metadata:     EmptySpecMetadata(),
-			Placeholders: []PlaceholderStatus{},
-		},
-		Execution: ExecutionState{
-			Iteration:            0,
-			LastProgress:         nil,
-			ModifiedFiles:        []string{},
-			LastVerification:     nil,
-			AwaitingStatusReport: false,
-			Debt:                 nil,
-			CompletedTasks:       []string{},
-			DebtCounter:          0,
-			NaItems:              []string{},
-		},
-		Decisions:        []Decision{},
-		LastCalledAt:     nil,
-		Classification:   nil,
-		CompletionReason: nil,
-		CompletedAt:      nil,
-		CompletionNote:   nil,
-		ReopenedFrom:     nil,
-		RevisitHistory:   []RevisitEntry{},
-	}
 }
 
 // =============================================================================

@@ -163,6 +163,35 @@ export const verifyArchiveChecksum = async (
   return results.ok(undefined);
 };
 
+/** The installer that `missingArchiveMessage` points to. */
+const INSTALL_SCRIPT_URL =
+  "https://raw.githubusercontent.com/eser/stack/main/etc/scripts/install.sh";
+
+/**
+ * The message for a release that has no archive for this binary: the update
+ * stops there, and the user gets the two ways to install the current version
+ * instead of a download or checksum error. A release can drop an archive when
+ * a tool stops shipping as a standalone binary, as laroux does after 4.5.x.
+ */
+export const missingArchiveMessage = (
+  app: Pick<CliApp, "command" | "npmPackage">,
+  tag: string,
+  archiveName: string,
+  isWindows: boolean,
+): string => {
+  const installScript = isWindows
+    ? `& ([scriptblock]::Create((irm ${
+      INSTALL_SCRIPT_URL.replace(/\.sh$/, ".ps1")
+    }))) -Product ${app.command}`
+    : `curl -fsSL ${INSTALL_SCRIPT_URL} | sh -s ${app.command}`;
+
+  return `Release ${tag} has no ${archiveName}, so this ${app.command} binary ` +
+    "cannot update itself.\n" +
+    "Install the current version with one of:\n" +
+    `  npm install -g ${app.npmPackage ?? app.command}\n` +
+    `  ${installScript}`;
+};
+
 const DENO_TARGET_MAP: Record<string, string> = {
   "linux-amd64": "x86_64-unknown-linux-gnu",
   "linux-arm64": "aarch64-unknown-linux-gnu",
@@ -292,6 +321,19 @@ const updateCompiledBinary = async (
   const archiveResponse = await fetch(`${baseUrl}/${archiveName}`, {
     signal: AbortSignal.timeout(ARCHIVE_DOWNLOAD_TIMEOUT_MS),
   });
+  if (archiveResponse.status === 404) {
+    // Fails closed with a way forward: the release has no archive for this
+    // binary, which is not a network problem a retry would fix.
+    await archiveResponse.body?.cancel();
+    out.writeln(
+      span.red(
+        `\n${missingArchiveMessage(app, tag, archiveName, isWindows)}`,
+      ),
+    );
+    await out.close();
+    return results.fail({ exitCode: 1 });
+  }
+
   if (!archiveResponse.ok) {
     out.writeln(
       span.red(`\nFailed to download: HTTP ${archiveResponse.status}`),
@@ -335,7 +377,7 @@ const updateCompiledBinary = async (
     await new shellExec.CommandBuilder(extract.cmd, [...extract.args]).spawn();
 
     // The archive holds the binary under the app's command name, as
-    // pkg/@eserstack/cli/scripts/compile.ts packs it.
+    // `eser dev compile` (pkg/ajan/codebasefx) packs it.
     const newBinaryPath = runtime.path.join(
       tempDir,
       isWindows ? `${app.command}.exe` : app.command,

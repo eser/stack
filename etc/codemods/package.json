@@ -1,0 +1,7 @@
+{
+  "name": "@eserstack/etc-codemods",
+  "private": true,
+  "type": "module",
+  "description": "The Deno-to-Node codemods; removed in M1-T37 (TASK-231). `node --test etc/codemods` runs all.test.ts, which imports every test file here.",
+  "main": "./all.test.ts"
+}

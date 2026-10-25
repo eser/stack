@@ -12,7 +12,7 @@ export const mapArray = <T1, T2>(
   predicate: (value: T1, index: number, instance: Iterable<T1>) => T2,
 ): Array<T2> => {
   const arrInstance = (instance.constructor === Array)
-    ? <ReadonlyArray<T1>> instance
+    ? instance as ReadonlyArray<T1>
     : [...instance];
 
   return arrInstance.map(predicate);

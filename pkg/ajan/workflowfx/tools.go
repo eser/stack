@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"text/template"
 	"time"
 
@@ -20,21 +21,54 @@ import (
 
 // ─── shellTool ─────────────────────────────────────────────────────────────────
 
+// shellTool runs options["command"] under `sh -c`, as the TypeScript shell
+// tool (pkg/@eserstack/workflows/shell-tool.ts) does:
+//
+//   - fixCommand runs instead of command when options["fix"] is true, unless
+//     options["dryRun"] is true;
+//   - workingDirectory is the command's directory, relative to root;
+//   - name is the step's display name (the command when unset);
+//   - the step's timeout ends the command and every process it started;
+//   - stats holds the numeric exitCode, and a failure's issue holds the
+//     command's output, or "Command exited with code N" when it printed none.
 type shellTool struct{}
+
+// NewShellTool returns the built-in shell tool.
+func NewShellTool() WorkflowTool { //nolint:ireturn
+	return &shellTool{}
+}
 
 func (t *shellTool) Name() string        { return "shell" }
 func (t *shellTool) Description() string { return "run a shell command from options[command]" }
 func (t *shellTool) Run(ctx context.Context, opts map[string]any) (*WorkflowToolResult, error) {
 	command, _ := opts["command"].(string)
 	if command == "" {
-		return failResult(t.Name(), `options["command"] (string) is required`), nil
+		return failResult(t.Name(), `the shell tool requires a "command" option, such as { shell: { command: "deno fmt --check" } }`), nil
+	}
+
+	displayName := optString(opts, "name", command)
+	fixCommand, _ := opts["fixCommand"].(string)
+	fix, _ := opts["fix"].(bool)
+	dryRun, _ := opts["dryRun"].(bool)
+
+	run := command
+	if fix && !dryRun && fixCommand != "" {
+		run = fixCommand
 	}
 
 	root := optString(opts, "root", ".")
 
+	dir := root
+	if wd, ok := opts["workingDirectory"].(string); ok && wd != "" {
+		dir = filepath.Join(root, wd)
+		if filepath.IsAbs(wd) {
+			dir = wd
+		}
+	}
+
 	//nolint:gosec // command comes from trusted workflow definition
-	cmd := exec.CommandContext(ctx, "sh", "-c", command)
-	cmd.Dir = root
+	cmd := exec.CommandContext(ctx, "sh", "-c", run)
+	cmd.Dir = dir
 	// Ensure context cancellation/timeout terminates the command AND any child
 	// processes it spawned (platform-specific — see tools_unix.go /
 	// tools_windows.go). Without this, killing the `sh` parent can leave a
@@ -42,14 +76,38 @@ func (t *shellTool) Run(ctx context.Context, opts map[string]any) (*WorkflowTool
 	setupCancelKill(cmd)
 
 	out, err := cmd.CombinedOutput()
-	if err != nil {
-		return failResult(t.Name(), string(out)), nil
+	if err == nil {
+		return &WorkflowToolResult{
+			Name:   displayName,
+			Passed: true,
+			Issues: []WorkflowIssue{},
+			Stats:  map[string]any{"exitCode": 0},
+		}, nil
+	}
+
+	exitCode := -1
+
+	var exitErr *exec.ExitError
+	if errors.As(err, &exitErr) {
+		exitCode = exitErr.ExitCode()
+	}
+
+	message := strings.TrimSpace(string(out))
+
+	switch {
+	case ctx.Err() != nil:
+		message = strings.TrimSpace(fmt.Sprintf("%s\nstopped at the step's timeout: %v", message, ctx.Err()))
+	case message == "" && exitCode >= 0:
+		message = fmt.Sprintf("Command exited with code %d", exitCode)
+	case message == "":
+		message = err.Error()
 	}
 
 	return &WorkflowToolResult{
-		Name:   t.Name(),
-		Passed: true,
-		Stats:  map[string]any{"output": string(out)},
+		Name:   displayName,
+		Passed: false,
+		Issues: []WorkflowIssue{{Message: message}},
+		Stats:  map[string]any{"exitCode": exitCode},
 	}, nil
 }
 

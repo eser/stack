@@ -5,12 +5,10 @@
       "mod.ts",
       "client.ts",
       "protocol.ts",
-      "span-renderer.tsx",
+      "span-renderer.ts",
       "use-function.ts",
       "runtime/**/*.ts",
-      "runtime/**/*.tsx",
       "client/**/*.ts",
-      "client/**/*.tsx",
       "README.md",
       "LICENSE"
     ]

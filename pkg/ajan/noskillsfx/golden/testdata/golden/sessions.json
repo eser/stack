@@ -1,0 +1,298 @@
+[
+  {
+    "args": [
+      "session"
+    ],
+    "exitCode": 0,
+    "stdout": "Usage: npx eser@latest noskills session \u003cstart | end | list | gc\u003e\n\n  start --spec=\u003cname\u003e   Bind to a spec\n  start --free          Idle mode (no spec, no enforcement)\n  start --auto          Auto-detect spec or idle\n  end [--id=\u003cid\u003e]       End current/specific session\n  list                  Show active sessions\n  gc                    Remove stale sessions\n",
+    "files": {
+      "package.json": "{\"name\":\"fixture\",\"version\":\"1.0.0\"}\n"
+    }
+  },
+  {
+    "args": [
+      "session",
+      "start",
+      "--free"
+    ],
+    "exitCode": 1,
+    "stdout": "noskills is not initialized. Run: npx eser@latest noskills init\n",
+    "files": {}
+  },
+  {
+    "args": [
+      "session",
+      "list"
+    ],
+    "exitCode": 0,
+    "stdout": "Sessions\n\n  No active sessions. Start one with: npx eser@latest noskills session start --spec=\u003cname\u003e\n",
+    "files": {}
+  },
+  {
+    "args": [
+      "session",
+      "gc"
+    ],
+    "exitCode": 0,
+    "stdout": "No stale sessions to remove.\n",
+    "files": {}
+  },
+  {
+    "args": [
+      "init",
+      "--non-interactive"
+    ],
+    "exitCode": 0,
+    "stdout": "",
+    "files": {
+      ".eser/.gitignore": "# eser toolchain runtime state — not tracked by git\n.state/\n",
+      ".eser/.state/progresses/state.json": "{\n  \"version\": \"0.1.0\",\n  \"phase\": \"IDLE\",\n  \"spec\": null,\n  \"specDescription\": null,\n  \"branch\": null,\n  \"discovery\": {\n    \"answers\": [],\n    \"completed\": false,\n    \"currentQuestion\": 0,\n    \"audience\": \"human\",\n    \"approved\": false,\n    \"planPath\": null\n  },\n  \"specState\": {\n    \"path\": null,\n    \"status\": \"none\",\n    \"metadata\": {\n      \"created\": {\n        \"date\": \"\",\n        \"user\": \"\"\n      },\n      \"lastModified\": {\n        \"date\": \"\",\n        \"user\": \"\"\n      },\n      \"contributors\": [],\n      \"approvals\": [],\n      \"pendingDecisions\": []\n    },\n    \"placeholders\": []\n  },\n  \"execution\": {\n    \"iteration\": 0,\n    \"lastProgress\": null,\n    \"modifiedFiles\": [],\n    \"lastVerification\": null,\n    \"awaitingStatusReport\": false,\n    \"debt\": null,\n    \"completedTasks\": [],\n    \"debtCounter\": 0,\n    \"naItems\": []\n  },\n  \"decisions\": [],\n  \"lastCalledAt\": null,\n  \"classification\": null,\n  \"completionReason\": null,\n  \"completedAt\": null,\n  \"completionNote\": null,\n  \"reopenedFrom\": null,\n  \"revisitHistory\": []\n}\n",
+      ".eser/manifest.yml": "noskills:\n  # noskills orchestrator — inline comments in this section won't be preserved on next write\n  concerns: []\n  tools: []\n  providers: []\n  project:\n    languages:\n      - typescript\n    frameworks: []\n    ci: []\n    testRunner: null\n  maxIterationsBeforeRestart: 15\n  verifyCommand: null\n  allowGit: false\n  command: npx eser@latest noskills\n"
+    }
+  },
+  {
+    "args": [
+      "session",
+      "start"
+    ],
+    "exitCode": 1,
+    "stdout": "Specify --spec=\u003cname\u003e, --free, or --auto.\nExample: npx eser@latest noskills session start --spec=my-feature\n",
+    "files": {}
+  },
+  {
+    "args": [
+      "session",
+      "start",
+      "--spec=nope"
+    ],
+    "exitCode": 1,
+    "stdout": "Error: Spec 'nope' not found. Run `npx eser@latest noskills spec list` to see available specs.\n",
+    "files": {}
+  },
+  {
+    "args": [
+      "session",
+      "start",
+      "--free"
+    ],
+    "exitCode": 0,
+    "stdout": "Session started.\n  ID:   \u003cSESSION_1\u003e\n  Mode: free\n\nRun:\n  export NOSKILLS_SESSION=\u003cSESSION_1\u003e\n  export NOSKILLS_PROJECT_ROOT=\u003cPROJECT\u003e\n",
+    "files": {
+      ".eser/.state/sessions/\u003cSESSION_1\u003e.json": "{\n  \"id\": \"\u003cSESSION_1\u003e\",\n  \"spec\": null,\n  \"mode\": \"free\",\n  \"phase\": null,\n  \"pid\": 0,\n  \"startedAt\": \"\u003cTIME\u003e\",\n  \"lastActiveAt\": \"\u003cTIME\u003e\",\n  \"tool\": \"claude-code\",\n  \"projectRoot\": \"\u003cPROJECT\u003e\"\n}\n"
+    }
+  },
+  {
+    "args": [
+      "session",
+      "list"
+    ],
+    "exitCode": 0,
+    "stdout": "Sessions\n\n  \u003cSESSION_1\u003e  free                      —                  0min ago\n",
+    "files": {}
+  },
+  {
+    "args": [
+      "session",
+      "start",
+      "--auto"
+    ],
+    "exitCode": 0,
+    "stdout": "Session started.\n  ID:   \u003cSESSION_2\u003e\n  Mode: free\n\nRun:\n  export NOSKILLS_SESSION=\u003cSESSION_2\u003e\n  export NOSKILLS_PROJECT_ROOT=\u003cPROJECT\u003e\n",
+    "files": {
+      ".eser/.state/sessions/\u003cSESSION_2\u003e.json": "{\n  \"id\": \"\u003cSESSION_2\u003e\",\n  \"spec\": null,\n  \"mode\": \"free\",\n  \"phase\": null,\n  \"pid\": 0,\n  \"startedAt\": \"\u003cTIME\u003e\",\n  \"lastActiveAt\": \"\u003cTIME\u003e\",\n  \"tool\": \"claude-code\",\n  \"projectRoot\": \"\u003cPROJECT\u003e\"\n}\n"
+    },
+    "removed": [
+      ".eser/.state/sessions/\u003cSESSION_1\u003e.json"
+    ]
+  },
+  {
+    "args": [
+      "spec",
+      "new",
+      "add a login page"
+    ],
+    "exitCode": 0,
+    "stdout": "✔ Spec started: add-login-page\n  Directory: .eser/specs/add-login-page\n  Branch:    spec/add-login-page\n  Phase:     DISCOVERY\n\nRun npx eser@latest noskills spec add-login-page next to begin discovery questions.\n",
+    "files": {
+      ".eser/.state/events/events.jsonl": "{\"ts\":\"\u003cTIME\u003e\",\"type\":\"spec-created\",\"spec\":\"add-login-page\",\"user\":\"Unknown User\",\"description\":\"add a login page\"}\n",
+      ".eser/.state/progresses/ledger/add-login-page/ledger.jsonl": "{\"id\":\"tr:IDLE:DISCOVERY:\u003cEPOCH_MS\u003e\",\"state\":\"DISCOVERY\",\"category\":\"scope\",\"question\":\"Transition IDLE → DISCOVERY\",\"resolution\":\"IDLE → DISCOVERY approved\",\"provenance\":\"ratified\",\"timestamp\":\"\u003cTIME\u003e\",\"artifacts\":[\".eser/specs/add-login-page/spec.md\"]}\n",
+      ".eser/.state/progresses/ledger/add-login-page/summary.json": "{\n  \"resolved_decisions\": 1,\n  \"provenance_breakdown\": {\n    \"ratified\": 1,\n    \"inferred\": 0,\n    \"default\": 0\n  },\n  \"open_questions\": 16,\n  \"specificity\": {\n    \"named_artifacts_count\": 1,\n    \"acceptance_criteria_present\": false,\n    \"out_of_scope_present\": false\n  }\n}\n",
+      ".eser/.state/progresses/specs/add-login-page.json": "{\n  \"version\": \"0.1.0\",\n  \"phase\": \"DISCOVERY\",\n  \"spec\": \"add-login-page\",\n  \"specDescription\": \"add a login page\",\n  \"branch\": \"spec/add-login-page\",\n  \"discovery\": {\n    \"answers\": [],\n    \"completed\": false,\n    \"currentQuestion\": 0,\n    \"audience\": \"human\",\n    \"approved\": false,\n    \"planPath\": null\n  },\n  \"specState\": {\n    \"path\": \".eser/specs/add-login-page/spec.md\",\n    \"status\": \"draft\",\n    \"metadata\": {\n      \"created\": {\n        \"date\": \"\u003cTIME\u003e\",\n        \"user\": \"Unknown User\"\n      },\n      \"lastModified\": {\n        \"date\": \"\u003cTIME\u003e\",\n        \"user\": \"Unknown User\"\n      },\n      \"contributors\": [\n        {\n          \"user\": \"Unknown User\",\n          \"lastAction\": \"created\",\n          \"date\": \"\u003cTIME\u003e\"\n        }\n      ],\n      \"approvals\": [],\n      \"pendingDecisions\": []\n    },\n    \"placeholders\": [\n      {\n        \"sectionId\": \"summary\",\n        \"sectionTitle\": \"Summary\",\n        \"status\": \"placeholder\"\n      },\n      {\n        \"sectionId\": \"problem-statement\",\n        \"sectionTitle\": \"Problem Statement\",\n        \"status\": \"placeholder\"\n      },\n      {\n        \"sectionId\": \"ambition\",\n        \"sectionTitle\": \"Ambition\",\n        \"status\": \"placeholder\"\n      },\n      {\n        \"sectionId\": \"reversibility\",\n        \"sectionTitle\": \"Reversibility\",\n        \"status\": \"placeholder\"\n      },\n      {\n        \"sectionId\": \"user-impact\",\n        \"sectionTitle\": \"User Impact\",\n        \"status\": \"placeholder\"\n      },\n      {\n        \"sectionId\": \"verification-strategy\",\n        \"sectionTitle\": \"Verification Strategy\",\n        \"status\": \"placeholder\"\n      },\n      {\n        \"sectionId\": \"scope-boundary\",\n        \"sectionTitle\": \"Scope Boundary\",\n        \"status\": \"placeholder\"\n      },\n      {\n        \"sectionId\": \"premises\",\n        \"sectionTitle\": \"Premises\",\n        \"status\": \"placeholder\"\n      },\n      {\n        \"sectionId\": \"tasks\",\n        \"sectionTitle\": \"Tasks\",\n        \"status\": \"placeholder\"\n      },\n      {\n        \"sectionId\": \"acceptance-criteria\",\n        \"sectionTitle\": \"Acceptance Criteria\",\n        \"status\": \"placeholder\"\n      }\n    ]\n  },\n  \"execution\": {\n    \"iteration\": 0,\n    \"lastProgress\": null,\n    \"modifiedFiles\": [],\n    \"lastVerification\": null,\n    \"awaitingStatusReport\": false,\n    \"debt\": null,\n    \"completedTasks\": [],\n    \"debtCounter\": 0,\n    \"naItems\": []\n  },\n  \"decisions\": [],\n  \"lastCalledAt\": null,\n  \"classification\": null,\n  \"completionReason\": null,\n  \"completedAt\": null,\n  \"completionNote\": null,\n  \"reopenedFrom\": null,\n  \"revisitHistory\": [],\n  \"transitionHistory\": [\n    {\n      \"from\": \"IDLE\",\n      \"to\": \"DISCOVERY\",\n      \"user\": \"Unknown User\",\n      \"email\": \"\",\n      \"timestamp\": \"\u003cTIME\u003e\"\n    }\n  ]\n}\n",
+      ".eser/specs/add-login-page/spec.md": "---\ncreated:\n  date: \u003cTIME\u003e\n  user: Unknown User\nlastModified:\n  date: \u003cTIME\u003e\n  user: Unknown User\ncontributors:\n  - user: Unknown User\n    lastAction: created\n    date: \u003cTIME\u003e\napprovals: []\npendingDecisions: []\n---\n\n# Spec: add-login-page\n\n\u003c!-- TOC:START --\u003e\n## Sections\n- ○ Summary\n- ○ Problem Statement\n- ○ Ambition\n- ○ Reversibility\n- ○ User Impact\n- ○ Verification Strategy\n- ○ Scope Boundary\n- ○ Premises\n- ○ Tasks\n- ○ Acceptance Criteria\n\u003c!-- TOC:END --\u003e\n\n## Summary\n\n\u003c!-- PLACEHOLDER:summary --\u003e\n_Synthesize the spec in 2-3 sentences: what changes, why it matters, for whom._\n\n## Problem Statement\n\n\u003c!-- PLACEHOLDER:problem-statement --\u003e\n_Describe the current pain: what is broken, missing, or inefficient? For whom? What happens today when they try?_\n\n## Ambition\n\n\u003c!-- PLACEHOLDER:ambition --\u003e\n_What does success look like? Paint the 12-month ideal state — not just this feature, but the trajectory it starts._\n\n## Reversibility\n\n\u003c!-- PLACEHOLDER:reversibility --\u003e\n_If this ships and is wrong, how do we undo it? Rollback steps, feature flags, migration reversibility, blast radius._\n\n## User Impact\n\n\u003c!-- PLACEHOLDER:user-impact --\u003e\n_Who benefits and how? What changes for them — before/after their day, their workflow, their frustration?_\n\n## Verification Strategy\n\n\u003c!-- PLACEHOLDER:verification-strategy --\u003e\n_How will we know it worked? Automated tests, manual smoke tests, metrics to watch, acceptance checklist._\n\n## Scope Boundary\n\n\u003c!-- PLACEHOLDER:scope-boundary --\u003e\n_What is explicitly OUT of scope? Name specific features, use cases, or edge cases this spec does NOT address._\n\n## Premises\n\n\u003c!-- PLACEHOLDER:premises --\u003e\n_List every assumption this spec makes. If an assumption turns out wrong, what breaks?_\n\n## Tasks\n\n\u003c!-- PLACEHOLDER:tasks --\u003e\n_Break implementation into concrete tasks. Each task: what it does, how to verify it is done, any ordering constraints._\n\n## Acceptance Criteria\n\n\u003c!-- PLACEHOLDER:acceptance-criteria --\u003e\n_Binary, testable criteria. Each item: the system does X when Y. No fuzzy language._"
+    },
+    "removed": [
+      ".eser/.state/sessions/\u003cSESSION_2\u003e.json"
+    ]
+  },
+  {
+    "args": [
+      "session",
+      "start",
+      "--spec=add-login-page"
+    ],
+    "exitCode": 0,
+    "stdout": "Session started.\n  ID:   \u003cSESSION_3\u003e\n  Mode: spec\n  Spec: add-login-page\n  Phase: DISCOVERY\n\nRun:\n  export NOSKILLS_SESSION=\u003cSESSION_3\u003e\n  export NOSKILLS_PROJECT_ROOT=\u003cPROJECT\u003e\n",
+    "files": {
+      ".eser/.state/sessions/\u003cSESSION_3\u003e.json": "{\n  \"id\": \"\u003cSESSION_3\u003e\",\n  \"spec\": \"add-login-page\",\n  \"mode\": \"spec\",\n  \"phase\": \"DISCOVERY\",\n  \"pid\": 0,\n  \"startedAt\": \"\u003cTIME\u003e\",\n  \"lastActiveAt\": \"\u003cTIME\u003e\",\n  \"tool\": \"claude-code\",\n  \"projectRoot\": \"\u003cPROJECT\u003e\"\n}\n"
+    }
+  },
+  {
+    "args": [
+      "session",
+      "start",
+      "--auto"
+    ],
+    "exitCode": 0,
+    "stdout": "Session started.\n  ID:   \u003cSESSION_4\u003e\n  Mode: spec\n  Spec: add-login-page\n  Phase: DISCOVERY\n\nRun:\n  export NOSKILLS_SESSION=\u003cSESSION_4\u003e\n  export NOSKILLS_PROJECT_ROOT=\u003cPROJECT\u003e\n",
+    "files": {
+      ".eser/.state/sessions/\u003cSESSION_4\u003e.json": "{\n  \"id\": \"\u003cSESSION_4\u003e\",\n  \"spec\": \"add-login-page\",\n  \"mode\": \"spec\",\n  \"phase\": \"DISCOVERY\",\n  \"pid\": 0,\n  \"startedAt\": \"\u003cTIME\u003e\",\n  \"lastActiveAt\": \"\u003cTIME\u003e\",\n  \"tool\": \"claude-code\",\n  \"projectRoot\": \"\u003cPROJECT\u003e\"\n}\n"
+    },
+    "removed": [
+      ".eser/.state/sessions/\u003cSESSION_3\u003e.json"
+    ]
+  },
+  {
+    "args": [
+      "session",
+      "start",
+      "--spec=add-login-page",
+      "--free"
+    ],
+    "exitCode": 1,
+    "stdout": "Use only one of --spec=\u003cname\u003e, --free or --auto.\n",
+    "files": {},
+    "removed": [
+      ".eser/.state/sessions/\u003cSESSION_4\u003e.json"
+    ]
+  },
+  {
+    "args": [
+      "session",
+      "start",
+      "--spec="
+    ],
+    "exitCode": 1,
+    "stdout": "--spec needs a spec name.\nExample: npx eser@latest noskills session start --spec=my-feature\n",
+    "files": {}
+  },
+  {
+    "args": [
+      "session",
+      "list"
+    ],
+    "exitCode": 0,
+    "stdout": "Sessions\n\n  sess-bad  free                      —                  unknown (stale)\n  sess-fresh  spec:add-login-page       DISCOVERY          5min ago\n  sess-old  free                      —                  3h ago (stale)\n",
+    "files": {
+      ".eser/.state/sessions/bad.name.json": "{\"id\":\"bad.name\",\"mode\":\"free\"}\n",
+      ".eser/.state/sessions/sess-bad.json": "{\"id\":\"sess-bad\",\"mode\":\"free\",\"lastActiveAt\":\"not a date\",\"tool\":\"claude-code\"}\n",
+      ".eser/.state/sessions/sess-fresh.json": "{\"id\":\"sess-fresh\",\"spec\":\"add-login-page\",\"mode\":\"spec\",\"phase\":\"DISCOVERY\",\"pid\":4242,\"startedAt\":\"\u003cTIME\u003e\",\"lastActiveAt\":\"\u003cTIME\u003e\",\"tool\":\"kiro\"}\n",
+      ".eser/.state/sessions/sess-old.json": "{\"id\":\"sess-old\",\"spec\":null,\"mode\":\"free\",\"phase\":null,\"pid\":0,\"startedAt\":\"\u003cTIME\u003e\",\"lastActiveAt\":\"\u003cTIME\u003e\",\"tool\":\"claude-code\"}\n",
+      ".eser/.state/sessions/sess-other.json": "{\"id\":\"someone-else\",\"mode\":\"free\",\"lastActiveAt\":\"\u003cTIME\u003e\"}\n"
+    }
+  },
+  {
+    "args": [
+      "spec",
+      "add-login-page",
+      "next"
+    ],
+    "exitCode": 0,
+    "stdout": "{\n  \"phase\": \"DISCOVERY\",\n  \"instruction\": \"The user just created this spec. Before starting discovery, ask them to share whatever context they have (requirements, notes, tasks, or just a brief description). Say: 'Tell me about this. Share as much context as you have.' Listen first, then proceed.\",\n  \"questions\": [],\n  \"answeredCount\": 0,\n  \"context\": {\n    \"rules\": [],\n    \"concernReminders\": []\n  },\n  \"transition\": {\n    \"onComplete\": \"npx eser@latest noskills spec add-login-page next --answer=\\\"\u003cuser context or just start\u003e\\\"\"\n  },\n  \"currentUser\": {\n    \"name\": \"Unknown User\",\n    \"email\": \"\"\n  },\n  \"meta\": {\n    \"protocol\": \"Run `npx eser@latest noskills spec add-login-page next --answer=\\\"...\\\"` to submit results and advance\",\n    \"spec\": \"add-login-page\",\n    \"branch\": \"spec/add-login-page\",\n    \"iteration\": 0,\n    \"lastProgress\": null,\n    \"activeConcerns\": [],\n    \"resumeHint\": \"Discovery in progress for \\\"add-login-page\\\". 0 questions answered so far.\",\n    \"enforcement\": {\n      \"level\": \"enforced\",\n      \"capabilities\": [\n        \"PreToolUse file edit gate\",\n        \"Git write guard\",\n        \"Stop iteration tracking\",\n        \"PostToolUse file logging\",\n        \"Sub-agent delegation\"\n      ]\n    }\n  },\n  \"behavioral\": {\n    \"modeOverride\": \"plan mode\",\n    \"rules\": [\n      \"NEVER run git write commands (commit, add, push, checkout, stash, reset, merge, rebase, cherry-pick). Git is read-only for agents. The user controls git. You may read: git log, git diff, git status, git show, git blame.\",\n      \"Report progress honestly. Not done = 'not done'. Partial = 'partial: [works]/[doesn't]'. Untested = 'untested'. 4 of 6 = '4 of 6 done, 2 remaining'.\",\n      \"Never skip steps or infer decisions. Use AskUserQuestion for all decision points. Recommend first, then ask.\",\n      \"Display `roadmap` before other content. Display `gate` prominently.\",\n      \"NEVER suggest bypassing, skipping, or 'breaking out of' noskills. Discovery helps the user — it is not an obstacle. If scope changes: revise spec, reset and create new, or split.\",\n      \"Run the next noskills command as soon as the current step is done; each step has exactly one next step, so there is nothing to ask permission for.\",\n      \"Listen first: after spec creation, ask 'Tell me about this. Share as much context as you have.' Wait for their response before mode selection. Rich context (\u003e200 chars) → suggest pre-filled discovery answers from it, marked STATED or INFERRED for the user to confirm. Brief response → proceed normally.\",\n      \"Discovery questions are adaptive. Once the user has answered the base questions, write 1-3 follow-up questions for each answer that reveals ambiguity, risk, dependencies, or missing detail, and register them with `npx eser@latest noskills spec add-login-page followup \u003cquestionId\u003e \\\"question\\\"` before you submit the answers (max 3 per question). noskills then gives you the follow-ups one at a time.\",\n      \"Confidence scoring: every technical finding needs a confidence score (1-10). 9-10: verified (read code, ran test). 7-8: strong evidence. 5-6: reasonable inference. 3-4: guess. 1-2: speculation. State basis ('read X', 'inferred from Y'). If confidence \u003c 5, prefix with '⚠ Unverified:'.\",\n      \"This phase is read-only: read files and run read-only commands (cat, ls, grep, git log, git diff); create or edit nothing and run nothing that changes state, apart from the noskills commands this output gives you. If the session is not in plan mode, ask the user to switch (Shift+Tab).\",\n      \"Ask the base questions through AskUserQuestion, as many as fit in each call (it takes up to 4), and each follow-up in a call of its own. Never answer questions yourself. With a fully formed plan, skip questions but MUST run premise challenge and alternatives.\",\n      \"Discovery answers come from the user. You may pre-fill a suggested answer from what the user already wrote (the spec description, a plan, earlier messages): mark it [STATED] when the user said it or [INFERRED] when it is your reading, and have the user confirm or correct it. Submit only confirmed answers, in the one call `transition.onComplete` shows (`npx eser@latest noskills spec add-login-page next --answer`). Never submit an answer the user has not confirmed.\",\n      \"Pre-discovery: (1) pre-discovery codebase scan — read README, CLAUDE.md, design docs, last 20 commits, TODOs, existing specs, directory structure. Present a brief audit summary. (2) If `preDiscoveryResearch.required`, web-search every `extractedTerms` entry — report versions, API changes, deprecations. (3) Ask discovery mode: A) Explore scope B) Technical depth C) Validate my plan D) Ship fast. Adapt emphasis accordingly.\",\n      \"Before starting discovery questions, challenge the user's initial spec description against codebase findings. Flag: hidden complexity, conflicts with existing code, scope mismatch, overlapping modules. Ask clarifying follow-ups.\",\n      \"When asking questions, offer concrete options from codebase knowledge alongside the open-ended question (e.g., 'I see three scenarios: A)... B)... C)... D) Something else'). Push back on vague answers. Follow up on short answer with 'Can you be more specific?'\",\n      \"After answers, synthesize CURRENT STATE → THIS SPEC → 6-MONTH IDEAL vision. Then: (1) expansion opportunities as numbered proposals with effort (S/M/L/XL), risk, completeness delta — options: Add/Defer/Skip. (2) Architectural decisions that BLOCK implementation — present with options, RECOMMENDATION, completeness scores. Unresolved = risk flag. (3) Error/rescue map: codepath | failure mode | handling. Flag CRITICAL GAPS as decisions.\",\n      \"Present DISCOVERY SUMMARY for confirmation: intent, scope, dream state, expansions, architectural decisions, error map. Ask for confirmation before generating spec.\",\n      \"Interview the user about each part of this plan until you both share one understanding.\",\n      \"Walk down each branch of the design tree, resolving dependencies between decisions one-by-one.\",\n      \"For each question, provide your recommended answer — don't just ask, offer your informed opinion.\",\n      \"Ask the user the unanswered base discovery questions together, in one exchange, and submit the confirmed answers as one JSON object keyed by question id. Ask each follow-up question on its own and wait for its answer before you ask the next.\",\n      \"If a question can be answered by exploring the codebase, explore the codebase INSTEAD of asking. Only ask the user what the codebase cannot tell you.\",\n      \"Do NOT fill placeholders with assumptions; ask the user instead.\",\n      \"If a section is not applicable, ask the user to confirm it's N/A with a specific reason — don't decide yourself.\",\n      \"If two answers conflict, surface the conflict to the user — don't resolve it yourself.\",\n      \"If an answer is vague, push back and ask for specifics — don't accept vague.\"\n    ],\n    \"tone\": \"Curious interviewer with a stake in the answers. Comes PREPARED — read the codebase first. Challenge assumptions, think about architecture and failure modes.\"\n  },\n  \"roadmap\": \"IDLE → [ DISCOVERY ] → REFINEMENT → PROPOSAL → APPROVED → EXECUTING → COMPLETED → IDLE\",\n  \"modeDirective\": \"Ensure you are in plan mode. Read-only. Analyze, research, ask.\"\n}\n",
+    "files": {
+      ".eser/.state/progresses/specs/add-login-page.json": "{\n  \"version\": \"0.1.0\",\n  \"phase\": \"DISCOVERY\",\n  \"spec\": \"add-login-page\",\n  \"specDescription\": \"add a login page\",\n  \"branch\": \"spec/add-login-page\",\n  \"discovery\": {\n    \"answers\": [],\n    \"completed\": false,\n    \"currentQuestion\": 0,\n    \"audience\": \"human\",\n    \"approved\": false,\n    \"planPath\": null\n  },\n  \"specState\": {\n    \"path\": \".eser/specs/add-login-page/spec.md\",\n    \"status\": \"draft\",\n    \"metadata\": {\n      \"created\": {\n        \"date\": \"\u003cTIME\u003e\",\n        \"user\": \"Unknown User\"\n      },\n      \"lastModified\": {\n        \"date\": \"\u003cTIME\u003e\",\n        \"user\": \"Unknown User\"\n      },\n      \"contributors\": [\n        {\n          \"user\": \"Unknown User\",\n          \"lastAction\": \"created\",\n          \"date\": \"\u003cTIME\u003e\"\n        }\n      ],\n      \"approvals\": [],\n      \"pendingDecisions\": []\n    },\n    \"placeholders\": [\n      {\n        \"sectionId\": \"summary\",\n        \"sectionTitle\": \"Summary\",\n        \"status\": \"placeholder\"\n      },\n      {\n        \"sectionId\": \"problem-statement\",\n        \"sectionTitle\": \"Problem Statement\",\n        \"status\": \"placeholder\"\n      },\n      {\n        \"sectionId\": \"ambition\",\n        \"sectionTitle\": \"Ambition\",\n        \"status\": \"placeholder\"\n      },\n      {\n        \"sectionId\": \"reversibility\",\n        \"sectionTitle\": \"Reversibility\",\n        \"status\": \"placeholder\"\n      },\n      {\n        \"sectionId\": \"user-impact\",\n        \"sectionTitle\": \"User Impact\",\n        \"status\": \"placeholder\"\n      },\n      {\n        \"sectionId\": \"verification-strategy\",\n        \"sectionTitle\": \"Verification Strategy\",\n        \"status\": \"placeholder\"\n      },\n      {\n        \"sectionId\": \"scope-boundary\",\n        \"sectionTitle\": \"Scope Boundary\",\n        \"status\": \"placeholder\"\n      },\n      {\n        \"sectionId\": \"premises\",\n        \"sectionTitle\": \"Premises\",\n        \"status\": \"placeholder\"\n      },\n      {\n        \"sectionId\": \"tasks\",\n        \"sectionTitle\": \"Tasks\",\n        \"status\": \"placeholder\"\n      },\n      {\n        \"sectionId\": \"acceptance-criteria\",\n        \"sectionTitle\": \"Acceptance Criteria\",\n        \"status\": \"placeholder\"\n      }\n    ]\n  },\n  \"execution\": {\n    \"iteration\": 0,\n    \"lastProgress\": null,\n    \"modifiedFiles\": [],\n    \"lastVerification\": null,\n    \"awaitingStatusReport\": false,\n    \"debt\": null,\n    \"completedTasks\": [],\n    \"debtCounter\": 0,\n    \"naItems\": []\n  },\n  \"decisions\": [],\n  \"lastCalledAt\": \"\u003cTIME\u003e\",\n  \"classification\": null,\n  \"completionReason\": null,\n  \"completedAt\": null,\n  \"completionNote\": null,\n  \"reopenedFrom\": null,\n  \"revisitHistory\": [],\n  \"transitionHistory\": [\n    {\n      \"from\": \"IDLE\",\n      \"to\": \"DISCOVERY\",\n      \"user\": \"Unknown User\",\n      \"email\": \"\",\n      \"timestamp\": \"\u003cTIME\u003e\"\n    }\n  ]\n}\n",
+      ".eser/.state/progresses/state.json": "{\n  \"version\": \"0.1.0\",\n  \"phase\": \"DISCOVERY\",\n  \"spec\": \"add-login-page\",\n  \"specDescription\": \"add a login page\",\n  \"branch\": \"spec/add-login-page\",\n  \"discovery\": {\n    \"answers\": [],\n    \"completed\": false,\n    \"currentQuestion\": 0,\n    \"audience\": \"human\",\n    \"approved\": false,\n    \"planPath\": null\n  },\n  \"specState\": {\n    \"path\": \".eser/specs/add-login-page/spec.md\",\n    \"status\": \"draft\",\n    \"metadata\": {\n      \"created\": {\n        \"date\": \"\u003cTIME\u003e\",\n        \"user\": \"Unknown User\"\n      },\n      \"lastModified\": {\n        \"date\": \"\u003cTIME\u003e\",\n        \"user\": \"Unknown User\"\n      },\n      \"contributors\": [\n        {\n          \"user\": \"Unknown User\",\n          \"lastAction\": \"created\",\n          \"date\": \"\u003cTIME\u003e\"\n        }\n      ],\n      \"approvals\": [],\n      \"pendingDecisions\": []\n    },\n    \"placeholders\": [\n      {\n        \"sectionId\": \"summary\",\n        \"sectionTitle\": \"Summary\",\n        \"status\": \"placeholder\"\n      },\n      {\n        \"sectionId\": \"problem-statement\",\n        \"sectionTitle\": \"Problem Statement\",\n        \"status\": \"placeholder\"\n      },\n      {\n        \"sectionId\": \"ambition\",\n        \"sectionTitle\": \"Ambition\",\n        \"status\": \"placeholder\"\n      },\n      {\n        \"sectionId\": \"reversibility\",\n        \"sectionTitle\": \"Reversibility\",\n        \"status\": \"placeholder\"\n      },\n      {\n        \"sectionId\": \"user-impact\",\n        \"sectionTitle\": \"User Impact\",\n        \"status\": \"placeholder\"\n      },\n      {\n        \"sectionId\": \"verification-strategy\",\n        \"sectionTitle\": \"Verification Strategy\",\n        \"status\": \"placeholder\"\n      },\n      {\n        \"sectionId\": \"scope-boundary\",\n        \"sectionTitle\": \"Scope Boundary\",\n        \"status\": \"placeholder\"\n      },\n      {\n        \"sectionId\": \"premises\",\n        \"sectionTitle\": \"Premises\",\n        \"status\": \"placeholder\"\n      },\n      {\n        \"sectionId\": \"tasks\",\n        \"sectionTitle\": \"Tasks\",\n        \"status\": \"placeholder\"\n      },\n      {\n        \"sectionId\": \"acceptance-criteria\",\n        \"sectionTitle\": \"Acceptance Criteria\",\n        \"status\": \"placeholder\"\n      }\n    ]\n  },\n  \"execution\": {\n    \"iteration\": 0,\n    \"lastProgress\": null,\n    \"modifiedFiles\": [],\n    \"lastVerification\": null,\n    \"awaitingStatusReport\": false,\n    \"debt\": null,\n    \"completedTasks\": [],\n    \"debtCounter\": 0,\n    \"naItems\": []\n  },\n  \"decisions\": [],\n  \"lastCalledAt\": \"\u003cTIME\u003e\",\n  \"classification\": null,\n  \"completionReason\": null,\n  \"completedAt\": null,\n  \"completionNote\": null,\n  \"reopenedFrom\": null,\n  \"revisitHistory\": [],\n  \"transitionHistory\": [\n    {\n      \"from\": \"IDLE\",\n      \"to\": \"DISCOVERY\",\n      \"user\": \"Unknown User\",\n      \"email\": \"\",\n      \"timestamp\": \"\u003cTIME\u003e\"\n    }\n  ]\n}\n",
+      ".eser/.state/sessions/sess-fresh.json": "{\n  \"id\": \"sess-fresh\",\n  \"spec\": \"add-login-page\",\n  \"mode\": \"spec\",\n  \"phase\": \"DISCOVERY\",\n  \"pid\": 4242,\n  \"startedAt\": \"\u003cTIME\u003e\",\n  \"lastActiveAt\": \"\u003cTIME\u003e\",\n  \"tool\": \"kiro\"\n}\n"
+    }
+  },
+  {
+    "args": [
+      "session",
+      "end"
+    ],
+    "exitCode": 0,
+    "stdout": "Session ended: sess-fresh\n",
+    "files": {},
+    "removed": [
+      ".eser/.state/sessions/sess-fresh.json"
+    ]
+  },
+  {
+    "args": [
+      "session",
+      "end",
+      "--id=sess-fresh"
+    ],
+    "exitCode": 1,
+    "stdout": "Session not found: sess-fresh\n",
+    "files": {}
+  },
+  {
+    "args": [
+      "session",
+      "end",
+      "--id=../sess-old"
+    ],
+    "exitCode": 1,
+    "stdout": "Session not found: ../sess-old\n",
+    "files": {}
+  },
+  {
+    "args": [
+      "session",
+      "end",
+      "--id="
+    ],
+    "exitCode": 1,
+    "stdout": "Session not found: \n",
+    "files": {}
+  },
+  {
+    "args": [
+      "session",
+      "end"
+    ],
+    "exitCode": 1,
+    "stdout": "No session specified. Use --id=\u003cid\u003e or set NOSKILLS_SESSION env var.\n",
+    "files": {}
+  },
+  {
+    "args": [
+      "session",
+      "gc"
+    ],
+    "exitCode": 0,
+    "stdout": "Removed 2 stale session(s):\n  sess-bad\n  sess-old\n",
+    "files": {},
+    "removed": [
+      ".eser/.state/sessions/sess-bad.json",
+      ".eser/.state/sessions/sess-old.json"
+    ]
+  },
+  {
+    "args": [
+      "session",
+      "gc"
+    ],
+    "exitCode": 0,
+    "stdout": "No stale sessions to remove.\n",
+    "files": {}
+  },
+  {
+    "args": [
+      "session",
+      "list"
+    ],
+    "exitCode": 0,
+    "stdout": "Sessions\n\n  No active sessions. Start one with: npx eser@latest noskills session start --spec=\u003cname\u003e\n",
+    "files": {}
+  },
+  {
+    "args": [
+      "session",
+      "free"
+    ],
+    "exitCode": 0,
+    "stdout": "Usage: npx eser@latest noskills session \u003cstart | end | list | gc\u003e\n\n  start --spec=\u003cname\u003e   Bind to a spec\n  start --free          Idle mode (no spec, no enforcement)\n  start --auto          Auto-detect spec or idle\n  end [--id=\u003cid\u003e]       End current/specific session\n  list                  Show active sessions\n  gc                    Remove stale sessions\n",
+    "files": {}
+  }
+]

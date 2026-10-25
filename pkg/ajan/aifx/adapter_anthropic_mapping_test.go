@@ -5,27 +5,22 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
-
-	"github.com/anthropics/anthropic-sdk-go"
-	"github.com/anthropics/anthropic-sdk-go/option"
 )
 
 // makeTestAnthropicModel creates a real AnthropicModel with a dummy key pointing at srv.
 func makeTestAnthropicModel(t *testing.T, srv *httptest.Server) *AnthropicModel {
 	t.Helper()
 
-	client := anthropic.NewClient(
-		option.WithAPIKey("test-key"),
-		option.WithBaseURL(srv.URL),
-	)
+	config := &ConfigTarget{ //nolint:exhaustruct
+		APIKey:      "test-key",
+		Model:       "claude-opus-4-5",
+		Temperature: 0.8,
+		BaseURL:     srv.URL,
+	}
 
 	return &AnthropicModel{
-		client: client,
-		config: &ConfigTarget{
-			APIKey:      "test-key",
-			Model:       "claude-opus-4-5",
-			Temperature: 0.8,
-		},
+		transport: newAnthropicTransport(config, Credential{Value: "test-key", Kind: CredentialAPIKey}, srv.Client()),
+		config:    config,
 	}
 }
 
@@ -33,20 +28,20 @@ func TestMapAnthropicStopReason(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		input anthropic.StopReason
+		input string
 		want  StopReason
 	}{
-		{anthropic.StopReasonEndTurn, StopReasonEndTurn},
-		{anthropic.StopReasonMaxTokens, StopReasonMaxTokens},
-		{anthropic.StopReasonModelContextWindowExceeded, StopReasonMaxTokens},
-		{anthropic.StopReasonToolUse, StopReasonToolUse},
-		{anthropic.StopReasonStopSequence, StopReasonStop},
-		{anthropic.StopReasonRefusal, StopReasonRefusal},
+		{anthropicStopEndTurn, StopReasonEndTurn},
+		{anthropicStopMaxTokens, StopReasonMaxTokens},
+		{anthropicStopModelContextWindowExceeded, StopReasonMaxTokens},
+		{anthropicStopToolUse, StopReasonToolUse},
+		{anthropicStopSequence, StopReasonStop},
+		{anthropicStopRefusal, StopReasonRefusal},
 		{"unknown", StopReasonEndTurn},
 	}
 
 	for _, tc := range tests {
-		t.Run(string(tc.input), func(t *testing.T) {
+		t.Run(tc.input, func(t *testing.T) {
 			t.Parallel()
 
 			got := mapAnthropicStopReason(tc.input)
@@ -448,8 +443,8 @@ func TestMapAnthropicToolChoice_Default(t *testing.T) {
 	// An unrecognized ToolChoice should fall back to "auto".
 	result := mapAnthropicToolChoice(ToolChoice("unrecognized"))
 
-	if result.OfAuto == nil {
-		t.Error("expected OfAuto to be set for unrecognized ToolChoice")
+	if result.Type != "auto" {
+		t.Errorf("tool choice type = %q, want auto for an unrecognized ToolChoice", result.Type)
 	}
 }
 
@@ -537,8 +532,8 @@ func TestAnthropicModel_MapToolCallBlock_Nil(t *testing.T) {
 	t.Parallel()
 
 	m := &AnthropicModel{
-		client: anthropic.NewClient(option.WithAPIKey("test")),
-		config: &ConfigTarget{APIKey: "test", Model: "claude-opus-4-5"},
+		transport: nil,
+		config:    &ConfigTarget{APIKey: "test", Model: "claude-opus-4-5"}, //nolint:exhaustruct
 	}
 
 	result, err := m.mapToolCallBlock(nil)
@@ -556,8 +551,8 @@ func TestAnthropicModel_MapSingleContentBlock_AudioType(t *testing.T) {
 
 	// Audio blocks are unsupported and should be silently skipped (return nil, nil).
 	m := &AnthropicModel{
-		client: anthropic.NewClient(option.WithAPIKey("test")),
-		config: &ConfigTarget{APIKey: "test", Model: "claude-opus-4-5"},
+		transport: nil,
+		config:    &ConfigTarget{APIKey: "test", Model: "claude-opus-4-5"}, //nolint:exhaustruct
 	}
 
 	result, err := m.mapSingleContentBlock(&ContentBlock{Type: ContentBlockAudio})
@@ -574,8 +569,8 @@ func TestAnthropicModel_MapToolResultBlock_Nil(t *testing.T) {
 	t.Parallel()
 
 	m := &AnthropicModel{
-		client: anthropic.NewClient(option.WithAPIKey("test")),
-		config: &ConfigTarget{APIKey: "test", Model: "claude-opus-4-5"},
+		transport: nil,
+		config:    &ConfigTarget{APIKey: "test", Model: "claude-opus-4-5"}, //nolint:exhaustruct
 	}
 
 	result, err := m.mapToolResultBlock(nil)

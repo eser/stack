@@ -221,8 +221,10 @@ export type DiscoveryStage = "listen" | "mode" | "premises" | "questions";
  */
 export const discoveryStageOf = (state: schema.StateFile): DiscoveryStage => {
   const discovery = state.discovery;
-  const hasDescription = state.specDescription !== null &&
-    state.specDescription.length > 0;
+  // A state file written before specDescription existed has no such key.
+  const description: unknown = state.specDescription;
+  const hasDescription = typeof description === "string" &&
+    description.length > 0;
 
   // A new spec with a description and no plan: listen first, then the mode.
   if (

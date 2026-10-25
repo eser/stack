@@ -51,10 +51,8 @@ func RunDoctor(cfg *ServerConfig) *DoctorReport {
 	report := &DoctorReport{}
 
 	checks := []func(*ServerConfig) CheckResult{
-		checkWorkerRuntime,
 		checkPortFree(cfg),
 		checkLedgerDir(cfg),
-		checkRuntimeDirPerms(cfg),
 		checkCertValid,
 		checkACPAgent,
 	}
@@ -120,35 +118,6 @@ func PrintDoctorReport(r *DoctorReport, asJSON bool) {
 // =============================================================================
 // Individual checks
 // =============================================================================
-
-// checkWorkerRuntime reports whether the mux worker has a runtime to run under.
-//
-// Only mux sessions need one. Agent sessions are served in-process by the Go
-// ACP worker and spawn nothing at all.
-//
-// The search order mirrors workerRuntime in worker.go -- deno, then bun, then
-// node -- because a check that only looked for one of them would report a
-// broken daemon on a machine where mux runs fine under another.
-func checkWorkerRuntime(_ *ServerConfig) CheckResult {
-	const name = "Worker runtime (mux sessions)"
-
-	for _, runtime := range []string{"deno", "bun", "node"} {
-		if path, err := exec.LookPath(runtime); err == nil {
-			return CheckResult{
-				Name:    name,
-				Status:  CheckOK,
-				Message: path,
-			}
-		}
-	}
-
-	return CheckResult{
-		Name:    name,
-		Status:  CheckWarn,
-		Message: "no deno, bun or node in PATH (only kind=\"mux\" sessions need one)",
-		Fix:     NSErrors.WorkerRuntimeMissing.Fix,
-	}
-}
 
 // checkACPAgent reports whether an agent session could actually run.
 //
@@ -237,49 +206,6 @@ func checkLedgerDir(cfg *ServerConfig) func(*ServerConfig) CheckResult {
 
 		return CheckResult{
 			Name:    "Ledger dir writable",
-			Status:  CheckOK,
-			Message: dir,
-		}
-	}
-}
-
-func checkRuntimeDirPerms(cfg *ServerConfig) func(*ServerConfig) CheckResult {
-	return func(_ *ServerConfig) CheckResult {
-		dir := filepath.Join(cfg.DataDir, "runtime")
-
-		if err := os.MkdirAll(dir, 0o700); err != nil {
-			return CheckResult{
-				Name:    "Runtime dir (0700)",
-				Status:  CheckFail,
-				Message: "cannot create " + dir,
-				Fix:     "check permissions on " + cfg.DataDir,
-			}
-		}
-
-		info, err := os.Stat(dir)
-		if err != nil {
-			return CheckResult{
-				Name:    "Runtime dir (0700)",
-				Status:  CheckWarn,
-				Message: "stat failed",
-			}
-		}
-
-		perms := info.Mode().Perm()
-		if perms != 0o700 {
-			// Try to fix automatically.
-			if chmodErr := os.Chmod(dir, 0o700); chmodErr != nil { //nolint:gosec // 0700 is the required security policy for runtime dir
-				return CheckResult{
-					Name:    "Runtime dir (0700)",
-					Status:  CheckWarn,
-					Message: fmt.Sprintf("%s has %04o (need 0700)", dir, perms),
-					Fix:     "chmod 0700 " + dir,
-				}
-			}
-		}
-
-		return CheckResult{
-			Name:    "Runtime dir (0700)",
 			Status:  CheckOK,
 			Message: dir,
 		}

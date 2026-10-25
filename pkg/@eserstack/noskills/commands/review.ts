@@ -18,6 +18,16 @@ import * as dashboardEvents from "../dashboard/events.ts";
 import * as questions from "../context/questions.ts";
 import * as cmd from "../output/cmd.ts";
 
+/**
+ * The zero-based delegation index of `--question=<n>`, or null unless n is a
+ * whole number (parseInt took "1x" as 1).
+ */
+export const questionIndexOf = (arg: string): number | null => {
+  const value = arg.slice("--question=".length);
+
+  return /^[0-9]+$/.test(value) ? Number(value) - 1 : null;
+};
+
 export const main = async (
   args?: readonly string[],
 ): Promise<shellArgs.CliResult<void>> => {
@@ -117,7 +127,7 @@ export const main = async (
       answerText = arg.slice("--answer=".length);
     }
     if (arg.startsWith("--question=")) {
-      answerIndex = parseInt(arg.slice("--question=".length), 10) - 1;
+      answerIndex = questionIndexOf(arg);
     }
   }
 

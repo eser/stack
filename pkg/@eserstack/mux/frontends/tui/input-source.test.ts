@@ -1,6 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import * as assert from "@std/assert";
+import * as assert from "@eserstack/test-kit/assert";
 import type * as tui from "@eserstack/shell/tui";
 import * as keybindings from "../../keybindings/mod.ts";
 import type { Scene } from "../../scene/scene.ts";

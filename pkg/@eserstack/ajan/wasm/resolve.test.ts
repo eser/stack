@@ -1,6 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import * as assert from "@std/assert";
+import * as assert from "@eserstack/test-kit/assert";
 import { runtime } from "@eserstack/standards/cross-runtime";
 import * as resolve from "./resolve.ts";
 
@@ -56,7 +56,7 @@ Deno.test("resolveWasmPath: ESER_AJAN_WASM_PATH wins when the file exists", asyn
     const resolved = withEnvironment(
       tempRoot,
       override,
-      () => resolve.resolveWasmPath("command", tempRoot),
+      () => resolve.resolveWasmPath(tempRoot),
     );
 
     assert.assertEquals(resolved, override);
@@ -65,7 +65,7 @@ Deno.test("resolveWasmPath: ESER_AJAN_WASM_PATH wins when the file exists", asyn
   }
 });
 
-Deno.test("resolveWasmPath: finds the file for the requested mode next to the module", async () => {
+Deno.test("resolveWasmPath: finds the module next to the loader", async () => {
   const tempRoot = await runtime.fs.makeTempDir({ prefix: "ajan-wasm-" });
 
   try {
@@ -73,18 +73,14 @@ Deno.test("resolveWasmPath: finds the file for the requested mode next to the mo
       `${tempRoot}/eser-ajan.wasm`,
       "not a real module",
     );
-    await runtime.fs.writeTextFile(
-      `${tempRoot}/eser-ajan-reactor.wasm`,
-      "not a real module",
-    );
 
     const resolved = withEnvironment(
       tempRoot,
       undefined,
-      () => resolve.resolveWasmPath("reactor", tempRoot),
+      () => resolve.resolveWasmPath(tempRoot),
     );
 
-    assert.assertEquals(resolved, `${tempRoot}/eser-ajan-reactor.wasm`);
+    assert.assertEquals(resolved, `${tempRoot}/eser-ajan.wasm`);
   } finally {
     await runtime.fs.remove(tempRoot, { recursive: true });
   }
@@ -102,7 +98,7 @@ Deno.test("resolveWasmPath: reports every probed location when nothing matches",
         withEnvironment(
           tempRoot,
           `${tempRoot}/missing.wasm`,
-          () => resolve.resolveWasmPath("command", moduleDir),
+          () => resolve.resolveWasmPath(moduleDir),
         ),
       Error,
     );

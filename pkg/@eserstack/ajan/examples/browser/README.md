@@ -1,14 +1,14 @@
 # eser-ajan WASM Browser Example
 
-Minimal browser demo that loads `eser-ajan.wasm` via a custom WASI shim and
-calls functions using the command-mode JSON protocol (stdin/stdout).
+Minimal browser demo that loads `eser-ajan.wasm`, the wasi-profile reactor,
+through a custom WASI shim and calls its functions on one reused instance.
 
 ## Prerequisites
 
-Build the WASM binary from the package root:
+Build the WASM binary from the repository root:
 
 ```bash
-deno run --allow-all scripts/build.ts --wasm
+make ajan-wasm
 ```
 
 ## Setup
@@ -16,7 +16,7 @@ deno run --allow-all scripts/build.ts --wasm
 Copy the compiled WASM file into this directory:
 
 ```bash
-cp dist/wasm/eser-ajan.wasm pkg/@eserstack/ajan/examples/browser/
+cp pkg/@eserstack/ajan/dist/wasi/eser-ajan.wasm pkg/@eserstack/ajan/examples/browser/
 ```
 
 ## Run
@@ -40,12 +40,12 @@ Open [http://localhost:8080](http://localhost:8080) in your browser.
 
 1. The page fetches `eser-ajan.wasm` via the Fetch API and compiles it with
    `WebAssembly.compile()`.
-2. Each function call creates a fresh WASI shim instance with the JSON request
-   pre-loaded as stdin bytes.
-3. A new `WebAssembly.Instance` is created and `_start` is called, which reads
-   stdin, processes the request, and writes the JSON response to stdout.
-4. The shim captures stdout and the page parses the JSON result.
+2. It creates one instance with the WASI shim and calls `_initialize`.
+3. Each call writes the function name and its length-prefixed arguments into the
+   module's input arena (`eser_ajan_alloc`), runs `eser_ajan_call` and parses
+   the JSON envelope at `eser_ajan_result_ptr()`.
 
-This is the same protocol used by the Deno/Node loader at
-`wasm/loader-command.ts`, but with the WASI shim inlined as plain JavaScript for
-zero-dependency browser use.
+This is the protocol of the Deno and Node loader in `wasm/loader-reactor.ts`,
+with the WASI shim inlined as plain JavaScript for zero-dependency browser use.
+The shim has no filesystem, so the functions that read files answer the WASI
+error here.

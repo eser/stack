@@ -11,6 +11,7 @@ import * as persistence from "./persistence.ts";
 import * as compiler from "../context/compiler.ts";
 import * as questions from "../context/questions.ts";
 import * as livingSpec from "../spec/living.ts";
+import * as cmd from "../output/cmd.ts";
 
 // =============================================================================
 // Transition Map
@@ -320,6 +321,18 @@ export const autoClassifyIfMissing = (
   return { ...state, classification: compiler.inferClassification(state) };
 };
 
+/**
+ * The sentence that names the commands which record a section the user
+ * resolved: `spec <name> section <id> fill` and `na`, and `section list`
+ * for the ids.
+ */
+export const sectionCommandsHint = (specName: string): string =>
+  `Record each answer with \`${
+    cmd.cmd(`spec ${specName} section <id> fill "text"`)
+  }\`, or mark a section that does not apply with \`${
+    cmd.cmd(`spec ${specName} section <id> na "reason"`)
+  }\`; \`${cmd.cmd(`spec ${specName} section list`)}\` shows the ids.`;
+
 export const approveDiscoveryReview = (
   state: schema.StateFile,
 ): schema.StateFile => {
@@ -328,7 +341,7 @@ export const approveDiscoveryReview = (
   const report = livingSpec.checkSpecCompleteness(state.specState);
   if (!report.canAdvance) {
     const sections = report.unresolvedSections
-      .map((s) => `  - ${s.sectionTitle}`)
+      .map((s) => `  - ${s.sectionTitle} (${s.sectionId})`)
       .join("\n");
     const decisions = report.pendingDecisions
       .map((d) =>
@@ -347,7 +360,10 @@ export const approveDiscoveryReview = (
           : "") +
         // The machine does not know which tool runs the agent, so this names
         // no tool-specific way of asking.
-        "\n\nAsk the user to resolve every item. Do not guess, infer, or fill in yourself.",
+        "\n\nAsk the user to resolve every item. Do not guess, infer, or fill in yourself." +
+        (report.unresolvedSections.length > 0
+          ? `\n${sectionCommandsHint(state.spec ?? "<name>")}`
+          : ""),
     );
   }
 
@@ -433,6 +449,19 @@ export const startExecution = (
   };
 };
 
+/**
+ * Counts one execution iteration and stores its progress note.
+ *
+ * The CLI does not call this: the Stop hook and `noskills run` count each
+ * turn with `iteration.recordIteration`, and `next` stores progress without
+ * counting. A library caller that drives turns itself uses this instead of
+ * recordIteration, never both for one turn, or the turn counts twice.
+ *
+ * @param state - A state in EXECUTING
+ * @param progress - What the iteration did
+ * @returns The state with the next iteration number and the note
+ * @throws {Error} Outside EXECUTING
+ */
 export const advanceExecution = (
   state: schema.StateFile,
   progress: string,
@@ -1024,20 +1053,29 @@ export const getPendingDelegations = (
   );
 };
 
+/** The phases reset leaves; planning phases end with cancel or wontfix. */
+const RESETTABLE_PHASES: ReadonlySet<schema.Phase> = new Set([
+  "IDLE",
+  "EXECUTING",
+  "BLOCKED",
+  "COMPLETED",
+]);
+
+/**
+ * Why reset refuses a phase, or null when it resets. Only execution and the
+ * terminal phases reset (Jidoka: a planning phase is not escaped by reset).
+ */
+export const resetRefusal = (phase: schema.Phase): string | null =>
+  RESETTABLE_PHASES.has(phase)
+    ? null
+    : `Cannot reset from ${phase}. Use \`cancel\` or \`wontfix\` instead.`;
+
 export const resetToIdle = (
   state: schema.StateFile,
 ): schema.StateFile => {
-  // Only allow reset from terminal phases (Jidoka: prevent escaping active phases)
-  const allowed = new Set([
-    "IDLE",
-    "EXECUTING",
-    "BLOCKED",
-    "COMPLETED",
-  ]);
-  if (!allowed.has(state.phase)) {
-    throw new Error(
-      `Cannot reset from ${state.phase}. Use \`cancel\` or \`wontfix\` instead.`,
-    );
+  const refusal = resetRefusal(state.phase);
+  if (refusal !== null) {
+    throw new Error(refusal);
   }
 
   return {

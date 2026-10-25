@@ -99,7 +99,13 @@ export const syncHooks = async (
   let existingSettings: Record<string, unknown> = {};
   try {
     const content = await runtime.fs.readTextFile(settingsPath);
-    existingSettings = JSON.parse(content) as Record<string, unknown>;
+    const parsed: unknown = JSON.parse(content);
+    // A file holding null, an array or a scalar counts as no settings.
+    if (
+      parsed !== null && typeof parsed === "object" && !Array.isArray(parsed)
+    ) {
+      existingSettings = parsed as Record<string, unknown>;
+    }
   } catch {
     // File doesn't exist yet
   }

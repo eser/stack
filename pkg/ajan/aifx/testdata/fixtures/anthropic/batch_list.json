@@ -1,0 +1,80 @@
+{
+  "provider": "anthropic",
+  "scenario": "batch_list",
+  "exchanges": [
+    {
+      "request": {
+        "query": {
+          "after_id": [
+            "batch_000"
+          ],
+          "limit": [
+            "2"
+          ]
+        },
+        "headers": {
+          "accept": "application/json",
+          "accept-encoding": "gzip",
+          "anthropic-version": "2023-06-01",
+          "user-agent": "Anthropic/Go 1.73.0",
+          "x-api-key": "test-anthropic-key",
+          "x-stainless-arch": "arm64",
+          "x-stainless-lang": "go",
+          "x-stainless-os": "MacOS",
+          "x-stainless-package-version": "1.73.0",
+          "x-stainless-retry-count": "0",
+          "x-stainless-runtime": "go",
+          "x-stainless-runtime-version": "go1.26.6",
+          "x-stainless-timeout": "10"
+        },
+        "method": "GET",
+        "path": "/v1/messages/batches"
+      },
+      "response": {
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{\"data\":[{\"id\":\"batch_a\",\"type\":\"message_batch\",\"processing_status\":\"canceling\",\"request_counts\":{\"processing\":1,\"succeeded\":3,\"errored\":1,\"canceled\":0,\"expired\":1},\"created_at\":\"2026-10-24T10:00:00Z\",\"expires_at\":\"2026-10-25T10:00:00Z\",\"cancel_initiated_at\":null,\"archived_at\":null,\"ended_at\":null,\"results_url\":null},{\"id\":\"batch_b\",\"type\":\"message_batch\",\"processing_status\":\"in_progress\",\"request_counts\":{\"processing\":1,\"succeeded\":3,\"errored\":1,\"canceled\":0,\"expired\":1},\"created_at\":\"2026-10-24T10:00:00Z\",\"expires_at\":\"2026-10-25T10:00:00Z\",\"cancel_initiated_at\":null,\"archived_at\":null,\"ended_at\":null,\"results_url\":null}],\"has_more\":true,\"first_id\":\"batch_a\",\"last_id\":\"batch_b\"}",
+        "status": 200
+      }
+    }
+  ],
+  "outcome": {
+    "jobs": [
+      {
+        "createdAt": "2026-10-24T10:00:00Z",
+        "doneCount": 3,
+        "error": "",
+        "failedCount": 1,
+        "id": "batch_a",
+        "status": "processing",
+        "storage": {
+          "Type": "anthropic_batch",
+          "InputRef": "",
+          "OutputRef": "",
+          "Properties": {
+            "batch_id": "batch_a"
+          }
+        },
+        "totalCount": 6
+      },
+      {
+        "createdAt": "2026-10-24T10:00:00Z",
+        "doneCount": 3,
+        "error": "",
+        "failedCount": 1,
+        "id": "batch_b",
+        "status": "processing",
+        "storage": {
+          "Type": "anthropic_batch",
+          "InputRef": "",
+          "OutputRef": "",
+          "Properties": {
+            "batch_id": "batch_b"
+          }
+        },
+        "totalCount": 6
+      }
+    ]
+  }
+}

@@ -80,9 +80,15 @@ export const loadScopedRules = async (
         entry.isFile &&
         (entry.name.endsWith(".md") || entry.name.endsWith(".txt"))
       ) {
-        const content = await crossRuntime.runtime.fs.readTextFile(
-          `${rulesDir}/${entry.name}`,
-        );
+        let content: string;
+        try {
+          content = await crossRuntime.runtime.fs.readTextFile(
+            `${rulesDir}/${entry.name}`,
+          );
+        } catch {
+          // One unreadable file is skipped; the rest of the rules still load.
+          continue;
+        }
         const { meta, body } = parseFrontmatter(content);
         const firstLine = body.split("\n")[0] ?? body;
 

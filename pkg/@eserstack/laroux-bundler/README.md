@@ -1,5 +1,9 @@
 # 🏗️ [@eserstack/laroux-bundler](./)
 
+> **Note:** JSR is frozen at 4.5.x. From 5.0.0, `@eserstack/laroux-bundler` is
+> published on npm under the same name (`pnpm add @eserstack/laroux-bundler`);
+> the JSR versions stay available but get no updates.
+
 > **eserstack Product-Candidate** — build pipeline for laroux ·
 > [eser/stack](https://github.com/eser/stack) **Install:**
 > `pnpm add jsr:@eserstack/laroux-bundler`
@@ -30,7 +34,7 @@ This package provides the build system for laroux.js:
 - Import rewriting: bare specifiers resolved through the project's `deno.json`
   and `package.json` import maps, with browser shims for server-only packages
 - Font self-hosting for Google Fonts and image optimization with sharp
-- Two bundler backends, `deno-bundler` (Deno's native bundler) and `rolldown`
+- Client and server bundles on Rolldown
 - Runtime bundler that bundles in memory during development, and prebuilt
   bundler that serves the output of a build
 
@@ -264,19 +268,18 @@ handle, and an image optimizer returns `null` when it optimizes nothing.
 | `browserShims`             | `ResolvedBrowserShimsConfig` | Browser replacements for server-only packages and Node.js built-ins |
 | `serverExternals`          | `string[]`                   | Packages left out of the server bundle and loaded at run time       |
 
-The second argument picks the plugins, the adapters and the backend of the
-server bundle, `"deno-bundler"` (the default) or `"rolldown"`. The client bundle
-always uses rolldown: `browserShims` and the import map resolution are bundler
-plugins, and Deno's native bundler runs none, so it would put server-only
-packages such as the native `@eserstack/logging` into the browser bundle.
+The second argument picks the plugins and the adapters. Both bundles use
+Rolldown (`bundlerBackend` accepts only `"rolldown"`); `browserShims` and the
+import map resolution run as Rolldown plugins on the client bundle, so
+server-only packages such as the native `@eserstack/logging` stay out of the
+browser.
 
 ## Build Modes
 
-`eser laroux dev` builds the server bundle with the `deno-bundler` backend, then
-watches `src/` and sends HMR updates after each rebuild that succeeds.
-`eser laroux build` builds it with the `rolldown` backend. In both, `build()`
-bundles the client with rolldown and `PRODUCTION_SETTINGS`: minified, split into
-chunks, without source maps.
+`eser laroux dev` builds with Rolldown, then watches `src/` and sends HMR
+updates after each rebuild that succeeds. `eser laroux build` builds once. In
+both, `build()` bundles the client with `PRODUCTION_SETTINGS`: minified, split
+into chunks, without source maps.
 
 ```bash
 npx eser laroux dev    # build, watch, HMR
@@ -391,8 +394,8 @@ lists the changes in every package.
   `dist/client/manifest.json` instead of `dist/manifest.json`.
 - `createClientEntry` copies the laroux-react bootstrap to
   `<distDir>/_laroux-react/` with its package layout, and `_client-entry.tsx`
-  imports `./_laroux-react/client/bootstrap/entry.tsx`. Code that read
-  `<distDir>/entry.tsx` reads the new path.
+  imports `./_laroux-react/client/bootstrap/entry.ts`. Code that read
+  `<distDir>/entry.ts` reads the new path.
 - `BuildResult` has a required `buildId: string`. Code that builds a
   `BuildResult` itself, such as a test fake, sets it; `build()` and
   `ensureBuildIsReady()` fill it in.

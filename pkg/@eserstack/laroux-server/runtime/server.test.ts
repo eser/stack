@@ -1,11 +1,13 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import * as assert from "@std/assert";
+import * as assert from "@eserstack/test-kit/assert";
 import * as React from "react";
 import { runtime } from "@eserstack/standards/cross-runtime";
 import * as config from "@eserstack/laroux/config";
 import type * as larouxRouter from "@eserstack/laroux/router";
 import * as larouxClient from "@eserstack/laroux-react/client";
+import * as hmrManager from "../domain/hmr-manager.ts";
+import * as middlewareDispatcher from "../domain/middleware-dispatcher.ts";
 import * as server from "./server.ts";
 import type { ServerDependencies } from "./server.ts";
 
@@ -48,19 +50,48 @@ const makeDeps = (
 // Server actions
 // ============================================================================
 
+/**
+ * The source of an export of dist/server/actions.js that the build marked as
+ * a server action, as the server action transform does.
+ */
+const serverAction = (name: string, body: string): string =>
+  `export const ${name} = ${body};
+Object.defineProperties(${name}, {
+  $$typeof: { value: Symbol.for("react.server.reference") },
+  $$id: { value: "actions#${name}" },
+});
+`;
+
+/**
+ * Write dist/server/actions.js with `source` and an actions manifest that
+ * lists it, unless `listed` is false.
+ */
+const writeActions = async (
+  root: string,
+  source: string,
+  listed = true,
+): Promise<void> => {
+  const serverDir = runtime.path.join(root, "dist", "server");
+  await runtime.fs.ensureDir(serverDir);
+  await runtime.fs.writeTextFile(
+    runtime.path.join(serverDir, "actions.js"),
+    source,
+  );
+  await runtime.fs.writeTextFile(
+    runtime.path.join(serverDir, "actions-manifest.json"),
+    JSON.stringify({ actions: listed ? ["actions.js"] : [] }),
+  );
+};
+
 /** Run a test with server actions written to dist/server/actions.js. */
 const withActions = async (
   source: string,
   run: (handler: ReturnType<typeof server.createHandler>) => Promise<void>,
+  listed = true,
 ): Promise<void> => {
   const root = await runtime.fs.makeTempDir({ prefix: "laroux-actions-" });
   try {
-    const serverDir = runtime.path.join(root, "dist", "server");
-    await runtime.fs.ensureDir(serverDir);
-    await runtime.fs.writeTextFile(
-      runtime.path.join(serverDir, "actions.js"),
-      source,
-    );
+    await writeActions(root, source, listed);
     await run(server.createHandler(makeDeps(root)));
   } finally {
     await runtime.fs.remove(root, { recursive: true });
@@ -70,23 +101,31 @@ const withActions = async (
 const postAction = (
   handler: ReturnType<typeof server.createHandler>,
   actionId: string,
-  body: string,
+  body: BodyInit,
+  headers: Record<string, string> = {},
 ): Promise<Response> =>
   handler(
     new Request("http://localhost/_rsc", {
       method: "POST",
-      headers: { "RSC-Action": actionId, "Content-Type": "application/json" },
+      headers: {
+        "RSC-Action": actionId,
+        "Content-Type": "application/json",
+        ...headers,
+      },
       body,
     }),
   );
 
 Deno.test("POST /_rsc sends an action's Date and Map result as RSC", async () => {
   await withActions(
-    `export const stats = (label) => ({
-      label,
-      savedAt: new Date("2026-01-02T03:04:05.000Z"),
-      counts: new Map([["views", 3]]),
-    });\n`,
+    serverAction(
+      "stats",
+      `(label) => ({
+        label,
+        savedAt: new Date("2026-01-02T03:04:05.000Z"),
+        counts: new Map([["views", 3]]),
+      })`,
+    ),
     async (handler) => {
       const response = await postAction(handler, "actions#stats", '["$5"]');
 
@@ -110,7 +149,7 @@ Deno.test("POST /_rsc sends an action's Date and Map result as RSC", async () =>
 
 Deno.test("POST /_rsc answers 400 when the arguments are not a JSON array", async () => {
   await withActions(
-    "export const echo = (value) => value;\n",
+    serverAction("echo", "(value) => value"),
     async (handler) => {
       for (const body of ['{"value":1}', "not json"]) {
         // Sequential: each case reads its own response before the next.
@@ -125,6 +164,99 @@ Deno.test("POST /_rsc answers 400 when the arguments are not a JSON array", asyn
   );
 });
 
+Deno.test("POST /_rsc refuses an export that is not a server action, and does not run it", async () => {
+  const root = await runtime.fs.makeTempDir({ prefix: "laroux-actions-" });
+  try {
+    const markerPath = runtime.path.join(root, "ran");
+    await writeActions(
+      root,
+      serverAction("echo", "(value) => value") +
+        `export const helper = () => Deno.writeTextFileSync(${
+          JSON.stringify(markerPath)
+        }, "ran");\n`,
+    );
+    const handler = server.createHandler(makeDeps(root));
+
+    const response = await postAction(handler, "actions#helper", "[]");
+
+    assert.assertEquals(response.status, 404);
+    await response.body?.cancel();
+    assert.assertFalse(await runtime.fs.exists(markerPath));
+  } finally {
+    await runtime.fs.remove(root, { recursive: true });
+  }
+});
+
+Deno.test("POST /_rsc refuses a module the actions manifest does not list", async () => {
+  await withActions(
+    serverAction("echo", "(value) => value"),
+    async (handler) => {
+      const response = await postAction(handler, "actions#echo", "[1]");
+
+      assert.assertEquals(response.status, 404);
+      await response.body?.cancel();
+    },
+    false,
+  );
+});
+
+Deno.test("POST /_rsc refuses a body over the limit with 413", async () => {
+  await withActions(
+    serverAction("echo", "(value) => value"),
+    async (handler) => {
+      const oversized = `["${"a".repeat(1_048_576)}"]`;
+
+      const declared = await postAction(handler, "actions#echo", oversized);
+      assert.assertEquals(declared.status, 413);
+      await declared.body?.cancel();
+
+      // Without Content-Length the bytes read are counted.
+      const bytes = new TextEncoder().encode(oversized);
+      const chunked = await postAction(
+        handler,
+        "actions#echo",
+        new ReadableStream({
+          start(controller) {
+            controller.enqueue(bytes);
+            controller.close();
+          },
+        }),
+      );
+      assert.assertEquals(chunked.status, 413);
+      await chunked.body?.cancel();
+    },
+  );
+});
+
+Deno.test("POST /_rsc refuses cross-site requests and accepts same-origin ones", async () => {
+  await withActions(
+    serverAction("echo", "(value) => value"),
+    async (handler) => {
+      const cases: Array<[Record<string, string>, number]> = [
+        [{ "Sec-Fetch-Site": "cross-site" }, 403],
+        [{ "Sec-Fetch-Site": "same-site" }, 403],
+        [{ "Origin": "https://evil.example" }, 403],
+        [{ "Sec-Fetch-Site": "same-origin" }, 200],
+        [{ "Origin": "http://localhost" }, 200],
+      ];
+
+      for (const [headers, status] of cases) {
+        // Sequential: each case reads its own response before the next.
+        // deno-lint-ignore no-await-in-loop
+        const response = await postAction(
+          handler,
+          "actions#echo",
+          "[1]",
+          headers,
+        );
+        assert.assertEquals(response.status, status, JSON.stringify(headers));
+        // deno-lint-ignore no-await-in-loop
+        await response.body?.cancel();
+      }
+    },
+  );
+});
+
 /** The value an action response carries. */
 const readActionResult = async (response: Response): Promise<unknown> => {
   assert.assertExists(response.body);
@@ -134,11 +266,9 @@ const readActionResult = async (response: Response): Promise<unknown> => {
 Deno.test("POST /_rsc runs the action of the build being served, also after a rebuild", async () => {
   const root = await runtime.fs.makeTempDir({ prefix: "laroux-actions-" });
   try {
-    const actionsPath = runtime.path.join(root, "dist", "server", "actions.js");
-    await runtime.fs.ensureDir(runtime.path.dirname(actionsPath));
-    await runtime.fs.writeTextFile(
-      actionsPath,
-      'export const version = () => "action of build 1";\n',
+    await writeActions(
+      root,
+      serverAction("version", '() => "action of build 1"'),
     );
     let servedBuildId = "build-1";
     const handler = server.createHandler({
@@ -148,9 +278,9 @@ Deno.test("POST /_rsc runs the action of the build being served, also after a re
 
     const first = await postAction(handler, "actions#version", "[]");
     // A dev rebuild rewrites the action module and serves a new build id
-    await runtime.fs.writeTextFile(
-      actionsPath,
-      'export const version = () => "action of build 2";\n',
+    await writeActions(
+      root,
+      serverAction("version", '() => "action of build 2"'),
     );
     servedBuildId = "build-2";
     const second = await postAction(handler, "actions#version", "[]");
@@ -252,6 +382,202 @@ Deno.test("/rsc renders concurrent requests with their own cookies", async () =>
     assert.assertStringIncludes(bob, "bob.test");
     assert.assertEquals(bob.includes("alice"), false);
   } finally {
+    await runtime.fs.remove(root, { recursive: true });
+  }
+});
+
+// ============================================================================
+// Proxies
+// ============================================================================
+
+/**
+ * Write a proxy registry with a root proxy that counts the requests it sees
+ * in `globalThis.rootProxyRuns`, and an /admin proxy that answers 403, then
+ * load it into a dispatcher.
+ */
+const loadProxyFixture = async (
+  root: string,
+): Promise<middlewareDispatcher.MiddlewareDispatcher> => {
+  const serverDir = runtime.path.join(root, "dist", "server");
+  await runtime.fs.ensureDir(runtime.path.join(serverDir, "proxies"));
+  await runtime.fs.writeTextFile(
+    runtime.path.join(serverDir, "proxy-registry.ts"),
+    `export const proxyRegistry = [
+  { pathPrefix: "/", modulePath: "./proxies/root.ts" },
+  { pathPrefix: "/admin", modulePath: "./proxies/admin.ts" },
+];
+`,
+  );
+  await runtime.fs.writeTextFile(
+    runtime.path.join(serverDir, "proxies", "root.ts"),
+    `export default ({ pathname }) => {
+  globalThis.rootProxyRuns = [...(globalThis.rootProxyRuns ?? []), pathname];
+  return { type: "next" };
+};
+`,
+  );
+  await runtime.fs.writeTextFile(
+    runtime.path.join(serverDir, "proxies", "admin.ts"),
+    `export default () => ({
+  type: "response",
+  response: new Response("forbidden", { status: 403 }),
+});
+`,
+  );
+  const dispatcher = new middlewareDispatcher.MiddlewareDispatcher();
+  await dispatcher.loadProxies(runtime.path.join(root, "dist"), "server-test");
+  return dispatcher;
+};
+
+const rootProxyRuns = (): string[] =>
+  (globalThis as { rootProxyRuns?: string[] }).rootProxyRuns ?? [];
+
+Deno.test("GET /rsc runs the proxy chain of the requested page", async () => {
+  const root = await runtime.fs.makeTempDir({ prefix: "laroux-proxy-" });
+  try {
+    const Layout = (props: larouxRouter.LayoutProps<React.ReactNode>) =>
+      React.createElement("main", null, props.children);
+    const Page = () => React.createElement("p", null, "page content");
+    const handler = server.createHandler({
+      ...makeDeps(root, () => Promise.resolve({ Layout, Page, params: {} })),
+      middlewareDispatcher: await loadProxyFixture(root),
+    });
+
+    const cases: Array<[string, number]> = [
+      ["/admin", 403],
+      ["/admin/users", 403],
+      ["/x/../admin", 403],
+      ["/about", 200],
+    ];
+    for (const [page, status] of cases) {
+      // Sequential: each case reads its own response before the next.
+      // deno-lint-ignore no-await-in-loop
+      const response = await handler(
+        new Request(
+          `http://localhost/rsc?pathname=${encodeURIComponent(page)}`,
+        ),
+      );
+      assert.assertEquals(response.status, status, page);
+      // deno-lint-ignore no-await-in-loop
+      const text = await response.text();
+      if (status === 200) {
+        assert.assertStringIncludes(text, "page content");
+      } else {
+        assert.assertFalse(text.includes("page content"));
+      }
+    }
+  } finally {
+    await runtime.fs.remove(root, { recursive: true });
+  }
+});
+
+Deno.test("POST /_rsc runs the root proxy chain", async () => {
+  const root = await runtime.fs.makeTempDir({ prefix: "laroux-proxy-" });
+  try {
+    await writeActions(root, serverAction("echo", "(value) => value"));
+    const handler = server.createHandler({
+      ...makeDeps(root),
+      middlewareDispatcher: await loadProxyFixture(root),
+    });
+    const before = rootProxyRuns().filter((path) => path === "/_rsc").length;
+
+    const response = await postAction(handler, "actions#echo", "[1]");
+
+    assert.assertEquals(response.status, 200);
+    await response.body?.cancel();
+    assert.assertEquals(
+      rootProxyRuns().filter((path) => path === "/_rsc").length,
+      before + 1,
+    );
+  } finally {
+    await runtime.fs.remove(root, { recursive: true });
+  }
+});
+
+// ============================================================================
+// Rate limiting
+// ============================================================================
+
+Deno.test("two peers with different remote addresses get separate rate-limit buckets", async () => {
+  const root = await runtime.fs.makeTempDir({ prefix: "laroux-rate-" });
+  try {
+    const handler = server.createHandler({
+      ...makeDeps(root),
+      rateLimitConfig: { maxRequests: 1, windowMs: 60_000 },
+    });
+    const from = (hostname: string) => ({
+      remoteAddr: { hostname, port: 40_000 },
+    });
+    const get = async (hostname: string): Promise<number> => {
+      const response = await handler(
+        new Request("http://localhost/missing"),
+        from(hostname),
+      );
+      await response.body?.cancel();
+      return response.status;
+    };
+
+    const first = await get("203.0.113.1");
+    const second = await get("203.0.113.1");
+    const otherPeer = await get("203.0.113.2");
+
+    assert.assertNotEquals(first, 429);
+    assert.assertEquals(second, 429);
+    assert.assertNotEquals(otherPeer, 429);
+  } finally {
+    await runtime.fs.remove(root, { recursive: true });
+  }
+});
+
+// ============================================================================
+// Listening and HMR
+// ============================================================================
+
+Deno.test("startHTTPServer binds the configured host and serves the HMR WebSocket", async () => {
+  const root = await runtime.fs.makeTempDir({ prefix: "laroux-listen-" });
+  const stop = new AbortController();
+  try {
+    const hmr = new hmrManager.HMRManager();
+    const deps = makeDeps(root);
+    const listening = await server.startHTTPServer({
+      ...deps,
+      config: {
+        ...deps.config,
+        server: { ...deps.config.server, host: "127.0.0.1", port: 0 },
+      } as ServerDependencies["config"],
+      hmrManager: hmr,
+    }, { signal: stop.signal });
+
+    assert.assertEquals(listening.hostname, "127.0.0.1");
+
+    const socket = new WebSocket(`ws://127.0.0.1:${listening.port}/hmr`);
+    const messages: string[] = [];
+    const received = Promise.withResolvers<void>();
+    socket.addEventListener("message", (event) => {
+      messages.push(String(event.data));
+      if (messages.some((m) => m.includes('"update"'))) {
+        received.resolve();
+      }
+    });
+    await new Promise<void>((resolve, reject) => {
+      socket.addEventListener("open", () => resolve(), { once: true });
+      socket.addEventListener("error", () => reject(new Error("no open")), {
+        once: true,
+      });
+    });
+
+    // The server registers the client before it answers the handshake.
+    hmr.notifyUpdate(1);
+    await received.promise;
+
+    const closed = new Promise((resolve) =>
+      socket.addEventListener("close", resolve, { once: true })
+    );
+    socket.close();
+    await closed;
+    assert.assert(messages.some((m) => m.includes('"update"')));
+  } finally {
+    stop.abort();
     await runtime.fs.remove(root, { recursive: true });
   }
 });

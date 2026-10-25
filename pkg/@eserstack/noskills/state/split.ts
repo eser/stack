@@ -51,8 +51,11 @@ export const buildChildSpecState = (child: ChildSpec): schema.StateFile => {
  * user what to change.
  */
 export class SplitRefusedError extends Error {
-  constructor(message: string, readonly names: readonly string[]) {
+  readonly names: readonly string[];
+
+  constructor(message: string, names: readonly string[]) {
     super(message);
+    this.names = names;
     this.name = "SplitRefusedError";
   }
 }

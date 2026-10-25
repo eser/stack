@@ -457,11 +457,23 @@ export const toMeasurementDraft = (
 // Persistence (the only IO surface) — every path is fault-isolated
 // =============================================================================
 
+/**
+ * Whether `spec` names one folder under the ledger directory. The name comes
+ * from the CLI, so a name with a path separator or a dot segment would reach
+ * files outside it.
+ */
+const isLedgerSpecName = (spec: string): boolean =>
+  spec !== "" && spec !== "." && spec !== ".." && !/[/\\\0]/.test(spec);
+
 /** Read the per-spec ledger; missing/corrupt lines yield an empty/partial set. */
 export const readLedger = async (
   root: string,
   spec: string,
 ): Promise<readonly LedgerRecord[]> => {
+  if (!isLedgerSpecName(spec)) {
+    return [];
+  }
+
   const file = `${root}/${persistence.paths.ledgerFile(spec)}`;
 
   let content: string;
@@ -490,6 +502,10 @@ export const readSummary = async (
   root: string,
   spec: string,
 ): Promise<LedgerSummary | null> => {
+  if (!isLedgerSpecName(spec)) {
+    return null;
+  }
+
   const file = `${root}/${persistence.paths.ledgerSummaryFile(spec)}`;
 
   try {
@@ -514,7 +530,8 @@ export const captureTransition = async (
 ): Promise<void> => {
   try {
     const spec = next.spec ?? prev.spec;
-    if (spec === null || spec.length === 0) return; // no spec to attribute to
+    // No spec to attribute to, or one that would leave the ledger folder.
+    if (spec === null || !isLedgerSpecName(spec)) return;
 
     // Resolve the manifest best-effort — only needed for posture-default detection.
     let resolvedManifest = manifest ?? null;

@@ -80,16 +80,19 @@ export const tabBar = (
     const label = t.specName !== null
       ? `${escape.escHtml(t.specName)}${phase}`
       : "IDLE";
+    // Two sibling buttons per tab, so each is reachable by keyboard: a
+    // button inside a button is invalid HTML and cannot take focus.
     // data-index drives the client's gotoTab so SSR tabs are switchable before
-    // the /mux socket re-renders the bar (the client keys off data-index).
-    return `<button class="tab${active}" data-tab="${
+    // the /mux socket re-renders the bar (mux-render.js renders the same
+    // markup).
+    return `<div class="tab${active}" data-tab="${
       escape.escHtml(t.id)
-    }" data-index="${i}">${label}<span class="tab-close" data-close="${
+    }"><button type="button" class="tab-select" data-index="${i}">${label}</button><button type="button" class="tab-close" data-close="${
       escape.escHtml(t.id)
-    }">&times;</span></button>`;
+    }" aria-label="Close ${label}">&times;</button></div>`;
   }).join("");
 
-  return `<div class="tab-bar">${items}<button class="tab-add" id="add-tab">+</button></div>`;
+  return `<div class="tab-bar">${items}<button type="button" class="tab-add" id="add-tab" aria-label="New tab">+</button></div>`;
 };
 
 // =============================================================================

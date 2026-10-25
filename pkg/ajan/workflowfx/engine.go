@@ -292,7 +292,7 @@ func RunWorkflow(
 			opts.OnStepEnd(step.Name, stepResult)
 		}
 
-		if len(toolResult.Mutations) > 0 && opts != nil && opts.OnMutations != nil {
+		if len(toolResult.Mutations) > 0 && opts != nil && opts.OnMutations != nil && !opts.DryRun {
 			if err := opts.OnMutations(toolResult.Mutations); err != nil {
 				return nil, newWorkflowError("mutation handler failed", err)
 			}
@@ -319,6 +319,7 @@ func buildStepOptions(step *StepConfig, opts *RunOptions) map[string]any {
 
 	root := "."
 	fix := false
+	dryRun := false
 	args := []string{}
 
 	if opts != nil {
@@ -327,6 +328,7 @@ func buildStepOptions(step *StepConfig, opts *RunOptions) map[string]any {
 		}
 
 		fix = opts.Fix
+		dryRun = opts.DryRun
 		args = opts.Args
 
 		if opts.ChangedFiles != nil {
@@ -336,6 +338,7 @@ func buildStepOptions(step *StepConfig, opts *RunOptions) map[string]any {
 
 	merged["root"] = root
 	merged["fix"] = fix
+	merged["dryRun"] = dryRun
 	merged["_args"] = args
 
 	return merged

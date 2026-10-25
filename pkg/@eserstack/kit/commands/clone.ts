@@ -167,7 +167,7 @@ export const main = async (
     out.writeln();
     out.writeln("Specifier formats:");
     out.writeln(
-      "  owner/repo                     GitHub repo (default branch)",
+      "  owner/repo                     GitHub repo (ref main)",
     );
     out.writeln(
       "  owner/repo#ref                 GitHub repo at specific tag/branch",

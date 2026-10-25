@@ -6,7 +6,7 @@
  * so the server runs in a probe process and the test reads its stderr.
  */
 
-import * as assert from "@std/assert";
+import * as assert from "@eserstack/test-kit/assert";
 import { runtime } from "@eserstack/standards/cross-runtime";
 
 /** How long the probe may run before the test gives up on it. */

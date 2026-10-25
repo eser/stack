@@ -13,9 +13,18 @@ importers:
 
   .:
     devDependencies:
+      '@eserstack/test-kit':
+        specifier: workspace:*
+        version: link:pkg/@eserstack/test-kit
       '@types/node':
         specifier: ^26.6.1
         version: 26.6.1
+      mitata:
+        specifier: 1.0.34
+        version: 1.0.34
+      oxc-parser:
+        specifier: 0.155.0
+        version: 0.155.0
 
   pkg/@eserstack/agents:
     dependencies:
@@ -29,12 +38,9 @@ importers:
         specifier: workspace:*
         version: link:../standards
     devDependencies:
-      '@std/assert':
-        specifier: npm:@jsr/std__assert@^1.0.19
-        version: '@jsr/std__assert@1.0.19'
-      '@std/testing':
-        specifier: npm:@jsr/std__testing@^1.0.20
-        version: '@jsr/std__testing@1.0.20'
+      '@eserstack/test-kit':
+        specifier: workspace:*
+        version: link:../test-kit
 
   pkg/@eserstack/ai:
     dependencies:
@@ -69,9 +75,9 @@ importers:
         specifier: ^7.17.0
         version: 7.17.0(ws@8.21.3)(zod@4.4.3)
     devDependencies:
-      '@std/assert':
-        specifier: npm:@jsr/std__assert@^1.0.19
-        version: '@jsr/std__assert@1.0.19'
+      '@eserstack/test-kit':
+        specifier: workspace:*
+        version: link:../test-kit
       '@std/testing':
         specifier: npm:@jsr/std__testing@^1.0.20
         version: '@jsr/std__testing@1.0.20'
@@ -85,9 +91,9 @@ importers:
         specifier: ^3.3.0
         version: 3.3.0
     devDependencies:
-      '@std/assert':
-        specifier: npm:@jsr/std__assert@^1.0.19
-        version: '@jsr/std__assert@1.0.19'
+      '@eserstack/test-kit':
+        specifier: workspace:*
+        version: link:../test-kit
     optionalDependencies:
       '@eserstack/ajan-darwin-arm64':
         specifier: workspace:*
@@ -132,9 +138,9 @@ importers:
         specifier: workspace:*
         version: link:../standards
     devDependencies:
-      '@std/assert':
-        specifier: npm:@jsr/std__assert@^1.0.19
-        version: '@jsr/std__assert@1.0.19'
+      '@eserstack/test-kit':
+        specifier: workspace:*
+        version: link:../test-kit
 
   pkg/@eserstack/bundler:
     dependencies:
@@ -166,9 +172,9 @@ importers:
         specifier: ^1.2.9
         version: 1.2.9
     devDependencies:
-      '@std/assert':
-        specifier: npm:@jsr/std__assert@^1.0.19
-        version: '@jsr/std__assert@1.0.19'
+      '@eserstack/test-kit':
+        specifier: workspace:*
+        version: link:../test-kit
 
   pkg/@eserstack/cache:
     dependencies:
@@ -179,9 +185,9 @@ importers:
         specifier: workspace:*
         version: link:../standards
     devDependencies:
-      '@std/assert':
-        specifier: npm:@jsr/std__assert@^1.0.19
-        version: '@jsr/std__assert@1.0.19'
+      '@eserstack/test-kit':
+        specifier: workspace:*
+        version: link:../test-kit
 
   pkg/@eserstack/cli:
     dependencies:
@@ -224,13 +230,13 @@ importers:
       '@eserstack/workflows':
         specifier: workspace:*
         version: link:../workflows
+    devDependencies:
+      '@eserstack/test-kit':
+        specifier: workspace:*
+        version: link:../test-kit
       esbuild:
         specifier: ^0.28.2
         version: 0.28.2
-    devDependencies:
-      '@std/assert':
-        specifier: npm:@jsr/std__assert@^1.0.19
-        version: '@jsr/std__assert@1.0.19'
     optionalDependencies:
       '@eserstack/ajan-darwin-arm64':
         specifier: workspace:*
@@ -305,9 +311,9 @@ importers:
       '@eserstack/logging':
         specifier: workspace:*
         version: link:../logging
-      '@std/assert':
-        specifier: npm:@jsr/std__assert@^1.0.19
-        version: '@jsr/std__assert@1.0.19'
+      '@eserstack/test-kit':
+        specifier: workspace:*
+        version: link:../test-kit
 
   pkg/@eserstack/collector:
     dependencies:
@@ -324,9 +330,9 @@ importers:
         specifier: workspace:*
         version: link:../standards
     devDependencies:
-      '@std/assert':
-        specifier: npm:@jsr/std__assert@^1.0.19
-        version: '@jsr/std__assert@1.0.19'
+      '@eserstack/test-kit':
+        specifier: workspace:*
+        version: link:../test-kit
 
   pkg/@eserstack/config:
     dependencies:
@@ -352,9 +358,9 @@ importers:
         specifier: npm:@jsr/std__toml@^1.0.11
         version: '@jsr/std__toml@1.0.11'
     devDependencies:
-      '@std/assert':
-        specifier: npm:@jsr/std__assert@^1.0.19
-        version: '@jsr/std__assert@1.0.19'
+      '@eserstack/test-kit':
+        specifier: workspace:*
+        version: link:../test-kit
 
   pkg/@eserstack/crypto:
     dependencies:
@@ -362,9 +368,9 @@ importers:
         specifier: workspace:*
         version: link:../ajan
     devDependencies:
-      '@std/assert':
-        specifier: npm:@jsr/std__assert@^1.0.19
-        version: '@jsr/std__assert@1.0.19'
+      '@eserstack/test-kit':
+        specifier: workspace:*
+        version: link:../test-kit
 
   pkg/@eserstack/cs:
     dependencies:
@@ -390,9 +396,9 @@ importers:
         specifier: npm:@jsr/std__cli@^1.0.32
         version: '@jsr/std__cli@1.0.32'
     devDependencies:
-      '@std/assert':
-        specifier: npm:@jsr/std__assert@^1.0.19
-        version: '@jsr/std__assert@1.0.19'
+      '@eserstack/test-kit':
+        specifier: workspace:*
+        version: link:../test-kit
 
   pkg/@eserstack/di:
     dependencies:
@@ -400,21 +406,15 @@ importers:
         specifier: workspace:*
         version: link:../primitives
     devDependencies:
-      '@std/assert':
-        specifier: npm:@jsr/std__assert@^1.0.19
-        version: '@jsr/std__assert@1.0.19'
-      '@std/testing':
-        specifier: npm:@jsr/std__testing@^1.0.20
-        version: '@jsr/std__testing@1.0.20'
+      '@eserstack/test-kit':
+        specifier: workspace:*
+        version: link:../test-kit
 
   pkg/@eserstack/events:
     devDependencies:
-      '@std/assert':
-        specifier: npm:@jsr/std__assert@^1.0.19
-        version: '@jsr/std__assert@1.0.19'
-      '@std/testing':
-        specifier: npm:@jsr/std__testing@^1.0.20
-        version: '@jsr/std__testing@1.0.20'
+      '@eserstack/test-kit':
+        specifier: workspace:*
+        version: link:../test-kit
 
   pkg/@eserstack/formats:
     dependencies:
@@ -434,9 +434,9 @@ importers:
         specifier: npm:@jsr/std__toml@^1.0.11
         version: '@jsr/std__toml@1.0.11'
     devDependencies:
-      '@std/assert':
-        specifier: npm:@jsr/std__assert@^1.0.19
-        version: '@jsr/std__assert@1.0.19'
+      '@eserstack/test-kit':
+        specifier: workspace:*
+        version: link:../test-kit
       '@std/testing':
         specifier: npm:@jsr/std__testing@^1.0.20
         version: '@jsr/std__testing@1.0.20'
@@ -447,9 +447,9 @@ importers:
         specifier: workspace:*
         version: link:../primitives
     devDependencies:
-      '@std/assert':
-        specifier: npm:@jsr/std__assert@^1.0.19
-        version: '@jsr/std__assert@1.0.19'
+      '@eserstack/test-kit':
+        specifier: workspace:*
+        version: link:../test-kit
       lodash.chunk:
         specifier: ^4.2.0
         version: 4.2.0
@@ -472,9 +472,9 @@ importers:
         specifier: workspace:*
         version: link:../primitives
     devDependencies:
-      '@std/assert':
-        specifier: npm:@jsr/std__assert@^1.0.19
-        version: '@jsr/std__assert@1.0.19'
+      '@eserstack/test-kit':
+        specifier: workspace:*
+        version: link:../test-kit
       '@std/testing':
         specifier: npm:@jsr/std__testing@^1.0.20
         version: '@jsr/std__testing@1.0.20'
@@ -488,9 +488,9 @@ importers:
         specifier: workspace:*
         version: link:../primitives
     devDependencies:
-      '@std/assert':
-        specifier: npm:@jsr/std__assert@^1.0.19
-        version: '@jsr/std__assert@1.0.19'
+      '@eserstack/test-kit':
+        specifier: workspace:*
+        version: link:../test-kit
 
   pkg/@eserstack/httpclient:
     dependencies:
@@ -501,9 +501,9 @@ importers:
         specifier: workspace:*
         version: link:../primitives
     devDependencies:
-      '@std/assert':
-        specifier: npm:@jsr/std__assert@^1.0.19
-        version: '@jsr/std__assert@1.0.19'
+      '@eserstack/test-kit':
+        specifier: workspace:*
+        version: link:../test-kit
       '@std/testing':
         specifier: npm:@jsr/std__testing@^1.0.20
         version: '@jsr/std__testing@1.0.20'
@@ -514,9 +514,9 @@ importers:
         specifier: ^19.3.0
         version: 19.3.0
     devDependencies:
-      '@std/assert':
-        specifier: npm:@jsr/std__assert@^1.0.19
-        version: '@jsr/std__assert@1.0.19'
+      '@eserstack/test-kit':
+        specifier: workspace:*
+        version: link:../test-kit
       '@types/react':
         specifier: ^19.3.0
         version: 19.3.0
@@ -551,9 +551,9 @@ importers:
         specifier: npm:@jsr/std__tar@^0.1.10
         version: '@jsr/std__tar@0.1.10'
     devDependencies:
-      '@std/assert':
-        specifier: npm:@jsr/std__assert@^1.0.19
-        version: '@jsr/std__assert@1.0.19'
+      '@eserstack/test-kit':
+        specifier: workspace:*
+        version: link:../test-kit
       '@std/testing':
         specifier: npm:@jsr/std__testing@^1.0.20
         version: '@jsr/std__testing@1.0.20'
@@ -564,9 +564,9 @@ importers:
         specifier: workspace:*
         version: link:../standards
     devDependencies:
-      '@std/assert':
-        specifier: npm:@jsr/std__assert@^1.0.19
-        version: '@jsr/std__assert@1.0.19'
+      '@eserstack/test-kit':
+        specifier: workspace:*
+        version: link:../test-kit
 
   pkg/@eserstack/laroux-bundler:
     dependencies:
@@ -610,9 +610,9 @@ importers:
         specifier: ^4.3.3
         version: 4.3.3
     devDependencies:
-      '@std/assert':
-        specifier: npm:@jsr/std__assert@^1.0.19
-        version: '@jsr/std__assert@1.0.19'
+      '@eserstack/test-kit':
+        specifier: workspace:*
+        version: link:../test-kit
 
   pkg/@eserstack/laroux-react:
     dependencies:
@@ -638,9 +638,9 @@ importers:
         specifier: ^19.3.0
         version: 19.3.0(react@19.3.0)
     devDependencies:
-      '@std/assert':
-        specifier: npm:@jsr/std__assert@^1.0.19
-        version: '@jsr/std__assert@1.0.19'
+      '@eserstack/test-kit':
+        specifier: workspace:*
+        version: link:../test-kit
       '@types/react':
         specifier: ^19.3.0
         version: 19.3.0
@@ -660,9 +660,9 @@ importers:
         specifier: workspace:*
         version: link:../standards
     devDependencies:
-      '@std/assert':
-        specifier: npm:@jsr/std__assert@^1.0.19
-        version: '@jsr/std__assert@1.0.19'
+      '@eserstack/test-kit':
+        specifier: workspace:*
+        version: link:../test-kit
 
   pkg/@eserstack/laroux-server:
     dependencies:
@@ -718,9 +718,9 @@ importers:
         specifier: ^19.3.0
         version: 19.3.0(react@19.3.0)
     devDependencies:
-      '@std/assert':
-        specifier: npm:@jsr/std__assert@^1.0.19
-        version: '@jsr/std__assert@1.0.19'
+      '@eserstack/test-kit':
+        specifier: workspace:*
+        version: link:../test-kit
       '@types/react':
         specifier: ^19.3.0
         version: 19.3.0
@@ -746,6 +746,9 @@ importers:
         specifier: ^1.9.1
         version: 1.9.1
     devDependencies:
+      '@eserstack/test-kit':
+        specifier: workspace:*
+        version: link:../test-kit
       '@std/assert':
         specifier: npm:@jsr/std__assert@^1.0.19
         version: '@jsr/std__assert@1.0.19'
@@ -762,12 +765,9 @@ importers:
         specifier: workspace:*
         version: link:../standards
     devDependencies:
-      '@std/assert':
-        specifier: npm:@jsr/std__assert@^1.0.19
-        version: '@jsr/std__assert@1.0.19'
-      '@std/testing':
-        specifier: npm:@jsr/std__testing@^1.0.20
-        version: '@jsr/std__testing@1.0.20'
+      '@eserstack/test-kit':
+        specifier: workspace:*
+        version: link:../test-kit
 
   pkg/@eserstack/noskills:
     dependencies:
@@ -801,16 +801,35 @@ importers:
       '@eserstack/streams':
         specifier: workspace:*
         version: link:../streams
-      esbuild:
-        specifier: ^0.28.2
-        version: 0.28.2
     devDependencies:
-      '@std/assert':
-        specifier: npm:@jsr/std__assert@^1.0.19
-        version: '@jsr/std__assert@1.0.19'
+      '@eserstack/test-kit':
+        specifier: workspace:*
+        version: link:../test-kit
       '@std/testing':
         specifier: npm:@jsr/std__testing@^1.0.20
         version: '@jsr/std__testing@1.0.20'
+      esbuild:
+        specifier: ^0.28.2
+        version: 0.28.2
+    optionalDependencies:
+      '@eserstack/ajan-darwin-arm64':
+        specifier: workspace:*
+        version: link:../ajan-darwin-arm64
+      '@eserstack/ajan-darwin-x64':
+        specifier: workspace:*
+        version: link:../ajan-darwin-x64
+      '@eserstack/ajan-linux-arm64':
+        specifier: workspace:*
+        version: link:../ajan-linux-arm64
+      '@eserstack/ajan-linux-x64':
+        specifier: workspace:*
+        version: link:../ajan-linux-x64
+      '@eserstack/ajan-wasm':
+        specifier: workspace:*
+        version: link:../ajan-wasm
+      '@eserstack/ajan-win32-x64':
+        specifier: workspace:*
+        version: link:../ajan-win32-x64
 
   pkg/@eserstack/noskills-client:
     dependencies:
@@ -821,31 +840,9 @@ importers:
         specifier: workspace:*
         version: link:../webtransport
     devDependencies:
-      '@std/assert':
-        specifier: npm:@jsr/std__assert@^1.0.19
-        version: '@jsr/std__assert@1.0.19'
-
-  pkg/@eserstack/noskills-server-worker:
-    dependencies:
-      '@eserstack/mux':
+      '@eserstack/test-kit':
         specifier: workspace:*
-        version: link:../mux
-      '@eserstack/noskills':
-        specifier: workspace:*
-        version: link:../noskills
-    devDependencies:
-      '@eserstack/standards':
-        specifier: workspace:*
-        version: link:../standards
-      '@std/assert':
-        specifier: npm:@jsr/std__assert@^1.0.19
-        version: '@jsr/std__assert@1.0.19'
-      '@types/node':
-        specifier: ^26.6.1
-        version: 26.6.1
-      typescript:
-        specifier: ^7.0.2
-        version: 7.0.2
+        version: link:../test-kit
 
   pkg/@eserstack/noskills-web:
     dependencies:
@@ -865,9 +862,9 @@ importers:
         specifier: workspace:*
         version: link:../standards
     devDependencies:
-      '@std/assert':
-        specifier: npm:@jsr/std__assert@^1.0.19
-        version: '@jsr/std__assert@1.0.19'
+      '@eserstack/test-kit':
+        specifier: workspace:*
+        version: link:../test-kit
       '@std/testing':
         specifier: npm:@jsr/std__testing@^1.0.20
         version: '@jsr/std__testing@1.0.20'
@@ -878,9 +875,9 @@ importers:
         specifier: workspace:*
         version: link:../ajan
     devDependencies:
-      '@std/assert':
-        specifier: npm:@jsr/std__assert@^1.0.19
-        version: '@jsr/std__assert@1.0.19'
+      '@eserstack/test-kit':
+        specifier: workspace:*
+        version: link:../test-kit
 
   pkg/@eserstack/posts:
     dependencies:
@@ -912,18 +909,18 @@ importers:
         specifier: workspace:*
         version: link:../streams
     devDependencies:
-      '@std/assert':
-        specifier: npm:@jsr/std__assert@^1.0.19
-        version: '@jsr/std__assert@1.0.19'
+      '@eserstack/test-kit':
+        specifier: workspace:*
+        version: link:../test-kit
       '@std/testing':
         specifier: npm:@jsr/std__testing@^1.0.20
         version: '@jsr/std__testing@1.0.20'
 
   pkg/@eserstack/primitives:
     devDependencies:
-      '@std/assert':
-        specifier: npm:@jsr/std__assert@^1.0.19
-        version: '@jsr/std__assert@1.0.19'
+      '@eserstack/test-kit':
+        specifier: workspace:*
+        version: link:../test-kit
 
   pkg/@eserstack/shell:
     dependencies:
@@ -946,9 +943,9 @@ importers:
         specifier: ^6.0.0
         version: 6.0.0
     devDependencies:
-      '@std/assert':
-        specifier: npm:@jsr/std__assert@^1.0.19
-        version: '@jsr/std__assert@1.0.19'
+      '@eserstack/test-kit':
+        specifier: workspace:*
+        version: link:../test-kit
       '@std/testing':
         specifier: npm:@jsr/std__testing@^1.0.20
         version: '@jsr/std__testing@1.0.20'
@@ -968,9 +965,9 @@ importers:
         specifier: npm:@jsr/std__semver@^1.0.8
         version: '@jsr/std__semver@1.0.8'
     devDependencies:
-      '@std/assert':
-        specifier: npm:@jsr/std__assert@^1.0.19
-        version: '@jsr/std__assert@1.0.19'
+      '@eserstack/test-kit':
+        specifier: workspace:*
+        version: link:../test-kit
       '@std/testing':
         specifier: npm:@jsr/std__testing@^1.0.20
         version: '@jsr/std__testing@1.0.20'
@@ -981,9 +978,18 @@ importers:
         specifier: workspace:*
         version: link:../standards
     devDependencies:
+      '@eserstack/test-kit':
+        specifier: workspace:*
+        version: link:../test-kit
+
+  pkg/@eserstack/test-kit:
+    dependencies:
       '@std/assert':
         specifier: npm:@jsr/std__assert@^1.0.19
         version: '@jsr/std__assert@1.0.19'
+      '@std/testing':
+        specifier: npm:@jsr/std__testing@^1.0.20
+        version: '@jsr/std__testing@1.0.20'
 
   pkg/@eserstack/testing:
     dependencies:
@@ -991,15 +997,15 @@ importers:
         specifier: workspace:*
         version: link:../standards
     devDependencies:
-      '@std/assert':
-        specifier: npm:@jsr/std__assert@^1.0.19
-        version: '@jsr/std__assert@1.0.19'
+      '@eserstack/test-kit':
+        specifier: workspace:*
+        version: link:../test-kit
 
   pkg/@eserstack/webtransport:
     devDependencies:
-      '@std/assert':
-        specifier: npm:@jsr/std__assert@^1.0.19
-        version: '@jsr/std__assert@1.0.19'
+      '@eserstack/test-kit':
+        specifier: workspace:*
+        version: link:../test-kit
 
   pkg/@eserstack/workflows:
     dependencies:
@@ -1028,9 +1034,9 @@ importers:
         specifier: npm:@jsr/std__cli@^1.0.32
         version: '@jsr/std__cli@1.0.32'
     devDependencies:
-      '@std/assert':
-        specifier: npm:@jsr/std__assert@^1.0.19
-        version: '@jsr/std__assert@1.0.19'
+      '@eserstack/test-kit':
+        specifier: workspace:*
+        version: link:../test-kit
 
 packages:
 
@@ -1582,8 +1588,133 @@ packages:
     resolution: {integrity: sha512-gLyJlPHPZYdAk1JENA9LeHejZe1Ti77/pTeFm/nMXmQH/HFZlcS/O2XJB+L8fkbrNSqhdtlvjBVjxwUYanNH5Q==}
     engines: {node: '>=8.0.0'}
 
+  '@oxc-parser/binding-android-arm-eabi@0.155.0':
+    resolution: {integrity: sha512-A6xv7hDtnTm+xlZ7utn6rRQpRMJHRhVr3gjRGqlx0RUX84mNk0pAsy6YN/wWhuOTkaZhRrrzaLxf0NfbH77j2w==}
+    engines: {node: ^20.19.0 || >=22.12.0}
+    cpu: [arm]
+    os: [android]
+
+  '@oxc-parser/binding-android-arm64@0.155.0':
+    resolution: {integrity: sha512-T1wWwH9/JI5g7Z4kEQwDOwhToxdDhRyOTklH+uuNpJ16m3MZFmGl+l2rKc0NHQdbVRG2LTOBsNjpW3h1BWytPA==}
+    engines: {node: ^20.19.0 || >=22.12.0}
+    cpu: [arm64]
+    os: [android]
+
+  '@oxc-parser/binding-darwin-arm64@0.155.0':
+    resolution: {integrity: sha512-ZoRB3qJxJ8DWA41jHja+YeB0lLfjBy4T+Kr15vnN1k65X3zbJt3rPZftEwN4Ju4tmA4K/T9dWWD7Z8ewQLnrVA==}
+    engines: {node: ^20.19.0 || >=22.12.0}
+    cpu: [arm64]
+    os: [darwin]
+
+  '@oxc-parser/binding-darwin-x64@0.155.0':
+    resolution: {integrity: sha512-vxtL86BtM+IgrpejA86nbTk5j0HKTIMeuaJ1fQciw6p9RfavPtIPjI7gN34owap0yG9txXBaAWpGdxokNwdqIw==}
+    engines: {node: ^20.19.0 || >=22.12.0}
+    cpu: [x64]
+    os: [darwin]
+
+  '@oxc-parser/binding-freebsd-x64@0.155.0':
+    resolution: {integrity: sha512-tN6Ru5e0UVnWaIuiH8jEwnvxuxg7FvhWwSd3oe5oDhOD4ObsSr9/N6WfHLjilUWlPPj65ptwrSDH0Y7lzwTzmw==}
+    engines: {node: ^20.19.0 || >=22.12.0}
+    cpu: [x64]
+    os: [freebsd]
+
+  '@oxc-parser/binding-linux-arm-gnueabihf@0.155.0':
+    resolution: {integrity: sha512-h4ozA5n6L6lwolsz9iwunEhKWnIVbmFRots5QxEix0H6nJ5ICpuDa7PuShuhfpIDFe3+Qvyscioyiv+9g+4Syg==}
+    engines: {node: ^20.19.0 || >=22.12.0}
+    cpu: [arm]
+    os: [linux]
+
+  '@oxc-parser/binding-linux-arm-musleabihf@0.155.0':
+    resolution: {integrity: sha512-058/+LardpfuUlsKIvBGk/CYoakEVcMgqYx8GgyUZeOxFWTojYLlCc1Gb60/y21v3esDhHidgiY/Zbq9LpBhaQ==}
+    engines: {node: ^20.19.0 || >=22.12.0}
+    cpu: [arm]
+    os: [linux]
+
+  '@oxc-parser/binding-linux-arm64-gnu@0.155.0':
+    resolution: {integrity: sha512-nrOt2Y3xIAzu+lSPzH0864ieO+iCCXgoo9qFlGANE8Xh0cQ+RP8Wstfp+/wXN2YCyb98cAGzX0VruKYw7it/jw==}
+    engines: {node: ^20.19.0 || >=22.12.0}
+    cpu: [arm64]
+    os: [linux]
+    libc: [glibc]
+
+  '@oxc-parser/binding-linux-arm64-musl@0.155.0':
+    resolution: {integrity: sha512-KYAayyN5hQbJPtGKtRxlyc8XYmyntOplyXSQzTDrmbz7l/GCrzQbSswvyJFBTH1LGtsZrbXOAfN52i/Kz6kLKg==}
+    engines: {node: ^20.19.0 || >=22.12.0}
+    cpu: [arm64]
+    os: [linux]
+    libc: [musl]
+
+  '@oxc-parser/binding-linux-ppc64-gnu@0.155.0':
+    resolution: {integrity: sha512-CSuSY5hfjtsBnHXydOj8jiNfS1qHbdPZuPz1YL1cSgK7VmNYP+QlZIbG0BBYYBgX/vYEgZwbG9mBdW4YairZ5w==}
+    engines: {node: ^20.19.0 || >=22.12.0}
+    cpu: [ppc64]
+    os: [linux]
+    libc: [glibc]
+
+  '@oxc-parser/binding-linux-riscv64-gnu@0.155.0':
+    resolution: {integrity: sha512-7KCfOQm+Nz2N8trAXbQkal4TQ5756WVEmhm35y816YHvyFnEfVsICsiV5k0pEszNf/fRm4cm2i6i18SJ6/iCWg==}
+    engines: {node: ^20.19.0 || >=22.12.0}
+    cpu: [riscv64]
+    os: [linux]
+    libc: [glibc]
+
+  '@oxc-parser/binding-linux-riscv64-musl@0.155.0':
+    resolution: {integrity: sha512-JSlhgoK+/g1TGJI5NuADx2+6syhxnQNLCWLXyO5QLFyetomcr/vIxSdiNlmyAv963YXUzCuwAwRG6npZ5xyJ1A==}
+    engines: {node: ^20.19.0 || >=22.12.0}
+    cpu: [riscv64]
+    os: [linux]
+    libc: [musl]
+
+  '@oxc-parser/binding-linux-s390x-gnu@0.155.0':
+    resolution: {integrity: sha512-WFIX+dPokWp64mi434Md3U3lJaTwNxAphvGjpltoyQjGUsdXavOIRrnp9dOS34Hd75HOAwDxAI+YwWOwqmJbtg==}
+    engines: {node: ^20.19.0 || >=22.12.0}
+    cpu: [s390x]
+    os: [linux]
+    libc: [glibc]
+
+  '@oxc-parser/binding-linux-x64-gnu@0.155.0':
+    resolution: {integrity: sha512-g6xSDC/JpbnVOz5uafMGyK3txBVRFMQTx8opv/yHXGxqV3ZMVl3bf7W8XrSnF68dmy3gM4dgReNryuE53+WkeQ==}
+    engines: {node: ^20.19.0 || >=22.12.0}
+    cpu: [x64]
+    os: [linux]
+    libc: [glibc]
+
+  '@oxc-parser/binding-linux-x64-musl@0.155.0':
+    resolution: {integrity: sha512-6/4xlxKlZJWrQ0uwDFPc0H9+xLu7068CKhX3vIDW3SbvP/lVgnVuT5v6dyugeWskWpuxqF/WJ4WKwhxjU3pG2w==}
+    engines: {node: ^20.19.0 || >=22.12.0}
+    cpu: [x64]
+    os: [linux]
+    libc: [musl]
+
+  '@oxc-parser/binding-openharmony-arm64@0.155.0':
+    resolution: {integrity: sha512-tltklL0J0XjDxIRTBXWOBhvc2mitcmES45pIxhwDWfxRyqz7Vkeu0NekTZEIxGE4f/lXgq3vZcjjffteQOVorg==}
+    engines: {node: ^20.19.0 || >=22.12.0}
+    cpu: [arm64]
+    os: [openharmony]
+
+  '@oxc-parser/binding-win32-arm64-msvc@0.155.0':
+    resolution: {integrity: sha512-alAb9TzjatUEsOeoncAziUnfdTDxfyswhalFZ9sC6plUgATIUx2NIZ0+bMn6aJ28AduS1OpG/OAisr/YISn4Ig==}
+    engines: {node: ^20.19.0 || >=22.12.0}
+    cpu: [arm64]
+    os: [win32]
+
+  '@oxc-parser/binding-win32-ia32-msvc@0.155.0':
+    resolution: {integrity: sha512-yc5cbSfcGmRv/KpxDFuyk8adEBaWd/9HilWvBbQ4bFbus1V2PUh2mGB2Cfq9rqZTqLeiMT8x0skV+LKp9hOMgQ==}
+    engines: {node: ^20.19.0 || >=22.12.0}
+    cpu: [ia32]
+    os: [win32]
+
+  '@oxc-parser/binding-win32-x64-msvc@0.155.0':
+    resolution: {integrity: sha512-8heq6jGq+rfpTDRDjoQiBHw0maQZf3IXkS99pdHQZPoTL5kyF5qyPS0RidUlSdnWDIqxXb5nux7GBD9cT+imUw==}
+    engines: {node: ^20.19.0 || >=22.12.0}
+    cpu: [x64]
+    os: [win32]
+
   '@oxc-project/types@0.150.0':
     resolution: {integrity: sha512-rDS5/31E9HfPl/CIzGrn0DOlvBbXFseQ5URJ9sYMfstbKLD/c6Gm9vmRzRGDdAXyOIL4zmO37lc9RIwYqVruZw==}
+
+  '@oxc-project/types@0.155.0':
+    resolution: {integrity: sha512-SeE8JPwW1xs1tHeNycjUtUBdhorRa8o4jlvjwk49R7/Z291i+4DQa7JJIgOm/TaYQZx+QrPQbVJ/9c8dMIZN8Q==}
 
   '@protobufjs/aspromise@1.1.2':
     resolution: {integrity: sha512-j+gKExEuLmKwvz3OgROXtrJ2UG2x8Ch2YZUxahh+s1F2HZ+wAceUNLkvy6zKCPVRkU++ZWQrdxsUeQXmcg4uoQ==}
@@ -1816,126 +1947,6 @@ packages:
 
   '@types/retry@0.12.0':
     resolution: {integrity: sha512-wWKOClTTiizcZhXnPY4wikVAwmdYHp8q6DmC+EJUzAMsycb7HB32Kh9RN4+0gExjmPmZSAQjgURXIGATPegAvA==}
-
-  '@typescript/typescript-aix-ppc64@7.0.2':
-    resolution: {integrity: sha512-MTKKkWB7p/0E9xi1d1tHtZ5PiLkGEMIq88pK2CubZjOsLtYTLqhgIgi6zepFa+9GHZ6h05NMCkQxGKiPXMxXtQ==}
-    engines: {node: '>=16.20.0'}
-    cpu: [ppc64]
-    os: [aix]
-
-  '@typescript/typescript-darwin-arm64@7.0.2':
-    resolution: {integrity: sha512-gowzar9MwS/aRWp6f3a4KUqzRjAZjOsmGNCM6LcTgXum+dBfgsBVMN+AgvOCCbguXyick6LJhpBszxMebJ8syA==}
-    engines: {node: '>=16.20.0'}
-    cpu: [arm64]
-    os: [darwin]
-
-  '@typescript/typescript-darwin-x64@7.0.2':
-    resolution: {integrity: sha512-SZ9xZInqApNlNGc9s0W1VSsktYSOe9cFqNOIqmN1Gs8SmkjKZYFt017G4VwPxASInODuAdbTW7sXiFUf893RgA==}
-    engines: {node: '>=16.20.0'}
-    cpu: [x64]
-    os: [darwin]
-
-  '@typescript/typescript-freebsd-arm64@7.0.2':
-    resolution: {integrity: sha512-W5NH4y/J0plIIS5b2xvTEkU7JFxyqdMAOgf+Ilhl0vHQXKO5dZoxd+C/jEtq56c4F3wk71RB4BMRQ2XdI+bwYQ==}
-    engines: {node: '>=16.20.0'}
-    cpu: [arm64]
-    os: [freebsd]
-
-  '@typescript/typescript-freebsd-x64@7.0.2':
-    resolution: {integrity: sha512-UMGDx5sTpzNw3WiPebH7l90IWfJggEd+egHt/q6p7/Cm3zqoV7VxkGXt+3DxPIw8CcmvAB0j3sVVfbhX+M4Tpw==}
-    engines: {node: '>=16.20.0'}
-    cpu: [x64]
-    os: [freebsd]
-
-  '@typescript/typescript-linux-arm64@7.0.2':
-    resolution: {integrity: sha512-Qh4eU4/y3yDjnfjjyPYihMj5/ODIlmt+Bzu17OI+fiSRDW57QmU5SiN63exPRNJPKUzcc1INa1NXdrJ+MqHjUQ==}
-    engines: {node: '>=16.20.0'}
-    cpu: [arm64]
-    os: [linux]
-
-  '@typescript/typescript-linux-arm@7.0.2':
-    resolution: {integrity: sha512-gffT3xPz9sR7j/YJExkyPntrI0P2EP9XbOyWzth2/Gs0RstK+90RBcO0ncXoXy/beYll1SXw846Nf2zdnEz0QQ==}
-    engines: {node: '>=16.20.0'}
-    cpu: [arm]
-    os: [linux]
-
-  '@typescript/typescript-linux-loong64@7.0.2':
-    resolution: {integrity: sha512-uEHck9i8hoAzXPiYRib1O7miOnz23SxIeVl6F4LXox+qov1K35jHcEW6VHKvZI+pyvl7fZEP4MCU5LYvIq1GuQ==}
-    engines: {node: '>=16.20.0'}
-    cpu: [loong64]
-    os: [linux]
-
-  '@typescript/typescript-linux-mips64el@7.0.2':
-    resolution: {integrity: sha512-R4KvAMnE43W5Qeqb0Ly56O3mWMWIAgsMyz36DCaycd5nbg/9kzm0liw3JocfRqyJY0KPmzFjbswozXyW0DnIYA==}
-    engines: {node: '>=16.20.0'}
-    cpu: [mips64el]
-    os: [linux]
-
-  '@typescript/typescript-linux-ppc64@7.0.2':
-    resolution: {integrity: sha512-DORx5b3sd/4S7eayxm4FQv+A7CrkUIGRaHiwI8oiHTAI1fAPWhF4J0vAlkC8biAlHSVVwxMQ3tjZ2/DVbnQiiA==}
-    engines: {node: '>=16.20.0'}
-    cpu: [ppc64]
-    os: [linux]
-
-  '@typescript/typescript-linux-riscv64@7.0.2':
-    resolution: {integrity: sha512-wf0jqEDOjrPRnKwYRyyJDRo11KMbvMFrU+q4zqKyChODBzvlkbhNQfKvLxQCcwTpdDaXSHZTVuh0JoCrKCUMHQ==}
-    engines: {node: '>=16.20.0'}
-    cpu: [riscv64]
-    os: [linux]
-
-  '@typescript/typescript-linux-s390x@7.0.2':
-    resolution: {integrity: sha512-IkwJc3L7yhytWd/ewjyxNDfOmswCm9GWMJT/ue/dU4aZNbwZeYAetq42VyLmsmSjvoX7z74X6ZaYCtzAr0EuGw==}
-    engines: {node: '>=16.20.0'}
-    cpu: [s390x]
-    os: [linux]
-
-  '@typescript/typescript-linux-x64@7.0.2':
-    resolution: {integrity: sha512-EYdf2cNg7rgCWJnxCdJ+F3V39O8ihb37eHAu1LK8oAFizgTQbPOK7zHHXbPt8rX24COqODXeI3sIf0fCXG7H/A==}
-    engines: {node: '>=16.20.0'}
-    cpu: [x64]
-    os: [linux]
-
-  '@typescript/typescript-netbsd-arm64@7.0.2':
-    resolution: {integrity: sha512-+polYF4MF04aPpO5FTkHran9yUQDSXqy5GiSDKpsll5jy3l3+g9QLhpf39T+ePtefhXLOGrLl0QIjkQP6VnelA==}
-    engines: {node: '>=16.20.0'}
-    cpu: [arm64]
-    os: [netbsd]
-
-  '@typescript/typescript-netbsd-x64@7.0.2':
-    resolution: {integrity: sha512-8YIT0EHM/3dq10ZOVF/A7pc/YSMtbcecct4rWtexrnSCHOPcpC2KTLXfTCR6vDpnSiY12heNb1GiN/wu+T/FyA==}
-    engines: {node: '>=16.20.0'}
-    cpu: [x64]
-    os: [netbsd]
-
-  '@typescript/typescript-openbsd-arm64@7.0.2':
-    resolution: {integrity: sha512-APT8+ClYnuYm1u9+kgGXoMj2VzWzcymwh2gNSQVySHfkRDGOTVkoWLjCmOQSaO+PoqQ57B0flRp9SA+7GnnkzQ==}
-    engines: {node: '>=16.20.0'}
-    cpu: [arm64]
-    os: [openbsd]
-
-  '@typescript/typescript-openbsd-x64@7.0.2':
-    resolution: {integrity: sha512-yX7s+Q0Dln0Dt9tEzZsAjXXR/+ytBM7AlglaqyeMPxQszJ1JhlJdZ6jLA+IzldHtflX81em7lDao1xXu+aRRkg==}
-    engines: {node: '>=16.20.0'}
-    cpu: [x64]
-    os: [openbsd]
-
-  '@typescript/typescript-sunos-x64@7.0.2':
-    resolution: {integrity: sha512-dLJDGaLZ1D4HPQn62u1n8mBDkJREwMsAkCdkwd4Ieqw+x3TUyTsqY0YiBCtE6H6OzzgGk3iuZ3vFWRS+E8/d1g==}
-    engines: {node: '>=16.20.0'}
-    cpu: [x64]
-    os: [sunos]
-
-  '@typescript/typescript-win32-arm64@7.0.2':
-    resolution: {integrity: sha512-Gyl1Vy6OsWesLzmq+EP0Fb7b4Nid5232AvcA2SFcdYreldpNtYFFofPjnt62y9hQy7VTaZp65ICJjuAQRaVcIQ==}
-    engines: {node: '>=16.20.0'}
-    cpu: [arm64]
-    os: [win32]
-
-  '@typescript/typescript-win32-x64@7.0.2':
-    resolution: {integrity: sha512-0BQ3HkAHHlKLSp1qRvf3SUhGpGsDuhB/jgFw75guyqbxJqEaS0Cw/VFO8i2nHglJUzQCRtMMR/IBAKE3ETMC4g==}
-    engines: {node: '>=16.20.0'}
-    cpu: [x64]
-    os: [win32]
 
   '@xterm/headless@6.0.0':
     resolution: {integrity: sha512-5Yj1QINYCyzrZtf8OFIHi47iQtI+0qYFPHmouEfG8dHNxbZ9Tb9YGSuLcsEwj9Z+OL75GJqPyJbyoFer80a2Hw==}
@@ -2426,6 +2437,9 @@ packages:
     resolution: {integrity: sha512-Lbgzdk0h4juoQ9fCKXW4by0UJqj+nOOrI9MJ1sSj4nI8aI2eo1qmvQEie4VD1glsS250n15LsWsYtCugiStS5A==}
     engines: {node: '>=18'}
 
+  mitata@1.0.34:
+    resolution: {integrity: sha512-Mc3zrtNBKIMeHSCQ0XqRLo1vbdIx1wvFV9c8NJAiyho6AjNfMY8bVhbS12bwciUdd1t4rj8099CH3N3NFahaUA==}
+
   ms@2.1.3:
     resolution: {integrity: sha512-6FlzubTLZG3J2a/NVCAleEhjzq5oxgHyaCU9yYXvcLsvoVaHJq/s5xXI6/XXP6tz7R9xAOtHnSO/tXtF3WRTlA==}
 
@@ -2480,6 +2494,10 @@ packages:
         optional: true
       zod:
         optional: true
+
+  oxc-parser@0.155.0:
+    resolution: {integrity: sha512-C/ReSf1JUFukK/zvk6jhcNibSssvas5+ktIzK7fbKVd3CedWe59C3QwHEOrEZj/4Rt9+xg0Jeis/Jv1F/KM1mw==}
+    engines: {node: ^20.19.0 || >=22.12.0}
 
   p-retry@4.6.2:
     resolution: {integrity: sha512-312Id396EbJdvRONlngUx0NydfrIQ5lsYu0znKVUzVvArzEIt08V1qhtyESbGVd1FGX7UKtiFp5uwKZdM8wIuQ==}
@@ -2635,11 +2653,6 @@ packages:
   type-is@2.1.0:
     resolution: {integrity: sha512-faYHw0anBbc/kWF3zFTEnxSFOAGUX9GFbOBthvDdLsIlEoWOFOtS0zgCiQYwIskL9iGXZL3kAXD8OoZ4GmMATA==}
     engines: {node: '>= 18'}
-
-  typescript@7.0.2:
-    resolution: {integrity: sha512-8FYau96o3NKOhbjKi/qNvG/W5jhzxkbdm5sj9AbZ/5T5sWqn3hJgLfGx27sRKZWTvyzCP8dLRBTf5tBTSRVUNA==}
-    engines: {node: '>=16.20.0'}
-    hasBin: true
 
   undici-types@8.9.0:
     resolution: {integrity: sha512-KTDyRTYX8sWmKXAikPHHSyc63CRPETMctyjKFupcC6OBLXT3xsN0e9aF7m+mIXutFWpUXuedtowG7iLOzp0kQg==}
@@ -3085,7 +3098,66 @@ snapshots:
 
   '@opentelemetry/api@1.9.1': {}
 
+  '@oxc-parser/binding-android-arm-eabi@0.155.0':
+    optional: true
+
+  '@oxc-parser/binding-android-arm64@0.155.0':
+    optional: true
+
+  '@oxc-parser/binding-darwin-arm64@0.155.0':
+    optional: true
+
+  '@oxc-parser/binding-darwin-x64@0.155.0':
+    optional: true
+
+  '@oxc-parser/binding-freebsd-x64@0.155.0':
+    optional: true
+
+  '@oxc-parser/binding-linux-arm-gnueabihf@0.155.0':
+    optional: true
+
+  '@oxc-parser/binding-linux-arm-musleabihf@0.155.0':
+    optional: true
+
+  '@oxc-parser/binding-linux-arm64-gnu@0.155.0':
+    optional: true
+
+  '@oxc-parser/binding-linux-arm64-musl@0.155.0':
+    optional: true
+
+  '@oxc-parser/binding-linux-ppc64-gnu@0.155.0':
+    optional: true
+
+  '@oxc-parser/binding-linux-riscv64-gnu@0.155.0':
+    optional: true
+
+  '@oxc-parser/binding-linux-riscv64-musl@0.155.0':
+    optional: true
+
+  '@oxc-parser/binding-linux-s390x-gnu@0.155.0':
+    optional: true
+
+  '@oxc-parser/binding-linux-x64-gnu@0.155.0':
+    optional: true
+
+  '@oxc-parser/binding-linux-x64-musl@0.155.0':
+    optional: true
+
+  '@oxc-parser/binding-openharmony-arm64@0.155.0':
+    optional: true
+
+  '@oxc-parser/binding-win32-arm64-msvc@0.155.0':
+    optional: true
+
+  '@oxc-parser/binding-win32-ia32-msvc@0.155.0':
+    optional: true
+
+  '@oxc-parser/binding-win32-x64-msvc@0.155.0':
+    optional: true
+
   '@oxc-project/types@0.150.0': {}
+
+  '@oxc-project/types@0.155.0': {}
 
   '@protobufjs/aspromise@1.1.2': {}
 
@@ -3230,66 +3302,6 @@ snapshots:
       csstype: 3.2.3
 
   '@types/retry@0.12.0': {}
-
-  '@typescript/typescript-aix-ppc64@7.0.2':
-    optional: true
-
-  '@typescript/typescript-darwin-arm64@7.0.2':
-    optional: true
-
-  '@typescript/typescript-darwin-x64@7.0.2':
-    optional: true
-
-  '@typescript/typescript-freebsd-arm64@7.0.2':
-    optional: true
-
-  '@typescript/typescript-freebsd-x64@7.0.2':
-    optional: true
-
-  '@typescript/typescript-linux-arm64@7.0.2':
-    optional: true
-
-  '@typescript/typescript-linux-arm@7.0.2':
-    optional: true
-
-  '@typescript/typescript-linux-loong64@7.0.2':
-    optional: true
-
-  '@typescript/typescript-linux-mips64el@7.0.2':
-    optional: true
-
-  '@typescript/typescript-linux-ppc64@7.0.2':
-    optional: true
-
-  '@typescript/typescript-linux-riscv64@7.0.2':
-    optional: true
-
-  '@typescript/typescript-linux-s390x@7.0.2':
-    optional: true
-
-  '@typescript/typescript-linux-x64@7.0.2':
-    optional: true
-
-  '@typescript/typescript-netbsd-arm64@7.0.2':
-    optional: true
-
-  '@typescript/typescript-netbsd-x64@7.0.2':
-    optional: true
-
-  '@typescript/typescript-openbsd-arm64@7.0.2':
-    optional: true
-
-  '@typescript/typescript-openbsd-x64@7.0.2':
-    optional: true
-
-  '@typescript/typescript-sunos-x64@7.0.2':
-    optional: true
-
-  '@typescript/typescript-win32-arm64@7.0.2':
-    optional: true
-
-  '@typescript/typescript-win32-x64@7.0.2':
-    optional: true
 
   '@xterm/headless@6.0.0': {}
 
@@ -3838,6 +3850,8 @@ snapshots:
       mime-db: 1.54.0
     optional: true
 
+  mitata@1.0.34: {}
+
   ms@2.1.3: {}
 
   negotiator@1.0.0:
@@ -3871,6 +3885,30 @@ snapshots:
     optionalDependencies:
       ws: 8.21.3
       zod: 4.4.3
+
+  oxc-parser@0.155.0:
+    dependencies:
+      '@oxc-project/types': 0.155.0
+    optionalDependencies:
+      '@oxc-parser/binding-android-arm-eabi': 0.155.0
+      '@oxc-parser/binding-android-arm64': 0.155.0
+      '@oxc-parser/binding-darwin-arm64': 0.155.0
+      '@oxc-parser/binding-darwin-x64': 0.155.0
+      '@oxc-parser/binding-freebsd-x64': 0.155.0
+      '@oxc-parser/binding-linux-arm-gnueabihf': 0.155.0
+      '@oxc-parser/binding-linux-arm-musleabihf': 0.155.0
+      '@oxc-parser/binding-linux-arm64-gnu': 0.155.0
+      '@oxc-parser/binding-linux-arm64-musl': 0.155.0
+      '@oxc-parser/binding-linux-ppc64-gnu': 0.155.0
+      '@oxc-parser/binding-linux-riscv64-gnu': 0.155.0
+      '@oxc-parser/binding-linux-riscv64-musl': 0.155.0
+      '@oxc-parser/binding-linux-s390x-gnu': 0.155.0
+      '@oxc-parser/binding-linux-x64-gnu': 0.155.0
+      '@oxc-parser/binding-linux-x64-musl': 0.155.0
+      '@oxc-parser/binding-openharmony-arm64': 0.155.0
+      '@oxc-parser/binding-win32-arm64-msvc': 0.155.0
+      '@oxc-parser/binding-win32-ia32-msvc': 0.155.0
+      '@oxc-parser/binding-win32-x64-msvc': 0.155.0
 
   p-retry@4.6.2:
     dependencies:
@@ -4110,29 +4148,6 @@ snapshots:
       media-typer: 1.1.1
       mime-types: 3.0.2
     optional: true
-
-  typescript@7.0.2:
-    optionalDependencies:
-      '@typescript/typescript-aix-ppc64': 7.0.2
-      '@typescript/typescript-darwin-arm64': 7.0.2
-      '@typescript/typescript-darwin-x64': 7.0.2
-      '@typescript/typescript-freebsd-arm64': 7.0.2
-      '@typescript/typescript-freebsd-x64': 7.0.2
-      '@typescript/typescript-linux-arm': 7.0.2
-      '@typescript/typescript-linux-arm64': 7.0.2
-      '@typescript/typescript-linux-loong64': 7.0.2
-      '@typescript/typescript-linux-mips64el': 7.0.2
-      '@typescript/typescript-linux-ppc64': 7.0.2
-      '@typescript/typescript-linux-riscv64': 7.0.2
-      '@typescript/typescript-linux-s390x': 7.0.2
-      '@typescript/typescript-linux-x64': 7.0.2
-      '@typescript/typescript-netbsd-arm64': 7.0.2
-      '@typescript/typescript-netbsd-x64': 7.0.2
-      '@typescript/typescript-openbsd-arm64': 7.0.2
-      '@typescript/typescript-openbsd-x64': 7.0.2
-      '@typescript/typescript-sunos-x64': 7.0.2
-      '@typescript/typescript-win32-arm64': 7.0.2
-      '@typescript/typescript-win32-x64': 7.0.2
 
   undici-types@8.9.0: {}
 

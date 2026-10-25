@@ -1,14 +1,17 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 /**
- * Node.js FFI backend using `koffi`.
+ * Node.js FFI backend using `node:ffi` (decision-37).
  *
- * koffi is a fast, zero-JS-dependency C FFI library for Node.js that ships
- * prebuilt binaries for all major platforms. It automatically marshals
- * `char*` returns to JS strings.
+ * node:ffi ships with Node and is on by default since 26.9 (no flag; under
+ * `--permission` it needs `--allow-ffi`). The library is opened with one
+ * `dlopen` call that declares every export; each returned C string is read
+ * with `ffi.toString` and released with `EserAjanFree`, as the M0-T2 spike
+ * (TASK-175) measured. When node:ffi cannot load, `open` throws and the
+ * loader falls back to the WASM build.
  *
- * This module is only functional when running under Node.js with `koffi`
- * installed. Under other runtimes (Deno, Bun), `available()` returns false.
+ * This module is only functional under Node.js. Under other runtimes (Deno,
+ * Bun), `available()` returns false.
  *
  * @module
  */
@@ -16,8 +19,56 @@
 import * as closeGuard from "./close-guard.ts";
 import type * as types from "./types.ts";
 
+/** A node:ffi function definition. */
+type FfiDefinition = { arguments: string[]; return: string };
+
+const FFI_TYPES: Readonly<Record<string, string>> = {
+  "void*": "pointer",
+  "const char*": "string",
+  "int": "int32",
+  "void": "void",
+};
+
 /**
- * Node.js FFI backend using koffi.
+ * Parses a C prototype such as `void* EserAjanCacheList(const char* handle)`
+ * into its name and node:ffi definition.
+ */
+export const parseSignature = (
+  signature: string,
+): { name: string; definition: FfiDefinition } => {
+  const match = /^\s*(.+?)\s*\b(\w+)\s*\((.*)\)\s*$/.exec(signature);
+  if (match === null) {
+    throw new Error(`unparsable FFI signature: ${signature}`);
+  }
+
+  const toType = (cType: string): string => {
+    const ffiType =
+      FFI_TYPES[cType.replace(/\s+/g, " ").replace(/ \*/g, "*").trim()];
+    if (ffiType === undefined) {
+      throw new Error(
+        `unsupported C type "${cType}" in FFI signature: ${signature}`,
+      );
+    }
+
+    return ffiType;
+  };
+
+  const params = match[3]!.trim();
+
+  return {
+    name: match[2]!,
+    definition: {
+      return: toType(match[1]!),
+      arguments: params === "" ? [] : params.split(",").map((param) =>
+        // Drop the parameter name: "const char* path" -> "const char*".
+        toType(param.trim().replace(/\s*\b\w+$/, ""))
+      ),
+    },
+  };
+};
+
+/**
+ * Node.js FFI backend using node:ffi.
  */
 export const backend: types.FFIBackend = {
   name: "node",
@@ -36,62 +87,50 @@ export const backend: types.FFIBackend = {
   },
 
   open: async (libraryPath: string): Promise<types.FFILibrary> => {
-    // Opaque specifier, so `deno compile` cannot resolve it statically.
-    //
-    // This backend only ever runs under Node -- isAvailable() above requires
-    // process.versions.node and the absence of Deno and Bun. But a literal
-    // `import("koffi")` is resolvable at compile time, so deno compile embedded
-    // koffi AND all 16 of its per-platform native packages (darwin, linux,
-    // freebsd, openbsd, ia32, riscv64, loong64 ...) into every Deno binary,
-    // which uses Deno.dlopen and can never call this code.
-    //
-    // Same trick as noskills/commands/web.ts. Under Node the import resolves
-    // normally at runtime.
-    const specifier = "koffi";
-    // Imported through a variable specifier, so koffi's type declarations do not apply.
+    // An opaque specifier: Deno and its compiler do not know node:ffi, and
+    // this backend only ever runs under Node.
+    const specifier = "node:ffi";
     // deno-lint-ignore no-explicit-any
-    let koffi: any = await import(specifier);
-    // Handle default export (koffi uses module.exports = ...)
-    if (koffi.default !== undefined) {
-      koffi = koffi.default;
-    }
-
-    if (typeof koffi.load !== "function") {
-      // No version literal here on purpose: the supported range lives in this
-      // package's package.json and a copy of it here goes stale silently, which
-      // is worse than no number at all for someone debugging a mismatch.
+    let ffi: any;
+    try {
+      ffi = await import(specifier);
+    } catch (error) {
       throw new Error(
-        "koffi module loaded but koffi.load is not a function. " +
-          "Check that the installed koffi satisfies the range this package " +
-          "declares for it in package.json.",
+        `node:ffi is not available (it needs Node 26.9 or later, and is off under --no-experimental-ffi): ${
+          error instanceof Error ? error.message : String(error)
+        }`,
       );
     }
 
-    const lib = koffi.load(libraryPath);
+    // Every export is declared first and bound by one dlopen below; a raw
+    // function looks its binding up when it is called.
+    const definitions: Record<string, FfiDefinition> = {};
+    // deno-lint-ignore no-explicit-any
+    let functions: Record<string, (...args: any[]) => any> = {};
+
+    const declare = (signature: string) => {
+      const { name, definition } = parseSignature(signature);
+      definitions[name] = definition;
+
+      // deno-lint-ignore no-explicit-any
+      return (...args: any[]): any => functions[name]!(...args);
+    };
+
+    const lib = { func: declare };
 
     // Every string the bridge returns was allocated by Go with C.CString, i.e.
-    // malloc. Declaring the return as `char*` lets koffi copy it into a JS
-    // string, but the original allocation then becomes unreachable and leaks --
-    // and every export except Init, Shutdown and Free returns one, so that is
-    // every call this process ever makes. So the returns are declared as opaque
-    // `void*`, decoded explicitly, and freed.
-    //
-    // The decode form matters: koffi.decode(ptr, "str" | "string" | "char*")
-    // all treat ptr as pointing *to* a char* and dereference it, which
-    // segfaults. koffi.decode(ptr, "char", -1) reads the NUL-terminated bytes
-    // at ptr itself, which is what the bridge actually returns.
+    // malloc, so the returns are declared as pointers, read, and freed.
     const rawFree = lib.func("void EserAjanFree(void* ptr)");
 
-    // The free sits in a `finally` because it must run even when the decode
-    // throws: the pointer is malloc'd memory the caller owns, and an exception
-    // on the decode path would otherwise strand it.
+    // The free sits in a `finally` because it must run even when the read
+    // throws: the pointer is malloc'd memory the caller owns.
     const takeString = (ptr: unknown): string => {
-      if (ptr === null || ptr === undefined) {
+      if (ptr === null || ptr === undefined || ptr === 0n) {
         return "";
       }
 
       try {
-        return (koffi.decode(ptr, "char", -1) as string | null) ?? "";
+        return (ffi.toString(ptr) as string | null) ?? "";
       } finally {
         rawFree(ptr);
       }
@@ -387,6 +426,9 @@ export const backend: types.FFIBackend = {
       "void* EserAjanShellPtyClose(const char* handle)",
     );
 
+    const opened = ffi.dlopen(libraryPath, definitions);
+    functions = opened.functions;
+
     return closeGuard.withCloseGuard(
       "node",
       {
@@ -413,15 +455,14 @@ export const backend: types.FFIBackend = {
         EserAjanAiCreateModel: (configJSON: string): string => {
           return takeString(rawAiCreateModel(configJSON));
         },
-        // LIMITATION: koffi has no off-thread mode in this binding, so this --
-        // like the stream and batch calls below -- is a BLOCKING FFI call. A
-        // generation runs for seconds to minutes and parks the entire event
-        // loop for its duration: timers, sockets and every other request stall,
-        // and the abort listener that would call EserAjanAiCancelRequest cannot
-        // run, so the call is uncancellable once entered even though types.ts
-        // documents it as cancellable. Only Deno (nonblocking:true) runs these
-        // off-thread. Making them genuinely asynchronous under Node is tracked
-        // separately.
+        // LIMITATION: node:ffi calls are synchronous, so this -- like the
+        // stream and batch calls below -- is a BLOCKING FFI call. A generation
+        // runs for seconds to minutes and parks the entire event loop for its
+        // duration: timers, sockets and every other request stall, and the
+        // abort listener that would call EserAjanAiCancelRequest cannot run, so
+        // the call is uncancellable once entered even though types.ts documents
+        // it as cancellable. Only Deno (nonblocking:true) runs these off-thread
+        // today; under Node the worker threads of decision-37 (M2-T8) do.
         EserAjanAiGenerateText: (
           modelHandle: string,
           optionsJSON: string,
@@ -709,13 +750,10 @@ export const backend: types.FFIBackend = {
         EserAjanShellPtySpawn: (requestJSON: string): string => {
           return takeString(rawShellPtySpawn(requestJSON));
         },
-        // LIMITATION: this is a BLOCKING koffi call wrapped in a resolved
-        // Promise to satisfy the interface. While an idle PTY waits for output
-        // the Node event loop is parked, so write()/kill()/render can't run and
-        // multiple panes can't interleave. A true fix needs koffi's async call
-        // API; only Deno (nonblocking:true) is fully supported for the
-        // interactive multiplexer today. Running it under Node degrades
-        // responsiveness.
+        // LIMITATION: node:ffi calls are synchronous, so this blocking read is
+        // wrapped in a resolved Promise to satisfy the interface. While an idle
+        // PTY waits for output the Node event loop is parked; the worker-thread
+        // pattern of decision-37 (M2-T8) moves it off the main thread.
         EserAjanShellPtyRead: (handle: string): Promise<string> => {
           return Promise.resolve(takeString(rawShellPtyRead(handle)));
         },
@@ -733,7 +771,7 @@ export const backend: types.FFIBackend = {
         },
       },
       () => {
-        lib.unload();
+        opened.lib.close();
       },
     );
   },

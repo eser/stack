@@ -1,9 +1,10 @@
 ---
 id: TASK-122
 title: Drop the default exports from @eserstack/fp and @eserstack/events
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-10-04 20:51'
+updated_date: '2026-10-15 19:34'
 labels:
   - fp
   - events
@@ -25,7 +26,15 @@ ordinal: 122000
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 No default export remains in fp or events
-- [ ] #2 The migration is written in the changelog for the next major release
-- [ ] #3 deno task cli ok and the publish dry-run pass
+- [x] #1 No default export remains in fp or events
+- [x] #2 The migration is written in the changelog for the next major release
+- [x] #3 deno task cli ok and the publish dry-run pass
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Completed in round 3 of the autonomous backlog run (2026-10-05); deno task cli ok passes.
+
+The CHANGELOG Unreleased > Migration section has the before/after example for the fp, events and di default exports.
+<!-- SECTION:NOTES:END -->

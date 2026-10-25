@@ -1,6 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import * as react from "npm:react";
+import * as react from "react";
 
 type LayoutProps = {
   readonly children?: react.ReactNode;

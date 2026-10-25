@@ -69,7 +69,10 @@ func Generate(opts GenerateOptions) (string, error) { //nolint:gocritic // hugeP
 	// Use WriteStart + WriteItem(IsFirst:true) + WriteEnd so JSON output is an
 	// array ("[{...}]") matching formats.serialize([resource]) on the TS side.
 	// YAML is unaffected: WriteStart/End return "" and WriteItem ignores IsFirst.
-	fmtOpts := &formatfx.FormatOptions{Pretty: true, IsFirst: true} //nolint:exhaustruct
+	//
+	// A YAML manifest is one document, not a one-item sequence, so kubectl
+	// reads it and it matches the TypeScript writer's single document.
+	fmtOpts := &formatfx.FormatOptions{Pretty: true, IsFirst: true, Document: f.Name() == "yaml"} //nolint:exhaustruct
 	start, err := f.WriteStart(fmtOpts)
 	if err != nil {
 		return "", fmt.Errorf("generate: WriteStart: %w", err)

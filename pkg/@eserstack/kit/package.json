@@ -30,7 +30,7 @@
     "@std/tar": "npm:@jsr/std__tar@^0.1.10"
   },
   "devDependencies": {
-    "@std/assert": "npm:@jsr/std__assert@^1.0.19",
+    "@eserstack/test-kit": "workspace:*",
     "@std/testing": "npm:@jsr/std__testing@^1.0.20"
   }
 }

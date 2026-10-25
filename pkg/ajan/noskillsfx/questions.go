@@ -114,36 +114,3 @@ func GetQuestionsWithExtras(activeConcerns []ConcernDefinition) []QuestionWithEx
 
 	return result
 }
-
-// GetNextUnanswered returns the first unanswered question, or nil when all
-// questions have answers (mirrors getNextUnanswered in questions.ts).
-func GetNextUnanswered(questions []QuestionWithExtras, answers []DiscoveryAnswer) *QuestionWithExtras {
-	answered := make(map[string]bool, len(answers))
-	for _, a := range answers {
-		answered[a.QuestionID] = true
-	}
-
-	for i := range questions {
-		if !answered[questions[i].ID] {
-			return &questions[i]
-		}
-	}
-
-	return nil
-}
-
-// IsDiscoveryComplete reports whether all 6 base questions have been answered.
-func IsDiscoveryComplete(answers []DiscoveryAnswer) bool {
-	answered := make(map[string]bool, len(answers))
-	for _, a := range answers {
-		answered[a.QuestionID] = true
-	}
-
-	for _, q := range questions {
-		if !answered[q.ID] {
-			return false
-		}
-	}
-
-	return true
-}

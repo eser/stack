@@ -1,5 +1,9 @@
 # 🔑 [@eserstack/crypto](./)
 
+> **Note:** JSR is frozen at 4.5.x. From 5.0.0, `@eserstack/crypto` is published
+> on npm under the same name (`pnpm add @eserstack/crypto`); the JSR versions
+> stay available but get no updates.
+
 > **eserstack Library** — [eser/stack on GitHub](https://github.com/eser/stack)
 > **Install:** `pnpm add jsr:@eserstack/crypto`
 

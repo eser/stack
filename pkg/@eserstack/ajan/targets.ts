@@ -55,7 +55,7 @@ export interface NativeTarget {
 }
 
 export interface WasmTarget {
-  /** Canonical ID (e.g. "wasi", "wasi-reactor") */
+  /** Canonical ID ("wasi") */
   readonly id: string;
   readonly goos: string;
   readonly goarch: string;
@@ -141,19 +141,18 @@ export const NATIVE_TARGETS: readonly NativeTarget[] = [
 // WASM targets
 // ---------------------------------------------------------------------------
 
+/**
+ * The WASM build: only the slim "wasi" profile, as a c-shared reactor
+ * (decision-45). The `eserajan_wasi` tag selects the domain files that work on
+ * wasip1.
+ */
 export const WASM_TARGETS: readonly WasmTarget[] = [
   {
     id: "wasi",
     goos: "wasip1",
     goarch: "wasm",
     outputFile: "eser-ajan.wasm",
-  },
-  {
-    id: "wasi-reactor",
-    goos: "wasip1",
-    goarch: "wasm",
-    outputFile: "eser-ajan-reactor.wasm",
-    tags: "eserajan_reactor",
+    tags: "eserajan_wasi",
   },
 ] as const;
 

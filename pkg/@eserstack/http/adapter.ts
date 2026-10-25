@@ -41,10 +41,14 @@ export type BodyLimitSource = "content-length" | "stream";
 export class RequestBodyTooLargeError extends Error {
   readonly status: number = STATUS_CONTENT_TOO_LARGE;
 
+  readonly limitBytes: number;
+  readonly bodyBytes: number;
+  readonly source: BodyLimitSource;
+
   constructor(
-    readonly limitBytes: number,
-    readonly bodyBytes: number,
-    readonly source: BodyLimitSource,
+    limitBytes: number,
+    bodyBytes: number,
+    source: BodyLimitSource,
   ) {
     const found = source === "content-length"
       ? `Content-Length declares ${bodyBytes} bytes`
@@ -52,6 +56,9 @@ export class RequestBodyTooLargeError extends Error {
     super(
       `request body is over the ${limitBytes}-byte limit (${found}); send a body of at most ${limitBytes} bytes`,
     );
+    this.limitBytes = limitBytes;
+    this.bodyBytes = bodyBytes;
+    this.source = source;
     this.name = "RequestBodyTooLargeError";
   }
 }

@@ -5,7 +5,6 @@
     "pkg/@eserstack/fp/group-by.bench.ts": 1,
     "pkg/@eserstack/fp/key-by.bench.ts": 1,
     "pkg/@eserstack/fp/memoize.bench.ts": 1,
-    "pkg/@eserstack/fp/wthout.bench.ts": 1,
     "pkg/@eserstack/shell/vterm/terminal.ts": 1
   },
   "or-default": {},

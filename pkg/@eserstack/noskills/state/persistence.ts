@@ -93,8 +93,11 @@ const warnCorruptState = (filePath: string, error: unknown): void => {
  *
  * Rename is only atomic within a filesystem, so the temporary file must be a
  * sibling of the target rather than in a system temp directory.
+ *
+ * @param filePath - The file to replace
+ * @param contents - Its new contents
  */
-const writeTextFileAtomic = async (
+export const writeTextFileAtomic = async (
   filePath: string,
   contents: string,
 ): Promise<void> => {
@@ -285,8 +288,10 @@ const normalizeStateShape = (state: schema.StateFile): schema.StateFile => {
  * command that lists the specs, built from the caller's command prefix.
  */
 export class SpecNotFoundError extends Error {
+  readonly specName: string;
+
   constructor(
-    readonly specName: string,
+    specName: string,
     commandPrefix: string,
     options?: ErrorOptions,
   ) {
@@ -294,6 +299,7 @@ export class SpecNotFoundError extends Error {
       `Spec '${specName}' not found. Run \`${commandPrefix} spec list\` to see available specs.`,
       options,
     );
+    this.specName = specName;
     this.name = "SpecNotFoundError";
   }
 }
@@ -696,6 +702,33 @@ export const migrateLegacyLayout = async (root: string): Promise<boolean> => {
     }
   }
 
+  // The same for a flat sibling whose new folder already holds files: the
+  // rename would fail with ENOTEMPTY halfway through the migration. An empty
+  // new folder is replaced.
+  const siblings = [
+    {
+      present: hasLegacySessions,
+      from: legacySessionsDir,
+      to: `${root}/${SESSIONS_DIR}`,
+    },
+    {
+      present: hasLegacyEvents,
+      from: legacyEventsDir,
+      to: `${root}/${EVENTS_DIR}`,
+    },
+  ];
+  for (const sibling of siblings) {
+    // One folder at a time, before anything moves.
+    // deno-lint-ignore no-await-in-loop
+    if (sibling.present && !(await isMissingOrEmptyDir(sibling.to))) {
+      throw new Error(
+        `noskills: partial migration detected — both ${sibling.from} ` +
+          `(dir) and ${sibling.to} (dir) exist. Resolve manually ` +
+          `before continuing.`,
+      );
+    }
+  }
+
   const stateDirPath = `${root}/${STATE_DIR}`;
   const tempProgressesPath = `${stateDirPath}/.progresses-tmp`;
   const finalProgressesPath = `${root}/${PROGRESSES_DIR}`;
@@ -731,19 +764,20 @@ export const migrateLegacyLayout = async (root: string): Promise<boolean> => {
   }
 
   // Move flat-layout siblings into the umbrella.
-  if (hasLegacySessions) {
+  for (const sibling of siblings) {
+    if (!sibling.present) continue;
+
+    // In order: the umbrella first, then the empty new folder goes, then the
+    // legacy one takes its place.
+    // deno-lint-ignore no-await-in-loop
     await crossRuntime.runtime.fs.mkdir(stateDirPath, { recursive: true });
-    await crossRuntime.runtime.fs.rename(
-      legacySessionsDir,
-      `${root}/${SESSIONS_DIR}`,
-    );
-  }
-  if (hasLegacyEvents) {
-    await crossRuntime.runtime.fs.mkdir(stateDirPath, { recursive: true });
-    await crossRuntime.runtime.fs.rename(
-      legacyEventsDir,
-      `${root}/${EVENTS_DIR}`,
-    );
+    // deno-lint-ignore no-await-in-loop
+    if (await isDir(sibling.to)) {
+      // deno-lint-ignore no-await-in-loop
+      await crossRuntime.runtime.fs.remove(sibling.to);
+    }
+    // deno-lint-ignore no-await-in-loop
+    await crossRuntime.runtime.fs.rename(sibling.from, sibling.to);
   }
 
   // Rewrite .gitignore if it still carries the legacy three-entry form.
@@ -764,6 +798,19 @@ export const migrateLegacyLayout = async (root: string): Promise<boolean> => {
   console.error(
     "noskills: migrated .eser/ runtime layout to .eser/.state/{progresses,sessions,events}/",
   );
+
+  return true;
+};
+
+/** True when path is absent or an empty directory. */
+const isMissingOrEmptyDir = async (path: string): Promise<boolean> => {
+  if (!(await isDir(path))) {
+    return !(await isFile(path));
+  }
+
+  for await (const _entry of crossRuntime.runtime.fs.readDir(path)) {
+    return false;
+  }
 
   return true;
 };
@@ -917,6 +964,7 @@ export type Session = {
   readonly spec: string | null;
   readonly mode: "spec" | "free";
   readonly phase: string | null;
+  /** The owning process, or 0 when none is known (`session start` writes 0). */
   readonly pid: number;
   readonly startedAt: string;
   readonly lastActiveAt: string;
@@ -1041,9 +1089,7 @@ export const gcStaleSessions = async (
 ): Promise<readonly string[]> => {
   const sessions = await listSessions(root);
   const now = Date.now();
-  const stale = sessions.filter((s) =>
-    now - new Date(s.lastActiveAt).getTime() > STALE_THRESHOLD_MS
-  );
+  const stale = sessions.filter((s) => isSessionStale(s, now));
 
   // Each session is its own file, so the stale ones are deleted concurrently.
   await Promise.all(stale.map((s) => deleteSession(root, s.id)));
@@ -1051,9 +1097,35 @@ export const gcStaleSessions = async (
   return stale.map((s) => s.id);
 };
 
-export const isSessionStale = (session: Session): boolean => {
-  const elapsed = Date.now() - new Date(session.lastActiveAt).getTime();
-  return elapsed > STALE_THRESHOLD_MS;
+/**
+ * The milliseconds since the session's lastActiveAt, or null when the file
+ * holds no readable time there: a value that is not a string, or a string
+ * that is not a date. (`new Date(null)` would read as the epoch and
+ * `new Date("x")` as NaN, which no threshold compares above.)
+ */
+export const sessionIdleMs = (
+  session: Session,
+  now: number = Date.now(),
+): number | null => {
+  const at: unknown = session.lastActiveAt;
+  if (typeof at !== "string") return null;
+
+  const time = new Date(at).getTime();
+  if (Number.isNaN(time)) return null;
+
+  return now - time;
+};
+
+/**
+ * Reports whether the session was idle for more than two hours. A session
+ * with no readable lastActiveAt is stale too, so `session gc` removes it.
+ */
+export const isSessionStale = (
+  session: Session,
+  now: number = Date.now(),
+): boolean => {
+  const idle = sessionIdleMs(session, now);
+  return idle === null || idle > STALE_THRESHOLD_MS;
 };
 
 export const generateSessionId = (): string => {

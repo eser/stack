@@ -1,7 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import * as assert from "@std/assert";
-import * as mock from "@std/testing/mock";
+import * as assert from "@eserstack/test-kit/assert";
+import * as mock from "@eserstack/test-kit/mock";
 import * as container from "./container.ts";
 
 Deno.test("non-existent key", () => {
@@ -221,9 +221,9 @@ Deno.test("getMany", () => {
 import * as decorators from "./decorators.ts";
 import * as services from "./services.ts";
 
-Deno.test("@injectable() should register class with class name", () => {
-  @decorators.injectable()
+Deno.test("injectable() should register class with class name", () => {
   class TestService {}
+  decorators.injectable()(TestService);
 
   const instance = services.services.get("TestService");
 
@@ -231,9 +231,9 @@ Deno.test("@injectable() should register class with class name", () => {
   assert.assertInstanceOf(instance, TestService);
 });
 
-Deno.test("@injectable() with custom key should register with custom key", () => {
-  @decorators.injectable("customKey")
+Deno.test("injectable() with custom key should register with custom key", () => {
   class TestServiceCustom {}
+  decorators.injectable("customKey")(TestServiceCustom);
 
   const instance = services.services.get("customKey");
 
@@ -241,11 +241,11 @@ Deno.test("@injectable() with custom key should register with custom key", () =>
   assert.assertInstanceOf(instance, TestServiceCustom);
 });
 
-Deno.test("@injectable() creates new instance each time from lazy", () => {
-  @decorators.injectable("lazyService")
-  class _LazyService {
+Deno.test("injectable() creates new instance each time from lazy", () => {
+  class LazyService {
     value = Math.random();
   }
+  decorators.injectable("lazyService")(LazyService);
 
   const instance1 = services.services.get("lazyService");
   const instance2 = services.services.get("lazyService");
@@ -254,12 +254,15 @@ Deno.test("@injectable() creates new instance each time from lazy", () => {
   assert.assertStrictEquals(instance1, instance2);
 });
 
-Deno.test("@inject() decorator can be applied", () => {
-  // @inject is currently a no-op but should not throw
+Deno.test("inject() decorator can be applied", () => {
+  // inject is currently a no-op but should not throw
   class Service {
-    @decorators.inject("someKey")
     dependency: unknown;
   }
+  decorators.inject("someKey")(undefined, {
+    kind: "field",
+    name: "dependency",
+  } as ClassFieldDecoratorContext);
 
   const service = new Service();
   assert.assertExists(service);

@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	"github.com/eser/stack/pkg/ajan/codebasefx"
+	"github.com/eser/stack/pkg/ajan/codebasefx/validatortools"
 	"github.com/eser/stack/pkg/ajan/workflowfx"
 )
 
@@ -631,20 +632,25 @@ func TestRegisterAllValidators_AllToolsPresent(t *testing.T) {
 	t.Parallel()
 
 	r := workflowfx.NewRegistry()
-	codebasefx.RegisterAllValidators(r)
+	validatortools.RegisterAllValidators(r)
 
 	want := []string{
 		"codebase-bom",
 		"codebase-case-conflict",
+		"codebase-code-conventions",
 		"codebase-eof",
+		"codebase-error-coverage",
 		"codebase-filenames",
 		"codebase-json",
 		"codebase-large-file",
 		"codebase-license",
 		"codebase-line-endings",
 		"codebase-merge-conflicts",
+		"codebase-naming-and-todos",
 		"codebase-runtime-js-apis",
 		"codebase-secrets",
+		"codebase-self-imports",
+		"codebase-server-loc",
 		"codebase-shebangs",
 		"codebase-submodules",
 		"codebase-symlinks",
@@ -680,7 +686,7 @@ func TestValidatorTool_Run_WithTempDir(t *testing.T) {
 	}
 
 	r := workflowfx.NewRegistry()
-	codebasefx.RegisterAllValidators(r)
+	validatortools.RegisterAllValidators(r)
 
 	tool := r.MustGet("codebase-eof")
 	result, err := tool.Run(context.Background(), map[string]any{"root": dir})
@@ -710,7 +716,7 @@ func TestValidatorTool_Run_LargeFileOptsFloat(t *testing.T) {
 	}
 
 	r := workflowfx.NewRegistry()
-	codebasefx.RegisterAllValidators(r)
+	validatortools.RegisterAllValidators(r)
 
 	tool := r.MustGet("codebase-large-file")
 

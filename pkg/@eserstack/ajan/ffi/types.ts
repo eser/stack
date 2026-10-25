@@ -166,8 +166,13 @@ export interface FFILibrary {
      * body returns the status and headers with an error and no body. Use
      * EserAjanHttpRequestStream for larger downloads.
      * Returns JSON: { status, statusText, headers, body, retries } | { error: string }
+     *
+     * The WASM fallback answers this and the two stream calls below with a
+     * promise, because it waits on the host's fetch (TASK-277); await the
+     * result. A `requestId` from ffi/request-signals.ts lets the caller's
+     * AbortSignal stop the fallback's fetch.
      */
-    EserAjanHttpRequest: (requestJSON: string) => string;
+    EserAjanHttpRequest: (requestJSON: string) => string | Promise<string>;
     /** Closes an HTTP client handle and releases resources. Returns JSON: {} | { error: string } */
     EserAjanHttpClose: (handle: string) => string;
     /**
@@ -176,12 +181,14 @@ export interface FFILibrary {
      * body is read up to maxResponseBytes (32 MiB when unset).
      * Returns JSON: { handle: string, status: number, statusText: string, headers: Record<string,string> } | { error: string }
      */
-    EserAjanHttpRequestStream: (requestJSON: string) => string;
+    EserAjanHttpRequestStream: (
+      requestJSON: string,
+    ) => string | Promise<string>;
     /**
      * Reads the next chunk from a stream handle.
      * Returns JSON: { chunk: string (base64), done: boolean } | { error: string }
      */
-    EserAjanHttpStreamRead: (handle: string) => string;
+    EserAjanHttpStreamRead: (handle: string) => string | Promise<string>;
     /** Closes and disposes a stream handle. Returns JSON: {} | { error: string } */
     EserAjanHttpStreamClose: (handle: string) => string;
     /**

@@ -11,14 +11,17 @@ workflows:
       # `deno task cli docs`. Linting it means every regeneration re-breaks the
       # gate and has to be re-fixed by hand -- which is exactly what the
       # previously committed, newline-fixed generated files show happened.
+      #
+      # third-party/ holds in-tree forks that keep upstream's bytes as they are
+      # (third-party/jsonschema/FORK.md).
       - validate-eof:
-          exclude: ["docs/api/"]
+          exclude: ["docs/api/", "third-party/"]
       - validate-trailing-whitespace:
-          exclude: ["docs/api/"]
+          exclude: ["docs/api/", "third-party/"]
       - validate-bom:
-          exclude: ["docs/api/"]
+          exclude: ["docs/api/", "third-party/"]
       - validate-line-endings:
-          exclude: ["docs/api/"]
+          exclude: ["docs/api/", "third-party/"]
       - validate-large-files:
           maxKb: 1024
           exclude: ["docs/api/"]
@@ -90,22 +93,27 @@ workflows:
                 - "TODOS.md"
                 - "WIRING.md"
                 - "pkg/@eserstack/noskills/README-HOW.md"
+                # In-tree fork that keeps upstream's file names
+                # (third-party/jsonschema/FORK.md).
+                - "third-party/"
       - validate-submodules
       - validate-licenses:
           exclude:
             - ".eser/recipes/"
+            # Upstream's own Apache-2.0 headers stay as they are.
+            - "third-party/"
       - validate-runtime-js-apis:
           exclude:
             - "pkg/@eserstack/standards/cross-runtime/"
-            - "pkg/@eserstack/cli/scripts/compile.ts"
+            # The Deno-to-Node codemods are Node scripts (process, node:fs);
+            # they go in M1-T37 (TASK-231).
+            - "etc/codemods/"
             - "etc/scripts/hybrid-sniffer.ts"
             # Bootstrap: generates the package manifests, so it runs before the
             # package graph exists and cannot import from it.
             - "etc/scripts/gen-jsr-manifests.ts"
             # Release tooling: runs from a fresh checkout after publish and must
             # not depend on the workspace it just released (Deno-only scripts).
-            - "etc/scripts/update-homebrew-formula.ts"
-            - "etc/scripts/update-nix-hashes.ts"
             - "etc/scripts/preflight-npm-consumer.ts"
             # Run on a bare node with built-ins only, so they cannot import the
             # cross-runtime layer: a Claude Code hook, the skill validator and
@@ -125,6 +133,11 @@ workflows:
       # new ones fail. Shrink the baseline after migrating files with
       # `deno run -A ./pkg/@eserstack/codebase/validate-code-conventions.ts --write-baseline`.
       - validate-code-conventions
+      # camelCase declared names and TODO(TASK-<number>) comments, which oxlint
+      # does not check (decision-21, decision-34).
+      - validate-naming-and-todos:
+          exclude:
+            - ".eser/recipes/"
       - validate-server-loc:
           directory: "pkg/ajan/noskillsserverfx"
       - validate-error-coverage:
@@ -145,6 +158,13 @@ workflows:
           command: deno run -A ./etc/scripts/gen-jsr-manifests.ts
           timeout: 60
 
+      # The Deno-to-Node codemods run under Node and have their own tests
+      # (M0-T18, M0-T19); the folder goes in M1-T37.
+      - shell:
+          name: codemod-tests
+          command: node --test etc/codemods
+          timeout: 120
+
       # Build the native FFI library before any Deno step that loads it.
       #
       # ~20 TS packages reach Go through pkg/@eserstack/ajan's c-shared library.
@@ -157,7 +177,9 @@ workflows:
       # alone, not the repo-root workspace (see go.work).
       - shell:
           name: build-native-lib
-          command: deno run -A ./pkg/@eserstack/ajan/scripts/build.ts
+          # The WASM profile too: the WASM loader tests load it, and the check
+          # fails a profile over its size limits or with a forbidden package.
+          command: make ajan-lib ajan-wasm-check
           timeout: 300
 
       # Workspace checks. They read the members from the root package.json
@@ -279,26 +301,26 @@ workflows:
       # what compile-binaries ships, the wasip1 build is what broke v4.5.0.
       - shell:
           name: ajan-native-build
-          command: deno run --allow-all ./pkg/@eserstack/ajan/scripts/build.ts
+          command: make ajan-lib
           timeout: 300
       - shell:
           name: ajan-wasm-build
-          command: deno run --allow-all ./pkg/@eserstack/ajan/scripts/build.ts --wasm
+          command: make ajan-wasm-check
           timeout: 300
       - shell:
           name: homebrew-dry-run
-          command: deno run --allow-all ./etc/scripts/update-homebrew-formula.ts --dry-run
-          timeout: 60
+          command: go run ./cmd/eser dev homebrew --dry-run
+          timeout: 120
       - shell:
           name: nix-dry-run
-          command: deno run --allow-all ./etc/scripts/update-nix-hashes.ts --dry-run
-          timeout: 60
-      # The release run's `deno compile`, for this host only. Caught nothing
-      # before v4.5.2, where Deno's dependency-age gate refused a day-old
-      # package at compile time and the release died after publish preflight.
+          command: go run ./cmd/eser dev nix-hashes --dry-run
+          timeout: 120
+      # The release run's compile, for this host only, so a build that fails
+      # stops here and not after publish (v4.5.2 died at compile time after
+      # the registries were written).
       - shell:
           name: compile-current
-          command: deno run --allow-all ./pkg/@eserstack/cli/scripts/compile.ts --current-only
+          command: go run ./cmd/eser dev compile --current-only
           timeout: 600
 
   - id: commit-validation
@@ -346,7 +368,7 @@ scripts:
 
   # Build
   build: deno run --allow-all ./pkg/@eserstack/cli/scripts/npm-build.ts
-  compile: deno run --allow-all ./pkg/@eserstack/cli/scripts/compile.ts
+  compile: go run ./cmd/eser dev compile
 
   # Documentation
   # Generates into docs/api/, NOT docs/. docs/ also holds hand-written content --
@@ -366,7 +388,6 @@ scripts:
   # Maintenance
   clean: "rm -rf ./etc/coverage/* ./etc/coverage.lcov ./pnpm-lock.yaml && deno
     check ./pkg/@eserstack/*/mod.ts"
-  repl: deno repl --allow-all --unstable-bundle --eval-file=./repl-init.ts
 
   # Coverage
   coverage: deno coverage ./etc/coverage/

@@ -21,6 +21,7 @@
 import * as esbuild from "esbuild";
 import { runtime } from "@eserstack/standards/cross-runtime";
 import * as npmExternals from "@eserstack/codebase/npm-externals";
+import * as npmWorkspaceSpecifiers from "@eserstack/codebase/npm-workspace-specifiers";
 
 type PackageJson = {
   name: string;
@@ -28,6 +29,7 @@ type PackageJson = {
   type?: string;
   bin?: Record<string, string>;
   dependencies?: Record<string, string>;
+  optionalDependencies?: Record<string, string>;
   repository?: {
     type: string;
     url: string;
@@ -36,6 +38,7 @@ type PackageJson = {
 
 type SourcePackageJson = {
   version: string;
+  optionalDependencies?: Record<string, string>;
 };
 
 // The externals list is shared by every npm build; see the module for the
@@ -114,7 +117,7 @@ const main = async (): Promise<void> => {
       chunkNames: "chunks/[name]-[hash]",
       format: "esm",
       platform: "node",
-      target: "node18",
+      target: "node26",
       minify: true,
       // @eserstack/* imports need no plugin: pnpm links each workspace package
       // into node_modules, and esbuild reads the exports of its package.json.
@@ -160,6 +163,14 @@ const main = async (): Promise<void> => {
     version: sourcePackageJson.version,
     type: "module",
     bin: { noskills: "./noskills.js" },
+    // The bundle loads the Go bridge through node:ffi (decision-37), so it
+    // needs the platform library and the WASM fallback, pinned to this
+    // version: the ajan-* packages are workspace:* members, and this manifest
+    // is published from dist/, where pnpm does not rewrite the protocol.
+    optionalDependencies: npmWorkspaceSpecifiers.resolveWorkspaceSpecifiers(
+      sourcePackageJson.optionalDependencies,
+      sourcePackageJson.version,
+    ),
     repository: {
       type: "git",
       url: "https://github.com/eser/stack",
@@ -173,6 +184,9 @@ const main = async (): Promise<void> => {
 
   console.log(`   name: ${pkg.name}`);
   console.log(`   version: ${pkg.version}`);
+  console.log(
+    `   optionalDependencies: ${JSON.stringify(pkg.optionalDependencies)}`,
+  );
 
   // Step 5: Copy README.md
   console.log("5. Copying README.md...");

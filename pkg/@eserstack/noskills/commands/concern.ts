@@ -19,6 +19,10 @@ import * as cmd from "../output/cmd.ts";
 export const main = async (
   args?: readonly string[],
 ): Promise<shellArgs.CliResult<void>> => {
+  // The messages below name the project's command (cmd.cmdPrefix).
+  const { root: projectRoot } = await persistence.resolveProjectRoot();
+  await cmd.loadCommandPrefix(projectRoot);
+
   const subcommand = args?.[0];
 
   if (subcommand === "add") {

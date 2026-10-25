@@ -20,7 +20,7 @@ import type * as model from "../model.ts";
 import * as errors from "../errors.ts";
 
 // =============================================================================
-// Wire types (must match bridge.go JSON schemas)
+// Wire types (must match the bridge's JSON schemas)
 // =============================================================================
 
 /** Every envelope that can carry an error carries its classification with it. */
@@ -34,7 +34,7 @@ type BridgeHandleResp = BridgeErrorFields & {
   readonly handle?: string;
 };
 
-/** Mirrors bridge.go aiThinkingPart; every field crosses unchanged. */
+/** Mirrors the bridge's aiThinkingPart; every field crosses unchanged. */
 type BridgeThinkingPart = {
   readonly text?: string;
   readonly signature?: string;

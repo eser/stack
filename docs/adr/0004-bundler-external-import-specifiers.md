@@ -2,7 +2,9 @@
 
 ## Status
 
-Accepted
+Accepted. Superseded in part by
+[ADR 0005](./0005-leave-deno-for-node-and-go.md): its server-bundler and Deno
+resolution sections no longer apply; its bare-specifier decision stays.
 
 ## Context and Problem Statement
 

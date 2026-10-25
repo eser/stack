@@ -53,7 +53,7 @@ const versionHandler = async (
       out.writeln(span.text("To fix this, build the native library:"));
       out.writeln(
         span.text(
-          "  deno run --allow-all pkg/@eserstack/ajan/scripts/build.ts",
+          "  make ajan-lib",
         ),
       );
     } else {

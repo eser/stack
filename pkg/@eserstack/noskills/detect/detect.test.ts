@@ -9,7 +9,7 @@
  */
 
 import * as bdd from "@std/testing/bdd";
-import * as assert from "@std/assert";
+import * as assert from "@eserstack/test-kit/assert";
 import * as schema from "../state/schema.ts";
 import * as concerns from "../context/concerns.ts";
 import * as init from "../commands/init.ts";

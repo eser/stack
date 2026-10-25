@@ -365,23 +365,17 @@ func TestGenerateInitialSpecHonorsSectionScopes(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			args := noskillsfx.GenerateSpecArgs{ //nolint:exhaustruct // creator is not part of this check
-				SpecName:       "scoped",
-				ActiveConcerns: concerns[:1],
-				Classification: tc.cl,
-				Now:            "2026-10-05T00:00:00Z",
-			}
-
-			result, err := noskillsfx.GenerateInitialSpec(args)
-			if err != nil {
-				t.Fatalf("GenerateInitialSpec: %v", err)
-			}
+			result := noskillsfx.GenerateInitialSpecObject("scoped", concerns[:1], classificationObject(tc.cl),
+				"Unknown User", "2026-10-05T00:00:00.000Z")
 
 			got := map[string]string{}
 
-			for _, p := range result.Placeholders {
-				if p.ConcernSource != nil && *p.ConcernSource == "custom" {
-					got[p.SectionID] = p.Status
+			for _, item := range result.Placeholders {
+				p, _ := item.(*noskillsfx.JSObject)
+				if source, _ := p.Get("concernSource"); source == "custom" {
+					id, _ := p.Get("sectionId")
+					status, _ := p.Get("status")
+					got[id.(string)], _ = status.(string)
 				}
 			}
 
@@ -453,24 +447,34 @@ func TestCompileExecutingCarriesOnlyUnscopedReminders(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			state := stateIn(noskillsfx.PhaseExecuting, 1)
-			state.Classification = tc.cl
+			state := noskillsfx.InitialState()
+			state.Set("phase", noskillsfx.PhaseExecuting)
+			state.Set("spec", "scoped")
+			state.Set("classification", classificationObject(tc.cl))
 
-			out := noskillsfx.Compile(
-				state,
-				noskillsfx.NosManifest{Concerns: []string{"custom", "legacy"}}, //nolint:exhaustruct // only the active concerns matter here
-				noskillsfx.CompileOptions{AllConcerns: concerns},               //nolint:exhaustruct // defaults for the rest
-			)
+			out := noskillsfx.CompileNext(&noskillsfx.NextInput{ //nolint:exhaustruct // only the concerns matter here
+				State:          state,
+				ActiveConcerns: concerns,
+				Hints:          noskillsfx.DefaultInteractionHints,
+				CommandPrefix:  noskillsfx.DefaultCommandPrefix,
+			})
+
+			context, _ := out.Get("context")
+			reminders, _ := context.(*noskillsfx.JSObject).Get("concernReminders")
+
+			gotReminders := make([]string, 0, len(reminders.([]any)))
+			for _, r := range reminders.([]any) {
+				gotReminders = append(gotReminders, r.(string))
+			}
 
 			want := append([]string{plainReminder}, legacyReminders()...)
-			if out.Context == nil || !slices.Equal(out.Context.ConcernReminders, want) {
-				t.Fatalf("ConcernReminders = %+v, want %v", out.Context, want)
+			if !slices.Equal(gotReminders, want) {
+				t.Fatalf("concernReminders = %v, want %v", gotReminders, want)
 			}
 
-			got := ""
-			if out.Behavioral.Tier2Summary != nil {
-				got = *out.Behavioral.Tier2Summary
-			}
+			behavioral, _ := out.Get("behavioral")
+			summary, _ := behavioral.(*noskillsfx.JSObject).Get("tier2Summary")
+			got, _ := summary.(string)
 
 			if tc.wantSummary == "" && got != "" {
 				t.Errorf("Tier2Summary = %q, want none", got)
@@ -481,4 +485,20 @@ func TestCompileExecutingCarriesOnlyUnscopedReminders(t *testing.T) {
 			}
 		})
 	}
+}
+
+// classificationObject is a classification as the state file holds it, or
+// nil for none.
+func classificationObject(cl *noskillsfx.SpecClassification) *noskillsfx.JSObject {
+	if cl == nil {
+		return nil
+	}
+
+	return noskillsfx.JSObjectOf(
+		"involvesWebUI", cl.InvolvesWebUI,
+		"involvesCLI", cl.InvolvesCLI,
+		"involvesPublicAPI", cl.InvolvesPublicAPI,
+		"involvesMigration", cl.InvolvesMigration,
+		"involvesDataHandling", cl.InvolvesDataHandling,
+	)
 }

@@ -1,6 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import * as assert from "@std/assert";
+import * as assert from "@eserstack/test-kit/assert";
 import * as fs from "@std/fs"; // symlinks are not available in runtime
 import { runtime } from "@eserstack/standards/cross-runtime";
 import * as larouxConfig from "@eserstack/laroux/config";
@@ -127,7 +127,7 @@ Deno.test("createClientEntry copies the bootstrap with its package layout", asyn
     );
     const copied = await Promise.all(
       [
-        "client/bootstrap/entry.tsx",
+        "client/bootstrap/entry.ts",
         "client.ts",
         "protocol.ts",
         "runtime/image/fallback.ts",
@@ -180,7 +180,7 @@ Deno.test("the client entry of a minimal laroux app bundles with the copied boot
       ),
     );
     const bundled = outputCode.join("\n");
-    // Code from entry.tsx and from the files it imports by relative path
+    // Code from entry.ts and from the files it imports by relative path
     // (../../client.ts, ../../runtime/image/fallback.ts,
     // ../../runtime/navigation/link-navigation.ts) is in the bundle.
     assert.assertStringIncludes(bundled, "__callServer");

@@ -148,10 +148,31 @@ manager.FromEnvFile(".env", true)        // Environment-aware, case insensitive
 manager.FromEnvFileDirect(".env", false) // Direct file, case sensitive
 ```
 
-The parser is a port of [godotenv](https://github.com/joho/godotenv): it skips
-`#` comments, accepts an `export` prefix and single or double quotes, and
-expands `${NAME}` from the keys loaded so far. An undefined name expands to an
-empty string.
+The parser reads the dialect of `@std/dotenv`, which `@eserstack/config` uses,
+so a file loads to the same values from Go and TypeScript.
+`envparser/testdata/dialect.env` is read by both in their tests.
+
+- `KEY=value`, `KEY = value` and `export KEY=value` set a key. Lines starting
+  with `#` are comments, and so is `#` after a space in an unquoted value.
+- Unquoted values are trimmed and expanded: `${NAME}`, `$NAME`,
+  `${NAME:-default}` and `$NAME:-default`. A name resolves to this file's value,
+  then to a key an earlier source loaded; a key defined further down the file
+  counts. `\$NAME` stays as written.
+- Double-quoted values can span lines and are not expanded. `\n`, `\r`, `\t`,
+  `\"`, `\'` and `\\` are escapes; any other backslash pair stays as written.
+- Single-quoted values are taken as written, up to the next single quote.
+
+The Go reading differs from `@std/dotenv` in four places:
+
+- Keys may contain dots (`server.port=8080`), which configfx maps to nested
+  fields, and `KEY: value` works too. `@std/dotenv` skips such keys with a
+  warning.
+- An unquoted `#` with no space before it stays in the value
+  (`URL=http://x/#top`). `@std/dotenv` cuts the value there.
+- An undefined name without a default expands to an empty string. `@std/dotenv`
+  looks in the process environment and otherwise writes `undefined`.
+- Expansion stops after ten passes or when a pass changes nothing, so `A=$A`
+  reads as `$A`; `@std/dotenv` loops on it.
 
 ### 3. System Environment Variables
 

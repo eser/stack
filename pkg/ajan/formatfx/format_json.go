@@ -141,6 +141,10 @@ func (r *jsonReader) Flush() ([]any, error) {
 		return nil, nil
 	}
 
+	if err := CheckJSONDepth(text); err != nil {
+		return nil, newDeserializationError("json", "failed to deserialize JSON: "+err.Error(), err)
+	}
+
 	var result any
 	if err := json.Unmarshal([]byte(text), &result); err != nil {
 		return nil, newDeserializationError("json", "failed to deserialize JSON: "+err.Error(), err)

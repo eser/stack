@@ -171,6 +171,7 @@ const describeValue = (value: unknown): string => {
     return value.trim() === "" ? "an empty string" : "a string";
   }
   if (Array.isArray(value)) return "a list";
+  if (typeof value === "object") return "an object";
 
   return `a ${typeof value}`;
 };
@@ -229,7 +230,8 @@ export const validationInputOf = (
   }));
 
   for (const followUp of state.discovery.followUps ?? []) {
-    if (followUp.status === "answered" && followUp.answer !== null) {
+    // A hand-edited state can mark a follow-up answered without its answer.
+    if (followUp.status === "answered" && typeof followUp.answer === "string") {
       answers.push({
         questionId: followUp.id,
         question: followUp.question,
@@ -505,8 +507,11 @@ export type ValidatorDeps = {
 
 /** Raised when the validator call outlives its timeout. */
 class ValidatorTimeoutError extends Error {
-  constructor(readonly timeoutMs: number) {
+  readonly timeoutMs: number;
+
+  constructor(timeoutMs: number) {
     super(`the validator did not answer within ${timeoutMs / 1000} seconds`);
+    this.timeoutMs = timeoutMs;
     this.name = "ValidatorTimeoutError";
   }
 }

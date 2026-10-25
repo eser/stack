@@ -1,3 +1,5 @@
+//go:build !wasip1
+
 package main
 
 import (
@@ -390,7 +392,7 @@ func TestCloseModelReleasesTheRegistryEntry(t *testing.T) {
 	model := &closeCountingModel{} //nolint:exhaustruct
 
 	registryName := newHandle("cfg")
-	if _, err := aiRegistry.AddModel(
+	if _, err := aiRegistry().AddModel(
 		context.Background(), registryName, testConfigTarget(),
 	); err != nil {
 		t.Skipf("registry rejected the test config: %v", err)
@@ -403,13 +405,13 @@ func TestCloseModelReleasesTheRegistryEntry(t *testing.T) {
 	modelRegistryNames[handle] = registryName
 	handleMu.Unlock()
 
-	before := len(aiRegistry.ListModels())
+	before := len(aiRegistry().ListModels())
 
 	if got := bridgeAiCloseModel(handle); got != "{}" {
 		t.Fatalf("close returned %q", got)
 	}
 
-	if after := len(aiRegistry.ListModels()); after >= before {
+	if after := len(aiRegistry().ListModels()); after >= before {
 		t.Fatalf("registry still holds %d models (was %d)", after, before)
 	}
 
@@ -438,7 +440,7 @@ func TestCloseModelClosesExactlyOnce(t *testing.T) {
 		model := &closeCountingModel{} //nolint:exhaustruct
 
 		registryName := newHandle("cfg")
-		if _, err := aiRegistry.AddModel(
+		if _, err := aiRegistry().AddModel(
 			context.Background(), registryName, testConfigTarget(),
 		); err != nil {
 			t.Skipf("registry rejected the test config: %v", err)

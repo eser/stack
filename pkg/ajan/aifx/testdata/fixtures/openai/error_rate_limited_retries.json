@@ -1,0 +1,152 @@
+{
+  "provider": "openai",
+  "scenario": "error_rate_limited_retries",
+  "exchanges": [
+    {
+      "request": {
+        "headers": {
+          "accept": "application/json",
+          "accept-encoding": "gzip",
+          "authorization": "Bearer test-openai-key",
+          "content-length": "138",
+          "content-type": "application/json",
+          "user-agent": "OpenAI/Go 1.12.0",
+          "x-stainless-arch": "arm64",
+          "x-stainless-lang": "go",
+          "x-stainless-os": "MacOS",
+          "x-stainless-package-version": "1.12.0",
+          "x-stainless-retry-count": "0",
+          "x-stainless-runtime": "go",
+          "x-stainless-runtime-version": "go1.26.6",
+          "x-stainless-timeout": "10"
+        },
+        "method": "POST",
+        "path": "/chat/completions",
+        "body": {
+          "messages": [
+            {
+              "content": "Be brief.",
+              "role": "developer"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "gpt-test",
+          "max_completion_tokens": 256
+        }
+      },
+      "response": {
+        "headers": {
+          "Content-Type": "application/json",
+          "retry-after-ms": "0",
+          "x-request-id": "req_429"
+        },
+        "body": "{\"error\":{\"message\":\"Rate limit reached\",\"type\":\"requests\",\"param\":null,\"code\":\"rate_limit_exceeded\"}}",
+        "status": 429
+      }
+    },
+    {
+      "request": {
+        "headers": {
+          "accept": "application/json",
+          "accept-encoding": "gzip",
+          "authorization": "Bearer test-openai-key",
+          "content-length": "138",
+          "content-type": "application/json",
+          "user-agent": "OpenAI/Go 1.12.0",
+          "x-stainless-arch": "arm64",
+          "x-stainless-lang": "go",
+          "x-stainless-os": "MacOS",
+          "x-stainless-package-version": "1.12.0",
+          "x-stainless-retry-count": "1",
+          "x-stainless-runtime": "go",
+          "x-stainless-runtime-version": "go1.26.6",
+          "x-stainless-timeout": "10"
+        },
+        "method": "POST",
+        "path": "/chat/completions",
+        "body": {
+          "messages": [
+            {
+              "content": "Be brief.",
+              "role": "developer"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "gpt-test",
+          "max_completion_tokens": 256
+        }
+      },
+      "response": {
+        "headers": {
+          "Content-Type": "application/json",
+          "retry-after-ms": "0",
+          "x-request-id": "req_429"
+        },
+        "body": "{\"error\":{\"message\":\"Rate limit reached\",\"type\":\"requests\",\"param\":null,\"code\":\"rate_limit_exceeded\"}}",
+        "status": 429
+      }
+    },
+    {
+      "request": {
+        "headers": {
+          "accept": "application/json",
+          "accept-encoding": "gzip",
+          "authorization": "Bearer test-openai-key",
+          "content-length": "138",
+          "content-type": "application/json",
+          "user-agent": "OpenAI/Go 1.12.0",
+          "x-stainless-arch": "arm64",
+          "x-stainless-lang": "go",
+          "x-stainless-os": "MacOS",
+          "x-stainless-package-version": "1.12.0",
+          "x-stainless-retry-count": "2",
+          "x-stainless-runtime": "go",
+          "x-stainless-runtime-version": "go1.26.6",
+          "x-stainless-timeout": "10"
+        },
+        "method": "POST",
+        "path": "/chat/completions",
+        "body": {
+          "messages": [
+            {
+              "content": "Be brief.",
+              "role": "developer"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "gpt-test",
+          "max_completion_tokens": 256
+        }
+      },
+      "response": {
+        "headers": {
+          "Content-Type": "application/json",
+          "retry-after-ms": "0",
+          "x-request-id": "req_429"
+        },
+        "body": "{\"error\":{\"message\":\"Rate limit reached\",\"type\":\"requests\",\"param\":null,\"code\":\"rate_limit_exceeded\"}}",
+        "status": 429
+      }
+    }
+  ],
+  "outcome": {
+    "error": {
+      "kind": "rate_limited",
+      "message": "openai generation failed: rate limited: POST \"{{server}}/chat/completions\": 429 Too Many Requests {\"message\":\"Rate limit reached\",\"type\":\"requests\",\"param\":null,\"code\":\"rate_limit_exceeded\"}",
+      "sentinels": [
+        "ErrOpenAIGenerationFailed",
+        "ErrRateLimited"
+      ],
+      "status": 429
+    }
+  }
+}

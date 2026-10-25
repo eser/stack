@@ -100,3 +100,79 @@ func TestWriteIsReadByChild(t *testing.T) {
 		t.Errorf("output = %q, want it to contain %q", out, "got:ping")
 	}
 }
+
+// TestChildSeesTheSizes pins the window size set at spawn and by Resize, as
+// the child reads them with stty.
+func TestChildSeesTheSizes(t *testing.T) {
+	t.Parallel()
+
+	s, err := pty.Spawn(pty.SpawnOptions{
+		Command: "sh",
+		Args:    []string{"-c", `printf "start:%s\n" "$(stty size)"; read line; printf "after:%s\n" "$(stty size)"`},
+		Cols:    91,
+		Rows:    17,
+	})
+	if err != nil {
+		t.Fatalf("spawn: %v", err)
+	}
+
+	// Resize only once the child has read the first size.
+	var out strings.Builder
+
+	for !strings.Contains(out.String(), "start:") {
+		chunk, ok := s.Read()
+		if !ok {
+			t.Fatalf("the child exited early; output %q", out.String())
+		}
+
+		out.Write(chunk)
+	}
+
+	if err := s.Resize(100, 40); err != nil {
+		t.Fatalf("resize: %v", err)
+	}
+
+	if err := s.Write([]byte("go\n")); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+
+	out.WriteString(drain(t, s))
+	_ = s.Close()
+
+	for _, want := range []string{"start:17 91", "after:40 100"} {
+		if !strings.Contains(out.String(), want) {
+			t.Errorf("output = %q, want it to contain %q", out.String(), want)
+		}
+	}
+}
+
+// TestResizeRacingTheExitIsSafe pins that a resize while the child exits,
+// and the master is closed, returns at most an error: run it with -race.
+func TestResizeRacingTheExitIsSafe(t *testing.T) {
+	t.Parallel()
+
+	s, err := pty.Spawn(pty.SpawnOptions{Command: "sh", Args: []string{"-c", "exit 0"}, Cols: 80, Rows: 24})
+	if err != nil {
+		t.Fatalf("spawn: %v", err)
+	}
+
+	done := make(chan struct{})
+
+	go func() {
+		defer close(done)
+
+		drain(t, s)
+	}()
+
+	for {
+		select {
+		case <-done:
+			_ = s.Close()
+
+			return
+		default:
+			_ = s.Resize(81, 25) // fails once the master is closed, which is the point
+			_ = s.Resize(80, 24) // as above
+		}
+	}
+}

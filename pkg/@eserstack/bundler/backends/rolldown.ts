@@ -555,7 +555,7 @@ export class RolldownBackend implements Bundler {
 
 /**
  * Encode one Rolldown output as bytes. Chunks get the basePath rewrite of the
- * `/_lime/alive` URL, matching the DenoBundler backend.
+ * `/_lime/alive` URL.
  */
 function encodeRolldownOutput(
   output: RolldownOutputChunk | RolldownOutputAsset,

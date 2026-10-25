@@ -517,12 +517,21 @@ export const containsGitWriteBypass = (command: string): boolean => {
 
 const SHELL_PROGRAM = String.raw`(?:\S*\/)?(?:ba|z|k|da|a)?sh`;
 
+/** A pipe into a shell: `... | sh`, `... | bash -s`. */
+const PIPE_INTO_SHELL = new RegExp(
+  String.raw`\|\s*${SHELL_PROGRAM}(?:\s+-\w+)*\s*(?:$|[;&|)])`,
+  "m",
+);
+
+/** A shell reading a heredoc: `sh <<EOF`. */
+const SHELL_HEREDOC = new RegExp(
+  String.raw`(?:^|[\s;&|(])${SHELL_PROGRAM}(?:\s+-\w+)*\s*<<`,
+  "m",
+);
+
 /** True if a shell in the command takes its script from stdin or a heredoc. */
 export const feedsShellFromStdin = (command: string): boolean =>
-  new RegExp(String.raw`\|\s*${SHELL_PROGRAM}(?:\s+-\w+)*\s*(?:$|[;&|)])`, "m")
-    .test(command) ||
-  new RegExp(String.raw`(?:^|[\s;&|(])${SHELL_PROGRAM}(?:\s+-\w+)*\s*<<`, "m")
-    .test(command);
+  PIPE_INTO_SHELL.test(command) || SHELL_HEREDOC.test(command);
 
 /**
  * Script files a command runs through a shell (`sh run.sh`, `bash -e x.sh`,

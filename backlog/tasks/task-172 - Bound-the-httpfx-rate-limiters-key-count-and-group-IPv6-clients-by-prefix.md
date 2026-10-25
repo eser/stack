@@ -1,9 +1,10 @@
 ---
 id: TASK-172
 title: Bound the httpfx rate limiter's key count and group IPv6 clients by prefix
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-10-05 00:58'
+updated_date: '2026-10-15 19:34'
 labels:
   - httpfx
   - security
@@ -22,8 +23,16 @@ Decisions: at most 100,000 keys per middleware by default, configurable; at the 
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 The limiter holds at most a configured number of keys per handler, with a safe default, and the behavior at the limit is documented
-- [ ] #2 IPv6 client addresses are keyed by a prefix, with the length documented
-- [ ] #3 Tests cover the limit and the IPv6 grouping
-- [ ] #4 deno task cli ok passes
+- [x] #1 The limiter holds at most a configured number of keys per handler, with a safe default, and the behavior at the limit is documented
+- [x] #2 IPv6 client addresses are keyed by a prefix, with the length documented
+- [x] #3 Tests cover the limit and the IPv6 grouping
+- [x] #4 deno task cli ok passes
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Completed in round 3 of the autonomous backlog run (2026-10-05); deno task cli ok passes.
+
+Verified in /Users/eser/projects/eser/stack/pkg/ajan/httpfx/middlewares/rate_limit_middleware.go. DefaultRateLimiterMaxKeys is 100,000 and WithRateLimiterMaxKeys changes it. The limit is split over min(32, maxKeys) shards with the remainder spread, so the total never exceeds maxKeys. Each request evicts the entries whose window has ended from the old end of the shard's window-start list. A new key at a full shard evicts the oldest entry. addressKey keys IPv6 by a /64 by default (WithRateLimiterIPv6Prefix, 1 to 128) and folds IPv4-mapped addresses to IPv4. The setting is read at request time, so option order does not matter. The README and godoc state the trade-off (an evicted client's count restarts). I corrected the README sentence that said the limit is always split over 32 shards: with fewer than 32 keys there is one shard per key. Tests: TestRateLimiter_HoldsAtMostMaxKeys, TestRateLimiter_EvictionOrderAtTheLimit, TestAddressKey, TestRateLimitMiddleware_GroupsIPv6ByPrefix, TestRateLimitMiddleware_InvalidKeySettings.
+<!-- SECTION:NOTES:END -->

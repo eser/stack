@@ -1,0 +1,230 @@
+{
+  "provider": "openai",
+  "scenario": "stream_tool_call",
+  "notes": [
+    "The SDK recording sent each tool message with content and tool_call_id swapped: the adapter passed openai.ToolMessage(toolCallID, content) to a function whose parameters are (content, toolCallID). The net/http implementation sends them the right way round, and the tool messages here were corrected by hand."
+  ],
+  "exchanges": [
+    {
+      "request": {
+        "headers": {
+          "accept": "application/json",
+          "accept-encoding": "gzip",
+          "authorization": "Bearer test-openai-key",
+          "content-length": "1951",
+          "content-type": "application/json",
+          "user-agent": "OpenAI/Go 1.12.0",
+          "x-stainless-arch": "arm64",
+          "x-stainless-lang": "go",
+          "x-stainless-os": "MacOS",
+          "x-stainless-package-version": "1.12.0",
+          "x-stainless-retry-count": "0",
+          "x-stainless-runtime": "go",
+          "x-stainless-runtime-version": "go1.26.6",
+          "x-stainless-timeout": "10"
+        },
+        "method": "POST",
+        "path": "/chat/completions",
+        "body": {
+          "messages": [
+            {
+              "content": "Answer as JSON.",
+              "role": "developer"
+            },
+            {
+              "content": "A system message inside the conversation.",
+              "role": "developer"
+            },
+            {
+              "content": [
+                {
+                  "text": "What is in these images, and what is the weather?",
+                  "type": "text"
+                },
+                {
+                  "image_url": {
+                    "url": "https://example.com/cat.jpg",
+                    "detail": "high"
+                  },
+                  "type": "image_url"
+                },
+                {
+                  "image_url": {
+                    "url": "https://example.com/dog.png",
+                    "detail": "low"
+                  },
+                  "type": "image_url"
+                },
+                {
+                  "image_url": {
+                    "url": "",
+                    "detail": "auto"
+                  },
+                  "type": "image_url"
+                },
+                {
+                  "image_url": {
+                    "url": "data:image/jpeg;base64,aGVsbG8=",
+                    "detail": "auto"
+                  },
+                  "type": "image_url"
+                },
+                {
+                  "input_audio": {
+                    "data": "https://example.com/clip.mp3",
+                    "format": "mp3"
+                  },
+                  "type": "input_audio"
+                },
+                {
+                  "input_audio": {
+                    "data": "data:audio/wav;base64,UklGRg==",
+                    "format": "wav"
+                  },
+                  "type": "input_audio"
+                },
+                {
+                  "input_audio": {
+                    "data": "",
+                    "format": "wav"
+                  },
+                  "type": "input_audio"
+                }
+              ],
+              "role": "user"
+            },
+            {
+              "content": "Let me check.",
+              "tool_calls": [
+                {
+                  "id": "call_0",
+                  "function": {
+                    "arguments": "{\"city\": \"Ankara\"}",
+                    "name": "get_weather"
+                  },
+                  "type": "function"
+                }
+              ],
+              "role": "assistant"
+            },
+            {
+              "content": "18C and sunny",
+              "tool_call_id": "call_0",
+              "role": "tool"
+            },
+            {
+              "content": "the service failed",
+              "tool_call_id": "call_9",
+              "role": "tool"
+            },
+            {
+              "content": "Thanks, now Istanbul.",
+              "role": "user"
+            }
+          ],
+          "model": "gpt-test",
+          "max_completion_tokens": 300,
+          "temperature": 0.25,
+          "top_p": 0.5,
+          "reasoning_effort": "high",
+          "stop": [
+            "END",
+            "STOP"
+          ],
+          "response_format": {
+            "json_schema": {
+              "name": "answer",
+              "strict": true,
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "answer": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "answer"
+                ],
+                "type": "object"
+              }
+            },
+            "type": "json_schema"
+          },
+          "tool_choice": "required",
+          "tools": [
+            {
+              "function": {
+                "name": "get_weather",
+                "description": "Current weather for a city",
+                "parameters": {
+                  "$defs": {
+                    "unit": {
+                      "enum": [
+                        "c",
+                        "f"
+                      ]
+                    }
+                  },
+                  "additionalProperties": false,
+                  "description": "weather arguments",
+                  "properties": {
+                    "city": {
+                      "type": "string"
+                    },
+                    "unit": {
+                      "$ref": "#/$defs/unit"
+                    }
+                  },
+                  "required": [
+                    "city"
+                  ],
+                  "type": "object"
+                }
+              },
+              "type": "function"
+            },
+            {
+              "function": {
+                "name": "ping",
+                "description": "Takes no arguments"
+              },
+              "type": "function"
+            }
+          ],
+          "stream": true
+        }
+      },
+      "response": {
+        "headers": {
+          "Content-Type": "text/event-stream"
+        },
+        "body": "data: {\"id\":\"chatcmpl-s1\",\"object\":\"chat.completion.chunk\",\"created\":1761300000,\"model\":\"gpt-test\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":null,\"tool_calls\":[{\"index\":0,\"id\":\"call_1\",\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"arguments\":\"\"}}]},\"logprobs\":null,\"finish_reason\":null}]}\n\ndata: {\"id\":\"chatcmpl-s1\",\"object\":\"chat.completion.chunk\",\"created\":1761300000,\"model\":\"gpt-test\",\"choices\":[{\"index\":0,\"delta\":{\"tool_calls\":[{\"index\":0,\"function\":{\"arguments\":\"{\\\"city\\\": \"}}]},\"logprobs\":null,\"finish_reason\":null}]}\n\ndata: {\"id\":\"chatcmpl-s1\",\"object\":\"chat.completion.chunk\",\"created\":1761300000,\"model\":\"gpt-test\",\"choices\":[{\"index\":0,\"delta\":{\"tool_calls\":[{\"index\":0,\"function\":{\"arguments\":\"\\\"Istanbul\\\"}\"}}]},\"logprobs\":null,\"finish_reason\":null}]}\n\ndata: {\"id\":\"chatcmpl-s1\",\"object\":\"chat.completion.chunk\",\"created\":1761300000,\"model\":\"gpt-test\",\"choices\":[{\"index\":0,\"delta\":{\"tool_calls\":[{\"index\":1,\"id\":\"call_2\",\"type\":\"function\",\"function\":{\"name\":\"ping\",\"arguments\":\"{}\"}}]},\"logprobs\":null,\"finish_reason\":null}]}\n\ndata: {\"id\":\"chatcmpl-s1\",\"object\":\"chat.completion.chunk\",\"created\":1761300000,\"model\":\"gpt-test\",\"choices\":[{\"index\":0,\"delta\":{},\"logprobs\":null,\"finish_reason\":\"tool_calls\"}]}\n\ndata: [DONE]\n\n",
+        "status": 200
+      }
+    }
+  ],
+  "outcome": {
+    "events": [
+      {
+        "toolCall": {
+          "arguments": "{\"city\": \"Istanbul\"}",
+          "id": "call_1",
+          "name": "get_weather"
+        },
+        "type": "tool_call_delta"
+      },
+      {
+        "toolCall": {
+          "arguments": "{}",
+          "id": "call_2",
+          "name": "ping"
+        },
+        "type": "tool_call_delta"
+      },
+      {
+        "stopReason": "tool_use",
+        "type": "message_done"
+      }
+    ]
+  }
+}

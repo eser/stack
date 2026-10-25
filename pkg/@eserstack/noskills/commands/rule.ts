@@ -18,6 +18,10 @@ import { runtime } from "@eserstack/standards/cross-runtime";
 export const main = async (
   args?: readonly string[],
 ): Promise<shellArgs.CliResult<void>> => {
+  // The messages below name the project's command (cmd.cmdPrefix).
+  const { root: projectRoot } = await persistence.resolveProjectRoot();
+  await cmd.loadCommandPrefix(projectRoot);
+
   const subcommand = args?.[0];
 
   if (subcommand === "add") {
@@ -134,8 +138,8 @@ const ruleAdd = async (
   );
 
   // Auto-sync
-  if (config !== null && config.tools.length > 0) {
-    await syncEngine.syncAll(root, config.tools, config);
+  if (config !== null && (config.tools ?? []).length > 0) {
+    await syncEngine.syncAll(root, config.tools ?? [], config);
     out.writeln(span.dim("  Tool files synced."));
   }
 

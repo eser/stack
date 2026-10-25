@@ -1,5 +1,9 @@
 # 🔌 [@eserstack/noskills-client](./)
 
+> **Note:** JSR is frozen at 4.5.x. From 5.0.0, `@eserstack/noskills-client` is
+> published on npm under the same name (`pnpm add @eserstack/noskills-client`);
+> the JSR versions stay available but get no updates.
+
 > **eserstack Tool** · [eser/stack on GitHub](https://github.com/eser/stack) ·
 > **Install:** `pnpm add jsr:@eserstack/noskills-client`
 

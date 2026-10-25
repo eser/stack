@@ -5,10 +5,9 @@ eser-ajan shared library for Linux x64.
 Prebuilt `libeser_ajan.so` for the [@eserstack/ajan](../ajan) FFI bridge, with
 its C header `libeser_ajan.h`, installed automatically as an optional dependency
 of `@eserstack/ajan` and the `eser` CLI on this platform.
-`pkg/@eserstack/ajan/scripts/build.ts` builds the library into
-`pkg/@eserstack/ajan/dist/`, and `pkg/@eserstack/ajan/npm/generate-packages.ts`
-copies it here. The binary is a build output and is not committed; only this
-manifest is.
+`make ajan-lib TARGET=<id>` at the repository root builds the library into
+`pkg/@eserstack/ajan/dist/`, and `make ajan-packages` copies it here. The binary
+is a build output and is not committed; only this manifest is.
 
 ## 🔗 Links
 

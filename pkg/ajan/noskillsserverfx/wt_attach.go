@@ -17,7 +17,7 @@ import (
 
 // handleAttach is a RouteRaw handler for /attach/{slug}/{sid}.
 // It upgrades the HTTP/3 request to a WebTransport session and brokers
-// messages between the WT client and the session's TS worker.
+// messages between the WT client and the session's worker.
 //
 // Protocol:
 //  1. Upgrade HTTP/3 → WebTransport
@@ -25,7 +25,9 @@ import (
 //  3. Accept bidi stream from client
 //  4. Register with broadcaster (events buffer while replaying)
 //  5. Replay ledger (transcript_replay_start … lines … transcript_replay_end)
-//  6. Enter live mode: goroutine forwards worker events; scanner reads client messages
+//  6. Join a mux session's frames (remoteMuxWorker), with a socket of its own
+//  7. Enter live mode: goroutine forwards worker events and mux frames;
+//     scanner reads client messages
 func (s *Server) handleAttach(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	slug := r.PathValue("slug")
@@ -37,8 +39,9 @@ func (s *Server) handleAttach(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// ?after=<n> lets a reconnecting client skip events it has already seen.
-	// The value is the last seq the client received (0 = full replay).
+	// ?after=<n> lets a reconnecting client skip the ledger lines it has
+	// already seen. The value is the last seq the client received, which
+	// counts ledger lines only (0 = full replay).
 	var afterSeq int64
 	if afterStr := r.URL.Query().Get("after"); afterStr != "" {
 		if n, err := strconv.ParseInt(afterStr, 10, 64); err == nil && n >= 0 {
@@ -100,9 +103,17 @@ func (s *Server) handleAttach(w http.ResponseWriter, r *http.Request) {
 	out := boundedWriter{stream: stream, timeout: attachWriteTimeout}
 	enc := json.NewEncoder(out)
 
-	// seq is the per-connection monotonic counter. Replay lines and live events
-	// share the same counter so the client sees a single contiguous sequence.
-	var seq int64
+	// seq is the number of the last ledger line this client has been sent:
+	// replayed lines and live events are ledger lines, and each carries its
+	// line number. The replay's start and end lines, mux frames and an event
+	// the ledger refused are not; they carry seq without advancing it, so the
+	// last seq a client saw is always the ?after= that resumes it without a
+	// gap or a repeat.
+	seq := afterSeq
+
+	// cut is where the replay stopped in the session's own ledger, which
+	// tells the live forwarder which events the replay already sent.
+	var cut replayCut
 
 	// Register with the broadcaster BEFORE replaying the ledger so that any
 	// live events arriving during replay are buffered in clientCh (not dropped).
@@ -127,14 +138,15 @@ func (s *Server) handleAttach(w http.ResponseWriter, r *http.Request) {
 	// Send historical events so the client can reconstruct prior transcript.
 	// The first failed write ends the attach, since every later one would
 	// fail the same way.
-	writeErr := wtSend(enc, &seq, map[string]any{"type": "transcript_replay_start"})
+	writeErr := wtSend(enc, seq, map[string]any{"type": "transcript_replay_start"})
 
 	if writeErr == nil {
 		// replayWithForkAwareness assigns stable 1-based seq numbers to each
 		// line. Lines with seq ≤ afterSeq are counted but not sent (reconnect
-		// fast-path). The returned totalLines lets the live forwarder continue
-		// numbering from there.
-		totalLines, replayErr := replayWithForkAwareness(
+		// fast-path). totalLines and ownLines, the session's own ledger lines
+		// the replay covered, let the live forwarder number events and drop
+		// the ones the replay sent.
+		totalLines, ownLines, replayErr := replayWithForkAwareness(
 			ctx, entry.Ledger, s.config.DataDir, entry.Root, afterSeq,
 			func(lineSeq int64, line []byte) bool {
 				// A forked session replays its parent's ledger first, and a
@@ -154,20 +166,36 @@ func (s *Server) handleAttach(w http.ResponseWriter, r *http.Request) {
 				return true
 			},
 		)
-		if replayErr != nil && ctx.Err() == nil {
+		// A fork whose ancestry breaks off, at an ancestor whose ledger is
+		// gone or at a cycle, has had every line below the break replayed,
+		// numbered the same on every attach.
+		complete := replayErr == nil || errors.Is(replayErr, errForkAncestry)
+
+		switch {
+		case complete && replayErr != nil:
+			s.logger.ErrorContext(ctx, "wt_attach: fork ancestry replayed only up to a break",
+				"sid", sid, "err", replayErr)
+		case replayErr != nil && ctx.Err() == nil:
 			// The client still gets the live events; its transcript lacks
 			// whatever the ledger could not give.
 			s.logger.WarnContext(ctx, "wt_attach: ledger replay incomplete", "sid", sid, "err", replayErr)
 		}
 
-		// Keep seq in sync with the highest line number even when some were skipped.
-		if seq < totalLines {
+		// The live events that follow are ledger lines totalLines+1 on. A
+		// client that claimed more lines than the ledger holds goes back to
+		// its end; after an incomplete replay seq only moves forward.
+		if complete || seq < totalLines {
 			seq = totalLines
+		}
+
+		cut.lines = ownLines
+		if complete {
+			cut.offset = totalLines - ownLines
 		}
 	}
 
 	if writeErr == nil {
-		writeErr = wtSend(enc, &seq, map[string]any{"type": "transcript_replay_end"})
+		writeErr = wtSend(enc, seq, map[string]any{"type": "transcript_replay_end"})
 	}
 
 	if writeErr != nil {
@@ -176,10 +204,24 @@ func (s *Server) handleAttach(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// ── Mux frames ────────────────────────────────────────────────────────
+	// A mux session's frames reach this client through a socket of its own
+	// rather than the broadcaster, so the mux server paces its screens by
+	// how far behind the client is. They start once the client's attach
+	// frame, read below, has made the server send a full scene.
+	var remote *queuedSocket
+
+	muxWorker, isMux := entry.Worker.(remoteMuxWorker)
+	if isMux {
+		remote = newQueuedSocket()
+		muxWorker.joinRemote(remote)
+	}
+
 	// ── Live mode ─────────────────────────────────────────────────────────
-	// The forwarder sends worker events to the client. It stops when clientCh
-	// closes, because the worker exited (broadcaster.Close) or this handler
-	// unregistered below, or when a write fails. Either way it closes the
+	// The forwarder sends worker events and mux frames to the client. It
+	// stops when clientCh closes, because the worker exited
+	// (broadcaster.Close) or this handler unregistered below, when the mux
+	// socket fell behind, or when a write fails. Either way it closes the
 	// WebTransport session, which also ends the read loop below. The handler
 	// waits for it, so nothing writes to the stream after the handler returns.
 	forwarded := make(chan struct{})
@@ -187,7 +229,7 @@ func (s *Server) handleAttach(w http.ResponseWriter, r *http.Request) {
 	go func() {
 		defer close(forwarded)
 
-		if err := forwardEvents(ctx, enc, &seq, clientCh, s.logger); err != nil {
+		if err := forwardEvents(ctx, out, &seq, cut, clientCh, remote, s.logger); err != nil {
 			closeAfterFailedWrite("live", err)
 
 			return
@@ -198,8 +240,11 @@ func (s *Server) handleAttach(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	// Client → worker: read newline-delimited JSON from the bidi stream.
-	// Exits when the WT session is closed (client disconnect or the forwarder).
+	// Exits when the WT session is closed (client disconnect or the
+	// forwarder), or at a line longer than attachMaxLine.
 	scanner := bufio.NewScanner(stream)
+	scanner.Buffer(make([]byte, 0, attachLineBuffer), attachMaxLine)
+
 	for scanner.Scan() {
 		line := scanner.Text()
 		if line == "" {
@@ -207,6 +252,16 @@ func (s *Server) handleAttach(w http.ResponseWriter, r *http.Request) {
 		}
 
 		dispatchClientMessage(ctx, line, entry, s.logger)
+	}
+
+	if errors.Is(scanner.Err(), bufio.ErrTooLong) {
+		s.logger.WarnContext(ctx, "wt_attach: client sent a line over the limit, closing the attach",
+			"sid", sid, "limit", attachMaxLine)
+	}
+
+	if isMux {
+		muxWorker.leaveRemote(remote)
+		remote.close()
 	}
 
 	// Unregistering closes clientCh: the forwarder delivers what is still
@@ -221,6 +276,14 @@ func (s *Server) handleAttach(w http.ResponseWriter, r *http.Request) {
 // stopped reading. Its attach then ends, and the client can reattach with
 // ?after=.
 const attachWriteTimeout = 30 * time.Second
+
+const (
+	// attachMaxLine is the longest line a client may send, as large as a
+	// /mux WebSocket frame: a mux paste of a large text is the biggest one.
+	attachMaxLine = muxSocketMaxFrame
+	// attachLineBuffer is the line buffer an attach starts with.
+	attachLineBuffer = 64 * 1024
+)
 
 // deadlineWriter is the write side of an attach stream.
 type deadlineWriter interface {
@@ -247,42 +310,139 @@ func (b boundedWriter) Write(p []byte) (int, error) {
 	return n, nil
 }
 
-// forwardEvents writes each event from events to the client as one JSON line,
-// translated to the client wire protocol, until events is closed, which
-// returns nil, or a write fails, which returns its error. enc writes through
-// a boundedWriter, so a client that stops reading ends the loop within
-// attachWriteTimeout.
-func forwardEvents(
-	ctx context.Context,
-	enc *json.Encoder,
-	seq *int64,
-	events <-chan WorkerEvent,
-	logger *logfx.Logger,
-) error {
-	for evt := range events {
-		msg := translateWorkerEvent(ctx, evt, logger)
-		if msg == nil {
-			continue
-		}
-
-		if err := wtSend(enc, seq, msg); err != nil {
-			return fmt.Errorf("send %q event: %w", evt.Type, err)
-		}
-	}
-
-	return nil
+// remoteMuxWorker is a worker whose mux frames go to each attached client
+// through a socket of its own: the mux worker.
+type remoteMuxWorker interface {
+	joinRemote(socket muxSocket)
+	leaveRemote(socket muxSocket)
 }
 
-// wtSend encodes msg to enc, injecting "v":1 and an auto-incremented "seq"
-// into every map[string]any message. The seq pointer is shared across the
-// entire WebTransport connection so replay and live events form one contiguous
-// sequence visible to the client for reconnect fast-path (?after=<seq>).
-// The ledger format itself remains version- and seq-free.
-func wtSend(enc *json.Encoder, seq *int64, msg any) error {
+// replayCut is where an attach's replay stopped in the session's own ledger.
+type replayCut struct {
+	// lines is how many of the ledger's lines the replay covered. A live
+	// event written as one of them has been replayed, or skipped by ?after=.
+	lines int64
+	// offset turns the number of a line of the ledger into the seq the replay
+	// gives it: 0, or for a fork the parent lines it replays first, less the
+	// fork's header line, which is not replayed.
+	offset int64
+}
+
+// errMuxClientBehind ends an attach whose client fell so far behind that its
+// mux socket's queue filled. The client reattaches and gets a full scene.
+var errMuxClientBehind = errors.New("the client fell behind the mux session")
+
+// errClientMissedEvents ends an attach whose client did not get a ledger line
+// live, as when its event buffer was full. Sending the lines after it would
+// move the client's seq past it, so it reattaches with ?after= instead and
+// gets it from the replay.
+var errClientMissedEvents = errors.New("the client missed a session event")
+
+// forwardEvents writes each event from events to the client as one JSON line,
+// translated to the client wire protocol, and each frame queued on remote, a
+// mux session's socket (nil for other sessions), as a mux line, until events
+// is closed, which returns nil, remote fell behind, or a write fails, which
+// returns its error. out is a boundedWriter, so a client that stops reading
+// ends the loop within attachWriteTimeout.
+//
+// seq is the number of the last ledger line the client has been sent. An
+// event carries the ledger line SessionEntry.publish wrote it as, which sets
+// seq; one written as a line the replay covered (cut) was sent already and is
+// dropped, and one past a line the client never got returns
+// errClientMissedEvents. An event with no line, which the ledger refused, and
+// a mux frame carry seq unchanged.
+func forwardEvents(
+	ctx context.Context,
+	out io.Writer,
+	seq *int64,
+	cut replayCut,
+	events <-chan WorkerEvent,
+	remote *queuedSocket,
+	logger *logfx.Logger,
+) error {
+	enc := json.NewEncoder(out)
+
+	var (
+		frames  <-chan []byte
+		stopped <-chan struct{}
+		line    []byte
+	)
+
+	if remote != nil {
+		frames, stopped = remote.frames(), remote.stopped()
+	}
+
+	// sent is the session's own ledger line the client has up to.
+	sent := cut.lines
+
+	for {
+		select {
+		case evt, ok := <-events:
+			if !ok {
+				return nil
+			}
+
+			switch {
+			case evt.Line == 0:
+			case evt.Line <= sent:
+				continue
+			case evt.Line > sent+1:
+				return fmt.Errorf("ledger line %d after line %d: %w", evt.Line, sent, errClientMissedEvents)
+			default:
+				sent = evt.Line
+				*seq = max(*seq, evt.Line+cut.offset)
+			}
+
+			msg := translateWorkerEvent(ctx, evt, logger)
+			if msg == nil {
+				continue
+			}
+
+			if err := wtSend(enc, *seq, msg); err != nil {
+				return fmt.Errorf("send %q event: %w", evt.Type, err)
+			}
+		case frame := <-frames:
+			line = appendMuxLine(line[:0], *seq, frame)
+
+			if _, err := out.Write(line); err != nil {
+				return fmt.Errorf("send a mux frame: %w", err)
+			}
+
+			remote.drained()
+		case <-stopped:
+			if remote.fellBehind() {
+				return errMuxClientBehind
+			}
+
+			// The session is closing; its events end the loop.
+			frames, stopped = nil, nil
+		}
+	}
+}
+
+// appendMuxLine appends the line that carries a mux server frame to a
+// client, {"type":"mux","v":1,"seq":N,"frame":FRAME} and a newline, with the
+// frame's encoded bytes as they are, so a frame is encoded once and never
+// parsed again on its way out. N is the number of the last ledger line the
+// client has been sent, since a frame is not a ledger line.
+func appendMuxLine(dst []byte, seq int64, frame []byte) []byte {
+	dst = append(dst, `{"type":"mux","v":1,"seq":`...)
+	dst = strconv.AppendInt(dst, seq, 10)
+	dst = append(dst, `,"frame":`...)
+	dst = append(dst, frame...)
+
+	return append(dst, "}\n"...)
+}
+
+// wtSend encodes msg to enc, injecting "v":1 and "seq" into every
+// map[string]any message. seq is the number of the last ledger line the
+// client has been sent, including msg when msg is one, so a reconnecting
+// client passes the last seq it saw as ?after=<seq>. The ledger format itself
+// remains version- and seq-free.
+func wtSend(enc *json.Encoder, seq int64, msg any) error {
 	if m, ok := msg.(map[string]any); ok {
-		*seq++
 		m["v"] = 1
-		m["seq"] = *seq
+		m["seq"] = seq
 	}
 
 	return enc.Encode(msg)
@@ -300,140 +460,4 @@ func withSeq(line []byte, seq int64) []byte {
 	prefix := fmt.Appendf(nil, `{"seq":%d,`, seq)
 
 	return append(prefix, line[1:]...)
-}
-
-// dispatchClientMessage parses one JSON line from the client and routes it to
-// the appropriate WorkerHandle method. ctx is the attach request's context, so
-// a call to the worker ends when the client disconnects.
-//
-// Errors are logged here because this is where they are handled: the client
-// protocol has no reply for these messages.
-func dispatchClientMessage(
-	ctx context.Context,
-	line string,
-	entry *SessionEntry,
-	logger *logfx.Logger,
-) {
-	var raw struct {
-		Type     string          `json:"type"`
-		Content  string          `json:"content,omitempty"`
-		ID       string          `json:"id,omitempty"`
-		Decision string          `json:"decision,omitempty"`
-		Message  string          `json:"message,omitempty"`
-		Mode     string          `json:"mode,omitempty"`
-		Model    string          `json:"model,omitempty"`
-		Frame    json.RawMessage `json:"frame,omitempty"`
-	}
-
-	if err := json.Unmarshal([]byte(line), &raw); err != nil {
-		logger.WarnContext(ctx, "wt_attach: malformed client message",
-			"sid", entry.SID, "line", line[:min(len(line), 200)])
-
-		return
-	}
-
-	switch raw.Type {
-	case "user_message":
-		if err := entry.Worker.PushMessage(ctx, raw.Content); err != nil {
-			logger.WarnContext(ctx, "wt_attach: user_message not queued", "sid", entry.SID, "err", err)
-		}
-	case "permission_response":
-		dispatchPermissionResponse(ctx, entry, raw.ID, raw.Decision, raw.Message, logger)
-	case "mux":
-		if err := entry.Worker.SendMux(ctx, raw.Frame); err != nil {
-			logger.WarnContext(ctx, "wt_attach: mux frame not sent", "sid", entry.SID, "err", err)
-		}
-	case "set_permission_mode":
-		if err := entry.Worker.SetMode(ctx, raw.Mode); err != nil {
-			logger.WarnContext(ctx, "wt_attach: set_permission_mode failed",
-				"sid", entry.SID, "mode", raw.Mode, "err", err)
-		}
-	case "set_model":
-		// Declared by the client protocol, with no analogue in ACP v1 -- the
-		// draft moves this to session/set_config_option. Logged rather than
-		// dropped in silence, so a client that sends it can find out why nothing
-		// happened instead of concluding the daemon ignored a working command.
-		logger.WarnContext(ctx, "wt_attach: set_model is not supported by the agent protocol",
-			"sid", entry.SID, "model", raw.Model)
-	case "stop", "abort":
-		if err := entry.Worker.StopTask(ctx); err != nil {
-			logger.WarnContext(ctx, "wt_attach: stop failed", "sid", entry.SID, "err", err)
-		}
-	}
-}
-
-// dispatchPermissionResponse validates a decision, journals it with the
-// durability its tool requires, and only then lets the worker act on it.
-//
-// Two things changed here, both of them safety properties that were stated in
-// comments elsewhere in this package but not actually in force:
-//
-// An unrecognised decision -- including the empty string a truncated or
-// malformed client message produces -- used to be rewritten to "allow". That
-// granted a permission the user was never asked about. It is now rejected and
-// the client is told, using the permission_response_rejected event the protocol
-// already defines for exactly this.
-//
-// The decision is journalled before the worker hears it. Ledger.AppendSync's
-// own comment says "the worker must not execute a write tool until the decision
-// is on disk"; until now nothing called it, so the ordering it describes did not
-// exist. If the sync fails the decision is not forwarded at all -- running the
-// tool with no durable record is the state the contract forbids.
-func dispatchPermissionResponse(
-	ctx context.Context,
-	entry *SessionEntry,
-	requestID, decision, message string,
-	logger *logfx.Logger,
-) {
-	if !validPermissionDecisions[decision] {
-		logger.WarnContext(ctx,
-			"wt_attach: rejecting permission response",
-			"sid", entry.SID, "id", requestID, "decision", decision,
-		)
-
-		entry.Broadcaster.Broadcast(WorkerEvent{
-			Type: "permission_response_rejected",
-			Payload: rejectionPayload(
-				requestID, decision, "unrecognised decision",
-			),
-		})
-
-		return
-	}
-
-	if !journalPermissionDecision(entry, requestID, decision) {
-		logger.WarnContext(ctx, "wt_attach: permission decision did not reach disk",
-			"sid", entry.SID, "id", requestID)
-
-		entry.Broadcaster.Broadcast(WorkerEvent{
-			Type: "permission_response_rejected",
-			Payload: rejectionPayload(
-				requestID, decision, "decision could not be journalled",
-			),
-		})
-
-		return
-	}
-
-	if err := entry.Worker.PermissionResponse(ctx, requestID, decision, message); err != nil {
-		// The decision is on disk; the worker has not heard it. The client
-		// sees no rejection because the decision itself was valid.
-		logger.WarnContext(ctx, "wt_attach: permission decision not delivered to the worker",
-			"sid", entry.SID, "id", requestID, "err", err)
-	}
-}
-
-// rejectionPayload builds the client-wire bytes for a refused decision.
-func rejectionPayload(requestID, decision, reason string) []byte {
-	payload, err := json.Marshal(map[string]any{
-		"type":     "permission_response_rejected",
-		"id":       requestID,
-		"decision": decision,
-		"reason":   reason,
-	})
-	if err != nil {
-		return []byte(`{"type":"permission_response_rejected"}`)
-	}
-
-	return payload
 }

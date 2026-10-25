@@ -124,6 +124,31 @@ func (f *attachFixture) addSession(t *testing.T, sid string, ledgerLines ...stri
 	return worker, entry
 }
 
+// addWorkerSession registers a running session of project "proj" whose
+// worker is worker.
+func (f *attachFixture) addWorkerSession(t *testing.T, sid string, worker WorkerHandle) *SessionEntry {
+	t.Helper()
+
+	ledger, err := openLedger(filepath.Join(t.TempDir(), sid+".jsonl"))
+	require.NoError(t, err)
+
+	entry := &SessionEntry{ //nolint:exhaustruct
+		SID:         sid,
+		Slug:        "proj",
+		Root:        t.TempDir(),
+		Worker:      worker,
+		Ledger:      ledger,
+		Broadcaster: newFanoutBroadcaster(),
+		Pending:     newPendingPermissions(),
+	}
+
+	f.srv.sessions.mu.Lock()
+	f.srv.sessions.addLocked(sessionKey(entry.Slug, sid), entry)
+	f.srv.sessions.mu.Unlock()
+
+	return entry
+}
+
 // attach dials the observed route for sid and opens the bidi stream the
 // daemon accepts. It returns a reader of the JSON lines the daemon sends.
 func (f *attachFixture) attach(t *testing.T, sid string) (*ajanwebtransport.Session, func() string) {

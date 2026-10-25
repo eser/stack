@@ -29,7 +29,7 @@
  *     cssProcessor: lightningcss.lightningCssProcessor,
  *     fontOptimizer: fonts.googleFontOptimizer,
  *     imageOptimizer: sharp.sharpImageOptimizer,
- *     bundlerBackend: "deno-bundler",
+ *     bundlerBackend: "rolldown",
  *   });
  *
  *   return await larouxBundler.build(context);

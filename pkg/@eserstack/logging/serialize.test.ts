@@ -1,15 +1,20 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import * as assert from "@std/assert";
+import * as assert from "@eserstack/test-kit/assert";
 import * as serialize from "./serialize.ts";
 
 class ManifestFetchError extends Error {
+  readonly url: string;
+  readonly status: number;
+
   constructor(
-    readonly url: string,
-    readonly status: number,
+    url: string,
+    status: number,
     options?: ErrorOptions,
   ) {
     super(`fetch manifest ${url}: HTTP ${status}`, options);
+    this.url = url;
+    this.status = status;
     this.name = "ManifestFetchError";
   }
 }

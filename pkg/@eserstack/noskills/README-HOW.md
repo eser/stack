@@ -637,7 +637,11 @@ files a call changes before they decide anything (`toolCallOf` in
 `commands/hook-decisions.ts`, which cites each tool's documentation). A
 pre-tool-use denial exits with code 2 and the reason on stderr, which each of
 these tools takes as a denial; stdout carries the same denial as JSON for the
-tools that read one. Every config gives pre-tool-use 30 seconds.
+tools that read one. Every config gives pre-tool-use 30 seconds, a limit set for
+commands that start noskills through npx and may wait on the npm registry. The
+Go binary (`cmd/noskills`) runs the same hooks in a few milliseconds without the
+network, so the limit is not needed when the hooks call it; `noskills init` run
+through the binary makes them call it.
 [The PreToolUse hook in each tool](./README.md#the-pretooluse-hook-in-each-tool)
 in the README lists the configs, the guarded tools and the gaps.
 
@@ -788,6 +792,9 @@ is active, `next` refuses a call without the spec name.
 noskills spec new "photo upload feature"           # auto-slug
 noskills spec new --name=SPC0001 "description"     # explicit name
 noskills spec list                                  # all specs with status
+noskills spec upload section list                   # sections the completeness gate checks
+noskills spec upload section summary fill "text"    # fill a section with the user's answer
+noskills spec upload section tasks na "reason"      # mark a section N/A (reason of 20+ chars)
 noskills spec upload revisit "scope changed"        # EXECUTING → DISCOVERY, progress preserved
 noskills spec upload split --into x --into y        # split into sub-specs
 ```
@@ -952,6 +959,9 @@ eser nos <command>             # alias
 | `spec <name> reset`                   | Reset to IDLE                                     |
 | `spec <name> reopen`                  | COMPLETED → DISCOVERY (re-scope a finished spec)  |
 | `spec <name> revisit "reason"`        | EXECUTING/BLOCKED → DISCOVERY with progress       |
+| `spec <name> section list`            | Sections the completeness gate checks             |
+| `spec <name> section <id> fill "..."` | Fill a section in DISCOVERY or REFINEMENT         |
+| `spec <name> section <id> na "..."`   | Mark a section N/A with a reason                  |
 | `spec <name> review`                  | See delegations assigned to you                   |
 | `spec <name> followup <qId> "text"`   | Add adaptive follow-up question                   |
 | `spec <name> followup <id> --answer=` | Answer a pending follow-up                        |

@@ -1,7 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 import * as bdd from "@std/testing/bdd";
-import * as assert from "@std/assert";
+import * as assert from "@eserstack/test-kit/assert";
 import * as serializer from "./serializer.ts";
 import * as deserializer from "./deserializer.ts";
 import * as formatRegistry from "./format-registry.ts";
@@ -497,6 +497,35 @@ bdd.describe("FormatReader streaming", () => {
       (flushed[0] as Record<string, unknown>)["name"],
       "app2",
     );
+  });
+
+  bdd.it("YAML quotes strings a YAML 1.1 reader takes for other types", () => {
+    // kubectl (sigs.k8s.io/yaml) and PyYAML read YAML 1.1, where an
+    // unquoted yes, off or 1_000 is a boolean or a number, so a ConfigMap
+    // value written that way fails to apply.
+    const text = yaml.yamlFormat.writeItem({
+      a: "yes",
+      b: "off",
+      c: "N",
+      d: "1_000",
+      e: "2001-12-14",
+      f: "plain",
+      g: true,
+      h: 3,
+    });
+    assert.assertStringIncludes(text, 'a: "yes"\n');
+    assert.assertStringIncludes(text, 'b: "off"\n');
+    assert.assertStringIncludes(text, 'c: "N"\n');
+    assert.assertStringIncludes(text, 'd: "1_000"\n');
+    assert.assertStringIncludes(text, 'e: "2001-12-14"\n');
+    assert.assertStringIncludes(text, "f: plain\n");
+    assert.assertStringIncludes(text, "g: true\n");
+    assert.assertStringIncludes(text, "h: 3\n");
+
+    // The values read back as the same strings.
+    const [read] = yaml.yamlFormat.createReader().push(text);
+    assert.assertEquals((read as Record<string, unknown>)["a"], "yes");
+    assert.assertEquals((read as Record<string, unknown>)["d"], "1_000");
   });
 
   bdd.it("YAML should split on --- separator", () => {

@@ -1,9 +1,10 @@
 ---
 id: TASK-163
 title: Keep the PreToolUse hook from failing open when the noskills command is slow
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-10-05 00:58'
+updated_date: '2026-10-15 19:34'
 labels:
   - noskills
   - security
@@ -22,7 +23,19 @@ Decision: raise the PreToolUse hook timeout in the generated configs to 30 secon
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 A slow or unreachable noskills command no longer makes the PreToolUse guard allow git writes silently, or the README states the limit and the fix
-- [ ] #2 Init or sync warns when the hook command depends on the network
-- [ ] #3 deno task cli ok passes
+- [x] #1 A slow or unreachable noskills command no longer makes the PreToolUse guard allow git writes silently, or the README states the limit and the fix
+- [x] #2 Init or sync warns when the hook command depends on the network
+- [x] #3 deno task cli ok passes
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Completed in round 3 of the autonomous backlog run (2026-10-05); deno task cli ok passes.
+
+Verified:
+- HOOK_TIMEOUT_SECONDS['pre-tool-use'] equals GIT_CHECK_TIMEOUT_SECONDS (30), and the Claude Code, Codex, Copilot CLI, Kiro and OpenCode configs all use it.
+- networkRunnerOf and networkCommandWarning detect npx, pnpx, bunx, npm exec/x, pnpm dlx, yarn dlx and remote `deno run`/`deno x` modules; init shows the warning.
+- The README paragraph "When the hook is slow" states the limit and the fix.
+- The OpenCode plugin refuses the call when the check cannot answer.
+<!-- SECTION:NOTES:END -->

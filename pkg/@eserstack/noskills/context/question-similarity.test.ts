@@ -6,7 +6,7 @@
  */
 
 import * as bdd from "@std/testing/bdd";
-import * as assert from "@std/assert";
+import * as assert from "@eserstack/test-kit/assert";
 import * as questionSimilarity from "./question-similarity.ts";
 
 bdd.describe("question-similarity", () => {

@@ -28,6 +28,18 @@ export const main = async (
 
   // noskills diagrams scan — scan project and update registry
   if (sub === "scan") {
+    // The registry lives in .eser/; writing it into a project noskills does
+    // not manage would make the folder look like one.
+    if (!(await persistence.isInitialized(root))) {
+      out.writeln(
+        span.red("noskills is not initialized."),
+        " Run: ",
+        span.bold(cmd.cmd("init")),
+      );
+      await out.close();
+      return results.fail({ exitCode: 1 });
+    }
+
     const entries = await diagrams.scanProject(root);
     await diagrams.writeRegistry(root, entries);
 

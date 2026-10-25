@@ -1,5 +1,9 @@
 # 🪟 [@eserstack/mux](./)
 
+> **Note:** JSR is frozen at 4.5.x. From 5.0.0, `@eserstack/mux` is published on
+> npm under the same name (`pnpm add @eserstack/mux`); the JSR versions stay
+> available but get no updates.
+
 `@eserstack/mux` is the core of a terminal multiplexer: tabs, split panes,
 keybinding modes and the processes running in them. A pure engine (split tree,
 geometry, reducer) holds the state, a server owns the pseudo-terminals and turns

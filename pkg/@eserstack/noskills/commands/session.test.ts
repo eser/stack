@@ -6,7 +6,7 @@
  */
 
 import * as bdd from "@std/testing/bdd";
-import * as assert from "@std/assert";
+import * as assert from "@eserstack/test-kit/assert";
 import * as crossRuntime from "@eserstack/standards/cross-runtime";
 import * as persistence from "../state/persistence.ts";
 
@@ -261,4 +261,60 @@ bdd.describe("Session staleness", () => {
       assert.assertEquals(removed.length, 0);
     },
   );
+});
+
+// TASK-328: a lastActiveAt that is not a date read as never stale, and a null
+// one as the epoch.
+bdd.describe("Session staleness of an unreadable lastActiveAt", () => {
+  bdd.beforeEach(async () => {
+    tempDir = await crossRuntime.runtime.fs.makeTempDir({
+      prefix: "session_unreadable_",
+    });
+  });
+
+  bdd.afterEach(async () => {
+    await crossRuntime.runtime.fs.remove(tempDir, { recursive: true });
+  });
+
+  const unreadable: readonly { readonly name: string; readonly at: unknown }[] =
+    [
+      { name: "a text that is not a date", at: "not a date" },
+      { name: "null", at: null },
+      { name: "a number", at: 0 },
+    ];
+
+  for (const { name, at } of unreadable) {
+    bdd.it(`has no idle time and is stale for ${name}`, () => {
+      const session = makeSession({ lastActiveAt: at as string });
+
+      assert.assertEquals(persistence.sessionIdleMs(session), null);
+      assert.assertEquals(persistence.isSessionStale(session), true);
+    });
+  }
+
+  bdd.it(
+    "gcStaleSessions removes a session whose time is unreadable",
+    async () => {
+      await persistence.createSession(
+        tempDir,
+        makeSession({ id: "sess-bad", lastActiveAt: "not a date" }),
+      );
+      await persistence.createSession(tempDir, makeSession({ id: "sess-ok" }));
+
+      assert.assertEquals(await persistence.gcStaleSessions(tempDir), [
+        "sess-bad",
+      ]);
+    },
+  );
+
+  bdd.it("measures the idle time from one clock reading", () => {
+    const session = makeSession({ lastActiveAt: "2026-01-01T00:00:00.000Z" });
+    const now = Date.parse("2026-01-01T03:00:00.000Z");
+
+    assert.assertEquals(
+      persistence.sessionIdleMs(session, now),
+      3 * 60 * 60 * 1000,
+    );
+    assert.assertEquals(persistence.isSessionStale(session, now), true);
+  });
 });

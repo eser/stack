@@ -370,7 +370,7 @@ const restoreAgentIntegration = async (
     return { category, ...outcome };
   }
 
-  const synced = await syncEngine.syncAll(root, config.tools, config);
+  const synced = await syncEngine.syncAll(root, config.tools ?? [], config);
 
   return {
     category,

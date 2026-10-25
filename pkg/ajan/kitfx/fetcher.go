@@ -87,34 +87,40 @@ const localRegistryFile = ".eser/recipes.json"
 // maxAncestorSearch is how many parent directories to search for a local manifest.
 const maxAncestorSearch = 10
 
-// ResolveSpecifier parses a kit specifier string.
+// ResolveSpecifier parses a kit specifier string, as the TypeScript kit's
+// resolveSpecifier does. The part before the first "#" is the path, the rest
+// is the ref verbatim; a "gh:" or "github:" prefix is dropped.
 //
 // Formats:
-//   - "gh:owner/repo#ref"   → Kind=="repo", Owner, Repo, Ref set
-//   - "gh:owner/repo"       → Kind=="repo", Ref empty
-//   - "recipeName"          → Kind=="name", Name set
+//   - "recipeName", "recipeName#ref"   → Kind=="name", Name (and Ref) set
+//   - "owner/repo", "gh:owner/repo"    → Kind=="repo", Ref empty
+//   - "gh:owner/repo#ref"              → Kind=="repo", Owner, Repo, Ref set
+//   - "gh:owner/repo/sub/path#ref"     → Kind=="repo", Subpath "sub/path"
+//
+// A path with an empty owner or repo, such as an https:// URL, is a name.
 func ResolveSpecifier(specifier string) ResolvedSpecifier {
-	if strings.HasPrefix(specifier, "gh:") {
-		rest := strings.TrimPrefix(specifier, "gh:")
-		ref := ""
+	cleaned := strings.TrimPrefix(specifier, "gh:")
+	if cleaned == specifier {
+		cleaned = strings.TrimPrefix(specifier, "github:")
+	}
 
-		if idx := strings.LastIndex(rest, "#"); idx >= 0 {
-			ref = rest[idx+1:]
-			rest = rest[:idx]
-		}
+	pathPart, ref, _ := strings.Cut(cleaned, "#")
 
-		parts := strings.SplitN(rest, "/", 2)
-		if len(parts) == 2 {
+	if strings.Contains(pathPart, "/") {
+		parts := strings.Split(pathPart, "/")
+		if parts[0] != "" && parts[1] != "" {
 			return ResolvedSpecifier{
-				Kind:  "repo",
-				Owner: parts[0],
-				Repo:  parts[1],
-				Ref:   ref,
+				Kind:    "repo",
+				Name:    "",
+				Owner:   parts[0],
+				Repo:    parts[1],
+				Ref:     ref,
+				Subpath: strings.Join(parts[2:], "/"),
 			}
 		}
 	}
 
-	return ResolvedSpecifier{Kind: "name", Name: specifier}
+	return ResolvedSpecifier{Kind: "name", Name: pathPart, Owner: "", Repo: "", Ref: ref, Subpath: ""}
 }
 
 // FetchRegistry loads a RegistryManifest.

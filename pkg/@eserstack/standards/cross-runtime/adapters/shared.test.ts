@@ -1,6 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import * as assert from "@std/assert";
+import * as assert from "@eserstack/test-kit/assert";
 import * as shared from "./shared.ts";
 import * as types from "../types.ts";
 
@@ -140,13 +140,27 @@ Deno.test("getNavigator reads the userAgent of the navigator global", () => {
   assert.assertEquals(result?.userAgent, navigator.userAgent);
 });
 
+/** Handler info for a request whose peer is unknown. */
+const NO_PEER = { remoteAddr: null };
+
 Deno.test("createSafeHandler passes the handler's response through", async () => {
   const respond = shared.createSafeHandler(() => new Response("fine"));
 
-  const response = await respond(new Request("http://127.0.0.1/"));
+  const response = await respond(new Request("http://127.0.0.1/"), NO_PEER);
 
   assert.assertEquals(response.status, 200);
   assert.assertEquals(await response.text(), "fine");
+});
+
+Deno.test("createSafeHandler passes the handler info through", async () => {
+  const info = { remoteAddr: { hostname: "10.0.0.7", port: 5123 } };
+  const respond = shared.createSafeHandler((_request, received) =>
+    Response.json(received)
+  );
+
+  const response = await respond(new Request("http://127.0.0.1/"), info);
+
+  assert.assertEquals(await response.json(), info);
 });
 
 Deno.test("createSafeHandler turns a thrown error into a 500 response", async () => {
@@ -154,7 +168,10 @@ Deno.test("createSafeHandler turns a thrown error into a 500 response", async ()
     throw new Error("the handler fails on purpose");
   });
 
-  const response = await respond(new Request("http://127.0.0.1/?token=x"));
+  const response = await respond(
+    new Request("http://127.0.0.1/?token=x"),
+    NO_PEER,
+  );
 
   assert.assertEquals(response.status, 500);
   assert.assertEquals(await response.text(), "Internal Server Error");

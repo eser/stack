@@ -77,25 +77,6 @@ func LoadConcerns(dirPath string) ([]ConcernDefinition, error) {
 	return concerns, nil
 }
 
-// FilterActiveConcerns returns only the concerns whose IDs appear in activeIDs.
-// The returned slice preserves the order of the input concerns list.
-func FilterActiveConcerns(all []ConcernDefinition, activeIDs []string) []ConcernDefinition {
-	set := make(map[string]bool, len(activeIDs))
-	for _, id := range activeIDs {
-		set[id] = true
-	}
-
-	result := make([]ConcernDefinition, 0, len(activeIDs))
-
-	for _, c := range all {
-		if set[c.ID] {
-			result = append(result, c)
-		}
-	}
-
-	return result
-}
-
 // =============================================================================
 // Concern operations (mirrors concerns.ts exports)
 // =============================================================================
@@ -185,7 +166,8 @@ type ConcernTension struct {
 	Issue   string   `json:"issue"`
 }
 
-// DetectTensions returns tensions between pairs of active concerns.
+// DetectTensions returns tensions between pairs of active concerns, with
+// the texts of detectTensions in context/concerns.ts.
 func DetectTensions(activeConcerns []ConcernDefinition) []ConcernTension {
 	ids := make(map[string]bool, len(activeConcerns))
 	for _, c := range activeConcerns {
@@ -198,12 +180,14 @@ func DetectTensions(activeConcerns []ConcernDefinition) []ConcernTension {
 		{"move-fast", "compliance", "Speed vs traceability — shortcuts may violate audit requirements."},
 		{"move-fast", "long-lived", "Shipping speed vs maintainability — tech debt decisions need human approval."},
 		{"beautiful-product", "move-fast", "Design polish vs speed — which UI states can be deferred?"},
-		{"well-engineered", "move-fast", "Engineering rigor vs shipping speed — which quality dimensions can be deferred to v2?"},
-		{"well-engineered", "learning-project", "Engineering standards vs experimentation freedom — how much rigor is appropriate for an experiment?"},
-		{"move-fast", "security-audited", "Shipping speed vs security rigor — security audit phases add time."},
-		{"move-fast", "ship-ready", "Speed vs ship hygiene — ship-ready gates add friction; each must be justified or automated."},
-		{"move-fast", "peer-reviewed", "Shipping speed vs review thoroughness — Critical Pass items are non-negotiable blockers."},
-		{"developer-experience", "compliance", "Zero-friction DX vs mandatory compliance steps."},
+		{"well-engineered", "move-fast", "Engineering rigor vs shipping speed — which quality dimensions (tests, observability, security hardening) can be deferred to v2?"},
+		{"well-engineered", "learning-project", "Engineering standards vs experimentation freedom — how much test/security/observability rigor is appropriate for an experiment?"},
+		{"move-fast", "security-audited", "Shipping speed vs security rigor — security audit phases add time; which phases can be parallelized vs which are blockers?"},
+		{"move-fast", "ship-ready", "Speed vs ship hygiene — ship-ready gates (coverage, CHANGELOG, version bump) add friction; each must be justified or automated."},
+		{"move-fast", "peer-reviewed", "Shipping speed vs review thoroughness — Critical Pass items are non-negotiable blockers even under time pressure."},
+		{"developer-experience", "compliance", "Zero-friction DX vs mandatory compliance steps — required auth, data handling, or audit config adds onboarding friction that must be designed, not apologized for."},
+		{"learning-project", "peer-reviewed", "Experimentation freedom vs review standards — experiments may intentionally violate best practices; reviewers must distinguish intentional experiments from accidental mistakes."},
+		{"move-fast", "production-ready", "Speed vs observability investment — structured logging, alerts, and canary criteria take time to set up but prevent much longer incidents later."},
 	}
 
 	var tensions []ConcernTension

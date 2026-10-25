@@ -8,20 +8,27 @@ engine in `pkg/ajan/workflowfx`.
 
 `run.ts` used to try the Go engine first when no tools were injected. The
 command module (`module.ts`) always injects a tool list, an empty one for the
-standalone CLI, so that branch never ran. It was removed instead of made
-reachable, because the Go path does not give the same results:
+standalone CLI, so that branch never ran, and it was removed.
 
-| Area                       | TypeScript engine                                       | `EserAjanWorkflowRun`                                    |
-| -------------------------- | ------------------------------------------------------- | -------------------------------------------------------- |
-| Tools                      | The shell tool and injected tools (codebase validators) | The shell tool only                                      |
-| Step format                | Manifest steps: a tool name, or `{ tool: options }`     | `{ name, options }` objects, so a manifest step fails    |
-| `fixCommand`               | Runs with `--fix`                                       | Ignored                                                  |
-| `--dry-run`                | Shell steps run `command` instead of `fixCommand`       | Not sent                                                 |
-| Positional arguments       | Passed to tools as `_args`                              | Not sent                                                 |
-| `name`, `workingDirectory` | Applied                                                 | Ignored                                                  |
-| Step `timeout` option      | Seconds, applied to the step and to the shell command   | Read only from a `timeoutMs` field of the step object    |
-| Progress                   | Each step is printed as it ends                         | Results arrive after the whole run                       |
-| Result fields              | `workflowId`, numeric `stats`                           | `id`, and `stats.output` holds the command's output text |
+The Go engine has since closed the gaps that kept it apart (TASK-244); each row
+has a Go test in `pkg/ajan/workflowfx/wiring_gaps_test.go`:
+
+| Area                       | TypeScript engine                                       | `workflowfx` and `EserAjanWorkflowRun`                                                                                      |
+| -------------------------- | ------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| Tools                      | The shell tool and injected tools (codebase validators) | Injected tools; the bridge registers the shell tool and `validatortools.RegisterManifestTools` (the `validate-*` names)     |
+| Step format                | Manifest steps: a tool name, or `{ tool: options }`     | `ParseManifest`; the bridge takes the manifest text in `manifest`, or `{ name, options }` objects in `workflows`            |
+| `fixCommand`               | Runs with `--fix`                                       | Runs with `fix`                                                                                                             |
+| `--dry-run`                | Shell steps run `command` instead of `fixCommand`       | `RunOptions.DryRun` (bridge `dryRun`): no `fixCommand`, no mutations applied                                                |
+| Positional arguments       | Passed to tools as `_args`                              | `RunOptions.Args` (bridge `args`), passed as `_args`                                                                        |
+| `name`, `workingDirectory` | Applied                                                 | Applied                                                                                                                     |
+| Step `timeout` option      | Seconds, applied to the step and to the shell command   | Seconds in a manifest; the step's deadline also ends the command and its children                                           |
+| Progress                   | Each step is printed as it ends                         | `OnStepEnd` fires as each step ends, and `ProgressPrinter` prints the run command's lines; the bridge answers after the run |
+| Result fields              | `workflowId`, numeric `stats`                           | `id` and `workflowId`, numeric `stats` (`exitCode` for shell steps)                                                         |
+
+A precommit dry run lists the same steps in the same order under both engines:
+`engine.test.ts` and `TestDryRunListsTheManifestSteps` check each against the
+manifest. The bridge streams nothing yet; the stream exports of M2-T7 bring
+per-step progress across it.
 
 ## Where the native library is still used
 

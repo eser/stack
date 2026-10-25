@@ -6,7 +6,7 @@
 // Copyright (c) 2023 Eser Ozvataf and other contributors
 // Copyright (c) 2021-2023 Luca Casonato
 
-import * as assert from "@std/assert";
+import * as assert from "@eserstack/test-kit/assert";
 import * as manifest from "./manifest.ts";
 
 Deno.test("specifierToIdentifier", () => {

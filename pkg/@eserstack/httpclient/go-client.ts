@@ -24,7 +24,7 @@ export type GoHttpMethod =
 /**
  * Options for {@link createGoHttpClient}. The names are the JSON fields of the
  * Go bridge's create request (`httpCreateRequest` in
- * pkg/@eserstack/ajan/bridge.go), so every field reaches the Go client as is.
+ * the ajan bridge), so every field reaches the Go client as is.
  */
 export type GoHttpClientOptions = {
   /** Prefix for request URLs that are not absolute. */
@@ -64,6 +64,11 @@ export type GoHttpRequest = {
    * 32 MiB. A larger body fails the request. Use `requestStream` for more.
    */
   readonly maxResponseBytes?: number;
+  /**
+   * Stops the request when it fires. Only the WASM fallback can stop a
+   * request in flight; the native library finishes it.
+   */
+  readonly signal?: AbortSignal;
 };
 
 /** A complete response from {@link GoHttpClient.request}. */
@@ -130,10 +135,36 @@ export type GoHttpClient = {
 const DEFAULT_TIMEOUT_MS = 30_000;
 
 /**
+ * Sends a request's JSON for a client handle, with a requestId when the
+ * request has a signal, and releases the signal once the call is answered.
+ */
+const withSignal = async (
+  handle: string,
+  req: GoHttpRequest,
+  send: (json: string) => string | Promise<string>,
+): Promise<string> => {
+  const { signal, ...wire } = req;
+  if (signal === undefined) {
+    return await send(JSON.stringify({ handle, ...wire }));
+  }
+
+  signal.throwIfAborted();
+  const registration = ffiClient.registerRequestSignal(signal);
+  try {
+    return await send(
+      JSON.stringify({ handle, ...wire, requestId: registration.requestId }),
+    );
+  } finally {
+    registration.release();
+  }
+};
+
+/**
  * Creates a Go-backed HTTP client handle.
  *
- * Each call into the Go client blocks the JavaScript thread until it returns,
- * which `timeoutMs` bounds.
+ * With the native library, each call into the Go client blocks the
+ * JavaScript thread until it returns, which `timeoutMs` bounds. On the WASM
+ * fallback the requests wait on the runtime's fetch instead.
  *
  * @throws Error if the native library is unavailable.
  * @throws RangeError if `timeoutMs` is not a positive number.
@@ -182,32 +213,36 @@ export const createGoHttpClient = async (
   const handle = result.handle;
 
   return {
-    request(req: GoHttpRequest): Promise<GoHttpResponse> {
+    async request(req: GoHttpRequest): Promise<GoHttpResponse> {
       const lib2 = ffiClient.getLib();
       if (lib2 === null) {
-        return Promise.reject(new Error("native library unavailable"));
+        throw new Error("native library unavailable");
       }
 
-      const raw2 = lib2.symbols.EserAjanHttpRequest(
-        JSON.stringify({ handle, ...req }),
+      const raw2 = await withSignal(
+        handle,
+        req,
+        (json) => lib2.symbols.EserAjanHttpRequest(json),
       );
       const res = JSON.parse(raw2) as GoHttpResponse & { error?: string };
 
       if (res.error !== undefined && res.error !== "") {
-        return Promise.reject(new GoHttpError({ ...res, error: res.error }));
+        throw new GoHttpError({ ...res, error: res.error });
       }
 
-      return Promise.resolve(res);
+      return res;
     },
 
-    requestStream(req: GoHttpRequest): Promise<GoHttpStreamResponse> {
+    async requestStream(req: GoHttpRequest): Promise<GoHttpStreamResponse> {
       const lib2 = ffiClient.getLib();
       if (lib2 === null) {
-        return Promise.reject(new Error("native library unavailable"));
+        throw new Error("native library unavailable");
       }
 
-      const raw2 = lib2.symbols.EserAjanHttpRequestStream(
-        JSON.stringify({ handle, ...req }),
+      const raw2 = await withSignal(
+        handle,
+        req,
+        (json) => lib2.symbols.EserAjanHttpRequestStream(json),
       );
       const init = JSON.parse(raw2) as {
         handle?: string;
@@ -223,16 +258,14 @@ export const createGoHttpClient = async (
         (init.error !== undefined && init.error !== "") ||
         streamHandle === undefined || streamHandle === ""
       ) {
-        return Promise.reject(
-          new GoHttpError({
-            error: init.error ??
-              "open HTTP stream: the Go bridge returned no stream handle",
-            status: init.status,
-            statusText: init.statusText,
-            headers: init.headers,
-            body: init.body,
-          }),
-        );
+        throw new GoHttpError({
+          error: init.error ??
+            "open HTTP stream: the Go bridge returned no stream handle",
+          status: init.status,
+          statusText: init.statusText,
+          headers: init.headers,
+          body: init.body,
+        });
       }
 
       const status = init.status ?? 200;
@@ -240,14 +273,16 @@ export const createGoHttpClient = async (
       const headers = init.headers ?? {};
 
       const body = new ReadableStream<Uint8Array>({
-        pull(controller) {
+        async pull(controller) {
           const lib3 = ffiClient.getLib();
           if (lib3 === null) {
             controller.error(new Error("native library unavailable"));
             return;
           }
 
-          const readRaw = lib3.symbols.EserAjanHttpStreamRead(streamHandle);
+          const readRaw = await lib3.symbols.EserAjanHttpStreamRead(
+            streamHandle,
+          );
           const chunk = JSON.parse(readRaw) as {
             chunk?: string;
             done?: boolean;
@@ -280,7 +315,7 @@ export const createGoHttpClient = async (
         },
       });
 
-      return Promise.resolve({ body, status, statusText, headers });
+      return { body, status, statusText, headers };
     },
 
     close(): void {

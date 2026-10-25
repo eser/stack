@@ -74,4 +74,14 @@ type SyncOptions struct {
 	Format string
 	// StringOnly returns only the patch data string instead of a full kubectl command.
 	StringOnly bool
+	// EnvFiles, when set, replaces EnvFile: the files are read in order, a
+	// later value replacing an earlier one (see EnvLayerFiles).
+	EnvFiles []string
+	// Environ holds "KEY=value" process variables that replace file values.
+	Environ []string
+	// ResourceKeys lists the resource's data keys; nil runs RunKubectl.
+	ResourceKeys func(ref ResourceReference) ([]string, error)
+	// OnMissingKey is called for each resource key the environment does not
+	// define; the patch leaves that key out.
+	OnMissingKey func(key string)
 }

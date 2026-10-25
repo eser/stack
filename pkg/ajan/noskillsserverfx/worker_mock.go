@@ -7,7 +7,7 @@ import (
 )
 
 // MockWorkerHandle is a chan-based WorkerHandle for tests that need worker
-// events without spawning a real Node process. Satisfies WorkerHandle.
+// events without starting a real worker. Satisfies WorkerHandle.
 type MockWorkerHandle struct {
 	sid       string
 	events    chan WorkerEvent

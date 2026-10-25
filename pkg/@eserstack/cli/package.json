@@ -19,11 +19,11 @@
     "@eserstack/shell": "workspace:*",
     "@eserstack/standards": "workspace:*",
     "@eserstack/streams": "workspace:*",
-    "@eserstack/workflows": "workspace:*",
-    "esbuild": "^0.28.2"
+    "@eserstack/workflows": "workspace:*"
   },
   "devDependencies": {
-    "@std/assert": "npm:@jsr/std__assert@^1.0.19"
+    "@eserstack/test-kit": "workspace:*",
+    "esbuild": "^0.28.2"
   },
   "optionalDependencies": {
     "@eserstack/ajan-darwin-arm64": "workspace:*",

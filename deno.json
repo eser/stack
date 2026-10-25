@@ -3,7 +3,6 @@
   "lock": false,
   "minimumDependencyAge": 0,
   "unstable": [
-    "bundle",
     "sloppy-imports",
     "unsafe-proto"
   ],
@@ -46,6 +45,8 @@
     "apps/",
     "docs/",
     "etc/temp/",
+    "etc/codemods/",
+    "third-party/",
     ".eser/recipes/",
     "node_modules/",
     "pkg/@eserstack/cli/dist/",

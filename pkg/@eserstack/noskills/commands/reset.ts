@@ -52,6 +52,14 @@ export const main = async (
     return results.ok(undefined);
   }
 
+  const refusal = machine.resetRefusal(state.phase);
+  if (refusal !== null) {
+    out.writeln(span.red(refusal));
+    await out.close();
+
+    return results.fail({ exitCode: 1 });
+  }
+
   // State integrity check: verify active spec directory exists
   if (state.spec !== null) {
     const specDir = `${root}/${persistence.paths.specDir(state.spec)}`;

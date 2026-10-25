@@ -72,7 +72,7 @@ type CommitMsgOptions struct {
 	AllowAsterisk       bool
 	AllowMultipleScopes bool
 	ForceScope          bool
-	Types               []string // nil uses defaultConventionalTypes
+	Types               []string // nil uses commitMsgTypes
 }
 
 // CommitMsgResult is the outcome of ValidateCommitMsg.

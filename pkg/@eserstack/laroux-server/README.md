@@ -1,5 +1,10 @@
 # 🛰️ [@eserstack/laroux-server](./)
 
+> **Note:** JSR is frozen at 4.5.x. From 5.0.0, `@eserstack/laroux-server` is
+> published on npm under the same name, and the `laroux` command as the npm
+> package `laroux` (`npm install -g laroux`); the JSR versions stay available
+> but get no updates.
+
 > **eserstack Product-Candidate** — SSR runtime for laroux ·
 > [eser/stack](https://github.com/eser/stack) **Install:**
 > `pnpm add jsr:@eserstack/laroux-server`
@@ -207,6 +212,26 @@ sent: the call rejects with an error that names where it sits, such as
 `value.user.onSave`. An action that throws answers 500 with
 `{ "error": "Server action failed" }`, and the error is logged with the action
 id.
+
+The endpoint calls only real server actions:
+
+- The module of the action id must be listed in
+  `dist/server/actions-manifest.json`, which the build writes for every file
+  with a `"use server"` directive. Any other module is never imported.
+- The export must carry the React server reference marker that the build adds to
+  each export of those files. Other exports, such as helpers, get a 404 and do
+  not run.
+- A body over 1 MiB (`ACTION_MAX_BODY_BYTES`) gets a 413 before it is parsed,
+  whether the size comes from `Content-Length` or from the bytes read.
+- A request with `Sec-Fetch-Site` other than `same-origin` or `none`, or with an
+  `Origin` other than the request's own, gets a 403. A request with neither
+  header comes from a client that is not a browser and passes.
+
+Route-scoped proxies do not cover `POST /_rsc` yet: an action request carries no
+page path, so only the root `proxy.ts` chain runs for it. Check authorization
+inside each action until laroux R1 binds actions to routes (backlog doc-3,
+section 7.4). `GET /rsc?pathname=<path>` runs the full proxy chain of `<path>`,
+as the document request for that page does.
 
 ### Configuration System
 

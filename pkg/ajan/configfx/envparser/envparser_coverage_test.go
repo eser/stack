@@ -218,3 +218,12 @@ func TestParse_DirectBytes(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "myval", m["MYKEY"])
 }
+
+// An empty value ends at its own line; the next line is the next variable.
+func TestParseBytes_EmptyValueKeepsNextLine(t *testing.T) {
+	t.Parallel()
+
+	m := make(map[string]any)
+	require.NoError(t, envparser.ParseBytes([]byte("EMPTY=\nNEXT=\"a # b\"\nSPACED=   \nLAST=1\n"), false, &m))
+	assert.Equal(t, map[string]any{"EMPTY": "", "NEXT": "a # b", "SPACED": "", "LAST": "1"}, m)
+}

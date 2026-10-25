@@ -4,8 +4,10 @@ package collectorfx_test
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/eser/stack/pkg/ajan/collectorfx"
@@ -148,5 +150,62 @@ func TestWalkCollectableFiles_DefaultBaseDir(t *testing.T) {
 	_, err := collectorfx.WalkCollectableFiles(context.Background(), collectorfx.WalkOptions{})
 	if err != nil {
 		t.Fatalf("empty BaseDir should default to '.': %v", err)
+	}
+}
+
+func TestWalkCollectableFiles_MissingRoot(t *testing.T) {
+	t.Parallel()
+
+	missing := filepath.Join(t.TempDir(), "does-not-exist")
+
+	_, err := collectorfx.WalkCollectableFiles(context.Background(), collectorfx.WalkOptions{
+		BaseDir: missing,
+	})
+	if !errors.Is(err, collectorfx.ErrUnreadableWalkRoot) {
+		t.Fatalf("expected ErrUnreadableWalkRoot, got %v", err)
+	}
+
+	if !strings.Contains(err.Error(), missing) {
+		t.Errorf("expected the error to name %q, got %q", missing, err.Error())
+	}
+}
+
+func TestWalkCollectableFiles_SkipsUnreadableSubdirectory(t *testing.T) {
+	t.Parallel()
+
+	if os.Geteuid() == 0 {
+		t.Skip("root reads directories regardless of their mode")
+	}
+
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "a.ts"), []byte(""), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	locked := filepath.Join(dir, "locked")
+	if err := os.Mkdir(locked, 0o700); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := os.WriteFile(filepath.Join(locked, "b.ts"), []byte(""), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := os.Chmod(locked, 0o000); err != nil {
+		t.Fatal(err)
+	}
+
+	// G302: a directory needs its execute bit back for TempDir cleanup to remove it.
+	t.Cleanup(func() { _ = os.Chmod(locked, 0o700) }) //nolint:gosec // see above
+
+	files, err := collectorfx.WalkCollectableFiles(context.Background(), collectorfx.WalkOptions{
+		BaseDir: dir,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(files) != 1 || files[0].RelPath != "a.ts" {
+		t.Errorf("expected only a.ts, got %+v", files)
 	}
 }

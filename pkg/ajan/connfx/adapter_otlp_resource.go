@@ -7,8 +7,6 @@ import (
 	"time"
 
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploghttp"
-	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	sdklog "go.opentelemetry.io/otel/sdk/log"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
@@ -34,8 +32,8 @@ var (
 )
 
 type OTLPConnectionImpl interface {
-	GetLogExporter() *otlploghttp.Exporter
-	GetMetricExporter() *otlpmetrichttp.Exporter
+	GetLogExporter() sdklog.Exporter
+	GetMetricExporter() sdkmetric.Exporter
 	GetTraceExporter() *otlptrace.Exporter
 }
 

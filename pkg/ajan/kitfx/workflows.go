@@ -15,7 +15,7 @@ import (
 // CloneRecipe applies a named recipe (and its full dependency chain) from the
 // registry to cwd. The application is driven by a workflowfx workflow so that
 // each recipe in the chain becomes a dynamically-injected step.
-func CloneRecipe(ctx context.Context, recipeName, cwd string, opts ApplyOptions) (ApplyChainResult, error) {
+func CloneRecipe(ctx context.Context, recipeName, cwd string, opts ApplyOptions) (ApplyChainResult, error) { //nolint:gocritic // hugeParam: a public API that takes a value
 	if opts.CWD == "" {
 		opts.CWD = cwd
 	}
@@ -25,7 +25,7 @@ func CloneRecipe(ctx context.Context, recipeName, cwd string, opts ApplyOptions)
 
 // NewProject creates targetDir (and any parents) and then applies the recipe
 // chain to it — equivalent to CloneRecipe on a freshly created directory.
-func NewProject(ctx context.Context, recipeName, targetDir string, opts ApplyOptions) (ApplyChainResult, error) {
+func NewProject(ctx context.Context, recipeName, targetDir string, opts ApplyOptions) (ApplyChainResult, error) { //nolint:gocritic // hugeParam: a public API that takes a value
 	if err := os.MkdirAll(targetDir, 0o755); err != nil { //nolint:gosec
 		return ApplyChainResult{}, fmt.Errorf("creating project dir %q: %w", targetDir, err)
 	}
@@ -37,7 +37,7 @@ func NewProject(ctx context.Context, recipeName, targetDir string, opts ApplyOpt
 
 // UpdateRecipe re-applies a recipe chain to an existing project with Force=true,
 // overwriting files that have changed.
-func UpdateRecipe(ctx context.Context, recipeName, cwd string, opts ApplyOptions) (ApplyChainResult, error) {
+func UpdateRecipe(ctx context.Context, recipeName, cwd string, opts ApplyOptions) (ApplyChainResult, error) { //nolint:gocritic // hugeParam: a public API that takes a value
 	opts.Force = true
 	opts.CWD = cwd
 
@@ -46,7 +46,7 @@ func UpdateRecipe(ctx context.Context, recipeName, cwd string, opts ApplyOptions
 
 // ─── Workflow runner ──────────────────────────────────────────────────────────
 
-func runKitWorkflow(ctx context.Context, recipeName, cwd string, opts ApplyOptions) (ApplyChainResult, error) {
+func runKitWorkflow(ctx context.Context, recipeName, cwd string, opts ApplyOptions) (ApplyChainResult, error) { //nolint:gocritic // hugeParam: workflow step options carry the value
 	r := workflowfx.NewRegistry()
 	r.Register(&kitFetchRegistryTool{})
 	r.Register(&kitResolveChainTool{})

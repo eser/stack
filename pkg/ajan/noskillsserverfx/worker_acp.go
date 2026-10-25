@@ -25,10 +25,6 @@ var (
 const (
 	envACPCommand = "NOSKILLS_ACP_COMMAND"
 	envACPArgs    = "NOSKILLS_ACP_ARGS"
-
-	// envWorkerRuntime pins the JS runtime the mux worker runs under, when the
-	// automatic search is not what you want.
-	envWorkerRuntime = "NOSKILLS_WORKER_RUNTIME"
 )
 
 // defaultACPBackend is the vendor the in-process shim drives when nothing

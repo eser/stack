@@ -40,6 +40,91 @@ export type LedgerOutput = {
 
 type LedgerShape = "ledger" | "measurement-draft";
 
+/** One decision as a list item: "id (phase, category, provenance): Q A". */
+const decisionLine = (
+  entry: {
+    readonly id: string;
+    readonly category: string;
+    readonly question: string;
+    readonly resolution: string;
+    readonly provenance: string;
+  },
+  phase: string,
+): string =>
+  `- ${entry.id} (${phase}, ${entry.category}, ${entry.provenance}): ${entry.question} ${entry.resolution}`;
+
+const summaryLines = (summary: ledger.LedgerSummary | null): string[] => {
+  if (summary === null) return ["No summary yet."];
+
+  const breakdown = summary.provenance_breakdown;
+  const presence = (present: boolean | undefined) =>
+    present === true ? "present" : "missing";
+
+  return [
+    `- Resolved decisions: ${summary.resolved_decisions} (ratified ${breakdown?.ratified}, inferred ${breakdown?.inferred}, default ${breakdown?.default})`,
+    `- Open questions: ${summary.open_questions}`,
+    `- Named artifacts: ${summary.specificity?.named_artifacts_count}`,
+    `- Acceptance criteria: ${
+      presence(summary.specificity?.acceptance_criteria_present)
+    }`,
+    `- Out of scope: ${presence(summary.specificity?.out_of_scope_present)}`,
+  ];
+};
+
+/**
+ * Lays out a document for `-o markdown`, or the same lines without the
+ * markdown headings for `-o text`.
+ */
+const layout = (
+  fmt: "markdown" | "text",
+  title: string,
+  sections: readonly (readonly [string, readonly string[]])[],
+): string => {
+  const lines = [fmt === "markdown" ? `# ${title}` : title];
+  for (const [heading, body] of sections) {
+    lines.push("", fmt === "markdown" ? `## ${heading}` : `${heading}:`, "");
+    lines.push(...body);
+  }
+
+  return lines.join("\n");
+};
+
+/**
+ * The ledger as `-o` asks: JSON as is, markdown and text as a document with
+ * the records and the summary.
+ */
+export const formatLedger = (
+  output: LedgerOutput,
+  fmt: formatter.OutputFormat,
+): string => {
+  if (fmt !== "markdown" && fmt !== "text") {
+    return formatter.format(output, fmt);
+  }
+
+  const decisions = output.records.length === 0
+    ? ["No decisions recorded."]
+    : output.records.map((record) => decisionLine(record, record.state));
+
+  return layout(fmt, `Decision ledger: ${output.spec}`, [
+    ["Decisions", decisions],
+    ["Summary", summaryLines(output.summary)],
+  ]);
+};
+
+/** A measurement draft as `-o` asks, its decisions listed like the ledger's. */
+export const formatMeasurementDraft = (
+  draft: ledger.MeasurementDraft,
+  fmt: formatter.OutputFormat,
+): string => {
+  if (fmt !== "markdown" && fmt !== "text") return formatter.format(draft, fmt);
+
+  const decisions = draft.guided.decisions.length === 0
+    ? ["No decisions recorded."]
+    : draft.guided.decisions.map((entry) => decisionLine(entry, entry.phase));
+
+  return layout(fmt, draft.title, [["Decisions", decisions]]);
+};
+
 /** Parse `--format=<ledger|measurement-draft>` (default: ledger). */
 const parseShape = (args: readonly string[]): LedgerShape => {
   for (const arg of args) {
@@ -60,6 +145,8 @@ export const main = async (
   args?: readonly string[],
 ): Promise<shellArgs.CliResult<void>> => {
   const { root } = await persistence.resolveProjectRoot();
+  // The messages below name the project's command (cmd.cmdPrefix).
+  await cmd.loadCommandPrefix(root);
 
   const rawArgs = args ?? [];
   // Spec name comes from --spec= (injected by `spec <name> ledger`) or the
@@ -90,16 +177,15 @@ export const main = async (
 
   // Headless bridge: emit a guided-only measurement-report/v1 draft.
   if (parseShape(rawArgs) === "measurement-draft") {
-    await formatter.writeFormatted(
-      ledger.toMeasurementDraft(specName, records),
-      fmt,
+    await formatter.writeLine(
+      formatMeasurementDraft(ledger.toMeasurementDraft(specName, records), fmt),
     );
     return results.ok(undefined);
   }
 
   const summary = await ledger.readSummary(root, specName);
   const output: LedgerOutput = { spec: specName, records, summary };
-  await formatter.writeFormatted(output, fmt);
+  await formatter.writeLine(formatLedger(output, fmt));
 
   return results.ok(undefined);
 };

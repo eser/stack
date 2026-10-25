@@ -14,3 +14,4 @@ export {
   getLib,
   getLoadError,
 } from "@eserstack/ajan/ffi/client";
+export { registerRequestSignal } from "@eserstack/ajan/ffi/request-signals";

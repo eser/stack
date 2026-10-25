@@ -33,7 +33,6 @@ export const NODE_CAPABILITIES: RuntimeCapabilities = {
   stdin: true,
   stdout: true,
   http: true,
-  kv: false,
 } as const;
 
 // =============================================================================

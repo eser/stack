@@ -1,7 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 import * as bdd from "@std/testing/bdd";
-import * as assert from "@std/assert";
+import * as assert from "@eserstack/test-kit/assert";
 import * as crossRuntime from "@eserstack/standards/cross-runtime";
 import type * as schema from "../state/schema.ts";
 import * as concerns from "./concerns.ts";
@@ -589,6 +589,24 @@ bdd.describe("splitRemindersByTier: declared scopes", () => {
     assert.assertEquals(split.tier1, [PLAIN]);
     assert.assertEquals(split.tier2, [UI, EITHER]);
   });
+});
+
+// TASK-323: a concern file without reminders used to throw here, and the hook
+// caught it and dropped every rule of the edited file, scoped and folder rules
+// included.
+bdd.it("getTier2RemindersForFile skips a concern without reminders", () => {
+  const withoutReminders = {
+    id: "bare",
+    name: "Bare",
+    description: "",
+    extras: [],
+    specSections: [],
+  } as unknown as schema.ConcernDefinition;
+
+  assert.assertEquals(
+    concerns.getTier2RemindersForFile([withoutReminders], "src/a.ts", null),
+    [],
+  );
 });
 
 bdd.describe("getTier2RemindersForFile: declared scopes", () => {

@@ -34,7 +34,9 @@ const HOOK_EVENTS: readonly HookEvent[] = [
  * Seconds a tool waits for each hook. PreToolUse gets as long as the git
  * wrapper's check (`GIT_CHECK_TIMEOUT_SECONDS`): the default command,
  * `npx eser@latest noskills`, may ask the npm registry for the latest version
- * and download it before the hook runs.
+ * and download it before the hook runs. A hook that calls the Go binary
+ * (cmd/noskills) answers in milliseconds without the network, so the long
+ * limit only matters for configs that still start noskills through npx.
  */
 export const HOOK_TIMEOUT_SECONDS: Readonly<Record<HookEvent, number>> = {
   "session-start": 5,

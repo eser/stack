@@ -6,8 +6,8 @@
  */
 
 // Navigation components
-export { Link } from "./runtime/navigation/link.tsx";
-export type { LinkProps } from "./runtime/navigation/link.tsx";
+export { Link } from "./runtime/navigation/link.ts";
+export type { LinkProps } from "./runtime/navigation/link.ts";
 
 export { useRouter } from "./runtime/navigation/use-router.ts";
 export type {
@@ -16,7 +16,7 @@ export type {
 } from "@eserstack/laroux/navigation";
 
 // Image components
-export { Image, ImageSizes, ResponsiveImage } from "./runtime/image/image.tsx";
+export { Image, ImageSizes, ResponsiveImage } from "./runtime/image/image.ts";
 export type {
   AspectRatioValue,
   ImageFormat,
@@ -24,10 +24,10 @@ export type {
   ObjectFitValue,
   PlaceholderType,
   ResponsiveImageProps,
-} from "./runtime/image/image.tsx";
+} from "./runtime/image/image.ts";
 
 // Span rendering
-export { react as reactRenderer, SpanView } from "./span-renderer.tsx";
+export { react as reactRenderer, SpanView } from "./span-renderer.ts";
 
 // Function integration
 export { runFunction } from "./use-function.ts";

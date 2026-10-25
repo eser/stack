@@ -1,33 +1,28 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+// node:async_hooks is the one module that provides AsyncLocalStorage on Node,
+// Deno and Bun alike.
+// deno-lint-ignore no-external-import
+import * as asyncHooks from "node:async_hooks";
 import type { Category, ContextLocalStorage } from "./types.ts";
 import * as category from "./category.ts";
 
 /**
- * Default AsyncLocalStorage for logging context.
- * Uses the global AsyncLocalStorage if available.
+ * Default AsyncLocalStorage instances for the logging context and the
+ * category prefix, created on first use. Node, Deno and Bun all provide
+ * node:async_hooks.
  */
 let defaultContextStorage: ContextLocalStorage | undefined;
 let defaultCategoryPrefixStorage: ContextLocalStorage<Category> | undefined;
 
 /**
- * Lazily initializes the default context storage using AsyncLocalStorage.
+ * Lazily initializes the default context storage.
  */
-const getDefaultContextStorage = (): ContextLocalStorage | undefined => {
+const getDefaultContextStorage = (): ContextLocalStorage => {
   if (defaultContextStorage === undefined) {
-    try {
-      // Try to get AsyncLocalStorage from globalThis (Node.js, Deno, Bun)
-      // deno-lint-ignore no-explicit-any
-      const AsyncLocalStorage = (globalThis as any).AsyncLocalStorage ??
-        // deno-lint-ignore no-explicit-any
-        ((globalThis as any).require?.("async_hooks")?.AsyncLocalStorage);
-
-      if (AsyncLocalStorage) {
-        defaultContextStorage = new AsyncLocalStorage();
-      }
-    } catch {
-      // AsyncLocalStorage not available (browser, some edge runtimes)
-    }
+    defaultContextStorage = new asyncHooks.AsyncLocalStorage<
+      Record<string, unknown>
+    >();
   }
 
   return defaultContextStorage;
@@ -36,22 +31,11 @@ const getDefaultContextStorage = (): ContextLocalStorage | undefined => {
 /**
  * Lazily initializes the default category prefix storage.
  */
-const getDefaultCategoryPrefixStorage = ():
-  | ContextLocalStorage<Category>
-  | undefined => {
+const getDefaultCategoryPrefixStorage = (): ContextLocalStorage<Category> => {
   if (defaultCategoryPrefixStorage === undefined) {
-    try {
-      // deno-lint-ignore no-explicit-any
-      const AsyncLocalStorage = (globalThis as any).AsyncLocalStorage ??
-        // deno-lint-ignore no-explicit-any
-        ((globalThis as any).require?.("async_hooks")?.AsyncLocalStorage);
-
-      if (AsyncLocalStorage) {
-        defaultCategoryPrefixStorage = new AsyncLocalStorage();
-      }
-    } catch {
-      // AsyncLocalStorage not available
-    }
+    defaultCategoryPrefixStorage = new asyncHooks.AsyncLocalStorage<
+      Category
+    >();
   }
 
   return defaultCategoryPrefixStorage;

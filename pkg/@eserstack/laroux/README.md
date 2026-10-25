@@ -1,5 +1,9 @@
 # 🌐 [@eserstack/laroux](./)
 
+> **Note:** JSR is frozen at 4.5.x. From 5.0.0, `@eserstack/laroux` is published
+> on npm under the same name (`pnpm add @eserstack/laroux`); the JSR versions
+> stay available but get no updates.
+
 > **eserstack Product-Candidate** — framework-agnostic web core ·
 > [eser/stack](https://github.com/eser/stack) **Install:**
 > `pnpm add jsr:@eserstack/laroux`

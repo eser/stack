@@ -1,5 +1,9 @@
 # 🌉 [@eserstack/ajan](./)
 
+> **Note:** JSR is frozen at 4.5.x. From 5.0.0, `@eserstack/ajan` is published
+> on npm under the same name (`pnpm add @eserstack/ajan`); the JSR versions stay
+> available but get no updates.
+
 > **eserstack Library** — [eser/stack on GitHub](https://github.com/eser/stack)
 > **Install:** `pnpm add jsr:@eserstack/ajan`
 
@@ -10,8 +14,8 @@ a two-tier architecture: native FFI (Deno/Bun/Node) + WASM fallback
 ## Quick Start
 
 ```bash
-# 1. Build the shared library for your platform
-deno run --allow-all pkg/@eserstack/ajan/scripts/build.ts
+# 1. Build the shared library for your platform (from the repository root)
+make ajan-lib
 
 # 2. Verify the Go bridge works
 deno task cli ajan version
@@ -22,7 +26,7 @@ ESER_AJAN_LIB_PATH=$(pwd)/pkg/@eserstack/ajan/dist/aarch64-darwin/libeser_ajan.d
   bun --eval 'import * as ffi from "./pkg/@eserstack/ajan/ffi/mod.ts"; const lib = await ffi.loadEserAjan(); console.log(lib.symbols.EserAjanVersion()); lib.close();'
 
 # 4. (Optional) Test WASM fallback
-deno run --allow-all pkg/@eserstack/ajan/scripts/build.ts --wasm
+make ajan-wasm
 ESER_AJAN_NATIVE=disabled deno task cli ajan version
 ```
 
@@ -45,68 +49,42 @@ each one is documented on `FFILibrary` in `ffi/types.ts`.
 
 ## Build
 
-### Quick (current platform)
+The Makefile at the repository root builds the library with Go and a C compiler;
+nothing else is needed (decision-40). Every target sets `GOWORK=off` and stamps
+`main.Version` from `VERSION`.
 
 ```bash
-deno run --allow-all pkg/@eserstack/ajan/scripts/build.ts
-```
-
-### Single target
-
-```bash
-deno run --allow-all pkg/@eserstack/ajan/scripts/build.ts --target=x86_64-linux
-```
-
-### All targets (CI)
-
-```bash
-deno run --allow-all pkg/@eserstack/ajan/scripts/build.ts --all
-```
-
-### WASM only
-
-```bash
-deno run --allow-all pkg/@eserstack/ajan/scripts/build.ts --wasm
-```
-
-### Clean
-
-```bash
-deno run --allow-all pkg/@eserstack/ajan/scripts/build.ts --clean
+make ajan-lib                       # the library for this host
+make ajan-lib TARGET=x86_64-linux   # one target, with its cross-compiler
+make ajan-all                       # every native target, then the WASM modules
+make ajan-wasm                      # the WASM reactor of the wasi profile only
+make ajan-packages                  # copy dist/ into the @eserstack/ajan-* packages
+make ajan-clean                     # remove dist/ and the staged binaries
 ```
 
 ### Available targets
 
-| Target           | GOOS/GOARCH   | Output file              |
-| ---------------- | ------------- | ------------------------ |
-| `x86_64-linux`   | linux/amd64   | `libeser_ajan.so`        |
-| `aarch64-linux`  | linux/arm64   | `libeser_ajan.so`        |
-| `x86_64-darwin`  | darwin/amd64  | `libeser_ajan.dylib`     |
-| `aarch64-darwin` | darwin/arm64  | `libeser_ajan.dylib`     |
-| `x86_64-windows` | windows/amd64 | `libeser_ajan.dll`       |
-| `wasi`           | wasip1/wasm   | `eser-ajan.wasm`         |
-| `wasi-reactor`   | wasip1/wasm   | `eser-ajan-reactor.wasm` |
+| Target           | GOOS/GOARCH   | Output file          |
+| ---------------- | ------------- | -------------------- |
+| `x86_64-linux`   | linux/amd64   | `libeser_ajan.so`    |
+| `aarch64-linux`  | linux/arm64   | `libeser_ajan.so`    |
+| `x86_64-darwin`  | darwin/amd64  | `libeser_ajan.dylib` |
+| `aarch64-darwin` | darwin/arm64  | `libeser_ajan.dylib` |
+| `x86_64-windows` | windows/amd64 | `libeser_ajan.dll`   |
+| `wasi`           | wasip1/wasm   | `eser-ajan.wasm`     |
 
 Cross-compilation for native targets requires the appropriate C cross-compilers
 (e.g., `x86_64-linux-gnu-gcc`, `aarch64-linux-gnu-gcc`,
-`x86_64-w64-mingw32-gcc`, and `clang -arch x86_64` for Intel macOS). The list
-lives in `targets.ts`. WASM targets need no C compiler (`CGO_ENABLED=0`).
+`x86_64-w64-mingw32-gcc`, and `clang -arch x86_64` for Intel macOS). The table
+is in the Makefile and in `targets.ts`, which `makefile-targets.test.ts` keeps
+in step. WASM targets need no C compiler (`CGO_ENABLED=0`).
 
 ## Distribution
 
-Each release archive contains everything needed for raw FFI consumption:
-
-```
-eser-ajan-{version}-{target}.tar.gz (or .zip for Windows)
-  libeser_ajan.so / .dylib / .dll   # shared library
-  libeser_ajan.h                     # C header
-  LICENSE                          # Apache-2.0
-  README.md                        # FFI usage examples
-```
-
-`scripts/package.ts` (see Packaging) writes one archive for each native target
-built into `dist/`, alongside a `SHA256SUMS.txt` file for integrity
-verification.
+The library ships in the `@eserstack/ajan-*` npm platform packages, one per
+native target, plus `@eserstack/ajan-wasm` for the WASM modules. Each holds the
+shared library and its C header `libeser_ajan.h`; `make ajan-packages` stages
+them from `dist/`.
 
 ## FFI Usage
 
@@ -183,71 +161,87 @@ Full working examples live in [`examples/`](./examples/).
 
 ## WASM Usage
 
-The WASM build produces two variants:
+The WASM build is one module, `eser-ajan.wasm`: the slim "wasi" profile of the
+bridge, built with `-buildmode=c-shared` as a reactor (decision-45). It serves
+the 52 functions that work on wasip1 (formats, crypto, config, parsing and its
+stream, collector, codebase walks, validators and checks with their streams,
+cache, csGenerate, logging, HTTP); every other name answers
+`UNSUPPORTED_IN_WASM`. The noskills names left the profile with TASK-258: the
+full spec lifecycle would take the module past its size limit. Loggers write
+their records to the instance's stderr. `make ajan-wasm-check` fails when the
+module grows past 8 MB, or 1.6 MB with brotli, or links aifx, the vendor AI
+SDKs, gRPC, protobuf, QUIC, `os/exec`, `net/http` or the OpenTelemetry SDK.
 
-### Command mode (`eser-ajan.wasm`)
+The module exports `_initialize`, `memory` and five functions (reactor ABI 2):
 
-Reads a JSON request from stdin, writes a JSON response to stdout. Pipe-friendly
-for CLI tooling and scripting.
+- `eser_ajan_alloc(size)` returns a pointer to `size` bytes of an input arena.
+- `eser_ajan_call(namePtr, nameLen, argsPtr, argsLen)` runs the named function.
+  The host writes the name, then the arguments, into the arena; each argument is
+  a little-endian uint32 byte count followed by its bytes. It returns the length
+  of a JSON envelope: `{"ok":true,"result":"..."}`, or `ok: false` with `error`,
+  also when the function answers with a JSON `error` field.
+- `eser_ajan_result_ptr()` points at that envelope until the next call.
+- `eser_ajan_call_async` and `eser_ajan_async_result_ptr()` are the same for the
+  calls that wait on the host, with their own result buffer.
 
-```bash
-# With wasmtime
-echo '{"fn":"version"}' | wasmtime eser-ajan.wasm
-# prints {"ok":true,"result":"eser-ajan version ..."} with the repository's VERSION
+### Network on the WASM fallback
 
-echo '{"fn":"init"}' | wasmtime eser-ajan.wasm
-echo '{"fn":"configLoad","args":{"optionsJSON":"{\"sources\":[\"json_file:config.json\"]}"}}' | wasmtime eser-ajan.wasm
-echo '{"fn":"diResolve","args":{"name":"logger"}}' | wasmtime eser-ajan.wasm
-echo '{"fn":"shutdown"}' | wasmtime eser-ajan.wasm
+wasip1 cannot open a socket, so the HTTP names (`httpCreate`, `httpRequest`,
+`httpRequestStream`, `httpStreamRead`, `httpStreamClose`, `httpClose`) ask the
+host through the module's `eser_host` imports, which the loader provides on the
+runtime's `fetch` (decision-45, TASK-277). With JSPI (`WebAssembly.Suspending`,
+on in Node 26 and workerd), the module waits on the host's promise; the loader
+calls these names through `WebAssembly.promising`, so on the fallback
+`EserAjanHttpRequest`, `EserAjanHttpRequestStream` and `EserAjanHttpStreamRead`
+return promises. They run one at a time; other calls go on while one waits.
+Without JSPI the HTTP names answer an error.
+
+The answers match the native bridge's, with its retry and circuit-breaker rules,
+and these differences:
+
+- the host follows redirects only within the same scheme (at most 20), and drops
+  `Authorization` and `Cookie` when the host changes;
+- a header sent more than once arrives joined by `,`, where the native bridge
+  keeps the first value;
+- a timeout is reported in the host's words;
+- a request JSON with a `requestId` from `@eserstack/ajan/ffi/request-signals`
+  stops when its AbortSignal fires (the Go-backed httpclient takes a `signal`);
+  the native library ignores it.
+
+The module does not link `net/http`, which would pull in `crypto/tls` (+7.3 MB
+measured); it speaks to the host directly.
+
+The envelope of `version` also carries `abi`, `profile` and `names`, which the
+TypeScript loader checks once at load. `loadEserAjanWasm()` compiles the module
+once, keeps one instance (so handles survive between calls), replaces it after a
+trap, and gives it a preopen of the working directory when `node:wasi` is
+available, which the filesystem functions need.
+
+```typescript
+import * as wasm from "@eserstack/ajan/wasm";
+
+const lib = await wasm.loadEserAjanWasm();
+console.log(lib.symbols.EserAjanVersion());
+lib.symbols.EserAjanShellExec("{}"); // throws UnsupportedInWasmError
 ```
 
-Every function of the native library except `EserAjanFree` has a command-mode
-name: the symbol name in camelCase without the `EserAjan` prefix
-(`EserAjanFormatEncode` is `formatEncode`). Functions that work on a handle (AI
-models, loggers, HTTP clients, caches, streams, spawned processes) fail in this
-mode, because each call starts a new instance and the handle is gone by the next
-one.
+### Nesting limit
 
-### Reactor mode (`eser-ajan-reactor.wasm`)
-
-Exports functions directly as WASM exports for embedding in a JS/TS host. Uses
-`//go:wasmexport` (Go 1.24+). String results are returned via a shared buffer:
-the export returns the byte length, and the host reads from the pointer returned
-by `eser_ajan_result_ptr()`.
-
-Exported symbols: `eser_ajan_version`, `eser_ajan_init`, `eser_ajan_shutdown`,
-`eser_ajan_config_load`, `eser_ajan_di_resolve`, `eser_ajan_result_ptr`. The
-module also exports six AI functions, but a host has no way to pass them
-arguments yet, so the TypeScript loader reports them as unsupported.
+The bridge refuses JSON and YAML (and TOML) nested deeper than 1,000 levels,
+`MaxNestingDepth` in [ajan/formatfx](../../ajan/formatfx/README.md), with error
+JSON that names the limit. The registry checks every JSON argument before a
+function decodes it, and formatfx checks documents before it decodes them.
+Decoding recurses once per level, and in the WASM build a few thousand levels
+overflow the host's stack, which Go cannot recover from; the limit keeps the
+instance alive.
 
 ### Manual WASM build
 
 ```bash
-# Command mode
 cd pkg/@eserstack/ajan
-GOOS=wasip1 GOARCH=wasm CGO_ENABLED=0 go build -o eser-ajan.wasm .
-
-# Reactor mode
-GOOS=wasip1 GOARCH=wasm CGO_ENABLED=0 go build -tags eserajan_reactor -o eser-ajan-reactor.wasm .
+GOOS=wasip1 GOARCH=wasm CGO_ENABLED=0 go build -buildmode=c-shared \
+  -tags eserajan_wasi -trimpath -o eser-ajan.wasm .
 ```
-
-## Packaging
-
-After building, create distributable archives:
-
-```bash
-deno run --allow-all pkg/@eserstack/ajan/scripts/package.ts
-```
-
-It stamps the archives with the repository's `VERSION`. Override it:
-
-```bash
-deno run --allow-all pkg/@eserstack/ajan/scripts/package.ts --version=1.2.3
-```
-
-This produces `dist/eser-ajan-{version}-{target}.tar.gz` (or `.zip`) for each
-native target in `dist/` plus `dist/SHA256SUMS.txt`. WASM builds are skipped;
-they ship in `@eserstack/ajan-wasm`.
 
 ## Feature Flags
 
@@ -335,11 +329,16 @@ lists the changes in every package.
   with neither (Node before 22.3, Bun before 1.1, browsers),
   `loadEserAjanWasm()` without `wasmPath` throws "Could not find eser-ajan WASM
   module". Pass `wasmPath`, or use a supported runtime.
-- `EserAjanShellExec` (and command-mode WASM `shellExec`) stops a command after
-  10 minutes when the request has no `timeout`, and rejects a zero or negative
-  `timeout` before the command starts. Before: `{"timeout": "0s"}` meant no
-  limit. After: omit `timeout` for the default, or send a positive Go duration
-  such as `"30m"`.
+- The WASM fallback is one module, `eser-ajan.wasm`, the wasi-profile reactor.
+  The per-call module that read a JSON request on stdin,
+  `eser-ajan-reactor.wasm` and the `mode` option of `loadEserAjanWasm()` and
+  `resolveWasmPath()` are gone; drop `mode` from calls. Names outside the
+  profile throw `UnsupportedInWasmError` (code `UNSUPPORTED_IN_WASM`) instead of
+  failing per call.
+- `EserAjanShellExec` stops a command after 10 minutes when the request has no
+  `timeout`, and rejects a zero or negative `timeout` before the command starts.
+  Before: `{"timeout": "0s"}` meant no limit. After: omit `timeout` for the
+  default, or send a positive Go duration such as `"30m"`.
 - `EserAjanHttpRequest` returns the status and headers with an error and no body
   for a response over 32 MiB, and `EserAjanHttpRequestStream` reads error-status
   bodies under the same limit. Send `maxResponseBytes` in the request JSON, or

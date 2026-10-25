@@ -1,5 +1,10 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+// kubectl runs as a child process, which wasip1 cannot start, so Sync stays
+// out of the WASM profile (TASK-272, F3).
+
+//go:build !wasip1
+
 package csfx
 
 import (
@@ -8,6 +13,7 @@ import (
 	"errors"
 	"fmt"
 	"os/exec"
+	"slices"
 	"strings"
 
 	"github.com/eser/stack/pkg/ajan/formatfx"
@@ -63,6 +69,8 @@ func RunKubectl(ref ResourceReference) ([]string, error) {
 		keys = append(keys, k)
 	}
 
+	slices.Sort(keys)
+
 	return keys, nil
 }
 
@@ -79,7 +87,12 @@ func Sync(opts SyncOptions) (string, error) { //nolint:gocritic // hugeParam: ex
 		return "", err
 	}
 
-	keys, err := RunKubectl(opts.Resource)
+	resourceKeys := opts.ResourceKeys
+	if resourceKeys == nil {
+		resourceKeys = RunKubectl
+	}
+
+	keys, err := resourceKeys(opts.Resource)
 	if err != nil {
 		return "", fmt.Errorf("sync: %w", err)
 	}
@@ -88,7 +101,12 @@ func Sync(opts SyncOptions) (string, error) { //nolint:gocritic // hugeParam: ex
 		return fmt.Sprintf("# No data found in %s/%s", opts.Resource.Type, opts.Resource.Name), nil
 	}
 
-	envData, err := loadEnvFile(opts.EnvFile)
+	files := opts.EnvFiles
+	if len(files) == 0 {
+		files = []string{opts.EnvFile}
+	}
+
+	envData, err := LoadEnvLayers(files, opts.Environ)
 	if err != nil {
 		return "", err
 	}
@@ -99,6 +117,8 @@ func Sync(opts SyncOptions) (string, error) { //nolint:gocritic // hugeParam: ex
 	for _, k := range keys {
 		if v, ok := envData[k]; ok {
 			filtered[k] = v
+		} else if opts.OnMissingKey != nil {
+			opts.OnMissingKey(k)
 		}
 	}
 

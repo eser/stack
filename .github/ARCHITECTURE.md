@@ -12,7 +12,7 @@ stack/
 │   ├── ajan/                   # Go library (github.com/eser/stack/pkg/ajan)
 │   │   ├── acpfx/              # Agent Client Protocol: client, agent, in-process shim
 │   │   ├── aifx/               # AI providers (reaches acpfx/shim in-process)
-│   │   ├── noskillsserverfx/   # The daemon: sessions, ledger, workers
+│   │   ├── noskillsserverfx/   # The daemon: sessions, ledger, workers, dashboard
 │   │   ├── httpclient/         # HTTP client with circuit breaker
 │   │   ├── logfx/              # Structured logging (also metrics + tracing)
 │   │   ├── configfx/           # Configuration loading
@@ -95,7 +95,7 @@ Layer 3: Services and Tooling
 Layer 4: Framework
 ├── @eserstack/jsx-runtime           # Custom JSX runtime
 ├── @eserstack/app-runtime           # Runtime abstraction
-├── @eserstack/bundler               # Bundling system (Rolldown and Deno.bundle backends)
+├── @eserstack/bundler               # Bundling system (Rolldown backend)
 ├── @eserstack/laroux                # Framework core
 ├── @eserstack/laroux-runtime        # Application runtime (manifest loading, dev mode)
 ├── @eserstack/laroux-react          # React integration: Link, Image, RSC protocol and client
@@ -105,7 +105,6 @@ Layer 4: Framework
 Layer 5: Applications
 ├── @eserstack/noskills              # `noskills`: the same module `eser` mounts, re-rooted
 ├── @eserstack/noskills-client       # Client for a running noskills-server daemon
-├── @eserstack/noskills-server-worker  # mux session worker that noskills-server starts (not published)
 ├── @eserstack/noskills-web          # Browser dashboard that `noskills web` starts
 └── @eserstack/cli                   # `eser`: the full CLI
 
@@ -118,10 +117,10 @@ Go (module github.com/eser/ajan, pkg/@eserstack/ajan/go.mod)
 ```
 
 `@eserstack/ajan` and `@eserstack/cli` list the six platform packages as
-optional dependencies. Three packages ship as binaries: `cli` (`eser`),
-`noskills` and `laroux-server` (`laroux`). All three are `deno compile` entry
-points over the same module objects (`BINARIES` in
-`pkg/@eserstack/cli/scripts/compile.ts`), not forks.
+optional dependencies. The release binaries are Go commands built by
+`eser dev compile` (`ReleaseBinaries` in `pkg/ajan/codebasefx`): `eser`
+(`cmd/eser`) and `noskills-server` (decision-8). `noskills` and `laroux` ship on
+npm; their forwarding stubs for installed binaries come with TASK-253.
 
 ## Agent execution (ACP)
 
@@ -144,10 +143,9 @@ shipping, installing and PATH-resolving a program to talk to a struct already in
 memory. `acpfx.Spawn` is for agents that genuinely are other programs
 (`gemini --acp`, `claude-agent-acp`), selected with `NOSKILLS_ACP_COMMAND`.
 
-Only mux sessions still spawn a TypeScript worker, because a terminal pane's
-content channel is VT bytes rather than protocol messages. That worker runs
-under whichever JS runtime is present — Deno, Bun, or Node ≥ 26, which strips
-types natively.
+Mux sessions spawn no worker either: `noskillsserverfx` hosts a `pkg/ajan/muxfx`
+server in the daemon, whose panes run on `shellfx/pty` pseudo-terminals, so the
+daemon needs no JavaScript runtime.
 
 ## Shared `system` command tree
 

@@ -1,6 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import * as assert from "@std/assert";
+import * as assert from "@eserstack/test-kit/assert";
 import * as results from "@eserstack/primitives/results";
 import type * as ffiTypes from "@eserstack/ajan/ffi";
 import * as ajanBridge from "./ajan-bridge.ts";
@@ -60,7 +60,7 @@ Deno.test("submitBatch sends its items under the key Go reads", async () => {
 
   const sent = JSON.parse(captured[0]!.payload) as Record<string, unknown>;
 
-  // `items` is what pkg/@eserstack/ajan/bridge.go's aiBatchSubmitRequest tags.
+  // `items` is what the bridge's aiBatchSubmitRequest tags.
   assert.assert(
     Array.isArray(sent["items"]),
     `no items key: ${captured[0]!.payload}`,
@@ -305,7 +305,7 @@ Deno.test("thinking blocks are sent back unchanged", async () => {
     (sent["messages"] as Array<{ content: Array<Record<string, unknown>> }>)[0]!
       .content;
 
-  // The shape bridge.go's aiContentBlockReq decodes.
+  // The shape the bridge's aiContentBlockReq decodes.
   assert.assertEquals(blocks[0], {
     type: "thinking",
     thinking: { text: "plan", signature: "sig-1" },

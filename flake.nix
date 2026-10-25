@@ -16,9 +16,14 @@
       let
         pkgs = import nixpkgs { inherit system; };
 
-        version = builtins.replaceStrings ["\n" " "] ["" ""] (builtins.readFile ./VERSION);
-
+        # Written by `eser dev nix-hashes` after each release: the released
+        # version and, per binary whose archives the release has, the hash of
+        # each archive. A binary is packaged only when it is listed here.
         hashes = builtins.fromJSON (builtins.readFile ./nix/hashes.json);
+
+        version = hashes.version;
+
+        binaries = builtins.removeAttrs hashes [ "version" ];
 
         targetMap = {
           x86_64-linux = "x86_64-unknown-linux-gnu";
@@ -28,11 +33,6 @@
         };
 
         target = targetMap.${system};
-
-        src = pkgs.fetchurl {
-          url = "https://github.com/eser/stack/releases/download/v${version}/eser-v${version}-${target}.tar.gz";
-          hash = hashes.${target};
-        };
 
         isLinux = builtins.elem system [ "x86_64-linux" "aarch64-linux" ];
         isDarwin = builtins.elem system [ "x86_64-darwin" "aarch64-darwin" ];
@@ -44,11 +44,20 @@
         # Environment variable for shared library lookup
         libPathVar = if isDarwin then "DYLD_LIBRARY_PATH" else "LD_LIBRARY_PATH";
 
-        eser = pkgs.stdenv.mkDerivation {
-          pname = "eser";
-          inherit version src;
+        mkBinary = name: targetHashes: pkgs.stdenv.mkDerivation {
+          pname = name;
+          inherit version;
+
+          src = pkgs.fetchurl {
+            url = "https://github.com/eser/stack/releases/download/v${version}/${name}-v${version}-${target}.tar.gz";
+            hash = targetHashes.${target};
+          };
 
           sourceRoot = ".";
+
+          # deno compile keeps the program in an ELF/Mach-O section that strip
+          # removes, so the release binaries are installed unstripped.
+          dontStrip = true;
 
           nativeBuildInputs = [
             pkgs.makeWrapper
@@ -63,9 +72,9 @@
           installPhase = ''
             mkdir -p $out/bin
 
-            # Install the main binary
-            cp eser $out/bin/eser
-            chmod +x $out/bin/eser
+            # Install the binary
+            cp ${name} $out/bin/${name}
+            chmod +x $out/bin/${name}
 
             # Install the Go shared library if present in the archive
             if [ -f "${sharedLibName}" ]; then
@@ -84,13 +93,13 @@
           # Wrap the binary so it can find the shared library at runtime
           postFixup = ''
             if [ -f "$out/lib/${sharedLibName}" ]; then
-              wrapProgram $out/bin/eser \
+              wrapProgram $out/bin/${name} \
                 --set ${libPathVar} "$out/lib"
             fi
           '';
 
           meta = with pkgs.lib; {
-            description = "eser - Eser's swiss-army-knife tooling for your terminal";
+            description = descriptions.${name} or name;
             homepage = "https://github.com/eser/stack";
             license = licenses.asl20;
             platforms = [
@@ -101,11 +110,17 @@
             ];
           };
         };
+
+        descriptions = {
+          eser = "eser - Eser's swiss-army-knife tooling for your terminal";
+          noskills-server = "noskills-server - persistent Claude Code sessions that survive reboots";
+        };
+
+        packages = builtins.mapAttrs mkBinary binaries;
       in
       {
-        packages = {
-          default = eser;
-          eser = eser;
+        packages = packages // pkgs.lib.optionalAttrs (packages ? eser) {
+          default = packages.eser;
         };
 
         devShells.default = pkgs.mkShell {

@@ -1,10 +1,10 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 /**
- * Bundler abstraction types for multi-backend bundling.
+ * Bundler abstraction types.
  *
- * This module provides a unified interface for different bundler backends
- * (Deno.bundle, Rolldown) with consistent configuration and output types.
+ * This module provides the interface the Rolldown backend implements, with
+ * its configuration and output types.
  *
  * @module
  */
@@ -287,7 +287,7 @@ export interface BundlerPlugin {
 /**
  * Unified bundler interface.
  *
- * Implementations: DenoBundlerBackend, RolldownBackend
+ * Implementation: RolldownBackend
  */
 export interface Bundler {
   /** Backend name for logging and debugging. */
@@ -304,7 +304,7 @@ export interface Bundler {
 /**
  * Backend type identifier.
  */
-export type BundlerBackend = "rolldown" | "deno-bundler";
+export type BundlerBackend = "rolldown";
 
 /**
  * Options for creating a success result.

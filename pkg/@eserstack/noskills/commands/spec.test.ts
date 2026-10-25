@@ -10,7 +10,7 @@
  */
 
 import * as bdd from "@std/testing/bdd";
-import * as assert from "@std/assert";
+import * as assert from "@eserstack/test-kit/assert";
 import * as crossRuntime from "@eserstack/standards/cross-runtime";
 import * as machine from "../state/machine.ts";
 import * as persistence from "../state/persistence.ts";
@@ -249,4 +249,50 @@ bdd.describe("splitting a spec through the CLI", () => {
       );
     },
   );
+});
+
+// TASK-324: `noskills spec --help` took --help for a spec name and crashed
+// looking for .eser/specs/--help.
+bdd.describe("noskills spec --help", () => {
+  bdd.it("prints the usage", async () => {
+    const repo = crossRuntime.runtime.path.resolve(
+      import.meta.dirname ?? ".",
+      "../../../..",
+    );
+    const root = await crossRuntime.runtime.fs.makeTempDir({
+      prefix: "nos_spec_help_",
+    });
+    const run = (args: readonly string[]) =>
+      crossRuntime.runtime.exec.spawn(
+        crossRuntime.runtime.process.execPath(),
+        [
+          "run",
+          "-A",
+          "--config",
+          `${repo}/deno.json`,
+          `${repo}/pkg/@eserstack/noskills/main.ts`,
+          ...args,
+        ],
+        { cwd: root, stdin: "null", stdout: "piped", stderr: "piped" },
+      );
+
+    try {
+      await run(["init", "--non-interactive", "--tools=claude-code"]);
+
+      for (const flag of ["--help", "-h"]) {
+        // One flag at a time, so a failure names it.
+        // deno-lint-ignore no-await-in-loop
+        const result = await run(["spec", flag]);
+        const stdout = new TextDecoder().decode(result.stdout);
+        assert.assertEquals(
+          result.code,
+          0,
+          new TextDecoder().decode(result.stderr),
+        );
+        assert.assertStringIncludes(stdout, "Usage:");
+      }
+    } finally {
+      await crossRuntime.runtime.fs.remove(root, { recursive: true });
+    }
+  });
 });

@@ -4,6 +4,7 @@ package codebasefx
 
 import (
 	"context"
+	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -109,7 +110,11 @@ func walkViaFS(root string, opts WalkOptions) ([]FileEntry, error) {
 
 	if err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
-			return nil // skip unreadable entries
+			if path == root {
+				return fmt.Errorf("%w: %s: %w", ErrUnreadableWalkRoot, root, err)
+			}
+
+			return nil // skip unreadable entries below the root
 		}
 
 		// Normalize to forward slashes so "/"-based exclude patterns and

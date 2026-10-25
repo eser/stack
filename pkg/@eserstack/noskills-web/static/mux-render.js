@@ -121,17 +121,19 @@
         return;
       }
 
+      // Two sibling buttons per tab, so each takes keyboard focus; a button
+      // inside a button is invalid HTML and cannot.
       const items = scene.tabs.map((t, i) => {
         const active = i === scene.activeTab ? " active" : "";
-        return `<button class="tab${active}" data-tab="${
+        const name = esc(t.name);
+        return `<div class="tab${active}" data-tab="${
           esc(t.id)
-        }" data-index="${i}">${
-          esc(t.name)
-        }<span class="tab-close" data-close="${
+        }"><button type="button" class="tab-select" data-index="${i}">${name}</button><button type="button" class="tab-close" data-close="${
           esc(t.id)
-        }">&times;</span></button>`;
+        }" aria-label="Close ${name}">&times;</button></div>`;
       }).join("");
-      bar.innerHTML = `${items}<button class="tab-add" id="add-tab">+</button>`;
+      bar.innerHTML =
+        `${items}<button type="button" class="tab-add" id="add-tab" aria-label="New tab">+</button>`;
     }
 
     function renderPanes() {

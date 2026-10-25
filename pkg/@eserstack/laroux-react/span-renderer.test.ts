@@ -1,9 +1,9 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import * as assert from "@std/assert";
+import * as assert from "@eserstack/test-kit/assert";
 import * as ReactDOMServer from "react-dom/server";
 import * as streams from "@eserstack/streams";
-import * as spanRenderer from "./span-renderer.tsx";
+import * as spanRenderer from "./span-renderer.ts";
 
 const renderToHtml = (span: streams.span.Span): string =>
   ReactDOMServer.renderToStaticMarkup(spanRenderer.renderSpan(span, 0));

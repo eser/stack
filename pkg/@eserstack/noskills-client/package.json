@@ -15,6 +15,6 @@
     "@eserstack/webtransport": "workspace:*"
   },
   "devDependencies": {
-    "@std/assert": "npm:@jsr/std__assert@^1.0.19"
+    "@eserstack/test-kit": "workspace:*"
   }
 }

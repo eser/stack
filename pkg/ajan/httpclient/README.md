@@ -133,6 +133,12 @@ A request whose attempts open the circuit stops retrying and returns
 `ErrCircuitOpen`. Read the state with `client.Transport.CircuitBreaker.State()`,
 which returns `httpclient.StateClosed`, `StateHalfOpen` or `StateOpen`.
 
+The circuit breaker and the retry strategy (`CircuitBreaker`, `RetryStrategy`,
+their configs and defaults) live in the `httpclient/resilience` subpackage,
+which does not import `net/http`; the names here are aliases of it. The WASM
+build of the ajan bridge uses that package to retry and break circuits the same
+way on the host's fetch.
+
 ## Usage
 
 The circuit breaker and retry strategy can be configured in **four independent

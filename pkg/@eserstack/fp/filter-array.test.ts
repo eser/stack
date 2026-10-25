@@ -1,6 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import * as assert from "@std/assert";
+import * as assert from "@eserstack/test-kit/assert";
 import * as filterArray from "./filter-array.ts";
 
 Deno.test("basic", () => {
@@ -28,7 +28,7 @@ Deno.test("with-generator", () => {
   const result = filterArray.filterArray(generated1, func1);
 
   // deno-lint-ignore no-explicit-any
-  assert.assertNotStrictEquals(<any> result, <any> generated1);
+  assert.assertNotStrictEquals(result as any, generated1 as any);
   assert.assertEquals(result.length, 3);
   assert.assertEquals(result, [1, 2, 3]);
 });

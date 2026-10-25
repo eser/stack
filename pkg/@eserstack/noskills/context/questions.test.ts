@@ -1,7 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 import * as bdd from "@std/testing/bdd";
-import * as assert from "@std/assert";
+import * as assert from "@eserstack/test-kit/assert";
 import * as questions from "./questions.ts";
 import * as schema from "../state/schema.ts";
 import * as machine from "../state/machine.ts";
@@ -178,6 +178,22 @@ bdd.describe("discoveryAnswersOf", () => {
 // =============================================================================
 // discoveryStageOf
 // =============================================================================
+
+// TASK-323: a state file written before specDescription existed has no such
+// key, and reading .length of undefined threw.
+bdd.it("discoveryStageOf reads a state without specDescription", () => {
+  const started = machine.startSpec(
+    schema.createInitialState(),
+    "test-spec",
+    "spec/test-spec",
+  );
+  const { specDescription: _dropped, ...older } = started;
+
+  assert.assertEquals(
+    questions.discoveryStageOf(older as unknown as schema.StateFile),
+    questions.discoveryStageOf({ ...started, specDescription: null }),
+  );
+});
 
 bdd.describe("discoveryStageOf", () => {
   const inDiscovery = (

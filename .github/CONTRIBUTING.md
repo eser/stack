@@ -25,14 +25,14 @@ deno task cli ok        # full validation (Deno + Go) — must pass before every
 # Build binaries
 go build ./cmd/noskills-server
 
-# The TypeScript binaries (eser, noskills, laroux) are deno-compiled:
-deno run --allow-all pkg/@eserstack/cli/scripts/compile.ts
+# The release archives (eser, noskills-server) and SHA256SUMS.txt:
+go run ./cmd/eser dev compile --current-only
 
 # Run noskills-server tests
 go test ./pkg/ajan/noskillsserverfx/... -v
 
-# Run TypeScript tests (noskills-client, webtransport, noskills-server-worker)
-deno lint pkg/@eserstack/noskills-client/ pkg/@eserstack/webtransport/ pkg/@eserstack/noskills-server-worker/
+# Lint and check the TypeScript clients (noskills-client, webtransport)
+deno lint pkg/@eserstack/noskills-client/ pkg/@eserstack/webtransport/
 deno check pkg/@eserstack/noskills-client/mod.ts pkg/@eserstack/webtransport/mod.ts
 ```
 

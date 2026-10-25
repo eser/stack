@@ -1,7 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 import * as bdd from "@std/testing/bdd";
-import * as assert from "@std/assert";
+import * as assert from "@eserstack/test-kit/assert";
 import * as identity from "./identity.ts";
 import * as schema from "./schema.ts";
 import * as machine from "./machine.ts";
@@ -523,5 +523,140 @@ bdd.describe("backward compatibility", () => {
 
     const n = machine.addSpecNote(state, "Note text");
     assert.assertEquals(n.specNotes?.length, 1);
+  });
+});
+
+// =============================================================================
+// TASK-328: the home fallback, the removal failures and the file mode
+// =============================================================================
+
+bdd.describe("identity without a home directory", () => {
+  const keys = ["XDG_CONFIG_HOME", "HOME", "USERPROFILE"] as const;
+  let saved: Record<string, string | undefined>;
+  let cwdBefore: string;
+  let tempCwd: string;
+
+  bdd.beforeEach(async () => {
+    saved = {};
+    for (const key of keys) {
+      saved[key] = crossRuntime.runtime.env.get(key);
+      crossRuntime.runtime.env.delete(key);
+    }
+    // A literal "~" would resolve against the working directory, so the
+    // tests run in an empty one where such a folder would show.
+    cwdBefore = crossRuntime.runtime.process.cwd();
+    tempCwd = await crossRuntime.runtime.fs.makeTempDir({
+      prefix: "noskills-nohome-",
+    });
+    crossRuntime.runtime.process.chdir(tempCwd);
+  });
+
+  bdd.afterEach(async () => {
+    for (const key of keys) {
+      const value = saved[key];
+      if (value !== undefined) {
+        crossRuntime.runtime.env.set(key, value);
+      } else {
+        crossRuntime.runtime.env.delete(key);
+      }
+    }
+    crossRuntime.runtime.process.chdir(cwdBefore);
+    await crossRuntime.runtime.fs.remove(tempCwd, { recursive: true });
+  });
+
+  bdd.it("getConfigDir names the variables to set", () => {
+    assert.assertThrows(
+      () => identity.getConfigDir(),
+      Error,
+      "set HOME, USERPROFILE or XDG_CONFIG_HOME",
+    );
+  });
+
+  bdd.it("an empty HOME counts as unset", () => {
+    crossRuntime.runtime.env.set("HOME", "");
+    assert.assertThrows(() => identity.getConfigDir(), Error);
+  });
+
+  bdd.it("getCurrentUser finds no user", async () => {
+    assert.assertEquals(await identity.getCurrentUser(), null);
+  });
+
+  bdd.it(
+    "setCurrentUser writes nothing under the working directory",
+    async () => {
+      await assert.assertRejects(
+        () => identity.setCurrentUser({ name: "Ada", email: "" }),
+        Error,
+        "set HOME, USERPROFILE or XDG_CONFIG_HOME",
+      );
+
+      const entries: string[] = [];
+      for await (const entry of crossRuntime.runtime.fs.readDir(tempCwd)) {
+        entries.push(entry.name);
+      }
+      assert.assertEquals(entries, []);
+    },
+  );
+});
+
+bdd.describe("user.json removal and mode", () => {
+  bdd.beforeEach(async () => {
+    tempConfigDir = await crossRuntime.runtime.fs.makeTempDir({
+      prefix: "noskills-config-",
+    });
+    originalXdg = crossRuntime.runtime.env.get("XDG_CONFIG_HOME");
+    crossRuntime.runtime.env.set("XDG_CONFIG_HOME", tempConfigDir);
+  });
+
+  bdd.afterEach(async () => {
+    if (originalXdg !== undefined) {
+      crossRuntime.runtime.env.set("XDG_CONFIG_HOME", originalXdg);
+    } else {
+      crossRuntime.runtime.env.delete("XDG_CONFIG_HOME");
+    }
+    await crossRuntime.runtime.fs.remove(tempConfigDir, { recursive: true });
+  });
+
+  bdd.it(
+    "clearCurrentUser rethrows a failure other than a missing file",
+    async () => {
+      // A directory with an entry in it cannot be removed as a file.
+      await crossRuntime.runtime.fs.mkdir(
+        `${identity.getUserFilePath()}/keep`,
+        {
+          recursive: true,
+        },
+      );
+
+      await assert.assertRejects(
+        () => identity.clearCurrentUser(),
+        Error,
+        `remove the user identity ${identity.getUserFilePath()}`,
+      );
+    },
+  );
+
+  bdd.it({
+    name: "setCurrentUser keeps user.json readable by its owner only",
+    ignore: crossRuntime.getPlatform() === "windows",
+    fn: async () => {
+      // A file that exists with a wider mode is narrowed too.
+      await crossRuntime.runtime.fs.mkdir(identity.getConfigDir(), {
+        recursive: true,
+      });
+      await crossRuntime.runtime.fs.writeTextFile(
+        identity.getUserFilePath(),
+        "{}\n",
+        { mode: 0o644 },
+      );
+      await crossRuntime.runtime.fs.chmod(identity.getUserFilePath(), 0o644);
+
+      await identity.setCurrentUser({ name: "Ada", email: "ada@example.com" });
+
+      const info = await crossRuntime.runtime.fs.stat(
+        identity.getUserFilePath(),
+      );
+      assert.assertEquals((info.mode ?? 0) & 0o777, 0o600);
+    },
   });
 });

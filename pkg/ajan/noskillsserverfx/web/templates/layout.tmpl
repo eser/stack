@@ -1,0 +1,32 @@
+{{- /* The page every dashboard view renders into. The token meta is how the
+browser gets its access token: only a page loaded from an allowed origin can
+read it. Every script and stylesheet is the dashboard's own, so the CSP
+allows no other origin. */ -}}
+{{define "layout"}}<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#7c3aed" />
+  {{- if .Token}}
+  <meta name="noskills-token" content="{{.Token}}" />
+  {{- end}}
+  <title>{{.Title}}</title>
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <a href="#main" class="skip-link">Skip to main content</a>
+  <header class="top-bar">
+    <a href="/" class="logo">noskills</a>
+    <span class="user-info" id="user-info"></span>
+  </header>
+  {{template "body" .Page}}
+  <script src="/static/mux-render.js"></script>
+  <script src="/static/client.js"></script>
+  <script src="/static/sw-register.js"></script>
+</body>
+</html>
+{{end}}
+
+{{define "phase_badge"}}<span class="phase-badge phase-{{.Tone}}">{{.Label}}</span>{{end}}

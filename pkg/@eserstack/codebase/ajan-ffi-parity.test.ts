@@ -6,15 +6,15 @@
  *
  * The same ~100-symbol surface is restated by hand in six places: the cgo
  * exports in main.go, the FFILibrary interface in ffi/types.ts, the three
- * per-runtime backends, and the WASM command-mode loader. `deno check` ties the
+ * per-runtime backends, and the WASM reactor loader. `deno check` ties the
  * backends to types.ts structurally, but nothing tied any of them to the Go
  * side -- a symbol added to main.go and forgotten in one backend, or renamed on
  * one side only, compiled cleanly and then failed at dlopen time on whichever
  * runtime the developer happened not to be using.
  *
  * These tests parse the declaration sites rather than importing them, because
- * four of the six are not loadable from a Deno test: cgo source, koffi
- * prototype strings, bun:ffi maps, and Go source.
+ * four of the six are not loadable from a Deno test: cgo source, the node:ffi
+ * backend's C prototype strings, bun:ffi maps, and Go source.
  *
  * The extractors are deliberately loose -- essentially "an object key or
  * interface member named EserAjan*" -- so reformatting cannot break them. Each
@@ -22,7 +22,7 @@
  * as a broken extractor rather than passing as a vacuous match.
  */
 
-import * as assert from "@std/assert";
+import * as assert from "@eserstack/test-kit/assert";
 import { runtime } from "@eserstack/standards/cross-runtime";
 
 /** Below this, assume the extractor broke rather than that the ABI shrank. */
@@ -58,17 +58,17 @@ const goExports = (source: string): string[] =>
 const tsSymbolKeys = (source: string): string[] =>
   sortedUnique(matchAll(source, /^\s*(EserAjan\w+)\s*:/gm));
 
-/** Names inside koffi prototype strings, e.g. `"void* EserAjanFoo(...)"`. */
-const koffiPrototypes = (source: string): string[] =>
+/** Names inside C prototype strings, e.g. `"void* EserAjanFoo(...)"`. */
+const cPrototypes = (source: string): string[] =>
   sortedUnique(matchAll(source, /"[^"]*?\b(EserAjan\w+)\s*\(/g));
 
-/** Dispatch keys served by the WASI switch, e.g. `case "formatList":`. */
-const wasiCases = (source: string): string[] =>
-  sortedUnique(matchAll(source, /^\s*case\s+"([a-zA-Z]\w*)"\s*:/gm));
+/** Dispatch names the bridge registers, e.g. `register("formatList", ...)`. */
+const registeredNames = (source: string): string[] =>
+  sortedUnique(matchAll(source, /\bregister\(\s*"([a-zA-Z]\w*)"/g));
 
-/** Dispatch keys the command-mode loader sends, e.g. `call("formatList")`. */
+/** Dispatch names the WASM loader sends: `call("formatList")`, `callAsync(...)`. */
 const wasmCalls = (source: string): string[] =>
-  sortedUnique(matchAll(source, /\bcall\(\s*"([a-zA-Z]\w*)"/g));
+  sortedUnique(matchAll(source, /\bcall(?:Async)?\(\s*"([a-zA-Z]\w*)"/g));
 
 const assertExtracted = (label: string, names: string[]): void => {
   assert.assert(
@@ -88,7 +88,7 @@ Deno.test(
       read("../ajan/ffi/backend-deno.ts"),
       read("../ajan/ffi/backend-bun.ts"),
       read("../ajan/ffi/backend-node.ts"),
-      read("../ajan/wasm/loader-command.ts"),
+      read("../ajan/wasm/loader-reactor.ts"),
     ]);
 
     const expected = goExports(main);
@@ -99,8 +99,8 @@ Deno.test(
       ["ffi/backend-deno.ts", tsSymbolKeys(deno)],
       ["ffi/backend-bun.ts", tsSymbolKeys(bun)],
       ["ffi/backend-node.ts", tsSymbolKeys(node)],
-      ["wasm/loader-command.ts", tsSymbolKeys(wasm)],
-      ["ffi/backend-node.ts koffi prototypes", koffiPrototypes(node)],
+      ["wasm/loader-reactor.ts", tsSymbolKeys(wasm)],
+      ["ffi/backend-node.ts C prototypes", cPrototypes(node)],
     ];
 
     for (const [label, actual] of declarations) {
@@ -117,25 +117,36 @@ Deno.test(
 );
 
 Deno.test(
-  "ajan FFI: WASI dispatch names match what the command-mode loader sends",
+  "ajan FFI: the dispatch names the WASM loader sends are registered in Go",
   async () => {
-    const [wasi, loader] = await Promise.all([
-      read("../ajan/main_wasi.go"),
-      read("../ajan/wasm/loader-command.ts"),
+    const ajanDir = runtime.path.join(testDir, "../ajan");
+    const goFiles: string[] = [];
+    for await (const entry of runtime.fs.readDir(ajanDir)) {
+      if (
+        entry.isFile && entry.name.endsWith(".go") &&
+        !entry.name.endsWith("_test.go")
+      ) {
+        goFiles.push(entry.name);
+      }
+    }
+    const [goSources, loader] = await Promise.all([
+      Promise.all(goFiles.map((name) => read(`../ajan/${name}`))),
+      read("../ajan/wasm/loader-reactor.ts"),
     ]);
 
-    const served = wasiCases(wasi);
+    const served = registeredNames(goSources.join("\n"));
     const sent = wasmCalls(loader);
 
-    assertExtracted("main_wasi.go dispatch", served);
-    assertExtracted("loader-command.ts call()", sent);
+    assertExtracted("bridge register()", served);
+    assertExtracted("loader-reactor.ts call()", sent);
 
     assert.assertEquals(
-      sent.filter((name) => !served.includes(name)),
-      [],
-      "The command-mode loader sends dispatch names that the WASI switch in " +
-        'main_wasi.go does not handle. These fail at runtime with "unknown ' +
-        'function", never at build time.',
+      sent,
+      served,
+      "The WASM loader's dispatch names differ from the names the bridge " +
+        "registers in its domain files. A name sent but not registered fails " +
+        'at runtime with "unknown function"; a name registered but not sent ' +
+        "is unreachable from TypeScript.",
     );
   },
 );
@@ -161,7 +172,7 @@ Deno.test(
         expected,
         "The symbols the active backend exposes differ from the cgo export " +
           "list. If the built library predates a Go-side change, rebuild it " +
-          "with `deno run -A ./pkg/@eserstack/ajan/scripts/build.ts`.",
+          "with `make ajan-lib`.",
       );
     } finally {
       lib.close();

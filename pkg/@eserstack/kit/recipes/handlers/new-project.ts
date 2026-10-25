@@ -115,7 +115,7 @@ export const newProject = (
           const goResult = JSON.parse(raw) as {
             recipes?: Array<{
               name: string;
-              written: string[];
+              written?: string[];
               skipped: string[];
               total: number;
               postInstallRan: string[];
@@ -126,7 +126,7 @@ export const newProject = (
           if (goResult.error === undefined && goResult.recipes !== undefined) {
             let totalWritten = 0;
             for (const entry of goResult.recipes) {
-              totalWritten += entry.written.length;
+              totalWritten += (entry.written ?? []).length;
             }
 
             ctx.out.writeln(
@@ -140,7 +140,7 @@ export const newProject = (
             ) ?? goResult.recipes[0];
 
             if (mainRecipe !== undefined) {
-              for (const file of mainRecipe.written) {
+              for (const file of mainRecipe.written ?? []) {
                 ctx.out.writeln(`  → ${file}`);
               }
             }
@@ -149,7 +149,7 @@ export const newProject = (
               name: input.templateName,
             } as unknown as registrySchema.Recipe;
             const fakeResult = {
-              written: goResult.recipes.flatMap((r) => r.written),
+              written: goResult.recipes.flatMap((r) => r.written ?? []),
               skipped: goResult.recipes.flatMap((r) => r.skipped ?? []),
               total: goResult.recipes.reduce((s, r) => s + r.total, 0),
               postInstallRan: goResult.recipes.flatMap(

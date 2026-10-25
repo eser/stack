@@ -1,6 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import * as assert from "@std/assert";
+import * as assert from "@eserstack/test-kit/assert";
 import * as associateArray from "./associate-array.ts";
 
 Deno.test("basic", () => {
@@ -14,7 +14,7 @@ Deno.test("basic", () => {
   const result = associateArray.associateArray(arr1, func1);
 
   // deno-lint-ignore no-explicit-any
-  assert.assertNotStrictEquals(<any> result, <any> arr1);
+  assert.assertNotStrictEquals(result as any, arr1 as any);
   assert.assertEquals(Object.keys(result).length, 3);
   assert.assertEquals(result, {
     1: { id: 1, name: "foo" },
@@ -35,7 +35,7 @@ Deno.test("with-value-skipping", () => {
   const result = associateArray.associateArray(arr1, func1);
 
   // deno-lint-ignore no-explicit-any
-  assert.assertNotStrictEquals(<any> result, <any> arr1);
+  assert.assertNotStrictEquals(result as any, arr1 as any);
   assert.assertEquals(Object.keys(result).length, 2);
   assert.assertEquals(result, {
     1: { id: 1, name: "foo", skip: false },

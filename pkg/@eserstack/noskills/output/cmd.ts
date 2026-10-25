@@ -53,9 +53,31 @@ export const loadCommandPrefix = async (root: string): Promise<string> => {
 };
 
 /**
+ * The variable through which the Go noskills binary (cmd/noskills) names the
+ * command that runs it when it hands a command it has not ported to this
+ * CLI. `noskills init` run through the binary then writes that command into
+ * the manifest, so the hooks and the git wrapper call the binary, which
+ * answers them without starting Node or asking a registry.
+ */
+export const CLI_PREFIX_ENV = "NOSKILLS_CLI_PREFIX";
+
+/**
+ * The prefix a NOSKILLS_CLI_PREFIX value names, or null when the value is
+ * unset, blank or spans lines (the prefix goes into one-line shell commands).
+ */
+export const prefixFromEnv = (value: string | undefined): string | null => {
+  const prefix = value?.trim() ?? "";
+
+  return prefix === "" || /[\r\n]/.test(prefix) ? null : prefix;
+};
+
+/**
  * Detect prefix by analyzing execution context and argv.
- * Used during init to capture how the user invoked the CLI.
+ * Used during init to capture how the user invoked the CLI. The Go binary's
+ * NOSKILLS_CLI_PREFIX comes first: the process here is the TypeScript CLI it
+ * started, so argv would name Node instead.
  */
 export const extractPrefix = async (): Promise<string> =>
-  (await crossRuntime.getCliPrefix(ESER_OPTS, ["noskills", "nos"])) ??
+  prefixFromEnv(crossRuntime.runtime.env.get(CLI_PREFIX_ENV)) ??
+    (await crossRuntime.getCliPrefix(ESER_OPTS, ["noskills", "nos"])) ??
     schema.DEFAULT_COMMAND_PREFIX;

@@ -1,0 +1,54 @@
+{
+  "provider": "anthropic",
+  "scenario": "batch_get",
+  "exchanges": [
+    {
+      "request": {
+        "headers": {
+          "accept": "application/json",
+          "accept-encoding": "gzip",
+          "anthropic-version": "2023-06-01",
+          "user-agent": "Anthropic/Go 1.73.0",
+          "x-api-key": "test-anthropic-key",
+          "x-stainless-arch": "arm64",
+          "x-stainless-lang": "go",
+          "x-stainless-os": "MacOS",
+          "x-stainless-package-version": "1.73.0",
+          "x-stainless-retry-count": "0",
+          "x-stainless-runtime": "go",
+          "x-stainless-runtime-version": "go1.26.6",
+          "x-stainless-timeout": "10"
+        },
+        "method": "GET",
+        "path": "/v1/messages/batches/batch_123"
+      },
+      "response": {
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{\"id\":\"batch_123\",\"type\":\"message_batch\",\"processing_status\":\"ended\",\"request_counts\":{\"processing\":1,\"succeeded\":3,\"errored\":1,\"canceled\":0,\"expired\":1},\"created_at\":\"2026-10-24T10:00:00Z\",\"expires_at\":\"2026-10-25T10:00:00Z\",\"cancel_initiated_at\":null,\"archived_at\":null,\"ended_at\":\"2026-10-24T11:30:00Z\",\"results_url\":\"{{server}}/v1/messages/batches/batch_123/results\"}",
+        "status": 200
+      }
+    }
+  ],
+  "outcome": {
+    "job": {
+      "completedAt": "2026-10-24T11:30:00Z",
+      "createdAt": "2026-10-24T10:00:00Z",
+      "doneCount": 3,
+      "error": "",
+      "failedCount": 1,
+      "id": "batch_123",
+      "status": "completed",
+      "storage": {
+        "Type": "anthropic_batch",
+        "InputRef": "",
+        "OutputRef": "{{server}}/v1/messages/batches/batch_123/results",
+        "Properties": {
+          "batch_id": "batch_123"
+        }
+      },
+      "totalCount": 6
+    }
+  }
+}

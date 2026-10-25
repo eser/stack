@@ -5,15 +5,10 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
-	"net/http"
 	"os"
 
 	"go.opentelemetry.io/otel/log"
 	"go.opentelemetry.io/otel/metric"
-	"go.opentelemetry.io/otel/propagation"
-	sdklog "go.opentelemetry.io/otel/sdk/log"
-	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
-	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -21,10 +16,15 @@ const (
 	DefaultScopeName = "default"
 )
 
-type OTLPConnectionResource interface {
-	GetLoggerProvider() *sdklog.LoggerProvider
-	GetMeterProvider() *sdkmetric.MeterProvider
-	GetTracerProvider() *sdktrace.TracerProvider
+// TelemetryProviders are the OpenTelemetry providers a logger exports
+// through. They are the API interfaces, not the SDK types, so logfx links no
+// OpenTelemetry SDK: the SDK-backed entry point is logfx/otlp, which only
+// native builds and services import. A nil provider leaves the current one in
+// place.
+type TelemetryProviders struct {
+	Logger log.LoggerProvider
+	Meter  metric.MeterProvider
+	Tracer trace.TracerProvider
 }
 
 // LoggerInstance provides a clean interface for creating and managing loggers.
@@ -51,7 +51,6 @@ type Logger struct {
 	InnerLoggerProvider log.LoggerProvider
 	InnerMeterProvider  metric.MeterProvider
 	InnerTracerProvider trace.TracerProvider
-	InnerPropagator     propagation.TextMapPropagator
 	Writer              io.Writer
 
 	ScopeName string
@@ -69,11 +68,7 @@ func NewLogger(options ...NewLoggerOption) *Logger {
 		InnerLoggerProvider: NewNoopLoggerProvider(),
 		InnerMeterProvider:  NewNoopMeterProvider(),
 		InnerTracerProvider: NewNoopTracerProvider(),
-		InnerPropagator: propagation.NewCompositeTextMapPropagator(
-			propagation.TraceContext{}, // W3C Trace Context
-			propagation.Baggage{},      // W3C Baggage
-		),
-		Writer: os.Stdout,
+		Writer:              os.Stdout,
 
 		ScopeName: DefaultScopeName,
 	}
@@ -146,14 +141,6 @@ func (l *Logger) PanicContext(ctx context.Context, msg string, args ...any) {
 	l.Log(ctx, LevelPanic, msg, args...)
 }
 
-func (l *Logger) PropagatorExtract(ctx context.Context, headers http.Header) context.Context {
-	return l.InnerPropagator.Extract(ctx, propagation.HeaderCarrier(headers))
-}
-
-func (l *Logger) PropagatorInject(ctx context.Context, headers http.Header) {
-	l.InnerPropagator.Inject(ctx, propagation.HeaderCarrier(headers))
-}
-
 func (l *Logger) StartSpan(
 	ctx context.Context,
 	name string,
@@ -166,16 +153,21 @@ func (l *Logger) NewMetricsBuilder(name string) *MetricsBuilder {
 	return NewMetricsBuilder(l.InnerMeterProvider, name)
 }
 
-// EnableOTLP enables OTLP features.
-func (l *Logger) EnableOTLP(conn OTLPConnectionResource) {
-	innerLoggerProvider := conn.GetLoggerProvider()
-	l.InnerLoggerProvider = innerLoggerProvider
+// EnableTelemetry makes the logger export through the given providers:
+// every later record goes to the logger provider, and StartSpan and
+// NewMetricsBuilder use the tracer and meter providers. logfx/otlp's Enable
+// calls it with the providers of an OTLP connection.
+func (l *Logger) EnableTelemetry(providers TelemetryProviders) {
+	if providers.Meter != nil {
+		l.InnerMeterProvider = providers.Meter
+	}
 
-	innerMeterProvider := conn.GetMeterProvider()
-	l.InnerMeterProvider = innerMeterProvider
+	if providers.Tracer != nil {
+		l.InnerTracerProvider = providers.Tracer
+	}
 
-	innerTracerProvider := conn.GetTracerProvider()
-	l.InnerTracerProvider = innerTracerProvider
-
-	l.InnerHandler.enableOTLPExport(l.InnerLoggerProvider)
+	if providers.Logger != nil {
+		l.InnerLoggerProvider = providers.Logger
+		l.InnerHandler.enableOTLPExport(l.InnerLoggerProvider)
+	}
 }

@@ -193,7 +193,7 @@ func BuildValidationInput(
 	for _, questionID := range order {
 		answers = append(answers, ValidationAnswer{
 			QuestionID: questionID,
-			Question:   findQuestionText(questionID),
+			Question:   questionTextFor(questionID),
 			Answer:     cutText(strings.Join(texts[questionID], "\n\n"), MaxAnswerChars),
 		})
 	}
@@ -554,7 +554,19 @@ type ValidationRequest struct {
 	System      string
 	Prompt      string
 	ReplySchema map[string]any
+	// WorkDir is an empty directory a CLI agent runs in, or "" for the
+	// process's own.
+	WorkDir string
 }
+
+// ValidatorReplyError is what a ValidationJudge returns when the model was
+// reached and answered with an error; the skipped validation then says the
+// agent "returned an error" instead of that its call failed.
+type ValidatorReplyError struct {
+	Message string
+}
+
+func (e *ValidatorReplyError) Error() string { return e.Message }
 
 // ValidationJudge runs the validator model: it sends the request to the agent
 // and model in request.Settings and returns the reply text. A caller builds it
@@ -562,7 +574,7 @@ type ValidationRequest struct {
 // directory, so the project's files, rules and hooks are not in its working
 // directory; a refusal is ErrValidatorDeclined.
 type ValidationJudge interface {
-	Judge(ctx context.Context, request ValidationRequest) (string, error)
+	Judge(ctx context.Context, request *ValidationRequest) (string, error)
 }
 
 // ValidateTransition runs the validator once and returns its findings, or a
@@ -578,31 +590,52 @@ func ValidateTransition(
 	timeout time.Duration,
 	retryCommand string,
 ) TransitionValidation {
+	prompt, err := ValidationPrompt(input)
+	if err != nil {
+		return NewSkippedValidation(input.Transition, &settings,
+			fmt.Sprintf("the validator input could not be encoded: %v.", err), retryCommand)
+	}
+
+	return validateWithPrompt(ctx, judge, &validatorCall{
+		transition: input.Transition, settings: settings, prompt: prompt,
+		timeout: timeout, retryCommand: retryCommand, workDir: "",
+	})
+}
+
+// validatorCall is one run of the validator with its prompt built.
+type validatorCall struct {
+	transition   ValidatedTransition
+	settings     ValidatorSettings
+	prompt       string
+	timeout      time.Duration
+	retryCommand string
+	workDir      string
+}
+
+// validateWithPrompt is ValidateTransition after the prompt is built.
+func validateWithPrompt(ctx context.Context, judge ValidationJudge, call *validatorCall) TransitionValidation {
+	settings, timeout := call.settings, call.timeout
 	skip := func(reason string) TransitionValidation {
-		return NewSkippedValidation(input.Transition, &settings, reason, retryCommand)
+		return NewSkippedValidation(call.transition, &settings, reason, call.retryCommand)
 	}
 
 	if judge == nil {
 		return skip(fmt.Sprintf(
-			"no @eserstack/ai provider is named %q; set noskills.validate.agent to one of %s.",
+			"no @eserstack/ai provider is named \"%s\"; set noskills.validate.agent to one of %s.",
 			settings.Agent,
 			knownAgents,
 		))
 	}
 
-	prompt, err := ValidationPrompt(input)
-	if err != nil {
-		return skip(fmt.Sprintf("the validator input could not be encoded: %v.", err))
-	}
-
 	callCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	text, err := judge.Judge(callCtx, ValidationRequest{
+	text, err := judge.Judge(callCtx, &ValidationRequest{
 		Settings:    settings,
 		System:      ValidatorSystemPrompt,
-		Prompt:      prompt,
+		Prompt:      call.prompt,
 		ReplySchema: ValidationReplySchema(),
+		WorkDir:     call.workDir,
 	})
 
 	// A judge that reacts to the deadline fails its call, so an expired
@@ -620,6 +653,11 @@ func ValidateTransition(
 		return skip(settings.Agent + " declined to review the transition.")
 	}
 
+	var replyErr *ValidatorReplyError
+	if errors.As(err, &replyErr) {
+		return skip(sentence(settings.Agent + " returned an error: " + replyErr.Message))
+	}
+
 	if err != nil {
 		return skip(sentence(fmt.Sprintf("the %s call failed: %v", settings.Agent, err)))
 	}
@@ -633,7 +671,7 @@ func ValidateTransition(
 		))
 	}
 
-	return NewReviewedValidation(input.Transition, settings, reply)
+	return NewReviewedValidation(call.transition, settings, reply)
 }
 
 // sentence ends a reason with one period, whether or not the message had one.
@@ -645,14 +683,25 @@ func sentence(text string) string {
 	return text + "."
 }
 
-// AttachValidation adds the validation to the output and points the phase
-// instruction at it, so an agent that follows only the instruction still
-// presents the findings before it asks for approval (mirrors attachValidation
-// in commands/next-validation.ts).
-func AttachValidation(out *NextOutput, validation *TransitionValidation) {
-	if out.Instruction != "" {
-		out.Instruction += " A second agent checked this transition: follow `validation.instruction` before you ask the user for approval."
+// AttachValidation adds the validation to a `next` output and points the
+// phase instruction at it, so an agent that follows only the instruction
+// still presents the findings before it asks for approval (mirrors
+// attachValidation in commands/next-validation.ts).
+func AttachValidation(out *JSObject, validation *TransitionValidation) (*JSObject, error) {
+	data, err := validation.MarshalJSON()
+	if err != nil {
+		return nil, fmt.Errorf("encode the validation: %w", err)
 	}
 
-	out.Validation = validation
+	value, err := parseJSON(string(data))
+	if err != nil {
+		return nil, fmt.Errorf("read the validation back: %w", err)
+	}
+
+	if instruction, ok := out.strOK("instruction"); ok {
+		return out.with("instruction", instruction+" A second agent checked this transition: follow `validation.instruction` before you ask the user for approval.",
+			"validation", value), nil
+	}
+
+	return out.with("validation", value), nil
 }

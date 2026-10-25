@@ -1,11 +1,16 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
+
+//go:build !wasip1
+
 // Wave 4 Phase C — retroactive bridge tests for log ShouldLog/Configure FFI.
 
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"testing"
 )
 
@@ -340,5 +345,37 @@ func TestBridgeLogClose_RemovesHandle(t *testing.T) {
 	}
 	if resp.Error == "" {
 		t.Fatal("expected error writing to closed handle")
+	}
+}
+
+func TestBridgeLogWrite_ScopeAppearsOnce(t *testing.T) {
+	// Not parallel: it swaps the shared log output.
+	var out bytes.Buffer
+
+	previous := logOutput
+	logOutput = &out
+
+	t.Cleanup(func() { logOutput = previous })
+
+	created := bridgeLogCreate(`{"scopeName":"once","level":"INFO"}`)
+
+	var handle struct {
+		Handle string `json:"handle"`
+	}
+	if err := json.Unmarshal([]byte(created), &handle); err != nil {
+		t.Fatal(err)
+	}
+
+	t.Cleanup(func() { bridgeLogClose(handle.Handle) })
+
+	bridgeLogWrite(`{"handle":"` + handle.Handle + `","level":"INFO","message":"hello","attrs":{"k":1}}`)
+
+	line := out.String()
+	if got := strings.Count(line, `"scope":`); got != 1 {
+		t.Errorf("the scope key should appear once, got %d: %s", got, line)
+	}
+
+	if !strings.Contains(line, `"k":1`) || !strings.Contains(line, `"msg":"hello"`) {
+		t.Errorf("the record should keep the message and attrs: %s", line)
 	}
 }

@@ -15,6 +15,7 @@
  */
 
 import * as results from "@eserstack/primitives/results";
+import * as streams from "@eserstack/streams";
 import * as module from "@eserstack/shell/module";
 import * as aiModule from "@eserstack/ai/module";
 import * as kitModule from "@eserstack/kit/module";
@@ -121,6 +122,16 @@ const app = cliSupport.attachStandardCommands(
     });
   });
 
+/**
+ * The one-line notice for a run from a `deno install jsr:@eserstack/cli`
+ * install, whose main module is served from jsr.io, or null for any other
+ * install. JSR stays frozen at 4.5.x (decision-5).
+ */
+export const jsrInstallNotice = (mainModuleUrl: string): string | null =>
+  mainModuleUrl.startsWith("https://jsr.io/")
+    ? "eser on JSR is frozen at 4.5.x; from 5.0.0 install it with `npm install -g eser` or the install script (https://github.com/eser/stack#install-the-cli)."
+    : null;
+
 export const main = async (): Promise<
   results.Result<void, { message?: string; exitCode: number }>
 > => {
@@ -133,6 +144,17 @@ if (import.meta.main) {
   //
   // Entry point: the await runs only when this file is the program, never on
   // import.
+  const notice = jsrInstallNotice(import.meta.url);
+  if (notice !== null) {
+    const errorOutput = streams.output({
+      renderer: streams.renderers.plain(),
+      sink: streams.sinks.stderr(),
+    });
+    errorOutput.writeln(notice);
+    // deno-lint-ignore no-top-level-await
+    await errorOutput.close();
+  }
+
   // deno-lint-ignore no-top-level-await
   await cliSupport.exitCli(await main());
 }

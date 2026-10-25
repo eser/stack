@@ -87,7 +87,7 @@ func TestCheckModExports_Reachability(t *testing.T) {
 				{path: "pkg/a/worker-main.ts", content: `import * as deps from "./deps.ts";` + "\n"},
 				{path: "pkg/a/deps.ts", content: `export * as net from "node:net";` + "\n"},
 				{
-					path:    "pkg/a/scripts/build.ts",
+					path:    "pkg/a/scripts/release.ts",
 					content: `import * as targets from "../targets.ts";` + "\nif (import.meta.main) {}\n",
 				},
 				{path: "pkg/a/targets.ts", content: "export const all = [];\n"},

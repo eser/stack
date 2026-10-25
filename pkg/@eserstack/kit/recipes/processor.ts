@@ -93,7 +93,7 @@ export const shouldIgnore = (
   for (const pattern of ignorePatterns) {
     // Use @std/path/glob-to-regexp for correct globstar-at-root behavior:
     //   **/foo  →  matches "foo" at top level AND "a/b/foo" at any depth
-    //   *.md    →  matches "README.md" at any depth
+    //   *.md    →  matches "README.md" at the top level only (use **/*.md)
     //   dir/    →  matches the directory and everything under it
     const regex = globPath.globToRegExp(pattern, {
       extended: true,

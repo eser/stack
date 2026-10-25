@@ -18,7 +18,7 @@
  * @module
  */
 
-import * as assert from "@std/assert";
+import * as assert from "@eserstack/test-kit/assert";
 import * as npmExternals from "@eserstack/codebase/npm-externals";
 import { runtime } from "@eserstack/standards/cross-runtime";
 

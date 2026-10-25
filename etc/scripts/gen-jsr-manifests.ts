@@ -104,6 +104,12 @@ const buildManifest = async (
     return null;
   }
 
+  // A private package, such as the test seam @eserstack/test-kit, is never
+  // published, so it gets no JSR manifest and deno publish skips it.
+  if (pkg["private"] === true) {
+    return null;
+  }
+
   const manifest: Manifest = {
     "//": GENERATED_NOTE,
     name,

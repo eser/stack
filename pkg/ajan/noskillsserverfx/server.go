@@ -15,7 +15,7 @@ import (
 
 	"github.com/eser/stack/pkg/ajan/httpfx"
 	"github.com/eser/stack/pkg/ajan/httpfx/middlewares"
-	"github.com/eser/stack/pkg/ajan/lib"
+	"github.com/eser/stack/pkg/ajan/lib/netlib"
 	"github.com/eser/stack/pkg/ajan/logfx"
 )
 
@@ -395,7 +395,7 @@ func (s *Server) registerRoutes() {
 
 	// ── WebTransport attach (RouteRaw — bypasses Result body-write) ────────
 	// Clients connect via WebTransport to /attach/{slug}/{sid} to stream events
-	// bidirectionally with the session's TS worker.
+	// bidirectionally with the session's worker.
 	s.router.RouteRaw("/attach/{slug}/{sid}", s.handleAttach)
 }
 
@@ -460,7 +460,7 @@ func (s *Server) buildCert() (*CertInfo, error) {
 			MinVersion:   tls.VersionTLS13,
 		}
 	case s.config.SelfSigned:
-		cert, err := lib.GenerateSelfSignedCert()
+		cert, err := netlib.GenerateSelfSignedCert()
 		if err != nil {
 			return nil, fmt.Errorf("generate self-signed cert: %w", err)
 		}

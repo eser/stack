@@ -3,8 +3,9 @@
 /**
  * `noskills config` — Manage noskills configuration (user identity, etc.).
  *
- * User identity is stored per-machine at ~/.config/noskills/user.json,
- * not in the project manifest (which is committed to git).
+ * User identity is stored per-machine at ~/.config/eser/noskills/user.json
+ * (or $XDG_CONFIG_HOME/eser/noskills/user.json), not in the project manifest
+ * (which is committed to git).
  *
  * @module
  */
@@ -14,11 +15,25 @@ import * as streams from "@eserstack/streams";
 import * as span from "@eserstack/streams/span";
 import type * as shellArgs from "@eserstack/shell/args";
 import * as identity from "../state/identity.ts";
+import * as persistence from "../state/persistence.ts";
 import * as cmd from "../output/cmd.ts";
+
+/** A failure the CLI prints on stderr, as the Go binary prints it. */
+const failure = (error: unknown): shellArgs.CliResult<void> =>
+  results.fail({
+    message: `noskills: ${
+      error instanceof Error ? error.message : String(error)
+    }`,
+    exitCode: 1,
+  });
 
 export const main = async (
   args?: readonly string[],
 ): Promise<shellArgs.CliResult<void>> => {
+  // The subcommands below build their command strings with this prefix.
+  const { root } = await persistence.resolveProjectRoot();
+  await cmd.loadCommandPrefix(root);
+
   const subcommand = args?.[0];
 
   if (subcommand === "set-user") return await setUser(args?.slice(1));
@@ -76,7 +91,12 @@ const setUser = async (
   }
 
   const user: identity.NoskillsUser = { name, email: email ?? "" };
-  await identity.setCurrentUser(user);
+  try {
+    await identity.setCurrentUser(user);
+  } catch (error) {
+    await out.close();
+    return failure(error);
+  }
 
   out.writeln(
     span.green("User set: "),
@@ -118,7 +138,14 @@ const clearUser = async (): Promise<shellArgs.CliResult<void>> => {
     sink: streams.sinks.stdout(),
   });
 
-  const removed = await identity.clearCurrentUser();
+  let removed: boolean;
+  try {
+    removed = await identity.clearCurrentUser();
+  } catch (error) {
+    await out.close();
+    return failure(error);
+  }
+
   if (removed) {
     out.writeln(span.green("User identity cleared."));
   } else {

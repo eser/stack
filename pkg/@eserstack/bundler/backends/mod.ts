@@ -21,12 +21,6 @@ export type {
 } from "../types.ts";
 
 export {
-  createDenoBundlerBackend,
-  DenoBundlerBackend,
-  type DenoBundlerBackendOptions,
-} from "./deno-bundler.ts";
-
-export {
   type AdvancedChunksConfig,
   type ChunkGroup,
   createRolldownBackend,
@@ -37,22 +31,21 @@ export {
 } from "./rolldown.ts";
 
 import type { Bundler, BundlerBackend } from "../types.ts";
-import * as denoBundler from "./deno-bundler.ts";
-import type { DenoBundlerBackendOptions } from "./deno-bundler.ts";
 import * as rolldown from "./rolldown.ts";
 import type { RolldownBackendOptions } from "./rolldown.ts";
 
 /**
  * Options for creating a bundler backend.
  */
-export type CreateBundlerOptions =
-  | { backend: "deno-bundler"; options?: DenoBundlerBackendOptions }
-  | { backend: "rolldown"; options?: RolldownBackendOptions };
+export type CreateBundlerOptions = {
+  backend: "rolldown";
+  options?: RolldownBackendOptions;
+};
 
 /**
  * Create a bundler backend by name.
  *
- * @param backend - Backend type ("rolldown" | "deno-bundler")
+ * @param backend - Backend type ("rolldown", the only one)
  * @param options - Backend-specific options
  * @returns Bundler instance
  *
@@ -62,9 +55,6 @@ export type CreateBundlerOptions =
  *
  * // Use Rolldown (default)
  * const rolldownBackend = bundler.createBundler("rolldown");
- *
- * // Use Deno Bundler (stable fallback)
- * const denoBackend = bundler.createBundler("deno-bundler");
  *
  * // With options
  * const chunkedBackend = bundler.createBundler("rolldown", {
@@ -78,11 +68,11 @@ export type CreateBundlerOptions =
 export function createBundler(config: CreateBundlerOptions): Bundler;
 export function createBundler(
   backend?: BundlerBackend,
-  options?: DenoBundlerBackendOptions | RolldownBackendOptions,
+  options?: RolldownBackendOptions,
 ): Bundler;
 export function createBundler(
   backendOrConfig?: BundlerBackend | CreateBundlerOptions,
-  options?: DenoBundlerBackendOptions | RolldownBackendOptions,
+  options?: RolldownBackendOptions,
 ): Bundler {
   // Handle config object form
   if (
@@ -100,10 +90,6 @@ export function createBundler(
     case "rolldown":
       return rolldown.createRolldownBackend(
         options as RolldownBackendOptions,
-      );
-    case "deno-bundler":
-      return denoBundler.createDenoBundlerBackend(
-        options as DenoBundlerBackendOptions,
       );
     default:
       throw new Error(`Unknown bundler backend: ${backend}`);

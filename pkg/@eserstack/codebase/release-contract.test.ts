@@ -22,7 +22,7 @@
  * @module
  */
 
-import * as assert from "@std/assert";
+import * as assert from "@eserstack/test-kit/assert";
 import { runtime } from "@eserstack/standards/cross-runtime";
 
 // Resolved from this file's own directory: these tests read sources rather
@@ -222,7 +222,7 @@ Deno.test("the changelog version key matches the Go struct tag", async () => {
   const ts = stripComments(
     await read("pkg/@eserstack/codebase/changelog-gen.ts"),
   );
-  const go = await read("pkg/@eserstack/ajan/bridge.go");
+  const go = await read("pkg/@eserstack/ajan/bridge_codebase_git.go");
 
   // The key as it goes onto the wire, read out of the payload literal rather
   // than from the file at large — "version" appears throughout both sources.
@@ -243,6 +243,6 @@ Deno.test("the changelog version key matches the Go struct tag", async () => {
   assert.assertStringIncludes(
     field,
     `json:"version,omitempty"`,
-    "bridge.go's codebaseChangelogRequest no longer decodes the `version` key",
+    "bridge_codebase_git.go's codebaseChangelogRequest no longer decodes the `version` key",
   );
 });

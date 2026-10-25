@@ -27,7 +27,7 @@ closes every connection at shutdown. The OTLP connection gives
   through your own factories
 - ⚙️ Configuration management: `Config` loads connection targets from config
   files and the environment through configfx
-- 🔧 Bridge pattern: logfx declares the `OTLPConnectionResource` interface and
+- 🔧 Bridge pattern: logfx/otlp declares the `ConnectionResource` interface and
   connfx satisfies it, so neither package imports the other
 
 ## Quick Start
@@ -402,9 +402,21 @@ defer resp.Body.Close()
 
 ### OTLP Connections
 
-The `otlp` factory creates OTLP/HTTP exporters for logs, metrics and traces that
-send to the collector at `DSN` (`host:port`, usually port 4318). It uses plain
-HTTP unless `TLS` is true or the `insecure` property is `false`.
+The `otlp` factory creates exporters for logs, metrics and traces that send to
+the collector at `DSN` (`host:port`). They speak OTLP over HTTP with protobuf
+bodies (`http/protobuf`, usually port 4318) unless the `transport` property, or
+`OTEL_EXPORTER_OTLP_PROTOCOL` when the property is not set, is `grpc` (usually
+port 4317). Any other value, `http/json` included, fails the connection. It
+sends without TLS unless `TLS` is true or the `insecure` property is `false`.
+
+```go
+conn, err := registry.AddConnection(ctx, "otel", &connfx.ConfigTarget{
+	Protocol:   "otlp",
+	DSN:        "otel-collector:4317",
+	Properties: map[string]any{"transport": connfx.OTLPTransportGRPC},
+})
+```
+
 `CreateResource` adds the service identity and builds the providers that
 [logfx](../logfx/README.md) takes:
 
@@ -427,14 +439,14 @@ if err != nil {
 	return fmt.Errorf("create OTLP resource: %w", err)
 }
 
-logger.EnableOTLP(resource)
+otlp.Enable(logger, resource) // import "github.com/eser/stack/pkg/ajan/logfx/otlp"
 ```
 
 The resource batches log records and spans (spans every 5 seconds or 512 at a
 time), exports metrics every 30 seconds, and keeps every trace (sampling ratio
 1.0). `resource.Close(ctx)` flushes and shuts the providers down; it shuts the
-connection's exporters down too, so a later `registry.Close` reports
-`HTTP exporter is shutdown` for that connection.
+connection's exporters down too, so a later `registry.Close` reports that the
+exporter is shut down for that connection.
 
 The OTLP health check builds an exporter and does not contact the collector, so
 it reports Ready while the collector is down. Export failures appear when the
@@ -534,7 +546,8 @@ connections report their state with atomic values.
 
 - `go doc github.com/eser/stack/pkg/ajan/connfx`: the API reference generated
   from source
-- [ajan/logfx](../logfx/README.md): takes the OTLP resource with `EnableOTLP`
+- [ajan/logfx](../logfx/README.md): takes the OTLP resource with `otlp.Enable`
+  from `logfx/otlp`
 - [ajan/httpclient](../httpclient/README.md): the resilient client inside HTTP
   connections
 - [ajan/configfx](../configfx/README.md): loads `Config` from files and the

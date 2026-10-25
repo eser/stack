@@ -6,7 +6,7 @@
  */
 
 import * as bdd from "@std/testing/bdd";
-import * as assert from "@std/assert";
+import * as assert from "@eserstack/test-kit/assert";
 import type { WatchSnapshot } from "./watch.ts";
 import * as watch from "./watch.ts";
 

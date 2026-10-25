@@ -88,8 +88,6 @@ export interface RuntimeCapabilities {
   readonly stdout: boolean;
   /** HTTP server with WebSocket upgrade (`runtime.http`) */
   readonly http: boolean;
-  /** Key-value storage (Deno KV, Cloudflare KV) */
-  readonly kv: boolean;
 }
 
 // =============================================================================
@@ -897,10 +895,34 @@ export interface RuntimeProcess {
 // HTTP Server Types
 // =============================================================================
 
+/** The address of a network peer. */
+export interface NetAddr {
+  /** The IP address, without brackets for IPv6. */
+  readonly hostname: string;
+  /** The port. */
+  readonly port: number;
+}
+
 /**
- * Answers one HTTP request for `runtime.http.serve`.
+ * What `runtime.http.serve` knows about the connection a request came on.
  */
-export type HttpHandler = (request: Request) => Response | Promise<Response>;
+export interface ServeHandlerInfo {
+  /**
+   * The peer that sent the request: the socket's remote address, not a
+   * forwarded header. Null when the runtime cannot tell, as for a socket that
+   * closed before the handler ran.
+   */
+  readonly remoteAddr: NetAddr | null;
+}
+
+/**
+ * Answers one HTTP request for `runtime.http.serve`. `info` describes the
+ * connection; a handler that does not need it can leave it out.
+ */
+export type HttpHandler = (
+  request: Request,
+  info: ServeHandlerInfo,
+) => Response | Promise<Response>;
 
 /**
  * Options for `runtime.http.serve`.
@@ -918,6 +940,11 @@ export interface ServeOptions {
    * open connections, WebSockets included.
    */
   readonly signal?: AbortSignal;
+  /**
+   * Called once the server listens, with the address it bound; the port is
+   * the chosen one when `port` was 0. It runs before `serve` resolves.
+   */
+  readonly onListen?: (addr: NetAddr) => void;
 }
 
 /**
@@ -1173,6 +1200,27 @@ export class AlreadyExistsError extends Error {
   constructor(path: string) {
     super(`File or directory already exists: ${path}`);
     this.name = "AlreadyExistsError";
+    this.path = path;
+  }
+}
+
+/**
+ * Error thrown when the process may not access a file or directory (EACCES or
+ * EPERM).
+ */
+export class PermissionDeniedError extends Error {
+  /** The path the process may not access. */
+  public readonly path: string;
+
+  /**
+   * Creates the error for a path the process may not access.
+   *
+   * @param path - The path that was refused
+   * @param options - The original error as `cause`
+   */
+  constructor(path: string, options?: ErrorOptions) {
+    super(`Permission denied: ${path}`, options);
+    this.name = "PermissionDeniedError";
     this.path = path;
   }
 }

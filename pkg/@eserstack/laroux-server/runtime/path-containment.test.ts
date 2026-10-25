@@ -1,6 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import * as assert from "@std/assert";
+import * as assert from "@eserstack/test-kit/assert";
 import * as path from "@std/path";
 import { runtime } from "@eserstack/standards/cross-runtime";
 import * as config from "@eserstack/laroux/config";
@@ -82,7 +82,24 @@ Deno.test("POST /_rsc never imports a module outside dist/server", async () => {
     );
     await Deno.writeTextFile(
       path.join(serverDir, "legit.js"),
-      `export const hello = (x) => "hello " + x;\n`,
+      `export const hello = (x) => "hello " + x;
+Object.defineProperties(hello, {
+  $$typeof: { value: Symbol.for("react.server.reference") },
+  $$id: { value: "legit#hello" },
+});
+`,
+    );
+    // The manifest lists the outside paths too, so this test reaches the
+    // containment check behind the manifest check.
+    await Deno.writeTextFile(
+      path.join(serverDir, "actions-manifest.json"),
+      JSON.stringify({
+        actions: [
+          "legit.js",
+          "../../outside/evil.js",
+          `${path.join(outsideDir, "evil")}.js`,
+        ],
+      }),
     );
 
     const handler = server.createHandler({

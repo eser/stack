@@ -4,32 +4,6 @@
 
 package pty
 
-/*
-#cgo linux LDFLAGS: -lutil
-#include <stdlib.h>
-#include <sys/ioctl.h>
-#include <termios.h>
-#if defined(__APPLE__)
-#include <util.h>
-#else
-#include <pty.h>
-#endif
-
-// go_openpty opens a master/slave PTY pair, optionally seeding the window size.
-// Returns 0 on success and writes the fds to *amaster / *aslave.
-static int go_openpty(int *amaster, int *aslave, int cols, int rows) {
-    struct winsize ws;
-    ws.ws_row = (unsigned short)rows;
-    ws.ws_col = (unsigned short)cols;
-    ws.ws_xpixel = 0;
-    ws.ws_ypixel = 0;
-
-    return openpty(amaster, aslave, NULL, NULL,
-        (cols > 0 && rows > 0) ? &ws : NULL);
-}
-*/
-import "C"
-
 import (
 	"context"
 	"errors"
@@ -47,14 +21,10 @@ type platform struct {
 }
 
 func platformSpawn(ctx context.Context, opts SpawnOptions) (*platform, error) { //nolint:gocritic // hugeParam: existing signature, written before this check was enabled
-	var masterFd, slaveFd C.int
-
-	if C.go_openpty(&masterFd, &slaveFd, C.int(opts.Cols), C.int(opts.Rows)) != 0 {
-		return nil, errors.New("openpty failed")
+	master, slave, err := openPTY(opts.Cols, opts.Rows)
+	if err != nil {
+		return nil, err
 	}
-
-	master := os.NewFile(uintptr(masterFd), "pty-master")
-	slave := os.NewFile(uintptr(slaveFd), "pty-slave")
 
 	cmd := exec.CommandContext(ctx, opts.Command, opts.Args...)
 	if opts.Cwd != "" {
@@ -97,11 +67,33 @@ func platformWrite(p *platform, data []byte) (int, error) {
 	return p.master.Write(data)
 }
 
+// platformResize sets the window size through the master's raw connection,
+// which holds the fd open for the call: the master is closed by watcherLoop
+// when the child exits, and a resize racing that close must not reach a
+// closed or reused fd number.
 func platformResize(p *platform, cols, rows int) error {
-	return unix.IoctlSetWinsize(int(p.master.Fd()), unix.TIOCSWINSZ, &unix.Winsize{
-		Row: uint16(rows),
-		Col: uint16(cols),
+	conn, err := p.master.SyscallConn()
+	if err != nil {
+		return fmt.Errorf("resize pty: %w", err)
+	}
+
+	var ioctlErr error
+
+	controlErr := conn.Control(func(fd uintptr) {
+		ioctlErr = unix.IoctlSetWinsize(int(fd), unix.TIOCSWINSZ, &unix.Winsize{ //nolint:gosec // G115: fds and terminal sizes are far below the limits
+			Row: uint16(rows),
+			Col: uint16(cols),
+		})
 	})
+	if controlErr != nil {
+		return fmt.Errorf("resize pty: %w", controlErr)
+	}
+
+	if ioctlErr != nil {
+		return fmt.Errorf("resize pty to %dx%d: %w", cols, rows, ioctlErr)
+	}
+
+	return nil
 }
 
 func platformKill(p *platform, signal string) error {

@@ -412,7 +412,7 @@ export class CommandBuilder {
 
       throw new Error(
         "@eserstack/ajan native library is not available: " +
-          "exec.child() requires FFI or command-mode WASM" +
+          "exec.child() requires the native library (the WASM fallback does not serve shell functions)" +
           (nativeCause !== "" ? nativeCause : ffiClient.describeLoadFailure()),
       );
     }

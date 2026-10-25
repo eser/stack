@@ -11,6 +11,7 @@ import * as htmlShell from "./html-shell.ts";
 import * as crossRuntime from "@eserstack/standards/cross-runtime";
 import * as mediaTypes from "@std/media-types";
 import * as pathContainment from "./path-containment.ts";
+import * as actionGuard from "./action-guard.ts";
 import type { AppConfig } from "../config/load-config.ts";
 import type { HMRManager } from "../domain/hmr-manager.ts";
 import type { Bundler } from "@eserstack/laroux-bundler";
@@ -136,6 +137,14 @@ function createStreamingOptimalResponse(
 }
 
 // Constants
+/** A JSON error response with the given status. */
+function jsonResponse(body: Record<string, unknown>, status: number): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
 const CACHE_CONTROL_STATIC = "public, no-cache, must-revalidate";
 const CACHE_CONTROL_DYNAMIC = "no-cache, no-store, must-revalidate";
 
@@ -334,6 +343,23 @@ async function servePublicAsset(
  * Create request handler with injected dependencies
  */
 export function createHandler(deps: ServerDependencies) {
+  // The actions manifest of the build being served, read once per build id.
+  let actionManifest:
+    | { buildId: string; manifest: Promise<actionGuard.ActionManifest> }
+    | null = null;
+  const getActionManifest = (
+    serverDir: string,
+    buildId: string,
+  ): Promise<actionGuard.ActionManifest> => {
+    if (actionManifest === null || actionManifest.buildId !== buildId) {
+      actionManifest = {
+        buildId,
+        manifest: actionGuard.readActionManifest(serverDir),
+      };
+    }
+    return actionManifest.manifest;
+  };
+
   const rateLimiter = deps.rateLimitConfig !== false
     // Key on the socket peer. Forwarded headers are believed only from a
     // trusted proxy (loopback by default), so a direct client can neither
@@ -347,7 +373,7 @@ export function createHandler(deps: ServerDependencies) {
 
   return async (
     req: Request,
-    info?: Deno.ServeHandlerInfo,
+    info?: crossRuntime.ServeHandlerInfo,
   ): Promise<Response> => {
     const url = new URL(req.url);
     let { pathname } = url;
@@ -370,30 +396,45 @@ export function createHandler(deps: ServerDependencies) {
           return new Response("Expected WebSocket", { status: 426 });
         }
 
-        const { socket, response } = Deno.upgradeWebSocket(req);
+        const { socket, response } = crossRuntime.runtime.http
+          .upgradeWebSocket(req);
         hmrManager.handleConnection(socket);
         return response;
       }
 
       // Rate limiting check
       if (rateLimiter) {
+        // Keyed on the socket peer from runtime.http, not on client headers.
         const rateLimitResponse = rateLimiter.check(
           req,
           pathname,
-          info?.remoteAddr !== undefined && "hostname" in info.remoteAddr
-            ? info.remoteAddr
-            : null,
+          info?.remoteAddr ?? null,
         );
         if (rateLimitResponse) {
           return withSecurityHeaders(rateLimitResponse);
         }
       }
 
+      // GET /rsc renders the page its pathname parameter names. The path is
+      // normalized through a URL, so "/x/../admin" is "/admin" both for the
+      // proxies and for the render.
+      let rscPagePathname: string | null = null;
+      if (pathname === "/rsc") {
+        const pageUrl = new URL(url.origin);
+        pageUrl.pathname = url.searchParams.get("pathname") ?? "/";
+        rscPagePathname = pageUrl.pathname;
+      }
+
       // Run middleware
       if (middlewareDispatcher) {
+        // For /rsc the chain runs for the requested page, as it does for that
+        // page's document request, so route-scoped proxies cover its payload.
+        const proxyRequest = rscPagePathname !== null
+          ? new Request(new URL(rscPagePathname, url.origin), req)
+          : req;
         const { result, finalPathname } = await middlewareDispatcher.runProxies(
-          req,
-          pathname,
+          proxyRequest,
+          rscPagePathname ?? pathname,
         );
 
         if (result.type === "response") {
@@ -404,7 +445,11 @@ export function createHandler(deps: ServerDependencies) {
           return Response.redirect(result.url, result.status ?? 302);
         }
 
-        pathname = finalPathname;
+        if (rscPagePathname !== null) {
+          rscPagePathname = finalPathname;
+        } else {
+          pathname = finalPathname;
+        }
       }
 
       // Route: File-based API routes
@@ -427,63 +472,93 @@ export function createHandler(deps: ServerDependencies) {
         if (actionId) {
           rscLogger.debug(`RSC Server Action invoked: ${actionId}`);
 
+          // Defense in depth against cross-site request forgery: a browser
+          // page of another origin cannot run an action.
+          if (!actionGuard.isSameOriginRequest(req)) {
+            await rscLogger.with({ actionId }).warn(
+              "run server action: refused a cross-site request; answered 403",
+            );
+            return jsonResponse({ error: "Cross-site action request" }, 403);
+          }
+
           try {
+            // Parse action ID: "path/to/file#exportName"
+            const [modulePath, exportName] = actionId.split("#");
+            if (!modulePath || !exportName) {
+              return jsonResponse({ error: "Invalid action ID format" }, 400);
+            }
+
+            // Only modules the build lists in actions-manifest.json are
+            // action modules. The id comes from a request header, so it is
+            // checked against that list before any module is imported.
+            const serverDir = crossRuntime.runtime.path.resolve(
+              config.distDir,
+              "server",
+            );
+            const manifest = await getActionManifest(serverDir, getBuildId());
+            if (!actionGuard.isListedActionModule(manifest, modulePath)) {
+              // The id goes into a log attribute; the response does not
+              // echo it.
+              await rscLogger.with({ actionId }).warn(
+                "run server action: the module is not in the actions manifest; answered 404",
+              );
+              return jsonResponse({ error: "Action not found" }, 404);
+            }
+
+            // Actions are in dist/server/<modulePath>.js, and the resolved
+            // file must stay inside that directory: an id with ../ or an
+            // absolute path is rejected.
+            const actionModulePath = pathContainment.resolveWithin(
+              serverDir,
+              `${modulePath}.js`,
+            );
+            if (actionModulePath === null) {
+              rscLogger.warn(`RSC action path outside server dir: ${actionId}`);
+              return jsonResponse({ error: "Invalid action ID" }, 400);
+            }
+
+            // The body is read with a size limit before it is parsed.
+            let bodyBytes: Uint8Array<ArrayBuffer>;
+            try {
+              bodyBytes = await actionGuard.readBoundedBody(req);
+            } catch (error) {
+              if (error instanceof actionGuard.ActionBodyTooLargeError) {
+                return jsonResponse({
+                  error:
+                    `Action request body is over the ${error.limitBytes}-byte limit`,
+                }, 413);
+              }
+              throw error;
+            }
+
             // Parse args based on content type
             const contentType = req.headers.get("Content-Type") ?? "";
             let args: unknown[];
 
             if (contentType.includes("multipart/form-data")) {
               // FormData - pass as first arg
-              args = [await req.formData()];
+              args = [
+                await new Response(bodyBytes, {
+                  headers: { "Content-Type": contentType },
+                }).formData(),
+              ];
             } else {
               // JSON args: the client sends the argument list as an array. A
               // body that is not JSON gets the same 400 as one that is not an
               // array.
-              const body: unknown = await req.json().catch(() => null);
+              let body: unknown = null;
+              try {
+                body = JSON.parse(new TextDecoder().decode(bodyBytes));
+              } catch {
+                body = null;
+              }
               if (!Array.isArray(body)) {
-                return new Response(
-                  JSON.stringify({
-                    error:
-                      "Action arguments must be a JSON array or multipart form data",
-                  }),
-                  {
-                    status: 400,
-                    headers: { "Content-Type": "application/json" },
-                  },
-                );
+                return jsonResponse({
+                  error:
+                    "Action arguments must be a JSON array or multipart form data",
+                }, 400);
               }
               args = body;
-            }
-
-            // Parse action ID: "path/to/file#exportName"
-            const [modulePath, exportName] = actionId.split("#");
-            if (!modulePath || !exportName) {
-              return new Response(
-                JSON.stringify({ error: "Invalid action ID format" }),
-                {
-                  status: 400,
-                  headers: { "Content-Type": "application/json" },
-                },
-              );
-            }
-
-            // Import the action module dynamically
-            // Actions are in dist/server/<modulePath>.js. The id comes from a
-            // request header, so the resolved file must stay inside that
-            // directory: an id with ../ or an absolute path is rejected.
-            const actionModulePath = pathContainment.resolveWithin(
-              crossRuntime.runtime.path.resolve(config.distDir, "server"),
-              `${modulePath}.js`,
-            );
-            if (actionModulePath === null) {
-              rscLogger.warn(`RSC action path outside server dir: ${actionId}`);
-              return new Response(
-                JSON.stringify({ error: "Invalid action ID" }),
-                {
-                  status: 400,
-                  headers: { "Content-Type": "application/json" },
-                },
-              );
             }
 
             rscLogger.debug(`Loading action module: ${actionModulePath}`);
@@ -491,20 +566,14 @@ export function createHandler(deps: ServerDependencies) {
               buildModule.toBuildModuleUrl(actionModulePath, getBuildId())
             );
 
+            // Only exports the build marked as React server references are
+            // actions; other exports of the module cannot be called.
             const actionFn = actionModule[exportName];
-            if (typeof actionFn !== "function") {
-              // The id comes from a request header: it goes into a log
-              // attribute, and the response does not echo it.
+            if (!actionGuard.isServerAction(actionFn, actionId)) {
               await rscLogger.with({ actionId }).warn(
-                "run server action: the module has no exported function with this id",
+                "run server action: the module has no server action with this id; answered 404",
               );
-              return new Response(
-                JSON.stringify({ error: "Action not found" }),
-                {
-                  status: 404,
-                  headers: { "Content-Type": "application/json" },
-                },
-              );
+              return jsonResponse({ error: "Action not found" }, 404);
             }
 
             // The module map is loaded before the action runs, so a bundle
@@ -527,13 +596,7 @@ export function createHandler(deps: ServerDependencies) {
             await rscLogger.with({ actionId, error }).error(
               "run server action: the request or the action failed; answered 500",
             );
-            return new Response(
-              JSON.stringify({ error: "Server action failed" }),
-              {
-                status: 500,
-                headers: { "Content-Type": "application/json" },
-              },
-            );
+            return jsonResponse({ error: "Server action failed" }, 500);
           }
         }
       }
@@ -543,7 +606,7 @@ export function createHandler(deps: ServerDependencies) {
         rscLogger.debug("Rendering RSC payload...");
 
         const bundle = await bundler.getBundle();
-        const requestPathname = url.searchParams.get("pathname") ?? "/";
+        const requestPathname = rscPagePathname ?? "/";
         const { Layout, Page, params } = await getApp(requestPathname);
 
         // Request data travels with this render only, as the request prop
@@ -847,18 +910,30 @@ async function handlePageRequest(
   });
 }
 
+/** Options for {@link startHTTPServer}. */
+export type StartHTTPServerOptions = {
+  /** Called with the bound address once the server listens. */
+  readonly onListen?: (addr: crossRuntime.NetAddr) => void;
+  /** Stops the server when aborted. */
+  readonly signal?: AbortSignal;
+};
+
 /**
- * Start the HTTP server
+ * Start the HTTP server on `config.server.host` and `config.server.port`.
+ * The host is passed explicitly because runtime.http binds to 127.0.0.1 when
+ * none is given. Resolves once the server listens.
  */
-export function startHTTPServer(
+export async function startHTTPServer(
   deps: ServerDependencies,
-  onListen?: () => void,
-): void {
+  options: StartHTTPServerOptions = {},
+): Promise<crossRuntime.HttpServer> {
   const { config } = deps;
   const handler = createHandler(deps);
 
-  Deno.serve({
+  return await crossRuntime.runtime.http.serve({
     port: config.server.port,
-    onListen: onListen ?? (() => {}),
+    hostname: config.server.host,
+    onListen: options.onListen,
+    signal: options.signal,
   }, handler);
 }

@@ -17,11 +17,18 @@
 //	.eser/specs/<name>/spec.md           — living spec documents
 //	.eser/concerns/*.json                — concern definitions
 //
+// The lifecycle commands (spec new, next, status, approve, done, followup,
+// init) work on the state files as JSON objects that keep their fields and
+// key order, so a file the TypeScript CLI wrote reads back unchanged and a
+// file written here is the one the TypeScript CLI would write. The typed
+// StateFile in schema.go is for callers that only read a few fields.
+//
 // # Quick Start
 //
-//	root := "/path/to/project"
-//	state, err := noskillsfx.ReadState(root)
+//	env := noskillsfx.ServiceLifecycleEnv("/path/to/project")
 //
-//	state, err = noskillsfx.StartSpec(state, "my-feature", "feat/my-feature", "Add feature X")
-//	err = noskillsfx.WriteState(root, state)
+//	spec, err := noskillsfx.SpecNew(ctx, env, noskillsfx.SpecNewOptions{Description: "Add feature X"})
+//	answer := "Users sign in with an email and a password"
+//	result, err := noskillsfx.Next(ctx, env, noskillsfx.NextOptions{Spec: spec.Name, Answer: &answer})
+//	fmt.Println(result.Output) // the instruction, as `noskills next` prints it
 package noskillsfx

@@ -9,7 +9,7 @@
  * @module
  */
 
-import * as assert from "@std/assert";
+import * as assert from "@eserstack/test-kit/assert";
 import * as path from "@std/path";
 import * as crossRuntime from "@eserstack/standards/cross-runtime";
 import * as fileToolsShared from "./file-tools-shared.ts";

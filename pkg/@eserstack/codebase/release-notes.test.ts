@@ -14,7 +14,7 @@
  * @module
  */
 
-import * as assert from "@std/assert";
+import * as assert from "@eserstack/test-kit/assert";
 import * as releaseNotes from "./release-notes.ts";
 
 // =============================================================================

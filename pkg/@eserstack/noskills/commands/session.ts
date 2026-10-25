@@ -92,6 +92,29 @@ const sessionStart = async (
     }
   }
 
+  // The modes exclude each other: a free session that names a spec, or an
+  // auto pick that drops the spec asked for, would bind something else.
+  const modeCount =
+    [specName !== null, freeMode, autoMode].filter((set) => set).length;
+  if (modeCount > 1) {
+    out.writeln(
+      span.red("Use only one of --spec=<name>, --free or --auto."),
+    );
+    await out.close();
+    return results.fail({ exitCode: 1 });
+  }
+
+  if (specName === "") {
+    out.writeln(span.red("--spec needs a spec name."));
+    out.writeln(
+      span.dim(
+        `Example: ${cmd.cmdPrefix()} session start --spec=my-feature`,
+      ),
+    );
+    await out.close();
+    return results.fail({ exitCode: 1 });
+  }
+
   // Auto mode: pick spec if exactly one exists, otherwise free
   if (autoMode) {
     const specStates = await persistence.listSpecStates(root);
@@ -138,14 +161,18 @@ const sessionStart = async (
   }
 
   const sessionId = persistence.generateSessionId();
+  const startedAt = new Date().toISOString();
   const session: persistence.Session = {
     id: sessionId,
     spec: specName,
     mode: freeMode ? "free" : "spec",
     phase: freeMode ? null : phase,
-    pid: 0, // Deno doesn't expose PID easily; use 0 as placeholder
-    startedAt: new Date().toISOString(),
-    lastActiveAt: new Date().toISOString(),
+    // 0 means no owning process. This process exits as soon as it prints
+    // the export lines, so its own pid would name a dead process, and the
+    // agent that later works in the session is not known here.
+    pid: 0,
+    startedAt,
+    lastActiveAt: startedAt,
     tool: "claude-code",
     projectRoot: root,
   };
@@ -216,12 +243,13 @@ const sessionEnd = async (
   }
 
   const deleted = await persistence.deleteSession(root, sessionId);
-  if (deleted) {
-    out.writeln(span.green("Session ended: "), span.dim(sessionId));
-  } else {
+  if (!deleted) {
     out.writeln(span.red(`Session not found: ${sessionId}`));
+    await out.close();
+    return results.fail({ exitCode: 1 });
   }
 
+  out.writeln(span.green("Session ended: "), span.dim(sessionId));
   await out.close();
   return results.ok(undefined);
 };
@@ -229,6 +257,14 @@ const sessionEnd = async (
 // =============================================================================
 // session list
 // =============================================================================
+
+/** The list's time column; "unknown" for a session with no readable time. */
+const idleLabel = (idleMs: number | null): string => {
+  if (idleMs === null) return "unknown";
+
+  const mins = Math.floor(idleMs / 60000);
+  return mins < 60 ? `${mins}min ago` : `${Math.floor(mins / 60)}h ago`;
+};
 
 const sessionList = async (): Promise<shellArgs.CliResult<void>> => {
   const out = streams.output({
@@ -251,13 +287,10 @@ const sessionList = async (): Promise<shellArgs.CliResult<void>> => {
       ),
     );
   } else {
+    const now = Date.now();
     for (const s of sessions) {
-      const stale = persistence.isSessionStale(s);
-      const elapsed = Date.now() - new Date(s.lastActiveAt).getTime();
-      const mins = Math.floor(elapsed / 60000);
-      const timeLabel = mins < 60
-        ? `${mins}min ago`
-        : `${Math.floor(mins / 60)}h ago`;
+      const stale = persistence.isSessionStale(s, now);
+      const timeLabel = idleLabel(persistence.sessionIdleMs(s, now));
 
       const modeLabel = s.mode === "free" ? "free" : `spec:${s.spec ?? "?"}`;
       const phaseLabel = s.phase ?? "—";

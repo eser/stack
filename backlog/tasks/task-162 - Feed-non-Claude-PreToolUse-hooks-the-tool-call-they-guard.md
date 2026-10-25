@@ -1,9 +1,10 @@
 ---
 id: TASK-162
 title: Feed non-Claude PreToolUse hooks the tool call they guard
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-10-05 00:58'
+updated_date: '2026-10-15 19:34'
 labels:
   - noskills
   - security
@@ -22,8 +23,20 @@ Decision: confirm each tool's hook payload and plugin API from its official docu
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 The OpenCode plugin passes the tool name and input to `invoke-hook pre-tool-use` on stdin
-- [ ] #2 invoke-hook maps the OpenCode, Kiro, Codex and Copilot CLI tool names and input shapes to the shell and file-edit checks
-- [ ] #3 Tests feed each tool's payload shape to checkProtectedFiles and checkGitGuard and see a denial for a git write and an allowGit edit
-- [ ] #4 deno task cli ok passes
+- [x] #1 The OpenCode plugin passes the tool name and input to `invoke-hook pre-tool-use` on stdin
+- [x] #2 invoke-hook maps the OpenCode, Kiro, Codex and Copilot CLI tool names and input shapes to the shell and file-edit checks
+- [x] #3 Tests feed each tool's payload shape to checkProtectedFiles and checkGitGuard and see a denial for a git write and an allowGit edit
+- [x] #4 deno task cli ok passes
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Completed in round 3 of the autonomous backlog run (2026-10-05); deno task cli ok passes.
+
+Verified:
+- `toolCallOf`, `toolNameOf` and `toolInputOf` in hook-decisions.ts map the Codex, Copilot CLI (camelCase and PascalCase), Kiro and OpenCode tool names and inputs, with the doc sources cited in comments.
+- The generated OpenCode plugin (sync/adapters/opencode.ts) spawns `invoke-hook pre-tool-use` with `{tool_name, tool_input}` on stdin and throws on exit code 2.
+- invoke-hook.test.ts "each agent tool's PreToolUse payload" runs checkGitGuard, checkProtectedFiles and decidePreToolUse over every tool's payload, and each one refuses a git write and an allowGit edit.
+- The README section "The PreToolUse hook in each tool" matches the code and states the gaps the docs leave.
+<!-- SECTION:NOTES:END -->

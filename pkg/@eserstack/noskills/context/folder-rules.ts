@@ -49,9 +49,28 @@ const collectRulesForFile = async (
     ? filePath.slice(root.length + 1)
     : filePath;
 
-  // Walk up directory chain
-  const parts = relative.split("/");
-  parts.pop(); // remove filename
+  // Walk up directory chain. ".." and "." segments are resolved first, and a
+  // path that leaves the project reads only the root's rules, so no
+  // .folder-rules.md outside the project is ever read.
+  const parts: string[] = [];
+  let escapes = false;
+  for (const segment of relative.split("/").slice(0, -1)) {
+    if (segment === "" || segment === ".") {
+      continue;
+    }
+    if (segment === "..") {
+      if (parts.length === 0) {
+        escapes = true;
+        break;
+      }
+      parts.pop();
+      continue;
+    }
+    parts.push(segment);
+  }
+  if (escapes) {
+    parts.length = 0;
+  }
 
   // Depths from the file's own directory up to the root, deepest first. The
   // directories are read concurrently and the result keeps that order.

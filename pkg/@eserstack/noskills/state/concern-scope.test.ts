@@ -4,7 +4,7 @@
 // deno-lint-ignore-file no-console
 
 import * as bdd from "@std/testing/bdd";
-import * as assert from "@std/assert";
+import * as assert from "@eserstack/test-kit/assert";
 import * as crossRuntime from "@eserstack/standards/cross-runtime";
 import * as concernScope from "./concern-scope.ts";
 import * as persistence from "./persistence.ts";

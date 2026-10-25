@@ -18,8 +18,9 @@ exports logs, metrics and traces over OTLP. A `*logfx.Logger` embeds
   while using standard `log/slog` under the hood
 - 🔄 Built-in context support: the `*Context` methods add the `trace_id` and
   `span_id` of the active span to the record
-- 🌐 OpenTelemetry integration: OTLP export of logs, metrics and traces through
-  the `EnableOTLP()` method
+- 🌐 OpenTelemetry integration: export of logs, metrics and traces through
+  `EnableTelemetry`, or through an OTLP connection with `logfx/otlp`; logfx
+  itself links no OpenTelemetry SDK, so it also builds for wasip1
 - 📊 Structured logging: JSON output for production, pretty printing for
   development
 - 🎨 Pretty printing: colored output for development
@@ -226,7 +227,7 @@ logger = logfx.NewLogger(
 ```
 
 A logger built with `WithFromSlog` writes through the handler you gave it, so
-the logfx output modes and `EnableOTLP` do not apply to it.
+the logfx output modes and `EnableTelemetry` do not apply to it.
 
 ### Available Options
 
@@ -312,8 +313,13 @@ with a `msg` key, plus a `trace` key when the error carries a stack trace
 
 #### OTLP Integration
 
-`EnableOTLP` takes a resource that holds the OpenTelemetry logger, meter and
-tracer providers. [connfx](../connfx/README.md) builds one from an `otlp`
+`EnableTelemetry` takes the OpenTelemetry API providers to export through, as a
+`TelemetryProviders` value; a nil provider leaves the current one in place. The
+SDK-typed entry point is the `logfx/otlp` package
+(`github.com/eser/stack/pkg/ajan/logfx/otlp`): `otlp.Enable` takes a resource
+that holds the SDK logger, meter and tracer providers and passes them on.
+Keeping the SDK there keeps it out of the WASM build of the bridge, which uses
+logfx. [connfx](../connfx/README.md) builds the resource from an `otlp`
 connection:
 
 ```go
@@ -340,16 +346,17 @@ func enableOTLP(
 		return nil, fmt.Errorf("create OTLP resource: %w", err)
 	}
 
-	logger.EnableOTLP(resource)
+	otlp.Enable(logger, resource) // import "github.com/eser/stack/pkg/ajan/logfx/otlp"
 
 	return resource, nil
 }
 ```
 
-Every record after `EnableOTLP` is also exported, and `StartSpan` and
+Every record after `otlp.Enable` is also exported, and `StartSpan` and
 `NewMetricsBuilder` use the OTLP providers. Call `resource.Close(ctx)` at
-shutdown to flush what is still buffered. `EnableOTLP` panics when the resource
-is nil or the logger was built with `WithFromSlog`.
+shutdown to flush what is still buffered. `otlp.Enable` panics when the resource
+is nil, and both entry points panic when the logger was built with
+`WithFromSlog`.
 
 #### Tracing Integration
 
@@ -367,7 +374,7 @@ span.RecordError(err) // records the error and sets the span status to Error
 ```
 
 `Span` also has `GetTraceID`, `GetSpanID`, `SetAttributes` and `AddEvent`.
-Before `EnableOTLP`, `StartSpan` uses a no-op provider, whose spans have no
+Before `EnableTelemetry`, `StartSpan` uses a no-op provider, whose spans have no
 trace ids of their own.
 
 #### Metrics Integration
@@ -395,12 +402,14 @@ latency.RecordDuration(ctx, 120*time.Millisecond)
 ```
 
 `Gauge` builds a gauge with `Set` and `SetBool`. Create builders after
-`EnableOTLP`; a builder made before it keeps the no-op provider until you call
-its `Bind` method with the new meter provider.
+`EnableTelemetry`; a builder made before it keeps the no-op provider until you
+call its `Bind` method with the new meter provider.
 
 #### Propagation Support
 
-The propagator reads and writes W3C Trace Context and Baggage headers:
+The propagator reads and writes W3C Trace Context and Baggage headers. These two
+methods exist in native builds only: the propagation package links `net/http`,
+which the wasip1 build leaves out.
 
 ```go
 // Extract propagation context from incoming HTTP headers
@@ -410,13 +419,13 @@ ctx = logger.PropagatorExtract(ctx, request.Header)
 logger.PropagatorInject(ctx, outgoing.Header)
 ```
 
-### OTLPConnectionResource Interface
+### otlp.ConnectionResource Interface
 
-`EnableOTLP` accepts any value with these methods;
+`otlp.Enable` accepts any value with these methods;
 `*connfx.OTLPConnectionResource` is the one this codebase provides:
 
 ```go
-type OTLPConnectionResource interface {
+type ConnectionResource interface {
 	GetLoggerProvider() *sdklog.LoggerProvider
 	GetMeterProvider() *sdkmetric.MeterProvider
 	GetTracerProvider() *sdktrace.TracerProvider
@@ -499,7 +508,7 @@ is down does not block or fail the local output.
 ## Concurrency
 
 Logging methods can be called from any number of goroutines, as with any
-`slog.Logger`. Set up the logger, including `EnableOTLP` and
+`slog.Logger`. Set up the logger, including `EnableTelemetry` and
 `Handler.AddSubscriber`, before other goroutines log through it: those calls
 change the handler without locking.
 
@@ -509,6 +518,14 @@ These changes since 4.5.2 need a change in code, commands or files that use this
 package. The [changelog](https://github.com/eser/stack/blob/main/CHANGELOG.md)
 lists the changes in every package.
 
+- `Logger.EnableOTLP` and the `OTLPConnectionResource` and `OTLPLogExporter`
+  interfaces moved to the `logfx/otlp` package, so that logfx links no
+  OpenTelemetry SDK. Before: `logger.EnableOTLP(resource)`. After:
+  `otlp.Enable(logger, resource)`, with `otlp.ConnectionResource` and
+  `otlp.LogExporter`. `EnableTelemetry` takes the API providers directly.
+- The `Logger.InnerPropagator` field is gone; `PropagatorExtract` and
+  `PropagatorInject` keep working in native builds and always use W3C Trace
+  Context and Baggage.
 - Subscribers registered with `Handler.AddSubscriber`, including the OTLP
   export, get the attributes of `WithAttrs` and `WithGroup` flattened to dotted
   keys, and pretty and subscriber records under an open group carry `trace_id`
@@ -519,7 +536,7 @@ lists the changes in every package.
 
 - `go doc github.com/eser/stack/pkg/ajan/logfx`: the API reference generated
   from source
-- [ajan/connfx](../connfx/README.md): the OTLP connection that `EnableOTLP`
+- [ajan/connfx](../connfx/README.md): the OTLP connection that `otlp.Enable`
   exports through
 - [ajan/configfx](../configfx/README.md): loads `Config` from files and the
   environment

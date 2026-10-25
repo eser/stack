@@ -1,114 +1,279 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://raw.githubusercontent.com/eser/stack/main/docs/schema/manifest.json",
-  "title": "noskills manifest (.eser/manifest.yml)",
-  "description": "Schema for the .eser/manifest.yml project configuration file used by noskills.",
+  "title": ".eser/manifest.yml",
+  "description": "Schema for the .eser/manifest.yml project file: the workflows and scripts the eser CLI runs, and the settings noskills keeps.",
   "type": "object",
   "properties": {
-    "concerns": {
+    "stack": {
       "type": "array",
-      "description": "List of concern IDs from .eser/concerns/ to apply to all specs.",
+      "description": "Languages and runtimes the project uses (for example \"javascript\", \"golang\").",
       "items": { "type": "string" },
       "default": []
     },
-    "tools": {
+    "workflows": {
       "type": "array",
-      "description": "Coding assistant tools available in this project.",
-      "items": {
-        "type": "string",
-        "enum": [
-          "claude-code",
-          "cursor",
-          "kiro",
-          "copilot",
-          "windsurf",
-          "opencode",
-          "codex",
-          "copilot-cli"
-        ]
-      },
+      "description": "Workflows the eser CLI runs on events such as precommit.",
+      "items": { "$ref": "#/$defs/workflow" },
       "default": []
     },
-    "providers": {
-      "type": "array",
-      "description": "AI provider identifiers (e.g. \"anthropic\", \"openai\").",
-      "items": { "type": "string" },
-      "default": []
-    },
-    "project": {
+    "scripts": {
       "type": "object",
-      "description": "Detected tech-stack traits for this project.",
+      "description": "Named commands run with `eser <name>`: a command string, or an object with the command and its settings.",
+      "additionalProperties": { "$ref": "#/$defs/script" },
+      "default": {}
+    },
+    "exports": {
+      "type": "array",
+      "description": "Module exports a laroux runtime app manifest lists.",
+      "default": []
+    },
+    "noskills": {
+      "type": "object",
+      "description": "The noskills section, written by `noskills init` (pkg/@eserstack/noskills state/persistence.ts, Go noskillsfx/persistence.go).",
       "properties": {
-        "languages": {
+        "concerns": {
           "type": "array",
-          "description": "Programming languages used.",
+          "description": "List of concern IDs from .eser/concerns/ to apply to all specs.",
           "items": { "type": "string" },
           "default": []
         },
-        "frameworks": {
+        "tools": {
           "type": "array",
-          "description": "Frameworks and runtimes used.",
+          "description": "Coding assistant tools available in this project.",
+          "items": {
+            "type": "string",
+            "enum": [
+              "claude-code",
+              "cursor",
+              "kiro",
+              "copilot",
+              "windsurf",
+              "opencode",
+              "codex",
+              "copilot-cli"
+            ]
+          },
+          "default": []
+        },
+        "providers": {
+          "type": "array",
+          "description": "AI provider identifiers (e.g. \"anthropic\", \"openai\").",
           "items": { "type": "string" },
           "default": []
         },
-        "ci": {
-          "type": "array",
-          "description": "CI/CD systems in use (e.g. \"github-actions\").",
-          "items": { "type": "string" },
-          "default": []
+        "project": {
+          "type": "object",
+          "description": "Detected tech-stack traits for this project.",
+          "properties": {
+            "languages": {
+              "type": "array",
+              "description": "Programming languages used.",
+              "items": { "type": "string" },
+              "default": []
+            },
+            "frameworks": {
+              "type": "array",
+              "description": "Frameworks and runtimes used.",
+              "items": { "type": "string" },
+              "default": []
+            },
+            "ci": {
+              "type": "array",
+              "description": "CI/CD systems in use (e.g. \"github-actions\").",
+              "items": { "type": "string" },
+              "default": []
+            },
+            "testRunner": {
+              "type": ["string", "null"],
+              "description": "Primary test runner (e.g. \"deno\", \"jest\", \"go\").",
+              "default": null
+            }
+          },
+          "additionalProperties": false
         },
-        "testRunner": {
+        "maxIterationsBeforeRestart": {
+          "type": "integer",
+          "description": "Maximum Claude iterations in one turn before prompting a context reset. 0 means unlimited.",
+          "minimum": 0,
+          "default": 10
+        },
+        "verifyCommand": {
           "type": ["string", "null"],
-          "description": "Primary test runner (e.g. \"deno\", \"jest\", \"go\").",
+          "description": "Shell command run after each execution turn to verify correctness (e.g. \"deno task ok\").",
           "default": null
+        },
+        "allowGit": {
+          "type": "boolean",
+          "description": "Whether Claude is permitted to run destructive git write commands (commit, push, checkout --). Defaults to false for safety.",
+          "default": false
+        },
+        "command": {
+          "type": "string",
+          "description": "Custom shell command used to launch the coding assistant (overrides the tool default). Leave empty to use the tool default.",
+          "default": ""
+        },
+        "user": {
+          "type": ["object", "null"],
+          "description": "Per-user identity, used in spec metadata (contributors, approvals).",
+          "properties": {
+            "name": { "type": "string", "description": "Display name." },
+            "email": {
+              "type": "string",
+              "format": "email",
+              "description": "Email address."
+            }
+          },
+          "required": ["name", "email"],
+          "additionalProperties": false,
+          "default": null
+        },
+        "defaultReviewPosture": {
+          "type": ["string", "null"],
+          "description": "Controls how the spec refinement phase expands or contracts scope.",
+          "enum": [
+            "selective-expansion",
+            "hold-scope",
+            "scope-expansion",
+            "scope-reduction",
+            null
+          ],
+          "default": null
+        },
+        "validate": {
+          "type": "object",
+          "description": "Turns on cross-model validation of the end of discovery and the spec proposal, and names the agent that runs it.",
+          "properties": {
+            "agent": {
+              "type": "string",
+              "description": "An @eserstack/ai provider name, such as claude-code or anthropic."
+            },
+            "model": {
+              "type": "string",
+              "description": "The model id that provider runs."
+            }
+          },
+          "required": ["agent", "model"],
+          "additionalProperties": false
         }
       },
       "additionalProperties": false
-    },
-    "maxIterationsBeforeRestart": {
-      "type": "integer",
-      "description": "Maximum Claude iterations in one turn before prompting a context reset. 0 means unlimited.",
-      "minimum": 0,
-      "default": 10
-    },
-    "verifyCommand": {
-      "type": ["string", "null"],
-      "description": "Shell command run after each execution turn to verify correctness (e.g. \"deno task ok\").",
-      "default": null
-    },
-    "allowGit": {
-      "type": "boolean",
-      "description": "Whether Claude is permitted to run destructive git write commands (commit, push, checkout --). Defaults to false for safety.",
-      "default": false
-    },
-    "command": {
-      "type": "string",
-      "description": "Custom shell command used to launch the coding assistant (overrides the tool default). Leave empty to use the tool default.",
-      "default": ""
-    },
-    "user": {
-      "type": ["object", "null"],
-      "description": "Per-user identity, used in spec metadata (contributors, approvals).",
-      "properties": {
-        "name": { "type": "string", "description": "Display name." },
-        "email": { "type": "string", "format": "email", "description": "Email address." }
-      },
-      "required": ["name", "email"],
-      "additionalProperties": false,
-      "default": null
-    },
-    "defaultReviewPosture": {
-      "type": ["string", "null"],
-      "description": "Controls how the spec refinement phase expands or contracts scope.",
-      "enum": [
-        "selective-expansion",
-        "hold-scope",
-        "scope-expansion",
-        "scope-reduction",
-        null
-      ],
-      "default": null
     }
   },
-  "additionalProperties": false
+  "additionalProperties": false,
+  "$defs": {
+    "workflow": {
+      "type": "object",
+      "description": "An ordered list of steps and the events that run them.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The workflow's id."
+        },
+        "on": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 },
+          "description": "Events that run the workflow (precommit, prepush, commitmsg, preflight, ...)."
+        },
+        "steps": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/step" },
+          "description": "The steps, run in order."
+        },
+        "includes": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "description": "Ids of workflows whose steps run before this one's."
+        }
+      },
+      "required": ["id", "on", "steps"],
+      "additionalProperties": false
+    },
+    "step": {
+      "description": "A tool name, or a map from one tool name to its options.",
+      "oneOf": [
+        { "type": "string", "minLength": 1 },
+        {
+          "type": "object",
+          "minProperties": 1,
+          "maxProperties": 1,
+          "additionalProperties": { "$ref": "#/$defs/stepOptions" }
+        }
+      ]
+    },
+    "stepOptions": {
+      "type": ["object", "null"],
+      "description": "The tool's options, plus the engine directives below, which the engine keeps and the tool never sees.",
+      "properties": {
+        "continueOnError": {
+          "type": "boolean",
+          "description": "Report a failing tool as a failed step instead of stopping the workflow."
+        },
+        "timeout": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 2147483,
+          "description": "Seconds the step may run."
+        },
+        "if": {
+          "type": "string",
+          "description": "An Expr predicate; the step runs only when it is true."
+        },
+        "bypass": {
+          "type": "boolean",
+          "description": "Skip the tool; the step's output is the previous step's stats."
+        },
+        "loop": {
+          "type": "object",
+          "description": "Run the step once per element of a collection.",
+          "properties": {
+            "over": {
+              "type": "string",
+              "minLength": 1,
+              "description": "An Expr expression that gives the collection."
+            },
+            "as": {
+              "type": "string",
+              "minLength": 1,
+              "description": "The option name that holds the current element."
+            },
+            "asIndex": {
+              "type": "string",
+              "minLength": 1,
+              "description": "The option name that holds the current index."
+            }
+          },
+          "required": ["over", "as"],
+          "additionalProperties": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "description": "A JSON Schema the merged options must match before the tool runs."
+        }
+      }
+    },
+    "script": {
+      "oneOf": [
+        { "type": "string", "minLength": 1 },
+        {
+          "type": "object",
+          "properties": {
+            "command": { "type": "string", "minLength": 1 },
+            "description": { "type": "string" },
+            "workingDirectory": { "type": "string" },
+            "depends": {
+              "type": "array",
+              "items": { "type": "string", "minLength": 1 },
+              "description": "Scripts that run first."
+            }
+          },
+          "required": ["command"],
+          "additionalProperties": false
+        }
+      ]
+    }
+  }
 }

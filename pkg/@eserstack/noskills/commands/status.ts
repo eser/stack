@@ -151,7 +151,7 @@ export const main = async (
       if (config.concerns.length > 0) {
         out.writeln("  Concerns: ", span.dim(config.concerns.join(", ")));
       }
-      if (config.tools.length > 0) {
+      if ((config.tools ?? []).length > 0) {
         out.writeln("  Tools:    ", span.dim(config.tools.join(", ")));
       }
     }

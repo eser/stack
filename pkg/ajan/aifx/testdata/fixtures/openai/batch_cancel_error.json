@@ -1,0 +1,44 @@
+{
+  "provider": "openai",
+  "scenario": "batch_cancel_error",
+  "exchanges": [
+    {
+      "request": {
+        "headers": {
+          "accept": "application/json",
+          "accept-encoding": "gzip",
+          "authorization": "Bearer test-openai-key",
+          "content-length": "0",
+          "user-agent": "OpenAI/Go 1.12.0",
+          "x-stainless-arch": "arm64",
+          "x-stainless-lang": "go",
+          "x-stainless-os": "MacOS",
+          "x-stainless-package-version": "1.12.0",
+          "x-stainless-retry-count": "0",
+          "x-stainless-runtime": "go",
+          "x-stainless-runtime-version": "go1.26.6",
+          "x-stainless-timeout": "10"
+        },
+        "method": "POST",
+        "path": "/batches/batch_123/cancel"
+      },
+      "response": {
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{\"error\":{\"message\":\"No batch found\",\"type\":\"invalid_request_error\",\"param\":null,\"code\":null}}",
+        "status": 404
+      }
+    }
+  ],
+  "outcome": {
+    "error": {
+      "kind": "",
+      "message": "openai batch failed: POST \"{{server}}/batches/batch_123/cancel\": 404 Not Found {\"message\":\"No batch found\",\"type\":\"invalid_request_error\",\"param\":null,\"code\":null}",
+      "sentinels": [
+        "ErrOpenAIBatchFailed"
+      ],
+      "status": 404
+    }
+  }
+}

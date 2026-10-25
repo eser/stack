@@ -3,11 +3,11 @@
  * Tests for RSC Wire Protocol
  */
 
-import * as assert from "@std/assert";
+import * as assert from "@eserstack/test-kit/assert";
 import * as protocol from "./protocol.ts";
 import type { RSCChunk } from "./protocol.ts";
 
-Deno.test("RSC Protocol - Serialize Module Chunk", () => {
+Deno.test("track-l-delete: RSC Protocol - Serialize Module Chunk", () => {
   const chunk: RSCChunk = {
     type: "M",
     id: 1,
@@ -25,7 +25,7 @@ Deno.test("RSC Protocol - Serialize Module Chunk", () => {
   );
 });
 
-Deno.test("RSC Protocol - Serialize JSON Chunk", () => {
+Deno.test("track-l-delete: RSC Protocol - Serialize JSON Chunk", () => {
   const chunk: RSCChunk = {
     type: "J",
     id: 0,
@@ -36,7 +36,7 @@ Deno.test("RSC Protocol - Serialize JSON Chunk", () => {
   assert.assertEquals(serialized, 'J0:{"message":"Hello, RSC!"}\n');
 });
 
-Deno.test("RSC Protocol - Serialize Error Chunk", () => {
+Deno.test("track-l-delete: RSC Protocol - Serialize Error Chunk", () => {
   const chunk: RSCChunk = {
     type: "E",
     id: 2,
@@ -48,7 +48,7 @@ Deno.test("RSC Protocol - Serialize Error Chunk", () => {
   assert.assertEquals(serialized.startsWith("E2:"), true);
 });
 
-Deno.test("RSC Protocol - Parse Module Chunk", () => {
+Deno.test("track-l-delete: RSC Protocol - Parse Module Chunk", () => {
   const line =
     'M1:{"id":"./counter.tsx","chunks":["client"],"name":"default"}\n';
   const parsed = protocol.parseChunk(line);
@@ -60,7 +60,7 @@ Deno.test("RSC Protocol - Parse Module Chunk", () => {
   assert.assertEquals((parsed?.value as any).id, "./counter.tsx");
 });
 
-Deno.test("RSC Protocol - Parse JSON Chunk", () => {
+Deno.test("track-l-delete: RSC Protocol - Parse JSON Chunk", () => {
   const line = 'J0:{"message":"Hello"}\n';
   const parsed = protocol.parseChunk(line);
 
@@ -71,7 +71,7 @@ Deno.test("RSC Protocol - Parse JSON Chunk", () => {
   assert.assertEquals((parsed?.value as any).message, "Hello");
 });
 
-Deno.test("RSC Protocol - Round-trip Serialization", () => {
+Deno.test("track-l-delete: RSC Protocol - Round-trip Serialization", () => {
   const original: RSCChunk = {
     type: "J",
     id: 5,
@@ -90,7 +90,7 @@ Deno.test("RSC Protocol - Round-trip Serialization", () => {
   );
 });
 
-Deno.test("RSC Protocol - Create Client Reference", () => {
+Deno.test("track-l-delete: RSC Protocol - Create Client Reference", () => {
   const ref = protocol.createClientReference("./Button.tsx", "default");
 
   assert.assertExists(ref);
@@ -99,7 +99,7 @@ Deno.test("RSC Protocol - Create Client Reference", () => {
   assert.assertEquals(ref.name, "default");
 });
 
-Deno.test("RSC Protocol - Is Client Reference", () => {
+Deno.test("track-l-delete: RSC Protocol - Is Client Reference", () => {
   const ref = protocol.createClientReference("./Button.tsx", "default");
   assert.assertEquals(protocol.isClientReference(ref), true);
 
@@ -110,13 +110,13 @@ Deno.test("RSC Protocol - Is Client Reference", () => {
   assert.assertEquals(protocol.isClientReference("string"), false);
 });
 
-Deno.test("RSC Protocol - Parse Invalid Chunk", () => {
+Deno.test("track-l-delete: RSC Protocol - Parse Invalid Chunk", () => {
   const invalid = "invalid chunk data";
   const parsed = protocol.parseChunk(invalid);
   assert.assertEquals(parsed, null);
 });
 
-Deno.test("RSC Protocol - Parse Empty String", () => {
+Deno.test("track-l-delete: RSC Protocol - Parse Empty String", () => {
   const parsed = protocol.parseChunk("");
   assert.assertEquals(parsed, null);
 });
@@ -133,12 +133,12 @@ const ESCAPE_CASES: ReadonlyArray<{
 ];
 
 for (const { input, expected } of ESCAPE_CASES) {
-  Deno.test(`RSC Protocol - escapeString turns "${input}" into "${expected}"`, () => {
+  Deno.test(`track-l-delete: RSC Protocol - escapeString turns "${input}" into "${expected}"`, () => {
     assert.assertEquals(protocol.escapeString(input), expected);
   });
 }
 
-Deno.test("RSC Protocol - encodeJsonValue keeps JSON semantics and escapes nested strings", () => {
+Deno.test("track-l-delete: RSC Protocol - encodeJsonValue keeps JSON semantics and escapes nested strings", () => {
   const encoded = protocol.encodeJsonValue({
     label: "$5 off",
     tags: ["$a", "b"],
@@ -156,7 +156,7 @@ Deno.test("RSC Protocol - encodeJsonValue keeps JSON semantics and escapes neste
   });
 });
 
-Deno.test("RSC Protocol - encodeJsonValue drops what JSON.stringify drops", () => {
+Deno.test("track-l-delete: RSC Protocol - encodeJsonValue drops what JSON.stringify drops", () => {
   assert.assertEquals(protocol.encodeJsonValue(undefined), undefined);
   assert.assertEquals(protocol.encodeJsonValue(() => {}), undefined);
   assert.assertEquals(protocol.encodeJsonValue(Symbol("s")), undefined);

@@ -11,7 +11,7 @@
  */
 
 import * as bdd from "@std/testing/bdd";
-import * as assert from "@std/assert";
+import * as assert from "@eserstack/test-kit/assert";
 import { runtime } from "@eserstack/standards/cross-runtime";
 import * as hooks from "./hooks.ts";
 
@@ -45,6 +45,17 @@ bdd.describe("syncHooks", () => {
 
   bdd.afterEach(async () => {
     await runtime.fs.remove(root, { recursive: true });
+  });
+
+  // TASK-327: a settings.json holding null threw on null["hooks"].
+  bdd.it("treats a settings.json holding null as empty", async () => {
+    await runtime.fs.mkdir(`${root}/.claude`, { recursive: true });
+    await runtime.fs.writeTextFile(`${root}/.claude/settings.json`, "null");
+
+    await hooks.syncHooks(root, PREFIX);
+
+    const settings = await readSettings(root);
+    assert.assert(settings.hooks !== undefined);
   });
 
   bdd.it("runs every hook through the invoke-hook command", async () => {

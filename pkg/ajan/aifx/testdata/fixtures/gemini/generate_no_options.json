@@ -1,0 +1,59 @@
+{
+  "provider": "gemini",
+  "scenario": "generate_no_options",
+  "exchanges": [
+    {
+      "request": {
+        "headers": {
+          "accept-encoding": "gzip",
+          "content-length": "80",
+          "content-type": "application/json",
+          "user-agent": "google-genai-sdk/1.71.0 gl-go/go1.26.6",
+          "x-goog-api-client": "google-genai-sdk/1.71.0 gl-go/go1.26.6",
+          "x-goog-api-key": "test-gemini-key",
+          "x-server-timeout": "30"
+        },
+        "method": "POST",
+        "path": "/v1beta/models/gemini-test:generateContent",
+        "body": {
+          "contents": [
+            {
+              "parts": [
+                {
+                  "text": "Hello"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "generationConfig": {}
+        }
+      },
+      "response": {
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"Hi there.\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":12,\"candidatesTokenCount\":4,\"totalTokenCount\":20,\"thoughtsTokenCount\":4},\"modelVersion\":\"gemini-test-001\",\"responseId\":\"resp-1\"}",
+        "status": 200
+      }
+    }
+  ],
+  "outcome": {
+    "result": {
+      "content": [
+        {
+          "text": "Hi there.",
+          "type": "text"
+        }
+      ],
+      "modelID": "gemini-test",
+      "stopReason": "end_turn",
+      "usage": {
+        "InputTokens": 12,
+        "OutputTokens": 4,
+        "TotalTokens": 20,
+        "ThinkingTokens": 4
+      }
+    }
+  }
+}

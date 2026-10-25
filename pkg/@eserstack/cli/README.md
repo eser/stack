@@ -1,5 +1,9 @@
 # 🖥️ [@eserstack/cli](./)
 
+> **Note:** JSR is frozen at 4.5.x. From 5.0.0 the `eser` CLI is published on
+> npm as `eser` (`npm install -g eser`), and `@eserstack/cli` keeps its name
+> there; the JSR versions stay available but get no updates.
+
 > **eserstack Tool** — [eser/stack on GitHub](https://github.com/eser/stack)
 > **Install:** `pnpm add jsr:@eserstack/cli`
 

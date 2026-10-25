@@ -12,7 +12,7 @@
  * @module
  */
 
-import * as assert from "@std/assert";
+import * as assert from "@eserstack/test-kit/assert";
 import * as crossRuntime from "@eserstack/standards/cross-runtime";
 import * as gitWrapper from "./git-wrapper.ts";
 import * as gitWrapperInstall from "./git-wrapper-install.ts";

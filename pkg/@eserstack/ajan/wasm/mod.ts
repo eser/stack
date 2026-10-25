@@ -16,14 +16,11 @@
  * lib.close();
  * ```
  *
- * Neither mode supports the handle-based APIs -- AI models and streams,
- * loggers, HTTP clients and streams, caches, posts services, codebase and
- * parsing streams, TUI readers, spawned processes and PTY sessions. Command
- * mode re-instantiates the module per call and so loses every handle between
- * calls; reactor mode has no way to pass string arguments in at all. Those
- * symbols report the limitation rather than appearing to work: command mode
- * throws, reactor mode returns error JSON. Anything needing them wants the
- * native library instead.
+ * The module is the slim "wasi" profile, built as a reactor and reused for
+ * every call, so the handle-based APIs it serves (parsing and codebase
+ * streams, caches) keep their handles between calls. Names outside the
+ * profile, such as the AI, HTTP, logging and shell functions, throw
+ * `UnsupportedInWasmError`; those need the native library.
  *
  * @module
  */
@@ -40,25 +37,26 @@ import * as resolve from "./resolve.ts";
  */
 const WASM_MODULE_DIR: string | undefined = import.meta.dirname;
 
+export {
+  REACTOR_ABI_VERSION,
+  UnsupportedInWasmError,
+} from "./loader-reactor.ts";
+
 /** Options for loading the WASM module. */
 export interface LoadWasmOptions {
-  /** WASM mode: "command" (JSON stdin/stdout) or "reactor" (direct exports). Default: "command". */
-  mode?: "command" | "reactor";
   /** Explicit path to the .wasm file. When omitted, auto-resolved. */
   wasmPath?: string;
 }
 
 /**
- * Checks whether a WASM module can be found for the given mode.
+ * Checks whether the WASM module can be found.
  *
  * This is a non-throwing check — returns `false` if no WASM file is found
  * at any of the well-known locations.
  */
-export const isWasmAvailable = (
-  mode: "command" | "reactor" = "command",
-): boolean => {
+export const isWasmAvailable = (): boolean => {
   try {
-    resolve.resolveWasmPath(mode, WASM_MODULE_DIR);
+    resolve.resolveWasmPath(WASM_MODULE_DIR);
     return true;
   } catch {
     return false;
@@ -68,22 +66,16 @@ export const isWasmAvailable = (
 /**
  * Loads the eser-ajan WASM module and returns an FFILibrary-compatible interface.
  *
- * @param options - Optional configuration for mode and WASM file path.
+ * @param options - Optional configuration for the WASM file path.
  * @returns A promise that resolves to an FFILibrary handle.
  * @throws {Error} If the WASM file cannot be found or fails to load.
  */
 export const loadEserAjanWasm = async (
   options?: LoadWasmOptions,
 ): Promise<types.FFILibrary> => {
-  const mode = options?.mode ?? "command";
   const wasmPath = options?.wasmPath ??
-    resolve.resolveWasmPath(mode, WASM_MODULE_DIR);
+    resolve.resolveWasmPath(WASM_MODULE_DIR);
+  const { loadReactorWasm } = await import("./loader-reactor.ts");
 
-  if (mode === "reactor") {
-    const { loadReactorWasm } = await import("./loader-reactor.ts");
-    return loadReactorWasm(wasmPath);
-  }
-
-  const { loadCommandWasm } = await import("./loader-command.ts");
-  return loadCommandWasm(wasmPath);
+  return await loadReactorWasm(wasmPath);
 };

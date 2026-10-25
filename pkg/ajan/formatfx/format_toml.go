@@ -113,6 +113,10 @@ func (r *tomlReader) Flush() ([]any, error) {
 		return nil, nil
 	}
 
+	if err := CheckTOMLDepth(text); err != nil {
+		return nil, newDeserializationError("toml", "failed to deserialize TOML: "+err.Error(), err)
+	}
+
 	// Split on +++ document separator (WriteItem appends +++; bridge trims trailing one).
 	// Appending "\n" before split normalises input that may lack a final newline.
 	parts := strings.Split(text+"\n", "+++\n")

@@ -1,9 +1,10 @@
 ---
 id: TASK-168
 title: Type-check the laroux packages in strict mode and gate the CLI graph
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-10-05 00:58'
+updated_date: '2026-10-15 19:34'
 labels:
   - laroux
   - types
@@ -24,7 +25,15 @@ Decision: remove the jsx-only tsconfig.json overrides, or set strict: true in th
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 The laroux packages type-check with strict on, or their tsconfig.json overrides are removed so Deno's strict defaults apply
-- [ ] #2 The precommit gate type-checks pkg/@eserstack/cli/main.ts or every package entry point, not only mod.ts files
-- [ ] #3 deno task cli ok passes
+- [x] #1 The laroux packages type-check with strict on, or their tsconfig.json overrides are removed so Deno's strict defaults apply
+- [x] #2 The precommit gate type-checks pkg/@eserstack/cli/main.ts or every package entry point, not only mod.ts files
+- [x] #3 deno task cli ok passes
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Completed in round 3 of the autonomous backlog run (2026-10-05); deno task cli ok passes.
+
+AC1 was met by another unit: the laroux tsconfig files extend the strict root config. AC2 is met: ./pkg/@eserstack/cli/main.ts is in the deno-type-check step and in the check script.
+<!-- SECTION:NOTES:END -->

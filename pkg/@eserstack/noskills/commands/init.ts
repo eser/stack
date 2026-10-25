@@ -32,16 +32,18 @@ export const main = async (
 ): Promise<shellArgs.CliResult<void>> => {
   const root = runtime.process.cwd();
   const outputMode = mode.detectMode(args);
+  // Read before stripModeFlag, which removes --non-interactive with the mode
+  // flags.
+  const nonInteractive = (args ?? []).includes("--non-interactive") ||
+    outputMode === "agent";
   const ctx = tui.createTuiContext({
-    target: outputMode === "agent" ? "non-interactive" : "interactive",
+    target: nonInteractive ? "non-interactive" : "interactive",
   });
   const cleanArgs = mode.stripModeFlag(args);
 
   // Parse flags
   const parsedConcerns = parseListFlag(cleanArgs, "--concerns");
   const parsedTools = parseListFlag(cleanArgs, "--tools");
-  const nonInteractive = cleanArgs.includes("--non-interactive") ||
-    outputMode === "agent";
 
   const alreadyInitialized = await persistence.isInitialized(root);
 
@@ -266,7 +268,7 @@ export const main = async (
     }
 
     const hasActiveSpecs = specStates.some((s) =>
-      ACTIVE_SPEC_PHASES.has((s as { phase?: string }).phase ?? "")
+      ACTIVE_SPEC_PHASES.has(s.state.phase)
     );
 
     if (!hasActiveSpecs) {

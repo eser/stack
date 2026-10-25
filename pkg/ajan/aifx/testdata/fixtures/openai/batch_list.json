@@ -1,0 +1,75 @@
+{
+  "provider": "openai",
+  "scenario": "batch_list",
+  "exchanges": [
+    {
+      "request": {
+        "query": {
+          "after": [
+            "batch_000"
+          ],
+          "limit": [
+            "2"
+          ]
+        },
+        "headers": {
+          "accept": "application/json",
+          "accept-encoding": "gzip",
+          "authorization": "Bearer test-openai-key",
+          "user-agent": "OpenAI/Go 1.12.0",
+          "x-stainless-arch": "arm64",
+          "x-stainless-lang": "go",
+          "x-stainless-os": "MacOS",
+          "x-stainless-package-version": "1.12.0",
+          "x-stainless-retry-count": "0",
+          "x-stainless-runtime": "go",
+          "x-stainless-runtime-version": "go1.26.6",
+          "x-stainless-timeout": "10"
+        },
+        "method": "GET",
+        "path": "/batches"
+      },
+      "response": {
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{\"object\":\"list\",\"data\":[{\"id\":\"batch_a\",\"object\":\"batch\",\"endpoint\":\"/v1/chat/completions\",\"errors\":null,\"input_file_id\":\"file-in\",\"completion_window\":\"24h\",\"status\":\"in_progress\",\"created_at\":1761300000,\"request_counts\":{\"total\":4,\"completed\":2,\"failed\":1}},{\"id\":\"batch_b\",\"object\":\"batch\",\"endpoint\":\"/v1/chat/completions\",\"errors\":null,\"input_file_id\":\"file-in\",\"completion_window\":\"24h\",\"status\":\"cancelling\",\"created_at\":1761300000,\"request_counts\":{\"total\":4,\"completed\":2,\"failed\":1}}],\"first_id\":\"batch_a\",\"last_id\":\"batch_b\",\"has_more\":false}",
+        "status": 200
+      }
+    }
+  ],
+  "outcome": {
+    "jobs": [
+      {
+        "createdAt": "2025-10-24T10:00:00Z",
+        "doneCount": 2,
+        "error": "",
+        "failedCount": 1,
+        "id": "batch_a",
+        "status": "processing",
+        "storage": {
+          "Type": "openai_file",
+          "InputRef": "file-in",
+          "OutputRef": "",
+          "Properties": null
+        },
+        "totalCount": 4
+      },
+      {
+        "createdAt": "2025-10-24T10:00:00Z",
+        "doneCount": 2,
+        "error": "",
+        "failedCount": 1,
+        "id": "batch_b",
+        "status": "cancelled",
+        "storage": {
+          "Type": "openai_file",
+          "InputRef": "file-in",
+          "OutputRef": "",
+          "Properties": null
+        },
+        "totalCount": 4
+      }
+    ]
+  }
+}

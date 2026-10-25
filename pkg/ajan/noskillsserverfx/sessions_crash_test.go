@@ -171,7 +171,7 @@ func TestCrash_WriteSyncDecisionPersists(t *testing.T) {
 // ── Test 4 — worker crash closes events channel ────────────────────────────
 
 // TestCrash_WorkerCrash_EventsChannelCloses verifies that calling Close on a
-// MockWorkerHandle (or the real workerImpl when the process exits) drains the
+// MockWorkerHandle (or a real worker when it closes) drains the
 // events channel gracefully. A range on the closed channel must complete without
 // blocking — this is what lets the daemon pump goroutine exit cleanly and
 // broadcast {type:"worker_died"} to attached clients.
@@ -233,7 +233,6 @@ func TestNSErrors_AllFieldsPopulated(t *testing.T) {
 		NSErrors.AuthLocked,
 		NSErrors.WorkerDied,
 		NSErrors.WorkerSpawnTimeout,
-		NSErrors.WorkerRuntimeMissing,
 		NSErrors.LedgerWriteError,
 		NSErrors.DaemonAlreadyRunning,
 	}

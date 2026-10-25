@@ -1,0 +1,246 @@
+{
+  "provider": "vertexai",
+  "scenario": "stream_tool_call",
+  "exchanges": [
+    {
+      "request": {
+        "query": {
+          "alt": [
+            "sse"
+          ]
+        },
+        "headers": {
+          "accept-encoding": "gzip",
+          "content-length": "1980",
+          "content-type": "application/json",
+          "user-agent": "google-genai-sdk/1.71.0 gl-go/go1.26.6",
+          "x-goog-api-client": "google-genai-sdk/1.71.0 gl-go/go1.26.6",
+          "x-goog-api-key": "test-vertex-key",
+          "x-server-timeout": "30"
+        },
+        "method": "POST",
+        "path": "/v1beta1/projects/fixture-project/locations/us-central1/publishers/google/models/gemini-test:streamGenerateContent",
+        "body": {
+          "contents": [
+            {
+              "parts": [
+                {
+                  "text": "What is in these images, and what is the weather?"
+                },
+                {
+                  "fileData": {
+                    "fileUri": "https://example.com/cat.jpg",
+                    "mimeType": "image/jpeg"
+                  }
+                },
+                {
+                  "fileData": {
+                    "fileUri": "https://example.com/dog.png",
+                    "mimeType": "image/png"
+                  }
+                },
+                {
+                  "inlineData": {
+                    "data": "iVBORw0KGgo=",
+                    "mimeType": "image/png"
+                  }
+                },
+                {
+                  "inlineData": {
+                    "data": "aGVsbG8=",
+                    "mimeType": "image/jpeg"
+                  }
+                },
+                {
+                  "fileData": {
+                    "fileUri": "https://example.com/clip.mp3",
+                    "mimeType": "audio/mpeg"
+                  }
+                },
+                {
+                  "inlineData": {
+                    "data": "UklGRg==",
+                    "mimeType": "audio/wav"
+                  }
+                },
+                {
+                  "inlineData": {
+                    "data": "UklGRg==",
+                    "mimeType": "audio/wav"
+                  }
+                },
+                {
+                  "fileData": {
+                    "fileUri": "gs://bucket/report.pdf",
+                    "mimeType": "application/pdf"
+                  }
+                }
+              ],
+              "role": "user"
+            },
+            {
+              "parts": [
+                {
+                  "text": "Let me check."
+                },
+                {
+                  "functionCall": {
+                    "args": {
+                      "city": "Ankara"
+                    },
+                    "name": "get_weather"
+                  }
+                }
+              ],
+              "role": "model"
+            },
+            {
+              "parts": [
+                {
+                  "functionResponse": {
+                    "name": "call_0",
+                    "response": {
+                      "result": "18C and sunny"
+                    }
+                  }
+                },
+                {
+                  "functionResponse": {
+                    "name": "call_9",
+                    "response": {
+                      "error": "the service failed",
+                      "result": "the service failed"
+                    }
+                  }
+                }
+              ],
+              "role": "user"
+            },
+            {
+              "parts": [
+                {
+                  "text": "Thanks, now Istanbul."
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "generationConfig": {
+            "maxOutputTokens": 300,
+            "responseJsonSchema": {
+              "additionalProperties": false,
+              "properties": {
+                "answer": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "answer"
+              ],
+              "type": "object"
+            },
+            "responseMimeType": "application/json",
+            "stopSequences": [
+              "END",
+              "STOP"
+            ],
+            "temperature": 0.25,
+            "thinkingConfig": {
+              "thinkingLevel": "HIGH"
+            },
+            "topP": 0.5
+          },
+          "safetySettings": [
+            {
+              "category": "HARM_CATEGORY_HARASSMENT",
+              "threshold": "BLOCK_NONE"
+            },
+            {
+              "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
+              "threshold": "BLOCK_ONLY_HIGH"
+            }
+          ],
+          "systemInstruction": {
+            "parts": [
+              {
+                "text": "Answer as JSON."
+              }
+            ],
+            "role": "user"
+          },
+          "tools": [
+            {
+              "functionDeclarations": [
+                {
+                  "description": "Current weather for a city",
+                  "name": "get_weather",
+                  "parametersJsonSchema": {
+                    "$defs": {
+                      "unit": {
+                        "enum": [
+                          "c",
+                          "f"
+                        ]
+                      }
+                    },
+                    "additionalProperties": false,
+                    "description": "weather arguments",
+                    "properties": {
+                      "city": {
+                        "type": "string"
+                      },
+                      "unit": {
+                        "$ref": "#/$defs/unit"
+                      }
+                    },
+                    "required": [
+                      "city"
+                    ],
+                    "type": "object"
+                  }
+                },
+                {
+                  "description": "Takes no arguments",
+                  "name": "ping"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "response": {
+        "headers": {
+          "Content-Type": "text/event-stream"
+        },
+        "body": "data: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"Checking.\"},{\"functionCall\":{\"name\":\"get_weather\",\"args\":{\"city\":\"Istanbul\"}}}]}}]}\n\ndata: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"\"}]},\"finishReason\":\"STOP\"}],\"usageMetadata\":{\"promptTokenCount\":50,\"candidatesTokenCount\":10,\"totalTokenCount\":60}}\n\n",
+        "status": 200
+      }
+    }
+  ],
+  "outcome": {
+    "events": [
+      {
+        "text": "Checking.",
+        "type": "content_delta"
+      },
+      {
+        "toolCall": {
+          "arguments": "{\"city\":\"Istanbul\"}",
+          "id": "call_get_weather",
+          "name": "get_weather"
+        },
+        "type": "tool_call_delta"
+      },
+      {
+        "stopReason": "tool_use",
+        "type": "message_done",
+        "usage": {
+          "InputTokens": 50,
+          "OutputTokens": 10,
+          "TotalTokens": 60,
+          "ThinkingTokens": 0
+        }
+      }
+    ]
+  }
+}

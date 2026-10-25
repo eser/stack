@@ -4,8 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
-
-	"google.golang.org/genai"
+	"net/http"
+	"os"
 )
 
 // Sentinel errors for the Gemini adapter.
@@ -15,22 +15,16 @@ var (
 	ErrGeminiClientCreate     = errors.New("gemini client creation failed")
 )
 
-const geminiProviderName = "gemini"
+const (
+	geminiProviderName   = "gemini"
+	geminiDefaultBaseURL = "https://generativelanguage.googleapis.com/"
+)
 
 // classifyGeminiError wraps err with the provider sentinel and, when the
-// underlying error is a GenAI API error, inserts a provider-agnostic
-// classification sentinel so callers can use errors.Is without importing the SDK.
+// underlying error is a Gemini API error, inserts a provider-agnostic
+// classification sentinel so callers can use errors.Is.
 func classifyGeminiError(providerSentinel error, err error) error {
-	ctxErr := classifyContextError(providerSentinel, err)
-	if ctxErr != nil {
-		return ctxErr
-	}
-
-	if apiErr, ok := errors.AsType[genai.APIError](err); ok {
-		return classifyAndWrap(providerSentinel, apiErr.Code, err)
-	}
-
-	return fmt.Errorf("%w: %w", providerSentinel, err)
+	return classifyProviderError(providerSentinel, err)
 }
 
 // geminiCapabilities returns the capabilities supported by the Gemini adapter.
@@ -59,7 +53,7 @@ func (f *geminiModelFactory) GetProvider() string {
 }
 
 func (f *geminiModelFactory) CreateModel(
-	ctx context.Context,
+	_ context.Context,
 	config *ConfigTarget,
 ) (LanguageModel, error) { //nolint:ireturn
 	apiKey := ResolveAPIKey(config)
@@ -71,23 +65,38 @@ func (f *geminiModelFactory) CreateModel(
 		return nil, fmt.Errorf("%w: %w", ErrGeminiClientCreate, ErrInvalidModel)
 	}
 
-	client, err := genai.NewClient(ctx, &genai.ClientConfig{ //nolint:exhaustruct
-		APIKey:  apiKey,
-		Backend: genai.BackendGeminiAPI,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("%w: %w", ErrGeminiClientCreate, err)
-	}
-
 	return &GeminiModel{
-		client:  client,
+		client:  newGeminiClient(config, apiKey, &http.Client{}), //nolint:exhaustruct
 		modelID: config.Model,
 	}, nil
 }
 
+// newGeminiClient builds the Gemini API client. The base URL is
+// config.BaseURL, else GOOGLE_GEMINI_BASE_URL, else the public API.
+func newGeminiClient(config *ConfigTarget, apiKey string, httpClient *http.Client) *googleClient {
+	baseURL := config.BaseURL
+	if baseURL == "" {
+		baseURL = os.Getenv("GOOGLE_GEMINI_BASE_URL")
+	}
+
+	if baseURL == "" {
+		baseURL = geminiDefaultBaseURL
+	}
+
+	headers := http.Header{}
+	headers.Set("X-Goog-Api-Key", apiKey)
+
+	return &googleClient{
+		transport: newGoogleTransport(baseURL, headers, config, httpClient),
+		project:   "",
+		location:  "",
+		backend:   googleBackendGeminiAPI,
+	}
+}
+
 // GeminiModel implements LanguageModel for Google Gemini.
 type GeminiModel struct {
-	client  *genai.Client
+	client  *googleClient
 	modelID string
 }
 
@@ -103,12 +112,16 @@ func (m *GeminiModel) GetModelID() string {
 	return m.modelID
 }
 
+// GetRawClient returns the *http.Client the model sends through.
 func (m *GeminiModel) GetRawClient() any {
-	return m.client
+	if m.client == nil {
+		return nil
+	}
+
+	return m.client.transport.client
 }
 
 func (m *GeminiModel) Close(_ context.Context) error {
-	// The genai client does not require explicit cleanup.
 	return nil
 }
 
@@ -122,9 +135,9 @@ func (m *GeminiModel) GenerateText(
 		return nil, classifyGeminiError(ErrGeminiGenerationFailed, err)
 	}
 
-	contents := mapMessagesToGenAI(opts.Messages)
+	request := newGenAIRequest(mapMessagesToGenAI(opts.Messages), config)
 
-	resp, err := m.client.Models.GenerateContent(ctx, m.modelID, contents, config)
+	resp, err := m.client.generate(ctx, m.modelID, request)
 	if err != nil {
 		return nil, classifyGeminiError(ErrGeminiGenerationFailed, err)
 	}
@@ -135,6 +148,7 @@ func (m *GeminiModel) GenerateText(
 	}
 
 	result.ModelID = m.modelID
+	result.RawRequest = request
 
 	return result, nil
 }
@@ -149,30 +163,18 @@ func (m *GeminiModel) StreamText(
 		return nil, classifyGeminiError(ErrGeminiStreamFailed, err)
 	}
 
-	contents := mapMessagesToGenAI(opts.Messages)
+	request := newGenAIRequest(mapMessagesToGenAI(opts.Messages), config)
 
 	streamCtx, cancel := context.WithCancel(ctx)
 	eventCh := make(chan StreamEvent, 64) //nolint:mnd
 
 	go func() {
 		defer close(eventCh)
+		defer cancel()
 
-		mapper := &genAIStreamMapper{calledTool: false}
-
-		for resp, err := range m.client.Models.GenerateContentStream(streamCtx, m.modelID, contents, config) {
-			if err != nil {
-				sendStreamEvent(streamCtx, eventCh, newStreamEventError(
-					classifyGeminiError(ErrGeminiStreamFailed, err),
-				))
-
-				return
-			}
-
-			mapper.emit(streamCtx, eventCh, resp)
-		}
-
-		// Stream completed successfully -- send the done event.
-		sendStreamEvent(streamCtx, eventCh, newStreamEventDone("", nil))
+		streamGenAI(streamCtx, m.client, m.modelID, request, eventCh, func(err error) error {
+			return classifyGeminiError(ErrGeminiStreamFailed, err)
+		})
 	}()
 
 	return NewStreamIterator(eventCh, cancel), nil

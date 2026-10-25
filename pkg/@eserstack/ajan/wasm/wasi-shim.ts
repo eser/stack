@@ -7,9 +7,9 @@
  * Go's wasip1 runtime. Works on all runtimes (Deno, Node, Bun, browsers)
  * without depending on `node:wasi`.
  *
- * Two modes:
- * - **Command mode**: stdin contains input data, stdout collects output data.
- * - **Reactor mode**: no I/O needed, just bootstraps the Go runtime.
+ * `initialize` bootstraps a reactor (`_initialize`), which the eser-ajan
+ * loader uses; `start` runs a module to completion through `_start`, reading
+ * the given stdin. It has no filesystem.
  *
  * @module
  */
@@ -21,7 +21,7 @@ const ERRNO_NOSYS = 52;
 
 /** Options for creating a WASI shim instance. */
 export interface WasiShimOptions {
-  /** Data to provide on stdin (for command mode). */
+  /** Data to provide on stdin (for a module run through `start`). */
   stdin?: Uint8Array;
   /** Arguments passed to the WASM module. */
   args?: string[];
@@ -54,6 +54,29 @@ export class WasiShim {
       offset += chunk.length;
     }
     return new TextDecoder().decode(result);
+  }
+
+  /**
+   * Returns and forgets what the module wrote to stdout and stderr since the
+   * last call, for a host that reuses one instance across calls.
+   */
+  takeOutput(): { stdout: Uint8Array; stderr: Uint8Array } {
+    const join = (chunks: Uint8Array[]): Uint8Array => {
+      const out = new Uint8Array(chunks.reduce((n, c) => n + c.length, 0));
+      let offset = 0;
+      for (const chunk of chunks) {
+        out.set(chunk, offset);
+        offset += chunk.length;
+      }
+      return out;
+    };
+    const output = {
+      stdout: join(this.stdoutChunks),
+      stderr: join(this.stderrChunks),
+    };
+    this.stdoutChunks = [];
+    this.stderrChunks = [];
+    return output;
   }
 
   /** Returns the exit code if the module called `proc_exit`, or null. */

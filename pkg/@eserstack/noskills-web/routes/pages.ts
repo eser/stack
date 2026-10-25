@@ -40,37 +40,73 @@ export const handleDashboard = async (
   });
 };
 
-/** GET /spec/:name — Spec detail page. */
+/** The 404 of a spec that has no directory, or a name that cannot be one. */
+export const specNotFound = (): Response =>
+  new Response("Spec not found", { status: 404 });
+
+/**
+ * Whether `name` can name one directory under `.eser/specs/` without leaving
+ * it: not empty, not `.` or `..`, and without a separator or a NUL.
+ */
+export const isSpecDirName = (name: string): boolean =>
+  name !== "" && name !== "." && name !== ".." && !/[/\\]/.test(name) &&
+  !name.includes("\0");
+
+/**
+ * The spec a `/spec/:name` path segment names: the segment percent-decoded,
+ * or `null` when it does not decode or does not name one spec directory.
+ */
+export const specNameFromPath = (segment: string): string | null => {
+  let name: string;
+  try {
+    name = decodeURIComponent(segment);
+  } catch {
+    return null;
+  }
+
+  return isSpecDirName(name) ? name : null;
+};
+
+/**
+ * GET /spec/:name — Spec detail page. The page carries the token, as the
+ * dashboard does, so its buttons can send the actions.
+ */
 export const handleSpecDetail = async (
   root: string,
   specName: string,
+  token?: string,
 ): Promise<Response> => {
+  if (!isSpecDirName(specName)) {
+    return specNotFound();
+  }
+
   try {
     // Check spec directory exists
     await runtime.fs.stat(`${root}/.eser/specs/${specName}`);
-
-    const spec = await dashboard.getSpecSummary(root, specName);
-    const state = await dashboard.getState(root);
-
-    // Read spec markdown
-    let specContent = "";
-    try {
-      specContent = await runtime.fs.readTextFile(
-        `${root}/.eser/specs/${specName}/spec.md`,
-      );
-    } catch {
-      // No spec.md yet
-    }
-
-    const html = specDetail.renderSpecDetail(
-      spec,
-      specContent,
-      state.currentUser,
-    );
-    return new Response(html, {
-      headers: layout.htmlHeaders(),
-    });
   } catch {
-    return new Response("Spec not found", { status: 404 });
+    return specNotFound();
   }
+
+  const spec = await dashboard.getSpecSummary(root, specName);
+  const state = await dashboard.getState(root);
+
+  // Read spec markdown
+  let specContent = "";
+  try {
+    specContent = await runtime.fs.readTextFile(
+      `${root}/.eser/specs/${specName}/spec.md`,
+    );
+  } catch {
+    // No spec.md yet
+  }
+
+  const html = specDetail.renderSpecDetail(
+    spec,
+    specContent,
+    state.currentUser,
+    token,
+  );
+  return new Response(html, {
+    headers: layout.htmlHeaders(),
+  });
 };

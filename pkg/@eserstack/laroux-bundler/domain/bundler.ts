@@ -1,11 +1,8 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 /**
  * Common Bundler Interface and Methods
- * Uses @eserstack/bundler directly for bundling operations.
- *
- * Supports two backends:
- * - "deno-bundler": Native Deno.bundle() API (default)
- * - "rolldown": Rolldown bundler via @eserstack/bundler (faster, advanced chunking)
+ * Uses @eserstack/bundler directly for bundling operations, on its Rolldown
+ * backend.
  */
 
 import type { ChunkManifest } from "./chunk-manifest.ts";
@@ -28,10 +25,8 @@ const bundlerLogger = logging.logger.getLogger([
 ]);
 
 /**
- * Backend for client bundles, whatever backend the server bundle uses. The
- * deno-bundler backend ignores bundler plugins, so only rolldown runs the
- * import map resolver plugin that applies config.browserShims and keeps
- * server-only modules out of the browser.
+ * Backend for client bundles. Its import map resolver plugin applies
+ * config.browserShims and keeps server-only modules out of the browser.
  */
 export const CLIENT_BUNDLER_BACKEND: BundlerBackend = "rolldown";
 
@@ -56,7 +51,7 @@ export type BundleOptions = {
   projectRoot?: string;
   minify?: boolean;
   splitting?: boolean;
-  platform?: "browser" | "deno";
+  platform?: "browser" | "node";
   sourcemap?: "external" | "inline" | "none" | boolean;
   /** Bundler plugins for custom resolution and transformation */
   plugins?: BundlerPlugin[];
@@ -224,7 +219,7 @@ export async function bundle(
     outputDir: options.outputDir,
     projectRoot: options.projectRoot,
     format: "esm",
-    platform: options.platform === "deno" ? "node" : "browser",
+    platform: options.platform ?? "browser",
     codeSplitting: options.splitting !== false,
     minify: options.minify ?? false,
     sourcemap: sourcemapEnabled,

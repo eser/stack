@@ -122,7 +122,7 @@ const main = async (): Promise<void> => {
       chunkNames: "chunks/[name]-[hash]",
       format: "esm",
       platform: "node",
-      target: "node18",
+      target: "node26",
       banner: {
         js:
           'import { createRequire } from "node:module"; const require = createRequire(import.meta.url);',

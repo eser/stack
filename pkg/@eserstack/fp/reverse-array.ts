@@ -8,7 +8,7 @@
  */
 export const reverseArray = <T>(instance: Iterable<T>): Array<T> => {
   const arrInstance = (instance.constructor === Array)
-    ? <ReadonlyArray<T>> instance
+    ? instance as ReadonlyArray<T>
     : [...instance];
 
   return arrInstance.reduce<Array<T>>(

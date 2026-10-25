@@ -23,9 +23,9 @@ time-to-hello-world target in `docs/adr/0002-magical-moment-and-tthw-target.md`.
 
 ## Go package READMEs
 
-The ajan Go packages with a README (`configfx`, `connfx`, `httpclient`,
-`httpfx`, `i18nfx`, `lib`, `logfx`, `processfx`, `results` and `types` under
-`pkg/ajan/`) follow documentation-conventions: Package README Structure, with
+The ajan Go packages with a README (`clifx`, `configfx`, `connfx`, `formatfx`,
+`httpclient`, `httpfx`, `i18nfx`, `lib`, `lib/netlib`, `logfx`, `processfx`,
+`results` and `types` under `pkg/ajan/`) follow documentation-conventions: Package README Structure, with
 Go in place of the TypeScript import pattern:
 
 - The title is `# <emoji> [ajan/<name>](./)`.
@@ -47,6 +47,17 @@ exports), the root `VERSION` file (version) and `deno.extra.json` (publish
 include lists and tasks). They are gitignored. The precommit workflow and the
 release pipeline both run the generator; to run it by hand:
 `deno run -A ./etc/scripts/gen-jsr-manifests.ts`.
+
+## Migration codemods
+
+`etc/codemods/` holds the Node scripts that move the tree off Deno (ADR 0005):
+`tests.ts` (Deno.test, t.step and @std/testing/bdd to node:test),
+`lint-pragmas.ts` (deno lint and deno fmt pragmas to oxlint and oxfmt) and
+`benches.ts` (Deno.bench to mitata). Each takes `--dry-run`, `--filter` and
+paths, prints its counts and the sites it left, and is idempotent. They run on
+oxc-parser from the root devDependencies; `node --test etc/codemods` runs their
+fixture tests (the precommit `codemod-tests` step). deno.json and
+validate-runtime-js-apis exclude the folder, and M1-T37 (TASK-231) deletes it.
 
 ## CLI-first packages
 
@@ -107,6 +118,16 @@ Every `.ts`, `.tsx` and `.go` source file starts with this header;
 
 The codebase is Apache-2.0, so a new dependency's license must be compatible
 with it.
+
+`third-party/` holds in-tree forks of other projects' code, which keep their
+own file names, license headers and style so they can be rebased onto new
+upstream versions. `validate-filenames`, `validate-licenses`, the EOF,
+trailing-whitespace, BOM and line-ending validators, `deno fmt` and `deno lint`
+(the root `deno.json` exclude list) and golangci-lint (`.golangci.yaml`
+exclusions) skip it, and
+`validate-code-conventions` only reads JavaScript and TypeScript files, which it
+has none of. Each fork has a `FORK.md`; the only one today is
+`third-party/jsonschema/` (decision-56).
 
 ## Package scripts
 

@@ -62,7 +62,7 @@ nodeTest.test(
     const next = rest.search(/\n {2}[a-z0-9-]+:\n/);
     const job = next === -1 ? rest : rest.slice(0, next);
 
-    assert.assert(!/\b(npm|pnpm|yarn|bun)\s+(install|add|i|ci)\b/.test(job));
+    assert.assert(!/\b(npm|pnpm|yarn)\s+(install|add|i|ci)\b/.test(job));
     assert.assert(!/\bnpx\b/.test(job));
     assert.assert(/persist-credentials:\s*false/.test(job));
     assert.assert(job.includes("etc/scripts/release-notes-from-changelog.ts"));

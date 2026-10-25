@@ -221,6 +221,5 @@ func NetworkCommandWarning(command string) string {
 		`noskills starts. Claude Code, Codex, Copilot CLI and Kiro let a tool call go ahead when its PreToolUse ` +
 		`hook does not answer within ` + strconv.Itoa(HookTimeoutSeconds(HookPreToolUse)) + ` seconds, so the ` +
 		`git guard and the protected-file check would not apply to that call. Install the eser CLI (npm install ` +
-		`-g eser, or deno install -g -A jsr:@eserstack/cli) and run "eser noskills init" so the hooks call the ` +
-		`installed command.`
+		`-g eser) and run "eser noskills init" so the hooks call the installed command.`
 }

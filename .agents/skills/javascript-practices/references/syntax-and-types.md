@@ -1,15 +1,18 @@
 # Runtime, Syntax and Types
 
-Cross-runtime APIs, value checks, conversions and async returns in TypeScript
-code. Formatting and the basics (`const`, semicolons, `===`, no `eval`) are
-enforced by `deno fmt` and the lint rules in the root `deno.json` (`eqeqeq`,
-`no-eval`, `no-console`, `no-await-in-loop`, `no-top-level-await`,
-`verbatim-module-syntax` and others); run them rather than restating them.
+Cross-runtime APIs, the TypeScript syntax Node can run, export types, value
+checks, conversions and async returns in TypeScript code. Formatting and the
+basics (`const`, semicolons, `===`, no `eval`) are enforced by oxfmt and the
+oxlint rules in `.oxlintrc.json` (`eqeqeq`, `no-eval`, `no-console`,
+`no-await-in-loop`, `node/no-top-level-await` and others), and the compiler
+options by `tsc --noEmit`; run them rather than restating them.
 
 ## Contents
 
 - Cross-Runtime APIs
 - Module Paths
+- Erasable Syntax Only
+- Explicit Export Types
 - Global Object
 - Explicit Checks
 - Null vs Undefined
@@ -27,12 +30,15 @@ enforced by `deno fmt` and the lint rules in the root `deno.json` (`eqeqeq`,
 
 Scope: Library and package code; CLI entry points noted below
 
-Rule: File system, process, environment and path access goes through `runtime`
-from `@eserstack/standards/cross-runtime` (`runtime.fs.readTextFile`,
-`runtime.env.get`, `runtime.process.cwd`, `runtime.path.join`). Never call
-`Deno.*` or read `process.env` in library code. CLI-only code may call `Deno.*`
-when the abstraction does not expose the API yet; prefer adding it to
-`cross-runtime` instead.
+Rule: File system, process, exec, environment and path access goes through
+`runtime` from `@eserstack/standards/cross-runtime` (`runtime.fs.readTextFile`,
+`runtime.env.get`, `runtime.process.cwd`, `runtime.process.isStandalone`,
+`runtime.exec.spawn`, `runtime.path.join`). The facade runs on Node, with a
+browser entry for client code. Library code does not read Node's global
+`process` or import `node:fs` or `node:child_process` itself, and no code names
+another runtime's global; `validate-runtime-js-apis` reports both the `process`
+and the global references. When `runtime` lacks an API the code needs, add it to
+`cross-runtime` rather than calling Node directly.
 
 Correct:
 
@@ -41,17 +47,22 @@ import { runtime } from "@eserstack/standards/cross-runtime";
 
 const text = await runtime.fs.readTextFile(configPath);
 const token = runtime.env.get("GITHUB_TOKEN");
+const branch = await runtime.exec.exec("git", ["branch", "--show-current"]);
 ```
 
 Incorrect:
 
 ```typescript
-const text = await Deno.readTextFile(configPath); // Deno only
-const token = process.env.GITHUB_TOKEN; // Node only
+import * as fs from "node:fs/promises";
+
+const text = await fs.readFile(configPath, "utf8"); // bypasses the facade
+const token = process.env.GITHUB_TOKEN; // global process in a library
 ```
 
-**Why:** packages publish to JSR and npm and run on Deno, Node and Bun, and
-tests replace `runtime` without touching the real file system.
+**Why:** the facade is the one seam between the code and the runtime. Tests
+replace `runtime` with a fake without touching the real file system, and if the
+facade later collapses into `node:*` and Web APIs, that change happens inside it
+and not at every call site (ADR 0005).
 
 ---
 
@@ -71,8 +82,87 @@ Correct:
 const templatesDir = runtime.path.join(import.meta.dirname ?? ".", "templates");
 ```
 
-**Why:** `import.meta.dirname` works in Deno, Node 20.11+ and Bun without a URL
-round trip.
+**Why:** Node sets `import.meta.dirname` for every file module, so no URL round
+trip is needed; it is `undefined` only for a module that is not a file, which
+the `?? "."` covers.
+
+---
+
+## Erasable Syntax Only
+
+Scope: All TypeScript code
+
+Rule: Write only TypeScript syntax that disappears when the types are stripped.
+No `enum`, no `namespace` or `module` blocks, no constructor parameter
+properties, no `import x = require()`. Write an enum as a `const` object with
+`as const` and a union type, and assign fields in the constructor body.
+`erasableSyntaxOnly` in `tsconfig.json` makes `tsc --noEmit` reject the rest.
+
+Correct:
+
+```typescript
+export const LogLevel = { Debug: "debug", Info: "info" } as const;
+export type LogLevel = (typeof LogLevel)[keyof typeof LogLevel];
+
+export class Client {
+  readonly baseUrl: string;
+
+  constructor(baseUrl: string) {
+    this.baseUrl = baseUrl;
+  }
+}
+```
+
+Incorrect:
+
+```typescript
+export enum LogLevel {
+  Debug = "debug",
+  Info = "info",
+}
+
+export class Client {
+  constructor(readonly baseUrl: string) {} // parameter property
+}
+```
+
+**Why:** Node runs `.ts` files by replacing the types with whitespace and
+transforms nothing, so syntax that would emit code fails to load (ADR 0005).
+
+---
+
+## Explicit Export Types
+
+Scope: Exported functions, constants and class members
+
+Rule: Give every exported declaration a type that can be read without
+inference: parameter and return types on exported functions and methods, and a
+type annotation on an exported `const` whose value is not a literal.
+`isolatedDeclarations` in `tsconfig.json` enforces it.
+
+Correct:
+
+```typescript
+export function formatPort(port: number): string {
+  return `:${port}`;
+}
+
+export const defaultOptions: ServerOptions = createOptions();
+```
+
+Incorrect:
+
+```typescript
+export function formatPort(port: number) {
+  return `:${port}`; // return type inferred
+}
+
+export const defaultOptions = createOptions(); // type inferred from a call
+```
+
+**Why:** declaration files can then be produced file by file, without running
+the type checker across the workspace, for the emitted build of the npm packages
+(ADR 0005). A reader also sees the contract at the declaration.
 
 ---
 
@@ -82,7 +172,8 @@ Scope: Code that may run in a browser and on a server
 
 Rule: Use `globalThis`, not `window`.
 
-**Why:** `window` does not exist in Deno, Node or workers.
+**Why:** `window` does not exist in Node or in workers; `globalThis` exists
+everywhere.
 
 ---
 
@@ -236,8 +327,9 @@ Code Generation or Global Patching.
 Scope: Async functions
 
 Rule: Write `return await` when returning a promise from an async function. Do
-not `await` a synchronous function (`no-sync-fn-in-async-fn` lint rule). Every
-started promise is awaited or owned (coding-practices: Owned Asynchronous Work).
+not `await` a synchronous function, and do not mark a function `async` when it
+awaits nothing (oxlint `require-await`). Every started promise is awaited or
+owned (coding-practices: Owned Asynchronous Work).
 
 Correct:
 

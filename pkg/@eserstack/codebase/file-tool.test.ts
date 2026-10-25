@@ -76,8 +76,6 @@ const cases: ReadonlyArray<{
 ];
 
 for (const { name, flags, expected } of cases) {
-  // sanitizeResources is off because file-tool.ts loads the FFI
-  // DynamicLibrary, which stays open after the test.
   nodeTest.test(`createFileTool main: ${name}`, () =>
     withFixtureRoot(async (root) => {
       const checked: string[] = [];

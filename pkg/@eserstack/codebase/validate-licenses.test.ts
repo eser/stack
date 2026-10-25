@@ -46,9 +46,6 @@ const writeFile = async (dir: string, name: string, content: string) => {
 // Access the check/fix functions indirectly through tool.run() with temp files
 // since the factory doesn't expose them directly.
 
-// sanitizeResources: false — file-tool.ts transitively loads the FFI DynamicLibrary
-// (file-tool.ts → ffi-client.ts → ensureLib). The singleton persists for the process
-// lifetime; only this first test needs the annotation. See ffi-wiring-pattern.md §14 #17.
 nodeTest.test("validate-licenses: correct header → no issues", async () => {
   const dir = await makeTempDir();
   try {
@@ -132,11 +129,7 @@ nodeTest.test(
   async () => {
     const dir = await makeTempDir();
     try {
-      await writeFile(
-        dir,
-        "script.ts",
-        "#!/usr/bin/env node\nexport {};\n",
-      );
+      await writeFile(dir, "script.ts", "#!/usr/bin/env node\nexport {};\n");
       const result = await validateLicenses.tool.run({ root: dir });
       assert.assertEquals(result.issues.length, 1);
       assert.assertEquals(

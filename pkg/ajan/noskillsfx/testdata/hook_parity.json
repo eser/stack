@@ -17,6 +17,10 @@
       "extractGitInvocations": ["git stash list"],
       "gitArgs": [false, false, "write", 0]
     },
+    {
+      "input": " call is the text of the program the child ",
+      "gitArgs": [false, false, "write", 0]
+    },
     { "input": " first.", "gitArgs": [false, false, "write", 0] },
     { "input": " for the spec ", "gitArgs": [false, false, "write", 0] },
     {
@@ -120,8 +124,6 @@
       "patchPaths": ["src/a.ts", "b.ts", "c.ts", "d.ts"],
       "gitArgs": [false, false, "write", 0]
     },
-    { "input": ",\n  ", "gitArgs": [false, false, "write", 0] },
-    { "input": ",\n          ", "gitArgs": [false, false, "write", 0] },
     {
       "input": ",\n    },\n    {\n      name: \"in BLOCKED\",\n      state: state(\"BLOCKED\"),\n      names: ",
       "gitArgs": [false, false, "write", 0]
@@ -150,7 +152,6 @@
     { "input": ", pipes and ", "gitArgs": [false, false, "write", 0] },
     { "input": "--attr-source", "gitArgs": [true, false, "read", -1] },
     { "input": "--attr-source=HEAD", "gitArgs": [true, false, "read", -1] },
-    { "input": "--config", "gitArgs": [false, false, "write", 0] },
     { "input": "--exec-path", "gitArgs": [true, false, "read", 0] },
     { "input": "--exec-path=/tmp/x", "gitArgs": [true, false, "read", -1] },
     { "input": "--get", "gitArgs": [false, false, "write", 0] },
@@ -170,7 +171,6 @@
     },
     { "input": "--version", "gitArgs": [true, false, "read", 0] },
     { "input": "--version reads", "gitArgs": [true, false, "read", 0] },
-    { "input": "-A", "gitArgs": [false, false, "write", 0] },
     { "input": "-C", "gitArgs": [true, false, "read", -1] },
     { "input": "-D", "gitArgs": [false, false, "write", 0] },
     { "input": "-P", "gitArgs": [true, false, "read", -1] },
@@ -303,6 +303,11 @@
     { "input": "/p/k8s/manifest.yml", "gitArgs": [false, false, "write", 0] },
     { "input": "/repo", "gitArgs": [false, false, "write", 0] },
     {
+      "input": "/usr/bin/git",
+      "extractGitInvocations": ["git"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
       "input": "/usr/bin/git push",
       "isGitAllowed": false,
       "extractGitInvocations": ["git push"],
@@ -313,6 +318,7 @@
     { "input": "/w", "gitArgs": [false, false, "write", 0] },
     { "input": "/x", "gitArgs": [false, false, "write", 0] },
     { "input": "30 seconds", "gitArgs": [false, false, "write", 0] },
+    { "input": "8", "gitArgs": [false, false, "write", 0] },
     {
       "input": "@eserstack/standards/cross-runtime",
       "gitArgs": [false, false, "write", 0]
@@ -321,7 +327,6 @@
       "input": "@eserstack/test-kit/assert",
       "gitArgs": [false, false, "write", 0]
     },
-    { "input": "@std/testing/bdd", "gitArgs": [false, false, "write", 0] },
     {
       "input": "A=1 B=2 npx eser",
       "networkRunnerOf": "npx",
@@ -418,6 +423,7 @@
     { "input": "Read", "gitArgs": [false, false, "write", 0] },
     { "input": "SOMETHING_NEW", "gitArgs": [false, false, "write", 0] },
     { "input": "SPEC_PROPOSAL", "gitArgs": [false, false, "write", 0] },
+    { "input": "SessionStart", "gitArgs": [false, false, "write", 0] },
     {
       "input": "What does the user do today without this feature?",
       "gitArgs": [false, false, "write", 0]
@@ -1056,7 +1062,10 @@
     },
     { "input": "create", "gitArgs": [false, false, "write", 0] },
     { "input": "decidePreToolUse", "gitArgs": [false, false, "write", 0] },
-    { "input": "deno eval", "gitArgs": [false, false, "write", 0] },
+    {
+      "input": "defaults to 15 without a manifest or the setting",
+      "gitArgs": [false, false, "write", 0]
+    },
     {
       "input": "deno run -A jsr:@eserstack/cli noskills",
       "isNoskillsCommand": true,
@@ -1064,17 +1073,6 @@
       "gitArgs": [false, false, "write", 0]
     },
     { "input": "deno run ./local.ts", "gitArgs": [false, false, "write", 0] },
-    {
-      "input": "deno task cli nos next",
-      "isNoskillsCommand": true,
-      "gitArgs": [false, false, "write", 0]
-    },
-    {
-      "input": "deno task cli noskills next",
-      "isNoskillsCommand": true,
-      "gitArgs": [false, false, "write", 0]
-    },
-    { "input": "deno task test", "gitArgs": [false, false, "write", 0] },
     {
       "input": "deno x npm:noskills",
       "isNoskillsCommand": true,
@@ -1315,6 +1313,7 @@
       "input": "exotic subshell forms are detected",
       "gitArgs": [false, false, "write", 0]
     },
+    { "input": "explicitRealGit", "gitArgs": [false, false, "write", 0] },
     { "input": "export {};\n", "gitArgs": [false, false, "write", 0] },
     { "input": "extractGitInvocations", "gitArgs": [false, false, "write", 0] },
     {
@@ -1367,8 +1366,6 @@
     },
     { "input": "false", "gitArgs": [false, false, "write", 0] },
     { "input": "feature", "gitArgs": [false, false, "write", 0] },
-    { "input": "file_path", "gitArgs": [false, false, "write", 0] },
-    { "input": "file_text", "gitArgs": [false, false, "write", 0] },
     { "input": "finds the manifest", "gitArgs": [false, false, "write", 0] },
     {
       "input": "finds the manifest in a Windows path",
@@ -2473,6 +2470,11 @@
       "gitArgs": [false, false, "write", 0]
     },
     {
+      "input": "gives Copilot CLI a top-level additionalContext with --tool=copilot-cli",
+      "stripFlagValues": "gives Copilot CLI a top-level additionalContext with ",
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
       "input": "gives PreToolUse as long as the git wrapper's check",
       "extractGitInvocations": ["git wrapper"],
       "containsGitWriteBypass": true,
@@ -2523,7 +2525,10 @@
       "gitArgs": [false, false, "write", 0]
     },
     { "input": "hookCommand", "gitArgs": [false, false, "write", 0] },
-    { "input": "hook_event_name", "gitArgs": [false, false, "write", 0] },
+    {
+      "input": "ignores a value that is not a positive whole number",
+      "gitArgs": [false, false, "write", 0]
+    },
     {
       "input": "in DISCOVERY_REFINEMENT",
       "gitArgs": [false, false, "write", 0]
@@ -2596,6 +2601,7 @@
       "input": "joins the prefix, invoke-hook, the event and its arguments",
       "gitArgs": [false, false, "write", 0]
     },
+    { "input": "keeps a path", "gitArgs": [false, false, "write", 0] },
     {
       "input": "keeps the token when the call asks no open base question",
       "gitArgs": [false, false, "write", 0]
@@ -2679,9 +2685,10 @@
       "gitArgs": [false, false, "write", 0]
     },
     { "input": "networkCommandWarning", "gitArgs": [false, false, "write", 0] },
-    { "input": "new_source", "gitArgs": [false, false, "write", 0] },
-    { "input": "new_string", "gitArgs": [false, false, "write", 0] },
     { "input": "next.test.ts", "gitArgs": [false, false, "write", 0] },
+    { "input": "node -e", "gitArgs": [false, false, "write", 0] },
+    { "input": "node:child_process", "gitArgs": [false, false, "write", 0] },
+    { "input": "node:test", "gitArgs": [false, false, "write", 0] },
     { "input": "none", "gitArgs": [false, false, "write", 0] },
     {
       "input": "nos next",
@@ -2782,6 +2789,7 @@
       "gitArgs": [false, false, "write", 0]
     },
     { "input": "not a list", "gitArgs": [false, false, "write", 0] },
+    { "input": "not set", "gitArgs": [false, false, "write", 0] },
     {
       "input": "npm exec noskills",
       "isNoskillsCommand": true,
@@ -2821,7 +2829,6 @@
       "isNoskillsHookCommand": true,
       "gitArgs": [false, false, "write", 0]
     },
-    { "input": "old_string", "gitArgs": [false, false, "write", 0] },
     {
       "input": "open('.eser/manifest.yml', 'a').write('x')",
       "bashProtectedFile": "manifest",
@@ -2840,11 +2847,22 @@
     { "input": "persistence.readState", "gitArgs": [false, false, "write", 0] },
     { "input": "piped", "gitArgs": [false, false, "write", 0] },
     {
+      "input": "pnpm cli nos next",
+      "isNoskillsCommand": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "pnpm cli noskills next",
+      "isNoskillsCommand": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
       "input": "pnpm dlx noskills",
       "isNoskillsCommand": true,
       "networkRunnerOf": "pnpm dlx",
       "gitArgs": [false, false, "write", 0]
     },
+    { "input": "pnpm test", "gitArgs": [false, false, "write", 0] },
     {
       "input": "pnpx noskills",
       "isNoskillsCommand": true,
@@ -2945,7 +2963,6 @@
       "isNoskillsCommand": true,
       "gitArgs": [false, false, "write", 0]
     },
-    { "input": "replace_all", "gitArgs": [false, false, "write", 0] },
     {
       "input": "reported bypass shapes are git writes",
       "extractGitInvocations": ["git writes"],
@@ -2955,6 +2972,7 @@
     },
     { "input": "resolution", "gitArgs": [false, false, "write", 0] },
     { "input": "restartNotice", "gitArgs": [false, false, "write", 0] },
+    { "input": "restartThreshold", "gitArgs": [false, false, "write", 0] },
     {
       "input": "returns command unchanged when no flags",
       "gitArgs": [false, false, "write", 0]
@@ -3032,7 +3050,6 @@
       "isToolConfigPath": true,
       "gitArgs": [false, false, "write", 0]
     },
-    { "input": "run", "gitArgs": [false, false, "write", 0] },
     { "input": "run.sh", "gitArgs": [false, false, "write", 0] },
     {
       "input": "says nothing for an installed command",
@@ -3177,13 +3194,19 @@
     },
     { "input": "takeExecutorReminder", "gitArgs": [false, false, "write", 0] },
     {
+      "input": "takes a positive whole number from the manifest",
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
       "input": "tee x.sh < y && bash x.sh",
       "shellScriptTargets": ["x.sh"],
       "writesTargets": [true],
       "gitArgs": [false, false, "write", 0]
     },
-    { "input": "tool_input", "gitArgs": [false, false, "write", 0] },
-    { "input": "tool_name", "gitArgs": [false, false, "write", 0] },
+    {
+      "input": "treats an unset or empty variable as not given",
+      "gitArgs": [false, false, "write", 0]
+    },
     { "input": "true", "gitArgs": [false, false, "write", 0] },
     { "input": "u", "gitArgs": [false, false, "write", 0] },
     { "input": "unknown", "gitArgs": [false, false, "write", 0] },
@@ -4293,7 +4316,7 @@
     {
       "fn": "networkCommandWarning",
       "args": ["npx eser@latest noskills"],
-      "result": "The hooks run noskills as \"npx eser@latest noskills\", and npx can wait on the network before noskills starts. Claude Code, Codex, Copilot CLI and Kiro let a tool call go ahead when its PreToolUse hook does not answer within 30 seconds, so the git guard and the protected-file check would not apply to that call. Install the eser CLI (npm install -g eser, or deno install -g -A jsr:@eserstack/cli) and run \"eser noskills init\" so the hooks call the installed command."
+      "result": "The hooks run noskills as \"npx eser@latest noskills\", and npx can wait on the network before noskills starts. Claude Code, Codex, Copilot CLI and Kiro let a tool call go ahead when its PreToolUse hook does not answer within 30 seconds, so the git guard and the protected-file check would not apply to that call. Install the eser CLI (npm install -g eser) and run \"eser noskills init\" so the hooks call the installed command."
     },
     { "fn": "networkCommandWarning", "args": ["noskills"], "result": null },
     {
@@ -4306,7 +4329,7 @@
           "commandPrefix": "npx eser@latest noskills"
         }
       ],
-      "result": "#!/bin/sh\n# Generated by noskills when an agent session starts; edits are overwritten.\n#\n# Agent sessions find this file first on PATH, so every git process they start\n# runs through it. Reads, clones and commands on other repositories run\n# directly. Everything else is checked by noskills, which refuses git writes to\n# the project's repository, and pushes from anywhere, while allowGit is false.\n\nreal_git='/usr/bin/git'\nproject_git_dir='/p/.git'\n\n# Find the subcommand and its first argument after git's own options.\nsubcommand=''\nfirst_arg=''\nfound=0\ntakes_value=0\nfor arg in \"$@\"; do\n  if [ \"$found\" = 1 ]; then\n    first_arg=$arg\n    break\n  fi\n  if [ \"$takes_value\" = 1 ]; then\n    takes_value=0\n    continue\n  fi\n  case $arg in\n    -C|-c|--git-dir|--work-tree|--namespace|--super-prefix|--config-env|--attr-source) takes_value=1 ;;\n    -C?*|-c?*|--git-dir=*|--work-tree=*|--namespace=*|--super-prefix=*|--config-env=*|--attr-source=*|--exec-path=*) ;;\n    --no-replace-objects|--no-lazy-fetch|--no-advice|--bare|--no-optional-locks|--literal-pathspecs|--glob-pathspecs|--noglob-pathspecs|--icase-pathspecs|--no-pager|-P|--paginate|-p) ;;\n    *)\n      subcommand=$arg\n      found=1\n      ;;\n  esac\ndone\n\ncase $subcommand in\n  ''|log|diff|status|show|blame|rev-parse|ls-files|ls-tree|cat-file|describe|shortlog|name-rev|for-each-ref|rev-list|help|version|--version|-v|--help|-h|--exec-path|--html-path|--man-path|--info-path|clone) exec \"$real_git\" \"$@\" ;;\n  branch)\n    case $first_arg in\n      ''|--list|-l|-a|--all|-r|--remotes|-v|--verbose|--contains|--no-contains|--merged|--no-merged|--show-current) exec \"$real_git\" \"$@\" ;;\n    esac\n    ;;\n  tag)\n    case $first_arg in\n      ''|-l|--list|-v|--verify|-n) exec \"$real_git\" \"$@\" ;;\n    esac\n    ;;\n  stash)\n    case $first_arg in\n      list|show) exec \"$real_git\" \"$@\" ;;\n    esac\n    ;;\n  remote)\n    case $first_arg in\n      ''|-v|--verbose|show|get-url) exec \"$real_git\" \"$@\" ;;\n    esac\n    ;;\n  reflog)\n    case $first_arg in\n      ''|show) exec \"$real_git\" \"$@\" ;;\n    esac\n    ;;\nesac\n\n# A write with no option before the subcommand acts on the repository that the\n# working directory (or GIT_DIR) selects. Outside the project it runs directly.\n# An option this script does not know stands where the subcommand would be;\n# the options after it may name any repository, so noskills decides.\ncase $subcommand in\n  push|send-pack|-*) ;;\n  *)\n    if [ \"$1\" = \"$subcommand\" ]; then\n      target_git_dir=$(\"$real_git\" rev-parse --path-format=absolute --git-common-dir 2>/dev/null) || target_git_dir=''\n      if [ \"$target_git_dir\" != \"$project_git_dir\" ]; then\n        exec \"$real_git\" \"$@\"\n      fi\n    fi\n    ;;\nesac\n\n# The command may change directory before noskills starts (deno task does), so\n# the working directory git would run in travels as NOSKILLS_GIT_CWD.\ngit_cwd=$(pwd -P)\n\n# The check may never answer (npx can wait on the registry), so a watcher stops\n# it after 30 seconds: SIGTERM, then SIGKILL 2 seconds later.\n# The check writes to a file rather than to this script's stderr, so a process\n# it leaves behind cannot keep the caller's pipe open.\ncheck_log=$(mktemp \"${TMPDIR:-/tmp}/noskills-git-check.XXXXXX\") || {\n  printf '%s\\n' \"noskills: could not create a temporary file to check \\\"git $subcommand\\\", so it did not run.\" >&2\n  exit 1\n}\nNOSKILLS_REAL_GIT=$real_git NOSKILLS_GIT_CWD=$git_cwd NOSKILLS_PROJECT_ROOT='/p'\\''s dir' npx eser@latest noskills invoke-hook git-exec \"$@\" </dev/null >\"$check_log\" 2>&1 &\ncheck_pid=$!\n(\n  watch_status=0\n  trap 'kill \"$nap_pid\" 2>/dev/null; exit \"$watch_status\"' TERM\n  sleep 30 &\n  nap_pid=$!\n  wait \"$nap_pid\"\n  watch_status=124\n  kill -TERM \"$check_pid\" 2>/dev/null\n  sleep 2 &\n  nap_pid=$!\n  wait \"$nap_pid\"\n  kill -KILL \"$check_pid\" 2>/dev/null\n  exit 124\n) </dev/null >/dev/null 2>&1 &\nwatch_pid=$!\ntrap 'kill \"$check_pid\" \"$watch_pid\" 2>/dev/null; rm -f \"$check_log\"; exit 1' HUP INT TERM\n# The shell's notice for a stopped job would reach the agent; the message below\n# says what happened instead.\nwait \"$check_pid\" 2>/dev/null\nstatus=$?\nkill \"$watch_pid\" 2>/dev/null\nwait \"$watch_pid\" 2>/dev/null\nwatch_status=$?\ntrap - HUP INT TERM\ncat \"$check_log\" >&2\nrm -f \"$check_log\"\n\nif [ \"$status\" -ne 0 ]; then\n  if [ \"$watch_status\" -eq 124 ]; then\n    printf '%s\\n' \"noskills: the check for \\\"git $subcommand\\\" did not answer within 30 seconds, so it did not run. When command in .eser/manifest.yml starts noskills through npx, install noskills and set command to the installed one, so the check does not wait on the network.\" >&2\n  elif [ \"$status\" -ne 3 ]; then\n    printf '%s\\n' \"noskills: could not check \\\"git $subcommand\\\" (exit status $status), so it did not run.\" >&2\n  fi\n  exit 1\nfi\nexec \"$real_git\" \"$@\"\n"
+      "result": "#!/bin/sh\n# Generated by noskills when an agent session starts; edits are overwritten.\n#\n# Agent sessions find this file first on PATH, so every git process they start\n# runs through it. Reads, clones and commands on other repositories run\n# directly. Everything else is checked by noskills, which refuses git writes to\n# the project's repository, and pushes from anywhere, while allowGit is false.\n\nreal_git='/usr/bin/git'\nproject_git_dir='/p/.git'\n\n# Find the subcommand and its first argument after git's own options.\nsubcommand=''\nfirst_arg=''\nfound=0\ntakes_value=0\nfor arg in \"$@\"; do\n  if [ \"$found\" = 1 ]; then\n    first_arg=$arg\n    break\n  fi\n  if [ \"$takes_value\" = 1 ]; then\n    takes_value=0\n    continue\n  fi\n  case $arg in\n    -C|-c|--git-dir|--work-tree|--namespace|--super-prefix|--config-env|--attr-source) takes_value=1 ;;\n    -C?*|-c?*|--git-dir=*|--work-tree=*|--namespace=*|--super-prefix=*|--config-env=*|--attr-source=*|--exec-path=*) ;;\n    --no-replace-objects|--no-lazy-fetch|--no-advice|--bare|--no-optional-locks|--literal-pathspecs|--glob-pathspecs|--noglob-pathspecs|--icase-pathspecs|--no-pager|-P|--paginate|-p) ;;\n    *)\n      subcommand=$arg\n      found=1\n      ;;\n  esac\ndone\n\ncase $subcommand in\n  ''|log|diff|status|show|blame|rev-parse|ls-files|ls-tree|cat-file|describe|shortlog|name-rev|for-each-ref|rev-list|help|version|--version|-v|--help|-h|--exec-path|--html-path|--man-path|--info-path|clone) exec \"$real_git\" \"$@\" ;;\n  branch)\n    case $first_arg in\n      ''|--list|-l|-a|--all|-r|--remotes|-v|--verbose|--contains|--no-contains|--merged|--no-merged|--show-current) exec \"$real_git\" \"$@\" ;;\n    esac\n    ;;\n  tag)\n    case $first_arg in\n      ''|-l|--list|-v|--verify|-n) exec \"$real_git\" \"$@\" ;;\n    esac\n    ;;\n  stash)\n    case $first_arg in\n      list|show) exec \"$real_git\" \"$@\" ;;\n    esac\n    ;;\n  remote)\n    case $first_arg in\n      ''|-v|--verbose|show|get-url) exec \"$real_git\" \"$@\" ;;\n    esac\n    ;;\n  reflog)\n    case $first_arg in\n      ''|show) exec \"$real_git\" \"$@\" ;;\n    esac\n    ;;\nesac\n\n# A write with no option before the subcommand acts on the repository that the\n# working directory (or GIT_DIR) selects. Outside the project it runs directly.\n# An option this script does not know stands where the subcommand would be;\n# the options after it may name any repository, so noskills decides.\ncase $subcommand in\n  push|send-pack|-*) ;;\n  *)\n    if [ \"$1\" = \"$subcommand\" ]; then\n      target_git_dir=$(\"$real_git\" rev-parse --path-format=absolute --git-common-dir 2>/dev/null) || target_git_dir=''\n      if [ \"$target_git_dir\" != \"$project_git_dir\" ]; then\n        exec \"$real_git\" \"$@\"\n      fi\n    fi\n    ;;\nesac\n\n# The command may change directory before noskills starts (pnpm run does), so\n# the working directory git would run in travels as NOSKILLS_GIT_CWD.\ngit_cwd=$(pwd -P)\n\n# The check may never answer (npx can wait on the registry), so a watcher stops\n# it after 30 seconds: SIGTERM, then SIGKILL 2 seconds later.\n# The check writes to a file rather than to this script's stderr, so a process\n# it leaves behind cannot keep the caller's pipe open.\ncheck_log=$(mktemp \"${TMPDIR:-/tmp}/noskills-git-check.XXXXXX\") || {\n  printf '%s\\n' \"noskills: could not create a temporary file to check \\\"git $subcommand\\\", so it did not run.\" >&2\n  exit 1\n}\nNOSKILLS_REAL_GIT=$real_git NOSKILLS_GIT_CWD=$git_cwd NOSKILLS_PROJECT_ROOT='/p'\\''s dir' npx eser@latest noskills invoke-hook git-exec \"$@\" </dev/null >\"$check_log\" 2>&1 &\ncheck_pid=$!\n(\n  watch_status=0\n  trap 'kill \"$nap_pid\" 2>/dev/null; exit \"$watch_status\"' TERM\n  sleep 30 &\n  nap_pid=$!\n  wait \"$nap_pid\"\n  watch_status=124\n  kill -TERM \"$check_pid\" 2>/dev/null\n  sleep 2 &\n  nap_pid=$!\n  wait \"$nap_pid\"\n  kill -KILL \"$check_pid\" 2>/dev/null\n  exit 124\n) </dev/null >/dev/null 2>&1 &\nwatch_pid=$!\ntrap 'kill \"$check_pid\" \"$watch_pid\" 2>/dev/null; rm -f \"$check_log\"; exit 1' HUP INT TERM\n# The shell's notice for a stopped job would reach the agent; the message below\n# says what happened instead.\nwait \"$check_pid\" 2>/dev/null\nstatus=$?\nkill \"$watch_pid\" 2>/dev/null\nwait \"$watch_pid\" 2>/dev/null\nwatch_status=$?\ntrap - HUP INT TERM\ncat \"$check_log\" >&2\nrm -f \"$check_log\"\n\nif [ \"$status\" -ne 0 ]; then\n  if [ \"$watch_status\" -eq 124 ]; then\n    printf '%s\\n' \"noskills: the check for \\\"git $subcommand\\\" did not answer within 30 seconds, so it did not run. When command in .eser/manifest.yml starts noskills through npx, install noskills and set command to the installed one, so the check does not wait on the network.\" >&2\n  elif [ \"$status\" -ne 3 ]; then\n    printf '%s\\n' \"noskills: could not check \\\"git $subcommand\\\" (exit status $status), so it did not run.\" >&2\n  fi\n  exit 1\nfi\nexec \"$real_git\" \"$@\"\n"
     },
     {
       "fn": "buildWrapperScript",
@@ -4319,7 +4342,7 @@
           "checkTimeoutSeconds": 7
         }
       ],
-      "result": "#!/bin/sh\n# Generated by noskills when an agent session starts; edits are overwritten.\n#\n# Agent sessions find this file first on PATH, so every git process they start\n# runs through it. Reads, clones and commands on other repositories run\n# directly. Everything else is checked by noskills, which refuses git writes to\n# the project's repository, and pushes from anywhere, while allowGit is false.\n\nreal_git='/g'\nproject_git_dir='/p/.git'\n\n# Find the subcommand and its first argument after git's own options.\nsubcommand=''\nfirst_arg=''\nfound=0\ntakes_value=0\nfor arg in \"$@\"; do\n  if [ \"$found\" = 1 ]; then\n    first_arg=$arg\n    break\n  fi\n  if [ \"$takes_value\" = 1 ]; then\n    takes_value=0\n    continue\n  fi\n  case $arg in\n    -C|-c|--git-dir|--work-tree|--namespace|--super-prefix|--config-env|--attr-source) takes_value=1 ;;\n    -C?*|-c?*|--git-dir=*|--work-tree=*|--namespace=*|--super-prefix=*|--config-env=*|--attr-source=*|--exec-path=*) ;;\n    --no-replace-objects|--no-lazy-fetch|--no-advice|--bare|--no-optional-locks|--literal-pathspecs|--glob-pathspecs|--noglob-pathspecs|--icase-pathspecs|--no-pager|-P|--paginate|-p) ;;\n    *)\n      subcommand=$arg\n      found=1\n      ;;\n  esac\ndone\n\ncase $subcommand in\n  ''|log|diff|status|show|blame|rev-parse|ls-files|ls-tree|cat-file|describe|shortlog|name-rev|for-each-ref|rev-list|help|version|--version|-v|--help|-h|--exec-path|--html-path|--man-path|--info-path|clone) exec \"$real_git\" \"$@\" ;;\n  branch)\n    case $first_arg in\n      ''|--list|-l|-a|--all|-r|--remotes|-v|--verbose|--contains|--no-contains|--merged|--no-merged|--show-current) exec \"$real_git\" \"$@\" ;;\n    esac\n    ;;\n  tag)\n    case $first_arg in\n      ''|-l|--list|-v|--verify|-n) exec \"$real_git\" \"$@\" ;;\n    esac\n    ;;\n  stash)\n    case $first_arg in\n      list|show) exec \"$real_git\" \"$@\" ;;\n    esac\n    ;;\n  remote)\n    case $first_arg in\n      ''|-v|--verbose|show|get-url) exec \"$real_git\" \"$@\" ;;\n    esac\n    ;;\n  reflog)\n    case $first_arg in\n      ''|show) exec \"$real_git\" \"$@\" ;;\n    esac\n    ;;\nesac\n\n# A write with no option before the subcommand acts on the repository that the\n# working directory (or GIT_DIR) selects. Outside the project it runs directly.\n# An option this script does not know stands where the subcommand would be;\n# the options after it may name any repository, so noskills decides.\ncase $subcommand in\n  push|send-pack|-*) ;;\n  *)\n    if [ \"$1\" = \"$subcommand\" ]; then\n      target_git_dir=$(\"$real_git\" rev-parse --path-format=absolute --git-common-dir 2>/dev/null) || target_git_dir=''\n      if [ \"$target_git_dir\" != \"$project_git_dir\" ]; then\n        exec \"$real_git\" \"$@\"\n      fi\n    fi\n    ;;\nesac\n\n# The command may change directory before noskills starts (deno task does), so\n# the working directory git would run in travels as NOSKILLS_GIT_CWD.\ngit_cwd=$(pwd -P)\n\n# The check may never answer (npx can wait on the registry), so a watcher stops\n# it after 7 seconds: SIGTERM, then SIGKILL 2 seconds later.\n# The check writes to a file rather than to this script's stderr, so a process\n# it leaves behind cannot keep the caller's pipe open.\ncheck_log=$(mktemp \"${TMPDIR:-/tmp}/noskills-git-check.XXXXXX\") || {\n  printf '%s\\n' \"noskills: could not create a temporary file to check \\\"git $subcommand\\\", so it did not run.\" >&2\n  exit 1\n}\nNOSKILLS_REAL_GIT=$real_git NOSKILLS_GIT_CWD=$git_cwd NOSKILLS_PROJECT_ROOT='/p' noskills invoke-hook git-exec \"$@\" </dev/null >\"$check_log\" 2>&1 &\ncheck_pid=$!\n(\n  watch_status=0\n  trap 'kill \"$nap_pid\" 2>/dev/null; exit \"$watch_status\"' TERM\n  sleep 7 &\n  nap_pid=$!\n  wait \"$nap_pid\"\n  watch_status=124\n  kill -TERM \"$check_pid\" 2>/dev/null\n  sleep 2 &\n  nap_pid=$!\n  wait \"$nap_pid\"\n  kill -KILL \"$check_pid\" 2>/dev/null\n  exit 124\n) </dev/null >/dev/null 2>&1 &\nwatch_pid=$!\ntrap 'kill \"$check_pid\" \"$watch_pid\" 2>/dev/null; rm -f \"$check_log\"; exit 1' HUP INT TERM\n# The shell's notice for a stopped job would reach the agent; the message below\n# says what happened instead.\nwait \"$check_pid\" 2>/dev/null\nstatus=$?\nkill \"$watch_pid\" 2>/dev/null\nwait \"$watch_pid\" 2>/dev/null\nwatch_status=$?\ntrap - HUP INT TERM\ncat \"$check_log\" >&2\nrm -f \"$check_log\"\n\nif [ \"$status\" -ne 0 ]; then\n  if [ \"$watch_status\" -eq 124 ]; then\n    printf '%s\\n' \"noskills: the check for \\\"git $subcommand\\\" did not answer within 7 seconds, so it did not run. When command in .eser/manifest.yml starts noskills through npx, install noskills and set command to the installed one, so the check does not wait on the network.\" >&2\n  elif [ \"$status\" -ne 3 ]; then\n    printf '%s\\n' \"noskills: could not check \\\"git $subcommand\\\" (exit status $status), so it did not run.\" >&2\n  fi\n  exit 1\nfi\nexec \"$real_git\" \"$@\"\n"
+      "result": "#!/bin/sh\n# Generated by noskills when an agent session starts; edits are overwritten.\n#\n# Agent sessions find this file first on PATH, so every git process they start\n# runs through it. Reads, clones and commands on other repositories run\n# directly. Everything else is checked by noskills, which refuses git writes to\n# the project's repository, and pushes from anywhere, while allowGit is false.\n\nreal_git='/g'\nproject_git_dir='/p/.git'\n\n# Find the subcommand and its first argument after git's own options.\nsubcommand=''\nfirst_arg=''\nfound=0\ntakes_value=0\nfor arg in \"$@\"; do\n  if [ \"$found\" = 1 ]; then\n    first_arg=$arg\n    break\n  fi\n  if [ \"$takes_value\" = 1 ]; then\n    takes_value=0\n    continue\n  fi\n  case $arg in\n    -C|-c|--git-dir|--work-tree|--namespace|--super-prefix|--config-env|--attr-source) takes_value=1 ;;\n    -C?*|-c?*|--git-dir=*|--work-tree=*|--namespace=*|--super-prefix=*|--config-env=*|--attr-source=*|--exec-path=*) ;;\n    --no-replace-objects|--no-lazy-fetch|--no-advice|--bare|--no-optional-locks|--literal-pathspecs|--glob-pathspecs|--noglob-pathspecs|--icase-pathspecs|--no-pager|-P|--paginate|-p) ;;\n    *)\n      subcommand=$arg\n      found=1\n      ;;\n  esac\ndone\n\ncase $subcommand in\n  ''|log|diff|status|show|blame|rev-parse|ls-files|ls-tree|cat-file|describe|shortlog|name-rev|for-each-ref|rev-list|help|version|--version|-v|--help|-h|--exec-path|--html-path|--man-path|--info-path|clone) exec \"$real_git\" \"$@\" ;;\n  branch)\n    case $first_arg in\n      ''|--list|-l|-a|--all|-r|--remotes|-v|--verbose|--contains|--no-contains|--merged|--no-merged|--show-current) exec \"$real_git\" \"$@\" ;;\n    esac\n    ;;\n  tag)\n    case $first_arg in\n      ''|-l|--list|-v|--verify|-n) exec \"$real_git\" \"$@\" ;;\n    esac\n    ;;\n  stash)\n    case $first_arg in\n      list|show) exec \"$real_git\" \"$@\" ;;\n    esac\n    ;;\n  remote)\n    case $first_arg in\n      ''|-v|--verbose|show|get-url) exec \"$real_git\" \"$@\" ;;\n    esac\n    ;;\n  reflog)\n    case $first_arg in\n      ''|show) exec \"$real_git\" \"$@\" ;;\n    esac\n    ;;\nesac\n\n# A write with no option before the subcommand acts on the repository that the\n# working directory (or GIT_DIR) selects. Outside the project it runs directly.\n# An option this script does not know stands where the subcommand would be;\n# the options after it may name any repository, so noskills decides.\ncase $subcommand in\n  push|send-pack|-*) ;;\n  *)\n    if [ \"$1\" = \"$subcommand\" ]; then\n      target_git_dir=$(\"$real_git\" rev-parse --path-format=absolute --git-common-dir 2>/dev/null) || target_git_dir=''\n      if [ \"$target_git_dir\" != \"$project_git_dir\" ]; then\n        exec \"$real_git\" \"$@\"\n      fi\n    fi\n    ;;\nesac\n\n# The command may change directory before noskills starts (pnpm run does), so\n# the working directory git would run in travels as NOSKILLS_GIT_CWD.\ngit_cwd=$(pwd -P)\n\n# The check may never answer (npx can wait on the registry), so a watcher stops\n# it after 7 seconds: SIGTERM, then SIGKILL 2 seconds later.\n# The check writes to a file rather than to this script's stderr, so a process\n# it leaves behind cannot keep the caller's pipe open.\ncheck_log=$(mktemp \"${TMPDIR:-/tmp}/noskills-git-check.XXXXXX\") || {\n  printf '%s\\n' \"noskills: could not create a temporary file to check \\\"git $subcommand\\\", so it did not run.\" >&2\n  exit 1\n}\nNOSKILLS_REAL_GIT=$real_git NOSKILLS_GIT_CWD=$git_cwd NOSKILLS_PROJECT_ROOT='/p' noskills invoke-hook git-exec \"$@\" </dev/null >\"$check_log\" 2>&1 &\ncheck_pid=$!\n(\n  watch_status=0\n  trap 'kill \"$nap_pid\" 2>/dev/null; exit \"$watch_status\"' TERM\n  sleep 7 &\n  nap_pid=$!\n  wait \"$nap_pid\"\n  watch_status=124\n  kill -TERM \"$check_pid\" 2>/dev/null\n  sleep 2 &\n  nap_pid=$!\n  wait \"$nap_pid\"\n  kill -KILL \"$check_pid\" 2>/dev/null\n  exit 124\n) </dev/null >/dev/null 2>&1 &\nwatch_pid=$!\ntrap 'kill \"$check_pid\" \"$watch_pid\" 2>/dev/null; rm -f \"$check_log\"; exit 1' HUP INT TERM\n# The shell's notice for a stopped job would reach the agent; the message below\n# says what happened instead.\nwait \"$check_pid\" 2>/dev/null\nstatus=$?\nkill \"$watch_pid\" 2>/dev/null\nwait \"$watch_pid\" 2>/dev/null\nwatch_status=$?\ntrap - HUP INT TERM\ncat \"$check_log\" >&2\nrm -f \"$check_log\"\n\nif [ \"$status\" -ne 0 ]; then\n  if [ \"$watch_status\" -eq 124 ]; then\n    printf '%s\\n' \"noskills: the check for \\\"git $subcommand\\\" did not answer within 7 seconds, so it did not run. When command in .eser/manifest.yml starts noskills through npx, install noskills and set command to the installed one, so the check does not wait on the network.\" >&2\n  elif [ \"$status\" -ne 3 ]; then\n    printf '%s\\n' \"noskills: could not check \\\"git $subcommand\\\" (exit status $status), so it did not run.\" >&2\n  fi\n  exit 1\nfi\nexec \"$real_git\" \"$@\"\n"
     },
     {
       "fn": "prependToPath",

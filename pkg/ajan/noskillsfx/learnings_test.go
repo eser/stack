@@ -25,7 +25,7 @@ func TestJSHelpers(t *testing.T) {
 		}
 	}
 
-	if got := RuleSlug("--Use Deno Tests, always!--"); got != "use-deno-tests-always" {
+	if got := RuleSlug("--Use Node Tests, always!--"); got != "use-node-tests-always" {
 		t.Errorf("RuleSlug = %q", got)
 	}
 

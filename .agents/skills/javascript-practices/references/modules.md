@@ -66,7 +66,7 @@ The only exceptions to the namespace form:
 
 - `import { runtime } from "@eserstack/standards/cross-runtime";`
 - type-only imports (`import type { BuildOptions } from "./build.ts";`), which
-  the `verbatim-module-syntax` lint rule requires for types (Import Paths)
+  `verbatimModuleSyntax` requires for types (Import Paths)
 - the default import of a JSON module
   (`import pkg from "./package.json" with { type: "json" };`), whose only export
   is `default`
@@ -107,9 +107,10 @@ const filePath = join(dir, "config.ts"); // which join?
 **Why:** a namespace shows where every symbol comes from and cannot collide with
 a local name. The root form keeps one import per dependency. A sub-path loads
 only that module and its imports, while the root loads every module it
-re-exports, so the sub-path keeps the module graph small. JSR and npm resolve
-only the paths in `exports`, and JSR cannot resolve a package's own name while
-that version is being published.
+re-exports, so the sub-path keeps the module graph small. Node resolves only the
+paths in `exports`. A package's own name also goes through `exports`, which can
+point at a file other than the source next to it, such as an emitted build; a
+relative path always names the file (ADR 0005).
 
 ---
 
@@ -118,16 +119,16 @@ that version is being published.
 Scope: Relative imports
 
 Rule: Write the full file path with its extension. A package's entry point is
-`mod.ts`; never import a directory. The root `deno.json` enables
-`sloppy-imports` for compatibility, but new code does not rely on it. Use
-`import type` for type-only imports; the `verbatim-module-syntax` lint rule
-requires it.
+`mod.ts`; never import a directory. Use `import type` for type-only imports;
+`verbatimModuleSyntax` in `tsconfig.json` requires it. A JSON import carries
+`with { type: "json" }`.
 
 Correct:
 
 ```typescript
 import * as math from "./math/add.ts";
 import type { BuildOptions } from "../config/build.ts";
+import pkg from "./package.json" with { type: "json" };
 ```
 
 Incorrect:
@@ -135,9 +136,14 @@ Incorrect:
 ```typescript
 import * as math from "./math/add"; // missing extension
 import * as loggers from "./loggers"; // directory import
+import pkg from "./package.json"; // no import attribute
 ```
 
-**Why:** explicit paths resolve the same way in Deno, Node, Bun and bundlers.
+**Why:** Node's ESM resolver loads exactly the path it is given, with no
+extension guessing or directory index, and it refuses a JSON module without the
+import attribute. Node strips types without reading other files, so it cannot
+tell a type-only import from a value import unless `import type` says so
+(ADR 0005).
 
 ---
 

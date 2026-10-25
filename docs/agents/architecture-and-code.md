@@ -24,11 +24,15 @@ architecture-guidelines: Architectural Decision Records lists; a new one does.
 
 ## Tests
 
-- Both `Deno.test` and `@std/testing/bdd` are in use across packages; a few
-  older files use `_test.ts` (for example in `pkg/@eserstack/workflows`).
-- `deno task cli test` runs the suite in parallel with `--trace-leaks` and
-  writes coverage to `etc/coverage/`. `deno task cli ok` runs it as part of the
-  precommit workflow, and the Build workflow uploads LCOV coverage to Codecov.
+- Tests run on `node:test`. Most files import it as `nodeTest`; the files the
+  codemod converted from `@std/testing/bdd` import it as `bdd`. Assertions,
+  mocks, error capture and the opt-in leak check come from the private
+  `@eserstack/test-kit` package, which re-exports `@std/assert` and
+  `@std/testing/mock` until M2-T4 moves it to `node:assert`.
+- `pnpm cli test` runs `node --test` over `pkg/**/*.test.ts` and
+  `etc/scripts/*.test.ts`, one process per file, with coverage written as LCOV
+  to `etc/coverage.lcov`. `pnpm cli ok` runs the same command as part of the
+  precommit workflow, and the Build workflow uploads that file to Codecov.
 
 ## Validators
 

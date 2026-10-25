@@ -15,7 +15,8 @@ documented as decisions.
 - Callers import adapters explicitly and pass them in. No string-selected
   adapters, no convenience factories, no dynamic imports inside a package.
 - Library code reaches the runtime through an adapter
-  (`@eserstack/standards/cross-runtime`), never `Deno.*` directly.
+  (`@eserstack/standards/cross-runtime`), never `process.*` or `node:fs`
+  directly.
 - Every option has a safe default; add an option only for a named case; no
   positional booleans.
 - Request ids and trace state travel in the request context, never as extra

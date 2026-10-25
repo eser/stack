@@ -55,6 +55,8 @@ const expandWorkspacePaths = async (
       const parentDir = runtime.path.join(root, pattern.slice(0, -2));
 
       try {
+        // Patterns expand one at a time, so the paths keep the pattern order.
+        // oxlint-disable-next-line no-await-in-loop
         for await (const entry of runtime.fs.readDir(parentDir)) {
           if (entry.isDirectory) {
             paths.push(runtime.path.join(parentDir, entry.name));
@@ -87,6 +89,7 @@ const expandWorkspacePaths = async (
       const regex = new RegExp(`^${regexPattern}$`);
 
       try {
+        // oxlint-disable-next-line no-await-in-loop
         for await (const entry of runtime.fs.walk(parentDir, {
           includeDirs: true,
           includeFiles: false,

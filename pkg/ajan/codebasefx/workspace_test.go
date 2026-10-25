@@ -88,7 +88,6 @@ func TestDiscoverWorkspacePackages(t *testing.T) {
 			want: []string{"one"},
 		},
 
-
 		{
 			name: "double star matches at any depth",
 			files: []workspaceFile{
@@ -108,7 +107,6 @@ func TestDiscoverWorkspacePackages(t *testing.T) {
 			},
 			want: []string{"a"},
 		},
-
 	}
 
 	for _, tc := range cases {

@@ -181,18 +181,22 @@ decision-55 to decision-60 on 2026-10-24.
 After M1, `git grep -wi deno` and `git grep -wi bun` must return only these
 paths, each for the reason given (M1-T37 audits against this list):
 
-| Path                                                                        | Reason                                                                 |
-| --------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| `CHANGELOG.md`                                                              | Release history                                                        |
-| `docs/adr/0001-*.md` to `docs/adr/0004-*.md` and this ADR                   | Decision history                                                       |
-| `backlog/`                                                                  | Task and decision history                                              |
-| Validator patterns in `pkg/@eserstack/codebase/` and `pkg/ajan/codebasefx/` | They name `Deno.*` and `Bun.*` APIs in order to ban them               |
-| `pkg/@eserstack/noskills/detect/codebase.ts`                                | Detects users' Deno projects (decision-12)                             |
-| `pkg/@eserstack/noskills/sync/hook-commands.ts`                             | Recognizes `deno run` and `deno x` as network commands in users' hooks |
-| `pkg/@eserstack/noskills/defaults/concerns/*.json`                          | Default concern texts that mention Deno projects                       |
-| `pkg/ajan/kitfx/deps.go`, `pkg/ajan/kitfx/types.go`, their tests and README | ProjectTypeDeno and its `deno add` hints for users' projects           |
-| `pkg/@eserstack/kit/recipes/dependency-resolver.ts` and its test            | The TypeScript twin of ProjectTypeDeno and its `deno add` hints        |
-| `pkg/ajan/codebasefx/workspace*.go` and its tests                           | Reads `deno.json` in users' repositories                               |
+| Path                                                                                                                            | Reason                                                                                    |
+| ------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `CHANGELOG.md`                                                                                                                  | Release history                                                                           |
+| `docs/adr/0001-*.md` to `docs/adr/0004-*.md` and this ADR                                                                       | Decision history                                                                          |
+| `backlog/`                                                                                                                      | Task and decision history                                                                 |
+| Validator patterns in `pkg/@eserstack/codebase/` and `pkg/ajan/codebasefx/`                                                     | They name `Deno.*` and `Bun.*` APIs in order to ban them                                  |
+| `pkg/@eserstack/noskills/detect/codebase.ts` and its Go twin `pkg/ajan/noskillsfx/lifecycle_init.go`                            | Detects users' Deno projects (decision-12)                                                |
+| `pkg/@eserstack/noskills/sync/hook-commands.ts`, `hook-commands.test.ts` and the Go twin `pkg/ajan/noskillsfx/hook_commands.go` | Recognizes `deno run` and `deno x` as network commands in users' hooks                    |
+| `pkg/@eserstack/noskills/defaults/concerns/*.json` and `pkg/ajan/noskillsfx/defaults/concerns/*.json`                           | Default concern texts that mention Deno projects                                          |
+| `pkg/@eserstack/noskills/context/compiler.ts` and `pkg/ajan/noskillsfx/next_discovery.go`                                       | Recognize version terms such as "Deno 2.7+" in users' specs                               |
+| `pkg/@eserstack/noskills/sync/adapters/shared/agent-prompts.ts` and `pkg/ajan/noskillsfx/sync_claude.go`                        | The generated agents take checks from `deno.json` tasks too                               |
+| `pkg/ajan/noskillsfx/hook_parity_test.go` and `pkg/ajan/noskillsfx/testdata/hook_parity.json`                                   | The parity corpus and answers of the `deno run` and `deno x` recognizer                   |
+| `pkg/ajan/noskillsfx/golden/testdata/golden/`                                                                                   | Recordings of the TypeScript CLI, whose generated agents carry the `deno.json` tasks hint |
+| `pkg/ajan/kitfx/deps.go`, `pkg/ajan/kitfx/types.go`, their tests and README                                                     | ProjectTypeDeno and its `deno add` hints for users' projects                              |
+| `pkg/@eserstack/kit/recipes/dependency-resolver.ts` and its test                                                                | The TypeScript twin of ProjectTypeDeno and its `deno add` hints                           |
+| `pkg/ajan/codebasefx/workspace*.go` and its tests                                                                               | Reads `deno.json` in users' repositories                                                  |
 
 Any other match is fixed, or added here with a reason in the same change.
 decision-12 is revisited when Deno support ends, about October 2027.

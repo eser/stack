@@ -1,10 +1,10 @@
 ---
 id: TASK-211
 title: 'noskills: pass the 72 test files on Node and stop generating deno commands'
-status: In Progress
+status: Done
 assignee: []
 created_date: '2026-10-15 20:38'
-updated_date: '2026-10-26 10:00'
+updated_date: '2026-10-26 12:00'
 labels:
   - cutover
   - noskills
@@ -37,7 +37,7 @@ Plan key: M1-T17. Effort: large.
 <!-- AC:BEGIN -->
 - [x] #1 `node --test 'pkg/@eserstack/noskills/**/*.test.ts'` passes
 - [x] #2 Generated hook commands and fixtures contain no `deno run` or --allow-*
-- [ ] #3 `git grep -wni deno pkg/@eserstack/noskills pkg/ajan/noskillsfx` matches only the ADR 0005 allowlist paths; tsc and oxlint are clean
+- [x] #3 `git grep -wni deno pkg/@eserstack/noskills pkg/ajan/noskillsfx` matches only the ADR 0005 allowlist paths; tsc and oxlint are clean
 <!-- AC:END -->
 
 ## Implementation Notes
@@ -76,4 +76,10 @@ TASK-211 work (2026-10-26, node 26.12.1):
 - scripts/npm-build.ts runs under node; the `npm:*`/`jsr:*` externals are dropped. READMEs and README-HOW updated. cmd/noskills run_binary_test.go parity runs node (passes with NOSKILLS_RUN_PARITY=1).
 - tsc: seven TS9010 isolatedDeclarations errors fixed with explicit types. oxlint and oxfmt clean. node --test: 81 files, 1918 tests pass, each file alone too. Go: cmd/noskills and pkg/ajan/noskillsfx tests pass.
 - AC #3 open: outside the ADR 0005 allowlist, pkg/@eserstack/noskills keeps context/compiler.ts (version-term regex naming Deno), sync/adapters/shared/agent-prompts.ts (`deno.json tasks` hint for users' projects) and sync/hook-commands.test.ts (tests of the allowlisted recognizer); they need ADR entries or removal. pkg/ajan/noskillsfx still has 24 files / 267 lines: goldens recorded with a `deno task cli noskills` prefix, git_wrapper.go:272, hook_commands.go:224 (now differs from TS), sync_claude.go:33, lifecycle_init.go, next_discovery.go, learnings_test.go, hook_parity_test.go (deno fmt) and testdata/hook_parity.json. The persistence.go, compiler_test.go and manifest_preservation_test.go mentions this description names are already gone.
+TASK-211 AC #3 (2026-10-26, node 26.12.1):
+- Go twin: git_wrapper.go says `(pnpm run does)`, hook_commands.go drops the `deno install` offer, the sync_adapters golden case uses the `pnpm cli noskills` prefix, and learnings_test.go slugs "Use Node Tests".
+- Goldens re-recorded from the TypeScript CLI on node (NOSKILLS_GOLDEN_RECORD=1 go test -run 'TestRecord$|TestSyncAdaptersMatchTypeScript' ./pkg/ajan/noskillsfx/golden/) and the hook parity recording with NOSKILLS_PARITY_RECORD=1. The parity recorder now formats with the repository's oxfmt (it skips testdata/, so it formats a temporary copy with .oxfmtrc.json) instead of deno fmt; the output equals the old deno fmt layout. The recorder moved to hook_parity_record_test.go.
+- Bug fixed test-first: under node, provider detection sometimes outlasts one spinner interval, so two recordings of the lifecycle scenario differed by a spinner frame. normalize() drops spinner frames (golden/normalize_test.go).
+- ADR 0005 Appendix B now lists the Go twins and compiler.ts, agent-prompts.ts/sync_claude.go, hook-commands.test.ts, the parity corpus and recording, and golden/testdata/golden/ (its only Deno mention is the `deno.json tasks` hint of the generated agents). The AC #3 grep matches only those paths.
+- Checks: go vet, go test (noskillsfx, golden, cmd/noskills), golangci-lint (0 issues), node --test (1918 pass), tsc and oxlint clean.
 <!-- SECTION:NOTES:END -->

@@ -3,10 +3,10 @@ id: TASK-204
 title: >-
   codebase: ban Deno and Bun identifiers in the validators and clean the Go
   codebasefx twin
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-10-15 20:38'
-updated_date: '2026-10-25 16:00'
+updated_date: '2026-10-26 10:00'
 labels:
   - cutover
   - codebase
@@ -41,11 +41,11 @@ Plan key: M1-T10. Effort: medium.
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Validator tests cover Deno.x, globalThis.Deno, Bun.x and an aliased global, all reported, plus a string literal 'deno.json' that is not reported
-- [ ] #2 .eser/baselines has no runtime-js-apis baseline
-- [ ] #3 lint-plugin.ts and its export are gone; npm-externals has no bun:ffi
-- [ ] #4 `git grep -wni 'deno\|bun' pkg/ajan/codebasefx pkg/@eserstack/codebase` matches only the validator patterns and their test fixtures
-- [ ] #5 `node --test pkg/@eserstack/codebase` and `make ok` pass; tsc and oxlint are clean for the package
+- [x] #1 Validator tests cover Deno.x, globalThis.Deno, Bun.x and an aliased global, all reported, plus a string literal 'deno.json' that is not reported
+- [x] #2 .eser/baselines has no runtime-js-apis baseline
+- [x] #3 lint-plugin.ts and its export are gone; npm-externals has no bun:ffi
+- [x] #4 `git grep -wni 'deno\|bun' pkg/ajan/codebasefx pkg/@eserstack/codebase` matches only the validator patterns and their test fixtures
+- [x] #5 `node --test pkg/@eserstack/codebase` and `make ok` pass; tsc and oxlint are clean for the package
 <!-- AC:END -->
 
 ## Implementation Notes
@@ -59,4 +59,15 @@ Hand-work list (TASK-175 spike, 2026-10-24, node 26.12.1):
 - Docs: pkg/@eserstack/codebase/README.md (8), pkg/@eserstack/codebase/AGENTS.md (2).
 
 TASK-198 (2026-10-25): the test and bench codemods left no site for hand edits in this task's files (0 unhandled), and none of its test files fails under `node --test --test-force-exit` on Node 26.12.1 when run alone.
+
+TASK-204 (2026-10-26, node 26.12.1):
+- validate-runtime-js-apis: one implementation, in Go on the M0-T16 lexer (pkg/ajan/codebasefx/runtime_js_apis.go, moved out of validators.go). Rules: every `Deno` and `Bun` identifier in code (globalThis.Deno, aliases such as g.Bun, typeof checks, test files), and the process rule kept per decision-16 with the local-binding exemption; comments and string, template and regex literals never count; only standards/cross-runtime/ is skipped. The TS validator calls it through EserAjanCodebaseValidateFiles, as validate-naming-and-todos does, so the TS and Go engines report the same issues. Baseline support is gone (no .eser/baselines/runtime-js-apis.json, no --write-baseline). Tests: runtime_js_apis_test.go (17 rule cases, exact messages) and validate-runtime-js-apis.test.ts (3 bridge tests, including "deno.json" in a string, not reported).
+- On the repo with no excludes the validator finds no Deno or Bun reference in code; 50 process.* findings remain, 31 in .test.ts files that the manifest's ".test.ts" exclude still covers (ajan 21, shell 6, etc/scripts 2, test-kit 1, etc/codemods 1). With the manifest excludes the step passes.
+- Deleted validate-package-configs (TS, validation/validators/package-configs.ts, module.ts entry, ./validate-package-configs export; Go CheckPackageConfigs, its result types and the validate-package-configs tree tool) per decision-5: with package.json as the only package config there is nothing to compare. Cross-package: removed the EserAjanCodebaseCheckPackageConfigs export from pkg/@eserstack/ajan (main.go, bridge_codebase.go, ffi/types.ts, ffi/backend-node.ts, wasm/loader-reactor.ts and its tests; reactor_protocol_test.go now counts 98 names).
+- codebasefx: workspace discovery, the circular-deps graph and mod-exports entry points read package.json only (RawDeno, Imports and the deno.json workspace branch removed); version planning reads package.json only (configFilePriority, the jsonc comment stripper removed).
+- Parity tests: TestPlanVersionsMatchesTypeScript and TestReleaseChangelogMatchesTypeScript run the TS side with `node <file.ts>` and format with the repo's oxfmt; TestFormatChangelogSectionMatchesDenoFmt became TestFormatChangelogSectionMatchesOxfmt. The changelog comparison failed: FormatChangelogSection wrapped list items at 80 columns as dprint did, while oxfmt with proseWrap "preserve" keeps them on one line (changelog_format.go wrapListItem). Fixed at the origin: FormatChangelogSection keeps items on one line and still rewrites *x* as _x_; both comparisons pass. The workspace fixture lost its deno.json and jsr.jsonc files, so TestReleaseContract now also bumps @fixture/two.
+- Deleted lint-plugin.ts and its export (decision-34); npm-externals.ts already had no bun:ffi. Docs: codebase README (tools table, baseline section, upgrade notes) and AGENTS.md.
+- Open for AC #4: the remaining matches outside the validator are the README upgrade note that describes the ban, and two TASK-203 test files (changelog-text.test.ts:65 lists bun in a package-manager regex; versions.test.ts asserts deno.json is never written). Open for AC #5: `node --test pkg/@eserstack/codebase` passes (151 of 151) and tsc reports nothing in codebase or ajan; oxlint reports no-await-in-loop twice in package/workspace.ts (TASK-203); `make ok` fails outside this task, in noskillsfx (gosec in hook_parity_test.go, TestSyncAdaptersMatchTypeScript, golden TestReplay). go vet, go test and golangci-lint pass for codebasefx and for the bridge module.
+The integration agent cleared the rest of AC #4 and the codebase oxlint findings: the `bun` alternative left the package-manager regex in changelog-text.test.ts, the README upgrade note describes the ban without naming the globals, and the two nested `for await` loops in package/workspace.ts carry `no-await-in-loop` pragmas, because the patterns expand one at a time to keep the path order. `git grep -wni 'deno\|bun' pkg/ajan/codebasefx pkg/@eserstack/codebase` now matches only validate-runtime-js-apis.ts, runtime_js_apis.go and their tests, plus versions.test.ts, a regression test that a stray deno.json is never read or written. For AC #5, `node --test pkg/@eserstack/codebase` gives 151 of 151, and oxlint and tsc report nothing for the package. AC #5 stays open until `make ok` passes; it fails only in pkg/ajan/noskillsfx, which TASK-211 AC #3 is fixing.
+After TASK-211 re-recorded the noskillsfx goldens, `make ok` passes, and `pnpm cli ok` passes on the cutover tree ("All checks passed!"), so AC #5 holds.
 <!-- SECTION:NOTES:END -->

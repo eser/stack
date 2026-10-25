@@ -194,11 +194,10 @@ try {
 
     if (-not $Version) { throw 'Could not determine latest version' }
 
-    Write-Host "Installing noskills-server v$Version (Windows/$archName)..."
+    Write-Host "Installing $Product v$Version (Windows/$archName)..."
 
-    # Must match the name_template in .goreleaser.yaml, which renders
-    # `{{ title .Os }}` as "Windows" and maps amd64 -> x86_64, with the
-    # format_overrides entry making it .zip rather than .tar.gz.
+    # Must match the archive names `eser dev compile` writes:
+    # <product>-v<version>-<Rust target triple>, a .zip on Windows.
     $archive = "$Product-v$Version-x86_64-pc-windows-msvc.zip"
     $zip = Join-Path $tmp $archive
 
@@ -298,7 +297,7 @@ try {
       }
       catch {
         throw ("Could not replace $target -- it may be running. " +
-          "Stop noskills-server and any eser processes, then re-run. ($_)")
+          "Stop any running $exe, then re-run. ($_)")
       }
     }
 
@@ -316,12 +315,14 @@ try {
   Write-Host ''
   Write-Host "Installed to ${InstallDir}: $($installed -join ', ')"
 
-  Write-Host ''
-  Write-Host 'Start the daemon:'
-  Write-Host '  noskills-server start'
-  Write-Host ''
-  Write-Host 'Check everything is working:'
-  Write-Host '  noskills-server doctor'
+  if ($Product -eq 'noskills-server') {
+    Write-Host ''
+    Write-Host 'Start the daemon:'
+    Write-Host '  noskills-server start'
+    Write-Host ''
+    Write-Host 'Check everything is working:'
+    Write-Host '  noskills-server doctor'
+  }
 }
 finally {
   Remove-Item -LiteralPath $tmp -Recurse -Force -ErrorAction SilentlyContinue

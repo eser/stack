@@ -1,0 +1,24 @@
+{
+  "name": "@eserstack/noskills-darwin-x64",
+  "version": "4.5.2",
+  "description": "noskills binary for macOS x64 (Intel)",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/eser/stack",
+    "directory": "pkg/@eserstack/noskills-darwin-x64"
+  },
+  "homepage": "https://github.com/eser/stack/tree/main/cmd/noskills",
+  "bugs": {
+    "url": "https://github.com/eser/stack/issues"
+  },
+  "os": [
+    "darwin"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "files": [
+    "noskills"
+  ]
+}

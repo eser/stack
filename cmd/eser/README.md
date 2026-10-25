@@ -53,8 +53,9 @@ bin/eser --help       # built-in commands and the manifest's scripts
 
 ## Release builds: `eser dev`
 
-- `eser dev compile [--current-only] [--out dir]` builds `eser` and
-  `noskills-server` with `CGO_ENABLED=0` for the five release targets and writes
+- `eser dev compile [--current-only] [--out dir]` builds `eser`, `noskills`,
+  `noskills-server` and the `laroux` forwarding stub (`cmd/legacy-forwarder`,
+  decision-9) with `CGO_ENABLED=0` for the five release targets and writes
   `<name>-v<version>-<triple>.tar.gz` (`.zip` on Windows, the Rust triples of
   decision-38) and `SHA256SUMS.txt` to `etc/temp/binaries/`. `SOURCE_DATE_EPOCH`
   sets the time stored in the archives, so a rebuild of a commit gives the same
@@ -69,6 +70,16 @@ bin/eser --help       # built-in commands and the manifest's scripts
 
 Both take `--dry-run` (placeholder hashes for the binaries this release builds;
 nothing is pushed or written) and `--sums <file>` (a local `SHA256SUMS.txt`).
+
+- `eser dev npm-binaries [--from dir]` copies `noskills` out of the archives in
+  `etc/temp/binaries/` into its npm platform packages,
+  `pkg/@eserstack/noskills-<platform>/`, for the targets whose archives exist.
+  The `noskills` npm package is the launcher that runs that binary.
+- `eser dev nix-vendor-hash [--check]` runs `go mod vendor`, hashes the result
+  the way Nix does, and writes it as the `vendorHash` of the flake's `noskills`
+  package, which `buildGoModule` builds from source. `--check` only compares;
+  the precommit workflow runs it, so a `go.sum` change fails the gate until the
+  hash is written.
 
 ## Recipes: `eser kit`
 

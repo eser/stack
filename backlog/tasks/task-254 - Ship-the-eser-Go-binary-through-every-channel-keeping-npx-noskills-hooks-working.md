@@ -46,3 +46,9 @@ Plan key: M3-T11. Effort: medium.
 - [ ] #4 The preflight self-update test from a v4.5.2-named archive passes
 - [ ] #5 The launcher fails with a clear message on an unsupported platform
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+From TASK-261 (2026-10-25): the npm noskills package is already the launcher of the Go noskills, with @eserstack/noskills-<platform> optional dependencies. So the eser launcher can skip the Node noskills dependency step and depend on `noskills` at the exact version, pointing ESER_PLUGIN_PATH at its bin directory; cmd/eser already resolves `noskills` there. TASK-261 AC #3 (`npx <packed eser> noskills --version`) waits on this launcher.
+<!-- SECTION:NOTES:END -->

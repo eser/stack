@@ -69,6 +69,16 @@ func TestCompileReleaseWritesTheV452Names(t *testing.T) {
 		"noskills-server-v4.5.2-aarch64-unknown-linux-gnu.tar.gz",
 		"noskills-server-v4.5.2-x86_64-unknown-linux-gnu.tar.gz",
 		"noskills-server-v4.5.2-x86_64-pc-windows-msvc.zip",
+		"laroux-v4.5.2-aarch64-apple-darwin.tar.gz",
+		"laroux-v4.5.2-x86_64-apple-darwin.tar.gz",
+		"laroux-v4.5.2-aarch64-unknown-linux-gnu.tar.gz",
+		"laroux-v4.5.2-x86_64-unknown-linux-gnu.tar.gz",
+		"laroux-v4.5.2-x86_64-pc-windows-msvc.zip",
+		"noskills-v4.5.2-aarch64-apple-darwin.tar.gz",
+		"noskills-v4.5.2-x86_64-apple-darwin.tar.gz",
+		"noskills-v4.5.2-aarch64-unknown-linux-gnu.tar.gz",
+		"noskills-v4.5.2-x86_64-unknown-linux-gnu.tar.gz",
+		"noskills-v4.5.2-x86_64-pc-windows-msvc.zip",
 	}
 
 	sums, err := os.ReadFile(result.SumsPath)

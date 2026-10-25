@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as shellExec from "@eserstack/shell/exec";
 import * as crossRuntime from "@eserstack/standards/cross-runtime";
@@ -109,13 +110,10 @@ const withStandInCli = async (
 };
 
 for (const { name, create } of cases) {
-  Deno.test({
-    name: `${name}: breaking out after the first event stops the CLI`,
-    // The stand-in CLI is a POSIX shell script.
-    ignore: crossRuntime.getPlatform() === "windows",
-    // The native library the first spawn loads outlives the test.
-    sanitizeResources: false,
-    fn: () =>
+  nodeTest.test(
+    `${name}: breaking out after the first event stops the CLI`,
+    { skip: crossRuntime.getPlatform() === "windows" },
+    () =>
       withStandInCli(ENDLESS_CLI, async (binary, dir) => {
         let pid: string | null = null;
 
@@ -151,15 +149,12 @@ for (const { name, create } of cases) {
           }
         }
       }),
-  });
+  );
 
-  Deno.test({
-    name: `${name}: a CLI that exits on its own ends the stream with message_done`,
-    // The stand-in CLI is a POSIX shell script.
-    ignore: crossRuntime.getPlatform() === "windows",
-    // The native library the first spawn loads outlives the test.
-    sanitizeResources: false,
-    fn: () =>
+  nodeTest.test(
+    `${name}: a CLI that exits on its own ends the stream with message_done`,
+    { skip: crossRuntime.getPlatform() === "windows" },
+    () =>
       withStandInCli(FINITE_CLI, async (binary) => {
         const events: generation.StreamEvent[] = [];
 
@@ -174,5 +169,5 @@ for (const { name, create } of cases) {
         assert.assertEquals(events.at(0)?.kind, "content_delta");
         assert.assertEquals(events.at(-1)?.kind, "message_done");
       }),
-  });
+  );
 }

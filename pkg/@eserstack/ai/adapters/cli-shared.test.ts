@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as cliShared from "./cli-shared.ts";
 
 // Stopping a CLI through the native library is tested end to end in
@@ -12,9 +13,14 @@ const exitedProcess = (): cliShared.CliProcess => ({
   kill: () => {},
 });
 
-Deno.test("stopCliProcess resolves when the stderr capture failed", async () => {
-  // The capture fails only together with stdout, whose read reports the error.
-  const stderrPromise = Promise.reject(new Error("read stderr: handle closed"));
+nodeTest.test(
+  "stopCliProcess resolves when the stderr capture failed",
+  async () => {
+    // The capture fails only together with stdout, whose read reports the error.
+    const stderrPromise = Promise.reject(
+      new Error("read stderr: handle closed"),
+    );
 
-  await cliShared.stopCliProcess(exitedProcess(), stderrPromise);
-});
+    await cliShared.stopCliProcess(exitedProcess(), stderrPromise);
+  },
+);

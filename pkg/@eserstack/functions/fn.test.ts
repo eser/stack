@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as fn from "./fn.ts";
 import * as pipeline from "./pipeline.ts";
@@ -11,7 +12,7 @@ import * as results from "@eserstack/primitives/results";
 
 // === Basic Pipeline Tests ===
 
-Deno.test("pipeline.collect() creates empty pipeline", async () => {
+nodeTest.test("pipeline.collect() creates empty pipeline", async () => {
   const testPipeline = pipeline.collect<string, Error>();
   const result = await testPipeline.run();
 
@@ -21,7 +22,7 @@ Deno.test("pipeline.collect() creates empty pipeline", async () => {
   }
 });
 
-Deno.test("pipeline.collect() with single sync function", async () => {
+nodeTest.test("pipeline.collect() with single sync function", async () => {
   const testPipeline = pipeline.collect<string, Error>(() =>
     results.ok("hello"),
   );
@@ -33,7 +34,7 @@ Deno.test("pipeline.collect() with single sync function", async () => {
   }
 });
 
-Deno.test("pipeline.collect() with single async function", async () => {
+nodeTest.test("pipeline.collect() with single async function", async () => {
   const testPipeline = pipeline.collect<string, Error>(async () => {
     await Promise.resolve();
     return results.ok("async hello");
@@ -46,7 +47,7 @@ Deno.test("pipeline.collect() with single async function", async () => {
   }
 });
 
-Deno.test("pipeline.collect() with generator function", async () => {
+nodeTest.test("pipeline.collect() with generator function", async () => {
   const testPipeline = pipeline.collect<string, Error>(function* () {
     yield results.ok("first");
     yield results.ok("second");
@@ -59,7 +60,7 @@ Deno.test("pipeline.collect() with generator function", async () => {
   }
 });
 
-Deno.test("pipeline.collect() with async generator function", async () => {
+nodeTest.test("pipeline.collect() with async generator function", async () => {
   const testPipeline = pipeline.collect<string, Error>(async function* () {
     yield results.ok("first");
     await Promise.resolve();
@@ -75,7 +76,7 @@ Deno.test("pipeline.collect() with async generator function", async () => {
 
 // === use() Tests ===
 
-Deno.test("use() adds middleware to pipeline", async () => {
+nodeTest.test("use() adds middleware to pipeline", async () => {
   const testPipeline = pipeline
     .collect<string, Error>()
     .use(() => results.ok("first"))
@@ -90,7 +91,7 @@ Deno.test("use() adds middleware to pipeline", async () => {
   }
 });
 
-Deno.test("use() with next() chains middleware", async () => {
+nodeTest.test("use() with next() chains middleware", async () => {
   const testPipeline = pipeline
     .collect<string, Error>()
     .use(async function* (ctx) {
@@ -109,7 +110,7 @@ Deno.test("use() with next() chains middleware", async () => {
   }
 });
 
-Deno.test("use() middleware receives arguments", async () => {
+nodeTest.test("use() middleware receives arguments", async () => {
   const testPipeline = pipeline
     .collect<string, Error>()
     .use((_ctx, ...args) => results.ok(`args: ${args.join(",")}`));
@@ -124,7 +125,7 @@ Deno.test("use() middleware receives arguments", async () => {
 
 // === iterate() Tests ===
 
-Deno.test("iterate() yields results one by one", async () => {
+nodeTest.test("iterate() yields results one by one", async () => {
   const testPipeline = pipeline.collect<number, Error>(function* () {
     yield results.ok(1);
     yield results.ok(2);
@@ -143,7 +144,7 @@ Deno.test("iterate() yields results one by one", async () => {
 
 // === testPipeline.run() Tests ===
 
-Deno.test("testPipeline.run() collects all results", async () => {
+nodeTest.test("testPipeline.run() collects all results", async () => {
   const testPipeline = pipeline.collect<number, Error>(function* () {
     yield results.ok(1);
     yield results.ok(2);
@@ -158,7 +159,7 @@ Deno.test("testPipeline.run() collects all results", async () => {
   }
 });
 
-Deno.test("testPipeline.run() stops on first failure", async () => {
+nodeTest.test("testPipeline.run() stops on first failure", async () => {
   const testPipeline = pipeline.collect<number, string>(function* () {
     yield results.ok(1);
     yield results.fail("error");
@@ -175,7 +176,7 @@ Deno.test("testPipeline.run() stops on first failure", async () => {
 
 // === runFirst() Tests ===
 
-Deno.test("runFirst() returns first result", async () => {
+nodeTest.test("runFirst() returns first result", async () => {
   const testPipeline = pipeline.collect<number, Error>(function* () {
     yield results.ok(1);
     yield results.ok(2);
@@ -190,14 +191,14 @@ Deno.test("runFirst() returns first result", async () => {
   }
 });
 
-Deno.test("runFirst() returns failure for empty pipeline", async () => {
+nodeTest.test("runFirst() returns failure for empty pipeline", async () => {
   const testPipeline = pipeline.collect<number, Error>();
   const result = await testPipeline.runFirst();
 
   assert.assertEquals(results.isFail(result), true);
 });
 
-Deno.test("runFirst() returns first failure", async () => {
+nodeTest.test("runFirst() returns first failure", async () => {
   const testPipeline = pipeline.collect<number, string>(() =>
     results.fail("first-error"),
   );
@@ -211,7 +212,7 @@ Deno.test("runFirst() returns first failure", async () => {
 
 // === runLast() Tests ===
 
-Deno.test("runLast() returns last result", async () => {
+nodeTest.test("runLast() returns last result", async () => {
   const testPipeline = pipeline.collect<number, Error>(function* () {
     yield results.ok(1);
     yield results.ok(2);
@@ -226,14 +227,14 @@ Deno.test("runLast() returns last result", async () => {
   }
 });
 
-Deno.test("runLast() returns failure for empty pipeline", async () => {
+nodeTest.test("runLast() returns failure for empty pipeline", async () => {
   const testPipeline = pipeline.collect<number, Error>();
   const result = await testPipeline.runLast();
 
   assert.assertEquals(results.isFail(result), true);
 });
 
-Deno.test("runLast() stops on failure", async () => {
+nodeTest.test("runLast() stops on failure", async () => {
   const testPipeline = pipeline.collect<number, string>(function* () {
     yield results.ok(1);
     yield results.fail("error");
@@ -250,7 +251,7 @@ Deno.test("runLast() stops on failure", async () => {
 
 // === mapError() Tests ===
 
-Deno.test("mapError() transforms error type", async () => {
+nodeTest.test("mapError() transforms error type", async () => {
   const testPipeline = pipeline
     .collect<number, string>(() => results.fail("string-error"))
     .mapError((e) => new Error(e));
@@ -264,7 +265,7 @@ Deno.test("mapError() transforms error type", async () => {
   }
 });
 
-Deno.test("mapError() does not affect success", async () => {
+nodeTest.test("mapError() does not affect success", async () => {
   const testPipeline = pipeline
     .collect<number, string>(() => results.ok(42))
     .mapError((e) => new Error(e));
@@ -279,7 +280,7 @@ Deno.test("mapError() does not affect success", async () => {
 
 // === recover() Tests ===
 
-Deno.test("recover() transforms failure to success", async () => {
+nodeTest.test("recover() transforms failure to success", async () => {
   const testPipeline = pipeline
     .collect<number, string>(() => results.fail("error"))
     .recover((_e) => results.ok(0));
@@ -292,7 +293,7 @@ Deno.test("recover() transforms failure to success", async () => {
   }
 });
 
-Deno.test("recover() does not affect success", async () => {
+nodeTest.test("recover() does not affect success", async () => {
   const testPipeline = pipeline
     .collect<number, string>(() => results.ok(42))
     .recover((_e) => results.ok(0));
@@ -307,7 +308,7 @@ Deno.test("recover() does not affect success", async () => {
 
 // === Error Handling Tests ===
 
-Deno.test("throws error when next() called multiple times", async () => {
+nodeTest.test("throws error when next() called multiple times", async () => {
   const testPipeline = pipeline.collect<string, Error>(async function* (ctx) {
     yield* ctx.next();
     yield* ctx.next(); // Second call should throw
@@ -322,7 +323,7 @@ Deno.test("throws error when next() called multiple times", async () => {
 
 // === Context State Tests ===
 
-Deno.test("context provides state object", async () => {
+nodeTest.test("context provides state object", async () => {
   let receivedState: Record<string, unknown> | null = null;
 
   const testPipeline = pipeline.collect<string, Error>((ctx) => {
@@ -336,87 +337,102 @@ Deno.test("context provides state object", async () => {
   assert.assertEquals(typeof receivedState, "object");
 });
 
-Deno.test("context state is shared by the middleware of one run", async () => {
-  const seen: unknown[] = [];
+nodeTest.test(
+  "context state is shared by the middleware of one run",
+  async () => {
+    const seen: unknown[] = [];
 
-  const testPipeline = pipeline
-    .collect<string, Error>()
-    .use(async function* (ctx) {
-      seen.push(ctx.state["user"]);
-      ctx.state["user"] = "eser";
-      yield* ctx.next();
-    })
-    .use((ctx) => results.ok(`user: ${ctx.state["user"]}`));
+    const testPipeline = pipeline
+      .collect<string, Error>()
+      .use(async function* (ctx) {
+        seen.push(ctx.state["user"]);
+        ctx.state["user"] = "eser";
+        yield* ctx.next();
+      })
+      .use((ctx) => results.ok(`user: ${ctx.state["user"]}`));
 
-  const first = await testPipeline.run();
-  const second = await testPipeline.run();
+    const first = await testPipeline.run();
+    const second = await testPipeline.run();
 
-  assert.assertEquals(results.isOk(first) && first.value, ["user: eser"]);
-  assert.assertEquals(results.isOk(second) && second.value, ["user: eser"]);
-  // Each run starts with empty state, so nothing leaks from the first run.
-  assert.assertEquals(seen, [undefined, undefined]);
-});
+    assert.assertEquals(results.isOk(first) && first.value, ["user: eser"]);
+    assert.assertEquals(results.isOk(second) && second.value, ["user: eser"]);
+    // Each run starts with empty state, so nothing leaks from the first run.
+    assert.assertEquals(seen, [undefined, undefined]);
+  },
+);
 
 // === Context.next() Delegation Tests ===
 
-Deno.test("mapError() maps a failure that passes through next() once", async () => {
-  const testPipeline = pipeline
-    .collect<number, string>()
-    .use(async function* (ctx) {
-      yield* ctx.next();
-    })
-    .use(async function* (ctx) {
-      yield* ctx.next();
-    })
-    .use(() => results.fail("inner"))
-    .mapError((e) => `wrapped(${e})`);
+nodeTest.test(
+  "mapError() maps a failure that passes through next() once",
+  async () => {
+    const testPipeline = pipeline
+      .collect<number, string>()
+      .use(async function* (ctx) {
+        yield* ctx.next();
+      })
+      .use(async function* (ctx) {
+        yield* ctx.next();
+      })
+      .use(() => results.fail("inner"))
+      .mapError((e) => `wrapped(${e})`);
 
-  const result = await testPipeline.run();
+    const result = await testPipeline.run();
 
-  assert.assertEquals(results.isFail(result) && result.error, "wrapped(inner)");
-});
+    assert.assertEquals(
+      results.isFail(result) && result.error,
+      "wrapped(inner)",
+    );
+  },
+);
 
-Deno.test("recover() recovers a failure that passes through next()", async () => {
-  const testPipeline = pipeline
-    .collect<number, string>()
-    .use(async function* (ctx) {
-      yield results.ok(1);
-      yield* ctx.next();
-    })
-    .use(() => results.fail("inner"))
-    .recover((_e) => results.ok(0));
+nodeTest.test(
+  "recover() recovers a failure that passes through next()",
+  async () => {
+    const testPipeline = pipeline
+      .collect<number, string>()
+      .use(async function* (ctx) {
+        yield results.ok(1);
+        yield* ctx.next();
+      })
+      .use(() => results.fail("inner"))
+      .recover((_e) => results.ok(0));
 
-  const result = await testPipeline.run();
+    const result = await testPipeline.run();
 
-  assert.assertEquals(results.isOk(result) && result.value, [1, 0]);
-});
+    assert.assertEquals(results.isOk(result) && result.value, [1, 0]);
+  },
+);
 
-Deno.test("next() called twice throws when the next middleware delegates too", async () => {
-  let downstreamRuns = 0;
+nodeTest.test(
+  "next() called twice throws when the next middleware delegates too",
+  async () => {
+    let downstreamRuns = 0;
 
-  const testPipeline = pipeline
-    .collect<number, Error>()
-    .use(async function* (ctx) {
-      yield* ctx.next();
-      yield* ctx.next();
-    })
-    .use(async function* (ctx) {
-      downstreamRuns++;
-      yield* ctx.next();
-    })
-    .use(() => results.ok(0));
+    const testPipeline = pipeline
+      .collect<number, Error>()
+      .use(async function* (ctx) {
+        yield* ctx.next();
+        yield* ctx.next();
+      })
+      .use(async function* (ctx) {
+        downstreamRuns++;
+        yield* ctx.next();
+      })
+      .use(() => results.ok(0));
 
-  await assert.assertRejects(
-    () => testPipeline.run(),
-    Error,
-    "next() called multiple times",
-  );
-  assert.assertEquals(downstreamRuns, 1);
-});
+    await assert.assertRejects(
+      () => testPipeline.run(),
+      Error,
+      "next() called multiple times",
+    );
+    assert.assertEquals(downstreamRuns, 1);
+  },
+);
 
 // === Complex Pipeline Tests ===
 
-Deno.test("complex pipeline with multiple middleware", async () => {
+nodeTest.test("complex pipeline with multiple middleware", async () => {
   const log: string[] = [];
 
   const testPipeline = pipeline
@@ -457,7 +473,7 @@ Deno.test("complex pipeline with multiple middleware", async () => {
   ]);
 });
 
-Deno.test("pipeline with mixed return types", async () => {
+nodeTest.test("pipeline with mixed return types", async () => {
   const testPipeline = pipeline
     .collect<number, Error>()
     .use(async function* (ctx) {
@@ -485,7 +501,7 @@ Deno.test("pipeline with mixed return types", async () => {
 
 // === Initial Functions Tests ===
 
-Deno.test("pipeline.collect() with initial functions", async () => {
+nodeTest.test("pipeline.collect() with initial functions", async () => {
   const testPipeline = pipeline.collect<string, Error>(
     async function* (ctx) {
       yield results.ok("first");
@@ -508,7 +524,7 @@ Deno.test("pipeline.collect() with initial functions", async () => {
 // run() - Async Monadic Composition Tests
 // =============================================================================
 
-Deno.test("run() computes single value from sequence", async () => {
+nodeTest.test("run() computes single value from sequence", async () => {
   const result = await fn.run<number, string>(async function* () {
     const a = yield* results.ok(5);
     const b = yield* results.ok(3);
@@ -521,7 +537,7 @@ Deno.test("run() computes single value from sequence", async () => {
   }
 });
 
-Deno.test("run() short-circuits on first failure", async () => {
+nodeTest.test("run() short-circuits on first failure", async () => {
   let reachedSecond = false;
 
   const result = await fn.run<number, string>(async function* () {
@@ -538,7 +554,7 @@ Deno.test("run() short-circuits on first failure", async () => {
   assert.assertEquals(reachedSecond, false);
 });
 
-Deno.test("run() short-circuits on middle failure", async () => {
+nodeTest.test("run() short-circuits on middle failure", async () => {
   let reachedThird = false;
 
   const result = await fn.run<number, string>(async function* () {
@@ -555,7 +571,7 @@ Deno.test("run() short-circuits on middle failure", async () => {
   assert.assertEquals(reachedThird, false);
 });
 
-Deno.test("run() allows using intermediate values", async () => {
+nodeTest.test("run() allows using intermediate values", async () => {
   const double = (n: number): results.Result<number, string> =>
     results.ok(n * 2);
   const addTen = (n: number): results.Result<number, string> =>
@@ -574,7 +590,7 @@ Deno.test("run() allows using intermediate values", async () => {
   }
 });
 
-Deno.test("run() works with async operations", async () => {
+nodeTest.test("run() works with async operations", async () => {
   const fetchValue = async (
     n: number,
   ): Promise<results.Result<number, string>> => {
@@ -594,7 +610,7 @@ Deno.test("run() works with async operations", async () => {
   }
 });
 
-Deno.test("run() handles complex object returns", async () => {
+nodeTest.test("run() handles complex object returns", async () => {
   type User = { id: number; name: string };
   type Post = { userId: number; title: string };
 
@@ -623,7 +639,7 @@ Deno.test("run() handles complex object returns", async () => {
 // runSync() - Sync Monadic Composition Tests
 // =============================================================================
 
-Deno.test("runSync() computes single value from sequence", () => {
+nodeTest.test("runSync() computes single value from sequence", () => {
   const result = fn.runSync<number, string>(function* () {
     const a = yield* results.ok(5);
     const b = yield* results.ok(3);
@@ -636,7 +652,7 @@ Deno.test("runSync() computes single value from sequence", () => {
   }
 });
 
-Deno.test("runSync() short-circuits on first failure", () => {
+nodeTest.test("runSync() short-circuits on first failure", () => {
   let reachedSecond = false;
 
   const result = fn.runSync<number, string>(function* () {
@@ -653,7 +669,7 @@ Deno.test("runSync() short-circuits on first failure", () => {
   assert.assertEquals(reachedSecond, false);
 });
 
-Deno.test("runSync() short-circuits on middle failure", () => {
+nodeTest.test("runSync() short-circuits on middle failure", () => {
   let reachedThird = false;
 
   const result = fn.runSync<number, string>(function* () {
@@ -670,7 +686,7 @@ Deno.test("runSync() short-circuits on middle failure", () => {
   assert.assertEquals(reachedThird, false);
 });
 
-Deno.test("runSync() allows using intermediate values", () => {
+nodeTest.test("runSync() allows using intermediate values", () => {
   const double = (n: number): results.Result<number, string> =>
     results.ok(n * 2);
   const addTen = (n: number): results.Result<number, string> =>
@@ -689,7 +705,7 @@ Deno.test("runSync() allows using intermediate values", () => {
   }
 });
 
-Deno.test("runSync() handles complex object returns", () => {
+nodeTest.test("runSync() handles complex object returns", () => {
   type Config = { port: number; host: string };
 
   const parsePort = (s: string): results.Result<number, string> => {
@@ -713,7 +729,7 @@ Deno.test("runSync() handles complex object returns", () => {
   }
 });
 
-Deno.test("runSync() fails on invalid input", () => {
+nodeTest.test("runSync() fails on invalid input", () => {
   const parsePort = (s: string): results.Result<number, string> => {
     const n = parseInt(s, 10);
     return isNaN(n) ? results.fail("Invalid port") : results.ok(n);
@@ -730,7 +746,7 @@ Deno.test("runSync() fails on invalid input", () => {
   }
 });
 
-Deno.test("runSync() with single yield returns final value", () => {
+nodeTest.test("runSync() with single yield returns final value", () => {
   const result = fn.runSync<number, string>(function* () {
     const x = yield* results.ok(42);
     return x;
@@ -742,7 +758,7 @@ Deno.test("runSync() with single yield returns final value", () => {
   }
 });
 
-Deno.test("run() with single yield returns final value", async () => {
+nodeTest.test("run() with single yield returns final value", async () => {
   const result = await fn.run<number, string>(async function* () {
     const x = yield* results.ok(42);
     return x;

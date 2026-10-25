@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as patterns from "@eserstack/standards/patterns";
 import { runtime } from "@eserstack/standards/cross-runtime";
@@ -59,29 +60,32 @@ const goWalk = (dir: string, ignore: RegExp): string[] => {
   return (result.files ?? []).map((file) => file.relPath);
 };
 
-Deno.test("walkCollectableFiles skips excluded dirs, other extensions and ignored files, in Go's order", async () => {
-  await withFixture(async (dir) => {
-    assert.assertEquals(
-      await walkFs.walkCollectableFiles(dir, patterns.JS_TEST_FILE_PATTERN),
-      [
-        ".hidden.ts",
-        "a/b.ts",
-        "a/c.TSX",
-        "a.ts",
-        "b.mjs",
-        "nested/_private.ts",
-        "nested/deep/file.cts",
-        "nested/testdata/skipped.ts",
-        "z.d.ts",
-      ],
-    );
-  });
-});
+nodeTest.test(
+  "walkCollectableFiles skips excluded dirs, other extensions and ignored files, in Go's order",
+  async () => {
+    await withFixture(async (dir) => {
+      assert.assertEquals(
+        await walkFs.walkCollectableFiles(dir, patterns.JS_TEST_FILE_PATTERN),
+        [
+          ".hidden.ts",
+          "a/b.ts",
+          "a/c.TSX",
+          "a.ts",
+          "b.mjs",
+          "nested/_private.ts",
+          "nested/deep/file.cts",
+          "nested/testdata/skipped.ts",
+          "z.d.ts",
+        ],
+      );
+    });
+  },
+);
 
-Deno.test({
-  name: "walkCollectableFiles returns what the Go collector returns",
-  ignore: ffiLib === null,
-  fn: async () => {
+nodeTest.test(
+  "walkCollectableFiles returns what the Go collector returns",
+  { skip: ffiLib === null },
+  async () => {
     await withFixture(async (dir) => {
       // Patterns Go's regexp and JavaScript read the same way.
       for (const ignore of [/\.test\./, /(^|\/)_/, /testdata\//, /^$/]) {
@@ -95,26 +99,29 @@ Deno.test({
       }
     });
   },
-});
+);
 
-Deno.test("walkCollectableFiles names a root that cannot be read", async () => {
-  const parent = await runtime.fs.makeTempDir({ prefix: "collector-walk-" });
-  try {
-    const missing = runtime.path.join(parent, "missing");
-    const error = await assert.assertRejects(
-      () => walkFs.walkCollectableFiles(missing, /^$/),
-      walkFs.UnreadableWalkRootError,
-    );
-    assert.assertStringIncludes(error.message, missing);
-  } finally {
-    await runtime.fs.remove(parent, { recursive: true });
-  }
-});
+nodeTest.test(
+  "walkCollectableFiles names a root that cannot be read",
+  async () => {
+    const parent = await runtime.fs.makeTempDir({ prefix: "collector-walk-" });
+    try {
+      const missing = runtime.path.join(parent, "missing");
+      const error = await assert.assertRejects(
+        () => walkFs.walkCollectableFiles(missing, /^$/),
+        walkFs.UnreadableWalkRootError,
+      );
+      assert.assertStringIncludes(error.message, missing);
+    } finally {
+      await runtime.fs.remove(parent, { recursive: true });
+    }
+  },
+);
 
-Deno.test({
-  name: "walkFiles calls the Go collector when the bridge is loaded",
-  ignore: ffiLib === null,
-  fn: async () => {
+nodeTest.test(
+  "walkFiles calls the Go collector when the bridge is loaded",
+  { skip: ffiLib === null },
+  async () => {
     const original = ffiLib!.symbols.EserAjanCollectorWalkFiles;
     const requests: string[] = [];
     ffiLib!.symbols.EserAjanCollectorWalkFiles = (request: string) => {
@@ -133,12 +140,12 @@ Deno.test({
       ffiLib!.symbols.EserAjanCollectorWalkFiles = original;
     }
   },
-});
+);
 
-Deno.test({
-  name: "walkFiles walks in TypeScript when the Go walk reports an error",
-  ignore: ffiLib === null,
-  fn: async () => {
+nodeTest.test(
+  "walkFiles walks in TypeScript when the Go walk reports an error",
+  { skip: ffiLib === null },
+  async () => {
     const original = ffiLib!.symbols.EserAjanCollectorWalkFiles;
     ffiLib!.symbols.EserAjanCollectorWalkFiles = () =>
       JSON.stringify({ error: "walk root cannot be read" });
@@ -155,11 +162,13 @@ Deno.test({
       ffiLib!.symbols.EserAjanCollectorWalkFiles = original;
     }
   },
-});
+);
 
-Deno.test("walkFiles walks in TypeScript with ESER_AJAN=disabled", async () => {
-  await withFixture(async (dir) => {
-    const script = `
+nodeTest.test(
+  "walkFiles walks in TypeScript with ESER_AJAN=disabled",
+  async () => {
+    await withFixture(async (dir) => {
+      const script = `
       import * as collector from ${JSON.stringify(
         import.meta.resolve("./collector.ts"),
       )};
@@ -168,21 +177,22 @@ Deno.test("walkFiles walks in TypeScript with ESER_AJAN=disabled", async () => {
       )}, undefined, /\\.test\\./));
       console.log(JSON.stringify(files));
     `;
-    const output = await new Deno.Command(Deno.execPath(), {
-      args: ["eval", "--quiet", script],
-      env: { ESER_AJAN: "disabled" },
-      stdout: "piped",
-      stderr: "piped",
-    }).output();
+      const output = await new Deno.Command(Deno.execPath(), {
+        args: ["eval", "--quiet", script],
+        env: { ESER_AJAN: "disabled" },
+        stdout: "piped",
+        stderr: "piped",
+      }).output();
 
-    assert.assertEquals(
-      output.code,
-      0,
-      new TextDecoder().decode(output.stderr),
-    );
-    assert.assertEquals(
-      JSON.parse(new TextDecoder().decode(output.stdout).trim()),
-      await walkFs.walkCollectableFiles(dir, /\.test\./),
-    );
-  });
-});
+      assert.assertEquals(
+        output.code,
+        0,
+        new TextDecoder().decode(output.stderr),
+      );
+      assert.assertEquals(
+        JSON.parse(new TextDecoder().decode(output.stdout).trim()),
+        await walkFs.walkCollectableFiles(dir, /\.test\./),
+      );
+    });
+  },
+);

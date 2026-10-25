@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as git from "./git.ts";
 
@@ -35,19 +36,19 @@ const BENIGN = [
   "echo $HOME",
 ];
 
-Deno.test("reported bypass shapes are git writes", () => {
+nodeTest.test("reported bypass shapes are git writes", () => {
   for (const cmd of BYPASSES) {
     assert.assertEquals(git.hasGitWrite(cmd), true, cmd);
   }
 });
 
-Deno.test("read-only and non-git commands stay allowed", () => {
+nodeTest.test("read-only and non-git commands stay allowed", () => {
   for (const cmd of BENIGN) {
     assert.assertEquals(git.hasGitWrite(cmd), false, cmd);
   }
 });
 
-Deno.test("stdin-fed shells and script files are recognised", () => {
+nodeTest.test("stdin-fed shells and script files are recognised", () => {
   assert.assertEquals(git.feedsShellFromStdin("echo x | sh"), true);
   assert.assertEquals(git.feedsShellFromStdin("sh <<< 'x'"), true);
   assert.assertEquals(git.feedsShellFromStdin("sh run.sh"), false);

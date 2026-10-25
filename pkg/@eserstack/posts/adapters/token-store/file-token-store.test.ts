@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import { runtime } from "@eserstack/standards/cross-runtime";
 import * as fileTokenStore from "./file-token-store.ts";
@@ -13,10 +14,10 @@ const tokens = {
 const modeOf = async (p: string): Promise<number> =>
   ((await Deno.stat(p)).mode ?? 0) & 0o777;
 
-Deno.test({
-  name: "token store is written owner-only and repairs a world-readable file",
-  ignore: Deno.build.os === "windows",
-  fn: async () => {
+nodeTest.test(
+  "token store is written owner-only and repairs a world-readable file",
+  { skip: Deno.build.os === "windows" },
+  async () => {
     const root = await Deno.makeTempDir();
     try {
       const dir = `${root}/.eser/posts`;
@@ -45,22 +46,25 @@ Deno.test({
       await Deno.remove(root, { recursive: true });
     }
   },
-});
+);
 
-Deno.test("a corrupt token file fails with its path and without its content", async () => {
-  const { fs, path } = runtime;
-  const root = await fs.makeTempDir();
-  try {
-    const file = path.join(root, "tokens.json");
-    await fs.writeTextFile(file, '{"twitter":{"accessToken":"SECRET-TOKEN"');
-    const store = new fileTokenStore.FileTokenStore(file);
+nodeTest.test(
+  "a corrupt token file fails with its path and without its content",
+  async () => {
+    const { fs, path } = runtime;
+    const root = await fs.makeTempDir();
+    try {
+      const file = path.join(root, "tokens.json");
+      await fs.writeTextFile(file, '{"twitter":{"accessToken":"SECRET-TOKEN"');
+      const store = new fileTokenStore.FileTokenStore(file);
 
-    const error = await assert.assertRejects(() => store.load("twitter"));
+      const error = await assert.assertRejects(() => store.load("twitter"));
 
-    assert.assertInstanceOf(error, Error);
-    assert.assertStringIncludes(error.message, file);
-    assert.assertEquals(error.message.includes("SECRET-TOKEN"), false);
-  } finally {
-    await fs.remove(root, { recursive: true });
-  }
-});
+      assert.assertInstanceOf(error, Error);
+      assert.assertStringIncludes(error.message, file);
+      assert.assertEquals(error.message.includes("SECRET-TOKEN"), false);
+    } finally {
+      await fs.remove(root, { recursive: true });
+    }
+  },
+);

@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as fs from "@std/fs"; // symlinks are not available in runtime
 import { runtime } from "@eserstack/standards/cross-runtime";
@@ -112,88 +113,94 @@ const FILE_URL_CASES = [
 ];
 
 for (const { name, input, expected } of FILE_URL_CASES) {
-  Deno.test(`fileUrlToPath ${name}`, () => {
+  nodeTest.test(`fileUrlToPath ${name}`, () => {
     assert.assertEquals(rscClientEntry.fileUrlToPath(input), expected);
   });
 }
 
-Deno.test("createClientEntry copies the bootstrap with its package layout", async () => {
-  await withMinimalApp(async (appRoot, components) => {
-    const distDir = runtime.path.join(appRoot, "dist");
+nodeTest.test(
+  "createClientEntry copies the bootstrap with its package layout",
+  async () => {
+    await withMinimalApp(async (appRoot, components) => {
+      const distDir = runtime.path.join(appRoot, "dist");
 
-    await rscClientEntry.createClientEntry([...components], appRoot, distDir);
+      await rscClientEntry.createClientEntry([...components], appRoot, distDir);
 
-    const copyDir = runtime.path.join(
-      distDir,
-      rscClientEntry.BOOTSTRAP_COPY_DIR,
-    );
-    const copied = await Promise.all(
-      [
-        "client/bootstrap/entry.ts",
-        "client.ts",
-        "protocol.ts",
-        "runtime/image/fallback.ts",
-        "runtime/navigation/link-navigation.ts",
-      ].map((file) => runtime.fs.exists(runtime.path.join(copyDir, file))),
-    );
-    assert.assertEquals(copied, [true, true, true, true, true]);
-  });
-});
+      const copyDir = runtime.path.join(
+        distDir,
+        rscClientEntry.BOOTSTRAP_COPY_DIR,
+      );
+      const copied = await Promise.all(
+        [
+          "client/bootstrap/entry.ts",
+          "client.ts",
+          "protocol.ts",
+          "runtime/image/fallback.ts",
+          "runtime/navigation/link-navigation.ts",
+        ].map((file) => runtime.fs.exists(runtime.path.join(copyDir, file))),
+      );
+      assert.assertEquals(copied, [true, true, true, true, true]);
+    });
+  },
+);
 
-Deno.test("the client entry of a minimal laroux app bundles with the copied bootstrap", async () => {
-  await withMinimalApp(async (appRoot, components) => {
-    const distDir = runtime.path.join(appRoot, "dist");
-    const outputDir = runtime.path.join(distDir, "client");
+nodeTest.test(
+  "the client entry of a minimal laroux app bundles with the copied bootstrap",
+  async () => {
+    await withMinimalApp(async (appRoot, components) => {
+      const distDir = runtime.path.join(appRoot, "dist");
+      const outputDir = runtime.path.join(distDir, "client");
 
-    const entry = await rscClientEntry.createClientEntry(
-      [...components],
-      appRoot,
-      distDir,
-    );
-    const result = await bundler.bundle(
-      {
-        entrypoints: [entry, ...components.map((c) => c.filePath)],
-        outputDir,
-        projectRoot: appRoot,
-        platform: "browser",
-        splitting: true,
-        plugins: [
-          importMapResolverPlugin.createImportMapResolverPlugin({
-            projectRoot: appRoot,
-            browserShims: larouxConfig.DEFAULT_BROWSER_SHIMS,
-            autoMarkExternal: false,
-          }),
-        ],
-      },
-      [...components],
-      "rolldown",
-    );
+      const entry = await rscClientEntry.createClientEntry(
+        [...components],
+        appRoot,
+        distDir,
+      );
+      const result = await bundler.bundle(
+        {
+          entrypoints: [entry, ...components.map((c) => c.filePath)],
+          outputDir,
+          projectRoot: appRoot,
+          platform: "browser",
+          splitting: true,
+          plugins: [
+            importMapResolverPlugin.createImportMapResolverPlugin({
+              projectRoot: appRoot,
+              browserShims: larouxConfig.DEFAULT_BROWSER_SHIMS,
+              autoMarkExternal: false,
+            }),
+          ],
+        },
+        [...components],
+        "rolldown",
+      );
 
-    assert.assertEquals(result.entrypoint, "client.js");
-    // The component maps to its chunk even though the temp directory may sit
-    // under a symlink (/var on macOS) that the bundler resolves.
-    assert.assertEquals(
-      Object.keys(result.manifest),
-      components.map((c) => c.filePath),
-    );
-    const outputCode = await Promise.all(
-      Object.keys(result.outputs).map((file) =>
-        runtime.fs.readTextFile(runtime.path.join(outputDir, file)),
-      ),
-    );
-    const bundled = outputCode.join("\n");
-    // Code from entry.ts and from the files it imports by relative path
-    // (../../client.ts, ../../runtime/image/fallback.ts,
-    // ../../runtime/navigation/link-navigation.ts) is in the bundle.
-    assert.assertStringIncludes(bundled, "__callServer");
-    assert.assertStringIncludes(bundled, "__RSC_INLINE_BOOTSTRAP__");
-    assert.assertStringIncludes(bundled, "data-laroux-fallback");
-    assert.assertStringIncludes(bundled, "data-laroux-link");
-    // An import the bundler cannot resolve stays in the output as a bare
-    // specifier, which a browser cannot load.
-    assert.assertEquals(
-      bundled.match(/from\s*["']@eserstack\/[^"']*["']/g),
-      null,
-    );
-  });
-});
+      assert.assertEquals(result.entrypoint, "client.js");
+      // The component maps to its chunk even though the temp directory may sit
+      // under a symlink (/var on macOS) that the bundler resolves.
+      assert.assertEquals(
+        Object.keys(result.manifest),
+        components.map((c) => c.filePath),
+      );
+      const outputCode = await Promise.all(
+        Object.keys(result.outputs).map((file) =>
+          runtime.fs.readTextFile(runtime.path.join(outputDir, file)),
+        ),
+      );
+      const bundled = outputCode.join("\n");
+      // Code from entry.ts and from the files it imports by relative path
+      // (../../client.ts, ../../runtime/image/fallback.ts,
+      // ../../runtime/navigation/link-navigation.ts) is in the bundle.
+      assert.assertStringIncludes(bundled, "__callServer");
+      assert.assertStringIncludes(bundled, "__RSC_INLINE_BOOTSTRAP__");
+      assert.assertStringIncludes(bundled, "data-laroux-fallback");
+      assert.assertStringIncludes(bundled, "data-laroux-link");
+      // An import the bundler cannot resolve stays in the output as a bare
+      // specifier, which a browser cannot load.
+      assert.assertEquals(
+        bundled.match(/from\s*["']@eserstack\/[^"']*["']/g),
+        null,
+      );
+    });
+  },
+);

@@ -1,9 +1,10 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as compose from "./compose.ts";
 
-Deno.test("basic", () => {
+nodeTest.test("basic", () => {
   const lower = (x: string) => x.toLowerCase();
   const chars = (x: string) => x.replace(/[^\w \\-]+/g, "");
   const spaces = (x: string) => x.split(" ");

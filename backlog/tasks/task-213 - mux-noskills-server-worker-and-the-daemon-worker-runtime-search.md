@@ -4,7 +4,7 @@ title: 'mux, noskills-server-worker and the daemon worker runtime search'
 status: To Do
 assignee: []
 created_date: '2026-10-15 20:38'
-updated_date: '2026-10-24 19:38'
+updated_date: '2026-10-25 16:00'
 labels:
   - cutover
   - mux
@@ -49,4 +49,6 @@ Hand-work list (TASK-175 spike, 2026-10-24, node 26.12.1):
 - Source: 0 Deno, Bun or specifier uses in both packages.
 - Go: pkg/ajan/noskillsserverfx/worker.go (15), worker_runtime_test.go (6), doctor.go (3), errors.go (3).
 - Docs: cmd/noskills-server/README.md (1), pkg/@eserstack/noskills-server-worker/README.md (9).
+
+TASK-198 (2026-10-25): the test and bench codemods left no site for hand edits in this task's files (0 unhandled), and none of its test files fails under `node --test --test-force-exit` on Node 26.12.1 when run alone.
 <!-- SECTION:NOTES:END -->

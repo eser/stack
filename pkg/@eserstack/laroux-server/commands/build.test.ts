@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as results from "@eserstack/primitives/results";
 import { runtime } from "@eserstack/standards/cross-runtime";
@@ -13,34 +14,39 @@ const failingClientEntryPlugin: FrameworkPlugin = {
     Promise.reject(new Error("create client entry: fixture failure")),
 };
 
-Deno.test("laroux build fails with exit code 1 when the bundler build fails", async () => {
-  const projectRoot = await runtime.fs.makeTempDir({ prefix: "laroux-build-" });
-
-  try {
-    const pagePath = runtime.path.join(
-      projectRoot,
-      "src/app/routes/home/page.tsx",
-    );
-    await runtime.fs.ensureDir(runtime.path.dirname(pagePath));
-    await runtime.fs.writeTextFile(
-      pagePath,
-      "export function HomePage() {\n  return <h1>Home</h1>;\n}\n",
-    );
-
-    const result = await build.runBuild({
-      projectRoot,
-      outDir: "dist",
-      minify: false,
-      clean: false,
-      analyze: true,
-      logLevel: "fatal",
-      frameworkPlugin: failingClientEntryPlugin,
+nodeTest.test(
+  "laroux build fails with exit code 1 when the bundler build fails",
+  async () => {
+    const projectRoot = await runtime.fs.makeTempDir({
+      prefix: "laroux-build-",
     });
 
-    assert.assert(results.isFail(result));
-    assert.assertEquals(result.error.exitCode, 1);
-    assert.assertStringIncludes(result.error.message ?? "", projectRoot);
-  } finally {
-    await runtime.fs.remove(projectRoot, { recursive: true });
-  }
-});
+    try {
+      const pagePath = runtime.path.join(
+        projectRoot,
+        "src/app/routes/home/page.tsx",
+      );
+      await runtime.fs.ensureDir(runtime.path.dirname(pagePath));
+      await runtime.fs.writeTextFile(
+        pagePath,
+        "export function HomePage() {\n  return <h1>Home</h1>;\n}\n",
+      );
+
+      const result = await build.runBuild({
+        projectRoot,
+        outDir: "dist",
+        minify: false,
+        clean: false,
+        analyze: true,
+        logLevel: "fatal",
+        frameworkPlugin: failingClientEntryPlugin,
+      });
+
+      assert.assert(results.isFail(result));
+      assert.assertEquals(result.error.exitCode, 1);
+      assert.assertStringIncludes(result.error.message ?? "", projectRoot);
+    } finally {
+      await runtime.fs.remove(projectRoot, { recursive: true });
+    }
+  },
+);

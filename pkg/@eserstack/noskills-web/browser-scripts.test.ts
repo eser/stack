@@ -7,6 +7,7 @@
  * dashboard too.
  */
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import { runtime } from "@eserstack/standards/cross-runtime";
 
@@ -224,7 +225,7 @@ const approveButton = element({
   dataset: { spec: "upload", action: "approve" },
 });
 
-Deno.test("client.js shows a plain-text refusal in the alert", async () => {
+nodeTest.test("client.js shows a plain-text refusal in the alert", async () => {
   const page = await clientPage(() =>
     Promise.resolve(
       new Response("Forbidden: missing or invalid token", { status: 403 }),
@@ -245,42 +246,52 @@ Deno.test("client.js shows a plain-text refusal in the alert", async () => {
   }
 });
 
-Deno.test("client.js names the request id of a fault in the alert", async () => {
-  const page = await clientPage(() =>
-    Promise.resolve(
-      Response.json(
-        { ok: false, error: "Action could not be completed", requestId: "r-1" },
-        { status: 400 },
+nodeTest.test(
+  "client.js names the request id of a fault in the alert",
+  async () => {
+    const page = await clientPage(() =>
+      Promise.resolve(
+        Response.json(
+          {
+            ok: false,
+            error: "Action could not be completed",
+            requestId: "r-1",
+          },
+          { status: 400 },
+        ),
       ),
-    ),
-  );
+    );
 
-  try {
-    await page.click(approveButton);
+    try {
+      await page.click(approveButton);
 
-    assert.assertEquals(page.alerts, [
-      "Action failed: Action could not be completed (request r-1 in the noskills web log)",
-    ]);
-  } finally {
-    page.restore();
-  }
-});
+      assert.assertEquals(page.alerts, [
+        "Action failed: Action could not be completed (request r-1 in the noskills web log)",
+      ]);
+    } finally {
+      page.restore();
+    }
+  },
+);
 
-Deno.test("client.js tells the user when the server does not answer", async () => {
-  const page = await clientPage(() =>
-    Promise.reject(new TypeError("connection refused")),
-  );
+nodeTest.test(
+  "client.js tells the user when the server does not answer",
+  async () => {
+    const page = await clientPage(() =>
+      Promise.reject(new TypeError("connection refused")),
+    );
 
-  try {
-    await page.click(approveButton);
+    try {
+      await page.click(approveButton);
 
-    assert.assertEquals(page.alerts, [
-      "Action failed: the noskills web server did not answer",
-    ]);
-  } finally {
-    page.restore();
-  }
-});
+      assert.assertEquals(page.alerts, [
+        "Action failed: the noskills web server did not answer",
+      ]);
+    } finally {
+      page.restore();
+    }
+  },
+);
 
 // =============================================================================
 // client.js: tabs
@@ -288,7 +299,7 @@ Deno.test("client.js tells the user when the server does not answer", async () =
 
 const tab = element({ classes: ["tab"], dataset: { tab: "t2" } });
 
-Deno.test("client.js closes the tab of a close button", async () => {
+nodeTest.test("client.js closes the tab of a close button", async () => {
   const page = await clientPage(() =>
     Promise.resolve(Response.json({ ok: true })),
   );
@@ -311,7 +322,7 @@ Deno.test("client.js closes the tab of a close button", async () => {
   }
 });
 
-Deno.test("client.js switches to the tab of a tab button", async () => {
+nodeTest.test("client.js switches to the tab of a tab button", async () => {
   const page = await clientPage(() =>
     Promise.resolve(Response.json({ ok: true })),
   );
@@ -338,54 +349,57 @@ Deno.test("client.js switches to the tab of a tab button", async () => {
 // mux-render.js: tab bar
 // =============================================================================
 
-Deno.test("mux-render.js renders a close button beside each tab button", async () => {
-  const restore = await runScript("mux-render.js", { document: {} });
+nodeTest.test(
+  "mux-render.js renders a close button beside each tab button",
+  async () => {
+    const restore = await runScript("mux-render.js", { document: {} });
 
-  try {
-    const { MuxRender } = globalThis as unknown as {
-      MuxRender: {
-        createRenderer: (opts: Record<string, unknown>) => {
-          applyFrame: (frame: unknown) => void;
+    try {
+      const { MuxRender } = globalThis as unknown as {
+        MuxRender: {
+          createRenderer: (opts: Record<string, unknown>) => {
+            applyFrame: (frame: unknown) => void;
+          };
         };
       };
-    };
-    const bar = { innerHTML: "" };
-    const renderer = MuxRender.createRenderer({
-      root: { clientWidth: 800, clientHeight: 600 },
-      cell: { w: 8, h: 16 },
-      send: () => {},
-      tabBar: bar,
-    });
+      const bar = { innerHTML: "" };
+      const renderer = MuxRender.createRenderer({
+        root: { clientWidth: 800, clientHeight: 600 },
+        cell: { w: 8, h: 16 },
+        send: () => {},
+        tabBar: bar,
+      });
 
-    renderer.applyFrame({
-      t: "scene",
-      delta: {
-        tabs: [
-          { id: "t1", name: "upload" },
-          { id: "t2", name: '<b>"x"' },
-        ],
-        activeTab: 0,
-      },
-    });
+      renderer.applyFrame({
+        t: "scene",
+        delta: {
+          tabs: [
+            { id: "t1", name: "upload" },
+            { id: "t2", name: '<b>"x"' },
+          ],
+          activeTab: 0,
+        },
+      });
 
-    assert.assertEquals(buttonDepth(bar.innerHTML), 1);
-    assert.assertStringIncludes(
-      bar.innerHTML,
-      '<div class="tab active" data-tab="t1"><button type="button" class="tab-select" data-index="0">upload</button><button type="button" class="tab-close" data-close="t1" aria-label="Close upload">&times;</button></div>',
-    );
-    assert.assertStringIncludes(
-      bar.innerHTML,
-      'aria-label="Close &lt;b&gt;&quot;x&quot;"',
-    );
-    assert.assertStringIncludes(
-      bar.innerHTML,
-      '<button type="button" class="tab-add" id="add-tab" aria-label="New tab">+</button>',
-    );
-  } finally {
-    restore();
-    delete (globalThis as Record<string, unknown>)["MuxRender"];
-  }
-});
+      assert.assertEquals(buttonDepth(bar.innerHTML), 1);
+      assert.assertStringIncludes(
+        bar.innerHTML,
+        '<div class="tab active" data-tab="t1"><button type="button" class="tab-select" data-index="0">upload</button><button type="button" class="tab-close" data-close="t1" aria-label="Close upload">&times;</button></div>',
+      );
+      assert.assertStringIncludes(
+        bar.innerHTML,
+        'aria-label="Close &lt;b&gt;&quot;x&quot;"',
+      );
+      assert.assertStringIncludes(
+        bar.innerHTML,
+        '<button type="button" class="tab-add" id="add-tab" aria-label="New tab">+</button>',
+      );
+    } finally {
+      restore();
+      delete (globalThis as Record<string, unknown>)["MuxRender"];
+    }
+  },
+);
 
 // =============================================================================
 // sw-register.js
@@ -427,19 +441,25 @@ const registerServiceWorker = async (
   return { fetched, posted, registered };
 };
 
-Deno.test("sw-register.js asks a plain-HTTP page for no certificate fingerprint", async () => {
-  const result = await registerServiceWorker("http:");
+nodeTest.test(
+  "sw-register.js asks a plain-HTTP page for no certificate fingerprint",
+  async () => {
+    const result = await registerServiceWorker("http:");
 
-  assert.assertEquals(result.registered, ["/sw.js"]);
-  assert.assertEquals(result.fetched, []);
-  assert.assertEquals(result.posted, []);
-});
+    assert.assertEquals(result.registered, ["/sw.js"]);
+    assert.assertEquals(result.fetched, []);
+    assert.assertEquals(result.posted, []);
+  },
+);
 
-Deno.test("sw-register.js hands the service worker the fingerprint over HTTPS", async () => {
-  const result = await registerServiceWorker("https:");
+nodeTest.test(
+  "sw-register.js hands the service worker the fingerprint over HTTPS",
+  async () => {
+    const result = await registerServiceWorker("https:");
 
-  assert.assertEquals(result.fetched, ["/api/cert-fingerprint"]);
-  assert.assertEquals(result.posted, [
-    { type: "store_cert_fingerprint", fingerprint: "ab12" },
-  ]);
-});
+    assert.assertEquals(result.fetched, ["/api/cert-fingerprint"]);
+    assert.assertEquals(result.posted, [
+      { type: "store_cert_fingerprint", fingerprint: "ab12" },
+    ]);
+  },
+);

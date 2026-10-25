@@ -1,11 +1,12 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@std/assert";
 // import * as mock from "@eserstack/test-kit/mock";
 // import * as jsxRuntimeInternals from "@eserstack/jsx-runtime/internals";
 import * as root from "./root.tsx";
 
-Deno.test("should return the root component", () => {
+nodeTest.test("should return the root component", () => {
   const actual = root.Root();
 
   assert.assertObjectMatch(actual, {

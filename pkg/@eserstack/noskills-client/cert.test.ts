@@ -3,6 +3,7 @@
 // cert.ts reads the global fetch and indexedDB. Each test swaps them and puts
 // the originals back in a finally; tests in one module run one at a time.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as cert from "./cert.ts";
 import * as errors from "./errors.ts";
@@ -144,39 +145,48 @@ const withIndexedDB = async (
 const bytes = (buffer: ArrayBuffer | null): number[] | null =>
   buffer === null ? null : [...new Uint8Array(buffer)];
 
-Deno.test("fetchAndPinCertFingerprint returns the fingerprint as bytes", async () => {
-  await withFetch(fingerprintResponse(FINGERPRINT), async (calls) => {
-    const result = await cert.fetchAndPinCertFingerprint(`${BASE_URL}/`);
+nodeTest.test(
+  "fetchAndPinCertFingerprint returns the fingerprint as bytes",
+  async () => {
+    await withFetch(fingerprintResponse(FINGERPRINT), async (calls) => {
+      const result = await cert.fetchAndPinCertFingerprint(`${BASE_URL}/`);
 
-    assert.assertEquals(bytes(result), FINGERPRINT_BYTES);
-    assert.assertEquals(calls.length, 1);
-    assert.assertEquals(calls[0]?.url, `${BASE_URL}/api/cert-fingerprint`);
-    // The request is bounded by a timeout signal.
-    assert.assertInstanceOf(calls[0]?.signal, AbortSignal);
-  });
-});
+      assert.assertEquals(bytes(result), FINGERPRINT_BYTES);
+      assert.assertEquals(calls.length, 1);
+      assert.assertEquals(calls[0]?.url, `${BASE_URL}/api/cert-fingerprint`);
+      // The request is bounded by a timeout signal.
+      assert.assertInstanceOf(calls[0]?.signal, AbortSignal);
+    });
+  },
+);
 
-Deno.test("fetchAndPinCertFingerprint accepts the colon-separated display form", async () => {
-  const display = FINGERPRINT.toUpperCase().match(/../g)!.join(":");
+nodeTest.test(
+  "fetchAndPinCertFingerprint accepts the colon-separated display form",
+  async () => {
+    const display = FINGERPRINT.toUpperCase().match(/../g)!.join(":");
 
-  await withFetch(fingerprintResponse(display), async () => {
-    const result = await cert.fetchAndPinCertFingerprint(BASE_URL);
+    await withFetch(fingerprintResponse(display), async () => {
+      const result = await cert.fetchAndPinCertFingerprint(BASE_URL);
 
-    assert.assertEquals(bytes(result), FINGERPRINT_BYTES);
-  });
-});
+      assert.assertEquals(bytes(result), FINGERPRINT_BYTES);
+    });
+  },
+);
 
-Deno.test("fetchAndPinCertFingerprint returns null when the daemon has no fingerprint endpoint", async () => {
-  await withFetch(
-    () => Promise.resolve(new Response("not found", { status: 404 })),
-    async () => {
-      assert.assertEquals(
-        await cert.fetchAndPinCertFingerprint(BASE_URL),
-        null,
-      );
-    },
-  );
-});
+nodeTest.test(
+  "fetchAndPinCertFingerprint returns null when the daemon has no fingerprint endpoint",
+  async () => {
+    await withFetch(
+      () => Promise.resolve(new Response("not found", { status: 404 })),
+      async () => {
+        assert.assertEquals(
+          await cert.fetchAndPinCertFingerprint(BASE_URL),
+          null,
+        );
+      },
+    );
+  },
+);
 
 const failureCases: ReadonlyArray<{
   readonly name: string;
@@ -245,103 +255,127 @@ const failureCases: ReadonlyArray<{
 ];
 
 for (const { name, respond, status, message } of failureCases) {
-  Deno.test(`fetchAndPinCertFingerprint throws CertFingerprintError when ${name}`, async () => {
-    await withFetch(respond, async () => {
-      const error = await assert.assertRejects(
-        () => cert.fetchAndPinCertFingerprint(BASE_URL),
-        errors.CertFingerprintError,
-        message,
-      );
+  nodeTest.test(
+    `fetchAndPinCertFingerprint throws CertFingerprintError when ${name}`,
+    async () => {
+      await withFetch(respond, async () => {
+        const error = await assert.assertRejects(
+          () => cert.fetchAndPinCertFingerprint(BASE_URL),
+          errors.CertFingerprintError,
+          message,
+        );
 
-      assert.assertEquals(error.status, status);
-      assert.assertEquals(error.url, `${BASE_URL}/api/cert-fingerprint`);
-    });
-  });
+        assert.assertEquals(error.status, status);
+        assert.assertEquals(error.url, `${BASE_URL}/api/cert-fingerprint`);
+      });
+    },
+  );
 }
 
-Deno.test("fetchAndPinCertFingerprint keeps the network error as the cause", async () => {
-  const cause = new TypeError("network unreachable");
+nodeTest.test(
+  "fetchAndPinCertFingerprint keeps the network error as the cause",
+  async () => {
+    const cause = new TypeError("network unreachable");
 
-  await withFetch(
-    () => Promise.reject(cause),
-    async () => {
-      const error = await assert.assertRejects(
-        () => cert.fetchAndPinCertFingerprint(BASE_URL),
-        errors.CertFingerprintError,
-      );
+    await withFetch(
+      () => Promise.reject(cause),
+      async () => {
+        const error = await assert.assertRejects(
+          () => cert.fetchAndPinCertFingerprint(BASE_URL),
+          errors.CertFingerprintError,
+        );
 
-      assert.assertStrictEquals(error.cause, cause);
-    },
-  );
-});
-
-Deno.test("fetchAndPinCertFingerprint times out when the daemon never answers", async () => {
-  await withFetch(neverAnswers, async () => {
-    const error = await assert.assertRejects(
-      () => cert.fetchAndPinCertFingerprint(BASE_URL, { timeoutMs: 20 }),
-      errors.NoskillsTimeoutError,
-      "GET /api/cert-fingerprint: the daemon did not answer within 20 ms",
+        assert.assertStrictEquals(error.cause, cause);
+      },
     );
+  },
+);
 
-    assert.assertEquals(error.timeoutMs, 20);
-  });
-});
-
-Deno.test("fetchAndPinCertFingerprint times out even when fetch ignores the signal", async () => {
-  await withFetch(
-    () => new Promise<Response>(() => {}),
-    async () => {
-      await assert.assertRejects(
+nodeTest.test(
+  "fetchAndPinCertFingerprint times out when the daemon never answers",
+  async () => {
+    await withFetch(neverAnswers, async () => {
+      const error = await assert.assertRejects(
         () => cert.fetchAndPinCertFingerprint(BASE_URL, { timeoutMs: 20 }),
         errors.NoskillsTimeoutError,
+        "GET /api/cert-fingerprint: the daemon did not answer within 20 ms",
       );
-    },
-  );
-});
 
-Deno.test("fetchAndPinCertFingerprint rejects with the caller's reason when the signal aborts", async () => {
-  const controller = new AbortController();
-  const reason = new Error("user left the page");
-
-  await withFetch(neverAnswers, async () => {
-    const pending = cert.fetchAndPinCertFingerprint(BASE_URL, {
-      signal: controller.signal,
+      assert.assertEquals(error.timeoutMs, 20);
     });
-    controller.abort(reason);
+  },
+);
 
-    assert.assertStrictEquals(
-      await pending.catch((error: unknown) => error),
-      reason,
+nodeTest.test(
+  "fetchAndPinCertFingerprint times out even when fetch ignores the signal",
+  async () => {
+    await withFetch(
+      () => new Promise<Response>(() => {}),
+      async () => {
+        await assert.assertRejects(
+          () => cert.fetchAndPinCertFingerprint(BASE_URL, { timeoutMs: 20 }),
+          errors.NoskillsTimeoutError,
+        );
+      },
     );
-  });
-});
+  },
+);
 
-Deno.test("fetchAndPinCertFingerprint rejects a baseUrl that is not absolute", async () => {
-  await withFetch(fingerprintResponse(FINGERPRINT), async (calls) => {
-    await assert.assertRejects(
-      () => cert.fetchAndPinCertFingerprint("daemon.test/"),
-      TypeError,
-      "expected one like https://localhost:4433",
-    );
-    assert.assertEquals(calls.length, 0);
-  });
-});
+nodeTest.test(
+  "fetchAndPinCertFingerprint rejects with the caller's reason when the signal aborts",
+  async () => {
+    const controller = new AbortController();
+    const reason = new Error("user left the page");
 
-Deno.test("fetchAndPinCertFingerprint caches the fingerprint under the daemon's origin", async () => {
-  const fake = createFakeIndexedDB();
+    await withFetch(neverAnswers, async () => {
+      const pending = cert.fetchAndPinCertFingerprint(BASE_URL, {
+        signal: controller.signal,
+      });
+      controller.abort(reason);
 
-  await withIndexedDB(fake.factory, async () => {
-    await withFetch(fingerprintResponse(FINGERPRINT), async () => {
-      await cert.fetchAndPinCertFingerprint(`${BASE_URL}/prefix/`);
+      assert.assertStrictEquals(
+        await pending.catch((error: unknown) => error),
+        reason,
+      );
     });
+  },
+);
 
-    assert.assertEquals([...fake.records.keys()], [BASE_URL]);
-    assert.assertEquals(await cert.loadCertFingerprint(BASE_URL), FINGERPRINT);
-    assert.assertEquals(fake.openConnections(), 0);
-  });
-});
+nodeTest.test(
+  "fetchAndPinCertFingerprint rejects a baseUrl that is not absolute",
+  async () => {
+    await withFetch(fingerprintResponse(FINGERPRINT), async (calls) => {
+      await assert.assertRejects(
+        () => cert.fetchAndPinCertFingerprint("daemon.test/"),
+        TypeError,
+        "expected one like https://localhost:4433",
+      );
+      assert.assertEquals(calls.length, 0);
+    });
+  },
+);
 
-Deno.test("each daemon origin keeps its own fingerprint", async () => {
+nodeTest.test(
+  "fetchAndPinCertFingerprint caches the fingerprint under the daemon's origin",
+  async () => {
+    const fake = createFakeIndexedDB();
+
+    await withIndexedDB(fake.factory, async () => {
+      await withFetch(fingerprintResponse(FINGERPRINT), async () => {
+        await cert.fetchAndPinCertFingerprint(`${BASE_URL}/prefix/`);
+      });
+
+      assert.assertEquals([...fake.records.keys()], [BASE_URL]);
+      assert.assertEquals(
+        await cert.loadCertFingerprint(BASE_URL),
+        FINGERPRINT,
+      );
+      assert.assertEquals(fake.openConnections(), 0);
+    });
+  },
+);
+
+nodeTest.test("each daemon origin keeps its own fingerprint", async () => {
   const fake = createFakeIndexedDB();
   const otherDaemon = "https://daemon.test:4434";
 
@@ -361,129 +395,159 @@ Deno.test("each daemon origin keeps its own fingerprint", async () => {
   });
 });
 
-Deno.test("storeCertFingerprint stores the display form in the compact form", async () => {
-  const fake = createFakeIndexedDB();
-  const display = FINGERPRINT.toUpperCase().match(/../g)!.join(":");
+nodeTest.test(
+  "storeCertFingerprint stores the display form in the compact form",
+  async () => {
+    const fake = createFakeIndexedDB();
+    const display = FINGERPRINT.toUpperCase().match(/../g)!.join(":");
 
-  await withIndexedDB(fake.factory, async () => {
-    await cert.storeCertFingerprint(BASE_URL, display);
+    await withIndexedDB(fake.factory, async () => {
+      await cert.storeCertFingerprint(BASE_URL, display);
 
-    assert.assertEquals(fake.records.get(BASE_URL), FINGERPRINT);
-  });
-});
-
-Deno.test("storeCertFingerprint refuses a value that is not a SHA-256 fingerprint", async () => {
-  const fake = createFakeIndexedDB();
-
-  await withIndexedDB(fake.factory, async () => {
-    await assert.assertRejects(
-      () => cert.storeCertFingerprint(BASE_URL, "0a0b"),
-      RangeError,
-      "expected 64 hex digits",
-    );
-    assert.assertEquals(fake.records.size, 0);
-  });
-});
-
-Deno.test("getCertFingerprint uses the cached fingerprint without fetching", async () => {
-  const fake = createFakeIndexedDB();
-
-  await withIndexedDB(fake.factory, async () => {
-    await cert.storeCertFingerprint(BASE_URL, FINGERPRINT);
-
-    await withFetch(fingerprintResponse(OTHER_FINGERPRINT), async (calls) => {
-      assert.assertEquals(
-        bytes(await cert.getCertFingerprint(BASE_URL)),
-        FINGERPRINT_BYTES,
-      );
-      assert.assertEquals(calls.length, 0);
+      assert.assertEquals(fake.records.get(BASE_URL), FINGERPRINT);
     });
-    assert.assertEquals(fake.openConnections(), 0);
-  });
-});
+  },
+);
 
-Deno.test("getCertFingerprint fetches for a daemon whose origin has no cached fingerprint", async () => {
-  const fake = createFakeIndexedDB();
-  const otherDaemon = "https://other.test";
+nodeTest.test(
+  "storeCertFingerprint refuses a value that is not a SHA-256 fingerprint",
+  async () => {
+    const fake = createFakeIndexedDB();
 
-  await withIndexedDB(fake.factory, async () => {
-    await cert.storeCertFingerprint(BASE_URL, FINGERPRINT);
-
-    await withFetch(fingerprintResponse(OTHER_FINGERPRINT), async (calls) => {
-      const result = await cert.getCertFingerprint(otherDaemon);
-
-      assert.assertEquals(bytes(result)?.slice(0, 2), [0x12, 0x13]);
-      assert.assertEquals(calls[0]?.url, `${otherDaemon}/api/cert-fingerprint`);
-    });
-    assert.assertEquals(fake.records.get(otherDaemon), OTHER_FINGERPRINT);
-    assert.assertEquals(fake.records.get(BASE_URL), FINGERPRINT);
-  });
-});
-
-Deno.test("getCertFingerprint replaces a cached entry that is not a fingerprint", async () => {
-  const fake = createFakeIndexedDB();
-  fake.records.set(BASE_URL, "0a0b");
-
-  await withIndexedDB(fake.factory, async () => {
-    await withFetch(fingerprintResponse(FINGERPRINT), async (calls) => {
-      assert.assertEquals(
-        bytes(await cert.getCertFingerprint(BASE_URL)),
-        FINGERPRINT_BYTES,
-      );
-      assert.assertEquals(calls.length, 1);
-    });
-    assert.assertEquals(fake.records.get(BASE_URL), FINGERPRINT);
-  });
-});
-
-Deno.test("getCertFingerprint fetches when IndexedDB fails to open", async () => {
-  const fake = createFakeIndexedDB({ failOpen: true });
-
-  await withIndexedDB(fake.factory, async () => {
-    await withFetch(fingerprintResponse(FINGERPRINT), async (calls) => {
-      assert.assertEquals(
-        bytes(await cert.getCertFingerprint(BASE_URL)),
-        FINGERPRINT_BYTES,
-      );
-      assert.assertEquals(calls.length, 1);
-    });
-  });
-});
-
-Deno.test("getCertFingerprint fetches when the runtime has no IndexedDB", async () => {
-  await withIndexedDB(undefined, async () => {
-    await withFetch(fingerprintResponse(FINGERPRINT), async (calls) => {
-      assert.assertEquals(
-        bytes(await cert.getCertFingerprint(BASE_URL)),
-        FINGERPRINT_BYTES,
-      );
-      assert.assertEquals(calls.length, 1);
-    });
-  });
-});
-
-Deno.test("getCertFingerprint passes the time limit to the fetch", async () => {
-  await withIndexedDB(undefined, async () => {
-    await withFetch(neverAnswers, async () => {
+    await withIndexedDB(fake.factory, async () => {
       await assert.assertRejects(
-        () => cert.getCertFingerprint(BASE_URL, { timeoutMs: 20 }),
-        errors.NoskillsTimeoutError,
+        () => cert.storeCertFingerprint(BASE_URL, "0a0b"),
+        RangeError,
+        "expected 64 hex digits",
+      );
+      assert.assertEquals(fake.records.size, 0);
+    });
+  },
+);
+
+nodeTest.test(
+  "getCertFingerprint uses the cached fingerprint without fetching",
+  async () => {
+    const fake = createFakeIndexedDB();
+
+    await withIndexedDB(fake.factory, async () => {
+      await cert.storeCertFingerprint(BASE_URL, FINGERPRINT);
+
+      await withFetch(fingerprintResponse(OTHER_FINGERPRINT), async (calls) => {
+        assert.assertEquals(
+          bytes(await cert.getCertFingerprint(BASE_URL)),
+          FINGERPRINT_BYTES,
+        );
+        assert.assertEquals(calls.length, 0);
+      });
+      assert.assertEquals(fake.openConnections(), 0);
+    });
+  },
+);
+
+nodeTest.test(
+  "getCertFingerprint fetches for a daemon whose origin has no cached fingerprint",
+  async () => {
+    const fake = createFakeIndexedDB();
+    const otherDaemon = "https://other.test";
+
+    await withIndexedDB(fake.factory, async () => {
+      await cert.storeCertFingerprint(BASE_URL, FINGERPRINT);
+
+      await withFetch(fingerprintResponse(OTHER_FINGERPRINT), async (calls) => {
+        const result = await cert.getCertFingerprint(otherDaemon);
+
+        assert.assertEquals(bytes(result)?.slice(0, 2), [0x12, 0x13]);
+        assert.assertEquals(
+          calls[0]?.url,
+          `${otherDaemon}/api/cert-fingerprint`,
+        );
+      });
+      assert.assertEquals(fake.records.get(otherDaemon), OTHER_FINGERPRINT);
+      assert.assertEquals(fake.records.get(BASE_URL), FINGERPRINT);
+    });
+  },
+);
+
+nodeTest.test(
+  "getCertFingerprint replaces a cached entry that is not a fingerprint",
+  async () => {
+    const fake = createFakeIndexedDB();
+    fake.records.set(BASE_URL, "0a0b");
+
+    await withIndexedDB(fake.factory, async () => {
+      await withFetch(fingerprintResponse(FINGERPRINT), async (calls) => {
+        assert.assertEquals(
+          bytes(await cert.getCertFingerprint(BASE_URL)),
+          FINGERPRINT_BYTES,
+        );
+        assert.assertEquals(calls.length, 1);
+      });
+      assert.assertEquals(fake.records.get(BASE_URL), FINGERPRINT);
+    });
+  },
+);
+
+nodeTest.test(
+  "getCertFingerprint fetches when IndexedDB fails to open",
+  async () => {
+    const fake = createFakeIndexedDB({ failOpen: true });
+
+    await withIndexedDB(fake.factory, async () => {
+      await withFetch(fingerprintResponse(FINGERPRINT), async (calls) => {
+        assert.assertEquals(
+          bytes(await cert.getCertFingerprint(BASE_URL)),
+          FINGERPRINT_BYTES,
+        );
+        assert.assertEquals(calls.length, 1);
+      });
+    });
+  },
+);
+
+nodeTest.test(
+  "getCertFingerprint fetches when the runtime has no IndexedDB",
+  async () => {
+    await withIndexedDB(undefined, async () => {
+      await withFetch(fingerprintResponse(FINGERPRINT), async (calls) => {
+        assert.assertEquals(
+          bytes(await cert.getCertFingerprint(BASE_URL)),
+          FINGERPRINT_BYTES,
+        );
+        assert.assertEquals(calls.length, 1);
+      });
+    });
+  },
+);
+
+nodeTest.test(
+  "getCertFingerprint passes the time limit to the fetch",
+  async () => {
+    await withIndexedDB(undefined, async () => {
+      await withFetch(neverAnswers, async () => {
+        await assert.assertRejects(
+          () => cert.getCertFingerprint(BASE_URL, { timeoutMs: 20 }),
+          errors.NoskillsTimeoutError,
+        );
+      });
+    });
+  },
+);
+
+nodeTest.test(
+  "the IndexedDB helpers name the fix when the runtime has none",
+  async () => {
+    await withIndexedDB(undefined, async () => {
+      await assert.assertRejects(
+        () => cert.storeCertFingerprint(BASE_URL, FINGERPRINT),
+        Error,
+        "pin the certificate with certHashes in NoskillsClientConfig instead",
+      );
+      await assert.assertRejects(
+        () => cert.loadCertFingerprint(BASE_URL),
+        Error,
+        "IndexedDB is not available in this runtime",
       );
     });
-  });
-});
-
-Deno.test("the IndexedDB helpers name the fix when the runtime has none", async () => {
-  await withIndexedDB(undefined, async () => {
-    await assert.assertRejects(
-      () => cert.storeCertFingerprint(BASE_URL, FINGERPRINT),
-      Error,
-      "pin the certificate with certHashes in NoskillsClientConfig instead",
-    );
-    await assert.assertRejects(
-      () => cert.loadCertFingerprint(BASE_URL),
-      Error,
-      "IndexedDB is not available in this runtime",
-    );
-  });
-});
+  },
+);

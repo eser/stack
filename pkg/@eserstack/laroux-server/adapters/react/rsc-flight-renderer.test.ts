@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as React from "react";
 import * as ReactDOMServer from "react-dom/server";
@@ -65,94 +66,109 @@ const VALUE_CASES: { name: string; value: unknown }[] = [
 ];
 
 for (const { name, value } of VALUE_CASES) {
-  Deno.test(`renderValueToReadableStream sends ${name} to the client intact`, async () => {
-    assert.assertEquals(await roundTrip(value), value);
-  });
+  nodeTest.test(
+    `renderValueToReadableStream sends ${name} to the client intact`,
+    async () => {
+      assert.assertEquals(await roundTrip(value), value);
+    },
+  );
 }
 
-Deno.test("renderValueToReadableStream sends a Date, a Map and a React element in one result", async () => {
-  const savedAt = new Date("2026-01-02T03:04:05.000Z");
-  const result = (await roundTrip({
-    savedAt,
-    counts: new Map([["views", 3]]),
-    message: React.createElement("p", { className: "notice" }, "Saved $5"),
-  })) as {
-    savedAt: Date;
-    counts: Map<string, number>;
-    message: React.ReactElement<{ className: string; children: string }>;
-  };
+nodeTest.test(
+  "renderValueToReadableStream sends a Date, a Map and a React element in one result",
+  async () => {
+    const savedAt = new Date("2026-01-02T03:04:05.000Z");
+    const result = (await roundTrip({
+      savedAt,
+      counts: new Map([["views", 3]]),
+      message: React.createElement("p", { className: "notice" }, "Saved $5"),
+    })) as {
+      savedAt: Date;
+      counts: Map<string, number>;
+      message: React.ReactElement<{ className: string; children: string }>;
+    };
 
-  assert.assertInstanceOf(result.savedAt, Date);
-  assert.assertEquals(result.savedAt.getTime(), savedAt.getTime());
-  assert.assertEquals(result.counts, new Map([["views", 3]]));
-  assert.assertEquals(React.isValidElement(result.message), true);
-  assert.assertEquals(result.message.type, "p");
-  assert.assertEquals(result.message.props.className, "notice");
-  assert.assertEquals(result.message.props.children, "Saved $5");
-});
+    assert.assertInstanceOf(result.savedAt, Date);
+    assert.assertEquals(result.savedAt.getTime(), savedAt.getTime());
+    assert.assertEquals(result.counts, new Map([["views", 3]]));
+    assert.assertEquals(React.isValidElement(result.message), true);
+    assert.assertEquals(result.message.type, "p");
+    assert.assertEquals(result.message.props.className, "notice");
+    assert.assertEquals(result.message.props.children, "Saved $5");
+  },
+);
 
-Deno.test("renderValueToReadableStream renders server components in a result", async () => {
-  const Greeting = async (props: { readonly name: string }) => {
-    await Promise.resolve();
-    return React.createElement("strong", null, `Hello ${props.name}`);
-  };
+nodeTest.test(
+  "renderValueToReadableStream renders server components in a result",
+  async () => {
+    const Greeting = async (props: { readonly name: string }) => {
+      await Promise.resolve();
+      return React.createElement("strong", null, `Hello ${props.name}`);
+    };
 
-  const result = (await roundTrip({
-    message: React.createElement(Greeting, { name: "Ada" }),
-  })) as { message: React.ReactElement<{ children: string }> };
+    const result = (await roundTrip({
+      message: React.createElement(Greeting, { name: "Ada" }),
+    })) as { message: React.ReactElement<{ children: string }> };
 
-  assert.assertEquals(result.message.type, "strong");
-  assert.assertEquals(result.message.props.children, "Hello Ada");
-});
+    assert.assertEquals(result.message.type, "strong");
+    assert.assertEquals(result.message.props.children, "Hello Ada");
+  },
+);
 
-Deno.test("renderValueToReadableStream sends client components as module references", async () => {
-  const Counter = (props: { readonly start: number }) =>
-    React.createElement("output", null, props.start);
-  const loaded: string[] = [];
+nodeTest.test(
+  "renderValueToReadableStream sends client components as module references",
+  async () => {
+    const Counter = (props: { readonly start: number }) =>
+      React.createElement("output", null, props.start);
+    const loaded: string[] = [];
 
-  const result = (await roundTrip(
-    React.createElement(
-      // The bundler turns a "use client" export into this reference.
-      protocol.createClientReference(
-        "./counter.tsx",
-        "Counter",
-      ) as unknown as typeof Counter,
-      { start: 2 },
-    ),
-    {
-      bundlerConfig: {
-        "./counter.tsx": {
-          id: "/chunk-counter.js",
-          chunks: ["chunk-counter.js"],
-          name: "Counter",
+    const result = (await roundTrip(
+      React.createElement(
+        // The bundler turns a "use client" export into this reference.
+        protocol.createClientReference(
+          "./counter.tsx",
+          "Counter",
+        ) as unknown as typeof Counter,
+        { start: 2 },
+      ),
+      {
+        bundlerConfig: {
+          "./counter.tsx": {
+            id: "/chunk-counter.js",
+            chunks: ["chunk-counter.js"],
+            name: "Counter",
+          },
+        },
+        moduleLoader: (id, exportName) => {
+          loaded.push(`${id}#${exportName}`);
+          return Counter;
         },
       },
-      moduleLoader: (id, exportName) => {
-        loaded.push(`${id}#${exportName}`);
-        return Counter;
-      },
-    },
-  )) as React.ReactElement<{ start: number }>;
+    )) as React.ReactElement<{ start: number }>;
 
-  assert.assertEquals(loaded, ["/chunk-counter.js#Counter"]);
-  assert.assertStrictEquals(result.type, Counter);
-  assert.assertEquals(result.props.start, 2);
-});
+    assert.assertEquals(loaded, ["/chunk-counter.js#Counter"]);
+    assert.assertStrictEquals(result.type, Counter);
+    assert.assertEquals(result.props.start, 2);
+  },
+);
 
-Deno.test("renderValueToReadableStream sends server actions as callable references", async () => {
-  const save = Object.assign(() => Promise.resolve(), {
-    $$typeof: Symbol.for("react.server.reference"),
-    $$id: "src/app/actions#save",
-    $$bound: null,
-  });
+nodeTest.test(
+  "renderValueToReadableStream sends server actions as callable references",
+  async () => {
+    const save = Object.assign(() => Promise.resolve(), {
+      $$typeof: Symbol.for("react.server.reference"),
+      $$id: "src/app/actions#save",
+      $$bound: null,
+    });
 
-  const result = (await roundTrip({ save })) as {
-    save: { $$id: string };
-  };
+    const result = (await roundTrip({ save })) as {
+      save: { $$id: string };
+    };
 
-  assert.assertEquals(typeof result.save, "function");
-  assert.assertEquals(result.save.$$id, "src/app/actions#save");
-});
+    assert.assertEquals(typeof result.save, "function");
+    assert.assertEquals(result.save.$$id, "src/app/actions#save");
+  },
+);
 
 const UNSUPPORTED_CASES = [
   {
@@ -185,141 +201,153 @@ const UNSUPPORTED_CASES = [
 ];
 
 for (const { name, value, message } of UNSUPPORTED_CASES) {
-  Deno.test(`renderValueToReadableStream rejects ${name} with a message that names it`, async () => {
-    await assert.assertRejects(() => roundTrip(value), Error, message);
-  });
+  nodeTest.test(
+    `renderValueToReadableStream rejects ${name} with a message that names it`,
+    async () => {
+      await assert.assertRejects(() => roundTrip(value), Error, message);
+    },
+  );
 }
 
-Deno.test("renderToReadableStream escapes text and props that start with $", async () => {
-  const RSCTreeRoot = await larouxClient.createFromReadableStream(
-    rscFlightRenderer.renderToReadableStream(
-      React.createElement("p", { title: "$5 off" }, "$D-day"),
-      {},
-    ),
-  );
-  // Let the stream apply before the tree is read.
-  await new Promise((resolve) => setTimeout(resolve, 0));
+nodeTest.test(
+  "renderToReadableStream escapes text and props that start with $",
+  async () => {
+    const RSCTreeRoot = await larouxClient.createFromReadableStream(
+      rscFlightRenderer.renderToReadableStream(
+        React.createElement("p", { title: "$5 off" }, "$D-day"),
+        {},
+      ),
+    );
+    // Let the stream apply before the tree is read.
+    await new Promise((resolve) => setTimeout(resolve, 0));
 
-  const element = RSCTreeRoot() as React.ReactElement<{
-    title: string;
-    children: string;
-  }>;
-  assert.assertEquals(element.props.title, "$5 off");
-  assert.assertEquals(element.props.children, "$D-day");
-});
+    const element = RSCTreeRoot() as React.ReactElement<{
+      title: string;
+      children: string;
+    }>;
+    assert.assertEquals(element.props.title, "$5 off");
+    assert.assertEquals(element.props.children, "$D-day");
+  },
+);
 
-Deno.test("renderToReadableStream sends the items of an array a server component returns", async () => {
-  const List = () => [
-    React.createElement("li", { key: "a" }, "A"),
-    React.createElement("li", { key: "b" }, "B"),
-  ];
+nodeTest.test(
+  "renderToReadableStream sends the items of an array a server component returns",
+  async () => {
+    const List = () => [
+      React.createElement("li", { key: "a" }, "A"),
+      React.createElement("li", { key: "b" }, "B"),
+    ];
 
-  const items = (await larouxClient.createValueFromReadableStream(
-    rscFlightRenderer.renderToReadableStream(React.createElement(List), {}),
-  )) as React.ReactElement<{ children: string }>[];
+    const items = (await larouxClient.createValueFromReadableStream(
+      rscFlightRenderer.renderToReadableStream(React.createElement(List), {}),
+    )) as React.ReactElement<{ children: string }>[];
 
-  assert.assertEquals(
-    items.map((item) => item.type),
-    ["li", "li"],
-  );
-  assert.assertEquals(
-    items.map((item) => item.props.children),
-    ["A", "B"],
-  );
-});
+    assert.assertEquals(
+      items.map((item) => item.type),
+      ["li", "li"],
+    );
+    assert.assertEquals(
+      items.map((item) => item.props.children),
+      ["A", "B"],
+    );
+  },
+);
 
-Deno.test("a Link that a server component renders navigates on the client", async () => {
-  // laroux calls a server component as a plain function, so the Link in it
-  // runs on the server too.
-  const StoriesNav = () =>
-    React.createElement(larouxReact.Link, {
-      href: "/stories",
-      replace: true,
-      children: "Stories",
-    });
+nodeTest.test(
+  "a Link that a server component renders navigates on the client",
+  async () => {
+    // laroux calls a server component as a plain function, so the Link in it
+    // runs on the server too.
+    const StoriesNav = () =>
+      React.createElement(larouxReact.Link, {
+        href: "/stories",
+        replace: true,
+        children: "Stories",
+      });
 
-  const anchor = (await larouxClient.createValueFromReadableStream(
-    rscFlightRenderer.renderToReadableStream(
-      React.createElement(StoriesNav),
-      {},
-    ),
-  )) as React.ReactElement<{
-    readonly onClick?: unknown;
-    readonly [name: string]: unknown;
-  }>;
+    const anchor = (await larouxClient.createValueFromReadableStream(
+      rscFlightRenderer.renderToReadableStream(
+        React.createElement(StoriesNav),
+        {},
+      ),
+    )) as React.ReactElement<{
+      readonly onClick?: unknown;
+      readonly [name: string]: unknown;
+    }>;
 
-  // The click handler does not survive the trip to the browser; the anchor's
-  // options do, in its data attributes, in the RSC tree and in the HTML.
-  assert.assertEquals(anchor.type, "a");
-  assert.assertEquals(anchor.props.onClick, undefined);
-  assert.assertEquals(
-    ReactDOMServer.renderToStaticMarkup(anchor),
-    '<a href="/stories" data-laroux-link="replace">Stories</a>',
-  );
+    // The click handler does not survive the trip to the browser; the anchor's
+    // options do, in its data attributes, in the RSC tree and in the HTML.
+    assert.assertEquals(anchor.type, "a");
+    assert.assertEquals(anchor.props.onClick, undefined);
+    assert.assertEquals(
+      ReactDOMServer.renderToStaticMarkup(anchor),
+      '<a href="/stories" data-laroux-link="replace">Stories</a>',
+    );
 
-  // The browser side: the listener the client bootstrap installs, and a click
-  // on the rendered anchor.
-  const calls: string[] = [];
-  const window: larouxBootstrap.NavigationWindow = {
-    history: {
-      pushState: (_data, _unused, url) => {
-        calls.push(`push ${url}`);
+    // The browser side: the listener the client bootstrap installs, and a click
+    // on the rendered anchor.
+    const calls: string[] = [];
+    const window: larouxBootstrap.NavigationWindow = {
+      history: {
+        pushState: (_data, _unused, url) => {
+          calls.push(`push ${url}`);
+        },
+        replaceState: (_data, _unused, url) => {
+          calls.push(`replace ${url}`);
+        },
       },
-      replaceState: (_data, _unused, url) => {
-        calls.push(`replace ${url}`);
+      scrollTo: () => {
+        calls.push("scroll");
       },
-    },
-    scrollTo: () => {
-      calls.push("scroll");
-    },
-    dispatchEvent: (event) => {
-      calls.push(`event ${event.type}`);
-      return true;
-    },
-  };
-  const listeners: ((event: larouxBootstrap.LinkClickEvent) => void)[] = [];
-  const document: larouxBootstrap.LinkNavigationDocument = {
-    addEventListener: (_type, listener) => {
-      listeners.push(listener);
-    },
-    removeEventListener: () => {},
-  };
-  const anchorElement = {
-    getAttribute: (name: string) => {
-      const value = anchor.props[name];
-      return typeof value === "string" ? value : null;
-    },
-    closest: (selectors: string) =>
-      selectors === `a[${larouxBootstrap.LINK_ATTRIBUTE}]`
-        ? anchorElement
-        : null,
-  };
-  let prevented = false;
-  const click: larouxBootstrap.LinkClickEvent = {
-    target: anchorElement,
-    button: 0,
-    metaKey: false,
-    ctrlKey: false,
-    shiftKey: false,
-    altKey: false,
-    get defaultPrevented() {
-      return prevented;
-    },
-    preventDefault() {
-      prevented = true;
-    },
-  };
+      dispatchEvent: (event) => {
+        calls.push(`event ${event.type}`);
+        return true;
+      },
+    };
+    const listeners: ((event: larouxBootstrap.LinkClickEvent) => void)[] = [];
+    const document: larouxBootstrap.LinkNavigationDocument = {
+      addEventListener: (_type, listener) => {
+        listeners.push(listener);
+      },
+      removeEventListener: () => {},
+    };
+    const anchorElement = {
+      getAttribute: (name: string) => {
+        const value = anchor.props[name];
+        return typeof value === "string" ? value : null;
+      },
+      closest: (selectors: string) =>
+        selectors === `a[${larouxBootstrap.LINK_ATTRIBUTE}]`
+          ? anchorElement
+          : null,
+    };
+    let prevented = false;
+    const click: larouxBootstrap.LinkClickEvent = {
+      target: anchorElement,
+      button: 0,
+      metaKey: false,
+      ctrlKey: false,
+      shiftKey: false,
+      altKey: false,
+      get defaultPrevented() {
+        return prevented;
+      },
+      preventDefault() {
+        prevented = true;
+      },
+    };
 
-  const uninstall = larouxBootstrap.installLinkNavigation(document, window);
-  for (const listener of listeners) {
-    listener(click);
-  }
-  uninstall();
+    const uninstall = larouxBootstrap.installLinkNavigation(document, window);
+    for (const listener of listeners) {
+      listener(click);
+    }
+    uninstall();
 
-  assert.assertEquals(prevented, true);
-  assert.assertEquals(calls, [
-    "replace /stories",
-    "scroll",
-    "event __laroux_navigate",
-  ]);
-});
+    assert.assertEquals(prevented, true);
+    assert.assertEquals(calls, [
+      "replace /stories",
+      "scroll",
+      "event __laroux_navigate",
+    ]);
+  },
+);

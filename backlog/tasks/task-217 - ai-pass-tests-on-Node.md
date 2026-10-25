@@ -4,7 +4,7 @@ title: 'ai: pass tests on Node'
 status: To Do
 assignee: []
 created_date: '2026-10-15 20:38'
-updated_date: '2026-10-24 19:38'
+updated_date: '2026-10-25 16:00'
 labels:
   - cutover
   - ai
@@ -37,4 +37,6 @@ Hand-work list (TASK-175 spike, 2026-10-24, node 26.12.1):
 - node --test: 22 files, 22 pass, 264 tests, 0 fail. adapters/factory-fallback.test.ts mentions Deno.env.set only in a comment (:13). The windows `ignore:` conditions became `skip:` and run (cli-shared.ffi 2, claude-code.ffi 1). The FFI suites pass through the koffi backend; re-run them once node:ffi lands (TASK-202).
 - Sanitizer options to remove: cli-shared.ffi 2, claude-code.ffi 1.
 - Source: Deno. 1 (a comment in adapters/mod.ts:135). Go: pkg/ajan/aifx/adapter_acp_test.go (1). Docs: pkg/@eserstack/ai/README.md (4).
+
+TASK-198 (2026-10-25): the test and bench codemods left no site for hand edits in this task's files (0 unhandled), and none of its test files fails under `node --test --test-force-exit` on Node 26.12.1 when run alone.
 <!-- SECTION:NOTES:END -->

@@ -4,7 +4,7 @@ title: 'kit and cs: pass tests on Node and remove the JSR recipe provider'
 status: To Do
 assignee: []
 created_date: '2026-10-15 20:38'
-updated_date: '2026-10-24 19:38'
+updated_date: '2026-10-25 16:00'
 labels:
   - cutover
   - kit
@@ -45,4 +45,6 @@ Hand-work list (TASK-175 spike, 2026-10-24, node 26.12.1):
 - Sanitizer options: cs generate.test.ts 1, sync.test.ts 1.
 - Go: pkg/ajan/kitfx/deps.go (3), types.go (1), kitfx_coverage_test.go (5), kept per decision-12. csfx is clean.
 - Docs: pkg/@eserstack/cs/README.md (5).
+
+TASK-198 (2026-10-25): the test and bench codemods left no site for hand edits in this task's files (0 unhandled), and none of its test files fails under `node --test --test-force-exit` on Node 26.12.1 when run alone.
 <!-- SECTION:NOTES:END -->

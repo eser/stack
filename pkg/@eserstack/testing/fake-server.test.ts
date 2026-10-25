@@ -1,9 +1,10 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as fakeServer from "./fake-server.ts";
 
-Deno.test("FakeServer should handle GET requests", async () => {
+nodeTest.test("FakeServer should handle GET requests", async () => {
   const server = new fakeServer.FakeServer((req) => {
     return new Response(`Hello from ${req.url}`);
   });
@@ -15,7 +16,7 @@ Deno.test("FakeServer should handle GET requests", async () => {
   assert.assertStringIncludes(text, "/api/test");
 });
 
-Deno.test("FakeServer should handle POST requests with body", async () => {
+nodeTest.test("FakeServer should handle POST requests with body", async () => {
   const server = new fakeServer.FakeServer(async (req) => {
     const body = await req.text();
     return Response.json({ received: body });
@@ -28,7 +29,7 @@ Deno.test("FakeServer should handle POST requests with body", async () => {
   assert.assertEquals(json.received, "test data");
 });
 
-Deno.test("FakeServer should handle different HTTP methods", async () => {
+nodeTest.test("FakeServer should handle different HTTP methods", async () => {
   const methods: string[] = [];
 
   const server = new fakeServer.FakeServer((req) => {
@@ -55,7 +56,7 @@ Deno.test("FakeServer should handle different HTTP methods", async () => {
   ]);
 });
 
-Deno.test("FakeServer should use custom base URL", async () => {
+nodeTest.test("FakeServer should use custom base URL", async () => {
   const server = new fakeServer.FakeServer((req) => new Response(req.url), {
     baseUrl: "https://api.example.com",
   });
@@ -66,7 +67,7 @@ Deno.test("FakeServer should use custom base URL", async () => {
   assert.assertEquals(url, "https://api.example.com/users");
 });
 
-Deno.test("FakeServer should handle headers", async () => {
+nodeTest.test("FakeServer should handle headers", async () => {
   const server = new fakeServer.FakeServer((req) => {
     const auth = req.headers.get("Authorization");
     if (auth === "Bearer valid-token") {
@@ -84,7 +85,7 @@ Deno.test("FakeServer should handle headers", async () => {
   assert.assertEquals(unauthResponse.status, 401);
 });
 
-Deno.test("FakeServer should handle async handlers", async () => {
+nodeTest.test("FakeServer should handle async handlers", async () => {
   const server = new fakeServer.FakeServer(async (_req) => {
     await new Promise((resolve) => setTimeout(resolve, 10));
     return Response.json({ delayed: true });
@@ -96,7 +97,7 @@ Deno.test("FakeServer should handle async handlers", async () => {
   assert.assertEquals(json.delayed, true);
 });
 
-Deno.test("FakeServer should handle JSON responses", async () => {
+nodeTest.test("FakeServer should handle JSON responses", async () => {
   const server = new fakeServer.FakeServer(() => {
     return Response.json({
       users: [
@@ -113,7 +114,7 @@ Deno.test("FakeServer should handle JSON responses", async () => {
   assert.assertEquals(data.users[0].name, "Alice");
 });
 
-Deno.test("FakeServer should handle 404 responses", async () => {
+nodeTest.test("FakeServer should handle 404 responses", async () => {
   const server = new fakeServer.FakeServer((req) => {
     if (req.url.endsWith("/exists")) {
       return new Response("Found");
@@ -128,7 +129,7 @@ Deno.test("FakeServer should handle 404 responses", async () => {
   assert.assertEquals(notFoundResponse.status, 404);
 });
 
-Deno.test("serveMiddleware should create FakeServer", async () => {
+nodeTest.test("serveMiddleware should create FakeServer", async () => {
   const middleware = (req: Request) => {
     return new Response(`Handled ${req.method}`);
   };

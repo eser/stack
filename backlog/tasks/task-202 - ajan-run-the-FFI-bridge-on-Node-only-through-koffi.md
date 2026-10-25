@@ -4,7 +4,7 @@ title: 'ajan: run the FFI bridge on Node only through node:ffi'
 status: To Do
 assignee: []
 created_date: '2026-10-15 20:38'
-updated_date: '2026-10-24 19:38'
+updated_date: '2026-10-25 16:00'
 labels:
   - cutover
   - ajan
@@ -65,4 +65,10 @@ Hand-work list (TASK-175 spike, 2026-10-24, node 26.12.1):
 - Assertion semantics: ffi/mod.test.ts:71-83 selectBackend expects detectRuntime() === "deno".
 - Non-test source: Deno. 117 (ffi/backend-deno.ts 105, ffi/mod.ts 5, ffi/resolve.ts 4, close-guard 1, client 1); Bun. 4 and bun: 6 (wasm/resolve.ts, ffi/resolve.ts, ffi/mod.ts); jsr:/npm: 0. FFI under node loads through koffi (backend-node.ts:43-94), not node:ffi.
 - Go and docs naming Deno: main.go (2), pin_image_posix.go (2), panic_guard.go (1), bridge_codebase.go (2), bridge_ai.go (1), bridge_log.go (1), bridge_handle_safety_test.go (1); README.md (11), examples/browser/README.md (1), npm/root-package.json (1).
+
+TASK-198 (2026-10-25): the test and bench codemods left no site for hand edits in this task's files (0 unhandled). After them, these test files still fail under `node --test --test-force-exit` on Node 26.12.1, each run alone:
+- pkg/@eserstack/ajan/ffi/mod.test.ts: 2 failing, 2 passing; first error: AssertionError: Values are not equal.
+- pkg/@eserstack/ajan/ffi/resolve.test.ts: 1 failing, 0 passing; first error: ReferenceError: Deno is not defined
+- pkg/@eserstack/ajan/wasm/node-reactor-http.test.ts: 1 failing, 0 passing; first error: see the run
+- pkg/@eserstack/ajan/wasm/profile-parity.test.ts: 1 failing, 0 passing; first error: see the run
 <!-- SECTION:NOTES:END -->

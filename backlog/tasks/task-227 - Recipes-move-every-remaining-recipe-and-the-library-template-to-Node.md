@@ -4,7 +4,7 @@ title: 'Recipes: move every remaining recipe and the library template to Node'
 status: To Do
 assignee: []
 created_date: '2026-10-15 20:38'
-updated_date: '2026-10-24 19:38'
+updated_date: '2026-10-25 16:00'
 labels:
   - cutover
   - recipes
@@ -47,4 +47,6 @@ Hand-work list (TASK-175 spike, 2026-10-24, node 26.12.1; grep and a run):
 - vanilla-app: main.ts:8 (a docs.deno.com link).
 - .npmrc with @jsr:registry: cf-workers-app, jsx-runtime-app, laroux-app.
 - .eser/recipes.json:13 (`["deno", "library", "typescript", "jsr"]`) and :262 (laroux-runtime-app, TASK-210). jsx-runtime-app (root.test.tsx, 3 mentions) and laroux-runtime-app (build.ts, 1) go in TASK-210.
+
+TASK-198 (2026-10-25): the test and bench codemods left no site for hand edits in this task's files (0 unhandled), and none of its test files fails under `node --test --test-force-exit` on Node 26.12.1 when run alone.
 <!-- SECTION:NOTES:END -->

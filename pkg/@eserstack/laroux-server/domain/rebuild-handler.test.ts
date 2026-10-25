@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as hmrManager from "./hmr-manager.ts";
 import * as rebuildHandler from "./rebuild-handler.ts";
@@ -70,78 +71,93 @@ const SUCCESSFUL_REBUILD: rebuildHandler.RebuildOutcome = {
   changedFiles: ["src/app/routes/home/page.tsx"],
 };
 
-Deno.test("a failed rebuild is logged as an error, loads nothing and sends no HMR update", async () => {
-  const server = createDevServer();
+nodeTest.test(
+  "a failed rebuild is logged as an error, loads nothing and sends no HMR update",
+  async () => {
+    const server = createDevServer();
 
-  await server.onRebuild({ ...SUCCESSFUL_REBUILD, success: false });
+    await server.onRebuild({ ...SUCCESSFUL_REBUILD, success: false });
 
-  assert.assertEquals(server.clientMessages, [
-    { type: "error", message: rebuildHandler.REBUILD_FAILED_MESSAGE },
-  ]);
-  assert.assertEquals(
-    server.logs.map((log) => log.level),
-    ["error"],
-  );
-  assert.assertStringIncludes(server.logs[0]?.message ?? "", "Rebuild failed");
-  assert.assertEquals(server.loads, []);
-});
+    assert.assertEquals(server.clientMessages, [
+      { type: "error", message: rebuildHandler.REBUILD_FAILED_MESSAGE },
+    ]);
+    assert.assertEquals(
+      server.logs.map((log) => log.level),
+      ["error"],
+    );
+    assert.assertStringIncludes(
+      server.logs[0]?.message ?? "",
+      "Rebuild failed",
+    );
+    assert.assertEquals(server.loads, []);
+  },
+);
 
-Deno.test("a successful rebuild loads the rebuilt modules, then sends the HMR update", async () => {
-  const server = createDevServer();
+nodeTest.test(
+  "a successful rebuild loads the rebuilt modules, then sends the HMR update",
+  async () => {
+    const server = createDevServer();
 
-  await server.onRebuild(SUCCESSFUL_REBUILD);
+    await server.onRebuild(SUCCESSFUL_REBUILD);
 
-  // The modules load with the rebuild's id before any client hears of it
-  assert.assertEquals(server.loads, [
-    { buildId: "01J9REBUILT", clientMessagesBefore: 0 },
-  ]);
-  assert.assertEquals(server.clientMessages, [
-    {
-      type: "update",
-      timestamp: 1_700_000_000_000,
-      changedModules: ["src/app/routes/home/page.tsx"],
-    },
-  ]);
-  assert.assertEquals(server.logs, [
-    { level: "info", message: "✓ Compiled in 42ms", attributes: {} },
-  ]);
-});
+    // The modules load with the rebuild's id before any client hears of it
+    assert.assertEquals(server.loads, [
+      { buildId: "01J9REBUILT", clientMessagesBefore: 0 },
+    ]);
+    assert.assertEquals(server.clientMessages, [
+      {
+        type: "update",
+        timestamp: 1_700_000_000_000,
+        changedModules: ["src/app/routes/home/page.tsx"],
+      },
+    ]);
+    assert.assertEquals(server.logs, [
+      { level: "info", message: "✓ Compiled in 42ms", attributes: {} },
+    ]);
+  },
+);
 
-Deno.test("rebuilt modules that fail to load are logged with the error and send the clients an error", async () => {
-  const failure = new Error("import page.js: SyntaxError");
-  const server = createDevServer(() => Promise.reject(failure));
+nodeTest.test(
+  "rebuilt modules that fail to load are logged with the error and send the clients an error",
+  async () => {
+    const failure = new Error("import page.js: SyntaxError");
+    const server = createDevServer(() => Promise.reject(failure));
 
-  await server.onRebuild(SUCCESSFUL_REBUILD);
+    await server.onRebuild(SUCCESSFUL_REBUILD);
 
-  assert.assertEquals(server.clientMessages, [
-    { type: "error", message: rebuildHandler.RELOAD_FAILED_MESSAGE },
-  ]);
-  assert.assertEquals(server.logs.length, 1);
-  assert.assertEquals(server.logs[0]?.level, "error");
-  assert.assertEquals(server.logs[0]?.attributes, {
-    buildId: "01J9REBUILT",
-    error: failure,
-  });
-});
+    assert.assertEquals(server.clientMessages, [
+      { type: "error", message: rebuildHandler.RELOAD_FAILED_MESSAGE },
+    ]);
+    assert.assertEquals(server.logs.length, 1);
+    assert.assertEquals(server.logs[0]?.level, "error");
+    assert.assertEquals(server.logs[0]?.attributes, {
+      buildId: "01J9REBUILT",
+      error: failure,
+    });
+  },
+);
 
-Deno.test("a rebuild without HMR only loads the modules and logs its outcome", async () => {
-  const logs: LogEntry[] = [];
-  const loadedBuildIds: string[] = [];
-  const onRebuild = rebuildHandler.createRebuildHandler({
-    hmr: null,
-    onRebuilt: (buildId) => {
-      loadedBuildIds.push(buildId);
-      return Promise.resolve();
-    },
-    logger: createRecordingLogger(logs),
-  });
+nodeTest.test(
+  "a rebuild without HMR only loads the modules and logs its outcome",
+  async () => {
+    const logs: LogEntry[] = [];
+    const loadedBuildIds: string[] = [];
+    const onRebuild = rebuildHandler.createRebuildHandler({
+      hmr: null,
+      onRebuilt: (buildId) => {
+        loadedBuildIds.push(buildId);
+        return Promise.resolve();
+      },
+      logger: createRecordingLogger(logs),
+    });
 
-  await onRebuild({ ...SUCCESSFUL_REBUILD, duration: 7 });
-  await onRebuild({ ...SUCCESSFUL_REBUILD, success: false });
+    await onRebuild({ ...SUCCESSFUL_REBUILD, duration: 7 });
+    await onRebuild({ ...SUCCESSFUL_REBUILD, success: false });
 
-  assert.assertEquals(loadedBuildIds, ["01J9REBUILT"]);
-  assert.assertEquals(
-    logs.map((log) => log.message.slice(0, 16)),
-    ["✓ Compiled in 7m", "✗ Rebuild failed"],
-  );
-});
+    assert.assertEquals(loadedBuildIds, ["01J9REBUILT"]);
+    assert.assertEquals(
+      logs.map((log) => log.message.slice(0, 16)),
+      ["✓ Compiled in 7m", "✗ Rebuild failed"],
+    );
+  },
+);

@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as fs from "@std/fs"; // symlinks are not available in runtime
 import { runtime } from "@eserstack/standards/cross-runtime";
@@ -84,102 +85,114 @@ async function recordWarnings(
   return calls;
 }
 
-Deno.test("RuntimeBundler gives client code the default browser logger", async () => {
-  await withCheckoutProject(async (projectRoot) => {
-    const devBundler = new runtimeBundler.RuntimeBundler({
-      srcDir: runtime.path.join(projectRoot, "src"),
-      projectRoot,
-      plugin: checkoutEntryPlugin,
+nodeTest.test(
+  "RuntimeBundler gives client code the default browser logger",
+  async () => {
+    await withCheckoutProject(async (projectRoot) => {
+      const devBundler = new runtimeBundler.RuntimeBundler({
+        srcDir: runtime.path.join(projectRoot, "src"),
+        projectRoot,
+        plugin: checkoutEntryPlugin,
+      });
+
+      const bundle = await devBundler.getBundle();
+      assert.assertNotEquals(bundle.chunkManifest.buildId, "runtime-error");
+      assert.assertExists(bundle.clientCode);
+
+      const checkout = await importBundle(bundle.clientCode);
+      const warnings = await recordWarnings(() =>
+        checkout.reportSlowPayment("order-1"),
+      );
+
+      assert.assertEquals(warnings, [
+        [
+          "[app.checkout] payment took longer than a second",
+          {
+            orderId: "order-1",
+          },
+        ],
+      ]);
     });
+  },
+);
 
-    const bundle = await devBundler.getBundle();
-    assert.assertNotEquals(bundle.chunkManifest.buildId, "runtime-error");
-    assert.assertExists(bundle.clientCode);
-
-    const checkout = await importBundle(bundle.clientCode);
-    const warnings = await recordWarnings(() =>
-      checkout.reportSlowPayment("order-1"),
-    );
-
-    assert.assertEquals(warnings, [
-      [
-        "[app.checkout] payment took longer than a second",
-        {
-          orderId: "order-1",
-        },
-      ],
-    ]);
-  });
-});
-
-Deno.test("RuntimeBundler applies the browser shims it is given", async () => {
-  await withCheckoutProject(async (projectRoot) => {
-    const browserShims: ResolvedBrowserShimsConfig = {
-      jsr: {
-        "@eserstack/logging": `
+nodeTest.test(
+  "RuntimeBundler applies the browser shims it is given",
+  async () => {
+    await withCheckoutProject(async (projectRoot) => {
+      const browserShims: ResolvedBrowserShimsConfig = {
+        jsr: {
+          "@eserstack/logging": `
 const record = (message) => Promise.resolve("custom shim: " + message);
 export const logger = {
   getLogger: () => ({ with: () => ({ warn: record }) }),
 };
 `,
-      },
-      nodeBuiltins: {},
-    };
-    const devBundler = new runtimeBundler.RuntimeBundler({
-      srcDir: runtime.path.join(projectRoot, "src"),
-      projectRoot,
-      plugin: checkoutEntryPlugin,
-      browserShims,
+        },
+        nodeBuiltins: {},
+      };
+      const devBundler = new runtimeBundler.RuntimeBundler({
+        srcDir: runtime.path.join(projectRoot, "src"),
+        projectRoot,
+        plugin: checkoutEntryPlugin,
+        browserShims,
+      });
+
+      const bundle = await devBundler.getBundle();
+      assert.assertExists(bundle.clientCode);
+      const checkout = await importBundle(bundle.clientCode);
+
+      assert.assertEquals(
+        await checkout.reportSlowPayment("order-2"),
+        "custom shim: payment took longer than a second",
+      );
     });
+  },
+);
 
-    const bundle = await devBundler.getBundle();
-    assert.assertExists(bundle.clientCode);
-    const checkout = await importBundle(bundle.clientCode);
-
-    assert.assertEquals(
-      await checkout.reportSlowPayment("order-2"),
-      "custom shim: payment took longer than a second",
-    );
-  });
-});
-
-Deno.test("RuntimeBundler keeps the native logger out of a React app's bundle", async () => {
-  await withCheckoutProject(async (projectRoot) => {
-    // The copied bootstrap imports these by bare specifier; link them from
-    // laroux-react's own dependencies, as an installed app has them.
-    const bootstrapIndex = rscClientEntry.fileUrlToPath(
-      import.meta.resolve("@eserstack/laroux-react/client/bootstrap"),
-    );
-    const sourceModules = runtime.path.resolve(
-      bootstrapIndex,
-      "../../../node_modules",
-    );
-    await Promise.all(
-      ["react", "react-dom", "@eserstack/laroux"].map((name) =>
-        fs.ensureSymlink(
-          runtime.path.join(sourceModules, name),
-          runtime.path.join(projectRoot, "node_modules", name),
+nodeTest.test(
+  "RuntimeBundler keeps the native logger out of a React app's bundle",
+  async () => {
+    await withCheckoutProject(async (projectRoot) => {
+      // The copied bootstrap imports these by bare specifier; link them from
+      // laroux-react's own dependencies, as an installed app has them.
+      const bootstrapIndex = rscClientEntry.fileUrlToPath(
+        import.meta.resolve("@eserstack/laroux-react/client/bootstrap"),
+      );
+      const sourceModules = runtime.path.resolve(
+        bootstrapIndex,
+        "../../../node_modules",
+      );
+      await Promise.all(
+        ["react", "react-dom", "@eserstack/laroux"].map((name) =>
+          fs.ensureSymlink(
+            runtime.path.join(sourceModules, name),
+            runtime.path.join(projectRoot, "node_modules", name),
+          ),
         ),
-      ),
-    );
+      );
 
-    const devBundler = new runtimeBundler.RuntimeBundler({
-      srcDir: runtime.path.join(projectRoot, "src"),
-      projectRoot,
-      plugin: react.reactPlugin,
+      const devBundler = new runtimeBundler.RuntimeBundler({
+        srcDir: runtime.path.join(projectRoot, "src"),
+        projectRoot,
+        plugin: react.reactPlugin,
+      });
+
+      const bundle = await devBundler.getBundle();
+      assert.assertNotEquals(bundle.chunkManifest.buildId, "runtime-error");
+      assert.assertExists(bundle.clientCode);
+
+      // The bootstrap logs through @eserstack/logging. Its browser shim reports
+      // its own faults with this message; the package itself would bring the
+      // native bridge's symbols into the bundle.
+      assert.assertStringIncludes(
+        bundle.clientCode,
+        "[eserstack/logging] writing a log record failed",
+      );
+      assert.assertEquals(
+        bundle.clientCode.includes("EserAjanLogCreate"),
+        false,
+      );
     });
-
-    const bundle = await devBundler.getBundle();
-    assert.assertNotEquals(bundle.chunkManifest.buildId, "runtime-error");
-    assert.assertExists(bundle.clientCode);
-
-    // The bootstrap logs through @eserstack/logging. Its browser shim reports
-    // its own faults with this message; the package itself would bring the
-    // native bridge's symbols into the bundle.
-    assert.assertStringIncludes(
-      bundle.clientCode,
-      "[eserstack/logging] writing a log record failed",
-    );
-    assert.assertEquals(bundle.clientCode.includes("EserAjanLogCreate"), false);
-  });
-});
+  },
+);

@@ -1,9 +1,10 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as distinctArray from "./distinct-array.ts";
 
-Deno.test("basic", () => {
+nodeTest.test("basic", () => {
   const arr1 = [
     { id: 1, name: "foo", parent: 0 },
     { id: 2, name: "bar", parent: 1 },

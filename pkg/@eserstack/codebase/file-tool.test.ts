@@ -10,6 +10,7 @@
  * @module
  */
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as primitives from "@eserstack/primitives";
 import { runtime } from "@eserstack/standards/cross-runtime";
@@ -77,39 +78,34 @@ const cases: ReadonlyArray<{
 for (const { name, flags, expected } of cases) {
   // sanitizeResources is off because file-tool.ts loads the FFI
   // DynamicLibrary, which stays open after the test.
-  Deno.test({
-    name: `createFileTool main: ${name}`,
-    sanitizeResources: false,
-    fn: () =>
-      withFixtureRoot(async (root) => {
-        const checked: string[] = [];
-        const result = await recordingTool(checked).main([
-          "--root",
-          root,
-          ...flags,
-        ]);
-
-        assert.assert(primitives.results.isOk(result));
-        assert.assertEquals([...checked].sort(), [...expected]);
-      }),
-  });
-}
-
-Deno.test({
-  name: "createFileTool main: rejects an --exclude with no pattern",
-  fn: () =>
+  nodeTest.test(`createFileTool main: ${name}`, () =>
     withFixtureRoot(async (root) => {
       const checked: string[] = [];
       const result = await recordingTool(checked).main([
         "--root",
         root,
-        "--exclude",
-        "skip-a",
-        "--exclude",
+        ...flags,
       ]);
 
-      assert.assert(primitives.results.isFail(result));
-      assert.assertEquals(result.error.exitCode, 1);
-      assert.assertEquals(checked, []);
+      assert.assert(primitives.results.isOk(result));
+      assert.assertEquals([...checked].sort(), [...expected]);
     }),
-});
+  );
+}
+
+nodeTest.test("createFileTool main: rejects an --exclude with no pattern", () =>
+  withFixtureRoot(async (root) => {
+    const checked: string[] = [];
+    const result = await recordingTool(checked).main([
+      "--root",
+      root,
+      "--exclude",
+      "skip-a",
+      "--exclude",
+    ]);
+
+    assert.assert(primitives.results.isFail(result));
+    assert.assertEquals(result.error.exitCode, 1);
+    assert.assertEquals(checked, []);
+  }),
+);

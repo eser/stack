@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as results from "@eserstack/primitives/results";
 import { runtime } from "@eserstack/standards/cross-runtime";
@@ -47,7 +48,7 @@ const buildShellArgsCases = [
 ];
 
 for (const { name, command, extraArgs, expected } of buildShellArgsCases) {
-  Deno.test(name, () => {
+  nodeTest.test(name, () => {
     assert.assertEquals(scripts.buildShellArgs(command, extraArgs), expected);
   });
 }
@@ -71,101 +72,116 @@ const PRINT_ARGS = "printf '[%s]\\n' > args.txt";
 const printedArgs = (args: readonly string[]): string =>
   args.map((arg) => `[${arg}]\n`).join("");
 
-Deno.test("executeCommand passes each forwarded argument as one word", async () => {
-  await withTempDir(async (dir) => {
-    const forwarded = [
-      "has space",
-      "it's",
-      '"double quoted"',
-      "back\\slash",
-      "$HOME",
-      "*",
-      "",
-      "two\nlines",
-    ];
+nodeTest.test(
+  "executeCommand passes each forwarded argument as one word",
+  async () => {
+    await withTempDir(async (dir) => {
+      const forwarded = [
+        "has space",
+        "it's",
+        '"double quoted"',
+        "back\\slash",
+        "$HOME",
+        "*",
+        "",
+        "two\nlines",
+      ];
 
-    const code = await scripts.executeCommand(PRINT_ARGS, dir, forwarded);
+      const code = await scripts.executeCommand(PRINT_ARGS, dir, forwarded);
 
-    assert.assertEquals(code, 0);
-    assert.assertEquals(
-      await runtime.fs.readTextFile(runtime.path.join(dir, "args.txt")),
-      printedArgs(forwarded),
-    );
-  });
-});
-
-Deno.test("executeCommand never runs a forwarded argument as a command", async () => {
-  await withTempDir(async (dir) => {
-    const forwarded = [
-      "a; touch semicolon",
-      "$(touch substitution)",
-      "`touch backtick`",
-      "a && touch and",
-      "a | touch pipe",
-    ];
-
-    const code = await scripts.executeCommand(PRINT_ARGS, dir, forwarded);
-
-    assert.assertEquals(code, 0);
-    assert.assertEquals(
-      await runtime.fs.readTextFile(runtime.path.join(dir, "args.txt")),
-      printedArgs(forwarded),
-    );
-
-    const markers = ["semicolon", "substitution", "backtick", "and", "pipe"];
-    const created = await Promise.all(
-      markers.map((name) => runtime.fs.exists(runtime.path.join(dir, name))),
-    );
-
-    for (const [index, name] of markers.entries()) {
-      assert.assertFalse(
-        created[index],
-        `the forwarded argument created "${name}"`,
+      assert.assertEquals(code, 0);
+      assert.assertEquals(
+        await runtime.fs.readTextFile(runtime.path.join(dir, "args.txt")),
+        printedArgs(forwarded),
       );
-    }
-  });
-});
+    });
+  },
+);
 
-Deno.test("executeCommand forwards arguments after a command that ends in a newline", async () => {
-  await withTempDir(async (dir) => {
-    // A YAML block scalar (`command: |`) ends the command with a newline.
-    const forwarded = ["touch newline"];
+nodeTest.test(
+  "executeCommand never runs a forwarded argument as a command",
+  async () => {
+    await withTempDir(async (dir) => {
+      const forwarded = [
+        "a; touch semicolon",
+        "$(touch substitution)",
+        "`touch backtick`",
+        "a && touch and",
+        "a | touch pipe",
+      ];
 
-    const code = await scripts.executeCommand(
-      `${PRINT_ARGS}\n`,
-      dir,
-      forwarded,
-    );
+      const code = await scripts.executeCommand(PRINT_ARGS, dir, forwarded);
 
-    assert.assertEquals(code, 0);
-    assert.assertEquals(
-      await runtime.fs.readTextFile(runtime.path.join(dir, "args.txt")),
-      printedArgs(forwarded),
-    );
-    assert.assertFalse(
-      await runtime.fs.exists(runtime.path.join(dir, "newline")),
-    );
-  });
-});
+      assert.assertEquals(code, 0);
+      assert.assertEquals(
+        await runtime.fs.readTextFile(runtime.path.join(dir, "args.txt")),
+        printedArgs(forwarded),
+      );
 
-Deno.test("executeCommand runs the command unchanged without forwarded arguments", async () => {
-  await withTempDir(async (dir) => {
-    const code = await scripts.executeCommand(PRINT_ARGS, dir);
+      const markers = ["semicolon", "substitution", "backtick", "and", "pipe"];
+      const created = await Promise.all(
+        markers.map((name) => runtime.fs.exists(runtime.path.join(dir, name))),
+      );
 
-    assert.assertEquals(code, 0);
-    // printf with a format and no arguments prints the format once.
-    assert.assertEquals(
-      await runtime.fs.readTextFile(runtime.path.join(dir, "args.txt")),
-      "[]\n",
-    );
-  });
-});
+      for (const [index, name] of markers.entries()) {
+        assert.assertFalse(
+          created[index],
+          `the forwarded argument created "${name}"`,
+        );
+      }
+    });
+  },
+);
 
-Deno.test("executeCommand returns the exit code of a failing command", async () => {
-  await withTempDir(async (dir) => {
-    assert.assertEquals(await scripts.executeCommand("exit 3", dir), 3);
-  });
-});
+nodeTest.test(
+  "executeCommand forwards arguments after a command that ends in a newline",
+  async () => {
+    await withTempDir(async (dir) => {
+      // A YAML block scalar (`command: |`) ends the command with a newline.
+      const forwarded = ["touch newline"];
+
+      const code = await scripts.executeCommand(
+        `${PRINT_ARGS}\n`,
+        dir,
+        forwarded,
+      );
+
+      assert.assertEquals(code, 0);
+      assert.assertEquals(
+        await runtime.fs.readTextFile(runtime.path.join(dir, "args.txt")),
+        printedArgs(forwarded),
+      );
+      assert.assertFalse(
+        await runtime.fs.exists(runtime.path.join(dir, "newline")),
+      );
+    });
+  },
+);
+
+nodeTest.test(
+  "executeCommand runs the command unchanged without forwarded arguments",
+  async () => {
+    await withTempDir(async (dir) => {
+      const code = await scripts.executeCommand(PRINT_ARGS, dir);
+
+      assert.assertEquals(code, 0);
+      // printf with a format and no arguments prints the format once.
+      assert.assertEquals(
+        await runtime.fs.readTextFile(runtime.path.join(dir, "args.txt")),
+        "[]\n",
+      );
+    });
+  },
+);
+
+nodeTest.test(
+  "executeCommand returns the exit code of a failing command",
+  async () => {
+    await withTempDir(async (dir) => {
+      assert.assertEquals(await scripts.executeCommand("exit 3", dir), 3);
+    });
+  },
+);
 
 // --- parseScript ---
 
@@ -218,7 +234,7 @@ const parseScriptCases = [
 ];
 
 for (const { name, entry, expected } of parseScriptCases) {
-  Deno.test(name, () => {
+  nodeTest.test(name, () => {
     assert.assertEquals(settled(scripts.parseScript("test", entry)), {
       ok: expected,
     });
@@ -277,7 +293,7 @@ const malformedEntryCases = [
 ];
 
 for (const { name, entry, message } of malformedEntryCases) {
-  Deno.test(name, () => {
+  nodeTest.test(name, () => {
     assert.assertEquals(settled(scripts.parseScript("test", entry)), {
       fail: message,
     });
@@ -351,7 +367,7 @@ const runOrderCases = [
 ];
 
 for (const { name, scripts: entries, run, expected } of runOrderCases) {
-  Deno.test(name, () => {
+  nodeTest.test(name, () => {
     assert.assertEquals(
       runOrderNames(scripts.resolveRunOrder(run, entries)),
       expected,
@@ -466,7 +482,7 @@ for (const runOrderErrorCase of runOrderErrorCases) {
     message,
   } = runOrderErrorCase;
 
-  Deno.test(name, () => {
+  nodeTest.test(name, () => {
     const result = scripts.resolveRunOrder(run, entries);
 
     assert.assert(results.isFail(result), "expected the resolution to fail");
@@ -501,22 +517,25 @@ const readLog = async (dir: string): Promise<string | null> => {
   return await runtime.fs.readTextFile(logPath);
 };
 
-Deno.test("runScript runs a chain of dependencies before the script", async () => {
-  await withTempDir(async (dir) => {
-    const entries = {
-      first: loggingScript(dir, "first"),
-      second: loggingScript(dir, "second", ["first"]),
-      third: loggingScript(dir, "third", ["second"]),
-    };
+nodeTest.test(
+  "runScript runs a chain of dependencies before the script",
+  async () => {
+    await withTempDir(async (dir) => {
+      const entries = {
+        first: loggingScript(dir, "first"),
+        second: loggingScript(dir, "second", ["first"]),
+        third: loggingScript(dir, "third", ["second"]),
+      };
 
-    const result = await scripts.runScript("third", entries, []);
+      const result = await scripts.runScript("third", entries, []);
 
-    assert.assertEquals(settled(result), { ok: undefined });
-    assert.assertEquals(await readLog(dir), "first\nsecond\nthird\n");
-  });
-});
+      assert.assertEquals(settled(result), { ok: undefined });
+      assert.assertEquals(await readLog(dir), "first\nsecond\nthird\n");
+    });
+  },
+);
 
-Deno.test("runScript runs the shared base of a diamond once", async () => {
+nodeTest.test("runScript runs the shared base of a diamond once", async () => {
   await withTempDir(async (dir) => {
     const entries = {
       base: loggingScript(dir, "base"),
@@ -532,65 +551,78 @@ Deno.test("runScript runs the shared base of a diamond once", async () => {
   });
 });
 
-Deno.test("runScript stops at a failing dependency with its exit code", async () => {
-  await withTempDir(async (dir) => {
-    const entries = {
-      first: { command: "exit 3", workingDirectory: dir },
-      second: loggingScript(dir, "second", ["first"]),
-      third: loggingScript(dir, "third", ["second"]),
-    };
+nodeTest.test(
+  "runScript stops at a failing dependency with its exit code",
+  async () => {
+    await withTempDir(async (dir) => {
+      const entries = {
+        first: { command: "exit 3", workingDirectory: dir },
+        second: loggingScript(dir, "second", ["first"]),
+        third: loggingScript(dir, "third", ["second"]),
+      };
 
-    const result = await scripts.runScript("third", entries, []);
+      const result = await scripts.runScript("third", entries, []);
 
-    assert.assertEquals(settled(result), {
-      fail: {
-        message:
-          'script "third" did not run: its dependency "first" exited with ' +
-          "code 3",
-        exitCode: 3,
-      },
+      assert.assertEquals(settled(result), {
+        fail: {
+          message:
+            'script "third" did not run: its dependency "first" exited with ' +
+            "code 3",
+          exitCode: 3,
+        },
+      });
+      assert.assertEquals(await readLog(dir), null);
     });
-    assert.assertEquals(await readLog(dir), null);
-  });
-});
+  },
+);
 
-Deno.test("runScript runs nothing when the dependencies form a cycle", async () => {
-  await withTempDir(async (dir) => {
-    const entries = {
-      first: loggingScript(dir, "first", ["second"]),
-      second: loggingScript(dir, "second", ["first"]),
-      third: loggingScript(dir, "third", ["first"]),
-    };
+nodeTest.test(
+  "runScript runs nothing when the dependencies form a cycle",
+  async () => {
+    await withTempDir(async (dir) => {
+      const entries = {
+        first: loggingScript(dir, "first", ["second"]),
+        second: loggingScript(dir, "second", ["first"]),
+        third: loggingScript(dir, "third", ["first"]),
+      };
 
-    const result = await scripts.runScript("third", entries, []);
+      const result = await scripts.runScript("third", entries, []);
 
-    assert.assertEquals(settled(result), {
-      fail: {
-        message:
-          'script "first" depends on itself through first -> second ' +
-          "-> first; remove one of these depends entries",
-        exitCode: 1,
-      },
+      assert.assertEquals(settled(result), {
+        fail: {
+          message:
+            'script "first" depends on itself through first -> second ' +
+            "-> first; remove one of these depends entries",
+          exitCode: 1,
+        },
+      });
+      assert.assertEquals(await readLog(dir), null);
     });
-    assert.assertEquals(await readLog(dir), null);
-  });
-});
+  },
+);
 
-Deno.test("runScript forwards arguments to the script and not its dependencies", async () => {
-  await withTempDir(async (dir) => {
-    const appendArgs = "printf '[%s]\\n' >> log.txt";
-    const entries = {
-      build: { command: appendArgs, workingDirectory: dir },
-      test: { command: appendArgs, workingDirectory: dir, depends: ["build"] },
-    };
+nodeTest.test(
+  "runScript forwards arguments to the script and not its dependencies",
+  async () => {
+    await withTempDir(async (dir) => {
+      const appendArgs = "printf '[%s]\\n' >> log.txt";
+      const entries = {
+        build: { command: appendArgs, workingDirectory: dir },
+        test: {
+          command: appendArgs,
+          workingDirectory: dir,
+          depends: ["build"],
+        },
+      };
 
-    const result = await scripts.runScript("test", entries, ["has space"]);
+      const result = await scripts.runScript("test", entries, ["has space"]);
 
-    assert.assertEquals(settled(result), { ok: undefined });
-    // printf with a format and no arguments prints the format once.
-    assert.assertEquals(await readLog(dir), "[]\n[has space]\n");
-  });
-});
+      assert.assertEquals(settled(result), { ok: undefined });
+      // printf with a format and no arguments prints the format once.
+      assert.assertEquals(await readLog(dir), "[]\n[has space]\n");
+    });
+  },
+);
 
 // --- eser self-invocation ---
 
@@ -615,7 +647,7 @@ const shellQuoteCases = [
 ];
 
 for (const { name, value, expected } of shellQuoteCases) {
-  Deno.test(name, () => {
+  nodeTest.test(name, () => {
     assert.assertEquals(scripts.shellQuote(value), expected);
   });
 }
@@ -649,17 +681,20 @@ const buildCliPrefixCases: readonly {
 ];
 
 for (const { invoker, expected } of buildCliPrefixCases) {
-  Deno.test(`buildCliPrefix for the ${invoker} invoker`, () => {
+  nodeTest.test(`buildCliPrefix for the ${invoker} invoker`, () => {
     assert.assertEquals(scripts.buildCliPrefix(invoker, prefixPaths), expected);
   });
 }
 
-Deno.test("buildCliPrefix falls back to the eser on PATH without an entry file", () => {
-  assert.assertEquals(
-    scripts.buildCliPrefix("npm", { ...prefixPaths, entryPath: null }),
-    "eser",
-  );
-});
+nodeTest.test(
+  "buildCliPrefix falls back to the eser on PATH without an entry file",
+  () => {
+    assert.assertEquals(
+      scripts.buildCliPrefix("npm", { ...prefixPaths, entryPath: null }),
+      "eser",
+    );
+  },
+);
 
 const resolveCommandCases = [
   {
@@ -685,7 +720,7 @@ const resolveCommandCases = [
 ];
 
 for (const { name, command, expected } of resolveCommandCases) {
-  Deno.test(name, () => {
+  nodeTest.test(name, () => {
     assert.assertEquals(scripts.resolveCommand(command, "PREFIX"), expected);
   });
 }
@@ -705,40 +740,43 @@ const selfInvocationCases: readonly {
 ];
 
 for (const { invoker, leadingArgs } of selfInvocationCases) {
-  Deno.test(`executeCommand runs eser as ${invoker} through paths with a space and a quote`, async () => {
-    await withTempDir(async (dir) => {
-      // A stand-in executable that records its arguments, in a directory whose
-      // name breaks an unquoted path in two words and opens a quote.
-      const toolsDir = runtime.path.join(dir, "John Smith's tools");
-      await runtime.fs.mkdir(toolsDir);
-      const execPath = runtime.path.join(toolsDir, "exe");
-      await runtime.fs.writeTextFile(
-        execPath,
-        `#!/bin/sh\n${PRINT_ARGS} "$@"\n`,
-        {
-          mode: 0o755,
-        },
-      );
-      const checkoutDir = runtime.path.join(dir, "checkout it's $HOME");
-      const entryPath = runtime.path.join(checkoutDir, "eser.js");
-      const mainPath = runtime.path.join(checkoutDir, "main.ts");
+  nodeTest.test(
+    `executeCommand runs eser as ${invoker} through paths with a space and a quote`,
+    async () => {
+      await withTempDir(async (dir) => {
+        // A stand-in executable that records its arguments, in a directory whose
+        // name breaks an unquoted path in two words and opens a quote.
+        const toolsDir = runtime.path.join(dir, "John Smith's tools");
+        await runtime.fs.mkdir(toolsDir);
+        const execPath = runtime.path.join(toolsDir, "exe");
+        await runtime.fs.writeTextFile(
+          execPath,
+          `#!/bin/sh\n${PRINT_ARGS} "$@"\n`,
+          {
+            mode: 0o755,
+          },
+        );
+        const checkoutDir = runtime.path.join(dir, "checkout it's $HOME");
+        const entryPath = runtime.path.join(checkoutDir, "eser.js");
+        const mainPath = runtime.path.join(checkoutDir, "main.ts");
 
-      const command = scripts.resolveCommand(
-        "eser workflows run",
-        scripts.buildCliPrefix(invoker, { execPath, entryPath, mainPath }),
-      );
-      const code = await scripts.executeCommand(command, dir, ["has space"]);
+        const command = scripts.resolveCommand(
+          "eser workflows run",
+          scripts.buildCliPrefix(invoker, { execPath, entryPath, mainPath }),
+        );
+        const code = await scripts.executeCommand(command, dir, ["has space"]);
 
-      assert.assertEquals(code, 0);
-      assert.assertEquals(
-        await runtime.fs.readTextFile(runtime.path.join(dir, "args.txt")),
-        printedArgs([
-          ...leadingArgs(entryPath, mainPath),
-          "workflows",
-          "run",
-          "has space",
-        ]),
-      );
-    });
-  });
+        assert.assertEquals(code, 0);
+        assert.assertEquals(
+          await runtime.fs.readTextFile(runtime.path.join(dir, "args.txt")),
+          printedArgs([
+            ...leadingArgs(entryPath, mainPath),
+            "workflows",
+            "run",
+            "has space",
+          ]),
+        );
+      });
+    },
+  );
 }

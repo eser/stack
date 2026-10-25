@@ -1,7 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 import * as assert from "@eserstack/test-kit/assert";
-import * as bdd from "@std/testing/bdd";
+import * as bdd from "node:test";
 import * as goClientModule from "./go-client.ts";
 import * as ffiClient from "./ffi-client.ts";
 
@@ -75,10 +75,10 @@ bdd.describe("createGoHttpClient options", () => {
   }
 
   // Needs the native library: the Go client itself enforces the limit.
-  bdd.it({
-    name: "passes timeoutMs to the Go client, which ends a request with no answer",
-    ignore: withoutFfi,
-    fn: async () => {
+  bdd.it(
+    "passes timeoutMs to the Go client, which ends a request with no answer",
+    { skip: withoutFfi },
+    async () => {
       // The kernel accepts the connection into the backlog and nothing ever
       // answers, so only the Go client's timeout can end the request.
       const listener = Deno.listen({ hostname: "127.0.0.1", port: 0 });
@@ -103,5 +103,5 @@ bdd.describe("createGoHttpClient options", () => {
         listener.close();
       }
     },
-  });
+  );
 });

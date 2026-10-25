@@ -4,7 +4,7 @@ title: 'shell: pass tests on Node'
 status: To Do
 assignee: []
 created_date: '2026-10-15 20:38'
-updated_date: '2026-10-24 19:38'
+updated_date: '2026-10-25 16:00'
 labels:
   - cutover
   - shell
@@ -39,4 +39,7 @@ Hand-work list (TASK-175 spike, 2026-10-24, node 26.12.1):
 - Sanitizer options to remove: exec/command.ffi.test.ts 1, go-exec.ffi.test.ts 1.
 - Source: Deno. 1 (a comment in tui/keypress.ts:190). The 4 local `const test = types.createTestContext()` in tui tests shadow the node:test import inside a closure only (harmless).
 - Docs: pkg/@eserstack/shell/README.md (3, the Deno.errors.NotFound note at :653 and :664). pkg/ajan/shellfx is clean.
+
+TASK-198 (2026-10-25): the test and bench codemods left no site for hand edits in this task's files (0 unhandled). After them, these test files still fail under `node --test --test-force-exit` on Node 26.12.1, each run alone:
+- pkg/@eserstack/shell/env/executable.test.ts: 2 failing, 2 passing; first error: see the run
 <!-- SECTION:NOTES:END -->

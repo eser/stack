@@ -1,6 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import * as bdd from "@std/testing/bdd";
+import * as bdd from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as serializer from "./serializer.ts";
 import * as deserializer from "./deserializer.ts";
@@ -44,7 +44,7 @@ const testArray = [
 // Serializer Tests
 // =============================================================================
 
-bdd.describe({ name: "serialize()", sanitizeResources: false }, () => {
+bdd.describe("serialize()", () => {
   bdd.it("should serialize JSON format", async () => {
     const result = await serializer.serialize(testData, "json");
     const parsed = JSON.parse(result);

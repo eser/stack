@@ -8,7 +8,7 @@
  * @module
  */
 
-import * as bdd from "@std/testing/bdd";
+import * as bdd from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as crossRuntime from "@eserstack/standards/cross-runtime";
 import { runtime } from "@eserstack/standards/cross-runtime";
@@ -128,10 +128,10 @@ const runLoop = async (
 const readJson = async (path: string): Promise<schema.StateFile> =>
   JSON.parse(await runtime.fs.readTextFile(path)) as schema.StateFile;
 
-bdd.describe({
-  name: "noskills run loop",
-  ignore: crossRuntime.getPlatform() === "windows",
-  fn: () => {
+bdd.describe(
+  "noskills run loop",
+  { skip: crossRuntime.getPlatform() === "windows" },
+  () => {
     let project: Project;
 
     bdd.afterEach(async () => {
@@ -197,4 +197,4 @@ bdd.describe({
       assert.assertStringIncludes(output, "Max iterations (2) reached");
     });
   },
-});
+);

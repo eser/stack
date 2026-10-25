@@ -1,14 +1,15 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as formatNumber from "./format-number.ts";
 
-Deno.test("formatNumber formats small numbers", () => {
+nodeTest.test("formatNumber formats small numbers", () => {
   assert.assertEquals(formatNumber.formatNumber(0), "0");
   assert.assertEquals(formatNumber.formatNumber(100), "100");
 });
 
-Deno.test("formatNumber adds thousands separators", () => {
+nodeTest.test("formatNumber adds thousands separators", () => {
   // Asserts the EXACT string, not that it contains "1" and "000".
   //
   // The old version passed against a function that added no separators at all --
@@ -22,12 +23,12 @@ Deno.test("formatNumber adds thousands separators", () => {
   assert.assertEquals(formatNumber.formatNumber(1234567.5), "1,234,567.5");
 });
 
-Deno.test("formatNumber handles negative numbers", () => {
+nodeTest.test("formatNumber handles negative numbers", () => {
   const result = formatNumber.formatNumber(-1000);
   assert.assertEquals(result.includes("1"), true);
 });
 
-Deno.test("formatNumber throws for non-finite values", () => {
+nodeTest.test("formatNumber throws for non-finite values", () => {
   assert.assertThrows(
     () => formatNumber.formatNumber(Infinity),
     Error,

@@ -9,6 +9,7 @@
  * @module
  */
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as path from "@std/path";
 import { runtime } from "@eserstack/standards/cross-runtime";
@@ -40,11 +41,9 @@ const writeShellFile = async (
 };
 
 // sanitizeResources: false — file-tool.ts transitively loads the FFI DynamicLibrary
-Deno.test({
-  name: "validate-self-imports: flags a package importing itself by name",
-  sanitizeResources: false,
-  sanitizeOps: false,
-  fn: async () => {
+nodeTest.test(
+  "validate-self-imports: flags a package importing itself by name",
+  async () => {
     const root = await makeWorkspace();
     try {
       await writeShellFile(
@@ -77,13 +76,11 @@ Deno.test({
       await runtime.fs.remove(root, { recursive: true });
     }
   },
-});
+);
 
-Deno.test({
-  name: "validate-self-imports: relative, sibling-package and documented imports pass",
-  sanitizeResources: false,
-  sanitizeOps: false,
-  fn: async () => {
+nodeTest.test(
+  "validate-self-imports: relative, sibling-package and documented imports pass",
+  async () => {
     const root = await makeWorkspace();
     try {
       await writeShellFile(
@@ -112,13 +109,11 @@ Deno.test({
       await runtime.fs.remove(root, { recursive: true });
     }
   },
-});
+);
 
-Deno.test({
-  name: "validate-self-imports: files outside pkg/@eserstack are ignored",
-  sanitizeResources: false,
-  sanitizeOps: false,
-  fn: async () => {
+nodeTest.test(
+  "validate-self-imports: files outside pkg/@eserstack are ignored",
+  async () => {
     const root = await runtime.fs.makeTempDir({
       prefix: "validate-self-imports-test-",
     });
@@ -139,4 +134,4 @@ Deno.test({
       await runtime.fs.remove(root, { recursive: true });
     }
   },
-});
+);

@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as crossRuntime from "../mod.ts";
 import * as httpScenario from "./testdata/http-scenario.ts";
@@ -73,14 +74,14 @@ const runNodeProbe = async (
   };
 };
 
-Deno.test("Node adapter process stdio", async (t) => {
+nodeTest.test("Node adapter process stdio", async (t) => {
   // The validate job installs Node; where it is missing the steps are skipped.
   const hasNode = await crossRuntime.isCommandInPath("node");
 
-  await t.step({
-    name: "a script that never reads stdin exits while its stdin pipe is open",
-    ignore: !hasNode,
-    fn: async () => {
+  await t.test(
+    "a script that never reads stdin exits while its stdin pipe is open",
+    { skip: !hasNode },
+    async () => {
       const result = await runNodeProbe(
         `const { runtime } = await import(process.argv[1]);
         const writer = runtime.process.stdout.getWriter();
@@ -97,12 +98,12 @@ Deno.test("Node adapter process stdio", async (t) => {
       assert.assertEquals(result.code, 0, result.stderr);
       assert.assertEquals(result.stdout, "node");
     },
-  });
+  );
 
-  await t.step({
-    name: "runtime.process.stdin reads the piped input to its end",
-    ignore: !hasNode,
-    fn: async () => {
+  await t.test(
+    "runtime.process.stdin reads the piped input to its end",
+    { skip: !hasNode },
+    async () => {
       const result = await runNodeProbe(
         `const { runtime } = await import(process.argv[1]);
         const text = await new Response(runtime.process.stdin).text();
@@ -114,26 +115,28 @@ Deno.test("Node adapter process stdio", async (t) => {
       assert.assertEquals(result.code, 0, result.stderr);
       assert.assertEquals(result.stdout, "PING FROM DENO");
     },
-  });
+  );
 });
 
-Deno.test("Node adapter maps EACCES to PermissionDeniedError", async (t) => {
-  const hasNode = await crossRuntime.isCommandInPath("node");
-  // root reads files regardless of their mode.
-  const isRoot = crossRuntime.runtime.env.get("USER") === "root";
+nodeTest.test(
+  "Node adapter maps EACCES to PermissionDeniedError",
+  async (t) => {
+    const hasNode = await crossRuntime.isCommandInPath("node");
+    // root reads files regardless of their mode.
+    const isRoot = crossRuntime.runtime.env.get("USER") === "root";
 
-  await t.step({
-    name: "reading a file without read permission",
-    ignore: !hasNode || isRoot || crossRuntime.getPlatform() === "windows",
-    fn: async () => {
-      const dir = await crossRuntime.runtime.fs.makeTempDir();
-      const file = crossRuntime.runtime.path.join(dir, "locked.txt");
-      try {
-        await crossRuntime.runtime.fs.writeTextFile(file, "secret");
-        await crossRuntime.runtime.fs.chmod(file, 0o000);
+    await t.test(
+      "reading a file without read permission",
+      { skip: !hasNode || isRoot || crossRuntime.getPlatform() === "windows" },
+      async () => {
+        const dir = await crossRuntime.runtime.fs.makeTempDir();
+        const file = crossRuntime.runtime.path.join(dir, "locked.txt");
+        try {
+          await crossRuntime.runtime.fs.writeTextFile(file, "secret");
+          await crossRuntime.runtime.fs.chmod(file, 0o000);
 
-        const result = await runNodeProbe(
-          `const { runtime, PermissionDeniedError } = await import(process.argv[1]);
+          const result = await runNodeProbe(
+            `const { runtime, PermissionDeniedError } = await import(process.argv[1]);
           try {
             await runtime.fs.readTextFile(${JSON.stringify(file)});
             console.log("read");
@@ -145,31 +148,32 @@ Deno.test("Node adapter maps EACCES to PermissionDeniedError", async (t) => {
               error.cause?.code,
             ]));
           }`,
-          "",
-        );
+            "",
+          );
 
-        assert.assertEquals(result.code, 0, result.stderr);
-        assert.assertEquals(JSON.parse(result.stdout), [
-          true,
-          "PermissionDeniedError",
-          file,
-          "EACCES",
-        ]);
-      } finally {
-        await crossRuntime.runtime.fs.chmod(file, 0o600);
-        await crossRuntime.runtime.fs.remove(dir, { recursive: true });
-      }
-    },
-  });
-});
+          assert.assertEquals(result.code, 0, result.stderr);
+          assert.assertEquals(JSON.parse(result.stdout), [
+            true,
+            "PermissionDeniedError",
+            file,
+            "EACCES",
+          ]);
+        } finally {
+          await crossRuntime.runtime.fs.chmod(file, 0o600);
+          await crossRuntime.runtime.fs.remove(dir, { recursive: true });
+        }
+      },
+    );
+  },
+);
 
-Deno.test("Node adapter runtime.http and signal listeners", async (t) => {
+nodeTest.test("Node adapter runtime.http and signal listeners", async (t) => {
   const hasNode = await crossRuntime.isCommandInPath("node");
 
-  await t.step({
-    name: "runtime.http meets the HTTP contract",
-    ignore: !hasNode,
-    fn: async () => {
+  await t.test(
+    "runtime.http meets the HTTP contract",
+    { skip: !hasNode },
+    async () => {
       const outcome = await probes.runHttpProbe(probes.PROBE_RUNTIMES.node);
 
       assert.assertEquals(outcome.timedOut, false, outcome.stderr);
@@ -179,18 +183,17 @@ Deno.test("Node adapter runtime.http and signal listeners", async (t) => {
         httpScenario.EXPECTED_HTTP_RESULT,
       );
     },
-  });
+  );
 
-  await t.step({
-    name: "a signal listener runs, then its removal lets the process end",
-    // Windows delivers only SIGINT and SIGBREAK.
-    ignore: !hasNode || Deno.build.os === "windows",
-    fn: async () => {
+  await t.test(
+    "a signal listener runs, then its removal lets the process end",
+    { skip: !hasNode || Deno.build.os === "windows" },
+    async () => {
       const outcome = await probes.runSignalProbe(probes.PROBE_RUNTIMES.node);
 
       assert.assertEquals(outcome.timedOut, false, outcome.stderr);
       assert.assertEquals(outcome.stdout, "ready\ngot SIGTERM\n");
       assert.assertEquals(outcome.code, 0, outcome.stderr);
     },
-  });
+  );
 });

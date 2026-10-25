@@ -4,7 +4,7 @@ title: 'posts: pass tests on Node and move its deno tasks to package.json'
 status: To Do
 assignee: []
 created_date: '2026-10-15 20:38'
-updated_date: '2026-10-24 19:38'
+updated_date: '2026-10-25 16:00'
 labels:
   - cutover
   - posts
@@ -45,4 +45,11 @@ Hand-work list (TASK-175 spike, 2026-10-24, node 26.12.1):
 - Deno-style spawn: adapters/cli/output.test.ts:24 `new Deno.Command(Deno.execPath())` (1).
 - Source: Deno. 0; import.meta.main 1 (adapters/tui/app.ts) needs no change. Move the 3 deno.extra.json tasks (4 Deno mentions) to package.json scripts.
 - Docs: pkg/@eserstack/posts/README.md (1). pkg/ajan/postsfx is clean.
+
+TASK-198 (2026-10-25): the test and bench codemods left no site for hand edits in this task's files (0 unhandled). After them, these test files still fail under `node --test --test-force-exit` on Node 26.12.1, each run alone:
+- pkg/@eserstack/posts/adapters/cli/output.test.ts: 1 failing, 0 passing; first error: see the run
+- pkg/@eserstack/posts/adapters/token-store/file-token-store.test.ts: 1 failing, 0 passing; first error: ReferenceError: Deno is not defined
+- pkg/@eserstack/posts/adapters/tui/callback-server.test.ts: 3 failing, 2 passing; first error: see the run
+- pkg/@eserstack/posts/adapters/twitter/auth-provider.test.ts: 1 failing, 4 passing; first error: see the run
+- pkg/@eserstack/posts/config.test.ts: 2 failing, 15 passing; first error: see the run
 <!-- SECTION:NOTES:END -->

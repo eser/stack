@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import { runtime } from "@eserstack/standards/cross-runtime";
 import * as cssProcessor from "./css-processor.ts";
@@ -21,8 +22,8 @@ async function withCssInput(
   }
 }
 
-Deno.test("css-processor", async (t) => {
-  await t.step("processCss writes the compiled CSS", async () => {
+nodeTest.test("css-processor", async (t) => {
+  await t.test("processCss writes the compiled CSS", async () => {
     await withCssInput(async (input, output) => {
       const plugin: CssPlugin = {
         name: "uppercase",
@@ -43,7 +44,7 @@ Deno.test("css-processor", async (t) => {
     });
   });
 
-  await t.step(
+  await t.test(
     "processCss rethrows a compile failure as a BuildError with its cause",
     async () => {
       await withCssInput(async (input, output) => {
@@ -95,7 +96,7 @@ const lightningCases = [
 ];
 
 for (const { name, css, minify, expected } of lightningCases) {
-  Deno.test(name, async () => {
+  nodeTest.test(name, async () => {
     const result = await cssProcessor.lightningCssProcessor.process(css, {
       filename: "global.css",
       minify,

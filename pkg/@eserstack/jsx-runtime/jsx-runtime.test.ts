@@ -1,28 +1,29 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as jsxRuntime from "./mod.ts";
 
-Deno.test("jsx is exported from React jsx-runtime", () => {
+nodeTest.test("jsx is exported from React jsx-runtime", () => {
   assert.assertEquals(typeof jsxRuntime.jsx, "function");
 });
 
-Deno.test("jsxEscape() returns null for null and undefined", () => {
+nodeTest.test("jsxEscape() returns null for null and undefined", () => {
   assert.assertEquals(jsxRuntime.jsxEscape(null), null);
   assert.assertEquals(jsxRuntime.jsxEscape(undefined), null);
 });
 
-Deno.test("jsxEscape() returns null for boolean values", () => {
+nodeTest.test("jsxEscape() returns null for boolean values", () => {
   assert.assertEquals(jsxRuntime.jsxEscape(true), null);
   assert.assertEquals(jsxRuntime.jsxEscape(false), null);
 });
 
-Deno.test("jsxEscape() returns null for functions", () => {
+nodeTest.test("jsxEscape() returns null for functions", () => {
   const testFunction = () => "test";
   assert.assertEquals(jsxRuntime.jsxEscape(testFunction), null);
 });
 
-Deno.test("jsxEscape() returns object with undefined constructor", () => {
+nodeTest.test("jsxEscape() returns object with undefined constructor", () => {
   const obj = Object.create(null);
   obj.test = "value";
 
@@ -30,7 +31,7 @@ Deno.test("jsxEscape() returns object with undefined constructor", () => {
   assert.assertEquals(result, obj);
 });
 
-Deno.test("jsxEscape() processes arrays recursively", () => {
+nodeTest.test("jsxEscape() processes arrays recursively", () => {
   const input = ["hello", 42, null, true, "world"];
   const result = jsxRuntime.jsxEscape(input);
 
@@ -44,25 +45,25 @@ Deno.test("jsxEscape() processes arrays recursively", () => {
   assert.assertEquals(resultArray[4], "world");
 });
 
-Deno.test("jsxEscape() escapes string values", () => {
+nodeTest.test("jsxEscape() escapes string values", () => {
   const result = jsxRuntime.jsxEscape('Hello <world> & "test"');
   assert.assertEquals(result, "Hello &lt;world&gt; &amp; &quot;test&quot;");
 });
 
-Deno.test("jsxEscape() converts numbers to escaped strings", () => {
+nodeTest.test("jsxEscape() converts numbers to escaped strings", () => {
   assert.assertEquals(jsxRuntime.jsxEscape(42), "42");
   assert.assertEquals(jsxRuntime.jsxEscape(3.14), "3.14");
   assert.assertEquals(jsxRuntime.jsxEscape(-1), "-1");
 });
 
-Deno.test("jsxEscape() converts symbols to escaped strings", () => {
+nodeTest.test("jsxEscape() converts symbols to escaped strings", () => {
   const sym = Symbol("test");
   const result = jsxRuntime.jsxEscape(sym);
   assert.assertEquals(typeof result, "string");
   assert.assert((result as string).includes("Symbol(test)"));
 });
 
-Deno.test("jsxEscape() handles nested arrays", () => {
+nodeTest.test("jsxEscape() handles nested arrays", () => {
   const input = ["hello", ["nested", 42], "world"];
   const result = jsxRuntime.jsxEscape(input) as unknown[];
 
@@ -74,7 +75,7 @@ Deno.test("jsxEscape() handles nested arrays", () => {
   assert.assertEquals(result[2], "world");
 });
 
-Deno.test("jsxEscape() handles objects with constructors", () => {
+nodeTest.test("jsxEscape() handles objects with constructors", () => {
   class TestClass {
     value = "test";
   }
@@ -87,7 +88,7 @@ Deno.test("jsxEscape() handles objects with constructors", () => {
   assert.assert((result as string).includes("object"));
 });
 
-Deno.test("jsxTemplate() creates template vnode with fragments", () => {
+nodeTest.test("jsxTemplate() creates template vnode with fragments", () => {
   const templates = ["<div>", "</div>"];
   const exprs = ["Hello World"];
 
@@ -97,7 +98,7 @@ Deno.test("jsxTemplate() creates template vnode with fragments", () => {
   assert.assertNotEquals(result, null);
 });
 
-Deno.test("jsxTemplate() handles multiple expressions", () => {
+nodeTest.test("jsxTemplate() handles multiple expressions", () => {
   const templates = ["<div>", " - ", "</div>"];
   const exprs = ["Hello", "World"];
 
@@ -107,7 +108,7 @@ Deno.test("jsxTemplate() handles multiple expressions", () => {
   assert.assertNotEquals(result, null);
 });
 
-Deno.test("jsxTemplate() works with empty expressions", () => {
+nodeTest.test("jsxTemplate() works with empty expressions", () => {
   const templates = ["<div>static content</div>"];
 
   const result = jsxRuntime.jsxTemplate(templates);
@@ -116,22 +117,22 @@ Deno.test("jsxTemplate() works with empty expressions", () => {
   assert.assertNotEquals(result, null);
 });
 
-Deno.test("jsxEscape() handles empty string", () => {
+nodeTest.test("jsxEscape() handles empty string", () => {
   assert.assertEquals(jsxRuntime.jsxEscape(""), "");
 });
 
-Deno.test("jsxEscape() handles whitespace strings", () => {
+nodeTest.test("jsxEscape() handles whitespace strings", () => {
   assert.assertEquals(jsxRuntime.jsxEscape("   "), "   ");
   assert.assertEquals(jsxRuntime.jsxEscape("\n\t"), "\n\t");
 });
 
-Deno.test("jsxEscape() handles BigInt values", () => {
+nodeTest.test("jsxEscape() handles BigInt values", () => {
   const bigInt = BigInt(123456789);
   const result = jsxRuntime.jsxEscape(bigInt);
   assert.assertEquals(result, "123456789");
 });
 
-Deno.test("jsxEscape() modifies array in place", () => {
+nodeTest.test("jsxEscape() modifies array in place", () => {
   const input = ["<script>", 42];
   const result = jsxRuntime.jsxEscape(input);
 

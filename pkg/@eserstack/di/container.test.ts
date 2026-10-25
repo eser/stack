@@ -1,10 +1,11 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as mock from "@eserstack/test-kit/mock";
 import * as container from "./container.ts";
 
-Deno.test("non-existent key", () => {
+nodeTest.test("non-existent key", () => {
   const registry = new container.Registry();
 
   const scope = registry.build();
@@ -12,7 +13,7 @@ Deno.test("non-existent key", () => {
   assert.assertStrictEquals(scope.get("_"), undefined);
 });
 
-Deno.test("symbol key", () => {
+nodeTest.test("symbol key", () => {
   const registry = new container.Registry();
   const a = Symbol("a");
 
@@ -23,7 +24,7 @@ Deno.test("symbol key", () => {
   assert.assertStrictEquals(scope.get(a), 6);
 });
 
-Deno.test("mixed keys", () => {
+nodeTest.test("mixed keys", () => {
   const registry = new container.Registry();
 
   registry.set(Object.keys, "Object.keys method");
@@ -37,7 +38,7 @@ Deno.test("mixed keys", () => {
   assert.assertStrictEquals(scope.get(Object.entries), "Object.entries method");
 });
 
-Deno.test("singleton value", () => {
+nodeTest.test("singleton value", () => {
   const registry = new container.Registry();
 
   registry.set("b", 5);
@@ -47,7 +48,7 @@ Deno.test("singleton value", () => {
   assert.assertStrictEquals(scope.get("b"), 5);
 });
 
-Deno.test("singleton nullables", () => {
+nodeTest.test("singleton nullables", () => {
   const registry = new container.Registry();
 
   registry.set("c", null);
@@ -61,7 +62,7 @@ Deno.test("singleton nullables", () => {
   assert.assertStrictEquals(scope.get("f"), undefined);
 });
 
-Deno.test("singleton functions", () => {
+nodeTest.test("singleton functions", () => {
   const registry = new container.Registry();
 
   registry.set("g", (x: number) => x + 3);
@@ -74,7 +75,7 @@ Deno.test("singleton functions", () => {
   assert.assertStrictEquals(result(5), 8);
 });
 
-Deno.test("lazy value", () => {
+nodeTest.test("lazy value", () => {
   const registry = new container.Registry();
 
   const spyFn = mock.spy();
@@ -94,7 +95,7 @@ Deno.test("lazy value", () => {
   mock.assertSpyCalls(spyFn, 1);
 });
 
-Deno.test("lazy nullable", () => {
+nodeTest.test("lazy nullable", () => {
   const registry = new container.Registry();
 
   const iSpyFn = mock.spy();
@@ -119,7 +120,7 @@ Deno.test("lazy nullable", () => {
   mock.assertSpyCalls(jSpyFn, 1);
 });
 
-Deno.test("scoped value", () => {
+nodeTest.test("scoped value", () => {
   const registry = new container.Registry();
 
   const kSpyFn = mock.spy();
@@ -154,7 +155,7 @@ Deno.test("scoped value", () => {
   mock.assertSpyCalls(lSpyFn, 2);
 });
 
-Deno.test("transient functions", () => {
+nodeTest.test("transient functions", () => {
   const registry = new container.Registry();
 
   let number = 1;
@@ -167,7 +168,7 @@ Deno.test("transient functions", () => {
   assert.assertStrictEquals(scope.get("m"), 3);
 });
 
-Deno.test("transient promise", async () => {
+nodeTest.test("transient promise", async () => {
   const registry = new container.Registry();
 
   registry.setTransient("n", () => Promise.resolve("test"));
@@ -177,7 +178,7 @@ Deno.test("transient promise", async () => {
   assert.assertStrictEquals(await scope.get("n"), "test");
 });
 
-Deno.test("getMany", () => {
+nodeTest.test("getMany", () => {
   const registry = new container.Registry();
 
   const lazySpyFn = mock.spy();
@@ -215,7 +216,7 @@ Deno.test("getMany", () => {
 import * as decorators from "./decorators.ts";
 import * as services from "./services.ts";
 
-Deno.test("injectable() should register class with class name", () => {
+nodeTest.test("injectable() should register class with class name", () => {
   class TestService {}
   decorators.injectable()(TestService);
 
@@ -225,17 +226,20 @@ Deno.test("injectable() should register class with class name", () => {
   assert.assertInstanceOf(instance, TestService);
 });
 
-Deno.test("injectable() with custom key should register with custom key", () => {
-  class TestServiceCustom {}
-  decorators.injectable("customKey")(TestServiceCustom);
+nodeTest.test(
+  "injectable() with custom key should register with custom key",
+  () => {
+    class TestServiceCustom {}
+    decorators.injectable("customKey")(TestServiceCustom);
 
-  const instance = services.services.get("customKey");
+    const instance = services.services.get("customKey");
 
-  assert.assertExists(instance);
-  assert.assertInstanceOf(instance, TestServiceCustom);
-});
+    assert.assertExists(instance);
+    assert.assertInstanceOf(instance, TestServiceCustom);
+  },
+);
 
-Deno.test("injectable() creates new instance each time from lazy", () => {
+nodeTest.test("injectable() creates new instance each time from lazy", () => {
   class LazyService {
     value = Math.random();
   }
@@ -248,7 +252,7 @@ Deno.test("injectable() creates new instance each time from lazy", () => {
   assert.assertStrictEquals(instance1, instance2);
 });
 
-Deno.test("inject() decorator can be applied", () => {
+nodeTest.test("inject() decorator can be applied", () => {
   // inject is currently a no-op but should not throw
   class Service {
     dependency: unknown;
@@ -262,7 +266,7 @@ Deno.test("inject() decorator can be applied", () => {
   assert.assertExists(service);
 });
 
-Deno.test("injectable with source.name fallback", () => {
+nodeTest.test("injectable with source.name fallback", () => {
   // Test calling injectable directly without decorator context
   const TestClass = class NamedClass {};
 

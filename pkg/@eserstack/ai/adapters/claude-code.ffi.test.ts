@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as results from "@eserstack/primitives/results";
 import * as shellExec from "@eserstack/shell/exec";
@@ -41,13 +42,10 @@ case " $* " in
 esac
 `;
 
-Deno.test({
-  name: "a json_schema request returns the structured reply, streamed or not",
-  // The stand-in CLI is a POSIX shell script.
-  ignore: crossRuntime.getPlatform() === "windows",
-  // The native library the first spawn loads outlives the test.
-  sanitizeResources: false,
-  fn: async () => {
+nodeTest.test(
+  "a json_schema request returns the structured reply, streamed or not",
+  { skip: crossRuntime.getPlatform() === "windows" },
+  async () => {
     // The adapter spawns through the synchronous child(), which needs the
     // native library that the first spawn() loads.
     await shellExec.exec`true`.text();
@@ -86,4 +84,4 @@ Deno.test({
       await crossRuntime.runtime.fs.remove(dir, { recursive: true });
     }
   },
-});
+);

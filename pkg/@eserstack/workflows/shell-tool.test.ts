@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as task from "@eserstack/functions/task";
 import * as results from "@eserstack/primitives/results";
@@ -56,10 +57,10 @@ const readPidAndCleanUp = async (
   return { pid, wasRunning };
 };
 
-Deno.test({
-  name: "shellTool passes when the command exits 0",
-  ignore: isWindows,
-  fn: async () => {
+nodeTest.test(
+  "shellTool passes when the command exits 0",
+  { skip: isWindows },
+  async () => {
     const result = await shellTool.shellTool.run(
       { command: "true", name: "noop" },
       contextFor(10_000),
@@ -73,12 +74,12 @@ Deno.test({
       stats: { exitCode: 0 },
     });
   },
-});
+);
 
-Deno.test({
-  name: "shellTool fails with the command's output when it exits non-zero",
-  ignore: isWindows,
-  fn: async () => {
+nodeTest.test(
+  "shellTool fails with the command's output when it exits non-zero",
+  { skip: isWindows },
+  async () => {
     const result = await shellTool.shellTool.run(
       { command: "echo out; echo err >&2; exit 3" },
       contextFor(10_000),
@@ -88,7 +89,7 @@ Deno.test({
     assert.assertEquals(result.issues, [{ message: "out\nerr" }]);
     assert.assertEquals(result.stats, { exitCode: 3 });
   },
-});
+);
 
 const commandChoices = [
   {
@@ -109,28 +110,24 @@ const commandChoices = [
 ];
 
 for (const { name, options, ran } of commandChoices) {
-  Deno.test({
-    name: `shellTool ${name}`,
-    ignore: isWindows,
-    fn: async () => {
-      const result = await shellTool.shellTool.run(
-        {
-          command: "echo check; exit 1",
-          fixCommand: "echo fix; exit 1",
-          ...options,
-        },
-        contextFor(10_000),
-      );
+  nodeTest.test(`shellTool ${name}`, { skip: isWindows }, async () => {
+    const result = await shellTool.shellTool.run(
+      {
+        command: "echo check; exit 1",
+        fixCommand: "echo fix; exit 1",
+        ...options,
+      },
+      contextFor(10_000),
+    );
 
-      assert.assertEquals(result.issues, [{ message: ran }]);
-    },
+    assert.assertEquals(result.issues, [{ message: ran }]);
   });
 }
 
-Deno.test({
-  name: "shellTool resolves workingDirectory against root",
-  ignore: isWindows,
-  fn: () =>
+nodeTest.test(
+  "shellTool resolves workingDirectory against root",
+  { skip: isWindows },
+  () =>
     withTempDir(async (root) => {
       await runtime.fs.mkdir(runtime.path.join(root, "sub"));
       await runtime.fs.writeTextFile(
@@ -145,9 +142,9 @@ Deno.test({
 
       assert.assertEquals(result.issues, [{ message: "in sub" }]);
     }),
-});
+);
 
-Deno.test("shellTool rejects a step without a command", async () => {
+nodeTest.test("shellTool rejects a step without a command", async () => {
   await assert.assertRejects(
     () => shellTool.shellTool.run({}, contextFor(10_000)),
     Error,
@@ -155,10 +152,10 @@ Deno.test("shellTool rejects a step without a command", async () => {
   );
 });
 
-Deno.test({
-  name: "shellTool stops the command at the step's time limit",
-  ignore: isWindows,
-  fn: () =>
+nodeTest.test(
+  "shellTool stops the command at the step's time limit",
+  { skip: isWindows },
+  () =>
     withTempDir(async (dir) => {
       const pidFile = runtime.path.join(dir, "pid");
 
@@ -177,14 +174,14 @@ Deno.test({
         `the command (pid ${pid}) is still running after its time limit`,
       );
     }),
-});
+);
 
 // TASK-105: a shell step that runs past its timeout used to fail while its
 // `sh -c` child kept running, for the rest of the run and after it.
-Deno.test({
-  name: "a shell step that sleeps past its timeout fails and its command ends",
-  ignore: isWindows,
-  fn: () =>
+nodeTest.test(
+  "a shell step that sleeps past its timeout fails and its command ends",
+  { skip: isWindows },
+  () =>
     withTempDir(async (dir) => {
       const pidFile = runtime.path.join(dir, "pid");
       const toolRegistry = registry.createRegistry();
@@ -226,4 +223,4 @@ Deno.test({
           `timed out`,
       );
     }),
-});
+);

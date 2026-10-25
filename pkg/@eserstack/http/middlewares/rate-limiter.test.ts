@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as rateLimiter from "./rate-limiter.ts";
 
@@ -8,49 +9,55 @@ const req = (headers: Record<string, string> = {}): Request =>
 
 const peer = (hostname: string) => ({ hostname });
 
-Deno.test("getClientIp uses the socket peer and ignores client headers by default", () => {
-  assert.assertEquals(
-    rateLimiter.getClientIp(
-      req({ "x-forwarded-for": "127.0.0.1" }),
-      false,
-      peer("203.0.113.9"),
-    ),
-    "203.0.113.9",
-  );
-  assert.assertEquals(
-    rateLimiter.getClientIp(req(), false, peer("::ffff:198.51.100.7")),
-    "198.51.100.7",
-  );
-  assert.assertEquals(
-    rateLimiter.getClientIp(req({ "x-forwarded-for": "1.2.3.4" })),
-    rateLimiter.UNKNOWN_CLIENT,
-  );
-});
+nodeTest.test(
+  "getClientIp uses the socket peer and ignores client headers by default",
+  () => {
+    assert.assertEquals(
+      rateLimiter.getClientIp(
+        req({ "x-forwarded-for": "127.0.0.1" }),
+        false,
+        peer("203.0.113.9"),
+      ),
+      "203.0.113.9",
+    );
+    assert.assertEquals(
+      rateLimiter.getClientIp(req(), false, peer("::ffff:198.51.100.7")),
+      "198.51.100.7",
+    );
+    assert.assertEquals(
+      rateLimiter.getClientIp(req({ "x-forwarded-for": "1.2.3.4" })),
+      rateLimiter.UNKNOWN_CLIENT,
+    );
+  },
+);
 
-Deno.test("getClientIp believes forwarded headers only from a trusted proxy", () => {
-  const spoof = req({ "x-forwarded-for": "127.0.0.1" });
-  assert.assertEquals(
-    rateLimiter.getClientIp(spoof, true, peer("203.0.113.9")),
-    "203.0.113.9",
-  );
+nodeTest.test(
+  "getClientIp believes forwarded headers only from a trusted proxy",
+  () => {
+    const spoof = req({ "x-forwarded-for": "127.0.0.1" });
+    assert.assertEquals(
+      rateLimiter.getClientIp(spoof, true, peer("203.0.113.9")),
+      "203.0.113.9",
+    );
 
-  const viaProxy = req({ "x-forwarded-for": "127.0.0.1, 198.51.100.7" });
-  assert.assertEquals(
-    rateLimiter.getClientIp(viaProxy, true, peer("127.0.0.1")),
-    "198.51.100.7",
-  );
+    const viaProxy = req({ "x-forwarded-for": "127.0.0.1, 198.51.100.7" });
+    assert.assertEquals(
+      rateLimiter.getClientIp(viaProxy, true, peer("127.0.0.1")),
+      "198.51.100.7",
+    );
 
-  const chain = req({ "x-forwarded-for": "198.51.100.7, 10.0.0.2" });
-  assert.assertEquals(
-    rateLimiter.getClientIp(chain, true, peer("10.0.0.1"), [
-      "10.0.0.1",
-      "10.0.0.2",
-    ]),
-    "198.51.100.7",
-  );
-});
+    const chain = req({ "x-forwarded-for": "198.51.100.7, 10.0.0.2" });
+    assert.assertEquals(
+      rateLimiter.getClientIp(chain, true, peer("10.0.0.1"), [
+        "10.0.0.1",
+        "10.0.0.2",
+      ]),
+      "198.51.100.7",
+    );
+  },
+);
 
-Deno.test("direct clients never share one bucket", () => {
+nodeTest.test("direct clients never share one bucket", () => {
   const limiter = rateLimiter.createRateLimiter({
     maxRequests: 2,
     windowMs: 60_000,
@@ -72,28 +79,31 @@ Deno.test("direct clients never share one bucket", () => {
   }
 });
 
-Deno.test("a forged loopback X-Forwarded-For does not exempt a remote client", () => {
-  const limiter = rateLimiter.createRateLimiter({
-    maxRequests: 2,
-    windowMs: 60_000,
-    trustProxy: true,
-  });
-  try {
-    const forged = req({ "x-forwarded-for": "127.0.0.1" });
-    const statuses = Array.from(
-      { length: 5 },
-      () => limiter.check(forged, "/", peer("203.0.113.9"))?.status ?? 200,
-    );
-    assert.assertEquals(statuses, [200, 200, 429, 429, 429]);
+nodeTest.test(
+  "a forged loopback X-Forwarded-For does not exempt a remote client",
+  () => {
+    const limiter = rateLimiter.createRateLimiter({
+      maxRequests: 2,
+      windowMs: 60_000,
+      trustProxy: true,
+    });
+    try {
+      const forged = req({ "x-forwarded-for": "127.0.0.1" });
+      const statuses = Array.from(
+        { length: 5 },
+        () => limiter.check(forged, "/", peer("203.0.113.9"))?.status ?? 200,
+      );
+      assert.assertEquals(statuses, [200, 200, 429, 429, 429]);
 
-    // Rotating forged values from the same peer still hits the same bucket.
-    const rotated = limiter.check(
-      req({ "x-forwarded-for": "198.51.100.200" }),
-      "/",
-      peer("203.0.113.9"),
-    );
-    assert.assertEquals(rotated?.status, 429);
-  } finally {
-    limiter.stop();
-  }
-});
+      // Rotating forged values from the same peer still hits the same bucket.
+      const rotated = limiter.check(
+        req({ "x-forwarded-for": "198.51.100.200" }),
+        "/",
+        peer("203.0.113.9"),
+      );
+      assert.assertEquals(rotated?.status, 429);
+    } finally {
+      limiter.stop();
+    }
+  },
+);

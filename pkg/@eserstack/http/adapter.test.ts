@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as results from "@eserstack/primitives/results";
 import * as adapter from "./adapter.ts";
@@ -61,7 +62,7 @@ const assertTooLarge = (
   return result.error;
 };
 
-Deno.test("fromRequest maps method, path, headers and query", async () => {
+nodeTest.test("fromRequest maps method, path, headers and query", async () => {
   const request = new Request("http://localhost/api/items?page=2&sort=name", {
     headers: { "x-request-id": "req-1" },
   });
@@ -127,7 +128,7 @@ const withinLimitCases: ReadonlyArray<{
 ];
 
 for (const { name, request, maxBodyBytes, expected } of withinLimitCases) {
-  Deno.test(`fromRequest ${name}`, async () => {
+  nodeTest.test(`fromRequest ${name}`, async () => {
     const result = await adapter.fromRequest(request(), { maxBodyBytes });
 
     assert.assert(results.isOk(result));
@@ -135,91 +136,109 @@ for (const { name, request, maxBodyBytes, expected } of withinLimitCases) {
   });
 }
 
-Deno.test("fromRequest rejects a Content-Length over the limit with 413 before reading", async () => {
-  const body = trackedStream([encoder.encode("x".repeat(2_000))]);
+nodeTest.test(
+  "fromRequest rejects a Content-Length over the limit with 413 before reading",
+  async () => {
+    const body = trackedStream([encoder.encode("x".repeat(2_000))]);
 
-  const result = await adapter.fromRequest(
-    post(body.stream, { "content-length": "2000" }),
-    { maxBodyBytes: 1_000 },
-  );
+    const result = await adapter.fromRequest(
+      post(body.stream, { "content-length": "2000" }),
+      { maxBodyBytes: 1_000 },
+    );
 
-  const error = assertTooLarge(result);
-  assert.assertEquals(error.source, "content-length");
-  assert.assertEquals(error.limitBytes, 1_000);
-  assert.assertEquals(error.bodyBytes, 2_000);
-  assert.assertEquals(body.pulls(), 0);
-  assert.assert(body.cancelled());
-});
+    const error = assertTooLarge(result);
+    assert.assertEquals(error.source, "content-length");
+    assert.assertEquals(error.limitBytes, 1_000);
+    assert.assertEquals(error.bodyBytes, 2_000);
+    assert.assertEquals(body.pulls(), 0);
+    assert.assert(body.cancelled());
+  },
+);
 
-Deno.test("fromRequest rejects a chunked body over the limit with 413 and stops reading", async () => {
-  // An endless body: without the limit this read would never finish.
-  const body = trackedStream(null, new Uint8Array(300));
+nodeTest.test(
+  "fromRequest rejects a chunked body over the limit with 413 and stops reading",
+  async () => {
+    // An endless body: without the limit this read would never finish.
+    const body = trackedStream(null, new Uint8Array(300));
 
-  const result = await adapter.fromRequest(post(body.stream), {
-    maxBodyBytes: 1_000,
-  });
+    const result = await adapter.fromRequest(post(body.stream), {
+      maxBodyBytes: 1_000,
+    });
 
-  const error = assertTooLarge(result);
-  assert.assertEquals(error.source, "stream");
-  assert.assertEquals(error.bodyBytes, 1_200);
-  assert.assertEquals(body.pulls(), 4);
-  assert.assert(body.cancelled());
-});
+    const error = assertTooLarge(result);
+    assert.assertEquals(error.source, "stream");
+    assert.assertEquals(error.bodyBytes, 1_200);
+    assert.assertEquals(body.pulls(), 4);
+    assert.assert(body.cancelled());
+  },
+);
 
-Deno.test("fromRequest counts the bytes read when Content-Length understates the body", async () => {
-  const body = trackedStream([new Uint8Array(30), new Uint8Array(30)]);
+nodeTest.test(
+  "fromRequest counts the bytes read when Content-Length understates the body",
+  async () => {
+    const body = trackedStream([new Uint8Array(30), new Uint8Array(30)]);
 
-  const result = await adapter.fromRequest(
-    post(body.stream, { "content-length": "10" }),
-    { maxBodyBytes: 40 },
-  );
+    const result = await adapter.fromRequest(
+      post(body.stream, { "content-length": "10" }),
+      { maxBodyBytes: 40 },
+    );
 
-  const error = assertTooLarge(result);
-  assert.assertEquals(error.source, "stream");
-  assert.assertEquals(error.bodyBytes, 60);
-});
+    const error = assertTooLarge(result);
+    assert.assertEquals(error.source, "stream");
+    assert.assertEquals(error.bodyBytes, 60);
+  },
+);
 
 for (const contentLength of ["abc", "-1", "1e3", ""]) {
-  Deno.test(`fromRequest ignores Content-Length "${contentLength}" and still enforces the limit`, async () => {
-    const small = await adapter.fromRequest(
-      post("ok", { "content-length": contentLength }),
-      { maxBodyBytes: 10 },
-    );
-    assert.assert(results.isOk(small));
-    assert.assertEquals(small.value.body, "ok");
+  nodeTest.test(
+    `fromRequest ignores Content-Length "${contentLength}" and still enforces the limit`,
+    async () => {
+      const small = await adapter.fromRequest(
+        post("ok", { "content-length": contentLength }),
+        { maxBodyBytes: 10 },
+      );
+      assert.assert(results.isOk(small));
+      assert.assertEquals(small.value.body, "ok");
 
-    const large = await adapter.fromRequest(
-      post("x".repeat(11), { "content-length": contentLength }),
-      { maxBodyBytes: 10 },
-    );
-    assert.assertEquals(assertTooLarge(large).source, "stream");
-  });
+      const large = await adapter.fromRequest(
+        post("x".repeat(11), { "content-length": contentLength }),
+        { maxBodyBytes: 10 },
+      );
+      assert.assertEquals(assertTooLarge(large).source, "stream");
+    },
+  );
 }
 
-Deno.test("fromRequest applies DEFAULT_MAX_BODY_BYTES when no limit is given", async () => {
-  const atLimit = await adapter.fromRequest(
-    post("x".repeat(adapter.DEFAULT_MAX_BODY_BYTES)),
-  );
-  assert.assert(results.isOk(atLimit));
+nodeTest.test(
+  "fromRequest applies DEFAULT_MAX_BODY_BYTES when no limit is given",
+  async () => {
+    const atLimit = await adapter.fromRequest(
+      post("x".repeat(adapter.DEFAULT_MAX_BODY_BYTES)),
+    );
+    assert.assert(results.isOk(atLimit));
 
-  const overLimit = await adapter.fromRequest(
-    post("x".repeat(adapter.DEFAULT_MAX_BODY_BYTES + 1)),
-  );
-  const error = assertTooLarge(overLimit);
-  assert.assertEquals(error.limitBytes, adapter.DEFAULT_MAX_BODY_BYTES);
-});
+    const overLimit = await adapter.fromRequest(
+      post("x".repeat(adapter.DEFAULT_MAX_BODY_BYTES + 1)),
+    );
+    const error = assertTooLarge(overLimit);
+    assert.assertEquals(error.limitBytes, adapter.DEFAULT_MAX_BODY_BYTES);
+  },
+);
 
 for (const maxBodyBytes of [-1, 1.5, Number.NaN, Number.POSITIVE_INFINITY]) {
-  Deno.test(`fromRequest throws a RangeError for maxBodyBytes ${maxBodyBytes}`, async () => {
-    await assert.assertRejects(
-      () => adapter.fromRequest(post("ok"), { maxBodyBytes }),
-      RangeError,
-      "maxBodyBytes",
-    );
-  });
+  nodeTest.test(
+    `fromRequest throws a RangeError for maxBodyBytes ${maxBodyBytes}`,
+    async () => {
+      await assert.assertRejects(
+        () => adapter.fromRequest(post("ok"), { maxBodyBytes }),
+        RangeError,
+        "maxBodyBytes",
+      );
+    },
+  );
 }
 
-Deno.test("fromRequest fails on a malformed JSON body", async () => {
+nodeTest.test("fromRequest fails on a malformed JSON body", async () => {
   const result = await adapter.fromRequest(
     post("{not json", { "content-type": "application/json" }),
   );

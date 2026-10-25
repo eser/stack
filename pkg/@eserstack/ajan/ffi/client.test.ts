@@ -14,17 +14,15 @@
  * under any other test file sharing this isolate's module graph.
  */
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as ffiMod from "./mod.ts";
 import * as client from "./client.ts";
 
 const nativeOnly = { wasm: false } as const;
 
-Deno.test(
-  {
-    name: "loadEserAjan: concurrent callers share one underlying open",
-    sanitizeResources: false,
-  },
+nodeTest.test(
+  "loadEserAjan: concurrent callers share one underlying open",
   async () => {
     const [first, second] = await Promise.all([
       ffiMod.loadEserAjan(nativeOnly),
@@ -43,11 +41,8 @@ Deno.test(
   },
 );
 
-Deno.test(
-  {
-    name: "loadEserAjan: one holder closing does not disturb the others",
-    sanitizeResources: false,
-  },
+nodeTest.test(
+  "loadEserAjan: one holder closing does not disturb the others",
   async () => {
     const first = await ffiMod.loadEserAjan(nativeOnly);
     const second = await ffiMod.loadEserAjan(nativeOnly);
@@ -67,11 +62,8 @@ Deno.test(
   },
 );
 
-Deno.test(
-  {
-    name: "loadEserAjan: a released entry reopens on the next request",
-    sanitizeResources: false,
-  },
+nodeTest.test(
+  "loadEserAjan: a released entry reopens on the next request",
   async () => {
     const first = await ffiMod.loadEserAjan(nativeOnly);
     first.close();
@@ -86,21 +78,15 @@ Deno.test(
   },
 );
 
-Deno.test(
-  {
-    name: "client: ensureLib is idempotent and never throws",
-    sanitizeResources: false,
-  },
-  async () => {
-    await client.ensureLib();
-    await client.ensureLib();
+nodeTest.test("client: ensureLib is idempotent and never throws", async () => {
+  await client.ensureLib();
+  await client.ensureLib();
 
-    const lib = client.getLib();
+  const lib = client.getLib();
 
-    assert.assertNotEquals(lib, null);
-    // Whichever way it went, the two accessors must agree: a null handle with
-    // no recorded reason is the state that used to make this unfixable.
-    assert.assertEquals(client.getLoadError(), null);
-    assert.assertStrictEquals(client.requireLibSync(), lib);
-  },
-);
+  assert.assertNotEquals(lib, null);
+  // Whichever way it went, the two accessors must agree: a null handle with
+  // no recorded reason is the state that used to make this unfixable.
+  assert.assertEquals(client.getLoadError(), null);
+  assert.assertStrictEquals(client.requireLibSync(), lib);
+});

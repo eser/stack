@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as hash from "./hash.ts";
 
@@ -7,11 +8,8 @@ import * as hash from "./hash.ts";
 // computeHash tests
 // ============================================================================
 
-Deno.test(
-  {
-    name: "computeHash returns hex string with default length",
-    sanitizeResources: false,
-  },
+nodeTest.test(
+  "computeHash returns hex string with default length",
   async () => {
     const content = new Uint8Array([1, 2, 3, 4, 5]);
     const digest = await hash.computeHash(content);
@@ -22,26 +20,32 @@ Deno.test(
   },
 );
 
-Deno.test("computeHash produces consistent results for same content", async () => {
-  const content = new Uint8Array([1, 2, 3, 4, 5]);
+nodeTest.test(
+  "computeHash produces consistent results for same content",
+  async () => {
+    const content = new Uint8Array([1, 2, 3, 4, 5]);
 
-  const hash1 = await hash.computeHash(content);
-  const hash2 = await hash.computeHash(content);
+    const hash1 = await hash.computeHash(content);
+    const hash2 = await hash.computeHash(content);
 
-  assert.assertEquals(hash1, hash2);
-});
+    assert.assertEquals(hash1, hash2);
+  },
+);
 
-Deno.test("computeHash produces different results for different content", async () => {
-  const content1 = new Uint8Array([1, 2, 3]);
-  const content2 = new Uint8Array([4, 5, 6]);
+nodeTest.test(
+  "computeHash produces different results for different content",
+  async () => {
+    const content1 = new Uint8Array([1, 2, 3]);
+    const content2 = new Uint8Array([4, 5, 6]);
 
-  const hash1 = await hash.computeHash(content1);
-  const hash2 = await hash.computeHash(content2);
+    const hash1 = await hash.computeHash(content1);
+    const hash2 = await hash.computeHash(content2);
 
-  assert.assertNotEquals(hash1, hash2);
-});
+    assert.assertNotEquals(hash1, hash2);
+  },
+);
 
-Deno.test("computeHash respects custom length parameter", async () => {
+nodeTest.test("computeHash respects custom length parameter", async () => {
   const content = new Uint8Array([1, 2, 3]);
 
   const hash8 = await hash.computeHash(content, "SHA-256", 8);
@@ -51,7 +55,7 @@ Deno.test("computeHash respects custom length parameter", async () => {
   assert.assertEquals(hash32.length, 32);
 });
 
-Deno.test("computeHash supports SHA-1 algorithm", async () => {
+nodeTest.test("computeHash supports SHA-1 algorithm", async () => {
   const content = new Uint8Array([1, 2, 3]);
 
   const digest = await hash.computeHash(content, "SHA-1");
@@ -61,7 +65,7 @@ Deno.test("computeHash supports SHA-1 algorithm", async () => {
   assert.assertMatch(digest, /^[0-9a-f]+$/);
 });
 
-Deno.test("computeHash supports SHA-384 algorithm", async () => {
+nodeTest.test("computeHash supports SHA-384 algorithm", async () => {
   const content = new Uint8Array([1, 2, 3]);
 
   const digest = await hash.computeHash(content, "SHA-384");
@@ -71,7 +75,7 @@ Deno.test("computeHash supports SHA-384 algorithm", async () => {
   assert.assertMatch(digest, /^[0-9a-f]+$/);
 });
 
-Deno.test("computeHash supports SHA-512 algorithm", async () => {
+nodeTest.test("computeHash supports SHA-512 algorithm", async () => {
   const content = new Uint8Array([1, 2, 3]);
 
   const digest = await hash.computeHash(content, "SHA-512");
@@ -81,7 +85,7 @@ Deno.test("computeHash supports SHA-512 algorithm", async () => {
   assert.assertMatch(digest, /^[0-9a-f]+$/);
 });
 
-Deno.test("computeHash handles empty content", async () => {
+nodeTest.test("computeHash handles empty content", async () => {
   const content = new Uint8Array([]);
 
   const digest = await hash.computeHash(content);
@@ -90,23 +94,26 @@ Deno.test("computeHash handles empty content", async () => {
   assert.assertEquals(digest.length, 16);
 });
 
-Deno.test("computeHash produces different results for different algorithms", async () => {
-  const content = new Uint8Array([1, 2, 3, 4, 5]);
+nodeTest.test(
+  "computeHash produces different results for different algorithms",
+  async () => {
+    const content = new Uint8Array([1, 2, 3, 4, 5]);
 
-  const sha256 = await hash.computeHash(content, "SHA-256");
-  const sha1 = await hash.computeHash(content, "SHA-1");
-  const sha512 = await hash.computeHash(content, "SHA-512");
+    const sha256 = await hash.computeHash(content, "SHA-256");
+    const sha1 = await hash.computeHash(content, "SHA-1");
+    const sha512 = await hash.computeHash(content, "SHA-512");
 
-  assert.assertNotEquals(sha256, sha1);
-  assert.assertNotEquals(sha256, sha512);
-  assert.assertNotEquals(sha1, sha512);
-});
+    assert.assertNotEquals(sha256, sha1);
+    assert.assertNotEquals(sha256, sha512);
+    assert.assertNotEquals(sha1, sha512);
+  },
+);
 
 // ============================================================================
 // computeStringHash tests
 // ============================================================================
 
-Deno.test("computeStringHash returns hex string", async () => {
+nodeTest.test("computeStringHash returns hex string", async () => {
   const digest = await hash.computeStringHash("hello world");
 
   assert.assertExists(digest);
@@ -114,24 +121,27 @@ Deno.test("computeStringHash returns hex string", async () => {
   assert.assertMatch(digest, /^[0-9a-f]+$/);
 });
 
-Deno.test("computeStringHash produces same result as computeHash for encoded string", async () => {
-  const text = "hello world";
-  const encoded = new TextEncoder().encode(text);
+nodeTest.test(
+  "computeStringHash produces same result as computeHash for encoded string",
+  async () => {
+    const text = "hello world";
+    const encoded = new TextEncoder().encode(text);
 
-  const stringHash = await hash.computeStringHash(text);
-  const binaryHash = await hash.computeHash(encoded);
+    const stringHash = await hash.computeStringHash(text);
+    const binaryHash = await hash.computeHash(encoded);
 
-  assert.assertEquals(stringHash, binaryHash);
-});
+    assert.assertEquals(stringHash, binaryHash);
+  },
+);
 
-Deno.test("computeStringHash handles empty string", async () => {
+nodeTest.test("computeStringHash handles empty string", async () => {
   const digest = await hash.computeStringHash("");
 
   assert.assertExists(digest);
   assert.assertEquals(digest.length, 16);
 });
 
-Deno.test("computeStringHash handles unicode content", async () => {
+nodeTest.test("computeStringHash handles unicode content", async () => {
   const digest = await hash.computeStringHash("Hello, Dünya!");
 
   assert.assertExists(digest);
@@ -139,7 +149,7 @@ Deno.test("computeStringHash handles unicode content", async () => {
   assert.assertMatch(digest, /^[0-9a-f]+$/);
 });
 
-Deno.test("computeStringHash produces consistent results", async () => {
+nodeTest.test("computeStringHash produces consistent results", async () => {
   const text = "test content";
 
   const hash1 = await hash.computeStringHash(text);
@@ -148,7 +158,7 @@ Deno.test("computeStringHash produces consistent results", async () => {
   assert.assertEquals(hash1, hash2);
 });
 
-Deno.test("computeStringHash respects algorithm parameter", async () => {
+nodeTest.test("computeStringHash respects algorithm parameter", async () => {
   const text = "test";
 
   const sha256 = await hash.computeStringHash(text, "SHA-256");
@@ -157,7 +167,7 @@ Deno.test("computeStringHash respects algorithm parameter", async () => {
   assert.assertNotEquals(sha256, sha1);
 });
 
-Deno.test("computeStringHash respects length parameter", async () => {
+nodeTest.test("computeStringHash respects length parameter", async () => {
   const text = "test";
 
   const digest = await hash.computeStringHash(text, "SHA-256", 24);
@@ -169,7 +179,7 @@ Deno.test("computeStringHash respects length parameter", async () => {
 // computeCombinedHash tests
 // ============================================================================
 
-Deno.test("computeCombinedHash combines multiple arrays", async () => {
+nodeTest.test("computeCombinedHash combines multiple arrays", async () => {
   const arr1 = new Uint8Array([1, 2]);
   const arr2 = new Uint8Array([3, 4]);
 
@@ -180,18 +190,21 @@ Deno.test("computeCombinedHash combines multiple arrays", async () => {
   assert.assertMatch(digest, /^[0-9a-f]+$/);
 });
 
-Deno.test("computeCombinedHash produces same hash as single combined array", async () => {
-  const arr1 = new Uint8Array([1, 2]);
-  const arr2 = new Uint8Array([3, 4]);
-  const combined = new Uint8Array([1, 2, 3, 4]);
+nodeTest.test(
+  "computeCombinedHash produces same hash as single combined array",
+  async () => {
+    const arr1 = new Uint8Array([1, 2]);
+    const arr2 = new Uint8Array([3, 4]);
+    const combined = new Uint8Array([1, 2, 3, 4]);
 
-  const combinedHash = await hash.computeCombinedHash([arr1, arr2]);
-  const singleHash = await hash.computeHash(combined);
+    const combinedHash = await hash.computeCombinedHash([arr1, arr2]);
+    const singleHash = await hash.computeHash(combined);
 
-  assert.assertEquals(combinedHash, singleHash);
-});
+    assert.assertEquals(combinedHash, singleHash);
+  },
+);
 
-Deno.test("computeCombinedHash handles single item array", async () => {
+nodeTest.test("computeCombinedHash handles single item array", async () => {
   const arr = new Uint8Array([1, 2, 3]);
 
   const combinedHash = await hash.computeCombinedHash([arr]);
@@ -200,25 +213,28 @@ Deno.test("computeCombinedHash handles single item array", async () => {
   assert.assertEquals(combinedHash, singleHash);
 });
 
-Deno.test("computeCombinedHash handles empty array", async () => {
+nodeTest.test("computeCombinedHash handles empty array", async () => {
   const digest = await hash.computeCombinedHash([]);
 
   assert.assertExists(digest);
   assert.assertEquals(digest.length, 16);
 });
 
-Deno.test("computeCombinedHash handles arrays with empty Uint8Arrays", async () => {
-  const arr1 = new Uint8Array([]);
-  const arr2 = new Uint8Array([1, 2]);
-  const arr3 = new Uint8Array([]);
+nodeTest.test(
+  "computeCombinedHash handles arrays with empty Uint8Arrays",
+  async () => {
+    const arr1 = new Uint8Array([]);
+    const arr2 = new Uint8Array([1, 2]);
+    const arr3 = new Uint8Array([]);
 
-  const digest = await hash.computeCombinedHash([arr1, arr2, arr3]);
+    const digest = await hash.computeCombinedHash([arr1, arr2, arr3]);
 
-  assert.assertExists(digest);
-  assert.assertEquals(digest.length, 16);
-});
+    assert.assertExists(digest);
+    assert.assertEquals(digest.length, 16);
+  },
+);
 
-Deno.test("computeCombinedHash order matters", async () => {
+nodeTest.test("computeCombinedHash order matters", async () => {
   const arr1 = new Uint8Array([1, 2]);
   const arr2 = new Uint8Array([3, 4]);
 
@@ -228,7 +244,7 @@ Deno.test("computeCombinedHash order matters", async () => {
   assert.assertNotEquals(hash1, hash2);
 });
 
-Deno.test("computeCombinedHash respects algorithm parameter", async () => {
+nodeTest.test("computeCombinedHash respects algorithm parameter", async () => {
   const arr1 = new Uint8Array([1, 2]);
   const arr2 = new Uint8Array([3, 4]);
 
@@ -238,7 +254,7 @@ Deno.test("computeCombinedHash respects algorithm parameter", async () => {
   assert.assertNotEquals(sha256, sha1);
 });
 
-Deno.test("computeCombinedHash respects length parameter", async () => {
+nodeTest.test("computeCombinedHash respects length parameter", async () => {
   const arr1 = new Uint8Array([1, 2]);
   const arr2 = new Uint8Array([3, 4]);
 

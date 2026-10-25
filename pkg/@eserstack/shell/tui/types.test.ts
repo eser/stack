@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as types from "./types.ts";
 import * as symbols from "./symbols.ts";
@@ -36,28 +37,28 @@ const collectKeypress = async (
 // types.ts — CANCEL and isCancel
 // =============================================================================
 
-Deno.test("CANCEL is a unique symbol", () => {
+nodeTest.test("CANCEL is a unique symbol", () => {
   assert.assertStrictEquals(typeof types.CANCEL, "symbol");
   assert.assertNotStrictEquals(types.CANCEL, Symbol("tui.cancel"));
 });
 
-Deno.test("isCancel(CANCEL) returns true", () => {
+nodeTest.test("isCancel(CANCEL) returns true", () => {
   assert.assertStrictEquals(types.isCancel(types.CANCEL), true);
 });
 
-Deno.test('isCancel("string") returns false', () => {
+nodeTest.test('isCancel("string") returns false', () => {
   assert.assertStrictEquals(types.isCancel("string"), false);
 });
 
-Deno.test("isCancel(null) returns false", () => {
+nodeTest.test("isCancel(null) returns false", () => {
   assert.assertStrictEquals(types.isCancel(null), false);
 });
 
-Deno.test("isCancel(undefined) returns false", () => {
+nodeTest.test("isCancel(undefined) returns false", () => {
   assert.assertStrictEquals(types.isCancel(undefined), false);
 });
 
-Deno.test("isCancel(Symbol()) returns false for a different symbol", () => {
+nodeTest.test("isCancel(Symbol()) returns false for a different symbol", () => {
   assert.assertStrictEquals(types.isCancel(Symbol()), false);
   assert.assertStrictEquals(types.isCancel(Symbol("tui.cancel")), false);
 });
@@ -66,31 +67,40 @@ Deno.test("isCancel(Symbol()) returns false for a different symbol", () => {
 // types.ts — createTuiContext
 // =============================================================================
 
-Deno.test("createTuiContext() returns an object with output and input", () => {
-  const ctx = types.createTuiContext();
-  assert.assertExists(ctx.output);
-  assert.assertExists(ctx.input);
-  assert.assertStrictEquals(ctx.input instanceof ReadableStream, true);
-});
+nodeTest.test(
+  "createTuiContext() returns an object with output and input",
+  () => {
+    const ctx = types.createTuiContext();
+    assert.assertExists(ctx.output);
+    assert.assertExists(ctx.input);
+    assert.assertStrictEquals(ctx.input instanceof ReadableStream, true);
+  },
+);
 
 // =============================================================================
 // types.ts — createTestContext
 // =============================================================================
 
-Deno.test("createTestContext() returns ctx, getOutput, pushInput, pushKey", () => {
-  const result = types.createTestContext();
-  assert.assertExists(result.ctx);
-  assert.assertStrictEquals(typeof result.getOutput, "function");
-  assert.assertStrictEquals(typeof result.pushInput, "function");
-  assert.assertStrictEquals(typeof result.pushKey, "function");
-});
+nodeTest.test(
+  "createTestContext() returns ctx, getOutput, pushInput, pushKey",
+  () => {
+    const result = types.createTestContext();
+    assert.assertExists(result.ctx);
+    assert.assertStrictEquals(typeof result.getOutput, "function");
+    assert.assertStrictEquals(typeof result.pushInput, "function");
+    assert.assertStrictEquals(typeof result.pushKey, "function");
+  },
+);
 
-Deno.test("createTestContext().getOutput() returns empty string initially", () => {
-  const { getOutput } = types.createTestContext();
-  assert.assertStrictEquals(getOutput(), "");
-});
+nodeTest.test(
+  "createTestContext().getOutput() returns empty string initially",
+  () => {
+    const { getOutput } = types.createTestContext();
+    assert.assertStrictEquals(getOutput(), "");
+  },
+);
 
-Deno.test('createTestContext().pushKey("enter") does not throw', () => {
+nodeTest.test('createTestContext().pushKey("enter") does not throw', () => {
   const { pushKey } = types.createTestContext();
   // If pushKey throws, the test will fail automatically
   pushKey("enter");
@@ -100,7 +110,7 @@ Deno.test('createTestContext().pushKey("enter") does not throw', () => {
 // symbols.ts — All exports are non-empty strings
 // =============================================================================
 
-Deno.test("all exported symbols are non-empty strings", () => {
+nodeTest.test("all exported symbols are non-empty strings", () => {
   const exportedSymbols: Record<string, string> = {
     BAR: symbols.BAR,
     BAR_START: symbols.BAR_START,
@@ -130,7 +140,7 @@ Deno.test("all exported symbols are non-empty strings", () => {
   }
 });
 
-Deno.test("key symbols exist with expected names", () => {
+nodeTest.test("key symbols exist with expected names", () => {
   assert.assertStrictEquals(symbols.BAR, "\u2502");
   assert.assertStrictEquals(symbols.BAR_START, "\u250c");
   assert.assertStrictEquals(symbols.BAR_END, "\u2514");
@@ -147,7 +157,7 @@ Deno.test("key symbols exist with expected names", () => {
 // keypress.ts — readKeypress + parseBytes
 // =============================================================================
 
-Deno.test("keypress: Enter (0x0d) yields name 'return'", async () => {
+nodeTest.test("keypress: Enter (0x0d) yields name 'return'", async () => {
   const stream = streamFromBytes(new Uint8Array([0x0d]));
   const events = await collectKeypress(stream);
   assert.assertStrictEquals(events.length, 1);
@@ -155,7 +165,7 @@ Deno.test("keypress: Enter (0x0d) yields name 'return'", async () => {
   assert.assertStrictEquals(events[0]!.ctrl, false);
 });
 
-Deno.test("keypress: Escape (0x1b) yields name 'escape'", async () => {
+nodeTest.test("keypress: Escape (0x1b) yields name 'escape'", async () => {
   const stream = streamFromBytes(new Uint8Array([0x1b]));
   const events = await collectKeypress(stream);
   assert.assertStrictEquals(events.length, 1);
@@ -163,23 +173,29 @@ Deno.test("keypress: Escape (0x1b) yields name 'escape'", async () => {
   assert.assertStrictEquals(events[0]!.ctrl, false);
 });
 
-Deno.test("keypress: Ctrl+C (0x03) yields name 'c' with ctrl true", async () => {
-  const stream = streamFromBytes(new Uint8Array([0x03]));
-  const events = await collectKeypress(stream);
-  assert.assertStrictEquals(events.length, 1);
-  assert.assertStrictEquals(events[0]!.name, "c");
-  assert.assertStrictEquals(events[0]!.ctrl, true);
-});
+nodeTest.test(
+  "keypress: Ctrl+C (0x03) yields name 'c' with ctrl true",
+  async () => {
+    const stream = streamFromBytes(new Uint8Array([0x03]));
+    const events = await collectKeypress(stream);
+    assert.assertStrictEquals(events.length, 1);
+    assert.assertStrictEquals(events[0]!.name, "c");
+    assert.assertStrictEquals(events[0]!.ctrl, true);
+  },
+);
 
-Deno.test("keypress: Backspace (0x7f) yields name 'backspace'", async () => {
-  const stream = streamFromBytes(new Uint8Array([0x7f]));
-  const events = await collectKeypress(stream);
-  assert.assertStrictEquals(events.length, 1);
-  assert.assertStrictEquals(events[0]!.name, "backspace");
-  assert.assertStrictEquals(events[0]!.ctrl, false);
-});
+nodeTest.test(
+  "keypress: Backspace (0x7f) yields name 'backspace'",
+  async () => {
+    const stream = streamFromBytes(new Uint8Array([0x7f]));
+    const events = await collectKeypress(stream);
+    assert.assertStrictEquals(events.length, 1);
+    assert.assertStrictEquals(events[0]!.name, "backspace");
+    assert.assertStrictEquals(events[0]!.ctrl, false);
+  },
+);
 
-Deno.test("keypress: Up arrow (ESC [ A) yields name 'up'", async () => {
+nodeTest.test("keypress: Up arrow (ESC [ A) yields name 'up'", async () => {
   const stream = streamFromBytes(new Uint8Array([0x1b, 0x5b, 0x41]));
   const events = await collectKeypress(stream);
   assert.assertStrictEquals(events.length, 1);
@@ -187,7 +203,7 @@ Deno.test("keypress: Up arrow (ESC [ A) yields name 'up'", async () => {
   assert.assertStrictEquals(events[0]!.ctrl, false);
 });
 
-Deno.test("keypress: Down arrow (ESC [ B) yields name 'down'", async () => {
+nodeTest.test("keypress: Down arrow (ESC [ B) yields name 'down'", async () => {
   const stream = streamFromBytes(new Uint8Array([0x1b, 0x5b, 0x42]));
   const events = await collectKeypress(stream);
   assert.assertStrictEquals(events.length, 1);
@@ -195,7 +211,7 @@ Deno.test("keypress: Down arrow (ESC [ B) yields name 'down'", async () => {
   assert.assertStrictEquals(events[0]!.ctrl, false);
 });
 
-Deno.test("keypress: Left arrow (ESC [ D) yields name 'left'", async () => {
+nodeTest.test("keypress: Left arrow (ESC [ D) yields name 'left'", async () => {
   const stream = streamFromBytes(new Uint8Array([0x1b, 0x5b, 0x44]));
   const events = await collectKeypress(stream);
   assert.assertStrictEquals(events.length, 1);
@@ -203,33 +219,42 @@ Deno.test("keypress: Left arrow (ESC [ D) yields name 'left'", async () => {
   assert.assertStrictEquals(events[0]!.ctrl, false);
 });
 
-Deno.test("keypress: Right arrow (ESC [ C) yields name 'right'", async () => {
-  const stream = streamFromBytes(new Uint8Array([0x1b, 0x5b, 0x43]));
-  const events = await collectKeypress(stream);
-  assert.assertStrictEquals(events.length, 1);
-  assert.assertStrictEquals(events[0]!.name, "right");
-  assert.assertStrictEquals(events[0]!.ctrl, false);
-});
+nodeTest.test(
+  "keypress: Right arrow (ESC [ C) yields name 'right'",
+  async () => {
+    const stream = streamFromBytes(new Uint8Array([0x1b, 0x5b, 0x43]));
+    const events = await collectKeypress(stream);
+    assert.assertStrictEquals(events.length, 1);
+    assert.assertStrictEquals(events[0]!.name, "right");
+    assert.assertStrictEquals(events[0]!.ctrl, false);
+  },
+);
 
-Deno.test("keypress: Space (0x20) yields name 'space' with char ' '", async () => {
-  const stream = streamFromBytes(new Uint8Array([0x20]));
-  const events = await collectKeypress(stream);
-  assert.assertStrictEquals(events.length, 1);
-  assert.assertStrictEquals(events[0]!.name, "space");
-  assert.assertStrictEquals(events[0]!.char, " ");
-  assert.assertStrictEquals(events[0]!.ctrl, false);
-});
+nodeTest.test(
+  "keypress: Space (0x20) yields name 'space' with char ' '",
+  async () => {
+    const stream = streamFromBytes(new Uint8Array([0x20]));
+    const events = await collectKeypress(stream);
+    assert.assertStrictEquals(events.length, 1);
+    assert.assertStrictEquals(events[0]!.name, "space");
+    assert.assertStrictEquals(events[0]!.char, " ");
+    assert.assertStrictEquals(events[0]!.ctrl, false);
+  },
+);
 
-Deno.test("keypress: Printable 'a' (0x61) yields name 'a' with char 'a'", async () => {
-  const stream = streamFromBytes(new Uint8Array([0x61]));
-  const events = await collectKeypress(stream);
-  assert.assertStrictEquals(events.length, 1);
-  assert.assertStrictEquals(events[0]!.name, "a");
-  assert.assertStrictEquals(events[0]!.char, "a");
-  assert.assertStrictEquals(events[0]!.ctrl, false);
-});
+nodeTest.test(
+  "keypress: Printable 'a' (0x61) yields name 'a' with char 'a'",
+  async () => {
+    const stream = streamFromBytes(new Uint8Array([0x61]));
+    const events = await collectKeypress(stream);
+    assert.assertStrictEquals(events.length, 1);
+    assert.assertStrictEquals(events[0]!.name, "a");
+    assert.assertStrictEquals(events[0]!.char, "a");
+    assert.assertStrictEquals(events[0]!.ctrl, false);
+  },
+);
 
-Deno.test("keypress: Tab (0x09) yields name 'tab'", async () => {
+nodeTest.test("keypress: Tab (0x09) yields name 'tab'", async () => {
   const stream = streamFromBytes(new Uint8Array([0x09]));
   const events = await collectKeypress(stream);
   assert.assertStrictEquals(events.length, 1);
@@ -237,7 +262,7 @@ Deno.test("keypress: Tab (0x09) yields name 'tab'", async () => {
   assert.assertStrictEquals(events[0]!.ctrl, false);
 });
 
-Deno.test("keypress: multiple chunks yield multiple events", async () => {
+nodeTest.test("keypress: multiple chunks yield multiple events", async () => {
   const stream = streamFromBytes(
     new Uint8Array([0x61]),
     new Uint8Array([0x62]),
@@ -250,7 +275,7 @@ Deno.test("keypress: multiple chunks yield multiple events", async () => {
   assert.assertStrictEquals(events[2]!.name, "return");
 });
 
-Deno.test("keypress: all events have meta and shift fields", async () => {
+nodeTest.test("keypress: all events have meta and shift fields", async () => {
   const stream = streamFromBytes(
     new Uint8Array([0x61]),
     new Uint8Array([0x1b, 0x5b, 0x41]),

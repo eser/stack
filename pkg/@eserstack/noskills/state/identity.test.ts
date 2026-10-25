@@ -1,6 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import * as bdd from "@std/testing/bdd";
+import * as bdd from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as identity from "./identity.ts";
 import * as schema from "./schema.ts";
@@ -636,10 +636,10 @@ bdd.describe("user.json removal and mode", () => {
     },
   );
 
-  bdd.it({
-    name: "setCurrentUser keeps user.json readable by its owner only",
-    ignore: crossRuntime.getPlatform() === "windows",
-    fn: async () => {
+  bdd.it(
+    "setCurrentUser keeps user.json readable by its owner only",
+    { skip: crossRuntime.getPlatform() === "windows" },
+    async () => {
       // A file that exists with a wider mode is narrowed too.
       await crossRuntime.runtime.fs.mkdir(identity.getConfigDir(), {
         recursive: true,
@@ -658,5 +658,5 @@ bdd.describe("user.json removal and mode", () => {
       );
       assert.assertEquals((info.mode ?? 0) & 0o777, 0o600);
     },
-  });
+  );
 });

@@ -1,10 +1,11 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as flow from "./flow.ts";
 import * as iterate from "./iterate.ts";
 
-Deno.test("basic", async () => {
+nodeTest.test("basic", async () => {
   const gen1 = function* () {
     yield 1;
     yield 2;
@@ -22,7 +23,7 @@ Deno.test("basic", async () => {
   assert.assertEquals(total, 6);
 });
 
-Deno.test("async", async () => {
+nodeTest.test("async", async () => {
   const delay = (ms: number, value: number): Promise<number> =>
     new Promise((resolve, _reject) => {
       setTimeout(() => resolve(value), ms);
@@ -45,7 +46,7 @@ Deno.test("async", async () => {
   assert.assertEquals(total, 6);
 });
 
-Deno.test("pipe", async () => {
+nodeTest.test("pipe", async () => {
   const gen1 = function* () {
     yield { value: 1 };
     yield { value: 2 };

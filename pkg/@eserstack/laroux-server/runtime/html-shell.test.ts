@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import type { ChunkManifest } from "@eserstack/laroux-bundler";
 import * as htmlShell from "./html-shell.ts";
@@ -32,24 +33,30 @@ const payloadText = (html: string): string => {
   return html.slice(contentStart, end);
 };
 
-Deno.test("createHtmlShell escapes comment and script openers in the RSC payload", () => {
-  const html = renderShell(JSON.stringify(HOSTILE_CHUNKS));
-  const text = payloadText(html);
+nodeTest.test(
+  "createHtmlShell escapes comment and script openers in the RSC payload",
+  () => {
+    const html = renderShell(JSON.stringify(HOSTILE_CHUNKS));
+    const text = payloadText(html);
 
-  assert.assertFalse(text.includes("<"), `raw "<" inside the payload: ${text}`);
-  assert.assertFalse(text.includes(">"));
+    assert.assertFalse(
+      text.includes("<"),
+      `raw "<" inside the payload: ${text}`,
+    );
+    assert.assertFalse(text.includes(">"));
 
-  // Exactly one closing tag follows the payload's opening tag before the
-  // client entry script.
-  const afterOpen = html.slice(html.indexOf(OPEN_TAG));
-  const beforeEntry = afterOpen.slice(
-    0,
-    afterOpen.indexOf('<script type="module"'),
-  );
-  assert.assertEquals(beforeEntry.match(/<\/script/gi)?.length, 1);
-});
+    // Exactly one closing tag follows the payload's opening tag before the
+    // client entry script.
+    const afterOpen = html.slice(html.indexOf(OPEN_TAG));
+    const beforeEntry = afterOpen.slice(
+      0,
+      afterOpen.indexOf('<script type="module"'),
+    );
+    assert.assertEquals(beforeEntry.match(/<\/script/gi)?.length, 1);
+  },
+);
 
-Deno.test("the escaped RSC payload parses back to the same chunks", () => {
+nodeTest.test("the escaped RSC payload parses back to the same chunks", () => {
   const html = renderShell(JSON.stringify(HOSTILE_CHUNKS));
 
   // The client reads the element's textContent and passes it to JSON.parse.

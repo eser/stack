@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import { runtime } from "@eserstack/standards/cross-runtime";
 import * as cache from "./cache.ts";
@@ -32,7 +33,7 @@ const createTempCacheManager = async () => {
   };
 };
 
-Deno.test("createCacheManager returns CacheManager", () => {
+nodeTest.test("createCacheManager returns CacheManager", () => {
   const manager = cache.createCacheManager({
     app: { name: "test-app" },
   });
@@ -47,7 +48,7 @@ Deno.test("createCacheManager returns CacheManager", () => {
   assert.assertExists(manager.close);
 });
 
-Deno.test("getCacheDir returns valid path", () => {
+nodeTest.test("getCacheDir returns valid path", () => {
   const manager = cache.createCacheManager({
     app: { name: "test-app" },
   });
@@ -62,7 +63,7 @@ Deno.test("getCacheDir returns valid path", () => {
   );
 });
 
-Deno.test("getCacheDir with org includes org in path", () => {
+nodeTest.test("getCacheDir with org includes org in path", () => {
   const manager = cache.createCacheManager({
     app: { name: "test-app", org: "test-org" },
   });
@@ -79,7 +80,7 @@ Deno.test("getCacheDir with org includes org in path", () => {
   );
 });
 
-Deno.test("getVersionedPath normalizes version", () => {
+nodeTest.test("getVersionedPath normalizes version", () => {
   const manager = cache.createCacheManager({
     app: { name: "test-app" },
   });
@@ -93,7 +94,7 @@ Deno.test("getVersionedPath normalizes version", () => {
   assert.assert(path.includes("binary"), "Should include item name");
 });
 
-Deno.test("ensureDir creates directory", async () => {
+nodeTest.test("ensureDir creates directory", async () => {
   const { manager, cleanup } = await createTempCacheManager();
 
   try {
@@ -108,7 +109,7 @@ Deno.test("ensureDir creates directory", async () => {
   }
 });
 
-Deno.test("exists returns false for non-existent path", async () => {
+nodeTest.test("exists returns false for non-existent path", async () => {
   const { manager, cleanup } = await createTempCacheManager();
 
   try {
@@ -120,7 +121,7 @@ Deno.test("exists returns false for non-existent path", async () => {
   }
 });
 
-Deno.test("exists returns true for existing path", async () => {
+nodeTest.test("exists returns true for existing path", async () => {
   const { manager, cleanup } = await createTempCacheManager();
 
   try {
@@ -139,26 +140,20 @@ Deno.test("exists returns true for existing path", async () => {
   }
 });
 
-Deno.test(
-  {
-    name: "list returns empty array for empty cache",
-    sanitizeResources: false,
-  },
-  async () => {
-    const { manager, cleanup } = await createTempCacheManager();
+nodeTest.test("list returns empty array for empty cache", async () => {
+  const { manager, cleanup } = await createTempCacheManager();
 
-    try {
-      const entries = await manager.list();
+  try {
+    const entries = await manager.list();
 
-      assert.assertExists(entries);
-      assert.assertEquals(entries.length, 0);
-    } finally {
-      await cleanup();
-    }
-  },
-);
+    assert.assertExists(entries);
+    assert.assertEquals(entries.length, 0);
+  } finally {
+    await cleanup();
+  }
+});
 
-Deno.test("list returns entries for non-empty cache", async () => {
+nodeTest.test("list returns entries for non-empty cache", async () => {
   const { manager, cleanup } = await createTempCacheManager();
 
   try {
@@ -188,7 +183,7 @@ Deno.test("list returns entries for non-empty cache", async () => {
   }
 });
 
-Deno.test("remove deletes file", async () => {
+nodeTest.test("remove deletes file", async () => {
   const { manager, cleanup } = await createTempCacheManager();
 
   try {
@@ -211,7 +206,7 @@ Deno.test("remove deletes file", async () => {
   }
 });
 
-Deno.test("clear removes all cache contents", async () => {
+nodeTest.test("clear removes all cache contents", async () => {
   const { manager, cleanup } = await createTempCacheManager();
 
   try {
@@ -239,42 +234,33 @@ Deno.test("clear removes all cache contents", async () => {
   }
 });
 
-Deno.test(
-  {
-    name: "close() releases handle without error",
-    sanitizeResources: false,
-  },
-  async () => {
-    const { manager, tempDir } = await createTempCacheManager();
+nodeTest.test("close() releases handle without error", async () => {
+  const { manager, tempDir } = await createTempCacheManager();
 
+  try {
+    await manager.list(); // trigger handle creation
+    await manager.close(); // must not throw
+  } finally {
     try {
-      await manager.list(); // trigger handle creation
-      await manager.close(); // must not throw
-    } finally {
-      try {
-        await runtime.fs.remove(tempDir, { recursive: true });
-      } catch {
-        // ignore
-      }
+      await runtime.fs.remove(tempDir, { recursive: true });
+    } catch {
+      // ignore
     }
-  },
-);
+  }
+});
 
-Deno.test(
-  { name: "double-close is safe", sanitizeResources: false },
-  async () => {
-    const { manager, tempDir } = await createTempCacheManager();
+nodeTest.test("double-close is safe", async () => {
+  const { manager, tempDir } = await createTempCacheManager();
 
+  try {
+    await manager.list(); // trigger handle creation
+    await manager.close();
+    await manager.close(); // second close must be a no-op
+  } finally {
     try {
-      await manager.list(); // trigger handle creation
-      await manager.close();
-      await manager.close(); // second close must be a no-op
-    } finally {
-      try {
-        await runtime.fs.remove(tempDir, { recursive: true });
-      } catch {
-        // ignore
-      }
+      await runtime.fs.remove(tempDir, { recursive: true });
+    } catch {
+      // ignore
     }
-  },
-);
+  }
+});

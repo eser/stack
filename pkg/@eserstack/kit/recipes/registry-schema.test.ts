@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as mock from "@eserstack/test-kit/mock";
 import * as registrySchema from "./registry-schema.ts";
@@ -24,14 +25,14 @@ const VALID_RECIPE: Record<string, unknown> = {
   files: [{ source: "src/foo.ts", target: "lib/foo.ts" }],
 };
 
-Deno.test("validateRegistryManifest — valid minimal manifest", () => {
+nodeTest.test("validateRegistryManifest — valid minimal manifest", () => {
   const result = registrySchema.validateRegistryManifest(VALID_MINIMAL);
 
   assert.assertEquals(result.name, "test");
   assert.assertEquals(result.recipes.length, 0);
 });
 
-Deno.test("validateRegistryManifest — valid manifest with recipes", () => {
+nodeTest.test("validateRegistryManifest — valid manifest with recipes", () => {
   const manifest = {
     ...VALID_MINIMAL,
     recipes: [VALID_RECIPE],
@@ -43,21 +44,24 @@ Deno.test("validateRegistryManifest — valid manifest with recipes", () => {
   assert.assertEquals(result.recipes[0]!.name, "my-recipe");
 });
 
-Deno.test("validateRegistryManifest — optional fields default correctly", () => {
-  const manifest = {
-    ...VALID_MINIMAL,
-    recipes: [VALID_RECIPE],
-  };
+nodeTest.test(
+  "validateRegistryManifest — optional fields default correctly",
+  () => {
+    const manifest = {
+      ...VALID_MINIMAL,
+      recipes: [VALID_RECIPE],
+    };
 
-  const result = registrySchema.validateRegistryManifest(manifest);
-  const recipe = result.recipes[0]!;
+    const result = registrySchema.validateRegistryManifest(manifest);
+    const recipe = result.recipes[0]!;
 
-  assert.assertEquals(recipe.tags, undefined);
-  assert.assertEquals(recipe.dependencies, undefined);
-  assert.assertEquals(recipe.transforms, undefined);
-});
+    assert.assertEquals(recipe.tags, undefined);
+    assert.assertEquals(recipe.dependencies, undefined);
+    assert.assertEquals(recipe.transforms, undefined);
+  },
+);
 
-Deno.test("validateRegistryManifest — all scale values accepted", () => {
+nodeTest.test("validateRegistryManifest — all scale values accepted", () => {
   for (const scale of ["project", "structure", "utility"]) {
     const manifest = {
       ...VALID_MINIMAL,
@@ -70,7 +74,7 @@ Deno.test("validateRegistryManifest — all scale values accepted", () => {
   }
 });
 
-Deno.test("validateRegistryManifest — rejects non-object", () => {
+nodeTest.test("validateRegistryManifest — rejects non-object", () => {
   assert.assertThrows(
     () => registrySchema.validateRegistryManifest("not an object"),
     Error,
@@ -78,7 +82,7 @@ Deno.test("validateRegistryManifest — rejects non-object", () => {
   );
 });
 
-Deno.test("validateRegistryManifest — rejects null", () => {
+nodeTest.test("validateRegistryManifest — rejects null", () => {
   assert.assertThrows(
     () => registrySchema.validateRegistryManifest(null),
     Error,
@@ -86,7 +90,7 @@ Deno.test("validateRegistryManifest — rejects null", () => {
   );
 });
 
-Deno.test("validateRegistryManifest — rejects missing name", () => {
+nodeTest.test("validateRegistryManifest — rejects missing name", () => {
   const manifest = { ...VALID_MINIMAL };
   delete manifest["name"];
 
@@ -97,7 +101,7 @@ Deno.test("validateRegistryManifest — rejects missing name", () => {
   );
 });
 
-Deno.test("validateRegistryManifest — rejects missing description", () => {
+nodeTest.test("validateRegistryManifest — rejects missing description", () => {
   const manifest = { ...VALID_MINIMAL };
   delete manifest["description"];
 
@@ -108,7 +112,7 @@ Deno.test("validateRegistryManifest — rejects missing description", () => {
   );
 });
 
-Deno.test("validateRegistryManifest — rejects missing registryUrl", () => {
+nodeTest.test("validateRegistryManifest — rejects missing registryUrl", () => {
   const manifest = { ...VALID_MINIMAL };
   delete manifest["registryUrl"];
 
@@ -119,32 +123,38 @@ Deno.test("validateRegistryManifest — rejects missing registryUrl", () => {
   );
 });
 
-Deno.test("validateRegistryManifest — rejects wrong type for recipes", () => {
-  const manifest = { ...VALID_MINIMAL, recipes: "not an array" };
+nodeTest.test(
+  "validateRegistryManifest — rejects wrong type for recipes",
+  () => {
+    const manifest = { ...VALID_MINIMAL, recipes: "not an array" };
 
-  assert.assertThrows(
-    () => registrySchema.validateRegistryManifest(manifest),
-    Error,
-    "'recipes' array",
-  );
-});
+    assert.assertThrows(
+      () => registrySchema.validateRegistryManifest(manifest),
+      Error,
+      "'recipes' array",
+    );
+  },
+);
 
-Deno.test("validateRegistryManifest — warns on unknown schema version", () => {
-  const warnings: string[] = [];
-  using _warn = mock.stub(globalThis.console, "warn", (message: string) => {
-    warnings.push(message);
-  });
+nodeTest.test(
+  "validateRegistryManifest — warns on unknown schema version",
+  () => {
+    const warnings: string[] = [];
+    using _warn = mock.stub(globalThis.console, "warn", (message: string) => {
+      warnings.push(message);
+    });
 
-  registrySchema.validateRegistryManifest({
-    ...VALID_MINIMAL,
-    $schema: "https://example.com/registry/v99.json",
-  });
+    registrySchema.validateRegistryManifest({
+      ...VALID_MINIMAL,
+      $schema: "https://example.com/registry/v99.json",
+    });
 
-  assert.assertEquals(warnings.length, 1);
-  assert.assertStringIncludes(warnings[0]!, "unknown schema");
-});
+    assert.assertEquals(warnings.length, 1);
+    assert.assertStringIncludes(warnings[0]!, "unknown schema");
+  },
+);
 
-Deno.test("validateRegistryManifest — accepts known schema version", () => {
+nodeTest.test("validateRegistryManifest — accepts known schema version", () => {
   const warnings: string[] = [];
   using _warn = mock.stub(globalThis.console, "warn", (message: string) => {
     warnings.push(message);
@@ -158,27 +168,30 @@ Deno.test("validateRegistryManifest — accepts known schema version", () => {
   assert.assertEquals(warnings.length, 0);
 });
 
-Deno.test("validateRegistryManifest — rejects invalid recipe (missing name)", () => {
-  const manifest = {
-    ...VALID_MINIMAL,
-    recipes: [
-      {
-        description: "no name",
-        language: "ts",
-        scale: "utility",
-        files: [{ source: "a", target: "b" }],
-      },
-    ],
-  };
+nodeTest.test(
+  "validateRegistryManifest — rejects invalid recipe (missing name)",
+  () => {
+    const manifest = {
+      ...VALID_MINIMAL,
+      recipes: [
+        {
+          description: "no name",
+          language: "ts",
+          scale: "utility",
+          files: [{ source: "a", target: "b" }],
+        },
+      ],
+    };
 
-  assert.assertThrows(
-    () => registrySchema.validateRegistryManifest(manifest),
-    Error,
-    "Invalid recipe",
-  );
-});
+    assert.assertThrows(
+      () => registrySchema.validateRegistryManifest(manifest),
+      Error,
+      "Invalid recipe",
+    );
+  },
+);
 
-Deno.test("validateRegistryManifest — rejects invalid scale", () => {
+nodeTest.test("validateRegistryManifest — rejects invalid scale", () => {
   const manifest = {
     ...VALID_MINIMAL,
     recipes: [{ ...VALID_RECIPE, scale: "mega" }],
@@ -191,7 +204,7 @@ Deno.test("validateRegistryManifest — rejects invalid scale", () => {
   );
 });
 
-Deno.test("validateRegistryManifest — rejects empty files array", () => {
+nodeTest.test("validateRegistryManifest — rejects empty files array", () => {
   const manifest = {
     ...VALID_MINIMAL,
     recipes: [{ ...VALID_RECIPE, files: [] }],
@@ -204,7 +217,7 @@ Deno.test("validateRegistryManifest — rejects empty files array", () => {
   );
 });
 
-Deno.test("validateRegistryManifest — rejects invalid file entry", () => {
+nodeTest.test("validateRegistryManifest — rejects invalid file entry", () => {
   const manifest = {
     ...VALID_MINIMAL,
     recipes: [{ ...VALID_RECIPE, files: [{ source: "a" }] }],
@@ -217,37 +230,43 @@ Deno.test("validateRegistryManifest — rejects invalid file entry", () => {
   );
 });
 
-Deno.test("validateRegistryManifest — rejects duplicate recipe names", () => {
-  const manifest = {
-    ...VALID_MINIMAL,
-    recipes: [VALID_RECIPE, VALID_RECIPE],
-  };
+nodeTest.test(
+  "validateRegistryManifest — rejects duplicate recipe names",
+  () => {
+    const manifest = {
+      ...VALID_MINIMAL,
+      recipes: [VALID_RECIPE, VALID_RECIPE],
+    };
 
-  assert.assertThrows(
-    () => registrySchema.validateRegistryManifest(manifest),
-    Error,
-    "Duplicate recipe name",
-  );
-});
+    assert.assertThrows(
+      () => registrySchema.validateRegistryManifest(manifest),
+      Error,
+      "Duplicate recipe name",
+    );
+  },
+);
 
-Deno.test("validateRegistryManifest — rejects invalid dependencies type", () => {
-  const manifest = {
-    ...VALID_MINIMAL,
-    recipes: [{ ...VALID_RECIPE, dependencies: { go: "not-array" } }],
-  };
+nodeTest.test(
+  "validateRegistryManifest — rejects invalid dependencies type",
+  () => {
+    const manifest = {
+      ...VALID_MINIMAL,
+      recipes: [{ ...VALID_RECIPE, dependencies: { go: "not-array" } }],
+    };
 
-  assert.assertThrows(
-    () => registrySchema.validateRegistryManifest(manifest),
-    Error,
-    "Invalid recipe",
-  );
-});
+    assert.assertThrows(
+      () => registrySchema.validateRegistryManifest(manifest),
+      Error,
+      "Invalid recipe",
+    );
+  },
+);
 
 // =============================================================================
 // New fields: requires, variables, postInstall, kind, provider
 // =============================================================================
 
-Deno.test("validateRegistryManifest — accepts recipe with requires", () => {
+nodeTest.test("validateRegistryManifest — accepts recipe with requires", () => {
   const manifest = {
     ...VALID_MINIMAL,
     recipes: [
@@ -263,7 +282,7 @@ Deno.test("validateRegistryManifest — accepts recipe with requires", () => {
   assert.assertEquals(result.recipes[0]!.requires, ["other-recipe"]);
 });
 
-Deno.test("validateRegistryManifest — rejects non-array requires", () => {
+nodeTest.test("validateRegistryManifest — rejects non-array requires", () => {
   const manifest = {
     ...VALID_MINIMAL,
     recipes: [{ ...VALID_RECIPE, requires: "not-array" }],
@@ -276,126 +295,144 @@ Deno.test("validateRegistryManifest — rejects non-array requires", () => {
   );
 });
 
-Deno.test("validateRegistryManifest — rejects non-string requires entry", () => {
-  const manifest = {
-    ...VALID_MINIMAL,
-    recipes: [{ ...VALID_RECIPE, requires: [123] }],
-  };
+nodeTest.test(
+  "validateRegistryManifest — rejects non-string requires entry",
+  () => {
+    const manifest = {
+      ...VALID_MINIMAL,
+      recipes: [{ ...VALID_RECIPE, requires: [123] }],
+    };
 
-  assert.assertThrows(
-    () => registrySchema.validateRegistryManifest(manifest),
-    Error,
-    "Invalid recipe",
-  );
-});
+    assert.assertThrows(
+      () => registrySchema.validateRegistryManifest(manifest),
+      Error,
+      "Invalid recipe",
+    );
+  },
+);
 
-Deno.test("validateRegistryManifest — accepts recipe with variables", () => {
-  const manifest = {
-    ...VALID_MINIMAL,
-    recipes: [
-      {
-        ...VALID_RECIPE,
-        variables: [
-          {
-            name: "project_name",
-            description: "Project name",
-            default: "my-app",
-          },
-          {
-            name: "author",
-            description: "Author name",
-            prompt: "Who are you?",
-          },
-        ],
-      },
-    ],
-  };
+nodeTest.test(
+  "validateRegistryManifest — accepts recipe with variables",
+  () => {
+    const manifest = {
+      ...VALID_MINIMAL,
+      recipes: [
+        {
+          ...VALID_RECIPE,
+          variables: [
+            {
+              name: "project_name",
+              description: "Project name",
+              default: "my-app",
+            },
+            {
+              name: "author",
+              description: "Author name",
+              prompt: "Who are you?",
+            },
+          ],
+        },
+      ],
+    };
 
-  const result = registrySchema.validateRegistryManifest(manifest);
-  const vars = result.recipes[0]!.variables!;
+    const result = registrySchema.validateRegistryManifest(manifest);
+    const vars = result.recipes[0]!.variables!;
 
-  assert.assertEquals(vars.length, 2);
-  assert.assertEquals(vars[0]!.name, "project_name");
-  assert.assertEquals(vars[0]!.default, "my-app");
-  assert.assertEquals(vars[1]!.prompt, "Who are you?");
-});
+    assert.assertEquals(vars.length, 2);
+    assert.assertEquals(vars[0]!.name, "project_name");
+    assert.assertEquals(vars[0]!.default, "my-app");
+    assert.assertEquals(vars[1]!.prompt, "Who are you?");
+  },
+);
 
-Deno.test("validateRegistryManifest — rejects invalid variable (missing name)", () => {
-  const manifest = {
-    ...VALID_MINIMAL,
-    recipes: [
-      {
-        ...VALID_RECIPE,
-        variables: [{ description: "no name" }],
-      },
-    ],
-  };
+nodeTest.test(
+  "validateRegistryManifest — rejects invalid variable (missing name)",
+  () => {
+    const manifest = {
+      ...VALID_MINIMAL,
+      recipes: [
+        {
+          ...VALID_RECIPE,
+          variables: [{ description: "no name" }],
+        },
+      ],
+    };
 
-  assert.assertThrows(
-    () => registrySchema.validateRegistryManifest(manifest),
-    Error,
-    "Invalid recipe",
-  );
-});
+    assert.assertThrows(
+      () => registrySchema.validateRegistryManifest(manifest),
+      Error,
+      "Invalid recipe",
+    );
+  },
+);
 
-Deno.test("validateRegistryManifest — accepts recipe with postInstall", () => {
-  const manifest = {
-    ...VALID_MINIMAL,
-    recipes: [
-      {
-        ...VALID_RECIPE,
-        postInstall: ["deno install", "deno task build"],
-      },
-    ],
-  };
+nodeTest.test(
+  "validateRegistryManifest — accepts recipe with postInstall",
+  () => {
+    const manifest = {
+      ...VALID_MINIMAL,
+      recipes: [
+        {
+          ...VALID_RECIPE,
+          postInstall: ["deno install", "deno task build"],
+        },
+      ],
+    };
 
-  const result = registrySchema.validateRegistryManifest(manifest);
+    const result = registrySchema.validateRegistryManifest(manifest);
 
-  assert.assertEquals(result.recipes[0]!.postInstall, [
-    "deno install",
-    "deno task build",
-  ]);
-});
+    assert.assertEquals(result.recipes[0]!.postInstall, [
+      "deno install",
+      "deno task build",
+    ]);
+  },
+);
 
-Deno.test("validateRegistryManifest — rejects non-string postInstall entry", () => {
-  const manifest = {
-    ...VALID_MINIMAL,
-    recipes: [{ ...VALID_RECIPE, postInstall: [123] }],
-  };
+nodeTest.test(
+  "validateRegistryManifest — rejects non-string postInstall entry",
+  () => {
+    const manifest = {
+      ...VALID_MINIMAL,
+      recipes: [{ ...VALID_RECIPE, postInstall: [123] }],
+    };
 
-  assert.assertThrows(
-    () => registrySchema.validateRegistryManifest(manifest),
-    Error,
-    "Invalid recipe",
-  );
-});
+    assert.assertThrows(
+      () => registrySchema.validateRegistryManifest(manifest),
+      Error,
+      "Invalid recipe",
+    );
+  },
+);
 
-Deno.test("validateRegistryManifest — accepts file with kind and provider", () => {
-  const manifest = {
-    ...VALID_MINIMAL,
-    recipes: [
-      {
-        ...VALID_RECIPE,
-        files: [
-          {
-            source: "src/",
-            target: "pkg/src",
-            kind: "folder",
-            provider: "github",
-          },
-        ],
-      },
-    ],
-  };
+nodeTest.test(
+  "validateRegistryManifest — accepts file with kind and provider",
+  () => {
+    const manifest = {
+      ...VALID_MINIMAL,
+      recipes: [
+        {
+          ...VALID_RECIPE,
+          files: [
+            {
+              source: "src/",
+              target: "pkg/src",
+              kind: "folder",
+              provider: "github",
+            },
+          ],
+        },
+      ],
+    };
 
-  const result = registrySchema.validateRegistryManifest(manifest);
-  const file = result.recipes[0]!.files![0]!;
+    const result = registrySchema.validateRegistryManifest(manifest);
+    const file = result.recipes[0]!.files![0]!;
 
-  assert.assertEquals(file.kind, "folder");
-  assert.assertEquals(file.provider, "github");
-});
+    assert.assertEquals(file.kind, "folder");
+    assert.assertEquals(file.provider, "github");
+  },
+);
 
-Deno.test("validateRegistryManifest — rejects invalid file kind", () => {
+nodeTest.test("validateRegistryManifest — rejects invalid file kind", () => {
   const manifest = {
     ...VALID_MINIMAL,
     recipes: [
@@ -413,31 +450,34 @@ Deno.test("validateRegistryManifest — rejects invalid file kind", () => {
   );
 });
 
-Deno.test("validateRegistryManifest — rejects invalid file provider", () => {
-  const manifest = {
-    ...VALID_MINIMAL,
-    recipes: [
-      {
-        ...VALID_RECIPE,
-        files: [{ source: "a", target: "b", provider: "s3" }],
-      },
-    ],
-  };
+nodeTest.test(
+  "validateRegistryManifest — rejects invalid file provider",
+  () => {
+    const manifest = {
+      ...VALID_MINIMAL,
+      recipes: [
+        {
+          ...VALID_RECIPE,
+          files: [{ source: "a", target: "b", provider: "s3" }],
+        },
+      ],
+    };
 
-  assert.assertThrows(
-    () => registrySchema.validateRegistryManifest(manifest),
-    Error,
-    "Invalid recipe",
-  );
-});
+    assert.assertThrows(
+      () => registrySchema.validateRegistryManifest(manifest),
+      Error,
+      "Invalid recipe",
+    );
+  },
+);
 
-Deno.test("validateRecipe — validates standalone recipe", () => {
+nodeTest.test("validateRecipe — validates standalone recipe", () => {
   const recipe = registrySchema.validateRecipe(VALID_RECIPE);
 
   assert.assertEquals(recipe.name, "my-recipe");
 });
 
-Deno.test("validateRecipe — rejects invalid standalone recipe", () => {
+nodeTest.test("validateRecipe — rejects invalid standalone recipe", () => {
   assert.assertThrows(
     () => registrySchema.validateRecipe({ name: "" }),
     Error,
@@ -445,22 +485,25 @@ Deno.test("validateRecipe — rejects invalid standalone recipe", () => {
   );
 });
 
-Deno.test("validateRegistryManifest — existing recipes without new fields still valid", () => {
-  const manifest = {
-    ...VALID_MINIMAL,
-    recipes: [VALID_RECIPE],
-  };
+nodeTest.test(
+  "validateRegistryManifest — existing recipes without new fields still valid",
+  () => {
+    const manifest = {
+      ...VALID_MINIMAL,
+      recipes: [VALID_RECIPE],
+    };
 
-  const result = registrySchema.validateRegistryManifest(manifest);
-  const recipe = result.recipes[0]!;
+    const result = registrySchema.validateRegistryManifest(manifest);
+    const recipe = result.recipes[0]!;
 
-  // New optional fields are undefined when not provided
-  assert.assertEquals(recipe.requires, undefined);
-  assert.assertEquals(recipe.variables, undefined);
-  assert.assertEquals(recipe.postInstall, undefined);
-});
+    // New optional fields are undefined when not provided
+    assert.assertEquals(recipe.requires, undefined);
+    assert.assertEquals(recipe.variables, undefined);
+    assert.assertEquals(recipe.postInstall, undefined);
+  },
+);
 
-Deno.test("isTemplateVariable — validates correctly", () => {
+nodeTest.test("isTemplateVariable — validates correctly", () => {
   assert.assertEquals(
     registrySchema.isTemplateVariable({
       name: "foo",
@@ -492,7 +535,7 @@ Deno.test("isTemplateVariable — validates correctly", () => {
 // resolveRegistryUrl
 // =============================================================================
 
-Deno.test("resolveRegistryUrl — joins base and path", () => {
+nodeTest.test("resolveRegistryUrl — joins base and path", () => {
   const result = registrySchema.resolveRegistryUrl(
     "https://example.com/registry",
     "recipes/foo.ts",
@@ -501,7 +544,7 @@ Deno.test("resolveRegistryUrl — joins base and path", () => {
   assert.assertEquals(result, "https://example.com/registry/recipes/foo.ts");
 });
 
-Deno.test("resolveRegistryUrl — strips trailing slash from base", () => {
+nodeTest.test("resolveRegistryUrl — strips trailing slash from base", () => {
   const result = registrySchema.resolveRegistryUrl(
     "https://example.com/registry/",
     "recipes/foo.ts",
@@ -510,7 +553,7 @@ Deno.test("resolveRegistryUrl — strips trailing slash from base", () => {
   assert.assertEquals(result, "https://example.com/registry/recipes/foo.ts");
 });
 
-Deno.test("resolveRegistryUrl — strips leading slash from path", () => {
+nodeTest.test("resolveRegistryUrl — strips leading slash from path", () => {
   const result = registrySchema.resolveRegistryUrl(
     "https://example.com/registry",
     "/recipes/foo.ts",

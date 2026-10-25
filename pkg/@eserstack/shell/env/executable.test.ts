@@ -1,17 +1,18 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 
 import * as executable from "./executable.ts";
 
-Deno.test("resolves a real executable on PATH", async () => {
+nodeTest.test("resolves a real executable on PATH", async () => {
   const resolved = await executable.resolveExecutable("sh");
 
   assert.assert(resolved !== null, "sh was not found on PATH");
   assert.assert(resolved.endsWith("/sh"), `unexpected path: ${resolved}`);
 });
 
-Deno.test("reports absence rather than throwing", async () => {
+nodeTest.test("reports absence rather than throwing", async () => {
   assert.assertEquals(
     await executable.resolveExecutable("definitely-not-installed-xyzzy"),
     null,
@@ -24,7 +25,7 @@ Deno.test("reports absence rather than throwing", async () => {
 // A non-executable file with the right name must not be "found". Reporting it
 // moves the failure to spawn time, with an error about permissions rather than
 // about the missing tool — the confusion PATH lookup exists to prevent.
-Deno.test("a non-executable file is not resolved", async () => {
+nodeTest.test("a non-executable file is not resolved", async () => {
   const dir = await Deno.makeTempDir({ prefix: "eser-exe-" });
 
   await Deno.writeTextFile(`${dir}/inert`, "#!/bin/sh\nexit 0\n");
@@ -48,7 +49,7 @@ Deno.test("a non-executable file is not resolved", async () => {
 // its own path segment — nothing else stops traversal here. `<pathdir>/../x`
 // really does resolve to a sibling of the PATH entry, so the guard is
 // load-bearing and this test plants a reachable target to prove it.
-Deno.test("a path-like name cannot escape a PATH directory", async () => {
+nodeTest.test("a path-like name cannot escape a PATH directory", async () => {
   const base = await Deno.makeTempDir({ prefix: "eser-exe-" });
   const bin = `${base}/bin`;
 

@@ -1,12 +1,13 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import { runtime } from "@eserstack/standards/cross-runtime";
 import * as bundler from "./bundler.ts";
 import type { BundleResult } from "./bundler.ts";
 
-Deno.test("bundler", async (t) => {
-  await t.step("analyzeBundleResult - with chunks", () => {
+nodeTest.test("bundler", async (t) => {
+  await t.test("analyzeBundleResult - with chunks", () => {
     const result: BundleResult = {
       entrypoint: "client.js",
       outputs: {
@@ -28,7 +29,7 @@ Deno.test("bundler", async (t) => {
     assert.assertEquals(analysis.averageChunkSize, 17000 / 3);
   });
 
-  await t.step("analyzeBundleResult - empty", () => {
+  await t.test("analyzeBundleResult - empty", () => {
     const result: BundleResult = {
       entrypoint: "client.js",
       outputs: {},
@@ -46,7 +47,7 @@ Deno.test("bundler", async (t) => {
     assert.assertEquals(analysis.averageChunkSize, 0);
   });
 
-  await t.step("analyzeBundleResult - single chunk", () => {
+  await t.test("analyzeBundleResult - single chunk", () => {
     const result: BundleResult = {
       entrypoint: "client.js",
       outputs: {
@@ -67,7 +68,7 @@ Deno.test("bundler", async (t) => {
   });
 });
 
-Deno.test("bundler integration", async (t) => {
+nodeTest.test("bundler integration", async (t) => {
   // Create a temp directory for test fixtures
   const tempDir = await runtime.fs.makeTempDir({ prefix: "bundler-test-" });
   const srcDir = runtime.path.join(tempDir, "src");
@@ -76,7 +77,7 @@ Deno.test("bundler integration", async (t) => {
   await runtime.fs.ensureDir(srcDir);
   await runtime.fs.ensureDir(distDir);
 
-  await t.step("setup test files", async () => {
+  await t.test("setup test files", async () => {
     // Create a simple component file
     const componentCode = `
 export function Counter() {
@@ -104,7 +105,7 @@ export function Counter() {
   // which have external dependencies. These are tested in the @eserstack/bundler package.
   // Here we test the interface contracts.
 
-  await t.step("ServerBundleOptions type check", () => {
+  await t.test("ServerBundleOptions type check", () => {
     // This is a compile-time type check
     const options = {
       entrypoints: [runtime.path.join(srcDir, "counter.tsx")],

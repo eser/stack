@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as reducer from "./reducer.ts";
 import * as tree from "./split-tree.ts";
@@ -10,7 +11,7 @@ const base = (): MuxState =>
     type: "newTab",
   }).state;
 
-Deno.test("newTab opens a tab with one pane and asks to spawn it", () => {
+nodeTest.test("newTab opens a tab with one pane and asks to spawn it", () => {
   const r = reducer.reduce(reducer.createInitialState({ cols: 80, rows: 24 }), {
     type: "newTab",
   });
@@ -28,7 +29,7 @@ Deno.test("newTab opens a tab with one pane and asks to spawn it", () => {
   );
 });
 
-Deno.test("splitPane adds a pane, focuses it, and emits spawn", () => {
+nodeTest.test("splitPane adds a pane, focuses it, and emits spawn", () => {
   const s0 = base();
   const r = reducer.reduce(s0, { type: "splitPane", direction: "vertical" });
   const tab = r.state.tabs[0]!;
@@ -38,7 +39,7 @@ Deno.test("splitPane adds a pane, focuses it, and emits spawn", () => {
   assert.assertEquals(r.effects.filter((e) => e.type === "spawnPty").length, 1);
 });
 
-Deno.test("closeFocusedPane removes the pane and kills its process", () => {
+nodeTest.test("closeFocusedPane removes the pane and kills its process", () => {
   let s = base();
   s = reducer.reduce(s, { type: "splitPane", direction: "vertical" }).state;
   const closed = s.tabs[0]!.focusedPane;
@@ -54,19 +55,22 @@ Deno.test("closeFocusedPane removes the pane and kills its process", () => {
   );
 });
 
-Deno.test("closeFocusedPane on the last pane closes the tab and exits", () => {
-  const s = base();
-  const r = reducer.reduce(s, { type: "closeFocusedPane" });
+nodeTest.test(
+  "closeFocusedPane on the last pane closes the tab and exits",
+  () => {
+    const s = base();
+    const r = reducer.reduce(s, { type: "closeFocusedPane" });
 
-  assert.assertEquals(r.state.tabs.length, 0);
-  assert.assertEquals(r.state.running, false);
-  assert.assertEquals(
-    r.effects.some((e) => e.type === "exit"),
-    true,
-  );
-});
+    assert.assertEquals(r.state.tabs.length, 0);
+    assert.assertEquals(r.state.running, false);
+    assert.assertEquals(
+      r.effects.some((e) => e.type === "exit"),
+      true,
+    );
+  },
+);
 
-Deno.test("focusNext cycles through panes", () => {
+nodeTest.test("focusNext cycles through panes", () => {
   let s = base();
   s = reducer.reduce(s, { type: "splitPane", direction: "vertical" }).state;
   const leaves = tree.collectLeaves(s.tabs[0]!.root);
@@ -77,7 +81,7 @@ Deno.test("focusNext cycles through panes", () => {
   assert.assertEquals(s.tabs[0]!.focusedPane, leaves[0]);
 });
 
-Deno.test("focusDirection moves to the spatial neighbour", () => {
+nodeTest.test("focusDirection moves to the spatial neighbour", () => {
   let s = base();
   // vertical split → a | b, focus on b (right pane)
   s = reducer.reduce(s, { type: "splitPane", direction: "vertical" }).state;
@@ -88,7 +92,7 @@ Deno.test("focusDirection moves to the spatial neighbour", () => {
   assert.assertEquals(s.tabs[0]!.focusedPane, a);
 });
 
-Deno.test("toggleFullscreen sets and clears the fullscreen pane", () => {
+nodeTest.test("toggleFullscreen sets and clears the fullscreen pane", () => {
   let s = base();
   const focused = s.tabs[0]!.focusedPane;
   s = reducer.reduce(s, { type: "toggleFullscreen" }).state;
@@ -97,7 +101,7 @@ Deno.test("toggleFullscreen sets and clears the fullscreen pane", () => {
   assert.assertEquals(s.tabs[0]!.fullscreenPane, undefined);
 });
 
-Deno.test("writeInput targets the focused pane", () => {
+nodeTest.test("writeInput targets the focused pane", () => {
   const s = base();
   const r = reducer.reduce(s, { type: "writeInput", data: "ls\r" });
   assert.assertEquals(r.effects, [
@@ -105,7 +109,7 @@ Deno.test("writeInput targets the focused pane", () => {
   ]);
 });
 
-Deno.test("writeToPane targets a specific pane regardless of focus", () => {
+nodeTest.test("writeToPane targets a specific pane regardless of focus", () => {
   let s = base();
   s = reducer.reduce(s, { type: "splitPane", direction: "vertical" }).state;
   const [a, b] = tree.collectLeaves(s.tabs[0]!.root);
@@ -121,7 +125,7 @@ Deno.test("writeToPane targets a specific pane regardless of focus", () => {
   ]);
 });
 
-Deno.test("writeToPane ignores an unknown pane", () => {
+nodeTest.test("writeToPane ignores an unknown pane", () => {
   const s = base();
   const r = reducer.reduce(s, {
     type: "writeToPane",
@@ -131,46 +135,56 @@ Deno.test("writeToPane ignores an unknown pane", () => {
   assert.assertEquals(r.effects, []);
 });
 
-Deno.test("paneExited removes a non-focused pane without killing it", () => {
-  let s = base();
-  s = reducer.reduce(s, { type: "splitPane", direction: "vertical" }).state;
-  const [a, b] = tree.collectLeaves(s.tabs[0]!.root);
+nodeTest.test(
+  "paneExited removes a non-focused pane without killing it",
+  () => {
+    let s = base();
+    s = reducer.reduce(s, { type: "splitPane", direction: "vertical" }).state;
+    const [a, b] = tree.collectLeaves(s.tabs[0]!.root);
 
-  const r = reducer.reduce(s, { type: "paneExited", pane: a!, code: 0 });
-  const tab = r.state.tabs[0]!;
+    const r = reducer.reduce(s, { type: "paneExited", pane: a!, code: 0 });
+    const tab = r.state.tabs[0]!;
 
-  assert.assertEquals(tree.collectLeaves(tab.root), [b]);
-  assert.assertEquals(
-    r.effects.some((e) => e.type === "killPty"),
-    false,
-  );
-  assert.assertEquals(
-    r.effects.some((e) => e.type === "render"),
-    true,
-  );
-});
+    assert.assertEquals(tree.collectLeaves(tab.root), [b]);
+    assert.assertEquals(
+      r.effects.some((e) => e.type === "killPty"),
+      false,
+    );
+    assert.assertEquals(
+      r.effects.some((e) => e.type === "render"),
+      true,
+    );
+  },
+);
 
-Deno.test("resizeViewport updates the viewport", () => {
+nodeTest.test("resizeViewport updates the viewport", () => {
   const s = base();
   const r = reducer.reduce(s, { type: "resizeViewport", cols: 120, rows: 40 });
   assert.assertEquals(r.state.viewport, { cols: 120, rows: 40 });
 });
 
-Deno.test("paneExited on a tab before the active one keeps the same tab visible", () => {
-  let s = base(); // tab index 0
-  s = reducer.reduce(s, { type: "newTab" }).state; // index 1
-  s = reducer.reduce(s, { type: "newTab" }).state; // index 2
-  s = reducer.reduce(s, { type: "gotoTab", index: 1 }).state; // viewing index 1
-  const viewedTabId = s.tabs[1]!.id;
+nodeTest.test(
+  "paneExited on a tab before the active one keeps the same tab visible",
+  () => {
+    let s = base(); // tab index 0
+    s = reducer.reduce(s, { type: "newTab" }).state; // index 1
+    s = reducer.reduce(s, { type: "newTab" }).state; // index 2
+    s = reducer.reduce(s, { type: "gotoTab", index: 1 }).state; // viewing index 1
+    const viewedTabId = s.tabs[1]!.id;
 
-  const tab0Pane = tree.collectLeaves(s.tabs[0]!.root)[0]!;
-  s = reducer.reduce(s, { type: "paneExited", pane: tab0Pane, code: 0 }).state;
+    const tab0Pane = tree.collectLeaves(s.tabs[0]!.root)[0]!;
+    s = reducer.reduce(s, {
+      type: "paneExited",
+      pane: tab0Pane,
+      code: 0,
+    }).state;
 
-  assert.assertEquals(s.tabs.length, 2);
-  assert.assertEquals(s.tabs[s.activeTab]!.id, viewedTabId); // not shifted to a neighbour
-});
+    assert.assertEquals(s.tabs.length, 2);
+    assert.assertEquals(s.tabs[s.activeTab]!.id, viewedTabId); // not shifted to a neighbour
+  },
+);
 
-Deno.test("closeTab with a lower index keeps the same tab visible", () => {
+nodeTest.test("closeTab with a lower index keeps the same tab visible", () => {
   let s = base(); // index 0
   s = reducer.reduce(s, { type: "newTab" }).state; // index 1
   s = reducer.reduce(s, { type: "newTab" }).state; // index 2, active = 2
@@ -185,14 +199,14 @@ Deno.test("closeTab with a lower index keeps the same tab visible", () => {
   );
 });
 
-Deno.test("closeTab without an index closes the active tab", () => {
+nodeTest.test("closeTab without an index closes the active tab", () => {
   let s = base();
   s = reducer.reduce(s, { type: "newTab" }).state; // active = 1
   const r = reducer.reduce(s, { type: "closeTab" });
   assert.assertEquals(r.state.tabs.length, 1);
 });
 
-Deno.test("nextTab/prevTab wrap around", () => {
+nodeTest.test("nextTab/prevTab wrap around", () => {
   let s = base();
   s = reducer.reduce(s, { type: "newTab" }).state; // 2 tabs, active = 1
   assert.assertEquals(s.activeTab, 1);

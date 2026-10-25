@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as results from "@eserstack/primitives/results";
 import * as ask from "./ask.ts";
@@ -10,7 +11,7 @@ import * as ask from "./ask.ts";
 // whole number, fails the same way instead of being dropped or sent as NaN.
 
 for (const level of ["low", "medium", "high", "xhigh", "max"] as const) {
-  Deno.test(`parseAskArgs accepts --effort ${level}`, () => {
+  nodeTest.test(`parseAskArgs accepts --effort ${level}`, () => {
     const parsed = ask.parseAskArgs(["hello", "--effort", level]);
 
     assert.assert(results.isOk(parsed), "parseAskArgs failed");
@@ -18,7 +19,7 @@ for (const level of ["low", "medium", "high", "xhigh", "max"] as const) {
   });
 }
 
-Deno.test("parseAskArgs reads every flag and joins the prompt", () => {
+nodeTest.test("parseAskArgs reads every flag and joins the prompt", () => {
   const parsed = ask.parseAskArgs([
     "explain",
     "-p",
@@ -46,7 +47,7 @@ Deno.test("parseAskArgs reads every flag and joins the prompt", () => {
   });
 });
 
-Deno.test("parseAskArgs leaves every flag unset when none is given", () => {
+nodeTest.test("parseAskArgs leaves every flag unset when none is given", () => {
   const parsed = ask.parseAskArgs(["hello"]);
 
   assert.assert(results.isOk(parsed), "parseAskArgs failed");
@@ -110,7 +111,7 @@ const rejected: ReadonlyArray<{
 ];
 
 for (const tc of rejected) {
-  Deno.test(`parseAskArgs rejects ${tc.name}`, () => {
+  nodeTest.test(`parseAskArgs rejects ${tc.name}`, () => {
     const parsed = ask.parseAskArgs(tc.args);
 
     assert.assert(results.isFail(parsed), "parseAskArgs succeeded");
@@ -118,24 +119,30 @@ for (const tc of rejected) {
   });
 }
 
-Deno.test("main rejects an unknown effort level before it chooses a provider", async () => {
-  const result = await ask.main(["hi", "--effort", "huge"]);
+nodeTest.test(
+  "main rejects an unknown effort level before it chooses a provider",
+  async () => {
+    const result = await ask.main(["hi", "--effort", "huge"]);
 
-  assert.assert(results.isFail(result), "main succeeded");
-  assert.assertEquals(result.error.exitCode, 1);
-  assert.assertStringIncludes(
-    result.error.message ?? "",
-    "use low, medium, high, xhigh or max",
-  );
-});
+    assert.assert(results.isFail(result), "main succeeded");
+    assert.assertEquals(result.error.exitCode, 1);
+    assert.assertStringIncludes(
+      result.error.message ?? "",
+      "use low, medium, high, xhigh or max",
+    );
+  },
+);
 
 // The alias and display-name tables are looked up with the -p value. On plain
 // objects "constructor" resolved to the Object function, and the error named
 // "function Object() { [native code] }" instead of the provider asked for.
-Deno.test("main reports a provider named like an Object.prototype member as unknown", async () => {
-  const result = await ask.main(["hi", "-p", "constructor"]);
+nodeTest.test(
+  "main reports a provider named like an Object.prototype member as unknown",
+  async () => {
+    const result = await ask.main(["hi", "-p", "constructor"]);
 
-  assert.assert(results.isFail(result), "main succeeded");
-  assert.assertEquals(result.error.exitCode, 1);
-  assert.assertEquals(result.error.message, "Unknown provider: constructor");
-});
+    assert.assert(results.isFail(result), "main succeeded");
+    assert.assertEquals(result.error.exitCode, 1);
+    assert.assertEquals(result.error.message, "Unknown provider: constructor");
+  },
+);

@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import type * as types from "./types.ts";
 import * as placeholder from "./placeholder.ts";
@@ -49,7 +50,7 @@ const placeholderCases: ReadonlyArray<{
 ];
 
 for (const testCase of placeholderCases) {
-  Deno.test(`buildPlaceholderStyles for ${testCase.name}`, () => {
+  nodeTest.test(`buildPlaceholderStyles for ${testCase.name}`, () => {
     assert.assertEquals(
       placeholder.buildPlaceholderStyles(
         testCase.placeholder,
@@ -59,7 +60,7 @@ for (const testCase of placeholderCases) {
     );
   });
 
-  Deno.test(`shouldShowPlaceholder for ${testCase.name}`, () => {
+  nodeTest.test(`shouldShowPlaceholder for ${testCase.name}`, () => {
     assert.assertEquals(
       placeholder.shouldShowPlaceholder(
         testCase.placeholder,
@@ -70,14 +71,17 @@ for (const testCase of placeholderCases) {
   });
 }
 
-Deno.test("buildPlaceholderStyles keeps a quote or a line break inside the CSS string", () => {
-  const styles = placeholder.buildPlaceholderStyles(
-    "blur",
-    'data:image/png;base64,AA");color:red;x:("\nB\\',
-  );
+nodeTest.test(
+  "buildPlaceholderStyles keeps a quote or a line break inside the CSS string",
+  () => {
+    const styles = placeholder.buildPlaceholderStyles(
+      "blur",
+      'data:image/png;base64,AA");color:red;x:("\nB\\',
+    );
 
-  assert.assertEquals(
-    styles?.backgroundImage,
-    'url("data:image/png;base64,AA\\22 );color:red;x:(\\22 \\a B\\5c ")',
-  );
-});
+    assert.assertEquals(
+      styles?.backgroundImage,
+      'url("data:image/png;base64,AA\\22 );color:red;x:(\\22 \\a B\\5c ")',
+    );
+  },
+);

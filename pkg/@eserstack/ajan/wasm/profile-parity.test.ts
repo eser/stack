@@ -13,6 +13,7 @@
  * @module
  */
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import { runtime } from "@eserstack/standards/cross-runtime";
 import * as ffiClient from "../ffi/client.ts";
@@ -51,11 +52,10 @@ const canonical = (fn: string, answer: string): string => {
 
 type Call = readonly [fn: string, ...args: string[]];
 
-Deno.test({
-  name: "every wasi profile name answers like the native library",
-  ignore: native === null || wasmPath === null,
-  sanitizeResources: false,
-  fn: async () => {
+nodeTest.test(
+  "every wasi profile name answers like the native library",
+  { skip: native === null || wasmPath === null },
+  async () => {
     const fixture = await runtime.fs.makeTempDir({
       dir: runtime.process.cwd(),
       prefix: ".ajan-parity-",
@@ -364,4 +364,4 @@ Deno.test({
       await runtime.fs.remove(fixture, { recursive: true });
     }
   },
-});
+);

@@ -1,9 +1,10 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as srcsetBuilder from "./srcset-builder.ts";
 
-Deno.test("inferSrcSet lists one variant per default width", () => {
+nodeTest.test("inferSrcSet lists one variant per default width", () => {
   assert.assertEquals(
     srcsetBuilder.inferSrcSet("/images/photo.jpg"),
     "/images/photo-640w.jpg 640w, /images/photo-768w.jpg 768w, " +
@@ -53,12 +54,12 @@ const inferCases: ReadonlyArray<{
 ];
 
 for (const { name, src, expected } of inferCases) {
-  Deno.test(`inferSrcSet ${name}`, () => {
+  nodeTest.test(`inferSrcSet ${name}`, () => {
     assert.assertEquals(srcsetBuilder.inferSrcSet(src, [400, 800]), expected);
   });
 }
 
-Deno.test("inferSrcSet returns an empty srcset for no widths", () => {
+nodeTest.test("inferSrcSet returns an empty srcset for no widths", () => {
   assert.assertEquals(srcsetBuilder.inferSrcSet("/images/photo.jpg", []), "");
 });
 
@@ -113,7 +114,7 @@ const replaceCases: ReadonlyArray<{
 ];
 
 for (const { name, srcSet, originalExt, expected } of replaceCases) {
-  Deno.test(`replaceSrcSetExtension ${name}`, () => {
+  nodeTest.test(`replaceSrcSetExtension ${name}`, () => {
     assert.assertEquals(
       srcsetBuilder.replaceSrcSetExtension(srcSet, originalExt, "avif"),
       expected,
@@ -121,13 +122,17 @@ for (const { name, srcSet, originalExt, expected } of replaceCases) {
   });
 }
 
-Deno.test("buildFormatSrcSet builds the srcset of one format from a base path", () => {
-  assert.assertEquals(
-    srcsetBuilder.buildFormatSrcSet("/images/photo", "webp", [320, 640]),
-    "/images/photo-320w.webp 320w, /images/photo-640w.webp 640w",
-  );
-  assert.assertEquals(
-    srcsetBuilder.buildFormatSrcSet("/images/photo", "avif").split(", ").length,
-    5,
-  );
-});
+nodeTest.test(
+  "buildFormatSrcSet builds the srcset of one format from a base path",
+  () => {
+    assert.assertEquals(
+      srcsetBuilder.buildFormatSrcSet("/images/photo", "webp", [320, 640]),
+      "/images/photo-320w.webp 320w, /images/photo-640w.webp 640w",
+    );
+    assert.assertEquals(
+      srcsetBuilder.buildFormatSrcSet("/images/photo", "avif").split(", ")
+        .length,
+      5,
+    );
+  },
+);

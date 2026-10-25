@@ -18,6 +18,7 @@
  * @module
  */
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as npmExternals from "@eserstack/codebase/npm-externals";
 import { runtime } from "@eserstack/standards/cross-runtime";
@@ -41,7 +42,7 @@ const SHARED_IMPORT =
 const stripComments = (source: string): string =>
   source.replaceAll(/\/\*[\s\S]*?\*\//g, "").replaceAll(/\/\/[^\n]*/g, "");
 
-Deno.test("every npm build reads the shared externals list", async () => {
+nodeTest.test("every npm build reads the shared externals list", async () => {
   const builds = await Promise.all(
     BUILDS.map(async (relative) => ({
       relative,
@@ -84,25 +85,28 @@ Deno.test("every npm build reads the shared externals list", async () => {
   }
 });
 
-Deno.test("the shared externals list keeps the FFI builtins external and bundles @eserstack/ajan", () => {
-  const list = [...npmExternals.NPM_EXTERNAL_PACKAGES];
+nodeTest.test(
+  "the shared externals list keeps the FFI builtins external and bundles @eserstack/ajan",
+  () => {
+    const list = [...npmExternals.NPM_EXTERNAL_PACKAGES];
 
-  // bun:ffi is the one that actually breaks the build: it is a Bun-only builtin
-  // that esbuild cannot resolve. @eserstack/ajan is the opposite case -- it is
-  // published to JSR only, so leaving it external makes the npm package
-  // uninstallable (404 on the dependency) and, because every ffi-client.ts now
-  // imports the shared loader statically, unloadable even from a link install.
-  for (const required of ["bun:ffi", "koffi", "@eserstack/ajan-*"]) {
+    // bun:ffi is the one that actually breaks the build: it is a Bun-only builtin
+    // that esbuild cannot resolve. @eserstack/ajan is the opposite case -- it is
+    // published to JSR only, so leaving it external makes the npm package
+    // uninstallable (404 on the dependency) and, because every ffi-client.ts now
+    // imports the shared loader statically, unloadable even from a link install.
+    for (const required of ["bun:ffi", "koffi", "@eserstack/ajan-*"]) {
+      assert.assertEquals(
+        list.includes(required),
+        true,
+        `"${required}" must stay external`,
+      );
+    }
+
     assert.assertEquals(
-      list.includes(required),
-      true,
-      `"${required}" must stay external`,
+      list.includes("@eserstack/ajan"),
+      false,
+      '"@eserstack/ajan" must be bundled -- it is not on npm',
     );
-  }
-
-  assert.assertEquals(
-    list.includes("@eserstack/ajan"),
-    false,
-    '"@eserstack/ajan" must be bundled -- it is not on npm',
-  );
-});
+  },
+);

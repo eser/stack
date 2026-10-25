@@ -1,9 +1,10 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as get from "./get.ts";
 
-Deno.test("basic", () => {
+nodeTest.test("basic", () => {
   const obj = { a: { b: { c: 42 } } };
 
   const result = get.get(obj, ["a", "b", "c"]);
@@ -11,7 +12,7 @@ Deno.test("basic", () => {
   assert.assertEquals(result, 42);
 });
 
-Deno.test("missing-path", () => {
+nodeTest.test("missing-path", () => {
   const obj = { a: { b: 1 } };
 
   const result = get.get(obj, ["a", "b", "c", "d"]);
@@ -19,7 +20,7 @@ Deno.test("missing-path", () => {
   assert.assertEquals(result, undefined);
 });
 
-Deno.test("default-value", () => {
+nodeTest.test("default-value", () => {
   const obj = { a: { b: 1 } };
 
   const result = get.get(obj, ["x", "y"], "default");
@@ -27,19 +28,19 @@ Deno.test("default-value", () => {
   assert.assertEquals(result, "default");
 });
 
-Deno.test("null-object", () => {
+nodeTest.test("null-object", () => {
   const result = get.get(null, ["a", "b"], "default");
 
   assert.assertEquals(result, "default");
 });
 
-Deno.test("undefined-object", () => {
+nodeTest.test("undefined-object", () => {
   const result = get.get(undefined, ["a", "b"], "default");
 
   assert.assertEquals(result, "default");
 });
 
-Deno.test("empty-path", () => {
+nodeTest.test("empty-path", () => {
   const obj = { a: 1 };
 
   const result = get.get(obj, []);
@@ -47,7 +48,7 @@ Deno.test("empty-path", () => {
   assert.assertEquals(result, { a: 1 });
 });
 
-Deno.test("array-access", () => {
+nodeTest.test("array-access", () => {
   const obj = { items: [1, 2, 3] };
 
   const result = get.get(obj, ["items", 1]);
@@ -55,7 +56,7 @@ Deno.test("array-access", () => {
   assert.assertEquals(result, 2);
 });
 
-Deno.test("nested-null", () => {
+nodeTest.test("nested-null", () => {
   const obj = { a: null };
 
   const result = get.get(obj, ["a", "b"], "default");
@@ -63,7 +64,7 @@ Deno.test("nested-null", () => {
   assert.assertEquals(result, "default");
 });
 
-Deno.test("falsy-values", () => {
+nodeTest.test("falsy-values", () => {
   const obj = { a: { b: 0, c: "", d: false } };
 
   assert.assertEquals(get.get(obj, ["a", "b"]), 0);
@@ -71,7 +72,7 @@ Deno.test("falsy-values", () => {
   assert.assertEquals(get.get(obj, ["a", "d"]), false);
 });
 
-Deno.test("default-not-used-for-existing", () => {
+nodeTest.test("default-not-used-for-existing", () => {
   const obj = { a: { b: null } };
 
   // null is a value, not undefined, so default is not used

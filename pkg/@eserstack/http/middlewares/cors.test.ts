@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as cors from "./cors.ts";
 
@@ -15,7 +16,7 @@ const createRequest = (
 
 const okHandler = () => new Response("OK", { status: 200 });
 
-Deno.test("cors should allow all origins by default", async () => {
+nodeTest.test("cors should allow all origins by default", async () => {
   const middleware = cors.cors();
   const req = createRequest("GET", { Origin: "https://example.com" });
 
@@ -24,7 +25,7 @@ Deno.test("cors should allow all origins by default", async () => {
   assert.assertEquals(response.headers.get("Access-Control-Allow-Origin"), "*");
 });
 
-Deno.test("cors should handle preflight OPTIONS request", async () => {
+nodeTest.test("cors should handle preflight OPTIONS request", async () => {
   const middleware = cors.cors();
   const req = createRequest("OPTIONS", { Origin: "https://example.com" });
 
@@ -35,7 +36,7 @@ Deno.test("cors should handle preflight OPTIONS request", async () => {
   assert.assertExists(response.headers.get("Access-Control-Allow-Methods"));
 });
 
-Deno.test("cors should allow specific origins", async () => {
+nodeTest.test("cors should allow specific origins", async () => {
   const middleware = cors.cors({
     origin: ["https://allowed.com", "https://also-allowed.com"],
   });
@@ -59,7 +60,7 @@ Deno.test("cors should allow specific origins", async () => {
   );
 });
 
-Deno.test("cors should support origin as function", async () => {
+nodeTest.test("cors should support origin as function", async () => {
   const middleware = cors.cors({
     origin: (origin) => origin.endsWith(".example.com"),
   });
@@ -82,7 +83,7 @@ Deno.test("cors should support origin as function", async () => {
   );
 });
 
-Deno.test("cors should set credentials header when enabled", async () => {
+nodeTest.test("cors should set credentials header when enabled", async () => {
   const middleware = cors.cors({ credentials: true });
   const req = createRequest("GET", { Origin: "https://example.com" });
 
@@ -94,7 +95,7 @@ Deno.test("cors should set credentials header when enabled", async () => {
   );
 });
 
-Deno.test("cors should set max-age in preflight", async () => {
+nodeTest.test("cors should set max-age in preflight", async () => {
   const middleware = cors.cors({ maxAge: 86400 });
   const req = createRequest("OPTIONS", { Origin: "https://example.com" });
 
@@ -103,7 +104,7 @@ Deno.test("cors should set max-age in preflight", async () => {
   assert.assertEquals(response.headers.get("Access-Control-Max-Age"), "86400");
 });
 
-Deno.test("cors should set allowed headers in preflight", async () => {
+nodeTest.test("cors should set allowed headers in preflight", async () => {
   const middleware = cors.cors({
     allowedHeaders: ["Content-Type", "Authorization"],
   });
@@ -117,22 +118,25 @@ Deno.test("cors should set allowed headers in preflight", async () => {
   );
 });
 
-Deno.test("cors should mirror requested headers if not specified", async () => {
-  const middleware = cors.cors();
-  const req = createRequest("OPTIONS", {
-    Origin: "https://example.com",
-    "Access-Control-Request-Headers": "X-Custom-Header",
-  });
+nodeTest.test(
+  "cors should mirror requested headers if not specified",
+  async () => {
+    const middleware = cors.cors();
+    const req = createRequest("OPTIONS", {
+      Origin: "https://example.com",
+      "Access-Control-Request-Headers": "X-Custom-Header",
+    });
 
-  const response = await middleware(req, okHandler);
+    const response = await middleware(req, okHandler);
 
-  assert.assertEquals(
-    response.headers.get("Access-Control-Allow-Headers"),
-    "X-Custom-Header",
-  );
-});
+    assert.assertEquals(
+      response.headers.get("Access-Control-Allow-Headers"),
+      "X-Custom-Header",
+    );
+  },
+);
 
-Deno.test("cors should set exposed headers", async () => {
+nodeTest.test("cors should set exposed headers", async () => {
   const middleware = cors.cors({
     exposedHeaders: ["X-Request-Id", "X-Rate-Limit"],
   });
@@ -146,7 +150,7 @@ Deno.test("cors should set exposed headers", async () => {
   );
 });
 
-Deno.test("cors should set Vary header for specific origins", async () => {
+nodeTest.test("cors should set Vary header for specific origins", async () => {
   const middleware = cors.cors({ origin: "https://example.com" });
   const req = createRequest("GET", { Origin: "https://example.com" });
 
@@ -156,15 +160,18 @@ Deno.test("cors should set Vary header for specific origins", async () => {
   assert.assertStringIncludes(varyHeader ?? "", "Origin");
 });
 
-Deno.test("cors should pass through response from next handler", async () => {
-  const middleware = cors.cors();
-  const req = createRequest("GET", { Origin: "https://example.com" });
+nodeTest.test(
+  "cors should pass through response from next handler",
+  async () => {
+    const middleware = cors.cors();
+    const req = createRequest("GET", { Origin: "https://example.com" });
 
-  const response = await middleware(req, () =>
-    Response.json({ data: "test" }, { status: 201 }),
-  );
+    const response = await middleware(req, () =>
+      Response.json({ data: "test" }, { status: 201 }),
+    );
 
-  assert.assertEquals(response.status, 201);
-  const body = await response.json();
-  assert.assertEquals(body.data, "test");
-});
+    assert.assertEquals(response.status, 201);
+    const body = await response.json();
+    assert.assertEquals(body.data, "test");
+  },
+);

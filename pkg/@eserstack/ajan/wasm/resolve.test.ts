@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import { runtime } from "@eserstack/standards/cross-runtime";
 import * as resolve from "./resolve.ts";
@@ -42,76 +43,88 @@ const withEnvironment = <T>(
   }
 };
 
-Deno.test("resolveWasmPath: ESER_AJAN_WASM_PATH wins when the file exists", async () => {
-  const tempRoot = await runtime.fs.makeTempDir({ prefix: "ajan-wasm-" });
+nodeTest.test(
+  "resolveWasmPath: ESER_AJAN_WASM_PATH wins when the file exists",
+  async () => {
+    const tempRoot = await runtime.fs.makeTempDir({ prefix: "ajan-wasm-" });
 
-  try {
-    const override = `${tempRoot}/custom.wasm`;
-    await runtime.fs.writeTextFile(override, "not a real module");
-    await runtime.fs.writeTextFile(
-      `${tempRoot}/eser-ajan.wasm`,
-      "not a real module",
-    );
+    try {
+      const override = `${tempRoot}/custom.wasm`;
+      await runtime.fs.writeTextFile(override, "not a real module");
+      await runtime.fs.writeTextFile(
+        `${tempRoot}/eser-ajan.wasm`,
+        "not a real module",
+      );
 
-    const resolved = withEnvironment(tempRoot, override, () =>
-      resolve.resolveWasmPath(tempRoot),
-    );
+      const resolved = withEnvironment(tempRoot, override, () =>
+        resolve.resolveWasmPath(tempRoot),
+      );
 
-    assert.assertEquals(resolved, override);
-  } finally {
-    await runtime.fs.remove(tempRoot, { recursive: true });
-  }
-});
+      assert.assertEquals(resolved, override);
+    } finally {
+      await runtime.fs.remove(tempRoot, { recursive: true });
+    }
+  },
+);
 
-Deno.test("resolveWasmPath: finds the module next to the loader", async () => {
-  const tempRoot = await runtime.fs.makeTempDir({ prefix: "ajan-wasm-" });
+nodeTest.test(
+  "resolveWasmPath: finds the module next to the loader",
+  async () => {
+    const tempRoot = await runtime.fs.makeTempDir({ prefix: "ajan-wasm-" });
 
-  try {
-    await runtime.fs.writeTextFile(
-      `${tempRoot}/eser-ajan.wasm`,
-      "not a real module",
-    );
+    try {
+      await runtime.fs.writeTextFile(
+        `${tempRoot}/eser-ajan.wasm`,
+        "not a real module",
+      );
 
-    const resolved = withEnvironment(tempRoot, undefined, () =>
-      resolve.resolveWasmPath(tempRoot),
-    );
+      const resolved = withEnvironment(tempRoot, undefined, () =>
+        resolve.resolveWasmPath(tempRoot),
+      );
 
-    assert.assertEquals(resolved, `${tempRoot}/eser-ajan.wasm`);
-  } finally {
-    await runtime.fs.remove(tempRoot, { recursive: true });
-  }
-});
+      assert.assertEquals(resolved, `${tempRoot}/eser-ajan.wasm`);
+    } finally {
+      await runtime.fs.remove(tempRoot, { recursive: true });
+    }
+  },
+);
 
-Deno.test("resolveWasmPath: reports every probed location when nothing matches", async () => {
-  const tempRoot = await runtime.fs.makeTempDir({ prefix: "ajan-wasm-" });
+nodeTest.test(
+  "resolveWasmPath: reports every probed location when nothing matches",
+  async () => {
+    const tempRoot = await runtime.fs.makeTempDir({ prefix: "ajan-wasm-" });
 
-  try {
-    const moduleDir = `${tempRoot}/wasm`;
-    await runtime.fs.mkdir(moduleDir, { recursive: true });
+    try {
+      const moduleDir = `${tempRoot}/wasm`;
+      await runtime.fs.mkdir(moduleDir, { recursive: true });
 
-    const error = assert.assertThrows(
-      () =>
-        withEnvironment(tempRoot, `${tempRoot}/missing.wasm`, () =>
-          resolve.resolveWasmPath(moduleDir),
-        ),
-      Error,
-    );
+      const error = assert.assertThrows(
+        () =>
+          withEnvironment(tempRoot, `${tempRoot}/missing.wasm`, () =>
+            resolve.resolveWasmPath(moduleDir),
+          ),
+        Error,
+      );
 
-    assert.assertStringIncludes(
-      error.message,
-      `$ESER_AJAN_WASM_PATH = ${tempRoot}/missing.wasm`,
-    );
-    assert.assertStringIncludes(error.message, `${moduleDir}/eser-ajan.wasm`);
-    assert.assertStringIncludes(
-      error.message,
-      `${moduleDir}/../dist/wasi/eser-ajan.wasm.bin`,
-    );
-    assert.assertStringIncludes(
-      error.message,
-      `${tempRoot}/node_modules/@eserstack/ajan-wasm/eser-ajan.wasm`,
-    );
-    assert.assertStringIncludes(error.message, "/usr/local/lib/eser-ajan.wasm");
-  } finally {
-    await runtime.fs.remove(tempRoot, { recursive: true });
-  }
-});
+      assert.assertStringIncludes(
+        error.message,
+        `$ESER_AJAN_WASM_PATH = ${tempRoot}/missing.wasm`,
+      );
+      assert.assertStringIncludes(error.message, `${moduleDir}/eser-ajan.wasm`);
+      assert.assertStringIncludes(
+        error.message,
+        `${moduleDir}/../dist/wasi/eser-ajan.wasm.bin`,
+      );
+      assert.assertStringIncludes(
+        error.message,
+        `${tempRoot}/node_modules/@eserstack/ajan-wasm/eser-ajan.wasm`,
+      );
+      assert.assertStringIncludes(
+        error.message,
+        "/usr/local/lib/eser-ajan.wasm",
+      );
+    } finally {
+      await runtime.fs.remove(tempRoot, { recursive: true });
+    }
+  },
+);

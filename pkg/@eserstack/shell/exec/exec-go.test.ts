@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import type * as ffiTypes from "@eserstack/ajan/ffi";
 import * as execGo from "./exec-go.ts";
@@ -23,7 +24,7 @@ const fakeLib = (
   return { lib, requests };
 };
 
-Deno.test("buildExecGoRequest sends env as KEY=VALUE strings", () => {
+nodeTest.test("buildExecGoRequest sends env as KEY=VALUE strings", () => {
   // The bridge's reads env as []string; a JSON object failed its unmarshal with
   // "invalid request JSON", so every goExec call that set env failed.
   const request = execGo.buildExecGoRequest("printenv", {
@@ -37,7 +38,7 @@ Deno.test("buildExecGoRequest sends env as KEY=VALUE strings", () => {
   ]);
 });
 
-Deno.test("buildExecGoRequest leaves env out when none is set", () => {
+nodeTest.test("buildExecGoRequest leaves env out when none is set", () => {
   const request = execGo.buildExecGoRequest("true", {});
 
   assert.assertEquals(request.env, undefined);
@@ -64,7 +65,7 @@ const timeoutCases = [
 ];
 
 for (const { name, input, wire } of timeoutCases) {
-  Deno.test(`buildExecGoRequest ${name}`, () => {
+  nodeTest.test(`buildExecGoRequest ${name}`, () => {
     // The bridge's reads timeout as a duration string; a JSON number failed its
     // unmarshal the same way env did.
     const request = execGo.buildExecGoRequest("true", { timeout: input });
@@ -82,7 +83,7 @@ const invalidTimeouts = [
 ];
 
 for (const { name, input } of invalidTimeouts) {
-  Deno.test(`normalizeTimeout rejects ${name}`, () => {
+  nodeTest.test(`normalizeTimeout rejects ${name}`, () => {
     // 0 used to go out as "0ms", which the bridge rejects; past 2^31 - 1 a
     // timer fires at once and the runtime spawn would stop the command
     // immediately.
@@ -94,7 +95,7 @@ for (const { name, input } of invalidTimeouts) {
   });
 }
 
-Deno.test("runExecGo returns a non-zero exit as a normal reply", () => {
+nodeTest.test("runExecGo returns a non-zero exit as a normal reply", () => {
   const { lib, requests } = fakeLib(
     JSON.stringify({ stdout: "out", stderr: "err", code: 3 }),
   );
@@ -115,32 +116,38 @@ Deno.test("runExecGo returns a non-zero exit as a normal reply", () => {
   ]);
 });
 
-Deno.test("runExecGo fills in the output the bridge omits when empty", () => {
-  const { lib } = fakeLib(JSON.stringify({ code: 0 }));
+nodeTest.test(
+  "runExecGo fills in the output the bridge omits when empty",
+  () => {
+    const { lib } = fakeLib(JSON.stringify({ code: 0 }));
 
-  const reply = execGo.runExecGo(lib, execGo.buildExecGoRequest("true", {}));
+    const reply = execGo.runExecGo(lib, execGo.buildExecGoRequest("true", {}));
 
-  assert.assertEquals(reply, { stdout: "", stderr: "", code: 0 });
-});
+    assert.assertEquals(reply, { stdout: "", stderr: "", code: 0 });
+  },
+);
 
-Deno.test("runExecGo throws the bridge's error as a CommandRunError", () => {
-  const { lib } = fakeLib(
-    JSON.stringify({
-      code: 0,
-      error:
-        'exec "sleep": context deadline exceeded: the command ran past ' +
-        "its 100ms timeout",
-    }),
-  );
+nodeTest.test(
+  "runExecGo throws the bridge's error as a CommandRunError",
+  () => {
+    const { lib } = fakeLib(
+      JSON.stringify({
+        code: 0,
+        error:
+          'exec "sleep": context deadline exceeded: the command ran past ' +
+          "its 100ms timeout",
+      }),
+    );
 
-  const error = assert.assertThrows(
-    () =>
-      execGo.runExecGo(
-        lib,
-        execGo.buildExecGoRequest("sleep", { args: ["5"], timeout: 100 }),
-      ),
-    types.CommandRunError,
-    'run sleep: exec "sleep": context deadline exceeded',
-  );
-  assert.assertEquals(error.command, "sleep");
-});
+    const error = assert.assertThrows(
+      () =>
+        execGo.runExecGo(
+          lib,
+          execGo.buildExecGoRequest("sleep", { args: ["5"], timeout: 100 }),
+        ),
+      types.CommandRunError,
+      'run sleep: exec "sleep": context deadline exceeded',
+    );
+    assert.assertEquals(error.command, "sleep");
+  },
+);

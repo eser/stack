@@ -1,10 +1,11 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as emitter from "./emitter.ts";
 import type { LogType } from "./emitter.ts";
 
-Deno.test("basic", async () => {
+nodeTest.test("basic", async () => {
   let sideEffectCounter = 0;
 
   const subscriberOne = () => {
@@ -23,7 +24,7 @@ Deno.test("basic", async () => {
   assert.assertEquals(sideEffectCounter, 3);
 });
 
-Deno.test("many events", async () => {
+nodeTest.test("many events", async () => {
   let sideEffectCounter = 0;
 
   const subscriberAddOne = () => {
@@ -47,7 +48,7 @@ Deno.test("many events", async () => {
   assert.assertEquals(sideEffectCounter, 2);
 });
 
-Deno.test("wildcard events", async () => {
+nodeTest.test("wildcard events", async () => {
   let sideEffectCounter = 0;
 
   const subscriberOne = () => {
@@ -67,7 +68,7 @@ Deno.test("wildcard events", async () => {
   assert.assertEquals(sideEffectCounter, -1);
 });
 
-Deno.test("parameters", async () => {
+nodeTest.test("parameters", async () => {
   let sideEffectCounter = 0;
 
   const subscriberOne = (value: number) => {
@@ -86,7 +87,7 @@ Deno.test("parameters", async () => {
   assert.assertEquals(sideEffectCounter, 15);
 });
 
-Deno.test("subscribers", async () => {
+nodeTest.test("subscribers", async () => {
   let sideEffectCounter = 0;
 
   const subscriberOne = (value: number) => {

@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import { runtime } from "@eserstack/standards/cross-runtime";
 import * as routeGenerator from "./route-generator.ts";
@@ -49,29 +50,35 @@ async function generate(moduleVersion: string | undefined): Promise<string> {
   }
 }
 
-Deno.test("generateRouteFile imports the page and the layout with the module version", async () => {
-  const content = await generate("01J9ABCD");
+nodeTest.test(
+  "generateRouteFile imports the page and the layout with the module version",
+  async () => {
+    const content = await generate("01J9ABCD");
 
-  assert.assertStringIncludes(
-    content,
-    'import { StoriesPage } from "./src/app/routes/stories/page.js?v=01J9ABCD";',
-  );
-  assert.assertStringIncludes(
-    content,
-    'import { StoriesLayout } from "./src/app/routes/stories/layout.js?v=01J9ABCD";',
-  );
-  assert.assertStringIncludes(
-    content,
-    '{ path: "/stories", component: StoriesPage, layout: StoriesLayout }',
-  );
-});
+    assert.assertStringIncludes(
+      content,
+      'import { StoriesPage } from "./src/app/routes/stories/page.js?v=01J9ABCD";',
+    );
+    assert.assertStringIncludes(
+      content,
+      'import { StoriesLayout } from "./src/app/routes/stories/layout.js?v=01J9ABCD";',
+    );
+    assert.assertStringIncludes(
+      content,
+      '{ path: "/stories", component: StoriesPage, layout: StoriesLayout }',
+    );
+  },
+);
 
-Deno.test("generateRouteFile imports the modules without a query when no version is given", async () => {
-  const content = await generate(undefined);
+nodeTest.test(
+  "generateRouteFile imports the modules without a query when no version is given",
+  async () => {
+    const content = await generate(undefined);
 
-  assert.assertStringIncludes(
-    content,
-    'import { StoriesPage } from "./src/app/routes/stories/page.js";',
-  );
-  assert.assertEquals(content.includes("?v="), false);
-});
+    assert.assertStringIncludes(
+      content,
+      'import { StoriesPage } from "./src/app/routes/stories/page.js";',
+    );
+    assert.assertEquals(content.includes("?v="), false);
+  },
+);

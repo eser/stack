@@ -6,10 +6,11 @@
 // Copyright (c) 2023 Eser Ozvataf and other contributors
 // Copyright (c) 2021-2023 Luca Casonato
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as manifest from "./manifest.ts";
 
-Deno.test("specifierToIdentifier", () => {
+nodeTest.test("specifierToIdentifier", () => {
   const used = new Set<string>();
 
   assert.assertEquals(
@@ -51,7 +52,7 @@ Deno.test("specifierToIdentifier", () => {
   );
 });
 
-Deno.test("specifierToIdentifier deals with duplicates", () => {
+nodeTest.test("specifierToIdentifier deals with duplicates", () => {
   const used = new Set<string>();
 
   assert.assertEquals(

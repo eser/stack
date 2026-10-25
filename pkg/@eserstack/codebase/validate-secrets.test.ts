@@ -10,6 +10,7 @@
  * @module
  */
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as path from "@std/path";
 import { runtime } from "@eserstack/standards/cross-runtime";
@@ -67,11 +68,9 @@ const makeFixture = async (): Promise<string> => {
 };
 
 // sanitizeResources: false — file-tool.ts transitively loads the FFI DynamicLibrary
-Deno.test({
-  name: "validate-secrets: Go and TypeScript implementations agree",
-  sanitizeResources: false,
-  sanitizeOps: false,
-  fn: async () => {
+nodeTest.test(
+  "validate-secrets: Go and TypeScript implementations agree",
+  async () => {
     await ffiClient.ensureLib();
     const lib = ffiClient.getLib();
     const nativeDisabled = runtime.env.get("ESER_AJAN_NATIVE") === "disabled";
@@ -107,4 +106,4 @@ Deno.test({
       await runtime.fs.remove(root, { recursive: true });
     }
   },
-});
+);

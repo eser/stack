@@ -1,9 +1,10 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as curry from "./curry.ts";
 
-Deno.test("basic", () => {
+nodeTest.test("basic", () => {
   const sum = (a: number, b: number) => a + b;
 
   const sumWith5 = curry.curry(sum, 5);

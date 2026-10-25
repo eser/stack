@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as serverWebSocket from "./server-websocket.ts";
 
@@ -48,7 +49,7 @@ const recordEvents = (socket: WebSocket): Event[] => {
 // Lifecycle
 // =============================================================================
 
-Deno.test("ServerWebSocket starts connecting and refuses to send", () => {
+nodeTest.test("ServerWebSocket starts connecting and refuses to send", () => {
   const { socket, sent } = createSocket();
 
   assert.assertEquals(socket.readyState, WebSocket.CONNECTING);
@@ -58,52 +59,58 @@ Deno.test("ServerWebSocket starts connecting and refuses to send", () => {
   assert.assertEquals(sent, []);
 });
 
-Deno.test("ServerWebSocket opens, then runs listeners and the onopen handler", () => {
-  const { socket, events } = createSocket();
-  const seen = recordEvents(socket);
-  let handled = 0;
-  socket.onopen = () => {
-    handled++;
-  };
+nodeTest.test(
+  "ServerWebSocket opens, then runs listeners and the onopen handler",
+  () => {
+    const { socket, events } = createSocket();
+    const seen = recordEvents(socket);
+    let handled = 0;
+    socket.onopen = () => {
+      handled++;
+    };
 
-  events.opened();
+    events.opened();
 
-  assert.assertEquals(socket.readyState, WebSocket.OPEN);
-  assert.assertEquals(
-    seen.map((event) => event.type),
-    ["open"],
-  );
-  assert.assertEquals(handled, 1);
-});
+    assert.assertEquals(socket.readyState, WebSocket.OPEN);
+    assert.assertEquals(
+      seen.map((event) => event.type),
+      ["open"],
+    );
+    assert.assertEquals(handled, 1);
+  },
+);
 
-Deno.test("ServerWebSocket closes with the code, reason and cleanness it is given", () => {
-  const { socket, events } = createSocket();
-  const seen = recordEvents(socket);
-  let closeCode = 0;
-  socket.onclose = (event) => {
-    closeCode = event.code;
-  };
-  events.opened();
+nodeTest.test(
+  "ServerWebSocket closes with the code, reason and cleanness it is given",
+  () => {
+    const { socket, events } = createSocket();
+    const seen = recordEvents(socket);
+    let closeCode = 0;
+    socket.onclose = (event) => {
+      closeCode = event.code;
+    };
+    events.opened();
 
-  events.closed(4001, "bye", true);
-  events.closed(1006, "", false);
+    events.closed(4001, "bye", true);
+    events.closed(1006, "", false);
 
-  assert.assertEquals(socket.readyState, WebSocket.CLOSED);
-  const close = seen.at(-1);
-  assert.assert(close instanceof CloseEvent);
-  assert.assertEquals(
-    [close.code, close.reason, close.wasClean],
-    [4001, "bye", true],
-  );
-  assert.assertEquals(closeCode, 4001);
-  // A second closed report changes nothing.
-  assert.assertEquals(
-    seen.map((event) => event.type),
-    ["open", "close"],
-  );
-});
+    assert.assertEquals(socket.readyState, WebSocket.CLOSED);
+    const close = seen.at(-1);
+    assert.assert(close instanceof CloseEvent);
+    assert.assertEquals(
+      [close.code, close.reason, close.wasClean],
+      [4001, "bye", true],
+    );
+    assert.assertEquals(closeCode, 4001);
+    // A second closed report changes nothing.
+    assert.assertEquals(
+      seen.map((event) => event.type),
+      ["open", "close"],
+    );
+  },
+);
 
-Deno.test("ServerWebSocket reports a failure as an error event", () => {
+nodeTest.test("ServerWebSocket reports a failure as an error event", () => {
   const { socket, events } = createSocket();
   const seen = recordEvents(socket);
   events.opened();
@@ -121,48 +128,57 @@ Deno.test("ServerWebSocket reports a failure as an error event", () => {
 // Messages
 // =============================================================================
 
-Deno.test("ServerWebSocket delivers text as a string and bytes as an ArrayBuffer", () => {
-  const { socket, events } = createSocket();
-  const data: unknown[] = [];
-  socket.onmessage = (event) => data.push(event.data);
-  events.opened();
+nodeTest.test(
+  "ServerWebSocket delivers text as a string and bytes as an ArrayBuffer",
+  () => {
+    const { socket, events } = createSocket();
+    const data: unknown[] = [];
+    socket.onmessage = (event) => data.push(event.data);
+    events.opened();
 
-  events.received("text");
-  events.received(new Uint8Array([1, 2, 3]));
+    events.received("text");
+    events.received(new Uint8Array([1, 2, 3]));
 
-  assert.assertEquals(data[0], "text");
-  assert.assert(data[1] instanceof ArrayBuffer);
-  assert.assertEquals(new Uint8Array(data[1]), new Uint8Array([1, 2, 3]));
-});
+    assert.assertEquals(data[0], "text");
+    assert.assert(data[1] instanceof ArrayBuffer);
+    assert.assertEquals(new Uint8Array(data[1]), new Uint8Array([1, 2, 3]));
+  },
+);
 
-Deno.test("ServerWebSocket delivers bytes as a Blob when binaryType is blob", async () => {
-  const { socket, events } = createSocket();
-  const data: unknown[] = [];
-  socket.binaryType = "blob";
-  socket.addEventListener("message", (event) => data.push(event.data));
-  events.opened();
+nodeTest.test(
+  "ServerWebSocket delivers bytes as a Blob when binaryType is blob",
+  async () => {
+    const { socket, events } = createSocket();
+    const data: unknown[] = [];
+    socket.binaryType = "blob";
+    socket.addEventListener("message", (event) => data.push(event.data));
+    events.opened();
 
-  events.received(new Uint8Array([104, 105]));
+    events.received(new Uint8Array([104, 105]));
 
-  assert.assert(data[0] instanceof Blob);
-  assert.assertEquals(await data[0].text(), "hi");
-});
+    assert.assert(data[0] instanceof Blob);
+    assert.assertEquals(await data[0].text(), "hi");
+  },
+);
 
-Deno.test("ServerWebSocket drops messages that arrive after close()", () => {
-  const { socket, events } = createSocket();
-  const seen = recordEvents(socket);
-  events.opened();
+nodeTest.test(
+  "ServerWebSocket drops messages that arrive after close()",
+  () => {
+    const { socket, events } = createSocket();
+    const seen = recordEvents(socket);
+    events.opened();
 
-  socket.close();
-  events.received("late");
+    socket.close();
+    events.received("late");
 
-  assert.assertEquals(
-    seen.map((event) => event.type),
-    ["open"],
-  );
-});
+    assert.assertEquals(
+      seen.map((event) => event.type),
+      ["open"],
+    );
+  },
+);
 
-Deno.test("ServerWebSocket sends strings and every kind of bytes", () => {
+nodeTest.test("ServerWebSocket sends strings and every kind of bytes", () => {
   const { socket, events, sent } = createSocket();
   events.opened();
   const bytes = new Uint8Array([0, 1, 2, 3, 4]);
@@ -180,29 +196,35 @@ Deno.test("ServerWebSocket sends strings and every kind of bytes", () => {
   ]);
 });
 
-Deno.test("ServerWebSocket keeps a Blob in order with the messages after it", async () => {
-  const { socket, events, sent } = createSocket();
-  events.opened();
+nodeTest.test(
+  "ServerWebSocket keeps a Blob in order with the messages after it",
+  async () => {
+    const { socket, events, sent } = createSocket();
+    events.opened();
 
-  socket.send(new Blob(["blob"]));
-  socket.send("after");
-  await new Promise((resolve) => setTimeout(resolve, 0));
+    socket.send(new Blob(["blob"]));
+    socket.send("after");
+    await new Promise((resolve) => setTimeout(resolve, 0));
 
-  assert.assertEquals(sent, [new TextEncoder().encode("blob"), "after"]);
-});
+    assert.assertEquals(sent, [new TextEncoder().encode("blob"), "after"]);
+  },
+);
 
-Deno.test("ServerWebSocket tracks bufferedAmount from sends and drains", () => {
-  const { socket, events } = createSocket(42);
-  events.opened();
+nodeTest.test(
+  "ServerWebSocket tracks bufferedAmount from sends and drains",
+  () => {
+    const { socket, events } = createSocket(42);
+    events.opened();
 
-  socket.send("x");
-  assert.assertEquals(socket.bufferedAmount, 42);
+    socket.send("x");
+    assert.assertEquals(socket.bufferedAmount, 42);
 
-  events.drained();
-  assert.assertEquals(socket.bufferedAmount, 0);
-});
+    events.drained();
+    assert.assertEquals(socket.bufferedAmount, 0);
+  },
+);
 
-Deno.test("ServerWebSocket drops sends once it is closing", () => {
+nodeTest.test("ServerWebSocket drops sends once it is closing", () => {
   const { socket, events, sent } = createSocket();
   events.opened();
 
@@ -216,39 +238,48 @@ Deno.test("ServerWebSocket drops sends once it is closing", () => {
 // close()
 // =============================================================================
 
-Deno.test("ServerWebSocket close() starts the closing handshake once", () => {
-  const { socket, events, closes } = createSocket();
-  events.opened();
+nodeTest.test(
+  "ServerWebSocket close() starts the closing handshake once",
+  () => {
+    const { socket, events, closes } = createSocket();
+    events.opened();
 
-  socket.close(4000, "done");
-  socket.close(1000);
+    socket.close(4000, "done");
+    socket.close(1000);
 
-  assert.assertEquals(socket.readyState, WebSocket.CLOSING);
-  assert.assertEquals(closes, [{ code: 4000, reason: "done" }]);
-});
+    assert.assertEquals(socket.readyState, WebSocket.CLOSING);
+    assert.assertEquals(closes, [{ code: 4000, reason: "done" }]);
+  },
+);
 
-Deno.test("ServerWebSocket close() without a code sends a close frame without one", () => {
-  const { socket, events, closes } = createSocket();
-  events.opened();
+nodeTest.test(
+  "ServerWebSocket close() without a code sends a close frame without one",
+  () => {
+    const { socket, events, closes } = createSocket();
+    events.opened();
 
-  socket.close();
+    socket.close();
 
-  assert.assertEquals(closes, [{ code: null, reason: "" }]);
-});
+    assert.assertEquals(closes, [{ code: null, reason: "" }]);
+  },
+);
 
-Deno.test("ServerWebSocket close() while connecting closes as soon as it opens", () => {
-  const { socket, events, closes } = createSocket();
-  const seen = recordEvents(socket);
+nodeTest.test(
+  "ServerWebSocket close() while connecting closes as soon as it opens",
+  () => {
+    const { socket, events, closes } = createSocket();
+    const seen = recordEvents(socket);
 
-  socket.close(1000, "never mind");
-  assert.assertEquals(closes, []);
+    socket.close(1000, "never mind");
+    assert.assertEquals(closes, []);
 
-  events.opened();
+    events.opened();
 
-  assert.assertEquals(closes, [{ code: 1000, reason: "never mind" }]);
-  assert.assertEquals(seen, []);
-  assert.assertEquals(socket.readyState, WebSocket.CLOSING);
-});
+    assert.assertEquals(closes, [{ code: 1000, reason: "never mind" }]);
+    assert.assertEquals(seen, []);
+    assert.assertEquals(socket.readyState, WebSocket.CLOSING);
+  },
+);
 
 const invalidCloseCases = [
   {
@@ -278,7 +309,7 @@ const invalidCloseCases = [
 ];
 
 for (const { name, code, reason, error } of invalidCloseCases) {
-  Deno.test(`ServerWebSocket close() refuses ${name}`, () => {
+  nodeTest.test(`ServerWebSocket close() refuses ${name}`, () => {
     const { socket, events, closes } = createSocket();
     events.opened();
 
@@ -304,7 +335,7 @@ const handshakeHeaders = {
   "sec-websocket-key": "dGhlIHNhbXBsZSBub25jZQ==",
 };
 
-Deno.test("readHandshakeKey returns the key of a valid handshake", () => {
+nodeTest.test("readHandshakeKey returns the key of a valid handshake", () => {
   const request = new Request("http://127.0.0.1/socket", {
     headers: handshakeHeaders,
   });
@@ -355,7 +386,7 @@ const invalidHandshakeCases = [
 ];
 
 for (const { name, method, headers, mentions } of invalidHandshakeCases) {
-  Deno.test(`readHandshakeKey refuses ${name}`, () => {
+  nodeTest.test(`readHandshakeKey refuses ${name}`, () => {
     const request = new Request("http://127.0.0.1/socket", {
       method,
       headers: { ...handshakeHeaders, ...headers },
@@ -369,7 +400,7 @@ for (const { name, method, headers, mentions } of invalidHandshakeCases) {
   });
 }
 
-Deno.test("toSocketUrl swaps the HTTP scheme for the WebSocket one", () => {
+nodeTest.test("toSocketUrl swaps the HTTP scheme for the WebSocket one", () => {
   assert.assertEquals(
     serverWebSocket.toSocketUrl("http://127.0.0.1:8080/mux?token=x"),
     "ws://127.0.0.1:8080/mux?token=x",

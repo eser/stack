@@ -1,9 +1,10 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as chunk from "./chunk.ts";
 
-Deno.test("basic", () => {
+nodeTest.test("basic", () => {
   const arr = [1, 2, 3, 4, 5];
 
   const result = chunk.chunk(arr, 2);
@@ -11,13 +12,13 @@ Deno.test("basic", () => {
   assert.assertEquals(result, [[1, 2], [3, 4], [5]]);
 });
 
-Deno.test("empty-array", () => {
+nodeTest.test("empty-array", () => {
   const result = chunk.chunk([], 2);
 
   assert.assertEquals(result, []);
 });
 
-Deno.test("size-greater-than-length", () => {
+nodeTest.test("size-greater-than-length", () => {
   const arr = [1, 2, 3];
 
   const result = chunk.chunk(arr, 5);
@@ -25,7 +26,7 @@ Deno.test("size-greater-than-length", () => {
   assert.assertEquals(result, [[1, 2, 3]]);
 });
 
-Deno.test("size-equals-one", () => {
+nodeTest.test("size-equals-one", () => {
   const arr = [1, 2, 3];
 
   const result = chunk.chunk(arr, 1);
@@ -33,7 +34,7 @@ Deno.test("size-equals-one", () => {
   assert.assertEquals(result, [[1], [2], [3]]);
 });
 
-Deno.test("size-equals-length", () => {
+nodeTest.test("size-equals-length", () => {
   const arr = [1, 2, 3, 4];
 
   const result = chunk.chunk(arr, 4);
@@ -41,14 +42,14 @@ Deno.test("size-equals-length", () => {
   assert.assertEquals(result, [[1, 2, 3, 4]]);
 });
 
-Deno.test("invalid-size", () => {
+nodeTest.test("invalid-size", () => {
   const arr = [1, 2, 3];
 
   assert.assertEquals(chunk.chunk(arr, 0), []);
   assert.assertEquals(chunk.chunk(arr, -1), []);
 });
 
-Deno.test("immutability", () => {
+nodeTest.test("immutability", () => {
   const arr = [1, 2, 3, 4];
 
   const result = chunk.chunk(arr, 2);

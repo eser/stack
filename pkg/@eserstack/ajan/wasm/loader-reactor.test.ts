@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import { runtime } from "@eserstack/standards/cross-runtime";
 import * as reactor from "./loader-reactor.ts";
@@ -15,7 +16,7 @@ const wasmPath = ((): string | null => {
 })();
 
 const reactorTest = (name: string, fn: () => Promise<void>) =>
-  Deno.test({ name, ignore: wasmPath === null, fn });
+  nodeTest.test(name, { skip: wasmPath === null }, fn);
 
 /**
  * The 52 names of the wasi profile (TASK-272, logging from TASK-278, HTTP from
@@ -88,15 +89,18 @@ reactorTest(
   },
 );
 
-Deno.test("checkHandshake refuses a module with another ABI version", () => {
-  const error = assert.assertThrows(() =>
-    reactor.checkHandshake({ ok: true, abi: 99, result: "x" }, "/m.wasm"),
-  );
-  assert.assertStringIncludes(
-    (error as Error).message,
-    `speaks reactor ABI 99, but this loader speaks ABI ${reactor.REACTOR_ABI_VERSION}`,
-  );
-});
+nodeTest.test(
+  "checkHandshake refuses a module with another ABI version",
+  () => {
+    const error = assert.assertThrows(() =>
+      reactor.checkHandshake({ ok: true, abi: 99, result: "x" }, "/m.wasm"),
+    );
+    assert.assertStringIncludes(
+      (error as Error).message,
+      `speaks reactor ABI 99, but this loader speaks ABI ${reactor.REACTOR_ABI_VERSION}`,
+    );
+  },
+);
 
 reactorTest("warm calls cost microseconds on one instance", async () => {
   const started = performance.now();

@@ -1,9 +1,10 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as httpError from "./http-error.ts";
 
-Deno.test("HttpError should create error with status and message", () => {
+nodeTest.test("HttpError should create error with status and message", () => {
   const error = new httpError.HttpError(404, "User not found");
 
   assert.assertEquals(error.status, 404);
@@ -12,14 +13,14 @@ Deno.test("HttpError should create error with status and message", () => {
   assert.assertInstanceOf(error, Error);
 });
 
-Deno.test("HttpError should use default message from status code", () => {
+nodeTest.test("HttpError should use default message from status code", () => {
   const error = new httpError.HttpError(404);
 
   assert.assertEquals(error.status, 404);
   assert.assertEquals(error.message, "Not Found");
 });
 
-Deno.test("HttpError should handle various status codes", () => {
+nodeTest.test("HttpError should handle various status codes", () => {
   const testCases: Array<{
     status: 400 | 401 | 403 | 404 | 500;
     expected: string;
@@ -38,17 +39,20 @@ Deno.test("HttpError should handle various status codes", () => {
   }
 });
 
-Deno.test("isHttpError should correctly identify HttpError instances", () => {
-  const notFoundError = new httpError.HttpError(404);
-  const regularError = new Error("regular");
-  const stringValue = "not an error";
-  const nullValue = null;
+nodeTest.test(
+  "isHttpError should correctly identify HttpError instances",
+  () => {
+    const notFoundError = new httpError.HttpError(404);
+    const regularError = new Error("regular");
+    const stringValue = "not an error";
+    const nullValue = null;
 
-  assert.assertEquals(httpError.isHttpError(notFoundError), true);
-  assert.assertEquals(httpError.isHttpError(regularError), false);
-  assert.assertEquals(httpError.isHttpError(stringValue), false);
-  assert.assertEquals(httpError.isHttpError(nullValue), false);
-});
+    assert.assertEquals(httpError.isHttpError(notFoundError), true);
+    assert.assertEquals(httpError.isHttpError(regularError), false);
+    assert.assertEquals(httpError.isHttpError(stringValue), false);
+    assert.assertEquals(httpError.isHttpError(nullValue), false);
+  },
+);
 
 // Table-driven tests for HTTP error helper functions
 const helperTestCases = [
@@ -118,20 +122,26 @@ const helperTestCases = [
 ] as const;
 
 for (const { helper, status, message, defaultMsg, name } of helperTestCases) {
-  Deno.test(`${name} helper should create ${status} error with custom message`, () => {
-    const error = helper(message);
-    assert.assertEquals(error.status, status);
-    assert.assertEquals(error.message, message);
-  });
+  nodeTest.test(
+    `${name} helper should create ${status} error with custom message`,
+    () => {
+      const error = helper(message);
+      assert.assertEquals(error.status, status);
+      assert.assertEquals(error.message, message);
+    },
+  );
 
-  Deno.test(`${name} helper should use default message when none provided`, () => {
-    const error = helper();
-    assert.assertEquals(error.status, status);
-    assert.assertEquals(error.message, defaultMsg);
-  });
+  nodeTest.test(
+    `${name} helper should use default message when none provided`,
+    () => {
+      const error = helper();
+      assert.assertEquals(error.status, status);
+      assert.assertEquals(error.message, defaultMsg);
+    },
+  );
 }
 
-Deno.test("HttpError can be caught and inspected", () => {
+nodeTest.test("HttpError can be caught and inspected", () => {
   const throwAndCatch = (): { status: number; message: string } | null => {
     try {
       throw new httpError.HttpError(403, "Access denied");

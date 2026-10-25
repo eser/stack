@@ -5,7 +5,7 @@
 // tests in client.test.ts cover; these tests check that it runs the same way
 // when the Go client does the exchange.
 
-import * as bdd from "@std/testing/bdd";
+import * as bdd from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as clientModule from "./client.ts";
 import * as errors from "./errors.ts";

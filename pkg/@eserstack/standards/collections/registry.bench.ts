@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as mitata from "mitata";
 import * as builder from "./builder.ts";
 
 // =============================================================================
@@ -105,158 +106,138 @@ const manualLazyMedium = createManualLazyMap<number>(
 // Creation Benchmarks
 // =============================================================================
 
-Deno.bench(
-  "Registry.create (10 entries)",
-  {
-    group: "create-small",
-    baseline: true,
-  },
-  () => {
-    const registryBuilder = builder.createRegistryBuilder<string, number>();
-    for (const [k, v] of smallEntries) registryBuilder.set(k, v);
-    registryBuilder.build();
-  },
-);
-
-Deno.bench("Map.create (10 entries)", { group: "create-small" }, () => {
-  new Map(smallEntries);
+mitata.group("create-small", () => {
+  mitata.summary(() => {
+    mitata
+      .bench("Registry.create (10 entries)", () => {
+        const registryBuilder = builder.createRegistryBuilder<string, number>();
+        for (const [k, v] of smallEntries) registryBuilder.set(k, v);
+        registryBuilder.build();
+      })
+      .baseline();
+    mitata.bench("Map.create (10 entries)", () => {
+      new Map(smallEntries);
+    });
+  });
 });
 
-Deno.bench(
-  "Registry.create (100 entries)",
-  {
-    group: "create-medium",
-    baseline: true,
-  },
-  () => {
-    const registryBuilder = builder.createRegistryBuilder<string, number>();
-    for (const [k, v] of mediumEntries) registryBuilder.set(k, v);
-    registryBuilder.build();
-  },
-);
-
-Deno.bench("Map.create (100 entries)", { group: "create-medium" }, () => {
-  new Map(mediumEntries);
+mitata.group("create-medium", () => {
+  mitata.summary(() => {
+    mitata
+      .bench("Registry.create (100 entries)", () => {
+        const registryBuilder = builder.createRegistryBuilder<string, number>();
+        for (const [k, v] of mediumEntries) registryBuilder.set(k, v);
+        registryBuilder.build();
+      })
+      .baseline();
+    mitata.bench("Map.create (100 entries)", () => {
+      new Map(mediumEntries);
+    });
+  });
 });
 
-Deno.bench(
-  "Registry.create (1000 entries)",
-  {
-    group: "create-large",
-    baseline: true,
-  },
-  () => {
-    const registryBuilder = builder.createRegistryBuilder<string, number>();
-    for (const [k, v] of largeEntries) registryBuilder.set(k, v);
-    registryBuilder.build();
-  },
-);
-
-Deno.bench("Map.create (1000 entries)", { group: "create-large" }, () => {
-  new Map(largeEntries);
+mitata.group("create-large", () => {
+  mitata.summary(() => {
+    mitata
+      .bench("Registry.create (1000 entries)", () => {
+        const registryBuilder = builder.createRegistryBuilder<string, number>();
+        for (const [k, v] of largeEntries) registryBuilder.set(k, v);
+        registryBuilder.build();
+      })
+      .baseline();
+    mitata.bench("Map.create (1000 entries)", () => {
+      new Map(largeEntries);
+    });
+  });
 });
 
 // =============================================================================
 // Create with Lazy Entries
 // =============================================================================
 
-Deno.bench(
-  "Registry.createLazy (100 entries)",
-  {
-    group: "create-lazy",
-    baseline: true,
-  },
-  () => {
-    const registryBuilder = builder.createRegistryBuilder<string, number>();
-    for (const [k, v] of mediumEntries) {
-      registryBuilder.setLazy(k, () => v);
-    }
-    registryBuilder.build();
-  },
-);
-
-Deno.bench(
-  "ManualLazyMap.create (100 entries)",
-  { group: "create-lazy" },
-  () => {
-    createManualLazyMap<number>(
-      mediumEntries.map(([k, v]) => [k, () => v, "lazy"]),
-    );
-  },
-);
+mitata.group("create-lazy", () => {
+  mitata.summary(() => {
+    mitata
+      .bench("Registry.createLazy (100 entries)", () => {
+        const registryBuilder = builder.createRegistryBuilder<string, number>();
+        for (const [k, v] of mediumEntries) {
+          registryBuilder.setLazy(k, () => v);
+        }
+        registryBuilder.build();
+      })
+      .baseline();
+    mitata.bench("ManualLazyMap.create (100 entries)", () => {
+      createManualLazyMap<number>(
+        mediumEntries.map(([k, v]) => [k, () => v, "lazy"]),
+      );
+    });
+  });
+});
 
 // =============================================================================
 // Get Benchmarks (Value Entries)
 // =============================================================================
 
-Deno.bench(
-  "Registry.get (10 entries)",
-  { group: "get-small", baseline: true },
-  () => {
-    registrySmall.get("key5");
-  },
-);
-
-Deno.bench("Map.get (10 entries)", { group: "get-small" }, () => {
-  nativeMapMedium.get("key5");
+mitata.group("get-small", () => {
+  mitata.summary(() => {
+    mitata
+      .bench("Registry.get (10 entries)", () => {
+        registrySmall.get("key5");
+      })
+      .baseline();
+    mitata.bench("Map.get (10 entries)", () => {
+      nativeMapMedium.get("key5");
+    });
+  });
 });
 
-Deno.bench(
-  "Registry.get (100 entries)",
-  {
-    group: "get-medium",
-    baseline: true,
-  },
-  () => {
-    registryMedium.get("key50");
-  },
-);
-
-Deno.bench("Map.get (100 entries)", { group: "get-medium" }, () => {
-  nativeMapMedium.get("key50");
+mitata.group("get-medium", () => {
+  mitata.summary(() => {
+    mitata
+      .bench("Registry.get (100 entries)", () => {
+        registryMedium.get("key50");
+      })
+      .baseline();
+    mitata.bench("Map.get (100 entries)", () => {
+      nativeMapMedium.get("key50");
+    });
+  });
 });
 
-Deno.bench(
-  "Registry.get (1000 entries)",
-  {
-    group: "get-large",
-    baseline: true,
-  },
-  () => {
-    registryLarge.get("key500");
-  },
-);
-
-Deno.bench("Map.get (1000 entries)", { group: "get-large" }, () => {
-  new Map(largeEntries).get("key500");
+mitata.group("get-large", () => {
+  mitata.summary(() => {
+    mitata
+      .bench("Registry.get (1000 entries)", () => {
+        registryLarge.get("key500");
+      })
+      .baseline();
+    mitata.bench("Map.get (1000 entries)", () => {
+      new Map(largeEntries).get("key500");
+    });
+  });
 });
 
 // =============================================================================
 // Get Benchmarks (Lazy Entries - First Access)
 // =============================================================================
 
-Deno.bench(
-  "Registry.get lazy first access",
-  { group: "lazy-first-access", baseline: true },
-  () => {
-    // Create fresh registry for each iteration to measure first access
-    const registryBuilder = builder.createRegistryBuilder<string, number>();
-    registryBuilder.setLazy("lazy", () => 42);
-    const registry = registryBuilder.build();
-    registry.get("lazy");
-  },
-);
-
-Deno.bench(
-  "ManualLazyMap.get lazy first access",
-  {
-    group: "lazy-first-access",
-  },
-  () => {
-    const map = createManualLazyMap<number>([["lazy", () => 42, "lazy"]]);
-    map.get("lazy");
-  },
-);
+mitata.group("lazy-first-access", () => {
+  mitata.summary(() => {
+    mitata
+      .bench("Registry.get lazy first access", () => {
+        // Create fresh registry for each iteration to measure first access
+        const registryBuilder = builder.createRegistryBuilder<string, number>();
+        registryBuilder.setLazy("lazy", () => 42);
+        const registry = registryBuilder.build();
+        registry.get("lazy");
+      })
+      .baseline();
+    mitata.bench("ManualLazyMap.get lazy first access", () => {
+      const map = createManualLazyMap<number>([["lazy", () => 42, "lazy"]]);
+      map.get("lazy");
+    });
+  });
+});
 
 // =============================================================================
 // Get Benchmarks (Lazy Entries - Cached Access)
@@ -266,108 +247,129 @@ Deno.bench(
 registryLazyMedium.get("key0");
 manualLazyMedium.get("key0");
 
-Deno.bench(
-  "Registry.get lazy cached",
-  { group: "lazy-cached", baseline: true },
-  () => {
-    registryLazyMedium.get("key0");
-  },
-);
-
-Deno.bench("ManualLazyMap.get lazy cached", { group: "lazy-cached" }, () => {
-  manualLazyMedium.get("key0");
+mitata.group("lazy-cached", () => {
+  mitata.summary(() => {
+    mitata
+      .bench("Registry.get lazy cached", () => {
+        registryLazyMedium.get("key0");
+      })
+      .baseline();
+    mitata.bench("ManualLazyMap.get lazy cached", () => {
+      manualLazyMedium.get("key0");
+    });
+  });
 });
 
 // =============================================================================
 // Has Benchmarks
 // =============================================================================
 
-Deno.bench("Registry.has", { group: "has", baseline: true }, () => {
-  registryMedium.has("key50");
-});
-
-Deno.bench("Map.has", { group: "has" }, () => {
-  nativeMapMedium.has("key50");
+mitata.group("has", () => {
+  mitata.summary(() => {
+    mitata
+      .bench("Registry.has", () => {
+        registryMedium.has("key50");
+      })
+      .baseline();
+    mitata.bench("Map.has", () => {
+      nativeMapMedium.has("key50");
+    });
+  });
 });
 
 // =============================================================================
 // isLazy Benchmarks
 // =============================================================================
 
-Deno.bench(
-  "Registry.isLazy (value entry)",
-  { group: "isLazy", baseline: true },
-  () => {
-    registryMedium.isLazy("key50");
-  },
-);
-
-Deno.bench("Registry.isLazy (lazy entry)", { group: "isLazy" }, () => {
-  registryLazyMedium.isLazy("key50");
+mitata.group("isLazy", () => {
+  mitata.summary(() => {
+    mitata
+      .bench("Registry.isLazy (value entry)", () => {
+        registryMedium.isLazy("key50");
+      })
+      .baseline();
+    mitata.bench("Registry.isLazy (lazy entry)", () => {
+      registryLazyMedium.isLazy("key50");
+    });
+  });
 });
 
 // =============================================================================
 // Keys/Values/Entries Benchmarks
 // =============================================================================
 
-Deno.bench("Registry.keys", { group: "keys", baseline: true }, () => {
-  registryMedium.keys();
+mitata.group("keys", () => {
+  mitata.summary(() => {
+    mitata
+      .bench("Registry.keys", () => {
+        registryMedium.keys();
+      })
+      .baseline();
+    mitata.bench("Map.keys", () => {
+      [...nativeMapMedium.keys()];
+    });
+  });
 });
 
-Deno.bench("Map.keys", { group: "keys" }, () => {
-  [...nativeMapMedium.keys()];
+mitata.group("values", () => {
+  mitata.summary(() => {
+    mitata
+      .bench("Registry.values", () => {
+        registryMedium.values();
+      })
+      .baseline();
+    mitata.bench("Map.values", () => {
+      [...nativeMapMedium.values()];
+    });
+  });
 });
 
-Deno.bench("Registry.values", { group: "values", baseline: true }, () => {
-  registryMedium.values();
-});
-
-Deno.bench("Map.values", { group: "values" }, () => {
-  [...nativeMapMedium.values()];
-});
-
-Deno.bench("Registry.entries", { group: "entries", baseline: true }, () => {
-  registryMedium.entries();
-});
-
-Deno.bench("Map.entries", { group: "entries" }, () => {
-  [...nativeMapMedium.entries()];
+mitata.group("entries", () => {
+  mitata.summary(() => {
+    mitata
+      .bench("Registry.entries", () => {
+        registryMedium.entries();
+      })
+      .baseline();
+    mitata.bench("Map.entries", () => {
+      [...nativeMapMedium.entries()];
+    });
+  });
 });
 
 // =============================================================================
 // toBuilder (Copy-on-Write) Benchmarks
 // =============================================================================
 
-Deno.bench(
-  "Registry.toBuilder.set.build",
-  {
-    group: "copy-on-write",
-    baseline: true,
-  },
-  () => {
-    registryMedium.toBuilder().set("newKey", 999).build();
-  },
-);
-
-Deno.bench("Map.copy-on-write", { group: "copy-on-write" }, () => {
-  const newMap = new Map(nativeMapMedium);
-  newMap.set("newKey", 999);
+mitata.group("copy-on-write", () => {
+  mitata.summary(() => {
+    mitata
+      .bench("Registry.toBuilder.set.build", () => {
+        registryMedium.toBuilder().set("newKey", 999).build();
+      })
+      .baseline();
+    mitata.bench("Map.copy-on-write", () => {
+      const newMap = new Map(nativeMapMedium);
+      newMap.set("newKey", 999);
+    });
+  });
 });
 
 // =============================================================================
 // Async Get Benchmarks
 // =============================================================================
 
-Deno.bench(
-  "Registry.getAsync (value)",
-  { group: "getAsync", baseline: true },
-  async () => {
-    await registryMedium.getAsync("key50");
-  },
-);
-
-Deno.bench("Promise.resolve + Map.get", { group: "getAsync" }, async () => {
-  await Promise.resolve(nativeMapMedium.get("key50"));
+mitata.group("getAsync", () => {
+  mitata.summary(() => {
+    mitata
+      .bench("Registry.getAsync (value)", async () => {
+        await registryMedium.getAsync("key50");
+      })
+      .baseline();
+    mitata.bench("Promise.resolve + Map.get", async () => {
+      await Promise.resolve(nativeMapMedium.get("key50"));
+    });
+  });
 });
 
 // Async lazy entry
@@ -381,31 +383,37 @@ const asyncLazyRegistry = (() => {
   return registryBuilder.build();
 })();
 
-Deno.bench(
-  "Registry.getAsync (async lazy)",
-  {
-    group: "getAsync-lazy",
-    baseline: true,
-  },
-  async () => {
-    await asyncLazyRegistry.getAsync("async");
-  },
-);
-
-Deno.bench("Manual async factory", { group: "getAsync-lazy" }, async () => {
-  // The bare async factory is the baseline for the lazy registry entry above.
-  // oxlint-disable-next-line require-await
-  await (async () => 42)();
+mitata.group("getAsync-lazy", () => {
+  mitata.summary(() => {
+    mitata
+      .bench("Registry.getAsync (async lazy)", async () => {
+        await asyncLazyRegistry.getAsync("async");
+      })
+      .baseline();
+    mitata.bench("Manual async factory", async () => {
+      // The bare async factory is the baseline for the lazy registry entry above.
+      // oxlint-disable-next-line require-await
+      await (async () => 42)();
+    });
+  });
 });
 
 // =============================================================================
 // Size Property Benchmarks
 // =============================================================================
 
-Deno.bench("Registry.size", { group: "size", baseline: true }, () => {
-  registryMedium.size;
+mitata.group("size", () => {
+  mitata.summary(() => {
+    mitata
+      .bench("Registry.size", () => {
+        registryMedium.size;
+      })
+      .baseline();
+    mitata.bench("Map.size", () => {
+      nativeMapMedium.size;
+    });
+  });
 });
 
-Deno.bench("Map.size", { group: "size" }, () => {
-  nativeMapMedium.size;
-});
+// oxlint-disable-next-line node/no-top-level-await
+await mitata.run();

@@ -1,9 +1,10 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as loader from "./loader.ts";
 
-Deno.test("parseConfig — valid YAML → correct WorkflowsConfig", () => {
+nodeTest.test("parseConfig — valid YAML → correct WorkflowsConfig", () => {
   const yamlStr = `
 workflows:
   - id: default
@@ -25,23 +26,26 @@ workflows:
   });
 });
 
-Deno.test("parseConfig — YAML without workflows key → { workflows: [] } then throws validation", () => {
-  const yamlStr = `
+nodeTest.test(
+  "parseConfig — YAML without workflows key → { workflows: [] } then throws validation",
+  () => {
+    const yamlStr = `
 stack:
   - deno
 `;
 
-  // parseConfig calls validateConfig which throws because workflows is empty array
-  // Actually, workflows defaults to [] which is an array, but validateConfig doesn't throw on empty array
-  // Let's check: validateConfig iterates over workflows but doesn't throw if empty
-  // Actually no — workflows is [] (valid array), and the for loop just doesn't execute.
-  // So this should succeed with an empty workflows array.
-  const config = loader.parseConfig(yamlStr);
-  assert.assertEquals(config.workflows.length, 0);
-  assert.assertEquals(config.stack, ["deno"]);
-});
+    // parseConfig calls validateConfig which throws because workflows is empty array
+    // Actually, workflows defaults to [] which is an array, but validateConfig doesn't throw on empty array
+    // Let's check: validateConfig iterates over workflows but doesn't throw if empty
+    // Actually no — workflows is [] (valid array), and the for loop just doesn't execute.
+    // So this should succeed with an empty workflows array.
+    const config = loader.parseConfig(yamlStr);
+    assert.assertEquals(config.workflows.length, 0);
+    assert.assertEquals(config.stack, ["deno"]);
+  },
+);
 
-Deno.test("parseConfig — YAML with missing workflow id → throws", () => {
+nodeTest.test("parseConfig — YAML with missing workflow id → throws", () => {
   const yamlStr = `
 workflows:
   - on: [precommit]
@@ -56,7 +60,7 @@ workflows:
   );
 });
 
-Deno.test("validateConfig — step with 2 keys in record → throws", () => {
+nodeTest.test("validateConfig — step with 2 keys in record → throws", () => {
   // validateConfig explicitly checks that object steps have exactly one key
   assert.assertThrows(
     () =>

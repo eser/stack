@@ -1,9 +1,10 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as keyBy from "./key-by.ts";
 
-Deno.test("basic", () => {
+nodeTest.test("basic", () => {
   const arr = [
     { id: "a", name: "Alice" },
     { id: "b", name: "Bob" },
@@ -17,13 +18,13 @@ Deno.test("basic", () => {
   });
 });
 
-Deno.test("empty-array", () => {
+nodeTest.test("empty-array", () => {
   const result = keyBy.keyBy([], (x: { id: string }) => x.id);
 
   assert.assertEquals(result, {});
 });
 
-Deno.test("overwriting-keys", () => {
+nodeTest.test("overwriting-keys", () => {
   const arr = [
     { id: "a", value: 1 },
     { id: "a", value: 2 },
@@ -35,7 +36,7 @@ Deno.test("overwriting-keys", () => {
   assert.assertEquals(result, { a: { id: "a", value: 2 } });
 });
 
-Deno.test("with-string-length", () => {
+nodeTest.test("with-string-length", () => {
   const arr = ["one", "two", "three"];
 
   const result = keyBy.keyBy(arr, (x) => x.length);
@@ -44,7 +45,7 @@ Deno.test("with-string-length", () => {
   assert.assertEquals(result, { 3: "two", 5: "three" });
 });
 
-Deno.test("numeric-keys", () => {
+nodeTest.test("numeric-keys", () => {
   const arr = [
     { index: 0, name: "first" },
     { index: 1, name: "second" },

@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import type * as React from "react";
 import * as navigation from "@eserstack/laroux/navigation";
@@ -68,7 +69,7 @@ const click = (
   return { prevented, calls };
 };
 
-Deno.test("Link navigates on the client for an internal path", () => {
+nodeTest.test("Link navigates on the client for an internal path", () => {
   const result = click({ href: "/stories", children: "Stories" });
 
   assert.assertEquals(result.prevented, true);
@@ -79,19 +80,22 @@ Deno.test("Link navigates on the client for an internal path", () => {
   ]);
 });
 
-Deno.test("Link replaces the history entry without scrolling when asked", () => {
-  const result = click({
-    href: "/stories",
-    children: "Stories",
-    replace: true,
-    scroll: false,
-  });
+nodeTest.test(
+  "Link replaces the history entry without scrolling when asked",
+  () => {
+    const result = click({
+      href: "/stories",
+      children: "Stories",
+      replace: true,
+      scroll: false,
+    });
 
-  assert.assertEquals(result.calls, [
-    "replace /stories",
-    `event ${navigation.NAVIGATION_EVENT_NAME}`,
-  ]);
-});
+    assert.assertEquals(result.calls, [
+      "replace /stories",
+      `event ${navigation.NAVIGATION_EVENT_NAME}`,
+    ]);
+  },
+);
 
 // prevented is what the browser sees: Link prevents nothing in these cases,
 // so only an onClick of the app's own can prevent the default.
@@ -145,15 +149,18 @@ const browserCases: ReadonlyArray<{
 ];
 
 for (const testCase of browserCases) {
-  Deno.test(`Link leaves a click with ${testCase.name} to the browser`, () => {
-    const result = click(testCase.props, testCase.options);
+  nodeTest.test(
+    `Link leaves a click with ${testCase.name} to the browser`,
+    () => {
+      const result = click(testCase.props, testCase.options);
 
-    assert.assertEquals(result.calls, []);
-    assert.assertEquals(result.prevented, testCase.prevented);
-  });
+      assert.assertEquals(result.calls, []);
+      assert.assertEquals(result.prevented, testCase.prevented);
+    },
+  );
 }
 
-Deno.test("Link calls onClick for links it leaves to the browser", () => {
+nodeTest.test("Link calls onClick for links it leaves to the browser", () => {
   const clicked: string[] = [];
 
   click({
@@ -165,7 +172,7 @@ Deno.test("Link calls onClick for links it leaves to the browser", () => {
   assert.assertEquals(clicked, ["external"]);
 });
 
-Deno.test("Link handles a click with a target of _self", () => {
+nodeTest.test("Link handles a click with a target of _self", () => {
   const result = click({
     href: "/stories",
     children: "Stories",
@@ -175,18 +182,21 @@ Deno.test("Link handles a click with a target of _self", () => {
   assert.assertEquals(result.prevented, true);
 });
 
-Deno.test("Link writes its options to data attributes for server-rendered links", () => {
-  const element = link.Link({
-    href: "/stories",
-    children: "Stories",
-    replace: true,
-    scroll: false,
-  });
+nodeTest.test(
+  "Link writes its options to data attributes for server-rendered links",
+  () => {
+    const element = link.Link({
+      href: "/stories",
+      children: "Stories",
+      replace: true,
+      scroll: false,
+    });
 
-  assert.assertEquals(element.type, "a");
-  assert.assertObjectMatch(element.props as Record<string, unknown>, {
-    href: "/stories",
-    "data-laroux-link": "replace",
-    "data-laroux-scroll": "false",
-  });
-});
+    assert.assertEquals(element.type, "a");
+    assert.assertObjectMatch(element.props as Record<string, unknown>, {
+      href: "/stories",
+      "data-laroux-link": "replace",
+      "data-laroux-scroll": "false",
+    });
+  },
+);

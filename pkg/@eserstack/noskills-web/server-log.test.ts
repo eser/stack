@@ -6,6 +6,7 @@
  * so the server runs in a probe process and the test reads its stderr.
  */
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import { runtime } from "@eserstack/standards/cross-runtime";
 
@@ -16,41 +17,44 @@ const TOKEN = "log-probe-token-" + "b".repeat(48);
 
 const decoder = new TextDecoder();
 
-Deno.test("a failed action is logged to stderr under the request id it answers with", async () => {
-  const probe = runtime.path.join(
-    import.meta.dirname ?? ".",
-    "testdata",
-    "log-probe.ts",
-  );
+nodeTest.test(
+  "a failed action is logged to stderr under the request id it answers with",
+  async () => {
+    const probe = runtime.path.join(
+      import.meta.dirname ?? ".",
+      "testdata",
+      "log-probe.ts",
+    );
 
-  const output = await runtime.exec.spawn(
-    runtime.process.execPath(),
-    ["run", "--allow-all", probe],
-    {
-      env: { NOSKILLS_WEB_TOKEN: TOKEN },
-      stdout: "piped",
-      stderr: "piped",
-      signal: AbortSignal.timeout(PROBE_TIMEOUT_MS),
-    },
-  );
-  const stdout = decoder.decode(output.stdout);
-  const stderr = decoder.decode(output.stderr);
+    const output = await runtime.exec.spawn(
+      runtime.process.execPath(),
+      ["run", "--allow-all", probe],
+      {
+        env: { NOSKILLS_WEB_TOKEN: TOKEN },
+        stdout: "piped",
+        stderr: "piped",
+        signal: AbortSignal.timeout(PROBE_TIMEOUT_MS),
+      },
+    );
+    const stdout = decoder.decode(output.stdout);
+    const stderr = decoder.decode(output.stderr);
 
-  assert.assertEquals(output.code, 0, stderr);
+    assert.assertEquals(output.code, 0, stderr);
 
-  const result = JSON.parse(stdout.trim().split("\n").at(-1) ?? "null");
-  assert.assertEquals(result.status, 400);
-  assert.assertEquals(result.body.error, "Action could not be completed");
-  assert.assertMatch(result.body.requestId, /^[0-9a-f-]{36}$/);
+    const result = JSON.parse(stdout.trim().split("\n").at(-1) ?? "null");
+    assert.assertEquals(result.status, 400);
+    assert.assertEquals(result.body.error, "Action could not be completed");
+    assert.assertMatch(result.body.requestId, /^[0-9a-f-]{36}$/);
 
-  const record = stderr
-    .split("\n")
-    .find((line) => line.includes(result.body.requestId));
-  assert.assertNotEquals(record, undefined, stderr);
-  assert.assertStringIncludes(record!, "Action could not be completed");
-  assert.assertStringIncludes(record!, '"spec":"no-such-spec"');
-  assert.assertStringIncludes(record!, '"action":"approve"');
-  // The detail the response leaves out: the error that made the action fail.
-  assert.assertStringIncludes(record!, "SpecNotFoundError");
-  assert.assertFalse(stderr.includes(TOKEN));
-});
+    const record = stderr
+      .split("\n")
+      .find((line) => line.includes(result.body.requestId));
+    assert.assertNotEquals(record, undefined, stderr);
+    assert.assertStringIncludes(record!, "Action could not be completed");
+    assert.assertStringIncludes(record!, '"spec":"no-such-spec"');
+    assert.assertStringIncludes(record!, '"action":"approve"');
+    // The detail the response leaves out: the error that made the action fail.
+    assert.assertStringIncludes(record!, "SpecNotFoundError");
+    assert.assertFalse(stderr.includes(TOKEN));
+  },
+);

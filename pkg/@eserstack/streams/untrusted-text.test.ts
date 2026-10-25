@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as streams from "./mod.ts";
 import * as span from "./span.ts";
@@ -21,30 +22,42 @@ const render = async (...spans: span.SpanInput[]): Promise<string> => {
   return sink.items().join("");
 };
 
-Deno.test("stripTerminalControls keeps only visible text, tab and newline", () => {
-  const cleaned = span.stripTerminalControls(HOSTILE);
-  assert.assertEquals(CONTROL.test(cleaned), false);
-  assert.assertEquals(cleaned, "hello FAKEdocsX\tok\n");
-});
+nodeTest.test(
+  "stripTerminalControls keeps only visible text, tab and newline",
+  () => {
+    const cleaned = span.stripTerminalControls(HOSTILE);
+    assert.assertEquals(CONTROL.test(cleaned), false);
+    assert.assertEquals(cleaned, "hello FAKEdocsX\tok\n");
+  },
+);
 
-Deno.test("untrusted spans reach the sink without control bytes", async () => {
-  const printed = await render(span.untrusted(HOSTILE));
-  assert.assertEquals(CONTROL.test(printed.replace(/\n$/, "")), false);
-  assert.assertEquals(printed.includes("evil.example"), false);
-});
+nodeTest.test(
+  "untrusted spans reach the sink without control bytes",
+  async () => {
+    const printed = await render(span.untrusted(HOSTILE));
+    assert.assertEquals(CONTROL.test(printed.replace(/\n$/, "")), false);
+    assert.assertEquals(printed.includes("evil.example"), false);
+  },
+);
 
-Deno.test("untrusted text nested in a style span is still stripped", async () => {
-  const sink = streams.sinks.buffer<string>();
-  const out = streams.output({ renderer: streams.renderers.ansi(), sink });
-  out.writeln(span.bold(span.untrusted(HOSTILE)));
-  await out.close();
-  const printed = sink.items().join("");
-  // Only the renderer's own SGR codes remain.
-  // oxlint-disable-next-line no-control-regex
-  const withoutSgr = printed.replace(/\x1b\[[0-9;]*m/g, "");
-  assert.assertEquals(CONTROL.test(withoutSgr.replace(/[\t\n]/g, "")), false);
-});
+nodeTest.test(
+  "untrusted text nested in a style span is still stripped",
+  async () => {
+    const sink = streams.sinks.buffer<string>();
+    const out = streams.output({ renderer: streams.renderers.ansi(), sink });
+    out.writeln(span.bold(span.untrusted(HOSTILE)));
+    await out.close();
+    const printed = sink.items().join("");
+    // Only the renderer's own SGR codes remain.
+    // oxlint-disable-next-line no-control-regex
+    const withoutSgr = printed.replace(/\x1b\[[0-9;]*m/g, "");
+    assert.assertEquals(CONTROL.test(withoutSgr.replace(/[\t\n]/g, "")), false);
+  },
+);
 
-Deno.test("plain text spans stay verbatim for the TUI's own cursor control", () => {
-  assert.assertEquals(span.text("\x1b[?25l").value, "\x1b[?25l");
-});
+nodeTest.test(
+  "plain text spans stay verbatim for the TUI's own cursor control",
+  () => {
+    assert.assertEquals(span.text("\x1b[?25l").value, "\x1b[?25l");
+  },
+);

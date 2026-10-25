@@ -4,6 +4,7 @@
  * Tests for Hot Module Replacement WebSocket management
  */
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as hmrManager from "../domain/hmr-manager.ts";
 
@@ -50,12 +51,12 @@ function onlyMessage(messages: readonly string[]): hmrManager.HMRMessage {
   return JSON.parse(message);
 }
 
-Deno.test("HMRManager - initial client count is zero", () => {
+nodeTest.test("HMRManager - initial client count is zero", () => {
   const manager = new hmrManager.HMRManager();
   assert.assertEquals(manager.getClientCount(), 0);
 });
 
-Deno.test("HMRManager - handleConnection increases client count", () => {
+nodeTest.test("HMRManager - handleConnection increases client count", () => {
   const manager = new hmrManager.HMRManager();
   const { socket } = createMockSocket();
 
@@ -63,7 +64,7 @@ Deno.test("HMRManager - handleConnection increases client count", () => {
   assert.assertEquals(manager.getClientCount(), 1);
 });
 
-Deno.test("HMRManager - sends connected message on connection", () => {
+nodeTest.test("HMRManager - sends connected message on connection", () => {
   const manager = new hmrManager.HMRManager();
   const { socket, messages } = createMockSocket();
 
@@ -72,7 +73,7 @@ Deno.test("HMRManager - sends connected message on connection", () => {
   assert.assertEquals(onlyMessage(messages), { type: "connected" });
 });
 
-Deno.test("HMRManager - notifyUpdate broadcasts to all clients", () => {
+nodeTest.test("HMRManager - notifyUpdate broadcasts to all clients", () => {
   const manager = new hmrManager.HMRManager();
   const mock1 = createMockSocket();
   const mock2 = createMockSocket();
@@ -98,23 +99,26 @@ Deno.test("HMRManager - notifyUpdate broadcasts to all clients", () => {
   assert.assertEquals(onlyMessage(mock2.messages), expected);
 });
 
-Deno.test("HMRManager - notifyError broadcasts error to all clients", () => {
-  const manager = new hmrManager.HMRManager();
-  const { socket, messages } = createMockSocket();
+nodeTest.test(
+  "HMRManager - notifyError broadcasts error to all clients",
+  () => {
+    const manager = new hmrManager.HMRManager();
+    const { socket, messages } = createMockSocket();
 
-  manager.handleConnection(socket);
-  messages.length = 0; // Clear connected message
+    manager.handleConnection(socket);
+    messages.length = 0; // Clear connected message
 
-  const errorMessage = "Build failed: syntax error";
-  manager.notifyError(errorMessage);
+    const errorMessage = "Build failed: syntax error";
+    manager.notifyError(errorMessage);
 
-  assert.assertEquals(onlyMessage(messages), {
-    type: "error",
-    message: errorMessage,
-  });
-});
+    assert.assertEquals(onlyMessage(messages), {
+      type: "error",
+      message: errorMessage,
+    });
+  },
+);
 
-Deno.test("HMRManager - removes client on disconnect", () => {
+nodeTest.test("HMRManager - removes client on disconnect", () => {
   const manager = new hmrManager.HMRManager();
   const { socket, closeHandlers } = createMockSocket();
 
@@ -126,7 +130,7 @@ Deno.test("HMRManager - removes client on disconnect", () => {
   assert.assertEquals(manager.getClientCount(), 0);
 });
 
-Deno.test("HMRManager - removes client on error", () => {
+nodeTest.test("HMRManager - removes client on error", () => {
   const manager = new hmrManager.HMRManager();
   const { socket, errorHandlers } = createMockSocket();
 
@@ -138,7 +142,7 @@ Deno.test("HMRManager - removes client on error", () => {
   assert.assertEquals(manager.getClientCount(), 0);
 });
 
-Deno.test("HMRManager - close disconnects all clients", () => {
+nodeTest.test("HMRManager - close disconnects all clients", () => {
   const manager = new hmrManager.HMRManager();
   const mock1 = createMockSocket();
   const mock2 = createMockSocket();
@@ -151,7 +155,7 @@ Deno.test("HMRManager - close disconnects all clients", () => {
   assert.assertEquals(manager.getClientCount(), 0);
 });
 
-Deno.test("HMRManager - skips closed sockets when sending", () => {
+nodeTest.test("HMRManager - skips closed sockets when sending", () => {
   const manager = new hmrManager.HMRManager();
   const messages: string[] = [];
 
@@ -171,7 +175,7 @@ Deno.test("HMRManager - skips closed sockets when sending", () => {
   assert.assertEquals(messages.length, 0);
 });
 
-Deno.test("HMRManager - handles multiple simultaneous connections", () => {
+nodeTest.test("HMRManager - handles multiple simultaneous connections", () => {
   const manager = new hmrManager.HMRManager();
   const sockets = Array.from({ length: 10 }, () => createMockSocket());
 

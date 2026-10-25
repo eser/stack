@@ -8,7 +8,7 @@
  * functions without filesystem access (pure function tests).
  */
 
-import * as bdd from "@std/testing/bdd";
+import * as bdd from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as schema from "../state/schema.ts";
 import * as concerns from "../context/concerns.ts";

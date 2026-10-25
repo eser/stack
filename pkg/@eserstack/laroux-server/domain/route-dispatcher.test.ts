@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import { runtime } from "@eserstack/standards/cross-runtime";
 import * as routeDispatcher from "./route-dispatcher.ts";
@@ -69,7 +70,7 @@ const paramCases: ReadonlyArray<{
 ];
 
 for (const { name, pathname, expected } of paramCases) {
-  Deno.test(`ApiRouteHandler ${name}`, async () => {
+  nodeTest.test(`ApiRouteHandler ${name}`, async () => {
     await withApiRoutes(async (handler) => {
       const response = await handler.handleRequest(
         new Request(`http://localhost${pathname}`),
@@ -83,16 +84,19 @@ for (const { name, pathname, expected } of paramCases) {
   });
 }
 
-Deno.test("ApiRouteHandler returns null for a path no route matches", async () => {
-  await withApiRoutes(async (handler) => {
-    const response = await handler.handleRequest(
-      new Request("http://localhost/api/other"),
-      "/api/other",
-    );
+nodeTest.test(
+  "ApiRouteHandler returns null for a path no route matches",
+  async () => {
+    await withApiRoutes(async (handler) => {
+      const response = await handler.handleRequest(
+        new Request("http://localhost/api/other"),
+        "/api/other",
+      );
 
-    assert.assertEquals(response, null);
-  });
-});
+      assert.assertEquals(response, null);
+    });
+  },
+);
 
 /** Run a test with an empty temporary dist/ directory. */
 const withDistDir = async (
@@ -135,59 +139,68 @@ const getHello = async (
   return response === null ? null : await response.text();
 };
 
-Deno.test("ApiRouteHandler serves a changed route module after loading the next build", async () => {
-  await withDistDir(async (distDir) => {
-    const handler = new routeDispatcher.ApiRouteHandler();
-    await writeHelloRoute(distDir, "hello from build 1");
-    await handler.loadRoutes(distDir, "build-1");
-    const first = await getHello(handler);
+nodeTest.test(
+  "ApiRouteHandler serves a changed route module after loading the next build",
+  async () => {
+    await withDistDir(async (distDir) => {
+      const handler = new routeDispatcher.ApiRouteHandler();
+      await writeHelloRoute(distDir, "hello from build 1");
+      await handler.loadRoutes(distDir, "build-1");
+      const first = await getHello(handler);
 
-    // A rebuild rewrites the route module in place
-    await writeHelloRoute(distDir, "hello from build 2");
-    const beforeReload = await getHello(handler);
-    await handler.loadRoutes(distDir, "build-2");
-    const afterReload = await getHello(handler);
+      // A rebuild rewrites the route module in place
+      await writeHelloRoute(distDir, "hello from build 2");
+      const beforeReload = await getHello(handler);
+      await handler.loadRoutes(distDir, "build-2");
+      const afterReload = await getHello(handler);
 
-    assert.assertEquals(first, "hello from build 1");
-    // The loaded build keeps the module it imported
-    assert.assertEquals(beforeReload, "hello from build 1");
-    assert.assertEquals(afterReload, "hello from build 2");
-  });
-});
+      assert.assertEquals(first, "hello from build 1");
+      // The loaded build keeps the module it imported
+      assert.assertEquals(beforeReload, "hello from build 1");
+      assert.assertEquals(afterReload, "hello from build 2");
+    });
+  },
+);
 
-Deno.test("ApiRouteHandler drops the routes of a build whose registry is gone", async () => {
-  await withDistDir(async (distDir) => {
-    const handler = new routeDispatcher.ApiRouteHandler();
-    await writeHelloRoute(distDir, "hello");
-    await handler.loadRoutes(distDir, "build-1");
+nodeTest.test(
+  "ApiRouteHandler drops the routes of a build whose registry is gone",
+  async () => {
+    await withDistDir(async (distDir) => {
+      const handler = new routeDispatcher.ApiRouteHandler();
+      await writeHelloRoute(distDir, "hello");
+      await handler.loadRoutes(distDir, "build-1");
 
-    // A build without route.ts files writes no registry
-    await runtime.fs.remove(
-      runtime.path.join(distDir, "server", "api-routes.ts"),
-    );
-    await handler.loadRoutes(distDir, "build-2");
+      // A build without route.ts files writes no registry
+      await runtime.fs.remove(
+        runtime.path.join(distDir, "server", "api-routes.ts"),
+      );
+      await handler.loadRoutes(distDir, "build-2");
 
-    assert.assertEquals(await getHello(handler), null);
-  });
-});
+      assert.assertEquals(await getHello(handler), null);
+    });
+  },
+);
 
-Deno.test("ApiRouteHandler answers 500 without the error's details when a handler throws", async () => {
-  await withDistDir(async (distDir) => {
-    const handler = new routeDispatcher.ApiRouteHandler();
-    await writeHelloRoute(distDir, "hello");
-    await runtime.fs.writeTextFile(
-      runtime.path.join(distDir, "server", "routes", "hello.ts"),
-      "export const GET = () => { throw new Error('secret detail'); };\n",
-    );
-    await handler.loadRoutes(distDir, "build-1");
+nodeTest.test(
+  "ApiRouteHandler answers 500 without the error's details when a handler throws",
+  async () => {
+    await withDistDir(async (distDir) => {
+      const handler = new routeDispatcher.ApiRouteHandler();
+      await writeHelloRoute(distDir, "hello");
+      await runtime.fs.writeTextFile(
+        runtime.path.join(distDir, "server", "routes", "hello.ts"),
+        "export const GET = () => { throw new Error('secret detail'); };\n",
+      );
+      await handler.loadRoutes(distDir, "build-1");
 
-    const response = await handler.handleRequest(
-      new Request("http://localhost/api/hello"),
-      "/api/hello",
-    );
+      const response = await handler.handleRequest(
+        new Request("http://localhost/api/hello"),
+        "/api/hello",
+      );
 
-    assert.assertEquals(response?.status, 500);
-    const body = await response?.text();
-    assert.assertEquals(body?.includes("secret detail"), false);
-  });
-});
+      assert.assertEquals(response?.status, 500);
+      const body = await response?.text();
+      assert.assertEquals(body?.includes("secret detail"), false);
+    });
+  },
+);

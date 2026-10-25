@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import type * as types from "./types.ts";
 import * as imageConfig from "./image-config.ts";
@@ -43,12 +44,12 @@ const parseCases: ReadonlyArray<{
 ];
 
 for (const { src, expected } of parseCases) {
-  Deno.test(`parseImageSrc splits "${src}"`, () => {
+  nodeTest.test(`parseImageSrc splits "${src}"`, () => {
     assert.assertEquals(imageConfig.parseImageSrc(src), expected);
   });
 }
 
-Deno.test("buildImageAttributes lazy-loads by default", () => {
+nodeTest.test("buildImageAttributes lazy-loads by default", () => {
   assert.assertEquals(
     imageConfig.buildImageAttributes({ src: "/a.jpg", alt: "A team photo" }),
     {
@@ -65,7 +66,7 @@ Deno.test("buildImageAttributes lazy-loads by default", () => {
   );
 });
 
-Deno.test("buildImageAttributes loads a priority image eagerly", () => {
+nodeTest.test("buildImageAttributes loads a priority image eagerly", () => {
   const attributes = imageConfig.buildImageAttributes({
     src: "/hero.jpg",
     alt: "",
@@ -87,7 +88,7 @@ Deno.test("buildImageAttributes loads a priority image eagerly", () => {
   assert.assertEquals(attributes.srcSet, "/hero-1200w.jpg 1200w");
 });
 
-Deno.test("combineClassNames skips empty and missing names", () => {
+nodeTest.test("combineClassNames skips empty and missing names", () => {
   assert.assertEquals(
     imageConfig.combineClassNames("a", undefined, "", "b"),
     "a b",

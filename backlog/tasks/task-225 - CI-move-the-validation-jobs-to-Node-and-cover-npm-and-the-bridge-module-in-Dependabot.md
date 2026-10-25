@@ -6,7 +6,7 @@ title: >-
 status: To Do
 assignee: []
 created_date: '2026-10-15 20:38'
-updated_date: '2026-10-24 19:38'
+updated_date: '2026-10-25 16:00'
 labels:
   - cutover
   - ci
@@ -50,4 +50,6 @@ Hand-work list (TASK-175 spike, 2026-10-24; grep):
 - validate (:63): :125 `deno task cli ok` and :134 `deno coverage ... --lcov` become `pnpm cli ok` and an etc/coverage.lcov upload. preflight (:151): :211 `deno task cli preflight`. smoke-test (:317): :365 `deno task cli build`, :368 and :371 `deno run ... npm-build.ts`. npm-no-deno-test (:404) is in the needs list at :722-729. cross-runtime-test (:497): matrix `runtime: [deno, node, bun]` (:514), oven-sh/setup-bun (:573-576), :579 `deno run pkg/@eserstack/ajan/scripts/build.ts` (deleted in the working tree by TASK-188; the patch in etc/temp/ci/task-188-ci.patch replaces it), :594-598.
 - update-contributors.yml:21-27: setup-deno v2.9.5 and `deno task cli codebase gh contributors --commit`.
 - .github/dependabot.yml: gomod covers only "/" (:21-22); add /pkg/@eserstack/ajan. npm at "/" (:36-37) exists.
+
+TASK-198 (2026-10-25): the test and bench codemods left no site for hand edits in this task's files (0 unhandled), and none of its test files fails under `node --test --test-force-exit` on Node 26.12.1 when run alone.
 <!-- SECTION:NOTES:END -->

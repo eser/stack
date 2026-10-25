@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 
 import * as results from "@eserstack/primitives/results";
@@ -42,7 +43,7 @@ const expectFail = (result: results.Result<void, string>): string => {
 // The defect this file exists for: verification used to be opportunistic. Both
 // of the next two tests describe a download nobody checked, which the updater
 // then wrote over the running binary.
-Deno.test("an unreachable SHA256SUMS.txt aborts the update", async () => {
+nodeTest.test("an unreachable SHA256SUMS.txt aborts the update", async () => {
   const message = expectFail(
     await update.verifyArchiveChecksum(
       BASE_URL,
@@ -56,7 +57,7 @@ Deno.test("an unreachable SHA256SUMS.txt aborts the update", async () => {
   assert.assertStringIncludes(message, "Refusing to install");
 });
 
-Deno.test("a non-200 SHA256SUMS.txt aborts the update", async () => {
+nodeTest.test("a non-200 SHA256SUMS.txt aborts the update", async () => {
   const message = expectFail(
     await update.verifyArchiveChecksum(
       BASE_URL,
@@ -70,28 +71,31 @@ Deno.test("a non-200 SHA256SUMS.txt aborts the update", async () => {
   assert.assertStringIncludes(message, "Refusing to install");
 });
 
-Deno.test("a checksums file with no entry for the archive aborts the update", async () => {
-  const sums = [
-    `${OTHER_SHA256}  noskills-v1.2.3-aarch64-apple-darwin.tar.gz`,
-    `${OTHER_SHA256}  laroux-v1.2.3-aarch64-apple-darwin.tar.gz`,
-  ].join("\n");
+nodeTest.test(
+  "a checksums file with no entry for the archive aborts the update",
+  async () => {
+    const sums = [
+      `${OTHER_SHA256}  noskills-v1.2.3-aarch64-apple-darwin.tar.gz`,
+      `${OTHER_SHA256}  laroux-v1.2.3-aarch64-apple-darwin.tar.gz`,
+    ].join("\n");
 
-  const message = expectFail(
-    await update.verifyArchiveChecksum(
-      BASE_URL,
-      ARCHIVE,
-      PAYLOAD,
-      servingText(sums),
-    ),
-  );
+    const message = expectFail(
+      await update.verifyArchiveChecksum(
+        BASE_URL,
+        ARCHIVE,
+        PAYLOAD,
+        servingText(sums),
+      ),
+    );
 
-  assert.assertStringIncludes(message, `No checksum listed for ${ARCHIVE}`);
-});
+    assert.assertStringIncludes(message, `No checksum listed for ${ARCHIVE}`);
+  },
+);
 
 // The sharpest form of the substring bug: the decoy line carries the CORRECT
 // hash of the payload, so a `line.includes(archiveName)` matcher would report
 // "Checksum verified" for an archive that SHA256SUMS.txt never listed.
-Deno.test("a substring match is not an entry", async () => {
+nodeTest.test("a substring match is not an entry", async () => {
   const sums = [
     `${PAYLOAD_SHA256}  ${ARCHIVE}.sig`,
     `${PAYLOAD_SHA256}  prefixed-${ARCHIVE}`,
@@ -111,7 +115,7 @@ Deno.test("a substring match is not an entry", async () => {
   assert.assertStringIncludes(message, `No checksum listed for ${ARCHIVE}`);
 });
 
-Deno.test("a mismatched checksum aborts the update", async () => {
+nodeTest.test("a mismatched checksum aborts the update", async () => {
   const sums = `${OTHER_SHA256}  ${ARCHIVE}\n`;
 
   const message = expectFail(
@@ -128,7 +132,7 @@ Deno.test("a mismatched checksum aborts the update", async () => {
   assert.assertStringIncludes(message, PAYLOAD_SHA256);
 });
 
-Deno.test("a correct checksum lets the update proceed", async () => {
+nodeTest.test("a correct checksum lets the update proceed", async () => {
   const sums = [
     `${OTHER_SHA256}  noskills-v1.2.3-aarch64-apple-darwin.tar.gz`,
     `${PAYLOAD_SHA256}  ${ARCHIVE}`,
@@ -148,7 +152,7 @@ Deno.test("a correct checksum lets the update proceed", async () => {
 // GoReleaser writes `<hash>  <name>` with two spaces, but the file has arrived
 // with CRLF endings and with a leading-blank first line before now. awk ignores
 // leading whitespace; the trim here is what keeps this equivalent.
-Deno.test("field matching survives surrounding whitespace", () => {
+nodeTest.test("field matching survives surrounding whitespace", () => {
   const sums = `\r\n   ${PAYLOAD_SHA256}   ${ARCHIVE}  \r\n\r\n`;
 
   assert.assertEquals(
@@ -203,7 +207,7 @@ const extractCases: ReadonlyArray<{
 ];
 
 for (const { name, target, expected } of extractCases) {
-  Deno.test(name, () => {
+  nodeTest.test(name, () => {
     assert.assertEquals(
       update.extractArchiveCommand(HOSTILE_ARCHIVE, HOSTILE_DIR, target),
       expected,
@@ -213,10 +217,10 @@ for (const { name, target, expected } of extractCases) {
 
 // End to end on the host's tar: a directory name a shell would expand or split
 // reaches tar unchanged, and nothing in it runs.
-Deno.test({
-  name: "Unix extraction unpacks into a directory with shell metacharacters",
-  ignore: standardsCrossRuntime.getPlatform() === "windows",
-  fn: async () => {
+nodeTest.test(
+  "Unix extraction unpacks into a directory with shell metacharacters",
+  { skip: standardsCrossRuntime.getPlatform() === "windows" },
+  async () => {
     const root = await runtime.fs.makeTempDir({ prefix: "eser-update-test-" });
     try {
       const staging = runtime.path.join(root, "staging");
@@ -249,41 +253,47 @@ Deno.test({
       await runtime.fs.remove(root, { recursive: true });
     }
   },
-});
+);
 
-Deno.test("missingArchiveMessage points to npm and the install script", () => {
-  const message = update.missingArchiveMessage(
-    { command: "laroux", npmPackage: "laroux" },
-    "v5.0.0",
-    "laroux-v5.0.0-aarch64-apple-darwin.tar.gz",
-    false,
-  );
+nodeTest.test(
+  "missingArchiveMessage points to npm and the install script",
+  () => {
+    const message = update.missingArchiveMessage(
+      { command: "laroux", npmPackage: "laroux" },
+      "v5.0.0",
+      "laroux-v5.0.0-aarch64-apple-darwin.tar.gz",
+      false,
+    );
 
-  assert.assertStringIncludes(
-    message,
-    "Release v5.0.0 has no laroux-v5.0.0-aarch64-apple-darwin.tar.gz",
-  );
-  assert.assertStringIncludes(message, "npm install -g laroux");
-  assert.assertStringIncludes(
-    message,
-    "curl -fsSL https://raw.githubusercontent.com/eser/stack/main/etc/scripts/install.sh | sh -s laroux",
-  );
-  // The message names no checksum or download error.
-  assert.assertFalse(/checksum|HTTP [0-9]/i.test(message));
-});
+    assert.assertStringIncludes(
+      message,
+      "Release v5.0.0 has no laroux-v5.0.0-aarch64-apple-darwin.tar.gz",
+    );
+    assert.assertStringIncludes(message, "npm install -g laroux");
+    assert.assertStringIncludes(
+      message,
+      "curl -fsSL https://raw.githubusercontent.com/eser/stack/main/etc/scripts/install.sh | sh -s laroux",
+    );
+    // The message names no checksum or download error.
+    assert.assertFalse(/checksum|HTTP [0-9]/i.test(message));
+  },
+);
 
-Deno.test("missingArchiveMessage gives the PowerShell installer on Windows", () => {
-  const message = update.missingArchiveMessage(
-    { command: "eser" },
-    "v5.0.0",
-    "eser-v5.0.0-x86_64-pc-windows-msvc.zip",
-    true,
-  );
+nodeTest.test(
+  "missingArchiveMessage gives the PowerShell installer on Windows",
+  () => {
+    const message = update.missingArchiveMessage(
+      { command: "eser" },
+      "v5.0.0",
+      "eser-v5.0.0-x86_64-pc-windows-msvc.zip",
+      true,
+    );
 
-  assert.assertStringIncludes(message, "npm install -g eser");
-  assert.assertStringIncludes(
-    message,
-    "irm https://raw.githubusercontent.com/eser/stack/main/etc/scripts/install.ps1",
-  );
-  assert.assertStringIncludes(message, "-Product eser");
-});
+    assert.assertStringIncludes(message, "npm install -g eser");
+    assert.assertStringIncludes(
+      message,
+      "irm https://raw.githubusercontent.com/eser/stack/main/etc/scripts/install.ps1",
+    );
+    assert.assertStringIncludes(message, "-Product eser");
+  },
+);

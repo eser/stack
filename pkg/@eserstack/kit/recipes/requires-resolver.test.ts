@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as requiresResolver from "./requires-resolver.ts";
 import type { Recipe } from "./registry-schema.ts";
@@ -21,7 +22,7 @@ const makeRecipe = (name: string, requires?: string[]): Recipe => ({
 // Happy path
 // =============================================================================
 
-Deno.test("resolveRequires — recipe with no deps returns [self]", () => {
+nodeTest.test("resolveRequires — recipe with no deps returns [self]", () => {
   const recipes = [makeRecipe("a")];
   const result = requiresResolver.resolveRequires("a", recipes);
 
@@ -29,7 +30,7 @@ Deno.test("resolveRequires — recipe with no deps returns [self]", () => {
   assert.assertEquals(result[0]!.name, "a");
 });
 
-Deno.test("resolveRequires — linear chain A→B→C", () => {
+nodeTest.test("resolveRequires — linear chain A→B→C", () => {
   const recipes = [
     makeRecipe("a", ["b"]),
     makeRecipe("b", ["c"]),
@@ -42,7 +43,7 @@ Deno.test("resolveRequires — linear chain A→B→C", () => {
   assert.assertEquals(names, ["c", "b", "a"]);
 });
 
-Deno.test("resolveRequires — diamond A→B,C; B→D; C→D", () => {
+nodeTest.test("resolveRequires — diamond A→B,C; B→D; C→D", () => {
   const recipes = [
     makeRecipe("a", ["b", "c"]),
     makeRecipe("b", ["d"]),
@@ -63,7 +64,7 @@ Deno.test("resolveRequires — diamond A→B,C; B→D; C→D", () => {
   assert.assertEquals(names.length, 4);
 });
 
-Deno.test("resolveRequires — multiple independent deps", () => {
+nodeTest.test("resolveRequires — multiple independent deps", () => {
   const recipes = [
     makeRecipe("a", ["b", "c"]),
     makeRecipe("b"),
@@ -84,7 +85,7 @@ Deno.test("resolveRequires — multiple independent deps", () => {
 // Cycle detection
 // =============================================================================
 
-Deno.test("resolveRequires — detects simple cycle A→B→A", () => {
+nodeTest.test("resolveRequires — detects simple cycle A→B→A", () => {
   const recipes = [makeRecipe("a", ["b"]), makeRecipe("b", ["a"])];
 
   assert.assertThrows(
@@ -94,7 +95,7 @@ Deno.test("resolveRequires — detects simple cycle A→B→A", () => {
   );
 });
 
-Deno.test("resolveRequires — detects longer cycle A→B→C→A", () => {
+nodeTest.test("resolveRequires — detects longer cycle A→B→C→A", () => {
   const recipes = [
     makeRecipe("a", ["b"]),
     makeRecipe("b", ["c"]),
@@ -108,7 +109,7 @@ Deno.test("resolveRequires — detects longer cycle A→B→C→A", () => {
   );
 });
 
-Deno.test("resolveRequires — self-dependency A→A", () => {
+nodeTest.test("resolveRequires — self-dependency A→A", () => {
   const recipes = [makeRecipe("a", ["a"])];
 
   assert.assertThrows(
@@ -121,7 +122,7 @@ Deno.test("resolveRequires — self-dependency A→A", () => {
 // Missing dependency
 // =============================================================================
 
-Deno.test("resolveRequires — throws on missing dependency", () => {
+nodeTest.test("resolveRequires — throws on missing dependency", () => {
   const recipes = [makeRecipe("a", ["nonexistent"])];
 
   assert.assertThrows(
@@ -131,7 +132,7 @@ Deno.test("resolveRequires — throws on missing dependency", () => {
   );
 });
 
-Deno.test("resolveRequires — throws on unknown root recipe", () => {
+nodeTest.test("resolveRequires — throws on unknown root recipe", () => {
   const recipes = [makeRecipe("a")];
 
   assert.assertThrows(
@@ -145,15 +146,18 @@ Deno.test("resolveRequires — throws on unknown root recipe", () => {
 // Edge cases
 // =============================================================================
 
-Deno.test("resolveRequires — empty requires array treated as no deps", () => {
-  const recipes = [makeRecipe("a", [])];
-  const result = requiresResolver.resolveRequires("a", recipes);
+nodeTest.test(
+  "resolveRequires — empty requires array treated as no deps",
+  () => {
+    const recipes = [makeRecipe("a", [])];
+    const result = requiresResolver.resolveRequires("a", recipes);
 
-  assert.assertEquals(result.length, 1);
-  assert.assertEquals(result[0]!.name, "a");
-});
+    assert.assertEquals(result.length, 1);
+    assert.assertEquals(result[0]!.name, "a");
+  },
+);
 
-Deno.test("resolveRequires — deep chain (5 levels)", () => {
+nodeTest.test("resolveRequires — deep chain (5 levels)", () => {
   const recipes = [
     makeRecipe("a", ["b"]),
     makeRecipe("b", ["c"]),

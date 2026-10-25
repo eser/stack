@@ -3,16 +3,17 @@
  * Tests for HtmlShellBuilder port interface
  */
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as htmlShell from "./html-shell.ts";
 import type { HtmlShellBuilder, HtmlShellOptions } from "./html-shell.ts";
 
-Deno.test("HtmlShellBuilder - noopHtmlShellBuilder", async (t) => {
-  await t.step("has correct name", () => {
+nodeTest.test("HtmlShellBuilder - noopHtmlShellBuilder", async (t) => {
+  await t.test("has correct name", () => {
     assert.assertEquals(htmlShell.noopHtmlShellBuilder.name, "noop");
   });
 
-  await t.step("createShell returns valid HTML document", () => {
+  await t.test("createShell returns valid HTML document", () => {
     const html = htmlShell.noopHtmlShellBuilder.createShell({});
 
     assert.assertStringIncludes(html, "<!DOCTYPE html>");
@@ -22,7 +23,7 @@ Deno.test("HtmlShellBuilder - noopHtmlShellBuilder", async (t) => {
     assert.assertStringIncludes(html, "</html>");
   });
 
-  await t.step("createStreamingStart returns document start", () => {
+  await t.test("createStreamingStart returns document start", () => {
     const html = htmlShell.noopHtmlShellBuilder.createStreamingStart({});
 
     assert.assertStringIncludes(html, "<!DOCTYPE html>");
@@ -32,7 +33,7 @@ Deno.test("HtmlShellBuilder - noopHtmlShellBuilder", async (t) => {
     assert.assertEquals(html.includes("</html>"), false);
   });
 
-  await t.step("createStreamingEnd returns document end", () => {
+  await t.test("createStreamingEnd returns document end", () => {
     const html = htmlShell.noopHtmlShellBuilder.createStreamingEnd({});
 
     assert.assertStringIncludes(html, "</body>");
@@ -42,8 +43,8 @@ Deno.test("HtmlShellBuilder - noopHtmlShellBuilder", async (t) => {
   });
 });
 
-Deno.test("HtmlShellBuilder interface compliance", async (t) => {
-  await t.step(
+nodeTest.test("HtmlShellBuilder interface compliance", async (t) => {
+  await t.test(
     "noopHtmlShellBuilder implements HtmlShellBuilder interface",
     () => {
       const builder: HtmlShellBuilder = htmlShell.noopHtmlShellBuilder;
@@ -55,7 +56,7 @@ Deno.test("HtmlShellBuilder interface compliance", async (t) => {
     },
   );
 
-  await t.step("all methods accept HtmlShellOptions", () => {
+  await t.test("all methods accept HtmlShellOptions", () => {
     const options: HtmlShellOptions = {
       head: "<meta charset='utf-8'>",
       body: "<div id='root'></div>",
@@ -78,41 +79,41 @@ Deno.test("HtmlShellBuilder interface compliance", async (t) => {
   });
 });
 
-Deno.test("HtmlShellOptions", async (t) => {
-  await t.step("all properties are optional", () => {
+nodeTest.test("HtmlShellOptions", async (t) => {
+  await t.test("all properties are optional", () => {
     const emptyOptions: HtmlShellOptions = {};
     assert.assertExists(emptyOptions);
   });
 
-  await t.step("accepts head content", () => {
+  await t.test("accepts head content", () => {
     const options: HtmlShellOptions = {
       head: "<meta name='viewport' content='width=device-width'>",
     };
     assert.assertEquals(options.head?.includes("viewport"), true);
   });
 
-  await t.step("accepts body content", () => {
+  await t.test("accepts body content", () => {
     const options: HtmlShellOptions = {
       body: "<div id='app'></div>",
     };
     assert.assertEquals(options.body?.includes("app"), true);
   });
 
-  await t.step("accepts scripts array", () => {
+  await t.test("accepts scripts array", () => {
     const options: HtmlShellOptions = {
       scripts: ["/chunk-abc123.js", "/client.js"],
     };
     assert.assertEquals(options.scripts?.length, 2);
   });
 
-  await t.step("accepts styles array", () => {
+  await t.test("accepts styles array", () => {
     const options: HtmlShellOptions = {
       styles: ["/critical.css", "/main.css"],
     };
     assert.assertEquals(options.styles?.length, 2);
   });
 
-  await t.step("accepts critical CSS", () => {
+  await t.test("accepts critical CSS", () => {
     const options: HtmlShellOptions = {
       criticalCss: `
         body { margin: 0; padding: 0; }
@@ -122,7 +123,7 @@ Deno.test("HtmlShellOptions", async (t) => {
     assert.assertEquals(options.criticalCss?.includes("header"), true);
   });
 
-  await t.step("accepts RSC payload", () => {
+  await t.test("accepts RSC payload", () => {
     const payload = JSON.stringify({
       type: "root",
       children: [{ type: "div", props: { id: "app" } }],
@@ -133,21 +134,21 @@ Deno.test("HtmlShellOptions", async (t) => {
     assert.assertEquals(options.rscPayload, payload);
   });
 
-  await t.step("accepts page title", () => {
+  await t.test("accepts page title", () => {
     const options: HtmlShellOptions = {
       title: "My App - Home",
     };
     assert.assertEquals(options.title, "My App - Home");
   });
 
-  await t.step("accepts language attribute", () => {
+  await t.test("accepts language attribute", () => {
     const options: HtmlShellOptions = {
       lang: "ja",
     };
     assert.assertEquals(options.lang, "ja");
   });
 
-  await t.step("accepts chunk manifest", () => {
+  await t.test("accepts chunk manifest", () => {
     const options: HtmlShellOptions = {
       manifest: {
         version: "1.0",
@@ -164,7 +165,7 @@ Deno.test("HtmlShellOptions", async (t) => {
   });
 });
 
-Deno.test("Custom HtmlShellBuilder implementation", async (t) => {
+nodeTest.test("Custom HtmlShellBuilder implementation", async (t) => {
   // Example of how a framework adapter would implement HtmlShellBuilder
   const customBuilder: HtmlShellBuilder = {
     name: "custom",
@@ -237,11 +238,11 @@ Deno.test("Custom HtmlShellBuilder implementation", async (t) => {
     },
   };
 
-  await t.step("custom builder has correct name", () => {
+  await t.test("custom builder has correct name", () => {
     assert.assertEquals(customBuilder.name, "custom");
   });
 
-  await t.step("custom builder createShell includes all options", () => {
+  await t.test("custom builder createShell includes all options", () => {
     const html = customBuilder.createShell({
       title: "Test Page",
       lang: "de",
@@ -263,7 +264,7 @@ Deno.test("Custom HtmlShellBuilder implementation", async (t) => {
     assert.assertStringIncludes(html, "__RSC_PAYLOAD__");
   });
 
-  await t.step("custom builder streaming creates valid document", () => {
+  await t.test("custom builder streaming creates valid document", () => {
     const options: HtmlShellOptions = {
       title: "Streaming Test",
       criticalCss: "* { box-sizing: border-box; }",

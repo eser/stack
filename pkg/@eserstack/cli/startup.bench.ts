@@ -8,59 +8,57 @@
  * @module
  */
 
+import * as mitata from "mitata";
 const group = "cli-startup";
 
-Deno.bench(
-  "import main.ts (module load cost)",
-  { group, baseline: true },
-  async () => {
-    // Dynamic import to measure the cost of loading the CLI module graph.
-    // Deno caches modules after first load, so this measures warm-cache cost.
-    const mod = await import("./main.ts");
+mitata.group(group, () => {
+  mitata.summary(() => {
+    mitata
+      .bench("import main.ts (module load cost)", async () => {
+        // Dynamic import to measure the cost of loading the CLI module graph.
+        // Deno caches modules after first load, so this measures warm-cache cost.
+        const mod = await import("./main.ts");
 
-    // Prevent dead-code elimination
-    if (mod.main === undefined) throw new Error("unreachable");
-  },
-);
+        // Prevent dead-code elimination
+        if (mod.main === undefined) throw new Error("unreachable");
+      })
+      .baseline();
+    mitata.bench(
+      "import @eserstack/codebase/validation (workflows, on-demand)",
+      async () => {
+        const mod = await import("@eserstack/codebase/validation");
 
-Deno.bench(
-  "import @eserstack/codebase/validation (workflows, on-demand)",
-  { group },
-  async () => {
-    const mod = await import("@eserstack/codebase/validation");
+        if (mod.getWorkflowTools === undefined) throw new Error("unreachable");
+      },
+    );
+    mitata.bench(
+      "import @eserstack/kit/recipes/schema (on-demand)",
+      async () => {
+        const mod = await import("@eserstack/kit/recipes/schema");
 
-    if (mod.getWorkflowTools === undefined) throw new Error("unreachable");
-  },
-);
+        if (mod.validateRegistryManifest === undefined) {
+          throw new Error("unreachable");
+        }
+      },
+    );
+    mitata.bench(
+      "import @eserstack/kit/recipes/fetcher (on-demand)",
+      async () => {
+        const mod = await import("@eserstack/kit/recipes/fetcher");
 
-Deno.bench(
-  "import @eserstack/kit/recipes/schema (on-demand)",
-  { group },
-  async () => {
-    const mod = await import("@eserstack/kit/recipes/schema");
+        if (mod.fetchRegistry === undefined) throw new Error("unreachable");
+      },
+    );
+    mitata.bench(
+      "import @eserstack/kit/recipes/applier (on-demand)",
+      async () => {
+        const mod = await import("@eserstack/kit/recipes/applier");
 
-    if (mod.validateRegistryManifest === undefined) {
-      throw new Error("unreachable");
-    }
-  },
-);
+        if (mod.applyRecipe === undefined) throw new Error("unreachable");
+      },
+    );
+  });
+});
 
-Deno.bench(
-  "import @eserstack/kit/recipes/fetcher (on-demand)",
-  { group },
-  async () => {
-    const mod = await import("@eserstack/kit/recipes/fetcher");
-
-    if (mod.fetchRegistry === undefined) throw new Error("unreachable");
-  },
-);
-
-Deno.bench(
-  "import @eserstack/kit/recipes/applier (on-demand)",
-  { group },
-  async () => {
-    const mod = await import("@eserstack/kit/recipes/applier");
-
-    if (mod.applyRecipe === undefined) throw new Error("unreachable");
-  },
-);
+// oxlint-disable-next-line node/no-top-level-await
+await mitata.run();

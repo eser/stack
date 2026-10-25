@@ -6,7 +6,7 @@
  * stored result it repeats, and the skipped results.
  */
 
-import * as bdd from "@std/testing/bdd";
+import * as bdd from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as ai from "@eserstack/ai/mod";
 import * as results from "@eserstack/primitives/results";

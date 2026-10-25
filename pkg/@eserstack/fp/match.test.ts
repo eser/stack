@@ -1,9 +1,10 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as match from "./match.ts";
 
-Deno.test("basic", () => {
+nodeTest.test("basic", () => {
   const str1 = "apple";
 
   const result = match.match(str1, [
@@ -15,7 +16,7 @@ Deno.test("basic", () => {
   assert.assertEquals(result, "Apple is selected.");
 });
 
-Deno.test("conditions", () => {
+nodeTest.test("conditions", () => {
   const str1 = "appLe"; // intentionally mixed case
   const str2 = "pear";
   const str3 = "banana";
@@ -30,7 +31,7 @@ Deno.test("conditions", () => {
   assert.assertEquals(result, "Pear is selected.");
 });
 
-Deno.test("otherwise callback when no pattern matches", () => {
+nodeTest.test("otherwise callback when no pattern matches", () => {
   const result = match.match(
     "orange",
     [
@@ -43,7 +44,7 @@ Deno.test("otherwise callback when no pattern matches", () => {
   assert.assertEquals(result, "No match found.");
 });
 
-Deno.test("returns undefined when no match and no otherwise", () => {
+nodeTest.test("returns undefined when no match and no otherwise", () => {
   const result = match.match("orange", [
     ["apple", () => "Apple is selected."],
     ["pear", () => "Pear is selected."],
@@ -52,19 +53,19 @@ Deno.test("returns undefined when no match and no otherwise", () => {
   assert.assertEquals(result, undefined);
 });
 
-Deno.test("empty patterns array with otherwise", () => {
+nodeTest.test("empty patterns array with otherwise", () => {
   const result = match.match("apple", [], () => "Default value");
 
   assert.assertEquals(result, "Default value");
 });
 
-Deno.test("empty patterns array without otherwise", () => {
+nodeTest.test("empty patterns array without otherwise", () => {
   const result = match.match("apple", []);
 
   assert.assertEquals(result, undefined);
 });
 
-Deno.test("matching null value", () => {
+nodeTest.test("matching null value", () => {
   const result = match.match(null, [
     [null, () => "Null matched"],
     [undefined, () => "Undefined matched"],
@@ -73,7 +74,7 @@ Deno.test("matching null value", () => {
   assert.assertEquals(result, "Null matched");
 });
 
-Deno.test("matching undefined value", () => {
+nodeTest.test("matching undefined value", () => {
   const result = match.match(undefined, [
     [null, () => "Null matched"],
     [undefined, () => "Undefined matched"],

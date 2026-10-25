@@ -4,7 +4,7 @@ title: 'cli: remove deno compile and run the npm build under node'
 status: To Do
 assignee: []
 created_date: '2026-10-15 20:38'
-updated_date: '2026-10-24 19:38'
+updated_date: '2026-10-25 16:00'
 labels:
   - cutover
   - cli
@@ -43,4 +43,6 @@ Hand-work list (TASK-175 spike, 2026-10-24, node 26.12.1):
 - node --test: 5 files, 5 pass, 73 tests, 0 fail; startup.bench.ts became 5 skipped placeholders.
 - Non-test source: Deno. 6 (scripts/compile.ts 4, :576 and :581 Deno.build.target; scripts.ts:331 Deno.build.standalone); Bun. 1 (scripts.ts); jsr: 1 and npm: 1 (scripts/npm-build.ts:135 externals "npm:*", "jsr:*"); scripts/compile.ts:415 the `deno compile` exec; commands/ajan.ts:52 detectRuntime() === "deno"; main.ts:52 devCommand "deno task cli" and main.ts:126 the deno-install notice; scripts.ts uses execPath() 11 times, 3 of them with "run".
 - Docs: pkg/@eserstack/cli/README.md (9). No Go twin.
+
+TASK-198 (2026-10-25): the test and bench codemods left no site for hand edits in this task's files (0 unhandled), and none of its test files fails under `node --test --test-force-exit` on Node 26.12.1 when run alone.
 <!-- SECTION:NOTES:END -->

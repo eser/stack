@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 
 import * as results from "@eserstack/primitives/results";
@@ -34,7 +35,7 @@ const SUBCOMMANDS = [
   "info",
 ];
 
-Deno.test("every binary gets the same system subcommands", () => {
+nodeTest.test("every binary gets the same system subcommands", () => {
   for (const name of ["eser", "noskills", "laroux"]) {
     const help = cliSystem
       .createSystemCommand({
@@ -52,7 +53,7 @@ Deno.test("every binary gets the same system subcommands", () => {
 // The tree is built once and bound per app, so the help has to describe the
 // binary it belongs to. A shared tree that said "eser" everywhere would be a
 // worse lie than three copies.
-Deno.test("the system tree names the binary it belongs to", () => {
+nodeTest.test("the system tree names the binary it belongs to", () => {
   const help = cliSystem
     .createSystemCommand({
       command: "noskills",
@@ -64,7 +65,7 @@ Deno.test("the system tree names the binary it belongs to", () => {
   assert.assertEquals(help.includes("Install eser globally"), false);
 });
 
-Deno.test("root aliases exist for the common operations", () => {
+nodeTest.test("root aliases exist for the common operations", () => {
   const listed = listedCommands(
     cliSupport
       .attachStandardCommands(
@@ -82,7 +83,7 @@ Deno.test("root aliases exist for the common operations", () => {
 // to the Module. `eser` mounts the very same module object the standalone
 // binary re-roots, so a layer on the module would appear in both — implying a
 // submodule has a version and an installer of its own.
-Deno.test("a submodule inherits none of it", () => {
+nodeTest.test("a submodule inherits none of it", () => {
   const submodule = new shellArgs.Command("noskills").command(
     new shellArgs.Command("next").run(() => results.ok(undefined)),
   );

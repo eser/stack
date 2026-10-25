@@ -1,6 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import * as bdd from "@std/testing/bdd";
+import * as bdd from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as persistence from "@eserstack/noskills/persistence";
 import * as noskills from "@eserstack/noskills/mod";
@@ -552,89 +552,85 @@ bdd.describe("withFaultBoundary", () => {
 // API: Tab management
 // =============================================================================
 
-bdd.describe(
-  "Tab management API",
-  { sanitizeResources: false, sanitizeOps: false },
-  () => {
-    bdd.it("lists tabs (initially empty)", async () => {
-      const root = await makeTempDir();
-      const host = new muxHost.MuxHost(root);
+bdd.describe("Tab management API", {}, () => {
+  bdd.it("lists tabs (initially empty)", async () => {
+    const root = await makeTempDir();
+    const host = new muxHost.MuxHost(root);
 
-      const response = api.handleListTabs(host);
-      const tabs = await response.json();
+    const response = api.handleListTabs(host);
+    const tabs = await response.json();
+    assert.assertEquals(tabs.length, 0);
+  });
+
+  // Tab creation goes through a fake PTY host so these stay pure API-contract
+  // tests — no `claude` binary, no native PTY spawn.
+
+  bdd.it("create tab returns ok with tabId", async () => {
+    const root = await makeTempDir();
+    const host = new muxHost.MuxHost(root, fakeHostOpts());
+
+    try {
+      const response = await api.handleCreateTab(host, {});
+      const result = await response.json();
+
+      assert.assertEquals(result.ok, true);
+      assert.assert(typeof result.tabId === "string");
+      assert.assertEquals(result.specName, null);
+    } finally {
+      await host.killAll();
+    }
+  });
+
+  bdd.it("create tab ignores a spec that is not a string", async () => {
+    const root = await makeTempDir();
+    const host = new muxHost.MuxHost(root, fakeHostOpts());
+
+    try {
+      const response = await api.handleCreateTab(host, { spec: 42 });
+      const result = await response.json();
+
+      assert.assertEquals(result.ok, true);
+      assert.assertEquals(result.specName, null);
+    } finally {
+      await host.killAll();
+    }
+  });
+
+  bdd.it("create tab with spec assignment", async () => {
+    const root = await makeTempDir();
+    const host = new muxHost.MuxHost(root, fakeHostOpts());
+
+    try {
+      const response = await api.handleCreateTab(host, {
+        spec: "my-feature",
+      });
+      const result = await response.json();
+
+      assert.assertEquals(result.ok, true);
+      assert.assertEquals(result.specName, "my-feature");
+    } finally {
+      await host.killAll();
+    }
+  });
+
+  bdd.it("close tab removes it from list", async () => {
+    const root = await makeTempDir();
+    const host = new muxHost.MuxHost(root, fakeHostOpts());
+
+    try {
+      const createRes = await api.handleCreateTab(host, {});
+      const { tabId } = await createRes.json();
+
+      await api.handleCloseTab(host, tabId);
+
+      const listRes = api.handleListTabs(host);
+      const tabs = await listRes.json();
       assert.assertEquals(tabs.length, 0);
-    });
-
-    // Tab creation goes through a fake PTY host so these stay pure API-contract
-    // tests — no `claude` binary, no native PTY spawn.
-
-    bdd.it("create tab returns ok with tabId", async () => {
-      const root = await makeTempDir();
-      const host = new muxHost.MuxHost(root, fakeHostOpts());
-
-      try {
-        const response = await api.handleCreateTab(host, {});
-        const result = await response.json();
-
-        assert.assertEquals(result.ok, true);
-        assert.assert(typeof result.tabId === "string");
-        assert.assertEquals(result.specName, null);
-      } finally {
-        await host.killAll();
-      }
-    });
-
-    bdd.it("create tab ignores a spec that is not a string", async () => {
-      const root = await makeTempDir();
-      const host = new muxHost.MuxHost(root, fakeHostOpts());
-
-      try {
-        const response = await api.handleCreateTab(host, { spec: 42 });
-        const result = await response.json();
-
-        assert.assertEquals(result.ok, true);
-        assert.assertEquals(result.specName, null);
-      } finally {
-        await host.killAll();
-      }
-    });
-
-    bdd.it("create tab with spec assignment", async () => {
-      const root = await makeTempDir();
-      const host = new muxHost.MuxHost(root, fakeHostOpts());
-
-      try {
-        const response = await api.handleCreateTab(host, {
-          spec: "my-feature",
-        });
-        const result = await response.json();
-
-        assert.assertEquals(result.ok, true);
-        assert.assertEquals(result.specName, "my-feature");
-      } finally {
-        await host.killAll();
-      }
-    });
-
-    bdd.it("close tab removes it from list", async () => {
-      const root = await makeTempDir();
-      const host = new muxHost.MuxHost(root, fakeHostOpts());
-
-      try {
-        const createRes = await api.handleCreateTab(host, {});
-        const { tabId } = await createRes.json();
-
-        await api.handleCloseTab(host, tabId);
-
-        const listRes = api.handleListTabs(host);
-        const tabs = await listRes.json();
-        assert.assertEquals(tabs.length, 0);
-      } finally {
-        await host.killAll();
-      }
-    });
-  },
-);
+    } finally {
+      await host.killAll();
+    }
+  });
+});
 
 // =============================================================================
 // SSE: GET /events

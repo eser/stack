@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import type * as ffiTypes from "@eserstack/ajan/ffi";
 import { runtime } from "@eserstack/standards/cross-runtime";
@@ -136,23 +137,26 @@ const apiProviders: ReadonlyArray<{
 ];
 
 for (const tc of apiProviders) {
-  Deno.test(`${tc.provider}: the adapter, the bridge and Go declare the same capabilities`, async () => {
-    const adapter = sorted(tc.adapter().capabilities);
+  nodeTest.test(
+    `${tc.provider}: the adapter, the bridge and Go declare the same capabilities`,
+    async () => {
+      const adapter = sorted(tc.adapter().capabilities);
 
-    assert.assertEquals(
-      sorted(await bridgeCapabilities(tc.provider)),
-      adapter,
-      "bridge and TypeScript adapter differ",
-    );
-    assert.assertEquals(
-      sorted(await goCapabilities(tc.goFile, tc.goSignature)),
-      adapter,
-      `Go (${tc.goFile}) and TypeScript adapter differ`,
-    );
-  });
+      assert.assertEquals(
+        sorted(await bridgeCapabilities(tc.provider)),
+        adapter,
+        "bridge and TypeScript adapter differ",
+      );
+      assert.assertEquals(
+        sorted(await goCapabilities(tc.goFile, tc.goSignature)),
+        adapter,
+        `Go (${tc.goFile}) and TypeScript adapter differ`,
+      );
+    },
+  );
 }
 
-Deno.test("anthropic declares reasoning on every path", async () => {
+nodeTest.test("anthropic declares reasoning on every path", async () => {
   const goList = await goCapabilities(
     "adapter_anthropic.go",
     "func (m *AnthropicModel) GetCapabilities()",
@@ -190,10 +194,13 @@ const agentProviders: ReadonlyArray<{
 ];
 
 for (const tc of agentProviders) {
-  Deno.test(`${tc.provider}: the adapter and the bridge declare the same capabilities`, async () => {
-    assert.assertEquals(
-      sorted(await bridgeCapabilities(tc.provider)),
-      sorted(tc.adapter().capabilities),
-    );
-  });
+  nodeTest.test(
+    `${tc.provider}: the adapter and the bridge declare the same capabilities`,
+    async () => {
+      assert.assertEquals(
+        sorted(await bridgeCapabilities(tc.provider)),
+        sorted(tc.adapter().capabilities),
+      );
+    },
+  );
 }

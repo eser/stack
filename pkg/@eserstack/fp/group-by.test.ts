@@ -1,9 +1,10 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as groupBy from "./group-by.ts";
 
-Deno.test("basic", () => {
+nodeTest.test("basic", () => {
   const arr = [
     { type: "a", value: 1 },
     { type: "b", value: 2 },
@@ -21,13 +22,13 @@ Deno.test("basic", () => {
   });
 });
 
-Deno.test("empty-array", () => {
+nodeTest.test("empty-array", () => {
   const result = groupBy.groupBy([], (x: number) => x);
 
   assert.assertEquals(result, {});
 });
 
-Deno.test("single-group", () => {
+nodeTest.test("single-group", () => {
   const arr = [1, 2, 3, 4, 5];
 
   const result = groupBy.groupBy(arr, () => "all");
@@ -35,7 +36,7 @@ Deno.test("single-group", () => {
   assert.assertEquals(result, { all: [1, 2, 3, 4, 5] });
 });
 
-Deno.test("with-math-floor", () => {
+nodeTest.test("with-math-floor", () => {
   const arr = [1.2, 2.1, 2.4, 3.5];
 
   const result = groupBy.groupBy(arr, Math.floor);
@@ -47,7 +48,7 @@ Deno.test("with-math-floor", () => {
   });
 });
 
-Deno.test("preserves-order", () => {
+nodeTest.test("preserves-order", () => {
   const arr = [
     { id: 1, group: "x" },
     { id: 2, group: "x" },

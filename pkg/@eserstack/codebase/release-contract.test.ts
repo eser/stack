@@ -22,6 +22,7 @@
  * @module
  */
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import { runtime } from "@eserstack/standards/cross-runtime";
 
@@ -93,20 +94,23 @@ const parseStagedPathspecs = (source: string): string[] => {
 // What the release commit stages
 // =============================================================================
 
-Deno.test("release stages exactly the four version-bearing pathspecs", async () => {
-  const source = stripComments(await read(releaseSourcePath));
+nodeTest.test(
+  "release stages exactly the four version-bearing pathspecs",
+  async () => {
+    const source = stripComments(await read(releaseSourcePath));
 
-  // Order is asserted too: this is the list handed to `git add` one entry at a
-  // time, so it is the list a reader has to reconcile against the working tree.
-  assert.assertEquals(parseStagedPathspecs(source), [
-    "VERSION",
-    "CHANGELOG.md",
-    "pkg/*/package.json",
-    "package.json",
-  ]);
-});
+    // Order is asserted too: this is the list handed to `git add` one entry at a
+    // time, so it is the list a reader has to reconcile against the working tree.
+    assert.assertEquals(parseStagedPathspecs(source), [
+      "VERSION",
+      "CHANGELOG.md",
+      "pkg/*/package.json",
+      "package.json",
+    ]);
+  },
+);
 
-Deno.test("release stages no generated JSR manifest", async () => {
+nodeTest.test("release stages no generated JSR manifest", async () => {
   const source = stripComments(await read(releaseSourcePath));
   const staged = parseStagedPathspecs(source);
 
@@ -128,56 +132,66 @@ Deno.test("release stages no generated JSR manifest", async () => {
 // The release commit message
 // =============================================================================
 
-Deno.test("the release commit message is 'chore(codebase): release v<version>'", async () => {
-  const body = functionBody(
-    stripComments(await read(releaseSourcePath)),
-    "release",
-  );
+nodeTest.test(
+  "the release commit message is 'chore(codebase): release v<version>'",
+  async () => {
+    const body = functionBody(
+      stripComments(await read(releaseSourcePath)),
+      "release",
+    );
 
-  // Resolved through the tag binding rather than matched whole: the message is
-  // built from `tag`, so the effective template is only pinned by expanding it.
-  const tagTemplate = body.match(/const tag = `([^`]+)`/)?.[1];
-  const messageTemplate = body.match(/const commitMessage = `([^`]+)`/)?.[1];
+    // Resolved through the tag binding rather than matched whole: the message is
+    // built from `tag`, so the effective template is only pinned by expanding it.
+    const tagTemplate = body.match(/const tag = `([^`]+)`/)?.[1];
+    const messageTemplate = body.match(/const commitMessage = `([^`]+)`/)?.[1];
 
-  assert.assertEquals(tagTemplate, "v${version}");
-  assert.assertEquals(
-    messageTemplate?.replace("${tag}", tagTemplate ?? ""),
-    "chore(codebase): release v${version}",
-  );
-});
+    assert.assertEquals(tagTemplate, "v${version}");
+    assert.assertEquals(
+      messageTemplate?.replace("${tag}", tagTemplate ?? ""),
+      "chore(codebase): release v${version}",
+    );
+  },
+);
 
 // =============================================================================
 // Push order
 // =============================================================================
 
-Deno.test("release pushes the commit before it pushes the tag", async () => {
-  const body = functionBody(
-    stripComments(await read(releaseSourcePath)),
-    "release",
-  );
+nodeTest.test(
+  "release pushes the commit before it pushes the tag",
+  async () => {
+    const body = functionBody(
+      stripComments(await read(releaseSourcePath)),
+      "release",
+    );
 
-  const commitPush = body.indexOf("gitPushHead()");
-  const tagPush = body.indexOf("pushReleaseTag(");
+    const commitPush = body.indexOf("gitPushHead()");
+    const tagPush = body.indexOf("pushReleaseTag(");
 
-  assert.assertEquals(
-    commitPush >= 0,
-    true,
-    "release() no longer pushes the commit",
-  );
-  assert.assertEquals(tagPush >= 0, true, "release() no longer pushes the tag");
-  assert.assertEquals(
-    commitPush < tagPush,
-    true,
-    "the tag push must come last: CI publishes from the tag, so a tag pushed " +
-      "over unpushed history builds a ref the remote cannot resolve",
-  );
-});
+    assert.assertEquals(
+      commitPush >= 0,
+      true,
+      "release() no longer pushes the commit",
+    );
+    assert.assertEquals(
+      tagPush >= 0,
+      true,
+      "release() no longer pushes the tag",
+    );
+    assert.assertEquals(
+      commitPush < tagPush,
+      true,
+      "the tag push must come last: CI publishes from the tag, so a tag pushed " +
+        "over unpushed history builds a ref the remote cannot resolve",
+    );
+  },
+);
 
 // =============================================================================
 // Commands release.ts must and must not run
 // =============================================================================
 
-Deno.test("release.ts never commits with --allow-empty", async () => {
+nodeTest.test("release.ts never commits with --allow-empty", async () => {
   // Deliberately searched over the raw file, comments included: this is an
   // absence check, so the widest search is the strictest one. rerelease used to
   // re-fire the pipeline with an empty commit; it re-pushes the tag now.
@@ -186,27 +200,30 @@ Deno.test("release.ts never commits with --allow-empty", async () => {
   assert.assertEquals(source.includes("--allow-empty"), false);
 });
 
-Deno.test("unrelease deletes the GitHub Release, and does it before the tag", async () => {
-  const source = stripComments(await read(releaseSourcePath));
+nodeTest.test(
+  "unrelease deletes the GitHub Release, and does it before the tag",
+  async () => {
+    const source = stripComments(await read(releaseSourcePath));
 
-  assert.assertStringIncludes(source, "exec`gh release delete ${tag} --yes`");
+    assert.assertStringIncludes(source, "exec`gh release delete ${tag} --yes`");
 
-  const body = functionBody(source, "unrelease");
-  const releaseDelete = body.indexOf("deleteGitHubRelease(tag)");
-  const tagDelete = body.indexOf("gitDeleteTag(tag)");
+    const body = functionBody(source, "unrelease");
+    const releaseDelete = body.indexOf("deleteGitHubRelease(tag)");
+    const tagDelete = body.indexOf("gitDeleteTag(tag)");
 
-  assert.assertEquals(
-    releaseDelete >= 0,
-    true,
-    "unrelease() no longer deletes the GitHub Release",
-  );
-  assert.assertEquals(
-    releaseDelete < tagDelete,
-    true,
-    "gh resolves a Release by its tag, so deleting the tag first strands the " +
-      "Release with no way to reach it",
-  );
-});
+    assert.assertEquals(
+      releaseDelete >= 0,
+      true,
+      "unrelease() no longer deletes the GitHub Release",
+    );
+    assert.assertEquals(
+      releaseDelete < tagDelete,
+      true,
+      "gh resolves a Release by its tag, so deleting the tag first strands the " +
+        "Release with no way to reach it",
+    );
+  },
+);
 
 /**
  * The version the caller asks for must survive the FFI hop.
@@ -218,31 +235,36 @@ Deno.test("unrelease deletes the GitHub Release, and does it before the tag", as
  * falls back to patch-bumping the latest tag, which is verbatim the bug that
  * stamped a "## [v4.1.61]" heading onto the v4.3.0 release.
  */
-Deno.test("the changelog version key matches the Go struct tag", async () => {
-  const ts = stripComments(
-    await read("pkg/@eserstack/codebase/changelog-gen.ts"),
-  );
-  const go = await read("pkg/@eserstack/ajan/bridge_codebase_git.go");
+nodeTest.test(
+  "the changelog version key matches the Go struct tag",
+  async () => {
+    const ts = stripComments(
+      await read("pkg/@eserstack/codebase/changelog-gen.ts"),
+    );
+    const go = await read("pkg/@eserstack/ajan/bridge_codebase_git.go");
 
-  // The key as it goes onto the wire, read out of the payload literal rather
-  // than from the file at large — "version" appears throughout both sources.
-  const payload = ts
-    .slice(ts.indexOf("EserAjanCodebaseGenerateChangelog("))
-    .slice(0, 400);
+    // The key as it goes onto the wire, read out of the payload literal rather
+    // than from the file at large — "version" appears throughout both sources.
+    const payload = ts
+      .slice(ts.indexOf("EserAjanCodebaseGenerateChangelog("))
+      .slice(0, 400);
 
-  assert.assertStringIncludes(
-    payload,
-    "version: options.version",
-    "changelog-gen.ts stopped sending the caller's version",
-  );
+    assert.assertStringIncludes(
+      payload,
+      "version: options.version",
+      "changelog-gen.ts stopped sending the caller's version",
+    );
 
-  // …and the key the Go side binds to that field.
-  const request = go.slice(go.indexOf("type codebaseChangelogRequest struct"));
-  const field = request.slice(0, request.indexOf("}"));
+    // …and the key the Go side binds to that field.
+    const request = go.slice(
+      go.indexOf("type codebaseChangelogRequest struct"),
+    );
+    const field = request.slice(0, request.indexOf("}"));
 
-  assert.assertStringIncludes(
-    field,
-    `json:"version,omitempty"`,
-    "bridge_codebase_git.go's codebaseChangelogRequest no longer decodes the `version` key",
-  );
-});
+    assert.assertStringIncludes(
+      field,
+      `json:"version,omitempty"`,
+      "bridge_codebase_git.go's codebaseChangelogRequest no longer decodes the `version` key",
+    );
+  },
+);

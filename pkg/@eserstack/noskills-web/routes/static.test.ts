@@ -1,10 +1,11 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import { runtime } from "@eserstack/standards/cross-runtime";
 import * as staticFiles from "./static.ts";
 
-Deno.test("serveStatic answers a binary file byte for byte", async () => {
+nodeTest.test("serveStatic answers a binary file byte for byte", async () => {
   const dir = await runtime.fs.makeTempDir();
   // A PNG signature, then bytes that are not valid UTF-8.
   const bytes = new Uint8Array([
@@ -19,26 +20,32 @@ Deno.test("serveStatic answers a binary file byte for byte", async () => {
   assert.assertEquals(new Uint8Array(await res.arrayBuffer()), bytes);
 });
 
-Deno.test("serveStatic answers 404 for a path outside its directory", async () => {
-  const base = await runtime.fs.makeTempDir();
-  const dir = runtime.path.join(base, "static");
-  await runtime.fs.mkdir(dir);
-  await runtime.fs.writeTextFile(runtime.path.join(base, "secret.txt"), "no");
+nodeTest.test(
+  "serveStatic answers 404 for a path outside its directory",
+  async () => {
+    const base = await runtime.fs.makeTempDir();
+    const dir = runtime.path.join(base, "static");
+    await runtime.fs.mkdir(dir);
+    await runtime.fs.writeTextFile(runtime.path.join(base, "secret.txt"), "no");
 
-  const res = await staticFiles.serveStatic(dir, "../secret.txt");
-  await res.body?.cancel();
+    const res = await staticFiles.serveStatic(dir, "../secret.txt");
+    await res.body?.cancel();
 
-  assert.assertEquals(res.status, 404);
-});
+    assert.assertEquals(res.status, 404);
+  },
+);
 
-Deno.test("serveStatic answers 404 without a directory or a file", async () => {
-  const dir = await runtime.fs.makeTempDir();
+nodeTest.test(
+  "serveStatic answers 404 without a directory or a file",
+  async () => {
+    const dir = await runtime.fs.makeTempDir();
 
-  const missing = await staticFiles.serveStatic(dir, "missing.js");
-  await missing.body?.cancel();
-  const noDir = await staticFiles.serveStatic(null, "client.js");
-  await noDir.body?.cancel();
+    const missing = await staticFiles.serveStatic(dir, "missing.js");
+    await missing.body?.cancel();
+    const noDir = await staticFiles.serveStatic(null, "client.js");
+    await noDir.body?.cancel();
 
-  assert.assertEquals(missing.status, 404);
-  assert.assertEquals(noDir.status, 404);
-});
+    assert.assertEquals(missing.status, 404);
+    assert.assertEquals(noDir.status, 404);
+  },
+);

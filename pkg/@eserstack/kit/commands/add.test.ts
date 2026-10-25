@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as path from "@std/path";
 import * as results from "@eserstack/primitives/results";
@@ -10,19 +11,19 @@ const REGISTRY_PATH = path.fromFileUrl(
   new URL("../../../../.eser/recipes.json", import.meta.url),
 );
 
-Deno.test("add — succeeds with no recipe (shows usage)", async () => {
+nodeTest.test("add — succeeds with no recipe (shows usage)", async () => {
   const result = await add.main(["--registry", REGISTRY_PATH]);
 
   assert.assertEquals(results.isOk(result), true);
 });
 
-Deno.test("add — fails for unknown recipe", async () => {
+nodeTest.test("add — fails for unknown recipe", async () => {
   const result = await add.main(["nonexistent", "--registry", REGISTRY_PATH]);
 
   assert.assertEquals(results.isOk(result), false);
 });
 
-Deno.test("add — dry-run succeeds without writing files", async () => {
+nodeTest.test("add — dry-run succeeds without writing files", async () => {
   const tmpDir = await runtime.fs.makeTempDir();
 
   try {

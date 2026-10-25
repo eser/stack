@@ -4,7 +4,7 @@ title: 'laroux-server: pass tests on Node'
 status: To Do
 assignee: []
 created_date: '2026-10-15 20:38'
-updated_date: '2026-10-24 19:38'
+updated_date: '2026-10-25 16:00'
 labels:
   - cutover
   - laroux-server
@@ -44,4 +44,9 @@ Hand-work list (TASK-175 spike, 2026-10-24, node 26.12.1):
 - Other: runtime/server.test.ts:537-565, the HMR WebSocket test, fails with "no open" (the undici handshake fails against the node-http upgrade); needs investigation. Open handle: after its 14 tests server.test.ts never exits ("Promise resolution is still pending"); skipping "two peers ... separate rate-limit buckets" makes it exit, so that test leaves a rate-limiter timer or server open.
 - Source: Deno. 0; jsr: 1 and npm: 1 (scripts/npm-build.ts:119 externals); import.meta.main 4 needs no change.
 - Docs: pkg/@eserstack/laroux-server/README.md (3), deno.extra.json (1).
+
+TASK-198 (2026-10-25): the test and bench codemods left no site for hand edits in this task's files (0 unhandled). After them, these test files still fail under `node --test --test-force-exit` on Node 26.12.1, each run alone:
+- pkg/@eserstack/laroux-server/domain/server-modules.test.ts: 2 failing, 3 passing; first error: SyntaxError".
+- pkg/@eserstack/laroux-server/runtime/path-containment.test.ts: 2 failing, 2 passing; first error: TypeError: bundler.getBundle is not a function
+- pkg/@eserstack/laroux-server/runtime/server.test.ts: 2 failing, 11 passing; first error: Error: no open
 <!-- SECTION:NOTES:END -->

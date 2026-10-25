@@ -1,9 +1,10 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as removeValueFromObject from "./remove-value-from-object.ts";
 
-Deno.test("basic", () => {
+nodeTest.test("basic", () => {
   const obj1 = { a: "Ia", b: "IIb", c: "IIIc", d: "IVd", e: "Ve" };
   const str1 = "IIb";
   const str2 = "IIIc";

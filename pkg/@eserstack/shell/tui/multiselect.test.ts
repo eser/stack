@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as types from "./types.ts";
 import * as multiselectMod from "./multiselect.ts";
@@ -33,28 +34,34 @@ const OPTIONS = [
   { value: "fmt", label: "Prettier" },
 ] as const;
 
-Deno.test("multiselect returns empty array when required=false and Enter", async () => {
-  const { ctx } = ctxWithKeys(ENTER);
-  const result = await multiselectMod.multiselect(ctx, {
-    message: "Features",
-    options: OPTIONS,
-    required: false,
-  });
-  assert.assertEquals(result, []);
-});
+nodeTest.test(
+  "multiselect returns empty array when required=false and Enter",
+  async () => {
+    const { ctx } = ctxWithKeys(ENTER);
+    const result = await multiselectMod.multiselect(ctx, {
+      message: "Features",
+      options: OPTIONS,
+      required: false,
+    });
+    assert.assertEquals(result, []);
+  },
+);
 
-Deno.test("multiselect returns selected values after Space + Enter", async () => {
-  // Space toggles first item, Enter confirms
-  const { ctx } = ctxWithKeys(SPACE, ENTER);
-  const result = await multiselectMod.multiselect(ctx, {
-    message: "Features",
-    options: OPTIONS,
-    required: false,
-  });
-  assert.assertEquals(result, ["ts"]);
-});
+nodeTest.test(
+  "multiselect returns selected values after Space + Enter",
+  async () => {
+    // Space toggles first item, Enter confirms
+    const { ctx } = ctxWithKeys(SPACE, ENTER);
+    const result = await multiselectMod.multiselect(ctx, {
+      message: "Features",
+      options: OPTIONS,
+      required: false,
+    });
+    assert.assertEquals(result, ["ts"]);
+  },
+);
 
-Deno.test("multiselect selects multiple items", async () => {
+nodeTest.test("multiselect selects multiple items", async () => {
   // Space (select first), Down, Space (select second), Enter
   const { ctx } = ctxWithKeys(SPACE, DOWN, SPACE, ENTER);
   const result = await multiselectMod.multiselect(ctx, {
@@ -65,7 +72,7 @@ Deno.test("multiselect selects multiple items", async () => {
   assert.assertEquals(result, ["ts", "lint"]);
 });
 
-Deno.test("multiselect toggle all with 'a'", async () => {
+nodeTest.test("multiselect toggle all with 'a'", async () => {
   const { ctx } = ctxWithKeys(KEY_A, ENTER);
   const result = await multiselectMod.multiselect(ctx, {
     message: "Features",
@@ -75,7 +82,7 @@ Deno.test("multiselect toggle all with 'a'", async () => {
   assert.assertEquals(result, ["ts", "lint", "fmt"]);
 });
 
-Deno.test("multiselect toggle all twice deselects all", async () => {
+nodeTest.test("multiselect toggle all twice deselects all", async () => {
   const { ctx } = ctxWithKeys(KEY_A, KEY_A, ENTER);
   const result = await multiselectMod.multiselect(ctx, {
     message: "Features",
@@ -85,7 +92,7 @@ Deno.test("multiselect toggle all twice deselects all", async () => {
   assert.assertEquals(result, []);
 });
 
-Deno.test("multiselect required prevents empty confirm", async () => {
+nodeTest.test("multiselect required prevents empty confirm", async () => {
   // First Enter should fail (required, nothing selected), then Space to select, Enter
   const { ctx } = ctxWithKeys(ENTER, SPACE, ENTER);
   const result = await multiselectMod.multiselect(ctx, {
@@ -96,7 +103,7 @@ Deno.test("multiselect required prevents empty confirm", async () => {
   assert.assertEquals(result, ["ts"]);
 });
 
-Deno.test("multiselect returns CANCEL on Escape", async () => {
+nodeTest.test("multiselect returns CANCEL on Escape", async () => {
   const { ctx } = ctxWithKeys(ESCAPE);
   const result = await multiselectMod.multiselect(ctx, {
     message: "Features",
@@ -105,7 +112,7 @@ Deno.test("multiselect returns CANCEL on Escape", async () => {
   assert.assertEquals(types.isCancel(result), true);
 });
 
-Deno.test("multiselect respects initialValues", async () => {
+nodeTest.test("multiselect respects initialValues", async () => {
   const { ctx } = ctxWithKeys(ENTER);
   const result = await multiselectMod.multiselect(ctx, {
     message: "Features",
@@ -116,7 +123,7 @@ Deno.test("multiselect respects initialValues", async () => {
   assert.assertEquals(result, ["lint", "fmt"]);
 });
 
-Deno.test("multiselect skips disabled options on toggle", async () => {
+nodeTest.test("multiselect skips disabled options on toggle", async () => {
   const { ctx } = ctxWithKeys(DOWN, SPACE, ENTER);
   const result = await multiselectMod.multiselect(ctx, {
     message: "Features",
@@ -131,7 +138,7 @@ Deno.test("multiselect skips disabled options on toggle", async () => {
   assert.assertEquals(result, ["c"]);
 });
 
-Deno.test("multiselect renders done state with labels", async () => {
+nodeTest.test("multiselect renders done state with labels", async () => {
   const { ctx, getOutput } = ctxWithKeys(SPACE, ENTER);
   await multiselectMod.multiselect(ctx, {
     message: "Pick features",

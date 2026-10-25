@@ -4,7 +4,7 @@
  * Tests for the human-readable `next` formats: the validator block.
  */
 
-import * as bdd from "@std/testing/bdd";
+import * as bdd from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as formatter from "./formatter.ts";
 import type * as transitionValidation from "../context/transition-validation.ts";

@@ -1,9 +1,10 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as pickFromArray from "./pick-from-array.ts";
 
-Deno.test("basic", () => {
+nodeTest.test("basic", () => {
   const arr1 = [1, 2, 3, 4, 5];
   const arr2 = [2, 3, 6];
 
@@ -20,7 +21,7 @@ Deno.test("basic", () => {
   assert.assertEquals(result.rest, [1, 4, 5]);
 });
 
-Deno.test("with-generator-1", () => {
+nodeTest.test("with-generator-1", () => {
   const gen1 = function* () {
     yield 1;
     yield 2;
@@ -47,7 +48,7 @@ Deno.test("with-generator-1", () => {
   assert.assertEquals(result.rest, [1, 4, 5]);
 });
 
-Deno.test("with-generator-2", () => {
+nodeTest.test("with-generator-2", () => {
   const arr1 = [1, 2, 3, 4, 5];
   const gen1 = function* () {
     yield 2;

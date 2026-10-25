@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as exec from "./mod.ts";
 
@@ -8,19 +9,22 @@ import * as exec from "./mod.ts";
 // re-parse round-trip internally, so it is the round-trip that is being pinned,
 // not the quoting or the parsing alone.
 
-Deno.test("exec passes a backslash-bearing argument through unchanged", async () => {
-  // This is the case that was broken: escapeArg wraps an argument containing a
-  // backslash in single quotes, and splitCommand then treated the backslash as
-  // an escape and ate it -- so `\d+` reached the process as `d+`. In POSIX a
-  // backslash inside single quotes is literal.
-  const arg = String.raw`regex \d+ path C:\tmp and a\\double`;
+nodeTest.test(
+  "exec passes a backslash-bearing argument through unchanged",
+  async () => {
+    // This is the case that was broken: escapeArg wraps an argument containing a
+    // backslash in single quotes, and splitCommand then treated the backslash as
+    // an escape and ate it -- so `\d+` reached the process as `d+`. In POSIX a
+    // backslash inside single quotes is literal.
+    const arg = String.raw`regex \d+ path C:\tmp and a\\double`;
 
-  const out = await exec.exec`printf %s ${arg}`.noThrow().text();
+    const out = await exec.exec`printf %s ${arg}`.noThrow().text();
 
-  assert.assertEquals(out, arg, "the argument was mutated in transit");
-});
+    assert.assertEquals(out, arg, "the argument was mutated in transit");
+  },
+);
 
-Deno.test("exec passes quotes and spaces through unchanged", async () => {
+nodeTest.test("exec passes quotes and spaces through unchanged", async () => {
   const arg = `it's a "quoted" phrase with  spaces`;
 
   const out = await exec.exec`printf %s ${arg}`.noThrow().text();
@@ -28,7 +32,7 @@ Deno.test("exec passes quotes and spaces through unchanged", async () => {
   assert.assertEquals(out, arg);
 });
 
-Deno.test("exec passes shell metacharacters through as data", async () => {
+nodeTest.test("exec passes shell metacharacters through as data", async () => {
   // If any of this were re-interpreted rather than passed as one argument, the
   // output would differ -- and a prompt containing `$(...)` would execute.
   const arg = `$(id) \`id\` ; rm -rf / | cat & $HOME`;
@@ -38,7 +42,7 @@ Deno.test("exec passes shell metacharacters through as data", async () => {
   assert.assertEquals(out, arg);
 });
 
-Deno.test("exec keeps a multi-line argument intact", async () => {
+nodeTest.test("exec keeps a multi-line argument intact", async () => {
   // Prompts are multi-line, and this is the shape the noskills bridge feeds in.
   //
   // No leading or trailing whitespace in the fixture: `.text()` trims its
@@ -54,7 +58,7 @@ Deno.test("exec keeps a multi-line argument intact", async () => {
 
 // ── stdinText ────────────────────────────────────────────────────────────────
 
-Deno.test("exec delivers a payload on stdin", async () => {
+nodeTest.test("exec delivers a payload on stdin", async () => {
   const payload = "line one\nline two";
 
   const out = await exec.exec`cat`.stdinText(payload).noThrow().text();
@@ -65,18 +69,21 @@ Deno.test("exec delivers a payload on stdin", async () => {
 // The point of stdinText. A 4 MiB argument is past ARG_MAX on macOS (~1 MiB)
 // and on typical Linux per-argument limits, so an implementation that routed
 // this through argv would fail to spawn at all rather than merely truncate.
-Deno.test("exec delivers a payload larger than argv could carry", async () => {
-  const payload = "x".repeat(4 * 1024 * 1024);
+nodeTest.test(
+  "exec delivers a payload larger than argv could carry",
+  async () => {
+    const payload = "x".repeat(4 * 1024 * 1024);
 
-  const out = await exec.exec`cat`.stdinText(payload).noThrow().text();
+    const out = await exec.exec`cat`.stdinText(payload).noThrow().text();
 
-  assert.assertEquals(out.length, payload.length);
-});
+    assert.assertEquals(out.length, payload.length);
+  },
+);
 
 // A process that exits without draining stdin closes the pipe under the
 // writer. That is the process's business; the call must still report its exit
 // rather than surfacing EPIPE as a spawn failure.
-Deno.test("exec survives a process that ignores its stdin", async () => {
+nodeTest.test("exec survives a process that ignores its stdin", async () => {
   const result = await exec.exec`true`
     .stdinText("y".repeat(1024 * 1024))
     .noThrow()
@@ -89,10 +96,15 @@ Deno.test("exec survives a process that ignores its stdin", async () => {
 // `cmd -p ${""} --flag` reached the process as `cmd -p --flag`, so `--flag`
 // was consumed as the value of `-p` and the command silently did the wrong
 // thing rather than failing.
-Deno.test("exec keeps an empty interpolation as its own argument", async () => {
-  const empty = "";
+nodeTest.test(
+  "exec keeps an empty interpolation as its own argument",
+  async () => {
+    const empty = "";
 
-  const out = await exec.exec`printf [%s][%s] ${empty} after`.noThrow().text();
+    const out = await exec.exec`printf [%s][%s] ${empty} after`
+      .noThrow()
+      .text();
 
-  assert.assertEquals(out, "[][after]");
-});
+    assert.assertEquals(out, "[][after]");
+  },
+);

@@ -1,10 +1,11 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as types from "./types.ts";
 import * as progressMod from "./progress.ts";
 
-Deno.test("createProgress returns handle with all methods", () => {
+nodeTest.test("createProgress returns handle with all methods", () => {
   const { ctx } = types.createTestContext();
   const p = progressMod.createProgress(ctx, { total: 100 });
   assert.assertEquals(typeof p.start, "function");
@@ -12,7 +13,7 @@ Deno.test("createProgress returns handle with all methods", () => {
   assert.assertEquals(typeof p.stop, "function");
 });
 
-Deno.test("progress.start renders initial label", async () => {
+nodeTest.test("progress.start renders initial label", async () => {
   const { ctx, getOutput } = types.createTestContext();
   const p = progressMod.createProgress(ctx, {
     total: 100,
@@ -24,7 +25,7 @@ Deno.test("progress.start renders initial label", async () => {
   assert.assertStringIncludes(out, "Downloading");
 });
 
-Deno.test("progress.start with override label", async () => {
+nodeTest.test("progress.start with override label", async () => {
   const { ctx, getOutput } = types.createTestContext();
   const p = progressMod.createProgress(ctx, { total: 100, label: "Original" });
   p.start("Override");
@@ -33,7 +34,7 @@ Deno.test("progress.start with override label", async () => {
   assert.assertStringIncludes(out, "Override");
 });
 
-Deno.test("progress.advance updates gauge percentage", async () => {
+nodeTest.test("progress.advance updates gauge percentage", async () => {
   const { ctx, getOutput } = types.createTestContext();
   const p = progressMod.createProgress(ctx, { total: 100 });
   p.start("Working");
@@ -43,7 +44,7 @@ Deno.test("progress.advance updates gauge percentage", async () => {
   assert.assertStringIncludes(out, "50%");
 });
 
-Deno.test("progress.advance with new label", async () => {
+nodeTest.test("progress.advance with new label", async () => {
   const { ctx, getOutput } = types.createTestContext();
   const p = progressMod.createProgress(ctx, { total: 10 });
   p.start("Step 1");
@@ -54,7 +55,7 @@ Deno.test("progress.advance with new label", async () => {
   assert.assertStringIncludes(out, "30%");
 });
 
-Deno.test("progress.stop renders 100%", async () => {
+nodeTest.test("progress.stop renders 100%", async () => {
   const { ctx, getOutput } = types.createTestContext();
   const p = progressMod.createProgress(ctx, { total: 50 });
   p.start("Loading");
@@ -66,7 +67,7 @@ Deno.test("progress.stop renders 100%", async () => {
   assert.assertStringIncludes(out, "Done!");
 });
 
-Deno.test("progress.advance does not exceed total", async () => {
+nodeTest.test("progress.advance does not exceed total", async () => {
   const { ctx, getOutput } = types.createTestContext();
   const p = progressMod.createProgress(ctx, { total: 10 });
   p.start("Working");
@@ -76,7 +77,7 @@ Deno.test("progress.advance does not exceed total", async () => {
   assert.assertStringIncludes(out, "100%");
 });
 
-Deno.test("progress with custom width", async () => {
+nodeTest.test("progress with custom width", async () => {
   const { ctx, getOutput } = types.createTestContext();
   const p = progressMod.createProgress(ctx, { total: 100, width: 10 });
   p.start("Small bar");
@@ -86,7 +87,7 @@ Deno.test("progress with custom width", async () => {
   assert.assertStringIncludes(out, "50%");
 });
 
-Deno.test("progress.advance before start is no-op", async () => {
+nodeTest.test("progress.advance before start is no-op", async () => {
   const { ctx, getOutput } = types.createTestContext();
   const p = progressMod.createProgress(ctx, { total: 100 });
   p.advance(50); // should not throw or render

@@ -10,6 +10,7 @@
  * @module
  */
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import { runtime } from "@eserstack/standards/cross-runtime";
 import * as versions from "./versions.ts";
@@ -64,80 +65,89 @@ const makeWorkspace = async (): Promise<Workspace> => {
   return { root, rootManifest, memberManifests };
 };
 
-Deno.test("versions: a patch bump writes every package file and VERSION", async () => {
-  const workspace = await makeWorkspace();
+nodeTest.test(
+  "versions: a patch bump writes every package file and VERSION",
+  async () => {
+    const workspace = await makeWorkspace();
 
-  try {
-    const result = await versions.versions("patch", { root: workspace.root });
+    try {
+      const result = await versions.versions("patch", { root: workspace.root });
 
-    assert.assertEquals(result.targetVersion, "1.0.1");
-    assert.assertEquals(result.changedCount, 3);
-    assert.assertEquals(await readVersion(workspace.rootManifest), "1.0.1");
-    assert.assertEquals(
-      await Promise.all(workspace.memberManifests.map(readVersion)),
-      ["1.0.1", "1.0.1"],
-    );
-    assert.assertEquals(
-      await runtime.fs.readTextFile(
-        runtime.path.join(workspace.root, "VERSION"),
-      ),
-      "1.0.1\n",
-    );
-  } finally {
-    await runtime.fs.remove(workspace.root, { recursive: true });
-  }
-});
+      assert.assertEquals(result.targetVersion, "1.0.1");
+      assert.assertEquals(result.changedCount, 3);
+      assert.assertEquals(await readVersion(workspace.rootManifest), "1.0.1");
+      assert.assertEquals(
+        await Promise.all(workspace.memberManifests.map(readVersion)),
+        ["1.0.1", "1.0.1"],
+      );
+      assert.assertEquals(
+        await runtime.fs.readTextFile(
+          runtime.path.join(workspace.root, "VERSION"),
+        ),
+        "1.0.1\n",
+      );
+    } finally {
+      await runtime.fs.remove(workspace.root, { recursive: true });
+    }
+  },
+);
 
-Deno.test("versions: an unwritable package file fails the bump with its path and reason", async () => {
-  const workspace = await makeWorkspace();
-  const lockedFiles = workspace.memberManifests;
+nodeTest.test(
+  "versions: an unwritable package file fails the bump with its path and reason",
+  async () => {
+    const workspace = await makeWorkspace();
+    const lockedFiles = workspace.memberManifests;
 
-  try {
-    await Promise.all(
-      lockedFiles.map((manifest) => runtime.fs.chmod(manifest, 0o444)),
-    );
+    try {
+      await Promise.all(
+        lockedFiles.map((manifest) => runtime.fs.chmod(manifest, 0o444)),
+      );
 
-    const error = await assert.assertRejects(
-      () => versions.versions("patch", { root: workspace.root }),
-      versions.VersionWriteError,
-    );
+      const error = await assert.assertRejects(
+        () => versions.versions("patch", { root: workspace.root }),
+        versions.VersionWriteError,
+      );
 
-    assert.assertEquals(error.targetVersion, "1.0.1");
-    assert.assertEquals(
-      error.failures.map((failure) => failure.filepath).toSorted(),
-      [...lockedFiles].toSorted(),
-    );
-    for (const failure of error.failures) {
-      assert.assertNotEquals(failure.reason, "");
+      assert.assertEquals(error.targetVersion, "1.0.1");
+      assert.assertEquals(
+        error.failures.map((failure) => failure.filepath).toSorted(),
+        [...lockedFiles].toSorted(),
+      );
+      for (const failure of error.failures) {
+        assert.assertNotEquals(failure.reason, "");
+        assert.assertStringIncludes(
+          error.message,
+          `${failure.filepath}: ${failure.reason}`,
+        );
+      }
       assert.assertStringIncludes(
         error.message,
-        `${failure.filepath}: ${failure.reason}`,
+        "eser codebase versions 1.0.1",
       );
+
+      // The writable root manifest was bumped, but VERSION still names the old
+      // version so the bump does not look complete.
+      assert.assertEquals(await readVersion(workspace.rootManifest), "1.0.1");
+      assert.assertEquals(await Promise.all(lockedFiles.map(readVersion)), [
+        "1.0.0",
+        "1.0.0",
+      ]);
+      assert.assertEquals(
+        await runtime.fs.readTextFile(
+          runtime.path.join(workspace.root, "VERSION"),
+        ),
+        "1.0.0\n",
+      );
+    } finally {
+      await Promise.all(
+        lockedFiles.map((manifest) => runtime.fs.chmod(manifest, 0o644)),
+      );
+      await runtime.fs.remove(workspace.root, { recursive: true });
     }
-    assert.assertStringIncludes(error.message, "eser codebase versions 1.0.1");
+  },
+);
 
-    // The writable root manifest was bumped, but VERSION still names the old
-    // version so the bump does not look complete.
-    assert.assertEquals(await readVersion(workspace.rootManifest), "1.0.1");
-    assert.assertEquals(await Promise.all(lockedFiles.map(readVersion)), [
-      "1.0.0",
-      "1.0.0",
-    ]);
-    assert.assertEquals(
-      await runtime.fs.readTextFile(
-        runtime.path.join(workspace.root, "VERSION"),
-      ),
-      "1.0.0\n",
-    );
-  } finally {
-    await Promise.all(
-      lockedFiles.map((manifest) => runtime.fs.chmod(manifest, 0o644)),
-    );
-    await runtime.fs.remove(workspace.root, { recursive: true });
-  }
-});
-
-Deno.test("versions: a dry run writes nothing", async () => {
+nodeTest.test("versions: a dry run writes nothing", async () => {
   const workspace = await makeWorkspace();
 
   try {

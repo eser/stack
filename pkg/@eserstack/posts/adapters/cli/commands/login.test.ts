@@ -1,6 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import * as bdd from "@std/testing/bdd";
+import * as bdd from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as results from "@eserstack/primitives/results";
 import type { OAuthTokens } from "../../../domain/entities/user.ts";

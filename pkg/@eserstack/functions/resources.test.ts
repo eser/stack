@@ -1,36 +1,40 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as resources from "./resources.ts";
 import * as results from "@eserstack/primitives/results";
 
 // === bracket() Tests ===
 
-Deno.test("bracket() acquires, uses, and releases resource successfully", async () => {
-  const log: string[] = [];
+nodeTest.test(
+  "bracket() acquires, uses, and releases resource successfully",
+  async () => {
+    const log: string[] = [];
 
-  const result = await resources.bracket(
-    () => {
-      log.push("acquire");
-      return results.ok("resource");
-    },
-    (resource) => {
-      log.push(`use:${resource}`);
-      return results.ok("result");
-    },
-    (resource) => {
-      log.push(`release:${resource}`);
-    },
-  );
+    const result = await resources.bracket(
+      () => {
+        log.push("acquire");
+        return results.ok("resource");
+      },
+      (resource) => {
+        log.push(`use:${resource}`);
+        return results.ok("result");
+      },
+      (resource) => {
+        log.push(`release:${resource}`);
+      },
+    );
 
-  assert.assertEquals(results.isOk(result), true);
-  if (results.isOk(result)) {
-    assert.assertEquals(result.value, "result");
-  }
-  assert.assertEquals(log, ["acquire", "use:resource", "release:resource"]);
-});
+    assert.assertEquals(results.isOk(result), true);
+    if (results.isOk(result)) {
+      assert.assertEquals(result.value, "result");
+    }
+    assert.assertEquals(log, ["acquire", "use:resource", "release:resource"]);
+  },
+);
 
-Deno.test("bracket() releases resource even when use fails", async () => {
+nodeTest.test("bracket() releases resource even when use fails", async () => {
   const log: string[] = [];
 
   const result = await resources.bracket(
@@ -51,31 +55,34 @@ Deno.test("bracket() releases resource even when use fails", async () => {
   assert.assertEquals(log, ["acquire", "use", "release:resource"]);
 });
 
-Deno.test("bracket() returns acquire failure without calling use or release", async () => {
-  const log: string[] = [];
+nodeTest.test(
+  "bracket() returns acquire failure without calling use or release",
+  async () => {
+    const log: string[] = [];
 
-  const result = await resources.bracket(
-    () => {
-      log.push("acquire");
-      return results.fail<string>("acquire-error");
-    },
-    (_resource: string) => {
-      log.push("use");
-      return results.ok("result");
-    },
-    (_resource: string) => {
-      log.push("release");
-    },
-  );
+    const result = await resources.bracket(
+      () => {
+        log.push("acquire");
+        return results.fail<string>("acquire-error");
+      },
+      (_resource: string) => {
+        log.push("use");
+        return results.ok("result");
+      },
+      (_resource: string) => {
+        log.push("release");
+      },
+    );
 
-  assert.assertEquals(results.isFail(result), true);
-  if (results.isFail(result)) {
-    assert.assertEquals(result.error, "acquire-error");
-  }
-  assert.assertEquals(log, ["acquire"]);
-});
+    assert.assertEquals(results.isFail(result), true);
+    if (results.isFail(result)) {
+      assert.assertEquals(result.error, "acquire-error");
+    }
+    assert.assertEquals(log, ["acquire"]);
+  },
+);
 
-Deno.test("bracket() works with async acquire", async () => {
+nodeTest.test("bracket() works with async acquire", async () => {
   const result = await resources.bracket(
     async () => {
       await Promise.resolve();
@@ -91,7 +98,7 @@ Deno.test("bracket() works with async acquire", async () => {
   }
 });
 
-Deno.test("bracket() works with async release", async () => {
+nodeTest.test("bracket() works with async release", async () => {
   let released = false;
 
   await resources.bracket(
@@ -108,7 +115,7 @@ Deno.test("bracket() works with async release", async () => {
 
 // === using() Tests ===
 
-Deno.test("using() works like bracket with sync release", async () => {
+nodeTest.test("using() works like bracket with sync release", async () => {
   const log: string[] = [];
 
   const result = await resources.using(
@@ -128,71 +135,83 @@ Deno.test("using() works like bracket with sync release", async () => {
 
 // === bracketWithReleaseError() Tests ===
 
-Deno.test("bracketWithReleaseError() propagates release error", async () => {
-  const result = await resources.bracketWithReleaseError(
-    () => results.ok("resource"),
-    () => results.ok("result"),
-    () => results.fail<string>("release-error"),
-  );
+nodeTest.test(
+  "bracketWithReleaseError() propagates release error",
+  async () => {
+    const result = await resources.bracketWithReleaseError(
+      () => results.ok("resource"),
+      () => results.ok("result"),
+      () => results.fail<string>("release-error"),
+    );
 
-  assert.assertEquals(results.isFail(result), true);
-  if (results.isFail(result)) {
-    assert.assertEquals(result.error, "release-error");
-  }
-});
+    assert.assertEquals(results.isFail(result), true);
+    if (results.isFail(result)) {
+      assert.assertEquals(result.error, "release-error");
+    }
+  },
+);
 
-Deno.test("bracketWithReleaseError() returns use result on successful release", async () => {
-  const result = await resources.bracketWithReleaseError(
-    () => results.ok("resource"),
-    () => results.ok("result"),
-    () => results.ok(undefined),
-  );
+nodeTest.test(
+  "bracketWithReleaseError() returns use result on successful release",
+  async () => {
+    const result = await resources.bracketWithReleaseError(
+      () => results.ok("resource"),
+      () => results.ok("result"),
+      () => results.ok(undefined),
+    );
 
-  assert.assertEquals(results.isOk(result), true);
-  if (results.isOk(result)) {
-    assert.assertEquals(result.value, "result");
-  }
-});
+    assert.assertEquals(results.isOk(result), true);
+    if (results.isOk(result)) {
+      assert.assertEquals(result.value, "result");
+    }
+  },
+);
 
 // === createScope() Tests ===
 
-Deno.test("createScope() executes finalizers in reverse order", async () => {
-  const log: string[] = [];
-  const scope = resources.createScope();
+nodeTest.test(
+  "createScope() executes finalizers in reverse order",
+  async () => {
+    const log: string[] = [];
+    const scope = resources.createScope();
 
-  scope.addFinalizer(() => {
-    log.push("first");
-  });
-  scope.addFinalizer(() => {
-    log.push("second");
-  });
-  scope.addFinalizer(() => {
-    log.push("third");
-  });
+    scope.addFinalizer(() => {
+      log.push("first");
+    });
+    scope.addFinalizer(() => {
+      log.push("second");
+    });
+    scope.addFinalizer(() => {
+      log.push("third");
+    });
 
-  await scope.close();
+    await scope.close();
 
-  assert.assertEquals(log, ["third", "second", "first"]);
-});
+    assert.assertEquals(log, ["third", "second", "first"]);
+  },
+);
 
-Deno.test("createScope() use() closes scope after function completes", async () => {
-  const log: string[] = [];
-  const scope = resources.createScope();
+nodeTest.test(
+  "createScope() use() closes scope after function completes",
+  async () => {
+    const log: string[] = [];
+    const scope = resources.createScope();
 
-  scope.addFinalizer(() => {
-    log.push("finalized");
-  });
+    scope.addFinalizer(() => {
+      log.push("finalized");
+    });
 
-  const result = await scope.use(() => {
-    log.push("executed");
-    return Promise.resolve(results.ok("result"));
-  });
+    const result = await scope.use(() => {
+      log.push("executed");
+      return Promise.resolve(results.ok("result"));
+    });
 
-  assert.assertEquals(results.isOk(result), true);
-  assert.assertEquals(log, ["executed", "finalized"]);
-});
+    assert.assertEquals(results.isOk(result), true);
+    assert.assertEquals(log, ["executed", "finalized"]);
+  },
+);
 
-Deno.test("createScope() close() is idempotent", async () => {
+nodeTest.test("createScope() close() is idempotent", async () => {
   const log: string[] = [];
   const scope = resources.createScope();
 
@@ -207,18 +226,21 @@ Deno.test("createScope() close() is idempotent", async () => {
   assert.assertEquals(log, ["finalized"]);
 });
 
-Deno.test("createScope() throws when adding finalizer to closed scope", async () => {
-  const scope = resources.createScope();
-  await scope.close();
+nodeTest.test(
+  "createScope() throws when adding finalizer to closed scope",
+  async () => {
+    const scope = resources.createScope();
+    await scope.close();
 
-  assert.assertThrows(
-    () => scope.addFinalizer(() => {}),
-    Error,
-    "Cannot add finalizer to closed scope",
-  );
-});
+    assert.assertThrows(
+      () => scope.addFinalizer(() => {}),
+      Error,
+      "Cannot add finalizer to closed scope",
+    );
+  },
+);
 
-Deno.test("createScope() collects errors from finalizers", async () => {
+nodeTest.test("createScope() collects errors from finalizers", async () => {
   const scope = resources.createScope();
 
   scope.addFinalizer(() => {
@@ -231,7 +253,7 @@ Deno.test("createScope() collects errors from finalizers", async () => {
   await assert.assertRejects(() => scope.close(), AggregateError);
 });
 
-Deno.test("createScope() works with async finalizers", async () => {
+nodeTest.test("createScope() works with async finalizers", async () => {
   const log: string[] = [];
   const scope = resources.createScope();
 
@@ -247,7 +269,7 @@ Deno.test("createScope() works with async finalizers", async () => {
 
 // === scoped() Tests ===
 
-Deno.test("scoped() provides scope and closes it after", async () => {
+nodeTest.test("scoped() provides scope and closes it after", async () => {
   const log: string[] = [];
 
   const result = await resources.scoped((scope) => {
@@ -264,7 +286,7 @@ Deno.test("scoped() provides scope and closes it after", async () => {
 
 // === acquireRelease() Tests ===
 
-Deno.test("acquireRelease() registers release with scope", async () => {
+nodeTest.test("acquireRelease() registers release with scope", async () => {
   const log: string[] = [];
 
   await resources.scoped(async (scope) => {
@@ -286,31 +308,34 @@ Deno.test("acquireRelease() registers release with scope", async () => {
   assert.assertEquals(log, ["acquire", "use:resource", "release:resource"]);
 });
 
-Deno.test("acquireRelease() does not register release on acquire failure", async () => {
-  const log: string[] = [];
+nodeTest.test(
+  "acquireRelease() does not register release on acquire failure",
+  async () => {
+    const log: string[] = [];
 
-  await resources.scoped(async (scope) => {
-    const result = await resources.acquireRelease(
-      scope,
-      () => {
-        log.push("acquire");
-        return results.fail<string>("acquire-error");
-      },
-      (_resource: string) => {
-        log.push("release");
-      },
-    );
+    await resources.scoped(async (scope) => {
+      const result = await resources.acquireRelease(
+        scope,
+        () => {
+          log.push("acquire");
+          return results.fail<string>("acquire-error");
+        },
+        (_resource: string) => {
+          log.push("release");
+        },
+      );
 
-    log.push(`result:${results.isFail(result) ? result.error : "ok"}`);
-    return results.ok(undefined);
-  });
+      log.push(`result:${results.isFail(result) ? result.error : "ok"}`);
+      return results.ok(undefined);
+    });
 
-  assert.assertEquals(log, ["acquire", "result:acquire-error"]);
-});
+    assert.assertEquals(log, ["acquire", "result:acquire-error"]);
+  },
+);
 
 // === ensure() Tests ===
 
-Deno.test("ensure() runs finalizer on success", async () => {
+nodeTest.test("ensure() runs finalizer on success", async () => {
   const log: string[] = [];
 
   const result = await resources.ensure(
@@ -327,7 +352,7 @@ Deno.test("ensure() runs finalizer on success", async () => {
   assert.assertEquals(log, ["execute", "finalize"]);
 });
 
-Deno.test("ensure() runs finalizer on failure", async () => {
+nodeTest.test("ensure() runs finalizer on failure", async () => {
   const log: string[] = [];
 
   const result = await resources.ensure(
@@ -346,7 +371,7 @@ Deno.test("ensure() runs finalizer on failure", async () => {
 
 // === retry() Tests ===
 
-Deno.test("retry() succeeds on first attempt", async () => {
+nodeTest.test("retry() succeeds on first attempt", async () => {
   let attempts = 0;
 
   const result = await resources.retry(() => {
@@ -358,7 +383,7 @@ Deno.test("retry() succeeds on first attempt", async () => {
   assert.assertEquals(attempts, 1);
 });
 
-Deno.test("retry() retries until success", async () => {
+nodeTest.test("retry() retries until success", async () => {
   let attempts = 0;
 
   const result = await resources.retry(() => {
@@ -373,7 +398,7 @@ Deno.test("retry() retries until success", async () => {
   assert.assertEquals(attempts, 3);
 });
 
-Deno.test("retry() returns last failure after all attempts", async () => {
+nodeTest.test("retry() returns last failure after all attempts", async () => {
   let attempts = 0;
 
   const result = await resources.retry(() => {
@@ -388,7 +413,7 @@ Deno.test("retry() returns last failure after all attempts", async () => {
   assert.assertEquals(attempts, 3);
 });
 
-Deno.test("retry() respects delay between attempts", async () => {
+nodeTest.test("retry() respects delay between attempts", async () => {
   const start = Date.now();
   let attempts = 0;
 
@@ -411,7 +436,7 @@ Deno.test("retry() respects delay between attempts", async () => {
 
 // === retryWithBackoff() Tests ===
 
-Deno.test("retryWithBackoff() uses exponential delay", async () => {
+nodeTest.test("retryWithBackoff() uses exponential delay", async () => {
   const delays: number[] = [];
   let lastTime = Date.now();
   let attempts = 0;
@@ -444,7 +469,7 @@ Deno.test("retryWithBackoff() uses exponential delay", async () => {
   assert.assertEquals(delays[2]! >= 60, true);
 });
 
-Deno.test("retryWithBackoff() respects maxDelay", async () => {
+nodeTest.test("retryWithBackoff() respects maxDelay", async () => {
   const delays: number[] = [];
   let lastTime = Date.now();
   let attempts = 0;
@@ -479,7 +504,7 @@ Deno.test("retryWithBackoff() respects maxDelay", async () => {
 
 // === withTimeout() Tests ===
 
-Deno.test("withTimeout() returns result for fast operation", async () => {
+nodeTest.test("withTimeout() returns result for fast operation", async () => {
   const result = await resources.withTimeout(
     async () => {
       await new Promise((resolve) => setTimeout(resolve, 10));
@@ -495,9 +520,9 @@ Deno.test("withTimeout() returns result for fast operation", async () => {
   }
 });
 
-Deno.test({
-  name: "withTimeout() returns timeout error for slow operation",
-  fn: async () => {
+nodeTest.test(
+  "withTimeout() returns timeout error for slow operation",
+  async () => {
     const controller = new AbortController();
     const { signal } = controller;
 
@@ -528,6 +553,4 @@ Deno.test({
       assert.assertEquals(result.error, "operation timed out");
     }
   },
-  sanitizeResources: false,
-  sanitizeOps: false,
-});
+);

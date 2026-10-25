@@ -3,6 +3,7 @@
  * Tests for Renderer port interface
  */
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as renderer from "./renderer.ts";
 import type { RenderContext, Renderer } from "./renderer.ts";
@@ -34,12 +35,12 @@ function createMockRenderContext(): RenderContext {
   };
 }
 
-Deno.test("Renderer - noopRenderer", async (t) => {
-  await t.step("has correct name", () => {
+nodeTest.test("Renderer - noopRenderer", async (t) => {
+  await t.test("has correct name", () => {
     assert.assertEquals(renderer.noopRenderer.name, "noop");
   });
 
-  await t.step("renderPage returns empty html", async () => {
+  await t.test("renderPage returns empty html", async () => {
     const context = createMockRenderContext();
     const Layout = () => null;
     const Page = () => null;
@@ -54,7 +55,7 @@ Deno.test("Renderer - noopRenderer", async (t) => {
     assert.assertEquals(result.rscPayload, undefined);
   });
 
-  await t.step("renderRSC returns empty response", async () => {
+  await t.test("renderRSC returns empty response", async () => {
     const context = createMockRenderContext();
     const Layout = () => null;
     const Page = () => null;
@@ -70,7 +71,7 @@ Deno.test("Renderer - noopRenderer", async (t) => {
     assert.assertEquals(text, "");
   });
 
-  await t.step("generateBootstrapScript returns empty string", () => {
+  await t.test("generateBootstrapScript returns empty string", () => {
     const context = createMockRenderContext();
     const script = renderer.noopRenderer.generateBootstrapScript(context);
 
@@ -78,8 +79,8 @@ Deno.test("Renderer - noopRenderer", async (t) => {
   });
 });
 
-Deno.test("Renderer interface compliance", async (t) => {
-  await t.step("noopRenderer implements Renderer interface", () => {
+nodeTest.test("Renderer interface compliance", async (t) => {
+  await t.test("noopRenderer implements Renderer interface", () => {
     const port: Renderer = renderer.noopRenderer;
 
     // Verify all required properties exist
@@ -89,7 +90,7 @@ Deno.test("Renderer interface compliance", async (t) => {
     assert.assertEquals(typeof port.generateBootstrapScript, "function");
   });
 
-  await t.step("renderPage is async function", () => {
+  await t.test("renderPage is async function", () => {
     const result = renderer.noopRenderer.renderPage(
       null,
       null,
@@ -101,7 +102,7 @@ Deno.test("Renderer interface compliance", async (t) => {
     assert.assertEquals(typeof result.then, "function");
   });
 
-  await t.step("renderRSC is async function", () => {
+  await t.test("renderRSC is async function", () => {
     const result = renderer.noopRenderer.renderRSC(
       null,
       null,
@@ -114,8 +115,8 @@ Deno.test("Renderer interface compliance", async (t) => {
   });
 });
 
-Deno.test("RenderContext", async (t) => {
-  await t.step("accepts all required properties", () => {
+nodeTest.test("RenderContext", async (t) => {
+  await t.test("accepts all required properties", () => {
     const context: RenderContext = {
       pathname: "/page",
       config: {} as RenderContext["config"],
@@ -133,7 +134,7 @@ Deno.test("RenderContext", async (t) => {
     assert.assertEquals(context.params["id"], "123");
   });
 
-  await t.step("params can have array values", () => {
+  await t.test("params can have array values", () => {
     const context: RenderContext = {
       pathname: "/tags",
       config: {} as RenderContext["config"],
@@ -151,7 +152,7 @@ Deno.test("RenderContext", async (t) => {
   });
 });
 
-Deno.test("Custom Renderer implementation", async (t) => {
+nodeTest.test("Custom Renderer implementation", async (t) => {
   // Example of how a framework adapter would implement the Renderer interface
   const customRenderer: Renderer = {
     name: "custom",
@@ -174,11 +175,11 @@ Deno.test("Custom Renderer implementation", async (t) => {
     },
   };
 
-  await t.step("custom renderer has correct name", () => {
+  await t.test("custom renderer has correct name", () => {
     assert.assertEquals(customRenderer.name, "custom");
   });
 
-  await t.step(
+  await t.test(
     "custom renderer renderPage returns html and payload",
     async () => {
       const context = createMockRenderContext();
@@ -190,7 +191,7 @@ Deno.test("Custom Renderer implementation", async (t) => {
     },
   );
 
-  await t.step("custom renderer renderRSC returns Response", async () => {
+  await t.test("custom renderer renderRSC returns Response", async () => {
     const context = createMockRenderContext();
     const response = await customRenderer.renderRSC(null, null, context);
 
@@ -202,7 +203,7 @@ Deno.test("Custom Renderer implementation", async (t) => {
     assert.assertEquals(data.pathname, "/test");
   });
 
-  await t.step("custom renderer generateBootstrapScript returns script", () => {
+  await t.test("custom renderer generateBootstrapScript returns script", () => {
     const context = createMockRenderContext();
     const script = customRenderer.generateBootstrapScript(context);
 

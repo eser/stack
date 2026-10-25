@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as layout from "./layout.ts";
 
@@ -8,7 +9,7 @@ const page = layout.layout("t", "<p>body</p>", {
   token: "x",
 });
 
-Deno.test("every external script and stylesheet is pinned with SRI", () => {
+nodeTest.test("every external script and stylesheet is pinned with SRI", () => {
   const external = [
     ...page.matchAll(
       /<(script|link)\b[^>]*(?:src|href)="(https?:[^"]+)"[^>]*>/g,
@@ -23,18 +24,21 @@ Deno.test("every external script and stylesheet is pinned with SRI", () => {
   assert.assertEquals(page.includes("xterm-addon-fit"), false);
 });
 
-Deno.test("the page has no inline script, so the CSP needs no unsafe-inline for scripts", () => {
-  const inline = [...page.matchAll(/<script\b(?![^>]*\bsrc=)[^>]*>/g)];
-  assert.assertEquals(inline.length, 0);
-  const scriptSrc = layout.PAGE_CSP.split("; ").find((d) =>
-    d.startsWith("script-src"),
-  );
-  assert.assert(scriptSrc !== undefined);
-  assert.assertEquals(scriptSrc.includes("unsafe-inline"), false);
-  assert.assertEquals(scriptSrc.includes("unsafe-eval"), false);
-});
+nodeTest.test(
+  "the page has no inline script, so the CSP needs no unsafe-inline for scripts",
+  () => {
+    const inline = [...page.matchAll(/<script\b(?![^>]*\bsrc=)[^>]*>/g)];
+    assert.assertEquals(inline.length, 0);
+    const scriptSrc = layout.PAGE_CSP.split("; ").find((d) =>
+      d.startsWith("script-src"),
+    );
+    assert.assert(scriptSrc !== undefined);
+    assert.assertEquals(scriptSrc.includes("unsafe-inline"), false);
+    assert.assertEquals(scriptSrc.includes("unsafe-eval"), false);
+  },
+);
 
-Deno.test("HTML responses carry the CSP", () => {
+nodeTest.test("HTML responses carry the CSP", () => {
   const headers = layout.htmlHeaders();
   assert.assertEquals(headers["content-security-policy"], layout.PAGE_CSP);
   assert.assert(layout.PAGE_CSP.includes("object-src 'none'"));

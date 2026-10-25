@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as types from "./types.ts";
 import * as confirmMod from "./confirm.ts";
@@ -30,57 +31,66 @@ const RIGHT = new Uint8Array([0x1b, 0x5b, 0x43]);
 const KEY_Y = new Uint8Array([0x79]);
 const KEY_N = new Uint8Array([0x6e]);
 
-Deno.test("confirm returns true by default on Enter", async () => {
+nodeTest.test("confirm returns true by default on Enter", async () => {
   const { ctx } = ctxWithKeys(ENTER);
   const result = await confirmMod.confirm(ctx, { message: "Continue?" });
   assert.assertEquals(result, true);
 });
 
-Deno.test("confirm returns false when initialValue is false and Enter", async () => {
-  const { ctx } = ctxWithKeys(ENTER);
-  const result = await confirmMod.confirm(ctx, {
-    message: "Continue?",
-    initialValue: false,
-  });
-  assert.assertEquals(result, false);
-});
+nodeTest.test(
+  "confirm returns false when initialValue is false and Enter",
+  async () => {
+    const { ctx } = ctxWithKeys(ENTER);
+    const result = await confirmMod.confirm(ctx, {
+      message: "Continue?",
+      initialValue: false,
+    });
+    assert.assertEquals(result, false);
+  },
+);
 
-Deno.test("confirm returns false after pressing 'n' then Enter", async () => {
-  const { ctx } = ctxWithKeys(KEY_N, ENTER);
-  const result = await confirmMod.confirm(ctx, { message: "Delete?" });
-  assert.assertEquals(result, false);
-});
+nodeTest.test(
+  "confirm returns false after pressing 'n' then Enter",
+  async () => {
+    const { ctx } = ctxWithKeys(KEY_N, ENTER);
+    const result = await confirmMod.confirm(ctx, { message: "Delete?" });
+    assert.assertEquals(result, false);
+  },
+);
 
-Deno.test("confirm returns true after pressing 'y' then Enter", async () => {
-  const { ctx } = ctxWithKeys(KEY_Y, ENTER);
-  const result = await confirmMod.confirm(ctx, {
-    message: "Deploy?",
-    initialValue: false,
-  });
-  assert.assertEquals(result, true);
-});
+nodeTest.test(
+  "confirm returns true after pressing 'y' then Enter",
+  async () => {
+    const { ctx } = ctxWithKeys(KEY_Y, ENTER);
+    const result = await confirmMod.confirm(ctx, {
+      message: "Deploy?",
+      initialValue: false,
+    });
+    assert.assertEquals(result, true);
+  },
+);
 
-Deno.test("confirm toggles to false with right arrow", async () => {
+nodeTest.test("confirm toggles to false with right arrow", async () => {
   // Start true, press right (toggles to false), enter
   const { ctx } = ctxWithKeys(RIGHT, ENTER);
   const result = await confirmMod.confirm(ctx, { message: "Toggle?" });
   assert.assertEquals(result, false);
 });
 
-Deno.test("confirm toggles back with left arrow", async () => {
+nodeTest.test("confirm toggles back with left arrow", async () => {
   // Start true, right (false), left (true), enter
   const { ctx } = ctxWithKeys(RIGHT, LEFT, ENTER);
   const result = await confirmMod.confirm(ctx, { message: "Toggle?" });
   assert.assertEquals(result, true);
 });
 
-Deno.test("confirm returns CANCEL on Escape", async () => {
+nodeTest.test("confirm returns CANCEL on Escape", async () => {
   const { ctx } = ctxWithKeys(ESCAPE);
   const result = await confirmMod.confirm(ctx, { message: "Cancel?" });
   assert.assertEquals(types.isCancel(result), true);
 });
 
-Deno.test("confirm renders done state with answer", async () => {
+nodeTest.test("confirm renders done state with answer", async () => {
   const { ctx, getOutput } = ctxWithKeys(ENTER);
   await confirmMod.confirm(ctx, { message: "Proceed?" });
   await ctx.output.flush();
@@ -89,7 +99,7 @@ Deno.test("confirm renders done state with answer", async () => {
   assert.assertStringIncludes(out, "◇"); // done symbol
 });
 
-Deno.test("confirm renders cancel state on escape", async () => {
+nodeTest.test("confirm renders cancel state on escape", async () => {
   const { ctx, getOutput } = ctxWithKeys(ESCAPE);
   await confirmMod.confirm(ctx, { message: "Cancel test" });
   await ctx.output.flush();

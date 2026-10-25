@@ -1,9 +1,10 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as appendToObject from "./append-to-object.ts";
 
-Deno.test("basic", () => {
+nodeTest.test("basic", () => {
   const obj1 = { a: 1, b: 2 };
   const obj2 = { c: 3 };
 

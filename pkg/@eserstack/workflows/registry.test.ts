@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import type { WorkflowTool } from "./types.ts";
 import * as registry from "./registry.ts";
@@ -17,7 +18,7 @@ const dummyTool = (name: string): WorkflowTool => ({
     }),
 });
 
-Deno.test("createRegistry — register, get, has, names", () => {
+nodeTest.test("createRegistry — register, get, has, names", () => {
   const reg = registry.createRegistry();
 
   assert.assertEquals(reg.has("foo"), false);
@@ -32,7 +33,7 @@ Deno.test("createRegistry — register, get, has, names", () => {
   assert.assertEquals(reg.names(), ["foo"]);
 });
 
-Deno.test("createRegistry — registerAll + getAll", () => {
+nodeTest.test("createRegistry — registerAll + getAll", () => {
   const reg = registry.createRegistry();
   const tools = [dummyTool("a"), dummyTool("b"), dummyTool("c")];
 

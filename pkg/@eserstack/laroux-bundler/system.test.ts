@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as fs from "@std/fs"; // symlinks are not available in runtime
 import { runtime } from "@eserstack/standards/cross-runtime";
@@ -56,25 +57,28 @@ async function withApp(fn: (projectRoot: string) => Promise<void>) {
   }
 }
 
-Deno.test("build reports a failed client bundle and removes the virtual source", async () => {
-  await withApp(async (projectRoot) => {
-    const config = createBuildConfig(projectRoot);
-    const context = system.createBuildContext(config, {
-      framework: failingClientEntryPlugin,
-      bundlerBackend: "rolldown",
+nodeTest.test(
+  "build reports a failed client bundle and removes the virtual source",
+  async () => {
+    await withApp(async (projectRoot) => {
+      const config = createBuildConfig(projectRoot);
+      const context = system.createBuildContext(config, {
+        framework: failingClientEntryPlugin,
+        bundlerBackend: "rolldown",
+      });
+
+      const result = await system.build(context);
+
+      assert.assertEquals(result.success, false);
+      assert.assertEquals(
+        await runtime.fs.exists(
+          runtime.path.join(config.distDir, virtualSource.VIRTUAL_SRC_DIR),
+        ),
+        false,
+      );
     });
-
-    const result = await system.build(context);
-
-    assert.assertEquals(result.success, false);
-    assert.assertEquals(
-      await runtime.fs.exists(
-        runtime.path.join(config.distDir, virtualSource.VIRTUAL_SRC_DIR),
-      ),
-      false,
-    );
-  });
-});
+  },
+);
 
 const LAYOUT_SOURCE = `export function Layout(props: { children: unknown }) {
   return <html><body>{props.children as never}</body></html>;
@@ -177,26 +181,29 @@ async function readChunkManifest(
   );
 }
 
-Deno.test("build of a minimal laroux app with the React plugin succeeds", async () => {
-  await withApp(async (projectRoot) => {
-    await writeReactApp(projectRoot);
+nodeTest.test(
+  "build of a minimal laroux app with the React plugin succeeds",
+  async () => {
+    await withApp(async (projectRoot) => {
+      await writeReactApp(projectRoot);
 
-    const config = createBuildConfig(projectRoot);
-    const context = system.createBuildContext(config, {
-      framework: react.reactPlugin,
-      bundlerBackend: "rolldown",
+      const config = createBuildConfig(projectRoot);
+      const context = system.createBuildContext(config, {
+        framework: react.reactPlugin,
+        bundlerBackend: "rolldown",
+      });
+
+      const result = await system.build(context);
+
+      assert.assertEquals(result.success, true);
+      assert.assertEquals(result.clientComponents, 1);
+      const manifest = await readChunkManifest(config.distDir);
+      assert.assertEquals(Object.keys(manifest.chunks), [
+        "src/app/components/counter.tsx",
+      ]);
     });
-
-    const result = await system.build(context);
-
-    assert.assertEquals(result.success, true);
-    assert.assertEquals(result.clientComponents, 1);
-    const manifest = await readChunkManifest(config.distDir);
-    assert.assertEquals(Object.keys(manifest.chunks), [
-      "src/app/components/counter.tsx",
-    ]);
-  });
-});
+  },
+);
 
 /** A file URL for a path on the local file system, for a dynamic import. */
 const toFileUrl = (filePath: string): string => {
@@ -223,106 +230,121 @@ async function recordWarnings(
   return calls;
 }
 
-Deno.test("a dev build gives client code the browser logger, with() included", async () => {
-  await withApp(async (projectRoot) => {
-    await writeReactApp(projectRoot);
+nodeTest.test(
+  "a dev build gives client code the browser logger, with() included",
+  async () => {
+    await withApp(async (projectRoot) => {
+      await writeReactApp(projectRoot);
 
-    // laroux dev bundles with rolldown, as serve does; the client bundle of a
-    // dev build still has to get the browser shims.
-    const config = createBuildConfig(projectRoot);
-    const context = system.createBuildContext(config, {
-      framework: react.reactPlugin,
-      bundlerBackend: "rolldown",
+      // laroux dev bundles with rolldown, as serve does; the client bundle of a
+      // dev build still has to get the browser shims.
+      const config = createBuildConfig(projectRoot);
+      const context = system.createBuildContext(config, {
+        framework: react.reactPlugin,
+        bundlerBackend: "rolldown",
+      });
+
+      const result = await system.build(context);
+      assert.assertEquals(result.success, true);
+
+      // Load the component's chunk the way the client's lazy loader names it.
+      const manifest = await readChunkManifest(config.distDir);
+      const main = manifest.chunks["src/app/components/counter.tsx"]?.main;
+      assert.assertExists(main);
+      const chunkFile = main.includes("/") ? `${main}.js` : `chunk-${main}.js`;
+      const counterModule = (await import(
+        toFileUrl(runtime.path.join(config.distDir, "client", chunkFile))
+      )) as { reportSlowRender: (durationMs: number) => Promise<unknown> };
+
+      const warnings = await recordWarnings(() =>
+        counterModule.reportSlowRender(1200),
+      );
+
+      assert.assertEquals(warnings, [
+        ["[app.counter] counter rendered slowly", { durationMs: 1200 }],
+      ]);
     });
+  },
+);
 
-    const result = await system.build(context);
-    assert.assertEquals(result.success, true);
+nodeTest.test(
+  "ensureBuildIsReady skips an unchanged project and rebuilds after a nested change",
+  async () => {
+    await withApp(async (projectRoot) => {
+      await writeReactApp(projectRoot);
 
-    // Load the component's chunk the way the client's lazy loader names it.
-    const manifest = await readChunkManifest(config.distDir);
-    const main = manifest.chunks["src/app/components/counter.tsx"]?.main;
-    assert.assertExists(main);
-    const chunkFile = main.includes("/") ? `${main}.js` : `chunk-${main}.js`;
-    const counterModule = (await import(
-      toFileUrl(runtime.path.join(config.distDir, "client", chunkFile))
-    )) as { reportSlowRender: (durationMs: number) => Promise<unknown> };
+      const context = system.createBuildContext(
+        createBuildConfig(projectRoot),
+        {
+          framework: react.reactPlugin,
+          bundlerBackend: "rolldown",
+        },
+      );
 
-    const warnings = await recordWarnings(() =>
-      counterModule.reportSlowRender(1200),
-    );
+      const first = await system.ensureBuildIsReady(context);
+      const second = await system.ensureBuildIsReady(context);
 
-    assert.assertEquals(warnings, [
-      ["[app.counter] counter rendered slowly", { durationMs: 1200 }],
-    ]);
-  });
-});
+      assert.assertEquals(first.success, true);
+      // A skipped build hands back the existing build: same build id,
+      // timestamp, module map and client bundle, and no build time
+      assert.assertEquals(second, {
+        success: true,
+        buildId: first.buildId,
+        clientBundle: first.clientBundle,
+        moduleMap: first.moduleMap,
+        clientComponents: first.clientComponents,
+        duration: 0,
+        timestamp: first.timestamp,
+      });
 
-Deno.test("ensureBuildIsReady skips an unchanged project and rebuilds after a nested change", async () => {
-  await withApp(async (projectRoot) => {
-    await writeReactApp(projectRoot);
+      // counter.tsx sits two directories below src/
+      const nestedSource = runtime.path.join(
+        projectRoot,
+        "src/app/components/counter.tsx",
+      );
+      const afterBuild = new Date(first.timestamp + 1000);
+      await Deno.utime(nestedSource, afterBuild, afterBuild);
 
-    const context = system.createBuildContext(createBuildConfig(projectRoot), {
-      framework: react.reactPlugin,
-      bundlerBackend: "rolldown",
+      const third = await system.ensureBuildIsReady(context);
+
+      assert.assertEquals(third.success, true);
+      assert.assertGreater(third.timestamp, first.timestamp);
     });
+  },
+);
 
-    const first = await system.ensureBuildIsReady(context);
-    const second = await system.ensureBuildIsReady(context);
+nodeTest.test(
+  "a build that fails after bundling the client writes no chunk manifest, so the next ensureBuildIsReady builds again",
+  async () => {
+    await withApp(async (projectRoot) => {
+      await writeReactApp(projectRoot);
+      // public/ is copied into dist/ last; a file named like the client
+      // output directory cannot replace it, so that copy fails.
+      await runtime.fs.ensureDir(runtime.path.join(projectRoot, "public"));
+      await runtime.fs.writeTextFile(
+        runtime.path.join(projectRoot, "public", "client"),
+        "not a directory",
+      );
 
-    assert.assertEquals(first.success, true);
-    // A skipped build hands back the existing build: same build id,
-    // timestamp, module map and client bundle, and no build time
-    assert.assertEquals(second, {
-      success: true,
-      buildId: first.buildId,
-      clientBundle: first.clientBundle,
-      moduleMap: first.moduleMap,
-      clientComponents: first.clientComponents,
-      duration: 0,
-      timestamp: first.timestamp,
+      const context = system.createBuildContext(
+        createBuildConfig(projectRoot),
+        {
+          framework: react.reactPlugin,
+          bundlerBackend: "rolldown",
+        },
+      );
+
+      const first = await system.build(context);
+      const manifestExists = await runtime.fs.exists(context.chunkManifestFile);
+      const retried = await system.ensureBuildIsReady(context);
+
+      assert.assertEquals(first.success, false);
+      assert.assertEquals(manifestExists, false);
+      // A skipped build would report success; this one ran and failed again
+      assert.assertEquals(retried.success, false);
     });
-
-    // counter.tsx sits two directories below src/
-    const nestedSource = runtime.path.join(
-      projectRoot,
-      "src/app/components/counter.tsx",
-    );
-    const afterBuild = new Date(first.timestamp + 1000);
-    await Deno.utime(nestedSource, afterBuild, afterBuild);
-
-    const third = await system.ensureBuildIsReady(context);
-
-    assert.assertEquals(third.success, true);
-    assert.assertGreater(third.timestamp, first.timestamp);
-  });
-});
-
-Deno.test("a build that fails after bundling the client writes no chunk manifest, so the next ensureBuildIsReady builds again", async () => {
-  await withApp(async (projectRoot) => {
-    await writeReactApp(projectRoot);
-    // public/ is copied into dist/ last; a file named like the client
-    // output directory cannot replace it, so that copy fails.
-    await runtime.fs.ensureDir(runtime.path.join(projectRoot, "public"));
-    await runtime.fs.writeTextFile(
-      runtime.path.join(projectRoot, "public", "client"),
-      "not a directory",
-    );
-
-    const context = system.createBuildContext(createBuildConfig(projectRoot), {
-      framework: react.reactPlugin,
-      bundlerBackend: "rolldown",
-    });
-
-    const first = await system.build(context);
-    const manifestExists = await runtime.fs.exists(context.chunkManifestFile);
-    const retried = await system.ensureBuildIsReady(context);
-
-    assert.assertEquals(first.success, false);
-    assert.assertEquals(manifestExists, false);
-    // A skipped build would report success; this one ran and failed again
-    assert.assertEquals(retried.success, false);
-  });
-});
+  },
+);
 
 /** Records the requests a build makes to the optional ports. */
 type PortCalls = {
@@ -388,96 +410,104 @@ async function writeStylesAndImage(projectRoot: string): Promise<void> {
   ]);
 }
 
-Deno.test("build hands the stylesheet, the fonts and the images to the ports it is given", async () => {
-  await withApp(async (projectRoot) => {
-    await writeReactApp(projectRoot);
-    await writeStylesAndImage(projectRoot);
+nodeTest.test(
+  "build hands the stylesheet, the fonts and the images to the ports it is given",
+  async () => {
+    await withApp(async (projectRoot) => {
+      await writeReactApp(projectRoot);
+      await writeStylesAndImage(projectRoot);
 
-    const config = { ...createBuildConfig(projectRoot), fonts: [INTER] };
-    const calls: PortCalls = { fonts: [], images: [], stylesheets: [] };
-    const context = system.createBuildContext(config, {
-      framework: react.reactPlugin,
-      css: decliningCssPlugin,
-      bundlerBackend: "rolldown",
-      ...createRecordingPorts(calls),
-    });
+      const config = { ...createBuildConfig(projectRoot), fonts: [INTER] };
+      const calls: PortCalls = { fonts: [], images: [], stylesheets: [] };
+      const context = system.createBuildContext(config, {
+        framework: react.reactPlugin,
+        css: decliningCssPlugin,
+        bundlerBackend: "rolldown",
+        ...createRecordingPorts(calls),
+      });
 
-    const result = await system.build(context);
+      const result = await system.build(context);
 
-    const clientDir = runtime.path.join(config.distDir, "client");
-    const readClientFile = (name: string) =>
-      runtime.fs.readTextFile(runtime.path.join(clientDir, name));
+      const clientDir = runtime.path.join(config.distDir, "client");
+      const readClientFile = (name: string) =>
+        runtime.fs.readTextFile(runtime.path.join(clientDir, name));
 
-    assert.assertEquals(result.success, true);
-    assert.assertEquals(calls.stylesheets, [
-      {
-        css: "a { color: red; }\n",
-        filename: runtime.path.join(projectRoot, "src/app/styles/global.css"),
-        minify: true,
-      },
-    ]);
-    assert.assertEquals(
-      await readClientFile("styles.css"),
-      "/* processed */\na { color: red; }\n",
-    );
-    assert.assertEquals(calls.fonts, [
-      {
-        fonts: [INTER],
-        options: {
-          outputDir: runtime.path.join(clientDir, "fonts"),
-          publicPath: "/fonts",
+      assert.assertEquals(result.success, true);
+      assert.assertEquals(calls.stylesheets, [
+        {
+          css: "a { color: red; }\n",
+          filename: runtime.path.join(projectRoot, "src/app/styles/global.css"),
+          minify: true,
         },
-      },
-    ]);
-    assert.assertEquals(
-      await readClientFile("fonts.css"),
-      "@font-face { font-family: Inter; }",
-    );
-    assert.assertEquals(
-      JSON.parse(await readClientFile("font-preloads.json")),
-      ['<link rel="preload" href="/fonts/inter.woff2">'],
-    );
-    assert.assertEquals(calls.images, [
-      {
-        inputDir: runtime.path.join(projectRoot, "public/images"),
-        outputDir: runtime.path.join(clientDir, "images"),
-        publicPath: "/images",
-        config: config.images,
-      },
-    ]);
-  });
-});
-
-Deno.test("build without the optional ports copies the stylesheet as written and self-hosts no fonts", async () => {
-  await withApp(async (projectRoot) => {
-    await writeReactApp(projectRoot);
-    await writeStylesAndImage(projectRoot);
-
-    const config = { ...createBuildConfig(projectRoot), fonts: [INTER] };
-    const context = system.createBuildContext(config, {
-      framework: react.reactPlugin,
-      css: decliningCssPlugin,
-      bundlerBackend: "rolldown",
+      ]);
+      assert.assertEquals(
+        await readClientFile("styles.css"),
+        "/* processed */\na { color: red; }\n",
+      );
+      assert.assertEquals(calls.fonts, [
+        {
+          fonts: [INTER],
+          options: {
+            outputDir: runtime.path.join(clientDir, "fonts"),
+            publicPath: "/fonts",
+          },
+        },
+      ]);
+      assert.assertEquals(
+        await readClientFile("fonts.css"),
+        "@font-face { font-family: Inter; }",
+      );
+      assert.assertEquals(
+        JSON.parse(await readClientFile("font-preloads.json")),
+        ['<link rel="preload" href="/fonts/inter.woff2">'],
+      );
+      assert.assertEquals(calls.images, [
+        {
+          inputDir: runtime.path.join(projectRoot, "public/images"),
+          outputDir: runtime.path.join(clientDir, "images"),
+          publicPath: "/images",
+          config: config.images,
+        },
+      ]);
     });
+  },
+);
 
-    const result = await system.build(context);
+nodeTest.test(
+  "build without the optional ports copies the stylesheet as written and self-hosts no fonts",
+  async () => {
+    await withApp(async (projectRoot) => {
+      await writeReactApp(projectRoot);
+      await writeStylesAndImage(projectRoot);
 
-    const clientDir = runtime.path.join(config.distDir, "client");
-    assert.assertEquals(result.success, true);
-    assert.assertEquals(
-      await runtime.fs.readTextFile(runtime.path.join(clientDir, "styles.css")),
-      "a { color: red; }\n",
-    );
-    assert.assertEquals(
-      await runtime.fs.exists(runtime.path.join(clientDir, "fonts.css")),
-      false,
-    );
-    assert.assertEquals(
-      await runtime.fs.exists(runtime.path.join(clientDir, "images")),
-      false,
-    );
-  });
-});
+      const config = { ...createBuildConfig(projectRoot), fonts: [INTER] };
+      const context = system.createBuildContext(config, {
+        framework: react.reactPlugin,
+        css: decliningCssPlugin,
+        bundlerBackend: "rolldown",
+      });
+
+      const result = await system.build(context);
+
+      const clientDir = runtime.path.join(config.distDir, "client");
+      assert.assertEquals(result.success, true);
+      assert.assertEquals(
+        await runtime.fs.readTextFile(
+          runtime.path.join(clientDir, "styles.css"),
+        ),
+        "a { color: red; }\n",
+      );
+      assert.assertEquals(
+        await runtime.fs.exists(runtime.path.join(clientDir, "fonts.css")),
+        false,
+      );
+      assert.assertEquals(
+        await runtime.fs.exists(runtime.path.join(clientDir, "images")),
+        false,
+      );
+    });
+  },
+);
 
 const referenceCases = [
   {
@@ -493,7 +523,7 @@ const referenceCases = [
 ];
 
 for (const { name, noCssModuleAutoReference, expected } of referenceCases) {
-  Deno.test(name, async () => {
+  nodeTest.test(name, async () => {
     await withApp(async (projectRoot) => {
       await writeReactApp(projectRoot);
       const cssModule = runtime.path.join(
@@ -589,94 +619,103 @@ async function writeStyledCounter(
 const readClientFile = (distDir: string, name: string): Promise<string> =>
   runtime.fs.readTextFile(runtime.path.join(distDir, "client", name));
 
-Deno.test("a CSS-only rebuild writes the styles.css a full build writes, CSS module styles included", async () => {
-  await withApp(async (projectRoot) => {
-    await writeReactApp(projectRoot);
-    const cssModulePath = await writeStyledCounter(projectRoot, "green");
-    const config = createBuildConfig(projectRoot);
-    const context = system.createBuildContext(config, {
-      framework: react.reactPlugin,
-      css: deferringCssPlugin,
-      bundlerBackend: "rolldown",
+nodeTest.test(
+  "a CSS-only rebuild writes the styles.css a full build writes, CSS module styles included",
+  async () => {
+    await withApp(async (projectRoot) => {
+      await writeReactApp(projectRoot);
+      const cssModulePath = await writeStyledCounter(projectRoot, "green");
+      const config = createBuildConfig(projectRoot);
+      const context = system.createBuildContext(config, {
+        framework: react.reactPlugin,
+        css: deferringCssPlugin,
+        bundlerBackend: "rolldown",
+      });
+      const first = await system.build(context);
+
+      // Only the CSS module changes, so the watcher takes the CSS-only path
+      await runtime.fs.writeTextFile(
+        cssModulePath,
+        ".counter { color: blue; }\n",
+      );
+      const cssOnly = await system.build(context, {
+        cssOnly: true,
+        changedFiles: new Set([cssModulePath]),
+      });
+      const stylesAfterCssOnly = await readClientFile(
+        config.distDir,
+        "styles.css",
+      );
+      const deferredAfterCssOnly = await readClientFile(
+        config.distDir,
+        "styles.deferred.css",
+      );
+      const full = await system.build(context);
+      const stylesAfterFull = await readClientFile(
+        config.distDir,
+        "styles.css",
+      );
+
+      assert.assertEquals(first.success, true);
+      assert.assertEquals(cssOnly.success, true);
+      assert.assertEquals(full.success, true);
+      // The JavaScript in dist/ is the first build's, and so is the build id
+      assert.assertEquals(cssOnly.buildId, first.buildId);
+      assert.assertStringIncludes(stylesAfterCssOnly, "a { color: red; }");
+      assert.assertStringIncludes(stylesAfterCssOnly, "_counter{color:#00f}");
+      assert.assertEquals(stylesAfterCssOnly.includes("green"), false);
+      assert.assertEquals(stylesAfterCssOnly, stylesAfterFull);
+      // The pages load the deferred CSS, so it follows the change too
+      assert.assertEquals(deferredAfterCssOnly, stylesAfterCssOnly);
     });
-    const first = await system.build(context);
+  },
+);
 
-    // Only the CSS module changes, so the watcher takes the CSS-only path
-    await runtime.fs.writeTextFile(
-      cssModulePath,
-      ".counter { color: blue; }\n",
-    );
-    const cssOnly = await system.build(context, {
-      cssOnly: true,
-      changedFiles: new Set([cssModulePath]),
+nodeTest.test(
+  "a JS-only rebuild of an app with CSS modules succeeds and keeps their styles once",
+  async () => {
+    await withApp(async (projectRoot) => {
+      await writeReactApp(projectRoot);
+      await writeStyledCounter(projectRoot, "green");
+      const config = createBuildConfig(projectRoot);
+      const context = system.createBuildContext(config, {
+        framework: react.reactPlugin,
+        css: deferringCssPlugin,
+        bundlerBackend: "rolldown",
+      });
+      const first = await system.build(context);
+      const stylesBefore = await readClientFile(config.distDir, "styles.css");
+
+      // Only a component changes, so the watcher skips the CSS steps
+      const pagePath = runtime.path.join(
+        projectRoot,
+        "src/app/routes/home/page.tsx",
+      );
+      await runtime.fs.writeTextFile(
+        pagePath,
+        PAGE_SOURCE.replace("<h1>Home</h1>", "<h1>Welcome</h1>"),
+      );
+      const rebuilt = await system.build(context, {
+        skipCss: true,
+        changedFiles: new Set([pagePath]),
+      });
+      const stylesAfter = await readClientFile(config.distDir, "styles.css");
+      const generatedRoutes = await runtime.fs.readTextFile(
+        runtime.path.join(config.distDir, "server", "_generated-routes.ts"),
+      );
+
+      assert.assertEquals(first.success, true);
+      // The client bundle imports the counter's class names from its CSS
+      // module, which a JS-only rebuild compiles too
+      assert.assertEquals(rebuilt.success, true);
+      assert.assertNotEquals(rebuilt.buildId, first.buildId);
+      assert.assertEquals(stylesAfter, stylesBefore);
+      assert.assertEquals(stylesAfter.split("_counter{").length, 2);
+      // The server imports the rebuilt pages under the new build id
+      assert.assertStringIncludes(
+        generatedRoutes,
+        `"./src/app/routes/home/page.js?v=${rebuilt.buildId}"`,
+      );
     });
-    const stylesAfterCssOnly = await readClientFile(
-      config.distDir,
-      "styles.css",
-    );
-    const deferredAfterCssOnly = await readClientFile(
-      config.distDir,
-      "styles.deferred.css",
-    );
-    const full = await system.build(context);
-    const stylesAfterFull = await readClientFile(config.distDir, "styles.css");
-
-    assert.assertEquals(first.success, true);
-    assert.assertEquals(cssOnly.success, true);
-    assert.assertEquals(full.success, true);
-    // The JavaScript in dist/ is the first build's, and so is the build id
-    assert.assertEquals(cssOnly.buildId, first.buildId);
-    assert.assertStringIncludes(stylesAfterCssOnly, "a { color: red; }");
-    assert.assertStringIncludes(stylesAfterCssOnly, "_counter{color:#00f}");
-    assert.assertEquals(stylesAfterCssOnly.includes("green"), false);
-    assert.assertEquals(stylesAfterCssOnly, stylesAfterFull);
-    // The pages load the deferred CSS, so it follows the change too
-    assert.assertEquals(deferredAfterCssOnly, stylesAfterCssOnly);
-  });
-});
-
-Deno.test("a JS-only rebuild of an app with CSS modules succeeds and keeps their styles once", async () => {
-  await withApp(async (projectRoot) => {
-    await writeReactApp(projectRoot);
-    await writeStyledCounter(projectRoot, "green");
-    const config = createBuildConfig(projectRoot);
-    const context = system.createBuildContext(config, {
-      framework: react.reactPlugin,
-      css: deferringCssPlugin,
-      bundlerBackend: "rolldown",
-    });
-    const first = await system.build(context);
-    const stylesBefore = await readClientFile(config.distDir, "styles.css");
-
-    // Only a component changes, so the watcher skips the CSS steps
-    const pagePath = runtime.path.join(
-      projectRoot,
-      "src/app/routes/home/page.tsx",
-    );
-    await runtime.fs.writeTextFile(
-      pagePath,
-      PAGE_SOURCE.replace("<h1>Home</h1>", "<h1>Welcome</h1>"),
-    );
-    const rebuilt = await system.build(context, {
-      skipCss: true,
-      changedFiles: new Set([pagePath]),
-    });
-    const stylesAfter = await readClientFile(config.distDir, "styles.css");
-    const generatedRoutes = await runtime.fs.readTextFile(
-      runtime.path.join(config.distDir, "server", "_generated-routes.ts"),
-    );
-
-    assert.assertEquals(first.success, true);
-    // The client bundle imports the counter's class names from its CSS
-    // module, which a JS-only rebuild compiles too
-    assert.assertEquals(rebuilt.success, true);
-    assert.assertNotEquals(rebuilt.buildId, first.buildId);
-    assert.assertEquals(stylesAfter, stylesBefore);
-    assert.assertEquals(stylesAfter.split("_counter{").length, 2);
-    // The server imports the rebuilt pages under the new build id
-    assert.assertStringIncludes(
-      generatedRoutes,
-      `"./src/app/routes/home/page.js?v=${rebuilt.buildId}"`,
-    );
-  });
-});
+  },
+);

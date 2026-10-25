@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as rolldown from "./rolldown.ts";
 import type { RolldownBackendOptions } from "./rolldown.ts";
@@ -8,19 +9,19 @@ import type { RolldownBackendOptions } from "./rolldown.ts";
 // RolldownBackend constructor tests
 // ============================================================================
 
-Deno.test("RolldownBackend has correct name", () => {
+nodeTest.test("RolldownBackend has correct name", () => {
   const backend = new rolldown.RolldownBackend();
 
   assert.assertEquals(backend.name, "rolldown");
 });
 
-Deno.test("RolldownBackend accepts empty options", () => {
+nodeTest.test("RolldownBackend accepts empty options", () => {
   const backend = new rolldown.RolldownBackend({});
 
   assert.assertEquals(backend.name, "rolldown");
 });
 
-Deno.test("RolldownBackend accepts full options", () => {
+nodeTest.test("RolldownBackend accepts full options", () => {
   const options: RolldownBackendOptions = {
     treeshake: true,
     preserveEntrySignatures: "strict",
@@ -47,14 +48,14 @@ Deno.test("RolldownBackend accepts full options", () => {
 // createRolldownBackend factory tests
 // ============================================================================
 
-Deno.test("createRolldownBackend creates backend instance", () => {
+nodeTest.test("createRolldownBackend creates backend instance", () => {
   const backend = rolldown.createRolldownBackend();
 
   assert.assertInstanceOf(backend, rolldown.RolldownBackend);
   assert.assertEquals(backend.name, "rolldown");
 });
 
-Deno.test("createRolldownBackend accepts options", () => {
+nodeTest.test("createRolldownBackend accepts options", () => {
   const backend = rolldown.createRolldownBackend({
     treeshake: false,
     advancedChunks: {
@@ -69,7 +70,7 @@ Deno.test("createRolldownBackend accepts options", () => {
 // RolldownPresets tests
 // ============================================================================
 
-Deno.test("RolldownPresets.default returns valid configuration", () => {
+nodeTest.test("RolldownPresets.default returns valid configuration", () => {
   const preset = rolldown.RolldownPresets.default();
 
   assert.assertEquals(preset.treeshake, true);
@@ -78,43 +79,49 @@ Deno.test("RolldownPresets.default returns valid configuration", () => {
   assert.assertEquals(preset.advancedChunks?.groups?.length, 0);
 });
 
-Deno.test("RolldownPresets.react returns React-optimized configuration", () => {
-  const preset = rolldown.RolldownPresets.react();
+nodeTest.test(
+  "RolldownPresets.react returns React-optimized configuration",
+  () => {
+    const preset = rolldown.RolldownPresets.react();
 
-  assert.assertEquals(preset.treeshake, true);
-  assert.assertExists(preset.advancedChunks);
-  assert.assertEquals(preset.advancedChunks?.minSize, 10000);
-  assert.assertExists(preset.advancedChunks?.groups);
-  assert.assertEquals(preset.advancedChunks?.groups?.length, 2);
+    assert.assertEquals(preset.treeshake, true);
+    assert.assertExists(preset.advancedChunks);
+    assert.assertEquals(preset.advancedChunks?.minSize, 10000);
+    assert.assertExists(preset.advancedChunks?.groups);
+    assert.assertEquals(preset.advancedChunks?.groups?.length, 2);
 
-  // Check react-vendor group
-  const reactVendor = preset.advancedChunks?.groups?.find(
-    (g) => g.name === "react-vendor",
-  );
-  assert.assertExists(reactVendor);
-  assert.assertEquals(reactVendor?.priority, 30);
-  assert.assert(reactVendor?.test.test("/node_modules/react/"));
-  assert.assert(reactVendor?.test.test("/node_modules/react-dom/"));
+    // Check react-vendor group
+    const reactVendor = preset.advancedChunks?.groups?.find(
+      (g) => g.name === "react-vendor",
+    );
+    assert.assertExists(reactVendor);
+    assert.assertEquals(reactVendor?.priority, 30);
+    assert.assert(reactVendor?.test.test("/node_modules/react/"));
+    assert.assert(reactVendor?.test.test("/node_modules/react-dom/"));
 
-  // Check vendor group
-  const vendor = preset.advancedChunks?.groups?.find(
-    (g) => g.name === "vendor",
-  );
-  assert.assertExists(vendor);
-  assert.assertEquals(vendor?.priority, 10);
-});
+    // Check vendor group
+    const vendor = preset.advancedChunks?.groups?.find(
+      (g) => g.name === "vendor",
+    );
+    assert.assertExists(vendor);
+    assert.assertEquals(vendor?.priority, 10);
+  },
+);
 
-Deno.test("RolldownPresets.library returns library-optimized configuration", () => {
-  const preset = rolldown.RolldownPresets.library();
+nodeTest.test(
+  "RolldownPresets.library returns library-optimized configuration",
+  () => {
+    const preset = rolldown.RolldownPresets.library();
 
-  assert.assertEquals(preset.treeshake, true);
-  assert.assertEquals(preset.preserveEntrySignatures, "strict");
-  assert.assertExists(preset.advancedChunks);
-  assert.assertEquals(preset.advancedChunks?.minSize, 0);
-  assert.assertEquals(preset.advancedChunks?.groups?.length, 0);
-});
+    assert.assertEquals(preset.treeshake, true);
+    assert.assertEquals(preset.preserveEntrySignatures, "strict");
+    assert.assertExists(preset.advancedChunks);
+    assert.assertEquals(preset.advancedChunks?.minSize, 0);
+    assert.assertEquals(preset.advancedChunks?.groups?.length, 0);
+  },
+);
 
-Deno.test("RolldownPresets.ssr returns SSR-optimized configuration", () => {
+nodeTest.test("RolldownPresets.ssr returns SSR-optimized configuration", () => {
   const preset = rolldown.RolldownPresets.ssr();
 
   assert.assertEquals(preset.treeshake, true);
@@ -132,71 +139,92 @@ Deno.test("RolldownPresets.ssr returns SSR-optimized configuration", () => {
   assert.assertEquals(framework?.priority, 20);
 });
 
-Deno.test("RolldownPresets.performance returns performance-optimized configuration", () => {
-  const preset = rolldown.RolldownPresets.performance();
+nodeTest.test(
+  "RolldownPresets.performance returns performance-optimized configuration",
+  () => {
+    const preset = rolldown.RolldownPresets.performance();
 
-  assert.assertEquals(preset.treeshake, true);
-  assert.assertEquals(preset.moduleSideEffects, false);
-  assert.assertExists(preset.advancedChunks);
-  assert.assertEquals(preset.advancedChunks?.minSize, 30000);
-  assert.assertEquals(preset.advancedChunks?.maxSize, 250000);
-  assert.assertExists(preset.advancedChunks?.groups);
-  assert.assertEquals(preset.advancedChunks?.groups?.length, 4);
+    assert.assertEquals(preset.treeshake, true);
+    assert.assertEquals(preset.moduleSideEffects, false);
+    assert.assertExists(preset.advancedChunks);
+    assert.assertEquals(preset.advancedChunks?.minSize, 30000);
+    assert.assertEquals(preset.advancedChunks?.maxSize, 250000);
+    assert.assertExists(preset.advancedChunks?.groups);
+    assert.assertEquals(preset.advancedChunks?.groups?.length, 4);
 
-  // Check UI group exists
-  const uiGroup = preset.advancedChunks?.groups?.find((g) => g.name === "ui");
-  assert.assertExists(uiGroup);
-  assert.assertEquals(uiGroup?.priority, 30);
-});
+    // Check UI group exists
+    const uiGroup = preset.advancedChunks?.groups?.find((g) => g.name === "ui");
+    assert.assertExists(uiGroup);
+    assert.assertEquals(uiGroup?.priority, 30);
+  },
+);
 
 // ============================================================================
 // createRolldownWithPreset tests
 // ============================================================================
 
-Deno.test("createRolldownWithPreset creates backend with default preset", () => {
-  const backend = rolldown.createRolldownWithPreset("default");
+nodeTest.test(
+  "createRolldownWithPreset creates backend with default preset",
+  () => {
+    const backend = rolldown.createRolldownWithPreset("default");
 
-  assert.assertInstanceOf(backend, rolldown.RolldownBackend);
-});
+    assert.assertInstanceOf(backend, rolldown.RolldownBackend);
+  },
+);
 
-Deno.test("createRolldownWithPreset creates backend with react preset", () => {
-  const backend = rolldown.createRolldownWithPreset("react");
+nodeTest.test(
+  "createRolldownWithPreset creates backend with react preset",
+  () => {
+    const backend = rolldown.createRolldownWithPreset("react");
 
-  assert.assertInstanceOf(backend, rolldown.RolldownBackend);
-});
+    assert.assertInstanceOf(backend, rolldown.RolldownBackend);
+  },
+);
 
-Deno.test("createRolldownWithPreset creates backend with library preset", () => {
-  const backend = rolldown.createRolldownWithPreset("library");
+nodeTest.test(
+  "createRolldownWithPreset creates backend with library preset",
+  () => {
+    const backend = rolldown.createRolldownWithPreset("library");
 
-  assert.assertInstanceOf(backend, rolldown.RolldownBackend);
-});
+    assert.assertInstanceOf(backend, rolldown.RolldownBackend);
+  },
+);
 
-Deno.test("createRolldownWithPreset creates backend with ssr preset", () => {
-  const backend = rolldown.createRolldownWithPreset("ssr");
+nodeTest.test(
+  "createRolldownWithPreset creates backend with ssr preset",
+  () => {
+    const backend = rolldown.createRolldownWithPreset("ssr");
 
-  assert.assertInstanceOf(backend, rolldown.RolldownBackend);
-});
+    assert.assertInstanceOf(backend, rolldown.RolldownBackend);
+  },
+);
 
-Deno.test("createRolldownWithPreset creates backend with performance preset", () => {
-  const backend = rolldown.createRolldownWithPreset("performance");
+nodeTest.test(
+  "createRolldownWithPreset creates backend with performance preset",
+  () => {
+    const backend = rolldown.createRolldownWithPreset("performance");
 
-  assert.assertInstanceOf(backend, rolldown.RolldownBackend);
-});
+    assert.assertInstanceOf(backend, rolldown.RolldownBackend);
+  },
+);
 
-Deno.test("createRolldownWithPreset accepts custom options instead of preset name", () => {
-  const customOptions: RolldownBackendOptions = {
-    treeshake: false,
-    advancedChunks: {
-      minSize: 1000,
-    },
-  };
+nodeTest.test(
+  "createRolldownWithPreset accepts custom options instead of preset name",
+  () => {
+    const customOptions: RolldownBackendOptions = {
+      treeshake: false,
+      advancedChunks: {
+        minSize: 1000,
+      },
+    };
 
-  const backend = rolldown.createRolldownWithPreset(customOptions);
+    const backend = rolldown.createRolldownWithPreset(customOptions);
 
-  assert.assertInstanceOf(backend, rolldown.RolldownBackend);
-});
+    assert.assertInstanceOf(backend, rolldown.RolldownBackend);
+  },
+);
 
-Deno.test("createRolldownWithPreset merges overrides with preset", () => {
+nodeTest.test("createRolldownWithPreset merges overrides with preset", () => {
   // We can't directly check internal options, but we can verify it doesn't throw
   const backend = rolldown.createRolldownWithPreset("react", {
     treeshake: false,
@@ -208,23 +236,26 @@ Deno.test("createRolldownWithPreset merges overrides with preset", () => {
   assert.assertInstanceOf(backend, rolldown.RolldownBackend);
 });
 
-Deno.test("createRolldownWithPreset preserves groups when overriding advancedChunks", () => {
-  // Verifying that overrides work correctly (no throw)
-  const backend = rolldown.createRolldownWithPreset("react", {
-    advancedChunks: {
-      minSize: 15000,
-      // groups should be preserved from react preset
-    },
-  });
+nodeTest.test(
+  "createRolldownWithPreset preserves groups when overriding advancedChunks",
+  () => {
+    // Verifying that overrides work correctly (no throw)
+    const backend = rolldown.createRolldownWithPreset("react", {
+      advancedChunks: {
+        minSize: 15000,
+        // groups should be preserved from react preset
+      },
+    });
 
-  assert.assertInstanceOf(backend, rolldown.RolldownBackend);
-});
+    assert.assertInstanceOf(backend, rolldown.RolldownBackend);
+  },
+);
 
 // ============================================================================
 // ChunkGroup configuration tests
 // ============================================================================
 
-Deno.test("ChunkGroup regex patterns match expected paths", () => {
+nodeTest.test("ChunkGroup regex patterns match expected paths", () => {
   const reactPreset = rolldown.RolldownPresets.react();
   const reactVendorGroup = reactPreset.advancedChunks?.groups?.find(
     (g) => g.name === "react-vendor",
@@ -246,7 +277,7 @@ Deno.test("ChunkGroup regex patterns match expected paths", () => {
   );
 });
 
-Deno.test("Performance preset UI group matches expected packages", () => {
+nodeTest.test("Performance preset UI group matches expected packages", () => {
   const perfPreset = rolldown.RolldownPresets.performance();
   const uiGroup = perfPreset.advancedChunks?.groups?.find(
     (g) => g.name === "ui",
@@ -263,7 +294,7 @@ Deno.test("Performance preset UI group matches expected packages", () => {
   assert.assertEquals(uiGroup.test.test("/node_modules/react/"), false);
 });
 
-Deno.test("Performance preset utils group matches utility packages", () => {
+nodeTest.test("Performance preset utils group matches utility packages", () => {
   const perfPreset = rolldown.RolldownPresets.performance();
   const utilsGroup = perfPreset.advancedChunks?.groups?.find(
     (g) => g.name === "utils",
@@ -283,7 +314,7 @@ Deno.test("Performance preset utils group matches utility packages", () => {
 // Preset priority ordering tests
 // ============================================================================
 
-Deno.test("React preset groups have correct priority ordering", () => {
+nodeTest.test("React preset groups have correct priority ordering", () => {
   const preset = rolldown.RolldownPresets.react();
   const groups = preset.advancedChunks?.groups ?? [];
 
@@ -297,7 +328,7 @@ Deno.test("React preset groups have correct priority ordering", () => {
   assert.assert((reactVendor.priority ?? 0) > (vendor.priority ?? 0));
 });
 
-Deno.test("SSR preset groups have correct priority ordering", () => {
+nodeTest.test("SSR preset groups have correct priority ordering", () => {
   const preset = rolldown.RolldownPresets.ssr();
   const groups = preset.advancedChunks?.groups ?? [];
 
@@ -314,22 +345,25 @@ Deno.test("SSR preset groups have correct priority ordering", () => {
   assert.assert((framework.priority ?? 0) > (vendor.priority ?? 0));
 });
 
-Deno.test("Performance preset groups have correct priority ordering", () => {
-  const preset = rolldown.RolldownPresets.performance();
-  const groups = preset.advancedChunks?.groups ?? [];
+nodeTest.test(
+  "Performance preset groups have correct priority ordering",
+  () => {
+    const preset = rolldown.RolldownPresets.performance();
+    const groups = preset.advancedChunks?.groups ?? [];
 
-  const react = groups.find((g) => g.name === "react");
-  const ui = groups.find((g) => g.name === "ui");
-  const utils = groups.find((g) => g.name === "utils");
-  const vendor = groups.find((g) => g.name === "vendor");
+    const react = groups.find((g) => g.name === "react");
+    const ui = groups.find((g) => g.name === "ui");
+    const utils = groups.find((g) => g.name === "utils");
+    const vendor = groups.find((g) => g.name === "vendor");
 
-  assert.assertExists(react);
-  assert.assertExists(ui);
-  assert.assertExists(utils);
-  assert.assertExists(vendor);
+    assert.assertExists(react);
+    assert.assertExists(ui);
+    assert.assertExists(utils);
+    assert.assertExists(vendor);
 
-  // Priority should be: react > ui > utils > vendor
-  assert.assert((react.priority ?? 0) > (ui.priority ?? 0));
-  assert.assert((ui.priority ?? 0) > (utils.priority ?? 0));
-  assert.assert((utils.priority ?? 0) > (vendor.priority ?? 0));
-});
+    // Priority should be: react > ui > utils > vendor
+    assert.assert((react.priority ?? 0) > (ui.priority ?? 0));
+    assert.assert((ui.priority ?? 0) > (utils.priority ?? 0));
+    assert.assert((utils.priority ?? 0) > (vendor.priority ?? 0));
+  },
+);

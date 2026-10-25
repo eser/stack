@@ -5,7 +5,7 @@
  * itself runs end to end in purge.test.ts.
  */
 
-import * as bdd from "@std/testing/bdd";
+import * as bdd from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as results from "@eserstack/primitives/results";
 import * as purgeRestore from "./purge-restore.ts";

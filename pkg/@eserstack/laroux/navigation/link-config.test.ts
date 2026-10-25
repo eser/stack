@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import type * as types from "./types.ts";
 import * as linkConfig from "./link-config.ts";
@@ -135,7 +136,7 @@ const analyzeCases: ReadonlyArray<{
 ];
 
 for (const { name, href, modifiers, expected } of analyzeCases) {
-  Deno.test(`analyzeNavigation ${name}`, () => {
+  nodeTest.test(`analyzeNavigation ${name}`, () => {
     assert.assertEquals(
       linkConfig.analyzeNavigation(href, { ...NO_MODIFIERS, ...modifiers }),
       expected,
@@ -143,7 +144,7 @@ for (const { name, href, modifiers, expected } of analyzeCases) {
   });
 }
 
-Deno.test("buildLinkConfig applies the defaults", () => {
+nodeTest.test("buildLinkConfig applies the defaults", () => {
   assert.assertEquals(linkConfig.buildLinkConfig({ href: "/stories" }), {
     href: "/stories",
     replace: false,
@@ -151,7 +152,7 @@ Deno.test("buildLinkConfig applies the defaults", () => {
   });
 });
 
-Deno.test("buildLinkConfig keeps explicit values, including false", () => {
+nodeTest.test("buildLinkConfig keeps explicit values, including false", () => {
   assert.assertEquals(
     linkConfig.buildLinkConfig({
       href: "/stories",
@@ -174,7 +175,7 @@ const externalCases: ReadonlyArray<readonly [string, boolean]> = [
 ];
 
 for (const [href, expected] of externalCases) {
-  Deno.test(`isExternalUrl("${href}") is ${expected}`, () => {
+  nodeTest.test(`isExternalUrl("${href}") is ${expected}`, () => {
     assert.assertEquals(linkConfig.isExternalUrl(href), expected);
   });
 }
@@ -189,7 +190,7 @@ const specialProtocolCases: ReadonlyArray<readonly [string, boolean]> = [
 ];
 
 for (const [href, expected] of specialProtocolCases) {
-  Deno.test(`isSpecialProtocol("${href}") is ${expected}`, () => {
+  nodeTest.test(`isSpecialProtocol("${href}") is ${expected}`, () => {
     assert.assertEquals(linkConfig.isSpecialProtocol(href), expected);
   });
 }

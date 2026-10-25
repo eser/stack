@@ -4,7 +4,7 @@ title: 'laroux and laroux-react: pass tests on Node'
 status: To Do
 assignee: []
 created_date: '2026-10-15 20:38'
-updated_date: '2026-10-24 19:38'
+updated_date: '2026-10-25 16:00'
 labels:
   - cutover
   - laroux
@@ -40,4 +40,6 @@ Hand-work list (TASK-175 spike, 2026-10-24, node 26.12.1):
 - node --test: laroux 9 of 9 files pass (156 tests); laroux-react 8 of 8 pass (109 tests).
 - Source: Deno., Bun., jsr: and npm: are 0 in both; neither has a .tsx file.
 - Docs: pkg/@eserstack/laroux-react/README.md (3, including the "RSC Renderer for Deno" header); deno.extra.json in laroux and laroux-react (1 each; TASK-224).
+
+TASK-198 (2026-10-25): the test and bench codemods left no site for hand edits in this task's files (0 unhandled), and none of its test files fails under `node --test --test-force-exit` on Node 26.12.1 when run alone.
 <!-- SECTION:NOTES:END -->

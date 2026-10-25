@@ -1,31 +1,35 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import { runtime } from "@eserstack/standards/cross-runtime";
 import * as invokeHook from "./invoke-hook.ts";
 
-Deno.test("hook guard denies shapes that skipped the old substring pre-check", async () => {
-  const root = await runtime.fs.makeTempDir();
-  try {
-    const commands = [
-      "GIT push origin main",
-      "g''it push origin main",
-      "GIT=$(which g?t); $GIT push",
-      "echo 'git push origin main' | sh",
-    ];
-    const verdicts = await Promise.all(
-      commands.map((cmd) => invokeHook.checkGitGuard(cmd, false, root)),
-    );
+nodeTest.test(
+  "hook guard denies shapes that skipped the old substring pre-check",
+  async () => {
+    const root = await runtime.fs.makeTempDir();
+    try {
+      const commands = [
+        "GIT push origin main",
+        "g''it push origin main",
+        "GIT=$(which g?t); $GIT push",
+        "echo 'git push origin main' | sh",
+      ];
+      const verdicts = await Promise.all(
+        commands.map((cmd) => invokeHook.checkGitGuard(cmd, false, root)),
+      );
 
-    for (const [i, cmd] of commands.entries()) {
-      assert.assertNotEquals(verdicts[i], null, cmd);
+      for (const [i, cmd] of commands.entries()) {
+        assert.assertNotEquals(verdicts[i], null, cmd);
+      }
+    } finally {
+      await runtime.fs.remove(root, { recursive: true });
     }
-  } finally {
-    await runtime.fs.remove(root, { recursive: true });
-  }
-});
+  },
+);
 
-Deno.test("hook guard inspects shell scripts it runs", async () => {
+nodeTest.test("hook guard inspects shell scripts it runs", async () => {
   const root = await runtime.fs.makeTempDir();
   try {
     await runtime.fs.writeTextFile(
@@ -126,23 +130,26 @@ const GUARD_CASES: readonly {
   ),
 ];
 
-Deno.test("hook guard allows git reads and refuses git writes", async () => {
-  const root = await runtime.fs.makeTempDir();
-  try {
-    const verdicts = await Promise.all(
-      GUARD_CASES.map(({ command, allowGit }) =>
-        invokeHook.checkGitGuard(command, allowGit, root),
-      ),
-    );
-
-    for (const [i, { command, allowGit, allowed }] of GUARD_CASES.entries()) {
-      assert.assertEquals(
-        verdicts[i] === null,
-        allowed,
-        `${command} (allowGit: ${allowGit})`,
+nodeTest.test(
+  "hook guard allows git reads and refuses git writes",
+  async () => {
+    const root = await runtime.fs.makeTempDir();
+    try {
+      const verdicts = await Promise.all(
+        GUARD_CASES.map(({ command, allowGit }) =>
+          invokeHook.checkGitGuard(command, allowGit, root),
+        ),
       );
+
+      for (const [i, { command, allowGit, allowed }] of GUARD_CASES.entries()) {
+        assert.assertEquals(
+          verdicts[i] === null,
+          allowed,
+          `${command} (allowGit: ${allowGit})`,
+        );
+      }
+    } finally {
+      await runtime.fs.remove(root, { recursive: true });
     }
-  } finally {
-    await runtime.fs.remove(root, { recursive: true });
-  }
-});
+  },
+);

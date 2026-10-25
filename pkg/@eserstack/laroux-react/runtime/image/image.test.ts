@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as React from "react";
 import * as ReactDOMServer from "react-dom/server";
@@ -35,7 +36,7 @@ const findFunctionProps = (node: unknown, path = "Image"): string[] => {
   return found;
 };
 
-Deno.test("Image keeps its fallback in the server-rendered img", () => {
+nodeTest.test("Image keeps its fallback in the server-rendered img", () => {
   const html = renderOnServer({
     src: "/images/hero.jpg",
     alt: "Team at the offsite",
@@ -49,7 +50,7 @@ Deno.test("Image keeps its fallback in the server-rendered img", () => {
   );
 });
 
-Deno.test("Image keeps its fallback in the server-rendered picture", () => {
+nodeTest.test("Image keeps its fallback in the server-rendered picture", () => {
   const html = renderOnServer({
     src: "/images/hero.jpg",
     alt: "Team at the offsite",
@@ -64,7 +65,7 @@ Deno.test("Image keeps its fallback in the server-rendered picture", () => {
   );
 });
 
-Deno.test("Image renders the fallback when the source is missing", () => {
+nodeTest.test("Image renders the fallback when the source is missing", () => {
   const html = renderOnServer({
     src: "",
     alt: "Team at the offsite",
@@ -77,37 +78,43 @@ Deno.test("Image renders the fallback when the source is missing", () => {
   assert.assertEquals(html.includes(FALLBACK_ATTRIBUTE), false);
 });
 
-Deno.test("Image renders the fallback without the srcSet of a missing source", () => {
-  const html = renderOnServer({
-    src: "",
-    alt: "Team at the offsite",
-    fallback: "/images/placeholder.jpg",
-    srcSet: "/images/hero-640.jpg 640w, /images/hero-1280.jpg 1280w",
-    sizes: "100vw",
-  });
+nodeTest.test(
+  "Image renders the fallback without the srcSet of a missing source",
+  () => {
+    const html = renderOnServer({
+      src: "",
+      alt: "Team at the offsite",
+      fallback: "/images/placeholder.jpg",
+      srcSet: "/images/hero-640.jpg 640w, /images/hero-1280.jpg 1280w",
+      sizes: "100vw",
+    });
 
-  assert.assertStringIncludes(html, 'src="/images/placeholder.jpg"');
-  assert.assertEquals(html.toLowerCase().includes("srcset"), false);
-  assert.assertEquals(html.includes("sizes="), false);
-});
+    assert.assertStringIncludes(html, 'src="/images/placeholder.jpg"');
+    assert.assertEquals(html.toLowerCase().includes("srcset"), false);
+    assert.assertEquals(html.includes("sizes="), false);
+  },
+);
 
-Deno.test("Image gives each picture source its format's srcset and the sizes", () => {
-  const html = renderOnServer({
-    src: "/images/hero.jpg",
-    alt: "Team at the offsite",
-    formats: ["webp", "avif"],
-    srcSet: "/images/hero-640w.jpg 640w, /images/hero-1280w.jpg 1280w",
-    sizes: "100vw",
-  });
+nodeTest.test(
+  "Image gives each picture source its format's srcset and the sizes",
+  () => {
+    const html = renderOnServer({
+      src: "/images/hero.jpg",
+      alt: "Team at the offsite",
+      formats: ["webp", "avif"],
+      srcSet: "/images/hero-640w.jpg 640w, /images/hero-1280w.jpg 1280w",
+      sizes: "100vw",
+    });
 
-  assert.assertStringIncludes(
-    html,
-    '<source type="image/avif" srcSet="/images/hero-640w.avif 640w, ' +
-      '/images/hero-1280w.avif 1280w" sizes="100vw"/>' +
-      '<source type="image/webp" srcSet="/images/hero-640w.webp 640w, ' +
-      '/images/hero-1280w.webp 1280w" sizes="100vw"/>',
-  );
-});
+    assert.assertStringIncludes(
+      html,
+      '<source type="image/avif" srcSet="/images/hero-640w.avif 640w, ' +
+        '/images/hero-1280w.avif 1280w" sizes="100vw"/>' +
+        '<source type="image/webp" srcSet="/images/hero-640w.webp 640w, ' +
+        '/images/hero-1280w.webp 1280w" sizes="100vw"/>',
+    );
+  },
+);
 
 const blurCases: ReadonlyArray<{
   readonly name: string;
@@ -124,7 +131,7 @@ const blurCases: ReadonlyArray<{
 ];
 
 for (const { name, blurDataURL, expectBlur } of blurCases) {
-  Deno.test(`Image with a blur placeholder ${name}`, () => {
+  nodeTest.test(`Image with a blur placeholder ${name}`, () => {
     const html = renderOnServer({
       src: "/images/hero.jpg",
       alt: "Team at the offsite",
@@ -141,20 +148,23 @@ for (const { name, blurDataURL, expectBlur } of blurCases) {
     assert.assertEquals(html.includes("background-size:cover"), expectBlur);
   });
 
-  Deno.test(`ResponsiveImage ${name} ${expectBlur ? "shows" : "has no"} blur`, () => {
-    const html = ReactDOMServer.renderToStaticMarkup(
-      React.createElement(image.ResponsiveImage, {
-        src: "/images/hero.jpg",
-        alt: "Team at the offsite",
-        blurDataURL,
-      }),
-    );
+  nodeTest.test(
+    `ResponsiveImage ${name} ${expectBlur ? "shows" : "has no"} blur`,
+    () => {
+      const html = ReactDOMServer.renderToStaticMarkup(
+        React.createElement(image.ResponsiveImage, {
+          src: "/images/hero.jpg",
+          alt: "Team at the offsite",
+          blurDataURL,
+        }),
+      );
 
-    assert.assertEquals(html.includes("background-image"), expectBlur);
-  });
+      assert.assertEquals(html.includes("background-image"), expectBlur);
+    },
+  );
 }
 
-Deno.test("Image without a fallback renders no fallback attribute", () => {
+nodeTest.test("Image without a fallback renders no fallback attribute", () => {
   const html = renderOnServer({ src: "/images/hero.jpg", alt: "" });
 
   assert.assertEquals(html.includes(FALLBACK_ATTRIBUTE), false);
@@ -180,9 +190,12 @@ const serializableCases: ReadonlyArray<{
 ];
 
 for (const testCase of serializableCases) {
-  Deno.test(`Image ${testCase.name} has no function props for laroux to drop`, () => {
-    const element = image.Image(testCase.props);
+  nodeTest.test(
+    `Image ${testCase.name} has no function props for laroux to drop`,
+    () => {
+      const element = image.Image(testCase.props);
 
-    assert.assertEquals(findFunctionProps(element), []);
-  });
+      assert.assertEquals(findFunctionProps(element), []);
+    },
+  );
 }

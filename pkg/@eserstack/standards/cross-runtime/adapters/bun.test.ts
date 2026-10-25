@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as crossRuntime from "../mod.ts";
 import * as httpScenario from "./testdata/http-scenario.ts";
@@ -65,15 +66,15 @@ const assertFinished = (result: ProbeResult): void => {
   assert.assertEquals(result.code, 0, result.stderr);
 };
 
-Deno.test("Bun adapter smoke test", async (t) => {
+nodeTest.test("Bun adapter smoke test", async (t) => {
   // The validate job does not install Bun; where it is missing the steps are
   // skipped, and they run on any machine that has it.
   const hasBun = await crossRuntime.isCommandInPath("bun");
 
-  await t.step({
-    name: "a script that never reads stdin exits while its stdin pipe is open",
-    ignore: !hasBun,
-    fn: async () => {
+  await t.test(
+    "a script that never reads stdin exits while its stdin pipe is open",
+    { skip: !hasBun },
+    async () => {
       const result = await runBunProbe(
         `const { runtime } = await import(process.argv[1]);
         const writer = runtime.process.stdout.getWriter();
@@ -84,12 +85,12 @@ Deno.test("Bun adapter smoke test", async (t) => {
       assertFinished(result);
       assert.assertEquals(result.stdout, "bun");
     },
-  });
+  );
 
-  await t.step({
-    name: "spawnChild stdin takes writes through getWriter",
-    ignore: !hasBun,
-    fn: async () => {
+  await t.test(
+    "spawnChild stdin takes writes through getWriter",
+    { skip: !hasBun },
+    async () => {
       const result = await runBunProbe(
         `const { runtime } = await import(process.argv[1]);
         const child = runtime.exec.spawnChild(
@@ -108,12 +109,12 @@ Deno.test("Bun adapter smoke test", async (t) => {
       assertFinished(result);
       assert.assertEquals(result.stdout, "written to child stdin");
     },
-  });
+  );
 
-  await t.step({
-    name: "spawn adds options.env to the inherited environment",
-    ignore: !hasBun,
-    fn: async () => {
+  await t.test(
+    "spawn adds options.env to the inherited environment",
+    { skip: !hasBun },
+    async () => {
       const result = await runBunProbe(
         `const { runtime } = await import(process.argv[1]);
         const child = await runtime.exec.spawn(
@@ -128,12 +129,12 @@ Deno.test("Bun adapter smoke test", async (t) => {
       assertFinished(result);
       assert.assertEquals(JSON.parse(result.stdout), [true, "set"]);
     },
-  });
+  );
 
-  await t.step({
-    name: "spawnChild stops the child when its abort signal fires",
-    ignore: !hasBun,
-    fn: async () => {
+  await t.test(
+    "spawnChild stops the child when its abort signal fires",
+    { skip: !hasBun },
+    async () => {
       const result = await runBunProbe(
         `const { runtime } = await import(process.argv[1]);
         const controller = new AbortController();
@@ -154,16 +155,16 @@ Deno.test("Bun adapter smoke test", async (t) => {
       assert.assertEquals(status.success, false);
       assert.assertEquals(status.signal, "SIGTERM");
     },
-  });
+  );
 });
 
-Deno.test("Bun adapter runtime.http and signal listeners", async (t) => {
+nodeTest.test("Bun adapter runtime.http and signal listeners", async (t) => {
   const hasBun = await crossRuntime.isCommandInPath("bun");
 
-  await t.step({
-    name: "runtime.http meets the HTTP contract",
-    ignore: !hasBun,
-    fn: async () => {
+  await t.test(
+    "runtime.http meets the HTTP contract",
+    { skip: !hasBun },
+    async () => {
       const outcome = await probes.runHttpProbe(probes.PROBE_RUNTIMES.bun);
 
       assert.assertEquals(outcome.timedOut, false, outcome.stderr);
@@ -173,18 +174,17 @@ Deno.test("Bun adapter runtime.http and signal listeners", async (t) => {
         httpScenario.EXPECTED_HTTP_RESULT,
       );
     },
-  });
+  );
 
-  await t.step({
-    name: "a signal listener runs, then its removal lets the process end",
-    // Windows delivers only SIGINT and SIGBREAK.
-    ignore: !hasBun || Deno.build.os === "windows",
-    fn: async () => {
+  await t.test(
+    "a signal listener runs, then its removal lets the process end",
+    { skip: !hasBun || Deno.build.os === "windows" },
+    async () => {
       const outcome = await probes.runSignalProbe(probes.PROBE_RUNTIMES.bun);
 
       assert.assertEquals(outcome.timedOut, false, outcome.stderr);
       assert.assertEquals(outcome.stdout, "ready\ngot SIGTERM\n");
       assert.assertEquals(outcome.code, 0, outcome.stderr);
     },
-  });
+  );
 });

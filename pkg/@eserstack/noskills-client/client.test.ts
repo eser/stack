@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as noskillsClient from "./mod.ts";
 
@@ -141,7 +142,7 @@ const routes: ReadonlyArray<{
 ];
 
 for (const { name, call, method, path, body } of routes) {
-  Deno.test(`${name} sends ${method} ${path} with the token`, async () => {
+  nodeTest.test(`${name} sends ${method} ${path} with the token`, async () => {
     const { client, calls } = createClient({ token: "t-1" });
 
     await call(client);
@@ -156,18 +157,21 @@ for (const { name, call, method, path, body } of routes) {
   });
 }
 
-Deno.test("every request declares JSON and the protocol version", async () => {
-  const { client, calls } = createClient();
+nodeTest.test(
+  "every request declares JSON and the protocol version",
+  async () => {
+    const { client, calls } = createClient();
 
-  await client.listProjects();
+    await client.listProjects();
 
-  assert.assertEquals(calls[0]?.headers, {
-    "content-type": "application/json",
-    "protocol-version": "1",
-  });
-});
+    assert.assertEquals(calls[0]?.headers, {
+      "content-type": "application/json",
+      "protocol-version": "1",
+    });
+  },
+);
 
-Deno.test("a trailing slash on baseUrl is dropped", async () => {
+nodeTest.test("a trailing slash on baseUrl is dropped", async () => {
   const { client, calls } = createClient({ baseUrl: `${BASE_URL}/` });
 
   await client.health();
@@ -175,7 +179,7 @@ Deno.test("a trailing slash on baseUrl is dropped", async () => {
   assert.assertEquals(calls[0]?.url, `${BASE_URL}/api/health`);
 });
 
-Deno.test("an empty token sends no authorization header", async () => {
+nodeTest.test("an empty token sends no authorization header", async () => {
   const { client, calls } = createClient({ token: "" });
 
   await client.listProjects();
@@ -183,7 +187,7 @@ Deno.test("an empty token sends no authorization header", async () => {
   assert.assertEquals(calls[0]?.headers["authorization"], undefined);
 });
 
-Deno.test("path parameters are percent-encoded", async () => {
+nodeTest.test("path parameters are percent-encoded", async () => {
   const { client, calls } = createClient();
 
   await client.getSessionLineage("my app/../x", "s?1#2");
@@ -194,30 +198,35 @@ Deno.test("path parameters are percent-encoded", async () => {
   );
 });
 
-Deno.test("responses are parsed as JSON", async () => {
+nodeTest.test("responses are parsed as JSON", async () => {
   const projects = [{ slug: "app", root: "/src/app" }];
   const { client } = createClient({}, () => Response.json(projects));
 
   assert.assertEquals(await client.listProjects(), projects);
 });
 
-Deno.test("login sends the PIN without a token and keeps the token it gets", async () => {
-  const login = { token: "t-new", expiresAt: "2026-12-31T00:00:00Z" };
-  const { client, calls } = createClient({}, (call) =>
-    call.url.endsWith("/auth/login") ? Response.json(login) : Response.json([]),
-  );
+nodeTest.test(
+  "login sends the PIN without a token and keeps the token it gets",
+  async () => {
+    const login = { token: "t-new", expiresAt: "2026-12-31T00:00:00Z" };
+    const { client, calls } = createClient({}, (call) =>
+      call.url.endsWith("/auth/login")
+        ? Response.json(login)
+        : Response.json([]),
+    );
 
-  assert.assertEquals(await client.login("428591"), login);
-  assert.assertEquals(client.token, "t-new");
-  await client.listProjects();
+    assert.assertEquals(await client.login("428591"), login);
+    assert.assertEquals(client.token, "t-new");
+    await client.listProjects();
 
-  assert.assertEquals(calls[0]?.method, "POST");
-  assert.assertEquals(calls[0]?.body, { pin: "428591" });
-  assert.assertEquals(calls[0]?.headers["authorization"], undefined);
-  assert.assertEquals(calls[1]?.headers["authorization"], "Bearer t-new");
-});
+    assert.assertEquals(calls[0]?.method, "POST");
+    assert.assertEquals(calls[0]?.body, { pin: "428591" });
+    assert.assertEquals(calls[0]?.headers["authorization"], undefined);
+    assert.assertEquals(calls[1]?.headers["authorization"], "Bearer t-new");
+  },
+);
 
-Deno.test("setup sends the PIN without a token", async () => {
+nodeTest.test("setup sends the PIN without a token", async () => {
   const { client, calls } = createClient({ token: "t-1" }, () =>
     Response.json({ ok: true }),
   );
@@ -229,7 +238,7 @@ Deno.test("setup sends the PIN without a token", async () => {
   assert.assertEquals(calls[0]?.headers["authorization"], undefined);
 });
 
-Deno.test("logout sends the token, then forgets it", async () => {
+nodeTest.test("logout sends the token, then forgets it", async () => {
   const { client, calls } = createClient({ token: "t-1" }, () =>
     Response.json({ ok: true }),
   );
@@ -243,7 +252,7 @@ Deno.test("logout sends the token, then forgets it", async () => {
   assert.assertEquals(calls[1]?.headers["authorization"], undefined);
 });
 
-Deno.test("logout keeps the token when the daemon refuses it", async () => {
+nodeTest.test("logout keeps the token when the daemon refuses it", async () => {
   const { client } = createClient(
     { token: "t-1" },
     () => new Response("token is required", { status: 400 }),
@@ -254,7 +263,7 @@ Deno.test("logout keeps the token when the daemon refuses it", async () => {
   assert.assertEquals(client.token, "t-1");
 });
 
-Deno.test("setToken replaces the token later requests send", async () => {
+nodeTest.test("setToken replaces the token later requests send", async () => {
   const { client, calls } = createClient({ token: "t-old" });
 
   client.setToken("t-stored");
@@ -264,15 +273,18 @@ Deno.test("setToken replaces the token later requests send", async () => {
   assert.assertEquals(calls[0]?.headers["authorization"], "Bearer t-stored");
 });
 
-Deno.test("getVapidPublicKey returns the key from the public endpoint", async () => {
-  const { client, calls } = createClient({ token: "t-1" }, () =>
-    Response.json({ publicKey: "BPk" }),
-  );
+nodeTest.test(
+  "getVapidPublicKey returns the key from the public endpoint",
+  async () => {
+    const { client, calls } = createClient({ token: "t-1" }, () =>
+      Response.json({ publicKey: "BPk" }),
+    );
 
-  assert.assertEquals(await client.getVapidPublicKey(), "BPk");
-  assert.assertEquals(calls[0]?.url, `${BASE_URL}/api/push/vapid-public-key`);
-  assert.assertEquals(calls[0]?.headers["authorization"], undefined);
-});
+    assert.assertEquals(await client.getVapidPublicKey(), "BPk");
+    assert.assertEquals(calls[0]?.url, `${BASE_URL}/api/push/vapid-public-key`);
+    assert.assertEquals(calls[0]?.headers["authorization"], undefined);
+  },
+);
 
 const errorCases: ReadonlyArray<{
   readonly name: string;
@@ -297,41 +309,47 @@ const errorCases: ReadonlyArray<{
 ];
 
 for (const { name, call, message } of errorCases) {
-  Deno.test(`a ${name} with an error status throws the method, path, status and body`, async () => {
-    const { client } = createClient(
-      {},
-      () => new Response("token expired", { status: 401 }),
-    );
+  nodeTest.test(
+    `a ${name} with an error status throws the method, path, status and body`,
+    async () => {
+      const { client } = createClient(
+        {},
+        () => new Response("token expired", { status: 401 }),
+      );
 
-    const error = await assert.assertRejects(
-      () => call(client),
-      noskillsClient.NoskillsResponseError,
-    );
+      const error = await assert.assertRejects(
+        () => call(client),
+        noskillsClient.NoskillsResponseError,
+      );
 
-    assert.assertEquals(error.message, message);
-    assert.assertEquals(error.method, name);
-    assert.assertEquals(error.status, 401);
-    assert.assertEquals(error.detail, "token expired");
-  });
+      assert.assertEquals(error.message, message);
+      assert.assertEquals(error.method, name);
+      assert.assertEquals(error.status, 401);
+      assert.assertEquals(error.detail, "token expired");
+    },
+  );
 }
 
-Deno.test("an error body that cannot be read falls back to the status text", async () => {
-  const body = new ReadableStream<Uint8Array>({
-    pull: (controller) => controller.error(new Error("connection reset")),
-  });
-  const { client } = createClient(
-    {},
-    () => new Response(body, { status: 502, statusText: "Bad Gateway" }),
-  );
+nodeTest.test(
+  "an error body that cannot be read falls back to the status text",
+  async () => {
+    const body = new ReadableStream<Uint8Array>({
+      pull: (controller) => controller.error(new Error("connection reset")),
+    });
+    const { client } = createClient(
+      {},
+      () => new Response(body, { status: 502, statusText: "Bad Gateway" }),
+    );
 
-  await assert.assertRejects(
-    () => client.health(),
-    Error,
-    "GET /api/health → 502: Bad Gateway",
-  );
-});
+    await assert.assertRejects(
+      () => client.health(),
+      Error,
+      "GET /api/health → 502: Bad Gateway",
+    );
+  },
+);
 
-Deno.test("a DELETE ignores the response body", async () => {
+nodeTest.test("a DELETE ignores the response body", async () => {
   const { client } = createClient(
     {},
     () => new Response(null, { status: 204 }),
@@ -340,13 +358,13 @@ Deno.test("a DELETE ignores the response body", async () => {
   assert.assertEquals(await client.deleteProject("app"), undefined);
 });
 
-Deno.test("a body that is not JSON rejects", async () => {
+nodeTest.test("a body that is not JSON rejects", async () => {
   const { client } = createClient({}, () => new Response("<html>"));
 
   await assert.assertRejects(() => client.listProjects(), SyntaxError);
 });
 
-Deno.test("a network error rejects with the fetch error", async () => {
+nodeTest.test("a network error rejects with the fetch error", async () => {
   const client = noskillsClient.createNoskillsClient(
     { baseUrl: BASE_URL },
     () => Promise.reject(new TypeError("network unreachable")),
@@ -363,7 +381,7 @@ Deno.test("a network error rejects with the fetch error", async () => {
 // Time limits and cancellation
 // =============================================================================
 
-Deno.test("a call times out when the daemon never answers", async () => {
+nodeTest.test("a call times out when the daemon never answers", async () => {
   const { client } = createClient({ timeoutMs: 20 }, neverAnswers);
 
   const error = await assert.assertRejects(
@@ -377,19 +395,22 @@ Deno.test("a call times out when the daemon never answers", async () => {
   assert.assertEquals((error.cause as Error).name, "TimeoutError");
 });
 
-Deno.test("a call times out even when fetchFn ignores the signal", async () => {
-  const { client } = createClient(
-    { timeoutMs: 20 },
-    () => new Promise<Response>(() => {}),
-  );
+nodeTest.test(
+  "a call times out even when fetchFn ignores the signal",
+  async () => {
+    const { client } = createClient(
+      { timeoutMs: 20 },
+      () => new Promise<Response>(() => {}),
+    );
 
-  await assert.assertRejects(
-    () => client.listProjects(),
-    noskillsClient.NoskillsTimeoutError,
-  );
-});
+    await assert.assertRejects(
+      () => client.listProjects(),
+      noskillsClient.NoskillsTimeoutError,
+    );
+  },
+);
 
-Deno.test("timeoutMs on one call replaces the client's limit", async () => {
+nodeTest.test("timeoutMs on one call replaces the client's limit", async () => {
   const { client } = createClient({ timeoutMs: 60_000 }, neverAnswers);
 
   await assert.assertRejects(
@@ -399,60 +420,69 @@ Deno.test("timeoutMs on one call replaces the client's limit", async () => {
   );
 });
 
-Deno.test("a call rejects with the caller's reason when its signal aborts", async () => {
-  const { client, calls } = createClient({}, neverAnswers);
-  const controller = new AbortController();
-  const reason = new Error("user closed the page");
+nodeTest.test(
+  "a call rejects with the caller's reason when its signal aborts",
+  async () => {
+    const { client, calls } = createClient({}, neverAnswers);
+    const controller = new AbortController();
+    const reason = new Error("user closed the page");
 
-  const pending = client.createSession(
-    "app",
-    {},
-    {
-      signal: controller.signal,
-    },
-  );
-  controller.abort(reason);
+    const pending = client.createSession(
+      "app",
+      {},
+      {
+        signal: controller.signal,
+      },
+    );
+    controller.abort(reason);
 
-  assert.assertStrictEquals(
-    await pending.catch((error: unknown) => error),
-    reason,
-  );
-  assert.assertEquals(calls[0]?.signal?.aborted, true);
-});
+    assert.assertStrictEquals(
+      await pending.catch((error: unknown) => error),
+      reason,
+    );
+    assert.assertEquals(calls[0]?.signal?.aborted, true);
+  },
+);
 
-Deno.test("a call with an aborted signal does not wait for the daemon", async () => {
-  const { client } = createClient({}, neverAnswers);
-  const reason = new Error("cancelled before it started");
+nodeTest.test(
+  "a call with an aborted signal does not wait for the daemon",
+  async () => {
+    const { client } = createClient({}, neverAnswers);
+    const reason = new Error("cancelled before it started");
 
-  assert.assertStrictEquals(
-    await client
-      .health({ signal: AbortSignal.abort(reason) })
-      .catch((error: unknown) => error),
-    reason,
-  );
-});
-
-Deno.test("registerProject with a git URL waits longer than other calls", async () => {
-  const { client } = createClient({ timeoutMs: 20 }, neverAnswers);
-  const controller = new AbortController();
-  const reason = new Error("stopped by the test");
-  const timer = setTimeout(() => controller.abort(reason), 100);
-
-  try {
-    // The 20 ms client limit does not apply: only the caller's abort ends it.
     assert.assertStrictEquals(
       await client
-        .registerProject(
-          { git: "https://github.com/eser/stack.git" },
-          { signal: controller.signal },
-        )
+        .health({ signal: AbortSignal.abort(reason) })
         .catch((error: unknown) => error),
       reason,
     );
-  } finally {
-    clearTimeout(timer);
-  }
-});
+  },
+);
+
+nodeTest.test(
+  "registerProject with a git URL waits longer than other calls",
+  async () => {
+    const { client } = createClient({ timeoutMs: 20 }, neverAnswers);
+    const controller = new AbortController();
+    const reason = new Error("stopped by the test");
+    const timer = setTimeout(() => controller.abort(reason), 100);
+
+    try {
+      // The 20 ms client limit does not apply: only the caller's abort ends it.
+      assert.assertStrictEquals(
+        await client
+          .registerProject(
+            { git: "https://github.com/eser/stack.git" },
+            { signal: controller.signal },
+          )
+          .catch((error: unknown) => error),
+        reason,
+      );
+    } finally {
+      clearTimeout(timer);
+    }
+  },
+);
 
 const pathRegistrations: ReadonlyArray<{
   readonly name: string;
@@ -466,24 +496,30 @@ const pathRegistrations: ReadonlyArray<{
 ];
 
 for (const { name, request } of pathRegistrations) {
-  Deno.test(`registerProject with ${name} keeps the client's limit`, async () => {
-    const { client } = createClient({ timeoutMs: 20 }, neverAnswers);
+  nodeTest.test(
+    `registerProject with ${name} keeps the client's limit`,
+    async () => {
+      const { client } = createClient({ timeoutMs: 20 }, neverAnswers);
 
-    await assert.assertRejects(
-      () => client.registerProject(request),
-      noskillsClient.NoskillsTimeoutError,
-      "POST /api/projects",
-    );
-  });
+      await assert.assertRejects(
+        () => client.registerProject(request),
+        noskillsClient.NoskillsTimeoutError,
+        "POST /api/projects",
+      );
+    },
+  );
 }
 
-Deno.test("a timeoutMs that is not positive is refused before any request", async () => {
-  const { client, calls } = createClient({ timeoutMs: 0 });
+nodeTest.test(
+  "a timeoutMs that is not positive is refused before any request",
+  async () => {
+    const { client, calls } = createClient({ timeoutMs: 0 });
 
-  await assert.assertRejects(
-    () => client.health(),
-    RangeError,
-    "GET /api/health: timeoutMs 0 is not a positive number of milliseconds",
-  );
-  assert.assertEquals(calls.length, 0);
-});
+    await assert.assertRejects(
+      () => client.health(),
+      RangeError,
+      "GET /api/health: timeoutMs 0 is not a positive number of milliseconds",
+    );
+    assert.assertEquals(calls.length, 0);
+  },
+);

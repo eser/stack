@@ -4,7 +4,7 @@ title: 'noskills: pass the 72 test files on Node and stop generating deno comman
 status: To Do
 assignee: []
 created_date: '2026-10-15 20:38'
-updated_date: '2026-10-24 19:38'
+updated_date: '2026-10-25 16:00'
 labels:
   - cutover
   - noskills
@@ -52,4 +52,19 @@ Hand-work list (TASK-175 spike, 2026-10-24, node 26.12.1):
 - Source: Deno. 1 (a comment in commands/git-wrapper-install.ts:16); jsr: 2 and npm: 2 (sync/hook-commands.ts, scripts/npm-build.ts:126); import.meta.main 5 needs no change.
 - Go: pkg/ajan/noskillsfx/persistence.go (1), compiler_test.go (1), manifest_preservation_test.go (5).
 - Docs and data: README.md (3), README-HOW.md (4, at :711 and :894 `verifyCommand: "deno test"`), defaults/concerns/007-well-engineered.json (1) and 013-ship-ready.json (1), both kept per decision-12.
+
+TASK-198 (2026-10-25): the test and bench codemods left no site for hand edits in this task's files (0 unhandled). After them, these test files still fail under `node --test --test-force-exit` on Node 26.12.1, each run alone:
+- pkg/@eserstack/noskills/commands/git-wrapper.test.ts: 6 failing, 22 passing; first error: AssertionError: Expected actual: "node:internal/modules/cjs/loader:1607
+- pkg/@eserstack/noskills/commands/init.test.ts: 3 failing, 0 passing; first error: AssertionError: Values are not equal: node:internal/modules/cjs/loader:1607
+- pkg/@eserstack/noskills/commands/invoke-hook.test.ts: 4 failing, 62 passing; first error: AssertionError: Values are not equal: an Edit that sets allowGit
+- pkg/@eserstack/noskills/commands/next.test.ts: 1 failing, 61 passing; first error: AssertionError: Expected actual: "Verification command failed to execute: The operation was aborted" to contain: "did n
+- pkg/@eserstack/noskills/commands/run-loop.test.ts: 4 failing, 0 passing; first error: AssertionError: Values are not equal: node:internal/modules/cjs/loader:1607
+- pkg/@eserstack/noskills/commands/session-config-diagrams.test.ts: 10 failing, 0 passing; first error: AssertionError: Values are not equal: node:internal/modules/cjs/loader:1607
+- pkg/@eserstack/noskills/commands/spec-plan.test.ts: 1 failing, 9 passing; first error: AssertionError: Values are not equal: node:internal/modules/cjs/loader:1607
+- pkg/@eserstack/noskills/commands/spec-section.test.ts: 9 failing, 0 passing; first error: AssertionError: Values are not equal: node:internal/modules/cjs/loader:1607
+- pkg/@eserstack/noskills/commands/spec-states.test.ts: 5 failing, 1 passing; first error: AssertionError: Values are not equal: node:internal/modules/cjs/loader:1607
+- pkg/@eserstack/noskills/commands/spec.test.ts: 4 failing, 0 passing; first error: SyntaxError [Error]: Unexpected end of JSON input
+- pkg/@eserstack/noskills/commands/state-commands.test.ts: 3 failing, 0 passing; first error: AssertionError: Values are not equal: node:internal/modules/cjs/loader:1607
+- pkg/@eserstack/noskills/state/persistence.migration.test.ts: 1 failing, 11 passing; first error: Error [ERR_FS_EISDIR]: Path is a directory: rm returned EISDIR (is a directory) <tmp> { code: 'ERR_FS_EISDIR', info: { c
+- pkg/@eserstack/noskills/sync/adapters/opencode.test.ts: 1 failing, 35 passing; first error: AssertionError: Expected error message to include "Git write operations are not allowed", but got "noskills: the PreToo
 <!-- SECTION:NOTES:END -->

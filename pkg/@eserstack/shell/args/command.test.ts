@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 
 import * as results from "@eserstack/primitives/results";
@@ -35,7 +36,7 @@ const withLazyChild = (): { root: command.Command; loaded: () => boolean } => {
 // had no such field, so anything with a short name was forced to stay eager and
 // pay its import cost on every invocation. That is backwards — a command big
 // enough to defer is exactly the kind that earns an alias.
-Deno.test("a lazy command dispatches through its alias", async () => {
+nodeTest.test("a lazy command dispatches through its alias", async () => {
   const { root, loaded } = withLazyChild();
 
   assert.assert(!loaded(), "the module loaded before anything invoked it");
@@ -45,20 +46,23 @@ Deno.test("a lazy command dispatches through its alias", async () => {
   assert.assert(loaded(), "invoking the alias did not load the command");
 });
 
-Deno.test("a lazy command still dispatches through its own name", async () => {
-  const { root, loaded } = withLazyChild();
+nodeTest.test(
+  "a lazy command still dispatches through its own name",
+  async () => {
+    const { root, loaded } = withLazyChild();
 
-  await root.parse(["workflows"]);
+    await root.parse(["workflows"]);
 
-  assert.assert(
-    loaded(),
-    "invoking the canonical name did not load the command",
-  );
-});
+    assert.assert(
+      loaded(),
+      "invoking the canonical name did not load the command",
+    );
+  },
+);
 
 // An alias that works but is undiscoverable is worse than no alias, so help
 // must render it the same way an eager command's is: "workflows, wf".
-Deno.test("a lazy command's aliases appear in help", () => {
+nodeTest.test("a lazy command's aliases appear in help", () => {
   const { root, loaded } = withLazyChild();
 
   const help = root.help();
@@ -70,17 +74,20 @@ Deno.test("a lazy command's aliases appear in help", () => {
   assert.assertEquals(loaded(), false);
 });
 
-Deno.test("an unaliased lazy command renders without a trailing comma", () => {
-  const root = new command.Command("root").lazyCommand("solo", {
-    description: "No alias here",
-    load: () => Promise.resolve(new command.Command("solo")),
-  });
+nodeTest.test(
+  "an unaliased lazy command renders without a trailing comma",
+  () => {
+    const root = new command.Command("root").lazyCommand("solo", {
+      description: "No alias here",
+      load: () => Promise.resolve(new command.Command("solo")),
+    });
 
-  const help = root.help();
+    const help = root.help();
 
-  assert.assertStringIncludes(help, "solo");
-  assert.assertEquals(help.includes("solo,"), false);
-});
+    assert.assertStringIncludes(help, "solo");
+    assert.assertEquals(help.includes("solo,"), false);
+  },
+);
 
 /**
  * Builds a root command with one module group. `received` reports the
@@ -113,16 +120,19 @@ const withGroup = (): {
   return { root, received: () => receivedArgs };
 };
 
-Deno.test("a group dispatches to its module with the remaining args", async () => {
-  const { root, received } = withGroup();
+nodeTest.test(
+  "a group dispatches to its module with the remaining args",
+  async () => {
+    const { root, received } = withGroup();
 
-  const result = await root.parse(["tools", "format", "src"]);
+    const result = await root.parse(["tools", "format", "src"]);
 
-  assert.assert(results.isOk(result));
-  assert.assertEquals(received(), ["src"]);
-});
+    assert.assert(results.isOk(result));
+    assert.assertEquals(received(), ["src"]);
+  },
+);
 
-Deno.test("a group resolves a module alias", async () => {
+nodeTest.test("a group resolves a module alias", async () => {
   const { root, received } = withGroup();
 
   await root.parse(["tools", "fmt", "src"]);
@@ -130,12 +140,15 @@ Deno.test("a group resolves a module alias", async () => {
   assert.assertEquals(received(), ["src"]);
 });
 
-Deno.test("a group rejects an unknown module with exit code 1", async () => {
-  const { root, received } = withGroup();
+nodeTest.test(
+  "a group rejects an unknown module with exit code 1",
+  async () => {
+    const { root, received } = withGroup();
 
-  const result = await root.parse(["tools", "missing"]);
+    const result = await root.parse(["tools", "missing"]);
 
-  assert.assert(results.isFail(result));
-  assert.assertEquals(result.error.exitCode, 1);
-  assert.assertEquals(received(), null);
-});
+    assert.assert(results.isFail(result));
+    assert.assertEquals(result.error.exitCode, 1);
+    assert.assertEquals(received(), null);
+  },
+);

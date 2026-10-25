@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as mitata from "mitata";
 import * as memoize from "./memoize.ts";
 // lodash.memoize is CommonJS whose module.exports is one function, so it has no
 // named exports to import as a namespace.
@@ -13,12 +14,23 @@ const compute = (x: number) => x * 2 + 1;
 const eserMemoized = memoize.memoize(compute);
 const lodashMemoized = lodashMemoize(compute);
 
-Deno.bench("eser/fp/memoize (cache hit)", { group, baseline: true }, () => {
-  eserMemoized(42);
-});
-
-Deno.bench("npm:lodash.memoize (cache hit)", { group }, () => {
-  lodashMemoized(42);
+mitata.group(group, () => {
+  mitata.summary(() => {
+    mitata
+      .bench("eser/fp/memoize (cache hit)", () => {
+        eserMemoized(42);
+      })
+      .baseline();
+    mitata.bench("npm:lodash.memoize (cache hit)", () => {
+      lodashMemoized(42);
+    });
+    mitata.bench("eser/fp/memoize (cache miss)", () => {
+      eserFreshMemoized(eserCounter++);
+    });
+    mitata.bench("npm:lodash.memoize (cache miss)", () => {
+      lodashFreshMemoized(lodashCounter++);
+    });
+  });
 });
 
 // Benchmark cache miss scenario
@@ -28,10 +40,5 @@ let lodashCounter = 0;
 const eserFreshMemoized = memoize.memoize((x: number) => x * 2);
 const lodashFreshMemoized = lodashMemoize((x: number) => x * 2);
 
-Deno.bench("eser/fp/memoize (cache miss)", { group }, () => {
-  eserFreshMemoized(eserCounter++);
-});
-
-Deno.bench("npm:lodash.memoize (cache miss)", { group }, () => {
-  lodashFreshMemoized(lodashCounter++);
-});
+// oxlint-disable-next-line node/no-top-level-await
+await mitata.run();

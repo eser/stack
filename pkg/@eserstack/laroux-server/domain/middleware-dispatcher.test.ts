@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import { runtime } from "@eserstack/standards/cross-runtime";
 import * as middlewareDispatcher from "./middleware-dispatcher.ts";
@@ -52,49 +53,58 @@ const runFor = async (
   return result.type === "response" ? await result.response.text() : null;
 };
 
-Deno.test("MiddlewareDispatcher runs a changed proxy after loading the next build", async () => {
-  await withDistDir(async (distDir) => {
-    const dispatcher = new middlewareDispatcher.MiddlewareDispatcher();
-    await writeAdminProxy(distDir, "admin proxy of build 1");
-    await dispatcher.loadProxies(distDir, "build-1");
-    const first = await runFor(dispatcher, "/admin/users");
+nodeTest.test(
+  "MiddlewareDispatcher runs a changed proxy after loading the next build",
+  async () => {
+    await withDistDir(async (distDir) => {
+      const dispatcher = new middlewareDispatcher.MiddlewareDispatcher();
+      await writeAdminProxy(distDir, "admin proxy of build 1");
+      await dispatcher.loadProxies(distDir, "build-1");
+      const first = await runFor(dispatcher, "/admin/users");
 
-    // A rebuild rewrites the proxy module in place
-    await writeAdminProxy(distDir, "admin proxy of build 2");
-    const beforeReload = await runFor(dispatcher, "/admin/users");
-    await dispatcher.loadProxies(distDir, "build-2");
-    const afterReload = await runFor(dispatcher, "/admin/users");
+      // A rebuild rewrites the proxy module in place
+      await writeAdminProxy(distDir, "admin proxy of build 2");
+      const beforeReload = await runFor(dispatcher, "/admin/users");
+      await dispatcher.loadProxies(distDir, "build-2");
+      const afterReload = await runFor(dispatcher, "/admin/users");
 
-    assert.assertEquals(first, "admin proxy of build 1");
-    // The loaded build keeps the module it imported
-    assert.assertEquals(beforeReload, "admin proxy of build 1");
-    assert.assertEquals(afterReload, "admin proxy of build 2");
-  });
-});
+      assert.assertEquals(first, "admin proxy of build 1");
+      // The loaded build keeps the module it imported
+      assert.assertEquals(beforeReload, "admin proxy of build 1");
+      assert.assertEquals(afterReload, "admin proxy of build 2");
+    });
+  },
+);
 
-Deno.test("MiddlewareDispatcher lets every request through when the build has no proxy registry", async () => {
-  await withDistDir(async (distDir) => {
-    const dispatcher = new middlewareDispatcher.MiddlewareDispatcher();
-    await writeAdminProxy(distDir, "admin proxy");
-    await dispatcher.loadProxies(distDir, "build-1");
+nodeTest.test(
+  "MiddlewareDispatcher lets every request through when the build has no proxy registry",
+  async () => {
+    await withDistDir(async (distDir) => {
+      const dispatcher = new middlewareDispatcher.MiddlewareDispatcher();
+      await writeAdminProxy(distDir, "admin proxy");
+      await dispatcher.loadProxies(distDir, "build-1");
 
-    // A build without proxy.ts files writes no registry
-    await runtime.fs.remove(
-      runtime.path.join(distDir, "server", "proxy-registry.ts"),
-    );
-    await dispatcher.loadProxies(distDir, "build-2");
+      // A build without proxy.ts files writes no registry
+      await runtime.fs.remove(
+        runtime.path.join(distDir, "server", "proxy-registry.ts"),
+      );
+      await dispatcher.loadProxies(distDir, "build-2");
 
-    assert.assertEquals(await runFor(dispatcher, "/admin/users"), null);
-  });
-});
+      assert.assertEquals(await runFor(dispatcher, "/admin/users"), null);
+    });
+  },
+);
 
-Deno.test("MiddlewareDispatcher runs no proxy outside its path prefix", async () => {
-  await withDistDir(async (distDir) => {
-    const dispatcher = new middlewareDispatcher.MiddlewareDispatcher();
-    await writeAdminProxy(distDir, "admin proxy");
-    await dispatcher.loadProxies(distDir, "build-1");
+nodeTest.test(
+  "MiddlewareDispatcher runs no proxy outside its path prefix",
+  async () => {
+    await withDistDir(async (distDir) => {
+      const dispatcher = new middlewareDispatcher.MiddlewareDispatcher();
+      await writeAdminProxy(distDir, "admin proxy");
+      await dispatcher.loadProxies(distDir, "build-1");
 
-    assert.assertEquals(await runFor(dispatcher, "/administrators"), null);
-    assert.assertEquals(await runFor(dispatcher, "/admin"), "admin proxy");
-  });
-});
+      assert.assertEquals(await runFor(dispatcher, "/administrators"), null);
+      assert.assertEquals(await runFor(dispatcher, "/admin"), "admin proxy");
+    });
+  },
+);

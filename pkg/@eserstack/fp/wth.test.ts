@@ -1,9 +1,10 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as wth from "./wth.ts";
 
-Deno.test("basic", () => {
+nodeTest.test("basic", () => {
   const obj1 = { a: 1, b: 2, c: 3, d: 4, e: 5 };
   const obj2 = { b: 6, f: 8 };
 

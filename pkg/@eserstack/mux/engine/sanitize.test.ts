@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import type { Action } from "./types.ts";
 import type { FrontendToServer } from "../ipc/protocol.ts";
@@ -11,7 +12,7 @@ import * as sanitize from "./sanitize.ts";
 // the whole point there -- so these tests are about the ingress filter, not
 // about the engine.
 
-Deno.test("sanitizeRemoteAction strips spawn fields from newTab", () => {
+nodeTest.test("sanitizeRemoteAction strips spawn fields from newTab", () => {
   const hostile = {
     type: "newTab",
     command: "/bin/sh",
@@ -34,42 +35,48 @@ Deno.test("sanitizeRemoteAction strips spawn fields from newTab", () => {
 // This is the hole the newTab-only guard left open. `newPane` carries the same
 // command/args/cwd triple, so a client that could not open a tab with an
 // arbitrary command could simply split a pane with one instead.
-Deno.test("sanitizeRemoteAction strips spawn fields from newPane too", () => {
-  const hostile = {
-    type: "newPane",
-    direction: "horizontal",
-    command: "/bin/sh",
-    args: ["-c", "rm -rf ~"],
-    cwd: "/",
-  } as Action;
+nodeTest.test(
+  "sanitizeRemoteAction strips spawn fields from newPane too",
+  () => {
+    const hostile = {
+      type: "newPane",
+      direction: "horizontal",
+      command: "/bin/sh",
+      args: ["-c", "rm -rf ~"],
+      cwd: "/",
+    } as Action;
 
-  const cleaned = sanitize.sanitizeRemoteAction(hostile) as Record<
-    string,
-    unknown
-  >;
+    const cleaned = sanitize.sanitizeRemoteAction(hostile) as Record<
+      string,
+      unknown
+    >;
 
-  assert.assertEquals(cleaned["command"], undefined);
-  assert.assertEquals(cleaned["args"], undefined);
-  assert.assertEquals(cleaned["cwd"], undefined);
+    assert.assertEquals(cleaned["command"], undefined);
+    assert.assertEquals(cleaned["args"], undefined);
+    assert.assertEquals(cleaned["cwd"], undefined);
 
-  // The layout field is not a capability and must survive, or a remote client
-  // loses the ability to split at all.
-  assert.assertEquals(cleaned["direction"], "horizontal");
-});
+    // The layout field is not a capability and must survive, or a remote client
+    // loses the ability to split at all.
+    assert.assertEquals(cleaned["direction"], "horizontal");
+  },
+);
 
-Deno.test("sanitizeRemoteAction passes through actions with nothing to strip", () => {
-  // Identity, not just equality: the common path must allocate nothing.
-  const benign = { type: "focusNext" } as Action;
-  assert.assert(sanitize.sanitizeRemoteAction(benign) === benign);
+nodeTest.test(
+  "sanitizeRemoteAction passes through actions with nothing to strip",
+  () => {
+    // Identity, not just equality: the common path must allocate nothing.
+    const benign = { type: "focusNext" } as Action;
+    assert.assert(sanitize.sanitizeRemoteAction(benign) === benign);
 
-  const spawnless = { type: "newTab", title: "notes" } as Action;
-  assert.assert(sanitize.sanitizeRemoteAction(spawnless) === spawnless);
+    const spawnless = { type: "newTab", title: "notes" } as Action;
+    assert.assert(sanitize.sanitizeRemoteAction(spawnless) === spawnless);
 
-  const splitOnly = { type: "newPane", direction: "vertical" } as Action;
-  assert.assert(sanitize.sanitizeRemoteAction(splitOnly) === splitOnly);
-});
+    const splitOnly = { type: "newPane", direction: "vertical" } as Action;
+    assert.assert(sanitize.sanitizeRemoteAction(splitOnly) === splitOnly);
+  },
+);
 
-Deno.test("sanitizeRemoteMessage only rewrites action frames", () => {
+nodeTest.test("sanitizeRemoteMessage only rewrites action frames", () => {
   const attach = { t: "attach" } as FrontendToServer;
   assert.assert(sanitize.sanitizeRemoteMessage(attach) === attach);
 
@@ -88,30 +95,33 @@ Deno.test("sanitizeRemoteMessage only rewrites action frames", () => {
 // Guards the tests above from passing because everything is stripped. A
 // sanitizer that emptied every action would satisfy them while breaking the
 // feature.
-Deno.test("sanitizeRemoteAction keeps the fields a remote client may choose", () => {
-  const action = {
-    type: "newTab",
-    command: "/bin/sh",
-    kind: "terminal",
-    title: "shell",
-    meta: { sessionId: "s-1" },
-  } as Action;
+nodeTest.test(
+  "sanitizeRemoteAction keeps the fields a remote client may choose",
+  () => {
+    const action = {
+      type: "newTab",
+      command: "/bin/sh",
+      kind: "terminal",
+      title: "shell",
+      meta: { sessionId: "s-1" },
+    } as Action;
 
-  const cleaned = sanitize.sanitizeRemoteAction(action) as Record<
-    string,
-    unknown
-  >;
+    const cleaned = sanitize.sanitizeRemoteAction(action) as Record<
+      string,
+      unknown
+    >;
 
-  assert.assertEquals(cleaned["kind"], "terminal");
-  assert.assertEquals(cleaned["title"], "shell");
-  assert.assertEquals(cleaned["meta"], { sessionId: "s-1" });
-});
+    assert.assertEquals(cleaned["kind"], "terminal");
+    assert.assertEquals(cleaned["title"], "shell");
+    assert.assertEquals(cleaned["meta"], { sessionId: "s-1" });
+  },
+);
 
 // The transport wrapper is what the daemon's mux worker actually installs, so
 // this is the test that covers the route that was unguarded. Testing
 // sanitizeRemoteMessage alone left the wiring uncovered: deleting the call at
 // the worker's connect site broke nothing that any test noticed.
-Deno.test("sanitizeRemoteTransport filters every inbound message", () => {
+nodeTest.test("sanitizeRemoteTransport filters every inbound message", () => {
   let deliver: ((msg: FrontendToServer) => void) | null = null;
   const seen: FrontendToServer[] = [];
 
@@ -147,18 +157,21 @@ Deno.test("sanitizeRemoteTransport filters every inbound message", () => {
 
 // The wrapper must not swallow the rest of the transport: a server that can
 // receive but not send is worse than one that never connected.
-Deno.test("sanitizeRemoteTransport keeps the transport's other methods", () => {
-  const sent: unknown[] = [];
+nodeTest.test(
+  "sanitizeRemoteTransport keeps the transport's other methods",
+  () => {
+    const sent: unknown[] = [];
 
-  const guarded = sanitize.sanitizeRemoteTransport({
-    send(frame: unknown): void {
-      sent.push(frame);
-    },
-    onMessage(_handler: (msg: FrontendToServer) => void): void {},
-    close(): void {},
-  });
+    const guarded = sanitize.sanitizeRemoteTransport({
+      send(frame: unknown): void {
+        sent.push(frame);
+      },
+      onMessage(_handler: (msg: FrontendToServer) => void): void {},
+      close(): void {},
+    });
 
-  guarded.send({ t: "scene" });
+    guarded.send({ t: "scene" });
 
-  assert.assertEquals(sent.length, 1);
-});
+    assert.assertEquals(sent.length, 1);
+  },
+);

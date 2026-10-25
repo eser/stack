@@ -6,7 +6,7 @@
  * @module
  */
 
-import * as bdd from "@std/testing/bdd";
+import * as bdd from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as crossRuntime from "@eserstack/standards/cross-runtime";
 import * as schema from "../state/schema.ts";

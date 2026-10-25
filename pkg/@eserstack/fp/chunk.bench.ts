@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as mitata from "mitata";
 import * as chunk from "./chunk.ts";
 // lodash.chunk is CommonJS whose module.exports is one function, so it has no
 // named exports to import as a namespace.
@@ -15,14 +16,22 @@ const lodashChunk = lodashChunkUntyped as <T>(
 
 const group = "chunk";
 
-Deno.bench("eser/fp/chunk", { group, baseline: true }, () => {
-  const arr = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+mitata.group(group, () => {
+  mitata.summary(() => {
+    mitata
+      .bench("eser/fp/chunk", () => {
+        const arr = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 
-  chunk.chunk(arr, 3);
+        chunk.chunk(arr, 3);
+      })
+      .baseline();
+    mitata.bench("npm:lodash.chunk", () => {
+      const arr = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+
+      lodashChunk(arr, 3);
+    });
+  });
 });
 
-Deno.bench("npm:lodash.chunk", { group }, () => {
-  const arr = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
-
-  lodashChunk(arr, 3);
-});
+// oxlint-disable-next-line node/no-top-level-await
+await mitata.run();

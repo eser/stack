@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import { runtime } from "@eserstack/standards/cross-runtime";
 import type { FrameworkPlugin } from "@eserstack/laroux-bundler";
@@ -36,22 +37,25 @@ async function withApp(fn: (projectRoot: string) => Promise<void>) {
 // A server that started would leave its listener open, which the test
 // sanitizers report, so the rejection alone shows serving never began.
 for (const mode of ["serve", "dev"] as const) {
-  Deno.test(`startServer in ${mode} mode does not serve after a failed build`, async () => {
-    await withApp(async (projectRoot) => {
-      const error = await assert.assertRejects(
-        () =>
-          main.startServer({
-            mode,
-            projectRoot,
-            port: 0,
-            hmr: false,
-            logLevel: "fatal",
-            frameworkPlugin: failingClientEntryPlugin,
-          }),
-        main.BuildFailedError,
-      );
+  nodeTest.test(
+    `startServer in ${mode} mode does not serve after a failed build`,
+    async () => {
+      await withApp(async (projectRoot) => {
+        const error = await assert.assertRejects(
+          () =>
+            main.startServer({
+              mode,
+              projectRoot,
+              port: 0,
+              hmr: false,
+              logLevel: "fatal",
+              frameworkPlugin: failingClientEntryPlugin,
+            }),
+          main.BuildFailedError,
+        );
 
-      assert.assertEquals(error.projectRoot, projectRoot);
-    });
-  });
+        assert.assertEquals(error.projectRoot, projectRoot);
+      });
+    },
+  );
 }

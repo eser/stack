@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 
 // The test looks for terminal control characters, so the pattern must match them.
@@ -19,23 +20,26 @@ await output.outputPosts([{
 }]);
 `;
 
-Deno.test("outputPosts prints remote post text without terminal controls", async () => {
-  const { code, stdout } = await new Deno.Command(Deno.execPath(), {
-    args: ["eval", "--ext=ts", SCRIPT],
-    stdout: "piped",
-    stderr: "inherit",
-  }).output();
-  assert.assertEquals(code, 0);
+nodeTest.test(
+  "outputPosts prints remote post text without terminal controls",
+  async () => {
+    const { code, stdout } = await new Deno.Command(Deno.execPath(), {
+      args: ["eval", "--ext=ts", SCRIPT],
+      stdout: "piped",
+      stderr: "inherit",
+    }).output();
+    assert.assertEquals(code, 0);
 
-  const printed = new TextDecoder().decode(stdout);
-  assert.assertEquals(printed.includes("spoofed"), true, printed);
-  // Only the renderer's own SGR styling may remain. The pattern matches the
-  // ESC control character that starts each SGR sequence, so it strips them.
-  // oxlint-disable-next-line no-control-regex
-  const withoutSgr = printed.replace(/\x1b\[[0-9;]*m/g, "");
-  assert.assertEquals(
-    CONTROL.test(withoutSgr.replace(/\n/g, "")),
-    false,
-    JSON.stringify(printed),
-  );
-});
+    const printed = new TextDecoder().decode(stdout);
+    assert.assertEquals(printed.includes("spoofed"), true, printed);
+    // Only the renderer's own SGR styling may remain. The pattern matches the
+    // ESC control character that starts each SGR sequence, so it strips them.
+    // oxlint-disable-next-line no-control-regex
+    const withoutSgr = printed.replace(/\x1b\[[0-9;]*m/g, "");
+    assert.assertEquals(
+      CONTROL.test(withoutSgr.replace(/\n/g, "")),
+      false,
+      JSON.stringify(printed),
+    );
+  },
+);

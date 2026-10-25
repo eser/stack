@@ -1,10 +1,11 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as types from "./types.ts";
 import * as groupMod from "./group.ts";
 
-Deno.test("group collects results from all prompts", async () => {
+nodeTest.test("group collects results from all prompts", async () => {
   const { ctx } = types.createTestContext();
   const result = await groupMod.group(ctx, {
     name: () => Promise.resolve("Alice"),
@@ -13,26 +14,29 @@ Deno.test("group collects results from all prompts", async () => {
   assert.assertEquals(result, { name: "Alice", age: 30 });
 });
 
-Deno.test("group passes partial results to subsequent prompts", async () => {
-  const { ctx } = types.createTestContext();
-  let capturedResults: Record<string, unknown> = {};
+nodeTest.test(
+  "group passes partial results to subsequent prompts",
+  async () => {
+    const { ctx } = types.createTestContext();
+    let capturedResults: Record<string, unknown> = {};
 
-  const result = await groupMod.group(ctx, {
-    name: () => Promise.resolve("Bob"),
-    greeting: ({ results }) => {
-      capturedResults = { ...results };
-      return Promise.resolve(`Hello ${results["name"]}`);
-    },
-  });
+    const result = await groupMod.group(ctx, {
+      name: () => Promise.resolve("Bob"),
+      greeting: ({ results }) => {
+        capturedResults = { ...results };
+        return Promise.resolve(`Hello ${results["name"]}`);
+      },
+    });
 
-  assert.assertEquals(capturedResults, { name: "Bob" });
-  assert.assertEquals(result, {
-    name: "Bob",
-    greeting: "Hello Bob",
-  });
-});
+    assert.assertEquals(capturedResults, { name: "Bob" });
+    assert.assertEquals(result, {
+      name: "Bob",
+      greeting: "Hello Bob",
+    });
+  },
+);
 
-Deno.test("group returns CANCEL if any prompt cancels", async () => {
+nodeTest.test("group returns CANCEL if any prompt cancels", async () => {
   const { ctx } = types.createTestContext();
   const result = await groupMod.group(ctx, {
     name: () => Promise.resolve("Charlie"),
@@ -43,7 +47,7 @@ Deno.test("group returns CANCEL if any prompt cancels", async () => {
   assert.assertEquals(types.isCancel(result), true);
 });
 
-Deno.test("group calls onCancel callback on cancellation", async () => {
+nodeTest.test("group calls onCancel callback on cancellation", async () => {
   const { ctx } = types.createTestContext();
   let cancelled = false;
 
@@ -62,7 +66,7 @@ Deno.test("group calls onCancel callback on cancellation", async () => {
   assert.assertEquals(cancelled, true);
 });
 
-Deno.test("group does not call onCancel on success", async () => {
+nodeTest.test("group does not call onCancel on success", async () => {
   const { ctx } = types.createTestContext();
   let cancelled = false;
 
@@ -81,13 +85,13 @@ Deno.test("group does not call onCancel on success", async () => {
   assert.assertEquals(cancelled, false);
 });
 
-Deno.test("group with empty prompts returns empty object", async () => {
+nodeTest.test("group with empty prompts returns empty object", async () => {
   const { ctx } = types.createTestContext();
   const result = await groupMod.group(ctx, {});
   assert.assertEquals(result, {});
 });
 
-Deno.test("group stops at first cancellation", async () => {
+nodeTest.test("group stops at first cancellation", async () => {
   const { ctx } = types.createTestContext();
   const executed: string[] = [];
 

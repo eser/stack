@@ -6,7 +6,7 @@ title: >-
 status: To Do
 assignee: []
 created_date: '2026-10-15 20:38'
-updated_date: '2026-10-24 19:38'
+updated_date: '2026-10-25 16:00'
 labels:
   - cutover
   - codebase
@@ -57,4 +57,6 @@ Hand-work list (TASK-175 spike, 2026-10-24, node 26.12.1):
 - Source: lint-plugin.ts:4,13,17 (delete); npm-externals.ts:20,40 (bun:ffi); validate-runtime-js-apis.ts:9,47,176,204; validate-package-configs.ts:6,77-119 and validation/validators/package-configs.ts:13-34 (deno.json); validate-export-names.ts:6; validate-self-imports.ts:8-12 (deno publish).
 - Go twin (mentions): pkg/ajan/codebasefx/workspace.go 10, workspace_validators.go 9, validators.go 5, types.go 3, errors.go 1, validatortools/validatortools.go 1; tests codebasefx_phase_e_test.go 19, phase_e2_test.go 11, phase_e5_test.go 11, workspace_test.go 9, workspace_validators_test.go 3.
 - Docs: pkg/@eserstack/codebase/README.md (8), pkg/@eserstack/codebase/AGENTS.md (2).
+
+TASK-198 (2026-10-25): the test and bench codemods left no site for hand edits in this task's files (0 unhandled), and none of its test files fails under `node --test --test-force-exit` on Node 26.12.1 when run alone.
 <!-- SECTION:NOTES:END -->

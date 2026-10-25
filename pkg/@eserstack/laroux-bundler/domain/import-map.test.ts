@@ -1,14 +1,15 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import { runtime } from "@eserstack/standards/cross-runtime";
 import * as importMap from "./import-map.ts";
 
-Deno.test("import-map", async (t) => {
+nodeTest.test("import-map", async (t) => {
   // Create a temp directory for test fixtures
   const tempDir = await runtime.fs.makeTempDir({ prefix: "import-map-test-" });
 
-  await t.step("loadImportMap - deno.json only", async () => {
+  await t.test("loadImportMap - deno.json only", async () => {
     // Create test deno.json
     const denoJson = {
       imports: {
@@ -60,7 +61,7 @@ Deno.test("import-map", async (t) => {
     await runtime.fs.remove(runtime.path.join(tempDir, "deno.json"));
   });
 
-  await t.step("loadImportMap - package.json only", async () => {
+  await t.test("loadImportMap - package.json only", async () => {
     // Create test package.json
     const packageJson = {
       dependencies: {
@@ -99,7 +100,7 @@ Deno.test("import-map", async (t) => {
     await runtime.fs.remove(runtime.path.join(tempDir, "package.json"));
   });
 
-  await t.step(
+  await t.test(
     "loadImportMap - combined deno.json + package.json",
     async () => {
       // deno.json takes priority over package.json
@@ -149,7 +150,7 @@ Deno.test("import-map", async (t) => {
     },
   );
 
-  await t.step("resolveSpecifier - exact match", async () => {
+  await t.test("resolveSpecifier - exact match", async () => {
     const denoJson = {
       imports: {
         react: "npm:react@^19.0.0",
@@ -180,7 +181,7 @@ Deno.test("import-map", async (t) => {
     await runtime.fs.remove(runtime.path.join(tempDir, "deno.json"));
   });
 
-  await t.step("resolveSpecifier - subpath imports", async () => {
+  await t.test("resolveSpecifier - subpath imports", async () => {
     const denoJson = {
       imports: {
         "react-dom": "npm:react-dom@^19.0.0",
@@ -210,7 +211,7 @@ Deno.test("import-map", async (t) => {
     await runtime.fs.remove(runtime.path.join(tempDir, "deno.json"));
   });
 
-  await t.step("isExternal - checks external packages", async () => {
+  await t.test("isExternal - checks external packages", async () => {
     const denoJson = {
       imports: {
         react: "npm:react@^19.0.0",
@@ -251,7 +252,7 @@ Deno.test("import-map", async (t) => {
     await runtime.fs.remove(runtime.path.join(tempDir, "deno.json"));
   });
 
-  await t.step("getExternals - returns external package list", async () => {
+  await t.test("getExternals - returns external package list", async () => {
     const denoJson = {
       imports: {
         react: "npm:react@^19.0.0",
@@ -280,7 +281,7 @@ Deno.test("import-map", async (t) => {
     await runtime.fs.remove(runtime.path.join(tempDir, "deno.json"));
   });
 
-  await t.step("loadImportMap - empty directory", async () => {
+  await t.test("loadImportMap - empty directory", async () => {
     const emptyDir = await runtime.fs.makeTempDir({
       prefix: "import-map-empty-",
     });
@@ -301,8 +302,8 @@ Deno.test("import-map", async (t) => {
   await runtime.fs.remove(tempDir, { recursive: true });
 });
 
-Deno.test("getProtocol", async (t) => {
-  await t.step("extracts protocol from standard URLs", () => {
+nodeTest.test("getProtocol", async (t) => {
+  await t.test("extracts protocol from standard URLs", () => {
     assert.assertEquals(importMap.getProtocol("https://example.com"), "https:");
     assert.assertEquals(
       importMap.getProtocol("http://localhost:3000"),
@@ -311,7 +312,7 @@ Deno.test("getProtocol", async (t) => {
     assert.assertEquals(importMap.getProtocol("file:///path/to/file"), "file:");
   });
 
-  await t.step("extracts protocol from custom specifiers", () => {
+  await t.test("extracts protocol from custom specifiers", () => {
     assert.assertEquals(importMap.getProtocol("npm:react@^19.0.0"), "npm:");
     assert.assertEquals(
       importMap.getProtocol("jsr:@eserstack/logging@^4.0.0"),
@@ -320,41 +321,41 @@ Deno.test("getProtocol", async (t) => {
     assert.assertEquals(importMap.getProtocol("node:fs"), "node:");
   });
 
-  await t.step("returns null for bare specifiers", () => {
+  await t.test("returns null for bare specifiers", () => {
     assert.assertEquals(importMap.getProtocol("react"), null);
     assert.assertEquals(importMap.getProtocol("@eserstack/logging"), null);
     assert.assertEquals(importMap.getProtocol("lodash/merge"), null);
   });
 
-  await t.step("returns null for relative paths", () => {
+  await t.test("returns null for relative paths", () => {
     assert.assertEquals(importMap.getProtocol("./utils.ts"), null);
     assert.assertEquals(importMap.getProtocol("../lib/index.ts"), null);
   });
 
-  await t.step("returns null for absolute paths", () => {
+  await t.test("returns null for absolute paths", () => {
     assert.assertEquals(importMap.getProtocol("/src/utils.ts"), null);
   });
 });
 
-Deno.test("isPathSpecifier", async (t) => {
-  await t.step("identifies relative paths", () => {
+nodeTest.test("isPathSpecifier", async (t) => {
+  await t.test("identifies relative paths", () => {
     assert.assertEquals(importMap.isPathSpecifier("./utils.ts"), true);
     assert.assertEquals(importMap.isPathSpecifier("../lib/index.ts"), true);
     assert.assertEquals(importMap.isPathSpecifier("./"), true);
   });
 
-  await t.step("identifies absolute paths", () => {
+  await t.test("identifies absolute paths", () => {
     assert.assertEquals(importMap.isPathSpecifier("/src/utils.ts"), true);
     assert.assertEquals(importMap.isPathSpecifier("/"), true);
   });
 
-  await t.step("rejects bare specifiers", () => {
+  await t.test("rejects bare specifiers", () => {
     assert.assertEquals(importMap.isPathSpecifier("react"), false);
     assert.assertEquals(importMap.isPathSpecifier("@eserstack/logging"), false);
     assert.assertEquals(importMap.isPathSpecifier("lodash/merge"), false);
   });
 
-  await t.step("rejects protocol-prefixed specifiers", () => {
+  await t.test("rejects protocol-prefixed specifiers", () => {
     assert.assertEquals(importMap.isPathSpecifier("npm:react"), false);
     assert.assertEquals(
       importMap.isPathSpecifier("jsr:@eserstack/logging"),
@@ -367,24 +368,24 @@ Deno.test("isPathSpecifier", async (t) => {
   });
 });
 
-Deno.test("isBareSpecifier", async (t) => {
-  await t.step("identifies bare package imports", () => {
+nodeTest.test("isBareSpecifier", async (t) => {
+  await t.test("identifies bare package imports", () => {
     assert.assertEquals(importMap.isBareSpecifier("react"), true);
     assert.assertEquals(importMap.isBareSpecifier("@eserstack/logging"), true);
     assert.assertEquals(importMap.isBareSpecifier("lodash/merge"), true);
     assert.assertEquals(importMap.isBareSpecifier("lucide-react"), true);
   });
 
-  await t.step("rejects relative paths", () => {
+  await t.test("rejects relative paths", () => {
     assert.assertEquals(importMap.isBareSpecifier("./utils.ts"), false);
     assert.assertEquals(importMap.isBareSpecifier("../lib/index.ts"), false);
   });
 
-  await t.step("rejects absolute paths", () => {
+  await t.test("rejects absolute paths", () => {
     assert.assertEquals(importMap.isBareSpecifier("/src/utils.ts"), false);
   });
 
-  await t.step("rejects protocol-prefixed specifiers", () => {
+  await t.test("rejects protocol-prefixed specifiers", () => {
     assert.assertEquals(importMap.isBareSpecifier("npm:react"), false);
     assert.assertEquals(
       importMap.isBareSpecifier("jsr:@eserstack/logging"),

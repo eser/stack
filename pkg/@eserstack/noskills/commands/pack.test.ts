@@ -7,6 +7,7 @@
  * @module
  */
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as mock from "@eserstack/test-kit/mock";
 import { runtime } from "@eserstack/standards/cross-runtime";
@@ -60,7 +61,7 @@ const listFiles = async (dir: string): Promise<string[]> => {
   return files.sort();
 };
 
-Deno.test("checkPackFileName refuses names that leave their folder", () => {
+nodeTest.test("checkPackFileName refuses names that leave their folder", () => {
   for (const name of ["", ".", "..", "../x", "a/b", "a\\b", "a\0b"]) {
     assert.assertThrows(
       () => pack.checkPackFileName("rule", name),
@@ -71,7 +72,7 @@ Deno.test("checkPackFileName refuses names that leave their folder", () => {
   pack.checkPackFileName("rule", "style-guide");
 });
 
-Deno.test("projectFolderOf keeps folder rules inside the project", () => {
+nodeTest.test("projectFolderOf keeps folder rules inside the project", () => {
   assert.assertEquals(pack.projectFolderOf("src/api"), "src/api");
   assert.assertEquals(pack.projectFolderOf("src/../lib"), "lib");
   assert.assertEquals(pack.projectFolderOf("."), "");
@@ -80,7 +81,7 @@ Deno.test("projectFolderOf keeps folder rules inside the project", () => {
   }
 });
 
-Deno.test("a remote pack cannot write outside its folders", async () => {
+nodeTest.test("a remote pack cannot write outside its folders", async () => {
   const hostile: readonly Partial<packSchema.PackManifest>[] = [
     { name: "../../evil" },
     { rules: ["rules/../../../evil.md"] },
@@ -115,28 +116,31 @@ Deno.test("a remote pack cannot write outside its folders", async () => {
   }
 });
 
-Deno.test("a remote pack installs its files when they stay inside", async () => {
-  await withProject(async (_outer, root) => {
-    const { stub } = serving("- a rule\n");
-    try {
-      const installed = await pack.installRemotePack(
-        root,
-        SPECIFIER,
-        manifest({ rules: ["rules/style.md"], folderRules: { src: "f.md" } }),
-      );
-      assert.assertEquals(installed.rules, ["pack-demo-style.md"]);
-      assert.assertEquals(installed.folderRules, ["src/.folder-rules.md"]);
-      assert.assertEquals(
-        await runtime.fs.readTextFile(`${root}/src/.folder-rules.md`),
-        "- a rule\n",
-      );
-    } finally {
-      stub.restore();
-    }
-  });
-});
+nodeTest.test(
+  "a remote pack installs its files when they stay inside",
+  async () => {
+    await withProject(async (_outer, root) => {
+      const { stub } = serving("- a rule\n");
+      try {
+        const installed = await pack.installRemotePack(
+          root,
+          SPECIFIER,
+          manifest({ rules: ["rules/style.md"], folderRules: { src: "f.md" } }),
+        );
+        assert.assertEquals(installed.rules, ["pack-demo-style.md"]);
+        assert.assertEquals(installed.folderRules, ["src/.folder-rules.md"]);
+        assert.assertEquals(
+          await runtime.fs.readTextFile(`${root}/src/.folder-rules.md`),
+          "- a rule\n",
+        );
+      } finally {
+        stub.restore();
+      }
+    });
+  },
+);
 
-Deno.test("a remote pack file over the size limit is refused", async () => {
+nodeTest.test("a remote pack file over the size limit is refused", async () => {
   await withProject(async (_outer, root) => {
     const { stub } = serving("x".repeat(pack.MAX_REMOTE_PACK_FILE_BYTES + 1));
     try {
@@ -156,27 +160,34 @@ Deno.test("a remote pack file over the size limit is refused", async () => {
   });
 });
 
-Deno.test("uninstall leaves files outside the pack's folders alone", async () => {
-  await withProject((_outer, root) => {
-    const paths = pack.installedPackPaths(root, {
-      name: "demo",
-      version: "1.0.0",
-      installedAt: "2026-10-25T00:00:00.000Z",
-      source: SPECIFIER,
-      rules: ["pack-demo-style.md", "../../../etc/passwd"],
-      concerns: ["001-a.json", "../manifest.yml"],
-      folderRules: ["src/.folder-rules.md", "../../.folder-rules.md", "x.txt"],
+nodeTest.test(
+  "uninstall leaves files outside the pack's folders alone",
+  async () => {
+    await withProject((_outer, root) => {
+      const paths = pack.installedPackPaths(root, {
+        name: "demo",
+        version: "1.0.0",
+        installedAt: "2026-10-25T00:00:00.000Z",
+        source: SPECIFIER,
+        rules: ["pack-demo-style.md", "../../../etc/passwd"],
+        concerns: ["001-a.json", "../manifest.yml"],
+        folderRules: [
+          "src/.folder-rules.md",
+          "../../.folder-rules.md",
+          "x.txt",
+        ],
+      });
+
+      assert.assertEquals(
+        paths.map((p) => p.slice(root.length + 1)),
+        [
+          ".eser/rules/pack-demo-style.md",
+          ".eser/concerns/001-a.json",
+          "src/.folder-rules.md",
+        ],
+      );
+
+      return Promise.resolve();
     });
-
-    assert.assertEquals(
-      paths.map((p) => p.slice(root.length + 1)),
-      [
-        ".eser/rules/pack-demo-style.md",
-        ".eser/concerns/001-a.json",
-        "src/.folder-rules.md",
-      ],
-    );
-
-    return Promise.resolve();
-  });
-});
+  },
+);

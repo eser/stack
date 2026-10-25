@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as types from "./types.ts";
 import * as selectMod from "./select.ts";
@@ -32,7 +33,7 @@ const OPTIONS = [
   { value: "astro", label: "Astro", hint: "recommended" },
 ] as const;
 
-Deno.test("select returns first option on immediate Enter", async () => {
+nodeTest.test("select returns first option on immediate Enter", async () => {
   const { ctx } = ctxWithKeys(ENTER);
   const result = await selectMod.select(ctx, {
     message: "Pick a framework",
@@ -41,7 +42,7 @@ Deno.test("select returns first option on immediate Enter", async () => {
   assert.assertEquals(result, "next");
 });
 
-Deno.test("select returns second option after Down + Enter", async () => {
+nodeTest.test("select returns second option after Down + Enter", async () => {
   const { ctx } = ctxWithKeys(DOWN, ENTER);
   const result = await selectMod.select(ctx, {
     message: "Pick a framework",
@@ -50,7 +51,7 @@ Deno.test("select returns second option after Down + Enter", async () => {
   assert.assertEquals(result, "svelte");
 });
 
-Deno.test("select returns third option after Down Down Enter", async () => {
+nodeTest.test("select returns third option after Down Down Enter", async () => {
   const { ctx } = ctxWithKeys(DOWN, DOWN, ENTER);
   const result = await selectMod.select(ctx, {
     message: "Pick a framework",
@@ -59,7 +60,7 @@ Deno.test("select returns third option after Down Down Enter", async () => {
   assert.assertEquals(result, "astro");
 });
 
-Deno.test("select wraps around from last to first", async () => {
+nodeTest.test("select wraps around from last to first", async () => {
   const { ctx } = ctxWithKeys(DOWN, DOWN, DOWN, ENTER);
   const result = await selectMod.select(ctx, {
     message: "Pick",
@@ -68,7 +69,7 @@ Deno.test("select wraps around from last to first", async () => {
   assert.assertEquals(result, "next");
 });
 
-Deno.test("select wraps around from first to last with Up", async () => {
+nodeTest.test("select wraps around from first to last with Up", async () => {
   const { ctx } = ctxWithKeys(UP, ENTER);
   const result = await selectMod.select(ctx, {
     message: "Pick",
@@ -77,7 +78,7 @@ Deno.test("select wraps around from first to last with Up", async () => {
   assert.assertEquals(result, "astro");
 });
 
-Deno.test("select respects initialValue", async () => {
+nodeTest.test("select respects initialValue", async () => {
   const { ctx } = ctxWithKeys(ENTER);
   const result = await selectMod.select(ctx, {
     message: "Pick",
@@ -87,7 +88,7 @@ Deno.test("select respects initialValue", async () => {
   assert.assertEquals(result, "svelte");
 });
 
-Deno.test("select skips disabled options", async () => {
+nodeTest.test("select skips disabled options", async () => {
   const { ctx } = ctxWithKeys(DOWN, ENTER);
   const result = await selectMod.select(ctx, {
     message: "Pick",
@@ -100,7 +101,7 @@ Deno.test("select skips disabled options", async () => {
   assert.assertEquals(result, "c");
 });
 
-Deno.test("select returns CANCEL on Escape", async () => {
+nodeTest.test("select returns CANCEL on Escape", async () => {
   const { ctx } = ctxWithKeys(ESCAPE);
   const result = await selectMod.select(ctx, {
     message: "Pick",
@@ -109,7 +110,7 @@ Deno.test("select returns CANCEL on Escape", async () => {
   assert.assertEquals(types.isCancel(result), true);
 });
 
-Deno.test("select renders done state with selected label", async () => {
+nodeTest.test("select renders done state with selected label", async () => {
   const { ctx, getOutput } = ctxWithKeys(DOWN, ENTER);
   await selectMod.select(ctx, { message: "Framework?", options: OPTIONS });
   await ctx.output.flush();
@@ -119,7 +120,7 @@ Deno.test("select renders done state with selected label", async () => {
   assert.assertStringIncludes(out, "◇"); // done symbol
 });
 
-Deno.test("select supports j/k vim keys", async () => {
+nodeTest.test("select supports j/k vim keys", async () => {
   const KEY_J = new Uint8Array([0x6a]);
   const { ctx } = ctxWithKeys(KEY_J, ENTER);
   const result = await selectMod.select(ctx, {

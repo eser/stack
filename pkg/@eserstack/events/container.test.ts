@@ -1,10 +1,11 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as mock from "@eserstack/test-kit/mock";
 import * as container from "./container.ts";
 
-Deno.test("simple", () => {
+nodeTest.test("simple", () => {
   const spyFn = mock.spy();
 
   const registry = new container.Registry();
@@ -16,7 +17,7 @@ Deno.test("simple", () => {
   mock.assertSpyCalls(spyFn, 1);
 });
 
-Deno.test("multiple", () => {
+nodeTest.test("multiple", () => {
   const spyFn = mock.spy();
 
   const registry = new container.Registry();
@@ -29,7 +30,7 @@ Deno.test("multiple", () => {
   mock.assertSpyCalls(spyFn, 2);
 });
 
-Deno.test("once", () => {
+nodeTest.test("once", () => {
   const spyFn = mock.spy();
 
   const registry = new container.Registry();
@@ -42,7 +43,7 @@ Deno.test("once", () => {
   mock.assertSpyCalls(spyFn, 1);
 });
 
-Deno.test("parameters", () => {
+nodeTest.test("parameters", () => {
   const spyFn = mock.spy();
 
   const registry = new container.Registry();
@@ -57,7 +58,7 @@ Deno.test("parameters", () => {
   assert.assertEquals(arg.detail, "xx");
 });
 
-Deno.test("no parameters", () => {
+nodeTest.test("no parameters", () => {
   const spyFn = mock.spy();
 
   const registry = new container.Registry();
@@ -72,7 +73,7 @@ Deno.test("no parameters", () => {
   assert.assertStrictEquals(arg.detail, undefined);
 });
 
-Deno.test("remove listener", () => {
+nodeTest.test("remove listener", () => {
   const spyFn = mock.spy();
   const listener = () => spyFn();
 
@@ -86,7 +87,7 @@ Deno.test("remove listener", () => {
   mock.assertSpyCalls(spyFn, 0);
 });
 
-Deno.test("add returns this for chaining", () => {
+nodeTest.test("add returns this for chaining", () => {
   const registry = new container.Registry();
 
   const result = registry.add("ev1", () => {}).add("ev2", () => {});
@@ -94,7 +95,7 @@ Deno.test("add returns this for chaining", () => {
   assert.assertStrictEquals(result, registry);
 });
 
-Deno.test("remove returns this for chaining", () => {
+nodeTest.test("remove returns this for chaining", () => {
   const listener = () => {};
   const registry = new container.Registry();
   registry.add("ev", listener);
@@ -104,7 +105,7 @@ Deno.test("remove returns this for chaining", () => {
   assert.assertStrictEquals(result, registry);
 });
 
-Deno.test("dispatch returns boolean", () => {
+nodeTest.test("dispatch returns boolean", () => {
   const registry = new container.Registry();
   registry.add("ev", () => {});
 
@@ -115,7 +116,7 @@ Deno.test("dispatch returns boolean", () => {
   assert.assertStrictEquals(result, true);
 });
 
-Deno.test("dispatch with preventDefault returns false", () => {
+nodeTest.test("dispatch with preventDefault returns false", () => {
   const registry = new container.Registry();
   registry.add("ev", (e) => e.preventDefault());
 
@@ -125,7 +126,7 @@ Deno.test("dispatch with preventDefault returns false", () => {
   assert.assertStrictEquals(result, false);
 });
 
-Deno.test("Registry with custom EventTarget", () => {
+nodeTest.test("Registry with custom EventTarget", () => {
   const spyFn = mock.spy();
   const customTarget = new EventTarget();
 

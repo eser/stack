@@ -1,9 +1,10 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as mapObject from "./map-object.ts";
 
-Deno.test("basic", () => {
+nodeTest.test("basic", () => {
   const obj1 = { a: 1, b: 2, c: 3, d: 4, e: 5 };
   const func1 = (value: number, key: string | number | symbol) => ({
     [key]: value - 1,
@@ -16,7 +17,7 @@ Deno.test("basic", () => {
   assert.assertEquals(result, { a: 0, b: 1, c: 2, d: 3, e: 4 });
 });
 
-Deno.test("with-value-skipping", () => {
+nodeTest.test("with-value-skipping", () => {
   const obj1 = { a: 1, b: 2, c: null };
   const func1 = (value: number | null, key: string | number | symbol) => {
     if (value === null) {

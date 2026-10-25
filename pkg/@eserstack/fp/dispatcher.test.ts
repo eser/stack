@@ -1,12 +1,13 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as dispatcher from "./dispatcher.ts";
 import type { LogType, NextType } from "./dispatcher.ts";
 
 type StateType = Record<string, number>;
 
-Deno.test("basic", async () => {
+nodeTest.test("basic", async () => {
   const initialState = { quarter: 1, year: 2018, sum: 1 };
 
   const actionAdd5 = (state: StateType, next: NextType<StateType>) =>
@@ -22,7 +23,7 @@ Deno.test("basic", async () => {
   assert.assertEquals(result, { quarter: 1, year: 2018, sum: 3 });
 });
 
-Deno.test("logger", async () => {
+nodeTest.test("logger", async () => {
   const initialState = { quarter: 1, year: 2018, sum: 1 };
 
   const actionAdd5 = (state: StateType, next: NextType<StateType>) =>
@@ -54,7 +55,7 @@ Deno.test("logger", async () => {
   ]);
 });
 
-Deno.test("promises", async () => {
+nodeTest.test("promises", async () => {
   const initialState = 0;
 
   const delay = (num: number) =>

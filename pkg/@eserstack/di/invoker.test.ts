@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as container from "./container.ts";
 import * as invoker from "./invoker.ts";
@@ -12,7 +13,7 @@ const create = () => {
   return { registry, services };
 };
 
-Deno.test("basic", () => {
+nodeTest.test("basic", () => {
   const { registry, services } = create();
 
   let count = 0;

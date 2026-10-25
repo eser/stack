@@ -6,7 +6,7 @@ title: >-
 status: To Do
 assignee: []
 created_date: '2026-10-15 20:38'
-updated_date: '2026-10-24 19:38'
+updated_date: '2026-10-25 16:00'
 labels:
   - cutover
   - ci
@@ -58,4 +58,6 @@ Hand-work list (TASK-175 spike, 2026-10-24; grep):
 - publish-ajan.yml: setup-deno at :68-71 and :129-132; `deno run .../ajan/scripts/build.ts` at :100, :103 and :177-182; generate-packages at :185.
 - etc/scripts/install.sh:70 and install.ps1:92 read releases/latest with no 404 fallback and no npm pointer (0 Deno mentions).
 - flake.nix:19 reads ./VERSION, so the hashes point at an unreleased version at bump time; lines 113 and 116 put deno and bun in the dev shell.
+
+TASK-198 (2026-10-25): the test and bench codemods left no site for hand edits in this task's files (0 unhandled), and none of its test files fails under `node --test --test-force-exit` on Node 26.12.1 when run alone.
 <!-- SECTION:NOTES:END -->

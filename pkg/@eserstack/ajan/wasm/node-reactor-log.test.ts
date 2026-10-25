@@ -11,6 +11,7 @@
  * @module
  */
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import { runtime } from "@eserstack/standards/cross-runtime";
 import * as resolve from "./resolve.ts";
@@ -37,10 +38,10 @@ const readNodeMajor = async (): Promise<number | null> => {
 // oxlint-disable-next-line node/no-top-level-await
 const nodeMajor = (await readNodeMajor()) ?? 0;
 
-Deno.test({
-  name: "a logger lives on one reactor instance under node --no-experimental-ffi",
-  ignore: !hasWasm || nodeMajor < 26,
-  fn: async () => {
+nodeTest.test(
+  "a logger lives on one reactor instance under node --no-experimental-ffi",
+  { skip: !hasWasm || nodeMajor < 26 },
+  async () => {
     const result = await runtime.exec.spawn("node", [
       "--no-experimental-ffi",
       "--disable-warning=ExperimentalWarning",
@@ -79,4 +80,4 @@ Deno.test({
     );
     assert.assertEquals(records[0]!["scope"], "node-wasm");
   },
-});
+);

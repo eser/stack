@@ -9,6 +9,7 @@
  * @module
  */
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import { runtime } from "@eserstack/standards/cross-runtime";
 import * as ffiClient from "./ffi-client.ts";
@@ -17,10 +18,10 @@ import * as goNoskills from "./go-noskills.ts";
 // oxlint-disable-next-line node/no-top-level-await
 await ffiClient.ensureLib();
 
-Deno.test({
-  name: "the Go noskills client runs init, spec new and next on a project",
-  ignore: ffiClient.getLib() === null,
-  fn: async () => {
+nodeTest.test(
+  "the Go noskills client runs init, spec new and next on a project",
+  { skip: ffiClient.getLib() === null },
+  async () => {
     const root = await runtime.fs.makeTempDir({ prefix: "nos_go_client_" });
     try {
       const init = await goNoskills.initNoskills({ root });
@@ -43,4 +44,4 @@ Deno.test({
       await runtime.fs.remove(root, { recursive: true });
     }
   },
-});
+);

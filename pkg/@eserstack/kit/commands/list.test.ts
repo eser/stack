@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as path from "@std/path";
 import * as results from "@eserstack/primitives/results";
@@ -10,13 +11,13 @@ const REGISTRY_PATH = path.fromFileUrl(
   new URL("../../../../.eser/recipes.json", import.meta.url),
 );
 
-Deno.test("list — succeeds with local registry", async () => {
+nodeTest.test("list — succeeds with local registry", async () => {
   const result = await list.main(["--registry", REGISTRY_PATH]);
 
   assert.assertEquals(results.isOk(result), true);
 });
 
-Deno.test("list — succeeds with language filter", async () => {
+nodeTest.test("list — succeeds with language filter", async () => {
   const result = await list.main([
     "--registry",
     REGISTRY_PATH,
@@ -27,7 +28,7 @@ Deno.test("list — succeeds with language filter", async () => {
   assert.assertEquals(results.isOk(result), true);
 });
 
-Deno.test("list — succeeds with no matches", async () => {
+nodeTest.test("list — succeeds with no matches", async () => {
   const result = await list.main([
     "--registry",
     REGISTRY_PATH,
@@ -38,7 +39,7 @@ Deno.test("list — succeeds with no matches", async () => {
   assert.assertEquals(results.isOk(result), true);
 });
 
-Deno.test("list — succeeds with scale filter", async () => {
+nodeTest.test("list — succeeds with scale filter", async () => {
   const result = await list.main([
     "--registry",
     REGISTRY_PATH,
@@ -49,7 +50,7 @@ Deno.test("list — succeeds with scale filter", async () => {
   assert.assertEquals(results.isOk(result), true);
 });
 
-Deno.test("list: reports a bad registry file with its cause", async () => {
+nodeTest.test("list: reports a bad registry file with its cause", async () => {
   const dir = await runtime.fs.makeTempDir({ prefix: "kit-list-test-" });
   const registryPath = runtime.path.join(dir, "recipes.json");
 

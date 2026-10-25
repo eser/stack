@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as results from "@eserstack/primitives/results";
 import * as config from "../config.ts";
@@ -58,7 +59,7 @@ const effortCases: ReadonlyArray<{
 ];
 
 for (const tc of effortCases) {
-  Deno.test(`effort: ${tc.name}`, async () => {
+  nodeTest.test(`effort: ${tc.name}`, async () => {
     const sent: Record<string, unknown>[] = [];
     const model = new openai.OpenAIModel(
       fakeClient(sent),
@@ -151,7 +152,7 @@ const resultCases: ReadonlyArray<{
 ];
 
 for (const tc of resultCases) {
-  Deno.test(`stop reason: ${tc.name}`, async () => {
+  nodeTest.test(`stop reason: ${tc.name}`, async () => {
     const model = modelReplying({
       choices: [{ message: tc.message, finish_reason: tc.finishReason }],
       usage: { prompt_tokens: 5, completion_tokens: 3 },
@@ -196,7 +197,7 @@ const streamCases: ReadonlyArray<{
 ];
 
 for (const tc of streamCases) {
-  Deno.test(`stream stop reason: ${tc.name}`, async () => {
+  nodeTest.test(`stream stop reason: ${tc.name}`, async () => {
     async function* chunks(): AsyncIterable<unknown> {
       for (const [index, delta] of tc.deltas.entries()) {
         const last = index === tc.deltas.length - 1;

@@ -1,9 +1,10 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as splitArray from "./split-array.ts";
 
-Deno.test("basic", () => {
+nodeTest.test("basic", () => {
   const arr1 = [1, 2, 3, 4, 5];
   const int1 = 3;
 
@@ -18,7 +19,7 @@ Deno.test("basic", () => {
   assert.assertEquals(result.rest, [4, 5]);
 });
 
-Deno.test("with-generator", () => {
+nodeTest.test("with-generator", () => {
   const gen1 = function* () {
     yield 1;
     yield 2;

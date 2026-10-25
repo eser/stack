@@ -4,7 +4,7 @@ title: 'codebase: remove Deno and Bun from the system handlers and release tooli
 status: To Do
 assignee: []
 created_date: '2026-10-15 20:38'
-updated_date: '2026-10-24 19:38'
+updated_date: '2026-10-25 16:00'
 labels:
   - cutover
   - codebase
@@ -54,4 +54,6 @@ Hand-work list (TASK-175 spike, 2026-10-24, node 26.12.1):
 - Non-test source (code, not comments): cli-system/handlers/install.ts:38-39,93 (cmd "deno", `jsr:${jsr}`, Deno.errors.PermissionDenied); update.ts:42,51,59,413 (deno and bun commands, "jsr:@eserstack/cli", Deno.errors.PermissionDenied); uninstall.ts:29,31,58; doctor.ts:153 (`deno --version`); release.ts:307 (`deno fmt CHANGELOG.md`) and :316-327 (deno.json comments); devCommand "deno task cli" in install.ts:46 and cli-system/app.ts:37; package/mod.ts:7 and package/loader.ts:188 (deno.json, deno.jsonc, jsr.json).
 - Package totals: Deno. 6, Bun. 1, jsr: 4, bun: 2. import.meta.main (41) needs no change: it works on Node 26.
 - Go and docs: pkg/ajan/codebasefx/changelog.go (1, the `deno fmt` comment) and codebasefx_changelog_format_test.go (1).
+
+TASK-198 (2026-10-25): the test and bench codemods left no site for hand edits in this task's files (0 unhandled), and none of its test files fails under `node --test --test-force-exit` on Node 26.12.1 when run alone.
 <!-- SECTION:NOTES:END -->

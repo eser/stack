@@ -4,7 +4,7 @@ title: 'httpclient and logging: pass tests on Node'
 status: To Do
 assignee: []
 created_date: '2026-10-15 20:38'
-updated_date: '2026-10-24 19:38'
+updated_date: '2026-10-25 16:00'
 labels:
   - cutover
   - httpclient
@@ -40,4 +40,7 @@ Hand-work list (TASK-175 spike, 2026-10-24, node 26.12.1):
 - The withoutFfi `ignore:` conditions became `skip:` and work (go-client 1, logging logger.test.ts 6).
 - Source: httpclient Deno. 1 (a comment in h3-fetch.ts:12); logging 0.
 - Docs: pkg/@eserstack/logging/WIRING.md (7, the sanitizer section). pkg/ajan/httpclient and logfx are clean.
+
+TASK-198 (2026-10-25): the test and bench codemods left no site for hand edits in this task's files (0 unhandled). After them, these test files still fail under `node --test --test-force-exit` on Node 26.12.1, each run alone:
+- pkg/@eserstack/httpclient/go-client.test.ts: 1 failing, 7 passing; first error: see the run
 <!-- SECTION:NOTES:END -->

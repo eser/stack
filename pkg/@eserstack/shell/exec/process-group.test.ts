@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 
 import type * as pty from "./pty.ts";
@@ -35,25 +36,28 @@ const fakeProcess = (
   return { process, signals };
 };
 
-Deno.test("killAll signals every active process and waits for them to exit", async () => {
-  const group = new processGroup.ProcessGroup();
-  const first = fakeProcess(true);
-  const second = fakeProcess(true);
+nodeTest.test(
+  "killAll signals every active process and waits for them to exit",
+  async () => {
+    const group = new processGroup.ProcessGroup();
+    const first = fakeProcess(true);
+    const second = fakeProcess(true);
 
-  group.add("first", first.process);
-  group.add("second", second.process);
+    group.add("first", first.process);
+    group.add("second", second.process);
 
-  await group.killAll("SIGINT");
+    await group.killAll("SIGINT");
 
-  assert.assertEquals(first.signals, ["SIGINT"]);
-  assert.assertEquals(second.signals, ["SIGINT"]);
-  assert.assertEquals(
-    group.list().every((managed) => !managed.active),
-    true,
-  );
-});
+    assert.assertEquals(first.signals, ["SIGINT"]);
+    assert.assertEquals(second.signals, ["SIGINT"]);
+    assert.assertEquals(
+      group.list().every((managed) => !managed.active),
+      true,
+    );
+  },
+);
 
-Deno.test("killAll skips processes that already exited", async () => {
+nodeTest.test("killAll skips processes that already exited", async () => {
   const group = new processGroup.ProcessGroup();
   const exited = fakeProcess(true);
 

@@ -6,7 +6,7 @@
  * passed as the root.
  */
 
-import * as bdd from "@std/testing/bdd";
+import * as bdd from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as results from "@eserstack/primitives/results";
 import { runtime } from "@eserstack/standards/cross-runtime";

@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as mock from "@eserstack/test-kit/mock";
 import * as container from "./container.ts";
@@ -15,13 +16,13 @@ const create = () => {
   return { di, registry, services };
 };
 
-Deno.test("di template strings: non-existent key", () => {
+nodeTest.test("di template strings: non-existent key", () => {
   const { di } = create();
 
   assert.assertStrictEquals(di`_`, undefined);
 });
 
-Deno.test("di template strings: singleton value", () => {
+nodeTest.test("di template strings: singleton value", () => {
   const { di } = create();
 
   di.set("a", "value");
@@ -29,7 +30,7 @@ Deno.test("di template strings: singleton value", () => {
   assert.assertStrictEquals(di`a`, "value");
 });
 
-Deno.test("di template strings: literals", () => {
+nodeTest.test("di template strings: literals", () => {
   const { di } = create();
 
   di.set("b", "c2");
@@ -38,7 +39,7 @@ Deno.test("di template strings: literals", () => {
   assert.assertStrictEquals(di`${"b"} = ${"d"}.`, "c2 = e4.");
 });
 
-Deno.test("di.get(): non-string keys", () => {
+nodeTest.test("di.get(): non-string keys", () => {
   const { di } = create();
 
   const fnKey = () => null;
@@ -49,7 +50,7 @@ Deno.test("di.get(): non-string keys", () => {
   assert.assertStrictEquals(result, "zz6");
 });
 
-Deno.test("di.getMany()", () => {
+nodeTest.test("di.getMany()", () => {
   const { di } = create();
 
   di.set("f", "h3");
@@ -58,7 +59,7 @@ Deno.test("di.getMany()", () => {
   assert.assertEquals(di.getMany("f", "g"), ["h3", "i5"]);
 });
 
-Deno.test("di.invoke(): lambda", () => {
+nodeTest.test("di.invoke(): lambda", () => {
   const { di } = create();
 
   di.set("j", mock.spy());
@@ -72,7 +73,7 @@ Deno.test("di.invoke(): lambda", () => {
   mock.assertSpyCalls(di`j`, 2);
 });
 
-Deno.test("di.invoke(): lambda, multiple", () => {
+nodeTest.test("di.invoke(): lambda, multiple", () => {
   const { di } = create();
 
   di.set("k", mock.spy());
@@ -95,7 +96,7 @@ Deno.test("di.invoke(): lambda, multiple", () => {
   mock.assertSpyCalls(di`m`, 3);
 });
 
-Deno.test("di.invoke(): anonymous function", () => {
+nodeTest.test("di.invoke(): anonymous function", () => {
   const { di } = create();
 
   di.set("n", mock.spy());
@@ -110,7 +111,7 @@ Deno.test("di.invoke(): anonymous function", () => {
   mock.assertSpyCalls(di`n`, 2);
 });
 
-Deno.test("di.invoke(): anonymous function, multiple", () => {
+nodeTest.test("di.invoke(): anonymous function, multiple", () => {
   const { di } = create();
 
   di.set("o", mock.spy());
@@ -133,7 +134,7 @@ Deno.test("di.invoke(): anonymous function, multiple", () => {
   mock.assertSpyCalls(di`q`, 3);
 });
 
-Deno.test("di.invoke(): named function", () => {
+nodeTest.test("di.invoke(): named function", () => {
   const { di } = create();
 
   di.set("r", mock.spy());
@@ -148,7 +149,7 @@ Deno.test("di.invoke(): named function", () => {
   mock.assertSpyCalls(di`r`, 2);
 });
 
-Deno.test("di.invoke(): named function, multiple", () => {
+nodeTest.test("di.invoke(): named function, multiple", () => {
   const { di } = create();
 
   di.set("s", mock.spy());
@@ -171,7 +172,7 @@ Deno.test("di.invoke(): named function, multiple", () => {
   mock.assertSpyCalls(di`u`, 3);
 });
 
-Deno.test("di.invoke(): generator function", () => {
+nodeTest.test("di.invoke(): generator function", () => {
   const { di } = create();
 
   di.set("v", mock.spy());
@@ -190,7 +191,7 @@ Deno.test("di.invoke(): generator function", () => {
   mock.assertSpyCalls(di`v`, 2);
 });
 
-Deno.test("di.invoke(): generator function, multiple", () => {
+nodeTest.test("di.invoke(): generator function, multiple", () => {
   const { di } = create();
 
   di.set("w", mock.spy());
@@ -215,7 +216,7 @@ Deno.test("di.invoke(): generator function, multiple", () => {
   mock.assertSpyCalls(di`y`, 3);
 });
 
-Deno.test("di.invoke(): async function", async () => {
+nodeTest.test("di.invoke(): async function", async () => {
   const { di } = create();
 
   di.set("z", mock.spy());
@@ -230,7 +231,7 @@ Deno.test("di.invoke(): async function", async () => {
   mock.assertSpyCalls(di`z`, 2);
 });
 
-Deno.test("di.invoke(): async function, multiple", async () => {
+nodeTest.test("di.invoke(): async function, multiple", async () => {
   const { di } = create();
 
   di.set("aa", mock.spy());
@@ -255,7 +256,7 @@ Deno.test("di.invoke(): async function, multiple", async () => {
   mock.assertSpyCalls(di`ac`, 3);
 });
 
-Deno.test("di.invoke(): async generator function", async () => {
+nodeTest.test("di.invoke(): async generator function", async () => {
   const { di } = create();
 
   di.set("ad", mock.spy());
@@ -274,7 +275,7 @@ Deno.test("di.invoke(): async generator function", async () => {
   mock.assertSpyCalls(di`ad`, 2);
 });
 
-Deno.test("di.invoke(): async generator function, multiple", async () => {
+nodeTest.test("di.invoke(): async generator function, multiple", async () => {
   const { di } = create();
 
   di.set("ae", mock.spy());
@@ -299,7 +300,7 @@ Deno.test("di.invoke(): async generator function, multiple", async () => {
   mock.assertSpyCalls(di`ag`, 3);
 });
 
-Deno.test("di() with no arguments returns services", () => {
+nodeTest.test("di() with no arguments returns services", () => {
   const { di, services } = create();
 
   const result = di();
@@ -307,7 +308,7 @@ Deno.test("di() with no arguments returns services", () => {
   assert.assertStrictEquals(result, services);
 });
 
-Deno.test("di.createScope() creates new scope", () => {
+nodeTest.test("di.createScope() creates new scope", () => {
   const { di } = create();
 
   di.set("ah", "original");
@@ -317,7 +318,7 @@ Deno.test("di.createScope() creates new scope", () => {
   assert.assertStrictEquals(scope.get("ah"), "original");
 });
 
-Deno.test("di.setLazy() registers lazy value", () => {
+nodeTest.test("di.setLazy() registers lazy value", () => {
   const { di } = create();
 
   let counter = 0;
@@ -327,7 +328,7 @@ Deno.test("di.setLazy() registers lazy value", () => {
   assert.assertStrictEquals(di`ai`, 1); // Same value on second call (cached)
 });
 
-Deno.test("di.setScoped() registers scoped value", () => {
+nodeTest.test("di.setScoped() registers scoped value", () => {
   const { di } = create();
 
   let counter = 0;
@@ -341,7 +342,7 @@ Deno.test("di.setScoped() registers scoped value", () => {
   assert.assertStrictEquals(scope.get("aj"), 2); // Same value in same scope
 });
 
-Deno.test("di.setTransient() registers transient value", () => {
+nodeTest.test("di.setTransient() registers transient value", () => {
   const { di } = create();
 
   let counter = 0;

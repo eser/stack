@@ -8,7 +8,7 @@
  * @module
  */
 
-import * as bdd from "@std/testing/bdd";
+import * as bdd from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import type * as decisionLedger from "../state/decision-ledger.ts";
 import * as ledger from "./ledger.ts";

@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as webtransport from "./mod.ts";
 
@@ -124,7 +125,7 @@ const urlCases = [
 ];
 
 for (const { name, baseUrl, target, expected } of urlCases) {
-  Deno.test(`connect ${name}`, async () => {
+  nodeTest.test(`connect ${name}`, async () => {
     const { client, dialed } = createClient({ baseUrl });
 
     await client.connect(target);
@@ -136,16 +137,19 @@ for (const { name, baseUrl, target, expected } of urlCases) {
   });
 }
 
-Deno.test("connect passes certHashes as sha-256 serverCertificateHashes", async () => {
-  const hash = new Uint8Array([1, 2, 3]).buffer;
-  const { client, dialed } = createClient({ certHashes: [hash] });
+nodeTest.test(
+  "connect passes certHashes as sha-256 serverCertificateHashes",
+  async () => {
+    const hash = new Uint8Array([1, 2, 3]).buffer;
+    const { client, dialed } = createClient({ certHashes: [hash] });
 
-  await client.connect("https://localhost:4433/attach");
+    await client.connect("https://localhost:4433/attach");
 
-  assert.assertEquals(dialed[0]?.options, {
-    serverCertificateHashes: [{ algorithm: "sha-256", value: hash }],
-  });
-});
+    assert.assertEquals(dialed[0]?.options, {
+      serverCertificateHashes: [{ algorithm: "sha-256", value: hash }],
+    });
+  },
+);
 
 const noPinCases = [
   { name: "unset", certHashes: undefined },
@@ -153,24 +157,30 @@ const noPinCases = [
 ];
 
 for (const { name, certHashes } of noPinCases) {
-  Deno.test(`connect pins no certificate when certHashes is ${name}`, async () => {
-    const { client, dialed } = createClient({ certHashes });
+  nodeTest.test(
+    `connect pins no certificate when certHashes is ${name}`,
+    async () => {
+      const { client, dialed } = createClient({ certHashes });
 
-    await client.connect("https://localhost:4433/attach");
+      await client.connect("https://localhost:4433/attach");
 
-    assert.assertEquals(dialed[0]?.options, {});
-  });
+      assert.assertEquals(dialed[0]?.options, {});
+    },
+  );
 }
 
-Deno.test("connect resolves to a session over the dialed transport", async () => {
-  const { client, dialed } = createClient({}, () => {});
+nodeTest.test(
+  "connect resolves to a session over the dialed transport",
+  async () => {
+    const { client, dialed } = createClient({}, () => {});
 
-  const connecting = client.connect("https://localhost:4433/attach");
-  dialed[0]!.becomeReady();
-  const session = await connecting;
+    const connecting = client.connect("https://localhost:4433/attach");
+    dialed[0]!.becomeReady();
+    const session = await connecting;
 
-  assert.assertStrictEquals(session.inner, dialed[0]!.transport);
-});
+    assert.assertStrictEquals(session.inner, dialed[0]!.transport);
+  },
+);
 
 const handshakeCases = [
   { name: "with no dialTimeout", dialTimeout: undefined },
@@ -178,48 +188,52 @@ const handshakeCases = [
 ];
 
 for (const { name, dialTimeout } of handshakeCases) {
-  Deno.test(`connect rejects with the handshake error ${name}`, async () => {
-    const { client } = createClient({ dialTimeout }, (fake) =>
-      fake.failHandshake(new Error("certificate hash mismatch")),
-    );
+  nodeTest.test(
+    `connect rejects with the handshake error ${name}`,
+    async () => {
+      const { client } = createClient({ dialTimeout }, (fake) =>
+        fake.failHandshake(new Error("certificate hash mismatch")),
+      );
 
-    await assert.assertRejects(
-      () => client.connect("https://localhost:4433/attach"),
-      Error,
-      "certificate hash mismatch",
-    );
-  });
+      await assert.assertRejects(
+        () => client.connect("https://localhost:4433/attach"),
+        Error,
+        "certificate hash mismatch",
+      );
+    },
+  );
 }
 
-Deno.test("connect gives up after dialTimeout and closes the pending session", async () => {
-  // The fake stays pending, so only the timeout can settle connect().
-  const { client, dialed } = createClient({ dialTimeout: 20 }, () => {});
+nodeTest.test(
+  "connect gives up after dialTimeout and closes the pending session",
+  async () => {
+    // The fake stays pending, so only the timeout can settle connect().
+    const { client, dialed } = createClient({ dialTimeout: 20 }, () => {});
 
-  const error = await assert.assertRejects(
-    () => client.connect("https://localhost:4433/attach?token=secret"),
-    Error,
-    "WebTransport dial timed out after 20 ms",
-  );
+    const error = await assert.assertRejects(
+      () => client.connect("https://localhost:4433/attach?token=secret"),
+      Error,
+      "WebTransport dial timed out after 20 ms",
+    );
 
-  assert.assertEquals(dialed[0]?.closeCalls.length, 1);
-  // The URL can carry the session token, so the message leaves it out.
-  assert.assertEquals(error.message.includes("secret"), false);
-});
+    assert.assertEquals(dialed[0]?.closeCalls.length, 1);
+    // The URL can carry the session token, so the message leaves it out.
+    assert.assertEquals(error.message.includes("secret"), false);
+  },
+);
 
-Deno.test({
-  name: "connect clears its timer when the session is ready in time",
-  // Off by default; on, it fails the test if the 60 s timer is left running.
-  sanitizeOps: true,
-  fn: async () => {
+nodeTest.test(
+  "connect clears its timer when the session is ready in time",
+  async () => {
     const { client, dialed } = createClient({ dialTimeout: 60_000 });
 
     await client.connect("https://localhost:4433/attach");
 
     assert.assertEquals(dialed[0]?.closeCalls, []);
   },
-});
+);
 
-Deno.test("session opens streams on the underlying transport", async () => {
+nodeTest.test("session opens streams on the underlying transport", async () => {
   const { client, dialed } = createClient({});
   const session = await client.connect("https://localhost:4433/attach");
   const fake = dialed[0]!;
@@ -236,34 +250,43 @@ Deno.test("session opens streams on the underlying transport", async () => {
   assert.assertStrictEquals(session.ready, fake.transport.ready);
 });
 
-Deno.test("acceptBidirectionalStream hands out the server's streams one at a time", async () => {
-  const { client, dialed } = createClient({});
-  const session = await client.connect("https://localhost:4433/attach");
-  const first = { id: 1 } as unknown as WebTransportBidirectionalStream;
-  const second = { id: 2 } as unknown as WebTransportBidirectionalStream;
+nodeTest.test(
+  "acceptBidirectionalStream hands out the server's streams one at a time",
+  async () => {
+    const { client, dialed } = createClient({});
+    const session = await client.connect("https://localhost:4433/attach");
+    const first = { id: 1 } as unknown as WebTransportBidirectionalStream;
+    const second = { id: 2 } as unknown as WebTransportBidirectionalStream;
 
-  dialed[0]!.pushIncoming(first);
-  dialed[0]!.pushIncoming(second);
+    dialed[0]!.pushIncoming(first);
+    dialed[0]!.pushIncoming(second);
 
-  assert.assertStrictEquals(await session.acceptBidirectionalStream(), first);
-  // The reader lock was released, so the next accept can read again.
-  assert.assertStrictEquals(await session.acceptBidirectionalStream(), second);
-});
+    assert.assertStrictEquals(await session.acceptBidirectionalStream(), first);
+    // The reader lock was released, so the next accept can read again.
+    assert.assertStrictEquals(
+      await session.acceptBidirectionalStream(),
+      second,
+    );
+  },
+);
 
-Deno.test("acceptBidirectionalStream rejects once the server stops sending streams", async () => {
-  const { client, dialed } = createClient({});
-  const session = await client.connect("https://localhost:4433/attach");
+nodeTest.test(
+  "acceptBidirectionalStream rejects once the server stops sending streams",
+  async () => {
+    const { client, dialed } = createClient({});
+    const session = await client.connect("https://localhost:4433/attach");
 
-  dialed[0]!.endIncoming();
+    dialed[0]!.endIncoming();
 
-  await assert.assertRejects(
-    () => session.acceptBidirectionalStream(),
-    Error,
-    "WebTransport session closed",
-  );
-});
+    await assert.assertRejects(
+      () => session.acceptBidirectionalStream(),
+      Error,
+      "WebTransport session closed",
+    );
+  },
+);
 
-Deno.test("close passes the close info to the transport", async () => {
+nodeTest.test("close passes the close info to the transport", async () => {
   const { client, dialed } = createClient({});
   const session = await client.connect("https://localhost:4433/attach");
 

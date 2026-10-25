@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as deepCopy from "./deep-copy.ts";
 
@@ -11,7 +12,7 @@ class Dummy {
   }
 }
 
-Deno.test("basic", () => {
+nodeTest.test("basic", () => {
   const obj1 = { value: 5 };
 
   const result = deepCopy.deepCopy(obj1);
@@ -22,7 +23,7 @@ Deno.test("basic", () => {
   assert.assertEquals(result, { value: 5 });
 });
 
-Deno.test("classes", () => {
+nodeTest.test("classes", () => {
   const obj1 = new Dummy({ value: 5 });
 
   const result = deepCopy.deepCopy(obj1);
@@ -37,19 +38,22 @@ Deno.test("classes", () => {
 // Circular Reference Detection Tests
 // ============================================================================
 
-Deno.test("deepCopy() should detect self-referencing circular objects", () => {
-  // oxlint-disable-next-line typescript/no-explicit-any
-  const obj: any = { value: 1 };
-  obj.self = obj;
+nodeTest.test(
+  "deepCopy() should detect self-referencing circular objects",
+  () => {
+    // oxlint-disable-next-line typescript/no-explicit-any
+    const obj: any = { value: 1 };
+    obj.self = obj;
 
-  assert.assertThrows(
-    () => deepCopy.deepCopy(obj),
-    deepCopy.DeepCopyError,
-    "Circular reference detected",
-  );
-});
+    assert.assertThrows(
+      () => deepCopy.deepCopy(obj),
+      deepCopy.DeepCopyError,
+      "Circular reference detected",
+    );
+  },
+);
 
-Deno.test("deepCopy() should detect mutually circular references", () => {
+nodeTest.test("deepCopy() should detect mutually circular references", () => {
   // oxlint-disable-next-line typescript/no-explicit-any
   const objA: any = { name: "A" };
   // oxlint-disable-next-line typescript/no-explicit-any
@@ -64,7 +68,7 @@ Deno.test("deepCopy() should detect mutually circular references", () => {
   );
 });
 
-Deno.test("deepCopy() should detect deep circular references", () => {
+nodeTest.test("deepCopy() should detect deep circular references", () => {
   // oxlint-disable-next-line typescript/no-explicit-any
   const obj: any = {
     level1: {
@@ -86,7 +90,7 @@ Deno.test("deepCopy() should detect deep circular references", () => {
 // Max Depth Tests
 // ============================================================================
 
-Deno.test("deepCopy() should copy objects within max depth", () => {
+nodeTest.test("deepCopy() should copy objects within max depth", () => {
   const nested = { a: { b: { c: { d: { e: 5 } } } } };
 
   const result = deepCopy.deepCopy(nested, { maxDepth: 10 });
@@ -96,7 +100,7 @@ Deno.test("deepCopy() should copy objects within max depth", () => {
   assert.assertNotStrictEquals(result.a, nested.a);
 });
 
-Deno.test("deepCopy() should throw when exceeding max depth", () => {
+nodeTest.test("deepCopy() should throw when exceeding max depth", () => {
   const nested = { a: { b: { c: { d: { e: 5 } } } } };
 
   assert.assertThrows(
@@ -106,7 +110,7 @@ Deno.test("deepCopy() should throw when exceeding max depth", () => {
   );
 });
 
-Deno.test("deepCopy() should allow custom max depth", () => {
+nodeTest.test("deepCopy() should allow custom max depth", () => {
   // Create a deeply nested object (5 levels of objects)
   // Level 0: root, Level 1: a, Level 2: b, Level 3: c, Level 4: d
   // e is a primitive (5), so no recursion there
@@ -128,7 +132,7 @@ Deno.test("deepCopy() should allow custom max depth", () => {
 // Array Handling Tests
 // ============================================================================
 
-Deno.test("deepCopy() should handle arrays", () => {
+nodeTest.test("deepCopy() should handle arrays", () => {
   const obj = { arr: [1, 2, { nested: 3 }] };
 
   const result = deepCopy.deepCopy(obj);
@@ -138,7 +142,7 @@ Deno.test("deepCopy() should handle arrays", () => {
   assert.assertNotStrictEquals(result.arr[2], obj.arr[2]);
 });
 
-Deno.test("deepCopy() should handle nested arrays", () => {
+nodeTest.test("deepCopy() should handle nested arrays", () => {
   const obj = {
     matrix: [
       [1, 2],
@@ -153,7 +157,7 @@ Deno.test("deepCopy() should handle nested arrays", () => {
   assert.assertNotStrictEquals(result.matrix[0], obj.matrix[0]);
 });
 
-Deno.test("deepCopy() should detect circular references in arrays", () => {
+nodeTest.test("deepCopy() should detect circular references in arrays", () => {
   // oxlint-disable-next-line typescript/no-explicit-any
   const arr: any[] = [1, 2, 3];
   arr.push(arr);
@@ -169,7 +173,7 @@ Deno.test("deepCopy() should detect circular references in arrays", () => {
 // deepCopy2 Tests (Alternative Implementation)
 // ============================================================================
 
-Deno.test("deepCopy2() should detect circular references", () => {
+nodeTest.test("deepCopy2() should detect circular references", () => {
   // oxlint-disable-next-line typescript/no-explicit-any
   const obj: any = { value: 1 };
   obj.self = obj;
@@ -181,7 +185,7 @@ Deno.test("deepCopy2() should detect circular references", () => {
   );
 });
 
-Deno.test("deepCopy2() should respect max depth", () => {
+nodeTest.test("deepCopy2() should respect max depth", () => {
   const nested = { a: { b: { c: { d: { e: 5 } } } } };
 
   assert.assertThrows(
@@ -195,7 +199,7 @@ Deno.test("deepCopy2() should respect max depth", () => {
 // Edge Cases
 // ============================================================================
 
-Deno.test("deepCopy() should handle null values", () => {
+nodeTest.test("deepCopy() should handle null values", () => {
   const obj = { a: null, b: { c: null } };
 
   const result = deepCopy.deepCopy(obj);
@@ -203,7 +207,7 @@ Deno.test("deepCopy() should handle null values", () => {
   assert.assertEquals(result, obj);
 });
 
-Deno.test("deepCopy() should handle undefined values", () => {
+nodeTest.test("deepCopy() should handle undefined values", () => {
   const obj = { a: undefined, b: { c: undefined } };
 
   const result = deepCopy.deepCopy(obj);
@@ -212,32 +216,38 @@ Deno.test("deepCopy() should handle undefined values", () => {
   assert.assertEquals(result.b.c, undefined);
 });
 
-Deno.test("deepCopy() should handle primitive values in nested objects", () => {
-  const obj = {
-    num: 42,
-    str: "hello",
-    bool: true,
-    nested: {
-      num: 100,
-      str: "world",
-      bool: false,
-    },
-  };
+nodeTest.test(
+  "deepCopy() should handle primitive values in nested objects",
+  () => {
+    const obj = {
+      num: 42,
+      str: "hello",
+      bool: true,
+      nested: {
+        num: 100,
+        str: "world",
+        bool: false,
+      },
+    };
 
-  const result = deepCopy.deepCopy(obj);
+    const result = deepCopy.deepCopy(obj);
 
-  assert.assertEquals(result, obj);
-  assert.assertNotStrictEquals(result.nested, obj.nested);
-});
+    assert.assertEquals(result, obj);
+    assert.assertNotStrictEquals(result.nested, obj.nested);
+  },
+);
 
-Deno.test("deepCopy() should allow same object in different branches (non-circular)", () => {
-  const shared = { value: 5 };
-  const obj = { a: shared, b: shared };
+nodeTest.test(
+  "deepCopy() should allow same object in different branches (non-circular)",
+  () => {
+    const shared = { value: 5 };
+    const obj = { a: shared, b: shared };
 
-  // This should NOT throw - the same object appearing in different branches
-  // is not a circular reference, just shared references
-  const result = deepCopy.deepCopy(obj);
+    // This should NOT throw - the same object appearing in different branches
+    // is not a circular reference, just shared references
+    const result = deepCopy.deepCopy(obj);
 
-  assert.assertEquals(result.a.value, 5);
-  assert.assertEquals(result.b.value, 5);
-});
+    assert.assertEquals(result.a.value, 5);
+    assert.assertEquals(result.b.value, 5);
+  },
+);

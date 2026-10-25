@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as results from "@eserstack/primitives/results";
 import { runtime } from "@eserstack/standards/cross-runtime";
@@ -20,7 +21,7 @@ const ACCEPTED: readonly [name: string, url: string][] = [
 ];
 
 for (const [name, url] of ACCEPTED) {
-  Deno.test(`parseRegistryUrl accepts ${name}`, () => {
+  nodeTest.test(`parseRegistryUrl accepts ${name}`, () => {
     const parsed = registry.parseRegistryUrl(url);
 
     assert.assert(results.isOk(parsed), url);
@@ -60,7 +61,7 @@ const REFUSED: readonly [name: string, value: unknown, reason: string][] = [
 ];
 
 for (const [name, value, reason] of REFUSED) {
-  Deno.test(`parseRegistryUrl refuses ${name}`, () => {
+  nodeTest.test(`parseRegistryUrl refuses ${name}`, () => {
     const parsed = registry.parseRegistryUrl(value);
 
     assert.assert(results.isFail(parsed), String(value));
@@ -68,7 +69,7 @@ for (const [name, value, reason] of REFUSED) {
   });
 }
 
-Deno.test("parseRegistryUrl keeps credentials out of the error", () => {
+nodeTest.test("parseRegistryUrl keeps credentials out of the error", () => {
   const parsed = registry.parseRegistryUrl(
     "https://user:secret@packs.example.com/r.json",
   );
@@ -78,7 +79,7 @@ Deno.test("parseRegistryUrl keeps credentials out of the error", () => {
   assert.assertEquals(parsed.error.url.includes("secret"), false);
 });
 
-Deno.test("internalAddressKind leaves host names to the request", () => {
+nodeTest.test("internalAddressKind leaves host names to the request", () => {
   assert.assertEquals(registry.internalAddressKind("packs.example.com"), null);
   assert.assertEquals(registry.internalAddressKind("LOCALHOST."), "loopback");
   assert.assertEquals(registry.internalAddressKind("127.8.9.10"), "loopback");
@@ -97,7 +98,7 @@ const ENTRY = {
   tags: ["ts"],
 };
 
-Deno.test("parseRegistry accepts a well-formed document", () => {
+nodeTest.test("parseRegistry accepts a well-formed document", () => {
   const parsed = registry.parseRegistry({ packs: [ENTRY] });
 
   assert.assert(results.isOk(parsed));
@@ -121,7 +122,7 @@ const BAD_DOCUMENTS: readonly [name: string, data: unknown, reason: string][] =
   ];
 
 for (const [name, data, reason] of BAD_DOCUMENTS) {
-  Deno.test(`parseRegistry refuses ${name}`, () => {
+  nodeTest.test(`parseRegistry refuses ${name}`, () => {
     const parsed = registry.parseRegistry(data);
 
     assert.assert(results.isFail(parsed));
@@ -150,17 +151,20 @@ const withServer = async (
   }
 };
 
-Deno.test("fetchRegistry reads a registry from an accepted URL", async () => {
-  await withServer(
-    () => Response.json({ packs: [ENTRY] }),
-    async (baseUrl) => {
-      const fetched = await registry.fetchRegistry(baseUrl);
+nodeTest.test(
+  "fetchRegistry reads a registry from an accepted URL",
+  async () => {
+    await withServer(
+      () => Response.json({ packs: [ENTRY] }),
+      async (baseUrl) => {
+        const fetched = await registry.fetchRegistry(baseUrl);
 
-      assert.assert(results.isOk(fetched));
-      assert.assertEquals(fetched.value.packs.length, 1);
-    },
-  );
-});
+        assert.assert(results.isOk(fetched));
+        assert.assertEquals(fetched.value.packs.length, 1);
+      },
+    );
+  },
+);
 
 const FAILING_SERVERS: readonly [
   name: string,
@@ -191,7 +195,7 @@ const FAILING_SERVERS: readonly [
 ];
 
 for (const [name, handler, reason] of FAILING_SERVERS) {
-  Deno.test(`fetchRegistry refuses ${name}`, async () => {
+  nodeTest.test(`fetchRegistry refuses ${name}`, async () => {
     await withServer(handler, async (baseUrl) => {
       const fetched = await registry.fetchRegistry(baseUrl);
 
@@ -202,7 +206,7 @@ for (const [name, handler, reason] of FAILING_SERVERS) {
   });
 }
 
-Deno.test("fetchRegistry reports a server that is not there", async () => {
+nodeTest.test("fetchRegistry reports a server that is not there", async () => {
   // Port 9 (discard) on loopback: nothing listens there on a test machine.
   const fetched = await registry.fetchRegistry(
     new URL("http://127.0.0.1:9/registry.json"),

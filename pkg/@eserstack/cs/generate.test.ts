@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import { runtime } from "@eserstack/standards/cross-runtime";
 import * as generate from "./generate.ts";
@@ -40,39 +41,33 @@ async function cleanupTempDir(tempDir: string) {
   }
 }
 
-Deno.test(
-  {
-    name: "generate() should work without environment name",
-    sanitizeResources: false,
-  },
-  async () => {
-    const tempDir = await createDefaultEnvFiles({
-      DEFAULT_VAR_1: "default-value-1",
-      DEFAULT_VAR_2: "default-value-2",
+nodeTest.test("generate() should work without environment name", async () => {
+  const tempDir = await createDefaultEnvFiles({
+    DEFAULT_VAR_1: "default-value-1",
+    DEFAULT_VAR_2: "default-value-2",
+  });
+
+  try {
+    const result = await generate.generate({
+      cwd: tempDir,
+      resource: { type: "configmap", name: "test-config" },
+      namespace: "test-namespace",
+      format: "yaml",
+      env: undefined,
     });
 
-    try {
-      const result = await generate.generate({
-        cwd: tempDir,
-        resource: { type: "configmap", name: "test-config" },
-        namespace: "test-namespace",
-        format: "yaml",
-        env: undefined,
-      });
+    assert.assertStringIncludes(result, "apiVersion: v1");
+    assert.assertStringIncludes(result, "kind: ConfigMap");
+    assert.assertStringIncludes(result, "name: test-config");
+    assert.assertStringIncludes(result, "namespace: test-namespace");
+    assert.assertStringIncludes(result, "DEFAULT_VAR_1: default-value-1");
+    assert.assertStringIncludes(result, "DEFAULT_VAR_2: default-value-2");
+  } finally {
+    await cleanupTempDir(tempDir);
+  }
+});
 
-      assert.assertStringIncludes(result, "apiVersion: v1");
-      assert.assertStringIncludes(result, "kind: ConfigMap");
-      assert.assertStringIncludes(result, "name: test-config");
-      assert.assertStringIncludes(result, "namespace: test-namespace");
-      assert.assertStringIncludes(result, "DEFAULT_VAR_1: default-value-1");
-      assert.assertStringIncludes(result, "DEFAULT_VAR_2: default-value-2");
-    } finally {
-      await cleanupTempDir(tempDir);
-    }
-  },
-);
-
-Deno.test("generate() should work with environment name", async () => {
+nodeTest.test("generate() should work with environment name", async () => {
   const tempDir = await createEnvFile("test", {
     TEST_VAR_1: "test-value-1",
     TEST_VAR_2: "test-value-2",
@@ -98,7 +93,7 @@ Deno.test("generate() should work with environment name", async () => {
   }
 });
 
-Deno.test("generate() should handle JSON format", async () => {
+nodeTest.test("generate() should handle JSON format", async () => {
   const tempDir = await createEnvFile("json-test-env", {
     JSON_TEST_VAR: "json-test-value",
   });
@@ -123,7 +118,7 @@ Deno.test("generate() should handle JSON format", async () => {
   }
 });
 
-Deno.test("generate() should generate Secret resources", async () => {
+nodeTest.test("generate() should generate Secret resources", async () => {
   const tempDir = await createEnvFile("secret-test", {
     SECRET_VAR_1: "secret-value-1",
     SECRET_VAR_2: "secret-value-2",
@@ -148,7 +143,7 @@ Deno.test("generate() should generate Secret resources", async () => {
   }
 });
 
-Deno.test("generate() should include environment variables", async () => {
+nodeTest.test("generate() should include environment variables", async () => {
   const tempDir = await createEnvFile("env-test", {
     TEST_PROCESS_VAR: "from-process",
     ANOTHER_TEST_VAR: "another-value",
@@ -171,76 +166,85 @@ Deno.test("generate() should include environment variables", async () => {
   }
 });
 
-Deno.test("generate() should work with different resource types", async () => {
-  const tempDir = await createEnvFile("multi-test", {
-    CONFIG_VAR: "config-value",
-    SHARED_VAR: "shared-value",
-  });
-
-  try {
-    const result = await generate.generate({
-      cwd: tempDir,
-      resource: { type: "configmap", name: "multi-test" },
-      format: "yaml",
-      env: "multi-test",
+nodeTest.test(
+  "generate() should work with different resource types",
+  async () => {
+    const tempDir = await createEnvFile("multi-test", {
+      CONFIG_VAR: "config-value",
+      SHARED_VAR: "shared-value",
     });
 
-    assert.assertStringIncludes(result, "kind: ConfigMap");
-    assert.assertStringIncludes(result, "name: multi-test");
-    assert.assertStringIncludes(result, "CONFIG_VAR: config-value");
-    assert.assertStringIncludes(result, "SHARED_VAR: shared-value");
-  } finally {
-    await cleanupTempDir(tempDir);
-  }
-});
+    try {
+      const result = await generate.generate({
+        cwd: tempDir,
+        resource: { type: "configmap", name: "multi-test" },
+        format: "yaml",
+        env: "multi-test",
+      });
 
-Deno.test("generate() should capture runtime environment variables", async () => {
-  const tempDir = await createEnvFile("runtime-test", {
-    RUNTIME_VAR1: "runtime-value-1",
-    RUNTIME_VAR2: "runtime-value-2",
-  });
+      assert.assertStringIncludes(result, "kind: ConfigMap");
+      assert.assertStringIncludes(result, "name: multi-test");
+      assert.assertStringIncludes(result, "CONFIG_VAR: config-value");
+      assert.assertStringIncludes(result, "SHARED_VAR: shared-value");
+    } finally {
+      await cleanupTempDir(tempDir);
+    }
+  },
+);
 
-  try {
-    const result = await generate.generate({
-      cwd: tempDir,
-      resource: { type: "configmap", name: "runtime-test" },
-      format: "yaml",
-      env: "runtime-test",
+nodeTest.test(
+  "generate() should capture runtime environment variables",
+  async () => {
+    const tempDir = await createEnvFile("runtime-test", {
+      RUNTIME_VAR1: "runtime-value-1",
+      RUNTIME_VAR2: "runtime-value-2",
     });
 
-    assert.assertStringIncludes(result, "RUNTIME_VAR1: runtime-value-1");
-    assert.assertStringIncludes(result, "RUNTIME_VAR2: runtime-value-2");
-  } finally {
-    await cleanupTempDir(tempDir);
-  }
-});
+    try {
+      const result = await generate.generate({
+        cwd: tempDir,
+        resource: { type: "configmap", name: "runtime-test" },
+        format: "yaml",
+        env: "runtime-test",
+      });
 
-Deno.test("generate() should handle multiple environment variables", async () => {
-  const tempDir = await createEnvFile("multi-var-test", {
-    VAR_1: "value-1",
-    VAR_2: "value-2",
-    VAR_3: "value-3",
-  });
+      assert.assertStringIncludes(result, "RUNTIME_VAR1: runtime-value-1");
+      assert.assertStringIncludes(result, "RUNTIME_VAR2: runtime-value-2");
+    } finally {
+      await cleanupTempDir(tempDir);
+    }
+  },
+);
 
-  try {
-    const result = await generate.generate({
-      cwd: tempDir,
-      resource: { type: "configmap", name: "multi-var-test" },
-      format: "yaml",
-      env: "multi-var-test",
+nodeTest.test(
+  "generate() should handle multiple environment variables",
+  async () => {
+    const tempDir = await createEnvFile("multi-var-test", {
+      VAR_1: "value-1",
+      VAR_2: "value-2",
+      VAR_3: "value-3",
     });
 
-    assert.assertStringIncludes(result, "kind: ConfigMap");
-    assert.assertStringIncludes(result, "name: multi-var-test");
-    assert.assertStringIncludes(result, "VAR_1: value-1");
-    assert.assertStringIncludes(result, "VAR_2: value-2");
-    assert.assertStringIncludes(result, "VAR_3: value-3");
-  } finally {
-    await cleanupTempDir(tempDir);
-  }
-});
+    try {
+      const result = await generate.generate({
+        cwd: tempDir,
+        resource: { type: "configmap", name: "multi-var-test" },
+        format: "yaml",
+        env: "multi-var-test",
+      });
 
-Deno.test("generate() should work with --env flag", async () => {
+      assert.assertStringIncludes(result, "kind: ConfigMap");
+      assert.assertStringIncludes(result, "name: multi-var-test");
+      assert.assertStringIncludes(result, "VAR_1: value-1");
+      assert.assertStringIncludes(result, "VAR_2: value-2");
+      assert.assertStringIncludes(result, "VAR_3: value-3");
+    } finally {
+      await cleanupTempDir(tempDir);
+    }
+  },
+);
+
+nodeTest.test("generate() should work with --env flag", async () => {
   const tempDir = await createEnvFile("development", {
     CUSTOM_ENV_VAR: "custom-value",
     PROCESS_VAR: "process-value",
@@ -263,23 +267,26 @@ Deno.test("generate() should work with --env flag", async () => {
   }
 });
 
-Deno.test("generate() should include system environment variables", async () => {
-  const tempDir = await createEnvFile("system-test", {
-    TEST_SYSTEM_VAR: "system-value",
-  });
-
-  try {
-    const result = await generate.generate({
-      cwd: tempDir,
-      resource: { type: "configmap", name: "system-test" },
-      format: "yaml",
-      env: "system-test",
+nodeTest.test(
+  "generate() should include system environment variables",
+  async () => {
+    const tempDir = await createEnvFile("system-test", {
+      TEST_SYSTEM_VAR: "system-value",
     });
 
-    assert.assertStringIncludes(result, "kind: ConfigMap");
-    assert.assertStringIncludes(result, "name: system-test");
-    assert.assertStringIncludes(result, "TEST_SYSTEM_VAR: system-value");
-  } finally {
-    await cleanupTempDir(tempDir);
-  }
-});
+    try {
+      const result = await generate.generate({
+        cwd: tempDir,
+        resource: { type: "configmap", name: "system-test" },
+        format: "yaml",
+        env: "system-test",
+      });
+
+      assert.assertStringIncludes(result, "kind: ConfigMap");
+      assert.assertStringIncludes(result, "name: system-test");
+      assert.assertStringIncludes(result, "TEST_SYSTEM_VAR: system-value");
+    } finally {
+      await cleanupTempDir(tempDir);
+    }
+  },
+);

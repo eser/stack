@@ -1,10 +1,11 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as crossRuntime from "@eserstack/standards/cross-runtime";
 import * as fakeFs from "./fake-fs.ts";
 
-Deno.test("createFakeFs should read text files", async () => {
+nodeTest.test("createFakeFs should read text files", async () => {
   const fs = fakeFs.createFakeFs({
     "/app/config.json": '{"port": 3000}',
     "/app/readme.txt": "Hello World",
@@ -17,18 +18,21 @@ Deno.test("createFakeFs should read text files", async () => {
   assert.assertEquals(readme, "Hello World");
 });
 
-Deno.test("createFakeFs should throw NotFoundError for missing files", async () => {
-  const fs = fakeFs.createFakeFs({
-    "/app/config.json": '{"port": 3000}',
-  });
+nodeTest.test(
+  "createFakeFs should throw NotFoundError for missing files",
+  async () => {
+    const fs = fakeFs.createFakeFs({
+      "/app/config.json": '{"port": 3000}',
+    });
 
-  await assert.assertRejects(
-    () => fs.readTextFile("/app/missing.json"),
-    crossRuntime.NotFoundError,
-  );
-});
+    await assert.assertRejects(
+      () => fs.readTextFile("/app/missing.json"),
+      crossRuntime.NotFoundError,
+    );
+  },
+);
 
-Deno.test("createFakeFs should read files as bytes", async () => {
+nodeTest.test("createFakeFs should read files as bytes", async () => {
   const fs = fakeFs.createFakeFs({
     "/app/data.txt": "test data",
   });
@@ -39,7 +43,7 @@ Deno.test("createFakeFs should read files as bytes", async () => {
   assert.assertEquals(text, "test data");
 });
 
-Deno.test("createFakeFs should walk directory", async () => {
+nodeTest.test("createFakeFs should walk directory", async () => {
   const fs = fakeFs.createFakeFs({
     "/app/src/main.ts": "console.log('main')",
     "/app/src/utils.ts": "export const add = (a, b) => a + b",
@@ -59,7 +63,7 @@ Deno.test("createFakeFs should walk directory", async () => {
   ]);
 });
 
-Deno.test("createFakeFs should identify directories", () => {
+nodeTest.test("createFakeFs should identify directories", () => {
   const fs = fakeFs.createFakeFs({
     "/app/src/main.ts": "code",
     "/app/src/component/component.ts": "component",
@@ -72,7 +76,7 @@ Deno.test("createFakeFs should identify directories", () => {
   assert.assertEquals(fs.isDirectory("/nonexistent"), false);
 });
 
-Deno.test("createFakeFs should check path existence", () => {
+nodeTest.test("createFakeFs should check path existence", () => {
   const fs = fakeFs.createFakeFs({
     "/app/config.json": '{"port": 3000}',
     "/app/src/main.ts": "code",
@@ -85,30 +89,36 @@ Deno.test("createFakeFs should check path existence", () => {
   assert.assertEquals(fs.exists("/missing"), false);
 });
 
-Deno.test("createFakeFs walk should return proper entry properties", async () => {
-  const fs = fakeFs.createFakeFs({
-    "/app/index.ts": "code",
-  });
+nodeTest.test(
+  "createFakeFs walk should return proper entry properties",
+  async () => {
+    const fs = fakeFs.createFakeFs({
+      "/app/index.ts": "code",
+    });
 
-  for await (const entry of fs.walk("/app")) {
-    assert.assertEquals(entry.path, "/app/index.ts");
-    assert.assertEquals(entry.name, "index.ts");
-    assert.assertEquals(entry.isFile, true);
-    assert.assertEquals(entry.isDirectory, false);
-  }
-});
+    for await (const entry of fs.walk("/app")) {
+      assert.assertEquals(entry.path, "/app/index.ts");
+      assert.assertEquals(entry.name, "index.ts");
+      assert.assertEquals(entry.isFile, true);
+      assert.assertEquals(entry.isDirectory, false);
+    }
+  },
+);
 
-Deno.test("createFakeFs should handle trailing slashes in directories", () => {
-  const fs = fakeFs.createFakeFs({
-    "/app/src/main.ts": "code",
-  });
+nodeTest.test(
+  "createFakeFs should handle trailing slashes in directories",
+  () => {
+    const fs = fakeFs.createFakeFs({
+      "/app/src/main.ts": "code",
+    });
 
-  assert.assertEquals(fs.isDirectory("/app/"), true);
-  assert.assertEquals(fs.isDirectory("/app/src/"), true);
-  assert.assertEquals(fs.exists("/app/"), true);
-});
+    assert.assertEquals(fs.isDirectory("/app/"), true);
+    assert.assertEquals(fs.isDirectory("/app/src/"), true);
+    assert.assertEquals(fs.exists("/app/"), true);
+  },
+);
 
-Deno.test("createFakeFs should handle empty files", async () => {
+nodeTest.test("createFakeFs should handle empty files", async () => {
   const fs = fakeFs.createFakeFs({
     "/app/.gitkeep": "",
     "/app/empty.txt": "",

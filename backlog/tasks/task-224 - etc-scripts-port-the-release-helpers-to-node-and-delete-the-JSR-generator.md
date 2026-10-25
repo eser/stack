@@ -4,7 +4,7 @@ title: 'etc/scripts: port the release helpers to node and delete the JSR generat
 status: To Do
 assignee: []
 created_date: '2026-10-15 20:38'
-updated_date: '2026-10-24 19:38'
+updated_date: '2026-10-25 16:00'
 labels:
   - cutover
   - scripts
@@ -49,4 +49,6 @@ Hand-work list (TASK-175 spike, 2026-10-24, node 26.12.1; grep and a run):
 - gen-jsr-manifests is referenced from .eser/manifest.yml, .github/workflows/build.yml:780, .gitignore, pkg/@eserstack/codebase/release.ts, AGENTS.md, docs/agents/{documentation-and-tooling,release-and-ci,workflow}.md and security-report.md.
 - deno.extra.json files: laroux, laroux-bundler, laroux-react, laroux-server, laroux-runtime and posts (posts is TASK-214).
 - .gitignore:50 (`/pkg/@eserstack/*/deno.json`), :52-56 (`.deno_compile_bundle_*.mjs`), :61 (`deno task cli docs`).
+
+TASK-198 (2026-10-25): the test and bench codemods left no site for hand edits in this task's files (0 unhandled), and none of its test files fails under `node --test --test-force-exit` on Node 26.12.1 when run alone.
 <!-- SECTION:NOTES:END -->

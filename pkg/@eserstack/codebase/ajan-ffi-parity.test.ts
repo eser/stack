@@ -22,6 +22,7 @@
  * as a broken extractor rather than passing as a vacuous match.
  */
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import { runtime } from "@eserstack/standards/cross-runtime";
 
@@ -79,78 +80,81 @@ const assertExtracted = (label: string, names: string[]): void => {
   );
 };
 
-Deno.test("ajan FFI: every cgo export is declared in types.ts and all four loaders", async () => {
-  const [main, types, deno, bun, node, wasm] = await Promise.all([
-    read("../ajan/main.go"),
-    read("../ajan/ffi/types.ts"),
-    read("../ajan/ffi/backend-deno.ts"),
-    read("../ajan/ffi/backend-bun.ts"),
-    read("../ajan/ffi/backend-node.ts"),
-    read("../ajan/wasm/loader-reactor.ts"),
-  ]);
+nodeTest.test(
+  "ajan FFI: every cgo export is declared in types.ts and all four loaders",
+  async () => {
+    const [main, types, deno, bun, node, wasm] = await Promise.all([
+      read("../ajan/main.go"),
+      read("../ajan/ffi/types.ts"),
+      read("../ajan/ffi/backend-deno.ts"),
+      read("../ajan/ffi/backend-bun.ts"),
+      read("../ajan/ffi/backend-node.ts"),
+      read("../ajan/wasm/loader-reactor.ts"),
+    ]);
 
-  const expected = goExports(main);
-  assertExtracted("main.go //export", expected);
+    const expected = goExports(main);
+    assertExtracted("main.go //export", expected);
 
-  const declarations: Array<[string, string[]]> = [
-    ["ffi/types.ts", tsSymbolKeys(types)],
-    ["ffi/backend-deno.ts", tsSymbolKeys(deno)],
-    ["ffi/backend-bun.ts", tsSymbolKeys(bun)],
-    ["ffi/backend-node.ts", tsSymbolKeys(node)],
-    ["wasm/loader-reactor.ts", tsSymbolKeys(wasm)],
-    ["ffi/backend-node.ts C prototypes", cPrototypes(node)],
-  ];
+    const declarations: Array<[string, string[]]> = [
+      ["ffi/types.ts", tsSymbolKeys(types)],
+      ["ffi/backend-deno.ts", tsSymbolKeys(deno)],
+      ["ffi/backend-bun.ts", tsSymbolKeys(bun)],
+      ["ffi/backend-node.ts", tsSymbolKeys(node)],
+      ["wasm/loader-reactor.ts", tsSymbolKeys(wasm)],
+      ["ffi/backend-node.ts C prototypes", cPrototypes(node)],
+    ];
 
-  for (const [label, actual] of declarations) {
-    assertExtracted(label, actual);
-    assert.assertEquals(
-      actual,
-      expected,
-      `${label} does not match the cgo export list in main.go. Adding a Go ` +
-        `export means declaring it in types.ts, all three native backends ` +
-        `and the WASM loader; this diff shows what drifted.`,
-    );
-  }
-});
-
-Deno.test("ajan FFI: the dispatch names the WASM loader sends are registered in Go", async () => {
-  const ajanDir = runtime.path.join(testDir, "../ajan");
-  const goFiles: string[] = [];
-  for await (const entry of runtime.fs.readDir(ajanDir)) {
-    if (
-      entry.isFile &&
-      entry.name.endsWith(".go") &&
-      !entry.name.endsWith("_test.go")
-    ) {
-      goFiles.push(entry.name);
+    for (const [label, actual] of declarations) {
+      assertExtracted(label, actual);
+      assert.assertEquals(
+        actual,
+        expected,
+        `${label} does not match the cgo export list in main.go. Adding a Go ` +
+          `export means declaring it in types.ts, all three native backends ` +
+          `and the WASM loader; this diff shows what drifted.`,
+      );
     }
-  }
-  const [goSources, loader] = await Promise.all([
-    Promise.all(goFiles.map((name) => read(`../ajan/${name}`))),
-    read("../ajan/wasm/loader-reactor.ts"),
-  ]);
-
-  const served = registeredNames(goSources.join("\n"));
-  const sent = wasmCalls(loader);
-
-  assertExtracted("bridge register()", served);
-  assertExtracted("loader-reactor.ts call()", sent);
-
-  assert.assertEquals(
-    sent,
-    served,
-    "The WASM loader's dispatch names differ from the names the bridge " +
-      "registers in its domain files. A name sent but not registered fails " +
-      'at runtime with "unknown function"; a name registered but not sent ' +
-      "is unreachable from TypeScript.",
-  );
-});
-
-Deno.test(
-  {
-    name: "ajan FFI: the loaded native library exposes exactly the declared symbols",
-    sanitizeResources: false,
   },
+);
+
+nodeTest.test(
+  "ajan FFI: the dispatch names the WASM loader sends are registered in Go",
+  async () => {
+    const ajanDir = runtime.path.join(testDir, "../ajan");
+    const goFiles: string[] = [];
+    for await (const entry of runtime.fs.readDir(ajanDir)) {
+      if (
+        entry.isFile &&
+        entry.name.endsWith(".go") &&
+        !entry.name.endsWith("_test.go")
+      ) {
+        goFiles.push(entry.name);
+      }
+    }
+    const [goSources, loader] = await Promise.all([
+      Promise.all(goFiles.map((name) => read(`../ajan/${name}`))),
+      read("../ajan/wasm/loader-reactor.ts"),
+    ]);
+
+    const served = registeredNames(goSources.join("\n"));
+    const sent = wasmCalls(loader);
+
+    assertExtracted("bridge register()", served);
+    assertExtracted("loader-reactor.ts call()", sent);
+
+    assert.assertEquals(
+      sent,
+      served,
+      "The WASM loader's dispatch names differ from the names the bridge " +
+        "registers in its domain files. A name sent but not registered fails " +
+        'at runtime with "unknown function"; a name registered but not sent ' +
+        "is unreachable from TypeScript.",
+    );
+  },
+);
+
+nodeTest.test(
+  "ajan FFI: the loaded native library exposes exactly the declared symbols",
   async () => {
     const expected = goExports(await read("../ajan/main.go"));
     assertExtracted("main.go //export", expected);

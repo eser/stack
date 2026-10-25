@@ -4,7 +4,7 @@ title: 'standards: make cross-runtime Node-only and synchronous'
 status: To Do
 assignee: []
 created_date: '2026-10-15 20:38'
-updated_date: '2026-10-24 19:38'
+updated_date: '2026-10-25 16:00'
 labels:
   - cutover
   - standards
@@ -52,4 +52,12 @@ Hand-work list (TASK-175 spike, 2026-10-24, node 26.12.1, macOS arm64; throwaway
 - Non-test source: Deno. 73 (adapters/deno.ts 64, shared.ts 9); Bun. 14 (bun.ts 9, web-streams.ts 1, shared.ts 1); jsr: 2 and npm: 1, all in execution-context.ts (:153, :215, :295); import.meta.main 0.
 - Benches: 3 files, 120 placeholders (registry 36, immutable-map 49, indexed 35); mitata is in no package.json and there is no bench script.
 - Docs: pkg/@eserstack/standards/README.md (16 mentions). No Go twin.
+
+TASK-198 (2026-10-25): the test and bench codemods left no site for hand edits in this task's files (0 unhandled). After them, these test files still fail under `node --test --test-force-exit` on Node 26.12.1, each run alone:
+- pkg/@eserstack/standards/cross-runtime/adapters/bun.test.ts: 1 failing, 6 passing; first error: see the run
+- pkg/@eserstack/standards/cross-runtime/adapters/deno.test.ts: 1 failing, 0 passing; first error: ReferenceError: Deno is not defined
+- pkg/@eserstack/standards/cross-runtime/adapters/node-http.test.ts: 1 failing, 7 passing; first error: see the run
+- pkg/@eserstack/standards/cross-runtime/adapters/node.test.ts: 1 failing, 6 passing; first error: see the run
+- pkg/@eserstack/standards/cross-runtime/execution-context.test.ts: 1 failing, 125 passing; first error: AssertionError: Values are not equal.
+- pkg/@eserstack/standards/cross-runtime/mod.test.ts: 7 failing, 29 passing; first error: AssertionError: Values are not equal.
 <!-- SECTION:NOTES:END -->

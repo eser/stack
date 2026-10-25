@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as frames from "./websocket-frames.ts";
 
@@ -82,37 +83,46 @@ const lengthCases = [
 ];
 
 for (const { name, length, header } of lengthCases) {
-  Deno.test(`encodeFrame writes an unmasked final frame with ${name}`, () => {
-    const payload = new Uint8Array(length).fill(7);
-    const frame = frames.encodeFrame(frames.OPCODES.binary, payload);
+  nodeTest.test(
+    `encodeFrame writes an unmasked final frame with ${name}`,
+    () => {
+      const payload = new Uint8Array(length).fill(7);
+      const frame = frames.encodeFrame(frames.OPCODES.binary, payload);
 
-    assert.assertEquals([...frame.subarray(0, header.length)], header);
-    assert.assertEquals(frame.byteLength, header.length + length);
-    assert.assertEquals(frame.subarray(header.length), payload);
-  });
+      assert.assertEquals([...frame.subarray(0, header.length)], header);
+      assert.assertEquals(frame.byteLength, header.length + length);
+      assert.assertEquals(frame.subarray(header.length), payload);
+    },
+  );
 }
 
-Deno.test("encodeMessage sends a string as text and bytes as binary", () => {
-  assert.assertEquals([...frames.encodeMessage("hi")], [0x81, 2, 0x68, 0x69]);
-  assert.assertEquals(
-    [...frames.encodeMessage(new Uint8Array([1, 2]))],
-    [0x82, 2, 1, 2],
-  );
-});
+nodeTest.test(
+  "encodeMessage sends a string as text and bytes as binary",
+  () => {
+    assert.assertEquals([...frames.encodeMessage("hi")], [0x81, 2, 0x68, 0x69]);
+    assert.assertEquals(
+      [...frames.encodeMessage(new Uint8Array([1, 2]))],
+      [0x82, 2, 1, 2],
+    );
+  },
+);
 
-Deno.test("encodeClose puts the code before the reason, or sends no payload", () => {
-  assert.assertEquals(
-    [...frames.encodeClose(1000, "ok")],
-    [0x88, 4, 0x03, 0xe8, 0x6f, 0x6b],
-  );
-  assert.assertEquals([...frames.encodeClose(null, "ignored")], [0x88, 0]);
-});
+nodeTest.test(
+  "encodeClose puts the code before the reason, or sends no payload",
+  () => {
+    assert.assertEquals(
+      [...frames.encodeClose(1000, "ok")],
+      [0x88, 4, 0x03, 0xe8, 0x6f, 0x6b],
+    );
+    assert.assertEquals([...frames.encodeClose(null, "ignored")], [0x88, 0]);
+  },
+);
 
 // =============================================================================
 // decodeClose
 // =============================================================================
 
-Deno.test("decodeClose reads the code and the reason", () => {
+nodeTest.test("decodeClose reads the code and the reason", () => {
   const payload = new Uint8Array([0x0f, 0xa0, ...text("going")]);
 
   assert.assertEquals(frames.decodeClose(payload), {
@@ -121,7 +131,7 @@ Deno.test("decodeClose reads the code and the reason", () => {
   });
 });
 
-Deno.test("decodeClose reports 1005 for an empty payload", () => {
+nodeTest.test("decodeClose reports 1005 for an empty payload", () => {
   assert.assertEquals(frames.decodeClose(new Uint8Array(0)), {
     code: 1005,
     reason: "",
@@ -148,7 +158,7 @@ const invalidCloseCases = [
 ];
 
 for (const { name, payload, code } of invalidCloseCases) {
-  Deno.test(`decodeClose refuses ${name}`, () => {
+  nodeTest.test(`decodeClose refuses ${name}`, () => {
     assertProtocolError(
       () => frames.decodeClose(new Uint8Array(payload)),
       code,
@@ -160,7 +170,7 @@ for (const { name, payload, code } of invalidCloseCases) {
 // createFrameReader
 // =============================================================================
 
-Deno.test("createFrameReader unmasks a client frame", () => {
+nodeTest.test("createFrameReader unmasks a client frame", () => {
   const reader = frames.createFrameReader(1024);
 
   const [frame] = reader.push(clientFrame(frames.OPCODES.text, text("hello")));
@@ -170,38 +180,44 @@ Deno.test("createFrameReader unmasks a client frame", () => {
   assert.assertEquals(new TextDecoder().decode(frame?.payload), "hello");
 });
 
-Deno.test("createFrameReader assembles a frame delivered one byte at a time", () => {
-  const reader = frames.createFrameReader(1024);
-  const payload = new Uint8Array(300).map((_, i) => i % 256);
-  const bytes = clientFrame(frames.OPCODES.binary, payload);
+nodeTest.test(
+  "createFrameReader assembles a frame delivered one byte at a time",
+  () => {
+    const reader = frames.createFrameReader(1024);
+    const payload = new Uint8Array(300).map((_, i) => i % 256);
+    const bytes = clientFrame(frames.OPCODES.binary, payload);
 
-  const received: frames.Frame[] = [];
-  for (const byte of bytes) {
-    received.push(...reader.push(new Uint8Array([byte])));
-  }
+    const received: frames.Frame[] = [];
+    for (const byte of bytes) {
+      received.push(...reader.push(new Uint8Array([byte])));
+    }
 
-  assert.assertEquals(received.length, 1);
-  assert.assertEquals(received[0]?.payload, payload);
-});
+    assert.assertEquals(received.length, 1);
+    assert.assertEquals(received[0]?.payload, payload);
+  },
+);
 
-Deno.test("createFrameReader returns every frame of a chunk, in order", () => {
-  const reader = frames.createFrameReader(1024);
-  const chunk = new Uint8Array([
-    ...clientFrame(frames.OPCODES.text, text("one")),
-    ...clientFrame(frames.OPCODES.ping, new Uint8Array(0)),
-    ...clientFrame(frames.OPCODES.text, text("two")),
-  ]);
+nodeTest.test(
+  "createFrameReader returns every frame of a chunk, in order",
+  () => {
+    const reader = frames.createFrameReader(1024);
+    const chunk = new Uint8Array([
+      ...clientFrame(frames.OPCODES.text, text("one")),
+      ...clientFrame(frames.OPCODES.ping, new Uint8Array(0)),
+      ...clientFrame(frames.OPCODES.text, text("two")),
+    ]);
 
-  const received = reader.push(chunk);
+    const received = reader.push(chunk);
 
-  assert.assertEquals(
-    received.map((frame) => frame.opcode),
-    [frames.OPCODES.text, frames.OPCODES.ping, frames.OPCODES.text],
-  );
-  assert.assertEquals(new TextDecoder().decode(received[2]?.payload), "two");
-});
+    assert.assertEquals(
+      received.map((frame) => frame.opcode),
+      [frames.OPCODES.text, frames.OPCODES.ping, frames.OPCODES.text],
+    );
+    assert.assertEquals(new TextDecoder().decode(received[2]?.payload), "two");
+  },
+);
 
-Deno.test("createFrameReader reads a 64-bit length", () => {
+nodeTest.test("createFrameReader reads a 64-bit length", () => {
   const reader = frames.createFrameReader(100_000);
   const payload = new Uint8Array(70_000).fill(1);
 
@@ -249,7 +265,7 @@ const invalidFrameCases = [
 ];
 
 for (const { name, bytes, code } of invalidFrameCases) {
-  Deno.test(`createFrameReader refuses ${name} with ${code}`, () => {
+  nodeTest.test(`createFrameReader refuses ${name} with ${code}`, () => {
     const reader = frames.createFrameReader(150);
 
     assertProtocolError(() => reader.push(bytes), code);
@@ -266,20 +282,23 @@ const frame = (
   fin = true,
 ): frames.Frame => ({ fin, opcode, payload });
 
-Deno.test("createMessageAssembler returns an unfragmented message at once", () => {
-  const assembler = frames.createMessageAssembler(1024);
+nodeTest.test(
+  "createMessageAssembler returns an unfragmented message at once",
+  () => {
+    const assembler = frames.createMessageAssembler(1024);
 
-  assert.assertEquals(
-    assembler.push(frame(frames.OPCODES.text, text("whole"))),
-    "whole",
-  );
-  assert.assertEquals(
-    assembler.push(frame(frames.OPCODES.binary, new Uint8Array([1, 2]))),
-    new Uint8Array([1, 2]),
-  );
-});
+    assert.assertEquals(
+      assembler.push(frame(frames.OPCODES.text, text("whole"))),
+      "whole",
+    );
+    assert.assertEquals(
+      assembler.push(frame(frames.OPCODES.binary, new Uint8Array([1, 2]))),
+      new Uint8Array([1, 2]),
+    );
+  },
+);
 
-Deno.test("createMessageAssembler joins the fragments of a message", () => {
+nodeTest.test("createMessageAssembler joins the fragments of a message", () => {
   const assembler = frames.createMessageAssembler(1024);
 
   assert.assertEquals(
@@ -301,40 +320,53 @@ Deno.test("createMessageAssembler joins the fragments of a message", () => {
   );
 });
 
-Deno.test("createMessageAssembler refuses a continuation with no message to continue", () => {
-  const assembler = frames.createMessageAssembler(1024);
+nodeTest.test(
+  "createMessageAssembler refuses a continuation with no message to continue",
+  () => {
+    const assembler = frames.createMessageAssembler(1024);
 
-  assertProtocolError(
-    () => assembler.push(frame(frames.OPCODES.continuation, text("x"))),
-    1002,
-  );
-});
+    assertProtocolError(
+      () => assembler.push(frame(frames.OPCODES.continuation, text("x"))),
+      1002,
+    );
+  },
+);
 
-Deno.test("createMessageAssembler refuses a new message inside a fragmented one", () => {
-  const assembler = frames.createMessageAssembler(1024);
-  assembler.push(frame(frames.OPCODES.text, text("a"), false));
+nodeTest.test(
+  "createMessageAssembler refuses a new message inside a fragmented one",
+  () => {
+    const assembler = frames.createMessageAssembler(1024);
+    assembler.push(frame(frames.OPCODES.text, text("a"), false));
 
-  assertProtocolError(
-    () => assembler.push(frame(frames.OPCODES.text, text("b"))),
-    1002,
-  );
-});
+    assertProtocolError(
+      () => assembler.push(frame(frames.OPCODES.text, text("b"))),
+      1002,
+    );
+  },
+);
 
-Deno.test("createMessageAssembler refuses a message over the limit across fragments", () => {
-  const assembler = frames.createMessageAssembler(4);
-  assembler.push(frame(frames.OPCODES.binary, new Uint8Array(3), false));
+nodeTest.test(
+  "createMessageAssembler refuses a message over the limit across fragments",
+  () => {
+    const assembler = frames.createMessageAssembler(4);
+    assembler.push(frame(frames.OPCODES.binary, new Uint8Array(3), false));
 
-  assertProtocolError(
-    () => assembler.push(frame(frames.OPCODES.continuation, new Uint8Array(3))),
-    1009,
-  );
-});
+    assertProtocolError(
+      () =>
+        assembler.push(frame(frames.OPCODES.continuation, new Uint8Array(3))),
+      1009,
+    );
+  },
+);
 
-Deno.test("createMessageAssembler refuses text that is not UTF-8 with 1007", () => {
-  const assembler = frames.createMessageAssembler(1024);
+nodeTest.test(
+  "createMessageAssembler refuses text that is not UTF-8 with 1007",
+  () => {
+    const assembler = frames.createMessageAssembler(1024);
 
-  assertProtocolError(
-    () => assembler.push(frame(frames.OPCODES.text, new Uint8Array([0xc3]))),
-    1007,
-  );
-});
+    assertProtocolError(
+      () => assembler.push(frame(frames.OPCODES.text, new Uint8Array([0xc3]))),
+      1007,
+    );
+  },
+);

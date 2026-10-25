@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as React from "react";
 import type * as larouxRouter from "@eserstack/laroux/router";
@@ -39,7 +40,7 @@ const propsOf = (element: React.ReactElement) => {
   };
 };
 
-Deno.test("renderApp passes the request to the page and the layout", () => {
+nodeTest.test("renderApp passes the request to the page and the layout", () => {
   const element = renderApp.renderApp(Layout, Page, {
     pathname: "/stories/hello",
     params: { slug: "hello" },
@@ -62,18 +63,21 @@ Deno.test("renderApp passes the request to the page and the layout", () => {
   assert.assertStrictEquals(layout.request, page.request);
 });
 
-Deno.test("renderApp gives an empty request when the request data is left out", () => {
-  const { page } = propsOf(renderApp.renderApp(Layout, Page));
+nodeTest.test(
+  "renderApp gives an empty request when the request data is left out",
+  () => {
+    const { page } = propsOf(renderApp.renderApp(Layout, Page));
 
-  assert.assertEquals(page.pathname, "/");
-  assert.assertEquals(page.params, {});
-  const request = page.request as larouxRouter.PageRequest;
-  assert.assertEquals(request.cookies.size, 0);
-  assert.assertEquals(request.host, null);
-  assert.assertEquals(request.locale, null);
-});
+    assert.assertEquals(page.pathname, "/");
+    assert.assertEquals(page.params, {});
+    const request = page.request as larouxRouter.PageRequest;
+    assert.assertEquals(request.cookies.size, 0);
+    assert.assertEquals(request.host, null);
+    assert.assertEquals(request.locale, null);
+  },
+);
 
-Deno.test("renderApp keeps the request away from client components", () => {
+nodeTest.test("renderApp keeps the request away from client components", () => {
   // The bundler turns "use client" exports into references like these.
   const ClientLayout = protocol.createClientReference(
     "./layout.tsx",

@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import type * as tui from "@eserstack/shell/tui";
 import * as keybindings from "../../keybindings/mod.ts";
@@ -15,7 +16,7 @@ const key = (over: Partial<tui.KeypressEvent>): tui.KeypressEvent => ({
   ...over,
 });
 
-Deno.test("a bound chord dispatches its actions", () => {
+nodeTest.test("a bound chord dispatches its actions", () => {
   const msgs = inputSource.keyToMessages(
     key({ name: "p", ctrl: true }),
     "normal",
@@ -26,18 +27,21 @@ Deno.test("a bound chord dispatches its actions", () => {
   ]);
 });
 
-Deno.test("an unbound key in normal mode is forwarded raw (passthrough)", () => {
-  const msgs = inputSource.keyToMessages(
-    key({ name: "a", raw: new TextEncoder().encode("a") }),
-    "normal",
-    keybindings.defaultKeymap,
-  );
-  assert.assertEquals(msgs, [
-    { t: "action", action: { type: "writeInput", data: "a" } },
-  ]);
-});
+nodeTest.test(
+  "an unbound key in normal mode is forwarded raw (passthrough)",
+  () => {
+    const msgs = inputSource.keyToMessages(
+      key({ name: "a", raw: new TextEncoder().encode("a") }),
+      "normal",
+      keybindings.defaultKeymap,
+    );
+    assert.assertEquals(msgs, [
+      { t: "action", action: { type: "writeInput", data: "a" } },
+    ]);
+  },
+);
 
-Deno.test("an unbound key in a command mode is dropped", () => {
+nodeTest.test("an unbound key in a command mode is dropped", () => {
   assert.assertEquals(
     inputSource.keyToMessages(
       key({ name: "a" }),
@@ -48,7 +52,7 @@ Deno.test("an unbound key in a command mode is dropped", () => {
   );
 });
 
-Deno.test("locked mode forwards everything except ctrl+g", () => {
+nodeTest.test("locked mode forwards everything except ctrl+g", () => {
   assert.assertEquals(
     inputSource.keyToMessages(
       key({ name: "p", ctrl: true, raw: new Uint8Array([16]) }),
@@ -67,7 +71,7 @@ Deno.test("locked mode forwards everything except ctrl+g", () => {
   );
 });
 
-Deno.test("a mouse click focuses the pane under the cursor", () => {
+nodeTest.test("a mouse click focuses the pane under the cursor", () => {
   const scene: Scene = {
     tabs: [{ id: "tab-1", name: "t" }],
     activeTab: 0,

@@ -1,10 +1,11 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as crossRuntime from "@eserstack/standards/cross-runtime";
 import * as tempDir from "./temp-dir.ts";
 
-Deno.test("withTmpDir should create temporary directory", async () => {
+nodeTest.test("withTmpDir should create temporary directory", async () => {
   const temp = await tempDir.withTmpDir();
 
   try {
@@ -37,7 +38,7 @@ Deno.test("withTmpDir should create temporary directory", async () => {
   }
 });
 
-Deno.test("withTmpDir should allow file operations", async () => {
+nodeTest.test("withTmpDir should allow file operations", async () => {
   const temp = await tempDir.withTmpDir();
 
   try {
@@ -51,7 +52,7 @@ Deno.test("withTmpDir should allow file operations", async () => {
   }
 });
 
-Deno.test("withTmpDir should accept options", async () => {
+nodeTest.test("withTmpDir should accept options", async () => {
   const temp = await tempDir.withTmpDir({ prefix: "test-prefix-" });
 
   try {
@@ -61,7 +62,7 @@ Deno.test("withTmpDir should accept options", async () => {
   }
 });
 
-Deno.test("delay should pause execution", async () => {
+nodeTest.test("delay should pause execution", async () => {
   const start = Date.now();
   await tempDir.delay(50);
   const elapsed = Date.now() - start;
@@ -69,7 +70,7 @@ Deno.test("delay should pause execution", async () => {
   assert.assertEquals(elapsed >= 45, true); // Allow for timing variance
 });
 
-Deno.test("writeFiles should create files with directories", async () => {
+nodeTest.test("writeFiles should create files with directories", async () => {
   const temp = await tempDir.withTmpDir();
 
   try {
@@ -96,7 +97,7 @@ Deno.test("writeFiles should create files with directories", async () => {
   }
 });
 
-Deno.test("writeFiles should handle existing directories", async () => {
+nodeTest.test("writeFiles should handle existing directories", async () => {
   const temp = await tempDir.withTmpDir();
 
   try {

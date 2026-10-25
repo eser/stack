@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as navigation from "@eserstack/laroux/navigation";
 import * as useRouter from "./use-router.ts";
@@ -77,13 +78,13 @@ const ROUTER_CASES: ReadonlyArray<{
 ];
 
 for (const { name, run, expected } of ROUTER_CASES) {
-  Deno.test(`useRouter ${name}`, () => {
+  nodeTest.test(`useRouter ${name}`, () => {
     const calls = withWindow(() => run(useRouter.useRouter()));
 
     assert.assertEquals(calls, expected);
   });
 }
 
-Deno.test("useRouter returns the same methods on every call", () => {
+nodeTest.test("useRouter returns the same methods on every call", () => {
   assert.assertStrictEquals(useRouter.useRouter(), useRouter.useRouter());
 });

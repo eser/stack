@@ -6,7 +6,7 @@
  * promote prompt (→ rule add), spec isolation, convention discovery behavioral rule.
  */
 
-import * as bdd from "@std/testing/bdd";
+import * as bdd from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as machine from "./machine.ts";
 import * as schema from "./schema.ts";

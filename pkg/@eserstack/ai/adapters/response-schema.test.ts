@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as results from "@eserstack/primitives/results";
 import * as config from "../config.ts";
@@ -95,24 +96,27 @@ const hi = [
 
 for (const provider of providers) {
   for (const format of badFormats) {
-    Deno.test(`${provider.name} rejects ${format.name} before sending`, async () => {
-      const calls: Calls = { count: 0 };
-      const target = provider.create(calls);
-      const options = { messages: hi, responseFormat: format.responseFormat };
+    nodeTest.test(
+      `${provider.name} rejects ${format.name} before sending`,
+      async () => {
+        const calls: Calls = { count: 0 };
+        const target = provider.create(calls);
+        const options = { messages: hi, responseFormat: format.responseFormat };
 
-      const result = await target.generateText(options);
-      assert.assert(results.isFail(result), "generateText succeeded");
-      assert.assertInstanceOf(result.error, errors.BadRequestError);
+        const result = await target.generateText(options);
+        assert.assert(results.isFail(result), "generateText succeeded");
+        assert.assertInstanceOf(result.error, errors.BadRequestError);
 
-      const events: generation.StreamEvent[] = [];
-      for await (const event of target.streamText(options)) {
-        events.push(event);
-      }
+        const events: generation.StreamEvent[] = [];
+        for await (const event of target.streamText(options)) {
+          events.push(event);
+        }
 
-      assert.assertEquals(events.length, 1);
-      assert.assert(events[0]?.kind === "error");
-      assert.assertInstanceOf(events[0].error, errors.BadRequestError);
-      assert.assertEquals(calls.count, 0);
-    });
+        assert.assertEquals(events.length, 1);
+        assert.assert(events[0]?.kind === "error");
+        assert.assertInstanceOf(events[0].error, errors.BadRequestError);
+        assert.assertEquals(calls.count, 0);
+      },
+    );
   }
 }

@@ -8,7 +8,7 @@
  * Disk I/O functions (applyAnswerToFile, applyNaToFile) are not tested here.
  */
 
-import * as bdd from "@std/testing/bdd";
+import * as bdd from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as schema from "../state/schema.ts";
 import * as living from "./living.ts";

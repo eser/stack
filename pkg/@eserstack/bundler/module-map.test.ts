@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as moduleMap from "./module-map.ts";
 import type { ModuleEntry } from "./module-map.ts";
@@ -8,7 +9,7 @@ import type { ModuleEntry } from "./module-map.ts";
 // createModuleMap tests
 // ============================================================================
 
-Deno.test("createModuleMap returns empty object", () => {
+nodeTest.test("createModuleMap returns empty object", () => {
   const map = moduleMap.createModuleMap();
 
   assert.assertEquals(map, {});
@@ -19,7 +20,7 @@ Deno.test("createModuleMap returns empty object", () => {
 // addModule tests
 // ============================================================================
 
-Deno.test("addModule adds module by ID", () => {
+nodeTest.test("addModule adds module by ID", () => {
   const map = moduleMap.createModuleMap();
   const entry: ModuleEntry = {
     id: "./src/App.tsx",
@@ -33,7 +34,7 @@ Deno.test("addModule adds module by ID", () => {
   assert.assertEquals(updated["./src/App.tsx"], entry);
 });
 
-Deno.test("addModule preserves existing modules", () => {
+nodeTest.test("addModule preserves existing modules", () => {
   let map = moduleMap.createModuleMap();
   const entry1: ModuleEntry = {
     id: "./src/A.tsx",
@@ -54,7 +55,7 @@ Deno.test("addModule preserves existing modules", () => {
   assert.assertEquals(Object.keys(map).length, 2);
 });
 
-Deno.test("addModule is immutable - does not modify original", () => {
+nodeTest.test("addModule is immutable - does not modify original", () => {
   const original = moduleMap.createModuleMap();
   const entry: ModuleEntry = {
     id: "./src/New.tsx",
@@ -68,7 +69,7 @@ Deno.test("addModule is immutable - does not modify original", () => {
   assert.assertEquals(Object.keys(updated).length, 1);
 });
 
-Deno.test("addModule allows updating existing module", () => {
+nodeTest.test("addModule allows updating existing module", () => {
   let map = moduleMap.createModuleMap();
   const entry1: ModuleEntry = {
     id: "./src/App.tsx",
@@ -93,7 +94,7 @@ Deno.test("addModule allows updating existing module", () => {
 // getModule tests
 // ============================================================================
 
-Deno.test("getModule returns module by ID", () => {
+nodeTest.test("getModule returns module by ID", () => {
   let map = moduleMap.createModuleMap();
   const entry: ModuleEntry = {
     id: "./src/Counter.tsx",
@@ -107,7 +108,7 @@ Deno.test("getModule returns module by ID", () => {
   assert.assertEquals(result, entry);
 });
 
-Deno.test("getModule returns undefined for non-existent ID", () => {
+nodeTest.test("getModule returns undefined for non-existent ID", () => {
   const map = moduleMap.createModuleMap();
 
   const result = moduleMap.getModule(map, "./src/NotFound.tsx");
@@ -119,7 +120,7 @@ Deno.test("getModule returns undefined for non-existent ID", () => {
 // hasModule tests
 // ============================================================================
 
-Deno.test("hasModule returns true for existing module", () => {
+nodeTest.test("hasModule returns true for existing module", () => {
   let map = moduleMap.createModuleMap();
   const entry: ModuleEntry = {
     id: "./src/Button.tsx",
@@ -131,7 +132,7 @@ Deno.test("hasModule returns true for existing module", () => {
   assert.assertEquals(moduleMap.hasModule(map, "./src/Button.tsx"), true);
 });
 
-Deno.test("hasModule returns false for non-existent module", () => {
+nodeTest.test("hasModule returns false for non-existent module", () => {
   const map = moduleMap.createModuleMap();
 
   assert.assertEquals(moduleMap.hasModule(map, "./src/Missing.tsx"), false);
@@ -141,7 +142,7 @@ Deno.test("hasModule returns false for non-existent module", () => {
 // getAllChunks tests
 // ============================================================================
 
-Deno.test("getAllChunks returns empty array for empty map", () => {
+nodeTest.test("getAllChunks returns empty array for empty map", () => {
   const map = moduleMap.createModuleMap();
 
   const chunks = moduleMap.getAllChunks(map);
@@ -149,7 +150,7 @@ Deno.test("getAllChunks returns empty array for empty map", () => {
   assert.assertEquals(chunks, []);
 });
 
-Deno.test("getAllChunks returns all unique chunks", () => {
+nodeTest.test("getAllChunks returns all unique chunks", () => {
   let map = moduleMap.createModuleMap();
   map = moduleMap.addModule(map, {
     id: "./A.tsx",
@@ -171,7 +172,7 @@ Deno.test("getAllChunks returns all unique chunks", () => {
   assert.assert(chunks.includes("vendor.js"));
 });
 
-Deno.test("getAllChunks deduplicates chunks across modules", () => {
+nodeTest.test("getAllChunks deduplicates chunks across modules", () => {
   let map = moduleMap.createModuleMap();
   map = moduleMap.addModule(map, {
     id: "./A.tsx",
@@ -196,7 +197,7 @@ Deno.test("getAllChunks deduplicates chunks across modules", () => {
   assert.assertEquals(chunks.length, 4); // common, a, b, c
 });
 
-Deno.test("getAllChunks handles modules with overlapping chunks", () => {
+nodeTest.test("getAllChunks handles modules with overlapping chunks", () => {
   let map = moduleMap.createModuleMap();
   map = moduleMap.addModule(map, {
     id: "./A.tsx",
@@ -216,7 +217,7 @@ Deno.test("getAllChunks handles modules with overlapping chunks", () => {
   assert.assertEquals(chunks.filter((c) => c === "react.js").length, 1);
 });
 
-Deno.test("getAllChunks handles single module", () => {
+nodeTest.test("getAllChunks handles single module", () => {
   let map = moduleMap.createModuleMap();
   map = moduleMap.addModule(map, {
     id: "./Single.tsx",
@@ -229,7 +230,7 @@ Deno.test("getAllChunks handles single module", () => {
   assert.assertEquals(chunks, ["single.js"]);
 });
 
-Deno.test("getAllChunks handles module with multiple chunks", () => {
+nodeTest.test("getAllChunks handles module with multiple chunks", () => {
   let map = moduleMap.createModuleMap();
   map = moduleMap.addModule(map, {
     id: "./Large.tsx",

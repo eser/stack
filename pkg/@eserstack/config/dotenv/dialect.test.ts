@@ -8,6 +8,7 @@
  * @module
  */
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import { runtime } from "@eserstack/standards/cross-runtime";
 import * as loader from "./loader.ts";
@@ -17,11 +18,14 @@ const FIXTURES = runtime.path.resolve(
   "../../../ajan/configfx/envparser/testdata",
 );
 
-Deno.test("the shared dialect fixture reads as the Go loader reads it", async () => {
-  const text = await runtime.fs.readTextFile(`${FIXTURES}/dialect.env`);
-  const expected = JSON.parse(
-    await runtime.fs.readTextFile(`${FIXTURES}/dialect.json`),
-  ) as Record<string, string>;
+nodeTest.test(
+  "the shared dialect fixture reads as the Go loader reads it",
+  async () => {
+    const text = await runtime.fs.readTextFile(`${FIXTURES}/dialect.env`);
+    const expected = JSON.parse(
+      await runtime.fs.readTextFile(`${FIXTURES}/dialect.json`),
+    ) as Record<string, string>;
 
-  assert.assertEquals({ ...loader.parseEnvString(text) }, expected);
-});
+    assert.assertEquals({ ...loader.parseEnvString(text) }, expected);
+  },
+);

@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import { runtime } from "@eserstack/standards/cross-runtime";
 import * as larouxConfig from "@eserstack/laroux/config";
@@ -76,65 +77,77 @@ const renderHome = async (
   return app.Page();
 };
 
-Deno.test("ServerModules serves a changed page after loading the next build", async () => {
-  await withTempDir("laroux-modules-", async (distDir) => {
-    const modules = new serverModules.ServerModules(distDir);
-    await writeServerOutput(distDir, "build-1", "home of build 1");
-    await modules.load("build-1");
-    const first = await renderHome(modules);
+nodeTest.test(
+  "ServerModules serves a changed page after loading the next build",
+  async () => {
+    await withTempDir("laroux-modules-", async (distDir) => {
+      const modules = new serverModules.ServerModules(distDir);
+      await writeServerOutput(distDir, "build-1", "home of build 1");
+      await modules.load("build-1");
+      const first = await renderHome(modules);
 
-    // A rebuild rewrites the server output in place
-    await writeServerOutput(distDir, "build-2", "home of build 2");
-    const beforeReload = await renderHome(modules);
-    await modules.load("build-2");
-    const afterReload = await renderHome(modules);
+      // A rebuild rewrites the server output in place
+      await writeServerOutput(distDir, "build-2", "home of build 2");
+      const beforeReload = await renderHome(modules);
+      await modules.load("build-2");
+      const afterReload = await renderHome(modules);
 
-    assert.assertEquals(first, "home of build 1");
-    assert.assertEquals(beforeReload, "home of build 1");
-    assert.assertEquals(afterReload, "home of build 2");
-    assert.assertEquals(modules.loadedBuildId(), "build-2");
-  });
-});
+      assert.assertEquals(first, "home of build 1");
+      assert.assertEquals(beforeReload, "home of build 1");
+      assert.assertEquals(afterReload, "home of build 2");
+      assert.assertEquals(modules.loadedBuildId(), "build-2");
+    });
+  },
+);
 
-Deno.test("ServerModules gives a pathname no route matches the not-found page", async () => {
-  await withTempDir("laroux-modules-", async (distDir) => {
-    const modules = new serverModules.ServerModules(distDir);
-    await writeServerOutput(distDir, "build-1", "home");
-    await modules.load("build-1");
+nodeTest.test(
+  "ServerModules gives a pathname no route matches the not-found page",
+  async () => {
+    await withTempDir("laroux-modules-", async (distDir) => {
+      const modules = new serverModules.ServerModules(distDir);
+      await writeServerOutput(distDir, "build-1", "home");
+      await modules.load("build-1");
 
-    const app = await modules.getApp("/missing");
+      const app = await modules.getApp("/missing");
 
-    assert.assertEquals(app.Page(), "not found");
-    assert.assertEquals(app.params, {});
-  });
-});
+      assert.assertEquals(app.Page(), "not found");
+      assert.assertEquals(app.params, {});
+    });
+  },
+);
 
-Deno.test("ServerModules stays on the loaded build when the next build's pages fail to import", async () => {
-  await withTempDir("laroux-modules-", async (distDir) => {
-    const modules = new serverModules.ServerModules(distDir);
-    await writeServerOutput(distDir, "build-1", "home of build 1");
-    await modules.load("build-1");
+nodeTest.test(
+  "ServerModules stays on the loaded build when the next build's pages fail to import",
+  async () => {
+    await withTempDir("laroux-modules-", async (distDir) => {
+      const modules = new serverModules.ServerModules(distDir);
+      await writeServerOutput(distDir, "build-1", "home of build 1");
+      await modules.load("build-1");
 
-    await writeServerOutput(distDir, "build-2", "home of build 2");
-    await runtime.fs.writeTextFile(
-      runtime.path.join(distDir, "server/src/app/routes/home/page.js"),
-      "export function HomePage( {\n",
-    );
-    // Deno reports a module that does not parse as a TypeError
-    await assert.assertRejects(() => modules.load("build-2"), TypeError);
+      await writeServerOutput(distDir, "build-2", "home of build 2");
+      await runtime.fs.writeTextFile(
+        runtime.path.join(distDir, "server/src/app/routes/home/page.js"),
+        "export function HomePage( {\n",
+      );
+      // Deno reports a module that does not parse as a TypeError
+      await assert.assertRejects(() => modules.load("build-2"), TypeError);
 
-    assert.assertEquals(modules.loadedBuildId(), "build-1");
-    assert.assertEquals(await renderHome(modules), "home of build 1");
-  });
-});
+      assert.assertEquals(modules.loadedBuildId(), "build-1");
+      assert.assertEquals(await renderHome(modules), "home of build 1");
+    });
+  },
+);
 
-Deno.test("ServerModules names the missing load() when a page is requested first", async () => {
-  const modules = new serverModules.ServerModules("/srv/app/dist");
+nodeTest.test(
+  "ServerModules names the missing load() when a page is requested first",
+  async () => {
+    const modules = new serverModules.ServerModules("/srv/app/dist");
 
-  const error = await assert.assertRejects(() => modules.getApp("/"), Error);
+    const error = await assert.assertRejects(() => modules.getApp("/"), Error);
 
-  assert.assertStringIncludes(error.message, "call load(buildId) first");
-});
+    assert.assertStringIncludes(error.message, "call load(buildId) first");
+  },
+);
 
 // ============================================================================
 // A dev rebuild of a real app
@@ -220,64 +233,67 @@ const readAnswers = async (modules: serverModules.ServerModules) => {
   };
 };
 
-Deno.test("after a dev rebuild the server answers with the changed page, route.ts and proxy.ts", async () => {
-  await withTempDir("laroux-reload-", async (projectRoot) => {
-    await writeApp(projectRoot);
-    const config = createBuildConfig(projectRoot);
-    // laroux dev bundles the server with rolldown
-    const context = system.createBuildContext(config, {
-      framework: reactBundler.reactPlugin,
-      bundlerBackend: "rolldown",
-    });
+nodeTest.test(
+  "after a dev rebuild the server answers with the changed page, route.ts and proxy.ts",
+  async () => {
+    await withTempDir("laroux-reload-", async (projectRoot) => {
+      await writeApp(projectRoot);
+      const config = createBuildConfig(projectRoot);
+      // laroux dev bundles the server with rolldown
+      const context = system.createBuildContext(config, {
+        framework: reactBundler.reactPlugin,
+        bundlerBackend: "rolldown",
+      });
 
-    const first = await system.build(context);
-    assert.assertEquals(first.success, true);
-    const modules = new serverModules.ServerModules(config.distDir);
-    await modules.load(first.buildId);
-    const before = await readAnswers(modules);
+      const first = await system.build(context);
+      assert.assertEquals(first.success, true);
+      const modules = new serverModules.ServerModules(config.distDir);
+      await modules.load(first.buildId);
+      const before = await readAnswers(modules);
 
-    // The changes a developer saves, rebuilt the way the watcher rebuilds a
-    // change without CSS, and handed to the rebuild handler as laroux dev
-    // does
-    const sources = appSources("v2");
-    await writeFiles(projectRoot, sources);
-    const rebuilt = await system.build(context, {
-      skipCss: true,
-      changedFiles: new Set(
-        Object.keys(sources).map((file) =>
-          runtime.path.join(projectRoot, file),
+      // The changes a developer saves, rebuilt the way the watcher rebuilds a
+      // change without CSS, and handed to the rebuild handler as laroux dev
+      // does
+      const sources = appSources("v2");
+      await writeFiles(projectRoot, sources);
+      const rebuilt = await system.build(context, {
+        skipCss: true,
+        changedFiles: new Set(
+          Object.keys(sources).map((file) =>
+            runtime.path.join(projectRoot, file),
+          ),
         ),
-      ),
-    });
-    const updates: unknown[] = [];
-    await rebuildHandler.createRebuildHandler({
-      hmr: {
-        notifyUpdate: (timestamp) => updates.push(timestamp),
-        notifyError: (message) => updates.push(message),
-      },
-      onRebuilt: (buildId) => modules.load(buildId),
-      logger: {
-        info: () => undefined,
-        error: () => undefined,
-        with() {
-          return this;
+      });
+      const updates: unknown[] = [];
+      await rebuildHandler.createRebuildHandler({
+        hmr: {
+          notifyUpdate: (timestamp) => updates.push(timestamp),
+          notifyError: (message) => updates.push(message),
         },
-      },
-    })(rebuilt);
-    const after = await readAnswers(modules);
+        onRebuilt: (buildId) => modules.load(buildId),
+        logger: {
+          info: () => undefined,
+          error: () => undefined,
+          with() {
+            return this;
+          },
+        },
+      })(rebuilt);
+      const after = await readAnswers(modules);
 
-    assert.assertEquals(before, {
-      page: "home v1",
-      api: "hello v1",
-      proxy: "admin v1",
+      assert.assertEquals(before, {
+        page: "home v1",
+        api: "hello v1",
+        proxy: "admin v1",
+      });
+      assert.assertEquals(rebuilt.success, true);
+      assert.assertNotEquals(rebuilt.buildId, first.buildId);
+      assert.assertEquals(updates, [rebuilt.timestamp]);
+      assert.assertEquals(after, {
+        page: "home v2",
+        api: "hello v2",
+        proxy: "admin v2",
+      });
     });
-    assert.assertEquals(rebuilt.success, true);
-    assert.assertNotEquals(rebuilt.buildId, first.buildId);
-    assert.assertEquals(updates, [rebuilt.timestamp]);
-    assert.assertEquals(after, {
-      page: "home v2",
-      api: "hello v2",
-      proxy: "admin v2",
-    });
-  });
-});
+  },
+);

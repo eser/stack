@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as chunkManifest from "./chunk-manifest.ts";
 import type { BundleResult } from "./bundler.ts";
@@ -23,8 +24,8 @@ function bundleResultWith(manifest: Record<string, string[]>): BundleResult {
   };
 }
 
-Deno.test("chunk-manifest", async (t) => {
-  await t.step("generateChunkManifest maps a component to its chunks", () => {
+nodeTest.test("chunk-manifest", async (t) => {
+  await t.test("generateChunkManifest maps a component to its chunks", () => {
     const manifest = chunkManifest.generateChunkManifest(
       "build-1",
       0,
@@ -40,7 +41,7 @@ Deno.test("chunk-manifest", async (t) => {
     });
   });
 
-  await t.step(
+  await t.test(
     "generateChunkManifest throws ChunkManifestError for a component without chunks",
     () => {
       const error = assert.assertThrows(
@@ -60,7 +61,7 @@ Deno.test("chunk-manifest", async (t) => {
     },
   );
 
-  await t.step(
+  await t.test(
     "generateChunkManifest throws ChunkManifestError for a chunk missing from the outputs",
     () => {
       const error = assert.assertThrows(

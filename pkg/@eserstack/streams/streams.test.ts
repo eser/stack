@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as chunk from "./chunk.ts";
 import * as defineLayer from "./define-layer.ts";
@@ -25,7 +26,7 @@ import * as tee from "./layers/tee.ts";
 // Chunk Tests
 // =============================================================================
 
-Deno.test("createChunk should create text chunk for strings", () => {
+nodeTest.test("createChunk should create text chunk for strings", () => {
   const created = chunk.createChunk("hello");
   assert.assertEquals(created.data, "hello");
   assert.assertEquals(created.meta.kind, "text");
@@ -33,29 +34,29 @@ Deno.test("createChunk should create text chunk for strings", () => {
   assert.assertExists(created.meta.timestamp);
 });
 
-Deno.test("createChunk should create structured chunk for objects", () => {
+nodeTest.test("createChunk should create structured chunk for objects", () => {
   const created = chunk.createChunk({ name: "test" });
   assert.assertEquals(created.meta.kind, "structured");
 });
 
-Deno.test("createChunk should create bytes chunk for Uint8Array", () => {
+nodeTest.test("createChunk should create bytes chunk for Uint8Array", () => {
   const created = chunk.createChunk(new Uint8Array([1, 2, 3]));
   assert.assertEquals(created.meta.kind, "bytes");
 });
 
-Deno.test("createChunk should handle null data", () => {
+nodeTest.test("createChunk should handle null data", () => {
   const created = chunk.createChunk(null);
   assert.assertEquals(created.data, null);
   assert.assertEquals(created.meta.kind, "structured");
 });
 
-Deno.test("createChunk should handle undefined data", () => {
+nodeTest.test("createChunk should handle undefined data", () => {
   const created = chunk.createChunk(undefined);
   assert.assertEquals(created.data, undefined);
   assert.assertEquals(created.meta.kind, "structured");
 });
 
-Deno.test("createChunk should accept meta overrides", () => {
+nodeTest.test("createChunk should accept meta overrides", () => {
   const created = chunk.createChunk("hello", { channel: "stderr" });
   assert.assertEquals(created.meta.channel, "stderr");
   assert.assertEquals(created.meta.kind, "text");
@@ -65,7 +66,7 @@ Deno.test("createChunk should accept meta overrides", () => {
 // defineLayer Tests
 // =============================================================================
 
-Deno.test("defineLayer should create a named layer", () => {
+nodeTest.test("defineLayer should create a named layer", () => {
   const layer = defineLayer.defineLayer({
     name: "test-layer",
     create: () => ({
@@ -78,31 +79,34 @@ Deno.test("defineLayer should create a named layer", () => {
   assert.assertExists(layer.transform);
 });
 
-Deno.test("defineLayer should produce a working TransformStream", async () => {
-  const doubler = defineLayer.defineLayer<number, number>({
-    name: "doubler",
-    create: () => ({
-      transform(input, controller) {
-        controller.enqueue({ data: input.data * 2, meta: input.meta });
-      },
-    }),
-  });
+nodeTest.test(
+  "defineLayer should produce a working TransformStream",
+  async () => {
+    const doubler = defineLayer.defineLayer<number, number>({
+      name: "doubler",
+      create: () => ({
+        transform(input, controller) {
+          controller.enqueue({ data: input.data * 2, meta: input.meta });
+        },
+      }),
+    });
 
-  // Test via pipeline (avoids manual stream lifecycle issues)
-  const result = await pipeline
-    .pipeline()
-    .from(values.values(5))
-    .through(doubler)
-    .collect<number>();
+    // Test via pipeline (avoids manual stream lifecycle issues)
+    const result = await pipeline
+      .pipeline()
+      .from(values.values(5))
+      .through(doubler)
+      .collect<number>();
 
-  assert.assertEquals(result, [10]);
-});
+    assert.assertEquals(result, [10]);
+  },
+);
 
 // =============================================================================
 // Buffer Sink Tests
 // =============================================================================
 
-Deno.test("buffer sink should collect chunks", async () => {
+nodeTest.test("buffer sink should collect chunks", async () => {
   const buf = sinks.buffer<string>();
   const writer = buf.writable.getWriter();
 
@@ -115,7 +119,7 @@ Deno.test("buffer sink should collect chunks", async () => {
   assert.assertEquals(buf.items()[1], "world");
 });
 
-Deno.test("buffer sink chunks() should include metadata", async () => {
+nodeTest.test("buffer sink chunks() should include metadata", async () => {
   const buf = sinks.buffer<string>();
   const writer = buf.writable.getWriter();
 
@@ -125,7 +129,7 @@ Deno.test("buffer sink chunks() should include metadata", async () => {
   assert.assertEquals(buf.chunks()[0]!.meta.kind, "text");
 });
 
-Deno.test("buffer sink clear() should empty the collection", async () => {
+nodeTest.test("buffer sink clear() should empty the collection", async () => {
   const buf = sinks.buffer<string>();
   const writer = buf.writable.getWriter();
 
@@ -142,7 +146,7 @@ Deno.test("buffer sink clear() should empty the collection", async () => {
 // Null Sink Tests
 // =============================================================================
 
-Deno.test("null sink should accept and discard chunks", async () => {
+nodeTest.test("null sink should accept and discard chunks", async () => {
   const sink = sinks.nullSink();
   const writer = sink.writable.getWriter();
 
@@ -155,7 +159,7 @@ Deno.test("null sink should accept and discard chunks", async () => {
 // Multiplex Sink Tests
 // =============================================================================
 
-Deno.test("multiplex sink should write to all sinks", async () => {
+nodeTest.test("multiplex sink should write to all sinks", async () => {
   const buf1 = sinks.buffer<string>();
   const buf2 = sinks.buffer<string>();
   const mux = sinks.multiplex(buf1, buf2);
@@ -175,7 +179,7 @@ Deno.test("multiplex sink should write to all sinks", async () => {
 // Values Source Tests
 // =============================================================================
 
-Deno.test("values source should emit all items", async () => {
+nodeTest.test("values source should emit all items", async () => {
   const source = values.values("a", "b", "c");
 
   const emitted = await Array.fromAsync(source.readable);
@@ -184,7 +188,7 @@ Deno.test("values source should emit all items", async () => {
   assert.assertEquals(results, ["a", "b", "c"]);
 });
 
-Deno.test("values source should handle empty input", async () => {
+nodeTest.test("values source should handle empty input", async () => {
   const source = values.values();
   const reader = source.readable.getReader();
 
@@ -196,43 +200,49 @@ Deno.test("values source should handle empty input", async () => {
 // Events Source Tests
 // =============================================================================
 
-Deno.test("events source emits the detail of each CustomEvent", async () => {
-  const target = new EventTarget();
-  const source = events.events<string>(target, "message");
-  const reader = source.readable.getReader();
+nodeTest.test(
+  "events source emits the detail of each CustomEvent",
+  async () => {
+    const target = new EventTarget();
+    const source = events.events<string>(target, "message");
+    const reader = source.readable.getReader();
 
-  target.dispatchEvent(new CustomEvent("message", { detail: "first" }));
-  target.dispatchEvent(new CustomEvent("message", { detail: "second" }));
+    target.dispatchEvent(new CustomEvent("message", { detail: "first" }));
+    target.dispatchEvent(new CustomEvent("message", { detail: "second" }));
 
-  const first = await reader.read();
-  const second = await reader.read();
-  await reader.cancel();
+    const first = await reader.read();
+    const second = await reader.read();
+    await reader.cancel();
 
-  assert.assertEquals(first.value?.data, "first");
-  assert.assertEquals(second.value?.data, "second");
-});
+    assert.assertEquals(first.value?.data, "first");
+    assert.assertEquals(second.value?.data, "second");
+  },
+);
 
-Deno.test("events source removes its listener when the stream is cancelled", async () => {
-  const removed: string[] = [];
-  const target = new EventTarget();
-  const removeEventListener = target.removeEventListener.bind(target);
-  target.removeEventListener = (type, listener, options) => {
-    removed.push(type);
-    removeEventListener(type, listener, options);
-  };
+nodeTest.test(
+  "events source removes its listener when the stream is cancelled",
+  async () => {
+    const removed: string[] = [];
+    const target = new EventTarget();
+    const removeEventListener = target.removeEventListener.bind(target);
+    target.removeEventListener = (type, listener, options) => {
+      removed.push(type);
+      removeEventListener(type, listener, options);
+    };
 
-  const source = events.events(target, "message");
-  const reader = source.readable.getReader();
-  await reader.cancel();
+    const source = events.events(target, "message");
+    const reader = source.readable.getReader();
+    await reader.cancel();
 
-  assert.assertEquals(removed, ["message"]);
-});
+    assert.assertEquals(removed, ["message"]);
+  },
+);
 
 // =============================================================================
 // Layer Tests — map
 // =============================================================================
 
-Deno.test("map layer should transform chunk data", async () => {
+nodeTest.test("map layer should transform chunk data", async () => {
   const result = await pipeline
     .pipeline()
     .from(values.values(1, 2, 3))
@@ -246,7 +256,7 @@ Deno.test("map layer should transform chunk data", async () => {
 // Layer Tests — filter
 // =============================================================================
 
-Deno.test("filter layer should drop non-matching chunks", async () => {
+nodeTest.test("filter layer should drop non-matching chunks", async () => {
   const result = await pipeline
     .pipeline()
     .from(values.values(1, 2, 3, 4, 5))
@@ -256,59 +266,68 @@ Deno.test("filter layer should drop non-matching chunks", async () => {
   assert.assertEquals(result, [4, 5]);
 });
 
-Deno.test("filter layer should pass all if predicate always true", async () => {
-  const result = await pipeline
-    .pipeline()
-    .from(values.values("a", "b"))
-    .through(filter.filter(() => true))
-    .collect<string>();
+nodeTest.test(
+  "filter layer should pass all if predicate always true",
+  async () => {
+    const result = await pipeline
+      .pipeline()
+      .from(values.values("a", "b"))
+      .through(filter.filter(() => true))
+      .collect<string>();
 
-  assert.assertEquals(result, ["a", "b"]);
-});
+    assert.assertEquals(result, ["a", "b"]);
+  },
+);
 
 // =============================================================================
 // Layer Tests — tap
 // =============================================================================
 
-Deno.test("tap layer should call side-effect without modifying chunk", async () => {
-  const observed: string[] = [];
+nodeTest.test(
+  "tap layer should call side-effect without modifying chunk",
+  async () => {
+    const observed: string[] = [];
 
-  const result = await pipeline
-    .pipeline()
-    .from(values.values("hello", "world"))
-    .through(
-      tap.tap((item: Chunk<string>) => {
-        observed.push(item.data);
-      }),
-    )
-    .collect<string>();
+    const result = await pipeline
+      .pipeline()
+      .from(values.values("hello", "world"))
+      .through(
+        tap.tap((item: Chunk<string>) => {
+          observed.push(item.data);
+        }),
+      )
+      .collect<string>();
 
-  assert.assertEquals(result, ["hello", "world"]);
-  assert.assertEquals(observed, ["hello", "world"]);
-});
+    assert.assertEquals(result, ["hello", "world"]);
+    assert.assertEquals(observed, ["hello", "world"]);
+  },
+);
 
 // =============================================================================
 // Layer Tests — tee
 // =============================================================================
 
-Deno.test("tee layer should send to extra sink and pass through", async () => {
-  const teeBuf = sinks.buffer<string>();
+nodeTest.test(
+  "tee layer should send to extra sink and pass through",
+  async () => {
+    const teeBuf = sinks.buffer<string>();
 
-  const result = await pipeline
-    .pipeline()
-    .from(values.values("a", "b", "c"))
-    .through(tee.tee(teeBuf))
-    .collect<string>();
+    const result = await pipeline
+      .pipeline()
+      .from(values.values("a", "b", "c"))
+      .through(tee.tee(teeBuf))
+      .collect<string>();
 
-  assert.assertEquals(result, ["a", "b", "c"]);
-  assert.assertEquals(teeBuf.items(), ["a", "b", "c"]);
-});
+    assert.assertEquals(result, ["a", "b", "c"]);
+    assert.assertEquals(teeBuf.items(), ["a", "b", "c"]);
+  },
+);
 
 // =============================================================================
 // Pipeline Tests
 // =============================================================================
 
-Deno.test("pipeline should chain from → through → to → run", async () => {
+nodeTest.test("pipeline should chain from → through → to → run", async () => {
   const buf = sinks.buffer<number>();
 
   await pipeline
@@ -321,7 +340,7 @@ Deno.test("pipeline should chain from → through → to → run", async () => {
   assert.assertEquals(buf.items(), [101, 102, 103]);
 });
 
-Deno.test("pipeline collect() should return data array", async () => {
+nodeTest.test("pipeline collect() should return data array", async () => {
   const result = await pipeline
     .pipeline()
     .from(values.values("x", "y"))
@@ -330,21 +349,24 @@ Deno.test("pipeline collect() should return data array", async () => {
   assert.assertEquals(result, ["x", "y"]);
 });
 
-Deno.test("pipeline should handle empty source", async () => {
+nodeTest.test("pipeline should handle empty source", async () => {
   const result = await pipeline.pipeline().from(values.values()).collect();
 
   assert.assertEquals(result, []);
 });
 
-Deno.test("pipeline should throw PipelineError with no source", async () => {
-  await assert.assertRejects(
-    () => pipeline.pipeline().to(sinks.buffer()).run(),
-    types.PipelineError,
-    "no source",
-  );
-});
+nodeTest.test(
+  "pipeline should throw PipelineError with no source",
+  async () => {
+    await assert.assertRejects(
+      () => pipeline.pipeline().to(sinks.buffer()).run(),
+      types.PipelineError,
+      "no source",
+    );
+  },
+);
 
-Deno.test("pipeline should throw PipelineError with no sink", async () => {
+nodeTest.test("pipeline should throw PipelineError with no sink", async () => {
   await assert.assertRejects(
     () => pipeline.pipeline().from(values.values(1)).run(),
     types.PipelineError,
@@ -352,7 +374,7 @@ Deno.test("pipeline should throw PipelineError with no sink", async () => {
   );
 });
 
-Deno.test("pipeline should support multiple layers", async () => {
+nodeTest.test("pipeline should support multiple layers", async () => {
   const result = await pipeline
     .pipeline()
     .from(values.values(1, 2, 3, 4, 5))
@@ -365,7 +387,7 @@ Deno.test("pipeline should support multiple layers", async () => {
   assert.assertEquals(result, [20, 40]);
 });
 
-Deno.test("pipeline should propagate layer errors", async () => {
+nodeTest.test("pipeline should propagate layer errors", async () => {
   const failLayer = defineLayer.defineLayer({
     name: "fail",
     create: () => ({
@@ -387,39 +409,34 @@ Deno.test("pipeline should propagate layer errors", async () => {
   );
 });
 
-Deno.test({
-  name: "pipeline timeout should reject with TimeoutError",
-  sanitizeOps: false,
-  sanitizeResources: false,
-  fn: async () => {
-    // Use a slow layer that delays longer than the timeout
-    const slowLayer = defineLayer.defineLayer({
-      name: "slow",
-      create: () => ({
-        transform(_chunk, _controller) {
-          return new Promise((resolve) => setTimeout(resolve, 10000));
-        },
-      }),
-    });
+nodeTest.test("pipeline timeout should reject with TimeoutError", async () => {
+  // Use a slow layer that delays longer than the timeout
+  const slowLayer = defineLayer.defineLayer({
+    name: "slow",
+    create: () => ({
+      transform(_chunk, _controller) {
+        return new Promise((resolve) => setTimeout(resolve, 10000));
+      },
+    }),
+  });
 
-    await assert.assertRejects(
-      () =>
-        pipeline
-          .pipeline()
-          .from(values.values("test"))
-          .through(slowLayer)
-          .to(sinks.nullSink())
-          .run({ timeout: 50 }),
-      Error,
-    );
-  },
+  await assert.assertRejects(
+    () =>
+      pipeline
+        .pipeline()
+        .from(values.values("test"))
+        .through(slowLayer)
+        .to(sinks.nullSink())
+        .run({ timeout: 50 }),
+    Error,
+  );
 });
 
 // =============================================================================
 // Output Tests
 // =============================================================================
 
-Deno.test("output write() should enqueue to sink via buffer", async () => {
+nodeTest.test("output write() should enqueue to sink via buffer", async () => {
   const buf = sinks.buffer<unknown>();
   const out = output.output({ sink: buf });
 
@@ -430,7 +447,7 @@ Deno.test("output write() should enqueue to sink via buffer", async () => {
   assert.assertEquals(buf.items().length, 2);
 });
 
-Deno.test("output writeln() should append newline", async () => {
+nodeTest.test("output writeln() should append newline", async () => {
   const buf = sinks.buffer<unknown>();
   const out = output.output({ sink: buf });
 
@@ -440,7 +457,7 @@ Deno.test("output writeln() should append newline", async () => {
   assert.assertEquals(buf.items()[0], "hello\n");
 });
 
-Deno.test("output flush() on empty buffer should be no-op", async () => {
+nodeTest.test("output flush() on empty buffer should be no-op", async () => {
   const buf = sinks.buffer<unknown>();
   const out = output.output({ sink: buf });
 
@@ -448,7 +465,7 @@ Deno.test("output flush() on empty buffer should be no-op", async () => {
   assert.assertEquals(buf.items().length, 0);
 });
 
-Deno.test("output close() should flush and close", async () => {
+nodeTest.test("output close() should flush and close", async () => {
   const buf = sinks.buffer<unknown>();
   const out = output.output({ sink: buf });
 
@@ -458,7 +475,7 @@ Deno.test("output close() should flush and close", async () => {
   assert.assertEquals(buf.items().length, 1);
 });
 
-Deno.test("output with layers should transform data", async () => {
+nodeTest.test("output with layers should transform data", async () => {
   const buf = sinks.buffer<unknown>();
   const out = output.output({
     sink: buf,
@@ -471,42 +488,37 @@ Deno.test("output with layers should transform data", async () => {
   assert.assertEquals(buf.items()[0], "[test]");
 });
 
-Deno.test({
-  name: "output error handler should receive context",
-  sanitizeOps: false,
-  sanitizeResources: false,
-  fn: async () => {
-    let receivedContext: ErrorContext | undefined;
+nodeTest.test("output error handler should receive context", async () => {
+  let receivedContext: ErrorContext | undefined;
 
-    const failLayer = defineLayer.defineLayer({
-      name: "fail",
-      create: () => ({
-        transform(_chunk, _controller) {
-          throw new Error("boom");
-        },
-      }),
-    });
-
-    const out = output.output({
-      sink: sinks.buffer(),
-      layers: [failLayer],
-      onError: (ctx) => {
-        receivedContext = ctx;
+  const failLayer = defineLayer.defineLayer({
+    name: "fail",
+    create: () => ({
+      transform(_chunk, _controller) {
+        throw new Error("boom");
       },
-    });
+    }),
+  });
 
-    out.write("trigger");
-    await out.flush();
+  const out = output.output({
+    sink: sinks.buffer(),
+    layers: [failLayer],
+    onError: (ctx) => {
+      receivedContext = ctx;
+    },
+  });
 
-    // Give async error propagation time to fire
-    await new Promise((r) => setTimeout(r, 100));
+  out.write("trigger");
+  await out.flush();
 
-    assert.assertExists(receivedContext);
-    assert.assertExists(receivedContext!.error);
-  },
+  // Give async error propagation time to fire
+  await new Promise((r) => setTimeout(r, 100));
+
+  assert.assertExists(receivedContext);
+  assert.assertExists(receivedContext!.error);
 });
 
-Deno.test("output pipe() should return a new independent output", () => {
+nodeTest.test("output pipe() should return a new independent output", () => {
   const out = output.output();
   const piped = out.pipe(map.map((s: unknown) => `[${String(s)}]`));
 
@@ -563,57 +575,63 @@ const createGatedSink = () => {
   };
 };
 
-Deno.test("output writes a chunk enqueued after a drain that overlapped another write", async () => {
-  // TASK-160: a writeln during an in-flight sink write scheduled a drain that
-  // skipped because one was running, and that skipped drain left the
-  // "scheduled" flag set. Every chunk after the running drain finished stayed
-  // in the buffer, and close() never resolved. Synchronous FFI work between
-  // writes made this timing common in CLI runs.
-  const gated = createGatedSink();
-  const out = output.output({ sink: gated.sink });
+nodeTest.test(
+  "output writes a chunk enqueued after a drain that overlapped another write",
+  async () => {
+    // TASK-160: a writeln during an in-flight sink write scheduled a drain that
+    // skipped because one was running, and that skipped drain left the
+    // "scheduled" flag set. Every chunk after the running drain finished stayed
+    // in the buffer, and close() never resolved. Synchronous FFI work between
+    // writes made this timing common in CLI runs.
+    const gated = createGatedSink();
+    const out = output.output({ sink: gated.sink });
 
-  out.writeln("first");
-  await gated.firstWriteStarted;
+    out.writeln("first");
+    await gated.firstWriteStarted;
 
-  out.writeln("second, enqueued while the first write is in flight");
-  // Gives any drain the second writeln scheduled the chance to run while the
-  // first write still waits on the gate.
-  await new Promise((resolve) => setTimeout(resolve, 0));
+    out.writeln("second, enqueued while the first write is in flight");
+    // Gives any drain the second writeln scheduled the chance to run while the
+    // first write still waits on the gate.
+    await new Promise((resolve) => setTimeout(resolve, 0));
 
-  gated.open();
-  await resolvesWithin(out.flush(), "flush after the overlapping write");
+    gated.open();
+    await resolvesWithin(out.flush(), "flush after the overlapping write");
 
-  out.writeln("third, enqueued after the drain finished");
-  await resolvesWithin(out.close(), "close after the later write");
+    out.writeln("third, enqueued after the drain finished");
+    await resolvesWithin(out.close(), "close after the later write");
 
-  assert.assertEquals(gated.written, [
-    "first\n",
-    "second, enqueued while the first write is in flight\n",
-    "third, enqueued after the drain finished\n",
-  ]);
-});
+    assert.assertEquals(gated.written, [
+      "first\n",
+      "second, enqueued while the first write is in flight\n",
+      "third, enqueued after the drain finished\n",
+    ]);
+  },
+);
 
-Deno.test("output resolves every flush() waiting on the same drain", async () => {
-  const gated = createGatedSink();
-  const out = output.output({ sink: gated.sink });
+nodeTest.test(
+  "output resolves every flush() waiting on the same drain",
+  async () => {
+    const gated = createGatedSink();
+    const out = output.output({ sink: gated.sink });
 
-  out.writeln("line");
-  const firstFlush = out.flush();
-  const secondFlush = out.flush();
-  gated.open();
+    out.writeln("line");
+    const firstFlush = out.flush();
+    const secondFlush = out.flush();
+    gated.open();
 
-  await resolvesWithin(
-    Promise.all([firstFlush, secondFlush]).then(() => {}),
-    "two concurrent flushes",
-  );
-  assert.assertEquals(gated.written, ["line\n"]);
-});
+    await resolvesWithin(
+      Promise.all([firstFlush, secondFlush]).then(() => {}),
+      "two concurrent flushes",
+    );
+    assert.assertEquals(gated.written, ["line\n"]);
+  },
+);
 
 // =============================================================================
 // Coverage Gap Tests — edge cases from eng review
 // =============================================================================
 
-Deno.test("output write after close should be ignored", async () => {
+nodeTest.test("output write after close should be ignored", async () => {
   const buf = sinks.buffer<unknown>();
   const out = output.output({ sink: buf });
 
@@ -626,19 +644,22 @@ Deno.test("output write after close should be ignored", async () => {
   assert.assertEquals(buf.items()[0], "before");
 });
 
-Deno.test("output write() with multiple args renders to single chunk", async () => {
-  const buf = sinks.buffer<unknown>();
-  const out = output.output({ sink: buf });
+nodeTest.test(
+  "output write() with multiple args renders to single chunk",
+  async () => {
+    const buf = sinks.buffer<unknown>();
+    const out = output.output({ sink: buf });
 
-  out.write("a", "b", "c");
-  await out.flush();
+    out.write("a", "b", "c");
+    await out.flush();
 
-  // Multiple string args are normalized to Spans and rendered as one chunk
-  assert.assertEquals(buf.items().length, 1);
-  assert.assertEquals(buf.items()[0], "abc");
-});
+    // Multiple string args are normalized to Spans and rendered as one chunk
+    assert.assertEquals(buf.items().length, 1);
+    assert.assertEquals(buf.items()[0], "abc");
+  },
+);
 
-Deno.test("defineLayer with start and flush callbacks", async () => {
+nodeTest.test("defineLayer with start and flush callbacks", async () => {
   const events: string[] = [];
 
   const traced = defineLayer.defineLayer({
@@ -667,16 +688,19 @@ Deno.test("defineLayer with start and flush callbacks", async () => {
   assert.assertEquals(events, ["start", "transform", "flush"]);
 });
 
-Deno.test("pipeline with zero layers (source → sink directly)", async () => {
-  const result = await pipeline
-    .pipeline()
-    .from(values.values(42))
-    .collect<number>();
+nodeTest.test(
+  "pipeline with zero layers (source → sink directly)",
+  async () => {
+    const result = await pipeline
+      .pipeline()
+      .from(values.values(42))
+      .collect<number>();
 
-  assert.assertEquals(result, [42]);
-});
+    assert.assertEquals(result, [42]);
+  },
+);
 
-Deno.test("multiplex sink close() should close all sinks", async () => {
+nodeTest.test("multiplex sink close() should close all sinks", async () => {
   const buf1 = sinks.buffer<string>();
   const buf2 = sinks.buffer<string>();
   const mux = sinks.multiplex(buf1, buf2);
@@ -694,7 +718,7 @@ Deno.test("multiplex sink close() should close all sinks", async () => {
 // Integration Tests — multi-layer pipelines
 // =============================================================================
 
-Deno.test("integration: values → filter → map → tap → buffer", async () => {
+nodeTest.test("integration: values → filter → map → tap → buffer", async () => {
   const tapped: number[] = [];
 
   const result = await pipeline
@@ -713,7 +737,7 @@ Deno.test("integration: values → filter → map → tap → buffer", async () 
   assert.assertEquals(tapped, [200, 400, 600]);
 });
 
-Deno.test("integration: values → tee → map → buffer", async () => {
+nodeTest.test("integration: values → tee → map → buffer", async () => {
   const teeBuf = sinks.buffer<number>();
 
   const result = await pipeline
@@ -730,7 +754,7 @@ Deno.test("integration: values → tee → map → buffer", async () => {
   assert.assertEquals(result, [11, 21, 31]);
 });
 
-Deno.test("integration: tight write loop should not crash", async () => {
+nodeTest.test("integration: tight write loop should not crash", async () => {
   const buf = sinks.buffer<unknown>();
   const out = output.output({ sink: buf });
 

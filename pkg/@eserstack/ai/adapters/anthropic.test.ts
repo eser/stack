@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as results from "@eserstack/primitives/results";
 import * as config from "../config.ts";
@@ -58,20 +59,23 @@ const generate = async (
   return result.value;
 };
 
-Deno.test("a refusal is reported as a refusal, not as an answer", async () => {
-  const fake = fakeClient(
-    message("refusal", [{ type: "text", text: "I can't help with that." }]),
-  );
+nodeTest.test(
+  "a refusal is reported as a refusal, not as an answer",
+  async () => {
+    const fake = fakeClient(
+      message("refusal", [{ type: "text", text: "I can't help with that." }]),
+    );
 
-  const result = await generate(fake, [
-    {
-      role: "user",
-      content: [{ kind: "text", text: "do something declined" }],
-    },
-  ]);
+    const result = await generate(fake, [
+      {
+        role: "user",
+        content: [{ kind: "text", text: "do something declined" }],
+      },
+    ]);
 
-  assert.assertEquals(result.stopReason, "refusal");
-});
+    assert.assertEquals(result.stopReason, "refusal");
+  },
+);
 
 // TASK-156: a full context window is a truncation like max_tokens.
 for (const [stopReason, want] of [
@@ -80,7 +84,7 @@ for (const [stopReason, want] of [
   ["stop_sequence", "stop"],
   ["end_turn", "end_turn"],
 ] as const) {
-  Deno.test(`stop_reason ${stopReason} maps to ${want}`, async () => {
+  nodeTest.test(`stop_reason ${stopReason} maps to ${want}`, async () => {
     const fake = fakeClient(
       message(stopReason, [{ type: "text", text: "cut sho" }]),
     );
@@ -96,7 +100,7 @@ for (const [stopReason, want] of [
   });
 }
 
-Deno.test("thinking blocks keep their kind and signature", async () => {
+nodeTest.test("thinking blocks keep their kind and signature", async () => {
   const fake = fakeClient(
     message("tool_use", [
       { type: "thinking", thinking: "Check the weather.", signature: "sig-1" },
@@ -125,126 +129,134 @@ Deno.test("thinking blocks keep their kind and signature", async () => {
   ]);
 });
 
-Deno.test("thinking blocks are replayed unchanged in the next request", async () => {
-  const fake = fakeClient(message("end_turn", [{ type: "text", text: "ok" }]));
+nodeTest.test(
+  "thinking blocks are replayed unchanged in the next request",
+  async () => {
+    const fake = fakeClient(
+      message("end_turn", [{ type: "text", text: "ok" }]),
+    );
 
-  await generate(fake, [
-    { role: "user", content: [{ kind: "text", text: "weather?" }] },
-    {
-      role: "assistant",
-      content: [
-        {
-          kind: "thinking",
-          thinking: { text: "Check the weather.", signature: "sig-1" },
-        },
-        { kind: "thinking", thinking: { text: "", redactedData: "opaque" } },
-        // No signature, as another provider would produce: it cannot pass the
-        // API's check, so it must not be sent.
-        { kind: "thinking", thinking: { text: "unsigned" } },
-        { kind: "thinking", thinking: { text: "empty", signature: "" } },
-        {
-          kind: "tool_call",
-          toolCall: { id: "toolu_1", name: "weather", arguments: {} },
-        },
-      ],
-    },
-    {
-      role: "tool",
-      content: [
-        {
-          kind: "tool_result",
-          toolResult: {
-            toolCallId: "toolu_1",
-            content: "sunny",
-            isError: false,
+    await generate(fake, [
+      { role: "user", content: [{ kind: "text", text: "weather?" }] },
+      {
+        role: "assistant",
+        content: [
+          {
+            kind: "thinking",
+            thinking: { text: "Check the weather.", signature: "sig-1" },
           },
-        },
-      ],
-    },
-  ]);
+          { kind: "thinking", thinking: { text: "", redactedData: "opaque" } },
+          // No signature, as another provider would produce: it cannot pass the
+          // API's check, so it must not be sent.
+          { kind: "thinking", thinking: { text: "unsigned" } },
+          { kind: "thinking", thinking: { text: "empty", signature: "" } },
+          {
+            kind: "tool_call",
+            toolCall: { id: "toolu_1", name: "weather", arguments: {} },
+          },
+        ],
+      },
+      {
+        role: "tool",
+        content: [
+          {
+            kind: "tool_result",
+            toolResult: {
+              toolCallId: "toolu_1",
+              content: "sunny",
+              isError: false,
+            },
+          },
+        ],
+      },
+    ]);
 
-  const sentMessages = fake.sent[0]!["messages"] as Array<{
-    role: string;
-    content: Record<string, unknown>[];
-  }>;
+    const sentMessages = fake.sent[0]!["messages"] as Array<{
+      role: string;
+      content: Record<string, unknown>[];
+    }>;
 
-  assert.assertEquals(sentMessages[1]!.content, [
-    { type: "thinking", thinking: "Check the weather.", signature: "sig-1" },
-    { type: "redacted_thinking", data: "opaque" },
-    { type: "tool_use", id: "toolu_1", name: "weather", input: {} },
-  ]);
-});
+    assert.assertEquals(sentMessages[1]!.content, [
+      { type: "thinking", thinking: "Check the weather.", signature: "sig-1" },
+      { type: "redacted_thinking", data: "opaque" },
+      { type: "tool_use", id: "toolu_1", name: "weather", input: {} },
+    ]);
+  },
+);
 
-Deno.test("a streamed thinking block arrives whole, before the refusal", async () => {
-  const events = [
-    { type: "message_start", message: { usage: { input_tokens: 10 } } },
-    {
-      type: "content_block_start",
-      index: 0,
-      content_block: { type: "thinking", thinking: "", signature: "" },
-    },
-    {
-      type: "content_block_delta",
-      index: 0,
-      delta: { type: "thinking_delta", thinking: "Check " },
-    },
-    {
-      type: "content_block_delta",
-      index: 0,
-      delta: { type: "thinking_delta", thinking: "first." },
-    },
-    {
-      type: "content_block_delta",
-      index: 0,
-      delta: { type: "signature_delta", signature: "sig-stream" },
-    },
-    { type: "content_block_stop", index: 0 },
-    {
-      type: "content_block_start",
-      index: 1,
-      content_block: { type: "text", text: "" },
-    },
-    {
-      type: "content_block_delta",
-      index: 1,
-      delta: { type: "text_delta", text: "I can't help with that." },
-    },
-    { type: "content_block_stop", index: 1 },
-    {
-      type: "message_delta",
-      delta: { stop_reason: "refusal" },
-      usage: { output_tokens: 12 },
-    },
-  ];
+nodeTest.test(
+  "a streamed thinking block arrives whole, before the refusal",
+  async () => {
+    const events = [
+      { type: "message_start", message: { usage: { input_tokens: 10 } } },
+      {
+        type: "content_block_start",
+        index: 0,
+        content_block: { type: "thinking", thinking: "", signature: "" },
+      },
+      {
+        type: "content_block_delta",
+        index: 0,
+        delta: { type: "thinking_delta", thinking: "Check " },
+      },
+      {
+        type: "content_block_delta",
+        index: 0,
+        delta: { type: "thinking_delta", thinking: "first." },
+      },
+      {
+        type: "content_block_delta",
+        index: 0,
+        delta: { type: "signature_delta", signature: "sig-stream" },
+      },
+      { type: "content_block_stop", index: 0 },
+      {
+        type: "content_block_start",
+        index: 1,
+        content_block: { type: "text", text: "" },
+      },
+      {
+        type: "content_block_delta",
+        index: 1,
+        delta: { type: "text_delta", text: "I can't help with that." },
+      },
+      { type: "content_block_stop", index: 1 },
+      {
+        type: "message_delta",
+        delta: { stop_reason: "refusal" },
+        usage: { output_tokens: 12 },
+      },
+    ];
 
-  async function* stream(): AsyncIterable<unknown> {
-    for (const event of events) {
-      yield event;
+    async function* stream(): AsyncIterable<unknown> {
+      for (const event of events) {
+        yield event;
+      }
     }
-  }
 
-  const fake = fakeClient(stream());
-  const collected: generation.StreamEvent[] = [];
+    const fake = fakeClient(stream());
+    const collected: generation.StreamEvent[] = [];
 
-  for await (const event of modelWith(fake).streamText({
-    messages: [{ role: "user", content: [{ kind: "text", text: "hi" }] }],
-  })) {
-    collected.push(event);
-  }
+    for await (const event of modelWith(fake).streamText({
+      messages: [{ role: "user", content: [{ kind: "text", text: "hi" }] }],
+    })) {
+      collected.push(event);
+    }
 
-  assert.assertEquals(
-    collected.map((event) => event.kind),
-    ["thinking", "content_delta", "message_done"],
-  );
-  assert.assertEquals(collected[0], {
-    kind: "thinking",
-    thinking: { text: "Check first.", signature: "sig-stream" },
-  });
+    assert.assertEquals(
+      collected.map((event) => event.kind),
+      ["thinking", "content_delta", "message_done"],
+    );
+    assert.assertEquals(collected[0], {
+      kind: "thinking",
+      thinking: { text: "Check first.", signature: "sig-stream" },
+    });
 
-  const done = collected[2];
-  assert.assert(done?.kind === "message_done");
-  assert.assertEquals(done.stopReason, "refusal");
-});
+    const done = collected[2];
+    assert.assert(done?.kind === "message_done");
+    assert.assertEquals(done.stopReason, "refusal");
+  },
+);
 
 // TASK-56: effort is sent as output_config.effort. Thinking is turned on only
 // by a thinking budget; an explicit effort wins over the level the budget maps
@@ -282,7 +294,7 @@ const effortCases: ReadonlyArray<{
 ];
 
 for (const tc of effortCases) {
-  Deno.test(`effort: ${tc.name}`, async () => {
+  nodeTest.test(`effort: ${tc.name}`, async () => {
     const fake = fakeClient(
       message("end_turn", [{ type: "text", text: "ok" }]),
     );
@@ -359,7 +371,7 @@ const responseFormatCases: ReadonlyArray<{
 ];
 
 for (const tc of responseFormatCases) {
-  Deno.test(`responseFormat: ${tc.name}`, async () => {
+  nodeTest.test(`responseFormat: ${tc.name}`, async () => {
     const fake = fakeClient(
       message("end_turn", [{ type: "text", text: '{"title":"ok"}' }]),
     );
@@ -374,97 +386,110 @@ for (const tc of responseFormatCases) {
   });
 }
 
-Deno.test("responseFormat: a streamed request carries the format", async () => {
-  async function* stream(): AsyncIterable<unknown> {
-    yield {
-      type: "message_delta",
-      delta: { stop_reason: "end_turn" },
-      usage: { output_tokens: 1 },
-    };
-  }
+nodeTest.test(
+  "responseFormat: a streamed request carries the format",
+  async () => {
+    async function* stream(): AsyncIterable<unknown> {
+      yield {
+        type: "message_delta",
+        delta: { stop_reason: "end_turn" },
+        usage: { output_tokens: 1 },
+      };
+    }
 
-  const fake = fakeClient(stream());
+    const fake = fakeClient(stream());
 
-  for await (const _event of modelWith(fake).streamText({
-    messages: [{ role: "user", content: [{ kind: "text", text: "hi" }] }],
-    responseFormat: { type: "json_schema", jsonSchema: titleSchema },
-  })) {
-    // Only the request matters here.
-  }
+    for await (const _event of modelWith(fake).streamText({
+      messages: [{ role: "user", content: [{ kind: "text", text: "hi" }] }],
+      responseFormat: { type: "json_schema", jsonSchema: titleSchema },
+    })) {
+      // Only the request matters here.
+    }
 
-  assert.assertEquals(fake.sent[0]!["stream"], true);
-  assert.assertEquals(fake.sent[0]!["output_config"], {
-    format: { type: "json_schema", schema: titleSchema },
-  });
-});
+    assert.assertEquals(fake.sent[0]!["stream"], true);
+    assert.assertEquals(fake.sent[0]!["output_config"], {
+      format: { type: "json_schema", schema: titleSchema },
+    });
+  },
+);
 
-Deno.test("responseFormat: a batch request carries the format", async () => {
-  const sent: Record<string, unknown>[] = [];
-  const client = {
-    beta: {
-      messages: {
-        batches: {
-          create: (body: Record<string, unknown>) => {
-            sent.push(body);
+nodeTest.test(
+  "responseFormat: a batch request carries the format",
+  async () => {
+    const sent: Record<string, unknown>[] = [];
+    const client = {
+      beta: {
+        messages: {
+          batches: {
+            create: (body: Record<string, unknown>) => {
+              sent.push(body);
 
-            return Promise.resolve({
-              id: "batch_1",
-              processing_status: "in_progress",
-              created_at: "2026-10-04T00:00:00Z",
-              request_counts: { succeeded: 0, errored: 0 },
-            });
+              return Promise.resolve({
+                id: "batch_1",
+                processing_status: "in_progress",
+                created_at: "2026-10-04T00:00:00Z",
+                request_counts: { succeeded: 0, errored: 0 },
+              });
+            },
           },
         },
       },
-    },
-  };
-  const model = new anthropic.AnthropicModel(
-    client,
-    config.withDefaults({ provider: "anthropic", model: "claude-test" }),
-  );
+    };
+    const model = new anthropic.AnthropicModel(
+      client,
+      config.withDefaults({ provider: "anthropic", model: "claude-test" }),
+    );
 
-  await model.submitBatch({
-    items: [
-      {
-        customId: "req-1",
-        options: {
-          messages: [{ role: "user", content: [{ kind: "text", text: "hi" }] }],
-          responseFormat: { type: "json_schema", jsonSchema: titleSchema },
+    await model.submitBatch({
+      items: [
+        {
+          customId: "req-1",
+          options: {
+            messages: [
+              { role: "user", content: [{ kind: "text", text: "hi" }] },
+            ],
+            responseFormat: { type: "json_schema", jsonSchema: titleSchema },
+          },
         },
-      },
-    ],
-  });
+      ],
+    });
 
-  const requests = sent[0]!["requests"] as Array<{
-    params: Record<string, unknown>;
-  }>;
-  assert.assertEquals(requests[0]!.params["output_config"], {
-    format: { type: "json_schema", schema: titleSchema },
-  });
-});
+    const requests = sent[0]!["requests"] as Array<{
+      params: Record<string, unknown>;
+    }>;
+    assert.assertEquals(requests[0]!.params["output_config"], {
+      format: { type: "json_schema", schema: titleSchema },
+    });
+  },
+);
 
-Deno.test("responseFormat: json_schema without a schema fails before sending", async () => {
-  const fake = fakeClient(message("end_turn", [{ type: "text", text: "ok" }]));
-  const options: generation.GenerateTextOptions = {
-    messages: [{ role: "user", content: [{ kind: "text", text: "hi" }] }],
-    responseFormat: { type: "json_schema" },
-  };
+nodeTest.test(
+  "responseFormat: json_schema without a schema fails before sending",
+  async () => {
+    const fake = fakeClient(
+      message("end_turn", [{ type: "text", text: "ok" }]),
+    );
+    const options: generation.GenerateTextOptions = {
+      messages: [{ role: "user", content: [{ kind: "text", text: "hi" }] }],
+      responseFormat: { type: "json_schema" },
+    };
 
-  const result = await modelWith(fake).generateText(options);
+    const result = await modelWith(fake).generateText(options);
 
-  assert.assert(results.isFail(result), "generateText succeeded");
-  assert.assertInstanceOf(result.error, errors.BadRequestError);
-  assert.assertStringIncludes(result.error.message, "jsonSchema");
+    assert.assert(results.isFail(result), "generateText succeeded");
+    assert.assertInstanceOf(result.error, errors.BadRequestError);
+    assert.assertStringIncludes(result.error.message, "jsonSchema");
 
-  const streamed: generation.StreamEvent[] = [];
-  for await (const event of modelWith(fake).streamText(options)) {
-    streamed.push(event);
-  }
+    const streamed: generation.StreamEvent[] = [];
+    for await (const event of modelWith(fake).streamText(options)) {
+      streamed.push(event);
+    }
 
-  assert.assertEquals(streamed.length, 1);
-  assert.assertInstanceOf(
-    streamed[0]?.kind === "error" ? streamed[0].error : null,
-    errors.BadRequestError,
-  );
-  assert.assertEquals(fake.sent.length, 0);
-});
+    assert.assertEquals(streamed.length, 1);
+    assert.assertInstanceOf(
+      streamed[0]?.kind === "error" ? streamed[0].error : null,
+      errors.BadRequestError,
+    );
+    assert.assertEquals(fake.sent.length, 0);
+  },
+);

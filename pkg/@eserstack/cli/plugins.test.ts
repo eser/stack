@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import { runtime } from "@eserstack/standards/cross-runtime";
 import * as plugins from "./plugins.ts";
@@ -32,27 +33,33 @@ const withPluginOnPath = async (
   }
 };
 
-Deno.test("an eser-* executable on PATH is resolvable as a subcommand", async () => {
-  await withPluginOnPath("demo", "#!/bin/sh\nexit 0\n", async () => {
-    const resolved = await plugins.resolvePlugin("demo");
+nodeTest.test(
+  "an eser-* executable on PATH is resolvable as a subcommand",
+  async () => {
+    await withPluginOnPath("demo", "#!/bin/sh\nexit 0\n", async () => {
+      const resolved = await plugins.resolvePlugin("demo");
 
-    if (resolved === null) {
-      throw new Error("eser-demo on PATH was not resolved");
-    }
+      if (resolved === null) {
+        throw new Error("eser-demo on PATH was not resolved");
+      }
 
-    assert.assert(
-      resolved.endsWith("eser-demo"),
-      `resolved to ${resolved}, not the plugin`,
+      assert.assert(
+        resolved.endsWith("eser-demo"),
+        `resolved to ${resolved}, not the plugin`,
+      );
+    });
+  },
+);
+
+nodeTest.test(
+  "an absent plugin resolves to null rather than throwing",
+  async () => {
+    assert.assertEquals(
+      await plugins.resolvePlugin("nothing-is-called-this-xyz"),
+      null,
     );
-  });
-});
-
-Deno.test("an absent plugin resolves to null rather than throwing", async () => {
-  assert.assertEquals(
-    await plugins.resolvePlugin("nothing-is-called-this-xyz"),
-    null,
-  );
-});
+  },
+);
 
 // Resolution must never leave a PATH directory. Note what actually guarantees
 // that: every candidate is `<dir>/eser-<name>`, so a `..` in the name sits
@@ -60,7 +67,7 @@ Deno.test("an absent plugin resolves to null rather than throwing", async () => 
 // explicit reject in resolvePlugin is defence in depth on top of that — removing
 // it does not make this test fail, which is why the assertion below targets the
 // invariant rather than the guard.
-Deno.test("a name cannot escape a PATH directory", async () => {
+nodeTest.test("a name cannot escape a PATH directory", async () => {
   const outside = await runtime.fs.makeTempDir({ prefix: "eser-outside-" });
   const pathDir = await runtime.fs.makeTempDir({ prefix: "eser-plugin-" });
   const victim = runtime.path.join(outside, "victim");
@@ -97,7 +104,7 @@ Deno.test("a name cannot escape a PATH directory", async () => {
   }
 });
 
-Deno.test("plugin exit codes propagate", async () => {
+nodeTest.test("plugin exit codes propagate", async () => {
   await withPluginOnPath("failing", "#!/bin/sh\nexit 7\n", async (dir) => {
     const resolved = await plugins.resolvePlugin("failing");
 
@@ -109,7 +116,7 @@ Deno.test("plugin exit codes propagate", async () => {
   });
 });
 
-Deno.test("arguments reach the plugin verbatim", async () => {
+nodeTest.test("arguments reach the plugin verbatim", async () => {
   const script = `#!/bin/sh
 [ "$1" = "--backend" ] || exit 1
 [ "$2" = "kiro" ] || exit 1
@@ -139,21 +146,24 @@ exit 0
 // as a plugin moves the failure to spawn time, with an error about permissions
 // rather than about the plugin — which is the confusion PATH lookup exists to
 // prevent.
-Deno.test("a non-executable file with the right name is not a plugin", async () => {
-  const dir = await runtime.fs.makeTempDir({ prefix: "eser-plugin-" });
-  const file = runtime.path.join(dir, `${plugins.PLUGIN_PREFIX}inert`);
+nodeTest.test(
+  "a non-executable file with the right name is not a plugin",
+  async () => {
+    const dir = await runtime.fs.makeTempDir({ prefix: "eser-plugin-" });
+    const file = runtime.path.join(dir, `${plugins.PLUGIN_PREFIX}inert`);
 
-  await runtime.fs.writeTextFile(file, "#!/bin/sh\nexit 0\n");
-  await runtime.fs.chmod(file, 0o644);
+    await runtime.fs.writeTextFile(file, "#!/bin/sh\nexit 0\n");
+    await runtime.fs.chmod(file, 0o644);
 
-  const previous = runtime.env.get("PATH") ?? "";
+    const previous = runtime.env.get("PATH") ?? "";
 
-  runtime.env.set("PATH", `${dir}${runtime.path.delimiter}${previous}`);
+    runtime.env.set("PATH", `${dir}${runtime.path.delimiter}${previous}`);
 
-  try {
-    assert.assertEquals(await plugins.resolvePlugin("inert"), null);
-  } finally {
-    runtime.env.set("PATH", previous);
-    await runtime.fs.remove(dir, { recursive: true });
-  }
-});
+    try {
+      assert.assertEquals(await plugins.resolvePlugin("inert"), null);
+    } finally {
+      runtime.env.set("PATH", previous);
+      await runtime.fs.remove(dir, { recursive: true });
+    }
+  },
+);

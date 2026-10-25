@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as callbackServer from "./callback-server.ts";
 
@@ -10,7 +11,7 @@ const freePort = (): number => {
   return port;
 };
 
-Deno.test("expectationFor accepts loopback redirect URIs only", () => {
+nodeTest.test("expectationFor accepts loopback redirect URIs only", () => {
   const e = callbackServer.expectationFor(
     "http://localhost:3000/callback",
     "s1",
@@ -33,27 +34,30 @@ Deno.test("expectationFor accepts loopback redirect URIs only", () => {
   );
 });
 
-Deno.test("matchCallback requires the redirect path and the issued state", () => {
-  const e = callbackServer.expectationFor(
-    "http://127.0.0.1:8080/callback",
-    "issued",
-  );
-  const at = (q: string) =>
-    callbackServer.matchCallback(new URL(`http://127.0.0.1:8080${q}`), e);
-  assert.assertEquals(at("/callback?code=c&state=issued"), "c");
-  assert.assertEquals(at("/callback?code=c&state=wrong"), null);
-  assert.assertEquals(at("/callback?code=c"), null);
-  assert.assertEquals(at("/other?code=c&state=issued"), null);
-  assert.assertEquals(
-    callbackServer.matchCallback(
-      new URL("http://127.0.0.1/callback?code=c&state="),
-      { ...e, state: "" },
-    ),
-    null,
-  );
-});
+nodeTest.test(
+  "matchCallback requires the redirect path and the issued state",
+  () => {
+    const e = callbackServer.expectationFor(
+      "http://127.0.0.1:8080/callback",
+      "issued",
+    );
+    const at = (q: string) =>
+      callbackServer.matchCallback(new URL(`http://127.0.0.1:8080${q}`), e);
+    assert.assertEquals(at("/callback?code=c&state=issued"), "c");
+    assert.assertEquals(at("/callback?code=c&state=wrong"), null);
+    assert.assertEquals(at("/callback?code=c"), null);
+    assert.assertEquals(at("/other?code=c&state=issued"), null);
+    assert.assertEquals(
+      callbackServer.matchCallback(
+        new URL("http://127.0.0.1/callback?code=c&state="),
+        { ...e, state: "" },
+      ),
+      null,
+    );
+  },
+);
 
-Deno.test("a foreign request does not end the pending login", async () => {
+nodeTest.test("a foreign request does not end the pending login", async () => {
   const port = freePort();
   const expected = callbackServer.expectationFor(
     `http://127.0.0.1:${port}/callback`,
@@ -93,7 +97,7 @@ Deno.test("a foreign request does not end the pending login", async () => {
   });
 });
 
-Deno.test("the receiver binds loopback, not every interface", async () => {
+nodeTest.test("the receiver binds loopback, not every interface", async () => {
   const port = freePort();
   const expected = callbackServer.expectationFor(
     `http://127.0.0.1:${port}/callback`,
@@ -121,7 +125,7 @@ Deno.test("the receiver binds loopback, not every interface", async () => {
   await pending;
 });
 
-Deno.test("the receiver times out", async () => {
+nodeTest.test("the receiver times out", async () => {
   const port = freePort();
   const expected = callbackServer.expectationFor(
     `http://127.0.0.1:${port}/callback`,

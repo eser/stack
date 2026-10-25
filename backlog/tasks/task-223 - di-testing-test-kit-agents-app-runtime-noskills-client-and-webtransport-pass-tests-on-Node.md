@@ -6,7 +6,7 @@ title: >-
 status: To Do
 assignee: []
 created_date: '2026-10-15 20:38'
-updated_date: '2026-10-24 19:38'
+updated_date: '2026-10-25 16:00'
 labels:
   - cutover
   - di
@@ -47,4 +47,7 @@ Hand-work list (TASK-175 spike, 2026-10-24, node 26.12.1):
 - test-kit: `./leaks` does not exist yet; its own tests run under node --test.
 - Sanitizer options to remove: webtransport 1.
 - Source: 0 Deno, Bun or specifier uses in all seven packages. Docs: pkg/@eserstack/di/README.md (1).
+
+TASK-198 (2026-10-25): the test and bench codemods left no site for hand edits in this task's files (0 unhandled). After them, these test files still fail under `node --test --test-force-exit` on Node 26.12.1, each run alone:
+- pkg/@eserstack/testing/temp-dir.test.ts: 1 failing, 5 passing; first error: AssertionError: Expected actual: "<tmp> to contain: "<tmp>
 <!-- SECTION:NOTES:END -->

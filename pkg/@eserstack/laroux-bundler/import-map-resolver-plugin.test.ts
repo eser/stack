@@ -1,12 +1,13 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import { runtime } from "@eserstack/standards/cross-runtime";
 import * as importMapResolverPlugin from "./import-map-resolver-plugin.ts";
 import type { ImportMap } from "./domain/import-map.ts";
 
-Deno.test("import-map-resolver-plugin", async (t) => {
-  await t.step(
+nodeTest.test("import-map-resolver-plugin", async (t) => {
+  await t.test(
     "createImportMapResolverPlugin - creates plugin with name",
     () => {
       const plugin = importMapResolverPlugin.createImportMapResolverPlugin({
@@ -23,7 +24,7 @@ Deno.test("import-map-resolver-plugin", async (t) => {
     },
   );
 
-  await t.step(
+  await t.test(
     "createImportMapResolverPlugin - accepts pre-loaded import map",
     () => {
       const importMap: ImportMap = {
@@ -57,7 +58,7 @@ Deno.test("import-map-resolver-plugin", async (t) => {
     },
   );
 
-  await t.step("createImportMapResolverPlugin - accepts browser shims", () => {
+  await t.test("createImportMapResolverPlugin - accepts browser shims", () => {
     const plugin = importMapResolverPlugin.createImportMapResolverPlugin({
       projectRoot: "/tmp",
       browserShims: {
@@ -76,7 +77,7 @@ Deno.test("import-map-resolver-plugin", async (t) => {
     assert.assertEquals(plugin.name, "import-map-resolver");
   });
 
-  await t.step("createImportMapResolverPlugin - accepts custom cache", () => {
+  await t.test("createImportMapResolverPlugin - accepts custom cache", () => {
     const cache = new Map<string, string>();
     cache.set("react", "external");
 
@@ -90,7 +91,7 @@ Deno.test("import-map-resolver-plugin", async (t) => {
     assert.assertEquals(plugin.name, "import-map-resolver");
   });
 
-  await t.step(
+  await t.test(
     "isBareSpecifier logic - handled by plugin resolution",
     async () => {
       // Create a temp directory with a deno.json
@@ -122,13 +123,13 @@ Deno.test("import-map-resolver-plugin", async (t) => {
   );
 });
 
-Deno.test("import-map-resolver-plugin with fixtures", async (t) => {
+nodeTest.test("import-map-resolver-plugin with fixtures", async (t) => {
   // Create a temp directory for test fixtures
   const tempDir = await runtime.fs.makeTempDir({ prefix: "resolver-fixture-" });
   const srcDir = runtime.path.join(tempDir, "src");
   await runtime.fs.ensureDir(srcDir);
 
-  await t.step("setup test files", async () => {
+  await t.test("setup test files", async () => {
     // Create deno.json
     const denoJson = {
       imports: {
@@ -150,7 +151,7 @@ Deno.test("import-map-resolver-plugin with fixtures", async (t) => {
     );
   });
 
-  await t.step("plugin setup loads import map automatically", () => {
+  await t.test("plugin setup loads import map automatically", () => {
     const plugin = importMapResolverPlugin.createImportMapResolverPlugin({
       projectRoot: tempDir,
       browserShims: { jsr: {}, nodeBuiltins: {} },
@@ -163,7 +164,7 @@ Deno.test("import-map-resolver-plugin with fixtures", async (t) => {
     assert.assertEquals(typeof plugin.setup, "function");
   });
 
-  await t.step("plugin with browser shims for JSR packages", () => {
+  await t.test("plugin with browser shims for JSR packages", () => {
     const plugin = importMapResolverPlugin.createImportMapResolverPlugin({
       projectRoot: tempDir,
       browserShims: {
@@ -179,7 +180,7 @@ Deno.test("import-map-resolver-plugin with fixtures", async (t) => {
     // Actual resolution testing would require mocking the build context
   });
 
-  await t.step("plugin with node builtin shims", () => {
+  await t.test("plugin with node builtin shims", () => {
     const plugin = importMapResolverPlugin.createImportMapResolverPlugin({
       projectRoot: tempDir,
       browserShims: {

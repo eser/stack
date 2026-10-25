@@ -1,16 +1,13 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as ffiClient from "@eserstack/ajan/ffi/client";
 import * as simple from "./tokens/simple.ts";
 import * as lexer from "./lexer.ts";
 
-Deno.test(
-  {
-    name: "tokenizes the same way after the Go library is loaded",
-    // The library stays loaded for the rest of the process.
-    sanitizeResources: false,
-  },
+nodeTest.test(
+  "tokenizes the same way after the Go library is loaded",
   async () => {
     // Another package loading the native library must not change the tokens.
     await ffiClient.ensureLib();
@@ -30,7 +27,7 @@ Deno.test(
   },
 );
 
-Deno.test("operators and symbols", () => {
+nodeTest.test("operators and symbols", () => {
   const tokenizer = new lexer.Tokenizer(
     lexer.createTokenizerState(simple.simpleTokens),
   );
@@ -68,7 +65,7 @@ Deno.test("operators and symbols", () => {
   ]);
 });
 
-Deno.test("numbers", () => {
+nodeTest.test("numbers", () => {
   const tokenizer = new lexer.Tokenizer(
     lexer.createTokenizerState(simple.simpleTokens),
   );
@@ -84,7 +81,7 @@ Deno.test("numbers", () => {
   ]);
 });
 
-Deno.test("whitespace and comments", () => {
+nodeTest.test("whitespace and comments", () => {
   const tokenizer = new lexer.Tokenizer(
     lexer.createTokenizerState(simple.simpleTokens),
   );
@@ -129,7 +126,7 @@ Deno.test("whitespace and comments", () => {
   ]);
 });
 
-Deno.test("multiline comments", () => {
+nodeTest.test("multiline comments", () => {
   const tokenizer = new lexer.Tokenizer(
     lexer.createTokenizerState(simple.simpleTokens),
   );
@@ -149,7 +146,7 @@ Deno.test("multiline comments", () => {
   ]);
 });
 
-Deno.test("singleline comments", () => {
+nodeTest.test("singleline comments", () => {
   const tokenizer = new lexer.Tokenizer(
     lexer.createTokenizerState(simple.simpleTokens),
   );
@@ -166,7 +163,7 @@ Deno.test("singleline comments", () => {
   ]);
 });
 
-Deno.test("mixed expression", () => {
+nodeTest.test("mixed expression", () => {
   const tokenizer = new lexer.Tokenizer(
     lexer.createTokenizerState(simple.simpleTokens),
   );
@@ -195,7 +192,7 @@ Deno.test("mixed expression", () => {
   ]);
 });
 
-Deno.test("alphanumeric from readable stream", async () => {
+nodeTest.test("alphanumeric from readable stream", async () => {
   const tokenizer = new lexer.Tokenizer(
     lexer.createTokenizerState(simple.simpleTokens),
   );
@@ -219,7 +216,7 @@ Deno.test("alphanumeric from readable stream", async () => {
   ]);
 });
 
-Deno.test("alphanumeric from string", () => {
+nodeTest.test("alphanumeric from string", () => {
   const tokenizer = new lexer.Tokenizer(
     lexer.createTokenizerState(simple.simpleTokens),
   );
@@ -233,7 +230,7 @@ Deno.test("alphanumeric from string", () => {
   ]);
 });
 
-Deno.test("alphanumeric from string, buffer boundary", () => {
+nodeTest.test("alphanumeric from string, buffer boundary", () => {
   const tokenizer = new lexer.Tokenizer(
     lexer.createTokenizerState(simple.simpleTokens),
   );

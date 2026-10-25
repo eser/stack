@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import { runtime } from "@eserstack/standards/cross-runtime";
 import * as buildCache from "./build-cache.ts";
@@ -63,51 +64,46 @@ async function scanFixture(): Promise<routeScanner.ScanResult> {
   }
 }
 
-Deno.test(
-  // The scanner walks through the native library, which stays open for the
-  // rest of the process once loaded.
-  { name: "route-scanner", sanitizeResources: false },
-  async (t) => {
-    const result = await scanFixture();
-    const pageRoutes = result.routes.map((route) => route.routePath).sort();
-    const apiRoutes = result.apiRoutes.map((route) => route.routePath).sort();
-    const proxyPrefixes = result.proxies.map((proxy) => proxy.pathPrefix);
+nodeTest.test("route-scanner", async (t) => {
+  const result = await scanFixture();
+  const pageRoutes = result.routes.map((route) => route.routePath).sort();
+  const apiRoutes = result.apiRoutes.map((route) => route.routePath).sort();
+  const proxyPrefixes = result.proxies.map((proxy) => proxy.pathPrefix);
 
-    await t.step("scanRoutes routes pages outside private directories", () => {
-      assert.assertEquals(pageRoutes, [
-        "/",
-        "/about",
-        "/docs_v2",
-        "/stories/[slug]",
-      ]);
-    });
+  await t.test("scanRoutes routes pages outside private directories", () => {
+    assert.assertEquals(pageRoutes, [
+      "/",
+      "/about",
+      "/docs_v2",
+      "/stories/[slug]",
+    ]);
+  });
 
-    await t.step("scanRoutes skips a page in an _-prefixed directory", () => {
+  await t.test("scanRoutes skips a page in an _-prefixed directory", () => {
+    assert.assertEquals(
+      result.routes.filter((route) => route.componentPath.includes("/_")),
+      [],
+    );
+  });
+
+  await t.test(
+    "scanRoutes skips route handlers and proxies in an _-prefixed directory",
+    () => {
+      assert.assertEquals(apiRoutes, ["/api/health"]);
+      assert.assertEquals(proxyPrefixes, ["/admin"]);
+    },
+  );
+
+  await t.test(
+    "scanRoutes does not apply a private directory's layout to other pages",
+    () => {
       assert.assertEquals(
-        result.routes.filter((route) => route.componentPath.includes("/_")),
+        result.routes.filter((route) => route.layoutPath !== undefined),
         [],
       );
-    });
-
-    await t.step(
-      "scanRoutes skips route handlers and proxies in an _-prefixed directory",
-      () => {
-        assert.assertEquals(apiRoutes, ["/api/health"]);
-        assert.assertEquals(proxyPrefixes, ["/admin"]);
-      },
-    );
-
-    await t.step(
-      "scanRoutes does not apply a private directory's layout to other pages",
-      () => {
-        assert.assertEquals(
-          result.routes.filter((route) => route.layoutPath !== undefined),
-          [],
-        );
-      },
-    );
-  },
-);
+    },
+  );
+});
 
 /** Write page files under a new project and return its routes directory. */
 async function createProject(
@@ -134,120 +130,115 @@ async function createProject(
 const routePaths = (result: routeScanner.ScanResult): string[] =>
   result.routes.map((route) => route.routePath).sort();
 
-Deno.test(
-  // The scanner walks through the native library, which stays open for the
-  // rest of the process once loaded.
-  { name: "route-scanner with two projects", sanitizeResources: false },
-  async (t) => {
-    const root = await runtime.fs.makeTempDir({ prefix: "laroux-routes-" });
+nodeTest.test("route-scanner with two projects", async (t) => {
+  const root = await runtime.fs.makeTempDir({ prefix: "laroux-routes-" });
 
-    try {
-      const blog = await createProject(root, "blog", [
-        "home/page.tsx",
-        "posts/page.tsx",
-      ]);
-      const shop = await createProject(root, "shop", [
-        "home/page.tsx",
-        "cart/page.tsx",
-      ]);
-      // An older routes directory than the first project's: a cache shared
-      // by every project and checked by mtime alone would hand this project
-      // the first one's routes.
-      const anHourAgo = new Date(Date.now() - 60 * 60 * 1000);
-      await Deno.utime(shop.routesDir, anHourAgo, anHourAgo);
+  try {
+    const blog = await createProject(root, "blog", [
+      "home/page.tsx",
+      "posts/page.tsx",
+    ]);
+    const shop = await createProject(root, "shop", [
+      "home/page.tsx",
+      "cart/page.tsx",
+    ]);
+    // An older routes directory than the first project's: a cache shared
+    // by every project and checked by mtime alone would hand this project
+    // the first one's routes.
+    const anHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+    await Deno.utime(shop.routesDir, anHourAgo, anHourAgo);
 
-      await t.step(
-        "scanRoutes without a cache returns each directory's own routes",
-        async () => {
-          const blogRoutes = await routeScanner.scanRoutes(
-            blog.routesDir,
-            blog.projectRoot,
-          );
-          const shopRoutes = await routeScanner.scanRoutes(
-            shop.routesDir,
-            shop.projectRoot,
-          );
+    await t.test(
+      "scanRoutes without a cache returns each directory's own routes",
+      async () => {
+        const blogRoutes = await routeScanner.scanRoutes(
+          blog.routesDir,
+          blog.projectRoot,
+        );
+        const shopRoutes = await routeScanner.scanRoutes(
+          shop.routesDir,
+          shop.projectRoot,
+        );
 
-          assert.assertEquals(routePaths(blogRoutes), ["/", "/posts"]);
-          assert.assertEquals(routePaths(shopRoutes), ["/", "/cart"]);
-        },
-      );
+        assert.assertEquals(routePaths(blogRoutes), ["/", "/posts"]);
+        assert.assertEquals(routePaths(shopRoutes), ["/", "/cart"]);
+      },
+    );
 
-      await t.step(
-        "scanRoutes with one shared cache keeps each directory's scan apart",
-        async () => {
-          const cache = new buildCache.BuildCache();
-          const options = { cache };
+    await t.test(
+      "scanRoutes with one shared cache keeps each directory's scan apart",
+      async () => {
+        const cache = new buildCache.BuildCache();
+        const options = { cache };
 
-          await routeScanner.scanRoutes(
-            blog.routesDir,
-            blog.projectRoot,
-            options,
-          );
-          const shopRoutes = await routeScanner.scanRoutes(
-            shop.routesDir,
-            shop.projectRoot,
-            options,
-          );
-          const blogAgain = await routeScanner.scanRoutes(
-            blog.routesDir,
-            blog.projectRoot,
-            options,
-          );
+        await routeScanner.scanRoutes(
+          blog.routesDir,
+          blog.projectRoot,
+          options,
+        );
+        const shopRoutes = await routeScanner.scanRoutes(
+          shop.routesDir,
+          shop.projectRoot,
+          options,
+        );
+        const blogAgain = await routeScanner.scanRoutes(
+          blog.routesDir,
+          blog.projectRoot,
+          options,
+        );
 
-          assert.assertEquals(routePaths(shopRoutes), ["/", "/cart"]);
-          assert.assertEquals(routePaths(blogAgain), ["/", "/posts"]);
-        },
-      );
+        assert.assertEquals(routePaths(shopRoutes), ["/", "/cart"]);
+        assert.assertEquals(routePaths(blogAgain), ["/", "/posts"]);
+      },
+    );
 
-      await t.step(
-        "scanRoutes sees a nested page after the cache drops its directory",
-        async () => {
-          const cache = new buildCache.BuildCache();
-          const options = { cache };
-          await routeScanner.scanRoutes(
-            blog.routesDir,
-            blog.projectRoot,
-            options,
-          );
-          await routeScanner.scanRoutes(
-            shop.routesDir,
-            shop.projectRoot,
-            options,
-          );
+    await t.test(
+      "scanRoutes sees a nested page after the cache drops its directory",
+      async () => {
+        const cache = new buildCache.BuildCache();
+        const options = { cache };
+        await routeScanner.scanRoutes(
+          blog.routesDir,
+          blog.projectRoot,
+          options,
+        );
+        await routeScanner.scanRoutes(
+          shop.routesDir,
+          shop.projectRoot,
+          options,
+        );
 
-          // A page two levels down leaves the routes directory's mtime as
-          // it was, so the watch mode invalidation is what drops the scan.
-          const nestedPage = runtime.path.join(
-            blog.routesDir,
-            "posts",
-            "[slug]",
-            "page.tsx",
-          );
-          await runtime.fs.mkdir(runtime.path.dirname(nestedPage), {
-            recursive: true,
-          });
-          await runtime.fs.writeTextFile(nestedPage, "export {};\n");
-          cache.invalidateFile(nestedPage);
+        // A page two levels down leaves the routes directory's mtime as
+        // it was, so the watch mode invalidation is what drops the scan.
+        const nestedPage = runtime.path.join(
+          blog.routesDir,
+          "posts",
+          "[slug]",
+          "page.tsx",
+        );
+        await runtime.fs.mkdir(runtime.path.dirname(nestedPage), {
+          recursive: true,
+        });
+        await runtime.fs.writeTextFile(nestedPage, "export {};\n");
+        cache.invalidateFile(nestedPage);
 
-          // The change drops only the scan of the directory that holds it
-          const shopCached = cache.getRouteScan(shop.routesDir, 0);
-          const blogRoutes = await routeScanner.scanRoutes(
-            blog.routesDir,
-            blog.projectRoot,
-            options,
-          );
+        // The change drops only the scan of the directory that holds it
+        const shopCached = cache.getRouteScan(shop.routesDir, 0);
+        const blogRoutes = await routeScanner.scanRoutes(
+          blog.routesDir,
+          blog.projectRoot,
+          options,
+        );
 
-          assert.assertNotEquals(shopCached, null);
-          assert.assertEquals(routePaths(blogRoutes), [
-            "/",
-            "/posts",
-            "/posts/[slug]",
-          ]);
-        },
-      );
-    } finally {
-      await runtime.fs.remove(root, { recursive: true });
-    }
-  },
-);
+        assert.assertNotEquals(shopCached, null);
+        assert.assertEquals(routePaths(blogRoutes), [
+          "/",
+          "/posts",
+          "/posts/[slug]",
+        ]);
+      },
+    );
+  } finally {
+    await runtime.fs.remove(root, { recursive: true });
+  }
+});

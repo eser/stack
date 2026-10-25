@@ -3,7 +3,7 @@
 // One test replaces console.error to capture the warning persistence writes.
 /* oxlint-disable no-console */
 
-import * as bdd from "@std/testing/bdd";
+import * as bdd from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as crossRuntime from "@eserstack/standards/cross-runtime";
 import * as concernScope from "./concern-scope.ts";

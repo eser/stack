@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as path from "@std/path";
 import { runtime } from "@eserstack/standards/cross-runtime";
@@ -119,36 +120,42 @@ const cases: ReadonlyArray<{
 ];
 
 for (const { name, source, expected } of cases) {
-  Deno.test(`validate-runtime-js-apis: ${name}`, () => {
+  nodeTest.test(`validate-runtime-js-apis: ${name}`, () => {
     assert.assertEquals(rules(source.join("\n")), [...expected]);
   });
 }
 
-Deno.test("validate-runtime-js-apis: names the cross-runtime replacement", () => {
-  const [violation] = runtimeJsApis.findViolations(
-    "const token = process.env.TOKEN;",
-  );
+nodeTest.test(
+  "validate-runtime-js-apis: names the cross-runtime replacement",
+  () => {
+    const [violation] = runtimeJsApis.findViolations(
+      "const token = process.env.TOKEN;",
+    );
 
-  assert.assertStringIncludes(violation!.message, "process.env");
-  assert.assertStringIncludes(violation!.message, "runtime.env.get()");
-  assert.assertStringIncludes(
-    violation!.message,
-    "@eserstack/standards/cross-runtime",
-  );
-});
+    assert.assertStringIncludes(violation!.message, "process.env");
+    assert.assertStringIncludes(violation!.message, "runtime.env.get()");
+    assert.assertStringIncludes(
+      violation!.message,
+      "@eserstack/standards/cross-runtime",
+    );
+  },
+);
 
-Deno.test("validate-runtime-js-apis: gives a general hint for other members", () => {
-  const messages = runtimeJsApis
-    .findViolations(
-      "const t = process.hrtime();\nconst c = process.constructor;",
-    )
-    .map((v) => v.message);
+nodeTest.test(
+  "validate-runtime-js-apis: gives a general hint for other members",
+  () => {
+    const messages = runtimeJsApis
+      .findViolations(
+        "const t = process.hrtime();\nconst c = process.constructor;",
+      )
+      .map((v) => v.message);
 
-  assert.assertEquals(messages.length, 2);
-  for (const message of messages) {
-    assert.assertStringIncludes(message, "the matching runtime API");
-  }
-});
+    assert.assertEquals(messages.length, 2);
+    for (const message of messages) {
+      assert.assertStringIncludes(message, "the matching runtime API");
+    }
+  },
+);
 
 const writeFile = async (
   root: string,
@@ -179,11 +186,9 @@ const foundIn = (
 
 // sanitizeResources is off because file-tool.ts loads the FFI DynamicLibrary,
 // which stays open after the test.
-Deno.test({
-  name: "validate-runtime-js-apis: skips tests and the cross-runtime layer, and fails only above the baseline",
-  sanitizeResources: false,
-  sanitizeOps: false,
-  fn: () =>
+nodeTest.test(
+  "validate-runtime-js-apis: skips tests and the cross-runtime layer, and fails only above the baseline",
+  () =>
     withTempRoot(async (root) => {
       await writeFile(root, "lib.ts", "const a = process.env.A;\n");
       await writeFile(root, "lib.test.ts", "const a = process.env.A;\n");
@@ -223,13 +228,11 @@ Deno.test({
         "[2 in this file, baseline allows 1]",
       );
     }),
-});
+);
 
-Deno.test({
-  name: "validate-runtime-js-apis: a corrupt baseline fails with the fix",
-  sanitizeResources: false,
-  sanitizeOps: false,
-  fn: () =>
+nodeTest.test(
+  "validate-runtime-js-apis: a corrupt baseline fails with the fix",
+  () =>
     withTempRoot(async (root) => {
       await writeFile(root, "lib.ts", "const a = process.env.A;\n");
       await writeFile(root, runtimeJsApis.DEFAULT_BASELINE_PATH, "{ not json");
@@ -240,13 +243,11 @@ Deno.test({
       assert.assertStringIncludes(String(error), "is not valid JSON");
       assert.assertStringIncludes(String(error), "--write-baseline");
     }),
-});
+);
 
-Deno.test({
-  name: "validate-runtime-js-apis: a baseline option that is not a path fails",
-  sanitizeResources: false,
-  sanitizeOps: false,
-  fn: () =>
+nodeTest.test(
+  "validate-runtime-js-apis: a baseline option that is not a path fails",
+  () =>
     withTempRoot(async (root) => {
       await writeFile(root, "lib.ts", "export const a = 1;\n");
 
@@ -256,4 +257,4 @@ Deno.test({
       assert.assertStringIncludes(String(error), "baseline option");
       assert.assertStringIncludes(String(error), ".eser/manifest.yml");
     }),
-});
+);

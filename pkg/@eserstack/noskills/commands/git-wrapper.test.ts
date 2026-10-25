@@ -12,6 +12,7 @@
  * @module
  */
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as crossRuntime from "@eserstack/standards/cross-runtime";
 import * as gitWrapper from "./git-wrapper.ts";
@@ -54,12 +55,12 @@ const KIND_CASES: readonly {
 ];
 
 for (const { name, args, kind } of KIND_CASES) {
-  Deno.test(`classifyGitExec: ${name}`, () => {
+  nodeTest.test(`classifyGitExec: ${name}`, () => {
     assert.assertEquals(gitWrapper.classifyGitExec(args), kind);
   });
 }
 
-Deno.test("prependToPath puts the directory first exactly once", () => {
+nodeTest.test("prependToPath puts the directory first exactly once", () => {
   assert.assertEquals(
     gitWrapper.prependToPath("/usr/bin:/w:/bin", "/w"),
     "/w:/usr/bin:/bin",
@@ -67,21 +68,21 @@ Deno.test("prependToPath puts the directory first exactly once", () => {
   assert.assertEquals(gitWrapper.prependToPath("", "/w"), "/w");
 });
 
-Deno.test("removeFromPath drops every occurrence of the directory", () => {
+nodeTest.test("removeFromPath drops every occurrence of the directory", () => {
   assert.assertEquals(
     gitWrapper.removeFromPath("/w:/usr/bin:/w:/bin", "/w"),
     "/usr/bin:/bin",
   );
 });
 
-Deno.test("envFileExport quotes the directory as one shell word", () => {
+nodeTest.test("envFileExport quotes the directory as one shell word", () => {
   assert.assertEquals(
     gitWrapper.envFileExport("/p q/it's"),
     `export PATH='/p q/it'\\''s':"$PATH"\n`,
   );
 });
 
-Deno.test("gitExecDenial names the refused subcommand", () => {
+nodeTest.test("gitExecDenial names the refused subcommand", () => {
   const message = gitWrapper.gitExecDenial(["-C", "/x", "push", "origin"]);
 
   assert.assertStringIncludes(message, `refused "git push"`);
@@ -258,164 +259,200 @@ const withProject = async (
   }
 };
 
-Deno.test("wrapper refuses an interpreter-built git commit while allowGit is false", async () => {
-  await withProject(async (project) => {
-    const result = await interpreterGit(project, [
-      "commit",
-      "--allow-empty",
-      "-m",
-      "agent commit",
-    ]);
-
-    assert.assertNotEquals(result.code, 0);
-    assert.assertStringIncludes(result.stderr, `refused "git commit"`);
-    assert.assertEquals(await commitCount(project.realGit, project.root), 1);
-  });
-});
-
-Deno.test("wrapper refuses an interpreter-built git push while allowGit is false", async () => {
-  await withProject(async (project) => {
-    const remote = `${project.root}/.test-hooks/remote.git`;
-    await spawn(
-      project.realGit,
-      ["init", "-q", "--bare", remote],
-      project.root,
-    );
-    await spawn(
-      project.realGit,
-      ["remote", "add", "origin", remote],
-      project.root,
-    );
-
-    const result = await interpreterGit(project, [
-      "push",
-      "origin",
-      "HEAD:refs/heads/main",
-    ]);
-
-    assert.assertNotEquals(result.code, 0);
-    assert.assertStringIncludes(result.stderr, `refused "git push"`);
-    assert.assertEquals(await commitCount(project.realGit, remote), 0);
-  });
-});
-
-Deno.test("wrapper refuses a write that names the project with -C from elsewhere", async () => {
-  await withProject(async (project) => {
-    const elsewhere = await fs.makeTempDir({ prefix: "nos_git_elsewhere_" });
-    try {
-      const result = await interpreterGit(
-        project,
-        ["-C", project.root, "commit", "--allow-empty", "-m", "x"],
-        elsewhere,
-      );
+nodeTest.test(
+  "wrapper refuses an interpreter-built git commit while allowGit is false",
+  async () => {
+    await withProject(async (project) => {
+      const result = await interpreterGit(project, [
+        "commit",
+        "--allow-empty",
+        "-m",
+        "agent commit",
+      ]);
 
       assert.assertNotEquals(result.code, 0);
+      assert.assertStringIncludes(result.stderr, `refused "git commit"`);
       assert.assertEquals(await commitCount(project.realGit, project.root), 1);
-    } finally {
-      await fs.remove(elsewhere, { recursive: true });
-    }
-  });
-});
+    });
+  },
+);
 
-Deno.test("wrapper refuses a write that names the project after another global option", async () => {
-  await withProject(async (project) => {
-    const elsewhere = await fs.makeTempDir({ prefix: "nos_git_elsewhere_" });
-    try {
-      const results = await Promise.all(
-        ["--no-advice", "--no-lazy-fetch", "--attr-source=HEAD"].map((option) =>
-          interpreterGit(
-            project,
-            [option, "-C", project.root, "commit", "--allow-empty", "-m", "x"],
-            elsewhere,
-          ),
-        ),
+nodeTest.test(
+  "wrapper refuses an interpreter-built git push while allowGit is false",
+  async () => {
+    await withProject(async (project) => {
+      const remote = `${project.root}/.test-hooks/remote.git`;
+      await spawn(
+        project.realGit,
+        ["init", "-q", "--bare", remote],
+        project.root,
+      );
+      await spawn(
+        project.realGit,
+        ["remote", "add", "origin", remote],
+        project.root,
       );
 
-      for (const result of results) {
+      const result = await interpreterGit(project, [
+        "push",
+        "origin",
+        "HEAD:refs/heads/main",
+      ]);
+
+      assert.assertNotEquals(result.code, 0);
+      assert.assertStringIncludes(result.stderr, `refused "git push"`);
+      assert.assertEquals(await commitCount(project.realGit, remote), 0);
+    });
+  },
+);
+
+nodeTest.test(
+  "wrapper refuses a write that names the project with -C from elsewhere",
+  async () => {
+    await withProject(async (project) => {
+      const elsewhere = await fs.makeTempDir({ prefix: "nos_git_elsewhere_" });
+      try {
+        const result = await interpreterGit(
+          project,
+          ["-C", project.root, "commit", "--allow-empty", "-m", "x"],
+          elsewhere,
+        );
+
         assert.assertNotEquals(result.code, 0);
+        assert.assertEquals(
+          await commitCount(project.realGit, project.root),
+          1,
+        );
+      } finally {
+        await fs.remove(elsewhere, { recursive: true });
       }
-      assert.assertEquals(await commitCount(project.realGit, project.root), 1);
-    } finally {
-      await fs.remove(elsewhere, { recursive: true });
-    }
-  });
-});
+    });
+  },
+);
 
-Deno.test("wrapper runs reads, and writes to other repositories", async () => {
-  await withProject(async (project) => {
-    const status = await interpreterGit(project, ["status", "--porcelain"]);
-    assert.assertEquals(status.code, 0, status.stderr);
+nodeTest.test(
+  "wrapper refuses a write that names the project after another global option",
+  async () => {
+    await withProject(async (project) => {
+      const elsewhere = await fs.makeTempDir({ prefix: "nos_git_elsewhere_" });
+      try {
+        const results = await Promise.all(
+          ["--no-advice", "--no-lazy-fetch", "--attr-source=HEAD"].map(
+            (option) =>
+              interpreterGit(
+                project,
+                [
+                  option,
+                  "-C",
+                  project.root,
+                  "commit",
+                  "--allow-empty",
+                  "-m",
+                  "x",
+                ],
+                elsewhere,
+              ),
+          ),
+        );
 
-    // A test suite's temporary repository is not the project's.
-    const other = await fs.realPath(
-      await fs.makeTempDir({ prefix: "nos_git_other_" }),
-    );
-    try {
-      await createRepo(project.realGit, other);
-      const commit = await interpreterGit(
-        project,
-        ["commit", "--allow-empty", "-m", "test fixture"],
-        other,
+        for (const result of results) {
+          assert.assertNotEquals(result.code, 0);
+        }
+        assert.assertEquals(
+          await commitCount(project.realGit, project.root),
+          1,
+        );
+      } finally {
+        await fs.remove(elsewhere, { recursive: true });
+      }
+    });
+  },
+);
+
+nodeTest.test(
+  "wrapper runs reads, and writes to other repositories",
+  async () => {
+    await withProject(async (project) => {
+      const status = await interpreterGit(project, ["status", "--porcelain"]);
+      assert.assertEquals(status.code, 0, status.stderr);
+
+      // A test suite's temporary repository is not the project's.
+      const other = await fs.realPath(
+        await fs.makeTempDir({ prefix: "nos_git_other_" }),
+      );
+      try {
+        await createRepo(project.realGit, other);
+        const commit = await interpreterGit(
+          project,
+          ["commit", "--allow-empty", "-m", "test fixture"],
+          other,
+        );
+
+        assert.assertEquals(commit.code, 0, commit.stderr);
+        assert.assertEquals(await commitCount(project.realGit, other), 1);
+      } finally {
+        await fs.remove(other, { recursive: true });
+      }
+    });
+  },
+);
+
+nodeTest.test(
+  "wrapper lets the commit through once allowGit is true",
+  async () => {
+    await withProject(async (project) => {
+      await writeAllowGit(project.root, true);
+
+      const result = await interpreterGit(project, [
+        "commit",
+        "--allow-empty",
+        "-m",
+        "allowed",
+      ]);
+
+      assert.assertEquals(result.code, 0, result.stderr);
+      assert.assertEquals(await commitCount(project.realGit, project.root), 2);
+    });
+  },
+);
+
+nodeTest.test(
+  "the run loop's own commit works with the wrapper first on PATH",
+  async () => {
+    await withProject(async (project) => {
+      // A commit hook that calls git itself, as lint-staged does. Through the
+      // wrapper this `git add` would be a refused write to the project.
+      await fs.writeTextFile(
+        `${project.root}/.test-hooks/pre-commit`,
+        "#!/bin/sh\ngit add -A\n",
+        { mode: 0o755 },
+      );
+      await fs.chmod(`${project.root}/.test-hooks/pre-commit`, 0o755);
+      await fs.writeTextFile(`${project.root}/feature.txt`, "work\n");
+
+      const env = {
+        ...crossRuntime.runtime.env.toObject(),
+        PATH: gitWrapper.prependToPath(
+          crossRuntime.runtime.env.get("PATH") ?? "",
+          project.wrapper.binDir,
+        ),
+      };
+      const committed = await run.autoCommit(
+        project.root,
+        "noskills: iteration 1: progress",
+        project.wrapper,
+        env,
       );
 
-      assert.assertEquals(commit.code, 0, commit.stderr);
-      assert.assertEquals(await commitCount(project.realGit, other), 1);
-    } finally {
-      await fs.remove(other, { recursive: true });
-    }
-  });
-});
-
-Deno.test("wrapper lets the commit through once allowGit is true", async () => {
-  await withProject(async (project) => {
-    await writeAllowGit(project.root, true);
-
-    const result = await interpreterGit(project, [
-      "commit",
-      "--allow-empty",
-      "-m",
-      "allowed",
-    ]);
-
-    assert.assertEquals(result.code, 0, result.stderr);
-    assert.assertEquals(await commitCount(project.realGit, project.root), 2);
-  });
-});
-
-Deno.test("the run loop's own commit works with the wrapper first on PATH", async () => {
-  await withProject(async (project) => {
-    // A commit hook that calls git itself, as lint-staged does. Through the
-    // wrapper this `git add` would be a refused write to the project.
-    await fs.writeTextFile(
-      `${project.root}/.test-hooks/pre-commit`,
-      "#!/bin/sh\ngit add -A\n",
-      { mode: 0o755 },
-    );
-    await fs.chmod(`${project.root}/.test-hooks/pre-commit`, 0o755);
-    await fs.writeTextFile(`${project.root}/feature.txt`, "work\n");
-
-    const env = {
-      ...crossRuntime.runtime.env.toObject(),
-      PATH: gitWrapper.prependToPath(
-        crossRuntime.runtime.env.get("PATH") ?? "",
-        project.wrapper.binDir,
-      ),
-    };
-    const committed = await run.autoCommit(
-      project.root,
-      "noskills: iteration 1: progress",
-      project.wrapper,
-      env,
-    );
-
-    assert.assertEquals(committed, true);
-    assert.assertEquals(await commitCount(project.realGit, project.root), 2);
-    assert.assertEquals(
-      await run.autoCommit(project.root, "nothing", project.wrapper, env),
-      false,
-    );
-  });
-});
+      assert.assertEquals(committed, true);
+      assert.assertEquals(await commitCount(project.realGit, project.root), 2);
+      assert.assertEquals(
+        await run.autoCommit(project.root, "nothing", project.wrapper, env),
+        false,
+      );
+    });
+  },
+);
 
 // A short bound keeps the test fast; the default is GIT_CHECK_TIMEOUT_SECONDS.
 const HANG_TIMEOUT_SECONDS = 2;
@@ -438,95 +475,107 @@ const HANGING_CHECKS: readonly {
 ];
 
 for (const { name, script } of HANGING_CHECKS) {
-  Deno.test(`wrapper refuses the command within its bound for ${name}`, async () => {
-    await withProject(async (project) => {
-      const check = `${project.root}/.test-hooks/hanging-check.sh`;
-      await fs.writeTextFile(check, script, { mode: 0o755 });
-      await fs.chmod(check, 0o755);
-      const wrapper = await gitWrapperInstall.installGitWrapper(
-        project.root,
-        gitWrapper.shellQuote(check),
-        { checkTimeoutSeconds: HANG_TIMEOUT_SECONDS },
-      );
-      if (wrapper === null) throw new Error("the wrapper was not installed");
+  nodeTest.test(
+    `wrapper refuses the command within its bound for ${name}`,
+    async () => {
+      await withProject(async (project) => {
+        const check = `${project.root}/.test-hooks/hanging-check.sh`;
+        await fs.writeTextFile(check, script, { mode: 0o755 });
+        await fs.chmod(check, 0o755);
+        const wrapper = await gitWrapperInstall.installGitWrapper(
+          project.root,
+          gitWrapper.shellQuote(check),
+          { checkTimeoutSeconds: HANG_TIMEOUT_SECONDS },
+        );
+        if (wrapper === null) throw new Error("the wrapper was not installed");
 
-      const started = performance.now();
-      const result = await interpreterGit({ ...project, wrapper }, [
-        "commit",
-        "--allow-empty",
-        "-m",
-        "agent commit",
-      ]);
-      const elapsedMs = performance.now() - started;
+        const started = performance.now();
+        const result = await interpreterGit({ ...project, wrapper }, [
+          "commit",
+          "--allow-empty",
+          "-m",
+          "agent commit",
+        ]);
+        const elapsedMs = performance.now() - started;
 
-      assert.assertNotEquals(result.code, 0);
-      assert.assertStringIncludes(
-        result.stderr,
-        `did not answer within ${HANG_TIMEOUT_SECONDS} seconds`,
-      );
-      assert.assertLess(
-        elapsedMs,
-        (HANG_TIMEOUT_SECONDS + gitWrapper.GIT_CHECK_KILL_GRACE_SECONDS) *
-          1000 +
-          HANG_SLACK_MS,
-      );
-      assert.assertEquals(await commitCount(project.realGit, project.root), 1);
-    });
-  });
+        assert.assertNotEquals(result.code, 0);
+        assert.assertStringIncludes(
+          result.stderr,
+          `did not answer within ${HANG_TIMEOUT_SECONDS} seconds`,
+        );
+        assert.assertLess(
+          elapsedMs,
+          (HANG_TIMEOUT_SECONDS + gitWrapper.GIT_CHECK_KILL_GRACE_SECONDS) *
+            1000 +
+            HANG_SLACK_MS,
+        );
+        assert.assertEquals(
+          await commitCount(project.realGit, project.root),
+          1,
+        );
+      });
+    },
+  );
 }
 
-Deno.test("buildWrapperScript rejects a timeout that is not a positive whole number", () => {
-  for (const checkTimeoutSeconds of [0, -1, 1.5, Number.NaN]) {
-    assert.assertThrows(
-      () =>
-        gitWrapper.buildWrapperScript({
-          realGit: "/usr/bin/git",
-          projectGitDir: "/p/.git",
-          projectRoot: "/p",
-          commandPrefix: "noskills",
-          checkTimeoutSeconds,
-        }),
-      Error,
-      "checkTimeoutSeconds",
-    );
-  }
-});
-
-Deno.test("checkGitExec decides by the repository a write acts on", async () => {
-  await withProject(async (project) => {
-    const elsewhere = await fs.makeTempDir({ prefix: "nos_git_elsewhere_" });
-    const context = {
-      root: project.root,
-      realGit: project.realGit,
-      cwd: elsewhere,
-    };
-    try {
-      const cases: readonly [readonly string[], boolean][] = [
-        [["commit", "-m", "x"], false],
-        [["--git-dir", `${project.root}/.git`, "commit", "-m", "x"], true],
-        [["-C", project.root, "reset", "--hard"], true],
-        [["push", "origin", "main"], true],
-        [["clone", "https://example.com/r.git"], false],
-        [["-C", project.root, "status"], false],
-        [["--no-advice", "-C", project.root, "commit", "-m", "x"], true],
-        // An option the guard does not know may hide a `-C <project>` after it.
-        [["--future-option", "-C", project.root, "commit", "-m", "x"], true],
-      ];
-
-      const verdicts = await Promise.all(
-        cases.map(([args]) => gitWrapperInstall.checkGitExec(args, context)),
+nodeTest.test(
+  "buildWrapperScript rejects a timeout that is not a positive whole number",
+  () => {
+    for (const checkTimeoutSeconds of [0, -1, 1.5, Number.NaN]) {
+      assert.assertThrows(
+        () =>
+          gitWrapper.buildWrapperScript({
+            realGit: "/usr/bin/git",
+            projectGitDir: "/p/.git",
+            projectRoot: "/p",
+            commandPrefix: "noskills",
+            checkTimeoutSeconds,
+          }),
+        Error,
+        "checkTimeoutSeconds",
       );
-
-      for (const [i, [args, refused]] of cases.entries()) {
-        assert.assertEquals(verdicts[i] !== null, refused, args.join(" "));
-      }
-    } finally {
-      await fs.remove(elsewhere, { recursive: true });
     }
-  });
-});
+  },
+);
 
-Deno.test("exportFromEnvFile adds the PATH export once", async () => {
+nodeTest.test(
+  "checkGitExec decides by the repository a write acts on",
+  async () => {
+    await withProject(async (project) => {
+      const elsewhere = await fs.makeTempDir({ prefix: "nos_git_elsewhere_" });
+      const context = {
+        root: project.root,
+        realGit: project.realGit,
+        cwd: elsewhere,
+      };
+      try {
+        const cases: readonly [readonly string[], boolean][] = [
+          [["commit", "-m", "x"], false],
+          [["--git-dir", `${project.root}/.git`, "commit", "-m", "x"], true],
+          [["-C", project.root, "reset", "--hard"], true],
+          [["push", "origin", "main"], true],
+          [["clone", "https://example.com/r.git"], false],
+          [["-C", project.root, "status"], false],
+          [["--no-advice", "-C", project.root, "commit", "-m", "x"], true],
+          // An option the guard does not know may hide a `-C <project>` after it.
+          [["--future-option", "-C", project.root, "commit", "-m", "x"], true],
+        ];
+
+        const verdicts = await Promise.all(
+          cases.map(([args]) => gitWrapperInstall.checkGitExec(args, context)),
+        );
+
+        for (const [i, [args, refused]] of cases.entries()) {
+          assert.assertEquals(verdicts[i] !== null, refused, args.join(" "));
+        }
+      } finally {
+        await fs.remove(elsewhere, { recursive: true });
+      }
+    });
+  },
+);
+
+nodeTest.test("exportFromEnvFile adds the PATH export once", async () => {
   const dir = await fs.makeTempDir({ prefix: "nos_git_env_" });
   try {
     const envFile = `${dir}/env.sh`;

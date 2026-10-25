@@ -3,11 +3,12 @@
  * Tests for RSC Wire Protocol
  */
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as protocol from "./protocol.ts";
 import type { RSCChunk } from "./protocol.ts";
 
-Deno.test("track-l-delete: RSC Protocol - Serialize Module Chunk", () => {
+nodeTest.test("track-l-delete: RSC Protocol - Serialize Module Chunk", () => {
   const chunk: RSCChunk = {
     type: "M",
     id: 1,
@@ -25,7 +26,7 @@ Deno.test("track-l-delete: RSC Protocol - Serialize Module Chunk", () => {
   );
 });
 
-Deno.test("track-l-delete: RSC Protocol - Serialize JSON Chunk", () => {
+nodeTest.test("track-l-delete: RSC Protocol - Serialize JSON Chunk", () => {
   const chunk: RSCChunk = {
     type: "J",
     id: 0,
@@ -36,7 +37,7 @@ Deno.test("track-l-delete: RSC Protocol - Serialize JSON Chunk", () => {
   assert.assertEquals(serialized, 'J0:{"message":"Hello, RSC!"}\n');
 });
 
-Deno.test("track-l-delete: RSC Protocol - Serialize Error Chunk", () => {
+nodeTest.test("track-l-delete: RSC Protocol - Serialize Error Chunk", () => {
   const chunk: RSCChunk = {
     type: "E",
     id: 2,
@@ -48,7 +49,7 @@ Deno.test("track-l-delete: RSC Protocol - Serialize Error Chunk", () => {
   assert.assertEquals(serialized.startsWith("E2:"), true);
 });
 
-Deno.test("track-l-delete: RSC Protocol - Parse Module Chunk", () => {
+nodeTest.test("track-l-delete: RSC Protocol - Parse Module Chunk", () => {
   const line =
     'M1:{"id":"./counter.tsx","chunks":["client"],"name":"default"}\n';
   const parsed = protocol.parseChunk(line);
@@ -60,7 +61,7 @@ Deno.test("track-l-delete: RSC Protocol - Parse Module Chunk", () => {
   assert.assertEquals((parsed?.value as any).id, "./counter.tsx");
 });
 
-Deno.test("track-l-delete: RSC Protocol - Parse JSON Chunk", () => {
+nodeTest.test("track-l-delete: RSC Protocol - Parse JSON Chunk", () => {
   const line = 'J0:{"message":"Hello"}\n';
   const parsed = protocol.parseChunk(line);
 
@@ -71,7 +72,7 @@ Deno.test("track-l-delete: RSC Protocol - Parse JSON Chunk", () => {
   assert.assertEquals((parsed?.value as any).message, "Hello");
 });
 
-Deno.test("track-l-delete: RSC Protocol - Round-trip Serialization", () => {
+nodeTest.test("track-l-delete: RSC Protocol - Round-trip Serialization", () => {
   const original: RSCChunk = {
     type: "J",
     id: 5,
@@ -90,7 +91,7 @@ Deno.test("track-l-delete: RSC Protocol - Round-trip Serialization", () => {
   );
 });
 
-Deno.test("track-l-delete: RSC Protocol - Create Client Reference", () => {
+nodeTest.test("track-l-delete: RSC Protocol - Create Client Reference", () => {
   const ref = protocol.createClientReference("./Button.tsx", "default");
 
   assert.assertExists(ref);
@@ -99,7 +100,7 @@ Deno.test("track-l-delete: RSC Protocol - Create Client Reference", () => {
   assert.assertEquals(ref.name, "default");
 });
 
-Deno.test("track-l-delete: RSC Protocol - Is Client Reference", () => {
+nodeTest.test("track-l-delete: RSC Protocol - Is Client Reference", () => {
   const ref = protocol.createClientReference("./Button.tsx", "default");
   assert.assertEquals(protocol.isClientReference(ref), true);
 
@@ -110,13 +111,13 @@ Deno.test("track-l-delete: RSC Protocol - Is Client Reference", () => {
   assert.assertEquals(protocol.isClientReference("string"), false);
 });
 
-Deno.test("track-l-delete: RSC Protocol - Parse Invalid Chunk", () => {
+nodeTest.test("track-l-delete: RSC Protocol - Parse Invalid Chunk", () => {
   const invalid = "invalid chunk data";
   const parsed = protocol.parseChunk(invalid);
   assert.assertEquals(parsed, null);
 });
 
-Deno.test("track-l-delete: RSC Protocol - Parse Empty String", () => {
+nodeTest.test("track-l-delete: RSC Protocol - Parse Empty String", () => {
   const parsed = protocol.parseChunk("");
   assert.assertEquals(parsed, null);
 });
@@ -133,37 +134,46 @@ const ESCAPE_CASES: ReadonlyArray<{
 ];
 
 for (const { input, expected } of ESCAPE_CASES) {
-  Deno.test(`track-l-delete: RSC Protocol - escapeString turns "${input}" into "${expected}"`, () => {
-    assert.assertEquals(protocol.escapeString(input), expected);
-  });
+  nodeTest.test(
+    `track-l-delete: RSC Protocol - escapeString turns "${input}" into "${expected}"`,
+    () => {
+      assert.assertEquals(protocol.escapeString(input), expected);
+    },
+  );
 }
 
-Deno.test("track-l-delete: RSC Protocol - encodeJsonValue keeps JSON semantics and escapes nested strings", () => {
-  const encoded = protocol.encodeJsonValue({
-    label: "$5 off",
-    tags: ["$a", "b"],
-    at: new Date("2026-01-02T00:00:00.000Z"),
-    counts: new Map([["views", 3]]),
-    onClick: () => {},
-    missing: undefined,
-  });
+nodeTest.test(
+  "track-l-delete: RSC Protocol - encodeJsonValue keeps JSON semantics and escapes nested strings",
+  () => {
+    const encoded = protocol.encodeJsonValue({
+      label: "$5 off",
+      tags: ["$a", "b"],
+      at: new Date("2026-01-02T00:00:00.000Z"),
+      counts: new Map([["views", 3]]),
+      onClick: () => {},
+      missing: undefined,
+    });
 
-  assert.assertEquals(encoded, {
-    label: "$$5 off",
-    tags: ["$$a", "b"],
-    at: "2026-01-02T00:00:00.000Z",
-    counts: {},
-  });
-});
+    assert.assertEquals(encoded, {
+      label: "$$5 off",
+      tags: ["$$a", "b"],
+      at: "2026-01-02T00:00:00.000Z",
+      counts: {},
+    });
+  },
+);
 
-Deno.test("track-l-delete: RSC Protocol - encodeJsonValue drops what JSON.stringify drops", () => {
-  assert.assertEquals(protocol.encodeJsonValue(undefined), undefined);
-  assert.assertEquals(
-    protocol.encodeJsonValue(() => {}),
-    undefined,
-  );
-  assert.assertEquals(protocol.encodeJsonValue(Symbol("s")), undefined);
-  assert.assertEquals(protocol.encodeJsonValue(null), null);
-  assert.assertEquals(protocol.encodeJsonValue(0), 0);
-  assert.assertEquals(protocol.encodeJsonValue(false), false);
-});
+nodeTest.test(
+  "track-l-delete: RSC Protocol - encodeJsonValue drops what JSON.stringify drops",
+  () => {
+    assert.assertEquals(protocol.encodeJsonValue(undefined), undefined);
+    assert.assertEquals(
+      protocol.encodeJsonValue(() => {}),
+      undefined,
+    );
+    assert.assertEquals(protocol.encodeJsonValue(Symbol("s")), undefined);
+    assert.assertEquals(protocol.encodeJsonValue(null), null);
+    assert.assertEquals(protocol.encodeJsonValue(0), 0);
+    assert.assertEquals(protocol.encodeJsonValue(false), false);
+  },
+);

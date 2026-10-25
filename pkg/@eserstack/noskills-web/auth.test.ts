@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as auth from "./auth.ts";
 
@@ -8,7 +9,7 @@ const PORT = 3000;
 const req = (url: string, init?: RequestInit): Request =>
   new Request(url, init);
 
-Deno.test("createToken mints a fresh 32-byte hex token each call", () => {
+nodeTest.test("createToken mints a fresh 32-byte hex token each call", () => {
   const a = auth.createToken();
   const b = auth.createToken();
 
@@ -17,7 +18,7 @@ Deno.test("createToken mints a fresh 32-byte hex token each call", () => {
   assert.assert(a !== b, "tokens must not repeat");
 });
 
-Deno.test("query token: only the exact value is accepted", () => {
+nodeTest.test("query token: only the exact value is accepted", () => {
   const token = auth.createToken();
 
   assert.assert(
@@ -48,7 +49,7 @@ Deno.test("query token: only the exact value is accepted", () => {
   );
 });
 
-Deno.test("header token: only the exact value is accepted", () => {
+nodeTest.test("header token: only the exact value is accepted", () => {
   const token = auth.createToken();
 
   assert.assert(
@@ -69,7 +70,7 @@ Deno.test("header token: only the exact value is accepted", () => {
   );
 });
 
-Deno.test("origin allowlist covers the three loopback spellings", () => {
+nodeTest.test("origin allowlist covers the three loopback spellings", () => {
   for (const origin of [
     `http://localhost:${PORT}`,
     `http://127.0.0.1:${PORT}`,
@@ -85,30 +86,36 @@ Deno.test("origin allowlist covers the three loopback spellings", () => {
   }
 });
 
-Deno.test("origin allowlist rejects foreign and same-host-other-port origins", () => {
-  for (const origin of [
-    "https://evil.example",
-    "http://localhost:9999",
-    "http://192.168.1.10:3000",
-    "null",
-  ]) {
-    assert.assertFalse(
-      auth.isOriginAllowed(
-        req(`http://localhost:${PORT}/mux`, { headers: { origin } }),
-        PORT,
-      ),
-      `${origin} should be rejected`,
+nodeTest.test(
+  "origin allowlist rejects foreign and same-host-other-port origins",
+  () => {
+    for (const origin of [
+      "https://evil.example",
+      "http://localhost:9999",
+      "http://192.168.1.10:3000",
+      "null",
+    ]) {
+      assert.assertFalse(
+        auth.isOriginAllowed(
+          req(`http://localhost:${PORT}/mux`, { headers: { origin } }),
+          PORT,
+        ),
+        `${origin} should be rejected`,
+      );
+    }
+  },
+);
+
+nodeTest.test(
+  "a missing Origin is allowed; the token is what gates non-browsers",
+  () => {
+    assert.assert(
+      auth.isOriginAllowed(req(`http://localhost:${PORT}/mux`), PORT),
     );
-  }
-});
+  },
+);
 
-Deno.test("a missing Origin is allowed; the token is what gates non-browsers", () => {
-  assert.assert(
-    auth.isOriginAllowed(req(`http://localhost:${PORT}/mux`), PORT),
-  );
-});
-
-Deno.test("only application/json passes the content-type gate", () => {
+nodeTest.test("only application/json passes the content-type gate", () => {
   const post = (contentType: string): Request =>
     req(`http://localhost:${PORT}/api/tab`, {
       method: "POST",

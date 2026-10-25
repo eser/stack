@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import type * as types from "./types.ts";
 import * as matcher from "./matcher.ts";
@@ -108,25 +109,28 @@ const matchCases: ReadonlyArray<{
 ];
 
 for (const { name, pathname, pattern, expected } of matchCases) {
-  Deno.test(`matchRoute ${name}`, () => {
+  nodeTest.test(`matchRoute ${name}`, () => {
     assert.assertEquals(matcher.matchRoute(pathname, route(pattern)), expected);
   });
 }
 
-Deno.test("matchRoute returns a catch-all list the caller may change", () => {
-  const params = matcher.matchRoute("/docs/a/b", route("/docs/[...path]"));
+nodeTest.test(
+  "matchRoute returns a catch-all list the caller may change",
+  () => {
+    const params = matcher.matchRoute("/docs/a/b", route("/docs/[...path]"));
 
-  assert.assertNotEquals(params, null);
-  const segments = params?.["path"];
-  assert.assert(Array.isArray(segments));
-  segments.push("c");
-  assert.assertEquals(
-    matcher.matchRoute("/docs/a/b", route("/docs/[...path]")),
-    { path: ["a", "b"] },
-  );
-});
+    assert.assertNotEquals(params, null);
+    const segments = params?.["path"];
+    assert.assert(Array.isArray(segments));
+    segments.push("c");
+    assert.assertEquals(
+      matcher.matchRoute("/docs/a/b", route("/docs/[...path]")),
+      { path: ["a", "b"] },
+    );
+  },
+);
 
-Deno.test("findMatchingRoute returns the first route that matches", () => {
+nodeTest.test("findMatchingRoute returns the first route that matches", () => {
   const featured = route("/stories/featured");
   const story = route("/stories/[slug]");
 
@@ -140,19 +144,22 @@ Deno.test("findMatchingRoute returns the first route that matches", () => {
   );
 });
 
-Deno.test("findMatchingRoute lets an earlier, broader route shadow a later one", () => {
-  const story = route("/stories/[slug]");
-  const featured = route("/stories/featured");
+nodeTest.test(
+  "findMatchingRoute lets an earlier, broader route shadow a later one",
+  () => {
+    const story = route("/stories/[slug]");
+    const featured = route("/stories/featured");
 
-  const match = matcher.findMatchingRoute("/stories/featured", [
-    story,
-    featured,
-  ]);
+    const match = matcher.findMatchingRoute("/stories/featured", [
+      story,
+      featured,
+    ]);
 
-  assert.assertStrictEquals(match?.route, story);
-});
+    assert.assertStrictEquals(match?.route, story);
+  },
+);
 
-Deno.test("matchRoute reads only the path of the route it is given", () => {
+nodeTest.test("matchRoute reads only the path of the route it is given", () => {
   assert.assertEquals(
     matcher.matchRoute("/api/items/42", { path: "/api/items/[id]" }),
     { id: "42" },
@@ -160,21 +167,27 @@ Deno.test("matchRoute reads only the path of the route it is given", () => {
 });
 
 for (const pathname of ["/docs", "/docs/", "/docs/guide/"]) {
-  Deno.test(`findMatchingRoute sends "${pathname}" and its normalized form to the same catch-all`, () => {
-    const index = route("/");
-    const docs = route("/docs/[...path]");
+  nodeTest.test(
+    `findMatchingRoute sends "${pathname}" and its normalized form to the same catch-all`,
+    () => {
+      const index = route("/");
+      const docs = route("/docs/[...path]");
 
-    const match = matcher.findMatchingRoute(pathname, [index, docs]);
+      const match = matcher.findMatchingRoute(pathname, [index, docs]);
 
-    assert.assertStrictEquals(match?.route, docs);
-    assert.assertEquals(
-      matcher.findMatchingRoute(matcher.normalizePath(pathname), [index, docs]),
-      match,
-    );
-  });
+      assert.assertStrictEquals(match?.route, docs);
+      assert.assertEquals(
+        matcher.findMatchingRoute(matcher.normalizePath(pathname), [
+          index,
+          docs,
+        ]),
+        match,
+      );
+    },
+  );
 }
 
-Deno.test("findMatchingRoute returns null when no route matches", () => {
+nodeTest.test("findMatchingRoute returns null when no route matches", () => {
   assert.assertEquals(
     matcher.findMatchingRoute("/missing", [route("/"), route("/about")]),
     null,
@@ -192,7 +205,7 @@ const normalizeCases: ReadonlyArray<readonly [string, string]> = [
 ];
 
 for (const [input, expected] of normalizeCases) {
-  Deno.test(`normalizePath("${input}") is "${expected}"`, () => {
+  nodeTest.test(`normalizePath("${input}") is "${expected}"`, () => {
     assert.assertEquals(matcher.normalizePath(input), expected);
   });
 }

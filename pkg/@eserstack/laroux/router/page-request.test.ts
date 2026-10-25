@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as pageRequest from "./page-request.ts";
 
@@ -54,7 +55,7 @@ const cookieCases: ReadonlyArray<{
 ];
 
 for (const { name, header, expected } of cookieCases) {
-  Deno.test(`parseCookieHeader ${name}`, () => {
+  nodeTest.test(`parseCookieHeader ${name}`, () => {
     assert.assertEquals(
       [...pageRequest.parseCookieHeader(header)],
       [...expected],
@@ -62,7 +63,7 @@ for (const { name, header, expected } of cookieCases) {
   });
 }
 
-Deno.test("createPageRequest fills in what the input leaves out", () => {
+nodeTest.test("createPageRequest fills in what the input leaves out", () => {
   const request = pageRequest.createPageRequest({});
 
   assert.assertEquals(request.cookies.size, 0);
@@ -70,14 +71,17 @@ Deno.test("createPageRequest fills in what the input leaves out", () => {
   assert.assertEquals(request.locale, null);
 });
 
-Deno.test("createPageRequest parses the cookies and keeps host and locale", () => {
-  const request = pageRequest.createPageRequest({
-    cookieHeader: "user=ada",
-    host: "shop.test",
-    locale: "tr",
-  });
+nodeTest.test(
+  "createPageRequest parses the cookies and keeps host and locale",
+  () => {
+    const request = pageRequest.createPageRequest({
+      cookieHeader: "user=ada",
+      host: "shop.test",
+      locale: "tr",
+    });
 
-  assert.assertEquals(request.cookies.get("user"), "ada");
-  assert.assertEquals(request.host, "shop.test");
-  assert.assertEquals(request.locale, "tr");
-});
+    assert.assertEquals(request.cookies.get("user"), "ada");
+    assert.assertEquals(request.host, "shop.test");
+    assert.assertEquals(request.locale, "tr");
+  },
+);

@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as path from "@std/path";
 import * as crossRuntime from "@eserstack/standards/cross-runtime";
@@ -35,11 +36,10 @@ const withFixture = async (
 
 // sanitizeResources: false — the FFI DynamicLibrary singleton persists for the
 // process lifetime.
-Deno.test({
-  name: "validate-naming-and-todos fails a fixture with an untagged TODO comment",
-  ignore: withoutFfi,
-  sanitizeResources: false,
-  fn: async () => {
+nodeTest.test(
+  "validate-naming-and-todos fails a fixture with an untagged TODO comment",
+  { skip: withoutFfi },
+  async () => {
     await withFixture(
       {
         "untagged.ts": "// TODO: handle the empty case\nexport const x = 1;\n",
@@ -62,13 +62,12 @@ Deno.test({
       },
     );
   },
-});
+);
 
-Deno.test({
-  name: "validate-naming-and-todos run() reports a snake_case declaration",
-  ignore: withoutFfi,
-  sanitizeResources: false,
-  fn: async () => {
+nodeTest.test(
+  "validate-naming-and-todos run() reports a snake_case declaration",
+  { skip: withoutFfi },
+  async () => {
     await withFixture(
       {
         "names.ts": "export const user_id = 1;\nexport const userName = 2;\n",
@@ -82,13 +81,12 @@ Deno.test({
       },
     );
   },
-});
+);
 
-Deno.test({
-  name: "validate-naming-and-todos accepts names listed in allowNames",
-  ignore: withoutFfi,
-  sanitizeResources: false,
-  fn: async () => {
+nodeTest.test(
+  "validate-naming-and-todos accepts names listed in allowNames",
+  { skip: withoutFfi },
+  async () => {
     await withFixture(
       {
         "names.ts": 'export const grant_type = "code";\n',
@@ -103,4 +101,4 @@ Deno.test({
       },
     );
   },
-});
+);

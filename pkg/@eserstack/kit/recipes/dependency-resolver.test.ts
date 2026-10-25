@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import { runtime } from "@eserstack/standards/cross-runtime";
 import * as dependencyResolver from "./dependency-resolver.ts";
@@ -8,7 +9,7 @@ import * as dependencyResolver from "./dependency-resolver.ts";
 // detectProjectType
 // =============================================================================
 
-Deno.test("detectProjectType — detects go.mod", async () => {
+nodeTest.test("detectProjectType — detects go.mod", async () => {
   const tmpDir = await runtime.fs.makeTempDir();
 
   try {
@@ -25,7 +26,7 @@ Deno.test("detectProjectType — detects go.mod", async () => {
   }
 });
 
-Deno.test("detectProjectType — detects deno.json", async () => {
+nodeTest.test("detectProjectType — detects deno.json", async () => {
   const tmpDir = await runtime.fs.makeTempDir();
 
   try {
@@ -39,7 +40,7 @@ Deno.test("detectProjectType — detects deno.json", async () => {
   }
 });
 
-Deno.test("detectProjectType — detects deno.jsonc", async () => {
+nodeTest.test("detectProjectType — detects deno.jsonc", async () => {
   const tmpDir = await runtime.fs.makeTempDir();
 
   try {
@@ -53,7 +54,7 @@ Deno.test("detectProjectType — detects deno.jsonc", async () => {
   }
 });
 
-Deno.test("detectProjectType — detects package.json", async () => {
+nodeTest.test("detectProjectType — detects package.json", async () => {
   const tmpDir = await runtime.fs.makeTempDir();
 
   try {
@@ -67,7 +68,7 @@ Deno.test("detectProjectType — detects package.json", async () => {
   }
 });
 
-Deno.test("detectProjectType — returns unknown for empty dir", async () => {
+nodeTest.test("detectProjectType — returns unknown for empty dir", async () => {
   const tmpDir = await runtime.fs.makeTempDir();
 
   try {
@@ -84,47 +85,53 @@ Deno.test("detectProjectType — returns unknown for empty dir", async () => {
 // getDependencyInstructions
 // =============================================================================
 
-Deno.test("getDependencyInstructions — generates go get instructions", () => {
-  const recipe = {
-    name: "test",
-    description: "Test",
-    language: "go",
-    scale: "structure" as const,
-    files: [{ source: "a", target: "b" }],
-    dependencies: { go: ["github.com/example/pkg@latest"] },
-  };
+nodeTest.test(
+  "getDependencyInstructions — generates go get instructions",
+  () => {
+    const recipe = {
+      name: "test",
+      description: "Test",
+      language: "go",
+      scale: "structure" as const,
+      files: [{ source: "a", target: "b" }],
+      dependencies: { go: ["github.com/example/pkg@latest"] },
+    };
 
-  const result = dependencyResolver.getDependencyInstructions(recipe, {
-    type: "go",
-    configFile: "go.mod",
-  });
+    const result = dependencyResolver.getDependencyInstructions(recipe, {
+      type: "go",
+      configFile: "go.mod",
+    });
 
-  assert.assertEquals(result.instructions.length, 1);
-  assert.assertStringIncludes(result.instructions[0]!, "go get");
-  assert.assertEquals(result.warnings.length, 0);
-});
+    assert.assertEquals(result.instructions.length, 1);
+    assert.assertStringIncludes(result.instructions[0]!, "go get");
+    assert.assertEquals(result.warnings.length, 0);
+  },
+);
 
-Deno.test("getDependencyInstructions — generates deno add instructions", () => {
-  const recipe = {
-    name: "test",
-    description: "Test",
-    language: "typescript",
-    scale: "utility" as const,
-    files: [{ source: "a", target: "b" }],
-    dependencies: { jsr: ["jsr:@eserstack/fp@^4.1.0"] },
-  };
+nodeTest.test(
+  "getDependencyInstructions — generates deno add instructions",
+  () => {
+    const recipe = {
+      name: "test",
+      description: "Test",
+      language: "typescript",
+      scale: "utility" as const,
+      files: [{ source: "a", target: "b" }],
+      dependencies: { jsr: ["jsr:@eserstack/fp@^4.1.0"] },
+    };
 
-  const result = dependencyResolver.getDependencyInstructions(recipe, {
-    type: "deno",
-    configFile: "deno.json",
-  });
+    const result = dependencyResolver.getDependencyInstructions(recipe, {
+      type: "deno",
+      configFile: "deno.json",
+    });
 
-  assert.assertEquals(result.instructions.length, 1);
-  assert.assertStringIncludes(result.instructions[0]!, "deno add");
-  assert.assertEquals(result.warnings.length, 0);
-});
+    assert.assertEquals(result.instructions.length, 1);
+    assert.assertStringIncludes(result.instructions[0]!, "deno add");
+    assert.assertEquals(result.warnings.length, 0);
+  },
+);
 
-Deno.test("getDependencyInstructions — returns empty for no deps", () => {
+nodeTest.test("getDependencyInstructions — returns empty for no deps", () => {
   const recipe = {
     name: "test",
     description: "Test",
@@ -142,7 +149,7 @@ Deno.test("getDependencyInstructions — returns empty for no deps", () => {
   assert.assertEquals(result.warnings.length, 0);
 });
 
-Deno.test("getDependencyInstructions — warns on language mismatch", () => {
+nodeTest.test("getDependencyInstructions — warns on language mismatch", () => {
   const recipe = {
     name: "go-recipe",
     description: "Go recipe",
@@ -162,65 +169,74 @@ Deno.test("getDependencyInstructions — warns on language mismatch", () => {
   assert.assertStringIncludes(result.warnings[0]!, "deno");
 });
 
-Deno.test("getDependencyInstructions — no warning for unknown project type", () => {
-  const recipe = {
-    name: "test",
-    description: "Test",
-    language: "typescript",
-    scale: "utility" as const,
-    files: [{ source: "a", target: "b" }],
-    dependencies: { jsr: ["jsr:@eserstack/fp@^4.1.0"] },
-  };
+nodeTest.test(
+  "getDependencyInstructions — no warning for unknown project type",
+  () => {
+    const recipe = {
+      name: "test",
+      description: "Test",
+      language: "typescript",
+      scale: "utility" as const,
+      files: [{ source: "a", target: "b" }],
+      dependencies: { jsr: ["jsr:@eserstack/fp@^4.1.0"] },
+    };
 
-  const result = dependencyResolver.getDependencyInstructions(recipe, {
-    type: "unknown",
-    configFile: undefined,
-  });
+    const result = dependencyResolver.getDependencyInstructions(recipe, {
+      type: "unknown",
+      configFile: undefined,
+    });
 
-  assert.assertEquals(result.warnings.length, 0);
-});
+    assert.assertEquals(result.warnings.length, 0);
+  },
+);
 
 // =============================================================================
 // installDependencies
 // =============================================================================
 
-Deno.test("installDependencies — dry-run returns commands without executing", async () => {
-  const tmpDir = await runtime.fs.makeTempDir();
+nodeTest.test(
+  "installDependencies — dry-run returns commands without executing",
+  async () => {
+    const tmpDir = await runtime.fs.makeTempDir();
 
-  try {
-    const installResults = await dependencyResolver.installDependencies(
-      ["echo hello", "echo world"],
-      tmpDir,
-      { dryRun: true },
-    );
+    try {
+      const installResults = await dependencyResolver.installDependencies(
+        ["echo hello", "echo world"],
+        tmpDir,
+        { dryRun: true },
+      );
 
-    assert.assertEquals(installResults.length, 2);
-    assert.assertEquals(installResults[0]!.success, true);
-    assert.assertEquals(installResults[0]!.command, "echo hello");
-    assert.assertEquals(installResults[1]!.success, true);
-  } finally {
-    await runtime.fs.remove(tmpDir, { recursive: true });
-  }
-});
+      assert.assertEquals(installResults.length, 2);
+      assert.assertEquals(installResults[0]!.success, true);
+      assert.assertEquals(installResults[0]!.command, "echo hello");
+      assert.assertEquals(installResults[1]!.success, true);
+    } finally {
+      await runtime.fs.remove(tmpDir, { recursive: true });
+    }
+  },
+);
 
-Deno.test("installDependencies — executes commands successfully", async () => {
-  const tmpDir = await runtime.fs.makeTempDir();
+nodeTest.test(
+  "installDependencies — executes commands successfully",
+  async () => {
+    const tmpDir = await runtime.fs.makeTempDir();
 
-  try {
-    const installResults = await dependencyResolver.installDependencies(
-      ["echo test_output"],
-      tmpDir,
-    );
+    try {
+      const installResults = await dependencyResolver.installDependencies(
+        ["echo test_output"],
+        tmpDir,
+      );
 
-    assert.assertEquals(installResults.length, 1);
-    assert.assertEquals(installResults[0]!.success, true);
-    assert.assertEquals(installResults[0]!.command, "echo test_output");
-  } finally {
-    await runtime.fs.remove(tmpDir, { recursive: true });
-  }
-});
+      assert.assertEquals(installResults.length, 1);
+      assert.assertEquals(installResults[0]!.success, true);
+      assert.assertEquals(installResults[0]!.command, "echo test_output");
+    } finally {
+      await runtime.fs.remove(tmpDir, { recursive: true });
+    }
+  },
+);
 
-Deno.test("installDependencies — stops on first failure", async () => {
+nodeTest.test("installDependencies — stops on first failure", async () => {
   const tmpDir = await runtime.fs.makeTempDir();
 
   try {

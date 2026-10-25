@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as mock from "@eserstack/test-kit/mock";
 import * as crossRuntime from "@eserstack/standards/cross-runtime";
@@ -27,39 +28,42 @@ const fakeFetch =
 // parseGitHubRawUrl
 // =============================================================================
 
-Deno.test("sourceBaseFor — a github-provider source sits at the repository root", () => {
-  const registry = "https://raw.githubusercontent.com/eser/stack/main/.eser";
+nodeTest.test(
+  "sourceBaseFor — a github-provider source sits at the repository root",
+  () => {
+    const registry = "https://raw.githubusercontent.com/eser/stack/main/.eser";
 
-  assert.assertEquals(
-    registryFetcher.sourceBaseFor({ source: "x", target: "y" }, registry),
-    registry,
-  );
-  assert.assertEquals(
-    registryFetcher.sourceBaseFor(
-      { source: "pkg/ajan/lib/", target: "y", provider: "github" },
+    assert.assertEquals(
+      registryFetcher.sourceBaseFor({ source: "x", target: "y" }, registry),
       registry,
-    ),
-    "https://raw.githubusercontent.com/eser/stack/main",
-  );
-  assert.assertEquals(
-    registryFetcher.sourceBaseFor(
-      { source: "lib/", target: "y", provider: "github" },
-      "gh:eser/ajan#v1",
-    ),
-    "https://raw.githubusercontent.com/eser/ajan/v1",
-  );
-  assert.assertThrows(
-    () =>
+    );
+    assert.assertEquals(
+      registryFetcher.sourceBaseFor(
+        { source: "pkg/ajan/lib/", target: "y", provider: "github" },
+        registry,
+      ),
+      "https://raw.githubusercontent.com/eser/stack/main",
+    );
+    assert.assertEquals(
       registryFetcher.sourceBaseFor(
         { source: "lib/", target: "y", provider: "github" },
-        "https://example.com/registry",
+        "gh:eser/ajan#v1",
       ),
-    registryFetcher.RecipeLoadError,
-    "GitHub",
-  );
-});
+      "https://raw.githubusercontent.com/eser/ajan/v1",
+    );
+    assert.assertThrows(
+      () =>
+        registryFetcher.sourceBaseFor(
+          { source: "lib/", target: "y", provider: "github" },
+          "https://example.com/registry",
+        ),
+      registryFetcher.RecipeLoadError,
+      "GitHub",
+    );
+  },
+);
 
-Deno.test("parseGitHubRawUrl — parses standard raw URL", () => {
+nodeTest.test("parseGitHubRawUrl — parses standard raw URL", () => {
   const result = registryFetcher.parseGitHubRawUrl(
     "https://raw.githubusercontent.com/eser/stack/main/.eser",
   );
@@ -71,7 +75,7 @@ Deno.test("parseGitHubRawUrl — parses standard raw URL", () => {
   assert.assertEquals(result!.basePath, ".eser");
 });
 
-Deno.test("parseGitHubRawUrl — parses URL with tag ref", () => {
+nodeTest.test("parseGitHubRawUrl — parses URL with tag ref", () => {
   const result = registryFetcher.parseGitHubRawUrl(
     "https://raw.githubusercontent.com/eser/ajan/v1.0/recipes",
   );
@@ -83,7 +87,7 @@ Deno.test("parseGitHubRawUrl — parses URL with tag ref", () => {
   assert.assertEquals(result!.basePath, "recipes");
 });
 
-Deno.test("parseGitHubRawUrl — parses URL without path", () => {
+nodeTest.test("parseGitHubRawUrl — parses URL without path", () => {
   const result = registryFetcher.parseGitHubRawUrl(
     "https://raw.githubusercontent.com/eser/stack/main",
   );
@@ -92,7 +96,7 @@ Deno.test("parseGitHubRawUrl — parses URL without path", () => {
   assert.assertEquals(result!.basePath, "");
 });
 
-Deno.test("parseGitHubRawUrl — parses URL with deep path", () => {
+nodeTest.test("parseGitHubRawUrl — parses URL with deep path", () => {
   const result = registryFetcher.parseGitHubRawUrl(
     "https://raw.githubusercontent.com/eser/stack/dev/a/b/c/d",
   );
@@ -102,23 +106,29 @@ Deno.test("parseGitHubRawUrl — parses URL with deep path", () => {
   assert.assertEquals(result!.basePath, "a/b/c/d");
 });
 
-Deno.test("parseGitHubRawUrl — returns undefined for non-GitHub URL", () => {
-  const result = registryFetcher.parseGitHubRawUrl(
-    "https://example.com/some/path",
-  );
+nodeTest.test(
+  "parseGitHubRawUrl — returns undefined for non-GitHub URL",
+  () => {
+    const result = registryFetcher.parseGitHubRawUrl(
+      "https://example.com/some/path",
+    );
 
-  assert.assertEquals(result, undefined);
-});
+    assert.assertEquals(result, undefined);
+  },
+);
 
-Deno.test("parseGitHubRawUrl — returns undefined for GitHub API URL", () => {
-  const result = registryFetcher.parseGitHubRawUrl(
-    "https://api.github.com/repos/eser/stack/contents/etc",
-  );
+nodeTest.test(
+  "parseGitHubRawUrl — returns undefined for GitHub API URL",
+  () => {
+    const result = registryFetcher.parseGitHubRawUrl(
+      "https://api.github.com/repos/eser/stack/contents/etc",
+    );
 
-  assert.assertEquals(result, undefined);
-});
+    assert.assertEquals(result, undefined);
+  },
+);
 
-Deno.test("parseGitHubRawUrl — returns undefined for empty string", () => {
+nodeTest.test("parseGitHubRawUrl — returns undefined for empty string", () => {
   const result = registryFetcher.parseGitHubRawUrl("");
 
   assert.assertEquals(result, undefined);
@@ -165,57 +175,65 @@ const badRegistryFiles: ReadonlyArray<{
 ];
 
 for (const testCase of badRegistryFiles) {
-  Deno.test(`fetchRegistry: wraps ${testCase.name} with its cause`, async () => {
-    const dir = await runtime.fs.makeTempDir({ prefix: "kit-registry-test-" });
-    const registryPath = runtime.path.join(dir, "recipes.json");
+  nodeTest.test(
+    `fetchRegistry: wraps ${testCase.name} with its cause`,
+    async () => {
+      const dir = await runtime.fs.makeTempDir({
+        prefix: "kit-registry-test-",
+      });
+      const registryPath = runtime.path.join(dir, "recipes.json");
 
-    try {
-      if (testCase.content !== null) {
-        await runtime.fs.writeTextFile(registryPath, testCase.content);
+      try {
+        if (testCase.content !== null) {
+          await runtime.fs.writeTextFile(registryPath, testCase.content);
+        }
+
+        const error = await assert.assertRejects(
+          () => registryFetcher.fetchRegistry(registryPath),
+          registryFetcher.RegistryLoadError,
+        );
+
+        assert.assertEquals(error.source, registryPath);
+        assert.assertEquals(
+          error.message,
+          `load registry ${registryPath}: ${testCase.step}`,
+        );
+        assert.assertInstanceOf(error.cause, testCase.causeType);
+        assert.assertStringIncludes(
+          (error.cause as Error).message,
+          testCase.causeMessage,
+        );
+      } finally {
+        await runtime.fs.remove(dir, { recursive: true });
       }
-
-      const error = await assert.assertRejects(
-        () => registryFetcher.fetchRegistry(registryPath),
-        registryFetcher.RegistryLoadError,
-      );
-
-      assert.assertEquals(error.source, registryPath);
-      assert.assertEquals(
-        error.message,
-        `load registry ${registryPath}: ${testCase.step}`,
-      );
-      assert.assertInstanceOf(error.cause, testCase.causeType);
-      assert.assertStringIncludes(
-        (error.cause as Error).message,
-        testCase.causeMessage,
-      );
-    } finally {
-      await runtime.fs.remove(dir, { recursive: true });
-    }
-  });
+    },
+  );
 }
 
-Deno.test("fetchRegistry: wraps the HTTP status of a remote registry", async () => {
-  const url = "https://registry.example/.eser/recipes.json";
-  using _fetch = mock.stub(
-    globalThis,
-    "fetch",
-    fakeFetch({ [url]: () => new Response("missing", { status: 404 }) }),
-  );
+nodeTest.test(
+  "fetchRegistry: wraps the HTTP status of a remote registry",
+  async () => {
+    const url = "https://registry.example/.eser/recipes.json";
+    using _fetch = mock.stub(
+      globalThis,
+      "fetch",
+      fakeFetch({ [url]: () => new Response("missing", { status: 404 }) }),
+    );
 
-  const error = await assert.assertRejects(
-    () => registryFetcher.fetchRegistry(url),
-    registryFetcher.RegistryLoadError,
-    `load registry ${url}: download the manifest`,
-  );
+    const error = await assert.assertRejects(
+      () => registryFetcher.fetchRegistry(url),
+      registryFetcher.RegistryLoadError,
+      `load registry ${url}: download the manifest`,
+    );
 
-  assert.assertInstanceOf(error.cause, registryFetcher.RegistryRequestError);
-  assert.assertEquals(error.cause.status, 404);
-  assert.assertEquals(
-    error.cause.message,
-    `GET ${url}: HTTP 404; check that the path exists at this ref`,
-  );
-});
+    assert.assertInstanceOf(error.cause, registryFetcher.RegistryRequestError);
+    assert.assertEquals(error.cause.status, 404);
+    assert.assertEquals(
+      error.cause.message,
+      `GET ${url}: HTTP 404; check that the path exists at this ref`,
+    );
+  },
+);
 
 // =============================================================================
 // fetchRecipeFromRepo: recipe.json failures keep their cause
@@ -224,24 +242,27 @@ Deno.test("fetchRegistry: wraps the HTTP status of a remote registry", async () 
 const recipeUrl =
   "https://raw.githubusercontent.com/owner/repo/main/recipe.json";
 
-Deno.test("fetchRecipeFromRepo: a 404 is RecipeFileNotFoundError", async () => {
-  using _fetch = mock.stub(
-    globalThis,
-    "fetch",
-    fakeFetch({ [recipeUrl]: () => new Response("", { status: 404 }) }),
-  );
+nodeTest.test(
+  "fetchRecipeFromRepo: a 404 is RecipeFileNotFoundError",
+  async () => {
+    using _fetch = mock.stub(
+      globalThis,
+      "fetch",
+      fakeFetch({ [recipeUrl]: () => new Response("", { status: 404 }) }),
+    );
 
-  const error = await assert.assertRejects(
-    () => registryFetcher.fetchRecipeFromRepo("owner", "repo"),
-    registryFetcher.RecipeFileNotFoundError,
-    "load recipe owner/repo@main/recipe.json: no file at this path",
-  );
+    const error = await assert.assertRejects(
+      () => registryFetcher.fetchRecipeFromRepo("owner", "repo"),
+      registryFetcher.RecipeFileNotFoundError,
+      "load recipe owner/repo@main/recipe.json: no file at this path",
+    );
 
-  assert.assertEquals(error.path, "recipe.json");
-  assert.assertInstanceOf(error.cause, registryFetcher.RegistryRequestError);
-});
+    assert.assertEquals(error.path, "recipe.json");
+    assert.assertInstanceOf(error.cause, registryFetcher.RegistryRequestError);
+  },
+);
 
-Deno.test("fetchRecipeFromRepo: wraps another HTTP status", async () => {
+nodeTest.test("fetchRecipeFromRepo: wraps another HTTP status", async () => {
   using _fetch = mock.stub(
     globalThis,
     "fetch",
@@ -259,48 +280,54 @@ Deno.test("fetchRecipeFromRepo: wraps another HTTP status", async () => {
   assert.assertEquals(error.cause.status, 500);
 });
 
-Deno.test("fetchRecipeFromRepo: wraps a recipe.json that is not JSON", async () => {
-  using _fetch = mock.stub(
-    globalThis,
-    "fetch",
-    fakeFetch({ [recipeUrl]: () => new Response("{ not json") }),
-  );
+nodeTest.test(
+  "fetchRecipeFromRepo: wraps a recipe.json that is not JSON",
+  async () => {
+    using _fetch = mock.stub(
+      globalThis,
+      "fetch",
+      fakeFetch({ [recipeUrl]: () => new Response("{ not json") }),
+    );
 
-  const error = await assert.assertRejects(
-    () => registryFetcher.fetchRecipeFromRepo("owner", "repo"),
-    registryFetcher.RecipeLoadError,
-    "load recipe owner/repo@main/recipe.json: the file is not valid JSON",
-  );
+    const error = await assert.assertRejects(
+      () => registryFetcher.fetchRecipeFromRepo("owner", "repo"),
+      registryFetcher.RecipeLoadError,
+      "load recipe owner/repo@main/recipe.json: the file is not valid JSON",
+    );
 
-  assert.assertInstanceOf(error.cause, SyntaxError);
-});
+    assert.assertInstanceOf(error.cause, SyntaxError);
+  },
+);
 
 // =============================================================================
 // detectLocalRegistry
 // =============================================================================
 
-Deno.test("detectLocalRegistry: starts at the given directory", async () => {
-  const root = await runtime.fs.makeTempDir({ prefix: "kit_local_" });
-  try {
-    await runtime.fs.mkdir(`${root}/.eser`, { recursive: true });
-    await runtime.fs.writeTextFile(
-      `${root}/${registryFetcher.RECIPES_FILENAME}`,
-      "{}",
-    );
-    await runtime.fs.mkdir(`${root}/app/src`, { recursive: true });
+nodeTest.test(
+  "detectLocalRegistry: starts at the given directory",
+  async () => {
+    const root = await runtime.fs.makeTempDir({ prefix: "kit_local_" });
+    try {
+      await runtime.fs.mkdir(`${root}/.eser`, { recursive: true });
+      await runtime.fs.writeTextFile(
+        `${root}/${registryFetcher.RECIPES_FILENAME}`,
+        "{}",
+      );
+      await runtime.fs.mkdir(`${root}/app/src`, { recursive: true });
 
-    // add --cwd points below the registry; the walk goes up from there, not
-    // from the process's working directory.
-    assert.assertEquals(
-      await registryFetcher.detectLocalRegistry(`${root}/app/src`),
-      `${root}/${registryFetcher.RECIPES_FILENAME}`,
-    );
-  } finally {
-    await runtime.fs.remove(root, { recursive: true });
-  }
-});
+      // add --cwd points below the registry; the walk goes up from there, not
+      // from the process's working directory.
+      assert.assertEquals(
+        await registryFetcher.detectLocalRegistry(`${root}/app/src`),
+        `${root}/${registryFetcher.RECIPES_FILENAME}`,
+      );
+    } finally {
+      await runtime.fs.remove(root, { recursive: true });
+    }
+  },
+);
 
-Deno.test("detectLocalRegistry: wraps a path it cannot check", async () => {
+nodeTest.test("detectLocalRegistry: wraps a path it cannot check", async () => {
   const denied = new Error("permission denied");
   using _exists = mock.stub(runtime.fs, "exists", () => Promise.reject(denied));
 

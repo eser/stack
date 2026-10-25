@@ -1,9 +1,10 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as mutate from "./mutate.ts";
 
-Deno.test("basic", () => {
+nodeTest.test("basic", () => {
   const obj1 = {
     firstName: "Eser",
     lastName: "Ozvataf",
@@ -21,7 +22,7 @@ Deno.test("basic", () => {
   });
 });
 
-Deno.test("array-push", () => {
+nodeTest.test("array-push", () => {
   const obj1 = {
     firstName: "Eser",
     lastName: "Ozvataf",
@@ -43,7 +44,7 @@ Deno.test("array-push", () => {
   });
 });
 
-Deno.test("with-class", () => {
+nodeTest.test("with-class", () => {
   class Dummy {
     items: Array<string>;
 

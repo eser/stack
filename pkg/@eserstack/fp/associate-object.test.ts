@@ -1,9 +1,10 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as associateObject from "./associate-object.ts";
 
-Deno.test("basic", () => {
+nodeTest.test("basic", () => {
   const obj1 = {
     a: { id: 1, name: "foo" },
     b: { id: 2, name: "bar" },
@@ -22,7 +23,7 @@ Deno.test("basic", () => {
   });
 });
 
-Deno.test("with-value-skipping", () => {
+nodeTest.test("with-value-skipping", () => {
   const obj1 = {
     a: { id: 1, name: "foo", skip: false },
     b: { id: 2, name: "bar", skip: false },

@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import type * as types from "../../types.ts";
 import * as fontOptimizer from "./font-optimizer.ts";
@@ -19,7 +20,7 @@ const cases: { name: string; fonts: types.FontDefinition[] }[] = [
 ];
 
 for (const { name, fonts } of cases) {
-  Deno.test(name, async () => {
+  nodeTest.test(name, async () => {
     const result = await fontOptimizer.googleFontOptimizer.optimize(fonts, {
       outputDir: "fonts",
       publicPath: "/fonts",

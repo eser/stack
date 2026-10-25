@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as ffi from "./adapters/ffi/mod.ts";
 import * as errors from "./business/errors.ts";
@@ -7,11 +8,8 @@ import * as ffiClient from "./ffi-client.ts";
 import * as formats from "./mod.ts";
 import * as serializer from "./serializer.ts";
 
-Deno.test(
-  {
-    name: "FFI round-trip: encodeDocument JSON via EserAjanFormatEncodeDocument",
-    sanitizeResources: false,
-  },
+nodeTest.test(
+  "FFI round-trip: encodeDocument JSON via EserAjanFormatEncodeDocument",
   async () => {
     const result = await ffi.ffiFormats.encodeDocument("json", [
       {
@@ -26,11 +24,8 @@ Deno.test(
   },
 );
 
-Deno.test(
-  {
-    name: "FFI encode: document writes one YAML mapping, not a sequence entry",
-    sanitizeResources: false,
-  },
+nodeTest.test(
+  "FFI encode: document writes one YAML mapping, not a sequence entry",
   async () => {
     const data = { name: "app", replicas: 3 };
 
@@ -45,11 +40,8 @@ Deno.test(
   },
 );
 
-Deno.test(
-  {
-    name: "FFI round-trip: decode JSON via EserAjanFormatDecode",
-    sanitizeResources: false,
-  },
+nodeTest.test(
+  "FFI round-trip: decode JSON via EserAjanFormatDecode",
   async () => {
     const items = await ffi.ffiFormats.decode(
       "json",
@@ -60,11 +52,8 @@ Deno.test(
   },
 );
 
-Deno.test(
-  {
-    name: "FFI round-trip: list formats via EserAjanFormatList",
-    sanitizeResources: false,
-  },
+nodeTest.test(
+  "FFI round-trip: list formats via EserAjanFormatList",
   async () => {
     const formats = await ffi.ffiFormats.list();
     assert.assert(formats.length > 0);
@@ -74,38 +63,24 @@ Deno.test(
   },
 );
 
-Deno.test(
-  {
-    name: "FFI round-trip: JSON encode+decode roundtrip",
-    sanitizeResources: false,
-  },
-  async () => {
-    const data = [{ id: 1, label: "test" }];
-    const encoded = await ffi.ffiFormats.encodeDocument("json", data);
-    const decoded = await ffi.ffiFormats.decode("json", encoded);
-    assert.assertEquals(decoded, data);
-  },
-);
+nodeTest.test("FFI round-trip: JSON encode+decode roundtrip", async () => {
+  const data = [{ id: 1, label: "test" }];
+  const encoded = await ffi.ffiFormats.encodeDocument("json", data);
+  const decoded = await ffi.ffiFormats.decode("json", encoded);
+  assert.assertEquals(decoded, data);
+});
 
-Deno.test(
-  {
-    name: "FFI error: unknown format throws FormatFfiError",
-    sanitizeResources: false,
-  },
-  async () => {
-    await assert.assertRejects(
-      () => ffi.ffiFormats.decode("no-such-format", "data"),
-      errors.FormatFfiError,
-    );
-    await ffi.ffiFormats
-      .decode("no-such-format", "data")
-      .catch((e: unknown) => {
-        if (e instanceof errors.FormatFfiError) {
-          assert.assertEquals(e.code, errors.FORMAT_NOT_FOUND);
-        }
-      });
-  },
-);
+nodeTest.test("FFI error: unknown format throws FormatFfiError", async () => {
+  await assert.assertRejects(
+    () => ffi.ffiFormats.decode("no-such-format", "data"),
+    errors.FormatFfiError,
+  );
+  await ffi.ffiFormats.decode("no-such-format", "data").catch((e: unknown) => {
+    if (e instanceof errors.FormatFfiError) {
+      assert.assertEquals(e.code, errors.FORMAT_NOT_FOUND);
+    }
+  });
+});
 
 // Keys are in sorted order, so Go's sorted maps do not differ by order.
 const app = { name: "app", replicas: 3, server: { port: 80 } };
@@ -150,11 +125,8 @@ const sameTextCases = [
 ];
 
 for (const { name, data, format, options } of sameTextCases) {
-  Deno.test(
-    {
-      name: `serializeWith: Go and TypeScript write ${name} the same way`,
-      sanitizeResources: false,
-    },
+  nodeTest.test(
+    `serializeWith: Go and TypeScript write ${name} the same way`,
     async () => {
       formats.registerBuiltinFormats();
       await ffiClient.ensureLib();

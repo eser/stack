@@ -12,6 +12,7 @@
  * @module
  */
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import { runtime } from "@eserstack/standards/cross-runtime";
 import * as ffiClient from "./ffi-client.ts";
@@ -101,10 +102,10 @@ const selfImportCompare = async (root: string, gitAware: boolean) => {
   return ts.issues.length;
 };
 
-Deno.test({
-  name: "self-imports: Go matches TypeScript on fixtures",
-  ignore: lib === null,
-  fn: () =>
+nodeTest.test(
+  "self-imports: Go matches TypeScript on fixtures",
+  { skip: lib === null },
+  () =>
     withFixture(
       {
         "pkg/@eserstack/foo/mod.ts": [
@@ -129,15 +130,15 @@ Deno.test({
         assert.assertEquals(found, 6);
       },
     ),
-});
+);
 
-Deno.test({
-  name: "self-imports: Go matches TypeScript on the repository",
-  ignore: lib === null,
-  fn: async () => {
+nodeTest.test(
+  "self-imports: Go matches TypeScript on the repository",
+  { skip: lib === null },
+  async () => {
     await selfImportCompare(".", true);
   },
-});
+);
 
 // ErrD's fields share one line, and the validator reads only a field that
 // starts a line (or the body), so ErrD has Code but misses Cause and Fix.
@@ -186,10 +187,10 @@ const errorCoverageCompare = async (
   return ts.violations.length;
 };
 
-Deno.test({
-  name: "error-coverage: Go matches TypeScript on fixtures",
-  ignore: lib === null,
-  fn: () =>
+nodeTest.test(
+  "error-coverage: Go matches TypeScript on fixtures",
+  { skip: lib === null },
+  () =>
     withFixture({ "pkg/errors.go": errorsGo }, async (dir) => {
       assert.assertEquals(await errorCoverageCompare(dir, "pkg/errors.go"), 2);
       assert.assertEquals(
@@ -204,17 +205,17 @@ Deno.test({
         0,
       );
     }),
-});
+);
 
-Deno.test({
-  name: "error-coverage: Go matches TypeScript on the repository",
-  ignore: lib === null,
-  fn: async () => {
+nodeTest.test(
+  "error-coverage: Go matches TypeScript on the repository",
+  { skip: lib === null },
+  async () => {
     await errorCoverageCompare(".", "pkg/ajan/noskillsserverfx/errors.go", [
       "NSError",
     ]);
   },
-});
+);
 
 const serverLocCompare = async (
   root: string,
@@ -244,10 +245,10 @@ const serverLocCompare = async (
   return ts.violations.length;
 };
 
-Deno.test({
-  name: "server-loc: Go matches TypeScript on fixtures",
-  ignore: lib === null,
-  fn: () =>
+nodeTest.test(
+  "server-loc: Go matches TypeScript on fixtures",
+  { skip: lib === null },
+  () =>
     withFixture(
       {
         "srv/short.go": "package srv\n",
@@ -263,20 +264,20 @@ Deno.test({
         assert.assertEquals(await serverLocCompare(dir, "srv"), 0);
       },
     ),
-});
+);
 
-Deno.test({
-  name: "server-loc: Go matches TypeScript on the repository",
-  ignore: lib === null,
-  fn: async () => {
+nodeTest.test(
+  "server-loc: Go matches TypeScript on the repository",
+  { skip: lib === null },
+  async () => {
     await serverLocCompare(".", "pkg/ajan/noskillsserverfx");
   },
-});
+);
 
-Deno.test({
-  name: "commit-msg: the Go rules match the TypeScript rules",
-  ignore: lib === null,
-  fn: () => {
+nodeTest.test(
+  "commit-msg: the Go rules match the TypeScript rules",
+  { skip: lib === null },
+  () => {
     const messages = [
       "feat(cli): add a command",
       "feat: no scope",
@@ -314,4 +315,4 @@ Deno.test({
       }
     }
   },
-});
+);

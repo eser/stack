@@ -10,6 +10,7 @@
  * @module
  */
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import { runtime } from "@eserstack/standards/cross-runtime";
 import * as resolve from "./resolve.ts";
@@ -83,10 +84,10 @@ const handler = async (request: Request): Promise<Response> => {
   }
 };
 
-Deno.test({
-  name: "httpclient requests go through the reactor's host fetch",
-  ignore: !hasWasm || nodeMajor < 26,
-  fn: async () => {
+nodeTest.test(
+  "httpclient requests go through the reactor's host fetch",
+  { skip: !hasWasm || nodeMajor < 26 },
+  async () => {
     const server = Deno.serve(
       { hostname: "127.0.0.1", port: 0, onListen: () => {} },
       handler,
@@ -139,4 +140,4 @@ Deno.test({
       await server.shutdown();
     }
   },
-});
+);

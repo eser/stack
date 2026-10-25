@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import { runtime } from "@eserstack/standards/cross-runtime";
 import * as larouxConfig from "@eserstack/laroux/config";
@@ -34,32 +35,35 @@ async function withImages(
   }
 }
 
-Deno.test("sharpImageOptimizer writes the configured variants and a blur placeholder", async () => {
-  await withImages(async (inputDir, outputDir) => {
-    const manifest = await imageOptimizer.sharpImageOptimizer.optimize({
-      inputDir,
-      outputDir,
-      publicPath: "/images",
-      config: {
-        ...larouxConfig.DEFAULT_IMAGES,
-        formats: ["webp"],
-        widths: [16, 64],
-        placeholder: "blur",
-      },
-    });
+nodeTest.test(
+  "sharpImageOptimizer writes the configured variants and a blur placeholder",
+  async () => {
+    await withImages(async (inputDir, outputDir) => {
+      const manifest = await imageOptimizer.sharpImageOptimizer.optimize({
+        inputDir,
+        outputDir,
+        publicPath: "/images",
+        config: {
+          ...larouxConfig.DEFAULT_IMAGES,
+          formats: ["webp"],
+          widths: [16, 64],
+          placeholder: "blur",
+        },
+      });
 
-    const image = manifest?.images[runtime.path.join(inputDir, "logo.png")];
-    assert.assertExists(image);
-    assert.assertEquals(image.publicPath, "/images/logo");
-    // 64 is wider than the 32 px source, so only the 16 px variant exists
-    assert.assertEquals(
-      image.variants.map((variant) => [variant.format, variant.width]),
-      [["webp", 16]],
-    );
-    assert.assertEquals(
-      await runtime.fs.exists(runtime.path.join(outputDir, "logo-16w.webp")),
-      true,
-    );
-    assert.assertStringIncludes(image.blurDataUrl ?? "", "data:image/webp");
-  });
-});
+      const image = manifest?.images[runtime.path.join(inputDir, "logo.png")];
+      assert.assertExists(image);
+      assert.assertEquals(image.publicPath, "/images/logo");
+      // 64 is wider than the 32 px source, so only the 16 px variant exists
+      assert.assertEquals(
+        image.variants.map((variant) => [variant.format, variant.width]),
+        [["webp", 16]],
+      );
+      assert.assertEquals(
+        await runtime.fs.exists(runtime.path.join(outputDir, "logo-16w.webp")),
+        true,
+      );
+      assert.assertStringIncludes(image.blurDataUrl ?? "", "data:image/webp");
+    });
+  },
+);

@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as crossRuntime from "@eserstack/standards/cross-runtime";
 import * as registryFetcher from "./registry-fetcher.ts";
@@ -133,42 +134,48 @@ const NOT_IN_THIS_REPOSITORY: ReadonlySet<string> = new Set([
   "ajan-grpcfx",
 ]);
 
-Deno.test(".eser/recipes.json github sources exist in this repository", async () => {
-  const manifest = await registryFetcher.fetchRegistry(
-    runtime.path.join(repoRoot, ".eser", "recipes.json"),
-  );
+nodeTest.test(
+  ".eser/recipes.json github sources exist in this repository",
+  async () => {
+    const manifest = await registryFetcher.fetchRegistry(
+      runtime.path.join(repoRoot, ".eser", "recipes.json"),
+    );
 
-  // The registry is on eser/stack, so a github-provider source resolves
-  // against this repository's root (registryFetcher.sourceBaseFor).
-  const githubSources: ListedSource[] = manifest.recipes.flatMap((recipe) =>
-    (recipe.files ?? [])
-      .filter(
-        (file) =>
-          file.provider === "github" &&
-          !NOT_IN_THIS_REPOSITORY.has(recipe.name ?? ""),
-      )
-      .map((file) => ({ recipe: recipe.name ?? "<unnamed>", file })),
-  );
+    // The registry is on eser/stack, so a github-provider source resolves
+    // against this repository's root (registryFetcher.sourceBaseFor).
+    const githubSources: ListedSource[] = manifest.recipes.flatMap((recipe) =>
+      (recipe.files ?? [])
+        .filter(
+          (file) =>
+            file.provider === "github" &&
+            !NOT_IN_THIS_REPOSITORY.has(recipe.name ?? ""),
+        )
+        .map((file) => ({ recipe: recipe.name ?? "<unnamed>", file })),
+    );
 
-  assert.assertEquals(githubSources.length > 0, true);
+    assert.assertEquals(githubSources.length > 0, true);
 
-  const problems = await Promise.all(
-    githubSources.map((source) => checkSource(repoRoot, source)),
-  );
-  assert.assertEquals(
-    problems.filter((p) => p !== null),
-    [],
-  );
-});
+    const problems = await Promise.all(
+      githubSources.map((source) => checkSource(repoRoot, source)),
+    );
+    assert.assertEquals(
+      problems.filter((p) => p !== null),
+      [],
+    );
+  },
+);
 
-Deno.test(".eser/recipes.json lists every recipe file and nothing else", async () => {
-  const registryDir = runtime.path.join(repoRoot, ".eser");
-  const manifest = await registryFetcher.fetchRegistry(
-    runtime.path.join(registryDir, "recipes.json"),
-  );
+nodeTest.test(
+  ".eser/recipes.json lists every recipe file and nothing else",
+  async () => {
+    const registryDir = runtime.path.join(repoRoot, ".eser");
+    const manifest = await registryFetcher.fetchRegistry(
+      runtime.path.join(registryDir, "recipes.json"),
+    );
 
-  assert.assertEquals(await findSourceProblems(manifest, registryDir), []);
-});
+    assert.assertEquals(await findSourceProblems(manifest, registryDir), []);
+  },
+);
 
 const manifestOf = (
   files: readonly registrySchema.RecipeFile[],
@@ -248,7 +255,7 @@ const sourceProblemCases: ReadonlyArray<{
 ];
 
 for (const { name, onDisk, files, expected } of sourceProblemCases) {
-  Deno.test(`findSourceProblems ${name}`, async () => {
+  nodeTest.test(`findSourceProblems ${name}`, async () => {
     const registryDir = await runtime.fs.makeTempDir({
       prefix: "kit-registry-",
     });

@@ -1,11 +1,12 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as simple from "./lexer/tokens/simple.ts";
 import * as lexer from "./lexer/lexer.ts";
 import * as parser from "./parser.ts";
 
-Deno.test("tokens", () => {
+nodeTest.test("tokens", () => {
   const parse = parser.token("T_NUMERIC");
 
   const tokenizer = new lexer.Tokenizer(
@@ -19,7 +20,7 @@ Deno.test("tokens", () => {
   ]);
 });
 
-Deno.test("sequence", () => {
+nodeTest.test("sequence", () => {
   const parse = parser.sequence(
     parser.token("T_NUMERIC"),
     parser.token("T_WHITESPACE"),
@@ -43,7 +44,7 @@ Deno.test("sequence", () => {
   ]);
 });
 
-Deno.test("token returns null on kind mismatch", () => {
+nodeTest.test("token returns null on kind mismatch", () => {
   const parse = parser.token("T_PLUS");
 
   const tokenizer = new lexer.Tokenizer(
@@ -55,7 +56,7 @@ Deno.test("token returns null on kind mismatch", () => {
   assert.assertEquals(result, null);
 });
 
-Deno.test("token returns null on empty iterator", () => {
+nodeTest.test("token returns null on empty iterator", () => {
   const parse = parser.token("T_NUMERIC");
 
   const tokenizer = new lexer.Tokenizer(
@@ -67,7 +68,7 @@ Deno.test("token returns null on empty iterator", () => {
   assert.assertEquals(result, null);
 });
 
-Deno.test("sequence returns null when middle parser fails", () => {
+nodeTest.test("sequence returns null when middle parser fails", () => {
   const parse = parser.sequence(
     parser.token("T_NUMERIC"),
     parser.token("T_PLUS"), // This will fail because there's whitespace first
@@ -83,7 +84,7 @@ Deno.test("sequence returns null when middle parser fails", () => {
   assert.assertEquals(result, null);
 });
 
-Deno.test("sequence with empty parsers array returns empty result", () => {
+nodeTest.test("sequence with empty parsers array returns empty result", () => {
   const parse = parser.sequence();
 
   const tokenizer = new lexer.Tokenizer(

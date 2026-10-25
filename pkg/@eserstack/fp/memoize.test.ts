@@ -1,9 +1,10 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as memoize from "./memoize.ts";
 
-Deno.test("basic", () => {
+nodeTest.test("basic", () => {
   let callCount = 0;
   const fn = (x: number) => {
     callCount++;
@@ -16,7 +17,7 @@ Deno.test("basic", () => {
   assert.assertEquals(callCount, 1);
 });
 
-Deno.test("cache-hit", () => {
+nodeTest.test("cache-hit", () => {
   let callCount = 0;
   const fn = (x: number) => {
     callCount++;
@@ -32,7 +33,7 @@ Deno.test("cache-hit", () => {
   assert.assertEquals(callCount, 1);
 });
 
-Deno.test("different-args", () => {
+nodeTest.test("different-args", () => {
   let callCount = 0;
   const fn = (x: number) => {
     callCount++;
@@ -48,7 +49,7 @@ Deno.test("different-args", () => {
   assert.assertEquals(callCount, 3);
 });
 
-Deno.test("custom-resolver", () => {
+nodeTest.test("custom-resolver", () => {
   let callCount = 0;
   const fn = (id: string, _options: { force?: boolean }) => {
     callCount++;
@@ -64,7 +65,7 @@ Deno.test("custom-resolver", () => {
   assert.assertEquals(callCount, 1);
 });
 
-Deno.test("cache-access", () => {
+nodeTest.test("cache-access", () => {
   const fn = (x: number) => x * 2;
 
   const memoized = memoize.memoize(fn);
@@ -77,7 +78,7 @@ Deno.test("cache-access", () => {
   assert.assertEquals(memoized.cache.get(10), 20);
 });
 
-Deno.test("cache-clear", () => {
+nodeTest.test("cache-clear", () => {
   let callCount = 0;
   const fn = (x: number) => {
     callCount++;
@@ -93,7 +94,7 @@ Deno.test("cache-clear", () => {
   assert.assertEquals(callCount, 2);
 });
 
-Deno.test("cache-delete", () => {
+nodeTest.test("cache-delete", () => {
   let callCount = 0;
   const fn = (x: number) => {
     callCount++;
@@ -109,7 +110,7 @@ Deno.test("cache-delete", () => {
   assert.assertEquals(callCount, 2);
 });
 
-Deno.test("object-key", () => {
+nodeTest.test("object-key", () => {
   const fn = (obj: { id: number }) => obj.id * 2;
 
   const memoized = memoize.memoize(fn);

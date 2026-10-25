@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as imageFallback from "./fallback.ts";
 
@@ -95,7 +96,7 @@ const dispatchError = (document: FakeDocument, target: unknown): void => {
 const settle = (): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, 0));
 
-Deno.test("applyImageFallback switches the src to the fallback", () => {
+nodeTest.test("applyImageFallback switches the src to the fallback", () => {
   const image = createImage({
     attributes: {
       src: "/hero.jpg",
@@ -109,7 +110,7 @@ Deno.test("applyImageFallback switches the src to the fallback", () => {
   assert.assertEquals(image.attributes.has("srcset"), false);
 });
 
-Deno.test("applyImageFallback clears the picture sources", () => {
+nodeTest.test("applyImageFallback clears the picture sources", () => {
   const sources = [createSource("/hero.avif"), createSource("/hero.webp")];
   const image = createImage({
     attributes: {
@@ -147,91 +148,106 @@ const unchangedCases: ReadonlyArray<{
 ];
 
 for (const testCase of unchangedCases) {
-  Deno.test(`applyImageFallback leaves an image that ${testCase.name}`, () => {
-    const image = createImage({ attributes: testCase.attributes });
+  nodeTest.test(
+    `applyImageFallback leaves an image that ${testCase.name}`,
+    () => {
+      const image = createImage({ attributes: testCase.attributes });
 
-    assert.assertEquals(imageFallback.applyImageFallback(image), false);
-    assert.assertEquals(
-      Object.fromEntries(image.attributes),
-      testCase.attributes,
-    );
-  });
+      assert.assertEquals(imageFallback.applyImageFallback(image), false);
+      assert.assertEquals(
+        Object.fromEntries(image.attributes),
+        testCase.attributes,
+      );
+    },
+  );
 }
 
-Deno.test("installImageFallbacks applies the fallback when an image fails", () => {
-  const document = createDocument([]);
-  const image = createImage({
-    attributes: {
-      src: "/hero.jpg",
-      [imageFallback.FALLBACK_ATTRIBUTE]: "/placeholder.jpg",
-    },
-  });
+nodeTest.test(
+  "installImageFallbacks applies the fallback when an image fails",
+  () => {
+    const document = createDocument([]);
+    const image = createImage({
+      attributes: {
+        src: "/hero.jpg",
+        [imageFallback.FALLBACK_ATTRIBUTE]: "/placeholder.jpg",
+      },
+    });
 
-  imageFallback.installImageFallbacks(document);
-  dispatchError(document, image);
+    imageFallback.installImageFallbacks(document);
+    dispatchError(document, image);
 
-  assert.assertEquals(image.attributes.get("src"), "/placeholder.jpg");
-});
+    assert.assertEquals(image.attributes.get("src"), "/placeholder.jpg");
+  },
+);
 
-Deno.test("installImageFallbacks ignores errors from other elements", () => {
-  const document = createDocument([]);
-  const script = {
-    tagName: "SCRIPT",
-    setAttribute: () => {
-      throw new Error("a script must not be changed");
-    },
-  };
+nodeTest.test(
+  "installImageFallbacks ignores errors from other elements",
+  () => {
+    const document = createDocument([]);
+    const script = {
+      tagName: "SCRIPT",
+      setAttribute: () => {
+        throw new Error("a script must not be changed");
+      },
+    };
 
-  imageFallback.installImageFallbacks(document);
-  dispatchError(document, script);
-  dispatchError(document, null);
-});
+    imageFallback.installImageFallbacks(document);
+    dispatchError(document, script);
+    dispatchError(document, null);
+  },
+);
 
-Deno.test("installImageFallbacks checks images that failed before it ran", async () => {
-  const broken = createImage({
-    attributes: {
-      src: "/missing.jpg",
-      [imageFallback.FALLBACK_ATTRIBUTE]: "/placeholder.jpg",
-    },
-    complete: true,
-    naturalWidth: 0,
-    decodes: false,
-  });
-  const unsizedSvg = createImage({
-    attributes: {
-      src: "/logo.svg",
-      [imageFallback.FALLBACK_ATTRIBUTE]: "/placeholder.jpg",
-    },
-    complete: true,
-    naturalWidth: 0,
-    decodes: true,
-  });
-  const loading = createImage({
-    attributes: {
-      src: "/later.jpg",
-      [imageFallback.FALLBACK_ATTRIBUTE]: "/placeholder.jpg",
-    },
-    complete: false,
-  });
-  const document = createDocument([broken, unsizedSvg, loading]);
+nodeTest.test(
+  "installImageFallbacks checks images that failed before it ran",
+  async () => {
+    const broken = createImage({
+      attributes: {
+        src: "/missing.jpg",
+        [imageFallback.FALLBACK_ATTRIBUTE]: "/placeholder.jpg",
+      },
+      complete: true,
+      naturalWidth: 0,
+      decodes: false,
+    });
+    const unsizedSvg = createImage({
+      attributes: {
+        src: "/logo.svg",
+        [imageFallback.FALLBACK_ATTRIBUTE]: "/placeholder.jpg",
+      },
+      complete: true,
+      naturalWidth: 0,
+      decodes: true,
+    });
+    const loading = createImage({
+      attributes: {
+        src: "/later.jpg",
+        [imageFallback.FALLBACK_ATTRIBUTE]: "/placeholder.jpg",
+      },
+      complete: false,
+    });
+    const document = createDocument([broken, unsizedSvg, loading]);
 
-  imageFallback.installImageFallbacks(document);
-  await settle();
+    imageFallback.installImageFallbacks(document);
+    await settle();
 
-  assert.assertEquals(document.queries, [
-    `img[${imageFallback.FALLBACK_ATTRIBUTE}]`,
-  ]);
-  assert.assertEquals(broken.attributes.get("src"), "/placeholder.jpg");
-  assert.assertEquals(unsizedSvg.attributes.get("src"), "/logo.svg");
-  assert.assertEquals(loading.attributes.get("src"), "/later.jpg");
-});
+    assert.assertEquals(document.queries, [
+      `img[${imageFallback.FALLBACK_ATTRIBUTE}]`,
+    ]);
+    assert.assertEquals(broken.attributes.get("src"), "/placeholder.jpg");
+    assert.assertEquals(unsizedSvg.attributes.get("src"), "/logo.svg");
+    assert.assertEquals(loading.attributes.get("src"), "/later.jpg");
+  },
+);
 
-Deno.test("installImageFallbacks returns a function that removes the listener", () => {
-  const document = createDocument([]);
+nodeTest.test(
+  "installImageFallbacks returns a function that removes the listener",
+  () => {
+    const document = createDocument([]);
 
-  const uninstall = imageFallback.installImageFallbacks(document);
-  assert.assertEquals(document.listeners.size, 1);
+    const uninstall = imageFallback.installImageFallbacks(document);
+    assert.assertEquals(document.listeners.size, 1);
 
-  uninstall();
-  assert.assertEquals(document.listeners.size, 0);
-});
+    uninstall();
+    assert.assertEquals(document.listeners.size, 0);
+  },
+);

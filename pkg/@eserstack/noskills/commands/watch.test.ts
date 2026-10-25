@@ -5,7 +5,7 @@
  * Tests the pure functions without file watching.
  */
 
-import * as bdd from "@std/testing/bdd";
+import * as bdd from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import type { WatchSnapshot } from "./watch.ts";
 import * as watch from "./watch.ts";

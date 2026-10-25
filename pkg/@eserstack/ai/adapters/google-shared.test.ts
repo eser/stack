@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as results from "@eserstack/primitives/results";
 import * as config from "../config.ts";
@@ -96,7 +97,7 @@ for (const finishReason of [
   "IMAGE_PROHIBITED_CONTENT",
   "IMAGE_RECITATION",
 ]) {
-  Deno.test(`mapGenAIFinishReason: ${finishReason} is a refusal`, () => {
+  nodeTest.test(`mapGenAIFinishReason: ${finishReason} is a refusal`, () => {
     assert.assertEquals(
       googleShared.mapGenAIFinishReason(finishReason, false),
       "refusal",
@@ -105,7 +106,7 @@ for (const finishReason of [
 }
 
 for (const tc of resultCases) {
-  Deno.test(`mapGenAIResponseToResult: ${tc.name}`, () => {
+  nodeTest.test(`mapGenAIResponseToResult: ${tc.name}`, () => {
     const result = googleShared.mapGenAIResponseToResult(tc.response, "m");
 
     assert.assertEquals(result.stopReason, tc.stopReason);
@@ -153,7 +154,7 @@ const streamCases: ReadonlyArray<{
 ];
 
 for (const tc of streamCases) {
-  Deno.test(`mapGenAIStream: ${tc.name}`, async () => {
+  nodeTest.test(`mapGenAIStream: ${tc.name}`, async () => {
     const collected = await generation.collectStream(
       googleShared.mapGenAIStream(chunksOf(tc.chunks)),
     );
@@ -162,26 +163,29 @@ for (const tc of streamCases) {
   });
 }
 
-Deno.test("mapGenAIStream keeps the text and usage of a filtered answer", async () => {
-  const collected = await generation.collectStream(
-    googleShared.mapGenAIStream(
-      chunksOf([
-        { candidates: [textCandidate("Partial")] },
-        {
-          candidates: [textCandidate(null, "SAFETY")],
-          usageMetadata: { promptTokenCount: 4, candidatesTokenCount: 1 },
-        },
-      ]),
-    ),
-  );
+nodeTest.test(
+  "mapGenAIStream keeps the text and usage of a filtered answer",
+  async () => {
+    const collected = await generation.collectStream(
+      googleShared.mapGenAIStream(
+        chunksOf([
+          { candidates: [textCandidate("Partial")] },
+          {
+            candidates: [textCandidate(null, "SAFETY")],
+            usageMetadata: { promptTokenCount: 4, candidatesTokenCount: 1 },
+          },
+        ]),
+      ),
+    );
 
-  assert.assertEquals(generation.text(collected), "Partial");
-  assert.assertEquals(collected.usage, {
-    inputTokens: 4,
-    outputTokens: 1,
-    totalTokens: 5,
-  });
-});
+    assert.assertEquals(generation.text(collected), "Partial");
+    assert.assertEquals(collected.usage, {
+      inputTokens: 4,
+      outputTokens: 1,
+      totalTokens: 5,
+    });
+  },
+);
 
 /** A genai client whose models return `reply` and stream `chunks`. */
 const fakeGenAIClient = (reply: unknown, chunks: readonly unknown[]) => ({
@@ -211,25 +215,28 @@ const providers = [
 ];
 
 for (const provider of providers) {
-  Deno.test(`${provider.name} reports a filtered answer as a refusal`, async () => {
-    const filtered = { candidates: [textCandidate("Partial", "SAFETY")] };
-    const model = provider.create(fakeGenAIClient(filtered, [filtered]));
-    const messages = [
-      {
-        role: "user" as const,
-        content: [{ kind: "text" as const, text: "hi" }],
-      },
-    ];
+  nodeTest.test(
+    `${provider.name} reports a filtered answer as a refusal`,
+    async () => {
+      const filtered = { candidates: [textCandidate("Partial", "SAFETY")] };
+      const model = provider.create(fakeGenAIClient(filtered, [filtered]));
+      const messages = [
+        {
+          role: "user" as const,
+          content: [{ kind: "text" as const, text: "hi" }],
+        },
+      ];
 
-    const result = await model.generateText({ messages });
-    assert.assert(results.isOk(result), "generateText failed");
-    assert.assertEquals(result.value.stopReason, "refusal");
+      const result = await model.generateText({ messages });
+      assert.assert(results.isOk(result), "generateText failed");
+      assert.assertEquals(result.value.stopReason, "refusal");
 
-    const streamed = await generation.collectStream(
-      model.streamText({ messages }),
-    );
-    assert.assertEquals(streamed.stopReason, "refusal");
-  });
+      const streamed = await generation.collectStream(
+        model.streamText({ messages }),
+      );
+      assert.assertEquals(streamed.stopReason, "refusal");
+    },
+  );
 }
 
 /** A genai client that records each request and answers with `reply`. */
@@ -340,111 +347,130 @@ const hi = [
 for (const provider of providers) {
   for (const tc of effortCases) {
     for (const stream of [false, true]) {
-      Deno.test(`${provider.name} effort (stream ${stream}): ${tc.name}`, async () => {
-        const sent: Record<string, unknown>[] = [];
-        const target = provider.create(capturingGenAIClient(sent, doneReply));
+      nodeTest.test(
+        `${provider.name} effort (stream ${stream}): ${tc.name}`,
+        async () => {
+          const sent: Record<string, unknown>[] = [];
+          const target = provider.create(capturingGenAIClient(sent, doneReply));
 
-        await generateOrStream(target, { messages: hi, ...tc.options }, stream);
+          await generateOrStream(
+            target,
+            { messages: hi, ...tc.options },
+            stream,
+          );
 
-        assert.assertEquals(
-          sentConfig(sent)["thinkingConfig"],
-          tc.thinkingConfig,
-        );
-      });
+          assert.assertEquals(
+            sentConfig(sent)["thinkingConfig"],
+            tc.thinkingConfig,
+          );
+        },
+      );
     }
   }
 
-  Deno.test(`${provider.name} rejects an unknown effort level before sending`, async () => {
-    const sent: Record<string, unknown>[] = [];
-    const target = provider.create(capturingGenAIClient(sent, doneReply));
-    const options = {
-      messages: hi,
-      effort: "huge" as generation.Effort,
-    };
+  nodeTest.test(
+    `${provider.name} rejects an unknown effort level before sending`,
+    async () => {
+      const sent: Record<string, unknown>[] = [];
+      const target = provider.create(capturingGenAIClient(sent, doneReply));
+      const options = {
+        messages: hi,
+        effort: "huge" as generation.Effort,
+      };
 
-    const result = await target.generateText(options);
-    assert.assert(results.isFail(result), "generateText succeeded");
-    assert.assertInstanceOf(result.error, errors.BadRequestError);
+      const result = await target.generateText(options);
+      assert.assert(results.isFail(result), "generateText succeeded");
+      assert.assertInstanceOf(result.error, errors.BadRequestError);
 
-    const events: generation.StreamEvent[] = [];
-    for await (const event of target.streamText(options)) {
-      events.push(event);
-    }
+      const events: generation.StreamEvent[] = [];
+      for await (const event of target.streamText(options)) {
+        events.push(event);
+      }
 
-    assert.assertEquals(events.length, 1);
-    assert.assert(events[0]?.kind === "error");
-    assert.assertInstanceOf(events[0].error, errors.BadRequestError);
-    assert.assertEquals(sent.length, 0);
-  });
+      assert.assertEquals(events.length, 1);
+      assert.assert(events[0]?.kind === "error");
+      assert.assertInstanceOf(events[0].error, errors.BadRequestError);
+      assert.assertEquals(sent.length, 0);
+    },
+  );
 
   // The SDK reads these fields from config only. Set next to it, as they used
   // to be, they never reached the API, and neither did the abort signal under
   // httpOptions.
   for (const stream of [false, true]) {
-    Deno.test(`${provider.name} sends the system prompt, tools, safety settings and signal in config (stream ${stream})`, async () => {
-      const tools = [
-        {
-          name: "get_weather",
-          description: "current weather",
-          parameters: { type: "object" },
-        },
-      ];
-      const safetySettings = [
-        {
-          category: "HARM_CATEGORY_HARASSMENT",
-          threshold: "BLOCK_NONE",
-        },
-      ];
-      const sent: Record<string, unknown>[] = [];
-      const target = provider.create(capturingGenAIClient(sent, doneReply));
-      const controller = new AbortController();
+    nodeTest.test(
+      `${provider.name} sends the system prompt, tools, safety settings and signal in config (stream ${stream})`,
+      async () => {
+        const tools = [
+          {
+            name: "get_weather",
+            description: "current weather",
+            parameters: { type: "object" },
+          },
+        ];
+        const safetySettings = [
+          {
+            category: "HARM_CATEGORY_HARASSMENT",
+            threshold: "BLOCK_NONE",
+          },
+        ];
+        const sent: Record<string, unknown>[] = [];
+        const target = provider.create(capturingGenAIClient(sent, doneReply));
+        const controller = new AbortController();
 
-      await generateOrStream(
-        target,
-        { messages: hi, system: "be brief", tools, safetySettings },
-        stream,
-        controller.signal,
-      );
+        await generateOrStream(
+          target,
+          { messages: hi, system: "be brief", tools, safetySettings },
+          stream,
+          controller.signal,
+        );
 
-      assert.assertEquals(Object.keys(sent[0]!).sort(), [
-        "config",
-        "contents",
-        "model",
-      ]);
+        assert.assertEquals(Object.keys(sent[0]!).sort(), [
+          "config",
+          "contents",
+          "model",
+        ]);
 
-      const sentRequestConfig = sentConfig(sent);
-      assert.assertEquals(sentRequestConfig["systemInstruction"], "be brief");
-      assert.assertEquals(
-        sentRequestConfig["tools"],
-        googleShared.mapToolsToGenAI(tools),
-      );
-      assert.assertEquals(sentRequestConfig["safetySettings"], safetySettings);
-      assert.assertStrictEquals(
-        sentRequestConfig["abortSignal"],
-        controller.signal,
-      );
-      assert.assertEquals(sentRequestConfig["httpOptions"], undefined);
-    });
+        const sentRequestConfig = sentConfig(sent);
+        assert.assertEquals(sentRequestConfig["systemInstruction"], "be brief");
+        assert.assertEquals(
+          sentRequestConfig["tools"],
+          googleShared.mapToolsToGenAI(tools),
+        );
+        assert.assertEquals(
+          sentRequestConfig["safetySettings"],
+          safetySettings,
+        );
+        assert.assertStrictEquals(
+          sentRequestConfig["abortSignal"],
+          controller.signal,
+        );
+        assert.assertEquals(sentRequestConfig["httpOptions"], undefined);
+      },
+    );
   }
 }
 
-Deno.test("buildGenAIRequest takes the system prompt from a system message", () => {
-  const request = googleShared.buildGenAIRequest(
-    config.withDefaults({ provider: "gemini", model: "gemini-test" }),
-    {
-      messages: [
-        { role: "system", content: [{ kind: "text", text: "be brief" }] },
-        ...hi,
-      ],
-    },
-    "gemini",
-    undefined,
-  );
+nodeTest.test(
+  "buildGenAIRequest takes the system prompt from a system message",
+  () => {
+    const request = googleShared.buildGenAIRequest(
+      config.withDefaults({ provider: "gemini", model: "gemini-test" }),
+      {
+        messages: [
+          { role: "system", content: [{ kind: "text", text: "be brief" }] },
+          ...hi,
+        ],
+      },
+      "gemini",
+      undefined,
+    );
 
-  assert.assertEquals(request.config["systemInstruction"], "be brief");
-  assert.assertEquals(request.contents.length, 1);
-  assert.assertEquals(request.config["abortSignal"], undefined);
-});
+    assert.assertEquals(request.config["systemInstruction"], "be brief");
+    assert.assertEquals(request.contents.length, 1);
+    assert.assertEquals(request.config["abortSignal"], undefined);
+  },
+);
 
 // TASK-158 parity with Go: json_schema is sent as responseJsonSchema, which
 // takes the schema as is, never next to responseSchema; json_object and text
@@ -491,7 +517,7 @@ const responseFormatCases: ReadonlyArray<{
 ];
 
 for (const tc of responseFormatCases) {
-  Deno.test(`buildGenAIRequest: ${tc.name}`, () => {
+  nodeTest.test(`buildGenAIRequest: ${tc.name}`, () => {
     const request = googleShared.buildGenAIRequest(
       config.withDefaults({ provider: "gemini", model: "gemini-test" }),
       { messages: hi, responseFormat: tc.responseFormat },

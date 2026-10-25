@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as git from "./git.ts";
 
@@ -36,13 +37,13 @@ const WRITES = [
   "git config --global",
 ];
 
-Deno.test("git config reads are allowed", () => {
+nodeTest.test("git config reads are allowed", () => {
   for (const cmd of READS) {
     assert.assertEquals(git.isGitAllowed(cmd), true, cmd);
   }
 });
 
-Deno.test("git config writes are denied even with a scope flag", () => {
+nodeTest.test("git config writes are denied even with a scope flag", () => {
   for (const cmd of WRITES) {
     assert.assertEquals(git.isGitAllowed(cmd), false, cmd);
     assert.assertEquals(git.hasGitWrite(cmd), true, cmd);

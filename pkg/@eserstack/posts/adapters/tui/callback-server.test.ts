@@ -1,15 +1,41 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as net from "node:net";
+import * as os from "node:os";
 import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as callbackServer from "./callback-server.ts";
 
-const freePort = (): number => {
-  const listener = Deno.listen({ hostname: "127.0.0.1", port: 0 });
-  const { port } = listener.addr as Deno.NetAddr;
-  listener.close();
+const freePort = async (): Promise<number> => {
+  const listener = net.createServer();
+  await new Promise<void>((resolve, reject) => {
+    listener.once("error", reject);
+    listener.listen(0, "127.0.0.1", resolve);
+  });
+  const { port } = listener.address() as net.AddressInfo;
+  await new Promise<void>((resolve, reject) =>
+    listener.close((err) => (err === undefined ? resolve() : reject(err))),
+  );
   return port;
 };
+
+/** Resolves true when a TCP connection to host:port opens, false otherwise. */
+const canConnect = (host: string, port: number): Promise<boolean> =>
+  new Promise((resolve) => {
+    const socket = net.connect({ host, port, timeout: 1_000 });
+    socket.once("connect", () => {
+      socket.destroy();
+      resolve(true);
+    });
+    socket.once("timeout", () => {
+      socket.destroy();
+      resolve(false);
+    });
+    socket.once("error", () => {
+      socket.destroy();
+      resolve(false);
+    });
+  });
 
 nodeTest.test("expectationFor accepts loopback redirect URIs only", () => {
   const e = callbackServer.expectationFor(
@@ -58,7 +84,7 @@ nodeTest.test(
 );
 
 nodeTest.test("a foreign request does not end the pending login", async () => {
-  const port = freePort();
+  const port = await freePort();
   const expected = callbackServer.expectationFor(
     `http://127.0.0.1:${port}/callback`,
     "issued-state",
@@ -98,7 +124,7 @@ nodeTest.test("a foreign request does not end the pending login", async () => {
 });
 
 nodeTest.test("the receiver binds loopback, not every interface", async () => {
-  const port = freePort();
+  const port = await freePort();
   const expected = callbackServer.expectationFor(
     `http://127.0.0.1:${port}/callback`,
     "s",
@@ -106,17 +132,14 @@ nodeTest.test("the receiver binds loopback, not every interface", async () => {
   const pending = callbackServer.waitForOAuthCallback(expected, 5_000);
   await new Promise((r) => setTimeout(r, 50));
 
-  const external = Deno.networkInterfaces().find(
-    (i) => i.family === "IPv4" && !i.address.startsWith("127."),
-  );
+  const external = Object.values(os.networkInterfaces())
+    .flat()
+    .find(
+      (i) =>
+        i !== undefined && i.family === "IPv4" && !i.address.startsWith("127."),
+    );
   if (external !== undefined) {
-    let reachable = true;
-    try {
-      const conn = await Deno.connect({ hostname: external.address, port });
-      conn.close();
-    } catch {
-      reachable = false;
-    }
+    const reachable = await canConnect(external.address, port);
     assert.assertEquals(reachable, false, `listening on ${external.address}`);
   }
 
@@ -126,14 +149,14 @@ nodeTest.test("the receiver binds loopback, not every interface", async () => {
 });
 
 nodeTest.test("the receiver times out", async () => {
-  const port = freePort();
+  const port = await freePort();
   const expected = callbackServer.expectationFor(
     `http://127.0.0.1:${port}/callback`,
     "s",
   );
 
-  // The promise settles only after the server has stopped, so the test's
-  // resource sanitizer would catch a listener left open.
+  // The promise settles only after the server has stopped, so a listener
+  // left open would keep the port bound after the rejection.
   await assert.assertRejects(
     () => callbackServer.waitForOAuthCallback(expected, 50),
     Error,

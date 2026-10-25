@@ -2,6 +2,7 @@
 
 import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
+import { runtime } from "@eserstack/standards/cross-runtime";
 
 // The test looks for terminal control characters, so the pattern must match them.
 // oxlint-disable-next-line no-control-regex
@@ -23,11 +24,11 @@ await output.outputPosts([{
 nodeTest.test(
   "outputPosts prints remote post text without terminal controls",
   async () => {
-    const { code, stdout } = await new Deno.Command(Deno.execPath(), {
-      args: ["eval", "--ext=ts", SCRIPT],
-      stdout: "piped",
-      stderr: "inherit",
-    }).output();
+    const { code, stdout } = await runtime.exec.spawn(
+      runtime.process.execPath(),
+      ["--input-type=module", "--eval", SCRIPT],
+      { stdout: "piped", stderr: "inherit" },
+    );
     assert.assertEquals(code, 0);
 
     const printed = new TextDecoder().decode(stdout);

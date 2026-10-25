@@ -133,7 +133,6 @@ export type CliError = {
  * };
  * ```
  */
-// deno-doc-ignore private-type-ref -- Result is public in @eserstack/primitives/results; doc lint flags it only because the workspace resolves it to a local file
 export type CliResult<T> = results.Result<T, CliError>;
 
 /**

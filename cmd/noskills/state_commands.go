@@ -440,7 +440,7 @@ func (l *lifecycleRun) ruleAdd(root, prefix string, args []string) (int, error) 
 
 	text := strings.Join(textParts, " ")
 	if text == "" {
-		writeln(out, red("Please provide a rule: "), bold(prefix+` rule add "Use Deno Tests for all tests"`))
+		writeln(out, red("Please provide a rule: "), bold(prefix+` rule add "Use node:test for all tests"`))
 
 		return clifx.ExitFailure, nil
 	}

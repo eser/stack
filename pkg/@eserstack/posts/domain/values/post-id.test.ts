@@ -53,7 +53,7 @@ bdd.describe("toPostId", () => {
   bdd.it(
     "keeps plain strings and Handles out of PostId at compile time",
     () => {
-      // The brand is type-only; deno check fails if either line compiles.
+      // The brand is type-only; tsc fails if either line compiles.
       // @ts-expect-error: a plain string is not a PostId
       const fromString: postIdMod.PostId = "123";
       // @ts-expect-error: a Handle is not a PostId

@@ -381,9 +381,9 @@ const runTurn = async (
   try {
     // Imported from the package's declared entry points. `./registry` and
     // `./content` are NOT in the ai package's exports map, so importing them
-    // directly threw ERR_PACKAGE_PATH_NOT_EXPORTED at runtime on Deno AND
-    // Node -- and `deno check` did not notice, because type resolution and
-    // runtime module resolution disagree here.
+    // directly threw ERR_PACKAGE_PATH_NOT_EXPORTED at runtime -- and the type
+    // check did not notice, because type resolution and runtime module
+    // resolution disagree here.
     const [ai, adapters] = await Promise.all([
       import("@eserstack/ai/mod"),
       import("@eserstack/ai/adapters"),

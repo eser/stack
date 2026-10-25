@@ -425,7 +425,7 @@ const applyFolder = async (
  * for a cold package install on a slow network and still ends a command that
  * hangs.
  */
-export const DEFAULT_POST_INSTALL_TIMEOUT_MS = 10 * 60 * 1000;
+export const DEFAULT_POST_INSTALL_TIMEOUT_MS: number = 10 * 60 * 1000;
 
 /** Throws a RangeError unless `timeoutMs` is a positive, finite number. */
 const assertPostInstallTimeout = (timeoutMs: number): void => {
@@ -491,7 +491,8 @@ export const runPostInstall = async (
         signal: controller.signal,
       });
     } catch (error) {
-      // Node rejects an aborted spawn; Deno and Bun resolve it as a failure.
+      // Node rejects an aborted spawn, so a rejection after the timer fired is
+      // the timeout.
       const timedOut = controller.signal.aborted ? { timeoutMs } : {};
       throw new PostInstallError(cmd, null, { cause: error, ...timedOut });
     } finally {

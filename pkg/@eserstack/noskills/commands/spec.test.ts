@@ -17,7 +17,7 @@ import * as persistence from "../state/persistence.ts";
 import * as schema from "../state/schema.ts";
 import * as splitDetector from "../context/split-detector.ts";
 
-const PREFIX = "deno run -A ./tools/nos.ts";
+const PREFIX = "node ./tools/nos.ts";
 
 const REPO_ROOT = crossRuntime.runtime.path.resolve(
   import.meta.dirname ?? ".",
@@ -73,7 +73,7 @@ const createProject = async (): Promise<string> => {
       languages: ["typescript"],
       frameworks: [],
       ci: [],
-      testRunner: "deno",
+      testRunner: "node",
     }),
     command: PREFIX,
   });
@@ -93,14 +93,7 @@ const runNoskills = async (
 ): Promise<CliResult> => {
   const result = await crossRuntime.runtime.exec.spawn(
     crossRuntime.runtime.process.execPath(),
-    [
-      "run",
-      "-A",
-      "--config",
-      `${REPO_ROOT}/deno.json`,
-      `${REPO_ROOT}/pkg/@eserstack/noskills/main.ts`,
-      ...args,
-    ],
+    [`${REPO_ROOT}/pkg/@eserstack/noskills/main.ts`, ...args],
     {
       cwd: root,
       env: { NOSKILLS_PROJECT_ROOT: root, NO_COLOR: "1" },
@@ -265,14 +258,7 @@ bdd.describe("noskills spec --help", () => {
     const run = (args: readonly string[]) =>
       crossRuntime.runtime.exec.spawn(
         crossRuntime.runtime.process.execPath(),
-        [
-          "run",
-          "-A",
-          "--config",
-          `${repo}/deno.json`,
-          `${repo}/pkg/@eserstack/noskills/main.ts`,
-          ...args,
-        ],
+        [`${repo}/pkg/@eserstack/noskills/main.ts`, ...args],
         { cwd: root, stdin: "null", stdout: "piped", stderr: "piped" },
       );
 

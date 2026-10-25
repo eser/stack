@@ -20,7 +20,7 @@ import * as types from "./types.ts";
  * explicitly, so the runtime spawn and the bridge stop a command at the same
  * point.
  */
-export const DEFAULT_TIMEOUT_MS = 10 * 60 * 1000;
+export const DEFAULT_TIMEOUT_MS: number = 10 * 60 * 1000;
 
 /**
  * The largest timeout accepted, in milliseconds (about 24.8 days). It is the

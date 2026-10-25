@@ -75,15 +75,7 @@ export const infoHandler = async (
 
   // ── Environment (selected) ──
   out.writeln(span.dim("\n  Environment"));
-  const envKeys = [
-    "PATH",
-    "HOME",
-    "SHELL",
-    "TERM",
-    "DENO_DIR",
-    "BUN_INSTALL",
-    "NODE_ENV",
-  ];
+  const envKeys = ["PATH", "HOME", "SHELL", "TERM", "NODE_ENV"];
   for (const key of envKeys) {
     const value = runtime.env.get(key);
     if (value !== undefined) {

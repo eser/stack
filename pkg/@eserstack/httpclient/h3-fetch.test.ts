@@ -45,9 +45,9 @@ bdd.describe("createH3FetchFn", () => {
   bdd.it(
     "binds fetch to globalThis, so a detached call still works",
     async () => {
-      let receiver: unknown = null;
+      const receivers: unknown[] = [];
       const fake = function (this: unknown) {
-        receiver = this;
+        receivers.push(this);
         return Promise.resolve(new Response("ok"));
       } as typeof fetch;
 
@@ -55,7 +55,8 @@ bdd.describe("createH3FetchFn", () => {
         const fetchFn = h3Fetch.createH3FetchFn();
         await fetchFn("https://localhost:4433/");
 
-        assert.assertStrictEquals(receiver, globalThis);
+        assert.assertEquals(receivers.length, 1);
+        assert.assertStrictEquals(receivers[0], globalThis);
       });
     },
   );

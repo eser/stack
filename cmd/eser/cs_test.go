@@ -61,9 +61,9 @@ var csGenerateCases = [][]string{ //nolint:gochecknoglobals
 func TestCSGenerateMatchesTypeScript(t *testing.T) {
 	t.Parallel()
 
-	deno, err := exec.LookPath("deno")
+	node, err := exec.LookPath("node")
 	if err != nil {
-		t.Skip("deno is not installed; the TypeScript comparison needs it")
+		t.Skip("node is not installed; the TypeScript comparison needs it")
 	}
 
 	repo, err := filepath.Abs("../..")
@@ -86,8 +86,7 @@ func TestCSGenerateMatchesTypeScript(t *testing.T) {
 			// The TypeScript CLI through the native ajan library when it loads,
 			// and with ESER_AJAN=disabled on its own TypeScript code.
 			for _, ajan := range []string{"", "ESER_AJAN=disabled"} {
-				cmd := exec.Command(deno, append([]string{ //nolint:gosec,noctx
-					"run", "-A", "--config", filepath.Join(repo, "deno.json"),
+				cmd := exec.Command(node, append([]string{ //nolint:gosec,noctx
 					filepath.Join(repo, "pkg/@eserstack/cs/cli.ts"),
 				}, args...)...)
 				cmd.Dir = e.cwd

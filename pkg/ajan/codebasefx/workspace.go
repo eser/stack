@@ -63,56 +63,15 @@ func stringMapFromInterface(v interface{}) map[string]string {
 	return out
 }
 
-// parseWorkspacePackageConfig merges deno.json and package.json into a single config.
-func parseWorkspacePackageConfig(denoRaw, pkgRaw map[string]interface{}) WorkspacePackageConfig {
-	cfg := WorkspacePackageConfig{
-		RawDeno:    denoRaw,
-		RawPackage: pkgRaw,
+// parseWorkspacePackageConfig reads the fields the workspace validators use
+// from a package.json.
+func parseWorkspacePackageConfig(pkgRaw map[string]interface{}) WorkspacePackageConfig {
+	return WorkspacePackageConfig{
+		Exports:         pkgRaw["exports"],
+		Dependencies:    stringMapFromInterface(pkgRaw["dependencies"]),
+		DevDependencies: stringMapFromInterface(pkgRaw["devDependencies"]),
+		RawPackage:      pkgRaw,
 	}
-
-	if denoRaw != nil {
-		cfg.Exports = denoRaw["exports"]
-		cfg.Imports = stringMapFromInterface(denoRaw["imports"])
-	}
-
-	if pkgRaw != nil {
-		if cfg.Exports == nil {
-			cfg.Exports = pkgRaw["exports"]
-		}
-
-		cfg.Dependencies = stringMapFromInterface(pkgRaw["dependencies"])
-		cfg.DevDependencies = stringMapFromInterface(pkgRaw["devDependencies"])
-	}
-
-	return cfg
-}
-
-// packageName returns the name field from deno.json, falling back to package.json.
-func packageName(denoRaw, pkgRaw map[string]interface{}) string {
-	if denoRaw != nil {
-		if v, ok := denoRaw["name"].(string); ok && v != "" {
-			return v
-		}
-	}
-
-	if pkgRaw != nil {
-		if v, ok := pkgRaw["name"].(string); ok {
-			return v
-		}
-	}
-
-	return ""
-}
-
-// workspaceSources lists the root files that can declare workspace members and
-// the field each one uses: package.json `workspaces` (npm, Yarn, Bun and Deno)
-// and deno.json `workspace` (Deno only).
-var workspaceSources = []struct {
-	file  string
-	field string
-}{
-	{file: "package.json", field: "workspaces"},
-	{file: "deno.json", field: "workspace"},
 }
 
 // readOptionalJSONFile reads a JSON file that may be absent: a missing file
@@ -141,20 +100,14 @@ func workspacePatternsFromField(v interface{}) []string {
 }
 
 // workspacePatterns collects the member patterns declared in the root
-// package.json and deno.json under absRoot.
+// package.json `workspaces` field under absRoot.
 func workspacePatterns(absRoot string) ([]string, error) {
-	var patterns []string
-
-	for _, src := range workspaceSources {
-		raw, err := readOptionalJSONFile(filepath.Join(absRoot, src.file))
-		if err != nil {
-			return nil, err
-		}
-
-		patterns = append(patterns, workspacePatternsFromField(raw[src.field])...)
+	raw, err := readOptionalJSONFile(filepath.Join(absRoot, "package.json"))
+	if err != nil {
+		return nil, err
 	}
 
-	return patterns, nil
+	return workspacePatternsFromField(raw["workspaces"]), nil
 }
 
 // hasGlobMeta reports whether a path segment holds a glob metacharacter.
@@ -322,9 +275,9 @@ func expandWorkspacePatterns(absRoot string, patterns []string) ([]string, error
 }
 
 // DiscoverWorkspacePackages reads the workspace member patterns from the root
-// package.json `workspaces` field and the root deno.json `workspace` field,
-// expands their globs, and returns a WorkspacePackage for each member
-// directory that has a named deno.json or package.json. It returns an error
+// package.json `workspaces` field, expands their globs, and returns a
+// WorkspacePackage for each member directory that has a named package.json.
+// It returns an error
 // wrapping ErrNoWorkspaceMembers when no member is found, so a validator never
 // passes after checking nothing.
 func DiscoverWorkspacePackages(root string) ([]WorkspacePackage, error) {
@@ -346,17 +299,12 @@ func DiscoverWorkspacePackages(root string) ([]WorkspacePackage, error) {
 	packages := make([]WorkspacePackage, 0, len(memberPaths))
 
 	for _, memberPath := range memberPaths {
-		denoRaw, err := readOptionalJSONFile(filepath.Join(memberPath, "deno.json"))
-		if err != nil {
-			return nil, err
-		}
-
 		pkgRaw, err := readOptionalJSONFile(filepath.Join(memberPath, "package.json"))
 		if err != nil {
 			return nil, err
 		}
 
-		name := packageName(denoRaw, pkgRaw)
+		name, _ := pkgRaw["name"].(string)
 		if name == "" {
 			continue
 		}
@@ -364,14 +312,14 @@ func DiscoverWorkspacePackages(root string) ([]WorkspacePackage, error) {
 		packages = append(packages, WorkspacePackage{
 			Name:   name,
 			Path:   memberPath,
-			Config: parseWorkspacePackageConfig(denoRaw, pkgRaw),
+			Config: parseWorkspacePackageConfig(pkgRaw),
 		})
 	}
 
 	if len(packages) == 0 {
 		return nil, fmt.Errorf(
 			"discover workspace packages in %q: patterns %q matched no directory with a named "+
-				"package.json or deno.json; list member globs in the root package.json workspaces: %w",
+				"package.json; list member globs in the root package.json workspaces: %w",
 			absRoot, patterns, ErrNoWorkspaceMembers,
 		)
 	}

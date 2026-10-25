@@ -5,13 +5,7 @@ import * as assert from "@eserstack/test-kit/assert";
 import * as goExec from "./go-exec.ts";
 import * as exec from "./exec/mod.ts";
 
-// The first call opens the native library, a resource that outlives the test
-// that triggered it.
-const ffiTest = (name: string, fn: () => Promise<void>): void => {
-  nodeTest.test(name, fn);
-};
-
-ffiTest("goExec: env and timeout reach the command", async () => {
+nodeTest.test("goExec: env and timeout reach the command", async () => {
   // goExec used to send env as a record and timeout as a number, and the
   // bridge rejected every such call with "invalid request JSON".
   const result = await goExec.goExec("sh", {
@@ -23,7 +17,7 @@ ffiTest("goExec: env and timeout reach the command", async () => {
   assert.assertEquals(result, { stdout: "hello", stderr: "", code: 0 });
 });
 
-ffiTest("goExec: a command past its timeout is stopped", async () => {
+nodeTest.test("goExec: a command past its timeout is stopped", async () => {
   await assert.assertRejects(
     () => goExec.goExec("sleep", { args: ["5"], timeout: 200 }),
     exec.CommandRunError,
@@ -31,7 +25,7 @@ ffiTest("goExec: a command past its timeout is stopped", async () => {
   );
 });
 
-ffiTest("goExec: a non-zero exit is returned, not thrown", async () => {
+nodeTest.test("goExec: a non-zero exit is returned, not thrown", async () => {
   const result = await goExec.goExec("sh", {
     args: ["-c", "echo broken >&2; exit 3"],
   });

@@ -122,8 +122,25 @@ export async function waitForOAuthCallback(
       }
 
       settled = true;
-      callback.resolve({ code, state: expected.state });
-      return new Response(SUCCESS_HTML, {
+      const result = { code, state: expected.state };
+      // Settles once the server has taken the whole page. Settling stops the
+      // server, which closes its open connections and would cut off this
+      // response before the browser gets it.
+      const body = new ReadableStream<Uint8Array>({
+        start: (controller) => {
+          controller.enqueue(new TextEncoder().encode(SUCCESS_HTML));
+        },
+        pull: (controller) => {
+          controller.close();
+          // One macrotask later the server has written the page and ended
+          // the response.
+          setTimeout(() => callback.resolve(result), 0);
+        },
+        // The browser went away before the page was sent; the code is still
+        // the genuine one.
+        cancel: () => callback.resolve(result),
+      });
+      return new Response(body, {
         status: 200,
         headers: { "content-type": "text/html; charset=utf-8" },
       });

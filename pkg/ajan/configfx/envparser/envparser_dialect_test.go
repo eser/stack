@@ -11,8 +11,8 @@ import (
 )
 
 // The .env dialect shared with @std/dotenv (TASK-319): testdata/dialect.env
-// gives the values in testdata/dialect.json here and through @std/dotenv in
-// pkg/@eserstack/config/dotenv/dialect.test.ts.
+// gives the values in testdata/dialect.json here and through
+// pkg/@eserstack/config/dotenv/parser.ts in its dialect.test.ts.
 func TestParseBytes_SharedDialect(t *testing.T) {
 	t.Parallel()
 

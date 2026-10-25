@@ -81,7 +81,7 @@ export type {
   User,
 } from "./domain/mod.ts";
 // The Result and Task types appear in the signatures above; re-exporting
-// them keeps the documented public API complete for `deno doc --lint`.
+// them keeps the documented public API complete.
 export type { Fail, Ok, Result } from "@eserstack/primitives/results";
 export type { Task } from "@eserstack/functions/task";
 export { loadPostsConfig } from "./config.ts";

@@ -10,8 +10,8 @@ import * as adapters from "./mod.ts";
 // table passes every other assertion.
 //
 // tsFactoryFor is used rather than disabling FFI through the environment —
-// Deno.env.set mutates the whole process, so a test that did that would silently
-// break every other FFI test file alongside it.
+// an environment variable is set for the whole process, so a test that did that
+// would silently break every other FFI test sharing the process with it.
 
 nodeTest.test("every provider has a pure-TypeScript fallback", async () => {
   const providers = (await adapters.defaultFactories()).map(

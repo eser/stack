@@ -15,7 +15,7 @@ import (
 // result to string. A name that is not defined yields an untyped nil, and the
 // assertion panicked on it. This is not a recoverable error path: on the FFI
 // bridge the same code runs inside a c-shared library, where a panic unwinds
-// through cgo and aborts the host Deno/Node/Bun process.
+// through cgo and aborts the host Node.js process.
 //
 // The case-insensitive variant panicked even when the variable WAS defined,
 // because ParseBytes stores keys through lib.CaseInsensitiveSet while the

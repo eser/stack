@@ -307,9 +307,6 @@ export const open = async (libraryPath: string): Promise<types.FFILibrary> => {
   const rawCodebaseCheckModExports = lib.func(
     "void* EserAjanCodebaseCheckModExports(const char* requestJSON)",
   );
-  const rawCodebaseCheckPackageConfigs = lib.func(
-    "void* EserAjanCodebaseCheckPackageConfigs(const char* requestJSON)",
-  );
   const rawCodebaseCheckDocs = lib.func(
     "void* EserAjanCodebaseCheckDocs(const char* requestJSON)",
   );
@@ -645,9 +642,6 @@ export const open = async (libraryPath: string): Promise<types.FFILibrary> => {
       },
       EserAjanCodebaseCheckModExports: (requestJSON: string): string => {
         return takeString(rawCodebaseCheckModExports(requestJSON));
-      },
-      EserAjanCodebaseCheckPackageConfigs: (requestJSON: string): string => {
-        return takeString(rawCodebaseCheckPackageConfigs(requestJSON));
       },
       EserAjanCodebaseCheckDocs: (requestJSON: string): string => {
         return takeString(rawCodebaseCheckDocs(requestJSON));

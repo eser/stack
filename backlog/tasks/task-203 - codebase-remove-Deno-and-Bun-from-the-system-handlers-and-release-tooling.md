@@ -1,10 +1,10 @@
 ---
 id: TASK-203
 title: 'codebase: remove Deno and Bun from the system handlers and release tooling'
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2026-10-15 20:38'
-updated_date: '2026-10-25 16:00'
+updated_date: '2026-10-26 10:00'
 labels:
   - cutover
   - codebase
@@ -42,8 +42,8 @@ Plan key: M1-T9. Effort: medium.
 <!-- AC:BEGIN -->
 - [ ] #1 No Deno or Bun reference in codebase/cli-system, release.ts, versions.ts, package/ or codebasefx/changelog.go
 - [ ] #2 `pnpm cli codebase release patch --dry-run` updates VERSION and every package.json with no deno.json
-- [ ] #3 A test covers the missing-archive message
-- [ ] #4 `node --test` passes for the touched codebase test files
+- [x] #3 A test covers the missing-archive message
+- [x] #4 `node --test` passes for the touched codebase test files
 <!-- AC:END -->
 
 ## Implementation Notes
@@ -56,4 +56,6 @@ Hand-work list (TASK-175 spike, 2026-10-24, node 26.12.1):
 - Go and docs: pkg/ajan/codebasefx/changelog.go (1, the `deno fmt` comment) and codebasefx_changelog_format_test.go (1).
 
 TASK-198 (2026-10-25): the test and bench codemods left no site for hand edits in this task's files (0 unhandled), and none of its test files fails under `node --test --test-force-exit` on Node 26.12.1 when run alone.
+
+2026-10-26 (TASK-203): cli-system install, update and uninstall run npm only; the deno and bun entries, the `deno install ... jsr:@eserstack/cli` argument list and the Deno.errors.PermissionDenied checks are gone. install.ts exports isPermissionDenied (standards PermissionDeniedError, or EACCES/EPERM), used by install and update. update.ts exports updateConfig; DENO_TARGET_MAP is RELEASE_TRIPLE_MAP (Rust triples kept per decision-38); missingArchiveMessage and its tests are unchanged. doctor drops the Deno check, info drops DENO_DIR and BUN_INSTALL, app-opts no longer passes jsrPackage (CliApp keeps it optional and ignored so cli/main.ts compiles). release.ts formats CHANGELOG.md with `node --run fmt -- CHANGELOG.md` (oxfmt, no pnpm dependency check), and the deno.json comment and the JSR message are gone. package/ reads package.json only (no deno.json, deno.jsonc, jsr.json, jsr.jsonc; the imports field is removed). New tests: versions.test.ts (a stray deno.json or jsr.json is neither read nor written; it failed before the change), release-contract.test.ts (oxfmt step; the JSR manifest and .gitignore test is removed), update.test.ts (updateConfig), handlers/install.test.ts (isPermissionDenied). `node --test --test-force-exit "pkg/@eserstack/codebase/**/*.test.ts"`: 166 pass, 0 fail; tsc reports nothing under pkg/@eserstack/codebase/; oxlint is clean on the touched files except the existing no-await-in-loop findings in package/workspace.ts. `node ./pkg/@eserstack/cli/main.ts codebase versions patch --dry-run` lists VERSION 4.5.2 -> 4.5.3 and 45 package.json bumps and writes nothing. Open: AC #1 needs the Go comment at pkg/ajan/codebasefx/changelog.go:86 (`deno fmt`), which TASK-204 owns. AC #2: `codebase release patch --dry-run` refuses the dirty working tree, so it runs after the wave is committed.
 <!-- SECTION:NOTES:END -->

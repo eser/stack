@@ -39,13 +39,13 @@ const isFile = async (filepath: string): Promise<boolean> => {
  *
  * // Find config file in current directory only
  * const localPath = await fileSearch.searchFileHierarchy("./src", [
- *   "deno.json",
- *   "deno.jsonc",
+ *   "config.json",
+ *   "config.jsonc",
  * ]);
  *
  * // Find config file, searching up to root
  * const nearestPath = await fileSearch.searchFileHierarchy("./src/lib", [
- *   "deno.json",
+ *   "package.json",
  * ], { searchParents: true });
  * ```
  */

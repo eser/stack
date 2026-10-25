@@ -20,13 +20,7 @@ const REPO_ROOT = runtime.path.resolve(
   "../../../..",
 );
 
-const CLI = [
-  "run",
-  "-A",
-  "--config",
-  `${REPO_ROOT}/deno.json`,
-  `${REPO_ROOT}/pkg/@eserstack/noskills/main.ts`,
-];
+const CLI = [`${REPO_ROOT}/pkg/@eserstack/noskills/main.ts`];
 
 // Each call reads its mode from line n of $FAKE_DIR/script, and copies the
 // spec's own state as the agent sees it during the turn.

@@ -191,11 +191,6 @@ export const moduleDef: Module = new module.Module({
       category: "Validation",
       load: () => import("./validate-mod-exports.ts"),
     },
-    "validate-package-configs": {
-      description: "Validate package configurations",
-      category: "Validation",
-      load: () => import("./validate-package-configs.ts"),
-    },
     "validate-server-loc": {
       description:
         "Fail if any non-test file in a directory exceeds the line ceiling",
@@ -215,7 +210,7 @@ export const moduleDef: Module = new module.Module({
     },
     "validate-runtime-js-apis": {
       description:
-        "Detect direct Deno, Node.js process and Bun API usage beyond the recorded baseline",
+        "Detect runtime globals used instead of @eserstack/standards/cross-runtime",
       category: "Validation",
       load: () => import("./validate-runtime-js-apis.ts"),
     },

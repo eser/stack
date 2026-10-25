@@ -14,9 +14,8 @@ import * as persistence from "../state/persistence.ts";
 
 const ESER_OPTS: CliCommandOptions = {
   command: "eser",
-  devCommand: "deno task cli",
+  devCommand: "pnpm cli",
   npmPackage: "eser",
-  jsrPackage: "@eserstack/cli",
 };
 
 let _prefix: string = schema.DEFAULT_COMMAND_PREFIX;
@@ -36,7 +35,7 @@ export const cmd = (subcommand: string): string => `${_prefix} ${subcommand}`;
  * Makes the `command` in the project's manifest the current prefix and
  * returns it. A command calls this once, before it builds any command string,
  * so its output names the command the user configured (for example
- * `deno task cli noskills`) rather than the npx default. The current prefix
+ * `pnpm cli noskills`) rather than the npx default. The current prefix
  * stays when the project has no manifest or the manifest sets no command.
  */
 export const loadCommandPrefix = async (root: string): Promise<string> => {

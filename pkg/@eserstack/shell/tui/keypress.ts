@@ -3,7 +3,7 @@
 /**
  * Raw stdin reader and keypress event parser.
  *
- * Provides `withRawMode()` for Deno raw terminal input, and
+ * Provides `withRawMode()` for raw terminal input, and
  * `readKeypress()` as an async iterable that parses ANSI escape
  * sequences into semantic `KeypressEvent` objects.
  *
@@ -187,7 +187,7 @@ const parseBytes = (bytes: Uint8Array): KeypressEvent => {
 
 /**
  * Async iterable that yields parsed keypress events from a byte stream.
- * Works with real `Deno.stdin.readable` or a test `ReadableStream`.
+ * Works with the real stdin stream or a test `ReadableStream`.
  */
 export async function* readKeypress(
   input: ReadableStream<Uint8Array>,

@@ -10,8 +10,8 @@
  *   │   → download + verify SHA256 + replace self
  *   │      → Unix: write to temp, rename() over self
  *   │      → Windows: write .new.exe, print manual instructions
- *   └─ else (runtime: deno/node/bun)
- *       → detectExecutionContext() → run package manager update command
+ *   └─ else (Node install)
+ *       → detectExecutionContext() → run `npm update -g`
  *
  * @module
  */
@@ -24,6 +24,7 @@ import type { CliApp } from "../app.ts";
 import * as results from "@eserstack/primitives/results";
 import type * as shellArgs from "@eserstack/shell/args";
 import * as shellExec from "@eserstack/shell/exec";
+import * as install from "./install.ts";
 import * as versionCheck from "./version-check.ts";
 
 // Release archives are tens of megabytes; this bounds a stalled download.
@@ -31,34 +32,19 @@ const ARCHIVE_DOWNLOAD_TIMEOUT_MS = 300_000;
 
 const runtime = standardsCrossRuntime.runtime;
 
-type UpdateConfig = {
+/** A program and its arguments for a package manager update. */
+export type UpdateConfig = {
   readonly cmd: string;
   readonly args: readonly string[];
 };
 
-// A function of the app: the same table updates eser, noskills or laroux.
-const updateConfigs = (app: CliApp): Record<string, UpdateConfig> => ({
-  deno: {
-    cmd: "deno",
-    args: [
-      "install",
-      "-r",
-      "-g",
-      "-A",
-      "-f",
-      "--name",
-      app.command,
-      "jsr:@eserstack/cli",
-    ],
-  },
-  node: {
-    cmd: "npm",
-    args: ["update", "-g", "-f", app.npmPackage ?? app.command],
-  },
-  bun: {
-    cmd: "bun",
-    args: ["update", "-g", "-f", app.npmPackage ?? app.command],
-  },
+/**
+ * The command that updates a Node install. A function of the app: the same
+ * command updates eser, noskills or laroux; only the npm package differs.
+ */
+export const updateConfig = (app: CliApp): UpdateConfig => ({
+  cmd: "npm",
+  args: ["update", "-g", "-f", app.npmPackage ?? app.command],
 });
 
 /**
@@ -195,7 +181,8 @@ export const missingArchiveMessage = (
   );
 };
 
-const DENO_TARGET_MAP: Record<string, string> = {
+// Release archives keep the Rust target triples the v4.5.x binaries look for.
+const RELEASE_TRIPLE_MAP: Record<string, string> = {
   "linux-amd64": "x86_64-unknown-linux-gnu",
   "linux-arm64": "aarch64-unknown-linux-gnu",
   "darwin-amd64": "x86_64-apple-darwin",
@@ -252,7 +239,7 @@ const detectPlatformTarget = (): string | undefined => {
   const arch = standardsCrossRuntime.getArch(); // "amd64" | "arm64"
   const key = `${os}-${arch}`;
 
-  return DENO_TARGET_MAP[key];
+  return RELEASE_TRIPLE_MAP[key];
 };
 
 /**
@@ -401,13 +388,7 @@ const updateCompiledBinary = async (
       out.writeln(span.green(`\nUpdated to v${check.latestVersion}!`));
     }
   } catch (error) {
-    if (
-      (error instanceof Error &&
-        "code" in error &&
-        (error as NodeJS.ErrnoException).code === "EACCES") ||
-      (typeof Deno !== "undefined" &&
-        error instanceof Deno.errors.PermissionDenied)
-    ) {
+    if (install.isPermissionDenied(error)) {
       out.writeln(
         span.red(
           `\nPermission denied. Try running with sudo:\n  sudo ${app.command} update`,
@@ -451,14 +432,10 @@ export const updateHandler = async (
     sink: streams.sinks.stdout(),
   });
 
-  // Runtime-based: use package manager
+  // Node install: use npm
   out.writeln(span.text("Detected runtime: "), span.cyan(execContext.runtime));
 
-  const runtimeConfig =
-    updateConfigs(app)[execContext.runtime as string] ??
-    updateConfigs(app)["node"]!;
-
-  const { cmd, args } = runtimeConfig;
+  const { cmd, args } = updateConfig(app);
 
   out.writeln(span.dim(`Running: ${cmd} ${args.join(" ")}`));
   out.writeln();

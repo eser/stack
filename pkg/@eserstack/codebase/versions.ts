@@ -1,7 +1,8 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 /**
- * Workspace version management tool.
+ * Workspace version management tool. It syncs the VERSION file and every
+ * package.json in the workspace.
  *
  * Can be used as a library or as a standalone script.
  *
@@ -19,12 +20,12 @@
  * ```
  *
  * CLI usage:
- *   deno run --allow-all ./versions.ts              # Show versions table
- *   deno run --allow-all ./versions.ts sync         # Sync all to highest version
- *   deno run --allow-all ./versions.ts patch        # Bump patch, sync all
- *   deno run --allow-all ./versions.ts minor        # Bump minor, sync all
- *   deno run --allow-all ./versions.ts major        # Bump major, sync all
- *   deno run --allow-all ./versions.ts --dry-run    # Preview without changes
+ *   node ./versions.ts              # Show versions table
+ *   node ./versions.ts sync         # Sync all to highest version
+ *   node ./versions.ts patch        # Bump patch, sync all
+ *   node ./versions.ts minor        # Bump minor, sync all
+ *   node ./versions.ts major        # Bump major, sync all
+ *   node ./versions.ts --dry-run    # Preview without changes
  *
  * @module
  */

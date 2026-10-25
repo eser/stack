@@ -546,13 +546,6 @@ func EserAjanCodebaseCheckModExports(requestJSON *C.char) *C.char {
 	}))
 }
 
-//export EserAjanCodebaseCheckPackageConfigs
-func EserAjanCodebaseCheckPackageConfigs(requestJSON *C.char) *C.char {
-	return C.CString(guardString(func() string {
-		return bridgeCodebaseCheckPackageConfigs(C.GoString(requestJSON))
-	}))
-}
-
 //export EserAjanCodebaseCheckDocs
 func EserAjanCodebaseCheckDocs(requestJSON *C.char) *C.char {
 	return C.CString(guardString(func() string {

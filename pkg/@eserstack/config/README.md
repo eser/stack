@@ -33,7 +33,7 @@ be built with portability and resilience when deployed to the web.
 `@eserstack/config`, the environment variables are loaded from the following
 sources:
 
-- Environment variables that passed to the Deno process.
+- Environment variables passed to the Node.js process.
 - Environment variables defined by the system's shell.
 - `.env.$(ENV).local` file - Local overrides of environment-specific settings.
 - `.env.local` file - Local overrides. This file is loaded for all environments
@@ -120,10 +120,15 @@ lists the changes in every package.
   instead of running `decodeURIComponent` over them, and a lone `%` no longer
   throws. Before: `NAME=hello%20world`. After: `NAME="hello world"`.
 - dotenv `load()` takes the environment name from the value of the first set,
-  non-empty variable in `envVars` (`ENV`, `APP_ENV`, `DENO_ENV`, `NODE_ENV` by
-  default) and honours `options.envVars`. It used to use the variable's name, so
+  non-empty variable in `envVars` (`ENV`, `APP_ENV`, `NODE_ENV` by default) and
+  honours `options.envVars`. It used to use the variable's name, so
   `ENV=production` loaded `.env.ENV`. Rename such a file after the value:
   `.env.ENV` becomes `.env.production`.
+- `DENO_ENV` no longer names the environment. Set `ENV`, `APP_ENV` or
+  `NODE_ENV` instead, or pass `envVars: ["DENO_ENV"]` to `load()`.
+- dotenv parsing expands a reference to a name that neither the file nor the
+  process sets, with no default, to an empty string. Before: `A=x${UNSET}`
+  read `xundefined`. After: it reads `x`.
 
 ---
 

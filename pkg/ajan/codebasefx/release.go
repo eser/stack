@@ -25,10 +25,9 @@ import (
 // runs them.
 
 // ReleaseStagedPaths are the pathspecs a release commit stages: the files
-// that carry the version. pkg/*/deno.json is absent on purpose: those are
-// generated and gitignored, and `git add` fails on a pathspec that matches
-// no tracked file. In a git pathspec `*` spans `/`, so pkg/*/package.json
-// reaches the scoped packages.
+// that carry the version. Every entry must match a tracked file: `git add`
+// fails on a pathspec that matches none. In a git pathspec `*` spans `/`, so
+// pkg/*/package.json reaches the scoped packages.
 var ReleaseStagedPaths = []string{"VERSION", "CHANGELOG.md", "pkg/*/package.json", "package.json"} //nolint:gochecknoglobals
 
 var (
@@ -115,8 +114,8 @@ type ReleasePlan struct {
 }
 
 // PlanRelease checks the tree and computes a release of type patch, minor,
-// major or same: the version edits, the changelog section (formatted as deno
-// fmt formats it), the commit message and the tag. Nothing is written.
+// major or same: the version edits, the changelog section (formatted so oxfmt
+// leaves it unchanged), the commit message and the tag. Nothing is written.
 func PlanRelease(ctx context.Context, env *ReleaseEnv, releaseType string, allowUnpushed bool) (*ReleasePlan, error) {
 	clean, err := IsCleanWorkTree(ctx, env.Root)
 	if err != nil {

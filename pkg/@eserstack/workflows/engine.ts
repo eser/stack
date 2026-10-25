@@ -111,7 +111,7 @@ const parseStepTimeout = (stepName: string, value: unknown): number => {
 
 /**
  * Name a step in a message. Every shell step runs the `shell` tool, so a step
- * with a `name` option is named by it too: `'deno-tests' (shell)`.
+ * with a `name` option is named by it too: `'unit-tests' (shell)`.
  */
 const describeStep = (step: ResolvedStep): string => {
   const displayName = step.options["name"];

@@ -36,7 +36,7 @@ const titleSchema: Record<string, unknown> = {
 const FAKE_CLAUDE = `#!/bin/sh
 case " $* " in
   *" --json-schema "*)
-    echo '[{"type":"result","subtype":"success","result":"Here is the title.","structured_output":{"title":"Deno workspaces"}}]' ;;
+    echo '[{"type":"result","subtype":"success","result":"Here is the title.","structured_output":{"title":"pnpm workspaces"}}]' ;;
   *)
     echo '{"type":"result","subtype":"success","result":"no --json-schema flag"}' ;;
 esac
@@ -71,14 +71,14 @@ nodeTest.test(
       const result = await model.generateText(options);
       assert.assert(results.isOk(result), "generateText failed");
       assert.assertEquals(JSON.parse(generation.text(result.value)), {
-        title: "Deno workspaces",
+        title: "pnpm workspaces",
       });
 
       const streamed = await generation.collectStream(
         model.streamText(options),
       );
       assert.assertEquals(JSON.parse(generation.text(streamed)), {
-        title: "Deno workspaces",
+        title: "pnpm workspaces",
       });
     } finally {
       await crossRuntime.runtime.fs.remove(dir, { recursive: true });

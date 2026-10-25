@@ -175,7 +175,7 @@ Where Go and TypeScript differ:
 
 `cmd/noskills/run_test.go` runs the loop against a fake aifx provider factory,
 and `run_binary_test.go` runs the built binary against a fake `claude` on PATH,
-SIGINT included. With `NOSKILLS_RUN_PARITY=1` and deno on PATH, it also runs the
+SIGINT included. With `NOSKILLS_RUN_PARITY=1` and node on PATH, it also runs the
 TypeScript CLI on the same fixture and compares the output and the files. The
 prompt is compared with the TypeScript one in
 `pkg/ajan/noskillsfx/lifecycle_run_test.go`.

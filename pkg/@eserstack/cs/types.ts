@@ -100,7 +100,7 @@ export interface SyncOptions {
   /**
    * Environment name, such as `"production"`. It selects the `.env.<name>`
    * and `.env.<name>.local` files; when absent, the name comes from the
-   * `ENV`, `APP_ENV`, `DENO_ENV` or `NODE_ENV` variable, then `"development"`.
+   * `ENV`, `APP_ENV` or `NODE_ENV` variable, then `"development"`.
    */
   env?: string;
   /** Format of the patch: `"json"` (the default) or `"yaml"`. */

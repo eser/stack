@@ -47,7 +47,6 @@ cliModule.addSubmodule({ name: "laroux" }, larouxModule.moduleDef);
 const app = cliSupport
   .attachStandardCommands(cliModule.toCommand("eser", config.version), {
     npmPackage: "eser",
-    jsrPackage: "@eserstack/cli",
     devCommand: "pnpm cli",
   })
   // Lazy, not eager.

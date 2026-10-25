@@ -32,7 +32,6 @@ bdd.describe("noskills purge: module structure", () => {
 // Agent mode without --force
 // =============================================================================
 
-// TUI writes to stderr asynchronously — disable sanitizers to avoid false leak detection
 bdd.describe("noskills purge: agent mode without --force", () => {
   bdd.it("returns exit code 1", async () => {
     const result = await purge.main(["--agent"]);
@@ -173,6 +172,15 @@ bdd.describe("noskills purge: agent mode with --force", () => {
     });
     assert.assertEquals("permissions" in settings, true);
     assert.assertEquals(await runtime.fs.exists(`${root}/keep.txt`), true);
+  });
+
+  bdd.it("removes the tool folders purge left empty", async () => {
+    const result = await purge.main(["--agent", "--force"], root);
+
+    assert.assertEquals(results.isOk(result), true);
+    assert.assertEquals(await runtime.fs.exists(`${root}/.kiro`), false);
+    assert.assertEquals(await runtime.fs.exists(`${root}/.opencode`), false);
+    assert.assertEquals(await runtime.fs.exists(`${root}/.claude`), true);
   });
 
   bdd.it("keeps every removed category in one history entry", async () => {
@@ -521,7 +529,7 @@ bdd.describe("noskills purge restore", () => {
       await purge.main(["--agent", "--force"], root);
       await runtime.fs.writeTextFile(
         `${root}/.eser/manifest.yml`,
-        "noskills:\n  command: deno task cli noskills\n",
+        "noskills:\n  command: pnpm cli noskills\n",
       );
 
       const refused = await restore(root, "latest", "manifest");
@@ -529,7 +537,7 @@ bdd.describe("noskills purge restore", () => {
       assert.assertEquals(results.isFail(refused), true);
       assert.assertEquals(
         (await persistence.readManifest(root))?.command,
-        "deno task cli noskills",
+        "pnpm cli noskills",
       );
 
       await restore(root, "latest", "manifest", "--overwrite");

@@ -425,6 +425,9 @@ export class BlueskySocialApi implements SocialApi {
  * @deprecated Use `BlueskySocialApi`. This alias stays for one release and is
  * then removed.
  */
+// The value and the type below share the alias name, as a class name does;
+// TypeScript keeps them apart, the core no-redeclare rule does not.
+// oxlint-disable-next-line no-redeclare
 export const BluekysSocialApi: typeof BlueskySocialApi = BlueskySocialApi;
 
 /**

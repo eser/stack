@@ -58,12 +58,9 @@ func writeFiles(t *testing.T, root string, files map[string]string) {
 var workspaceFixture = map[string]string{ //nolint:gochecknoglobals
 	"VERSION":      "1.2.3\n",
 	"package.json": `{"name":"@fixture/root","version":"1.2.3","private":true,"workspaces":["pkg/@fixture/*"],"scripts":{"a":"b"}}` + "\n",
-	"deno.json":    "{\n  \"workspace\": [\"./pkg/@fixture/one\"],\n  \"lock\": false\n}\n",
 	"pkg/@fixture/one/package.json": "{\n  \"name\": \"@fixture/one\",\n  \"version\": \"1.2.3\",\n  \"description\": \"Ünïcode, \\\"quotes\\\" & <tags>\",\n" +
 		"  \"exports\": {\n    \".\": \"./mod.ts\"\n  },\n  \"files\": [],\n  \"dependencies\": {},\n  \"n\": 1.50\n}\n",
-	"pkg/@fixture/one/deno.json":    `{"name":"@fixture/one","version":"1.2.3","exports":"./mod.ts"}`,
 	"pkg/@fixture/two/package.json": "{\n  \"name\": \"@fixture/two\",\n  \"version\": \"1.2.0\"\n}\n",
-	"pkg/@fixture/two/jsr.jsonc":    "{\n  // a comment\n  \"name\": \"@fixture/two\",\n  \"version\": \"1.2.0\"\n}\n",
 	"pkg/@fixture/docs/README.md":   "no package config here\n",
 	"CHANGELOG.md":                  "# Changelog\n\n## Unreleased\n\n## 1.2.3 - 2026-01-01\n\n### Added\n\n- **one:** the first release\n",
 }
@@ -99,15 +96,30 @@ func readTree(t *testing.T, root string) map[string]string {
 	return files
 }
 
-func denoOrSkip(t *testing.T) string {
+// nodeOrSkip returns the node binary that runs the TypeScript side of a
+// comparison; the repository's Node (.nvmrc) strips the types itself.
+func nodeOrSkip(t *testing.T) string {
 	t.Helper()
 
-	deno, err := exec.LookPath("deno")
+	node, err := exec.LookPath("node")
 	if err != nil {
-		t.Skip("deno is not installed; the TypeScript comparison needs it")
+		t.Skip("node is not installed; the TypeScript comparison needs it")
 	}
 
-	return deno
+	return node
+}
+
+// oxfmtOrSkip returns the repository's oxfmt, which formats CHANGELOG.md in
+// the TypeScript release.
+func oxfmtOrSkip(t *testing.T, repo string) string {
+	t.Helper()
+
+	oxfmt := filepath.Join(repo, "node_modules", ".bin", "oxfmt")
+	if _, err := os.Stat(oxfmt); err != nil {
+		t.Skip("oxfmt is not installed; run pnpm install for the formatter comparison")
+	}
+
+	return oxfmt
 }
 
 // TestPlanVersionsMatchesTypeScript bumps the fixture with the TypeScript
@@ -115,7 +127,7 @@ func denoOrSkip(t *testing.T) string {
 func TestPlanVersionsMatchesTypeScript(t *testing.T) {
 	t.Parallel()
 
-	deno := denoOrSkip(t)
+	node := nodeOrSkip(t)
 
 	repo, err := filepath.Abs(repoRootFromCodebasefx)
 	if err != nil {
@@ -130,8 +142,7 @@ func TestPlanVersionsMatchesTypeScript(t *testing.T) {
 			writeFiles(t, tsRoot, workspaceFixture)
 			writeFiles(t, goRoot, workspaceFixture)
 
-			cmd := exec.Command(deno, "run", "-A", "--config", filepath.Join(repo, "deno.json"), //nolint:gosec,noctx
-				filepath.Join(repo, "pkg/@eserstack/codebase/versions.ts"), command)
+			cmd := exec.Command(node, filepath.Join(repo, "pkg/@eserstack/codebase/versions.ts"), command) //nolint:gosec,noctx
 			cmd.Dir = tsRoot
 
 			if out, err := cmd.CombinedOutput(); err != nil {
@@ -185,16 +196,18 @@ func changelogRepo(t *testing.T) string {
 
 // TestReleaseChangelogMatchesTypeScript compares the CHANGELOG.md a Go
 // release plans with what the TypeScript release writes: its changelog-gen
-// (the Go generator through the bridge) followed by deno fmt CHANGELOG.md.
+// (the Go generator through the bridge) followed by oxfmt CHANGELOG.md.
 func TestReleaseChangelogMatchesTypeScript(t *testing.T) {
 	t.Parallel()
 
-	deno := denoOrSkip(t)
+	node := nodeOrSkip(t)
 
 	repo, err := filepath.Abs(repoRootFromCodebasefx)
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	oxfmt := oxfmtOrSkip(t, repo)
 
 	root := changelogRepo(t)
 
@@ -211,19 +224,18 @@ func TestReleaseChangelogMatchesTypeScript(t *testing.T) {
 		}
 	}
 
-	gen := exec.Command(deno, "run", "-A", "--config", filepath.Join(repo, "deno.json"), //nolint:gosec,noctx
-		filepath.Join(repo, "pkg/@eserstack/codebase/changelog-gen.ts"))
+	gen := exec.Command(node, filepath.Join(repo, "pkg/@eserstack/codebase/changelog-gen.ts")) //nolint:gosec,noctx
 	gen.Dir = root
 
 	if out, err := gen.CombinedOutput(); err != nil {
 		t.Fatalf("TypeScript changelog-gen: %v: %s", err, out)
 	}
 
-	fmtCmd := exec.Command(deno, "fmt", "--quiet", "CHANGELOG.md") //nolint:gosec,noctx
+	fmtCmd := exec.Command(oxfmt, "--config", filepath.Join(repo, ".oxfmtrc.json"), "CHANGELOG.md") //nolint:gosec,noctx
 	fmtCmd.Dir = root
 
 	if out, err := fmtCmd.CombinedOutput(); err != nil {
-		t.Fatalf("deno fmt: %v: %s", err, out)
+		t.Fatalf("oxfmt: %v: %s", err, out)
 	}
 
 	tsChangelog, err := os.ReadFile(filepath.Join(root, "CHANGELOG.md")) //nolint:gosec // the test's own file
@@ -232,7 +244,7 @@ func TestReleaseChangelogMatchesTypeScript(t *testing.T) {
 	}
 
 	if goChangelog != string(tsChangelog) {
-		t.Errorf("CHANGELOG.md:\n--- TypeScript + deno fmt\n%s\n--- Go\n%s", tsChangelog, goChangelog)
+		t.Errorf("CHANGELOG.md:\n--- TypeScript + oxfmt\n%s\n--- Go\n%s", tsChangelog, goChangelog)
 	}
 
 	if !strings.Contains(goChangelog, "## 1.2.4 - ") {
@@ -264,22 +276,13 @@ func releaseRepo(t *testing.T) (string, string) {
 }
 
 // TestReleaseContract ports release-contract.test.ts to a real run: the
-// commit stages exactly the version-bearing paths and no generated deno.json,
-// its message is "chore(codebase): release v<version>", and the commit
+// commit stages exactly the version-bearing paths, its message is "chore(codebase): release v<version>", and the commit
 // reaches the remote before the tag.
 func TestReleaseContract(t *testing.T) {
 	t.Parallel()
 
 	root, origin := releaseRepo(t)
 	env := &codebasefx.ReleaseEnv{Root: root} //nolint:exhaustruct
-
-	// The generated per-package deno.json files are gitignored in the repo.
-	writeFiles(t, root, map[string]string{".gitignore": "/pkg/*/*/deno.json\n"})
-	git(t, root, "rm", "-q", "--cached", "pkg/@fixture/one/deno.json")
-	git(t, root, "add", ".gitignore")
-	git(t, root, "commit", "-q", "-m", "chore: ignore generated manifests")
-	git(t, root, "push", "-q")
-	_ = os.Remove(filepath.Join(origin, "ref-order.log"))
 
 	plan, err := codebasefx.PlanRelease(context.Background(), env, "patch", false)
 	if err != nil {
@@ -295,16 +298,13 @@ func TestReleaseContract(t *testing.T) {
 	}
 
 	files := strings.Fields(git(t, root, "show", "--name-only", "--format=", "HEAD"))
-	// The root deno.json's workspace list (one package) takes priority over
-	// package.json's, as in the TypeScript loader, so @fixture/two keeps 1.2.0.
-	want := []string{"CHANGELOG.md", "VERSION", "package.json", "pkg/@fixture/one/package.json"}
+	want := []string{"CHANGELOG.md", "VERSION", "package.json", "pkg/@fixture/one/package.json", "pkg/@fixture/two/package.json"}
 
 	if strings.Join(files, ",") != strings.Join(want, ",") {
 		t.Errorf("committed %v, want %v", files, want)
 	}
 
 	if git(t, root, "status", "--porcelain") != "" {
-		// The generated deno.json was updated on disk but stays ignored.
 		t.Errorf("the release left changes: %s", git(t, root, "status", "--porcelain"))
 	}
 

@@ -109,7 +109,7 @@ func TestGenerateChangelogSection_HeadingFormat(t *testing.T) {
 				t.Errorf("heading must not be bracketed, got:\n%s", section)
 			}
 
-			// `deno fmt` inserts a blank line after a heading; emitting it here
+			// oxfmt inserts a blank line after a heading; emitting it here
 			// keeps the formatter a no-op on the generated CHANGELOG.md.
 			if !strings.Contains(section, "### Added\n\n- add login") {
 				t.Errorf("want blank line between '### Added' and its first bullet, got:\n%s", section)

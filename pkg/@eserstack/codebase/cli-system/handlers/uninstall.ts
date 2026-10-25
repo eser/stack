@@ -20,17 +20,14 @@ type UninstallConfig = {
   readonly args: readonly string[];
 };
 
-// A function of the app, not a constant: the same table describes uninstalling
-// eser, noskills or laroux, and only the package name differs.
-const uninstallConfigs = (app: CliApp): Record<string, UninstallConfig> => {
-  const pkg = app.npmPackage ?? app.command;
-
-  return {
-    deno: { cmd: "deno", args: ["uninstall", "-g", app.command] },
-    node: { cmd: "npm", args: ["uninstall", "-g", pkg] },
-    bun: { cmd: "bun", args: ["remove", "-g", pkg] },
-  };
-};
+// A function of the app, not a constant: the same command uninstalls eser,
+// noskills or laroux, and only the package name differs.
+const uninstallConfigs = (app: CliApp): Record<string, UninstallConfig> => ({
+  node: {
+    cmd: "npm",
+    args: ["uninstall", "-g", app.npmPackage ?? app.command],
+  },
+});
 
 export const uninstallHandler = async (
   _ctx: shellArgs.CommandContext,
@@ -54,8 +51,7 @@ export const uninstallHandler = async (
       message:
         `${renderer.render([
           span.red(`\nUnsupported runtime: ${runtimeName}`),
-        ])}\n` +
-        "Global uninstallation is only supported for Deno, Node.js, and Bun.",
+        ])}\n` + "Global uninstallation is only supported for Node.js.",
       exitCode: 1,
     });
   }

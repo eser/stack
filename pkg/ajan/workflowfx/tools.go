@@ -43,7 +43,7 @@ func (t *shellTool) Description() string { return "run a shell command from opti
 func (t *shellTool) Run(ctx context.Context, opts map[string]any) (*WorkflowToolResult, error) {
 	command, _ := opts["command"].(string)
 	if command == "" {
-		return failResult(t.Name(), `the shell tool requires a "command" option, such as { shell: { command: "deno fmt --check" } }`), nil
+		return failResult(t.Name(), `the shell tool requires a "command" option, such as { shell: { command: "npx oxfmt --check" } }`), nil
 	}
 
 	displayName := optString(opts, "name", command)

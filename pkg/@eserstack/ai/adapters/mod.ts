@@ -132,8 +132,8 @@ const bridgeFactories = (): Promise<readonly model.ProviderFactory[]> => {
  *
  * This is what a machine with no usable native binary gets, so it is also the
  * only way to exercise that path without disabling FFI process-wide — which a
- * test cannot do, because `Deno.env.set` affects every other test file in the
- * process, not just its own isolate.
+ * test cannot do, because an environment variable set for the process affects
+ * every other test running in it, not just its own.
  *
  * Undefined for a provider with no TypeScript adapter.
  */

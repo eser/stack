@@ -100,17 +100,20 @@ await collector.buildManifestFile("./src/manifest.gen.ts", {
 Collect exports and write a manifest to a `WritableStream`.
 
 ```typescript
+import * as fs from "node:fs";
+import * as stream from "node:stream";
 import * as collector from "@eserstack/collector";
 
-const file = await Deno.open("manifest.gen.ts", { write: true, create: true });
-await collector.buildManifest(file.writable, {
+const file = stream.Writable.toWeb(fs.createWriteStream("manifest.gen.ts"));
+await collector.buildManifest(file, {
   baseDir: "./src/routes",
 });
 ```
 
 ### `writeManifestToString(collection)`
 
-Convert a collected export array into a formatted manifest string.
+Convert a collected export array into a manifest string. The source is not
+formatted; run it through a formatter such as oxfmt for canonical style.
 
 ### `specifierToIdentifier(specifier, used)`
 

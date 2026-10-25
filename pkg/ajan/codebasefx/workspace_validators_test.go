@@ -133,67 +133,6 @@ func TestCheckModExports_Reachability(t *testing.T) {
 	}
 }
 
-func TestCheckPackageConfigs_Dependencies(t *testing.T) {
-	t.Parallel()
-
-	const pkgJSON = `{"name": "a", "version": "1.0.0", ` +
-		`"dependencies": {"@std/path": "npm:@jsr/std__path@^1.1.6", "b": "workspace:*"}}`
-
-	cases := []struct {
-		name     string
-		denoJSON string
-		want     []string
-	}{
-		{
-			name:     "deno.json without an import map",
-			denoJSON: `{"name": "a", "version": "1.0.0"}`,
-			want:     []string{},
-		},
-		{
-			name:     "import map in step with package.json",
-			denoJSON: `{"name": "a", "version": "1.0.0", "imports": {"@std/path": "jsr:@std/path@^1.1.6"}}`,
-			want:     []string{},
-		},
-		{
-			name:     "import map missing a dependency",
-			denoJSON: `{"name": "a", "version": "1.0.0", "imports": {"zod": "npm:zod@^4.0.0"}}`,
-			want:     []string{"@std/path missing_in_deno", "zod missing_in_package"},
-		},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-
-			root := writeWorkspace(t, []workspaceFile{
-				{path: "package.json", content: `{"workspaces": ["pkg/*"]}`},
-				{path: "pkg/a/package.json", content: pkgJSON},
-				{path: "pkg/a/deno.json", content: tc.denoJSON},
-			})
-
-			result, err := codebasefx.CheckPackageConfigs(root)
-			if err != nil {
-				t.Fatalf("CheckPackageConfigs: %v", err)
-			}
-
-			got := make([]string, 0, len(result.DependencyInconsistencies))
-			for _, d := range result.DependencyInconsistencies {
-				got = append(got, d.DependencyName+" "+d.Issue)
-			}
-
-			slices.Sort(got)
-
-			if !slices.Equal(got, tc.want) {
-				t.Errorf("CheckPackageConfigs dependency issues = %q, want %q", got, tc.want)
-			}
-
-			if result.IsConsistent != (len(tc.want) == 0) {
-				t.Errorf("CheckPackageConfigs IsConsistent = %v with issues %q", result.IsConsistent, got)
-			}
-		})
-	}
-}
-
 // TestWorkspaceValidators_EmptyListsAreJSONArrays guards the FFI contract: the
 // TypeScript callers read `.length` on these lists, so a clean result must
 // encode them as [] and never as null.
@@ -203,7 +142,6 @@ func TestWorkspaceValidators_EmptyListsAreJSONArrays(t *testing.T) {
 	root := writeWorkspace(t, []workspaceFile{
 		{path: "package.json", content: `{"workspaces": ["pkg/*"]}`},
 		{path: "pkg/a/package.json", content: `{"name": "a", "version": "1.0.0", "exports": {".": "./mod.ts"}}`},
-		{path: "pkg/a/deno.json", content: `{"name": "a", "version": "1.0.0", "exports": {".": "./mod.ts"}}`},
 		{path: "pkg/a/mod.ts", content: "/** The answer. */\nexport const x = 1;\n"},
 	})
 
@@ -222,11 +160,6 @@ func TestWorkspaceValidators_EmptyListsAreJSONArrays(t *testing.T) {
 		t.Fatalf("CheckModExports: %v", err)
 	}
 
-	configs, err := codebasefx.CheckPackageConfigs(root)
-	if err != nil {
-		t.Fatalf("CheckPackageConfigs: %v", err)
-	}
-
 	docs, err := codebasefx.CheckDocs(root, false)
 	if err != nil {
 		t.Fatalf("CheckDocs: %v", err)
@@ -239,7 +172,6 @@ func TestWorkspaceValidators_EmptyListsAreJSONArrays(t *testing.T) {
 		{"CheckCircularDeps", circular},
 		{"CheckExportNames", names},
 		{"CheckModExports", mods},
-		{"CheckPackageConfigs", configs},
 		{"CheckDocs", docs},
 	}
 

@@ -909,10 +909,6 @@ bdd.describe("OpenCode plugin: with the real noskills command", () => {
       rules: [],
       commandPrefix: [
         crossRuntime.runtime.process.execPath(),
-        "run",
-        "-A",
-        "--config",
-        `${REPO_ROOT}/deno.json`,
         `${REPO_ROOT}/pkg/@eserstack/noskills/main.ts`,
       ].join(" "),
     });

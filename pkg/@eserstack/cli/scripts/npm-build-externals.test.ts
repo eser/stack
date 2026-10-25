@@ -102,3 +102,20 @@ nodeTest.test(
     );
   },
 );
+
+nodeTest.test(
+  "the cli build keeps no npm: or jsr: specifier external",
+  async () => {
+    const source = await runtime.fs.readTextFile(
+      runtime.path.join(repoRoot, "pkg/@eserstack/cli/scripts/npm-build.ts"),
+    );
+
+    // Every import resolves through node_modules, so a specifier pattern in
+    // the externals would only hide an import the bundle cannot resolve.
+    assert.assertEquals(
+      /"(npm|jsr):\*"/.test(stripComments(source)),
+      false,
+      "the cli build must not keep npm:* or jsr:* external",
+    );
+  },
+);

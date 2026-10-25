@@ -10,14 +10,14 @@ import * as schema from "../state/schema.ts";
 bdd.describe("isNoskillsCommand", () => {
   bdd.it("detects 'noskills' in command", () => {
     assert.assertEquals(
-      hookDecisions.isNoskillsCommand("deno task cli noskills next"),
+      hookDecisions.isNoskillsCommand("pnpm cli noskills next"),
       true,
     );
   });
 
   bdd.it("detects ' nos ' in command", () => {
     assert.assertEquals(
-      hookDecisions.isNoskillsCommand("deno task cli nos next"),
+      hookDecisions.isNoskillsCommand("pnpm cli nos next"),
       true,
     );
   });
@@ -1097,7 +1097,7 @@ bdd.describe("bashProtectedFile", () => {
     { command: "git diff .eser/manifest.yml", expected: null },
     { command: "ls .eser/.state/bin", expected: null },
     // Commands that name no protected file pass.
-    { command: "deno task cli noskills concern add x", expected: null },
+    { command: "pnpm cli noskills concern add x", expected: null },
     { command: "sed -i s/a/b/ k8s/manifest.yml", expected: null },
     {
       command: `noskills spec x next --answer="edit .eser/manifest.yml"`,
@@ -1655,7 +1655,7 @@ bdd.describe("gateStateOf", () => {
 });
 
 bdd.describe("fileEditVerdict", () => {
-  const prefix = "deno task cli noskills";
+  const prefix = "pnpm cli noskills";
   const state = (
     phase: string | null,
     spec: string | null = "upload",

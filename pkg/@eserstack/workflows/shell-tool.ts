@@ -13,8 +13,8 @@
  * ```yaml
  * - shell:
  *     name: format
- *     command: deno fmt --check
- *     fixCommand: deno fmt
+ *     command: npx oxfmt --check
+ *     fixCommand: npx oxfmt
  * ```
  *
  * @module
@@ -64,7 +64,7 @@ export const shellTool: WorkflowTool = {
     if (command === undefined || command.length === 0) {
       throw new Error(
         "Shell tool requires a 'command' option. " +
-          'Usage: { shell: { command: "deno fmt --check" } }',
+          'Usage: { shell: { command: "npx oxfmt --check" } }',
       );
     }
 

@@ -374,7 +374,7 @@ nodeTest.test(
       recipes: [
         {
           ...VALID_RECIPE,
-          postInstall: ["deno install", "deno task build"],
+          postInstall: ["npm install", "npm run build"],
         },
       ],
     };
@@ -382,8 +382,8 @@ nodeTest.test(
     const result = registrySchema.validateRegistryManifest(manifest);
 
     assert.assertEquals(result.recipes[0]!.postInstall, [
-      "deno install",
-      "deno task build",
+      "npm install",
+      "npm run build",
     ]);
   },
 );

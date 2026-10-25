@@ -4,8 +4,8 @@
  * Check steps for the generated noskills-executor and noskills-verifier
  * agents. Every adapter that writes these agents takes the steps from here.
  * They name the project's own type check and tests: noskills runs in projects
- * of any language, and a fixed `deno check` or `deno test` was wrong outside
- * Deno projects.
+ * of any language, and a fixed type check or test command was wrong in every
+ * project that used another one.
  *
  * @module
  */

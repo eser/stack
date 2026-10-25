@@ -72,21 +72,21 @@ bdd.describe("validateToolArguments", () => {
     {
       name: "a string where an integer belongs",
       tool: "search_posts",
-      args: { query: "deno", platform: "twitter", maxResults: "5" },
+      args: { query: "node", platform: "twitter", maxResults: "5" },
       field: "maxResults",
       problem: 'must be an integer; got "5"',
     },
     {
       name: "a fractional number where an integer belongs",
       tool: "search_posts_all",
-      args: { query: "deno", maxResultsPerPlatform: 2.5 },
+      args: { query: "node", maxResultsPerPlatform: 2.5 },
       field: "maxResultsPerPlatform",
       problem: "must be an integer; got 2.5",
     },
     {
       name: "an integer below the minimum",
       tool: "search_posts",
-      args: { query: "deno", platform: "bluesky", maxResults: 0 },
+      args: { query: "node", platform: "bluesky", maxResults: 0 },
       field: "maxResults",
       problem: "must be at least 1; got 0",
     },
@@ -186,7 +186,7 @@ bdd.describe("validateToolArguments", () => {
     },
     {
       tool: "search_posts",
-      args: { query: "deno", platform: "twitter", maxResults: 10 },
+      args: { query: "node", platform: "twitter", maxResults: 10 },
     },
   ];
 

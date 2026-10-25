@@ -8,12 +8,10 @@
 
 import * as github from "./github.ts";
 import * as npm from "./npm.ts";
-import * as jsr from "./jsr.ts";
 import type { Provider } from "./types.ts";
 
 export const resolveProvider = (specifier: string): Provider => {
   if (specifier.startsWith("npm:")) return npm.provider;
-  if (specifier.startsWith("jsr:")) return jsr.provider;
   if (specifier.startsWith("gh:") || specifier.startsWith("github:")) {
     return github.provider;
   }

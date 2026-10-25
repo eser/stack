@@ -258,7 +258,7 @@ nodeTest.test(
               type: "tool_use",
               id: "call_1",
               name: "StructuredOutput",
-              input: { title: "Deno workspaces" },
+              input: { title: "pnpm workspaces" },
             },
           ],
         },
@@ -267,12 +267,12 @@ nodeTest.test(
         type: "result",
         subtype: "success",
         result: "Here is the title.",
-        structured_output: { title: "Deno workspaces" },
+        structured_output: { title: "pnpm workspaces" },
       },
     ]);
 
     const r = claudeCode.parseJsonResult(raw, "claude-opus");
-    assert.assertEquals(JSON.parse(textOf(r)), { title: "Deno workspaces" });
+    assert.assertEquals(JSON.parse(textOf(r)), { title: "pnpm workspaces" });
     assert.assertEquals(r.content.length, 1);
   },
 );

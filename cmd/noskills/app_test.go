@@ -261,7 +261,7 @@ func TestForwardNamesThisBinary(t *testing.T) {
 		{name: "on PATH", path: true, want: envCLIPrefix + "=noskills"},
 		{name: "off PATH", want: envCLIPrefix + "="},
 		{name: "a path that needs quotes", self: spaced, want: envCLIPrefix + "='"},
-		{name: "the user's own value", set: "deno task cli noskills", want: "KEEP=1"},
+		{name: "the user's own value", set: "pnpm cli noskills", want: "KEEP=1"},
 	}
 
 	for _, tc := range cases {

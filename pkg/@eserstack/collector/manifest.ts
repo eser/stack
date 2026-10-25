@@ -9,7 +9,6 @@
 import * as crossRuntime from "@eserstack/standards/cross-runtime";
 import * as logger from "@eserstack/logging/logger";
 import * as validatorIdentifier from "./validator-identifier/mod.ts";
-import * as formatter from "./formatter.ts";
 import * as collector from "./collector.ts";
 import * as ffiClient from "./ffi-client.ts";
 
@@ -158,7 +157,8 @@ ${importsSerialized}
 export const manifest = ${manifestSerialized};
 `;
 
-  return formatter.format(output);
+  // Unformatted, as the Go generator returns it.
+  return output;
 };
 
 export const buildManifest = async (

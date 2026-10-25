@@ -1,10 +1,10 @@
 ---
 id: TASK-211
 title: 'noskills: pass the 72 test files on Node and stop generating deno commands'
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2026-10-15 20:38'
-updated_date: '2026-10-25 16:00'
+updated_date: '2026-10-26 10:00'
 labels:
   - cutover
   - noskills
@@ -35,8 +35,8 @@ Plan key: M1-T17. Effort: large.
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 `node --test 'pkg/@eserstack/noskills/**/*.test.ts'` passes
-- [ ] #2 Generated hook commands and fixtures contain no `deno run` or --allow-*
+- [x] #1 `node --test 'pkg/@eserstack/noskills/**/*.test.ts'` passes
+- [x] #2 Generated hook commands and fixtures contain no `deno run` or --allow-*
 - [ ] #3 `git grep -wni deno pkg/@eserstack/noskills pkg/ajan/noskillsfx` matches only the ADR 0005 allowlist paths; tsc and oxlint are clean
 <!-- AC:END -->
 
@@ -67,4 +67,13 @@ TASK-198 (2026-10-25): the test and bench codemods left no site for hand edits i
 - pkg/@eserstack/noskills/commands/state-commands.test.ts: 3 failing, 0 passing; first error: AssertionError: Values are not equal: node:internal/modules/cjs/loader:1607
 - pkg/@eserstack/noskills/state/persistence.migration.test.ts: 1 failing, 11 passing; first error: Error [ERR_FS_EISDIR]: Path is a directory: rm returned EISDIR (is a directory) <tmp> { code: 'ERR_FS_EISDIR', info: { c
 - pkg/@eserstack/noskills/sync/adapters/opencode.test.ts: 1 failing, 35 passing; first error: AssertionError: Expected error message to include "Git write operations are not allowed", but got "noskills: the PreToo
+TASK-211 work (2026-10-26, node 26.12.1):
+- Test spawns: every `execPath() run -A --config deno.json main.ts` became `execPath() main.ts` (git-wrapper, init, invoke-hook, run-loop, session-config-diagrams, spec, spec-plan, spec-section, spec-states, state-commands, opencode tests). The git-wrapper interpreter program is now `node -e` with `child_process.spawnSync`.
+- Bug fixed test-first: Node's `fs.rm` refuses an empty folder without `recursive`, so purge left empty tool folders (new purge test "removes the tool folders purge left empty") and the legacy-layout migration threw EISDIR. purge.ts checks emptiness, then removes with `recursive`; persistence.ts removes the proven-empty folder with `recursive`.
+- next.test.ts already passed (TASK-201 fixed the aborted spawn).
+- Generated text: output/cmd.ts devCommand is `pnpm cli` and jsrPackage is gone; the init network warning no longer offers `deno install -g -A`; the git wrapper comment says `pnpm run`; the rule example is `Use node:test for all tests` (also cmd/noskills/state_commands.go and the state_commands golden). The Deno-only `NotFound` name check in persistence.ts is gone.
+- Fixtures: `testRunner: "node"`, `pnpm cli noskills` and `node ./tools/nos.ts` replace the deno forms; hook-commands.test.ts keeps the Deno network-runner cases without `--allow-*`. The sanitizer comment in purge.test.ts is gone; no other sanitizer assumption was left.
+- scripts/npm-build.ts runs under node; the `npm:*`/`jsr:*` externals are dropped. READMEs and README-HOW updated. cmd/noskills run_binary_test.go parity runs node (passes with NOSKILLS_RUN_PARITY=1).
+- tsc: seven TS9010 isolatedDeclarations errors fixed with explicit types. oxlint and oxfmt clean. node --test: 81 files, 1918 tests pass, each file alone too. Go: cmd/noskills and pkg/ajan/noskillsfx tests pass.
+- AC #3 open: outside the ADR 0005 allowlist, pkg/@eserstack/noskills keeps context/compiler.ts (version-term regex naming Deno), sync/adapters/shared/agent-prompts.ts (`deno.json tasks` hint for users' projects) and sync/hook-commands.test.ts (tests of the allowlisted recognizer); they need ADR entries or removal. pkg/ajan/noskillsfx still has 24 files / 267 lines: goldens recorded with a `deno task cli noskills` prefix, git_wrapper.go:272, hook_commands.go:224 (now differs from TS), sync_claude.go:33, lifecycle_init.go, next_discovery.go, learnings_test.go, hook_parity_test.go (deno fmt) and testdata/hook_parity.json. The persistence.go, compiler_test.go and manifest_preservation_test.go mentions this description names are already gone.
 <!-- SECTION:NOTES:END -->

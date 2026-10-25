@@ -5,7 +5,7 @@
  *
  * The integration tests install the real wrapper script in a temporary project
  * and drive it the way an agent can get around the PreToolUse text guard: an
- * interpreter (`deno eval`) builds the program name "g" + "it" at run time and
+ * interpreter (`node -e`) builds the program name "g" + "it" at run time and
  * starts it, so the command text never contains `git`. This is the same class
  * as `python -c "subprocess.run(['g'+'it','push'])"` from TASK-22.
  *
@@ -101,10 +101,6 @@ const REPO_ROOT = crossRuntime.runtime.path.resolve(
 // How the wrapper starts this checkout's noskills, as `command` in a manifest.
 const COMMAND_PREFIX = [
   crossRuntime.runtime.process.execPath(),
-  "run",
-  "-A",
-  "--config",
-  `${REPO_ROOT}/deno.json`,
   `${REPO_ROOT}/pkg/@eserstack/noskills/main.ts`,
 ]
   .map(gitWrapper.shellQuote)
@@ -222,22 +218,22 @@ const createProject = async (): Promise<Project> => {
 
 /**
  * Runs git the way an interpreter does it: the program name is assembled at
- * run time and resolved on PATH, which has the wrapper first. The `Deno.*`
- * calls are the text of the program the child `deno eval` runs, not calls this
- * test makes.
+ * run time and resolved on PATH, which has the wrapper first. The
+ * `child_process` call is the text of the program the child `node -e` runs,
+ * not a call this test makes.
  */
 const interpreterGit = async (
   project: Project,
   args: readonly string[],
   cwd: string = project.root,
 ): Promise<Spawned> => {
-  const program = `const r = new Deno.Command("g" + "it", { args: ${JSON.stringify(
+  const program = `const r = process.getBuiltinModule("node:child_process").spawnSync("g" + "it", ${JSON.stringify(
     args,
-  )}, stdout: "inherit", stderr: "inherit" }).outputSync(); Deno.exit(r.code);`;
+  )}, { stdio: "inherit" }); process.exit(r.status ?? 1);`;
 
   return await spawn(
     crossRuntime.runtime.process.execPath(),
-    ["eval", program],
+    ["-e", program],
     cwd,
     {
       PATH: gitWrapper.prependToPath(

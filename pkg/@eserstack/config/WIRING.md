@@ -65,9 +65,9 @@ No structured error codes from Go. TS maps substrings to codes:
 
 ## 4. Memory ownership
 
-Go allocates the return string with `C.CString` (heap). FFI backends
-(Deno/Bun/Node) copy the C string to a JS string and then call `EserAjanFree`
-internally. **TS calling code never calls `EserAjanFree` directly.** The
+Go allocates the return string with `C.CString` (heap). The FFI backend
+(`node:ffi` on Node.js) copies the C string to a JS string and then calls
+`EserAjanFree` internally. **TS calling code never calls `EserAjanFree` directly.** The
 `FFILibrary` wrapper handles this.
 
 Call sequence:
@@ -137,6 +137,13 @@ if (result.error) {
 The `./file` subpath (YAML/TOML/JSONC typed parsing) and `./dotenv` subpath (env
 utilities) have no complete Go analog and remain as TS in this pilot.
 
+`./dotenv` parses `.env` text in `dotenv/parser.ts`, which reads the dialect of
+`configfx/envparser`; `dotenv/dialect.test.ts` and the Go
+`TestParseBytes_SharedDialect` read the same fixture. A name the file does not
+set expands from the process environment, then from its `:-` default, then to
+an empty string. The environment name comes from the first set, non-empty one of
+`ENV`, `APP_ENV` and `NODE_ENV`.
+
 ## Runtime quirks (verified 2026-04-16)
 
 **Binaries rebuilt and verified.** `dist/aarch64-darwin/libeser_ajan.dylib`
@@ -146,7 +153,7 @@ artifact; the resolver never referenced it.
 
 **Native FFI works.** Round-trip smoke: `load(["json_file:<path>"])` returns
 expected values via native dylib on aarch64-darwin. Confirmed with
-`deno test --allow-all`.
+`node --test --test-force-exit pkg/@eserstack/config/config.test.ts`.
 
 **All config values are strings.** Go `configfx.LoadMap` coerces all JSON values
 to strings. A JSON file `{"NUM": 42}` produces `{ "NUM": "42" }` on the wire.
@@ -158,11 +165,9 @@ Callers must not expect typed values — `ConfigValues` is
 `system_env` and `json_string:` sources work in WASM mode. This is a fundamental
 WASI limitation, not a bug.
 
-**FFI lazy singleton requires `sanitizeResources: false`.** The `_lib` singleton
-persists across the test process lifetime. Deno's resource-leak sanitizer will
-flag any test that causes `Deno.dlopen` to be called. Suppress with
-`Deno.test({ sanitizeResources: false }, ...)` on any test exercising the FFI
-path.
+**FFI lazy singleton outlives the tests.** The `_lib` singleton stays open for
+the test process lifetime, so the suites run with `node --test --test-force-exit`
+and no test closes the library.
 
 **WASM fallback mechanism.** Force WASM by setting `ESER_AJAN_NATIVE=disabled`.
 Force native-only (no WASM fallback) with `ESER_AJAN_WASM=disabled`. Both env

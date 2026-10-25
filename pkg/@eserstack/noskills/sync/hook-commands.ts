@@ -180,5 +180,5 @@ export const networkCommandWarning = (command: string): string | null => {
 
   return `The hooks run noskills as "${command}", and ${runner} can wait on the network before noskills starts. Claude Code, Codex, Copilot CLI and Kiro let a tool call go ahead when its PreToolUse hook does not answer within ${
     HOOK_TIMEOUT_SECONDS["pre-tool-use"]
-  } seconds, so the git guard and the protected-file check would not apply to that call. Install the eser CLI (npm install -g eser, or deno install -g -A jsr:@eserstack/cli) and run "eser noskills init" so the hooks call the installed command.`;
+  } seconds, so the git guard and the protected-file check would not apply to that call. Install the eser CLI (npm install -g eser) and run "eser noskills init" so the hooks call the installed command.`;
 };

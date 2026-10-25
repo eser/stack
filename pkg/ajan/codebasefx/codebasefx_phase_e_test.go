@@ -111,8 +111,8 @@ func TestValidateLicenseHeader(t *testing.T) {
 		{"empty file", "pkg/foo.ts", "", 0},
 		{"docs path skipped", "/docs/foo.ts", missing, 0},
 		{"gen.ts skipped", "pkg/manifest.gen.ts", missing, 0},
-		{"shebang + correct header", "pkg/foo.ts", "#!/usr/bin/env deno\n" + good, 0},
-		{"shebang + missing header", "pkg/foo.ts", "#!/usr/bin/env deno\npackage main\n", 1},
+		{"shebang + correct header", "pkg/foo.ts", "#!/usr/bin/env node\n" + good, 0},
+		{"shebang + missing header", "pkg/foo.ts", "#!/usr/bin/env node\npackage main\n", 1},
 	}
 
 	for _, tt := range tests {
@@ -317,56 +317,13 @@ func TestValidateFilenames_RuleExclude(t *testing.T) {
 	}
 }
 
-// ─── ValidateRuntimeJSAPIs ────────────────────────────────────────────────────
-
-func TestValidateRuntimeJSAPIs(t *testing.T) {
-	t.Parallel()
-
-	// Direct Deno.exit usage — must flag
-	issues := codebasefx.ValidateRuntimeJSAPIs("mod.ts", []byte("Deno.exit(1);\n"))
-	if len(issues) == 0 {
-		t.Error("expected issue for Deno.exit")
-	}
-
-	// In a line comment — must skip
-	issues = codebasefx.ValidateRuntimeJSAPIs("mod.ts", []byte("// Deno.exit(1);\n"))
-	if len(issues) != 0 {
-		t.Errorf("must not flag Deno API in comment, got %v", issues)
-	}
-
-	// In a string literal — must skip
-	issues = codebasefx.ValidateRuntimeJSAPIs("mod.ts", []byte(`const s = "Deno.exit(1)"`+"\n"))
-	if len(issues) != 0 {
-		t.Errorf("must not flag Deno API in string literal, got %v", issues)
-	}
-
-	// Clean file — no issues
-	issues = codebasefx.ValidateRuntimeJSAPIs("mod.ts", []byte("console.log('hello');\n"))
-	if len(issues) != 0 {
-		t.Errorf("expected no issues for clean file, got %v", issues)
-	}
-
-	// Multiple Deno APIs
-	content := "Deno.env.get('HOME');\nnew Deno.Command('ls');\n"
-	issues = codebasefx.ValidateRuntimeJSAPIs("mod.ts", []byte(content))
-	if len(issues) < 2 {
-		t.Errorf("expected >=2 issues for multiple Deno APIs, got %d", len(issues))
-	}
-
-	// Binary content — skip
-	issues = codebasefx.ValidateRuntimeJSAPIs("mod.ts", []byte{0x00, 0x01})
-	if len(issues) != 0 {
-		t.Errorf("expected nil for binary content, got %v", issues)
-	}
-}
-
 // ─── ValidateShebangs ─────────────────────────────────────────────────────────
 
 func TestValidateShebangs(t *testing.T) {
 	t.Parallel()
 
 	// Always a no-op
-	issues := codebasefx.ValidateShebangs("bin/tool.ts", []byte("#!/usr/bin/env deno\nconsole.log('hi');\n"))
+	issues := codebasefx.ValidateShebangs("bin/tool.ts", []byte("#!/usr/bin/env node\nconsole.log('hi');\n"))
 	if len(issues) != 0 {
 		t.Errorf("ValidateShebangs must always return nil, got %v", issues)
 	}
@@ -601,7 +558,7 @@ func TestGenerateChangelogSection(t *testing.T) {
 
 	// The heading carries the bare version even though the input was
 	// v-prefixed, and each section is separated from its bullets by a blank
-	// line so `deno fmt` leaves the generated CHANGELOG.md alone.
+	// line so oxfmt leaves the generated CHANGELOG.md alone.
 	if !strings.HasPrefix(section, "## 1.1.0 - ") {
 		t.Errorf("section must start with a bare version heading, got: %q", section)
 	}
@@ -737,7 +694,7 @@ func TestValidatorTool_Run_LargeFileOptsFloat(t *testing.T) {
 
 // ─── workspace validators ─────────────────────────────────────────────────────
 
-// makeWorkspace writes a minimal deno.json workspace so workspace validators
+// makeWorkspace writes a minimal package.json workspace so workspace validators
 // can run without hitting real disk or network.
 func makeWorkspace(t *testing.T) string {
 	t.Helper()
@@ -748,21 +705,10 @@ func makeWorkspace(t *testing.T) string {
 		t.Fatal(err)
 	}
 
-	// root deno.json with workspace member
-	rootDeno := map[string]any{
-		"workspace": []string{"./pkg-a"},
-	}
-
-	writeJSON(t, filepath.Join(root, "deno.json"), rootDeno)
-
-	// pkg-a/deno.json
-	pkgDeno := map[string]any{
-		"name":    "@scope/pkg-a",
-		"version": "1.0.0",
-		"exports": map[string]string{".": "./mod.ts"},
-	}
-
-	writeJSON(t, filepath.Join(pkgA, "deno.json"), pkgDeno)
+	// root package.json with the workspace member
+	writeJSON(t, filepath.Join(root, "package.json"), map[string]any{
+		"workspaces": []string{"pkg-a"},
+	})
 
 	// pkg-a/package.json
 	pkgPkg := map[string]any{
@@ -850,21 +796,5 @@ func TestCheckModExports_ModTsPresent(t *testing.T) {
 	// mod.ts exists and is the only .ts file, so exports are complete
 	if !result.IsComplete {
 		t.Errorf("expected IsComplete=true, missing: %v", result.MissingExports)
-	}
-}
-
-func TestCheckPackageConfigs_ConsistentPackage(t *testing.T) {
-	t.Parallel()
-
-	root := makeWorkspace(t)
-	result, err := codebasefx.CheckPackageConfigs(root)
-
-	if err != nil {
-		t.Fatalf("CheckPackageConfigs: %v", err)
-	}
-
-	if !result.IsConsistent {
-		t.Errorf("expected IsConsistent=true, got inconsistencies: %v / %v",
-			result.Inconsistencies, result.DependencyInconsistencies)
 	}
 }

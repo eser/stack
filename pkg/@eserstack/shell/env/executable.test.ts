@@ -1,5 +1,8 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as fs from "node:fs/promises";
+import * as os from "node:os";
+import * as path from "node:path";
 import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 
@@ -26,20 +29,20 @@ nodeTest.test("reports absence rather than throwing", async () => {
 // moves the failure to spawn time, with an error about permissions rather than
 // about the missing tool — the confusion PATH lookup exists to prevent.
 nodeTest.test("a non-executable file is not resolved", async () => {
-  const dir = await Deno.makeTempDir({ prefix: "eser-exe-" });
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), "eser-exe-"));
 
-  await Deno.writeTextFile(`${dir}/inert`, "#!/bin/sh\nexit 0\n");
-  await Deno.chmod(`${dir}/inert`, 0o644);
+  await fs.writeFile(`${dir}/inert`, "#!/bin/sh\nexit 0\n");
+  await fs.chmod(`${dir}/inert`, 0o644);
 
-  const previous = Deno.env.get("PATH") ?? "";
+  const previous = process.env["PATH"] ?? "";
 
-  Deno.env.set("PATH", `${dir}:${previous}`);
+  process.env["PATH"] = `${dir}:${previous}`;
 
   try {
     assert.assertEquals(await executable.resolveExecutable("inert"), null);
   } finally {
-    Deno.env.set("PATH", previous);
-    await Deno.remove(dir, { recursive: true });
+    process.env["PATH"] = previous;
+    await fs.rm(dir, { recursive: true, force: true });
   }
 });
 
@@ -50,18 +53,18 @@ nodeTest.test("a non-executable file is not resolved", async () => {
 // really does resolve to a sibling of the PATH entry, so the guard is
 // load-bearing and this test plants a reachable target to prove it.
 nodeTest.test("a path-like name cannot escape a PATH directory", async () => {
-  const base = await Deno.makeTempDir({ prefix: "eser-exe-" });
+  const base = await fs.mkdtemp(path.join(os.tmpdir(), "eser-exe-"));
   const bin = `${base}/bin`;
 
-  await Deno.mkdir(bin);
+  await fs.mkdir(bin);
 
   // Executable, and exactly one `..` above the PATH entry.
-  await Deno.writeTextFile(`${base}/victim`, "#!/bin/sh\nexit 0\n");
-  await Deno.chmod(`${base}/victim`, 0o755);
+  await fs.writeFile(`${base}/victim`, "#!/bin/sh\nexit 0\n");
+  await fs.chmod(`${base}/victim`, 0o755);
 
-  const previous = Deno.env.get("PATH") ?? "";
+  const previous = process.env["PATH"] ?? "";
 
-  Deno.env.set("PATH", bin);
+  process.env["PATH"] = bin;
 
   try {
     assert.assertEquals(
@@ -79,7 +82,7 @@ nodeTest.test("a path-like name cannot escape a PATH directory", async () => {
       assert.assertEquals(resolved[i], null, `${name} resolved`);
     }
   } finally {
-    Deno.env.set("PATH", previous);
-    await Deno.remove(base, { recursive: true });
+    process.env["PATH"] = previous;
+    await fs.rm(base, { recursive: true, force: true });
   }
 });

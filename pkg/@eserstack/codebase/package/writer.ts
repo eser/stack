@@ -202,7 +202,7 @@ type FileOutcome =
  * ```typescript
  * const config = await load({ baseDir: "./pkg/@eserstack/config" });
  * const result = await updateField(config, "version", "1.0.0");
- * console.log(result.updated); // ["./pkg/@eserstack/config/deno.json", "./pkg/@eserstack/config/package.json"]
+ * console.log(result.updated); // ["./pkg/@eserstack/config/package.json"]
  * ```
  */
 export const updateField = async <T>(

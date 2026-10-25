@@ -190,7 +190,8 @@ paths, each for the reason given (M1-T37 audits against this list):
 | `pkg/@eserstack/noskills/detect/codebase.ts`                                | Detects users' Deno projects (decision-12)                             |
 | `pkg/@eserstack/noskills/sync/hook-commands.ts`                             | Recognizes `deno run` and `deno x` as network commands in users' hooks |
 | `pkg/@eserstack/noskills/defaults/concerns/*.json`                          | Default concern texts that mention Deno projects                       |
-| `pkg/ajan/kitfx/deps.go`, `pkg/ajan/kitfx/types.go`                         | ProjectTypeDeno and its `deno add` hints for users' projects           |
+| `pkg/ajan/kitfx/deps.go`, `pkg/ajan/kitfx/types.go`, their tests and README | ProjectTypeDeno and its `deno add` hints for users' projects           |
+| `pkg/@eserstack/kit/recipes/dependency-resolver.ts` and its test            | The TypeScript twin of ProjectTypeDeno and its `deno add` hints        |
 | `pkg/ajan/codebasefx/workspace*.go` and its tests                           | Reads `deno.json` in users' repositories                               |
 
 Any other match is fixed, or added here with a reason in the same change.

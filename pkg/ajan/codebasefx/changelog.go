@@ -83,7 +83,7 @@ func GenerateChangelogSection(version string, commits []ConventionalCommit) stri
 		}
 
 		// The blank line after the heading matches the repo's CHANGELOG.md
-		// style; emitting it here keeps `deno fmt` a no-op on the result.
+		// style; emitting it here keeps oxfmt a no-op on the result.
 		b.WriteString("\n### ")
 		b.WriteString(string(section))
 		b.WriteString("\n\n")

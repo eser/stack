@@ -2,6 +2,7 @@
 
 import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
+import * as crossRuntime from "@eserstack/standards/cross-runtime";
 import { runtime } from "@eserstack/standards/cross-runtime";
 import * as fileTokenStore from "./file-token-store.ts";
 
@@ -12,13 +13,13 @@ const tokens = {
 };
 
 const modeOf = async (p: string): Promise<number> =>
-  ((await Deno.stat(p)).mode ?? 0) & 0o777;
+  ((await runtime.fs.stat(p)).mode ?? 0) & 0o777;
 
 nodeTest.test(
   "token store is written owner-only and repairs a world-readable file",
-  { skip: Deno.build.os === "windows" },
+  { skip: crossRuntime.getPlatform() === "windows" },
   async () => {
-    const root = await Deno.makeTempDir();
+    const root = await runtime.fs.makeTempDir();
     try {
       const dir = `${root}/.eser/posts`;
       const file = `${dir}/tokens.json`;
@@ -29,8 +30,8 @@ nodeTest.test(
       assert.assertEquals(await modeOf(file), 0o600);
 
       // A store left by an earlier version at default permissions.
-      await Deno.chmod(dir, 0o755);
-      await Deno.chmod(file, 0o644);
+      await runtime.fs.chmod(dir, 0o755);
+      await runtime.fs.chmod(file, 0o644);
       await store.save("bluesky", tokens);
       assert.assertEquals(await modeOf(dir), 0o700);
       assert.assertEquals(await modeOf(file), 0o600);
@@ -40,10 +41,10 @@ nodeTest.test(
 
       // No temp files are left beside the store.
       const names = [];
-      for await (const e of Deno.readDir(dir)) names.push(e.name);
+      for await (const e of runtime.fs.readDir(dir)) names.push(e.name);
       assert.assertEquals(names, ["tokens.json"]);
     } finally {
-      await Deno.remove(root, { recursive: true });
+      await runtime.fs.remove(root, { recursive: true });
     }
   },
 );

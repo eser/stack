@@ -231,38 +231,43 @@ var tsKitRuns = []tsKitRun{
 func runTSKit(t *testing.T, run tsKitRun, proxyURL, dir string, args []string) string {
 	t.Helper()
 
-	deno, err := exec.LookPath("deno")
+	node, err := exec.LookPath("node")
 	if err != nil {
-		t.Skip("deno is not on PATH")
+		t.Skip("node is not on PATH")
 	}
 
 	root := repoRoot(t)
 
+	if _, err := os.Stat(filepath.Join(root, "node_modules")); err != nil {
+		t.Skipf("the TypeScript kit's dependencies are not installed at %s: %v", root, err)
+	}
+
 	ctx, cancel := context.WithTimeout(t.Context(), 2*time.Minute)
 	defer cancel()
 
-	full := append([]string{
-		"run", "-A", "--cached-only", "--unsafely-ignore-certificate-errors",
-		"--config", filepath.Join(root, "deno.json"),
-		filepath.Join(root, "pkg", "@eserstack", "kit", "main.ts"),
-	}, args...)
+	full := append([]string{filepath.Join(root, "pkg", "@eserstack", "kit", "main.ts")}, args...)
 
-	cmd := exec.CommandContext(ctx, deno, full...)
+	cmd := exec.CommandContext(ctx, node, full...)
 	cmd.Dir = dir
 
-	environ := make([]string, 0, len(os.Environ())+3+len(run.env))
+	environ := make([]string, 0, len(os.Environ())+4+len(run.env))
 
 	for _, entry := range os.Environ() {
 		key, _, _ := strings.Cut(entry, "=")
 		switch strings.ToUpper(key) {
-		case "HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "NO_PROXY", "ESER_AJAN", "ESER_AJAN_DEBUG":
+		case "HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "NO_PROXY", "ESER_AJAN", "ESER_AJAN_DEBUG",
+			"NODE_USE_ENV_PROXY", "NODE_TLS_REJECT_UNAUTHORIZED":
 			continue
 		}
 
 		environ = append(environ, entry)
 	}
 
-	environ = append(environ, "HTTPS_PROXY="+proxyURL, "DENO_NO_UPDATE_CHECK=1", "NO_COLOR=1")
+	// NODE_USE_ENV_PROXY makes Node's fetch go through HTTPS_PROXY, and
+	// NODE_TLS_REJECT_UNAUTHORIZED=0 accepts the fake's self-signed test
+	// certificate, which is not issued for the GitHub host names.
+	environ = append(environ,
+		"HTTPS_PROXY="+proxyURL, "NODE_USE_ENV_PROXY=1", "NODE_TLS_REJECT_UNAUTHORIZED=0", "NO_COLOR=1")
 	environ = append(environ, run.env...)
 	cmd.Env = environ
 
@@ -272,10 +277,6 @@ func runTSKit(t *testing.T, run tsKitRun, proxyURL, dir string, args []string) s
 	cmd.Stderr = &output
 
 	if err := cmd.Run(); err != nil {
-		if strings.Contains(output.String(), "--cached-only") || strings.Contains(output.String(), "not found in cache") {
-			t.Skipf("the TypeScript kit's dependencies are not in the Deno cache: %s", output.String())
-		}
-
 		t.Fatalf("%s %v: %v\n%s", run.name, args, err, output.String())
 	}
 
@@ -337,8 +338,8 @@ func TestKitParityWithTypeScript(t *testing.T) {
 		t.Skip("the fixture's post-install commands use touch")
 	}
 
-	if _, err := exec.LookPath("deno"); err != nil {
-		t.Skip("deno is not on PATH")
+	if _, err := exec.LookPath("node"); err != nil {
+		t.Skip("node is not on PATH")
 	}
 
 	cases := []struct {

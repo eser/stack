@@ -363,20 +363,15 @@ func TestCheckExportNames_WithViolation(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	writeJSON(t, filepath.Join(root, "deno.json"), map[string]any{
-		"workspace": []string{"./pkg-a"},
+	writeJSON(t, filepath.Join(root, "package.json"), map[string]any{
+		"workspaces": []string{"pkg-a"},
 	})
 
-	// deno.json with a PascalCase export key — violates kebab-case
-	writeJSON(t, filepath.Join(pkgA, "deno.json"), map[string]any{
-		"name":    "@scope/pkg-a",
-		"version": "1.0.0",
-		"exports": map[string]string{"./MyComponent": "./mod.ts"},
-	})
-
+	// A PascalCase export key violates kebab-case.
 	writeJSON(t, filepath.Join(pkgA, "package.json"), map[string]any{
 		"name":    "@scope/pkg-a",
 		"version": "1.0.0",
+		"exports": map[string]string{"./MyComponent": "./mod.ts"},
 	})
 
 	if err := os.WriteFile(filepath.Join(pkgA, "mod.ts"), []byte("export const x = 1;\n"), 0o644); err != nil {
@@ -409,19 +404,14 @@ func TestCheckModExports_MissingExport(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	writeJSON(t, filepath.Join(root, "deno.json"), map[string]any{
-		"workspace": []string{"./pkg-a"},
-	})
-
-	writeJSON(t, filepath.Join(pkgA, "deno.json"), map[string]any{
-		"name":    "@scope/pkg-a",
-		"version": "1.0.0",
-		"exports": map[string]string{".": "./mod.ts"},
+	writeJSON(t, filepath.Join(root, "package.json"), map[string]any{
+		"workspaces": []string{"pkg-a"},
 	})
 
 	writeJSON(t, filepath.Join(pkgA, "package.json"), map[string]any{
 		"name":    "@scope/pkg-a",
 		"version": "1.0.0",
+		"exports": map[string]string{".": "./mod.ts"},
 	})
 
 	// mod.ts exists but helper.ts is NOT exported from it
@@ -447,49 +437,6 @@ func TestCheckModExports_MissingExport(t *testing.T) {
 	}
 }
 
-// ─── CheckPackageConfigs with inconsistency ───────────────────────────────────
-
-func TestCheckPackageConfigs_VersionMismatch(t *testing.T) {
-	t.Parallel()
-
-	root := t.TempDir()
-	pkgA := filepath.Join(root, "pkg-a")
-
-	if err := os.MkdirAll(pkgA, 0o755); err != nil {
-		t.Fatal(err)
-	}
-
-	writeJSON(t, filepath.Join(root, "deno.json"), map[string]any{
-		"workspace": []string{"./pkg-a"},
-	})
-
-	// deno.json version = 1.0.0
-	writeJSON(t, filepath.Join(pkgA, "deno.json"), map[string]any{
-		"name":    "@scope/pkg-a",
-		"version": "1.0.0",
-		"exports": map[string]string{".": "./mod.ts"},
-	})
-
-	// package.json version = 2.0.0 — mismatch!
-	writeJSON(t, filepath.Join(pkgA, "package.json"), map[string]any{
-		"name":    "@scope/pkg-a",
-		"version": "2.0.0",
-	})
-
-	if err := os.WriteFile(filepath.Join(pkgA, "mod.ts"), []byte("export const x = 1;\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-
-	result, err := codebasefx.CheckPackageConfigs(root)
-	if err != nil {
-		t.Fatalf("CheckPackageConfigs: %v", err)
-	}
-
-	if result.IsConsistent {
-		t.Error("expected IsConsistent=false for version mismatch")
-	}
-}
-
 // ─── CheckCircularDeps with cycle ────────────────────────────────────────────
 
 func TestCheckCircularDeps_WithCycle(t *testing.T) {
@@ -508,24 +455,12 @@ func TestCheckCircularDeps_WithCycle(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	writeJSON(t, filepath.Join(root, "deno.json"), map[string]any{
-		"workspace": []string{"./pkg-a", "./pkg-b"},
+	writeJSON(t, filepath.Join(root, "package.json"), map[string]any{
+		"workspaces": []string{"pkg-a", "pkg-b"},
 	})
 
 	// pkg-a depends on pkg-b, pkg-b depends on pkg-a → cycle
 	// buildDepGraph reads package.json dependency *keys* for intra-workspace edges.
-	writeJSON(t, filepath.Join(pkgA, "deno.json"), map[string]any{
-		"name":    "@scope/pkg-a",
-		"version": "1.0.0",
-		"exports": map[string]string{".": "./mod.ts"},
-	})
-
-	writeJSON(t, filepath.Join(pkgB, "deno.json"), map[string]any{
-		"name":    "@scope/pkg-b",
-		"version": "1.0.0",
-		"exports": map[string]string{".": "./mod.ts"},
-	})
-
 	writeJSON(t, filepath.Join(pkgA, "package.json"), map[string]any{
 		"name":         "@scope/pkg-a",
 		"version":      "1.0.0",

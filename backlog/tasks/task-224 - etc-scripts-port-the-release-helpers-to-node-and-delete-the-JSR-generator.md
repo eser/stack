@@ -1,7 +1,7 @@
 ---
 id: TASK-224
 title: 'etc/scripts: port the release helpers to node and delete the JSR generator'
-status: In Progress
+status: Done
 assignee: []
 created_date: '2026-10-15 20:38'
 updated_date: '2026-10-25 18:00'
@@ -36,7 +36,7 @@ Plan key: M1-T30. Effort: small.
 <!-- AC:BEGIN -->
 - [x] #1 `git grep -wn 'Deno\|bun' etc/scripts` returns nothing
 - [x] #2 `node etc/scripts/update-homebrew-formula.ts --dry-run` and the nix dry run produce the same output as before for v4.5.2 inputs
-- [ ] #3 No deno.extra.json and no gen-jsr-manifests.ts remain
+- [x] #3 No deno.extra.json and no gen-jsr-manifests.ts remain
 - [x] #4 `node --test 'etc/scripts/*.test.ts'` passes from the repo root
 <!-- AC:END -->
 
@@ -59,4 +59,5 @@ TASK-224 (2026-10-25, node 26.12.1):
 - AC #1: `git grep -wn 'Deno\|bun' etc/scripts` prints nothing. AC #4: `node --test 'etc/scripts/*.test.ts'` 11/11 pass. tsc reports nothing for etc/scripts except the 2 TS2307 errors in ffi-client.template.ts, which were there before this task. oxlint and oxfmt --check are clean.
 - AC #3 is still open: the deno.extra.json files are under pkg/, outside this task's files. The integration agent deletes them (laroux, laroux-bundler, laroux-react, laroux-server, posts; laroux-runtime's is already deleted in the tree), moves the publish.include lists into package.json `files`, and changes the manifest, workflow, .gitignore and doc references to the generator.
 The integration agent deleted the deno.extra.json files of laroux, laroux-bundler, laroux-react and laroux-server and moved their publish.include lists into each package.json as `files`, dropping entries that match nothing (LICENSE, which no package directory holds; laroux-bundler's jsr-resolver-plugin.ts; laroux-server's adapters/**/*.tsx) and package.json, which npm always packs. posts/deno.extra.json holds only deno tasks and goes with TASK-214, so AC #3 stays open until then.
+TASK-214 deleted pkg/@eserstack/posts/deno.extra.json after moving its tasks into package.json scripts, so no deno.extra.json and no gen-jsr-manifests.ts remain. AC #3 holds.
 <!-- SECTION:NOTES:END -->

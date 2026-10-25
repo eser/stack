@@ -15,7 +15,7 @@ import * as crossRuntime from "@eserstack/standards/cross-runtime";
 import * as persistence from "./persistence.ts";
 
 // Not "noskills" at the end, so a bare `noskills spec` cannot pass as it.
-const CUSTOM_PREFIX = "deno run -A ./tools/nos.ts";
+const CUSTOM_PREFIX = "node ./tools/nos.ts";
 
 bdd.describe("persistence spec errors use the caller's command prefix", () => {
   let tempDir: string;

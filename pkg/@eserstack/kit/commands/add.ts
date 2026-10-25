@@ -78,10 +78,10 @@ export const main = async (
       // --cwd overrides the process directory.
       //
       // Tests used to chdir into a temp directory instead, which is
-      // process-global -- and `deno test --parallel` runs files concurrently, so
-      // that changed the cwd of every other test running at the time and then
-      // deleted the directory on the way out. Unrelated suites failed with
-      // reproducible-but-baffling errors roughly one run in four.
+      // process-global, so that changed the cwd of every other test running
+      // concurrently in the process and then deleted the directory on the way
+      // out. Unrelated suites failed with reproducible-but-baffling errors
+      // roughly one run in four.
       cwd: (parsed["cwd"] as string | undefined) ?? runtime.process.cwd(),
       registrySource: parsed["registry"] as string | undefined,
       local: parsed["local"] === true,

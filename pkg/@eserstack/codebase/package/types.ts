@@ -1,13 +1,10 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 /**
- * Supported package config file types.
+ * Supported package config file types. package.json is the only one, since
+ * the libraries publish to npm alone.
  */
 export const ConfigFileTypes = {
-  DenoJson: "deno.json",
-  DenoJsonc: "deno.jsonc",
-  JsrJson: "jsr.json",
-  JsrJsonc: "jsr.jsonc",
   PackageJson: "package.json",
 } as const;
 
@@ -18,17 +15,13 @@ export type ConfigFileType =
  * Priority order for config files (lower index = higher priority).
  */
 export const CONFIG_FILE_PRIORITY: ReadonlyArray<ConfigFileType> = [
-  ConfigFileTypes.DenoJson,
-  ConfigFileTypes.DenoJsonc,
-  ConfigFileTypes.JsrJson,
-  ConfigFileTypes.JsrJsonc,
   ConfigFileTypes.PackageJson,
 ];
 
 /**
  * Symbol used to track the base directory.
  */
-export const baseDirProp = Symbol.for("baseDir");
+export const baseDirProp: unique symbol = Symbol.for("baseDir");
 
 /**
  * Common field names that can be extracted from config files.
@@ -41,7 +34,6 @@ export type PackageFieldName =
   | "private"
   | "exports"
   | "workspaces"
-  | "imports"
   | "dependencies"
   | "devDependencies";
 
@@ -59,53 +51,15 @@ export type FieldMapping = {
  * Default field mappings between config file types.
  */
 export const DEFAULT_FIELD_MAPPINGS: FieldMapping = {
-  name: {
-    "deno.json": "name",
-    "deno.jsonc": "name",
-    "jsr.json": "name",
-    "jsr.jsonc": "name",
-    "package.json": "name",
-  },
-  version: {
-    "deno.json": "version",
-    "deno.jsonc": "version",
-    "jsr.json": "version",
-    "jsr.jsonc": "version",
-    "package.json": "version",
-  },
-  description: {
-    "package.json": "description",
-  },
-  license: {
-    "deno.json": "license",
-    "deno.jsonc": "license",
-    "package.json": "license",
-  },
-  private: {
-    "package.json": "private",
-  },
-  exports: {
-    "deno.json": "exports",
-    "deno.jsonc": "exports",
-    "jsr.json": "exports",
-    "jsr.jsonc": "exports",
-    "package.json": "exports",
-  },
-  workspaces: {
-    "deno.json": "workspace",
-    "deno.jsonc": "workspace",
-    "package.json": "workspaces",
-  },
-  imports: {
-    "deno.json": "imports",
-    "deno.jsonc": "imports",
-  },
-  dependencies: {
-    "package.json": "dependencies",
-  },
-  devDependencies: {
-    "package.json": "devDependencies",
-  },
+  name: { "package.json": "name" },
+  version: { "package.json": "version" },
+  description: { "package.json": "description" },
+  license: { "package.json": "license" },
+  private: { "package.json": "private" },
+  exports: { "package.json": "exports" },
+  workspaces: { "package.json": "workspaces" },
+  dependencies: { "package.json": "dependencies" },
+  devDependencies: { "package.json": "devDependencies" },
 };
 
 /**
@@ -159,11 +113,9 @@ export type PackageConfig = {
   exports?: TrackedField<Record<string, string> | string>;
   /** Workspace members */
   workspaces?: TrackedField<ReadonlyArray<string>>;
-  /** Import map (deno.json/deno.jsonc) */
-  imports?: TrackedField<Record<string, string>>;
-  /** Dependencies (package.json) */
+  /** Dependencies */
   dependencies?: TrackedField<Record<string, string>>;
-  /** Dev dependencies (package.json) */
+  /** Dev dependencies */
   devDependencies?: TrackedField<Record<string, string>>;
 
   /** Base directory where config was loaded from */

@@ -509,8 +509,8 @@ Which tools get the wrapper:
 
 On Windows nothing is installed. The wrapper is a POSIX shell script, and a
 `git.cmd` shim would not take its place: programs that start git without a
-shell, such as Python's `subprocess`, Node's `child_process` and `Deno.Command`,
-look up `git.exe` and never run a `.cmd` file. The PreToolUse hook is then the
+shell, such as Python's `subprocess` and Node's `child_process`, look up
+`git.exe` and never run a `.cmd` file. The PreToolUse hook is then the
 only noskills check on git.
 
 These layers are guards against mistakes, not a sandbox. A program that starts
@@ -593,10 +593,9 @@ The git wrapper, where it is on PATH, still refuses a git write whose own check
 times out, and the OpenCode plugin refuses the call and says why. The default
 `command`, `npx eser@latest noskills`, can wait on the npm registry before
 noskills starts, and `noskills init` warns when `command` runs through npx,
-`npm exec` or a remote `deno run` module. To keep the hook off the network,
-install the eser CLI (`npm install -g eser` or
-`deno install -g -A jsr:@eserstack/cli`) and run `eser noskills init`, which
-sets `command` to `eser noskills`.
+`npm exec` or another runner that downloads a package or a remote module first.
+To keep the hook off the network, install the eser CLI (`npm install -g eser`)
+and run `eser noskills init`, which sets `command` to `eser noskills`.
 
 The Go build of noskills (`cmd/noskills`, which `make build` builds until the
 release channels ship it) makes the 30-second timeout and the warning

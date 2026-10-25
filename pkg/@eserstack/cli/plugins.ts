@@ -71,8 +71,8 @@ export const runPlugin = async (
     // Undefined means inherit, which is what a plugin should do: `eser foo` runs
     // where the user is standing. The override exists for callers that cannot
     // rely on the process cwd being stable -- notably tests, since chdir is
-    // process-global and Deno runs test files concurrently, so an unrelated
-    // suite can delete the directory out from under a spawn.
+    // process-global and concurrent tests in one process share it, so an
+    // unrelated test can delete the directory out from under a spawn.
     cwd: options?.cwd,
   });
 

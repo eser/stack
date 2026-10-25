@@ -1,15 +1,12 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-// node:async_hooks is the one module that provides AsyncLocalStorage on Node,
-// Deno and Bun alike.
 import * as asyncHooks from "node:async_hooks";
 import type { Category, ContextLocalStorage } from "./types.ts";
 import * as category from "./category.ts";
 
 /**
  * Default AsyncLocalStorage instances for the logging context and the
- * category prefix, created on first use. Node, Deno and Bun all provide
- * node:async_hooks.
+ * category prefix, created on first use.
  */
 let defaultContextStorage: ContextLocalStorage | undefined;
 let defaultCategoryPrefixStorage: ContextLocalStorage<Category> | undefined;

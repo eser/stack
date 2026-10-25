@@ -26,7 +26,7 @@ const allConcerns = defaultConcerns.DEFAULT_CONCERNS;
 const openSource = allConcerns.find((c) => c.id === "open-source")!;
 const beautiful = allConcerns.find((c) => c.id === "beautiful-product")!;
 const activeConcerns = [openSource, beautiful];
-const rules = ["Use Deno for all TypeScript"];
+const rules = ["Use Node for all TypeScript"];
 
 const config = (): schema.NosManifest => ({
   ...schema.createInitialManifest(
@@ -37,7 +37,7 @@ const config = (): schema.NosManifest => ({
       languages: ["typescript"],
       frameworks: ["react"],
       ci: ["github-actions"],
-      testRunner: "deno",
+      testRunner: "node",
     },
   ),
 });

@@ -15,8 +15,8 @@ var (
 	ErrChangelogNotFound = errors.New("CHANGELOG.md not found")
 	ErrNoCommits         = errors.New("no commits found in range")
 
-	// ErrNoWorkspaceMembers means the root package.json `workspaces` and
-	// deno.json `workspace` fields matched no directory with a named package.
+	// ErrNoWorkspaceMembers means the root package.json `workspaces` field
+	// matched no directory with a named package.
 	ErrNoWorkspaceMembers = errors.New("no workspace members found")
 
 	// ErrUnreadableWalkRoot means the root of a file walk does not exist or

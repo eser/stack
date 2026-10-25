@@ -4,6 +4,6 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "@eserstack/standards": "workspace:*"
+    "@eserstack/standards": "^5.0.0"
   }
 }

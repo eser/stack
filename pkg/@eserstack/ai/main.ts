@@ -11,8 +11,8 @@
  * ```
  *
  * Usage:
- *   deno run --allow-all jsr:@eserstack/ai ask "your prompt" [-p provider]
- *   deno run --allow-all ./main.ts ask "your prompt" [-p cc]
+ *   node ./main.ts ask "your prompt" [-p provider]
+ *   node ./main.ts list
  *
  * @module
  */

@@ -16,8 +16,6 @@ const mapErrorCode = (msg: string): string => {
   return errors.PARSING_TOKENIZE_FAILED;
 };
 
-// Arrow properties rather than method shorthand: deno lint's
-// no-top-level-await reports an await inside an object method as top level.
 /**
  * A `Loader` that runs the Go tokenizer. It throws a `ParsingError` with
  * `PARSING_TOKENIZE_FAILED` when the library is not available.

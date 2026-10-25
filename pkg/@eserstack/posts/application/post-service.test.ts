@@ -645,7 +645,7 @@ bdd.describe("PostService", () => {
         const service = makeService({ socialApi, platform: "twitter" });
 
         await service.searchPosts({
-          query: "deno typescript",
+          query: "node typescript",
           platform: "twitter",
         });
 

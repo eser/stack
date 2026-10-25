@@ -5,7 +5,7 @@
 > there; the JSR versions stay available but get no updates.
 
 > **eserstack Tool** — [eser/stack on GitHub](https://github.com/eser/stack)
-> **Install:** `pnpm add jsr:@eserstack/cli`
+> **Install:** `npm install -g eser`
 
 Terminal client for Eser's work. A multi-purpose CLI that dispatches to library
 modules for codebase management, workflow automation, framework scaffolding, and
@@ -36,12 +36,9 @@ npm install -g eser
 
 # Via pnpm
 pnpm add -g eser
-# Via Deno
-deno install -g -A jsr:@eserstack/cli
 
 # Or run without installing
 npx eser <command>
-deno run --allow-all jsr:@eserstack/cli <command>
 ```
 
 ## 🛠 Command Tree
@@ -394,15 +391,15 @@ command, one word each: the shell does not split, expand or run them, so an
 argument with spaces or quotes arrives as you typed it. A leading `eser` in a
 script runs the CLI that runs the script, so scripts work without a global
 install and use the same version: the compiled binary runs itself, the npm
-package runs its entry file with the same Node or Bun, and under Deno it runs
-`main.ts` with `deno run --allow-all`.
+package runs its entry file with the same Node, and a source checkout runs
+`main.ts` with the same Node.
 
 ```yaml
 scripts:
   ok: eser workflows run -e precommit
-  generate: deno run --allow-all ./scripts/generate.ts
+  generate: node ./scripts/generate.ts
   test:
-    command: deno test --allow-all
+    command: node --test
     description: Run the library tests
     workingDirectory: ./pkg/my-lib
     depends: [generate]
@@ -410,8 +407,8 @@ scripts:
 
 ```bash
 eser ok                  # runs the "ok" script
-eser test --filter slug  # runs "generate", then "deno test --allow-all --filter slug" in ./pkg/my-lib
-eser test --filter "slug parser"  # "slug parser" reaches deno test as one argument
+eser test --test-name-pattern slug  # runs "generate", then "node --test --test-name-pattern slug" in ./pkg/my-lib
+eser test --test-name-pattern "slug parser"  # "slug parser" reaches node as one argument
 ```
 
 `depends` lists the scripts that run before this one. Each dependency runs after

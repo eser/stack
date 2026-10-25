@@ -8,7 +8,7 @@
  * only for a package it recognises as a workspace member. The npm bundles are
  * built into `dist/` directories and published from there, so their generated
  * manifests never get that rewrite and would ship the protocol verbatim, which
- * npm, Bun and Deno consumers cannot install. This applies the same rule pnpm
+ * npm consumers cannot install. This applies the same rule pnpm
  * does: `workspace:*` becomes the exact version, `workspace:^` and
  * `workspace:~` become caret and tilde ranges, and `workspace:<range>` keeps
  * the range.

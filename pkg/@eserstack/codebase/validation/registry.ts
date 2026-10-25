@@ -19,7 +19,6 @@ import * as circularDeps from "./validators/circular-deps.ts";
 import * as modExports from "./validators/mod-exports.ts";
 import * as exportNames from "./validators/export-names.ts";
 import * as docs from "./validators/docs.ts";
-import * as packageConfigs from "./validators/package-configs.ts";
 import * as serverLoc from "./validators/server-loc.ts";
 import * as errorCoverage from "./validators/error-coverage.ts";
 
@@ -72,7 +71,6 @@ const initializeBuiltinValidators = (): void => {
   registerValidator(modExports.modExportsValidator);
   registerValidator(exportNames.exportNamesValidator);
   registerValidator(docs.docsValidator);
-  registerValidator(packageConfigs.packageConfigsValidator);
   registerValidator(serverLoc.serverLocValidator);
   registerValidator(errorCoverage.errorCoverageValidator);
 
@@ -273,7 +271,6 @@ export const getWorkflowTools = (): readonly WorkflowCompatibleTool[] => {
     modExports.modExportsValidator,
     exportNames.exportNamesValidator,
     docs.docsValidator,
-    packageConfigs.packageConfigsValidator,
     serverLoc.serverLocValidator,
     errorCoverage.errorCoverageValidator,
   ];

@@ -468,8 +468,8 @@ export class HttpClient {
           headers,
           body,
           signal,
-          // Node's fetch requires duplex for a stream body; Deno and
-          // browsers accept it.
+          // Node's fetch requires duplex for a stream body; browsers
+          // accept it.
           ...(!replayable && { duplex: "half" }),
         };
         const initRequest = new Request(fullUrl.toString(), init);

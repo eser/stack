@@ -1,10 +1,10 @@
 ---
 id: TASK-205
 title: 'cli: remove deno compile and run the npm build under node'
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-10-15 20:38'
-updated_date: '2026-10-25 16:00'
+updated_date: '2026-10-26 10:00'
 labels:
   - cutover
   - cli
@@ -30,10 +30,10 @@ Plan key: M1-T11. Effort: medium.
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 No `deno compile` and no Deno.* in pkg/@eserstack/cli
-- [ ] #2 `node pkg/@eserstack/cli/scripts/npm-build.ts` builds a dist that runs `node dist/eser.js --help`
-- [ ] #3 The noskills-server archives and SHA256SUMS.txt are still produced with v4.5.2 names
-- [ ] #4 cli tests pass under node --test; tsc and oxlint are clean
+- [x] #1 No `deno compile` and no Deno.* in pkg/@eserstack/cli
+- [x] #2 `node pkg/@eserstack/cli/scripts/npm-build.ts` builds a dist that runs `node dist/eser.js --help`
+- [x] #3 The noskills-server archives and SHA256SUMS.txt are still produced with v4.5.2 names
+- [x] #4 cli tests pass under node --test; tsc and oxlint are clean
 <!-- AC:END -->
 
 ## Implementation Notes
@@ -45,4 +45,14 @@ Hand-work list (TASK-175 spike, 2026-10-24, node 26.12.1):
 - Docs: pkg/@eserstack/cli/README.md (9). No Go twin.
 
 TASK-198 (2026-10-25): the test and bench codemods left no site for hand edits in this task's files (0 unhandled), and none of its test files fails under `node --test --test-force-exit` on Node 26.12.1 when run alone.
+
+Implementation (2026-10-26, node 26.12.1):
+- scripts/compile.ts was already gone (removed with the Go `eser dev compile`, TASK-251); no `deno compile` path is left in the package.
+- scripts/npm-build.ts: externals are `[...EXTERNAL_PACKAGES]`, the `npm:*` and `jsr:*` entries are dropped; usage line is `node ./npm-build.ts`. A new test in scripts/npm-build-externals.test.ts fails if the cli build keeps either pattern.
+- startup.bench.ts deleted; the code-conventions baseline had no entry for it.
+- scripts.test.ts sample commands use `pnpm test` and `node --test`; plugins.ts comment no longer names Deno.
+- README: install header is `npm install -g eser`; the Deno install and run lines are gone; the scripts section uses node commands.
+- Verified: `node pkg/@eserstack/cli/scripts/npm-build.ts` builds dist, `node dist/eser.js --help` exits 0 (dist removed afterwards); 4 test files, 68 tests pass under `node --test --test-force-exit`; tsc has no cli errors; oxlint and oxfmt clean; `git grep -niw deno pkg/@eserstack/cli` is empty.
+- AC 3: the Go tests TestCompileReleaseWritesTheV452Names (codebasefx) and TestDevCompileArchiveIsWhatUpdateReads (cmd/eser) pass.
+- Left to other tasks: `.eser/manifest.yml` `build` script and `npm-build-cli` step still call `deno run` (TASK-200); `.github/workflows/build.yml` `deno task cli build` lines.
 <!-- SECTION:NOTES:END -->

@@ -10,6 +10,11 @@
     "./module": "./module.ts",
     "./go-posts": "./go-posts.ts"
   },
+  "scripts": {
+    "tui": "node adapters/tui/app.ts",
+    "test": "node --test \"**/*.test.ts\"",
+    "test:coverage": "node --test --experimental-test-coverage \"**/*.test.ts\""
+  },
   "dependencies": {
     "@eserstack/ai": "workspace:*",
     "@eserstack/ajan": "workspace:*",

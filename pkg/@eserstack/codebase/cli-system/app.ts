@@ -21,8 +21,6 @@ export type CliApp = {
   readonly devCommand: string;
   /** npm package that provides it, when one does. */
   readonly npmPackage?: string;
-  /** JSR package that provides it, when one does. */
-  readonly jsrPackage?: string;
 };
 
 /**

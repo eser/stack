@@ -87,25 +87,8 @@ func TestDiscoverWorkspacePackages(t *testing.T) {
 			},
 			want: []string{"one"},
 		},
-		{
-			name: "deno.json workspace paths",
-			files: []workspaceFile{
-				{path: "deno.json", content: `{"workspace": ["./a", "./b"]}`},
-				{path: "a/deno.json", content: `{"name": "@scope/a"}`},
-				{path: "b/deno.json", content: `{"name": "@scope/b"}`},
-			},
-			want: []string{"@scope/a", "@scope/b"},
-		},
-		{
-			name: "both root files merge without duplicates",
-			files: []workspaceFile{
-				{path: "package.json", content: `{"workspaces": ["pkg/*"]}`},
-				{path: "deno.json", content: `{"workspace": ["./pkg/a", "./tools"]}`},
-				member("pkg/a", "a"),
-				member("tools", "tools"),
-			},
-			want: []string{"a", "tools"},
-		},
+
+
 		{
 			name: "double star matches at any depth",
 			files: []workspaceFile{
@@ -125,15 +108,7 @@ func TestDiscoverWorkspacePackages(t *testing.T) {
 			},
 			want: []string{"a"},
 		},
-		{
-			name: "deno.json name wins over package.json name",
-			files: []workspaceFile{
-				{path: "package.json", content: `{"workspaces": ["pkg/*"]}`},
-				{path: "pkg/a/deno.json", content: `{"name": "@jsr/a"}`},
-				member("pkg/a", "@npm/a"),
-			},
-			want: []string{"@jsr/a"},
-		},
+
 	}
 
 	for _, tc := range cases {
@@ -172,8 +147,8 @@ func TestDiscoverWorkspacePackages_NoMembers(t *testing.T) {
 	}{
 		{name: "no root config"},
 		{
-			name:  "root deno.json without workspace",
-			files: []workspaceFile{{path: "deno.json", content: `{"lock": false}`}},
+			name:  "root package.json without workspaces",
+			files: []workspaceFile{{path: "package.json", content: `{"name": "root"}`}},
 		},
 		{
 			name:  "empty workspaces",
@@ -297,15 +272,6 @@ func TestWorkspaceValidators_PackageJSONWorkspace(t *testing.T) {
 	if mods.PackagesChecked != 2 {
 		t.Errorf("CheckModExports checked %d packages, want 2", mods.PackagesChecked)
 	}
-
-	configs, err := codebasefx.CheckPackageConfigs(root)
-	if err != nil {
-		t.Fatalf("CheckPackageConfigs: %v", err)
-	}
-
-	if configs.PackagesChecked != 2 {
-		t.Errorf("CheckPackageConfigs checked %d packages, want 2", configs.PackagesChecked)
-	}
 }
 
 func TestWorkspaceValidators_NoMembers(t *testing.T) {
@@ -322,7 +288,6 @@ func TestWorkspaceValidators_NoMembers(t *testing.T) {
 		{"CheckCircularDeps", func() error { _, err := codebasefx.CheckCircularDeps(root); return err }},
 		{"CheckExportNames", func() error { _, err := codebasefx.CheckExportNames(root, nil); return err }},
 		{"CheckModExports", func() error { _, err := codebasefx.CheckModExports(root); return err }},
-		{"CheckPackageConfigs", func() error { _, err := codebasefx.CheckPackageConfigs(root); return err }},
 		{"CheckDocs", func() error { _, err := codebasefx.CheckDocs(root, false); return err }},
 	}
 

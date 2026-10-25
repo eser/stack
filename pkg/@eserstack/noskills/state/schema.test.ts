@@ -41,7 +41,7 @@ bdd.describe("createInitialManifest", () => {
         languages: ["typescript", "go"],
         frameworks: ["react"],
         ci: ["github-actions"],
-        testRunner: "deno",
+        testRunner: "node",
       },
     );
 
@@ -50,7 +50,7 @@ bdd.describe("createInitialManifest", () => {
     assert.assertEquals(config.tools.length, 2);
     assert.assertEquals(config.providers.length, 2);
     assert.assertEquals(config.project.languages.length, 2);
-    assert.assertEquals(config.project.testRunner, "deno");
+    assert.assertEquals(config.project.testRunner, "node");
     assert.assertEquals(config.maxIterationsBeforeRestart, 15);
   });
 });

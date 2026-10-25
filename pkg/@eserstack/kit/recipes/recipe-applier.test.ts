@@ -10,6 +10,7 @@ import * as errorChain from "./error-chain.ts";
 import * as recipeApplier from "./recipe-applier.ts";
 import * as registryFetcher from "./registry-fetcher.ts";
 import * as tar from "./tar.ts";
+import * as testing from "./testing.ts";
 
 // =============================================================================
 // Helpers
@@ -51,11 +52,12 @@ const gzippedTarball = (
       type: "file",
       path: entry.path,
       size: bytes.length,
-      readable: ReadableStream.from([bytes]),
+      readable: testing.readableStreamFrom([bytes]),
     };
   });
 
-  return ReadableStream.from(inputs)
+  return testing
+    .readableStreamFrom(inputs)
     .pipeThrough(new tarStream.TarStream())
     .pipeThrough(
       new CompressionStream("gzip") as unknown as TransformStream<

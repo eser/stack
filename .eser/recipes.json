@@ -10,7 +10,7 @@
       "description": "Workspace library package with tests and README",
       "language": "typescript",
       "scale": "project",
-      "tags": ["deno", "library", "typescript", "jsr"],
+      "tags": ["node", "library", "typescript", "npm"],
       "files": [
         { "source": "recipes/library-pkg/mod.ts", "target": "mod.ts" },
         {
@@ -34,7 +34,7 @@
         { "source": "recipes/fp-pipe/pipe.ts", "target": "lib/fp/pipe.ts" }
       ],
       "dependencies": {
-        "jsr": ["jsr:@eserstack/fp@^4.1.0"]
+        "npm": ["@eserstack/fp"]
       }
     },
     {
@@ -52,7 +52,6 @@
       ],
       "files": [
         { "source": "recipes/laroux-app/.gitignore", "target": ".gitignore" },
-        { "source": "recipes/laroux-app/.npmrc", "target": ".npmrc" },
         {
           "source": "recipes/laroux-app/laroux.config.ts",
           "target": "laroux.config.ts"
@@ -103,11 +102,7 @@
         }
       ],
       "dependencies": {
-        "npm": [
-          "@eserstack/laroux",
-          "@eserstack/laroux-server",
-          "@eserstack/laroux-react"
-        ]
+        "npm": ["@eserstack/laroux", "@eserstack/laroux-react"]
       }
     },
     {
@@ -151,7 +146,6 @@
           "source": "recipes/cf-workers-app/.gitignore",
           "target": ".gitignore"
         },
-        { "source": "recipes/cf-workers-app/.npmrc", "target": ".npmrc" },
         {
           "source": "recipes/cf-workers-app/.prettierrc",
           "target": ".prettierrc"

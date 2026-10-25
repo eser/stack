@@ -14,7 +14,7 @@ import (
 	"github.com/eser/stack/pkg/ajan/codebasefx"
 )
 
-// changelogSamples are sections with the shapes deno fmt rewrites.
+// changelogSamples are sections with the shapes a markdown formatter rewrites.
 var changelogSamples = []string{ //nolint:gochecknoglobals
 	"## 4.5.3 - 2026-10-24\n\n### Added\n\n" +
 		"- **cli:** add a very long feature description that keeps going and going well past the eighty column limit of the formatter\n" +
@@ -36,8 +36,8 @@ func TestFormatChangelogSection(t *testing.T) {
 	got := codebasefx.FormatChangelogSection(changelogSamples[0])
 
 	for _, want := range []string{
-		"- **cli:** add a very long feature description that keeps going and going well\n  past the eighty column limit of the formatter\n",
-		"- **docs:** link to\n  [the guide](https://example.com/a/very/long/path/that/does/not/fit/on/one/line/at/all)\n  and more words after it\n",
+		"\n- **cli:** add a very long feature description that keeps going and going well past the eighty column limit of the formatter\n",
+		"\n- **docs:** link to [the guide](https://example.com/a/very/long/path/that/does/not/fit/on/one/line/at/all) and more words after it\n",
 		"_stars_ and _underscores_",
 		"- **a,b:** keep **bold** and `*code*` as they are",
 	} {
@@ -46,21 +46,29 @@ func TestFormatChangelogSection(t *testing.T) {
 		}
 	}
 
-	for _, line := range strings.Split(got, "\n") {
-		if len([]rune(line)) > 80 && !strings.Contains(line, "](") && !strings.Contains(line, "very-long-hyphenated") {
-			t.Errorf("line over 80 columns: %q", line)
-		}
+	if lines, want := strings.Count(got, "\n"), strings.Count(changelogSamples[0], "\n"); lines != want {
+		t.Errorf("formatted section has %d lines, want %d: list items stay on one line:\n%s", lines, want, got)
 	}
 }
 
-// TestFormatChangelogSectionMatchesDenoFmt checks the formatter against deno
-// fmt itself, which the TypeScript release runs on CHANGELOG.md.
-func TestFormatChangelogSectionMatchesDenoFmt(t *testing.T) {
+// TestFormatChangelogSectionMatchesOxfmt checks the formatter against oxfmt
+// itself, which the TypeScript release and the format gate run on
+// CHANGELOG.md, with the repository's .oxfmtrc.json.
+func TestFormatChangelogSectionMatchesOxfmt(t *testing.T) {
 	t.Parallel()
 
-	deno, err := exec.LookPath("deno")
+	repo, err := filepath.Abs("../../..")
 	if err != nil {
-		t.Skip("deno is not installed")
+		t.Fatal(err)
+	}
+
+	oxfmt := filepath.Join(repo, "node_modules", ".bin", "oxfmt")
+	if _, err := os.Stat(oxfmt); err != nil {
+		t.Skip("oxfmt is not installed; run pnpm install for the formatter comparison")
+	}
+
+	if _, err := exec.LookPath("node"); err != nil {
+		t.Skip("node is not installed; oxfmt needs it")
 	}
 
 	for i, section := range changelogSamples {
@@ -72,8 +80,11 @@ func TestFormatChangelogSectionMatchesDenoFmt(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		if out, err := exec.Command(deno, "fmt", "--quiet", path).CombinedOutput(); err != nil { //nolint:gosec,noctx
-			t.Fatalf("deno fmt: %v: %s", err, out)
+		cmd := exec.Command(oxfmt, "--config", filepath.Join(repo, ".oxfmtrc.json"), path) //nolint:gosec,noctx
+		cmd.Dir = dir
+
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("oxfmt: %v: %s", err, out)
 		}
 
 		formatted, err := os.ReadFile(path) //nolint:gosec // the test's own file
@@ -82,7 +93,7 @@ func TestFormatChangelogSectionMatchesDenoFmt(t *testing.T) {
 		}
 
 		if got := "# Changelog\n\n" + codebasefx.FormatChangelogSection(section) + "\n"; got != string(formatted) {
-			t.Errorf("sample %d:\n--- deno fmt\n%s\n--- Go\n%s", i, formatted, got)
+			t.Errorf("sample %d:\n--- oxfmt\n%s\n--- Go\n%s", i, formatted, got)
 		}
 	}
 }

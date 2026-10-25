@@ -93,12 +93,6 @@ export type CliCommandOptions = {
   readonly devCommand: string;
   /** npm package name for npx/pnpx (e.g. "eser") */
   readonly npmPackage: string;
-  /**
-   * JSR package name (e.g. "@eserstack/cli"). No command is built from it
-   * since the CLI runs on Node only; it stays optional so callers that still
-   * pass it compile.
-   */
-  readonly jsrPackage?: string;
 };
 
 // =============================================================================
@@ -333,7 +327,6 @@ export const matchCliPrefix = (
  *   command: "eser",
  *   devCommand: "pnpm cli",
  *   npmPackage: "eser",
- *   jsrPackage: "@eserstack/cli",
  * };
  *
  * await standards.crossRuntime.getCliPrefix(ESER_OPTS, ["noskills", "nos"]);

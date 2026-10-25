@@ -502,15 +502,7 @@ const runPreToolUseHook = async (
 ): Promise<HookRun> => {
   const result = await crossRuntime.runtime.exec.spawn(
     crossRuntime.runtime.process.execPath(),
-    [
-      "run",
-      "-A",
-      "--config",
-      `${REPO_ROOT}/deno.json`,
-      NOSKILLS_MAIN,
-      "invoke-hook",
-      "pre-tool-use",
-    ],
+    [NOSKILLS_MAIN, "invoke-hook", "pre-tool-use"],
     { stdinText: JSON.stringify(input), stdout: "piped", stderr: "piped" },
   );
 
@@ -920,7 +912,7 @@ bdd.describe("preToolUseAnswer", () => {
 // decidePreToolUse: git guard and phase gate without stdin
 // =============================================================================
 
-const CUSTOM_PREFIX = "deno task cli noskills";
+const CUSTOM_PREFIX = "pnpm cli noskills";
 
 type GateProject = {
   readonly root: string;
@@ -945,7 +937,7 @@ const createGateProject = async (
       languages: ["typescript"],
       frameworks: [],
       ci: [],
-      testRunner: "deno",
+      testRunner: "node",
     }),
     allowGit,
     command: CUSTOM_PREFIX,
@@ -1070,7 +1062,7 @@ bdd.describe("decidePreToolUse", () => {
     const { env } = await project("DISCOVERY");
 
     const decisions = await Promise.all(
-      ["git status", "git log --oneline -5", "deno test -A"].map((command) =>
+      ["git status", "git log --oneline -5", "node --test"].map((command) =>
         invokeHook.decidePreToolUse(bash(command), env(null)),
       ),
     );
@@ -1296,10 +1288,6 @@ bdd.describe("session-start hook", () => {
       const result = await crossRuntime.runtime.exec.spawn(
         crossRuntime.runtime.process.execPath(),
         [
-          "run",
-          "-A",
-          "--config",
-          `${REPO_ROOT}/deno.json`,
           `${REPO_ROOT}/pkg/@eserstack/noskills/main.ts`,
           "invoke-hook",
           "session-start",
@@ -1343,16 +1331,7 @@ bdd.describe("session-start hook", () => {
     async () => {
       const result = await crossRuntime.runtime.exec.spawn(
         crossRuntime.runtime.process.execPath(),
-        [
-          "run",
-          "-A",
-          "--config",
-          `${REPO_ROOT}/deno.json`,
-          NOSKILLS_MAIN,
-          "invoke-hook",
-          "session-start",
-          "--tool=copilot-cli",
-        ],
+        [NOSKILLS_MAIN, "invoke-hook", "session-start", "--tool=copilot-cli"],
         {
           env: { NOSKILLS_PROJECT_ROOT: root, CLAUDE_ENV_FILE: "" },
           stdin: "null",

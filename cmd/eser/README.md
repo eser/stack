@@ -113,7 +113,7 @@ YAML, sync to JSON).
 Both read the files of the environment in order, a later file replacing an
 earlier value: `.env`, `.env.<env>`, `.env.local` (not for `test`) and
 `.env.<env>.local`. The environment name comes from `-e`, then `ENV`, `APP_ENV`,
-`DENO_ENV`, `NODE_ENV`, then `development`. `sync` also reads the process
+`NODE_ENV`, then `development`. `sync` also reads the process
 environment, which replaces the files; `generate` does not. A resource key the
 environment does not define is left out of the patch, with a warning on stderr.
 A YAML manifest is one document, and data keys are sorted.

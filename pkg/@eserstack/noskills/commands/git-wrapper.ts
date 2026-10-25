@@ -234,7 +234,7 @@ case $subcommand in
     ;;
 esac
 
-# The command may change directory before noskills starts (deno task does), so
+# The command may change directory before noskills starts (pnpm run does), so
 # the working directory git would run in travels as NOSKILLS_GIT_CWD.
 git_cwd=$(pwd -P)
 

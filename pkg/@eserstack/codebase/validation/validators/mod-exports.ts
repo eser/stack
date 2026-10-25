@@ -12,7 +12,7 @@ import type { Validator, ValidatorResult } from "../types.ts";
 /**
  * Validator that reports the modules no package entry point reaches
  *
- * This validator requires the 'javascript' stack (TypeScript/Deno specific).
+ * This validator requires the 'javascript' stack.
  */
 export const modExportsValidator: Validator = {
   name: "validate-mod-exports",

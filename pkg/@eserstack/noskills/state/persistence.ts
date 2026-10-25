@@ -30,9 +30,9 @@ import * as crossRuntime from "@eserstack/standards/cross-runtime";
  * Distinguishes "there is no file" from "the file is unreadable or corrupt".
  *
  * The cross-runtime fs port already normalises the per-runtime variants into
- * `NotFoundError`, so the class check is the reliable one. Deno's raw
- * `NotFound` name and the Node `ENOENT` code are kept as a fallback for any
- * error that reaches here without passing through the port.
+ * `NotFoundError`, so the class check is the reliable one. The Node `ENOENT`
+ * code is kept as a fallback for any error that reaches here without passing
+ * through the port.
  */
 const isNotFoundError = (error: unknown): boolean => {
   if (error instanceof crossRuntime.NotFoundError) {
@@ -43,9 +43,9 @@ const isNotFoundError = (error: unknown): boolean => {
     return false;
   }
 
-  const candidate = error as { name?: unknown; code?: unknown };
+  const candidate = error as { code?: unknown };
 
-  return candidate.name === "NotFound" || candidate.code === "ENOENT";
+  return candidate.code === "ENOENT";
 };
 
 /** Corrupt-state warnings are latched per path: one per file, not per read. */
@@ -762,8 +762,10 @@ export const migrateLegacyLayout = async (root: string): Promise<boolean> => {
     await crossRuntime.runtime.fs.mkdir(stateDirPath, { recursive: true });
     // oxlint-disable-next-line no-await-in-loop
     if (await isDir(sibling.to)) {
+      // The check above proved it empty; rm refuses any folder without
+      // `recursive`, even an empty one.
       // oxlint-disable-next-line no-await-in-loop
-      await crossRuntime.runtime.fs.remove(sibling.to);
+      await crossRuntime.runtime.fs.remove(sibling.to, { recursive: true });
     }
     // oxlint-disable-next-line no-await-in-loop
     await crossRuntime.runtime.fs.rename(sibling.from, sibling.to);

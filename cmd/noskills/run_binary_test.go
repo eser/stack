@@ -31,8 +31,8 @@ import (
 //	hang  says something and then sleeps until it is killed
 //
 // No network is used. A TypeScript run of the same fixture is compared when
-// NOSKILLS_RUN_PARITY=1. It needs deno: the TypeScript claude-code provider
-// runs through the native ajan library, which node loads only from 26.9 on.
+// NOSKILLS_RUN_PARITY=1. It needs node on PATH: the TypeScript claude-code
+// provider runs through the native ajan library over node:ffi.
 
 const fakeClaudeScript = `#!/bin/sh
 # Stands in for claude --print --input-format stream-json --output-format stream-json.
@@ -375,12 +375,12 @@ func loopLines(stdout string) []string {
 
 func TestRunBinaryMatchesTypeScript(t *testing.T) {
 	if os.Getenv("NOSKILLS_RUN_PARITY") != "1" {
-		t.Skip("set NOSKILLS_RUN_PARITY=1 to compare with the TypeScript CLI (needs deno)")
+		t.Skip("set NOSKILLS_RUN_PARITY=1 to compare with the TypeScript CLI (needs node)")
 	}
 
-	deno, err := exec.LookPath("deno")
+	node, err := exec.LookPath("node")
 	if err != nil {
-		t.Fatal("the comparison needs deno")
+		t.Fatal("the comparison needs node")
 	}
 
 	mainTS, err := filepath.Abs("../../pkg/@eserstack/noskills/main.ts")
@@ -389,8 +389,8 @@ func TestRunBinaryMatchesTypeScript(t *testing.T) {
 	}
 
 	binary := buildBinary(t)
-	tsArgs := []string{"run", "-A", "--quiet", mainTS}
-	tsCommand := deno + " " + strings.Join(tsArgs, " ")
+	tsArgs := []string{mainTS}
+	tsCommand := node + " " + strings.Join(tsArgs, " ")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
@@ -407,7 +407,7 @@ func TestRunBinaryMatchesTypeScript(t *testing.T) {
 		if cli == "go" {
 			results[cli] = runCommandLine(t, ctx, root, runEnviron(binDir, fakeDir, binary), binary, "run", "--max-iterations=2")
 		} else {
-			results[cli] = runCommandLine(t, ctx, root, runEnviron(binDir, fakeDir, tsCommand), deno,
+			results[cli] = runCommandLine(t, ctx, root, runEnviron(binDir, fakeDir, tsCommand), node,
 				append(tsArgs, "run", "--max-iterations=2")...)
 		}
 

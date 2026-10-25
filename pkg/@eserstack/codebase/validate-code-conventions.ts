@@ -22,7 +22,7 @@
  * rules while old code is migrated over time. After fixing violations, shrink
  * the baseline:
  *
- *   deno run -A ./pkg/@eserstack/codebase/validate-code-conventions.ts --write-baseline
+ *   node ./pkg/@eserstack/codebase/validate-code-conventions.ts --write-baseline
  *
  * @module
  */

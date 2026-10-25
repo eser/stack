@@ -4,8 +4,9 @@
  * FFI-backed PTY implementing the {@link PtyProcess} contract via the native
  * EserAjanShellPty* exports (ConPTY on Windows, openpty on Unix, with working
  * resize). Mirrors child-go.ts: a deferred poll pump reads one merged chunk at a
- * time. The read symbol is nonblocking on Deno, so an idle PTY never stalls the
- * isolate or starves other panes' pumps.
+ * time. node:ffi calls are synchronous, so while an idle PTY waits for output the
+ * read parks the event loop; the worker-thread pattern of decision-37 (M2-T8)
+ * moves it off the main thread.
  *
  * Spawn errors propagate to the caller so {@link spawnPty} can fall back to the
  * script-based implementation when the native library is unavailable.
@@ -109,8 +110,8 @@ export const spawnPtyGo = async (opts: PtyOptions): Promise<PtyProcess> => {
     resolveExit(code);
   };
 
-  // Poll pump — the nonblocking read awaits off-isolate; each resolution yields
-  // back to the event loop so other panes/input keep flowing.
+  // Poll pump: each resolved read yields back to the event loop before the next
+  // one, so other panes and input get a turn between chunks.
   const pump = async (): Promise<void> => {
     try {
       while (true) {

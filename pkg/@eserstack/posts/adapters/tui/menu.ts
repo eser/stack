@@ -4,7 +4,7 @@
  * TuiMenu — multi-platform terminal UI adapter.
  * Drives InboundPostService + per-platform AuthProviders.
  * Uses @eserstack/shell/tui for prompts and @eserstack/streams/span for output.
- * Never touches Deno or Node APIs directly.
+ * Never touches runtime APIs directly.
  */
 
 import * as primitiveResults from "@eserstack/primitives/results";

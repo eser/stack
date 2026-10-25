@@ -1,10 +1,10 @@
 ---
 id: TASK-219
 title: 'cache, config, crypto, formats, parsing and collector: pass tests on Node'
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-10-15 20:38'
-updated_date: '2026-10-25 16:00'
+updated_date: '2026-10-26 10:00'
 labels:
   - cutover
   - ffi
@@ -33,8 +33,8 @@ Plan key: M1-T25. Effort: small.
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 `node --test` passes for each of the six packages
-- [ ] #2 No Deno or DENO_ENV reference remains in them or in collectorfx and configfx; tsc and oxlint are clean for each
+- [x] #1 `node --test` passes for each of the six packages
+- [x] #2 No Deno or DENO_ENV reference remains in them or in collectorfx and configfx; tsc and oxlint are clean for each
 <!-- AC:END -->
 
 ## Implementation Notes
@@ -53,4 +53,14 @@ TASK-198 (2026-10-25): the test and bench codemods left no site for hand edits i
 - pkg/@eserstack/collector/walk-fs.test.ts: 1 failing, 5 passing; first error: see the run
 - pkg/@eserstack/config/config.test.ts: 1 failing, 2 passing; first error: see the run
 - pkg/@eserstack/config/dotenv/dialect.test.ts: 1 failing, 0 passing; first error: see the run
+
+TASK-219 (2026-10-26, node 26.12.1):
+- node --test --test-force-exit per package: cache 20/20, config 11/11, crypto 27/27, formats 96/96, parsing 20/20, collector 9/9. tsc and oxlint report nothing for the six packages; go test passes for configfx and collectorfx.
+- config.test.ts and walk-fs.test.ts use cross-runtime fs and runtime.exec.spawn of runtime.process.execPath() with --input-type=module --eval.
+- dialect.test.ts failed because @std/dotenv parse reads Deno.env for names the file does not set. config/dotenv/parser.ts now parses the same dialect, looks such names up through runtime.env, expands an unresolved name without a default to "" (as configfx/envparser does; @std/dotenv printed "undefined") and stops after 10 expansion passes (a self reference used to loop forever). Tests added in loader.test.ts.
+- collector's TS manifest fallback piped its output through `<execPath> fmt -`, which on Node returned nothing; formatter.ts is deleted and the fallback returns the source unformatted, as the Go generator does. Test added in manifest.test.ts.
+- DENO_ENV removed from config envVars; README upgrade notes cover it and the "" expansion. The M1-T36 list in TASK-230 already has "DENO_ENV no longer read".
+- isolatedDeclarations types added in collector/validator-identifier/mod.ts, config/dotenv/loader.ts and config/manifest.ts.
+- Remaining Deno mentions are attributions (deno fresh headers in collector, "the Deno authors" in parser.ts) and the DENO_ENV upgrade note in config/README.md.
+- Left for a lockfile change: @std/dotenv in config/package.json and @eserstack/shell in collector/package.json are unused now.
 <!-- SECTION:NOTES:END -->

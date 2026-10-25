@@ -101,10 +101,11 @@ translate and post, and restores saved sessions when it starts. Run it from the
 root of an eser/stack checkout:
 
 ```bash
-deno run --allow-net --allow-env --allow-read --allow-write pkg/@eserstack/posts/adapters/tui/app.ts
+node pkg/@eserstack/posts/adapters/tui/app.ts
 ```
 
-The package's `tui` task runs the same command from `pkg/@eserstack/posts`.
+The package's `tui` script runs the same command from `pkg/@eserstack/posts`:
+`node --run tui`.
 
 For a Twitter/X login, the menu prints the authorization URL and waits up to two
 minutes for the redirect on the loopback address in `TWITTER_REDIRECT_URI`. If

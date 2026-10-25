@@ -27,21 +27,17 @@ workflows:
 });
 
 nodeTest.test(
-  "parseConfig — YAML without workflows key → { workflows: [] } then throws validation",
+  "parseConfig — YAML without workflows key → { workflows: [] }",
   () => {
     const yamlStr = `
 stack:
-  - deno
+  - javascript
 `;
 
-    // parseConfig calls validateConfig which throws because workflows is empty array
-    // Actually, workflows defaults to [] which is an array, but validateConfig doesn't throw on empty array
-    // Let's check: validateConfig iterates over workflows but doesn't throw if empty
-    // Actually no — workflows is [] (valid array), and the for loop just doesn't execute.
-    // So this should succeed with an empty workflows array.
+    // workflows defaults to [], which validateConfig accepts
     const config = loader.parseConfig(yamlStr);
     assert.assertEquals(config.workflows.length, 0);
-    assert.assertEquals(config.stack, ["deno"]);
+    assert.assertEquals(config.stack, ["javascript"]);
   },
 );
 

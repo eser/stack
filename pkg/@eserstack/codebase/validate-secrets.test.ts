@@ -82,7 +82,7 @@ nodeTest.test(
 
     assert.assert(
       lib !== null,
-      "native library not loaded — build it first (deno task cli preflight or build-native-lib)",
+      "native library not loaded — build it first (make ajan-lib)",
     );
 
     const root = await makeFixture();

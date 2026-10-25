@@ -48,7 +48,7 @@ const (
 const (
 	fakeStructuredProse   = "Here is the title."
 	fakeStructuredRetried = `{"title":7}`
-	fakeStructuredReply   = `{"title":"Deno workspaces"}`
+	fakeStructuredReply   = `{"title":"pnpm workspaces"}`
 	fakeStructuredDecline = "I can't name this post."
 )
 

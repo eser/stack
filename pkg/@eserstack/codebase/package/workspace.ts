@@ -143,7 +143,7 @@ export const getWorkspaceModules = async (
   for (const workspacePath of workspacePaths) {
     // Packages load one at a time to bound open file handles in a large
     // workspace.
-    // deno-lint-ignore no-await-in-loop
+    // oxlint-disable-next-line no-await-in-loop
     const workspaceConfig = await loader.tryLoad({ baseDir: workspacePath });
 
     if (workspaceConfig === undefined) {

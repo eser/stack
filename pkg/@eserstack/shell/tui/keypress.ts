@@ -200,7 +200,7 @@ export async function* readKeypress(
       if (signal?.aborted) break;
 
       // Keys are parsed in the order they were typed, one chunk per read.
-      // deno-lint-ignore no-await-in-loop
+      // oxlint-disable-next-line no-await-in-loop
       const { done, value } = await reader.read();
       if (done || value === undefined) break;
 
@@ -236,7 +236,7 @@ export async function* readInput(
       if (signal?.aborted) break;
 
       // Input events are parsed in the order they arrived, one chunk per read.
-      // deno-lint-ignore no-await-in-loop
+      // oxlint-disable-next-line no-await-in-loop
       const { done, value } = await reader.read();
       if (done || value === undefined) break;
 

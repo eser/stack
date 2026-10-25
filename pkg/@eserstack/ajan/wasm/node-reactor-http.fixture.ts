@@ -118,7 +118,7 @@ const main = async (): Promise<void> => {
     ),
   ) as { status: number; body: string; retries: number };
 
-  // deno-lint-ignore no-console
+  // oxlint-disable-next-line no-console
   console.log(
     JSON.stringify({
       reactor,
@@ -150,7 +150,7 @@ const main = async (): Promise<void> => {
 };
 
 main().catch((error) => {
-  // deno-lint-ignore no-console
+  // oxlint-disable-next-line no-console
   console.error(error);
   nodeProcess.exitCode = 1;
 });

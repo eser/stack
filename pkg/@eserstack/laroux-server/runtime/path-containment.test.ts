@@ -208,7 +208,7 @@ Deno.test("static routes do not serve server code or build inputs from dist", as
       "http://localhost/transform-manifest.json",
     ]) {
       // Sequential: each request goes through the same handler and its logs.
-      // deno-lint-ignore no-await-in-loop
+      // oxlint-disable-next-line no-await-in-loop
       const { status, body } = await fetchBody(url);
       assert.assertNotEquals(status, 200, url);
       assert.assertEquals(body.includes("export const"), false, url);

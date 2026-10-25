@@ -49,7 +49,7 @@ acceptance criterion and a size estimate.
 - Formatting, linting and type checking pass: `deno fmt`, `deno lint` and
   `deno check` for TypeScript, `golangci-lint` for Go.
 - Public APIs do not use `any`; prefer discriminated unions.
-- A lint suppression (`//nolint:`, `// deno-lint-ignore`) carries a comment that
+- A lint suppression (`//nolint:`, `// oxlint-disable-next-line`) carries a comment that
   says why.
 - Every fix and new feature comes with tests.
 

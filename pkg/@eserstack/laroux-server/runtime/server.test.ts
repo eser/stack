@@ -153,11 +153,11 @@ Deno.test("POST /_rsc answers 400 when the arguments are not a JSON array", asyn
     async (handler) => {
       for (const body of ['{"value":1}', "not json"]) {
         // Sequential: each case reads its own response before the next.
-        // deno-lint-ignore no-await-in-loop
+        // oxlint-disable-next-line no-await-in-loop
         const response = await postAction(handler, "actions#echo", body);
         assert.assertEquals(response.status, 400, body);
         // Reads the same case's body before the next case starts.
-        // deno-lint-ignore no-await-in-loop
+        // oxlint-disable-next-line no-await-in-loop
         assert.assertStringIncludes(await response.text(), "JSON array");
       }
     },
@@ -242,7 +242,7 @@ Deno.test("POST /_rsc refuses cross-site requests and accepts same-origin ones",
 
       for (const [headers, status] of cases) {
         // Sequential: each case reads its own response before the next.
-        // deno-lint-ignore no-await-in-loop
+        // oxlint-disable-next-line no-await-in-loop
         const response = await postAction(
           handler,
           "actions#echo",
@@ -250,7 +250,7 @@ Deno.test("POST /_rsc refuses cross-site requests and accepts same-origin ones",
           headers,
         );
         assert.assertEquals(response.status, status, JSON.stringify(headers));
-        // deno-lint-ignore no-await-in-loop
+        // oxlint-disable-next-line no-await-in-loop
         await response.body?.cancel();
       }
     },
@@ -451,14 +451,14 @@ Deno.test("GET /rsc runs the proxy chain of the requested page", async () => {
     ];
     for (const [page, status] of cases) {
       // Sequential: each case reads its own response before the next.
-      // deno-lint-ignore no-await-in-loop
+      // oxlint-disable-next-line no-await-in-loop
       const response = await handler(
         new Request(
           `http://localhost/rsc?pathname=${encodeURIComponent(page)}`,
         ),
       );
       assert.assertEquals(response.status, status, page);
-      // deno-lint-ignore no-await-in-loop
+      // oxlint-disable-next-line no-await-in-loop
       const text = await response.text();
       if (status === 200) {
         assert.assertStringIncludes(text, "page content");

@@ -7,7 +7,7 @@ import * as ffiClient from "./ffi-client.ts";
 import * as validateNamingAndTodos from "./validate-naming-and-todos.ts";
 
 // The check runs in Go, so these tests need the native library.
-// deno-lint-ignore no-top-level-await
+// oxlint-disable-next-line node/no-top-level-await
 await ffiClient.ensureLib();
 const withoutFfi = ffiClient.getLib() === null;
 
@@ -21,7 +21,7 @@ const withFixture = async (
   try {
     for (const [name, content] of Object.entries(files)) {
       // Sequential: a handful of small fixture files.
-      // deno-lint-ignore no-await-in-loop
+      // oxlint-disable-next-line no-await-in-loop
       await crossRuntime.runtime.fs.writeTextFile(
         path.join(dir, name),
         content,

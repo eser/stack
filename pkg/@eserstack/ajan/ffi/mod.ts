@@ -79,7 +79,7 @@ export interface LoadOptions {
 const getEnv = (name: string): string | undefined => {
   try {
     // globalThis does not declare Deno, Bun or process on every runtime.
-    // deno-lint-ignore no-explicit-any
+    // oxlint-disable-next-line typescript/no-explicit-any
     const g = globalThis as any;
 
     // process.env works on Deno 2.7+, Node.js, and Bun
@@ -122,7 +122,7 @@ const debugLog = (message: string): void => {
   }
 
   // Opt-in diagnostics go to stderr directly; this module has no logger.
-  // deno-lint-ignore no-console
+  // oxlint-disable-next-line no-console
   console.error(`[eser-ajan/ffi] ${message}`);
 };
 
@@ -164,7 +164,7 @@ const BACKENDS: readonly types.FFIBackend[] = [
  */
 export const detectRuntime = (): types.RuntimeId => {
   // globalThis does not declare Deno, Bun or process on every runtime.
-  // deno-lint-ignore no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   const g = globalThis as any;
 
   if (typeof g.Deno !== "undefined" && typeof g.Deno.dlopen === "function") {

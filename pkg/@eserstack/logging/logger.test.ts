@@ -18,7 +18,7 @@ const beforeEach = async () => {
 // Importing the package loads nothing, so this test module opens the bridge
 // before registering tests: the `ignore` flags below need to know whether it
 // loaded, and the load stays outside every test body.
-// deno-lint-ignore no-top-level-await
+// oxlint-disable-next-line node/no-top-level-await
 await ffiClient.ensureLib();
 
 // The FFI singleton is shared by the whole test process; the fallback tests
@@ -54,10 +54,10 @@ const stubLogSymbols = (overrides: {
 /** Collects what the console fallback sink writes while `run` executes. */
 const captureConsole = async (run: () => Promise<void>): Promise<string[]> => {
   const lines: string[] = [];
-  // deno-lint-ignore no-console
+  // oxlint-disable-next-line no-console
   const original = console.error;
 
-  // deno-lint-ignore no-console
+  // oxlint-disable-next-line no-console
   console.error = (...args: unknown[]): void => {
     lines.push(args.map((arg) => String(arg)).join(" "));
   };
@@ -65,7 +65,7 @@ const captureConsole = async (run: () => Promise<void>): Promise<string[]> => {
   try {
     await run();
   } finally {
-    // deno-lint-ignore no-console
+    // oxlint-disable-next-line no-console
     console.error = original;
   }
 
@@ -212,7 +212,7 @@ Deno.test({
         const logger = getLogger(["warn-once"]);
 
         for (let index = 0; index < 5; index += 1) {
-          // deno-lint-ignore no-await-in-loop
+          // oxlint-disable-next-line no-await-in-loop
           await logger.info(`degraded ${index}`);
         }
       } finally {

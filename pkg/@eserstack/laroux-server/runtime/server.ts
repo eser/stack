@@ -34,11 +34,11 @@ const rscLogger = logging.logger.getLogger(["laroux-server", "rsc"]);
 type StreamingOptimalOptions = {
   element: React.ReactElement;
   // The module map passes through to the renderer, which owns its shape.
-  // deno-lint-ignore no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   moduleMap: Record<string, any>;
   shellOptions: {
     // The manifest passes through to the HTML shell, which owns its shape.
-    // deno-lint-ignore no-explicit-any
+    // oxlint-disable-next-line typescript/no-explicit-any
     chunkManifest: any;
     entrypoint: string;
     fontPreloads?: string[];

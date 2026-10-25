@@ -19,7 +19,7 @@ import * as ffiClient from "../ffi/client.ts";
 import * as reactor from "./loader-reactor.ts";
 import * as resolve from "./resolve.ts";
 
-// deno-lint-ignore no-top-level-await
+// oxlint-disable-next-line node/no-top-level-await
 await ffiClient.ensureLib();
 const native = ffiClient.getLib();
 
@@ -319,7 +319,7 @@ Deno.test({
           let body = "";
           for (let i = 0; i < 20; i++) {
             // Each read follows the one before it on the same stream.
-            // deno-lint-ignore no-await-in-loop
+            // oxlint-disable-next-line no-await-in-loop
             const chunk = JSON.parse(await call("httpStreamRead", stream)) as {
               chunk?: string;
               done: boolean;

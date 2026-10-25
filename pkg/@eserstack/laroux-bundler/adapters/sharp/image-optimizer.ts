@@ -19,11 +19,11 @@ const imageLogger = logging.logger.getLogger(["laroux", "image-optimizer"]);
 
 // sharp is a native module, so it loads on first use instead of at import.
 // The dynamic import is untyped; typing it would need sharp's types here.
-// deno-lint-ignore no-explicit-any
+// oxlint-disable-next-line typescript/no-explicit-any
 let sharpModule: any = null;
 
 // Returns the untyped module held in sharpModule
-// deno-lint-ignore no-explicit-any
+// oxlint-disable-next-line typescript/no-explicit-any
 async function getSharp(): Promise<any> {
   if (sharpModule === null) {
     sharpModule = await import("sharp");
@@ -121,7 +121,7 @@ async function generateBlurPlaceholder(
  */
 async function writeVariant(
   // sharp is loaded lazily through getSharp(), which returns it untyped
-  // deno-lint-ignore no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   processedImage: any,
   outputPath: string,
 ): Promise<number> {
@@ -213,7 +213,7 @@ export async function optimizeImage(
 
       // Variants are encoded one at a time so only one encoded buffer is in
       // memory; sharp already spreads each encode over its own thread pool.
-      // deno-lint-ignore no-await-in-loop
+      // oxlint-disable-next-line no-await-in-loop
       const size = await writeVariant(processedImage, outputPath);
 
       variants.push({
@@ -277,12 +277,12 @@ export async function optimizeImages(
     try {
       // Images are optimized one at a time to bound memory: each holds its
       // decoded pixels and encoded variants until it finishes.
-      // deno-lint-ignore no-await-in-loop
+      // oxlint-disable-next-line no-await-in-loop
       const originalStat = await runtime.fs.stat(imagePath);
       totalOriginalSize += originalStat.size;
 
       // Sequential for the same memory bound as the stat above
-      // deno-lint-ignore no-await-in-loop
+      // oxlint-disable-next-line no-await-in-loop
       const optimized = await optimizeImage(
         imagePath,
         outputDir,

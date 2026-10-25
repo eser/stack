@@ -290,7 +290,7 @@ export const restoreCategories = async (
 
     // In order: sync, which restores the agent integration, reads the rules
     // and the manifest restored before it.
-    // deno-lint-ignore no-await-in-loop
+    // oxlint-disable-next-line no-await-in-loop
     outcomes.push(await restoreCategory(root, entryId, category, overwrite));
   }
 

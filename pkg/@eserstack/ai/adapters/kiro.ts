@@ -118,7 +118,7 @@ export class KiroModel implements model.LanguageModel {
 
           // Reads stay sequential: each chunk extends the line buffer, and the
           // consumer pulls events one at a time.
-          // deno-lint-ignore no-await-in-loop
+          // oxlint-disable-next-line no-await-in-loop
           readResult = await reader.read();
         }
       } finally {
@@ -219,7 +219,7 @@ const mapStreamEvent = (event: unknown): generation.StreamEvent | null => {
   }
 
   // Stream events are untyped JSON; each field is checked before use.
-  // deno-lint-ignore no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   const obj = event as any;
 
   // Content

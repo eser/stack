@@ -32,12 +32,12 @@ Deno.test("with-generator", () => {
   const generated1 = gen1();
   const result = splitArray.splitArray(generated1, int1);
 
-  // deno-lint-ignore no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   assert.assertNotStrictEquals(result.items as any, generated1 as any);
   assert.assertEquals(result.items.length, 3);
   assert.assertEquals(result.items, [1, 2, 3]);
 
-  // deno-lint-ignore no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   assert.assertNotStrictEquals(result.rest as any, generated1 as any);
   assert.assertEquals(result.rest.length, 2);
   assert.assertEquals(result.rest, [4, 5]);

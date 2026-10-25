@@ -41,7 +41,7 @@ export const main = async (
 
   if (!explicitInteractive && !noInteractive && isTty) {
     // Prompting was turned on automatically; stderr tells the user why.
-    // deno-lint-ignore no-console
+    // oxlint-disable-next-line no-console
     console.error(
       "Prompting for missing variables (use --no-interactive to disable)",
     );

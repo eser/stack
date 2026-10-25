@@ -1,7 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 // Help, version and usage errors are the CLI's own terminal output.
-// deno-lint-ignore-file no-console
+/* oxlint-disable no-console */
 
 /**
  * Command class - CLI framework

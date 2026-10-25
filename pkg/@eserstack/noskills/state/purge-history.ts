@@ -513,7 +513,7 @@ export const restorePaths = async (
       for (const path of files) {
         // One file at a time: a specs folder can hold hundreds of files, and
         // this keeps the open file handles to one.
-        // deno-lint-ignore no-await-in-loop
+        // oxlint-disable-next-line no-await-in-loop
         if (await pathExists(`${root}/${path}`)) {
           conflicts.push(path);
         }
@@ -527,12 +527,12 @@ export const restorePaths = async (
     for (const path of files) {
       const target = `${root}/${path}`;
       // One file at a time, for the reason above.
-      // deno-lint-ignore no-await-in-loop
+      // oxlint-disable-next-line no-await-in-loop
       await crossRuntime.runtime.fs.mkdir(
         crossRuntime.runtime.path.dirname(target),
         { recursive: true },
       );
-      // deno-lint-ignore no-await-in-loop
+      // oxlint-disable-next-line no-await-in-loop
       await crossRuntime.runtime.fs.copyFile(`${categoryDir}/${path}`, target);
     }
 
@@ -541,7 +541,7 @@ export const restorePaths = async (
     // sorted order, and recursive mkdir accepts a folder that exists.
     for (const path of dirs) {
       // One folder at a time, for the reason above.
-      // deno-lint-ignore no-await-in-loop
+      // oxlint-disable-next-line no-await-in-loop
       await crossRuntime.runtime.fs.mkdir(`${root}/${path}`, {
         recursive: true,
       });

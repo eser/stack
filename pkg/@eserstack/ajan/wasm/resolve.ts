@@ -20,7 +20,7 @@ import * as ffiResolve from "../ffi/resolve.ts";
  */
 const getEnvVar = (name: string): string | undefined => {
   // globalThis does not declare Deno, Bun or process on every runtime.
-  // deno-lint-ignore no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   const g = globalThis as any;
 
   // process.env works on Node, Bun, and Deno 2.7+
@@ -98,7 +98,7 @@ export const resolveWasmPath = (moduleDirHint?: string): string => {
 
   // Try pkg/@eserstack/ajan/dist/ from the monorepo root (cwd)
   // globalThis does not declare Deno, Bun or process on every runtime.
-  // deno-lint-ignore no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   const g = globalThis as any;
   const cwd =
     typeof g.process !== "undefined" && typeof g.process.cwd === "function"

@@ -59,7 +59,7 @@ export type ServerActionReference = {
  */
 export type RSCChunk =
   | { type: "M"; id: number; value: ModuleReference }
-  // deno-lint-ignore no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   | { type: "J"; id: number; value: any } // JSON value can be any serializable type
   | { type: "E"; id: number; value: { message: string; stack?: string } }
   | { type: "P"; id: number; value: number } // Promise ID

@@ -130,7 +130,7 @@ export const collectViolations = async <R extends string>(
     if (skip(relPath)) continue;
     // Files load one at a time: reading thousands at once can exhaust the
     // open file handle limit.
-    // deno-lint-ignore no-await-in-loop
+    // oxlint-disable-next-line no-await-in-loop
     const content = await shared.loadContent(file);
     if (content === undefined) continue;
     const violations = find(content);

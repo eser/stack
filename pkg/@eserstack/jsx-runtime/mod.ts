@@ -9,7 +9,7 @@ export const Fragment = reactJsxRuntime.Fragment;
 
 // Escaped child arrays mix strings, null and nested nodes, so the element
 // type stays open.
-// deno-lint-ignore no-explicit-any
+// oxlint-disable-next-line typescript/no-explicit-any
 type VNode = object | any[]; // reactJsxRuntime.JSX.Element;
 
 /**

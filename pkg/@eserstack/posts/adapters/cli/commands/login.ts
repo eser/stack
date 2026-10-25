@@ -231,10 +231,10 @@ export const login = async (
     // Platforms log in one at a time: a browser login waits for the user,
     // their tokens share one token file, and the first failure stops the
     // command.
-    // deno-lint-ignore no-await-in-loop
+    // oxlint-disable-next-line no-await-in-loop
     const outcome = await loginPlatform(platform, args, deps);
     // Each outcome prints before the next platform's login starts.
-    // deno-lint-ignore no-await-in-loop
+    // oxlint-disable-next-line no-await-in-loop
     await report(outcome);
     if (!outcome.ok) return results.fail({ exitCode: 1 });
   }

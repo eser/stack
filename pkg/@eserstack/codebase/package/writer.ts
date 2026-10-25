@@ -313,7 +313,7 @@ export const updateFields = async (
   for (const [fieldName, value] of Object.entries(updates)) {
     // Fields are updated one at a time: every field writes the same config
     // files, so concurrent updates would overwrite each other.
-    // deno-lint-ignore no-await-in-loop
+    // oxlint-disable-next-line no-await-in-loop
     const result = await updateField(
       config,
       fieldName as PackageFieldName,

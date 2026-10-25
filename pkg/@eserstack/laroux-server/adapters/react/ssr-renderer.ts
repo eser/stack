@@ -28,7 +28,7 @@ const ssrLogger = logging.logger.getLogger(["laroux-server", "react", "ssr"]);
  * A node of a React tree as the preprocessor walks it: an element, props,
  * children or a primitive, all produced by user components and untyped here.
  */
-// deno-lint-ignore no-explicit-any
+// oxlint-disable-next-line typescript/no-explicit-any
 type TreeNode = any;
 
 /**
@@ -318,7 +318,7 @@ async function preprocessTree(
           } else if (typeof value === "object" && value !== null) {
             // Props are processed in order: preprocessTree takes chunk ids from
             // the shared context counter, so the order fixes the ids.
-            // deno-lint-ignore no-await-in-loop
+            // oxlint-disable-next-line no-await-in-loop
             const valueResult = await preprocessTree(value, context);
             serializedProps[key] = `$${valueResult.chunkId}`;
           } else {
@@ -644,7 +644,7 @@ async function preprocessTree(
       if (typeof value === "object" && value !== null) {
         // Entries are processed in order: preprocessTree takes chunk ids from
         // the shared context counter, so the order fixes the ids.
-        // deno-lint-ignore no-await-in-loop
+        // oxlint-disable-next-line no-await-in-loop
         const valueResult = await preprocessTree(value, context);
         processedObj[key] = valueResult.processedElement;
       } else {
@@ -677,7 +677,7 @@ async function preprocessTree(
  */
 export async function renderSSR(
   // Any value a server component tree can hold; the walk narrows it per node.
-  // deno-lint-ignore no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   element: any,
   bundlerConfig: BundlerConfig,
   options: SSROptions = { streamMode: "await-all" },

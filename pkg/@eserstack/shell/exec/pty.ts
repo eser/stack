@@ -57,7 +57,7 @@ export type PtyProcess = {
 // =============================================================================
 
 /** macOS `script` emits control chars at start — strip \x04 (EOT) */
-// deno-lint-ignore no-control-regex
+// oxlint-disable-next-line no-control-regex
 const STRIP_PATTERN = /\x04/g;
 
 /** macOS `script` may emit "Script started/done" lines even with -q on some versions */
@@ -179,7 +179,7 @@ export const spawnPty = async (opts: PtyOptions): Promise<PtyProcess> => {
  * Spawn a process with a real PTY via the `script` wrapper (fallback path).
  */
 // Async so that a synchronous spawn failure reaches the caller as a rejection.
-// deno-lint-ignore require-await
+// oxlint-disable-next-line require-await
 const spawnPtyScript = async (opts: PtyOptions): Promise<PtyProcess> => {
   const { runtime } = crossRuntime;
   const userArgs = opts.args !== undefined ? [...opts.args] : [];
@@ -219,7 +219,7 @@ const spawnPtyScript = async (opts: PtyOptions): Promise<PtyProcess> => {
     try {
       while (true) {
         // A stream reader hands out chunks one at a time, in order.
-        // deno-lint-ignore no-await-in-loop
+        // oxlint-disable-next-line no-await-in-loop
         const { done, value } = await reader.read();
         if (done) break;
         dispatch(decoder.decode(value));

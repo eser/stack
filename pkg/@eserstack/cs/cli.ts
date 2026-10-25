@@ -3,7 +3,7 @@
 
 // This CLI prints manifests and kubectl commands on stdout for piping and
 // eval, and its errors and warnings on stderr, so it writes through console.
-// deno-lint-ignore-file no-console
+/* oxlint-disable no-console */
 
 import * as cli from "@std/cli/parse-args";
 import * as results from "@eserstack/primitives/results";
@@ -263,7 +263,7 @@ async function main(): Promise<shellArgs.CliResult<void>> {
 // Run the CLI if this file is executed directly
 if (import.meta.main) {
   // CLI entry point: runs only when executed directly, never on import.
-  // deno-lint-ignore no-top-level-await
+  // oxlint-disable-next-line node/no-top-level-await
   const result = await main();
   results.match(result, {
     ok: () => {},

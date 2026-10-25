@@ -24,7 +24,7 @@ export const backend: types.FFIBackend = {
 
   available: (): boolean => {
     // globalThis does not declare Bun outside the Bun runtime.
-    // deno-lint-ignore no-explicit-any
+    // oxlint-disable-next-line typescript/no-explicit-any
     return typeof (globalThis as any).Bun !== "undefined";
   },
 

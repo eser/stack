@@ -194,7 +194,7 @@ export const scanProject = async (
   // Also check docs/ specifically. The scan covers every markdown file in the
   // project, so files are read one at a time to keep open handles bounded.
   for (const mdFile of mdFiles) {
-    // deno-lint-ignore no-await-in-loop
+    // oxlint-disable-next-line no-await-in-loop
     const diagrams = await scanMarkdownFile(root, mdFile);
     entries.push(...diagrams);
   }

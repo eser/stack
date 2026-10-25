@@ -475,14 +475,14 @@ export class HttpClient {
         const initRequest = new Request(fullUrl.toString(), init);
 
         // Attempts are sequential: a retry starts only after this one fails.
-        // deno-lint-ignore no-await-in-loop
+        // oxlint-disable-next-line no-await-in-loop
         sentRequest = await interceptors.applyRequestInterceptors(
           initRequest,
           requestInterceptors,
         );
 
         // Attempts are sequential: a retry starts only after this one fails.
-        // deno-lint-ignore no-await-in-loop
+        // oxlint-disable-next-line no-await-in-loop
         raw = await fetchFn(sentRequest);
       } catch (err) {
         const e = err instanceof Error ? err : new Error(String(err));
@@ -504,7 +504,7 @@ export class HttpClient {
             retryCfg === false ? DEFAULT_RETRY : retryCfg,
           );
           // The backoff must elapse before the next attempt starts.
-          // deno-lint-ignore no-await-in-loop
+          // oxlint-disable-next-line no-await-in-loop
           await delayFn(delay);
         }
         continue;
@@ -515,7 +515,7 @@ export class HttpClient {
 
       if (!raw.ok) {
         // The error body decides whether and how this attempt is retried.
-        // deno-lint-ignore no-await-in-loop
+        // oxlint-disable-next-line no-await-in-loop
         const errorBody = await extractErrorBody(raw);
         const statusMsg =
           errorMessageFromBody(errorBody) ?? `HTTP ${raw.status}`;
@@ -558,7 +558,7 @@ export class HttpClient {
           ) {
             // The server's Retry-After wait must elapse before the next
             // attempt.
-            // deno-lint-ignore no-await-in-loop
+            // oxlint-disable-next-line no-await-in-loop
             await delayFn(retryAfterMs);
             continue;
           }
@@ -568,7 +568,7 @@ export class HttpClient {
             retryCfg === false ? DEFAULT_RETRY : retryCfg,
           );
           // The backoff must elapse before the next attempt starts.
-          // deno-lint-ignore no-await-in-loop
+          // oxlint-disable-next-line no-await-in-loop
           await delayFn(delay);
           continue;
         }
@@ -578,7 +578,7 @@ export class HttpClient {
 
       // 2xx: delegate to the variant-specific success handler. The await
       // ends the loop; it returns on the first successful attempt.
-      // deno-lint-ignore no-await-in-loop
+      // oxlint-disable-next-line no-await-in-loop
       return await onSuccess(raw, sentRequest, retries, rateLimit);
     }
 

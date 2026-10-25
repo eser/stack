@@ -74,12 +74,12 @@ export const resolveRealGit = async (
 
     // PATH order decides which git wins, so the entries are checked one at a
     // time and the first match returns.
-    // deno-lint-ignore no-await-in-loop
+    // oxlint-disable-next-line no-await-in-loop
     const resolvedDir = await realPathOrSelf(dir);
     if (dir === excludeDir || resolvedDir === excluded) continue;
 
     const candidate = `${dir}/git`;
-    // deno-lint-ignore no-await-in-loop
+    // oxlint-disable-next-line no-await-in-loop
     if (await isExecutableFile(candidate)) return candidate;
   }
 

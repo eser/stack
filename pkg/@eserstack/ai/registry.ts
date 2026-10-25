@@ -128,7 +128,7 @@ export class Registry {
     for (const [name, target] of entries) {
       // One target at a time: models register in config order, which decides
       // the getDefault fallback, and the first failure stops further clients.
-      // deno-lint-ignore no-await-in-loop
+      // oxlint-disable-next-line no-await-in-loop
       await this.addModel(name, target);
     }
   }

@@ -136,7 +136,7 @@ export const ollamaFactory: model.ProviderFactory = {
 // Field names follow the Ollama /api/chat response.
 type OllamaChatResponse = {
   // The mappers below read the message field by field.
-  // deno-lint-ignore no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   message?: any;
   done_reason?: string;
   prompt_eval_count?: number;
@@ -281,7 +281,7 @@ const mapStreamEvent = (event: unknown): generation.StreamEvent | null => {
   }
 
   // Stream events are untyped JSON; each field is checked before use.
-  // deno-lint-ignore no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   const obj = event as any;
 
   if (obj.done === true) {

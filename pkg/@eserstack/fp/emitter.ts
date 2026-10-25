@@ -2,7 +2,7 @@
 
 /** A subscriber to an event. It may return a promise, which is awaited. */
 export type EventType = (
-  // deno-lint-ignore no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   ...args: ReadonlyArray<any>
 ) => Promise<void> | void;
 
@@ -52,7 +52,7 @@ export const emitter = async (
 
       // Subscribers run one at a time in registration order, so a subscriber
       // sees the effects of the ones before it.
-      // deno-lint-ignore no-await-in-loop
+      // oxlint-disable-next-line no-await-in-loop
       await eventSubscriber(...argsPass);
     }
   }

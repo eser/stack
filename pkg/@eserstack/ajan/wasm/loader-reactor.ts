@@ -101,7 +101,7 @@ type WasiHost = {
 };
 
 // globalThis does not declare process on every runtime.
-// deno-lint-ignore no-explicit-any
+// oxlint-disable-next-line typescript/no-explicit-any
 const g = globalThis as any;
 
 const writeToProcess = (stream: "stdout" | "stderr", bytes: Uint8Array) => {

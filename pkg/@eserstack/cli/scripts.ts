@@ -474,7 +474,7 @@ export const runScript = async (
       // Sequential on purpose: dependencies run in resolved order, each one may
       // rely on what the previous one produced, and the first failure stops
       // the run.
-      // deno-lint-ignore no-await-in-loop
+      // oxlint-disable-next-line no-await-in-loop
       const dependencyCode = await executeCommand(
         dependency.command,
         dependency.workingDirectory,

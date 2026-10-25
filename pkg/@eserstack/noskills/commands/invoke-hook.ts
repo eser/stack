@@ -61,7 +61,7 @@ const readHookInput = async (): Promise<hookDecisions.HookInput> => {
   try {
     while (true) {
       // A stream is read one chunk at a time; each read waits for the last.
-      // deno-lint-ignore no-await-in-loop
+      // oxlint-disable-next-line no-await-in-loop
       const { done, value } = await reader.read();
       if (done || value === undefined) break;
       chunks.push(value);
@@ -357,12 +357,12 @@ const checkShellScripts = async (
     const path = target.startsWith("/") ? target : `${root}/${target}`;
     let content: string;
     try {
-      // deno-lint-ignore no-await-in-loop
+      // oxlint-disable-next-line no-await-in-loop
       const info = await runtime.fs.stat(path);
       if (info.size > MAX_SCRIPT_BYTES) {
         return `Shell script ${target} is too large to check for git writes.`;
       }
-      // deno-lint-ignore no-await-in-loop
+      // oxlint-disable-next-line no-await-in-loop
       content = await runtime.fs.readTextFile(path);
     } catch {
       continue;

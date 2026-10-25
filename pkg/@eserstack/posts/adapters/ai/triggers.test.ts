@@ -306,7 +306,7 @@ bdd.describe("routeToolCall", () => {
     const bound = createMockBound();
     for (const event of validCalls) {
       // Each call runs on its own; sequential keeps a failure tied to its tool.
-      // deno-lint-ignore no-await-in-loop
+      // oxlint-disable-next-line no-await-in-loop
       const response = await triggers.routeToolCall(bound, event);
       assert.assertEquals(response.isError, undefined, event.name);
     }

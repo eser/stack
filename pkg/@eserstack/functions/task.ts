@@ -494,7 +494,7 @@ export const all = <T, E, R = void>(
     for (const t of tasks) {
       // Tasks run in order and stop at the first failure; allPar is the
       // concurrent variant.
-      // deno-lint-ignore no-await-in-loop
+      // oxlint-disable-next-line no-await-in-loop
       const result = await t.execute(ctx);
       if (results.isFail(result)) return result;
       values.push(result.value);

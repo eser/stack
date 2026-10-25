@@ -59,7 +59,7 @@ export const runPostsAgent = async (
     };
 
     // Each turn sends the tool results of the previous one back to the model.
-    // deno-lint-ignore no-await-in-loop
+    // oxlint-disable-next-line no-await-in-loop
     const genResult = await model.generateText(genOptions);
     if (results.isFail(genResult)) return genResult;
 
@@ -89,7 +89,7 @@ export const runPostsAgent = async (
     for (const call of calls) {
       // Tool calls run in the order the model issued them: a later call can depend
       // on an earlier one, and they share the token store.
-      // deno-lint-ignore no-await-in-loop
+      // oxlint-disable-next-line no-await-in-loop
       const toolResponse = await toolCallTrigger({
         name: call.name,
         arguments: call.arguments,

@@ -147,7 +147,7 @@ bdd.describe("readEvents", () => {
     const root = await makeTempDir();
     for (let i = 0; i < 10; i++) {
       // Every append goes to the same log file, so they run in order.
-      // deno-lint-ignore no-await-in-loop
+      // oxlint-disable-next-line no-await-in-loop
       await events.appendEvent(root, makeEvent("note", "s1"));
     }
 
@@ -304,7 +304,7 @@ bdd.describe("watchEvents", () => {
       const root = await makeTempDir();
       for (let i = 0; i < 5; i++) {
         // Every append goes to the same log file, so they run in order.
-        // deno-lint-ignore no-await-in-loop
+        // oxlint-disable-next-line no-await-in-loop
         await events.appendEvent(root, makeEvent("note", `old-${i}`));
       }
 

@@ -467,10 +467,10 @@ const typewriterSink = (
         try {
           for (const char of text) {
             // The typewriter prints one character, then pauses, in order.
-            // deno-lint-ignore no-await-in-loop
+            // oxlint-disable-next-line no-await-in-loop
             await writer.write(encoder.encode(char));
             // The pause between characters is the effect itself.
-            // deno-lint-ignore no-await-in-loop
+            // oxlint-disable-next-line no-await-in-loop
             await sleep(delayMs);
           }
         } finally {

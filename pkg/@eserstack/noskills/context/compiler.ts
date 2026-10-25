@@ -1868,14 +1868,14 @@ export const detectActivePlan = async (
   for (const p of candidates) {
     try {
       // FileInfo from @eserstack/standards has mtime/birthtime directly — no cast needed
-      // deno-lint-ignore no-await-in-loop
+      // oxlint-disable-next-line no-await-in-loop
       const stat = await runtime.fs.stat(p);
       const modified = stat.mtime ?? stat.birthtime;
       // Files where both are null cannot satisfy the 24h gate reliably — skip
       if (modified === null) continue;
       const age = now - modified.getTime();
       if (age > 24 * 60 * 60 * 1000) continue; // 24h gate
-      // deno-lint-ignore no-await-in-loop
+      // oxlint-disable-next-line no-await-in-loop
       const content = await runtime.fs.readTextFile(p);
       if (content.length > MAX_PLAN_SIZE) continue; // reuse module constant
       // Strip YAML frontmatter

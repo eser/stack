@@ -115,7 +115,7 @@ export const runSignalProbe = async (
   try {
     while (true) {
       // The output arrives in order, and the signal goes out after "ready".
-      // deno-lint-ignore no-await-in-loop
+      // oxlint-disable-next-line no-await-in-loop
       const { done, value } = await reader.read();
       if (done) {
         break;

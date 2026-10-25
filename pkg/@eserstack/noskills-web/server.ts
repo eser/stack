@@ -2,7 +2,7 @@
 
 // The URL and the shutdown notice printed here are `noskills web` output, not
 // logs; failures go through the logger.
-// deno-lint-ignore-file no-console
+/* oxlint-disable no-console */
 
 /**
  * HTTP + WebSocket + SSE server for noskills web interface.

@@ -143,7 +143,7 @@ Deno.test("Node adapter closes a socket whose client sends an unmasked frame", a
     const buffer = new Uint8Array(1024);
     while (true) {
       // The server's answer arrives in pieces until it closes the connection.
-      // deno-lint-ignore no-await-in-loop
+      // oxlint-disable-next-line no-await-in-loop
       const count = await connection.read(buffer);
       if (count === null) {
         break;

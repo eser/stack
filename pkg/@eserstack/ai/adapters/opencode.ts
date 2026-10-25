@@ -181,7 +181,7 @@ const mapStreamEvent = (event: unknown): generation.StreamEvent | null => {
   }
 
   // Stream events are untyped JSON; each field is checked before use.
-  // deno-lint-ignore no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   const obj = event as any;
 
   // Content delta

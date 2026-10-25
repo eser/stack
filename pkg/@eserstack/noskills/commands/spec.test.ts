@@ -281,7 +281,7 @@ bdd.describe("noskills spec --help", () => {
 
       for (const flag of ["--help", "-h"]) {
         // One flag at a time, so a failure names it.
-        // deno-lint-ignore no-await-in-loop
+        // oxlint-disable-next-line no-await-in-loop
         const result = await run(["spec", flag]);
         const stdout = new TextDecoder().decode(result.stdout);
         assert.assertEquals(

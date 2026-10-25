@@ -121,7 +121,7 @@ export class LazyChunkLoader {
     }
 
     // Helper function to find export in a module (including namespace objects)
-    // deno-lint-ignore no-explicit-any
+    // oxlint-disable-next-line typescript/no-explicit-any
     const findExportInModule = (mod: Record<string, any>): unknown => {
       // Direct export
       if (mod[exportName]) {

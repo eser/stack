@@ -61,7 +61,7 @@ export const detectProjectType = async (
     try {
       // PROJECT_FILES is in priority order and the first match wins, so the
       // checks run one at a time and stop at the first file that exists.
-      // deno-lint-ignore no-await-in-loop
+      // oxlint-disable-next-line no-await-in-loop
       await runtime.fs.stat(`${cwd}/${filename}`);
       return { type, configFile: filename };
     } catch {
@@ -169,7 +169,7 @@ export const installDependencies = async (
 
     if (options?.verbose === true) {
       // Verbose install lines are kit's CLI output for the person running it.
-      // deno-lint-ignore no-console
+      // oxlint-disable-next-line no-console
       console.log(`  [install] ${instruction}`);
     }
 
@@ -180,7 +180,7 @@ export const installDependencies = async (
     try {
       // Installers run one at a time: they write the same lockfile and
       // manifest, and the loop stops at the first failure.
-      // deno-lint-ignore no-await-in-loop
+      // oxlint-disable-next-line no-await-in-loop
       const output = await runtime.exec.spawn(cmd, args, {
         cwd,
         stdout: "inherit",

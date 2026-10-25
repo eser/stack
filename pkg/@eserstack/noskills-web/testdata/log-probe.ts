@@ -2,7 +2,7 @@
 
 // The JSON line printed here is this probe's result, which the parent test
 // reads from stdout.
-// deno-lint-ignore-file no-console
+/* oxlint-disable no-console */
 
 /**
  * Runs `startServer` the way `noskills web` does: no logger option and no
@@ -62,5 +62,5 @@ const main = async (): Promise<void> => {
 };
 
 // A probe script: the awaited call is the whole program.
-// deno-lint-ignore no-top-level-await
+// oxlint-disable-next-line node/no-top-level-await
 await main();

@@ -115,7 +115,7 @@ export class MiddlewareDispatcher {
           );
           // Loaded lazily inside the chain: a proxy that an earlier one cuts
           // off by a response or redirect is never imported.
-          // deno-lint-ignore no-await-in-loop
+          // oxlint-disable-next-line no-await-in-loop
           module = (await import(moduleUrl)) as { default: Proxy };
           loaded.moduleCache.set(resolvedPath, module);
         }
@@ -131,7 +131,7 @@ export class MiddlewareDispatcher {
         // Execute proxy. Sequential on purpose: a rewrite changes the
         // pathname the next proxy sees, and a response or redirect ends the
         // chain.
-        // deno-lint-ignore no-await-in-loop
+        // oxlint-disable-next-line no-await-in-loop
         const result = await proxyFn({
           request: req,
           pathname: currentPathname,
@@ -164,7 +164,7 @@ export class MiddlewareDispatcher {
         // Handled here: logged once with the proxy, and the client gets a
         // fixed message without the error's details. The chain ends with
         // this response, so the await runs once.
-        // deno-lint-ignore no-await-in-loop
+        // oxlint-disable-next-line no-await-in-loop
         await proxyLogger
           .with({
             pathPrefix: proxy.pathPrefix,

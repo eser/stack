@@ -20,7 +20,7 @@ import * as errorCoverage from "./validate-error-coverage.ts";
 import * as serverLoc from "./validate-server-loc.ts";
 import * as commitMsg from "./validate-commit-msg.ts";
 
-// deno-lint-ignore no-top-level-await
+// oxlint-disable-next-line node/no-top-level-await
 await ffiClient.ensureLib();
 const lib = ffiClient.getLib();
 

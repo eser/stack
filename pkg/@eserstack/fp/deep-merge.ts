@@ -1,6 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-// deno-lint-ignore no-explicit-any
+// oxlint-disable-next-line typescript/no-explicit-any
 type ObjectType = Record<string | number | symbol, any>;
 
 /**
@@ -156,7 +156,7 @@ export const deepMerge = <
 
     try {
       const Type = inst.constructor as { new (): UR };
-      // deno-lint-ignore no-explicit-any
+      // oxlint-disable-next-line typescript/no-explicit-any
       const result: Record<string, any> = new Type();
       const instKeys = Object.keys(inst);
       const processedKeys = new Set<string>();

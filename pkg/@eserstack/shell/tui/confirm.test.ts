@@ -14,7 +14,7 @@ const ctxWithKeys = (
   (async () => {
     for (const key of keys) {
       // Keys go in one at a time, in order, as a user would type them.
-      // deno-lint-ignore no-await-in-loop
+      // oxlint-disable-next-line no-await-in-loop
       await new Promise((r) => setTimeout(r, 10));
       test.pushInput(key);
     }

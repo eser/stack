@@ -303,7 +303,7 @@ export class RolldownBackend implements Bundler {
       // In Deno, this uses the npm: specifier
       // The optional dependency's types are not imported; the module is
       // narrowed to the RolldownModule interface right below.
-      // deno-lint-ignore no-explicit-any
+      // oxlint-disable-next-line typescript/no-explicit-any
       const rolldownImport = (await import("rolldown")) as any;
 
       // Adapt the actual rolldown API to our internal interface
@@ -375,7 +375,7 @@ export class RolldownBackend implements Bundler {
           if (resolver.options.filter.test(source)) {
             // Resolvers run in registration order and the first one that
             // resolves wins, so later resolvers must not run before it.
-            // deno-lint-ignore no-await-in-loop
+            // oxlint-disable-next-line no-await-in-loop
             const result = await resolver.callback({
               path: source,
               importer: importer ?? "",
@@ -401,7 +401,7 @@ export class RolldownBackend implements Bundler {
           if (loader.options.filter.test(id)) {
             // Loaders run in registration order and the first one that
             // returns contents wins, so later loaders must not run before it.
-            // deno-lint-ignore no-await-in-loop
+            // oxlint-disable-next-line no-await-in-loop
             const result = await loader.callback({
               path: id,
               namespace: loader.options.namespace ?? "file",
@@ -424,7 +424,7 @@ export class RolldownBackend implements Bundler {
         for (const transformer of pluginBuild.transformers) {
           if (transformer.options.filter.test(id)) {
             // Each transformer receives the previous transformer's output.
-            // deno-lint-ignore no-await-in-loop
+            // oxlint-disable-next-line no-await-in-loop
             const result = await transformer.callback({
               path: id,
               code: currentCode,

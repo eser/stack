@@ -99,7 +99,7 @@ export const createBitmapMatcher = <K extends string>(
  */
 // Function accepts any callable whatever its signature; only its source text
 // is read.
-// deno-lint-ignore ban-types
+// oxlint-disable-next-line typescript/ban-types
 const parameterCache = new WeakMap<Function, readonly string[]>();
 
 /**
@@ -134,7 +134,7 @@ const extractParamString = (fnString: string): string | null => {
  */
 // Function accepts any callable whatever its signature; only its source text
 // is read.
-// deno-lint-ignore ban-types
+// oxlint-disable-next-line typescript/ban-types
 export const getFunctionParameters = (fn: Function): readonly string[] => {
   const cached = parameterCache.get(fn);
   if (cached !== undefined) {
@@ -187,7 +187,7 @@ export const getFunctionParameters = (fn: Function): readonly string[] => {
  * Useful for testing or when function behavior changes.
  */
 // Function accepts any callable whatever its signature, as the cache does.
-// deno-lint-ignore ban-types
+// oxlint-disable-next-line typescript/ban-types
 export const clearParameterCache = (fn: Function): void => {
   parameterCache.delete(fn);
 };

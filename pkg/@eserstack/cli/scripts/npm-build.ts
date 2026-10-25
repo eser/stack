@@ -16,7 +16,7 @@
  */
 
 // Build script: the progress lines it prints are the build log that CI shows.
-// deno-lint-ignore-file no-console
+/* oxlint-disable no-console */
 
 import * as esbuild from "esbuild";
 import { runtime } from "@eserstack/standards/cross-runtime";
@@ -220,6 +220,6 @@ const main = async (): Promise<void> => {
 if (import.meta.main) {
   // Script entry point: the await runs only when this file is the program,
   // never on import.
-  // deno-lint-ignore no-top-level-await
+  // oxlint-disable-next-line node/no-top-level-await
   await main();
 }

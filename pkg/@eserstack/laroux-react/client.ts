@@ -13,7 +13,7 @@
  * @see https://github.com/facebook/react/tree/main/packages/react-server-dom-webpack
  */
 
-// deno-lint-ignore-file no-explicit-any
+/* oxlint-disable typescript/no-explicit-any */
 // Note: This RSC protocol parser uses 'any' extensively for:
 // - Dynamic JSON payloads from wire protocol
 // - React elements with polymorphic types
@@ -1050,7 +1050,7 @@ async function consumeRSCStream(
   try {
     while (true) {
       // A stream yields its parts one after another.
-      // deno-lint-ignore no-await-in-loop
+      // oxlint-disable-next-line no-await-in-loop
       const { done, value } = await reader.read();
 
       if (done) break;
@@ -1062,7 +1062,7 @@ async function consumeRSCStream(
       for (const line of lines) {
         // Chunks apply in stream order: a chunk can update or wake one
         // that an earlier line created.
-        // deno-lint-ignore no-await-in-loop
+        // oxlint-disable-next-line no-await-in-loop
         await processStreamLine(line, context);
       }
     }
@@ -1205,7 +1205,7 @@ export async function createValueFromReadableStream(
 
       // Each round waits for the next missing chunk. It arrives, or the
       // stream closes and fails it, so the loop always ends.
-      // deno-lint-ignore no-await-in-loop
+      // oxlint-disable-next-line no-await-in-loop
       await waitForChunk(thrown);
     }
   }
@@ -1261,7 +1261,7 @@ export async function createFromPayload(
   for (const chunk of payload) {
     // Chunks apply in payload order: a repeated chunk id sees the state the
     // earlier one left.
-    // deno-lint-ignore no-await-in-loop
+    // oxlint-disable-next-line no-await-in-loop
     await processChunk(chunk, context);
   }
 
@@ -1302,7 +1302,7 @@ export async function createElementFromChunk(
   for (const chunk of payload) {
     // Chunks apply in payload order: a repeated chunk id sees the state the
     // earlier one left.
-    // deno-lint-ignore no-await-in-loop
+    // oxlint-disable-next-line no-await-in-loop
     await processChunk(chunk, context);
   }
 
@@ -1405,7 +1405,7 @@ export async function createFromStreamingOptimal(
 
   for (const chunk of bufferedChunks) {
     // Buffered chunks apply in arrival order, as they would from a stream.
-    // deno-lint-ignore no-await-in-loop
+    // oxlint-disable-next-line no-await-in-loop
     await processChunk(chunk, context);
   }
 

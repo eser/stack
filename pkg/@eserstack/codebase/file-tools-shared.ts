@@ -223,7 +223,7 @@ export const walkSourceFiles = async (
       try {
         // Files are stat'ed one at a time to bound concurrent file system
         // calls on large trees; the Go walker above is the fast path.
-        // deno-lint-ignore no-await-in-loop
+        // oxlint-disable-next-line no-await-in-loop
         const stat = await crossRuntime.runtime.fs.lstat(fullPath);
         size = stat.size;
         isSymlink = stat.isSymlink;
@@ -407,7 +407,7 @@ export const writeMutations = async (
     if (mutation.oldContent !== mutation.newContent) {
       // Mutations are written in order, so when two of them target the same
       // file the later one wins.
-      // deno-lint-ignore no-await-in-loop
+      // oxlint-disable-next-line no-await-in-loop
       await crossRuntime.runtime.fs.writeTextFile(
         mutation.path,
         mutation.newContent,

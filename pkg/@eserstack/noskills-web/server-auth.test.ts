@@ -195,9 +195,9 @@ const projectWithSpecs = async (...names: string[]): Promise<string> => {
     state = noskills.machine.approveDiscoveryReview(state);
 
     // Each spec lives in its own directory.
-    // deno-lint-ignore no-await-in-loop
+    // oxlint-disable-next-line no-await-in-loop
     await runtime.fs.mkdir(`${root}/.eser/specs/${name}`, { recursive: true });
-    // deno-lint-ignore no-await-in-loop
+    // oxlint-disable-next-line no-await-in-loop
     await persistence.writeSpecState(root, name, state);
   }
 
@@ -268,9 +268,9 @@ Deno.test({
     await withServer(async (base) => {
       for (const path of ["outer/inner", "outer%2Finner", "%E0%A4%A"]) {
         // The requests check one path each, in turn.
-        // deno-lint-ignore no-await-in-loop
+        // oxlint-disable-next-line no-await-in-loop
         const res = await fetch(`${base}/spec/${path}`);
-        // deno-lint-ignore no-await-in-loop
+        // oxlint-disable-next-line no-await-in-loop
         await res.body?.cancel();
 
         assert.assertEquals(res.status, 404, path);

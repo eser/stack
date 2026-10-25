@@ -14,7 +14,7 @@ import { runtime } from "@eserstack/standards/cross-runtime";
 import * as ffiClient from "./ffi-client.ts";
 import * as goNoskills from "./go-noskills.ts";
 
-// deno-lint-ignore no-top-level-await
+// oxlint-disable-next-line node/no-top-level-await
 await ffiClient.ensureLib();
 
 Deno.test({

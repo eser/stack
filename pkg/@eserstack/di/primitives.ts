@@ -21,13 +21,13 @@ export type ServiceTypeKey = Exclude<keyof typeof ServiceTypes, number>;
 export type ServiceType = (typeof ServiceTypes)[ServiceTypeKey];
 
 /** Any service value. */
-// deno-lint-ignore no-explicit-any
+// oxlint-disable-next-line typescript/no-explicit-any
 export type Value = any;
 /** A class used as a service key. */
-// deno-lint-ignore no-explicit-any
+// oxlint-disable-next-line typescript/no-explicit-any
 export type ClassService = new (...args: ReadonlyArray<any>) => Value;
 /** A function used as a service key. */
-// deno-lint-ignore no-explicit-any
+// oxlint-disable-next-line typescript/no-explicit-any
 export type FunctionService = (...args: ReadonlyArray<any>) => Value;
 
 /** What a service is registered under: a class, a function, a symbol or a string. */
@@ -85,7 +85,7 @@ export interface ServiceScopeQueryable<K = ServiceKey, V = ServiceValue> {
    * Calls `fn` with the services registered under the names of its
    * parameters, and returns its result.
    */
-  // deno-lint-ignore no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   invoke<T extends (...args: ReadonlyArray<any>) => ReturnType<T>>(
     fn: T,
   ): ReturnType<T>;

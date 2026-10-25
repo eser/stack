@@ -143,7 +143,7 @@ export class Scope<K = ServiceKey, V = ServiceValue> implements ServiceScope<
    * Calls `fn` with the services registered under the names of its
    * parameters, and returns its result.
    */
-  // deno-lint-ignore no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   invoke<T extends (...args: ReadonlyArray<any>) => ReturnType<T>>(
     fn: T,
   ): ReturnType<T> {

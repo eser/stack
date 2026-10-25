@@ -176,7 +176,6 @@ export const UNKNOWN_CLIENT = "unknown";
 export const getClientIp = (
   req: Request,
   // Public API: moving `trustProxy` after `remote` would break every caller.
-  // deno-lint-ignore default-param-last
   trustProxy = false,
   remote?: RemoteAddress,
   trustedProxies: readonly string[] = DEFAULT_TRUSTED_PROXIES,

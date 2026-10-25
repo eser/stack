@@ -150,7 +150,7 @@ export const main = async (
 
       // Each turn starts from the state the previous turn wrote, so the turns
       // run one after another.
-      // deno-lint-ignore no-await-in-loop
+      // oxlint-disable-next-line no-await-in-loop
       const outcome = await runTurn(
         {
           root,

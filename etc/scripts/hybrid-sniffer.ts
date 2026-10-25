@@ -21,7 +21,7 @@
 //   NO_FFI                  — file imports ffi-client but makes no actual EserAjan* calls
 
 // The classification tables it prints are the script's output.
-// deno-lint-ignore-file no-console
+/* oxlint-disable no-console */
 
 const ESER_AJAN_CALL_RE = /EserAjan[A-Za-z]+/g;
 const FORMAT_ROUTING_RE =
@@ -302,6 +302,6 @@ const main = async (args: readonly string[]): Promise<number> => {
 
 if (import.meta.main) {
   // Script entry point: run directly from the command line.
-  // deno-lint-ignore no-top-level-await
+  // oxlint-disable-next-line node/no-top-level-await
   Deno.exitCode = await main(Deno.args);
 }

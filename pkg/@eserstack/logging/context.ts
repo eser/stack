@@ -2,7 +2,6 @@
 
 // node:async_hooks is the one module that provides AsyncLocalStorage on Node,
 // Deno and Bun alike.
-// deno-lint-ignore no-external-import
 import * as asyncHooks from "node:async_hooks";
 import type { Category, ContextLocalStorage } from "./types.ts";
 import * as category from "./category.ts";

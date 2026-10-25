@@ -93,14 +93,14 @@ export const completionsHandler = (
     );
     // Plain text written synchronously, like the script below: this handler
     // is synchronous and never flushes the ANSI output above.
-    // deno-lint-ignore no-console
+    // oxlint-disable-next-line no-console
     console.log(getInstallInstructions(shell, app.command));
     out.writeln(span.dim("--- Completion script ---\n"));
   }
 
   // The script must reach stdout unrendered and before the handler returns,
   // so `eval "$(... completions)"` and redirects to a file get it intact.
-  // deno-lint-ignore no-console
+  // oxlint-disable-next-line no-console
   console.log(script);
 
   return results.ok(undefined);

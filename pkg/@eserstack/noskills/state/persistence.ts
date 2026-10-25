@@ -2,7 +2,7 @@
 
 // Corrupt-state and migration notices go to the operator on stderr, so the
 // JSON that commands print on stdout stays parseable.
-// deno-lint-ignore-file no-console
+/* oxlint-disable no-console */
 
 /**
  * State persistence — read/write runtime state under `.eser/.state/` and
@@ -708,7 +708,7 @@ export const migrateLegacyLayout = async (root: string): Promise<boolean> => {
   ];
   for (const sibling of siblings) {
     // One folder at a time, before anything moves.
-    // deno-lint-ignore no-await-in-loop
+    // oxlint-disable-next-line no-await-in-loop
     if (sibling.present && !(await isMissingOrEmptyDir(sibling.to))) {
       throw new Error(
         `noskills: partial migration detected — both ${sibling.from} ` +
@@ -758,14 +758,14 @@ export const migrateLegacyLayout = async (root: string): Promise<boolean> => {
 
     // In order: the umbrella first, then the empty new folder goes, then the
     // legacy one takes its place.
-    // deno-lint-ignore no-await-in-loop
+    // oxlint-disable-next-line no-await-in-loop
     await crossRuntime.runtime.fs.mkdir(stateDirPath, { recursive: true });
-    // deno-lint-ignore no-await-in-loop
+    // oxlint-disable-next-line no-await-in-loop
     if (await isDir(sibling.to)) {
-      // deno-lint-ignore no-await-in-loop
+      // oxlint-disable-next-line no-await-in-loop
       await crossRuntime.runtime.fs.remove(sibling.to);
     }
-    // deno-lint-ignore no-await-in-loop
+    // oxlint-disable-next-line no-await-in-loop
     await crossRuntime.runtime.fs.rename(sibling.from, sibling.to);
   }
 
@@ -1162,7 +1162,7 @@ export const findProjectRoot = async (
   // the walk is sequential.
   for (let depth = 0; depth < 100; depth++) {
     try {
-      // deno-lint-ignore no-await-in-loop
+      // oxlint-disable-next-line no-await-in-loop
       await crossRuntime.runtime.fs.stat(`${dir}/${ESER_DIR}`);
       return dir;
     } catch {

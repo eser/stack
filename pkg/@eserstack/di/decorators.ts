@@ -20,9 +20,9 @@ import * as services from "./services.ts";
  */
 export const injectable = (
   key?: ServiceKey,
-  // deno-lint-ignore no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
 ): ((source: any, context?: ClassDecoratorContext) => void) => {
-  // deno-lint-ignore no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   return (source: any, context?: ClassDecoratorContext): void => {
     if (context !== undefined && context.kind !== "class") {
       return;
@@ -45,9 +45,9 @@ export const injectable = (
  */
 export const inject = (
   _key: ServiceKey,
-  // deno-lint-ignore no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
 ): ((_source: any, _context?: ClassMemberDecoratorContext) => void) => {
-  // deno-lint-ignore no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   return (_source: any, _context?: ClassMemberDecoratorContext): void => {
     // context.addInitializer((instance) => {
     //   instance[key] = services.get(key);

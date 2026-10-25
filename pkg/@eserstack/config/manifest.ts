@@ -29,7 +29,7 @@ export const loadManifest = async (
     const filepath = crossRuntime.runtime.path.join(dir, filename);
     try {
       // Filenames are tried in priority order and the first one found wins.
-      // deno-lint-ignore no-await-in-loop
+      // oxlint-disable-next-line no-await-in-loop
       const content = await crossRuntime.runtime.fs.readTextFile(filepath);
       return yaml.parse(content) as Record<string, unknown>;
     } catch (error) {
@@ -50,7 +50,7 @@ export const getManifestPath = async (dir: string): Promise<string | null> => {
     const filepath = crossRuntime.runtime.path.join(dir, filename);
     try {
       // Filenames are tried in priority order and the first one found wins.
-      // deno-lint-ignore no-await-in-loop
+      // oxlint-disable-next-line no-await-in-loop
       await crossRuntime.runtime.fs.stat(filepath);
       return filepath;
     } catch {

@@ -7,5 +7,5 @@ import * as cli from "./main.ts";
 // Executable entry point, so the CLI runs at startup. exitCli prints a failure
 // message, sets the exit code and drains buffered output; see its docs for why
 // the native FFI teardown needs the hard exit.
-// deno-lint-ignore no-top-level-await
+// oxlint-disable-next-line node/no-top-level-await
 await cliSupport.exitCli(await cli.main());

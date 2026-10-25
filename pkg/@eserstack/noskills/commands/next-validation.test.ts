@@ -110,7 +110,7 @@ const fakeDeps = (
               return await reply(signal);
             },
             // The fake throws on any call; the validator only calls generateText.
-            // deno-lint-ignore require-yield
+            // oxlint-disable-next-line require-yield
             streamText: async function* () {
               throw new Error("the validator never streams");
             },
@@ -180,7 +180,7 @@ bdd.describe("noskills next: the transition validator step", () => {
           };
 
           // One path at a time, so a failure names it.
-          // deno-lint-ignore no-await-in-loop
+          // oxlint-disable-next-line no-await-in-loop
           const validation = await nextValidation.validationFor(
             root,
             crafted,

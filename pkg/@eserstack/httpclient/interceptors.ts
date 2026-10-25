@@ -62,7 +62,7 @@ export const applyRequestInterceptors = async (
   for (const interceptor of chain) {
     // Each interceptor receives the previous one's output, so they run in
     // order.
-    // deno-lint-ignore no-await-in-loop
+    // oxlint-disable-next-line no-await-in-loop
     current = await interceptor.intercept(current);
   }
   return current;
@@ -77,7 +77,7 @@ export const applyResponseInterceptors = async <T>(
   for (const interceptor of chain) {
     // Each interceptor receives the previous one's output, so they run in
     // order.
-    // deno-lint-ignore no-await-in-loop
+    // oxlint-disable-next-line no-await-in-loop
     current = (await interceptor.intercept(current)) as types.HttpResponse<T>;
   }
   return current;

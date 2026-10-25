@@ -23,7 +23,7 @@ Deno.test("should return the root component", () => {
 // Deno.test("should call the hook", () => {
 //   const spyFn = mock.spy();
 
-//   // deno-lint-ignore no-explicit-any
+//   // oxlint-disable-next-line typescript/no-explicit-any
 //   const hook = (vnode: any) => {
 //     if (vnode.props["lime-hack"]) {
 //       spyFn();

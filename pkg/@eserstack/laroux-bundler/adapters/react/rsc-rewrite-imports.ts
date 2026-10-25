@@ -428,7 +428,7 @@ export async function rewriteAllServerComponents(
   for (const componentPath of serverComponentPaths) {
     // One file at a time keeps open file handles bounded; a project can have
     // more server components than the open-file limit.
-    // deno-lint-ignore no-await-in-loop
+    // oxlint-disable-next-line no-await-in-loop
     const result = await rewriteServerComponentImports(
       componentPath,
       clientComponentMap,
@@ -562,7 +562,7 @@ export async function rewriteAllClientComponentCSSImports(
   for (const component of clientComponents) {
     // One file at a time keeps open file handles bounded; a project can have
     // more client components than the open-file limit.
-    // deno-lint-ignore no-await-in-loop
+    // oxlint-disable-next-line no-await-in-loop
     const result = await rewriteClientComponentCSSImports(
       component.filePath,
       cssModuleMap,
@@ -627,7 +627,7 @@ export async function rewriteAllSrcCSSModuleImports(
   for (const filePath of srcFiles) {
     // One file at a time keeps open file handles bounded; a project can have
     // more source files than the open-file limit.
-    // deno-lint-ignore no-await-in-loop
+    // oxlint-disable-next-line no-await-in-loop
     const result = await rewriteClientComponentCSSImports(
       filePath,
       cssModuleMap,

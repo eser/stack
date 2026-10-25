@@ -12,7 +12,7 @@ import { runtime } from "@eserstack/standards/cross-runtime";
 /** Remove ANSI color and style (SGR) sequences from `s`. */
 export const stripAnsi = (s: string): string =>
   // SGR sequences start with the ESC control character.
-  // deno-lint-ignore no-control-regex
+  // oxlint-disable-next-line no-control-regex
   s.replace(/\x1b\[[0-9;]*m/g, "");
 
 // Memoized color support check (lazy initialization)

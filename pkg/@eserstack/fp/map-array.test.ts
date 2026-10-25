@@ -27,7 +27,7 @@ Deno.test("with-generator", () => {
   const generated1 = gen1();
   const result = mapArray.mapArray(generated1, func1);
 
-  // deno-lint-ignore no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   assert.assertNotStrictEquals(result as any, generated1 as any);
   assert.assertEquals(result.length, 5);
   assert.assertEquals(result, [0, 1, 2, 3, 4]);

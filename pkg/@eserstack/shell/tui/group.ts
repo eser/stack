@@ -44,7 +44,7 @@ export const group = async <T extends Record<string, unknown>>(
     const promptFn = prompts[key as keyof T] as PromptFn<unknown>;
     // Prompts run in order: each one sees the answers before it and a cancel
     // stops the rest.
-    // deno-lint-ignore no-await-in-loop
+    // oxlint-disable-next-line no-await-in-loop
     const value = await promptFn({ results });
 
     if (value === types.CANCEL) {

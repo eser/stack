@@ -161,7 +161,7 @@ const gitAddAndCommit = async (
   for (const file of files) {
     // One pathspec at a time: concurrent `git add` runs contend for
     // .git/index.lock, and the first failure must stop the loop.
-    // deno-lint-ignore no-await-in-loop
+    // oxlint-disable-next-line no-await-in-loop
     const result = await shellExec.exec`git add ${file}`.noThrow().spawn();
 
     if (result.code !== 0) {
@@ -873,7 +873,7 @@ export const unreleaseMain = async (
 
 if (import.meta.main) {
   // Entry point: the await only runs when this file is executed directly.
-  // deno-lint-ignore no-top-level-await
+  // oxlint-disable-next-line node/no-top-level-await
   const result = await main(
     standards.crossRuntime.runtime.process.args as string[],
   );

@@ -229,8 +229,8 @@ export const main = async (
     try {
       // Hooks are written one at a time, so a failed write stops before the
       // next hook changes and the report follows the manifest order.
-      // deno-lint-ignore no-await-in-loop
       const existing =
+        // oxlint-disable-next-line no-await-in-loop
         await standards.crossRuntime.runtime.fs.readTextFile(hookPath);
       exists = true;
       isManaged = existing.includes(MARKER);
@@ -266,13 +266,13 @@ export const main = async (
     }
 
     // One hook at a time, as above.
-    // deno-lint-ignore no-await-in-loop
+    // oxlint-disable-next-line no-await-in-loop
     await standards.crossRuntime.runtime.fs.writeTextFile(hookPath, script);
 
     // chmod +x (non-fatal on platforms without chmod support)
     try {
       // One hook at a time, as above.
-      // deno-lint-ignore no-await-in-loop
+      // oxlint-disable-next-line no-await-in-loop
       await standards.crossRuntime.runtime.fs.chmod(hookPath, 0o755);
     } catch {
       // Windows doesn't support chmod — hook will still work via shebang
@@ -492,7 +492,7 @@ export const statusMain = async (
 
 if (import.meta.main) {
   // Entry point: the await only runs when this file is executed directly.
-  // deno-lint-ignore no-top-level-await
+  // oxlint-disable-next-line node/no-top-level-await
   const result = await main(
     standards.crossRuntime.runtime.process.args as string[],
   );

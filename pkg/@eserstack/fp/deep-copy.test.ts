@@ -38,7 +38,7 @@ Deno.test("classes", () => {
 // ============================================================================
 
 Deno.test("deepCopy() should detect self-referencing circular objects", () => {
-  // deno-lint-ignore no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   const obj: any = { value: 1 };
   obj.self = obj;
 
@@ -50,9 +50,9 @@ Deno.test("deepCopy() should detect self-referencing circular objects", () => {
 });
 
 Deno.test("deepCopy() should detect mutually circular references", () => {
-  // deno-lint-ignore no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   const objA: any = { name: "A" };
-  // deno-lint-ignore no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   const objB: any = { name: "B" };
   objA.ref = objB;
   objB.ref = objA;
@@ -65,7 +65,7 @@ Deno.test("deepCopy() should detect mutually circular references", () => {
 });
 
 Deno.test("deepCopy() should detect deep circular references", () => {
-  // deno-lint-ignore no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   const obj: any = {
     level1: {
       level2: {
@@ -154,7 +154,7 @@ Deno.test("deepCopy() should handle nested arrays", () => {
 });
 
 Deno.test("deepCopy() should detect circular references in arrays", () => {
-  // deno-lint-ignore no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   const arr: any[] = [1, 2, 3];
   arr.push(arr);
 
@@ -170,7 +170,7 @@ Deno.test("deepCopy() should detect circular references in arrays", () => {
 // ============================================================================
 
 Deno.test("deepCopy2() should detect circular references", () => {
-  // deno-lint-ignore no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   const obj: any = { value: 1 };
   obj.self = obj;
 

@@ -89,7 +89,7 @@ Deno.test("a remote pack cannot write outside its folders", async () => {
   ];
 
   for (const extra of hostile) {
-    // deno-lint-ignore no-await-in-loop
+    // oxlint-disable-next-line no-await-in-loop
     await withProject(async (outer, root) => {
       // The concern case serves a concern whose id climbs out.
       const { stub } = serving(

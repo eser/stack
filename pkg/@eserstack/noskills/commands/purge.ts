@@ -155,7 +155,7 @@ export const main = async (
 
     for (const cat of asked) {
       // Prompts are asked one at a time, and a cancel stops before the next.
-      // deno-lint-ignore no-await-in-loop
+      // oxlint-disable-next-line no-await-in-loop
       const answer = await tui.confirm(ctx, { message: cat.message ?? "" });
 
       if (tui.isCancel(answer)) {
@@ -849,7 +849,7 @@ const removeEmptyParents = async (
     try {
       // Without recursive, remove refuses a folder that still holds files.
       // Each folder is checked after the one inside it is gone.
-      // deno-lint-ignore no-await-in-loop
+      // oxlint-disable-next-line no-await-in-loop
       await crossRuntime.runtime.fs.remove(`${root}/${dir}`);
     } catch {
       // Not empty, or already gone: the folders above stay as they are.
@@ -895,7 +895,7 @@ const takeAgentIntegration = async (
   for (const path of touched) {
     // One path at a time: two files can share a folder, and the first check
     // must finish before the second decides whether that folder is empty.
-    // deno-lint-ignore no-await-in-loop
+    // oxlint-disable-next-line no-await-in-loop
     await removeEmptyParents(root, path);
   }
 

@@ -88,7 +88,7 @@ export async function transformAllClientComponents(
   for (const component of components) {
     // One file at a time keeps open file handles bounded; a project can have
     // more client components than the open-file limit.
-    // deno-lint-ignore no-await-in-loop
+    // oxlint-disable-next-line no-await-in-loop
     const result = await transformClientComponent(component, outputDir);
     transformLogger.debug(
       `  ✓ ${component.relativePath} → ${runtime.path.relative(

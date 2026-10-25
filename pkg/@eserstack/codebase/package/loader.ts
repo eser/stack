@@ -206,7 +206,7 @@ export const load = async (
   while (true) {
     // A parent directory is searched only when the one below it had no
     // config, so the lookups are sequential.
-    // deno-lint-ignore no-await-in-loop
+    // oxlint-disable-next-line no-await-in-loop
     loadedFiles = await findConfigFiles(searchDir, sortedFiles);
 
     if (loadedFiles.length > 0 || !searchParents) {

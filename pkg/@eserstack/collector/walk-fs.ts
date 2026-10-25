@@ -107,13 +107,13 @@ export const walkCollectableFiles = async (
         try {
           // Depth-first and in name order, so the output order is the Go
           // walker's.
-          // deno-lint-ignore no-await-in-loop
+          // oxlint-disable-next-line no-await-in-loop
           children = await readSortedDir(runtime.path.join(root, rel));
         } catch {
           // Unreadable entries below the root are skipped, as in Go.
           continue;
         }
-        // deno-lint-ignore no-await-in-loop
+        // oxlint-disable-next-line no-await-in-loop
         await visit(children, rel);
         continue;
       }

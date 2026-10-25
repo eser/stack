@@ -31,14 +31,14 @@ export const main = async (): Promise<
 
 if (import.meta.main) {
   // CLI entry point: the process runs the command and exits when it settles.
-  // deno-lint-ignore no-top-level-await
+  // oxlint-disable-next-line node/no-top-level-await
   const result = await main();
   results.match(result, {
     ok: () => {},
     fail: (error) => {
       if (error.message !== undefined) {
         // The failure message is CLI output for the user, written to stderr.
-        // deno-lint-ignore no-console
+        // oxlint-disable-next-line no-console
         console.error(error.message);
       }
       runtime.process.setExitCode(error.exitCode);

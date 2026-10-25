@@ -51,14 +51,14 @@ Correct:
 ```typescript
 // The FFI bridge returns untyped JSON; the schema check below narrows it.
 // Remove the ignore when the bridge emits typed results.
-// deno-lint-ignore no-explicit-any
+// oxlint-disable-next-line typescript/no-explicit-any
 const raw: any = bridge.call("status");
 ```
 
 Incorrect:
 
 ```typescript
-// deno-lint-ignore no-explicit-any
+// oxlint-disable-next-line typescript/no-explicit-any
 const raw: any = bridge.call("status");
 ```
 

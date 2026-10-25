@@ -13,7 +13,7 @@ Deno.test("basic", () => {
 
   const result = associateArray.associateArray(arr1, func1);
 
-  // deno-lint-ignore no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   assert.assertNotStrictEquals(result as any, arr1 as any);
   assert.assertEquals(Object.keys(result).length, 3);
   assert.assertEquals(result, {
@@ -34,7 +34,7 @@ Deno.test("with-value-skipping", () => {
 
   const result = associateArray.associateArray(arr1, func1);
 
-  // deno-lint-ignore no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   assert.assertNotStrictEquals(result as any, arr1 as any);
   assert.assertEquals(Object.keys(result).length, 2);
   assert.assertEquals(result, {

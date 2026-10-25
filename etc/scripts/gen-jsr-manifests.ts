@@ -38,7 +38,7 @@
  */
 
 // The summary and the drift report it prints are the command's output.
-// deno-lint-ignore-file no-console
+/* oxlint-disable no-console */
 
 // This script deliberately uses no imports and no cross-runtime helpers.
 //
@@ -262,5 +262,5 @@ const main = async (): Promise<void> => {
 };
 
 // Script entry point: CI and the manifest's workflows run the file directly.
-// deno-lint-ignore no-top-level-await
+// oxlint-disable-next-line node/no-top-level-await
 await main();

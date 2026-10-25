@@ -62,7 +62,7 @@ export const searchFileHierarchy = async (
       const filepath = runtime.path.join(dir, name);
       // Filenames are checked in priority order and the first match wins, so
       // the checks run one at a time.
-      // deno-lint-ignore no-await-in-loop
+      // oxlint-disable-next-line no-await-in-loop
       if (await isFile(filepath)) {
         return filepath;
       }

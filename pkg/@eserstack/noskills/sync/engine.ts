@@ -340,7 +340,7 @@ export const syncAll = async (
 
     // Tools sync one at a time: several adapters update the same files
     // (AGENTS.md, files under .github/) with read-modify-write steps.
-    // deno-lint-ignore no-await-in-loop
+    // oxlint-disable-next-line no-await-in-loop
     await syncTool(found, ctx, syncOptions);
 
     synced.push(toolId);

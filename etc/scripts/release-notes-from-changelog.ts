@@ -14,7 +14,7 @@
 
 // A bare `node` runs this script with no import map, so it imports `node:`
 // built-ins, and its usage and result lines are the job's terminal output.
-// deno-lint-ignore-file no-external-import no-console
+/* oxlint-disable no-console */
 
 import * as fs from "node:fs";
 import * as process from "node:process";

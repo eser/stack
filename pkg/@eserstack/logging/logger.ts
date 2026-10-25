@@ -39,7 +39,7 @@ const describeCause = (error: unknown): string =>
  */
 const writeStderrLine = (line: string): void => {
   try {
-    // deno-lint-ignore no-console
+    // oxlint-disable-next-line no-console
     console.error(line);
   } catch {
     // stderr itself is gone (closed pipe) -- there is no sink left to report to.
@@ -363,9 +363,9 @@ export class Logger implements logging.Logger {
   async log<T>(
     severity: logging.Severity,
     message:
-      // deno-lint-ignore no-explicit-any
+      // oxlint-disable-next-line typescript/no-explicit-any
       (T extends (...args: ReadonlyArray<any>) => any ? never : T) | (() => T),
-    // deno-lint-ignore no-explicit-any
+    // oxlint-disable-next-line typescript/no-explicit-any
     ...args: ReadonlyArray<any>
   ): Promise<T | undefined> {
     // TS-side level gate — WASM command mode is stateless so Go handles are ephemeral;
@@ -413,7 +413,7 @@ export class Logger implements logging.Logger {
    */
   debug<T>(
     message: () => T,
-    // deno-lint-ignore no-explicit-any
+    // oxlint-disable-next-line typescript/no-explicit-any
     ...args: ReadonlyArray<any>
   ): Promise<T | undefined>;
   /**
@@ -424,16 +424,16 @@ export class Logger implements logging.Logger {
    * @returns The message it was given
    */
   debug<T>(
-    // deno-lint-ignore no-explicit-any
+    // oxlint-disable-next-line typescript/no-explicit-any
     message: T extends (...args: ReadonlyArray<any>) => any ? never : T,
-    // deno-lint-ignore no-explicit-any
+    // oxlint-disable-next-line typescript/no-explicit-any
     ...args: ReadonlyArray<any>
   ): Promise<T>;
   debug<T>(
     message:
-      // deno-lint-ignore no-explicit-any
+      // oxlint-disable-next-line typescript/no-explicit-any
       (T extends (...args: ReadonlyArray<any>) => any ? never : T) | (() => T),
-    // deno-lint-ignore no-explicit-any
+    // oxlint-disable-next-line typescript/no-explicit-any
     ...args: ReadonlyArray<any>
   ): Promise<T | undefined> {
     return this.log(logging.Severities.Debug, message, ...args);
@@ -449,7 +449,7 @@ export class Logger implements logging.Logger {
    */
   info<T>(
     message: () => T,
-    // deno-lint-ignore no-explicit-any
+    // oxlint-disable-next-line typescript/no-explicit-any
     ...args: ReadonlyArray<any>
   ): Promise<T | undefined>;
   /**
@@ -460,16 +460,16 @@ export class Logger implements logging.Logger {
    * @returns The message it was given
    */
   info<T>(
-    // deno-lint-ignore no-explicit-any
+    // oxlint-disable-next-line typescript/no-explicit-any
     message: T extends (...args: ReadonlyArray<any>) => any ? never : T,
-    // deno-lint-ignore no-explicit-any
+    // oxlint-disable-next-line typescript/no-explicit-any
     ...args: ReadonlyArray<any>
   ): Promise<T>;
   info<T>(
     message:
-      // deno-lint-ignore no-explicit-any
+      // oxlint-disable-next-line typescript/no-explicit-any
       (T extends (...args: ReadonlyArray<any>) => any ? never : T) | (() => T),
-    // deno-lint-ignore no-explicit-any
+    // oxlint-disable-next-line typescript/no-explicit-any
     ...args: ReadonlyArray<any>
   ): Promise<T | undefined> {
     return this.log(logging.Severities.Info, message, ...args);
@@ -485,7 +485,7 @@ export class Logger implements logging.Logger {
    */
   warn<T>(
     message: () => T,
-    // deno-lint-ignore no-explicit-any
+    // oxlint-disable-next-line typescript/no-explicit-any
     ...args: ReadonlyArray<any>
   ): Promise<T | undefined>;
   /**
@@ -496,16 +496,16 @@ export class Logger implements logging.Logger {
    * @returns The message it was given
    */
   warn<T>(
-    // deno-lint-ignore no-explicit-any
+    // oxlint-disable-next-line typescript/no-explicit-any
     message: T extends (...args: ReadonlyArray<any>) => any ? never : T,
-    // deno-lint-ignore no-explicit-any
+    // oxlint-disable-next-line typescript/no-explicit-any
     ...args: ReadonlyArray<any>
   ): Promise<T>;
   warn<T>(
     message:
-      // deno-lint-ignore no-explicit-any
+      // oxlint-disable-next-line typescript/no-explicit-any
       (T extends (...args: ReadonlyArray<any>) => any ? never : T) | (() => T),
-    // deno-lint-ignore no-explicit-any
+    // oxlint-disable-next-line typescript/no-explicit-any
     ...args: ReadonlyArray<any>
   ): Promise<T | undefined> {
     return this.log(logging.Severities.Warning, message, ...args);
@@ -521,7 +521,7 @@ export class Logger implements logging.Logger {
    */
   error<T>(
     message: () => T,
-    // deno-lint-ignore no-explicit-any
+    // oxlint-disable-next-line typescript/no-explicit-any
     ...args: ReadonlyArray<any>
   ): Promise<T | undefined>;
   /**
@@ -532,16 +532,16 @@ export class Logger implements logging.Logger {
    * @returns The message it was given
    */
   error<T>(
-    // deno-lint-ignore no-explicit-any
+    // oxlint-disable-next-line typescript/no-explicit-any
     message: T extends (...args: ReadonlyArray<any>) => any ? never : T,
-    // deno-lint-ignore no-explicit-any
+    // oxlint-disable-next-line typescript/no-explicit-any
     ...args: ReadonlyArray<any>
   ): Promise<T>;
   error<T>(
     message:
-      // deno-lint-ignore no-explicit-any
+      // oxlint-disable-next-line typescript/no-explicit-any
       (T extends (...args: ReadonlyArray<any>) => any ? never : T) | (() => T),
-    // deno-lint-ignore no-explicit-any
+    // oxlint-disable-next-line typescript/no-explicit-any
     ...args: ReadonlyArray<any>
   ): Promise<T | undefined> {
     return this.log(logging.Severities.Error, message, ...args);
@@ -557,7 +557,7 @@ export class Logger implements logging.Logger {
    */
   critical<T>(
     message: () => T,
-    // deno-lint-ignore no-explicit-any
+    // oxlint-disable-next-line typescript/no-explicit-any
     ...args: ReadonlyArray<any>
   ): Promise<T | undefined>;
   /**
@@ -568,16 +568,16 @@ export class Logger implements logging.Logger {
    * @returns The message it was given
    */
   critical<T>(
-    // deno-lint-ignore no-explicit-any
+    // oxlint-disable-next-line typescript/no-explicit-any
     message: T extends (...args: ReadonlyArray<any>) => any ? never : T,
-    // deno-lint-ignore no-explicit-any
+    // oxlint-disable-next-line typescript/no-explicit-any
     ...args: ReadonlyArray<any>
   ): Promise<T>;
   critical<T>(
     message:
-      // deno-lint-ignore no-explicit-any
+      // oxlint-disable-next-line typescript/no-explicit-any
       (T extends (...args: ReadonlyArray<any>) => any ? never : T) | (() => T),
-    // deno-lint-ignore no-explicit-any
+    // oxlint-disable-next-line typescript/no-explicit-any
     ...args: ReadonlyArray<any>
   ): Promise<T | undefined> {
     return this.log(logging.Severities.Critical, message, ...args);
@@ -593,7 +593,7 @@ export class Logger implements logging.Logger {
    */
   emergency<T>(
     message: () => T,
-    // deno-lint-ignore no-explicit-any
+    // oxlint-disable-next-line typescript/no-explicit-any
     ...args: ReadonlyArray<any>
   ): Promise<T | undefined>;
   /**
@@ -604,16 +604,16 @@ export class Logger implements logging.Logger {
    * @returns The message it was given
    */
   emergency<T>(
-    // deno-lint-ignore no-explicit-any
+    // oxlint-disable-next-line typescript/no-explicit-any
     message: T extends (...args: ReadonlyArray<any>) => any ? never : T,
-    // deno-lint-ignore no-explicit-any
+    // oxlint-disable-next-line typescript/no-explicit-any
     ...args: ReadonlyArray<any>
   ): Promise<T>;
   emergency<T>(
     message:
-      // deno-lint-ignore no-explicit-any
+      // oxlint-disable-next-line typescript/no-explicit-any
       (T extends (...args: ReadonlyArray<any>) => any ? never : T) | (() => T),
-    // deno-lint-ignore no-explicit-any
+    // oxlint-disable-next-line typescript/no-explicit-any
     ...args: ReadonlyArray<any>
   ): Promise<T | undefined> {
     return this.log(logging.Severities.Emergency, message, ...args);
@@ -629,7 +629,7 @@ export class Logger implements logging.Logger {
    */
   alert<T>(
     message: () => T,
-    // deno-lint-ignore no-explicit-any
+    // oxlint-disable-next-line typescript/no-explicit-any
     ...args: ReadonlyArray<any>
   ): Promise<T | undefined>;
   /**
@@ -640,16 +640,16 @@ export class Logger implements logging.Logger {
    * @returns The message it was given
    */
   alert<T>(
-    // deno-lint-ignore no-explicit-any
+    // oxlint-disable-next-line typescript/no-explicit-any
     message: T extends (...args: ReadonlyArray<any>) => any ? never : T,
-    // deno-lint-ignore no-explicit-any
+    // oxlint-disable-next-line typescript/no-explicit-any
     ...args: ReadonlyArray<any>
   ): Promise<T>;
   alert<T>(
     message:
-      // deno-lint-ignore no-explicit-any
+      // oxlint-disable-next-line typescript/no-explicit-any
       (T extends (...args: ReadonlyArray<any>) => any ? never : T) | (() => T),
-    // deno-lint-ignore no-explicit-any
+    // oxlint-disable-next-line typescript/no-explicit-any
     ...args: ReadonlyArray<any>
   ): Promise<T | undefined> {
     return this.log(logging.Severities.Alert, message, ...args);
@@ -665,7 +665,7 @@ export class Logger implements logging.Logger {
    */
   notice<T>(
     message: () => T,
-    // deno-lint-ignore no-explicit-any
+    // oxlint-disable-next-line typescript/no-explicit-any
     ...args: ReadonlyArray<any>
   ): Promise<T | undefined>;
   /**
@@ -676,16 +676,16 @@ export class Logger implements logging.Logger {
    * @returns The message it was given
    */
   notice<T>(
-    // deno-lint-ignore no-explicit-any
+    // oxlint-disable-next-line typescript/no-explicit-any
     message: T extends (...args: ReadonlyArray<any>) => any ? never : T,
-    // deno-lint-ignore no-explicit-any
+    // oxlint-disable-next-line typescript/no-explicit-any
     ...args: ReadonlyArray<any>
   ): Promise<T>;
   notice<T>(
     message:
-      // deno-lint-ignore no-explicit-any
+      // oxlint-disable-next-line typescript/no-explicit-any
       (T extends (...args: ReadonlyArray<any>) => any ? never : T) | (() => T),
-    // deno-lint-ignore no-explicit-any
+    // oxlint-disable-next-line typescript/no-explicit-any
     ...args: ReadonlyArray<any>
   ): Promise<T | undefined> {
     return this.log(logging.Severities.Notice, message, ...args);
@@ -701,7 +701,7 @@ export class Logger implements logging.Logger {
    */
   trace<T>(
     message: () => T,
-    // deno-lint-ignore no-explicit-any
+    // oxlint-disable-next-line typescript/no-explicit-any
     ...args: ReadonlyArray<any>
   ): Promise<T | undefined>;
   /**
@@ -712,16 +712,16 @@ export class Logger implements logging.Logger {
    * @returns The message it was given
    */
   trace<T>(
-    // deno-lint-ignore no-explicit-any
+    // oxlint-disable-next-line typescript/no-explicit-any
     message: T extends (...args: ReadonlyArray<any>) => any ? never : T,
-    // deno-lint-ignore no-explicit-any
+    // oxlint-disable-next-line typescript/no-explicit-any
     ...args: ReadonlyArray<any>
   ): Promise<T>;
   trace<T>(
     message:
-      // deno-lint-ignore no-explicit-any
+      // oxlint-disable-next-line typescript/no-explicit-any
       (T extends (...args: ReadonlyArray<any>) => any ? never : T) | (() => T),
-    // deno-lint-ignore no-explicit-any
+    // oxlint-disable-next-line typescript/no-explicit-any
     ...args: ReadonlyArray<any>
   ): Promise<T | undefined> {
     return this.log(logging.Severities.Trace, message, ...args);

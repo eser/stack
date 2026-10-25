@@ -91,7 +91,7 @@ export const resolveFirstOnPath = async (
   for (const name of candidates) {
     // Candidates are probed in priority order and the first hit wins, so later
     // candidates are not spawned once one resolves.
-    // deno-lint-ignore no-await-in-loop
+    // oxlint-disable-next-line no-await-in-loop
     if (await isOnPath(name)) return name;
   }
 

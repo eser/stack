@@ -343,7 +343,7 @@ const readBounded = async (
   try {
     while (size <= limit) {
       // A stream is read one chunk at a time; each read waits for the last.
-      // deno-lint-ignore no-await-in-loop
+      // oxlint-disable-next-line no-await-in-loop
       const { done, value } = await reader.read();
       if (done) break;
 

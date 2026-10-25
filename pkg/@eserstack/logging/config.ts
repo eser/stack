@@ -142,15 +142,15 @@ export const reset = async (): Promise<void> => {
   // Dispose sinks if they have a dispose method
   if (registryState) {
     for (const sink of registryState.sinks.values()) {
-      // deno-lint-ignore no-explicit-any
+      // oxlint-disable-next-line typescript/no-explicit-any
       const disposable = sink as any;
       // Sinks can wrap the same writer (stdout, one file), so they are disposed
       // one at a time to keep their final flushes from interleaving.
       if (typeof disposable.dispose === "function") {
-        // deno-lint-ignore no-await-in-loop
+        // oxlint-disable-next-line no-await-in-loop
         await disposable.dispose();
       } else if (typeof disposable[Symbol.asyncDispose] === "function") {
-        // deno-lint-ignore no-await-in-loop
+        // oxlint-disable-next-line no-await-in-loop
         await disposable[Symbol.asyncDispose]();
       }
     }

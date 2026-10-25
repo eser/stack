@@ -78,7 +78,7 @@ export class TuiMenu {
     let running = true;
     while (running) {
       // The menu is interactive: each prompt waits for the previous action.
-      // deno-lint-ignore no-await-in-loop
+      // oxlint-disable-next-line no-await-in-loop
       running = await this.step();
     }
 
@@ -723,7 +723,7 @@ export class TuiMenu {
       const n = posts.length + 1;
       // The user writes the thread one post at a time, so each prompt waits
       // for the answer to the previous one.
-      // deno-lint-ignore no-await-in-loop
+      // oxlint-disable-next-line no-await-in-loop
       const content = await tui.text(this.ctx, {
         message: `Post ${n}`,
         placeholder: n === 1 ? "Start your thread…" : "Continue the thread…",
@@ -751,7 +751,7 @@ export class TuiMenu {
 
       if (posts.length >= 2) {
         // The answer decides whether the loop prompts for another post.
-        // deno-lint-ignore no-await-in-loop
+        // oxlint-disable-next-line no-await-in-loop
         const more = await tui.confirm(this.ctx, {
           message: "Add another post?",
           initialValue: true,

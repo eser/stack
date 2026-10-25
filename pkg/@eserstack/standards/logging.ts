@@ -72,10 +72,10 @@ export interface Logger {
     message:
       // Any function type must match here so that a function message is always
       // treated as a lazy producer, whatever its parameters and return type.
-      // deno-lint-ignore no-explicit-any
+      // oxlint-disable-next-line typescript/no-explicit-any
       (T extends (...args: ReadonlyArray<any>) => any ? never : T) | (() => T),
     // Log arguments are free-form values passed through to the sink.
-    // deno-lint-ignore no-explicit-any
+    // oxlint-disable-next-line typescript/no-explicit-any
     ...args: ReadonlyArray<any>
   ): Promise<T | undefined>;
 

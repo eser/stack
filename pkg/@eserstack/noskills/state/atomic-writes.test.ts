@@ -1,7 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 // These tests replace console.error to capture the warnings persistence writes.
-// deno-lint-ignore-file no-console
+/* oxlint-disable no-console */
 
 /**
  * Pins that state writes are atomic and that a corrupt file is not silent.

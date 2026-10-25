@@ -27,7 +27,7 @@ import type * as types from "./types.ts";
  */
 export const getLibraryExtension = (): types.LibraryExtension => {
   // globalThis does not declare Deno, Bun or process on every runtime.
-  // deno-lint-ignore no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   const g = globalThis as any;
 
   // Deno
@@ -69,7 +69,7 @@ export const getLibraryExtension = (): types.LibraryExtension => {
  */
 const getPlatformSlug = (): string => {
   // globalThis does not declare Deno, Bun or process on every runtime.
-  // deno-lint-ignore no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   const g = globalThis as any;
 
   let os = "linux";
@@ -111,7 +111,7 @@ const getStatSync = (): ((path: string) => unknown) | null => {
   }
 
   // globalThis does not declare Deno, Bun or process on every runtime.
-  // deno-lint-ignore no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   const g = globalThis as any;
 
   statSyncImpl = null;
@@ -204,7 +204,7 @@ export const getModuleDir = (hint?: string): string => {
   }
 
   // globalThis does not declare Deno, Bun or process on every runtime.
-  // deno-lint-ignore no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   const g = globalThis as any;
 
   // Node / Bun: __dirname is available in CommonJS; for ESM, fallback to cwd
@@ -307,7 +307,7 @@ export const resolveLibraryPath = (moduleDirHint?: string): string => {
   }
 
   // globalThis does not declare Deno, Bun or process on every runtime.
-  // deno-lint-ignore no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   const g = globalThis as any;
   const cwd =
     typeof g.process !== "undefined" && typeof g.process.cwd === "function"
@@ -372,7 +372,7 @@ export const resolveLibraryPath = (moduleDirHint?: string): string => {
  */
 const getEnvVar = (name: string): string | undefined => {
   // globalThis does not declare Deno, Bun or process on every runtime.
-  // deno-lint-ignore no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   const g = globalThis as any;
 
   // process.env works on Node, Bun, and Deno 2.7+

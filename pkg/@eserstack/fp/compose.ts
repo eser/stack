@@ -2,7 +2,7 @@
 
 import type * as functions from "@eserstack/primitives/functions";
 
-// deno-lint-ignore no-explicit-any
+// oxlint-disable-next-line typescript/no-explicit-any
 type ComposableFunction = functions.GenericFunction<any, any>;
 
 /**
@@ -27,7 +27,7 @@ export const compose = (
 ): ComposableFunction => {
   return funcs.reduce(
     (previousFunction, currentFunction) =>
-      // deno-lint-ignore no-explicit-any
+      // oxlint-disable-next-line typescript/no-explicit-any
       (...args: functions.ArgList<any>) =>
         previousFunction(currentFunction(...args)),
   );

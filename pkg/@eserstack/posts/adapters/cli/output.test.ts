@@ -3,7 +3,7 @@
 import * as assert from "@eserstack/test-kit/assert";
 
 // The test looks for terminal control characters, so the pattern must match them.
-// deno-lint-ignore no-control-regex
+// oxlint-disable-next-line no-control-regex
 const CONTROL = /[\x00-\x08\x0b-\x1f\x7f-\x9f]/;
 
 // Runs outputPosts in a child process so the real stdout sink is exercised.
@@ -31,7 +31,7 @@ Deno.test("outputPosts prints remote post text without terminal controls", async
   assert.assertEquals(printed.includes("spoofed"), true, printed);
   // Only the renderer's own SGR styling may remain. The pattern matches the
   // ESC control character that starts each SGR sequence, so it strips them.
-  // deno-lint-ignore no-control-regex
+  // oxlint-disable-next-line no-control-regex
   const withoutSgr = printed.replace(/\x1b\[[0-9;]*m/g, "");
   assert.assertEquals(
     CONTROL.test(withoutSgr.replace(/\n/g, "")),

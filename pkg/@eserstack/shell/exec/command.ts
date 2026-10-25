@@ -167,7 +167,7 @@ export class CommandBuilder {
   printCommand(): CommandBuilder {
     const fullCmd = [this.#cmd, ...this.#args].join(" ");
     // Echoing the command to the terminal is what the caller asked for.
-    // deno-lint-ignore no-console
+    // oxlint-disable-next-line no-console
     console.log(`$ ${fullCmd}`);
     return this;
   }

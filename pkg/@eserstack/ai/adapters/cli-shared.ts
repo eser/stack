@@ -190,7 +190,7 @@ export async function* parseJsonlStream(
 
       // Reads stay sequential: each chunk extends the line buffer, and the
       // consumer pulls lines one at a time.
-      // deno-lint-ignore no-await-in-loop
+      // oxlint-disable-next-line no-await-in-loop
       readResult = await reader.read();
     }
 

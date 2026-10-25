@@ -34,10 +34,10 @@ process.stdin.on("end", () => {
 
   const nudge = {
     additionalContext:
-      "REMINDER: Run `deno fmt` and `deno lint` after TS edits. " +
-      "Run `cd apps/services && make fix` after Go edits. " +
+      "REMINDER: Run `pnpm fmt` (oxfmt), `pnpm lint` (oxlint) and `pnpm check` (tsc) after TS edits. " +
+      "Run `make fix` at the repository root after Go edits. " +
       "If this change is an architectural decision (technology choice, API design, " +
-      "approach preference), consider logging it in an ADR under etc/adrs/.",
+      "approach preference), consider logging it in an ADR under docs/adr/.",
   };
 
   process.stdout.write(JSON.stringify(nudge));

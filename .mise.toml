@@ -1,11 +1,10 @@
 # mise (formerly rtx) configuration for local development
-# For Nix users: flake.nix already provides deno, go, node, git via devShell.
+# For Nix users: flake.nix already provides go, node and git via devShell.
 # This file is for contributors who prefer mise over Nix.
 
 [tools]
 node = "26"
-bun = "1.3"
-deno = "2.9.5"
+pnpm = "11.18.0"
 go = "1.25"
 
 [env]
@@ -25,5 +24,5 @@ run = "make ajan-wasm"
 description = "Build Go WASM modules"
 
 [tasks.test-ffi]
-run = "deno task cli go version"
+run = "node ./pkg/@eserstack/cli/main.ts ajan version"
 description = "Verify FFI bridge works"

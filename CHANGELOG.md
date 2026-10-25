@@ -11,9 +11,124 @@ and this project adheres to
 ### Migration
 
 Breaking changes since 4.5.2, grouped by package, each with the change you make
-to upgrade. The TypeScript packages come first, then the Go packages under
-`pkg/ajan/`, the native bridge, and the recipes. Changes that only fix a bug and
-need nothing from you are not listed.
+to upgrade. The runtime and distribution changes come first, then the
+TypeScript packages, the Go packages under `pkg/ajan/`, the native bridge, and
+the recipes. Changes that only fix a bug and need nothing from you are not
+listed.
+
+#### Runtime, toolchain and distribution (ADR 0005)
+
+5.0.0 is the first release after the move from Deno to Node and Go. Every item
+here applies whichever package you use.
+
+- The TypeScript packages need Node 26.9 or later. Deno and Bun are no longer
+  supported, and no package tests or ships an adapter for them. Run your code
+  with `node`:
+
+  ```bash
+  # Before
+  deno run -A main.ts
+  # After
+  node main.ts
+  ```
+
+- The native bridge (`@eserstack/ajan`) loads the Go library through `node:ffi`,
+  which Node turns on by default from 26.9. `koffi` is no longer a dependency.
+  `--no-experimental-ffi` turns `node:ffi` off, and the bridge then falls back
+  to the WASM build. Under the permission model, grant FFI access:
+
+  ```bash
+  # Before: deno run --allow-ffi main.ts
+  # After
+  node --permission --allow-ffi --allow-fs-read="*" main.ts
+  ```
+
+- JSR is frozen at 4.5.x (decision-5). The 4.5.x versions stay available but get
+  no updates; from 5.0.0 every package is on npm under the same name. Switch
+  each `jsr:` dependency to the npm package:
+
+  ```bash
+  # Before
+  pnpm add jsr:@eserstack/fp
+  # After
+  pnpm add @eserstack/fp
+  ```
+
+  A CLI installed with `deno install jsr:@eserstack/cli` stays on 4.5.x.
+  Remove it and install from npm or the install script:
+
+  ```bash
+  # Before
+  deno install -g -A jsr:@eserstack/cli
+  # After
+  npm install -g eser
+  # or
+  curl -fsSL https://raw.githubusercontent.com/eser/stack/main/etc/scripts/install.sh | sh
+  ```
+
+- The release binaries are Go programs built by `eser dev compile`, not
+  `deno compile` bundles: `eser` (`cmd/eser`), `noskills` (`cmd/noskills`) and
+  `noskills-server`. Archive names keep the Rust triples, so
+  `eser-v5.0.0-aarch64-apple-darwin.tar.gz` follows the 4.5.x pattern. An
+  installed v4.5.x `eser` or `noskills` binary updates to the Go binary with
+  `eser update` or `noskills update`, as before.
+- `noskills` ships as the Go binary through every channel. The `noskills` npm
+  package is a launcher: it depends on the matching
+  `@eserstack/noskills-<platform>` package (`darwin-arm64`, `darwin-x64`,
+  `linux-arm64`, `linux-x64`, `win32-x64`), runs its binary, and carries the
+  TypeScript CLI for the commands the binary forwards. `npx noskills` and
+  existing `npx eser@latest noskills` hooks keep working.
+- `laroux` is on npm only from 5.0.0 and ships no binary of its own. Install it
+  from npm:
+
+  ```bash
+  # Before
+  curl -fsSL https://raw.githubusercontent.com/eser/stack/main/etc/scripts/install.sh | sh -s laroux
+  # After
+  npm i -g laroux
+  ```
+
+  Every release still ships an archive under the `laroux` name, holding
+  `cmd/legacy-forwarder`: an installed v4.5.x laroux binary updates to it, and
+  it then runs `npx --yes laroux@<version>`, or prints `npm i -g laroux` when
+  `npx` is missing. Run `npm i -g laroux` once and remove the old binary.
+
+- `etc/scripts/install.sh` and `install.ps1` decide from the release they
+  install: the latest one, or the one `ESER_INSTALL_VERSION` (install.sh) or
+  `-Version` and `$env:VERSION` (install.ps1) names. When that release has no
+  archive of `eser`, `noskills` or `laroux` for your platform, the script prints
+  `npm i -g <product>` and exits non-zero without installing; `laroux` gets that
+  answer from 5.0.0 on. `noskills-server` has no npm package, so a missing
+  archive is an error:
+
+  ```bash
+  # Pin a release; 5.0.0 and v5.0.0 both work
+  curl -fsSL https://raw.githubusercontent.com/eser/stack/main/etc/scripts/install.sh | ESER_INSTALL_VERSION=5.0.0 sh -s noskills
+  ```
+
+- Homebrew (`eser/tap`) and the Nix flake install the same Go binaries.
+  `nix/hashes.json` entries can carry their own `version`: a binary the release
+  has no archives of keeps the entry of the release that had them, with that
+  release's version in the entry, and the flake fetches each archive at its
+  entry's version. A tool
+  that reads the file takes an entry's `version` before the top-level one.
+- `NOSKILLS_WORKER_RUNTIME` is not read anywhere, so its `deno` and `bun` values
+  no longer pick a runtime; noskills-server runs mux sessions itself (see
+  Go: pkg/ajan/noskillsserverfx below). Remove the variable.
+- `DENO_ENV` no longer names the environment in `@eserstack/config` or
+  `eser cs` (see those sections). Set `ENV`, `APP_ENV` or `NODE_ENV`:
+
+  ```bash
+  # Before
+  DENO_ENV=production node app.ts
+  # After
+  NODE_ENV=production node app.ts
+  ```
+
+- `@eserstack/jsx-runtime` and `@eserstack/laroux-runtime` are removed, with the
+  `jsx-runtime-app` and `cool-lime-app` recipes; their published 4.5.x versions
+  stay available. Use React's own JSX runtime (`"jsx": "react-jsx"` in
+  `tsconfig.json`) and `@eserstack/laroux` for apps.
 
 #### @eserstack/noskills
 
@@ -330,7 +445,7 @@ in `.eser/concerns/`, which several entries below depend on.
 #### @eserstack/codebase
 
 - `versions()` rejects with `VersionWriteError` (with `targetVersion` and
-  `failures`) when a `package.json` or `deno.json` could not be written, and
+  `failures`) when a `package.json` could not be written, and
   does not write `VERSION`. It used to resolve and report those packages as
   updated. Catch it, fix the listed files, then rerun with the explicit target:
 
@@ -344,7 +459,7 @@ in `.eser/concerns/`, which several entries below depend on.
 - Validator help, `gh --help`, the `--write-baseline` result line of
   `validate-code-conventions` and `validate-runtime-js-apis`, and the output of
   `validate-docs`, `validate-mod-exports`, `validate-export-names`,
-  `validate-package-configs`, `validate-circular-deps`, `validate-commit-msg`
+  `validate-circular-deps`, `validate-commit-msg`
   and the standalone `commitmsg` entry go through the shared CLI context. When
   stdout is not a TTY, that output is plain text on stderr instead of stdout.
   Capture both streams: `eser codebase validate-docs > report.txt` becomes
@@ -371,13 +486,23 @@ in `.eser/concerns/`, which several entries below depend on.
   path, so nothing was checked. Repeated `--exclude` flags all apply, where only
   the last one did. Pass real patterns and drop extra flags you relied on being
   ignored.
-- `validate-runtime-js-apis` also reports `process.*`, `globalThis.process.*`
-  and `Bun.*`, always runs the TypeScript check (no Go delegation), and skips
-  test files and `standards/cross-runtime/` on its own. Its message is now
-  `direct Deno API usage: X; use Y from @eserstack/standards/cross-runtime`.
-  Switch to `runtime` from `@eserstack/standards/cross-runtime`, list scripts
-  that run on one runtime by design in the step's `exclude`, or record existing
-  uses with `eser codebase validate-runtime-js-apis --write-baseline`.
+- `validate-runtime-js-apis` runs in Go through the native library and has no
+  baseline: `--write-baseline` is gone and every violation fails. It reports
+  members of Node's global `process` (`process.*`, `globalThis.process.*`)
+  outside `standards/cross-runtime/`, and every `Deno` or `Bun` reference in
+  code, test files included. Text in comments and string literals never counts.
+  Switch to `runtime` from `@eserstack/standards/cross-runtime`, or list scripts
+  that run on Node by design in the step's `exclude`.
+- `validate-package-configs` is removed, with its `./validate-package-configs`
+  export and the Go `CheckPackageConfigs`: `package.json` is the only package
+  config, so there is nothing to compare. Delete the step from your
+  `.eser/manifest.yml`.
+- The `package` loader reads `package.json` only. `ConfigFileTypes` lost
+  `DenoJson`, `DenoJsonc`, `JsrJson` and `JsrJsonc`, and a `deno.json` or
+  `jsr.json` beside a `package.json` is no longer merged in. Move the fields
+  you need into `package.json`.
+- `CliApp.jsrPackage` is removed from `cli-system`, leaving `npmPackage` as the
+  package that provides a binary. Delete the field.
 - `validate-code-conventions` has an `export-star` rule: `export * from` and
   `export type * from` fail unless the baseline allows them, and `||` defaults
   inside template `${...}` interpolations are reported. Replace each with named
@@ -420,9 +545,8 @@ in `.eser/concerns/`, which several entries below depend on.
   `script "<name>" did not run: its dependency "<dep>" exited with code N`
   instead of the stdout line `Script dependency ... failed`. Tools that read
   that line read stderr.
-- The `bin.ts` entry point (the deno and JSR installs) exits non-zero and prints
-  the failure message when a command fails; it used to exit 0 on every run.
-  Scripts see the real exit code.
+- The `bin.ts` entry point exits non-zero and prints the failure message when a
+  command fails; it used to exit 0 on every run. Scripts see the real exit code.
 
 #### @eserstack/workflows
 
@@ -723,14 +847,41 @@ in `.eser/concerns/`, which several entries below depend on.
   const fakeProcess = { ...runtime.process, cwd: () => "/tmp" };
   ```
 
-- Bun: `runtime.exec.spawn` and `spawnChild` add `SpawnOptions.env` to the
-  inherited environment instead of replacing it, as Deno and Node do. Pass every
-  variable you want overridden; no runtime starts a child with a cleared
-  environment.
-- Node and Bun: `runtime.process.stdout` and `stderr` attach to the process
-  stream on the first write, and `stdin` on the first read, so closing one
-  before use no longer ends the process stream. To end a stream, write to it
-  first or call the Node API.
+- `runtime.process.stdout` and `stderr` attach to the process stream on the
+  first write, and `stdin` on the first read, so closing one before use no
+  longer ends the process stream. To end a stream, write to it first or call
+  the Node API.
+- The `./cross-runtime/deno` and `./cross-runtime/bun` exports are removed,
+  with `createDenoRuntime` and `createBunRuntime`. `RuntimeName` lost `"deno"`
+  and `"bun"`, `CliInvoker` lost `"deno"`, `"bun"` and `"bunx"`, and
+  `CliRuntime` lost `"deno"` and `"bun"`. Import the Node adapter or the
+  facade:
+
+  ```typescript
+  // Before
+  import { createDenoRuntime } from "@eserstack/standards/cross-runtime/deno";
+  // After
+  import * as standards from "@eserstack/standards";
+
+  const { runtime } = standards.crossRuntime;
+  ```
+
+- `RuntimeCapabilities` lost `kv`, which no API stood behind. Remove reads of
+  `runtime.capabilities.kv`.
+- `HttpHandler` is `(request, info) => Response`, with `info.remoteAddr`
+  (`{ hostname, port }` or `null`). Handlers that take only `request` keep
+  compiling; code that calls a handler itself passes the info:
+  `handler(request, { remoteAddr: null })`. `ServeOptions` gained `onListen`.
+- `detectInvoker` lost its `mainModule` parameter; it takes
+  `(execBasename, runtimeName, argv, envVars, isDevContext?)`.
+  `CliCommandOptions.jsrPackage` is removed.
+- `shared` no longer exports `mapStdioToDeno`, `getDenoStdioOptions` and
+  `DenoStdioMode`, and `web-streams` no longer exports `createFileSinkWritable`
+  and `FileSinkLike`. They served the dropped runtimes only; delete the calls.
+- An aborted `runtime.exec.spawn` or `spawnChild` resolves with the failed
+  result instead of rejecting. Check `result.success` (or the exit code) where
+  you caught the rejection. `runtime.fs.makeTempDir()` without a prefix creates
+  the directory inside the system temp directory.
 
 #### @eserstack/laroux
 
@@ -928,6 +1079,11 @@ in `.eser/concerns/`, which several entries below depend on.
   in `?v=<buildId>`. A tool that reads that file as text allows the query;
   `generateRouteFile()` without the new `moduleVersion` option still writes
   plain specifiers.
+- `bundlerBackend` accepts only `"rolldown"`, which is now the default, and
+  `BundleOptions.platform` is `"browser"` or `"node"` (no `"deno"`). A build no
+  longer copies the project's `deno.json` and `package.json` into
+  `dist/server`. Drop `bundlerBackend: "deno-bundler"` and
+  `platform: "deno"` from your config.
 
 #### @eserstack/laroux-server
 
@@ -1000,12 +1156,9 @@ in `.eser/concerns/`, which several entries below depend on.
 
 #### @eserstack/laroux-runtime
 
-- `LarouxRuntime.start()` and `execute()` reject with `LarouxManifestLoadError`
-  (with `searchDir` and `cause`) when a manifest fails to load, instead of the
-  raw `@eserstack/config/file` error. Before:
-  `error instanceof ConfigParseError`. After:
-  `error instanceof larouxRuntime.LarouxManifestLoadError`, or
-  `error.cause instanceof ConfigParseError`.
+- The package is removed (see Runtime, toolchain and distribution above); its
+  4.5.x versions stay available. Build apps on `@eserstack/laroux` and
+  `laroux`.
 
 #### @eserstack/app-runtime
 
@@ -1044,8 +1197,8 @@ in `.eser/concerns/`, which several entries below depend on.
   `{ timeout: 5000, retries: 3 }`. After:
   `{ timeoutMs: 5000, retryEnabled: true, maxAttempts: 3 }`.
 - `createH3FetchFn()` takes no arguments and `H3FetchOptions` is removed;
-  `certHashes` never pinned anything. Pin through the runtime
-  (`Deno.createHttpClient` `caCerts`) or WebTransport `serverCertificateHashes`.
+  `certHashes` never pinned anything. Pin with WebTransport
+  `serverCertificateHashes`, or pass a `fetchFn` that checks the certificate.
 - A request whose body is a `ReadableStream` is not retried. Buffer the body
   yourself if you need retries.
 
@@ -1067,12 +1220,21 @@ in `.eser/concerns/`, which several entries below depend on.
 
 #### @eserstack/bundler
 
-- The deno-bundler backend names each entry's output `${key}.js` (and the build
-  ID entry `build-id.js`), lists every entry in `entrypointManifest`, `main` and
-  `client` included, with the entry's own output first, and sets `entrypoint` to
-  `${entryName}.js`. Look outputs up by `${key}.js`, as with the Rolldown
-  backend, and read the first element of a manifest entry as the entry's own
-  file.
+- The deno-bundler backend is removed: `createDenoBundlerBackend`,
+  `DenoBundlerBackend`, `DenoBundlerBackendOptions` and the
+  `./backends/deno-bundler` export. `BundlerBackend` is only `"rolldown"`:
+
+  ```typescript
+  // Before
+  import { createDenoBundlerBackend } from "@eserstack/bundler/backends/deno-bundler";
+  // After
+  import * as rolldown from "@eserstack/bundler/backends/rolldown";
+
+  const backend = rolldown.createRolldownBackend();
+  ```
+
+- `getBuildId()` no longer reads `DENO_DEPLOYMENT_ID`. It hashes `GITHUB_SHA`,
+  or a random id when that is unset; call `setBuildId()` to keep a fixed id.
 
 #### @eserstack/fp, @eserstack/events, @eserstack/di
 
@@ -1100,10 +1262,15 @@ in `.eser/concerns/`, which several entries below depend on.
   instead of running `decodeURIComponent` over them, and a lone `%` no longer
   throws. Before: `NAME=hello%20world`. After: `NAME="hello world"`.
 - dotenv `load()` takes the environment name from the value of the first set,
-  non-empty variable in `envVars` (`ENV`, `APP_ENV`, `DENO_ENV`, `NODE_ENV` by
-  default) and honours `options.envVars`. It used to use the variable's name, so
+  non-empty variable in `envVars` (`ENV`, `APP_ENV`, `NODE_ENV` by default) and
+  honours `options.envVars`. It used to use the variable's name, so
   `ENV=production` loaded `.env.ENV`. Rename such a file after the value:
   `.env.ENV` becomes `.env.production`.
+- `DENO_ENV` is no longer in the default `envVars`. Set `ENV`, `APP_ENV` or
+  `NODE_ENV` instead, or pass `envVars: ["DENO_ENV"]` to `load()`.
+- The dotenv parser expands a reference to an unset name with no default to
+  `""`; it wrote `undefined` before. Expansion stops after 10 passes. Give such
+  references a default: `URL=${HOST:-localhost}`.
 
 #### @eserstack/cs
 
@@ -1120,13 +1287,25 @@ in `.eser/concerns/`, which several entries below depend on.
   });
   ```
 
+- `eser cs` (Go `csfx` and the TypeScript package) reads the environment name
+  from `ENV`, `APP_ENV` and `NODE_ENV` only; `DENO_ENV` is ignored. Set one of
+  the three.
+
+#### @eserstack/collector
+
+- The TypeScript fallback of `writeManifestToString`, used when the native
+  library is not loaded, no longer formats its output (it ran `deno fmt`). It
+  returns the source unformatted, as the Go generator does. Run your formatter
+  on the written manifest if you compare it as text.
+
 #### @eserstack/ajan
 
-- `@eserstack/ajan/wasm` probes files with `Deno.statSync` or
-  `process.getBuiltinModule("node:fs")`, as `ffi/resolve.ts` does. On a runtime
-  with neither (Node before 22.3, Bun before 1.1, browsers),
-  `loadEserAjanWasm()` without `wasmPath` throws "Could not find eser-ajan WASM
-  module". Pass `wasmPath`, or use a supported runtime.
+- `@eserstack/ajan/wasm` probes files with
+  `process.getBuiltinModule("node:fs")`, as `ffi/resolve.ts` does. Where that
+  is missing (browsers), `loadEserAjanWasm()` without `wasmPath` throws "Could
+  not find eser-ajan WASM module". Pass `wasmPath`.
+- The bridge loads the native library through `node:ffi` and no longer depends
+  on `koffi` (see Runtime, toolchain and distribution above).
 - The changes to the native library's exports are listed under Native bridge
   below.
 
@@ -1558,9 +1737,9 @@ in `.eser/concerns/`, which several entries below depend on.
   ```
 
 - `CheckModExports` (`validate-mod-exports`) reports root modules that no entry
-  point reaches, instead of requiring `mod.ts` to re-export every root file, and
-  `validate-package-configs` compares dependencies only when `deno.json`
-  declares an imports map.
+  point reaches, instead of requiring `mod.ts` to re-export every root file.
+- `CheckPackageConfigs`, its result types and the `validate-package-configs`
+  tool are removed (see @eserstack/codebase). Delete the calls.
 - `RunValidators` fails every validator for a file that exists but cannot be
   read, instead of validating it as empty. The registry tools return an error
   from `Run` for malformed `rules` (codebase-filenames) or a `maxKb` that is not
@@ -1582,6 +1761,8 @@ in `.eser/concerns/`, which several entries below depend on.
 - `EserAjanCodebaseValidateFiles` and its stream variant fail the request for
   malformed `validatorOptions` of `filenames` or `large-file`, and `large-file`
   applies `maxKb`; it was always 1024 KB.
+- `EserAjanCodebaseCheckPackageConfigs` is removed with
+  `validate-package-configs`.
 - `EserAjanNoskillsInit` writes `command: npx eser@latest noskills`
   (`noskillsfx.DefaultCommandPrefix`) into a new manifest instead of `noskills`.
   Edit the manifest's `command` to keep a bare `noskills`.
@@ -1592,8 +1773,7 @@ in `.eser/concerns/`, which several entries below depend on.
   `"@eserstack/primitives": "workspace:*"`, no `deno.json`, the name
   `@eserstack/package-name`, and a `greet` that returns
   `primitives.results.Result<string, Error>`. Outside the eser/stack workspace,
-  replace `workspace:*` with `npm:@jsr/eserstack__primitives@^4.5.2` and add an
-  `.npmrc` with `@jsr:registry=https://npm.jsr.io`. Callers check the result:
+  replace `workspace:*` with the npm range `^5.0.0`. Callers check the result:
 
   ```typescript
   // Before
@@ -1603,16 +1783,35 @@ in `.eser/concerns/`, which several entries below depend on.
   if (primitives.results.isOk(result)) console.log(result.value);
   ```
 
-- The `cool-lime-app` recipe is renamed `laroux-runtime-app`; run
-  `eser kit new laroux-runtime-app`. Its `pkg/app/mod.tsx` exports `appModule`
-  and `sum` instead of `limeModule` and `anyFnc`. Projects already generated
-  keep their files.
+- The `cool-lime-app` and `jsx-runtime-app` recipes are removed with
+  `@eserstack/laroux-runtime` and `@eserstack/jsx-runtime`. Start an app with
+  `eser kit new laroux-app`; projects already generated keep their files.
+- The recipes run on Node: generated projects carry a `package.json` and no
+  `deno.json`, and `laroux-app` no longer ships an `.npmrc` for the JSR
+  registry.
 
 #### Repository development tooling
 
-- The REPL (`deno task cli repl`) no longer puts package namespaces in separate
-  globals. Before: `fp.curry(...)`. After: `eserstack.fp.curry(...)`. `vars()`
-  lists the globals again.
+- Install with pnpm 11.18.0 and run the scripts through `pnpm cli`. The gate is
+  `pnpm cli ok` (oxfmt, oxlint, tsc 7 `--noEmit`, node:test with coverage in
+  `etc/coverage.lcov`, and the Go checks):
+
+  ```bash
+  # Before
+  deno task cli ok
+  # After
+  pnpm install
+  pnpm cli ok
+  ```
+
+- The `repl`, `docs`, `coverage-gen`, `container-build` and `container-run`
+  manifest scripts are removed; there is no REPL and no generated HTML API
+  reference (decision-43). `pnpm cli docs-lint` checks the JSDoc. Shrink the
+  code-conventions baseline with
+  `node ./pkg/@eserstack/codebase/validate-code-conventions.ts --write-baseline`.
+- Per-package `deno.json`, `deno.extra.json` and `gen-jsr-manifests.ts` are
+  gone; `package.json` is the only manifest, and the laroux packages list what
+  they publish in its `files` field instead of `publish.include`.
 
 ## 4.5.2 - 2026-09-17
 

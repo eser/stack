@@ -2,6 +2,11 @@
 
 # Security audit report: eser/stack (run stack-run-1)
 
+> Dated report: committed on 2026-09-25 from a run against ref `f7394953`
+> (2026-09-17), when the repository still ran on Deno. Its commands, paths and
+> runtime findings describe that toolchain, not the Node and Go tree of ADR
+> 0005; ADR 0005 Appendix B lists this file for that reason.
+
 ## 1. Run summary
 
 Profile: standard. Scope: the whole repository (.). Budget: none set. Source

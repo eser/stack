@@ -16,6 +16,7 @@ import * as fsPromises from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import * as nodeTest from "node:test";
+import * as crossRuntime from "@eserstack/standards/cross-runtime";
 import * as assert from "@eserstack/test-kit/assert";
 
 import * as ffiMod from "./mod.ts";
@@ -129,7 +130,7 @@ const runChild = async (
     }
 
     const result = childProcess.spawnSync(
-      process.execPath,
+      crossRuntime.runtime.process.execPath(),
       [...nodeArgs, scriptPath],
       {
         env: { ...env, ESER_AJAN_DEBUG: "1", ...extraEnv },

@@ -35,7 +35,7 @@ bin/eser --help       # built-in commands and the manifest's scripts
 `--yes`; the confirmation reads a line when stdin is not a terminal.
 
 - `release <patch|minor|major|same>` bumps every package, adds the changelog
-  section already formatted as `deno fmt` formats it, commits
+  section already formatted as oxfmt formats it, commits
   `chore(codebase): release v<version>`, pushes the commit and then pushes the
   `v<version>` tag that starts the release pipeline. It refuses a dirty tree,
   and unpushed commits unless `--yes`. `--dry-run` prints each file it would
@@ -66,7 +66,10 @@ bin/eser --help       # built-in commands and the manifest's scripts
   `GH_TOKEN`; the other formulas stay as they are.
 - `eser dev nix-hashes` writes `nix/hashes.json`: the version and the SRI hash
   of each archive of `eser` and `noskills-server`, for the binaries the release
-  has. The flake packages exactly the binaries the file lists.
+  has. A binary the release has no archives of keeps its entry from the current
+  file, with the version of the release that had them, so the flake still
+  fetches archives that exist. The flake packages exactly the binaries the file
+  lists.
 
 Both take `--dry-run` (placeholder hashes for the binaries this release builds;
 nothing is pushed or written) and `--sums <file>` (a local `SHA256SUMS.txt`).

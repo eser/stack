@@ -28,9 +28,8 @@ import a published sub-path to keep its module graph small
 (javascript-practices: Imports), but READMEs use the primary namespace pattern.
 Two cases are exceptions:
 
-- A CLI-first package maps its `.` export to the CLI's `main.ts`, so that
-  `deno run jsr:@scope/pkg` starts the CLI, and publishes its library as
-  `./mod`. Its README imports the library as
+- A CLI-first package maps its `.` export to the CLI's `main.ts` and publishes
+  its library as `./mod`. Its README imports the library as
   `import * as pkg from "@scope/pkg/mod"`, and the module JSDoc of `main.ts`
   names that import. The notes linked from this codebase's AGENTS.md list these
   packages.
@@ -69,9 +68,10 @@ import * as task from "@eserstack/functions/task";
 ```
 
 **Why:** the reader copies the form the README shows, and the root namespace
-reaches the whole public API with one import. Moving a CLI-first package's CLI
-off `.` would break every `deno run jsr:@scope/pkg` command already in use, so
-its library takes the `/mod` path instead.
+reaches the whole public API with one import. A CLI-first package's released
+versions already resolve `.` to the CLI, so moving the library there would
+change what that import loads for every consumer, a breaking change; its library
+takes the `/mod` path instead (backlog TASK-101 records the decision).
 
 ---
 
@@ -184,9 +184,9 @@ Rule: The documentation diff ships in the same change as the code diff; it is
 not a follow-up. Before marking the task done, find each doc that describes the
 changed surface and make it describe the new state:
 
-- Exported function or type: its JSDoc in the package, which feeds the generated
-  API reference. Edit the JSDoc, never the generated output, and run the doc
-  lint (`deno doc --lint`, or this codebase's docs-lint script).
+- Exported function or type: its JSDoc in the package, which is its API
+  reference in editors. Run this codebase's docs-lint script
+  (`eser codebase validate-docs`), which reports an export without JSDoc.
 - Package usage: the package README Quick Start and API sections.
 - CLI command or flag: the command's help text and the README that shows it.
 - Install, configuration or first run: the root README and CONTRIBUTING.md.

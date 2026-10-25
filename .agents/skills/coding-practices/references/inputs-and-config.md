@@ -67,10 +67,9 @@ derive every path from one of two anchors:
 Correct:
 
 ```typescript
-import * as path from "@std/path";
 import { runtime } from "@eserstack/standards/cross-runtime";
 
-const templateDir = path.join(import.meta.dirname!, "templates", name);
+const templateDir = runtime.path.join(import.meta.dirname, "templates", name);
 
 export async function analyzeComponents(
   srcDir: string,
@@ -91,7 +90,8 @@ Incorrect:
 
 ```typescript
 const root = "/Users/me/projects/app"; // one machine only
-const config = path.join(Deno.cwd(), "config.ts"); // hidden global, untestable
+// process.cwd() is a hidden global, so a test cannot point this elsewhere
+const config = runtime.path.join(process.cwd(), "config.ts");
 ```
 
 **Why:** taking the root as a parameter lets a test point the function at a

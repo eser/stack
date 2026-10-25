@@ -10,7 +10,7 @@ to a published package, so the next release is a **major**: 4.1.58 → 5.0.0.
 
 **Why this was NOT bumped alongside the change.** Two reasons, both concrete:
 
-1. `deno task cli codebase versions major` rewrites ~43 `package.json` files
+1. `pnpm cli codebase versions major` rewrites ~43 `package.json` files
    plus `VERSION` and makes no git commit of its own (`versions.ts` has no git
    calls — the commit lives in `release.ts`). Run on a feature branch it rides
    along as unrelated churn.
@@ -43,7 +43,7 @@ pnpm rather than erroring, which is why this needed a guard and not a note.
 
 **Do at release time, on a dedicated release branch:**
 
-1. `deno task cli codebase versions major`, and commit the whole bump as one
+1. `pnpm cli codebase versions major`, and commit the whole bump as one
    release commit.
 2. `pnpm install --lockfile-only`, verify with `pnpm install --frozen-lockfile`.
 
@@ -156,38 +156,6 @@ sites; `writeStateAndSpec` exists and is used 3 times against ~39 hand-rolled
 dual-writes. Most fixes below are "route the existing correct thing through the
 call sites", not "build something new".
 
-## P3 — `deno compile --engine quickjs` hangs on lazily-dispatched commands
-
-**What:** Deno 2.9's experimental QuickJS backend (denoland/deno#36194, merged
-2026-08-04) compiles this CLI 31 MB smaller (268.0 → 236.9 MB) and then fails
-every command except `--help`, with `Top-level await promise never resolved`.
-
-The trigger is `Command.lazyCommand` dispatch combined with a real dynamic
-import: the load promise never settles, so the handler never runs. Since the
-whole command tree is lazily loaded, that is every real command.
-
-**Ruled out** (each verified inside a compiled quickjs binary): dynamic import
-generally, including nested in awaited async functions and of modules with their
-own top-level await; the size of the imported graph — importing
-`cli-system/mod.ts` directly and building the command from it works;
-`setTimeout`; `fetch`; `Deno.dlopen` plus a full FFI load; `@eserstack/streams`
-output and `close()`; and the `async`/`await` vs `.then()` shape of the loader.
-
-**Not minimised.** It reproduces reliably in this repo but I could not reduce it
-to a dependency-free script, which is what an upstream issue needs. Module
-dispatch (`modules: { x: { load: () => import(...) } }`) works under quickjs
-while `lazyCommand` does not — that difference is the most promising thread for
-whoever picks this up, and it is also the workaround.
-
-**Why P3:** we are not adopting the backend. 31 MB is a small win against a 268
-MB binary -- for scale, dropping one oversized dependency earlier took 278 MB
-off every binary -- and the failure mode is severe. Worth filing upstream once
-minimised, because "call a function that dynamically imports, then `.parse()`
-the result" is an ordinary CLI pattern and the backend is young.
-
-**Do not** add `--engine quickjs` without testing a lazily-dispatched command
-end to end; `--help` passing proves nothing, as it never triggers a lazy load.
-
 ## ~~P1~~ DONE — Two installers, and the working one was undocumented
 
 Resolved. There is one installer now: `etc/scripts/install.sh`, taking the
@@ -207,18 +175,18 @@ created with that token, so `release.yml` — which triggered only on `push: tag
 carried a `noskills_*` asset.
 
 `.goreleaser.yaml` and `.github/workflows/release.yml` are both deleted.
-`pkg/@eserstack/cli/scripts/compile.ts` now cross-builds `noskills-server`
-(CGO_ENABLED=0, `-s -w`) alongside the deno-compiled binaries, so there is no
+`eser dev compile` (`ReleaseBinaries` in `pkg/ajan/codebasefx`) builds every
+release binary, `noskills-server` included, in the one pipeline, so there is no
 second workflow left to fail to trigger.
 
 ## ~~P0~~ DONE — Go runtime crash under the FFI library (surfaced 2026-08-01)
 
 **What:** Investigate the intermittent
 `fatal error: runtime: unexpected waitm - semaphore out of sync` thrown from
-inside `libeser_ajan` during the Deno test suite.
+inside `libeser_ajan` during the TypeScript test suite.
 
-**Why:** It aborts the whole test process, so `deno task cli ok` fails roughly 1
-run in 6. It is a Go _runtime_ fatal error, not a panic, so nothing can recover
+**Why:** It aborts the whole test process, so the full gate fails roughly 1 run
+in 6. It is a Go _runtime_ fatal error, not a panic, so nothing can recover
 from it — in production it would take the host process down.
 
 **Context:** Pre-existing, **not** introduced by the P0 work. It only became
@@ -228,7 +196,7 @@ library unavailable"). Verified by A/B: rebuilding the library from the
 unmodified `HEAD` `bridge.go` reproduces it at the same rate (1 crash / 6 full
 runs) as the current tree. Isolating just the five FFI test packages did **not**
 reproduce it in 8 runs, so the trigger appears to involve the full suite's
-concurrency — most likely `Deno.dlopen` of one c-shared Go library from several
+concurrency, most likely the `dlopen` of one c-shared Go library from several
 parallel test isolates. Start there.
 
 **Effort:** M to diagnose; unknown to fix
@@ -237,8 +205,8 @@ parallel test isolates. Start there.
 two others I tried (FFI callbacks re-entering Go; `nonblocking: true` threadpool
 dispatch — A/B'd at 3/8 vs 5/8 crashes, p = 0.62, i.e. no effect).
 
-The actual cause is **sequential, not concurrent**: Deno disposes a test-file
-isolate, which `dlclose`s the library; the next file `dlopen`s it again. A Go
+The actual cause is **sequential, not concurrent**: the test runner of the time
+disposed of each test file's isolate, which `dlclose`s the library; the next file `dlopen`s it again. A Go
 runtime cannot be unloaded and reloaded — the second init runs while threads
 from the first are still parked, and the scheduler dies. That is why isolating
 the five FFI packages never reproduced it: one file, one load.
@@ -311,7 +279,7 @@ it needs a different mechanism — an install-time ABI check, or publishing the
 platform packages before the bump — not exact pins.
 
 **Done (2026-08-01):** `build-native-lib` step added to `.eser/manifest.yml`
-ahead of every Deno step; `scripts/build.ts` pins `GOWORK=off` so released
+ahead of every TypeScript step; the build pins `GOWORK=off` so released
 artifacts still resolve from the module's own go.mod. This also fixed the
 `*.ffi.test.ts` suites, which had been failing with "native library
 unavailable".
@@ -354,7 +322,7 @@ does correctly; close stdin's fd before `wg.Wait()` in `shellfx/tui`.
 grandchild holds the pipe open forever. `pkg/ajan/shellfx/tui/tui.go:121-125`
 waits on a reader parked in `read(2)` on raw-mode stdin. Because
 `EserAjanShellExecClose` / `EserAjanShellTuiKeypressClose` are **synchronous**
-FFI symbols, these deadlock the Deno isolate's main thread, not just the child.
+FFI symbols, these deadlock the JavaScript main thread, not just the child.
 
 **Context:** `pkg/ajan/shellfx/pty/pty_unix.go:107-125` already signals `-pid`
 and gets this right — the correct copy is the least-exercised one.
@@ -562,8 +530,7 @@ its blocking receive.
 **What:** Declare the Node backend's returns as `void*`, decode them, and free.
 
 **Why:** `pkg/@eserstack/ajan/ffi/backend-node.ts:355-358` has no binding to
-`EserAjanFree` at all — 96 malloc'd C strings are never released. Deno and Bun
-backends both do this correctly.
+`EserAjanFree` at all: 96 malloc'd C strings are never released.
 
 **Effort:** S
 
@@ -623,8 +590,8 @@ takes `onUnavailable` and `onError` factories rather than flattening everything
 into one generic error — which is what I had previously judged would make the
 helper dead code, and was the right call until it was shaped this way.
 
-Two details worth keeping: `invoke` is awaited, so the nine symbols Deno marks
-`nonblocking` work unchanged alongside the synchronous ones; and the error field
+Two details worth keeping: `invoke` is awaited, so the nine long-running symbols
+work unchanged alongside the synchronous ones; and the error field
 is only treated as a failure when it is a **non-empty string**, because the
 bridge omits it on success and some responses legitimately carry `error: null`.
 
@@ -649,8 +616,7 @@ loaders in `*/adapters/ffi/loader.ts` — 19 independent singletons of the same
 `void
 ensureLib()`. Every one ends `.catch(() => {})`, discarding the genuinely
 useful error string that `pkg/@eserstack/ajan/ffi/mod.ts:199-260` constructs.
-`loadEserAjan` has no memoization, so each loader performs its own
-`Deno.dlopen`.
+`loadEserAjan` has no memoization, so each loader performs its own `dlopen`.
 
 **Context:** This is the load-bearing seam joining the Go and TS halves and it
 has no owner. Highest leverage-per-hour item in the audit after `go.work`.
@@ -731,7 +697,7 @@ classification remain open.**
 and reproduced before fixing: it marshalled `NosManifest` -- which models only
 the noskills keys -- and wrote the result as the ENTIRE file, so an ordinary,
 successful mutation deleted `stack:`, `workflows:` and `scripts:`. In this repo
-that means deleting the `workflows:` block `deno task cli ok` executes. It was
+that means deleting the `workflows:` block `pnpm cli ok` executes. It was
 reachable from the FFI bridge as well, not just the Go CLI.
 
 It now merges the managed keys into the existing document through `yaml.Node`.
@@ -770,7 +736,7 @@ restore" and "restore this" -- previously a truncated file was indistinguishable
 from an uninitialised project.
 
 **A bug the test caught, worth recording.** The first `isNotFoundError` sniffed
-Deno's `NotFound` name and Node's `ENOENT` code. The cross-runtime fs port
+the raw `NotFound` error name and Node's `ENOENT` code. The cross-runtime fs port
 normalises both into its own `NotFoundError` class, so neither matched and every
 _missing_ file was reported as corrupt -- precisely the false alarm the warning
 exists to avoid. It now checks the class, keeping the raw forms as a fallback
@@ -814,8 +780,8 @@ indistinguishable from a fresh project.
 Worst case, and the reason this is the only theme that destroys user work: Go's
 `WriteManifest` (`persistence.go:219-234`) marshals only `NosManifest` and
 writes it as the **entire** file. Running the Go `noskills concern add` in this
-repo would overwrite `.eser/manifest.yml` — including the `workflows:` block
-`deno task cli ok` depends on — on a normal, successful run.
+repo would overwrite `.eser/manifest.yml` (including the `workflows:` block
+`pnpm cli ok` depends on) on a normal, successful run.
 
 **Context:** The migration code in the same file already uses two-phase rename
 with a comment explaining why, so the technique is known and simply absent from
@@ -1170,8 +1136,8 @@ and the `pipe()` refusal.
 into the argv array. Delete `pipe()` or make it throw. Add a test file; there is
 none under `pkg/@eserstack/shell/exec/`.
 
-**Why:** `codebasefx/validators.go:545` rewrites `new Deno.Command` violations
-to "@eserstack/shell/exec", making this the blessed path (~50 call sites). Its
+**Why:** `codebasefx/validators.go:545` rewrites direct subprocess-API
+violations to "@eserstack/shell/exec", making this the blessed path (~50 call sites). Its
 template tag shell-quotes each interpolated value (`parser.ts:47-54`) then
 re-tokenizes with a parser that treats `\` as an escape **inside single quotes**
 (`:60-112`) — quote and unquote are not inverses. Verified by execution:
@@ -1190,8 +1156,8 @@ stdin.
 **What:** For each duplicated concept, declare a single source of truth. Move
 the tables (`VALID_TRANSITIONS`, `QUESTIONS`, `RESERVED_NAMES`, capability rows,
 the state schema) into data loaded by both languages, and add a `testdata/`
-golden corpus executed by **both** `deno test` and `go test` inside
-`deno task cli ok`.
+golden corpus executed by **both** `node --test` and `go test` inside
+`pnpm cli ok`.
 
 **Why:** `pkg/ajan/noskillsfx/` (4,584 lines) re-implements
 `pkg/@eserstack/noskills/` (46,115 lines) over **the same on-disk files** —
@@ -1443,15 +1409,15 @@ defect an e2e job would have caught.
 # FFI End-to-End Review (2026-08-09)
 
 Findings from a focused review of the eser-ajan FFI seam: Go bridge
-(`pkg/@eserstack/ajan`), the three TS backends, the WASM fallback, and all
+(`pkg/@eserstack/ajan`), the TS backends of the time, the WASM fallback, and all
 consumer packages. Four parallel review agents (symbol parity, TS backends, Go
 bridge, consumer wiring) plus live verification; the two highest-severity Go
 findings were re-verified by hand against the source.
 
 **Verified working — baseline, not TODOs.** All 100 `//export` symbols in
-`main.go` match the built dylib (`nm` diff), `ffi/types.ts`, and all three
-backend declaration maps 1:1 (names, arity, pointer/int types). Live smoke test
-passes on Deno, Bun, and Node against the native dylib: init/version, JSON
+`main.go` match the built dylib (`nm` diff), `ffi/types.ts`, and every backend
+declaration map 1:1 (names, arity, pointer/int types). Live smoke test passes
+on every runtime then supported, Node included, against the native dylib: init/version, JSON
 round-trips, handle lifecycle, and malformed JSON returns structured errors
 without crashing. `go test ./...` passes; formats/crypto/parsing/ai FFI suites
 all pass. Wiring contracts (TS request/response shapes vs Go structs) verified
@@ -1470,17 +1436,17 @@ bridge.go duplication inventory + Init/Shutdown footgun lives in **P2 — Split
 > **Status (2026-08-09, same day):** everything filed in this section is **done
 > except two items**, both explicitly noted below: the full symbol-table
 > collapse (its highest-value half, the machine parity check, shipped) and
-> making Bun/Node AI calls genuinely async (documented instead). Also fixed in
+> making Node AI calls genuinely async (documented instead). Also fixed in
 > the same pass, from the earlier audit: **P0 — Related lower-severity security
 > hardening**, and **P1 — One memoized FFI client** (18 duplicated loader
 > singletons collapsed onto one shared, reference-counted handle).
 >
-> `deno task cli ok` is green end to end. Independently re-verified rather than
+> The full gate was green end to end. Independently re-verified rather than
 > taken from agent reports: `gofmt`/`vet`/`go build`/`go test -race` on both Go
 > modules; the `GOOS=wasip1` build; exactly 100 cgo exports before and after the
-> wholesale `main.go` rewrite; the native smoke test on Deno, Bun and Node; the
-> WASM fallback now raising a named, actionable error; and the full Deno suite
-> at 2248 passed / 0 failed.
+> wholesale `main.go` rewrite; the native smoke test on every runtime then
+> supported; the WASM fallback now raising a named, actionable error; and the
+> full TypeScript suite at 2248 passed / 0 failed.
 >
 > Two things the fixing pass surfaced that the review had not:
 >
@@ -1572,7 +1538,7 @@ bounds-check the WASI reactor's buffer slicing.
 **Why:** `grep recover()` over `pkg/@eserstack/ajan` returns zero hits
 (verified). Malformed JSON is handled at every entry point, but a panic anywhere
 in `bridge.go` or any downstream `pkg/ajan/*fx` package unwinds through cgo and
-**aborts the host Deno/Node/Bun process** — the no-panic guarantee currently
+**aborts the host JavaScript process**: the no-panic guarantee currently
 rests on every transitive dependency instead of on the boundary. One concrete
 in-repo panic path exists today: `main_wasi_reactor.go:68-101` slices
 `resultBuf[:hostSuppliedLen]` with no bounds check, and `resultBuf` is nil
@@ -1603,8 +1569,9 @@ substring marker rather than a full `JSON.parse` on the hot path.
   (`bridge.go:1955-1975`) looks the entry up under `logMu.RLock`, releases, then
   **writes** `entry.filters` / `entry.formatter` / `entry.levelVar`, while
   `bridgeLogWrite` (`bridge.go:1866-1877`) reads `entry.filters` /
-  `entry.formatter` with no lock. Deno's `nonblocking: true` symbols run on a
-  thread pool, so these are genuinely concurrent — a real Go data race
+  `entry.formatter` with no lock. Symbols called from more than one thread
+  (the nonblocking symbols of the time, worker threads now) make these
+  genuinely concurrent: a real Go data race
   (function-value word tearing). Verified by hand. `logMu` protects only the
   map, not the entries; entries need their own mutex or atomics.
 - Custom formatter bypasses the level gate: with `entry.formatter != nil`,
@@ -1656,81 +1623,17 @@ EOF results labelled "bogus". Same defect duplicated in
 
 **Effort:** S
 
-## ~~P1~~ DONE — Bun backend: GC use-after-free hazard on input buffers
+## ~~P1~~ DONE — Collapse the TS FFI backends into one
 
-**Done (2026-08-09).** Removed the hazard rather than racing it: `ptr()` is gone
-from the backend entirely and buffers are passed as TypedArrays, which bun:ffi
-keeps alive across the call. Merely holding a reference in the calling frame
-would have worked too, but leaves the trap armed for the next wrapper someone
-adds.
-
-**What:** Keep the encoded `Uint8Array`s alive across the FFI call (return the
-buffer from `toCString` and hold it in the caller's frame, or pass TypedArrays
-directly — bun:ffi accepts them for `ptr` args, which removes the hazard
-entirely).
-
-**Why:** `toCString` (`ffi/backend-bun.ts:442-446`) passes `ptr(encoded)` out
-while `encoded` becomes unreachable the moment the function returns; bun:ffi's
-`ptr()` returns a raw number and requires the TypedArray to outlive the pointer.
-Worst case is the two-argument calls (`EserAjanAiGenerateText` /
-`EserAjanAiStreamText`, backend-bun.ts:485-505): allocating the second buffer
-can trigger a GC that collects the first **before** the call executes. The Deno
-backend explicitly guards this exact hazard (`backend-deno.ts:529-531` — "both
-buffers must stay referenced… or the GC could free memory Go is reading"); the
-Bun backend does not.
-
-**Effort:** S
-
-## P1 — Collapse the three TS backends into one symbol table + adapters (PARTIALLY DONE)
-
-**Partially done (2026-08-09) — item (c), the machine parity check, has shipped;
-(a) and (b) remain open.** The drift risk this entry exists to remove is now
-guarded even though the duplication itself is not yet collapsed:
-`pkg/@eserstack/codebase/ajan-ffi-parity.test.ts` ties all six declaration sites
-together — the cgo exports in `main.go`, `ffi/types.ts`, the three native
-backends and the WASM loader — plus a runtime check that the _compiled_ library
-exposes exactly the declared symbols, plus WASI dispatch names against what the
-loader sends. Extractors are indentation-agnostic and floor-checked, so a
-silently-empty parse reports itself instead of passing vacuously. It lives
-beside `ajan-ranges.test.ts`, the existing precedent for a cross-cutting
-invariant guard. Also landed from this entry's spirit: `ffi/close-guard.ts` is
-now one shared implementation used by all three backends instead of three
-hand-rolled copies.
-
-**Still open:** the symbol table itself (a) and the mapped type over it (b).
-Note the constraint the guard now imposes — the loaders' symbol names must stay
-_literal_ object keys, or the extractor needs updating in the same commit.
-
-**What:** (a) A shared `symbols-table.ts` — `{name, arity, nonblocking}` for all
-100 symbols (~120 lines); derive Deno's dlopen map, Bun's dlopen map, the Node
-backend's prototype strings, and all wrapper functions from it by a loop. Each
-backend
-shrinks to a ~60-100-line adapter
-(`open/encodeArg/call/callAsync/decodeAndFree/close`). (b) Make `types.ts`'s
-570-line `symbols` interface a mapped type over the table. (c) A small generated
-parity check: Go `//export` list vs table keys vs the `main_wasi.go` case list.
-
-**Why:** The three backends total 3,085 lines (deno 1,403 / bun 972 / node 710)
-of which ~90% is mechanical repetition: every symbol except four specials fits
-`()→string`, `(string)→string`, or `(string,string)→string`. Today a new Go
-export requires **five** hand edits (main.go, types.ts, three backends — plus
-main_wasi.go and the WASM loaders), and nothing machine-checks the agreement:
-`createSymbolWrappers` takes `rawSymbols: any` (`backend-deno.ts:471-474`), so a
-missing declaration compiles cleanly and explodes at runtime; the Bun/Node maps
-have no compile-time tie to types.ts at all. Today's 100-way agreement is real
-but hand-kept. Not just line count: the Bun GC bug and the decode-throw leaks
-(below) exist precisely because each backend hand-rolled its own encode/free
-helpers instead of sharing one audited implementation.
-
-**Context:** Extends **P1 — One memoized FFI client** (which already names the
-manifest idea) and the "99-symbol C ABI restated by hand in 7-8 files" line in
-**P2 — Pick one owner per duplicated domain**. Do the memoized client and this
-in one motion — same seam, same owner.
-
-**Effort:** M
-
-**Depends on:** nothing; unblocks the parity check and shrinks every future
-export to a one-line table edit
+**Done (2026-10-25, ADR 0005).** The repository runs on Node only, so
+`ffi/backend-node.ts` (node:ffi) is the one native backend, beside the WASM
+reactor. The machine parity check from 2026-08-09 stays:
+`pkg/@eserstack/codebase/ajan-ffi-parity.test.ts` ties the cgo exports in
+`main.go`, `ffi/types.ts`, the native backend and the WASM loader together, plus
+a runtime check that the compiled library exposes exactly the declared symbols.
+The loaders' symbol names must stay literal object keys, or the extractor needs
+updating in the same commit. The dispatcher ABI of decision-37 replaces the
+per-symbol table this entry asked for.
 
 ## ~~P2~~ DONE — `loadEserAjan` bare catch swallows all native errors
 
@@ -1746,7 +1649,7 @@ failure message, and rethrow (no WASM fallback) when the caller passed an
 explicit `libraryPath`.
 
 **Why:** `ffi/mod.ts:264-273` discards: `resolveLibraryPath`'s carefully built
-checked-paths message (`resolve.ts:231-238`), Deno `--allow-ffi` permission
+checked-paths message (`resolve.ts:231-238`), `--allow-ffi` permission
 errors, dlopen failures for a found-but-wrong library (arch mismatch, ABI
 drift), and `selectBackend`'s own error. A real native error silently degrades
 to WASM — which per the P1 entry above may be broken-at-runtime — and when WASM
@@ -1769,7 +1672,7 @@ lint exception. Stale comments corrected; the JSR constraint is documented.
 
 **What:** Walk `node_modules` ancestors from `moduleDir` (or add
 `${moduleDir}/../..` as a scope-sibling root; `import.meta.resolve` /
-`require.resolve` is the robust option under Node/Bun). Defer the `node:fs`
+`require.resolve` is the robust option under Node). Defer the `node:fs`
 import into `fileExists`.
 
 **Why:** When installed from npm, this module lives at
@@ -1795,28 +1698,26 @@ remote-cached modules have no `import.meta.dirname`, so JSR effectively requires
 
 ## ~~P2~~ DONE — FFI `close()` has no closed-state guard; close during in-flight calls
 
-**Done (2026-08-09).** `ffi/close-guard.ts` — one implementation wrapping all
-three backends. `close()` is idempotent; any symbol called afterwards throws an
+**Done (2026-08-09).** `ffi/close-guard.ts` is one implementation wrapping
+every backend. `close()` is idempotent; any symbol called afterwards throws an
 Error naming it instead of segfaulting inside a library that is no longer
 mapped. Wrappers preserve arity deliberately, since arity is part of the ABI
 contract. The two things it does not enforce are documented at the top of the
-module: `close()` does not call `EserAjanShutdown`, and Deno's nonblocking
-symbols may still be on the FFI threadpool, so callers must settle promises and
-close streams first. In-flight tracking was deliberately not implemented.
+module: `close()` does not call `EserAjanShutdown`, and a call running off the
+main thread may still be in flight, so callers must settle promises and close
+streams first. In-flight tracking was deliberately not implemented.
 
-**What:** A `closed` flag on all three backends (throw a friendly error on
+**What:** A `closed` flag on every backend (throw a friendly error on
 use-after-close / double-close), plus either an in-flight counter or a
 documented "close only after all streams are closed and promises settled"
 contract.
 
-**Why:** All three backends (`backend-deno.ts:1398-1401`,
-`backend-bun.ts:967-969`, `backend-node.ts:705-707`) call the runtime's
-`close()`/`unload()` unguarded. Double-close is whatever the runtime does (Deno
-throws `BadResource`; unloading a Go c-shared library from Node is undefined
-behavior — a Go runtime cannot be dlclosed safely, which is exactly why
-`pin_image_posix.go` exists). Any symbol call after `close()` is a UB/segfault
-path. On Deno, `nonblocking: true` symbols may still be executing on the FFI
-threadpool when `close()` runs — a crash window. Nothing tracks outstanding
+**Why:** Every backend (`backend-node.ts:705-707` among them) calls the
+runtime's `close()`/`unload()` unguarded. Double-close is whatever the runtime
+does (unloading a Go c-shared library from Node is undefined behavior: a Go
+runtime cannot be dlclosed safely, which is exactly why `pin_image_posix.go`
+exists). Any symbol call after `close()` is a UB/segfault path, and a call still
+running off the main thread when `close()` runs is a crash window. Nothing tracks outstanding
 stream/PTY/keypress handles at close time.
 
 **Context:** In practice no TS consumer ever calls `lib.close()` (see the
@@ -1872,30 +1773,23 @@ in favour of `codebasefx.GetCurrentBranch`.
 
 **Effort:** S each; do alongside the P2 bridge.go split
 
-## P2 — Bun/Node AI calls block the event loop and defeat cancellation (DOCUMENTED, NOT FIXED)
+## P2 — Node AI calls block the event loop and defeat cancellation (DOCUMENTED, NOT FIXED)
 
 **Partially addressed (2026-08-09).** The LIMITATION comment that only the PTY
-wrappers carried now also sits on the generate/stream/batch wrappers in both
-backends, so the constraint is visible where it bites. **The behaviour is
-unchanged** — under Bun and Node these calls still park the event loop and
-`EserAjanAiCancelRequest` still cannot fire mid-call. Making them genuinely
-async (node:ffi calls in worker threads, TASK-239) is the remaining work.
+wrappers carried now also sits on the generate/stream/batch wrappers, so the
+constraint is visible where it bites. **The behaviour is unchanged**: node:ffi
+calls are synchronous, so these calls park the event loop and
+`EserAjanAiCancelRequest` cannot fire mid-call.
 
-**What:** Use Bun's `FFIFunction.threadsafe`/async support for the 9 long-
-running symbols (AI generate/stream/batch, PTY read); for node:ffi, worker
-threads (TASK-239). At minimum, extend the LIMITATION comment that the
-PTY wrappers already carry to the AI wrappers, and note it where
-`types.ts:41-56` promises cancellability.
+**What:** Run the long-running symbols (AI generate/stream/batch, PTY read) in
+worker threads (decision-37, TASK-239), and note it where `types.ts` promises
+cancellability.
 
-**Why:** Under Bun and Node all AI calls are synchronous-blocking
-(`backend-bun.ts:485-550`, `backend-node.ts:403-444`) — a minutes-long
-`generateText` parks the entire event loop, and `EserAjanAiCancelRequest` can
-never fire mid-call because the abort listener cannot run. Only Deno marks these
-`nonblocking: true` (`backend-deno.ts:51-65`). Only the PTY-read wrappers
-document the limitation (bun 935-940, node 682-688); the same caveat applies to
-generate/stream/batch.
+**Why:** A minutes-long `generateText` parks the entire event loop, and
+`EserAjanAiCancelRequest` can never fire mid-call because the abort listener
+cannot run (`ffi/backend-node.ts`, the LIMITATION comments).
 
-**Effort:** S (document) / M (actually async)
+**Effort:** M
 
 ## ~~P3~~ DONE — TS backend small fixes (leaks on decode-throw, stale messages, doc bugs)
 
@@ -1909,15 +1803,14 @@ implemented (see the loader entry above) rather than removed from the docs.
 
 **What:** Batch of small, independent items in `pkg/@eserstack/ajan/ffi/`:
 
-- `try/finally { free(ptr) }` in all three decode helpers — an exception during
-  decode leaks the Go allocation: Bun `readAndFree` (`backend-bun.ts:451-458`),
-  Node `takeString` (`backend-node.ts:77-86`), Deno `readCString`+`freePtr`
-  (`backend-deno.ts:457-479`). Happy paths are leak-free (audited); these are
-  exceptional-path one-offs.
+- `try/finally { free(ptr) }` in the decode helpers of each backend of the
+  time, Node `takeString` (`backend-node.ts:77-86`) among them: an exception
+  during decode leaks the Go allocation. Happy paths are leak-free (audited);
+  these are exceptional-path one-offs.
 - `backend-node.ts:56-61` error message claims the Node binding "^2.15.0" while
   package.json pins `^3.1.4` — misdirects anyone debugging a version mismatch.
   Also `backend-node.ts:68` says "96 symbols"; it's 97 malloc'd returns.
-- `ffi/mod.ts:34` advertises `loadEserAjan({ backends: ["deno"] })` but
+- `ffi/mod.ts:34` advertises a `backends` option for `loadEserAjan()` but
   `LoadOptions` (mod.ts:62-67) has no `backends` field — silently ignored.
   `selectBackend`'s doc comment (mod.ts:170-197) describes parameters and
   flag-checking it doesn't have.
@@ -1955,7 +1848,7 @@ checks; the entire `main_wasi.go` dispatch (`extractStringArg` included); and no
 the log-handle race survived.
 
 **Why:** The FFI seam's safety net is currently the consumer-side `.ffi.test.ts`
-suites (Deno backend only) plus CI's `ajan version` smoke on three runtimes.
+suites plus CI's `ajan version` smoke (`node-ffi-cli`, Linux and macOS).
 Everything else listed above ships on trust.
 
 **Effort:** S per subsystem; prioritize a `-race` log configure/write test and

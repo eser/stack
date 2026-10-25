@@ -378,10 +378,12 @@ func TestDownloadSHA256SumsAndNixHashes(t *testing.T) {
 		t.Errorf("a missing release: %v", err)
 	}
 
-	data, skipped, err := codebasefx.NixHashes("4.6.0", sums)
+	result, err := codebasefx.NixHashes("4.6.0", sums, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	data, skipped := result.Data, result.Skipped
 
 	var decoded map[string]any
 	if err := json.Unmarshal(data, &decoded); err != nil {
@@ -401,6 +403,93 @@ func TestDownloadSHA256SumsAndNixHashes(t *testing.T) {
 	if !strings.HasPrefix(string(data), "{\n  \"version\": \"4.6.0\",\n  \"eser\": {\n    \"x86_64-unknown-linux-gnu\": ") {
 		t.Errorf("layout:\n%s", data)
 	}
+}
+
+// A binary whose archives the release lacks keeps its entry from the
+// previous nix/hashes.json, at the version that entry was released at, so
+// the flake still fetches an archive that exists.
+func TestNixHashesKeepsEntriesTheReleaseLacks(t *testing.T) {
+	t.Parallel()
+
+	previous := []byte(`{
+  "version": "4.5.1",
+  "eser": {
+    "x86_64-unknown-linux-gnu": "sha256-old-eser-x64-linux",
+    "aarch64-unknown-linux-gnu": "sha256-old-eser-arm64-linux",
+    "x86_64-apple-darwin": "sha256-old-eser-x64-darwin",
+    "aarch64-apple-darwin": "sha256-old-eser-arm64-darwin"
+  },
+  "noskills-server": {
+    "version": "4.4.0",
+    "x86_64-unknown-linux-gnu": "sha256-old-server-x64-linux",
+    "aarch64-unknown-linux-gnu": "sha256-old-server-arm64-linux",
+    "x86_64-apple-darwin": "sha256-old-server-x64-darwin",
+    "aarch64-apple-darwin": "sha256-old-server-arm64-darwin"
+  }
+}
+`)
+
+	t.Run("keeps what the release lacks", func(t *testing.T) {
+		t.Parallel()
+
+		result, err := codebasefx.NixHashes("5.0.0", codebasefx.PlaceholderSHA256Sums("5.0.0", []string{"noskills-server"}), previous)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		var decoded map[string]any
+		if err := json.Unmarshal(result.Data, &decoded); err != nil {
+			t.Fatal(err)
+		}
+
+		eser, _ := decoded["eser"].(map[string]any)
+		server, _ := decoded["noskills-server"].(map[string]any)
+
+		if decoded["version"] != "5.0.0" || eser["version"] != "4.5.1" || eser["aarch64-apple-darwin"] != "sha256-old-eser-arm64-darwin" {
+			t.Errorf("eser should stay on its 4.5.1 hashes:\n%s", result.Data)
+		}
+
+		if _, ok := server["version"]; ok || server["x86_64-unknown-linux-gnu"] != "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=" {
+			t.Errorf("noskills-server should take the release's hashes:\n%s", result.Data)
+		}
+
+		if strings.Join(result.Kept, ",") != "eser@4.5.1" || len(result.Skipped) != 0 {
+			t.Errorf("kept %v, skipped %v", result.Kept, result.Skipped)
+		}
+
+		if !strings.HasPrefix(string(result.Data), "{\n  \"version\": \"5.0.0\",\n  \"eser\": {\n    \"version\": \"4.5.1\",\n") {
+			t.Errorf("layout:\n%s", result.Data)
+		}
+	})
+
+	t.Run("an entry keeps its own version", func(t *testing.T) {
+		t.Parallel()
+
+		result, err := codebasefx.NixHashes("5.0.0", codebasefx.PlaceholderSHA256Sums("5.0.0", []string{"eser"}), previous)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if strings.Join(result.Kept, ",") != "noskills-server@4.4.0" || !strings.Contains(string(result.Data), "\"noskills-server\": {\n    \"version\": \"4.4.0\",") {
+			t.Errorf("kept %v:\n%s", result.Kept, result.Data)
+		}
+	})
+
+	t.Run("a release with no archive of any package changes nothing", func(t *testing.T) {
+		t.Parallel()
+
+		if _, err := codebasefx.NixHashes("5.0.0", codebasefx.PlaceholderSHA256Sums("5.0.0", []string{"laroux"}), previous); !errors.Is(err, codebasefx.ErrNoArchives) {
+			t.Errorf("no archives: %v", err)
+		}
+	})
+
+	t.Run("an unreadable previous file fails", func(t *testing.T) {
+		t.Parallel()
+
+		if _, err := codebasefx.NixHashes("5.0.0", codebasefx.PlaceholderSHA256Sums("5.0.0", []string{"eser"}), []byte("{")); err == nil {
+			t.Error("a broken nix/hashes.json should fail")
+		}
+	})
 }
 
 func TestHexToSRI(t *testing.T) {

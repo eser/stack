@@ -70,8 +70,6 @@ function convertTargets(targets?: BrowserTargets): LightningTargets {
  * Safely decode buffer data to string.
  * - Uses TextDecoder, which also decodes a Node.js Buffer (a Uint8Array subclass)
  * - Validates input to prevent null/undefined errors
- *
- * @see https://github.com/denoland/deno/issues/7178 - TextDecoder throws on null/undefined
  */
 function decodeBufferToString(data: unknown): string {
   // TextDecoder throws an unhelpful error on null/undefined, so name the source.

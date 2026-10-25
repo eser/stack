@@ -79,23 +79,21 @@ current task. A general "go ahead" does not cover them.
 - **Versions:** never edit a `version` field by hand; the release command bumps
   every version together.
 - **Generated files:** never edit a generated file; change its source and run
-  its generator (a per-package `deno.json` is generated from `package.json` and
-  `deno.extra.json`, tooling-standards). Lock files (`pnpm-lock.yaml`, `go.sum`)
-  change only through their tools.
-- **Checks:** never skip hooks (`--no-verify`) and never weaken TypeScript types
-  to make a check pass.
+  its generator (a bundle's `dist/package.json` is built from its
+  `package.json`). Lock files (`pnpm-lock.yaml`, `go.sum`) change only through
+  their tools.
+- **Lockfile and root manifest:** while this codebase's AGENTS.md names an
+  integration agent, only that agent edits `pnpm-lock.yaml` and the root
+  `package.json` and lands dependency changes; every other agent sends it the
+  request and never runs `pnpm install`, `pnpm add` or `pnpm remove`
+  (tooling-standards: Lockfile and Root Manifest Owner).
+- **Checks:** the git hooks run the full gate named in this codebase's
+  AGENTS.md. Never skip them (`--no-verify`) and never weaken TypeScript types
+  to make a check pass. Only the owner turns the hooks off, for a whole branch;
+  on such a branch each agent still runs the tests, the type check and the
+  linter of every package it changed before handing the work over.
 - **Secrets:** never commit `.env` files, keys or tokens.
-- **Permissions:** `--allow-all` only in `scripts/` and tests. Production entry
-  points list the permissions they need.
 - **Scope:** do not modify files outside the assigned package.
-
-```bash
-# Tests and scripts may use broad permissions
-deno test --allow-all
-
-# A shipped entry point names what it needs
-deno run --allow-net=api.example.com --allow-env=API_KEY main.ts
-```
 
 Stop and reconsider when the plan includes "just this once I'll skip the
 checks", "this change is too small for a test", "I'll fix the types later" or
@@ -114,15 +112,15 @@ Rule: Describe the change and wait for approval before:
 
 - adding an import between workspace packages that did not depend on each other
   before;
-- adding an external dependency (JSR, npm or Go module), with the purpose,
+- adding an external dependency (npm package or Go module), with the purpose,
   license and alternative from tooling-standards: Adding a Dependency;
 - changing CI/CD workflows;
 - changing a high-impact area (File Ownership);
-- changing publishing configuration (`exports`, `publish` fields,
-  `deno.extra.json`);
+- changing publishing configuration (the `exports`, `files`, `bin` and
+  `publishConfig` fields of a `package.json`);
 - removing or deprecating a public API;
 - anything a later release cannot undo: persisted file or ledger formats, and
-  package names or exports already published to JSR or npm.
+  package names or exports already published to a registry.
 
 ---
 

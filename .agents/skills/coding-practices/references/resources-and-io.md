@@ -198,8 +198,8 @@ hides its failure.
 
 Scope: Changes made for performance, and any code or review comment claiming one
 
-Rule: A performance claim comes with a measurement: a `*.bench.ts` run with
-`deno bench`, or `go test -bench`, before and after, on the same machine. Report
+Rule: A performance claim comes with a measurement: a mitata `*.bench.ts` run
+with `node`, or `go test -bench`, before and after, on the same machine. Report
 the numbers and the command. Without a measurement, write the plain version.
 
 - Profile before choosing what to change. If most of the time is spent waiting

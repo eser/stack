@@ -13,44 +13,37 @@ this. You can also run `noskills-server feedback` to open a pre-filled URL.
 
 ## Development setup
 
-Run `deno task cli init` once after cloning: it installs the dependencies with
-pnpm and sets up the git hooks (`eser codebase install`). The full check is
-`deno task cli ok`; it must pass before every commit.
+You need Node 26.9 or later (`.node-version` pins the version CI uses), pnpm
+11.18.0 and Go. Run `pnpm install` once after cloning, then `pnpm cli init`,
+which installs the dependencies again and sets up the git hooks
+(`eser codebase install`). The full check is `pnpm cli ok`; it must pass before
+every commit.
 
 ```bash
 # Go toolchain
 go mod download
-deno task cli ok        # full validation (Deno + Go) — must pass before every commit
+pnpm cli ok        # full validation (Node + Go), must pass before every commit
 
 # Build binaries
 go build ./cmd/noskills-server
 
-# The release archives (eser, noskills-server) and SHA256SUMS.txt:
+# The release archives (eser, noskills, the laroux stub, noskills-server) and SHA256SUMS.txt:
 go run ./cmd/eser dev compile --current-only
 
 # Run noskills-server tests
 go test ./pkg/ajan/noskillsserverfx/... -v
 
-# Lint and check the TypeScript clients (noskills-client, webtransport)
-deno lint pkg/@eserstack/noskills-client/ pkg/@eserstack/webtransport/
-deno check pkg/@eserstack/noskills-client/mod.ts pkg/@eserstack/webtransport/mod.ts
+# Lint and test the TypeScript clients (noskills-client, webtransport)
+pnpm exec oxlint pkg/@eserstack/noskills-client/ pkg/@eserstack/webtransport/
+node --test "pkg/@eserstack/noskills-client/**/*.test.ts" "pkg/@eserstack/webtransport/**/*.test.ts"
 ```
 
 ## Documentation
 
-`docs/` holds two kinds of content, and the distinction matters before you edit
-anything there:
-
-- `docs/adr/` and `docs/schema/` are **hand-written and tracked**.
-- `docs/api/` is **generated and untracked**. `deno task cli docs` deletes and
-  rebuilds it from the JSDoc in `pkg/@eserstack/*/mod.ts`, so edits there are
-  lost on the next run — change the doc comment instead.
-
-Build the API reference locally with:
-
-```bash
-deno task cli docs
-```
+`docs/adr/` and `docs/schema/` are hand-written and tracked. There is no
+generated API reference: the JSDoc in the package source is the reference, so
+change the doc comment, and run `pnpm cli docs-lint` to check that exported
+symbols have one.
 
 ## Architecture decision records
 

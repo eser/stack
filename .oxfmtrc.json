@@ -20,7 +20,6 @@
     "apps/",
     "docs/api/",
     "etc/temp/",
-    "etc/codemods/",
     "third-party/",
     ".eser/recipes/",
     "node_modules/",

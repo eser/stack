@@ -8,7 +8,6 @@
   "dependencies": {
     "@eserstack/ajan": "workspace:*",
     "@eserstack/logging": "workspace:*",
-    "@eserstack/shell": "workspace:*",
     "@eserstack/standards": "workspace:*"
   },
   "devDependencies": {

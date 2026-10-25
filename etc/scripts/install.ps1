@@ -23,6 +23,11 @@
 .PARAMETER Version
   Version to install, without the leading "v". Defaults to the latest release.
 
+  The script decides from that release's archives: when the release has no
+  archive of eser, noskills or laroux, it names the npm command that installs
+  the package instead and fails, and from $LarouxNpmOnlyVersion on it sends
+  laroux to npm without downloading.
+
 .PARAMETER ArchivePath
   Install from an already-downloaded .zip instead of fetching a release. This is
   the seam CI uses to exercise the installer against the archive built from the
@@ -53,6 +58,12 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
 $Repo = 'eser/stack'
+
+# The first release whose laroux comes from npm only (decision-29). For this
+# version and later ones the script names the npm command instead of
+# installing the laroux archive, which those releases keep only for the
+# self-update of installed v4.5.x binaries. install.sh holds the same value.
+$LarouxNpmOnlyVersion = '5.0.0'
 
 # The three binaries the archive carries. noskills-server is the headline
 # install; the other two are what make a released artifact actually functional.
@@ -93,6 +104,44 @@ function Get-LatestVersion {
     -Headers @{ 'User-Agent' = 'eser-install' }
 
   return $release.tag_name -replace '^v', ''
+}
+
+# ── Release decisions ────────────────────────────────────────────────────────
+
+# True when $Have (with or without "v", a pre-release suffix ignored) is at or
+# above $Want.
+function Test-VersionAtLeast {
+  param([string] $Have, [string] $Want)
+
+  $core = ($Have -replace '^v', '') -replace '[-+].*$', ''
+  $parsed = $null
+
+  if (-not [version]::TryParse($core, [ref] $parsed)) { return $false }
+
+  return $parsed -ge [version] $Want
+}
+
+# True when a failed Invoke-WebRequest was answered with 404. PowerShell 7
+# and Windows PowerShell 5.1 raise different exception types, so read the
+# response when the exception carries one and the message otherwise; both
+# messages name the status code.
+function Test-NotFound {
+  param([Parameter(Mandatory)] [System.Management.Automation.ErrorRecord] $ErrorRecord)
+
+  $response = $ErrorRecord.Exception.PSObject.Properties['Response']
+
+  if ($null -ne $response -and $null -ne $response.Value) {
+    return ([int] $response.Value.StatusCode) -eq 404
+  }
+
+  return $ErrorRecord.Exception.Message -match '\b404\b'
+}
+
+# The message for a product that npm installs instead of this script.
+function Get-NpmPointer {
+  param([string] $Reason, [string] $Spec)
+
+  return "$Reason`nInstall it from npm instead:`n  npm i -g $Spec"
 }
 
 # ── PATH registration ────────────────────────────────────────────────────────
@@ -190,9 +239,18 @@ try {
     $zip = (Resolve-Path -LiteralPath $ArchivePath).Path
   }
   else {
+    # A version the caller chose pins the npm package too.
+    $npmSpec = if ($Version) { "$Product@$($Version -replace '^v', '')" } else { $Product }
+
     if (-not $Version) { $Version = Get-LatestVersion }
 
     if (-not $Version) { throw 'Could not determine latest version' }
+
+    $Version = $Version -replace '^v', ''
+
+    if ($Product -eq 'laroux' -and (Test-VersionAtLeast $Version $LarouxNpmOnlyVersion)) {
+      throw (Get-NpmPointer "laroux is installed from npm from v$LarouxNpmOnlyVersion on." $npmSpec)
+    }
 
     Write-Host "Installing $Product v$Version (Windows/$archName)..."
 
@@ -203,7 +261,19 @@ try {
 
     $base = "https://github.com/$Repo/releases/download/v$Version"
 
-    Invoke-WebRequest -UseBasicParsing -Uri "$base/$archive" -OutFile $zip
+    # This script is served from main and reads whatever release it resolves,
+    # so it decides from that release's archives (decision-11): a release
+    # without this product's archive answers 404, and npm installs it instead.
+    try {
+      Invoke-WebRequest -UseBasicParsing -Uri "$base/$archive" -OutFile $zip
+    }
+    catch {
+      if (-not (Test-NotFound $_)) { throw }
+
+      if ($Product -eq 'noskills-server') { throw "v$Version has no $archive" }
+
+      throw (Get-NpmPointer "v$Version has no $Product archive for Windows/$archName." $npmSpec)
+    }
 
     # Checksum verification, matching install.sh. SHA256SUMS.txt is a
     # `<sha256>  <filename>` list covering every artifact in the release.

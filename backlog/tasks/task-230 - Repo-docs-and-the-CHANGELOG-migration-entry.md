@@ -1,10 +1,10 @@
 ---
 id: TASK-230
 title: Repo docs and the CHANGELOG migration entry
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-10-15 20:38'
-updated_date: '2026-10-24 17:54'
+updated_date: '2026-10-26 16:00'
 labels:
   - cutover
   - docs
@@ -47,9 +47,9 @@ Plan key: M1-T36. Effort: medium.
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 `git grep -ni 'deno\|bun' AGENTS.md docs/agents .github README.md docs/schema TODOS.md` returns nothing
-- [ ] #2 Every command in AGENTS.md runs as written on the cutover branch
-- [ ] #3 CHANGELOG.md Unreleased has a Migration section covering every break listed
+- [x] #1 `git grep -ni 'deno\|bun' AGENTS.md docs/agents .github README.md docs/schema TODOS.md` returns nothing
+- [x] #2 Every command in AGENTS.md runs as written on the cutover branch
+- [x] #3 CHANGELOG.md Unreleased has a Migration section covering every break listed
 <!-- AC:END -->
 
 ## Implementation Notes
@@ -61,4 +61,5 @@ Plan key: M1-T36. Effort: medium.
 2026-10-25 (from TASK-201): Migration items for the standards entry. The subpath exports @eserstack/standards/cross-runtime/deno and @eserstack/standards/cross-runtime/bun are removed (createDenoRuntime, createBunRuntime). RuntimeName lost "deno" and "bun"; CliInvoker lost "deno", "bun", "bunx"; CliRuntime lost "deno", "bun"; detectInvoker lost its mainModule parameter (now execBasename, runtimeName, argv, envVars, isDevContext?); CliCommandOptions.jsrPackage and codebase CliApp.jsrPackage are removed. shared exports mapStdioToDeno, getDenoStdioOptions, DenoStdioMode and web-streams createFileSinkWritable/FileSinkLike are gone. New: runtime.fs.statSync and runtime.process.isStandalone. An aborted spawn/spawnChild now resolves with the failed result instead of rejecting; makeTempDir() without a prefix creates the directory inside the temp dir.
 2026-10-25 (from TASK-210): @eserstack/jsx-runtime and @eserstack/laroux-runtime are removed, with the jsx-runtime-app and laroux-runtime-app recipes; their published 4.5.x versions stay available.
 2026-10-26 (from TASK-219 and the integration agent): config's dotenv parser expands a reference to an unset name with no default to "" (it printed `undefined` before) and stops after 10 expansion passes; collector's writeManifestToString fallback no longer formats its output (it piped through deno fmt). DENO_ENV no longer names the environment in config, and `eser cs` (Go csfx and the TypeScript cs package) reads ENV, APP_ENV and NODE_ENV only.
+2026-10-26 (TASK-230). Rewrote for the Node and Go tree: AGENTS.md (repository line with the toolchain, the 50-package count, npm-only publishing, `pnpm cli` commands, the go-lint build command, the `node` baseline command, the gate rule, the catalog: reason), docs/agents/*.md (gate, release commands, the release diagram from build.yml, publishing targets with the install scripts and nix/hashes.json, the install dry-run tests, the verify list; the generated-manifest, docs/api and deno.json lines are gone), .github/ARCHITECTURE.md (tree, Go binaries, layers, both CI graphs, portability), .github/CONTRIBUTING.md, the bug-report template, README.md (badges, prerequisites, install with ESER_INSTALL_VERSION, $env:VERSION and the npm fallback, laroux on npm from 5.0.0, the npm library line, the kit output with 13 files and `npm install @eserstack/fp`), .gitignore (the deno.json, deno compile bundle and docs/api rules) and TODOS.md (commands; the deno compile quickjs entry and the Bun GC entry removed as obsolete, the backend-collapse entry closed by ADR 0005, the AI-calls entry narrowed to Node). docs/schema/manifest.json and workflows/WIRING.md had no stale lines left. security-report.md carries a dated-report note, and ADR 0005 Appendix B lists it and ADR 0010 (decision history). CHANGELOG Unreleased Migration: a new first group, Runtime, toolchain and distribution (Node 26.9 and node:ffi with the flags, Deno and Bun dropped, JSR frozen with the `deno install` switch, Go release binaries, noskills launcher and platform packages, laroux npm-only with the stub, install scripts, nix per-entry version, NOSKILLS_WORKER_RUNTIME, DENO_ENV, jsx-runtime and laroux-runtime), and entries under standards, codebase, laroux-runtime, laroux-bundler, bundler, config, cs, collector (new), ajan, httpclient, codebasefx, the bridge, recipes and repository tooling; the Bun-era entries they superseded were rewritten. AC #1 holds as a word match (`git grep -niw`); the substring form also hits bundler, bundle and ubuntu. `--only` in `workflows run` matches tool names, so it cannot select a shell step such as go-lint; docs/agents/workflow.md says so. Left for TASK-231: the Deno comment in pnpm-workspace.yaml and the root deno.json. Verified on the cutover worktree with pnpm_config_verify_deps_before_run=false: `pnpm cli ok` (34 steps), `pnpm cli fix --dry-run`, `pnpm cli test` (5931 pass), `pnpm cli preflight` (12 steps), `pnpm cli go-ok`, `pnpm cli codebase validate-circular-deps`, `pnpm cli --help`, the bridge golangci-lint run and the baseline command (baseline unchanged) all pass; `pnpm cli go-vuln` runs and exits 2 because govulncheck reports 13 Go standard library advisories (GO-2026-6809 among them); `pnpm install` was not run.
 <!-- SECTION:NOTES:END -->

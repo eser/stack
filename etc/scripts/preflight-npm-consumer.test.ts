@@ -1,8 +1,10 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import * as process from "node:process";
 import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
+// etc/scripts belongs to no workspace package, so the cross-runtime layer
+// loads by path (as in package-export-roots.ts).
+import * as crossRuntime from "../../pkg/@eserstack/standards/cross-runtime/mod.ts";
 import * as preflight from "./preflight-npm-consumer.ts";
 
 // --- parseOptions ---
@@ -36,7 +38,7 @@ nodeTest.test(
   async () => {
     const result = await preflight.run(
       [
-        process.execPath,
+        crossRuntime.runtime.process.execPath(),
         "-e",
         'process.stdout.write("out"); process.stderr.write("err"); process.exit(3)',
       ],
@@ -52,7 +54,11 @@ nodeTest.test("run: throws when the timeout stops the command", async () => {
   await assert.assertRejects(
     () =>
       preflight.run(
-        [process.execPath, "-e", "setTimeout(() => {}, 10_000)"],
+        [
+          crossRuntime.runtime.process.execPath(),
+          "-e",
+          "setTimeout(() => {}, 10_000)",
+        ],
         ".",
         100,
       ),

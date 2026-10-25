@@ -26,9 +26,12 @@ Rule: Secrets are read from environment variables at start-up and never live in
 code, committed config files or fixtures. A missing required secret stops
 start-up with an error that names the variable. TypeScript reads the environment
 through `runtime.env` from `@eserstack/standards/cross-runtime`, not
-`process.env` or `Deno.env`, so the code runs on every supported runtime.
-Provider keys use the provider's own names (`OPENAI_API_KEY`,
-`ANTHROPIC_API_KEY`), as the ajan `aifx` package reads them.
+`process.env`, so a test can replace the environment and no library reads a
+global (javascript-practices: Cross-Runtime APIs). Provider keys use the
+provider's own names (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`), as the ajan `aifx`
+package reads them. A subprocess that runs third-party or user-supplied code
+gets only the variables it needs, not the whole parent environment with every
+secret in it.
 
 ```typescript
 import { runtime } from "@eserstack/standards/cross-runtime";
@@ -63,8 +66,8 @@ Rule: Tokens, passwords, API keys, private keys and personal data (emails,
 names, IP addresses) never appear in any output. Log and trace by id, and log a
 secret's key name or a fixed mask, never its value. Types that hold a secret
 redact it when serialized or printed (`toJSON`,
-`[Symbol.for("Deno.customInspect")]`, Go `String()`/`MarshalJSON`). Check new
-log lines and error messages for accidental exposure.
+`[Symbol.for("nodejs.util.inspect.custom")]`, Go `String()`/`MarshalJSON`).
+Check new log lines and error messages for accidental exposure.
 
 - User input goes into log attributes, never into the message string. The
   structured handlers escape attribute values, so a value with a newline or a
@@ -277,9 +280,9 @@ res.status(500).json({
 
 Scope: Services and servers built on `httpfx` or the TypeScript HTTP packages
 
-Rule: The environment name comes from `ENV`, `APP_ENV`, `DENO_ENV` or `NODE_ENV`
-(the order `@eserstack/config` reads them), and falls back to `development` when
-none is set. A deployment therefore sets it explicitly, and a relaxation that
+Rule: The environment name comes from `ENV`, `APP_ENV` or `NODE_ENV` (the order
+`@eserstack/config` reads them), and falls back to `development` when none is
+set. A deployment therefore sets it explicitly, and a relaxation that
 weakens security (unauthenticated profiling, plain HTTP webhooks, detailed
 errors) needs its own opt-in setting, not only the environment name. In
 production:

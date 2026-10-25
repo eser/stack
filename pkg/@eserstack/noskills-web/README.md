@@ -232,7 +232,7 @@ lists the changes in every package.
   stderr, category `noskills-web`) instead of `[noskills-web] reason: <error>`
   console lines. Read the JSON records, or pass your own `logger` to
   `startServer`.
-- Ctrl+C runs the graceful shutdown on Node and Bun too, and the SIGINT listener
+- Ctrl+C runs the graceful shutdown on Node too, and the SIGINT listener
   is removed once the server stops. An embedder that relied on Node's default
   Ctrl+C exit while the server runs gets the shutdown instead.
 

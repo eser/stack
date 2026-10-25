@@ -9,6 +9,12 @@ set -eu
 # escape codes in it, or a checksum for a file that does not exist. sed -n and
 # awk do not colour, so they are used for every extraction here.
 
+# The first release whose laroux comes from npm only (decision-29). For this
+# tag and later ones the script prints the npm command instead of installing
+# the laroux archive, which those releases keep only for the self-update of
+# installed v4.5.x binaries.
+LAROUX_NPM_ONLY_VERSION="5.0.0"
+
 main() {
   # --- Platform detection ---
   OS="$(uname -s)"
@@ -46,6 +52,9 @@ main() {
   #   curl ... | sh                     -> eser
   #   curl ... | sh -s noskills         -> noskills
   #   curl ... | sh -s noskills-server  -> the daemon
+  #
+  # ESER_INSTALL_VERSION picks a release (4.5.2 or v4.5.2) instead of the
+  # latest one.
   BINARY="${1:-eser}"
 
   case "${BINARY}" in
@@ -66,18 +75,42 @@ main() {
   TMPDIR="$(mktemp -d)"
   trap 'rm -rf "${TMPDIR}"' EXIT
 
-  # --- Fetch latest version ---
-  TAG="$(curl -fsSL https://api.github.com/repos/eser/stack/releases/latest \
-    | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n 1)"
-  [ -z "${TAG}" ] && error "Failed to determine latest version"
+  # --- Resolve the release ---
+  if [ -n "${ESER_INSTALL_VERSION:-}" ]; then
+    TAG="v${ESER_INSTALL_VERSION#v}"
+    NPM_SPEC="${BINARY}@${TAG#v}"
+  else
+    TAG="$(curl -fsSL https://api.github.com/repos/eser/stack/releases/latest \
+      | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n 1)"
+    [ -z "${TAG}" ] && error "Failed to determine latest version"
+    NPM_SPEC="${BINARY}"
+  fi
+
+  # --- laroux is on npm only from LAROUX_NPM_ONLY_VERSION ---
+  if [ "${BINARY}" = "laroux" ] && version_at_least "${TAG#v}" "${LAROUX_NPM_ONLY_VERSION}"; then
+    use_npm "laroux is installed from npm from v${LAROUX_NPM_ONLY_VERSION} on."
+  fi
 
   ARCHIVE="${BINARY}-${TAG}-${TARGET}.tar.gz"
   BASE_URL="https://github.com/eser/stack/releases/download/${TAG}"
 
   # --- Download archive and checksums ---
+  #
+  # The script is served from main and reads whatever release it resolves, so
+  # it decides from that release's archives (decision-11): a release without
+  # this binary's archive answers 404, and the npm package is the way to
+  # install it instead. No -f here, so the status code tells a missing archive
+  # from a failed download.
   printf "Downloading %s %s for %s...\n" "${BINARY}" "${TAG}" "${TARGET}"
-  curl -fsSL -o "${TMPDIR}/${ARCHIVE}" "${BASE_URL}/${ARCHIVE}" \
+  STATUS="$(curl -sSL -w '%{http_code}' -o "${TMPDIR}/${ARCHIVE}" "${BASE_URL}/${ARCHIVE}")" \
     || error "Failed to download ${BINARY}"
+  if [ "${STATUS}" = "404" ]; then
+    case "${BINARY}" in
+      noskills-server) error "${TAG} has no ${ARCHIVE}" ;;
+      *) use_npm "${TAG} has no ${BINARY} archive for ${TARGET}." ;;
+    esac
+  fi
+  [ "${STATUS}" = "200" ] || error "Failed to download ${BINARY} (HTTP ${STATUS})"
   curl -fsSL -o "${TMPDIR}/SHA256SUMS.txt" "${BASE_URL}/SHA256SUMS.txt" \
     || error "Failed to download checksums"
 
@@ -138,6 +171,29 @@ main() {
 error() {
   printf "Error: %s\n" "$1" >&2
   exit 1
+}
+
+# use_npm prints why the archive is not installed and the npm command that
+# installs the package, then exits non-zero: nothing was installed.
+use_npm() {
+  printf "%s\n" "$1" >&2
+  printf "Install it from npm instead:\n" >&2
+  printf "  npm i -g %s\n" "${NPM_SPEC}" >&2
+  exit 1
+}
+
+# version_at_least succeeds when version $1 is at or above $2. Both are
+# major.minor.patch without the "v"; a pre-release suffix is ignored.
+version_at_least() {
+  awk -v have="$1" -v want="$2" 'BEGIN {
+    split(have, h, /[.-]/)
+    split(want, w, /[.-]/)
+    for (i = 1; i <= 3; i++) {
+      if (h[i] + 0 > w[i] + 0) exit 0
+      if (h[i] + 0 < w[i] + 0) exit 1
+    }
+    exit 0
+  }'
 }
 
 main "$@"

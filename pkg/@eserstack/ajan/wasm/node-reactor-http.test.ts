@@ -16,6 +16,7 @@ import type * as net from "node:net";
 import * as stream from "node:stream";
 import * as nodeTest from "node:test";
 import * as util from "node:util";
+import * as crossRuntime from "@eserstack/standards/cross-runtime";
 import * as assert from "@eserstack/test-kit/assert";
 import * as resolve from "./resolve.ts";
 
@@ -28,7 +29,7 @@ const hasWasm = ((): boolean => {
   }
 })();
 
-const nodeMajor = Number(process.versions.node.split(".")[0]);
+const nodeMajor = Number(crossRuntime.runtime.version.split(".")[0]);
 
 let flakyCalls = 0;
 
@@ -140,7 +141,7 @@ nodeTest.test(
     try {
       // Asynchronous on purpose: the server above runs on this thread.
       const { stdout } = await util.promisify(childProcess.execFile)(
-        process.execPath,
+        crossRuntime.runtime.process.execPath(),
         [
           "--no-experimental-ffi",
           "--disable-warning=ExperimentalWarning",

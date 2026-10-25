@@ -76,6 +76,14 @@
     "should_trigger": true
   },
   {
+    "query": "install.sh should print the npm command when the release has no archive for laroux",
+    "should_trigger": true
+  },
+  {
+    "query": "the new release dropped the noskills archive, will the installed binaries still update",
+    "should_trigger": true
+  },
+  {
     "query": "update the README badge list",
     "should_trigger": false
   },
@@ -104,7 +112,7 @@
     "should_trigger": false
   },
   {
-    "query": "fix the flaky Deno test locally",
+    "query": "fix the flaky node:test case locally",
     "should_trigger": false
   },
   {
@@ -116,7 +124,7 @@
     "should_trigger": false
   },
   {
-    "query": "run deno task cli ok",
+    "query": "run pnpm cli ok",
     "should_trigger": false
   }
 ]

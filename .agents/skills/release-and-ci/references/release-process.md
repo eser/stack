@@ -9,6 +9,8 @@ shares one version, with the `eser codebase` release commands.
 - Cutting a Release
 - Release Run
 - Publishing Targets
+- Release Binaries
+- Channels Decide From the Release
 - Post-Release Verification
 - Hotfixes
 - Breaking Changes
@@ -24,7 +26,7 @@ Scope: All package versions
 Rule: Every package of the family shares the version in the root `VERSION` file.
 There are no per-package releases. Never edit a `version` field by hand: the
 release command bumps `VERSION` and every `package.json` together, and generated
-manifests (such as per-package `deno.json`) follow from them.
+manifests (such as a bundle's built `dist/package.json`) follow from them.
 
 A Go module in the same repository that nothing outside it imports builds from
 the same release tag and gets no tags of its own.
@@ -53,8 +55,8 @@ pushes describes a tree that already passed CI.
    and on unpushed commits unless `--yes`.
 2. **Preflight:** run this codebase's release preflight on the commit to tag. It
    runs the release-only steps the precommit gate skips: building the npm
-   bundles and installing them outside the repo, `deno publish --dry-run`,
-   native builds, and dry runs of the release tooling. CI runs the same
+   bundles and installing them outside the repo, native builds, the release
+   binaries for the host, and dry runs of the release tooling. CI runs the same
    preflight on every push to `main`, and a release gate requires it to have
    passed on the tagged tree.
 3. **Preview:** `eser codebase release <patch|minor|major|same> --dry-run`
@@ -105,11 +107,9 @@ Scope: Where a release goes
 
 Rule:
 
-- **JSR:** generate the publish manifests, then `deno publish`, which publishes
-  every package with a publish config. Authentication is OIDC; there is no JSR
-  secret.
-- **npm:** each npm package is built in CI and published with
-  `pnpm publish --provenance --access public`.
+- **npm** is the only registry. Each npm package is built in CI and published
+  with `pnpm publish --provenance --access public`. A registry this codebase
+  stopped publishing to keeps its last version and gets no new publish step.
 - **npm authentication:** OIDC trusted publishing (`id-token: write`,
   `--provenance`). There is no `NPM_TOKEN` or `NODE_AUTH_TOKEN`, and every npm
   package needs a GitHub Actions trusted publisher configured on npm. npm cannot
@@ -126,6 +126,71 @@ Rule:
 Which packages go to npm and how each is built differs between codebases; the
 docs linked from this codebase's AGENTS.md list them.
 
+**Why npm only:** a second registry needed a second runtime in CI only to
+publish, and kept two release paths in step (ADR 0005).
+
+---
+
+## Release Binaries
+
+Scope: The standalone binaries attached to a GitHub Release
+
+Rule: `eser dev compile` builds every release binary from the tag's tree, for
+every target, and CI attaches the archives with their signatures and checksums.
+The binaries are Go programs; the job that compiles them needs no JavaScript
+runtime. Archive names never change: they keep the target triples they have
+always had, because installed binaries find their update by archive name. A
+binary that moved to npm keeps an archive under its old name that holds a
+forwarding stub, which runs the npm package or prints the `npm i -g` command.
+Only the owner retires a stub, and the release that drops it carries a
+`### Migration` entry with the command to run instead.
+
+**Why:** a renamed or missing archive breaks the self-update of every binary
+already installed, with no way to reach those users afterwards (ADR 0005).
+
+---
+
+## Channels Decide From the Release
+
+Scope: Install scripts, the Homebrew formula, Nix hashes and self-updaters
+
+Rule: Every channel decides what to install from the archives the release
+actually has, never from what is merged to `main`:
+
+- The install scripts read the requested release (the latest by default, or the
+  version an environment variable or flag names). When the archive is missing
+  (404), they print the `npm i -g <name>` command and exit non-zero. A binary
+  that moved to npm goes to npm only for versions at or above the first npm-only
+  version, so older tags still install their archive.
+- The Homebrew and Nix update jobs read the release's assets. A binary whose
+  archive the release lacks keeps its previous formula or hash entry, at its own
+  version.
+- No channel refuses statically at merge time.
+
+Correct:
+
+```bash
+# The archive decides; an older release still has it
+if ! curl -fsSLO "$base/v$version/$archive"; then
+  echo "$name $version has no binary; run: npm i -g $name" >&2
+  exit 1
+fi
+```
+
+Incorrect:
+
+```bash
+# Refuses as soon as this script is merged, while the latest release
+# still ships the archive
+echo "$name is npm-only now; run: npm i -g $name" >&2
+exit 1
+```
+
+**Why:** the install scripts are served from `main`, while the latest release
+may still be an older tag with the archive. A rule keyed on the merge breaks
+`curl | sh` the moment it merges; a rule keyed on the release is right for every
+past and future tag (ADR 0005).
+
 ---
 
 ## Post-Release Verification
@@ -134,7 +199,6 @@ Scope: After every release
 
 Rule: Check that every target received the new version:
 
-- JSR: the package pages show it.
 - npm: `npm view <package> version` for each npm package, including one platform
   package if there are any.
 - GitHub: the release exists, its body matches the CHANGELOG section, and the
@@ -236,13 +300,13 @@ fix: refactor tokenizer loop
 Scope: Recovering a failed release
 
 Rule: A failed release is resumed, not re-tagged. Every publish step is
-idempotent (`deno publish` and the npm steps skip versions already published,
+idempotent (the npm steps skip versions already published,
 release notes edit an existing GitHub Release, asset upload overwrites), so the
 chain can run again for the same tag without harm.
 
-**Never retag a version that reached a registry.** JSR is immutable (yank only)
-and npm answers a republish with 403. Any package that already published at a
-version keeps that tree forever.
+**Never retag a version that reached a registry.** npm answers a republish with
+403, even after an unpublish. Any package that
+already published at a version keeps that tree forever.
 
 - **Resume (preferred):** run the release workflow by `workflow_dispatch` with
   the existing tag and a stage input that skips what already succeeded
@@ -264,4 +328,4 @@ version keeps that tree forever.
 | A stage after publish failed, no code change needed          | Resume via `workflow_dispatch`, post-publish |
 | Infrastructure error (runner, network, rate limit)           | Resume, or re-run the failed jobs            |
 | Fix touches only tooling, workflow or an unpublished package | Commit, then `rerelease` at the same version |
-| Fix touches a package already on JSR or npm at this version  | Commit, then `release patch`                 |
+| Fix touches a package already on npm at this version         | Commit, then `release patch`                 |

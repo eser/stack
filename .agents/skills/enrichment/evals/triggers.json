@@ -64,7 +64,7 @@
     "should_trigger": false
   },
   {
-    "query": "can we discuss the pros and cons of Deno vs Node here",
+    "query": "can we discuss the pros and cons of pnpm vs npm here",
     "should_trigger": false
   },
   {

@@ -5,10 +5,9 @@
 > tools as the npm packages of those names; the JSR versions stay available but
 > get no updates.
 
-[![JSR @eser](https://jsr.io/badges/@eser)](https://jsr.io/@eser)
+[![npm eser](https://img.shields.io/npm/v/eser)](https://www.npmjs.com/package/eser)
 [![codecov](https://codecov.io/gh/eser/stack/branch/main/graph/badge.svg?token=7TIL2XPJB6)](https://codecov.io/gh/eser/stack)
 [![Build Pipeline](https://github.com/eser/stack/actions/workflows/build.yml/badge.svg)](https://github.com/eser/stack/actions/workflows/build.yml)
-[![Built with the Deno Standard Library](https://raw.githubusercontent.com/denoland/deno_std/main/badge.svg)](https://deno.land/std)
 
 <p align="center">
   <a href="./">
@@ -122,14 +121,14 @@ Growing toward — or already with — their own identity.
 | Goal                                | Entry point                                                                          |
 | ----------------------------------- | ------------------------------------------------------------------------------------ |
 | AI-assisted project development     | **noskills** → [install](#noskills)                                                  |
-| Add typed utilities to your project | **@eserstack/fp**, **@eserstack/di** → `pnpm add jsr:@eserstack/fp`                  |
+| Add typed utilities to your project | **@eserstack/fp**, **@eserstack/di** → `pnpm add @eserstack/fp`                      |
 | Build a web app                     | **laroux** → [laroux docs](./pkg/@eserstack/laroux/README.md)                        |
 | Understand the philosophy           | **PHILOSOPHY.md** → [read it](./PHILOSOPHY.md)                                       |
 | Understand how eserstack operates   | **@eserstack/directives** → [ecosystem rules](./pkg/@eserstack/directives/README.md) |
 
 ## noskills
 
-[![JSR](https://jsr.io/badges/@eserstack/noskills)](https://jsr.io/@eserstack/noskills)
+[![npm noskills](https://img.shields.io/npm/v/noskills)](https://www.npmjs.com/package/noskills)
 
 > AI development orchestrator — structured discovery, human-in-the-loop, quality
 > gates. Before a single line of code, noskills asks the right questions.
@@ -137,7 +136,7 @@ Growing toward — or already with — their own identity.
 **Standalone install:**
 `curl -fsSL https://raw.githubusercontent.com/eser/stack/main/etc/scripts/install.sh | sh -s noskills`
 (or brew/npm/nix — see [Install the CLI](#install-the-cli)) **In Claude Code:**
-Add to your project and use via `deno task cli noskills spec new "description"`
+Add to your project and use via `npx noskills spec new "description"`
 
 <!-- TODO: record demo GIF showing CC agent workflow -->
 
@@ -145,8 +144,8 @@ Add to your project and use via `deno task cli noskills spec new "description"`
 
 ## 🚀 Jumpstart
 
-Ensure that [Deno](https://deno.land/) 2.9.5 or higher is installed on your
-system first.
+The install script, Homebrew and Nix install Go binaries that need no other
+runtime. The npm packages need [Node.js](https://nodejs.org/) 26.9 or later.
 
 ### Install the CLI
 
@@ -155,15 +154,17 @@ system first.
 curl -fsSL https://raw.githubusercontent.com/eser/stack/main/etc/scripts/install.sh | sh
 # Downloads the eser binary to ~/.local/bin. Inspect the script before running:
 # https://raw.githubusercontent.com/eser/stack/main/etc/scripts/install.sh
+# A specific release instead of the latest one:
+curl -fsSL https://raw.githubusercontent.com/eser/stack/main/etc/scripts/install.sh | ESER_INSTALL_VERSION=4.5.2 sh
+
+# Windows (PowerShell); set $env:VERSION = "4.5.2" first for a specific release
+irm https://raw.githubusercontent.com/eser/stack/main/etc/scripts/install.ps1 | iex
 
 # Homebrew
 brew install eser/tap/eser
 
 # Nix
 nix run github:eser/stack
-
-# Deno (via JSR)
-deno run jsr:@eserstack/cli
 
 # npm / npx
 npm install -g eser
@@ -172,13 +173,13 @@ npm install -g eser
 
 ### The rest of the family
 
-Four binaries ship from this repo, all at one version from one pipeline:
+Four tools ship from this repo, all at one version from one pipeline:
 
 | Binary            | What it is                    | Install                           |
 | ----------------- | ----------------------------- | --------------------------------- |
 | `eser`            | the full CLI                  | `curl -fsSL .../install.sh \| sh` |
 | `noskills`        | the spec workflow, on its own | `... \| sh -s noskills`           |
-| `laroux`          | the laroux.js CLI, on its own | `... \| sh -s laroux`             |
+| `laroux`          | the laroux.js CLI, on its own | `npm i -g laroux` (from 5.0.0)    |
 | `noskills-server` | the session daemon (Go)       | `... \| sh -s noskills-server`    |
 
 The installer is
@@ -186,6 +187,13 @@ The installer is
 the product is its argument. On Windows use `install.ps1` with `-Product`.
 Homebrew has a formula per binary (`brew install eser/tap/noskills`), and
 `eser`, `noskills` and `laroux` are also on npm.
+
+The installer reads the release it installs from, the latest one or the one
+`ESER_INSTALL_VERSION` (`$env:VERSION` or `-Version` on Windows) names. When that release has no
+archive of the product for your platform, the installer prints the
+`npm i -g <product>` command for it and exits without installing. From 5.0.0
+laroux is on npm only, so `sh -s laroux` prints `npm i -g laroux`; an installed
+v4.5.x laroux binary updates to a stub that runs the npm package.
 
 `noskills` and `laroux` are not separate programs — they are the same modules
 `eser` mounts, re-rooted so they can be installed alone. Every one of them
@@ -225,7 +233,7 @@ UTILITIES
 ```bash
 $ eser kit new laroux-app --name my-site
 
-✓ Created my-site with 14 file(s)
+✓ Created my-site with 13 file(s)
 ```
 
 ### Add a recipe to an existing project
@@ -235,7 +243,7 @@ $ eser kit add fp-pipe
 
 ✓ Added 1 file(s) from fp-pipe
   → lib/fp/pipe.ts
-  ✓ pnpm add jsr:@eserstack/fp@^4.1.0
+  ✓ npm install @eserstack/fp
 ```
 
 ## Contributors
@@ -279,7 +287,10 @@ your fork, and then submit a pull request.
 
 ### Requirements
 
-- Deno 2.9.5 or higher (https://deno.land/)
+- Node.js 26.9 or higher (https://nodejs.org/); `.node-version` pins the
+  version CI uses
+- pnpm 11.18.0 (https://pnpm.io/)
+- Go 1.26 or higher (https://go.dev/) for the Go packages and binaries
 
 ### Versioning
 

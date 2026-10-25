@@ -16,7 +16,7 @@
     "should_trigger": true
   },
   {
-    "query": "bundan sonra commit mesajlarında scope zorunlu olsun, kural olarak ekle",
+    "query": "artık commit mesajlarında scope zorunlu olsun, kural olarak ekle",
     "should_trigger": true
   },
   {

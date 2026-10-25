@@ -17,10 +17,6 @@
     "node": true,
     "worker": true
   },
-  "globals": {
-    "Deno": "readonly",
-    "Bun": "readonly"
-  },
   "options": {
     "reportUnusedDisableDirectives": "error"
   },
@@ -31,7 +27,6 @@
     "apps/",
     "docs/",
     "etc/temp/",
-    "etc/codemods/",
     "third-party/",
     ".eser/recipes/",
     "node_modules/",
@@ -82,7 +77,7 @@
       "error",
       {
         "name": "window",
-        "message": "Use globalThis (deno no-window, no-window-prefix)."
+        "message": "Use globalThis."
       }
     ],
     "eslint/no-restricted-imports": [
@@ -91,7 +86,7 @@
         "patterns": [
           {
             "regex": "^(https?|jsr|npm):",
-            "message": "Import a package name, not a URL or runtime-specific specifier (deno no-external-import)."
+            "message": "Import a package name, not a URL or runtime-specific specifier."
           }
         ]
       }

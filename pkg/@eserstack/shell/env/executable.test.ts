@@ -4,6 +4,7 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import * as nodeTest from "node:test";
+import * as crossRuntime from "@eserstack/standards/cross-runtime";
 import * as assert from "@eserstack/test-kit/assert";
 
 import * as executable from "./executable.ts";
@@ -34,14 +35,14 @@ nodeTest.test("a non-executable file is not resolved", async () => {
   await fs.writeFile(`${dir}/inert`, "#!/bin/sh\nexit 0\n");
   await fs.chmod(`${dir}/inert`, 0o644);
 
-  const previous = process.env["PATH"] ?? "";
+  const previous = crossRuntime.runtime.env.get("PATH") ?? "";
 
-  process.env["PATH"] = `${dir}:${previous}`;
+  crossRuntime.runtime.env.set("PATH", `${dir}:${previous}`);
 
   try {
     assert.assertEquals(await executable.resolveExecutable("inert"), null);
   } finally {
-    process.env["PATH"] = previous;
+    crossRuntime.runtime.env.set("PATH", previous);
     await fs.rm(dir, { recursive: true, force: true });
   }
 });
@@ -62,9 +63,9 @@ nodeTest.test("a path-like name cannot escape a PATH directory", async () => {
   await fs.writeFile(`${base}/victim`, "#!/bin/sh\nexit 0\n");
   await fs.chmod(`${base}/victim`, 0o755);
 
-  const previous = process.env["PATH"] ?? "";
+  const previous = crossRuntime.runtime.env.get("PATH") ?? "";
 
-  process.env["PATH"] = bin;
+  crossRuntime.runtime.env.set("PATH", bin);
 
   try {
     assert.assertEquals(
@@ -82,7 +83,7 @@ nodeTest.test("a path-like name cannot escape a PATH directory", async () => {
       assert.assertEquals(resolved[i], null, `${name} resolved`);
     }
   } finally {
-    process.env["PATH"] = previous;
+    crossRuntime.runtime.env.set("PATH", previous);
     await fs.rm(base, { recursive: true, force: true });
   }
 });

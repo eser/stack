@@ -13,9 +13,7 @@
   "dependencies": {
     "@eemeli/yaml": "npm:@jsr/eemeli__yaml@^2.9.1",
     "@eserstack/ajan": "workspace:*",
-    "@eserstack/primitives": "workspace:*",
     "@eserstack/standards": "workspace:*",
-    "@std/dotenv": "npm:@jsr/std__dotenv@^0.225.8",
     "@std/jsonc": "npm:@jsr/std__jsonc@^1.0.2",
     "@std/toml": "npm:@jsr/std__toml@^1.0.11"
   },

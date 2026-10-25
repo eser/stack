@@ -7,7 +7,10 @@ This guide explains how the eserstack codebase is organized.
 ```
 stack/
 ├── cmd/
-│   └── noskills-server/        # The only Go executable (a daemon)
+│   ├── eser/                   # The eser CLI (Go)
+│   ├── noskills/               # The noskills CLI (Go)
+│   ├── noskills-server/        # The session daemon (Go)
+│   └── legacy-forwarder/       # The laroux stub that v4.5.x binaries update to
 ├── pkg/
 │   ├── ajan/                   # Go library (github.com/eser/stack/pkg/ajan)
 │   │   ├── acpfx/              # Agent Client Protocol: client, agent, in-process shim
@@ -17,18 +20,17 @@ stack/
 │   │   ├── logfx/              # Structured logging (also metrics + tracing)
 │   │   ├── configfx/           # Configuration loading
 │   │   └── ...                 # Other Go utilities
-│   └── @eserstack/             # TypeScript packages (published to JSR + npm)
+│   └── @eserstack/             # TypeScript and platform packages (npm; JSR frozen at 4.5.x)
 ├── etc/
-│   ├── scripts/                # install.sh, install.ps1, manifest + formula generators
+│   ├── scripts/                # install.sh, install.ps1, preflight and release-notes helpers
 │   ├── temp/                   # Build output (gitignored)
 │   └── coverage/               # Test coverage output (gitignored)
 ├── docs/
-│   ├── api/                    # Generated HTML reference (deno task cli docs)
 │   ├── adr/                    # Architecture decision records (hand-written)
 │   ├── agents/                 # Repository notes for agents, linked from AGENTS.md
 │   └── schema/                 # JSON schemas (hand-written)
 ├── .eser/
-│   ├── recipes/                # Project templates (9)
+│   ├── recipes/                # Project templates (7)
 │   ├── recipes.json            # Recipe registry
 │   └── manifest.yml            # Workflows, validators, scripts
 ├── .agents/
@@ -41,8 +43,12 @@ stack/
 │   ├── ARCHITECTURE.md         # This file
 │   ├── pr-labeler.yml          # PR auto-labeling rules
 │   └── issue-labels.yml        # Issue label definitions
-├── deno.json                   # Root Deno config (lint, format, excludes)
-├── package.json                # npm workspace root + deno task scripts
+├── package.json                # pnpm workspace root, toolchain pins, the `cli` script
+├── pnpm-workspace.yaml         # pnpm workspace settings (allowBuilds, release age)
+├── tsconfig.json               # tsc 7 type check (`--noEmit`)
+├── .oxfmtrc.json               # oxfmt settings and ignore patterns
+├── .oxlintrc.json              # oxlint rules and ignore patterns
+├── .node-version               # The exact Node version CI and local runs use
 ├── AGENTS.md                   # AI development guidelines
 └── CHANGELOG.md                # Release history
 ```
@@ -59,6 +65,7 @@ Layer 0: Foundation
 ├── @eserstack/standards             # Cross-platform abstractions (Runtime interface)
 ├── @eserstack/directives            # Ground rules/directives (documents only, no package.json)
 ├── @eserstack/ajan-<platform>       # Prebuilt Go library, one package per platform (six)
+├── @eserstack/noskills-<platform>   # The Go noskills binary, one package per platform (five)
 └── @eserstack/ajan                  # Go runtime bridge: native FFI with a WASM fallback
 
 Layer 1: Core Utilities
@@ -107,7 +114,10 @@ Layer 5: Applications
 └── @eserstack/cli                   # `eser`: the full CLI
 
 Go (module github.com/eser/stack, root go.mod)
-├── cmd/noskills-server              # `noskills-server`: the daemon, the only Go executable
+├── cmd/eser                         # `eser`: the release binary of the CLI
+├── cmd/noskills                     # `noskills`: the release binary of the spec workflow
+├── cmd/noskills-server              # `noskills-server`: the daemon
+├── cmd/legacy-forwarder             # The stub shipped under the `laroux` archive name
 └── pkg/ajan                         # Go library (acpfx, aifx, httpclient, logfx, configfx...)
 
 Go (module github.com/eser/ajan, pkg/@eserstack/ajan/go.mod)
@@ -184,8 +194,11 @@ Developer runs:  eser codebase release patch
 
 ┌─ PUSH TO BRANCH ────────────────────────────────────────────┐
 │  build.yml (Integrity Pipeline) — every ordinary push       │
-│  ├─ validate            deno task cli ok (Deno + Go)        │
-│  ├─ cross-runtime-test  deno / node / bun × linux / macos   │
+│  ├─ validate            pnpm cli ok (Node + Go)             │
+│  ├─ preflight           pnpm cli preflight, on main only    │
+│  ├─ mux-no-js-runtime   mux sessions with no Node on PATH   │
+│  ├─ cross-runtime-test  node × linux / macos                │
+│  ├─ node-ffi-cli        the CLI on node:ffi × linux / macos │
 │  └─ windows-smoke       compiles the Windows artifacts and  │
 │                         runs etc/scripts/install.ps1        │
 └─────────────────────────────────────────────────────────────┘
@@ -193,27 +206,31 @@ Developer runs:  eser codebase release patch
 ┌─ TAG PUSH v*.*.* ───────────────────────────────────────────┐
 │  build.yml (same file) — the release run                    │
 │  validate                                                   │
-│   └─ release-gate   tag == VERSION, and CHANGELOG.md has    │
-│       │              the matching section — both checked    │
-│       │              BEFORE anything is published           │
-│       ├─ smoke-test                                         │
-│       │   └─ npm-no-deno-test                               │
-│       │       └─ publish        JSR + npm                   │
-│       │           └─ release-notes  changelog section       │
-│       │                              → GitHub Release       │
-│       └─ build-ajan-darwin                                  │
-│           └─ compile-binaries  eser, noskills, laroux stub, │
-│               │  noskills-server (all Go)                   │
-│               │  → <binary>-v<version>-<triple>.tar.gz      │
-│               │    and SHA256SUMS.txt                       │
-│               ├─ publish-ajan  @eserstack/ajan platform     │
-│               │                packages (leaf)              │
-│               └─ upload-assets  cosign signatures +         │
-│                   │  SHA256SUMS. Also needs release-notes:  │
-│                   │  gh cannot attach assets to a Release   │
-│                   │  that does not exist yet.               │
-│                   ├─ update-homebrew   → eser/tap           │
-│                   └─ update-nix-hashes → flake.nix          │
+│   └─ preflight      the release-only steps, again on the    │
+│       │              tagged tree                            │
+│       └─ release-gate  tag == VERSION, and CHANGELOG.md has │
+│           │              the matching section, both checked │
+│           │              BEFORE anything is published       │
+│           ├─ smoke-test                                     │
+│           │   └─ npm-consumer-test                          │
+│           └─ build-ajan-darwin                              │
+│               └─ compile-binaries  eser, noskills, laroux   │
+│                   │  stub, noskills-server (all Go)         │
+│                   │  → <binary>-v<version>-<triple>.tar.gz  │
+│                   │    and SHA256SUMS.txt                   │
+│                   └─ publish-ajan  ajan-* and noskills-*    │
+│                       │            platform packages on npm │
+│                       └─ publish   eser, noskills, laroux   │
+│                           │        bundles on npm           │
+│                           └─ release-notes  changelog       │
+│                               │      section → GitHub       │
+│                               │      Release                │
+│                               └─ upload-assets  cosign      │
+│                                   │  signatures + SHA256SUMS│
+│                                   ├─ update-homebrew        │
+│                                   │    → eser/tap           │
+│                                   └─ update-nix-hashes      │
+│                                        → nix/hashes.json    │
 └─────────────────────────────────────────────────────────────┘
 
 ┌─ OTHER ────────────────────────────────┐
@@ -224,11 +241,10 @@ Developer runs:  eser codebase release patch
 
 `eser codebase rerelease` deletes the tag and recreates it at HEAD, re-firing
 the whole run; `eser codebase unrelease` deletes the tag and the GitHub Release,
-leaving the release commit in history. Neither is safe once a registry has
-accepted the version — JSR is immutable (yank only) and npm answers a republish
-with 403 — so after `publish` or `publish-ajan` has written anything, re-run the
-failed jobs for an infrastructure error or cut a new patch version for a code
-fix.
+leaving the release commit in history. Neither is safe once npm has accepted
+the version, because npm answers a republish with 403. After `publish` or
+`publish-ajan` has written anything, re-run the failed jobs for an
+infrastructure error or cut a new patch version for a code fix.
 
 ## Design Principles
 
@@ -242,9 +258,10 @@ Each package follows a double-layered structure:
 
 ### Portability
 
-The `@eserstack/standards/cross-runtime` module provides a cross-platform
-abstraction layer, enabling code to run on Deno, browsers, Supabase, Netlify,
-AWS Lambda, and Cloudflare Workers.
+The `@eserstack/standards/cross-runtime` module is the one place library code
+reaches the file system, the environment and processes. Its `node`, `browser`
+and `workerd` adapters let the same code run on Node, in browsers and on
+Cloudflare Workers; the repository itself runs on Node only (ADR 0005).
 
 ### Functional Programming First
 

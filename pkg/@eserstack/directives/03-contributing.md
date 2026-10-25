@@ -46,8 +46,8 @@ acceptance criterion and a size estimate.
 
 ## Code Standards
 
-- Formatting, linting and type checking pass: `deno fmt`, `deno lint` and
-  `deno check` for TypeScript, `golangci-lint` for Go.
+- Formatting, linting and type checking pass: oxfmt, oxlint and `tsc --noEmit`
+  for TypeScript, `gofmt` and `golangci-lint` for Go.
 - Public APIs do not use `any`; prefer discriminated unions.
 - A lint suppression (`//nolint:`, `// oxlint-disable-next-line`) carries a comment that
   says why.

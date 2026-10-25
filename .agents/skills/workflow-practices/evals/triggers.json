@@ -100,7 +100,7 @@
     "should_trigger": true
   },
   {
-    "query": "what's the difference between Deno.test and bdd describe",
+    "query": "what's the difference between test and describe in node:test",
     "should_trigger": false
   },
   {
@@ -136,7 +136,7 @@
     "should_trigger": false
   },
   {
-    "query": "which Deno lint rules are enabled",
+    "query": "which oxlint rules are enabled",
     "should_trigger": false
   },
   {

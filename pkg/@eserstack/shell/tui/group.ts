@@ -11,9 +11,9 @@
 
 import * as types from "./types.ts";
 
-type PromptFn<T> = (
-  opts: { results: Record<string, unknown> },
-) => Promise<T | types.Cancel>;
+type PromptFn<T> = (opts: {
+  results: Record<string, unknown>;
+}) => Promise<T | types.Cancel>;
 
 /**
  * Run a sequence of prompts, collecting results into an object.

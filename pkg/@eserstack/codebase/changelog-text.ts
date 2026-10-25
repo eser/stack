@@ -85,16 +85,16 @@ export const parseChangelogText = (text: string): ChangelogEntry[] => {
   return headings.map((heading, index) => {
     const nextHeading = headings[index + 1];
     const bodyStart = heading.headingLineIndex + 1;
-    const bodyEnd = nextHeading !== undefined
-      ? nextHeading.headingLineIndex
-      : lines.length;
+    const bodyEnd =
+      nextHeading !== undefined ? nextHeading.headingLineIndex : lines.length;
 
     const bodyLines = lines.slice(bodyStart, bodyEnd);
     while (bodyLines.length > 0 && bodyLines[0]!.trim() === "") {
       bodyLines.shift();
     }
     while (
-      bodyLines.length > 0 && bodyLines[bodyLines.length - 1]!.trim() === ""
+      bodyLines.length > 0 &&
+      bodyLines[bodyLines.length - 1]!.trim() === ""
     ) {
       bodyLines.pop();
     }

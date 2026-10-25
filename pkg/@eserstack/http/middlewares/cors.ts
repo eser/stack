@@ -42,18 +42,16 @@ export interface CorsOptions {
   maxAge?: number;
 }
 
-const DEFAULT_OPTIONS:
-  & Required<
-    Omit<CorsOptions, "origin" | "maxAge" | "exposedHeaders">
-  >
-  & {
-    origin: string;
-  } = {
-    origin: "*",
-    methods: ["GET", "HEAD", "PUT", "PATCH", "POST", "DELETE"],
-    allowedHeaders: [],
-    credentials: false,
-  };
+const DEFAULT_OPTIONS: Required<
+  Omit<CorsOptions, "origin" | "maxAge" | "exposedHeaders">
+> & {
+  origin: string;
+} = {
+  origin: "*",
+  methods: ["GET", "HEAD", "PUT", "PATCH", "POST", "DELETE"],
+  allowedHeaders: [],
+  credentials: false,
+};
 
 /**
  * Determines the allowed origin based on the request and configuration.

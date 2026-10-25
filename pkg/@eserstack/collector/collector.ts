@@ -41,9 +41,8 @@ export async function* walkFiles(
   globFilter: string | undefined,
   ignoreFilePattern: RegExp,
 ): AsyncGenerator<string> {
-  const glob = globFilter === undefined
-    ? undefined
-    : simpleGlobToRegExp(globFilter);
+  const glob =
+    globFilter === undefined ? undefined : simpleGlobToRegExp(globFilter);
 
   for (const relPath of await listFiles(baseDir, ignoreFilePattern)) {
     if (glob !== undefined && !glob.test(relPath)) {
@@ -94,8 +93,8 @@ const listFiles = async (
   baseDir: string,
   ignoreFilePattern: RegExp,
 ): Promise<string[]> =>
-  await listFilesInGo(baseDir, ignoreFilePattern) ??
-    await walkFs.walkCollectableFiles(baseDir, ignoreFilePattern);
+  (await listFilesInGo(baseDir, ignoreFilePattern)) ??
+  (await walkFs.walkCollectableFiles(baseDir, ignoreFilePattern));
 
 export type CollectExportsOptions = {
   baseDir: string;
@@ -109,18 +108,16 @@ export type ExportItem = [string, Array<[string, unknown]>];
 export const collectExports = async (
   options: CollectExportsOptions,
 ): Promise<Array<ExportItem>> => {
-  const ignoreFilePattern = options.ignoreFilePattern ??
-    patterns.JS_TEST_FILE_PATTERN;
+  const ignoreFilePattern =
+    options.ignoreFilePattern ?? patterns.JS_TEST_FILE_PATTERN;
 
   const exports: Array<ExportItem> = [];
 
-  for await (
-    const entry of walkFiles(
-      options.baseDir,
-      options.globFilter,
-      ignoreFilePattern,
-    )
-  ) {
+  for await (const entry of walkFiles(
+    options.baseDir,
+    options.globFilter,
+    ignoreFilePattern,
+  )) {
     const entryUri = `${options.baseDir}/${entry}`;
 
     try {

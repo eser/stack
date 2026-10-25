@@ -12,7 +12,7 @@ export const ConfigFileTypes = {
 } as const;
 
 export type ConfigFileType =
-  typeof ConfigFileTypes[keyof typeof ConfigFileTypes];
+  (typeof ConfigFileTypes)[keyof typeof ConfigFileTypes];
 
 /**
  * Priority order for config files (lower index = higher priority).

@@ -13,8 +13,10 @@ import type {
 import * as invoker from "./invoker.ts";
 
 /** Holds service registrations; `build()` creates the root scope. */
-export class Registry<K = ServiceKey, V = ServiceValue>
-  implements ServiceRegistry<K, V> {
+export class Registry<
+  K = ServiceKey,
+  V = ServiceValue,
+> implements ServiceRegistry<K, V> {
   /** Each registration by key: its service type and its value or builder. */
   descriptors: Map<K, ServiceDescriptor<V>> = new Map<
     K,
@@ -59,8 +61,10 @@ export class Registry<K = ServiceKey, V = ServiceValue>
  * Resolves services from a registry. The root scope keeps lazy services, and
  * each scope keeps its own scoped services.
  */
-export class Scope<K = ServiceKey, V = ServiceValue>
-  implements ServiceScope<K, V> {
+export class Scope<K = ServiceKey, V = ServiceValue> implements ServiceScope<
+  K,
+  V
+> {
   /** The registrations this scope resolves. */
   readonly registry: ServiceRegistry<K, V>;
   /** The scope that keeps lazy services; itself for the root scope. */
@@ -74,10 +78,7 @@ export class Scope<K = ServiceKey, V = ServiceValue>
    * @param registry - The registrations to resolve
    * @param parent - The root scope; absent when this is the root scope
    */
-  constructor(
-    registry: ServiceRegistry<K, V>,
-    parent?: ServiceScope<K, V>,
-  ) {
+  constructor(registry: ServiceRegistry<K, V>, parent?: ServiceScope<K, V>) {
     this.registry = registry;
     this.rootScope = parent ?? this;
     this.items = new Map<K, ServiceResolution<V>>();
@@ -99,9 +100,10 @@ export class Scope<K = ServiceKey, V = ServiceValue>
       descriptor[0] === primitives.ServiceTypes.Lazy ||
       descriptor[0] === primitives.ServiceTypes.Scoped
     ) {
-      const targetScope = (descriptor[0] === primitives.ServiceTypes.Scoped)
-        ? this
-        : this.rootScope;
+      const targetScope =
+        descriptor[0] === primitives.ServiceTypes.Scoped
+          ? this
+          : this.rootScope;
       const stored = targetScope.items.get(token);
 
       if (stored !== undefined) {

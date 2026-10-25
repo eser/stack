@@ -71,9 +71,10 @@ export const validStepsOf = (
   const tokenSpec = typeof token["spec"] === "string" ? token["spec"] : null;
   if (tokenSpec !== spec) return null;
 
-  const createdAt = typeof token["createdAt"] === "string"
-    ? new Date(token["createdAt"]).getTime()
-    : Number.NaN;
+  const createdAt =
+    typeof token["createdAt"] === "string"
+      ? new Date(token["createdAt"]).getTime()
+      : Number.NaN;
   const ageMs = nowMs - createdAt;
   if (!Number.isFinite(ageMs) || ageMs < 0 || ageMs > ASK_TOKEN_TTL_MS) {
     return null;
@@ -81,7 +82,7 @@ export const validStepsOf = (
 
   const listed = Array.isArray(token["steps"]) ? token["steps"] : [token];
 
-  return listed.map(stepOf).filter((step): step is AskTokenStep =>
-    step !== null
-  );
+  return listed
+    .map(stepOf)
+    .filter((step): step is AskTokenStep => step !== null);
 };

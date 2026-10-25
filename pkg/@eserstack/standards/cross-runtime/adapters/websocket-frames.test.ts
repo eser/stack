@@ -93,10 +93,7 @@ for (const { name, length, header } of lengthCases) {
 }
 
 Deno.test("encodeMessage sends a string as text and bytes as binary", () => {
-  assert.assertEquals(
-    [...frames.encodeMessage("hi")],
-    [0x81, 2, 0x68, 0x69],
-  );
+  assert.assertEquals([...frames.encodeMessage("hi")], [0x81, 2, 0x68, 0x69]);
   assert.assertEquals(
     [...frames.encodeMessage(new Uint8Array([1, 2]))],
     [0x82, 2, 1, 2],

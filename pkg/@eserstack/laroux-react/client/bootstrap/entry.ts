@@ -74,7 +74,7 @@ async function callServer(actionId: string, args: unknown[]): Promise<unknown> {
 
   let body: BodyInit;
   const headers: HeadersInit = {
-    "Accept": RSC_CONTENT_TYPE,
+    Accept: RSC_CONTENT_TYPE,
     "RSC-Action": actionId,
   };
 
@@ -86,9 +86,11 @@ async function callServer(actionId: string, args: unknown[]): Promise<unknown> {
     // For regular args, send as JSON
     headers["Content-Type"] = "application/json";
     body = JSON.stringify(args);
-    actionsLogger.with({
-      args,
-    }).debug(`📤 Sending JSON args to action ${actionId}`);
+    actionsLogger
+      .with({
+        args,
+      })
+      .debug(`📤 Sending JSON args to action ${actionId}`);
   }
 
   let response: Response;
@@ -119,9 +121,8 @@ async function callServer(actionId: string, args: unknown[]): Promise<unknown> {
   const contentType = response.headers.get("Content-Type") ?? "";
   if (!contentType.includes(RSC_CONTENT_TYPE)) {
     await response.body?.cancel();
-    const received = contentType === ""
-      ? "no Content-Type"
-      : `Content-Type "${contentType}"`;
+    const received =
+      contentType === "" ? "no Content-Type" : `Content-Type "${contentType}"`;
     throw new Error(
       `call server action ${actionId}: the response has ${received} instead of ${RSC_CONTENT_TYPE}; check that the server and the client run the same laroux version`,
     );
@@ -161,7 +162,9 @@ async function readActionErrorMessage(
   }
 
   if (
-    typeof body === "object" && body !== null && "error" in body &&
+    typeof body === "object" &&
+    body !== null &&
+    "error" in body &&
     typeof body.error === "string"
   ) {
     return body.error;
@@ -190,9 +193,11 @@ linkNavigation.installLinkNavigation(globalThis.document, globalThis.window);
  * Inlined to avoid bundler issues with @eserstack/standards
  */
 function isBrowser(): boolean {
-  return typeof globalThis !== "undefined" &&
+  return (
+    typeof globalThis !== "undefined" &&
     typeof globalThis.window !== "undefined" &&
-    typeof globalThis.document !== "undefined";
+    typeof globalThis.document !== "undefined"
+  );
 }
 
 /**
@@ -207,9 +212,10 @@ function buildRscUrl(timestamp: number): string {
     t: String(timestamp),
   });
 
-  const locale = location === null
-    ? null
-    : new URLSearchParams(location.search).get("locale");
+  const locale =
+    location === null
+      ? null
+      : new URLSearchParams(location.search).get("locale");
   if (locale !== null && locale !== "") {
     params.set("locale", locale);
   }
@@ -264,7 +270,9 @@ const isComponentType = (
   value: unknown,
 ): value is React.ComponentType<Record<string, unknown>> =>
   typeof value === "function" ||
-  (typeof value === "object" && value !== null && "$$typeof" in value &&
+  (typeof value === "object" &&
+    value !== null &&
+    "$$typeof" in value &&
     typeof value.$$typeof === "symbol" &&
     COMPONENT_OBJECT_TYPES.has(value.$$typeof));
 
@@ -274,9 +282,11 @@ const isComponentType = (
 let rscPromiseCache: Promise<React.ComponentType> | null = null;
 
 function getRSCPromise() {
-  rscClientLogger.with({
-    cached: !!rscPromiseCache,
-  }).debug("🔄 getRSCPromise called, cache exists");
+  rscClientLogger
+    .with({
+      cached: !!rscPromiseCache,
+    })
+    .debug("🔄 getRSCPromise called, cache exists");
 
   if (!rscPromiseCache) {
     rscClientLogger.debug("🔄 Creating RSC promise (first time)...");
@@ -482,18 +492,22 @@ async function hydrateIsland(
     // Use hydrateRoot since we have server-rendered content
     const root = ReactDOMClient.hydrateRoot(container, element, {
       onRecoverableError: (error) => {
-        bootstrapLogger.with({
-          error,
-        }).warn(`⚠️ Island hydration mismatch (${moduleId})`);
+        bootstrapLogger
+          .with({
+            error,
+          })
+          .warn(`⚠️ Island hydration mismatch (${moduleId})`);
       },
     });
 
     islandRoots.set(container, root);
     bootstrapLogger.debug(`✅ Island hydrated: ${moduleId}#${exportName}`);
   } catch (err) {
-    bootstrapLogger.with({
-      error: err,
-    }).error(`❌ Failed to hydrate island ${moduleId}`);
+    bootstrapLogger
+      .with({
+        error: err,
+      })
+      .error(`❌ Failed to hydrate island ${moduleId}`);
   }
 }
 
@@ -550,9 +564,9 @@ function cleanupIslandRoots(): void {
     try {
       root.unmount();
     } catch (err) {
-      bootstrapLogger.with({ error: err }).warn(
-        "⚠️ Error unmounting island root",
-      );
+      bootstrapLogger
+        .with({ error: err })
+        .warn("⚠️ Error unmounting island root");
     }
   }
 
@@ -576,16 +590,12 @@ function cleanupIslandRoots(): void {
 async function hydrateFromStreamingOptimal(
   rootElement: HTMLElement,
 ): Promise<void> {
-  bootstrapLogger.debug(
-    "🚀 Starting streaming-optimal hydration...",
-  );
+  bootstrapLogger.debug("🚀 Starting streaming-optimal hydration...");
 
   // Get inline RSC payload (for potential future optimization)
   const inlinePayload = client.getEmbeddedPayload();
   if (inlinePayload) {
-    bootstrapLogger.debug(
-      `📦 Found ${inlinePayload.length} inline RSC chunks`,
-    );
+    bootstrapLogger.debug(`📦 Found ${inlinePayload.length} inline RSC chunks`);
   }
 
   // Start /rsc fetch - required for component tree
@@ -620,9 +630,11 @@ async function hydrateFromStreamingOptimal(
     {
       onRecoverableError: (error) => {
         // Hydration mismatches are expected for async components
-        bootstrapLogger.with({
-          error,
-        }).debug("⚠️ Hydration mismatch (expected for async)");
+        bootstrapLogger
+          .with({
+            error,
+          })
+          .debug("⚠️ Hydration mismatch (expected for async)");
       },
     },
   );
@@ -631,9 +643,7 @@ async function hydrateFromStreamingOptimal(
   reactRoot = root;
   isSSRHydration = true;
 
-  bootstrapLogger.info(
-    "✅ Streaming-optimal hydration complete",
-  );
+  bootstrapLogger.info("✅ Streaming-optimal hydration complete");
 }
 
 /**
@@ -663,14 +673,14 @@ function bootstrapCSR(rootElement: HTMLElement) {
  */
 function bootstrap() {
   bootstrapLogger.debug("🚀 Starting bootstrap...");
-  bootstrapLogger.with({
-    readyState: globalThis.document.readyState,
-  }).debug("🚀 Document ready state");
+  bootstrapLogger
+    .with({
+      readyState: globalThis.document.readyState,
+    })
+    .debug("🚀 Document ready state");
 
   const rootElement = globalThis.document.getElementById("root");
-  bootstrapLogger.with({ found: !!rootElement }).debug(
-    "🚀 Root element found",
-  );
+  bootstrapLogger.with({ found: !!rootElement }).debug("🚀 Root element found");
 
   if (!rootElement) {
     bootstrapLogger.error("❌ Root element not found!");
@@ -692,9 +702,9 @@ function bootstrap() {
     // Use streaming-optimal: sync chunks inline + async via /rsc. A failure
     // is handled here, once, by falling back to client rendering.
     hydrateFromStreamingOptimal(rootElement).catch((error) => {
-      bootstrapLogger.with({ error }).error(
-        "❌ Streaming-optimal hydration failed, falling back to CSR",
-      );
+      bootstrapLogger
+        .with({ error })
+        .error("❌ Streaming-optimal hydration failed, falling back to CSR");
 
       try {
         bootstrapCSR(rootElement);
@@ -710,9 +720,11 @@ function bootstrap() {
     // Use islands architecture: only hydrate client components
     // Server-rendered static content doesn't need React
     hydrateIslands().catch((err) => {
-      bootstrapLogger.with({
-        error: err,
-      }).error("❌ Islands hydration failed, falling back to CSR");
+      bootstrapLogger
+        .with({
+          error: err,
+        })
+        .error("❌ Islands hydration failed, falling back to CSR");
 
       // Fall back to CSR if hydration fails
       // Keep SSR content visible - don't clear the DOM
@@ -775,9 +787,8 @@ function bootstrap() {
       `;
       const messageElement = rootElement.querySelector("pre");
       if (messageElement !== null) {
-        messageElement.textContent = err instanceof Error
-          ? err.message
-          : String(err);
+        messageElement.textContent =
+          err instanceof Error ? err.message : String(err);
       }
     }
   }
@@ -833,9 +844,11 @@ function setupNavigationListeners() {
 }
 
 // Start the app when DOM is ready
-clientLogger.with({
-  readyState: globalThis.document.readyState,
-}).debug("🎬 Checking document ready state");
+clientLogger
+  .with({
+    readyState: globalThis.document.readyState,
+  })
+  .debug("🎬 Checking document ready state");
 
 if (globalThis.document.readyState === "loading") {
   clientLogger.debug(

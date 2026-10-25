@@ -153,7 +153,7 @@ bdd.describe("splitting a spec through the CLI", () => {
       );
       const children = await Promise.all(
         ["log-levels", "bot-pronouns"].map((name) =>
-          persistence.readSpecState(root, name)
+          persistence.readSpecState(root, name),
         ),
       );
       assert.assertEquals(

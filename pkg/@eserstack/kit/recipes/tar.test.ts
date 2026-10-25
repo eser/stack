@@ -13,10 +13,10 @@ import * as tarModule from "./tar.ts";
 type ArchiveEntry =
   | { readonly type: "file"; readonly path: string; readonly content: string }
   | {
-    readonly type: "symlink";
-    readonly path: string;
-    readonly linkname: string;
-  };
+      readonly type: "symlink";
+      readonly path: string;
+      readonly linkname: string;
+    };
 
 const encoder = new TextEncoder();
 
@@ -279,10 +279,10 @@ bdd.describe("extractTarball", () => {
 
       assert.assertEquals(await listFiles(dir), ["real.txt"]);
       await assert.assertRejects(() =>
-        runtime.fs.lstat(runtime.path.join(dir, "link.txt"))
+        runtime.fs.lstat(runtime.path.join(dir, "link.txt")),
       );
       await assert.assertRejects(() =>
-        runtime.fs.lstat(runtime.path.join(dir, "escape"))
+        runtime.fs.lstat(runtime.path.join(dir, "escape")),
       );
     });
   });
@@ -306,9 +306,11 @@ bdd.describe("extractTarball", () => {
     bdd.it("fails on an archive that expands past the limit", async () => {
       await withTempDir(async (dir) => {
         // 1 MiB of zeros gzips to about 1 KiB: a small decompression bomb.
-        const source = openDownload(gzippedTarball([
-          { type: "file", path: "bomb.bin", content: "\0".repeat(1 << 20) },
-        ]));
+        const source = openDownload(
+          gzippedTarball([
+            { type: "file", path: "bomb.bin", content: "\0".repeat(1 << 20) },
+          ]),
+        );
 
         const error = await assert.assertRejects(
           () =>

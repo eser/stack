@@ -139,7 +139,10 @@ Deno.test("buildSecretFromContext() should handle special characters in values",
 });
 
 Deno.test("buildSecretFromContext() should encode values as UTF-8 base64", () => {
-  const data = new Map([["LATIN", "ü"], ["TURKISH", "ğış"]]);
+  const data = new Map([
+    ["LATIN", "ü"],
+    ["TURKISH", "ğış"],
+  ]);
 
   const secret = sync.buildSecretFromContext("utf8-secret", undefined, data);
 
@@ -231,18 +234,16 @@ const patchCases = [
     resource: { type: "configmap", name: "app-config", namespace: "test-ns" },
     format: undefined,
     stringOnly: undefined,
-    expected:
-      `kubectl patch cm app-config -n test-ns --type=merge -p '{"data":{"${HOST_KEY}":"localhost","${PORT_KEY}":"5432"}}'`,
+    expected: `kubectl patch cm app-config -n test-ns --type=merge -p '{"data":{"${HOST_KEY}":"localhost","${PORT_KEY}":"5432"}}'`,
   },
   {
     name: "sync() Base64-encodes the values of a secret patch",
     resource: { type: "secret", name: "app-secret", namespace: "test-ns" },
     format: undefined,
     stringOnly: undefined,
-    expected:
-      `kubectl patch secret app-secret -n test-ns --type=merge -p '{"data":{"${HOST_KEY}":"${
-        btoa("localhost")
-      }","${PORT_KEY}":"${btoa("5432")}"}}'`,
+    expected: `kubectl patch secret app-secret -n test-ns --type=merge -p '{"data":{"${HOST_KEY}":"${btoa(
+      "localhost",
+    )}","${PORT_KEY}":"${btoa("5432")}"}}'`,
   },
   {
     name: "sync() leaves out -n when the resource has no namespace",
@@ -416,30 +417,33 @@ Deno.test("executeKubectl() rejects an invalid name before it runs kubectl", asy
 });
 
 // Test integration with @eserstack/formats for YAML/JSON output
-Deno.test({
-  name: "ConfigMap YAML output should be properly formatted",
-  sanitizeResources: false,
-}, async () => {
-  const configMap = sync.buildConfigMapFromContext(
-    "format-test",
-    "test-ns",
-    new Map([
-      ["APP_NAME", "my-app"],
-      ["APP_VERSION", "1.0.0"],
-    ]),
-  );
+Deno.test(
+  {
+    name: "ConfigMap YAML output should be properly formatted",
+    sanitizeResources: false,
+  },
+  async () => {
+    const configMap = sync.buildConfigMapFromContext(
+      "format-test",
+      "test-ns",
+      new Map([
+        ["APP_NAME", "my-app"],
+        ["APP_VERSION", "1.0.0"],
+      ]),
+    );
 
-  const yamlOutput = await formats.serialize([configMap], "yaml", {
-    pretty: true,
-  });
+    const yamlOutput = await formats.serialize([configMap], "yaml", {
+      pretty: true,
+    });
 
-  assert.assertStringIncludes(yamlOutput, "apiVersion: v1");
-  assert.assertStringIncludes(yamlOutput, "kind: ConfigMap");
-  assert.assertStringIncludes(yamlOutput, "name: format-test");
-  assert.assertStringIncludes(yamlOutput, "namespace: test-ns");
-  assert.assertStringIncludes(yamlOutput, "APP_NAME: my-app");
-  assert.assertStringIncludes(yamlOutput, "APP_VERSION: 1.0.0");
-});
+    assert.assertStringIncludes(yamlOutput, "apiVersion: v1");
+    assert.assertStringIncludes(yamlOutput, "kind: ConfigMap");
+    assert.assertStringIncludes(yamlOutput, "name: format-test");
+    assert.assertStringIncludes(yamlOutput, "namespace: test-ns");
+    assert.assertStringIncludes(yamlOutput, "APP_NAME: my-app");
+    assert.assertStringIncludes(yamlOutput, "APP_VERSION: 1.0.0");
+  },
+);
 
 Deno.test("Secret YAML output should be properly formatted", async () => {
   const secret = sync.buildSecretFromContext(
@@ -469,9 +473,7 @@ Deno.test("JSON output should be valid JSON", async () => {
   const configMap = sync.buildConfigMapFromContext(
     "json-format-test",
     "test-ns",
-    new Map([
-      ["CONFIG_KEY", "config-value"],
-    ]),
+    new Map([["CONFIG_KEY", "config-value"]]),
   );
 
   const jsonOutput = await formats.serialize([configMap], "json", {

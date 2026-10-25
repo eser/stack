@@ -237,7 +237,9 @@ export async function RecipesPage(props: RecipesPageProps) {
   return (
     <ul>
       {output.recipes.map((recipe) => (
-        <li key={recipe.name}>{recipe.name}: {recipe.description}</li>
+        <li key={recipe.name}>
+          {recipe.name}: {recipe.description}
+        </li>
       ))}
     </ul>
   );

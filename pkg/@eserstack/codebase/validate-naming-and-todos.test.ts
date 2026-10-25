@@ -36,26 +36,31 @@ const withFixture = async (
 // sanitizeResources: false — the FFI DynamicLibrary singleton persists for the
 // process lifetime.
 Deno.test({
-  name:
-    "validate-naming-and-todos fails a fixture with an untagged TODO comment",
+  name: "validate-naming-and-todos fails a fixture with an untagged TODO comment",
   ignore: withoutFfi,
   sanitizeResources: false,
   fn: async () => {
-    await withFixture({
-      "untagged.ts": "// TODO: handle the empty case\nexport const x = 1;\n",
-      "tagged.ts":
-        "// TODO(TASK-12): handle the empty case\nexport const y = 1;\n",
-      "literal.ts": 'export const prompt = "TODO list";\n',
-    }, async (dir) => {
-      const result = await validateNamingAndTodos.validator.validate({
-        root: dir,
-      });
+    await withFixture(
+      {
+        "untagged.ts": "// TODO: handle the empty case\nexport const x = 1;\n",
+        "tagged.ts":
+          "// TODO(TASK-12): handle the empty case\nexport const y = 1;\n",
+        "literal.ts": 'export const prompt = "TODO list";\n',
+      },
+      async (dir) => {
+        const result = await validateNamingAndTodos.validator.validate({
+          root: dir,
+        });
 
-      assert.assertEquals(result.passed, false);
-      assert.assertEquals(result.issues.length, 1);
-      assert.assertStringIncludes(result.issues[0]!.message, "TODO");
-      assert.assertStringIncludes(result.issues[0]!.file ?? "", "untagged.ts");
-    });
+        assert.assertEquals(result.passed, false);
+        assert.assertEquals(result.issues.length, 1);
+        assert.assertStringIncludes(result.issues[0]!.message, "TODO");
+        assert.assertStringIncludes(
+          result.issues[0]!.file ?? "",
+          "untagged.ts",
+        );
+      },
+    );
   },
 });
 
@@ -64,15 +69,18 @@ Deno.test({
   ignore: withoutFfi,
   sanitizeResources: false,
   fn: async () => {
-    await withFixture({
-      "names.ts": "export const user_id = 1;\nexport const userName = 2;\n",
-    }, async (dir) => {
-      const result = await validateNamingAndTodos.run({ root: dir });
+    await withFixture(
+      {
+        "names.ts": "export const user_id = 1;\nexport const userName = 2;\n",
+      },
+      async (dir) => {
+        const result = await validateNamingAndTodos.run({ root: dir });
 
-      assert.assertEquals(result.issues.length, 1);
-      assert.assertEquals(result.issues[0]!.line, 1);
-      assert.assertStringIncludes(result.issues[0]!.message, "user_id");
-    });
+        assert.assertEquals(result.issues.length, 1);
+        assert.assertEquals(result.issues[0]!.line, 1);
+        assert.assertStringIncludes(result.issues[0]!.message, "user_id");
+      },
+    );
   },
 });
 
@@ -81,15 +89,18 @@ Deno.test({
   ignore: withoutFfi,
   sanitizeResources: false,
   fn: async () => {
-    await withFixture({
-      "names.ts": 'export const grant_type = "code";\n',
-    }, async (dir) => {
-      const result = await validateNamingAndTodos.validator.validate({
-        root: dir,
-        options: { allowNames: ["grant_type"] },
-      });
+    await withFixture(
+      {
+        "names.ts": 'export const grant_type = "code";\n',
+      },
+      async (dir) => {
+        const result = await validateNamingAndTodos.validator.validate({
+          root: dir,
+          options: { allowNames: ["grant_type"] },
+        });
 
-      assert.assertEquals(result.passed, true);
-    });
+        assert.assertEquals(result.passed, true);
+      },
+    );
   },
 });

@@ -14,9 +14,10 @@ export const splitArray = <T>(
   instance: Iterable<T>,
   n: number,
 ): SplitArrayResult<T> => {
-  const arrInstance = (instance.constructor === Array)
-    ? instance as ReadonlyArray<T>
-    : [...instance];
+  const arrInstance =
+    instance.constructor === Array
+      ? (instance as ReadonlyArray<T>)
+      : [...instance];
 
   // take n items
   return {

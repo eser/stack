@@ -111,12 +111,14 @@ export const runBuiltinValidators = async (
     const raw = lib.symbols.EserAjanCodebaseValidateFiles(
       JSON.stringify({
         dir: options.dir,
-        validators: options.validators !== undefined
-          ? [...options.validators]
-          : undefined,
-        extensions: options.extensions !== undefined
-          ? [...options.extensions]
-          : undefined,
+        validators:
+          options.validators !== undefined
+            ? [...options.validators]
+            : undefined,
+        extensions:
+          options.extensions !== undefined
+            ? [...options.extensions]
+            : undefined,
         gitAware: options.gitAware ?? true,
       }),
     );
@@ -127,7 +129,9 @@ export const runBuiltinValidators = async (
     if (!parsed.error && parsed.results !== undefined) {
       return parsed.results;
     }
-  } catch { /* library loaded but call failed — return empty */ }
+  } catch {
+    /* library loaded but call failed — return empty */
+  }
   return [];
 };
 
@@ -175,7 +179,7 @@ export const validate = async (
     // When projectStack is empty (no .eser/manifest.yml), run all validators
     if (validator.requiredStacks.length > 0 && projectStack.length > 0) {
       const hasStack = validator.requiredStacks.some((s) =>
-        projectStack.includes(s)
+        projectStack.includes(s),
       );
       if (!hasStack) {
         skipped.push({
@@ -261,18 +265,16 @@ export const main = async (
   // Parse comma-separated validator lists
   const onlyRaw = args["only"] as string | undefined;
   const skipRaw = args["skip"] as string | undefined;
-  const onlyList = onlyRaw !== undefined
-    ? onlyRaw.split(",").map((s) => s.trim())
-    : [];
-  const skipList = skipRaw !== undefined
-    ? skipRaw.split(",").map((s) => s.trim())
-    : [];
+  const onlyList =
+    onlyRaw !== undefined ? onlyRaw.split(",").map((s) => s.trim()) : [];
+  const skipList =
+    skipRaw !== undefined ? skipRaw.split(",").map((s) => s.trim()) : [];
 
   // --- JSON mode: force non-interactive, suppress all TUI output ---
   const { ctx } = jsonMode
     ? {
-      ctx: tui.createTuiContext({ interaction: "non-interactive" }),
-    }
+        ctx: tui.createTuiContext({ interaction: "non-interactive" }),
+      }
     : cliSupport.createCliContext();
 
   const isInteractive = ctx.interaction === "interactive";
@@ -292,9 +294,10 @@ export const main = async (
 
   const projectConfig = await config.loadProjectConfig(resolvedRoot);
   const projectStack = projectConfig?.stack ?? [];
-  const stackInfo = projectStack.length > 0
-    ? projectStack.join(", ")
-    : "all (no .eser/manifest.yml)";
+  const stackInfo =
+    projectStack.length > 0
+      ? projectStack.join(", ")
+      : "all (no .eser/manifest.yml)";
 
   spinner?.succeed("Config loaded");
 
@@ -304,7 +307,7 @@ export const main = async (
 
   // --- Filter validators (mirrors validate() logic) ---
   const allValidators = registry.getValidators();
-  const validatorsToRun: typeof allValidators[number][] = [];
+  const validatorsToRun: (typeof allValidators)[number][] = [];
   const skippedValidators: SkippedValidator[] = [];
   const disabledNames: string[] = [];
 
@@ -323,7 +326,7 @@ export const main = async (
     // Check stack compatibility
     if (validator.requiredStacks.length > 0 && projectStack.length > 0) {
       const hasStack = validator.requiredStacks.some((s) =>
-        projectStack.includes(s)
+        projectStack.includes(s),
       );
       if (!hasStack) {
         skippedValidators.push({
@@ -339,10 +342,12 @@ export const main = async (
 
   // --- Run validators with progress bar ---
   const validatorResults: ValidatorResult[] = [];
-  const progress = jsonMode ? undefined : tui.createProgress(ctx, {
-    total: validatorsToRun.length,
-    label: "Validating...",
-  });
+  const progress = jsonMode
+    ? undefined
+    : tui.createProgress(ctx, {
+        total: validatorsToRun.length,
+        label: "Validating...",
+      });
   progress?.start();
 
   // Stream a single validator result to the TUI and advance the progress bar.
@@ -440,10 +445,12 @@ export const main = async (
           const failedResult: ValidatorResult = {
             name: validator.name,
             passed: false,
-            issues: [{
-              severity: "error",
-              message: String(error),
-            }],
+            issues: [
+              {
+                severity: "error",
+                message: String(error),
+              },
+            ],
             stats: { filesChecked: 0, issuesFound: 1, fixedCount: 0 },
           };
           streamResult(failedResult);
@@ -451,10 +458,7 @@ export const main = async (
       }
     };
 
-    const workerCount = Math.min(
-      CONCURRENCY_LIMIT,
-      validatorsToRun.length,
-    );
+    const workerCount = Math.min(CONCURRENCY_LIMIT, validatorsToRun.length);
     const workers = Array.from({ length: workerCount }, () => executeWorker());
     await Promise.allSettled(workers);
   }
@@ -479,7 +483,7 @@ export const main = async (
 
   // --- Print issues grouped by location ---
   const allIssues = validatorResults.flatMap((r) =>
-    r.issues.map((i) => ({ validator: r.name, ...i }))
+    r.issues.map((i) => ({ validator: r.name, ...i })),
   );
 
   if (!jsonMode && allIssues.length > 0) {
@@ -598,8 +602,7 @@ export const main = async (
       `${failedCount} check(s) failed with ${allIssues.length} issue(s)`,
     );
     return results.fail({
-      message:
-        `${failedCount} check(s) failed with ${allIssues.length} issue(s)`,
+      message: `${failedCount} check(s) failed with ${allIssues.length} issue(s)`,
       exitCode: 1,
     });
   }

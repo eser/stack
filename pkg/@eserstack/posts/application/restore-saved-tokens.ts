@@ -51,9 +51,10 @@ export async function restoreSavedTokens(
         const saved = await tokenStore.load(platform);
         return { platform, auth, saved, error: null };
       } catch (err) {
-        const error = err instanceof Error
-          ? err
-          : new Error(`load saved ${platform} tokens: ${String(err)}`);
+        const error =
+          err instanceof Error
+            ? err
+            : new Error(`load saved ${platform} tokens: ${String(err)}`);
         return { platform, auth, saved: null, error };
       }
     }),

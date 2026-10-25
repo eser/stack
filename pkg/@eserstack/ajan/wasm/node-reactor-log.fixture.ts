@@ -32,7 +32,7 @@ const main = async (): Promise<void> => {
         level: "INFO",
         message: `write ${n}`,
       }),
-    )
+    ),
   );
   const filtered = symbols["EserAjanLogWrite"]!(
     JSON.stringify({ handle: created.handle, level: "DEBUG", message: "drop" }),

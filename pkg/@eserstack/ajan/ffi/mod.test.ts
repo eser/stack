@@ -29,19 +29,15 @@ const rejection = async (fn: () => Promise<unknown>): Promise<Error> => {
 };
 
 /** Sentences that only the fallback paths compose. */
-const FALLBACK_MARKERS = [
-  "WASM fallback failed",
-  "no fallback is available",
-];
+const FALLBACK_MARKERS = ["WASM fallback failed", "no fallback is available"];
 
 Deno.test("explicit library path rethrows instead of falling back to WASM", async () => {
-  const bogusPath =
-    `${import.meta.dirname}/no-such-libeser_ajan${ffiMod.getLibraryExtension()}`;
+  const bogusPath = `${import.meta.dirname}/no-such-libeser_ajan${ffiMod.getLibraryExtension()}`;
 
   const error = await rejection(() =>
     ffiMod.loadEserAjan(bogusPath).then((lib) => {
       lib.close();
-    })
+    }),
   );
 
   for (const marker of FALLBACK_MARKERS) {
@@ -53,13 +49,12 @@ Deno.test("explicit library path rethrows instead of falling back to WASM", asyn
 });
 
 Deno.test("explicit path carries LoadOptions through the two-argument overload", async () => {
-  const bogusPath =
-    `${import.meta.dirname}/no-such-libeser_ajan${ffiMod.getLibraryExtension()}`;
+  const bogusPath = `${import.meta.dirname}/no-such-libeser_ajan${ffiMod.getLibraryExtension()}`;
 
   const error = await rejection(() =>
     ffiMod.loadEserAjan(bogusPath, { backends: [] }).then((lib) => {
       lib.close();
-    })
+    }),
   );
 
   // An empty allow-list matches nothing, so selection fails before the path is

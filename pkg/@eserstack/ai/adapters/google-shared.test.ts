@@ -25,9 +25,11 @@ const blockedPrompt = { promptFeedback: { blockReason: "SAFETY" } };
 const toolCallCandidate = {
   content: {
     role: "model",
-    parts: [{
-      functionCall: { name: "get_weather", args: { city: "Ankara" } },
-    }],
+    parts: [
+      {
+        functionCall: { name: "get_weather", args: { city: "Ankara" } },
+      },
+    ],
   },
   finishReason: "STOP",
 };
@@ -89,13 +91,11 @@ const resultCases: ReadonlyArray<{
   },
 ];
 
-for (
-  const finishReason of [
-    "IMAGE_SAFETY",
-    "IMAGE_PROHIBITED_CONTENT",
-    "IMAGE_RECITATION",
-  ]
-) {
+for (const finishReason of [
+  "IMAGE_SAFETY",
+  "IMAGE_PROHIBITED_CONTENT",
+  "IMAGE_RECITATION",
+]) {
   Deno.test(`mapGenAIFinishReason: ${finishReason} is a refusal`, () => {
     assert.assertEquals(
       googleShared.mapGenAIFinishReason(finishReason, false),
@@ -112,9 +112,7 @@ for (const tc of resultCases) {
   });
 }
 
-async function* chunksOf(
-  chunks: readonly unknown[],
-): AsyncIterable<unknown> {
+async function* chunksOf(chunks: readonly unknown[]): AsyncIterable<unknown> {
   for (const chunk of chunks) {
     yield chunk;
   }
@@ -166,13 +164,15 @@ for (const tc of streamCases) {
 
 Deno.test("mapGenAIStream keeps the text and usage of a filtered answer", async () => {
   const collected = await generation.collectStream(
-    googleShared.mapGenAIStream(chunksOf([
-      { candidates: [textCandidate("Partial")] },
-      {
-        candidates: [textCandidate(null, "SAFETY")],
-        usageMetadata: { promptTokenCount: 4, candidatesTokenCount: 1 },
-      },
-    ])),
+    googleShared.mapGenAIStream(
+      chunksOf([
+        { candidates: [textCandidate("Partial")] },
+        {
+          candidates: [textCandidate(null, "SAFETY")],
+          usageMetadata: { promptTokenCount: 4, candidatesTokenCount: 1 },
+        },
+      ]),
+    ),
   );
 
   assert.assertEquals(generation.text(collected), "Partial");
@@ -214,10 +214,12 @@ for (const provider of providers) {
   Deno.test(`${provider.name} reports a filtered answer as a refusal`, async () => {
     const filtered = { candidates: [textCandidate("Partial", "SAFETY")] };
     const model = provider.create(fakeGenAIClient(filtered, [filtered]));
-    const messages = [{
-      role: "user" as const,
-      content: [{ kind: "text" as const, text: "hi" }],
-    }];
+    const messages = [
+      {
+        role: "user" as const,
+        content: [{ kind: "text" as const, text: "hi" }],
+      },
+    ];
 
     const result = await model.generateText({ messages });
     assert.assert(results.isOk(result), "generateText failed");
@@ -328,10 +330,12 @@ const effortCases: ReadonlyArray<{
   },
 ];
 
-const hi = [{
-  role: "user" as const,
-  content: [{ kind: "text" as const, text: "hi" }],
-}];
+const hi = [
+  {
+    role: "user" as const,
+    content: [{ kind: "text" as const, text: "hi" }],
+  },
+];
 
 for (const provider of providers) {
   for (const tc of effortCases) {
@@ -378,15 +382,19 @@ for (const provider of providers) {
   // httpOptions.
   for (const stream of [false, true]) {
     Deno.test(`${provider.name} sends the system prompt, tools, safety settings and signal in config (stream ${stream})`, async () => {
-      const tools = [{
-        name: "get_weather",
-        description: "current weather",
-        parameters: { type: "object" },
-      }];
-      const safetySettings = [{
-        category: "HARM_CATEGORY_HARASSMENT",
-        threshold: "BLOCK_NONE",
-      }];
+      const tools = [
+        {
+          name: "get_weather",
+          description: "current weather",
+          parameters: { type: "object" },
+        },
+      ];
+      const safetySettings = [
+        {
+          category: "HARM_CATEGORY_HARASSMENT",
+          threshold: "BLOCK_NONE",
+        },
+      ];
       const sent: Record<string, unknown>[] = [];
       const target = provider.create(capturingGenAIClient(sent, doneReply));
       const controller = new AbortController();

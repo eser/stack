@@ -21,10 +21,12 @@ export const errorCoverageValidator: Validator = {
       return {
         name: "validate-error-coverage",
         passed: false,
-        issues: [{
-          severity: "error" as const,
-          message: "validate-error-coverage requires a `file` parameter",
-        }],
+        issues: [
+          {
+            severity: "error" as const,
+            message: "validate-error-coverage requires a `file` parameter",
+          },
+        ],
         stats: { checked: 0, violations: 0 },
       };
     }

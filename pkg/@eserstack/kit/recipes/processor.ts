@@ -159,7 +159,7 @@ export const substituteInPath = (
   const sep = "/";
   const segments = relativePath.split(sep);
   const substituted = segments.map((segment) =>
-    substituteVariables(segment, variables)
+    substituteVariables(segment, variables),
   );
   return substituted.join(sep);
 };

@@ -23,10 +23,10 @@ export type Effect =
   | { readonly type: "killPty"; readonly pane: PaneId }
   /** Scroll a pane's scrollback viewport. */
   | {
-    readonly type: "scrollPane";
-    readonly pane: PaneId;
-    readonly action: ScrollAction;
-  }
+      readonly type: "scrollPane";
+      readonly pane: PaneId;
+      readonly action: ScrollAction;
+    }
   /** Ask the scheduler to composite and broadcast a frame. */
   | { readonly type: "render" }
   /** Detach the current client(s) but keep the session alive. */

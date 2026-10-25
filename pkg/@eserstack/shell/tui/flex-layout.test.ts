@@ -270,10 +270,7 @@ bdd.describe("computeLayout", () => {
           { id: "visible" },
           {
             direction: "column",
-            children: [
-              { id: "nested-visible" },
-              {},
-            ],
+            children: [{ id: "nested-visible" }, {}],
           },
         ],
       },
@@ -312,11 +309,7 @@ bdd.describe("findPanel", () => {
   });
 
   bdd.it("should return undefined for missing id", () => {
-    const panels = flexLayout.computeLayout(
-      { id: "only" },
-      120,
-      40,
-    );
+    const panels = flexLayout.computeLayout({ id: "only" }, 120, 40);
 
     const found = flexLayout.findPanel(panels, "nonexistent");
 

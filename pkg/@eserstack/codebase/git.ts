@@ -100,7 +100,9 @@ export const getLatestTag = async (): Promise<string> => {
       if (!parsed.error && parsed.tag !== undefined) {
         return parsed.tag.trim();
       }
-    } catch { /* fall through to TS */ }
+    } catch {
+      /* fall through to TS */
+    }
   }
   return await shellExec.exec`git describe --tags --abbrev=0`.text();
 };
@@ -127,7 +129,9 @@ export const getCurrentBranch = async (): Promise<string> => {
       if (!parsed.error && parsed.branch !== undefined) {
         return parsed.branch.trim();
       }
-    } catch { /* fall through to TS */ }
+    } catch {
+      /* fall through to TS */
+    }
   }
   return await shellExec.exec`git branch --show-current`.text();
 };
@@ -209,12 +213,14 @@ export const getCommitsBetween = async (
       if (!parsed.error && parsed.commits !== undefined) {
         return normalizeWireCommits(parsed.commits);
       }
-    } catch { /* fall through to TS */ }
+    } catch {
+      /* fall through to TS */
+    }
   }
   const format = `--pretty=format:${COMMIT_SEPARATOR}%H%B`;
   const range = `${start}..${end}`;
-  const text = await shellExec.exec`git --no-pager log ${format} ${range}`
-    .text();
+  const text =
+    await shellExec.exec`git --no-pager log ${format} ${range}`.text();
 
   return parseCommitLog(text);
 };
@@ -233,9 +239,7 @@ export const getCommitsBetween = async (
  * }
  * ```
  */
-export const getCommitsSinceDate = async (
-  date: string,
-): Promise<Commit[]> => {
+export const getCommitsSinceDate = async (date: string): Promise<Commit[]> => {
   await ffiClient.ensureLib();
   const lib = ffiClient.getLib();
   if (lib !== null) {
@@ -250,15 +254,17 @@ export const getCommitsSinceDate = async (
       if (!parsed.error && parsed.commits !== undefined) {
         return normalizeWireCommits(parsed.commits);
       }
-    } catch { /* fall through to TS */ }
+    } catch {
+      /* fall through to TS */
+    }
   }
   // Convert YYYY.MM.DD to YYYY-MM-DD if needed
   const gitDate = date.replace(/\./g, "-");
   const after = `--after=${gitDate}`;
   const format = `--pretty=format:${COMMIT_SEPARATOR}%H%B`;
 
-  const text = await shellExec.exec`git --no-pager log ${after} ${format}`
-    .text();
+  const text =
+    await shellExec.exec`git --no-pager log ${after} ${format}`.text();
 
   return parseCommitLog(text);
 };
@@ -295,8 +301,7 @@ export const commit = async (
 ): Promise<void> => {
   const userName = `-c user.name=${user.name}`;
   const userEmail = `-c user.email=${user.email}`;
-  await shellExec.exec`git ${userName} ${userEmail} commit -m ${message}`
-    .spawn();
+  await shellExec.exec`git ${userName} ${userEmail} commit -m ${message}`.spawn();
 };
 
 /**

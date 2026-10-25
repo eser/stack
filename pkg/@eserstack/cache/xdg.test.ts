@@ -71,13 +71,7 @@ Deno.test("getVersionedCachePath preserves existing v prefix", () => {
   );
 
   assert.assertExists(result);
-  assert.assert(
-    result.includes("v2.0.0"),
-    "Should preserve existing v prefix",
-  );
+  assert.assert(result.includes("v2.0.0"), "Should preserve existing v prefix");
   // Should not have double v prefix
-  assert.assert(
-    !result.includes("vv2.0.0"),
-    "Should not have double v prefix",
-  );
+  assert.assert(!result.includes("vv2.0.0"), "Should not have double v prefix");
 });

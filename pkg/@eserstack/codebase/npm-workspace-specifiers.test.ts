@@ -10,7 +10,7 @@ Deno.test("resolveWorkspaceSpecifiers: mirrors what pnpm publish emits", () => {
       "@eserstack/ajan-wasm": "workspace:^",
       "@eserstack/standards": "workspace:~",
       "@eserstack/kit": "workspace:>=4.0.0",
-      "koffi": "^3.3.0",
+      koffi: "^3.3.0",
     },
     "4.5.2",
   );
@@ -20,7 +20,7 @@ Deno.test("resolveWorkspaceSpecifiers: mirrors what pnpm publish emits", () => {
     "@eserstack/ajan-wasm": "^4.5.2",
     "@eserstack/standards": "~4.5.2",
     "@eserstack/kit": ">=4.0.0",
-    "koffi": "^3.3.0",
+    koffi: "^3.3.0",
   });
 });
 

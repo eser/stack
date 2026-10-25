@@ -63,11 +63,9 @@ import * as formats from "@eserstack/formats";
 
 formats.registerBuiltinFormats();
 
-const parsed = await formats.deserialize(
-  "app1,1.0.0\napp2,2.0.0\n",
-  "csv",
-  { headers: ["name", "version"] },
-);
+const parsed = await formats.deserialize("app1,1.0.0\napp2,2.0.0\n", "csv", {
+  headers: ["name", "version"],
+});
 ```
 
 | Option      | Formats    | Description                                                                                                                             |
@@ -183,7 +181,8 @@ import * as streams from "@eserstack/streams";
 
 formats.registerBuiltinFormats();
 
-const lines = await streams.pipeline()
+const lines = await streams
+  .pipeline()
   .from(streams.sources.values({ id: 1 }, { id: 2 }))
   .through(formats.streamLayers.writerLayer("jsonl"))
   .collect<string>();

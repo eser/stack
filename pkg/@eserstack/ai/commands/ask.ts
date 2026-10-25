@@ -256,9 +256,9 @@ export const parseAskArgs = (
           const limit = Number(value);
           if (!Number.isSafeInteger(limit) || limit <= 0) {
             return results.fail(
-              `--max-tokens ${
-                JSON.stringify(value)
-              } is not a positive whole number; pass the output token limit, such as --max-tokens 1024`,
+              `--max-tokens ${JSON.stringify(
+                value,
+              )} is not a positive whole number; pass the output token limit, such as --max-tokens 1024`,
             );
           }
           maxTokens = limit;
@@ -267,9 +267,9 @@ export const parseAskArgs = (
         case "--effort":
           if (!isEffort(value)) {
             return results.fail(
-              `--effort ${
-                JSON.stringify(value)
-              } is not an effort level; use low, medium, high, xhigh or max`,
+              `--effort ${JSON.stringify(
+                value,
+              )} is not an effort level; use low, medium, high, xhigh or max`,
             );
           }
           effort = value;
@@ -344,12 +344,13 @@ export const main = async (
 
   try {
     // Resolve provider
-    const providerName = providerFlag !== null
-      ? resolveAlias(providerFlag)
-      : await detectProvider(log);
+    const providerName =
+      providerFlag !== null
+        ? resolveAlias(providerFlag)
+        : await detectProvider(log);
 
-    const displayName = PROVIDER_DISPLAY_NAMES.get(providerName) ??
-      providerName;
+    const displayName =
+      PROVIDER_DISPLAY_NAMES.get(providerName) ?? providerName;
     const modelId = modelFlag ?? getDefaultModel(providerName);
 
     await log.info(`Using ${displayName} (${modelId})`);
@@ -428,7 +429,8 @@ const sendPrompt = async (
   }
 
   // Streaming: pipe text deltas through typewriter sink
-  await streams.pipeline()
+  await streams
+    .pipeline()
     .from(aiStreams.aiTextSource(model, options))
     .to(typewriterSink())
     .run();

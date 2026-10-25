@@ -30,7 +30,7 @@ const buildRoadmap = (phase: string | null): string => {
   };
   const mapped = phaseMap[phase] ?? phase;
   return ROADMAP_PHASES.map((p) =>
-    p === mapped ? tui.ansi.bold(`\u2726${p}\u2726`) : tui.ansi.dim(p)
+    p === mapped ? tui.ansi.bold(`\u2726${p}\u2726`) : tui.ansi.dim(p),
   ).join("\u2192");
 };
 
@@ -42,9 +42,11 @@ const buildProgressBar = (
   if (total === 0) return tui.ansi.dim("no tasks");
   const filled = Math.round((completed / total) * width);
   const empty = width - filled;
-  return tui.ansi.green("\u2588".repeat(filled)) +
+  return (
+    tui.ansi.green("\u2588".repeat(filled)) +
     tui.ansi.dim("\u2591".repeat(empty)) +
-    ` ${completed}/${total}`;
+    ` ${completed}/${total}`
+  );
 };
 
 export const render = (

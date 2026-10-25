@@ -32,8 +32,9 @@ export const detectMode = (
   }
 
   // 2. Persisted in manifest
-  const manifestMode = (config as Record<string, unknown> | null)
-    ?.["agentMode"];
+  const manifestMode = (config as Record<string, unknown> | null)?.[
+    "agentMode"
+  ];
   if (manifestMode === true) return "agent";
   if (manifestMode === false) return "human";
 
@@ -55,9 +56,7 @@ export const detectInteraction = (
 };
 
 /** Strip mode-related flags from args. */
-export const stripModeFlag = (
-  args?: readonly string[],
-): readonly string[] => {
+export const stripModeFlag = (args?: readonly string[]): readonly string[] => {
   if (args === undefined) return [];
 
   return args.filter(

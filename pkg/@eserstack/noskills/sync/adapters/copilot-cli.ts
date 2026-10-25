@@ -99,11 +99,14 @@ const mergeHooksFile = (
   for (const [event, entries] of Object.entries(existingHooks)) {
     if (!Array.isArray(entries)) continue;
 
-    const userEntries = entries.filter((e: unknown) =>
-      !(isRecord(e) &&
-        ["command", "bash", "powershell"].some((key) =>
-          hookCommands.isNoskillsHookCommand(e[key])
-        ))
+    const userEntries = entries.filter(
+      (e: unknown) =>
+        !(
+          isRecord(e) &&
+          ["command", "bash", "powershell"].some((key) =>
+            hookCommands.isNoskillsHookCommand(e[key]),
+          )
+        ),
     );
     if (userEntries.length > 0) userHooks[event] = userEntries;
   }
@@ -320,9 +323,7 @@ export const copilotCliAdapter: adapter.ToolAdapter = {
     );
   },
 
-  syncMcp: async (
-    ctx: adapter.SyncContext,
-  ): Promise<void> => {
+  syncMcp: async (ctx: adapter.SyncContext): Promise<void> => {
     const mcpDir = `${ctx.root}/${MCP_DIR}`;
     const mcpPath = `${mcpDir}/${MCP_FILE}`;
 

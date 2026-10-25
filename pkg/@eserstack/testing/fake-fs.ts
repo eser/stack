@@ -144,8 +144,10 @@ export const createFakeFs = (files: Record<string, string>): FakeFs => {
 
     isDirectory(path: string): boolean {
       const normalizedPath = path.endsWith("/") ? path.slice(0, -1) : path;
-      return directories.has(normalizedPath) ||
-        paths.some((p) => p.startsWith(`${normalizedPath}/`));
+      return (
+        directories.has(normalizedPath) ||
+        paths.some((p) => p.startsWith(`${normalizedPath}/`))
+      );
     },
 
     exists(path: string): boolean {

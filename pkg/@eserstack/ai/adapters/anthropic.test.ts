@@ -44,8 +44,8 @@ const modelWith = (fake: FakeClient): anthropic.AnthropicModel =>
 
 const message = (stopReason: string, content: unknown[]) => ({
   content,
-  "stop_reason": stopReason,
-  usage: { "input_tokens": 10, "output_tokens": 20 },
+  stop_reason: stopReason,
+  usage: { input_tokens: 10, output_tokens: 20 },
 });
 
 const generate = async (
@@ -63,51 +63,57 @@ Deno.test("a refusal is reported as a refusal, not as an answer", async () => {
     message("refusal", [{ type: "text", text: "I can't help with that." }]),
   );
 
-  const result = await generate(fake, [{
-    role: "user",
-    content: [{ kind: "text", text: "do something declined" }],
-  }]);
+  const result = await generate(fake, [
+    {
+      role: "user",
+      content: [{ kind: "text", text: "do something declined" }],
+    },
+  ]);
 
   assert.assertEquals(result.stopReason, "refusal");
 });
 
 // TASK-156: a full context window is a truncation like max_tokens.
-for (
-  const [stopReason, want] of [
-    ["max_tokens", "max_tokens"],
-    ["model_context_window_exceeded", "max_tokens"],
-    ["stop_sequence", "stop"],
-    ["end_turn", "end_turn"],
-  ] as const
-) {
+for (const [stopReason, want] of [
+  ["max_tokens", "max_tokens"],
+  ["model_context_window_exceeded", "max_tokens"],
+  ["stop_sequence", "stop"],
+  ["end_turn", "end_turn"],
+] as const) {
   Deno.test(`stop_reason ${stopReason} maps to ${want}`, async () => {
     const fake = fakeClient(
       message(stopReason, [{ type: "text", text: "cut sho" }]),
     );
 
-    const result = await generate(fake, [{
-      role: "user",
-      content: [{ kind: "text", text: "write a long story" }],
-    }]);
+    const result = await generate(fake, [
+      {
+        role: "user",
+        content: [{ kind: "text", text: "write a long story" }],
+      },
+    ]);
 
     assert.assertEquals(result.stopReason, want);
   });
 }
 
 Deno.test("thinking blocks keep their kind and signature", async () => {
-  const fake = fakeClient(message("tool_use", [
-    { type: "thinking", thinking: "Check the weather.", signature: "sig-1" },
-    // Claude 5 omits the thinking text by default; the signature still matters.
-    { type: "thinking", thinking: "", signature: "sig-2" },
-    { type: "redacted_thinking", data: "opaque-data" },
-    { type: "text", text: "Looking it up." },
-    { type: "tool_use", id: "toolu_1", name: "weather", input: {} },
-  ]));
+  const fake = fakeClient(
+    message("tool_use", [
+      { type: "thinking", thinking: "Check the weather.", signature: "sig-1" },
+      // Claude 5 omits the thinking text by default; the signature still matters.
+      { type: "thinking", thinking: "", signature: "sig-2" },
+      { type: "redacted_thinking", data: "opaque-data" },
+      { type: "text", text: "Looking it up." },
+      { type: "tool_use", id: "toolu_1", name: "weather", input: {} },
+    ]),
+  );
 
-  const result = await generate(fake, [{
-    role: "user",
-    content: [{ kind: "text", text: "weather?" }],
-  }]);
+  const result = await generate(fake, [
+    {
+      role: "user",
+      content: [{ kind: "text", text: "weather?" }],
+    },
+  ]);
 
   assert.assertEquals(result.content.slice(0, 3), [
     {
@@ -144,10 +150,16 @@ Deno.test("thinking blocks are replayed unchanged in the next request", async ()
     },
     {
       role: "tool",
-      content: [{
-        kind: "tool_result",
-        toolResult: { toolCallId: "toolu_1", content: "sunny", isError: false },
-      }],
+      content: [
+        {
+          kind: "tool_result",
+          toolResult: {
+            toolCallId: "toolu_1",
+            content: "sunny",
+            isError: false,
+          },
+        },
+      ],
     },
   ]);
 
@@ -165,11 +177,11 @@ Deno.test("thinking blocks are replayed unchanged in the next request", async ()
 
 Deno.test("a streamed thinking block arrives whole, before the refusal", async () => {
   const events = [
-    { type: "message_start", message: { usage: { "input_tokens": 10 } } },
+    { type: "message_start", message: { usage: { input_tokens: 10 } } },
     {
       type: "content_block_start",
       index: 0,
-      "content_block": { type: "thinking", thinking: "", signature: "" },
+      content_block: { type: "thinking", thinking: "", signature: "" },
     },
     {
       type: "content_block_delta",
@@ -190,7 +202,7 @@ Deno.test("a streamed thinking block arrives whole, before the refusal", async (
     {
       type: "content_block_start",
       index: 1,
-      "content_block": { type: "text", text: "" },
+      content_block: { type: "text", text: "" },
     },
     {
       type: "content_block_delta",
@@ -200,8 +212,8 @@ Deno.test("a streamed thinking block arrives whole, before the refusal", async (
     { type: "content_block_stop", index: 1 },
     {
       type: "message_delta",
-      delta: { "stop_reason": "refusal" },
-      usage: { "output_tokens": 12 },
+      delta: { stop_reason: "refusal" },
+      usage: { output_tokens: 12 },
     },
   ];
 
@@ -214,19 +226,16 @@ Deno.test("a streamed thinking block arrives whole, before the refusal", async (
   const fake = fakeClient(stream());
   const collected: generation.StreamEvent[] = [];
 
-  for await (
-    const event of modelWith(fake).streamText({
-      messages: [{ role: "user", content: [{ kind: "text", text: "hi" }] }],
-    })
-  ) {
+  for await (const event of modelWith(fake).streamText({
+    messages: [{ role: "user", content: [{ kind: "text", text: "hi" }] }],
+  })) {
     collected.push(event);
   }
 
-  assert.assertEquals(collected.map((event) => event.kind), [
-    "thinking",
-    "content_delta",
-    "message_done",
-  ]);
+  assert.assertEquals(
+    collected.map((event) => event.kind),
+    ["thinking", "content_delta", "message_done"],
+  );
   assert.assertEquals(collected[0], {
     kind: "thinking",
     thinking: { text: "Check first.", signature: "sig-stream" },
@@ -305,8 +314,7 @@ const responseFormatCases: ReadonlyArray<{
   readonly outputConfig: unknown;
 }> = [
   {
-    name:
-      "sends a json_schema format as output_config.format, without its name",
+    name: "sends a json_schema format as output_config.format, without its name",
     options: {
       responseFormat: {
         type: "json_schema",
@@ -370,19 +378,17 @@ Deno.test("responseFormat: a streamed request carries the format", async () => {
   async function* stream(): AsyncIterable<unknown> {
     yield {
       type: "message_delta",
-      delta: { "stop_reason": "end_turn" },
-      usage: { "output_tokens": 1 },
+      delta: { stop_reason: "end_turn" },
+      usage: { output_tokens: 1 },
     };
   }
 
   const fake = fakeClient(stream());
 
-  for await (
-    const _event of modelWith(fake).streamText({
-      messages: [{ role: "user", content: [{ kind: "text", text: "hi" }] }],
-      responseFormat: { type: "json_schema", jsonSchema: titleSchema },
-    })
-  ) {
+  for await (const _event of modelWith(fake).streamText({
+    messages: [{ role: "user", content: [{ kind: "text", text: "hi" }] }],
+    responseFormat: { type: "json_schema", jsonSchema: titleSchema },
+  })) {
     // Only the request matters here.
   }
 
@@ -403,9 +409,9 @@ Deno.test("responseFormat: a batch request carries the format", async () => {
 
             return Promise.resolve({
               id: "batch_1",
-              "processing_status": "in_progress",
-              "created_at": "2026-10-04T00:00:00Z",
-              "request_counts": { succeeded: 0, errored: 0 },
+              processing_status: "in_progress",
+              created_at: "2026-10-04T00:00:00Z",
+              request_counts: { succeeded: 0, errored: 0 },
             });
           },
         },
@@ -418,13 +424,15 @@ Deno.test("responseFormat: a batch request carries the format", async () => {
   );
 
   await model.submitBatch({
-    items: [{
-      customId: "req-1",
-      options: {
-        messages: [{ role: "user", content: [{ kind: "text", text: "hi" }] }],
-        responseFormat: { type: "json_schema", jsonSchema: titleSchema },
+    items: [
+      {
+        customId: "req-1",
+        options: {
+          messages: [{ role: "user", content: [{ kind: "text", text: "hi" }] }],
+          responseFormat: { type: "json_schema", jsonSchema: titleSchema },
+        },
       },
-    }],
+    ],
   });
 
   const requests = sent[0]!["requests"] as Array<{

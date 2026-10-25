@@ -76,8 +76,7 @@ bdd.describe("createGoHttpClient options", () => {
 
   // Needs the native library: the Go client itself enforces the limit.
   bdd.it({
-    name:
-      "passes timeoutMs to the Go client, which ends a request with no answer",
+    name: "passes timeoutMs to the Go client, which ends a request with no answer",
     ignore: withoutFfi,
     fn: async () => {
       // The kernel accepts the connection into the backlog and nothing ever

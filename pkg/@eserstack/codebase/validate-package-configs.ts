@@ -115,9 +115,7 @@ export const main = async (
             out.writeln(span.red("✗"), span.text(`   ${inc.field} mismatch:`));
             out.writeln(
               span.blue("ℹ"),
-              span.text(
-                `     deno.json:    ${JSON.stringify(inc.denoValue)}`,
-              ),
+              span.text(`     deno.json:    ${JSON.stringify(inc.denoValue)}`),
             );
             out.writeln(
               span.blue("ℹ"),
@@ -145,10 +143,7 @@ export const main = async (
         for (const [pkgName, inconsistencies] of Object.entries(byPackage)) {
           out.writeln(span.yellow("⚠"), span.text(" " + pkgName));
           for (const inc of inconsistencies) {
-            out.writeln(
-              span.red("✗"),
-              span.text(`   ${inc.dependencyName}:`),
-            );
+            out.writeln(span.red("✗"), span.text(`   ${inc.dependencyName}:`));
             out.writeln(
               span.blue("ℹ"),
               span.text(`     ${formatDepIssue(inc)}`),

@@ -13,10 +13,12 @@ const browserTokens = testing.createTestTokens({ accessToken: "browser" });
 const passwordTokens = testing.createTestTokens({ accessToken: "password" });
 
 /** Twitter/X logs in through the browser, Bluesky with an app password. */
-const createWorld = (overrides: {
-  readonly bluesky?: login.BlueskyCredentials;
-  readonly browserLogin?: login.LoginDeps["browserLogin"];
-} = {}) => {
+const createWorld = (
+  overrides: {
+    readonly bluesky?: login.BlueskyCredentials;
+    readonly browserLogin?: login.LoginDeps["browserLogin"];
+  } = {},
+) => {
   const twitter = testing.createMockAuthProvider({ requiresBrowser: true });
   const bluesky = testing.createMockAuthProvider({
     loginWithCredentials: () => Promise.resolve(passwordTokens),
@@ -35,10 +37,12 @@ const createWorld = (overrides: {
       identifier: "me.bsky.social",
       appPassword: "app-password",
     },
-    browserLogin: overrides.browserLogin ?? ((platform) => {
-      browserLogins.push(platform);
-      return Promise.resolve(results.ok<OAuthTokens>(browserTokens));
-    }),
+    browserLogin:
+      overrides.browserLogin ??
+      ((platform) => {
+        browserLogins.push(platform);
+        return Promise.resolve(results.ok<OAuthTokens>(browserTokens));
+      }),
   };
 
   const run = (args: login.LoginArgs) =>
@@ -51,9 +55,9 @@ const createWorld = (overrides: {
 };
 
 const credentialLogins = (auth: testing.MockAuthProvider) =>
-  auth.calls.filter((call) => call.method === "loginWithCredentials").map((
-    call,
-  ) => call.args[0]);
+  auth.calls
+    .filter((call) => call.method === "loginWithCredentials")
+    .map((call) => call.args[0]);
 
 bdd.describe("parseLoginArgs", () => {
   for (const flag of ["--password=hunter2", "--password"]) {
@@ -110,7 +114,10 @@ bdd.describe("login", () => {
       assert.assert(results.isOk(result));
       assert.assertEquals(world.browserLogins, ["twitter"]);
       assert.assertEquals(world.tokenStore.store.get("twitter"), browserTokens);
-      assert.assertEquals(world.outcomes.map((outcome) => outcome.ok), [true]);
+      assert.assertEquals(
+        world.outcomes.map((outcome) => outcome.ok),
+        [true],
+      );
     },
   );
 
@@ -184,14 +191,14 @@ bdd.describe("login", () => {
       });
 
       assert.assert(results.isOk(result));
-      assert.assertEquals(world.outcomes.map((outcome) => outcome.platform), [
-        "twitter",
-        "bluesky",
-      ]);
-      assert.assertEquals([...world.tokenStore.store.keys()], [
-        "twitter",
-        "bluesky",
-      ]);
+      assert.assertEquals(
+        world.outcomes.map((outcome) => outcome.platform),
+        ["twitter", "bluesky"],
+      );
+      assert.assertEquals(
+        [...world.tokenStore.store.keys()],
+        ["twitter", "bluesky"],
+      );
     },
   );
 
@@ -203,9 +210,10 @@ bdd.describe("login", () => {
     const result = await world.run({ platform: undefined, handle: undefined });
 
     assert.assert(results.isFail(result));
-    assert.assertEquals(world.outcomes.map((outcome) => outcome.platform), [
-      "twitter",
-    ]);
+    assert.assertEquals(
+      world.outcomes.map((outcome) => outcome.platform),
+      ["twitter"],
+    );
     assert.assertEquals(credentialLogins(world.bluesky), []);
   });
 

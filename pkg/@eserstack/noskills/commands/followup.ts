@@ -63,27 +63,23 @@ export const main = async (
   if (questionId === undefined || questionId === "") {
     out.writeln(
       span.red(
-        `Usage: ${
-          cmd.cmd(
-            `spec ${specResult.spec} followup <questionId> "question text"`,
-          )
-        }`,
+        `Usage: ${cmd.cmd(
+          `spec ${specResult.spec} followup <questionId> "question text"`,
+        )}`,
       ),
     );
     out.writeln(
       span.dim(
-        `  Or: ${
-          cmd.cmd(
-            `spec ${specResult.spec} followup <followUpId> --answer="text"`,
-          )
-        }`,
+        `  Or: ${cmd.cmd(
+          `spec ${specResult.spec} followup <followUpId> --answer="text"`,
+        )}`,
       ),
     );
     out.writeln(
       span.dim(
-        `  Or: ${
-          cmd.cmd(`spec ${specResult.spec} followup <followUpId> --skip`)
-        }`,
+        `  Or: ${cmd.cmd(
+          `spec ${specResult.spec} followup <followUpId> --skip`,
+        )}`,
       ),
     );
     await out.close();
@@ -115,9 +111,10 @@ export const main = async (
       return results.fail({ exitCode: 1 });
     }
 
-    const settled = answerText !== null
-      ? machine.answerFollowUp(state, questionId, answerText)
-      : machine.skipFollowUp(state, questionId);
+    const settled =
+      answerText !== null
+        ? machine.answerFollowUp(state, questionId, answerText)
+        : machine.skipFollowUp(state, questionId);
     // The last pending follow-up, once the base answers are in, completes
     // discovery, as the last base answer does when none is pending.
     const newState = machine.completeDiscoveryWhenReady(settled);
@@ -131,9 +128,9 @@ export const main = async (
     );
     if (newState.phase !== state.phase) {
       out.writeln(
-        `Discovery complete. Run \`${
-          cmd.cmd(`spec ${specResult.spec} next`)
-        }\` for the review.`,
+        `Discovery complete. Run \`${cmd.cmd(
+          `spec ${specResult.spec} next`,
+        )}\` for the review.`,
       );
     }
     await out.close();
@@ -147,12 +144,8 @@ export const main = async (
     return results.fail({ exitCode: 1 });
   }
 
-  if (
-    state.phase !== "DISCOVERY" && state.phase !== "DISCOVERY_REFINEMENT"
-  ) {
-    out.writeln(
-      span.red(`Cannot add follow-ups in phase: ${state.phase}`),
-    );
+  if (state.phase !== "DISCOVERY" && state.phase !== "DISCOVERY_REFINEMENT") {
+    out.writeln(span.red(`Cannot add follow-ups in phase: ${state.phase}`));
     await out.close();
     return results.fail({ exitCode: 1 });
   }
@@ -168,10 +161,7 @@ export const main = async (
 
   const followUps = machine.getFollowUpsForQuestion(newState, questionId);
   const latest = followUps[followUps.length - 1];
-  out.writeln(
-    span.green("✔"),
-    ` Follow-up added: ${latest?.id ?? questionId}`,
-  );
+  out.writeln(span.green("✔"), ` Follow-up added: ${latest?.id ?? questionId}`);
   await out.close();
 
   return results.ok(undefined);

@@ -247,19 +247,20 @@ export type IndexConfig<V> = {
  * registry.getByIndex("byExtension", "json"); // By extension
  * ```
  */
-export type IndexedRegistry<K extends string = string, V = unknown> =
-  & Registry<K, V>
-  & {
-    /**
-     * Get a value by an index key.
-     */
-    readonly getByIndex: (indexName: string, key: string) => V | undefined;
+export type IndexedRegistry<K extends string = string, V = unknown> = Registry<
+  K,
+  V
+> & {
+  /**
+   * Get a value by an index key.
+   */
+  readonly getByIndex: (indexName: string, key: string) => V | undefined;
 
-    /**
-     * Check if an index key exists.
-     */
-    readonly hasInIndex: (indexName: string, key: string) => boolean;
-  };
+  /**
+   * Check if an index key exists.
+   */
+  readonly hasInIndex: (indexName: string, key: string) => boolean;
+};
 
 /**
  * Builder for indexed registries.

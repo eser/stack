@@ -163,17 +163,17 @@ export const routeToolCall = async (
   const definition = definitionsByName.get(event.name);
   if (definition === undefined) {
     return {
-      content: `Unknown tool: ${event.name}. The available tools are ${
-        Array.from(definitionsByName.keys()).join(", ")
-      }.`,
+      content: `Unknown tool: ${event.name}. The available tools are ${Array.from(
+        definitionsByName.keys(),
+      ).join(", ")}.`,
       isError: true,
     };
   }
 
   // tool-definitions.ts writes every parameters object in the ToolSchema
   // subset; tool-arguments.test.ts fails on a keyword outside it.
-  const schema =
-    (definition.parameters ?? NO_PARAMETERS) as toolArguments.ToolSchema;
+  const schema = (definition.parameters ??
+    NO_PARAMETERS) as toolArguments.ToolSchema;
   const checked = toolArguments.validateToolArguments(schema, event.arguments);
   if (results.isFail(checked)) {
     return {
@@ -269,8 +269,7 @@ export const routeToolCall = async (
       // Reached only when postToolDefinitions gains a tool without a case
       // here; the routing test in triggers.test.ts covers every definition.
       return {
-        content:
-          `${event.name} is defined but has no route, so it did not run.`,
+        content: `${event.name} is defined but has no route, so it did not run.`,
         isError: true,
       };
   }
@@ -282,9 +281,11 @@ export const routeToolCall = async (
  * Produce a single-arg tool-call trigger from pre-bound handlers.
  * Pass the result to the agent loop; it never needs to see BoundTriggers.
  */
-export const createToolCallTrigger = (
-  bound: BoundTriggers,
-): (event: ToolCallEvent) => Promise<ToolCallResponse> =>
-(event) => routeToolCall(bound, event);
+export const createToolCallTrigger =
+  (
+    bound: BoundTriggers,
+  ): ((event: ToolCallEvent) => Promise<ToolCallResponse>) =>
+  (event) =>
+    routeToolCall(bound, event);
 
 export type ToolCallTrigger = ReturnType<typeof createToolCallTrigger>;

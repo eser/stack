@@ -67,17 +67,17 @@ export type LedgerRecord = {
  * are the summary.json format, so they are quoted.
  */
 export type LedgerSummary = {
-  readonly "resolved_decisions": number;
-  readonly "provenance_breakdown": {
+  readonly resolved_decisions: number;
+  readonly provenance_breakdown: {
     readonly ratified: number;
     readonly inferred: number;
     readonly default: number;
   };
-  readonly "open_questions": number;
+  readonly open_questions: number;
   readonly specificity: {
-    readonly "named_artifacts_count": number;
-    readonly "acceptance_criteria_present": boolean;
-    readonly "out_of_scope_present": boolean;
+    readonly named_artifacts_count: number;
+    readonly acceptance_criteria_present: boolean;
+    readonly out_of_scope_present: boolean;
   };
 };
 
@@ -87,12 +87,12 @@ export type LedgerSummary = {
 
 // Keys are discovery question ids, which state files store as written.
 const QUESTION_CATEGORY: Readonly<Record<string, LedgerCategory>> = {
-  "status_quo": "scope",
+  status_quo: "scope",
   ambition: "scope",
   reversibility: "constraint",
-  "user_impact": "constraint",
+  user_impact: "constraint",
   verification: "acceptance-criteria",
-  "scope_boundary": "out-of-scope",
+  scope_boundary: "out-of-scope",
 };
 
 const categoryForQuestionId = (questionId: string): LedgerCategory =>
@@ -180,9 +180,10 @@ const detectAnswers = (state: schema.StateFile): readonly LedgerRecord[] =>
   state.discovery.answers.map((answer) => {
     const att = answer as unknown as schema.AttributedDiscoveryAnswer;
     const type = att.type ?? "original";
-    const suffix = att.timestamp !== undefined && att.timestamp.length > 0
-      ? stableStamp(att.timestamp)
-      : hashStr(answer.answer);
+    const suffix =
+      att.timestamp !== undefined && att.timestamp.length > 0
+        ? stableStamp(att.timestamp)
+        : hashStr(answer.answer);
     return {
       id: `ans:${answer.questionId}:${type}:${suffix}`,
       state: state.phase,
@@ -190,9 +191,10 @@ const detectAnswers = (state: schema.StateFile): readonly LedgerRecord[] =>
       question: questionTextFor(answer.questionId),
       resolution: answer.answer,
       provenance: answerProvenance(att.source),
-      timestamp: att.timestamp !== undefined && att.timestamp.length > 0
-        ? att.timestamp
-        : captureTimestamp(state),
+      timestamp:
+        att.timestamp !== undefined && att.timestamp.length > 0
+          ? att.timestamp
+          : captureTimestamp(state),
       artifacts: [],
     };
   });
@@ -206,27 +208,29 @@ const detectDecisions = (state: schema.StateFile): readonly LedgerRecord[] =>
     resolution: decision.choice,
     // Every addDecision call site is explicit user input.
     provenance: "ratified" as const,
-    timestamp: decision.timestamp.length > 0
-      ? decision.timestamp
-      : captureTimestamp(state),
+    timestamp:
+      decision.timestamp.length > 0
+        ? decision.timestamp
+        : captureTimestamp(state),
     artifacts: [],
   }));
 
 const detectTransitions = (state: schema.StateFile): readonly LedgerRecord[] =>
   (state.transitionHistory ?? []).map((transition) => ({
-    id: `tr:${transition.from}:${transition.to}:${
-      stableStamp(transition.timestamp)
-    }`,
+    id: `tr:${transition.from}:${transition.to}:${stableStamp(
+      transition.timestamp,
+    )}`,
     state: transition.to,
     category: transitionCategory(transition.to),
     question: `Transition ${transition.from} → ${transition.to}`,
-    resolution: transition.reason ??
-      `${transition.from} → ${transition.to} approved`,
+    resolution:
+      transition.reason ?? `${transition.from} → ${transition.to} approved`,
     // recordTransition only fires from explicit approve/done/block/reopen.
     provenance: "ratified" as const,
-    timestamp: transition.timestamp.length > 0
-      ? transition.timestamp
-      : captureTimestamp(state),
+    timestamp:
+      transition.timestamp.length > 0
+        ? transition.timestamp
+        : captureTimestamp(state),
     artifacts: state.specState.path !== null ? [state.specState.path] : [],
   }));
 
@@ -238,18 +242,21 @@ const detectPosture = (
   if (posture === undefined) return [];
   // Conservative: posture equal to the configured default is attributed to the
   // default, never to the user — we never inflate `ratified`.
-  const isDefault = manifest?.defaultReviewPosture !== undefined &&
+  const isDefault =
+    manifest?.defaultReviewPosture !== undefined &&
     manifest.defaultReviewPosture === posture;
-  return [{
-    id: `posture:${posture}`,
-    state: state.phase,
-    category: "scope",
-    question: "Review posture for spec refinement",
-    resolution: posture,
-    provenance: isDefault ? "default" : "ratified",
-    timestamp: captureTimestamp(state),
-    artifacts: [],
-  }];
+  return [
+    {
+      id: `posture:${posture}`,
+      state: state.phase,
+      category: "scope",
+      question: "Review posture for spec refinement",
+      resolution: posture,
+      provenance: isDefault ? "default" : "ratified",
+      timestamp: captureTimestamp(state),
+      artifacts: [],
+    },
+  ];
 };
 
 const detectClassification = (
@@ -259,20 +266,23 @@ const detectClassification = (
   if (classification === null) return [];
   const flags = classificationFlags(classification);
   const resolution = flags.length > 0 ? flags.join(", ") : "none";
-  return [{
-    id: `class:${flags.length > 0 ? flags.join(",") : "none"}`,
-    state: state.phase,
-    category: "constraint",
-    question:
-      "Spec classification (UI / CLI / API / migration / data handling)",
-    resolution,
-    provenance: classification.source === "confirmed" ||
+  return [
+    {
+      id: `class:${flags.length > 0 ? flags.join(",") : "none"}`,
+      state: state.phase,
+      category: "constraint",
+      question:
+        "Spec classification (UI / CLI / API / migration / data handling)",
+      resolution,
+      provenance:
+        classification.source === "confirmed" ||
         classification.source === "manual"
-      ? "ratified"
-      : "inferred",
-    timestamp: captureTimestamp(state),
-    artifacts: [],
-  }];
+          ? "ratified"
+          : "inferred",
+      timestamp: captureTimestamp(state),
+      artifacts: [],
+    },
+  ];
 };
 
 const detectCustomACs = (state: schema.StateFile): readonly LedgerRecord[] =>
@@ -334,7 +344,8 @@ export const countOpenQuestions = (
 
   // Unresolved living-spec sections + pending delegated decisions.
   const completeness = livingSpec.checkSpecCompleteness(state.specState);
-  count += completeness.unresolvedSections.length +
+  count +=
+    completeness.unresolvedSections.length +
     completeness.pendingDecisions.length;
 
   // Low-confidence findings (mirrors machine.getLowConfidenceFindings threshold).
@@ -344,7 +355,8 @@ export const countOpenQuestions = (
 
   // Unanswered base discovery questions, while a spec is actively being shaped.
   if (
-    state.phase !== "IDLE" && state.phase !== "UNINITIALIZED" &&
+    state.phase !== "IDLE" &&
+    state.phase !== "UNINITIALIZED" &&
     state.phase !== "COMPLETED"
   ) {
     const answered = new Set(state.discovery.answers.map((a) => a.questionId));
@@ -383,12 +395,13 @@ export const computeSummary = (
     (a) => a.questionId === "scope_boundary" && a.answer.trim().length > 0,
   );
 
-  const acceptanceCriteriaPresent = (state.customACs?.length ?? 0) > 0 ||
+  const acceptanceCriteriaPresent =
+    (state.customACs?.length ?? 0) > 0 ||
     hasVerificationAnswer ||
     ledger.some((r) => r.category === "acceptance-criteria");
 
-  const outOfScopePresent = hasScopeBoundaryAnswer ||
-    ledger.some((r) => r.category === "out-of-scope");
+  const outOfScopePresent =
+    hasScopeBoundaryAnswer || ledger.some((r) => r.category === "out-of-scope");
 
   return {
     resolved_decisions: ledger.length,
@@ -579,9 +592,12 @@ export const captureTransition = async (
     let tensionCount = 0;
     try {
       const allConcerns = await persistence.listConcerns(root);
-      const active = resolvedManifest === null
-        ? []
-        : allConcerns.filter((c) => resolvedManifest!.concerns.includes(c.id));
+      const active =
+        resolvedManifest === null
+          ? []
+          : allConcerns.filter((c) =>
+              resolvedManifest!.concerns.includes(c.id),
+            );
       tensionCount = concerns.detectTensions(active).length;
     } catch {
       tensionCount = 0;

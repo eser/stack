@@ -591,7 +591,8 @@ bdd.describe("renderSpec: declared section scopes", () => {
   };
 
   const headings = (classification: schema.SpecClassification | null) =>
-    template.renderSpec("scoped", [], [concern], [], classification)
+    template
+      .renderSpec("scoped", [], [concern], [], classification)
       .split("\n")
       .filter((line) => line.endsWith("(custom)"));
 

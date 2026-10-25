@@ -28,9 +28,10 @@ const clamp = (value: number, min: number, max: number): number =>
 export const createTextareaState = (
   initialText?: string,
 ): layoutTypes.TextareaState => {
-  const lines = initialText !== undefined && initialText !== ""
-    ? initialText.split("\n")
-    : [""];
+  const lines =
+    initialText !== undefined && initialText !== ""
+      ? initialText.split("\n")
+      : [""];
 
   return {
     lines,
@@ -106,7 +107,8 @@ export const getSelectionRange = (
   const anchor = state.selectionAnchor;
   const cursor = { row: state.cursorRow, col: state.cursorCol };
 
-  const anchorBefore = anchor.row < cursor.row ||
+  const anchorBefore =
+    anchor.row < cursor.row ||
     (anchor.row === cursor.row && anchor.col <= cursor.col);
 
   return anchorBefore
@@ -115,9 +117,7 @@ export const getSelectionRange = (
 };
 
 /** Return the selected text between anchor and cursor. Empty string if no selection. */
-export const getSelectedText = (
-  state: layoutTypes.TextareaState,
-): string => {
+export const getSelectedText = (state: layoutTypes.TextareaState): string => {
   const range = getSelectionRange(state);
   if (range === undefined) {
     return "";
@@ -775,9 +775,10 @@ const applyEditForward = (
       const oldText = edit.replacedText ?? "";
       const oldParts = oldText.split("\n");
       const endRow = row + oldParts.length - 1;
-      const endCol = oldParts.length === 1
-        ? col + oldText.length
-        : oldParts[oldParts.length - 1]!.length;
+      const endCol =
+        oldParts.length === 1
+          ? col + oldText.length
+          : oldParts[oldParts.length - 1]!.length;
       const before = state.lines[row]!.slice(0, col);
       const after = state.lines[endRow]!.slice(endCol);
       const newParts = edit.text.split("\n");
@@ -1058,9 +1059,7 @@ export const renderTextarea = (
         const num = String(row + 1).padStart(gutterWidth - 1, " ");
         parts.push(ansi.moveTo(screenRow, gutterCol) + ansi.dim(num) + " ");
       } else {
-        parts.push(
-          ansi.moveTo(screenRow, gutterCol) + " ".repeat(gutterWidth),
-        );
+        parts.push(ansi.moveTo(screenRow, gutterCol) + " ".repeat(gutterWidth));
       }
     }
 
@@ -1068,17 +1067,16 @@ export const renderTextarea = (
 
     if (row >= state.lines.length) {
       // Blank line beyond content
-      parts.push(
-        ansi.moveTo(screenRow, textColStart) + " ".repeat(textWidth),
-      );
+      parts.push(ansi.moveTo(screenRow, textColStart) + " ".repeat(textWidth));
       continue;
     }
 
     // Show placeholder when empty
     if (isEmpty && vi === 0 && placeholder !== undefined) {
-      const ph = placeholder.length > textWidth
-        ? placeholder.slice(0, textWidth - 1) + "\u2026"
-        : placeholder;
+      const ph =
+        placeholder.length > textWidth
+          ? placeholder.slice(0, textWidth - 1) + "\u2026"
+          : placeholder;
       parts.push(
         ansi.moveTo(screenRow, textColStart) +
           ansi.dim(ph) +
@@ -1094,8 +1092,8 @@ export const renderTextarea = (
     for (let col = 0; col < textWidth; col++) {
       const ch = col < line.length ? line[col]! : " ";
       const isCursor = row === state.cursorRow && col === state.cursorCol;
-      const isSelected = selRange !== undefined &&
-        isInSelection(row, col, selRange);
+      const isSelected =
+        selRange !== undefined && isInSelection(row, col, selRange);
 
       if (isCursor) {
         output += ansi.inverse(ch);

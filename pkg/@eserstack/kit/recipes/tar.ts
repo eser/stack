@@ -69,11 +69,11 @@ export class TarballLimitError extends Error {
   readonly max: number;
 
   constructor(limit: TarballLimit, max: number, options?: ErrorOptions) {
-    const measure = limit === "maxBytes"
-      ? `decompressed size exceeds ${limit} (${max} bytes)`
-      : `entry count exceeds ${limit} (${max})`;
-    const fix =
-      `check that the specifier names the intended repository and ref, or raise ${limit} for an archive you trust`;
+    const measure =
+      limit === "maxBytes"
+        ? `decompressed size exceeds ${limit} (${max} bytes)`
+        : `entry count exceeds ${limit} (${max})`;
+    const fix = `check that the specifier names the intended repository and ref, or raise ${limit} for an archive you trust`;
     super(
       `extract tarball: ${measure}; a recipe template should be far smaller, so ${fix}`,
       options,
@@ -154,7 +154,8 @@ const resolveEntryPath = (
     return null;
   }
 
-  const strippedParts = entryPath.split(runtime.path.sep)
+  const strippedParts = entryPath
+    .split(runtime.path.sep)
     .slice(stripComponents);
   if (strippedParts.length === 0) {
     return null;
@@ -217,12 +218,14 @@ export const extractTarball = async (
   // Normalize the subpath for matching, without leading or trailing separators.
   // A subpath that names the archive root ("", "/", ".", from a specifier
   // such as gh:owner/repo/) extracts everything, as no subpath does.
-  const trimmedSubpath = subpath !== undefined
-    ? runtime.path.normalize(subpath).replace(/^[/\\]+|[/\\]+$/g, "")
-    : "";
-  const normalizedSubpath = trimmedSubpath !== "" && trimmedSubpath !== "."
-    ? trimmedSubpath
-    : undefined;
+  const trimmedSubpath =
+    subpath !== undefined
+      ? runtime.path.normalize(subpath).replace(/^[/\\]+|[/\\]+$/g, "")
+      : "";
+  const normalizedSubpath =
+    trimmedSubpath !== "" && trimmedSubpath !== "."
+      ? trimmedSubpath
+      : undefined;
 
   // Aborted when extraction stops: cancels the source stream (and with it the
   // download) when the loop exits early, and is a no-op after a full read.
@@ -263,9 +266,10 @@ export const extractTarball = async (
       const outputPath = runtime.path.join(targetDir, relativePath);
       await runtime.fs.ensureDir(runtime.path.dirname(outputPath));
 
-      const content = entry.readable !== undefined
-        ? await readContent(entry.readable)
-        : new Uint8Array(0);
+      const content =
+        entry.readable !== undefined
+          ? await readContent(entry.readable)
+          : new Uint8Array(0);
       await runtime.fs.writeFile(outputPath, content);
     }
   } finally {

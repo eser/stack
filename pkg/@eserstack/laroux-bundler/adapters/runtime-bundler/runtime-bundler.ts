@@ -100,9 +100,9 @@ class RuntimeCache {
     // Step 1: Analyze for "use client" components
     const clientComponentList = plugin.analyzeClientComponents
       ? await plugin.analyzeClientComponents(
-        this.config.srcDir,
-        this.config.projectRoot,
-      )
+          this.config.srcDir,
+          this.config.projectRoot,
+        )
       : [];
 
     // Step 2: Store client components in-memory (no transformation needed for dev mode)
@@ -167,8 +167,8 @@ class RuntimeCache {
         plugins: [
           importMapResolverPlugin.createImportMapResolverPlugin({
             projectRoot,
-            browserShims: this.config.browserShims ??
-              larouxConfig.DEFAULT_BROWSER_SHIMS,
+            browserShims:
+              this.config.browserShims ?? larouxConfig.DEFAULT_BROWSER_SHIMS,
             autoMarkExternal: false,
           }),
         ],
@@ -178,8 +178,8 @@ class RuntimeCache {
       const result = await clientBundler.bundle(bundlerConfig);
 
       if (!result.success) {
-        const errorMsg = result.errors?.map((e) => e.message).join(", ") ??
-          "Unknown error";
+        const errorMsg =
+          result.errors?.map((e) => e.message).join(", ") ?? "Unknown error";
         throw new Error(`Bundle failed: ${errorMsg}`);
       }
 
@@ -187,9 +187,7 @@ class RuntimeCache {
       // output after entryName
       const mainOutput = result.outputs.get("client.js");
       if (!mainOutput) {
-        throw new Error(
-          "Bundle output 'client.js' not found in bundle result",
-        );
+        throw new Error("Bundle output 'client.js' not found in bundle result");
       }
 
       // Decode bundle code from Uint8Array
@@ -224,9 +222,8 @@ class RuntimeCache {
         manifest: chunkManifest,
       };
     } catch (error) {
-      const errorMessage = error instanceof Error
-        ? error.message
-        : String(error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
       // Handled here: logged once, then served as an error bundle
       runtimeLogger.with({ error }).error("❌ Runtime bundling failed");
 
@@ -244,9 +241,9 @@ class RuntimeCache {
 
       const errorCode = `
 console.error("Runtime bundling failed:", ${JSON.stringify(errorMessage)});
-document.getElementById("root").innerHTML = '<div class="error"><h2>Bundle Error</h2><pre>${
-        escapeHtml(errorMessage)
-      }</pre></div>';
+document.getElementById("root").innerHTML = '<div class="error"><h2>Bundle Error</h2><pre>${escapeHtml(
+        errorMessage,
+      )}</pre></div>';
 `;
 
       const errorManifest: ChunkManifest = {
@@ -270,9 +267,9 @@ document.getElementById("root").innerHTML = '<div class="error"><h2>Bundle Error
         await runtime.fs.remove(tempDir, { recursive: true });
       } catch (cleanupError) {
         // Cleanup failure is non-critical - temp files will be cleaned on next run
-        runtimeLogger.with({ error: cleanupError }).debug(
-          `remove temp directory ${tempDir}`,
-        );
+        runtimeLogger
+          .with({ error: cleanupError })
+          .debug(`remove temp directory ${tempDir}`);
       }
     }
   }

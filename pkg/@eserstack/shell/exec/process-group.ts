@@ -51,11 +51,13 @@ export class ProcessGroup {
     this.#processes.set(id, managed);
 
     // Mark inactive when process exits
-    process.exitCode.then(() => {
-      managed.active = false;
-    }).catch(() => {
-      managed.active = false;
-    });
+    process.exitCode
+      .then(() => {
+        managed.active = false;
+      })
+      .catch(() => {
+        managed.active = false;
+      });
 
     return managed;
   }
@@ -93,8 +95,8 @@ export class ProcessGroup {
    * @param signal - The signal to send; SIGTERM by default.
    */
   async killAll(signal = "SIGTERM"): Promise<void> {
-    const running = [...this.#processes.values()].filter((managed) =>
-      managed.active
+    const running = [...this.#processes.values()].filter(
+      (managed) => managed.active,
     );
 
     for (const managed of running) {

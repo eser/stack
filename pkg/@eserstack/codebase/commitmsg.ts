@@ -19,8 +19,7 @@ import type * as workflows from "@eserstack/workflows/mod";
 // System Prompt
 // =============================================================================
 
-const SYSTEM_PROMPT =
-  `Write a git commit message for the diff the user provides. The reply is passed verbatim to \`git commit -m\`, so reply with the single subject line and nothing else: no body, no surrounding quotes, backticks or code fences, and no text before or after it.
+const SYSTEM_PROMPT = `Write a git commit message for the diff the user provides. The reply is passed verbatim to \`git commit -m\`, so reply with the single subject line and nothing else: no body, no surrounding quotes, backticks or code fences, and no text before or after it.
 
 Format: type(scope): description, at most 72 characters. type is one of feat, fix, chore, docs, refactor, test, style, perf, ci, build.
 

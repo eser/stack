@@ -43,9 +43,7 @@ export const enableMouse = (): string =>
 
 /** Disable mouse reporting. */
 export const disableMouse = (): string =>
-  "\x1b[?1006l" +
-  "\x1b[?1002l" +
-  "\x1b[?1000l";
+  "\x1b[?1006l" + "\x1b[?1002l" + "\x1b[?1000l";
 
 // =============================================================================
 // Parser
@@ -110,8 +108,10 @@ export const parseMouseEvent = (data: string): MouseEvent | null => {
  */
 export const isSGRMouseSequence = (data: Uint8Array): boolean => {
   // \x1b [ < ...
-  return data.length >= 4 &&
+  return (
+    data.length >= 4 &&
     data[0] === 0x1b &&
     data[1] === 0x5b && // [
-    data[2] === 0x3c; // <
+    data[2] === 0x3c
+  ); // <
 };

@@ -124,7 +124,10 @@ type Json = { readonly port?: unknown; readonly host?: string };
 type Checked<T> = primitives.results.Result<T, string>;
 
 const parseJson = (input: string): Checked<Json> =>
-  primitives.results.tryCatch(() => JSON.parse(input), () => "invalid JSON");
+  primitives.results.tryCatch(
+    () => JSON.parse(input),
+    () => "invalid JSON",
+  );
 const validatePort = (port: unknown): Checked<number> =>
   typeof port === "number" && port > 0 && port < 65536
     ? primitives.results.ok(port)
@@ -158,7 +161,8 @@ middleware receives a context and the arguments the pipeline runs with;
 import * as functions from "@eserstack/functions";
 import * as primitives from "@eserstack/primitives";
 
-const pipeline = functions.collect<string, Error>()
+const pipeline = functions
+  .collect<string, Error>()
   .use(async function* (ctx, name) {
     // Logging middleware
     console.log("Before:", name);
@@ -188,7 +192,8 @@ import * as functions from "@eserstack/functions";
 import * as primitives from "@eserstack/primitives";
 
 // Error handling in pipelines
-const withRecovery = functions.collect<number, string>()
+const withRecovery = functions
+  .collect<number, string>()
   .use(() => primitives.results.fail("error"))
   .recover((_error) => primitives.results.ok(0)); // Recover from errors
 
@@ -216,7 +221,7 @@ type ParseError = { readonly _tag: "ParseError"; readonly id: number };
 // Create tasks
 const fetchItem = (id: number) =>
   functions.task.fromPromise(() =>
-    fetch(`/api/items/${id}`).then((r) => r.json() as Promise<Item>)
+    fetch(`/api/items/${id}`).then((r) => r.json() as Promise<Item>),
   );
 const fetchData = fetchItem(1);
 const constant = functions.task.succeed(42);
@@ -341,7 +346,7 @@ const fetchData = functions.task.task<
   if (!resp.ok) {
     return primitives.results.fail({ _tag: "FetchError", status: resp.status });
   }
-  return primitives.results.ok(await resp.json() as Data);
+  return primitives.results.ok((await resp.json()) as Data);
 });
 
 const controller = new AbortController();
@@ -380,7 +385,7 @@ type GreetCtx = { readonly greeting: string };
 
 const greet = (name: string): functions.task.Task<string, never, GreetCtx> =>
   functions.task.task((ctx) =>
-    Promise.resolve(primitives.results.ok(`${ctx.greeting}, ${name}!`))
+    Promise.resolve(primitives.results.ok(`${ctx.greeting}, ${name}!`)),
   );
 
 // Satisfy requirements upfront → returns a context-free Task
@@ -636,19 +641,16 @@ const fetchData = () =>
   functions.task.runTask(functions.task.fromPromise(() => fetch("/api/data")));
 const slowOperation = () =>
   new Promise<primitives.results.Result<string, string>>((resolve) =>
-    setTimeout(() => resolve(primitives.results.ok("done")), 100)
+    setTimeout(() => resolve(primitives.results.ok("done")), 100),
   );
 
 // Retry with backoff
-const fetched = await functions.resources.retryWithBackoff(
-  () => fetchData(),
-  {
-    maxAttempts: 3,
-    initialDelay: 100,
-    maxDelay: 1000,
-    factor: 2,
-  },
-);
+const fetched = await functions.resources.retryWithBackoff(() => fetchData(), {
+  maxAttempts: 3,
+  initialDelay: 100,
+  maxDelay: 1000,
+  factor: 2,
+});
 
 // Timeout
 const slow = await functions.resources.withTimeout(

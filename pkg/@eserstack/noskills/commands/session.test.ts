@@ -31,8 +31,7 @@ const makeSession = (
 const makeStaleSession = (
   overrides: Partial<persistence.Session> = {},
 ): persistence.Session => {
-  const threeHoursAgo = new Date(Date.now() - 3 * 60 * 60 * 1000)
-    .toISOString();
+  const threeHoursAgo = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString();
   return makeSession({
     startedAt: threeHoursAgo,
     lastActiveAt: threeHoursAgo,
@@ -80,23 +79,20 @@ bdd.describe("Session persistence", () => {
   });
 
   // Test: spec session has correct fields
-  bdd.it(
-    "spec session has mode spec with spec name and phase",
-    async () => {
-      const session = makeSession({
-        mode: "spec",
-        spec: "my-feature",
-        phase: "DISCOVERY",
-      });
-      await persistence.createSession(tempDir, session);
+  bdd.it("spec session has mode spec with spec name and phase", async () => {
+    const session = makeSession({
+      mode: "spec",
+      spec: "my-feature",
+      phase: "DISCOVERY",
+    });
+    await persistence.createSession(tempDir, session);
 
-      const read = await persistence.readSession(tempDir, session.id);
-      assert.assert(read !== null);
-      assert.assertEquals(read.mode, "spec");
-      assert.assertEquals(read.spec, "my-feature");
-      assert.assertEquals(read.phase, "DISCOVERY");
-    },
-  );
+    const read = await persistence.readSession(tempDir, session.id);
+    assert.assert(read !== null);
+    assert.assertEquals(read.mode, "spec");
+    assert.assertEquals(read.spec, "my-feature");
+    assert.assertEquals(read.phase, "DISCOVERY");
+  });
 
   // Test: session file has all required fields
   bdd.it("session file has all required fields", async () => {
@@ -173,16 +169,10 @@ bdd.describe("Session persistence", () => {
   });
 
   // Test: deleteSession returns false for nonexistent
-  bdd.it(
-    "deleteSession returns false for nonexistent session",
-    async () => {
-      const deleted = await persistence.deleteSession(
-        tempDir,
-        "nonexistent",
-      );
-      assert.assertEquals(deleted, false);
-    },
-  );
+  bdd.it("deleteSession returns false for nonexistent session", async () => {
+    const deleted = await persistence.deleteSession(tempDir, "nonexistent");
+    assert.assertEquals(deleted, false);
+  });
 
   // Test: generateSessionId returns 8-char hex string
   bdd.it("generateSessionId returns 8-char hex string", () => {
@@ -249,18 +239,12 @@ bdd.describe("Session staleness", () => {
   );
 
   // Test: gcStaleSessions returns empty when nothing stale
-  bdd.it(
-    "gcStaleSessions returns empty when no stale sessions",
-    async () => {
-      await persistence.createSession(
-        tempDir,
-        makeSession({ id: "active" }),
-      );
+  bdd.it("gcStaleSessions returns empty when no stale sessions", async () => {
+    await persistence.createSession(tempDir, makeSession({ id: "active" }));
 
-      const removed = await persistence.gcStaleSessions(tempDir);
-      assert.assertEquals(removed.length, 0);
-    },
-  );
+    const removed = await persistence.gcStaleSessions(tempDir);
+    assert.assertEquals(removed.length, 0);
+  });
 });
 
 // TASK-328: a lastActiveAt that is not a date read as never stale, and a null

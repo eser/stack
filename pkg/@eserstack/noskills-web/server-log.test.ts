@@ -43,9 +43,9 @@ Deno.test("a failed action is logged to stderr under the request id it answers w
   assert.assertEquals(result.body.error, "Action could not be completed");
   assert.assertMatch(result.body.requestId, /^[0-9a-f-]{36}$/);
 
-  const record = stderr.split("\n").find((line) =>
-    line.includes(result.body.requestId)
-  );
+  const record = stderr
+    .split("\n")
+    .find((line) => line.includes(result.body.requestId));
   assert.assertNotEquals(record, undefined, stderr);
   assert.assertStringIncludes(record!, "Action could not be completed");
   assert.assertStringIncludes(record!, '"spec":"no-such-spec"');

@@ -56,16 +56,16 @@ export type UpdateRecipeOutput = {
  */
 export type UpdateRecipeError =
   | {
-    readonly _tag: "RegistryError";
-    readonly message: string;
-    readonly cause: unknown;
-  }
+      readonly _tag: "RegistryError";
+      readonly message: string;
+      readonly cause: unknown;
+    }
   | { readonly _tag: "RecipeNotFound"; readonly message: string }
   | {
-    readonly _tag: "ApplyError";
-    readonly message: string;
-    readonly cause: unknown;
-  };
+      readonly _tag: "ApplyError";
+      readonly message: string;
+      readonly cause: unknown;
+    };
 
 // =============================================================================
 // Handler
@@ -125,9 +125,9 @@ export const updateRecipe = (
               ),
             );
 
-            const mainRecipe = goResult.recipes.find(
-              (r) => r.name === input.recipeName,
-            ) ?? goResult.recipes[0];
+            const mainRecipe =
+              goResult.recipes.find((r) => r.name === input.recipeName) ??
+              goResult.recipes[0];
 
             if (mainRecipe !== undefined) {
               for (const file of mainRecipe.written ?? []) {
@@ -177,8 +177,7 @@ export const updateRecipe = (
         if (recipe === undefined) {
           return results.fail({
             _tag: "RecipeNotFound" as const,
-            message:
-              `Recipe '${input.recipeName}' not found. Run \`eser kit list\` to see available recipes.`,
+            message: `Recipe '${input.recipeName}' not found. Run \`eser kit list\` to see available recipes.`,
           });
         }
 

@@ -51,7 +51,13 @@ Correct:
 ```tsx
 export function SortedList(props: { items: readonly Item[] }) {
   const sorted = props.items.toSorted((a, b) => a.name.localeCompare(b.name));
-  return <ul>{sorted.map((item) => <li key={item.id}>{item.name}</li>)}</ul>;
+  return (
+    <ul>
+      {sorted.map((item) => (
+        <li key={item.id}>{item.name}</li>
+      ))}
+    </ul>
+  );
 }
 ```
 

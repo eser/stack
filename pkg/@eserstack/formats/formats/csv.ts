@@ -32,10 +32,7 @@ export const writeStart = (options?: FormatOptions): string => {
   return "";
 };
 
-export const writeItem = (
-  data: unknown,
-  options?: FormatOptions,
-): string => {
+export const writeItem = (data: unknown, options?: FormatOptions): string => {
   const obj = normalizeToObject(data);
   if (obj === undefined) return "";
 

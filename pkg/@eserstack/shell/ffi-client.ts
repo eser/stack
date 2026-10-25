@@ -41,9 +41,8 @@ export const ensureNativeLib = (): Promise<ffi.FFILibrary | null> => {
         return loaded;
       },
       (cause: unknown) => {
-        nativeLoadError = cause instanceof Error
-          ? cause
-          : new Error(String(cause));
+        nativeLoadError =
+          cause instanceof Error ? cause : new Error(String(cause));
         return null;
       },
     );

@@ -16,7 +16,7 @@ import type * as shellArgs from "@eserstack/shell/args";
 export const main = async (
   cliArgs?: readonly string[],
 ): Promise<shellArgs.CliResult<void>> => {
-  const flags = cliParseArgs.parseArgs(cliArgs as string[] ?? [], {
+  const flags = cliParseArgs.parseArgs((cliArgs as string[]) ?? [], {
     string: ["registry", "language", "scale", "tag"],
     boolean: ["local"],
   });

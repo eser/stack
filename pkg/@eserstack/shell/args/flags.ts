@@ -66,10 +66,7 @@ const coercers: Record<FlagType, (value: unknown) => unknown> = {
 /**
  * Convert parsed value to the expected type
  */
-export const coerceValue = (
-  value: unknown,
-  type: FlagType,
-): unknown => {
+export const coerceValue = (value: unknown, type: FlagType): unknown => {
   if (value === undefined) return undefined;
   return coercers[type]?.(value) ?? value;
 };

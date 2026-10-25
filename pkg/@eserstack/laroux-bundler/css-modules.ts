@@ -119,12 +119,7 @@ export async function processCSSModules(
   cssPaths: string[],
   options: ProcessCSSModulesOptions = {},
 ): Promise<Map<string, CSSModuleResult>> {
-  const {
-    cache,
-    projectRoot,
-    minify = true,
-    ...moduleOptions
-  } = options;
+  const { cache, projectRoot, minify = true, ...moduleOptions } = options;
 
   cssModulesLogger.debug(`Processing ${cssPaths.length} CSS module(s)`);
 
@@ -142,10 +137,13 @@ export async function processCSSModules(
 
           if (cached !== undefined && cached !== null) {
             cacheHits++;
-            return [cssPath, {
-              code: cached.code,
-              exports: cached.exports,
-            }] as [string, CSSModuleResult];
+            return [
+              cssPath,
+              {
+                code: cached.code,
+                exports: cached.exports,
+              },
+            ] as [string, CSSModuleResult];
           }
         } catch {
           // File might have been deleted, continue with processing

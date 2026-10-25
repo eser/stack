@@ -102,15 +102,12 @@ type Options = {
   port: number;
 };
 
-const options = await dotenv.configure<Options>(
-  (reader, acc) => {
-    acc.env = reader.getCurrentEnv();
-    acc.port = reader.readInt("PORT", 8080);
+const options = await dotenv.configure<Options>((reader, acc) => {
+  acc.env = reader.getCurrentEnv();
+  acc.port = reader.readInt("PORT", 8080);
 
-    return acc;
-  },
-  {},
-);
+  return acc;
+}, {});
 ```
 
 ## Upgrading from 4.x

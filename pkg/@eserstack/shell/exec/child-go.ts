@@ -108,9 +108,10 @@ export const spawnChildGoSync = (
   const closeHandle = (): number => {
     if (closed) return -1;
     closed = true;
-    const result = JSON.parse(
-      lib.symbols.EserAjanShellExecClose(handle),
-    ) as { code?: number; error?: string };
+    const result = JSON.parse(lib.symbols.EserAjanShellExecClose(handle)) as {
+      code?: number;
+      error?: string;
+    };
     return result.code ?? -1;
   };
 
@@ -162,10 +163,7 @@ export const spawnChildGoSync = (
       return;
     }
 
-    const bytes = Uint8Array.from(
-      atob(ev.chunk ?? ""),
-      (c) => c.charCodeAt(0),
-    );
+    const bytes = Uint8Array.from(atob(ev.chunk ?? ""), (c) => c.charCodeAt(0));
 
     if (ev.stream === "stderr") {
       stderrCtrl.enqueue(bytes);

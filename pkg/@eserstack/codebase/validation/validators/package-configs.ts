@@ -30,10 +30,9 @@ export const packageConfigsValidator: Validator = {
     for (const inconsistency of result.inconsistencies) {
       issues.push({
         severity: "error",
-        message:
-          `${inconsistency.packageName}: ${inconsistency.field} mismatch - deno.json: ${
-            JSON.stringify(inconsistency.denoValue)
-          }, package.json: ${JSON.stringify(inconsistency.packageValue)}`,
+        message: `${inconsistency.packageName}: ${inconsistency.field} mismatch - deno.json: ${JSON.stringify(
+          inconsistency.denoValue,
+        )}, package.json: ${JSON.stringify(inconsistency.packageValue)}`,
       });
     }
 

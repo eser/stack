@@ -50,14 +50,16 @@ export const calculateLayout = (
   rows: number,
   config: LayoutConfig,
 ): LayoutResult => {
-  const leftCols = config.leftWidth <= 1
-    ? Math.floor(cols * config.leftWidth)
-    : Math.min(Math.floor(config.leftWidth), cols);
+  const leftCols =
+    config.leftWidth <= 1
+      ? Math.floor(cols * config.leftWidth)
+      : Math.min(Math.floor(config.leftWidth), cols);
   const rightCols = cols - leftCols;
   const usableRows = rows - 1; // reserve 1 row for status bar
-  const rightTopRows = config.rightTopHeight <= 1
-    ? Math.floor(usableRows * config.rightTopHeight)
-    : Math.min(Math.floor(config.rightTopHeight), usableRows);
+  const rightTopRows =
+    config.rightTopHeight <= 1
+      ? Math.floor(usableRows * config.rightTopHeight)
+      : Math.min(Math.floor(config.rightTopHeight), usableRows);
   const rightBottomRows = usableRows - rightTopRows;
 
   return {

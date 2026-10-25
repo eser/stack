@@ -18,7 +18,7 @@ export const ServiceTypes = {
 /** The name of a service type, such as `"Lazy"`. */
 export type ServiceTypeKey = Exclude<keyof typeof ServiceTypes, number>;
 /** The numeric value of a service type in `ServiceTypes`. */
-export type ServiceType = typeof ServiceTypes[ServiceTypeKey];
+export type ServiceType = (typeof ServiceTypes)[ServiceTypeKey];
 
 /** Any service value. */
 // deno-lint-ignore no-explicit-any
@@ -60,13 +60,14 @@ export interface ServiceRegistryWritable<K = ServiceKey, V = ServiceValue> {
 }
 
 /** Registered services, and `build()` to create the root scope from them. */
-export type ServiceRegistry<K = ServiceKey, V = ServiceValue> =
-  & ServiceRegistryWritable<K, V>
-  & {
-    descriptors: Map<K, ServiceDescriptor<V>>;
+export type ServiceRegistry<
+  K = ServiceKey,
+  V = ServiceValue,
+> = ServiceRegistryWritable<K, V> & {
+  descriptors: Map<K, ServiceDescriptor<V>>;
 
-    build(): ServiceScope<K, V>;
-  };
+  build(): ServiceScope<K, V>;
+};
 
 /**
  * The result of a lookup: the value, a promise of it when its builder is
@@ -94,13 +95,14 @@ export interface ServiceScopeQueryable<K = ServiceKey, V = ServiceValue> {
 }
 
 /** A scope that resolves services and keeps the values it built. */
-export type ServiceScope<K = ServiceKey, V = ServiceValue> =
-  & ServiceScopeQueryable<K, V>
-  & {
-    registry: ServiceRegistry<K, V>;
-    rootScope: ServiceScope<K, V>;
-    items: Map<K, ServiceResolution<V>>;
-  };
+export type ServiceScope<
+  K = ServiceKey,
+  V = ServiceValue,
+> = ServiceScopeQueryable<K, V> & {
+  registry: ServiceRegistry<K, V>;
+  rootScope: ServiceScope<K, V>;
+  items: Map<K, ServiceResolution<V>>;
+};
 
 /**
  * The `di` function. Called with no arguments it returns the scope. As a
@@ -109,10 +111,11 @@ export type ServiceScope<K = ServiceKey, V = ServiceValue> =
  * replaced by the service it names. Its methods register and resolve services
  * like the registry and the scope.
  */
-export type Factory<K = ServiceKey, V = ServiceValue> =
-  & ServiceScopeQueryable<K, V>
-  & ServiceRegistryWritable<K, V>
-  & {
+export type Factory<K = ServiceKey, V = ServiceValue> = ServiceScopeQueryable<
+  K,
+  V
+> &
+  ServiceRegistryWritable<K, V> & {
     (
       strings?: TemplateStringsArray,
       ...others: ReadonlyArray<string>

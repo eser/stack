@@ -32,9 +32,11 @@ function isClientComponent(modulePath: string): boolean {
   return Object.keys(manifest.chunks).some((key) => {
     const normalizedKey = key.replace(/^\.\//, "").replace(/\\/g, "/");
     // Check for exact match or partial match (handle different path formats)
-    return normalizedKey === normalized ||
+    return (
+      normalizedKey === normalized ||
       normalizedKey.endsWith(normalized) ||
-      normalized.endsWith(normalizedKey);
+      normalized.endsWith(normalizedKey)
+    );
   });
 }
 
@@ -95,24 +97,24 @@ export function initializeSmartRefresh(): void {
       // Check if any changed modules are client components or bundler infrastructure
       // If so, we need a full page reload to get the updated JavaScript bundle
       const hasClientComponentChanges = changedModules?.some((module) =>
-        requiresFullReload(module)
+        requiresFullReload(module),
       );
 
       if (hasClientComponentChanges === true) {
         const matchedModules = changedModules?.filter((module) =>
-          requiresFullReload(module)
+          requiresFullReload(module),
         );
-        smartRefreshLogger.with({ matchedModules }).debug(
-          "Client component(s) changed, performing full page reload",
-        );
+        smartRefreshLogger
+          .with({ matchedModules })
+          .debug("Client component(s) changed, performing full page reload");
         globalThis.location.reload();
         return;
       }
 
       // Server component or non-client file changed - do smart refresh
-      smartRefreshLogger.with({ changedModules }).debug(
-        "Server component(s) changed, performing smart refresh",
-      );
+      smartRefreshLogger
+        .with({ changedModules })
+        .debug("Server component(s) changed, performing smart refresh");
 
       // Save scroll position to restore after refresh
       const scrollX = globalThis.scrollX;

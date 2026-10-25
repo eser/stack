@@ -185,13 +185,13 @@ Props Crossing the Boundary.
 Correct:
 
 ```tsx
-<ProfileCard name={user.name} avatarUrl={user.avatarUrl} />;
+<ProfileCard name={user.name} avatarUrl={user.avatarUrl} />
 ```
 
 Incorrect:
 
 ```tsx
-<ProfileCard user={user} />; // ships every column, including ones the page must not expose
+<ProfileCard user={user} /> // ships every column, including ones the page must not expose
 ```
 
 **Why:** the payload grows with every field, and a field in props is readable in

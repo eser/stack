@@ -21,9 +21,15 @@ Deno.test("isValidSessionId accepts generated and simple ids only", () => {
     true,
   );
   assert.assertEquals(persistence.isValidSessionId("session-a"), true);
-  for (
-    const id of ["", "../victim", "a/b", "a\\b", "a.b", "..", "x".repeat(65)]
-  ) {
+  for (const id of [
+    "",
+    "../victim",
+    "a/b",
+    "a\\b",
+    "a.b",
+    "..",
+    "x".repeat(65),
+  ]) {
     assert.assertEquals(persistence.isValidSessionId(id), false, id);
   }
 });
@@ -55,7 +61,7 @@ Deno.test("gc never deletes a path named inside a committed session file", async
       null,
     );
     await assert.assertRejects(() =>
-      persistence.createSession(root, staleSession("../escape"))
+      persistence.createSession(root, staleSession("../escape")),
     );
 
     // A normal stale session is still collected.

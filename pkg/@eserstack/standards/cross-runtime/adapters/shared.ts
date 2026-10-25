@@ -309,7 +309,7 @@ export const getPlatform = (): Platform => {
 
 // Keys are the names that Deno.build.arch and Node's process.arch report.
 const ARCH_MAP: Record<string, Arch> = {
-  "x86_64": "amd64",
+  x86_64: "amd64",
   x64: "amd64",
   aarch64: "arm64",
   arm64: "arm64",
@@ -506,23 +506,24 @@ export const DEFAULT_SERVE_HOSTNAME = "127.0.0.1";
  * @param handler - The caller's handler
  * @returns A handler that never rejects
  */
-export const createSafeHandler = (
-  handler: HttpHandler,
-): (request: Request, info: ServeHandlerInfo) => Promise<Response> =>
-async (request, info) => {
-  try {
-    return await handler(request, info);
-  } catch (error) {
-    // The query string is left out because it can carry tokens.
-    const { pathname } = new URL(request.url);
-    reportServeError(
-      `the handler threw for ${request.method} ${pathname}; the client got a 500 response.`,
-      error,
-    );
+export const createSafeHandler =
+  (
+    handler: HttpHandler,
+  ): ((request: Request, info: ServeHandlerInfo) => Promise<Response>) =>
+  async (request, info) => {
+    try {
+      return await handler(request, info);
+    } catch (error) {
+      // The query string is left out because it can carry tokens.
+      const { pathname } = new URL(request.url);
+      reportServeError(
+        `the handler threw for ${request.method} ${pathname}; the client got a 500 response.`,
+        error,
+      );
 
-    return new Response("Internal Server Error", { status: 500 });
-  }
-};
+      return new Response("Internal Server Error", { status: 500 });
+    }
+  };
 
 /**
  * Prints an error of `runtime.http.serve` that has no other owner, such as one
@@ -545,7 +546,7 @@ export const reportServeError = (problem: string, error: unknown): void => {
 const createThrowFn = (
   capability: keyof RuntimeCapabilities,
   runtimeName: RuntimeName,
-): () => never => {
+): (() => never) => {
   return () => {
     throw new types.RuntimeCapabilityError(capability, runtimeName);
   };
@@ -594,9 +595,7 @@ export const createStubExec = (runtimeName: RuntimeName): RuntimeExec => {
 /**
  * Creates a stub process adapter that throws on all operations.
  */
-export const createStubProcess = (
-  runtimeName: RuntimeName,
-): RuntimeProcess => {
+export const createStubProcess = (runtimeName: RuntimeName): RuntimeProcess => {
   const throwProcess = createThrowFn("process", runtimeName);
 
   return {

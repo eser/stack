@@ -45,15 +45,13 @@ export class RestoreArgsError extends Error {
 }
 
 /** What restoring one category did. */
-export type CategoryRestore =
-  & { readonly category: Category }
-  & (
-    | (purgeHistory.RestoreOutcome & {
+export type CategoryRestore = { readonly category: Category } & (
+  | (purgeHistory.RestoreOutcome & {
       /** The tools sync set up, for the agent integration. */
       readonly synced?: readonly string[];
     })
-    | { readonly status: "failed"; readonly message: string }
-  );
+  | { readonly status: "failed"; readonly message: string }
+);
 
 /** The usage line, without the command prefix. */
 const USAGE = "purge restore [entry_id|latest] [category ...] [--overwrite]";
@@ -97,18 +95,17 @@ export const parseRestoreArgs = (
   if (unknown.length > 0) {
     return results.fail(
       new RestoreArgsError(
-        `purge restore: unknown category "${
-          unknown.join('", "')
-        }"; the categories are ${purgeHistory.PURGE_CATEGORIES.join(", ")}`,
+        `purge restore: unknown category "${unknown.join(
+          '", "',
+        )}"; the categories are ${purgeHistory.PURGE_CATEGORIES.join(", ")}`,
       ),
     );
   }
 
   return results.ok({
     entry,
-    categories: names.length === 0
-      ? null
-      : [...new Set(names as readonly Category[])],
+    categories:
+      names.length === 0 ? null : [...new Set(names as readonly Category[])],
     overwrite,
   });
 };
@@ -122,8 +119,8 @@ export const findEntry = (
   id: string,
 ): purgeHistory.HistoryEntry | null =>
   id === "latest"
-    ? entries[0] ?? null
-    : entries.find((entry) => entry.id === id) ?? null;
+    ? (entries[0] ?? null)
+    : (entries.find((entry) => entry.id === id) ?? null);
 
 // =============================================================================
 // Main
@@ -139,8 +136,8 @@ export const main = async (
   root: string,
 ): Promise<shellArgs.CliResult<void>> => {
   const currentMode = mode.detectMode(args);
-  const interactive = currentMode === "human" &&
-    mode.detectInteraction(args) === "interactive";
+  const interactive =
+    currentMode === "human" && mode.detectInteraction(args) === "interactive";
   const ctx = tui.createTuiContext({
     target: interactive ? "interactive" : "non-interactive",
   });
@@ -168,24 +165,24 @@ export const main = async (
       ctx,
       entries.length === 0
         ? `purge restore: no purge history entry "${request.entry}"; ${persistence.paths.purgeHistoryDir}/ holds no entries`
-        : `purge restore: no purge history entry "${request.entry}"; the entries are ${
-          entries.map((e) => e.id).join(", ")
-        }, or use "latest"`,
+        : `purge restore: no purge history entry "${request.entry}"; the entries are ${entries
+            .map((e) => e.id)
+            .join(", ")}, or use "latest"`,
     );
 
     return results.fail({ exitCode: 1 });
   }
 
-  const missing = (request.categories ?? []).filter((category) =>
-    !entry.categories.includes(category)
+  const missing = (request.categories ?? []).filter(
+    (category) => !entry.categories.includes(category),
   );
 
   if (missing.length > 0) {
     tui.log.error(
       ctx,
-      `purge restore: entry ${entry.id} holds no ${
-        missing.join(", ")
-      }; it holds ${entry.categories.join(", ")}`,
+      `purge restore: entry ${entry.id} holds no ${missing.join(
+        ", ",
+      )}; it holds ${entry.categories.join(", ")}`,
     );
 
     return results.fail({ exitCode: 1 });
@@ -218,9 +215,10 @@ const listOrPick = async (
 
   tui.log.info(ctx, "Purge history, newest first:");
   for (const entry of entries) {
-    const kept = entry.categories.length === 0
-      ? "nothing kept"
-      : entry.categories.join(", ");
+    const kept =
+      entry.categories.length === 0
+        ? "nothing kept"
+        : entry.categories.join(", ");
     tui.log.step(ctx, `  ${entry.id}  ${kept}`);
   }
 
@@ -357,8 +355,7 @@ const restoreAgentIntegration = async (
     return {
       category,
       status: "failed",
-      message:
-        `sync sets the agent integration up from the noskills section of ${persistence.paths.manifestFile}, and the project has none with a tools list; restore the manifest category too, or run noskills init`,
+      message: `sync sets the agent integration up from the noskills section of ${persistence.paths.manifestFile}, and the project has none with a tools list; restore the manifest category too, or run noskills init`,
     };
   }
 
@@ -390,11 +387,12 @@ const describeRestored = (outcome: CategoryRestore): string => {
   const files = `${outcome.paths.length} ${
     outcome.paths.length === 1 ? "file" : "files"
   }`;
-  const synced = outcome.synced === undefined
-    ? ""
-    : outcome.synced.length === 0
-    ? ", no tools to sync"
-    : `, synced ${outcome.synced.join(", ")}`;
+  const synced =
+    outcome.synced === undefined
+      ? ""
+      : outcome.synced.length === 0
+        ? ", no tools to sync"
+        : `, synced ${outcome.synced.join(", ")}`;
 
   return `${outcome.category} (${files}${synced})`;
 };
@@ -427,22 +425,22 @@ const restoreAndReport = async (
         if (outcome.skipped.length > 0) {
           tui.log.warn(
             ctx,
-            `Did not copy symbolic links from the entry: ${
-              listPaths(outcome.skipped)
-            }`,
+            `Did not copy symbolic links from the entry: ${listPaths(
+              outcome.skipped,
+            )}`,
           );
         }
         break;
       case "refused":
         tui.log.warn(
           ctx,
-          `Did not restore ${outcome.category}: ${
-            listPaths(outcome.conflicts)
-          } already ${
+          `Did not restore ${outcome.category}: ${listPaths(
+            outcome.conflicts,
+          )} already ${
             outcome.conflicts.length === 1 ? "exists" : "exist"
-          }. Run ${
-            cmd.cmd(`purge restore ${entryId} ${outcome.category} --overwrite`)
-          } to replace ${outcome.conflicts.length === 1 ? "it" : "them"}.`,
+          }. Run ${cmd.cmd(
+            `purge restore ${entryId} ${outcome.category} --overwrite`,
+          )} to replace ${outcome.conflicts.length === 1 ? "it" : "them"}.`,
         );
         break;
       case "failed":

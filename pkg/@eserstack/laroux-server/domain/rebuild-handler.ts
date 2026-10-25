@@ -83,9 +83,11 @@ export function createRebuildHandler(
     } catch (error) {
       // Handled here: logged once, and the clients keep the page they have.
       // ServerModules.load leaves the pages on the build loaded before.
-      await logger.with({ buildId: result.buildId, error }).error(
-        "✗ Loading the rebuilt server modules failed, so no HMR update was sent; fix the error and save to rebuild",
-      );
+      await logger
+        .with({ buildId: result.buildId, error })
+        .error(
+          "✗ Loading the rebuilt server modules failed, so no HMR update was sent; fix the error and save to rebuild",
+        );
       hmr?.notifyError(RELOAD_FAILED_MESSAGE);
       return;
     }

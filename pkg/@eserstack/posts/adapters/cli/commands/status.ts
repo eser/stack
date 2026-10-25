@@ -97,9 +97,10 @@ export const main = async (
     );
   } else {
     for (const status of statuses) {
-      const flowLabel = status.flow === "browser"
-        ? span.dim("(OAuth / browser)")
-        : span.dim("(credentials)");
+      const flowLabel =
+        status.flow === "browser"
+          ? span.dim("(OAuth / browser)")
+          : span.dim("(credentials)");
       out.writeln(
         "  ",
         span.bold(status.platform),

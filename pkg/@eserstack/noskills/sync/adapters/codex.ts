@@ -62,10 +62,12 @@ const buildHooks = (
   commandPrefix: string,
 ): Readonly<Record<string, readonly CodexMatcherGroup[]>> => ({
   SessionStart: [{ hooks: [handler(commandPrefix, "session-start")] }],
-  PreToolUse: [{
-    matcher: "^(Bash|apply_patch)$",
-    hooks: [handler(commandPrefix, "pre-tool-use")],
-  }],
+  PreToolUse: [
+    {
+      matcher: "^(Bash|apply_patch)$",
+      hooks: [handler(commandPrefix, "pre-tool-use")],
+    },
+  ],
   PostToolUse: [
     {
       matcher: "^apply_patch$",
@@ -222,16 +224,17 @@ const tomlString = (value: string): string =>
         default:
           return `\\u${c.charCodeAt(0).toString(16).padStart(4, "0")}`;
       }
-    })}"`;
+    })
+  }"`;
 
 const buildMcpToml = (commandPrefix: string): string => {
   const parts = commandPrefix.split(/\s+/);
   const command = parts[0] ?? "npx";
   const args = [...parts.slice(1), "mcp-serve"].map(tomlString).join(", ");
 
-  return `[mcp_servers.noskills]\ncommand = ${
-    tomlString(command)
-  }\nargs = [${args}]\n`;
+  return `[mcp_servers.noskills]\ncommand = ${tomlString(
+    command,
+  )}\nargs = [${args}]\n`;
 };
 
 // A TOML table header line: `[name]` or `[[name]]` with a bare or dotted key,
@@ -248,17 +251,21 @@ const NOSKILLS_MCP_TABLE = "mcp_servers.noskills";
 export const withoutNoskillsMcpTable = (toml: string): string => {
   let inNoskills = false;
 
-  return toml.split("\n").filter((line) => {
-    const header = TOML_HEADER.exec(line);
+  return toml
+    .split("\n")
+    .filter((line) => {
+      const header = TOML_HEADER.exec(line);
 
-    if (header !== null) {
-      const name = header[1] ?? "";
-      inNoskills = name === NOSKILLS_MCP_TABLE ||
-        name.startsWith(`${NOSKILLS_MCP_TABLE}.`);
-    }
+      if (header !== null) {
+        const name = header[1] ?? "";
+        inNoskills =
+          name === NOSKILLS_MCP_TABLE ||
+          name.startsWith(`${NOSKILLS_MCP_TABLE}.`);
+      }
 
-    return !inNoskills;
-  }).join("\n");
+      return !inNoskills;
+    })
+    .join("\n");
 };
 
 // =============================================================================
@@ -347,9 +354,7 @@ export const codexAdapter: adapter.ToolAdapter = {
     );
   },
 
-  syncMcp: async (
-    ctx: adapter.SyncContext,
-  ): Promise<void> => {
+  syncMcp: async (ctx: adapter.SyncContext): Promise<void> => {
     const configPath = `${ctx.root}/${CONFIG_FILE}`;
     await crossRuntime.runtime.fs.mkdir(`${ctx.root}/.codex`, {
       recursive: true,

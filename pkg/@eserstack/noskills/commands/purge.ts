@@ -98,15 +98,15 @@ export const main = async (
   });
 
   // A destructive command does not guess at arguments it does not know.
-  const unknown = cleanArgs.filter((arg) =>
-    !arg.startsWith("-") || !PURGE_FLAGS.has(arg)
+  const unknown = cleanArgs.filter(
+    (arg) => !arg.startsWith("-") || !PURGE_FLAGS.has(arg),
   );
   if (unknown.length > 0) {
     tui.log.error(
       ctx,
-      `purge: unknown argument "${
-        unknown.join('", "')
-      }"; purge takes --force and --no-history, or the restore subcommand`,
+      `purge: unknown argument "${unknown.join(
+        '", "',
+      )}"; purge takes --force and --no-history, or the restore subcommand`,
     );
 
     return results.fail({ exitCode: 1 });
@@ -175,9 +175,8 @@ export const main = async (
 
     // The manifest section goes with any category the user confirmed.
     const manifest = detections.find((d) => d.id === "manifest");
-    selected = manifest?.exists === true
-      ? [...confirmed, "manifest"]
-      : confirmed;
+    selected =
+      manifest?.exists === true ? [...confirmed, "manifest"] : confirmed;
   }
 
   const entryId = keepHistory
@@ -199,9 +198,10 @@ export const main = async (
   const failed = outcomes.some((o) => o.errors.length > 0);
   const summary = force
     ? "Purge complete."
-    : `Purge complete (${
-      countRemoved(outcomes, asked)
-    } of ${asked.length} categories removed).`;
+    : `Purge complete (${countRemoved(
+        outcomes,
+        asked,
+      )} of ${asked.length} categories removed).`;
 
   if (failed) {
     tui.log.warn(ctx, `${summary} Some content could not be removed.`);
@@ -225,8 +225,8 @@ const countRemoved = (
 ): number => {
   const askedIds = new Set(asked.map((d) => d.id));
 
-  return outcomes.filter((o) =>
-    askedIds.has(o.id) && o.removed && o.errors.length === 0
+  return outcomes.filter(
+    (o) => askedIds.has(o.id) && o.removed && o.errors.length === 0,
   ).length;
 };
 
@@ -291,9 +291,9 @@ const finishHistoryEntry = async (
 
   tui.log.info(
     ctx,
-    `A copy is in ${purgeHistory.entryPath(entryId)}/. Restore it with: ${
-      cmd.cmd(`purge restore ${entryId}`)
-    }`,
+    `A copy is in ${purgeHistory.entryPath(entryId)}/. Restore it with: ${cmd.cmd(
+      `purge restore ${entryId}`,
+    )}`,
   );
 
   try {
@@ -311,9 +311,9 @@ const finishHistoryEntry = async (
   } catch (error) {
     tui.log.warn(
       ctx,
-      `Could not drop the oldest purge history entries: ${
-        purgeHistory.describeError(error)
-      }. Remove the oldest folders in ${persistence.paths.purgeHistoryDir}/ yourself.`,
+      `Could not drop the oldest purge history entries: ${purgeHistory.describeError(
+        error,
+      )}. Remove the oldest folders in ${persistence.paths.purgeHistoryDir}/ yourself.`,
     );
   }
 };
@@ -370,7 +370,9 @@ const withoutMarkedSection = (content: string): string | null => {
   const endIdx = content.indexOf(SECTION_END, startIdx);
   if (endIdx === -1) return null;
 
-  const rest = content.slice(0, startIdx).trimEnd() + "\n" +
+  const rest =
+    content.slice(0, startIdx).trimEnd() +
+    "\n" +
     content.slice(endIdx + SECTION_END.length).trimStart();
 
   return rest.trim() === "" ? "" : rest.trimEnd() + "\n";
@@ -387,15 +389,19 @@ const withoutMcpTable = (content: string): string | null => {
 /** True when a settings file's `hooks` hold a handler that runs noskills. */
 const holdsNoskillsHook = (hooks: unknown): boolean =>
   isRecord(hooks) &&
-  Object.values(hooks).some((groups) =>
-    Array.isArray(groups) &&
-    groups.some((group: unknown) =>
-      isRecord(group) && Array.isArray(group["hooks"]) &&
-      group["hooks"].some((handler: unknown) =>
-        isRecord(handler) &&
-        hookCommands.isNoskillsHookCommand(handler["command"])
-      )
-    )
+  Object.values(hooks).some(
+    (groups) =>
+      Array.isArray(groups) &&
+      groups.some(
+        (group: unknown) =>
+          isRecord(group) &&
+          Array.isArray(group["hooks"]) &&
+          group["hooks"].some(
+            (handler: unknown) =>
+              isRecord(handler) &&
+              hookCommands.isNoskillsHookCommand(handler["command"]),
+          ),
+      ),
   );
 
 /**
@@ -416,38 +422,40 @@ const withoutNoskillsHooks = (
 };
 
 /** An MCP config without the `noskills` server under `serversKey`. */
-const withoutMcpServer = (serversKey: string) =>
-(
-  config: Readonly<Record<string, unknown>>,
-): Readonly<Record<string, unknown>> | null => {
-  const servers = config[serversKey];
-  if (!isRecord(servers) || !("noskills" in servers)) return null;
+const withoutMcpServer =
+  (serversKey: string) =>
+  (
+    config: Readonly<Record<string, unknown>>,
+  ): Readonly<Record<string, unknown>> | null => {
+    const servers = config[serversKey];
+    if (!isRecord(servers) || !("noskills" in servers)) return null;
 
-  const { noskills: _noskills, ...others } = servers;
-  const { [serversKey]: _servers, ...rest } = config;
+    const { noskills: _noskills, ...others } = servers;
+    const { [serversKey]: _servers, ...rest } = config;
 
-  return Object.keys(others).length === 0
-    ? rest
-    : { ...config, [serversKey]: others };
-};
+    return Object.keys(others).length === 0
+      ? rest
+      : { ...config, [serversKey]: others };
+  };
 
 /** Applies `edit` to a JSON object file; "" when no key is left. */
-const jsonStrip = (
-  edit: (
-    doc: Readonly<Record<string, unknown>>,
-  ) => Readonly<Record<string, unknown>> | null,
-) =>
-(content: string): string | null => {
-  const doc = JSON.parse(content) as unknown;
-  if (!isRecord(doc)) return null;
+const jsonStrip =
+  (
+    edit: (
+      doc: Readonly<Record<string, unknown>>,
+    ) => Readonly<Record<string, unknown>> | null,
+  ) =>
+  (content: string): string | null => {
+    const doc = JSON.parse(content) as unknown;
+    if (!isRecord(doc)) return null;
 
-  const rest = edit(doc);
-  if (rest === null) return null;
+    const rest = edit(doc);
+    if (rest === null) return null;
 
-  return Object.keys(rest).length === 0
-    ? ""
-    : JSON.stringify(rest, null, 2) + "\n";
-};
+    return Object.keys(rest).length === 0
+      ? ""
+      : JSON.stringify(rest, null, 2) + "\n";
+  };
 
 const SHARED_FILES: readonly SharedFile[] = [
   { file: "CLAUDE.md", strip: withoutMarkedSection },
@@ -516,9 +524,9 @@ const stripSharedFile = async (
   } catch (error) {
     return {
       removed: false,
-      error: `${shared.file}: ${
-        purgeHistory.describeError(error)
-      }; take noskills' part out of it yourself`,
+      error: `${shared.file}: ${purgeHistory.describeError(
+        error,
+      )}; take noskills' part out of it yourself`,
     };
   }
 };
@@ -532,11 +540,9 @@ const listSpecNames = async (root: string): Promise<readonly string[]> => {
   const names: string[] = [];
 
   try {
-    for await (
-      const entry of crossRuntime.runtime.fs.readDir(
-        `${root}/${persistence.paths.specsDir}`,
-      )
-    ) {
+    for await (const entry of crossRuntime.runtime.fs.readDir(
+      `${root}/${persistence.paths.specsDir}`,
+    )) {
       if (entry.isDirectory) {
         names.push(entry.name);
       }
@@ -617,12 +623,13 @@ const detectSpecs = async (
     };
   }
 
-  const details = specStates.map((s) => `${s.name} ${s.state.phase}`).join(
-    ", ",
-  );
-  const message = specStates.length > 0
-    ? `Remove specs? (${totalCount} specs: ${details})`
-    : `Remove specs? (${totalCount} spec directories)`;
+  const details = specStates
+    .map((s) => `${s.name} ${s.state.phase}`)
+    .join(", ");
+  const message =
+    specStates.length > 0
+      ? `Remove specs? (${totalCount} specs: ${details})`
+      : `Remove specs? (${totalCount} spec directories)`;
 
   return { id: "specs", exists, message };
 };
@@ -631,11 +638,9 @@ const detectRules = async (root: string): Promise<CategoryDetection> => {
   let count = 0;
 
   try {
-    for await (
-      const entry of crossRuntime.runtime.fs.readDir(
-        `${root}/${persistence.paths.rulesDir}`,
-      )
-    ) {
+    for await (const entry of crossRuntime.runtime.fs.readDir(
+      `${root}/${persistence.paths.rulesDir}`,
+    )) {
       if (entry.isFile) {
         count++;
       }
@@ -670,8 +675,8 @@ const detectAgentIntegration = async (
   ]);
 
   const found = [
-    ...SHARED_FILES.filter((_, i) => shared[i] === true).map((shared) =>
-      `noskills' part of ${shared.file}`
+    ...SHARED_FILES.filter((_, i) => shared[i] === true).map(
+      (shared) => `noskills' part of ${shared.file}`,
     ),
     ...paths.filter((_, i) => files[i] === true),
   ];
@@ -681,11 +686,12 @@ const detectAgentIntegration = async (
   return {
     id: "agent-integration",
     exists: found.length > 0,
-    message: found.length > 0
-      ? `Remove agent integration? (${shown}${
-        more > 0 ? ` and ${more} more` : ""
-      })`
-      : null,
+    message:
+      found.length > 0
+        ? `Remove agent integration? (${shown}${
+            more > 0 ? ` and ${more} more` : ""
+          })`
+        : null,
   };
 };
 
@@ -729,7 +735,7 @@ const categoryOutcome = (
 ): CategoryOutcome => ({
   id,
   removed: steps.some((step) => step.removed),
-  errors: steps.flatMap((step) => step.error === null ? [] : [step.error]),
+  errors: steps.flatMap((step) => (step.error === null ? [] : [step.error])),
 });
 
 const takePath = async (
@@ -753,9 +759,10 @@ const takePath = async (
 
     return REMOVED;
   } catch (error) {
-    const hint = error instanceof purgeHistory.PurgeHistoryError
-      ? "; pass --no-history to delete it without a copy"
-      : "";
+    const hint =
+      error instanceof purgeHistory.PurgeHistoryError
+        ? "; pass --no-history to delete it without a copy"
+        : "";
 
     return {
       removed: false,
@@ -785,12 +792,14 @@ const takeManifestSection = async (
     );
 
     if (doc.errors.length > 0) {
-      return categoryOutcome("manifest", [{
-        removed: false,
-        error: `${manifestFile} is not valid YAML (${
-          doc.errors[0]?.message
-        }); fix it, then purge again`,
-      }]);
+      return categoryOutcome("manifest", [
+        {
+          removed: false,
+          error: `${manifestFile} is not valid YAML (${
+            doc.errors[0]?.message
+          }); fix it, then purge again`,
+        },
+      ]);
     }
 
     if (!doc.has("noskills")) {
@@ -817,10 +826,12 @@ const takeManifestSection = async (
       return categoryOutcome("manifest", [ABSENT]);
     }
 
-    return categoryOutcome("manifest", [{
-      removed: false,
-      error: `${manifestFile}: ${purgeHistory.describeError(error)}`,
-    }]);
+    return categoryOutcome("manifest", [
+      {
+        removed: false,
+        error: `${manifestFile}: ${purgeHistory.describeError(error)}`,
+      },
+    ]);
   }
 };
 
@@ -860,10 +871,12 @@ const takeAgentIntegration = async (
     try {
       await purgeHistory.markCategory(root, entryId, "agent-integration");
     } catch (error) {
-      return categoryOutcome("agent-integration", [{
-        removed: false,
-        error: purgeHistory.describeError(error),
-      }]);
+      return categoryOutcome("agent-integration", [
+        {
+          removed: false,
+          error: purgeHistory.describeError(error),
+        },
+      ]);
     }
   }
 
@@ -875,9 +888,9 @@ const takeAgentIntegration = async (
 
   const touched = [
     ...paths.filter((_, i) => moved[i]?.removed === true),
-    ...SHARED_FILES.filter((_, i) => edited[i]?.removed === true).map((
-      shared,
-    ) => shared.file),
+    ...SHARED_FILES.filter((_, i) => edited[i]?.removed === true).map(
+      (shared) => shared.file,
+    ),
   ];
   for (const path of touched) {
     // One path at a time: two files can share a folder, and the first check

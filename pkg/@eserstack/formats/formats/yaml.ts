@@ -8,10 +8,7 @@ export const writeStart = (_options?: FormatOptions): string => {
   return "";
 };
 
-export const writeItem = (
-  data: unknown,
-  options?: FormatOptions,
-): string => {
+export const writeItem = (data: unknown, options?: FormatOptions): string => {
   try {
     // Written as YAML 1.1, so strings that a 1.1 reader (kubectl, PyYAML)
     // would take for booleans, numbers or dates (yes, off, 1_000,
@@ -24,8 +21,8 @@ export const writeItem = (
       yamlOptions.indent = options.indent;
     }
 
-    const separator = options?.separator === "" ? "---" : (options?.separator ??
-      "---");
+    const separator =
+      options?.separator === "" ? "---" : (options?.separator ?? "---");
     return `${yaml.stringify(data, yamlOptions).trim()}\n${separator}\n`;
   } catch (error) {
     throw new types.SerializationError(

@@ -22,7 +22,8 @@ export const resolveBinary = async (
 
   // Try to find the binary on PATH via `which`
   try {
-    const resolved = await shellExec.exec`which ${defaultName}`.noThrow()
+    const resolved = await shellExec.exec`which ${defaultName}`
+      .noThrow()
       .text();
 
     if (resolved.length > 0) {
@@ -45,9 +46,10 @@ export const resolveBinary = async (
 export type CliProcess = {
   readonly stdout: ReadableStream<Uint8Array>;
   readonly stderr: ReadableStream<Uint8Array>;
-  readonly waitForExit: () => Promise<
-    { readonly code: number; readonly success: boolean }
-  >;
+  readonly waitForExit: () => Promise<{
+    readonly code: number;
+    readonly success: boolean;
+  }>;
   /** Sends the signal (SIGTERM by default); does nothing once it has exited. */
   readonly kill: (signal?: string) => void;
 };
@@ -80,7 +82,8 @@ export const spawnCliProcess = (
   if (useStdinPipe && child.stdin !== null) {
     const encoder = new TextEncoder();
     const writer = child.stdin.getWriter();
-    writer.write(encoder.encode(options!.stdinData!))
+    writer
+      .write(encoder.encode(options!.stdinData!))
       .then(() => writer.close())
       .catch(() => {
         // The write fails only when the CLI has already exited; its exit code
@@ -259,9 +262,10 @@ export const classifyExitCode = (
     return null;
   }
 
-  const message = stderr.length > 0
-    ? `${provider} exited with code ${code}: ${stderr}`
-    : `${provider} exited with code ${code}`;
+  const message =
+    stderr.length > 0
+      ? `${provider} exited with code ${code}: ${stderr}`
+      : `${provider} exited with code ${code}`;
 
   // Common exit code patterns
   if (code === 1) {

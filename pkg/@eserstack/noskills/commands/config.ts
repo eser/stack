@@ -98,13 +98,8 @@ const setUser = async (
     return failure(error);
   }
 
-  out.writeln(
-    span.green("User set: "),
-    span.bold(identity.formatUser(user)),
-  );
-  out.writeln(
-    span.dim(`  Stored in: ${identity.getUserFilePath()}`),
-  );
+  out.writeln(span.green("User set: "), span.bold(identity.formatUser(user)));
+  out.writeln(span.dim(`  Stored in: ${identity.getUserFilePath()}`));
   await out.close();
   return results.ok(undefined);
 };

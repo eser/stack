@@ -109,21 +109,23 @@ export function encodeJsonValue(value: unknown): unknown {
   }
 
   if (
-    value === null || typeof value === "number" || typeof value === "boolean"
+    value === null ||
+    typeof value === "number" ||
+    typeof value === "boolean"
   ) {
     return value;
   }
 
   if (
-    value === undefined || typeof value === "function" ||
+    value === undefined ||
+    typeof value === "function" ||
     typeof value === "symbol"
   ) {
     return undefined;
   }
 
-  const json = JSON.stringify(
-    value,
-    (_key, item) => typeof item === "string" ? escapeString(item) : item,
+  const json = JSON.stringify(value, (_key, item) =>
+    typeof item === "string" ? escapeString(item) : item,
   );
 
   return json === undefined ? undefined : JSON.parse(json);
@@ -170,8 +172,7 @@ export function isClientReference(value: unknown): value is ClientReference {
   return (
     value !== null &&
     typeof value === "object" &&
-    (value as ClientReference).$$typeof ===
-      Symbol.for("react.client.reference")
+    (value as ClientReference).$$typeof === Symbol.for("react.client.reference")
   );
 }
 

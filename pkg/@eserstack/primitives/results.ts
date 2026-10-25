@@ -145,8 +145,8 @@ export const getOrElse = <T, E>(
   isOk(result)
     ? result.value
     : typeof fallback === "function"
-    ? (fallback as (error: E) => T)(result.error)
-    : fallback;
+      ? (fallback as (error: E) => T)(result.error)
+      : fallback;
 
 /**
  * Returns the value of a success, or throws the error of a failure. An error
@@ -175,9 +175,8 @@ export const match = <T, E, U>(
     ok: (value: T) => U;
     fail: (error: E) => U;
   },
-): U => (isOk(result)
-  ? handlers.ok(result.value)
-  : handlers.fail(result.error));
+): U =>
+  isOk(result) ? handlers.ok(result.value) : handlers.fail(result.error);
 
 // Async utilities
 /**
@@ -200,11 +199,13 @@ export const fromPromise = async <T, E = Error>(
  * failure. An error that is not an `Error` is wrapped in one.
  */
 export const toPromise = <T, E>(result: Result<T, E>): Promise<T> =>
-  isOk(result) ? Promise.resolve(result.value) : Promise.reject(
-    result.error instanceof Error
-      ? result.error
-      : new Error(String(result.error)),
-  );
+  isOk(result)
+    ? Promise.resolve(result.value)
+    : Promise.reject(
+        result.error instanceof Error
+          ? result.error
+          : new Error(String(result.error)),
+      );
 
 // Collection utilities
 /**

@@ -157,10 +157,7 @@ const buildArgs = (
   options: generation.GenerateTextOptions,
   outputFormat: "json" | "stream-json",
 ): string[] => {
-  const args: string[] = [
-    "--output-format",
-    outputFormat,
-  ];
+  const args: string[] = ["--output-format", outputFormat];
 
   args.push("--model", cfg.model);
 
@@ -178,9 +175,7 @@ const buildArgs = (
   return args;
 };
 
-const mapStreamEvent = (
-  event: unknown,
-): generation.StreamEvent | null => {
+const mapStreamEvent = (event: unknown): generation.StreamEvent | null => {
   if (event === null || typeof event !== "object") {
     return null;
   }
@@ -208,8 +203,8 @@ const mapStreamEvent = (
       usage: {
         inputTokens: obj.usage?.input_tokens ?? 0,
         outputTokens: obj.usage?.output_tokens ?? 0,
-        totalTokens: (obj.usage?.input_tokens ?? 0) +
-          (obj.usage?.output_tokens ?? 0),
+        totalTokens:
+          (obj.usage?.input_tokens ?? 0) + (obj.usage?.output_tokens ?? 0),
       },
     };
   }

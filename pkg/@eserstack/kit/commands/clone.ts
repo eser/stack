@@ -121,10 +121,7 @@ export const resolveExtractLimits = (
  * limit when the repository tarball went past one.
  */
 const failureMessage = (error: cloneRecipeHandler.CloneRecipeError): string => {
-  const limitError = errorChain.findCause(
-    error.cause,
-    tar.TarballLimitError,
-  );
+  const limitError = errorChain.findCause(error.cause, tar.TarballLimitError);
   if (limitError === null) {
     return error.message;
   }
@@ -140,7 +137,7 @@ const failureMessage = (error: cloneRecipeHandler.CloneRecipeError): string => {
 export const main = async (
   cliArgs?: readonly string[],
 ): Promise<shellArgs.CliResult<void>> => {
-  const parsed = cliParseArgs.parseArgs(cliArgs as string[] ?? [], {
+  const parsed = cliParseArgs.parseArgs((cliArgs as string[]) ?? [], {
     string: ["recipe", "name", "var", "max-bytes", "max-entries"],
     boolean: [
       "force",
@@ -166,15 +163,11 @@ export const main = async (
     out.writeln("Usage: eser kit clone <specifier> [target-dir] [options]");
     out.writeln();
     out.writeln("Specifier formats:");
-    out.writeln(
-      "  owner/repo                     GitHub repo (ref main)",
-    );
+    out.writeln("  owner/repo                     GitHub repo (ref main)");
     out.writeln(
       "  owner/repo#ref                 GitHub repo at specific tag/branch",
     );
-    out.writeln(
-      "  gh:owner/repo/sub/path[#ref]   GitHub repo subpath",
-    );
+    out.writeln("  gh:owner/repo/sub/path[#ref]   GitHub repo subpath");
     out.writeln();
     out.writeln("Options:");
     out.writeln(
@@ -189,21 +182,13 @@ export const main = async (
     out.writeln(
       "  --interactive, -i              Prompt for missing variables",
     );
-    out.writeln(
-      "  --no-post-install              Skip post-install commands",
-    );
-    out.writeln(
-      "  --force                        Overwrite existing files",
-    );
-    out.writeln(
-      "  --dry-run                      Preview without writing",
-    );
+    out.writeln("  --no-post-install              Skip post-install commands");
+    out.writeln("  --force                        Overwrite existing files");
+    out.writeln("  --dry-run                      Preview without writing");
     out.writeln(
       "  --skip-existing                Skip files that already exist",
     );
-    out.writeln(
-      "  --verbose                      Show verbose output",
-    );
+    out.writeln("  --verbose                      Show verbose output");
     out.writeln(
       `  --max-bytes <n>                Tarball limit in decompressed bytes (default: ${tar.DEFAULT_MAX_BYTES}, env: ${MAX_BYTES_ENV})`,
     );
@@ -241,7 +226,7 @@ export const main = async (
 
   // Parse --var flags
   const variables: Record<string, string> = {};
-  for (const v of (parsed["var"] as string[])) {
+  for (const v of parsed["var"] as string[]) {
     const [key, ...valueParts] = String(v).split("=");
     if (key !== undefined && key !== "") {
       variables[key] = valueParts.join("=");
@@ -249,7 +234,7 @@ export const main = async (
   }
 
   // Positional target dir overrides --name when both absent; --name wins when present
-  const projectName = parsed["name"] as string | undefined ?? targetDirArg;
+  const projectName = (parsed["name"] as string | undefined) ?? targetDirArg;
 
   // Interactive mode: explicit flag OR auto-detect when stdin is a TTY (unless suppressed)
   const explicitInteractive = parsed["interactive"] === true;

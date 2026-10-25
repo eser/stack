@@ -86,9 +86,7 @@ export const getCurrentUser = async (
  *
  * @throws {Error} when there is no config directory or the write fails.
  */
-export const setCurrentUser = async (
-  user: NoskillsUser,
-): Promise<void> => {
+export const setCurrentUser = async (user: NoskillsUser): Promise<void> => {
   const dir = getConfigDir();
   const filePath = getUserFilePath();
   await runtime.fs.mkdir(dir, { recursive: true, mode: USER_DIR_MODE });
@@ -127,10 +125,12 @@ export const clearCurrentUser = async (): Promise<boolean> => {
 /** Detect user from git config. Returns null if git is not available. */
 export const detectGitUser = async (): Promise<NoskillsUser | null> => {
   try {
-    const name = (await runtime.exec.exec("git", ["config", "user.name"]))
-      .trim();
-    const email = (await runtime.exec.exec("git", ["config", "user.email"]))
-      .trim();
+    const name = (
+      await runtime.exec.exec("git", ["config", "user.name"])
+    ).trim();
+    const email = (
+      await runtime.exec.exec("git", ["config", "user.email"])
+    ).trim();
 
     if (name.length === 0) return null;
     return { name, email };
@@ -166,9 +166,7 @@ export const unknownUser = (): NoskillsUser => ({
  * Resolve user: config file → git config → Unknown User.
  * Never returns null.
  */
-export const resolveUser = async (
-  _root?: string,
-): Promise<NoskillsUser> => {
+export const resolveUser = async (_root?: string): Promise<NoskillsUser> => {
   // 1. Config file
   const configured = await getCurrentUser();
   if (configured !== null) return configured;

@@ -20,10 +20,7 @@ bdd.describe("calculateLayout", () => {
     assert.assertEquals(result.statusBar.width, 120);
 
     // Right panels should fill remaining height
-    assert.assertEquals(
-      result.rightTop.height + result.rightBottom.height,
-      39,
-    );
+    assert.assertEquals(result.rightTop.height + result.rightBottom.height, 39);
   });
 
   bdd.it("80x24 terminal still fits all panels", () => {

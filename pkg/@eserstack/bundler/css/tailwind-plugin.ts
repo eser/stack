@@ -277,12 +277,12 @@ export function createTailwindRoot(
         }
 
         // Add compiler.sources (additional source patterns)
-        const compilerSources = (compiler.sources ?? []).map((
-          s: { base: string; pattern: string },
-        ) => ({
-          ...s,
-          negated: false,
-        }));
+        const compilerSources = (compiler.sources ?? []).map(
+          (s: { base: string; pattern: string }) => ({
+            ...s,
+            negated: false,
+          }),
+        );
 
         scanner = new oxide.Scanner({
           sources: [...sources, ...compilerSources],
@@ -292,12 +292,13 @@ export function createTailwindRoot(
       // Check if file uses Tailwind features that require compilation
       // Features bitmask from @tailwindcss/node
       const features = compiler.features ?? 0;
-      const hasTailwindFeatures = (features & (
-        TailwindFeatures.AtApply |
-        TailwindFeatures.JsPluginCompat |
-        TailwindFeatures.ThemeFunction |
-        TailwindFeatures.Utilities
-      )) !== 0;
+      const hasTailwindFeatures =
+        (features &
+          (TailwindFeatures.AtApply |
+            TailwindFeatures.JsPluginCompat |
+            TailwindFeatures.ThemeFunction |
+            TailwindFeatures.Utilities)) !==
+        0;
 
       if (!hasTailwindFeatures) {
         return null; // Not a Tailwind file, skip processing

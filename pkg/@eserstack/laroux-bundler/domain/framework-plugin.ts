@@ -100,24 +100,17 @@ export type FrameworkPlugin = {
   /**
    * Create module map for client component resolution
    */
-  createModuleMap?: (
-    components: ClientComponent[],
-  ) => Promise<ModuleMap>;
+  createModuleMap?: (components: ClientComponent[]) => Promise<ModuleMap>;
 
   /**
    * Save module map to disk
    */
-  saveModuleMap?: (
-    moduleMap: ModuleMap,
-    outputPath: string,
-  ) => Promise<void>;
+  saveModuleMap?: (moduleMap: ModuleMap, outputPath: string) => Promise<void>;
 
   /**
    * Create client manifest for component metadata
    */
-  createClientManifest?: (
-    components: ClientComponent[],
-  ) => Promise<ModuleMap>;
+  createClientManifest?: (components: ClientComponent[]) => Promise<ModuleMap>;
 
   /**
    * Rewrite server component imports

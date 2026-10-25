@@ -61,36 +61,36 @@ bdd.describe("detectInvoker", () => {
     });
 
     bdd.it("should detect compiled binary with single-letter name", () => {
-      assert.assertEquals(
-        detect("e", "unknown", ["/usr/bin/e", "doctor"]),
-        { invoker: "binary", mode: "installed" },
-      );
+      assert.assertEquals(detect("e", "unknown", ["/usr/bin/e", "doctor"]), {
+        invoker: "binary",
+        mode: "installed",
+      });
     });
 
     bdd.it(
       "should detect compiled when both execBasename and runtimeName are unknown",
       () => {
-        assert.assertEquals(
-          detect("something", "unknown", []),
-          { invoker: "binary", mode: "installed" },
-        );
+        assert.assertEquals(detect("something", "unknown", []), {
+          invoker: "binary",
+          mode: "installed",
+        });
       },
     );
 
     bdd.it("should detect compiled with empty execBasename", () => {
-      assert.assertEquals(
-        detect("", "unknown", []),
-        { invoker: "binary", mode: "installed" },
-      );
+      assert.assertEquals(detect("", "unknown", []), {
+        invoker: "binary",
+        mode: "installed",
+      });
     });
 
     bdd.it(
       "should detect compiled when runtimeName is non-standard (e.g. workerd)",
       () => {
-        assert.assertEquals(
-          detect("my-cli", "workerd", ["/usr/bin/my-cli"]),
-          { invoker: "binary", mode: "installed" },
-        );
+        assert.assertEquals(detect("my-cli", "workerd", ["/usr/bin/my-cli"]), {
+          invoker: "binary",
+          mode: "installed",
+        });
       },
     );
   });
@@ -166,10 +166,12 @@ bdd.describe("detectInvoker", () => {
       "should fall back to runtimeName with custom bun binary + BUN_INSTALL",
       () => {
         assert.assertEquals(
-          detect("bun-canary", "bun", [
-            "/home/user/.bun/bin/bun-canary",
-            "/path/to/eser",
-          ], { BUN_INSTALL: "/home/user/.bun" }),
+          detect(
+            "bun-canary",
+            "bun",
+            ["/home/user/.bun/bin/bun-canary", "/path/to/eser"],
+            { BUN_INSTALL: "/home/user/.bun" },
+          ),
           { invoker: "bun", mode: "installed" },
         );
       },
@@ -315,13 +317,15 @@ bdd.describe("detectInvoker", () => {
       "should detect pnpm from npm_config_user_agent starting with 'pnpm/'",
       () => {
         assert.assertEquals(
-          detect("node", "node", [
-            "/usr/bin/node",
-            "/usr/local/lib/node_modules/eser/bin/eser.js",
-          ], {
-            npm_config_user_agent:
-              "pnpm/8.15.0 npm/? node/v20.11.0 darwin arm64",
-          }),
+          detect(
+            "node",
+            "node",
+            ["/usr/bin/node", "/usr/local/lib/node_modules/eser/bin/eser.js"],
+            {
+              npm_config_user_agent:
+                "pnpm/8.15.0 npm/? node/v20.11.0 darwin arm64",
+            },
+          ),
           { invoker: "pnpm", mode: "installed" },
         );
       },
@@ -368,19 +372,19 @@ bdd.describe("detectInvoker", () => {
     });
 
     bdd.it("should default to npm with empty argv", () => {
-      assert.assertEquals(
-        detect("node", "node", []),
-        { invoker: "npm", mode: "installed" },
-      );
+      assert.assertEquals(detect("node", "node", []), {
+        invoker: "npm",
+        mode: "installed",
+      });
     });
 
     bdd.it(
       "should default to npm with only exec in argv, no script path",
       () => {
-        assert.assertEquals(
-          detect("node", "node", ["/usr/bin/node"]),
-          { invoker: "npm", mode: "installed" },
-        );
+        assert.assertEquals(detect("node", "node", ["/usr/bin/node"]), {
+          invoker: "npm",
+          mode: "installed",
+        });
       },
     );
   });
@@ -388,12 +392,14 @@ bdd.describe("detectInvoker", () => {
   bdd.describe("Node.js: priority ordering (argv[1] beats env vars)", () => {
     bdd.it("should let argv[1] npx take priority over pnpm env", () => {
       assert.assertEquals(
-        detect("node", "node", [
-          "/usr/bin/node",
-          "/home/user/.npm/_npx/abc/eser",
-        ], {
-          npm_config_user_agent: "pnpm/8.0.0",
-        }),
+        detect(
+          "node",
+          "node",
+          ["/usr/bin/node", "/home/user/.npm/_npx/abc/eser"],
+          {
+            npm_config_user_agent: "pnpm/8.0.0",
+          },
+        ),
         { invoker: "npx", mode: "on-demand" },
       );
     });
@@ -416,12 +422,14 @@ bdd.describe("detectInvoker", () => {
   bdd.describe("Bun runtime", () => {
     bdd.it("should detect bun global install when BUN_INSTALL is set", () => {
       assert.assertEquals(
-        detect("bun", "bun", [
-          "/usr/bin/bun",
-          "/home/user/.bun/install/global/eser/bin/eser.js",
-        ], {
-          BUN_INSTALL: "/home/user/.bun",
-        }),
+        detect(
+          "bun",
+          "bun",
+          ["/usr/bin/bun", "/home/user/.bun/install/global/eser/bin/eser.js"],
+          {
+            BUN_INSTALL: "/home/user/.bun",
+          },
+        ),
         { invoker: "bun", mode: "installed" },
       );
     });
@@ -455,10 +463,10 @@ bdd.describe("detectInvoker", () => {
     });
 
     bdd.it("should detect bunx with empty env", () => {
-      assert.assertEquals(
-        detect("bun", "bun", ["/usr/bin/bun", "eser"]),
-        { invoker: "bunx", mode: "on-demand" },
-      );
+      assert.assertEquals(detect("bun", "bun", ["/usr/bin/bun", "eser"]), {
+        invoker: "bunx",
+        mode: "on-demand",
+      });
     });
   });
 
@@ -547,10 +555,10 @@ bdd.describe("detectInvoker", () => {
     );
 
     bdd.it("should detect installed when no main module provided", () => {
-      assert.assertEquals(
-        detect("deno", "deno", ["/usr/bin/deno"]),
-        { invoker: "deno", mode: "installed" },
-      );
+      assert.assertEquals(detect("deno", "deno", ["/usr/bin/deno"]), {
+        invoker: "deno",
+        mode: "installed",
+      });
     });
 
     bdd.it("should detect installed when mainModule is undefined", () => {
@@ -642,20 +650,20 @@ bdd.describe("detectInvoker", () => {
     bdd.it(
       "should use execBasename 'deno' directly, ignoring runtimeName 'node'",
       () => {
-        assert.assertEquals(
-          detect("deno", "node", ["/usr/bin/deno"]),
-          { invoker: "deno", mode: "installed" },
-        );
+        assert.assertEquals(detect("deno", "node", ["/usr/bin/deno"]), {
+          invoker: "deno",
+          mode: "installed",
+        });
       },
     );
 
     bdd.it(
       "should use execBasename 'bun' directly, ignoring runtimeName 'node'",
       () => {
-        assert.assertEquals(
-          detect("bun", "node", ["/usr/bin/bun", "eser"]),
-          { invoker: "bunx", mode: "on-demand" },
-        );
+        assert.assertEquals(detect("bun", "node", ["/usr/bin/bun", "eser"]), {
+          invoker: "bunx",
+          mode: "on-demand",
+        });
       },
     );
 
@@ -689,12 +697,14 @@ bdd.describe("detectInvoker", () => {
       "should fall back to runtimeName 'node' + npx env when execBasename is unknown",
       () => {
         assert.assertEquals(
-          detect("nodejs-custom", "node", [
-            "/usr/bin/nodejs-custom",
-            "/clean/path",
-          ], {
-            npm_execpath: "/usr/lib/node_modules/npm/bin/npx-cli.js",
-          }),
+          detect(
+            "nodejs-custom",
+            "node",
+            ["/usr/bin/nodejs-custom", "/clean/path"],
+            {
+              npm_execpath: "/usr/lib/node_modules/npm/bin/npx-cli.js",
+            },
+          ),
           { invoker: "npx", mode: "on-demand" },
         );
       },
@@ -703,10 +713,10 @@ bdd.describe("detectInvoker", () => {
     bdd.it(
       "should detect binary when both execBasename and runtimeName are unknown",
       () => {
-        assert.assertEquals(
-          detect("wat", "browser", []),
-          { invoker: "binary", mode: "installed" },
-        );
+        assert.assertEquals(detect("wat", "browser", []), {
+          invoker: "binary",
+          mode: "installed",
+        });
       },
     );
   });
@@ -1130,12 +1140,10 @@ bdd.describe("matchCliPrefix", () => {
 
       bdd.it("should handle: deno -A jsr:@eserstack/nos init", () => {
         assert.assertEquals(
-          execCtx.matchCliPrefix(["noskills", "nos"], [
-            "deno",
-            "-A",
-            "jsr:@eserstack/nos",
-            "init",
-          ]),
+          execCtx.matchCliPrefix(
+            ["noskills", "nos"],
+            ["deno", "-A", "jsr:@eserstack/nos", "init"],
+          ),
           "deno -A jsr:@eserstack/nos",
         );
       });
@@ -1186,10 +1194,7 @@ bdd.describe("matchCliPrefix", () => {
     });
 
     bdd.it("should return undefined for empty argv", () => {
-      assert.assertEquals(
-        execCtx.matchCliPrefix(SUBS, []),
-        undefined,
-      );
+      assert.assertEquals(execCtx.matchCliPrefix(SUBS, []), undefined);
     });
 
     bdd.it("should return undefined for unrelated commands", () => {
@@ -1220,11 +1225,10 @@ bdd.describe("matchCliPrefix", () => {
 
     bdd.it("should handle many subcommand aliases", () => {
       assert.assertEquals(
-        execCtx.matchCliPrefix(["noskills", "nos", "ns", "nsk"], [
-          "eser",
-          "ns",
-          "init",
-        ]),
+        execCtx.matchCliPrefix(
+          ["noskills", "nos", "ns", "nsk"],
+          ["eser", "ns", "init"],
+        ),
         "eser ns",
       );
     });

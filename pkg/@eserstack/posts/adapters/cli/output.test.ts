@@ -8,9 +8,9 @@ const CONTROL = /[\x00-\x08\x0b-\x1f\x7f-\x9f]/;
 
 // Runs outputPosts in a child process so the real stdout sink is exercised.
 const SCRIPT = `
-import * as output from ${
-  JSON.stringify(new URL("./output.ts", import.meta.url).href)
-};
+import * as output from ${JSON.stringify(
+  new URL("./output.ts", import.meta.url).href,
+)};
 await output.outputPosts([{
   platform: "bluesky",
   id: "at://did:plc:x/post/1\\x1b[2J",

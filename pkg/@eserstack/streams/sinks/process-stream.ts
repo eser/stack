@@ -41,7 +41,10 @@ export const writeToProcessStream = (
 
   // The caller receives the rejection through `current`; the chain swallows it
   // so one failed write does not fail every later write to the stream.
-  writeChains.set(stream, current.catch(() => {}));
+  writeChains.set(
+    stream,
+    current.catch(() => {}),
+  );
 
   return current;
 };

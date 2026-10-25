@@ -241,7 +241,7 @@ bdd.describe("noskills run: git invariant", () => {
     const output = await compiler.compile(state, noConcerns, noRules);
 
     const hasGitRule = output.behavioral.rules.some((r) =>
-      r.includes("git write commands")
+      r.includes("git write commands"),
     );
     assert.assertEquals(hasGitRule, true);
   });
@@ -285,18 +285,15 @@ bdd.describe("noskills run: headless prompt", () => {
     },
   );
 
-  bdd.it(
-    "headlessHints are the hints of the provider the loop runs",
-    () => {
-      // A manifest that lists Cursor first used to give the claude-code turn
-      // Cursor's hints. The loop always runs AGENT_PROVIDER.
-      assert.assertEquals(run.AGENT_PROVIDER, "claude-code");
-      assert.assertEquals(run.headlessHints(), {
-        ...engine.interactionHintsFor(run.AGENT_PROVIDER),
-        interactive: false,
-      });
-    },
-  );
+  bdd.it("headlessHints are the hints of the provider the loop runs", () => {
+    // A manifest that lists Cursor first used to give the claude-code turn
+    // Cursor's hints. The loop always runs AGENT_PROVIDER.
+    assert.assertEquals(run.AGENT_PROVIDER, "claude-code");
+    assert.assertEquals(run.headlessHints(), {
+      ...engine.interactionHintsFor(run.AGENT_PROVIDER),
+      interactive: false,
+    });
+  });
 
   bdd.it("EXECUTING rules leave out interactive-only rules", async () => {
     const output = await compileHeadless(inExecuting());
@@ -313,7 +310,7 @@ bdd.describe("noskills run: headless prompt", () => {
   bdd.it("decisions go through block, not a question", async () => {
     const output = await compileHeadless(inExecuting());
     const decisionRule = output.behavioral.rules.find((r) =>
-      r.startsWith("Never skip steps or infer decisions.")
+      r.startsWith("Never skip steps or infer decisions."),
     );
 
     assert.assertExists(decisionRule);
@@ -338,10 +335,10 @@ bdd.describe("noskills run: headless prompt", () => {
   bdd.it("the tension gate blocks instead of asking", async () => {
     const concernsById = (ids: readonly string[]) =>
       defaultConcerns.DEFAULT_CONCERNS.filter((c) => ids.includes(c.id));
-    const output = await compileHeadless(
+    const output = (await compileHeadless(
       inExecuting(),
       concernsById(["move-fast", "compliance"]),
-    ) as compiler.ExecutionOutput;
+    )) as compiler.ExecutionOutput;
 
     assert.assertStringIncludes(output.instruction, "TENSION GATE");
     assert.assertStringIncludes(output.instruction, cmd.cmd("spec test block"));

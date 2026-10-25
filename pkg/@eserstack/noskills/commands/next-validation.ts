@@ -59,8 +59,7 @@ export const attachValidation = (
 
   return {
     ...output,
-    instruction:
-      `${instruction} A second agent checked this transition: follow \`validation.instruction\` before you ask the user for approval.`,
+    instruction: `${instruction} A second agent checked this transition: follow \`validation.instruction\` before you ask the user for approval.`,
     validation,
   } as compiler.NextOutput;
 };
@@ -132,10 +131,7 @@ export const validationFor = async (
     transition,
     specDocument.value,
   );
-  const key = await transitionValidation.validationKeyOf(
-    input,
-    settings.value,
-  );
+  const key = await transitionValidation.validationKeyOf(input, settings.value);
 
   if (!forced) {
     const stored = storedValidationOf(
@@ -166,9 +162,9 @@ export const validationFor = async (
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
     await deps.notify(
-      `noskills: the validator result was not stored in ${
-        persistence.paths.validationFile(spec)
-      }, so the next call runs the validator again: ${detail}`,
+      `noskills: the validator result was not stored in ${persistence.paths.validationFile(
+        spec,
+      )}, so the next call runs the validator again: ${detail}`,
     );
   }
 
@@ -201,7 +197,8 @@ const readSpecDocument = async (
   // goes to a model.
   const leaves = `${relative} could not be read: the path leaves the project.`;
   if (
-    relative.startsWith("/") || /^[A-Za-z]:/.test(relative) ||
+    relative.startsWith("/") ||
+    /^[A-Za-z]:/.test(relative) ||
     !insideProject(relative)
   ) {
     return results.fail(leaves);
@@ -232,9 +229,7 @@ const readSpecDocument = async (
  * afterwards.
  */
 const runInEmptyDirectory = async (
-  work: (
-    workDir: string,
-  ) => Promise<transitionValidation.TransitionValidation>,
+  work: (workDir: string) => Promise<transitionValidation.TransitionValidation>,
   skip: (reason: string) => transitionValidation.SkippedValidation,
 ): Promise<transitionValidation.TransitionValidation> => {
   let workDir: string;
@@ -267,7 +262,8 @@ const storedValidationOf = (record: unknown): StoredValidation | null => {
   const validation = candidate["validation"];
   if (
     typeof candidate["key"] !== "string" ||
-    validation === null || typeof validation !== "object"
+    validation === null ||
+    typeof validation !== "object"
   ) {
     return null;
   }

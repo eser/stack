@@ -29,7 +29,7 @@ const withoutFfi = ffiLib === null;
 const stubLogSymbols = (overrides: {
   create?: (configJSON: string) => string;
   write?: (requestJSON: string) => string;
-}): () => void => {
+}): (() => void) => {
   if (ffiLib === null) {
     return () => {};
   }
@@ -79,11 +79,13 @@ const configureFallbackTest = async (category: string): Promise<void> => {
 
   await configure({
     sinks: { test: sink },
-    loggers: [{
-      category: [category],
-      sinks: ["test"],
-      lowestLevel: logging.Severities.Debug,
-    }],
+    loggers: [
+      {
+        category: [category],
+        sinks: ["test"],
+        lowestLevel: logging.Severities.Debug,
+      },
+    ],
   });
 };
 
@@ -436,11 +438,13 @@ Deno.test("Logger.with() creates logger with properties", async () => {
 
   await configure({
     sinks: { test: sink },
-    loggers: [{
-      category: ["app"],
-      sinks: ["test"],
-      lowestLevel: logging.Severities.Debug,
-    }],
+    loggers: [
+      {
+        category: ["app"],
+        sinks: ["test"],
+        lowestLevel: logging.Severities.Debug,
+      },
+    ],
   });
 
   const logger = getLogger(["app"]);
@@ -457,11 +461,13 @@ Deno.test("Logger.log() dispatches to Go FFI", async () => {
 
   await configure({
     sinks: { test: sink },
-    loggers: [{
-      category: ["app"],
-      sinks: ["test"],
-      lowestLevel: logging.Severities.Debug,
-    }],
+    loggers: [
+      {
+        category: ["app"],
+        sinks: ["test"],
+        lowestLevel: logging.Severities.Debug,
+      },
+    ],
   });
 
   const logger = getLogger(["app"]);
@@ -476,11 +482,13 @@ Deno.test("Logger.log() skips logging when level is insufficient", async () => {
 
   await configure({
     sinks: { test: sink },
-    loggers: [{
-      category: ["app"],
-      sinks: ["test"],
-      lowestLevel: logging.Severities.Error,
-    }],
+    loggers: [
+      {
+        category: ["app"],
+        sinks: ["test"],
+        lowestLevel: logging.Severities.Error,
+      },
+    ],
   });
 
   const logger = getLogger(["app"]);
@@ -496,11 +504,13 @@ Deno.test("Logger.log() with function message calls function only when logging",
 
   await configure({
     sinks: { test: sink },
-    loggers: [{
-      category: ["app"],
-      sinks: ["test"],
-      lowestLevel: logging.Severities.Debug,
-    }],
+    loggers: [
+      {
+        category: ["app"],
+        sinks: ["test"],
+        lowestLevel: logging.Severities.Debug,
+      },
+    ],
   });
 
   const logger = getLogger(["app"]);
@@ -523,11 +533,13 @@ Deno.test("Logger.log() with function message skips function when level insuffic
 
   await configure({
     sinks: { test: sink },
-    loggers: [{
-      category: ["app"],
-      sinks: ["test"],
-      lowestLevel: logging.Severities.Error,
-    }],
+    loggers: [
+      {
+        category: ["app"],
+        sinks: ["test"],
+        lowestLevel: logging.Severities.Error,
+      },
+    ],
   });
 
   const logger = getLogger(["app"]);
@@ -551,11 +563,13 @@ Deno.test("Logger.log() with additional arguments", async () => {
 
   await configure({
     sinks: { test: sink },
-    loggers: [{
-      category: ["app"],
-      sinks: ["test"],
-      lowestLevel: logging.Severities.Debug,
-    }],
+    loggers: [
+      {
+        category: ["app"],
+        sinks: ["test"],
+        lowestLevel: logging.Severities.Debug,
+      },
+    ],
   });
 
   const logger = getLogger(["app"]);
@@ -572,11 +586,13 @@ Deno.test("Logger convenience methods work correctly", async () => {
 
   await configure({
     sinks: { test: sink },
-    loggers: [{
-      category: ["app"],
-      sinks: ["test"],
-      lowestLevel: logging.Severities.Debug,
-    }],
+    loggers: [
+      {
+        category: ["app"],
+        sinks: ["test"],
+        lowestLevel: logging.Severities.Debug,
+      },
+    ],
   });
 
   const logger = getLogger(["app"]);
@@ -619,11 +635,13 @@ Deno.test("Logger creates proper LogRecord", async () => {
 
   await configure({
     sinks: { test: sink },
-    loggers: [{
-      category: ["test-logger"],
-      sinks: ["test"],
-      lowestLevel: logging.Severities.Debug,
-    }],
+    loggers: [
+      {
+        category: ["test-logger"],
+        sinks: ["test"],
+        lowestLevel: logging.Severities.Debug,
+      },
+    ],
   });
 
   const logger = getLogger(["test-logger"]);
@@ -642,11 +660,13 @@ Deno.test("Logger handles non-string messages correctly", async () => {
 
   await configure({
     sinks: { test: sink },
-    loggers: [{
-      category: ["app"],
-      sinks: ["test"],
-      lowestLevel: logging.Severities.Debug,
-    }],
+    loggers: [
+      {
+        category: ["app"],
+        sinks: ["test"],
+        lowestLevel: logging.Severities.Debug,
+      },
+    ],
   });
 
   const logger = getLogger(["app"]);
@@ -691,11 +711,13 @@ Deno.test("Child loggers inherit parent sinks", async () => {
 
   await configure({
     sinks: { test: sink },
-    loggers: [{
-      category: ["app"],
-      sinks: ["test"],
-      lowestLevel: logging.Severities.Debug,
-    }],
+    loggers: [
+      {
+        category: ["app"],
+        sinks: ["test"],
+        lowestLevel: logging.Severities.Debug,
+      },
+    ],
   });
 
   const logger = getLogger(["app", "http", "handler"]);
@@ -710,11 +732,13 @@ Deno.test("Logger OpenTelemetry severity levels", async () => {
 
   await configure({
     sinks: { test: sink },
-    loggers: [{
-      category: ["app"],
-      sinks: ["test"],
-      lowestLevel: logging.Severities.Trace,
-    }],
+    loggers: [
+      {
+        category: ["app"],
+        sinks: ["test"],
+        lowestLevel: logging.Severities.Trace,
+      },
+    ],
   });
 
   const logger = getLogger(["app"]);
@@ -751,11 +775,13 @@ Deno.test("Logger.trace() logs at trace level", async () => {
 
   await configure({
     sinks: { test: sink },
-    loggers: [{
-      category: ["app"],
-      sinks: ["test"],
-      lowestLevel: logging.Severities.Trace,
-    }],
+    loggers: [
+      {
+        category: ["app"],
+        sinks: ["test"],
+        lowestLevel: logging.Severities.Trace,
+      },
+    ],
   });
 
   const logger = getLogger(["app"]);
@@ -770,11 +796,13 @@ Deno.test("Logger.trace() is filtered when lowestLevel is Debug", async () => {
 
   await configure({
     sinks: { test: sink },
-    loggers: [{
-      category: ["app"],
-      sinks: ["test"],
-      lowestLevel: logging.Severities.Debug, // Debug=5, Trace=1
-    }],
+    loggers: [
+      {
+        category: ["app"],
+        sinks: ["test"],
+        lowestLevel: logging.Severities.Debug, // Debug=5, Trace=1
+      },
+    ],
   });
 
   const logger = getLogger(["app"]);

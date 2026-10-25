@@ -6,10 +6,7 @@ import type * as types from "./types.ts";
 // Message Constructors
 // =============================================================================
 
-export const textMessage = (
-  role: types.Role,
-  text: string,
-): types.Message => {
+export const textMessage = (role: types.Role, text: string): types.Message => {
   return {
     role,
     content: [{ kind: "text", text }],
@@ -45,10 +42,12 @@ export const toolResultMessage = (
 ): types.Message => {
   return {
     role: "tool",
-    content: [{
-      kind: "tool_result",
-      toolResult: { toolCallId, content, isError },
-    }],
+    content: [
+      {
+        kind: "tool_result",
+        toolResult: { toolCallId, content, isError },
+      },
+    ],
   };
 };
 

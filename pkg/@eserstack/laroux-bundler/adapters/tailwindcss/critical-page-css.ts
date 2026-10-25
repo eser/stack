@@ -160,10 +160,7 @@ function extractAllLayers(
 
   // Track all inner contents for each layer name (to handle duplicates)
   const layerContents = new Map<string, string[]>();
-  const layerPositions = new Map<
-    string,
-    { start: number; end: number }
-  >();
+  const layerPositions = new Map<string, { start: number; end: number }>();
 
   // Match @layer declarations (both @layer name; and @layer name { ... })
   const layerPattern = /@layer\s+([a-zA-Z_-][a-zA-Z0-9_-]*)\s*[{;]/g;
@@ -342,7 +339,7 @@ function matchesForcePatterns(
  */
 function isLikelyAboveFold(selector: string): boolean {
   return criticalCssConfig.ABOVE_FOLD_PATTERNS.some((pattern) =>
-    pattern.test(selector)
+    pattern.test(selector),
   );
 }
 
@@ -358,12 +355,7 @@ function isLikelyAboveFold(selector: string): boolean {
 export function extractCriticalPageCss(
   options: CriticalPageCssOptions,
 ): CriticalPageCssResult {
-  const {
-    html,
-    css,
-    forceInclude = [],
-    forceExclude = [],
-  } = options;
+  const { html, css, forceInclude = [], forceExclude = [] } = options;
 
   criticalPageCssLogger.debug(
     "Extracting critical page CSS (Tailwind v4 aware)...",

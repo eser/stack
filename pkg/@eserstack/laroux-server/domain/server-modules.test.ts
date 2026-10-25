@@ -51,8 +51,7 @@ const writeServerOutput = (
   homeText: string,
 ): Promise<void> =>
   writeFiles(distDir, {
-    "server/_generated-routes.ts":
-      `import { HomePage } from "./src/app/routes/home/page.js?v=${buildId}";
+    "server/_generated-routes.ts": `import { HomePage } from "./src/app/routes/home/page.js?v=${buildId}";
 
 export const generatedRoutes = [{ path: "/", component: HomePage }];
 `,
@@ -147,12 +146,9 @@ Deno.test("ServerModules names the missing load() when a page is requested first
  * and needs no renderer.
  */
 const appSources = (version: string): Record<string, string> => ({
-  "src/app/layout.tsx":
-    `export function Layout(props: { children: unknown }) {\n  return props.children;\n}\n`,
-  "src/app/routes/home/page.tsx":
-    `export function HomePage() {\n  return "home ${version}";\n}\n`,
-  "src/app/routes/api/hello/route.ts":
-    `export function GET(): Response {\n  return new Response("hello ${version}");\n}\n`,
+  "src/app/layout.tsx": `export function Layout(props: { children: unknown }) {\n  return props.children;\n}\n`,
+  "src/app/routes/home/page.tsx": `export function HomePage() {\n  return "home ${version}";\n}\n`,
+  "src/app/routes/api/hello/route.ts": `export function GET(): Response {\n  return new Response("hello ${version}");\n}\n`,
   "src/app/routes/admin/proxy.ts": `export default function adminProxy() {
   return { type: "response", response: new Response("admin ${version}") };
 }
@@ -188,7 +184,7 @@ const writeApp = async (projectRoot: string): Promise<void> => {
       Deno.symlink(
         runtime.path.join(packageNodeModules, name),
         runtime.path.join(projectRoot, "node_modules", name),
-      )
+      ),
     ),
   );
 };
@@ -249,7 +245,7 @@ Deno.test("after a dev rebuild the server answers with the changed page, route.t
       skipCss: true,
       changedFiles: new Set(
         Object.keys(sources).map((file) =>
-          runtime.path.join(projectRoot, file)
+          runtime.path.join(projectRoot, file),
         ),
       ),
     });

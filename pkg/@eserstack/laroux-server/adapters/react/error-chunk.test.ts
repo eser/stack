@@ -39,8 +39,7 @@ for (const [name, Component] of Object.entries(components)) {
     );
     const wire = await new Response(
       rscFlightRenderer.renderToReadableStream(element, {}),
-    )
-      .text();
+    ).text();
     const errorLine = wire.split("\n").find((l) => /^E\d+:/.test(l));
     assert.assert(errorLine !== undefined, wire);
     assert.assertEquals(errorLine.includes("boom"), true);
@@ -59,9 +58,12 @@ Deno.test("SSR payload error chunk has no stack", async () => {
   const serialized = JSON.stringify(result.rscPayload) + result.html;
   assert.assertEquals(serialized.includes(SECRET_FRAME), false);
   assert.assertEquals(
-    result.rscPayload.some((c) =>
-      c.type === "E" && typeof c.value === "object" && c.value !== null &&
-      "stack" in c.value
+    result.rscPayload.some(
+      (c) =>
+        c.type === "E" &&
+        typeof c.value === "object" &&
+        c.value !== null &&
+        "stack" in c.value,
     ),
     false,
   );

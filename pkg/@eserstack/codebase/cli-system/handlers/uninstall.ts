@@ -52,9 +52,9 @@ export const uninstallHandler = async (
     await out.close();
     return results.fail({
       message:
-        `${
-          renderer.render([span.red(`\nUnsupported runtime: ${runtimeName}`)])
-        }\n` +
+        `${renderer.render([
+          span.red(`\nUnsupported runtime: ${runtimeName}`),
+        ])}\n` +
         "Global uninstallation is only supported for Deno, Node.js, and Bun.",
       exitCode: 1,
     });

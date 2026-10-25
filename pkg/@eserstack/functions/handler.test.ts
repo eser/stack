@@ -233,10 +233,7 @@ bdd.describe("handler", () => {
 
       const response = await handleHttp(event, mockCtx);
       assert.assertEquals(response.status, 201);
-      assert.assertEquals(
-        (response.body as Order).customerId,
-        "cust-1",
-      );
+      assert.assertEquals((response.body as Order).customerId, "cust-1");
     });
 
     bdd.it("maps adapter errors to response", async () => {
@@ -293,7 +290,7 @@ bdd.describe("handler", () => {
 
       const toText: ResponseMapper<string, never | AdaptError, string> = (
         result,
-      ) => results.isOk(result) ? result.value : `Error: ${result.error}`;
+      ) => (results.isOk(result) ? result.value : `Error: ${result.error}`);
 
       const handleCli = handler.createTrigger({
         handler: echo,

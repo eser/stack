@@ -78,7 +78,10 @@ Deno.test("a failed rebuild is logged as an error, loads nothing and sends no HM
   assert.assertEquals(server.clientMessages, [
     { type: "error", message: rebuildHandler.REBUILD_FAILED_MESSAGE },
   ]);
-  assert.assertEquals(server.logs.map((log) => log.level), ["error"]);
+  assert.assertEquals(
+    server.logs.map((log) => log.level),
+    ["error"],
+  );
   assert.assertStringIncludes(server.logs[0]?.message ?? "", "Rebuild failed");
   assert.assertEquals(server.loads, []);
 });
@@ -92,11 +95,13 @@ Deno.test("a successful rebuild loads the rebuilt modules, then sends the HMR up
   assert.assertEquals(server.loads, [
     { buildId: "01J9REBUILT", clientMessagesBefore: 0 },
   ]);
-  assert.assertEquals(server.clientMessages, [{
-    type: "update",
-    timestamp: 1_700_000_000_000,
-    changedModules: ["src/app/routes/home/page.tsx"],
-  }]);
+  assert.assertEquals(server.clientMessages, [
+    {
+      type: "update",
+      timestamp: 1_700_000_000_000,
+      changedModules: ["src/app/routes/home/page.tsx"],
+    },
+  ]);
   assert.assertEquals(server.logs, [
     { level: "info", message: "✓ Compiled in 42ms", attributes: {} },
   ]);
@@ -135,8 +140,8 @@ Deno.test("a rebuild without HMR only loads the modules and logs its outcome", a
   await onRebuild({ ...SUCCESSFUL_REBUILD, success: false });
 
   assert.assertEquals(loadedBuildIds, ["01J9REBUILT"]);
-  assert.assertEquals(logs.map((log) => log.message.slice(0, 16)), [
-    "✓ Compiled in 7m",
-    "✗ Rebuild failed",
-  ]);
+  assert.assertEquals(
+    logs.map((log) => log.message.slice(0, 16)),
+    ["✓ Compiled in 7m", "✗ Rebuild failed"],
+  );
 });

@@ -64,7 +64,7 @@ Deno.test("di.invoke(): lambda", () => {
   di.set("j", mock.spy());
 
   // deno-fmt-ignore
-  const fn: (_: () => void) => void = j => j();
+  const fn: (_: () => void) => void = (j) => j();
 
   di.invoke(fn);
   di.invoke(fn);
@@ -180,8 +180,12 @@ Deno.test("di.invoke(): generator function", () => {
     yield v();
   };
 
-  for (const _ of di.invoke(fn)) { /* noop */ }
-  for (const _ of di.invoke(fn)) { /* noop */ }
+  for (const _ of di.invoke(fn)) {
+    /* noop */
+  }
+  for (const _ of di.invoke(fn)) {
+    /* noop */
+  }
 
   mock.assertSpyCalls(di`v`, 2);
 });
@@ -202,7 +206,9 @@ Deno.test("di.invoke(): generator function, multiple", () => {
     yield y();
   };
 
-  for (const _ of di.invoke(fn)) { /* noop */ }
+  for (const _ of di.invoke(fn)) {
+    /* noop */
+  }
 
   mock.assertSpyCalls(di`w`, 1);
   mock.assertSpyCalls(di`x`, 2);
@@ -231,11 +237,7 @@ Deno.test("di.invoke(): async function, multiple", async () => {
   di.set("ab", mock.spy());
   di.set("ac", mock.spy());
 
-  const fn = async (
-    aa: () => void,
-    ab: () => void,
-    ac: () => void,
-  ) => {
+  const fn = async (aa: () => void, ab: () => void, ac: () => void) => {
     await Promise.all([
       Promise.resolve(aa()),
       Promise.resolve(ab()),
@@ -262,8 +264,12 @@ Deno.test("di.invoke(): async generator function", async () => {
     yield await Promise.resolve(ad());
   };
 
-  for await (const _ of di.invoke(fn)) { /* noop */ }
-  for await (const _ of di.invoke(fn)) { /* noop */ }
+  for await (const _ of di.invoke(fn)) {
+    /* noop */
+  }
+  for await (const _ of di.invoke(fn)) {
+    /* noop */
+  }
 
   mock.assertSpyCalls(di`ad`, 2);
 });
@@ -275,11 +281,7 @@ Deno.test("di.invoke(): async generator function, multiple", async () => {
   di.set("af", mock.spy());
   di.set("ag", mock.spy());
 
-  const fn = async function* (
-    ae: () => void,
-    af: () => void,
-    ag: () => void,
-  ) {
+  const fn = async function* (ae: () => void, af: () => void, ag: () => void) {
     yield await Promise.resolve(ae());
     yield await Promise.resolve(af());
     yield await Promise.resolve(af());
@@ -288,7 +290,9 @@ Deno.test("di.invoke(): async generator function, multiple", async () => {
     yield await Promise.resolve(ag());
   };
 
-  for await (const _ of di.invoke(fn)) { /* noop */ }
+  for await (const _ of di.invoke(fn)) {
+    /* noop */
+  }
 
   mock.assertSpyCalls(di`ae`, 1);
   mock.assertSpyCalls(di`af`, 2);

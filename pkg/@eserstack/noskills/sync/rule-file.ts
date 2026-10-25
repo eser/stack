@@ -98,8 +98,5 @@ export const writeRuleFile = async (
   const filePath = runtime.path.join(root, relativePath);
 
   await runtime.fs.mkdir(runtime.path.dirname(filePath), { recursive: true });
-  await runtime.fs.writeTextFile(
-    filePath,
-    buildRuleFile(rules, commandPrefix),
-  );
+  await runtime.fs.writeTextFile(filePath, buildRuleFile(rules, commandPrefix));
 };

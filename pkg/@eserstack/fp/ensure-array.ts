@@ -20,4 +20,6 @@
  * ```
  */
 export const ensureArray = <T>(instance: Iterable<T>): ReadonlyArray<T> =>
-  instance.constructor === Array ? instance as ReadonlyArray<T> : [...instance];
+  instance.constructor === Array
+    ? (instance as ReadonlyArray<T>)
+    : [...instance];

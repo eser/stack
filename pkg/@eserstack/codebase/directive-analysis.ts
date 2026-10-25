@@ -144,9 +144,7 @@ export const extractExports = (content: string): readonly string[] => {
 
   // Named class exports: export class Name
   // Use bounded whitespace quantifiers to prevent ReDoS
-  const namedClasses = content.matchAll(
-    /export\s{1,20}class\s{1,20}(\w+)/g,
-  );
+  const namedClasses = content.matchAll(/export\s{1,20}class\s{1,20}(\w+)/g);
   for (const match of namedClasses) {
     if (match[1] !== undefined) {
       exports.add(match[1]);
@@ -211,12 +209,10 @@ export const analyzeDirectives = async (
 
   const matches: DirectiveMatch[] = [];
 
-  for await (
-    const entry of runtime.fs.walk(scanDir, {
-      exts: [...extensions],
-      skip: [...skip],
-    })
-  ) {
+  for await (const entry of runtime.fs.walk(scanDir, {
+    exts: [...extensions],
+    skip: [...skip],
+  })) {
     if (!entry.isFile) continue;
 
     const content = await readFileContent(entry.path);
@@ -281,12 +277,10 @@ export const analyzeServerActions = async (
 
   const matches: DirectiveMatch[] = [];
 
-  for await (
-    const entry of runtime.fs.walk(scanDir, {
-      exts: [...extensions],
-      skip: [...skip],
-    })
-  ) {
+  for await (const entry of runtime.fs.walk(scanDir, {
+    exts: [...extensions],
+    skip: [...skip],
+  })) {
     if (!entry.isFile) continue;
 
     const content = await readFileContent(entry.path);

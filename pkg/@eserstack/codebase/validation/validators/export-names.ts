@@ -29,8 +29,7 @@ export const exportNamesValidator: Validator = {
       passed: result.isValid,
       issues: result.violations.map((violation) => ({
         severity: "error",
-        message:
-          `${violation.packageName}: "${violation.exportPath}" should be "${violation.suggestion}"`,
+        message: `${violation.packageName}: "${violation.exportPath}" should be "${violation.suggestion}"`,
       })),
       stats: { packagesChecked: result.packagesChecked },
     };

@@ -56,8 +56,10 @@ export const mapContentBlockToGenAIPart = (
         }
         return {
           fileData: {
-            mimeType: block.image.mimeType ??
-              content.detectMimeFromUrl(block.image.url) ?? "image/png",
+            mimeType:
+              block.image.mimeType ??
+              content.detectMimeFromUrl(block.image.url) ??
+              "image/png",
             fileUri: block.image.url,
           },
         };
@@ -76,8 +78,10 @@ export const mapContentBlockToGenAIPart = (
       if (block.audio.url !== undefined) {
         return {
           fileData: {
-            mimeType: block.audio.mimeType ??
-              content.detectMimeFromUrl(block.audio.url) ?? "audio/mpeg",
+            mimeType:
+              block.audio.mimeType ??
+              content.detectMimeFromUrl(block.audio.url) ??
+              "audio/mpeg",
             fileUri: block.audio.url,
           },
         };
@@ -161,11 +165,13 @@ export const mapToolsToGenAI = (
   tools: readonly types.ToolDefinition[],
 ): readonly Record<string, unknown>[] => {
   return tools.map((tool) => ({
-    functionDeclarations: [{
-      name: tool.name,
-      description: tool.description,
-      parameters: tool.parameters,
-    }],
+    functionDeclarations: [
+      {
+        name: tool.name,
+        description: tool.description,
+        parameters: tool.parameters,
+      },
+    ],
   }));
 };
 
@@ -203,9 +209,9 @@ export const mapEffortToThinkingLevel = (
       return "HIGH";
     default:
       throw new errors.BadRequestError(
-        `unknown effort level ${
-          JSON.stringify(effort)
-        }; use low, medium, high, xhigh or max, or leave it unset for the provider default`,
+        `unknown effort level ${JSON.stringify(
+          effort,
+        )}; use low, medium, high, xhigh or max, or leave it unset for the provider default`,
         { provider },
       );
   }
@@ -348,8 +354,11 @@ export const isGenAIPromptBlocked = (
 ): boolean => {
   const reason = response?.promptFeedback?.blockReason;
 
-  return typeof reason === "string" && reason !== "" &&
-    reason !== "BLOCKED_REASON_UNSPECIFIED";
+  return (
+    typeof reason === "string" &&
+    reason !== "" &&
+    reason !== "BLOCKED_REASON_UNSPECIFIED"
+  );
 };
 
 /** Maps a genai part's function call to a tool call. */

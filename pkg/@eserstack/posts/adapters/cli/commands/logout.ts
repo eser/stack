@@ -43,9 +43,8 @@ export const main = async (
 
   const { auths, tokenStore } = await wiring.createAppContext();
 
-  const targetPlatforms: Platform[] = platform !== undefined
-    ? [platform]
-    : Array.from(auths.keys());
+  const targetPlatforms: Platform[] =
+    platform !== undefined ? [platform] : Array.from(auths.keys());
 
   for (const p of targetPlatforms) {
     // Every platform's tokens live in one token file, so concurrent clears

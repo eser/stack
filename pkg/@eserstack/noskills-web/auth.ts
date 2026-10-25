@@ -77,10 +77,7 @@ export const allowedOrigins = (port: number): ReadonlySet<string> =>
  * token is. Every browser-issued cross-origin request *does* carry one, which
  * is what makes the check effective where it matters.
  */
-export const isOriginAllowed = (
-  request: Request,
-  port: number,
-): boolean => {
+export const isOriginAllowed = (request: Request, port: number): boolean => {
   const origin = request.headers.get("origin");
 
   if (origin === null || origin === "") {
@@ -120,8 +117,7 @@ export const hasValidHeaderToken = (
 export const hasJsonContentType = (request: Request): boolean => {
   const contentType = request.headers.get("content-type") ?? "";
 
-  return contentType.split(";")[0]?.trim().toLowerCase() ===
-    "application/json";
+  return contentType.split(";")[0]?.trim().toLowerCase() === "application/json";
 };
 
 /** 403 with a short reason; the body is deliberately uninformative. */

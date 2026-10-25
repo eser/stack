@@ -125,9 +125,9 @@ const loginWithAppPassword = async (
     ];
     return results.fail(
       new Error(
-        `set ${
-          missing.join(" and ")
-        } in the environment or in .env.local; use an app password from the Bluesky settings, not your main password`,
+        `set ${missing.join(
+          " and ",
+        )} in the environment or in .env.local; use an app password from the Bluesky settings, not your main password`,
       ),
     );
   }
@@ -152,11 +152,11 @@ export const loginPlatform = async (
     return {
       platform,
       ok: false,
-      message: `Platform ${
-        JSON.stringify(platform)
-      } is not configured; the configured platforms are ${
-        Array.from(deps.auths.keys()).join(", ")
-      }`,
+      message: `Platform ${JSON.stringify(
+        platform,
+      )} is not configured; the configured platforms are ${Array.from(
+        deps.auths.keys(),
+      ).join(", ")}`,
     };
   }
   // The lookup found a provider, so the value names a configured platform.
@@ -200,18 +200,16 @@ const loginConfigured = async (
     return {
       platform,
       ok: false,
-      message:
-        `Logged in to ${platform}${account}, but saving the tokens failed, so later commands will not see this login: ${
-          messageOf(err)
-        }`,
+      message: `Logged in to ${platform}${account}, but saving the tokens failed, so later commands will not see this login: ${messageOf(
+        err,
+      )}`,
     };
   }
 
   return {
     platform,
     ok: true,
-    message:
-      `Logged in to ${platform}${account}; later commands use the saved session.`,
+    message: `Logged in to ${platform}${account}; later commands use the saved session.`,
   };
 };
 
@@ -224,9 +222,10 @@ export const login = async (
   deps: LoginDeps,
   report: (outcome: LoginOutcome) => Promise<void>,
 ): Promise<shellArgs.CliResult<void>> => {
-  const targets: readonly string[] = args.platform !== undefined
-    ? [args.platform]
-    : Array.from(deps.auths.keys());
+  const targets: readonly string[] =
+    args.platform !== undefined
+      ? [args.platform]
+      : Array.from(deps.auths.keys());
 
   for (const platform of targets) {
     // Platforms log in one at a time: a browser login waits for the user,
@@ -259,19 +258,23 @@ export const main = async (
 
   const app = await wiring.createAppContext();
 
-  return await login(parsed.value, {
-    auths: app.auths,
-    tokenStore: app.tokenStore,
-    bluesky: {
-      identifier: app.config.bluesky.identifier,
-      appPassword: app.config.bluesky.appPassword,
+  return await login(
+    parsed.value,
+    {
+      auths: app.auths,
+      tokenStore: app.tokenStore,
+      bluesky: {
+        identifier: app.config.bluesky.identifier,
+        appPassword: app.config.bluesky.appPassword,
+      },
+      // The terminal context, and with it stdin, is opened only for a browser
+      // login, which may prompt for the redirect URL.
+      browserLogin: (platform, auth) =>
+        browserLogin.runBrowserLogin(costs.PLATFORM_LABELS[platform], auth, {
+          ctx: tui.createTuiContext(),
+          redirectUri: app.twitterRedirectUri,
+        }),
     },
-    // The terminal context, and with it stdin, is opened only for a browser
-    // login, which may prompt for the redirect URL.
-    browserLogin: (platform, auth) =>
-      browserLogin.runBrowserLogin(costs.PLATFORM_LABELS[platform], auth, {
-        ctx: tui.createTuiContext(),
-        redirectUri: app.twitterRedirectUri,
-      }),
-  }, printOutcome);
+    printOutcome,
+  );
 };

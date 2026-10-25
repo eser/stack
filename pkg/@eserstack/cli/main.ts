@@ -44,14 +44,12 @@ cliModule.addSubmodule(
 cliModule.addSubmodule({ name: "posts" }, postsModule.moduleDef);
 cliModule.addSubmodule({ name: "laroux" }, larouxModule.moduleDef);
 
-const app = cliSupport.attachStandardCommands(
-  cliModule.toCommand("eser", config.version),
-  {
+const app = cliSupport
+  .attachStandardCommands(cliModule.toCommand("eser", config.version), {
     npmPackage: "eser",
     jsrPackage: "@eserstack/cli",
     devCommand: "deno task cli",
-  },
-)
+  })
   // Lazy, not eager.
   //
   // This was a TOP-LEVEL await, so `@eserstack/codebase/validation` -- which
@@ -65,7 +63,8 @@ const app = cliSupport.attachStandardCommands(
     load: async () => {
       const validation = await import("@eserstack/codebase/validation");
 
-      return workflowsModule.createModuleDef(validation.getWorkflowTools())
+      return workflowsModule
+        .createModuleDef(validation.getWorkflowTools())
         .toCommand("workflows", config.version);
     },
   })
@@ -115,7 +114,8 @@ const app = cliSupport.attachStandardCommands(
 
     // exitCli prints the message on stderr before it exits.
     return results.fail({
-      message: `Unknown subcommand "${commandName}"\n` +
+      message:
+        `Unknown subcommand "${commandName}"\n` +
         `  No built-in command, manifest script, or "eser-${commandName}" ` +
         `executable on PATH.`,
       exitCode: 1,

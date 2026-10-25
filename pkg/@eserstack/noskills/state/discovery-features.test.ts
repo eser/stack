@@ -43,15 +43,13 @@ bdd.describe("Discovery modes", () => {
 
   bdd.it("all 5 modes are valid DiscoveryMode values", () => {
     const state = inDiscovery();
-    for (
-      const mode of [
-        "full",
-        "validate",
-        "technical-depth",
-        "ship-fast",
-        "explore",
-      ] as schema.DiscoveryMode[]
-    ) {
+    for (const mode of [
+      "full",
+      "validate",
+      "technical-depth",
+      "ship-fast",
+      "explore",
+    ] as schema.DiscoveryMode[]) {
       const s = machine.setDiscoveryMode(state, mode);
       assert.assertEquals(s.discovery.mode, mode);
     }

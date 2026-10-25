@@ -41,9 +41,7 @@ export const MAX_REMOTE_PACK_FILE_BYTES = 1 << 20;
  *   backslash or a NUL
  */
 export const checkPackFileName = (what: string, name: string): void => {
-  if (
-    name === "" || name === "." || name === ".." || /[/\\\0]/.test(name)
-  ) {
+  if (name === "" || name === "." || name === ".." || /[/\\\0]/.test(name)) {
     throw new Error(`${what} "${name}" must be a single file name`);
   }
 };
@@ -145,16 +143,14 @@ export const installedPackPaths = (
 
   return [
     ...installed.rules.filter(single).map((file) => `${rulesDir}/${file}`),
-    ...installed.concerns.filter(single).map((file) =>
-      `${concernsDir}/${file}`
-    ),
+    ...installed.concerns
+      .filter(single)
+      .map((file) => `${concernsDir}/${file}`),
     ...installed.folderRules.flatMap((path) => {
       if (!path.endsWith("/.folder-rules.md") && path !== ".folder-rules.md") {
         return [];
       }
-      const folder = projectFolderOf(
-        path.slice(0, -".folder-rules.md".length),
-      );
+      const folder = projectFolderOf(path.slice(0, -".folder-rules.md".length));
       if (folder === null) {
         return [];
       }
@@ -274,9 +270,7 @@ const parsePackSpecifier = (
   ref: string;
   packPath: string;
 } | null => {
-  const cleaned = specifier
-    .replace(/^github:/, "")
-    .replace(/^gh:/, "");
+  const cleaned = specifier.replace(/^github:/, "").replace(/^gh:/, "");
 
   const hashIdx = cleaned.indexOf("#");
   if (hashIdx === -1) return null;
@@ -308,8 +302,7 @@ const fetchRemotePackManifest = async (
     );
   }
 
-  const url =
-    `https://raw.githubusercontent.com/${parsed.owner}/${parsed.repo}/${parsed.ref}/packs/${parsed.packPath}/pack.json`;
+  const url = `https://raw.githubusercontent.com/${parsed.owner}/${parsed.repo}/${parsed.ref}/packs/${parsed.packPath}/pack.json`;
 
   const response = await globalThis.fetch(url, {
     signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
@@ -338,8 +331,7 @@ const fetchRemoteFile = async (
     throw new Error(`Invalid pack specifier: ${specifier}`);
   }
 
-  const url =
-    `https://raw.githubusercontent.com/${parsed.owner}/${parsed.repo}/${parsed.ref}/packs/${parsed.packPath}/${filePath}`;
+  const url = `https://raw.githubusercontent.com/${parsed.owner}/${parsed.repo}/${parsed.ref}/packs/${parsed.packPath}/${filePath}`;
 
   const response = await globalThis.fetch(url, {
     signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
@@ -474,9 +466,7 @@ export const installRemotePack = async (
     for (const rulePath of manifest.rules) {
       // deno-lint-ignore no-await-in-loop
       const content = await fetchRemoteFile(specifier, rulePath);
-      const ruleName = rulePath
-        .replace(/^rules\//, "")
-        .replace(/\.md$/, "");
+      const ruleName = rulePath.replace(/^rules\//, "").replace(/\.md$/, "");
       checkPackFileName("rule", ruleName);
       const fileName = `pack-${name}-${ruleName}.md`;
       // deno-lint-ignore no-await-in-loop
@@ -509,10 +499,7 @@ export const installRemotePack = async (
       const paddedPrefix = String(prefix).padStart(3, "0");
       const fileName = `${paddedPrefix}-${concern.id}.json`;
       // deno-lint-ignore no-await-in-loop
-      await runtime.fs.writeTextFile(
-        `${concernsDir}/${fileName}`,
-        content,
-      );
+      await runtime.fs.writeTextFile(`${concernsDir}/${fileName}`, content);
       installedConcerns.push(fileName);
       prefix++;
     }
@@ -520,9 +507,9 @@ export const installRemotePack = async (
 
   // 3. Install folder-rules
   if (manifest.folderRules !== undefined) {
-    for (
-      const [targetDir, sourcePath] of Object.entries(manifest.folderRules)
-    ) {
+    for (const [targetDir, sourcePath] of Object.entries(
+      manifest.folderRules,
+    )) {
       const folder = projectFolderOf(targetDir);
       if (folder === null) {
         throw new Error(
@@ -632,8 +619,8 @@ const installRequiredPacks = async (
   // prefix, which the next install reads back from disk, and packs.json is
   // rewritten after each one.
   for (const dep of requires) {
-    const isInstalled = [...alreadyInstalled, ...installedDeps].some((p) =>
-      p.name === dep
+    const isInstalled = [...alreadyInstalled, ...installedDeps].some(
+      (p) => p.name === dep,
     );
     const depBuiltin = resolveBuiltinPack(dep);
     if (isInstalled || depBuiltin === undefined) {
@@ -675,8 +662,8 @@ const packInstall = async (
   }
 
   const packsFile = await readPacksFile(root);
-  const isRemote = nameOrSpecifier.includes("/") ||
-    nameOrSpecifier.includes(":");
+  const isRemote =
+    nameOrSpecifier.includes("/") || nameOrSpecifier.includes(":");
 
   // Determine pack name
   const packName = isRemote
@@ -685,12 +672,8 @@ const packInstall = async (
 
   // Check if already installed
   if (packsFile.installed.some((p) => p.name === packName)) {
-    out.writeln(
-      span.red(`Pack "${packName}" is already installed.`),
-    );
-    out.writeln(
-      span.dim("  Uninstall first to re-install."),
-    );
+    out.writeln(span.red(`Pack "${packName}" is already installed.`));
+    out.writeln(span.dim("  Uninstall first to re-install."));
     await out.close();
 
     return results.fail({ exitCode: 1 });
@@ -734,14 +717,12 @@ const packInstall = async (
     const builtin = resolveBuiltinPack(nameOrSpecifier);
 
     if (builtin === undefined) {
-      out.writeln(
-        span.red(`Unknown pack: ${nameOrSpecifier}`),
-      );
+      out.writeln(span.red(`Unknown pack: ${nameOrSpecifier}`));
       out.writeln(
         span.dim(
-          `  Available built-in packs: ${
-            [...defaultPacks.BUILTIN_PACKS.keys()].join(", ")
-          }`,
+          `  Available built-in packs: ${[
+            ...defaultPacks.BUILTIN_PACKS.keys(),
+          ].join(", ")}`,
         ),
       );
       await out.close();
@@ -781,14 +762,10 @@ const packInstall = async (
   );
 
   if (installed.rules.length > 0) {
-    out.writeln(
-      span.dim(`  Rules: ${installed.rules.join(", ")}`),
-    );
+    out.writeln(span.dim(`  Rules: ${installed.rules.join(", ")}`));
   }
   if (installed.concerns.length > 0) {
-    out.writeln(
-      span.dim(`  Concerns: ${installed.concerns.join(", ")}`),
-    );
+    out.writeln(span.dim(`  Concerns: ${installed.concerns.join(", ")}`));
   }
 
   await out.close();
@@ -873,10 +850,7 @@ const packUninstall = async (
     out.writeln(span.dim("  Tool files synced."));
   }
 
-  out.writeln(
-    span.green("✔"),
-    ` Pack "${packName}" uninstalled.`,
-  );
+  out.writeln(span.green("✔"), ` Pack "${packName}" uninstalled.`);
 
   await out.close();
 
@@ -908,18 +882,18 @@ const packInspect = async (
     return results.fail({ exitCode: 1 });
   }
 
-  const isRemote = nameOrSpecifier.includes("/") ||
-    nameOrSpecifier.includes(":");
+  const isRemote =
+    nameOrSpecifier.includes("/") || nameOrSpecifier.includes(":");
 
   let manifest: packSchema.PackManifest;
   let ruleContents: Readonly<Record<string, string>> | null = null;
   let concernDefs:
     | readonly {
-      id: string;
-      name: string;
-      description: string;
-      acceptanceCriteria: readonly string[];
-    }[]
+        id: string;
+        name: string;
+        description: string;
+        acceptanceCriteria: readonly string[];
+      }[]
     | null = null;
 
   if (isRemote) {
@@ -941,9 +915,7 @@ const packInspect = async (
     const builtin = resolveBuiltinPack(nameOrSpecifier);
 
     if (builtin === undefined) {
-      out.writeln(
-        span.red(`Unknown pack: ${nameOrSpecifier}`),
-      );
+      out.writeln(span.red(`Unknown pack: ${nameOrSpecifier}`));
       await out.close();
 
       return results.fail({ exitCode: 1 });
@@ -995,9 +967,7 @@ const packInspect = async (
       out.writeln(`  - ${concern.id}: ${concern.name}`);
       if (concern.acceptanceCriteria.length > 0) {
         out.writeln(
-          span.dim(
-            `    ACs: "${concern.acceptanceCriteria.join('", "')}"`,
-          ),
+          span.dim(`    ACs: "${concern.acceptanceCriteria.join('", "')}"`),
         );
       }
     }
@@ -1006,9 +976,10 @@ const packInspect = async (
   }
 
   // Folder rules
-  const folderRuleCount = manifest.folderRules !== undefined
-    ? Object.keys(manifest.folderRules).length
-    : 0;
+  const folderRuleCount =
+    manifest.folderRules !== undefined
+      ? Object.keys(manifest.folderRules).length
+      : 0;
   out.writeln("");
   out.writeln(
     `Folder rules: ${folderRuleCount > 0 ? folderRuleCount : "none"}`,
@@ -1058,9 +1029,9 @@ const packSearch = async (
     const tags = builtin.manifest.tags ?? [];
     const matchesName = name.includes(query);
     const matchesTag = tags.some((t) => t.includes(query));
-    const matchesDesc = builtin.manifest.description.toLowerCase().includes(
-      query,
-    );
+    const matchesDesc = builtin.manifest.description
+      .toLowerCase()
+      .includes(query);
 
     if (matchesName || matchesTag || matchesDesc) {
       out.writeln(
@@ -1077,8 +1048,9 @@ const packSearch = async (
   // it is checked before any request (pack/registry.ts says what is refused).
   const { root } = await persistence.resolveProjectRoot();
   const config = await persistence.readManifest(root);
-  const registrySetting = (config as Record<string, unknown> | null)
-    ?.["packRegistry"];
+  const registrySetting = (config as Record<string, unknown> | null)?.[
+    "packRegistry"
+  ];
 
   if (registrySetting !== undefined) {
     const registry = await searchableRegistry(registrySetting);

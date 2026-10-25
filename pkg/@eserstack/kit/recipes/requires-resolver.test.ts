@@ -8,10 +8,7 @@ import type { Recipe } from "./registry-schema.ts";
 // Test helpers
 // =============================================================================
 
-const makeRecipe = (
-  name: string,
-  requires?: string[],
-): Recipe => ({
+const makeRecipe = (name: string, requires?: string[]): Recipe => ({
   name,
   description: `Recipe ${name}`,
   language: "typescript",
@@ -88,10 +85,7 @@ Deno.test("resolveRequires — multiple independent deps", () => {
 // =============================================================================
 
 Deno.test("resolveRequires — detects simple cycle A→B→A", () => {
-  const recipes = [
-    makeRecipe("a", ["b"]),
-    makeRecipe("b", ["a"]),
-  ];
+  const recipes = [makeRecipe("a", ["b"]), makeRecipe("b", ["a"])];
 
   assert.assertThrows(
     () => requiresResolver.resolveRequires("a", recipes),

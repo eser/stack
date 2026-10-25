@@ -64,7 +64,9 @@ const cellToSGR = (cell: xtermHeadless.IBufferCell): string => {
 /** Check if a cell has default styling (no SGR needed). */
 const isDefaultCell = (cell: xtermHeadless.IBufferCell): boolean =>
   cell.getFgColorMode() === terminal.COLOR_MODE_DEFAULT &&
-  cell.isBold() === 0 && cell.isDim() === 0 && cell.isItalic() === 0 &&
+  cell.isBold() === 0 &&
+  cell.isDim() === 0 &&
+  cell.isItalic() === 0 &&
   cell.isUnderline() === 0;
 
 /**

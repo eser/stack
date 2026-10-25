@@ -58,18 +58,20 @@ export const main = async (
     discovery:
       state.phase === "DISCOVERY" || state.phase === "DISCOVERY_REFINEMENT"
         ? {
-          answered: state.discovery.answers.length,
-          total: questions.QUESTIONS.length,
-        }
+            answered: state.discovery.answers.length,
+            total: questions.QUESTIONS.length,
+          }
         : undefined,
-    execution: state.phase === "EXECUTING" || state.phase === "BLOCKED"
-      ? {
-        iteration: state.execution.iteration,
-        lastProgress: state.execution.lastProgress,
-        debt: state.execution.debt?.items.length ?? 0,
-        verificationPassed: state.execution.lastVerification?.passed ?? null,
-      }
-      : undefined,
+    execution:
+      state.phase === "EXECUTING" || state.phase === "BLOCKED"
+        ? {
+            iteration: state.execution.iteration,
+            lastProgress: state.execution.lastProgress,
+            debt: state.execution.debt?.items.length ?? 0,
+            verificationPassed:
+              state.execution.lastVerification?.passed ?? null,
+          }
+        : undefined,
     concerns: config?.concerns ?? [],
     tools: config?.tools ?? [],
     decisions: state.decisions.length,
@@ -78,8 +80,8 @@ export const main = async (
   // JSON mode: use compiler.compile for full output with interactiveOptions
   if (fmt === "json") {
     const allConcerns = await persistence.listConcerns(root);
-    const activeConcerns = allConcerns.filter((c) =>
-      config !== null && config.concerns.includes(c.id)
+    const activeConcerns = allConcerns.filter(
+      (c) => config !== null && config.concerns.includes(c.id),
     );
     const rules = await syncEngine.loadRules(root);
     const hints = syncEngine.resolveInteractionHints(config?.tools ?? []);
@@ -110,13 +112,14 @@ export const main = async (
     out.writeln(span.bold(`${cmd.cmd("status")}`));
     out.writeln("");
 
-    const phaseColor = state.phase === "COMPLETED"
-      ? span.green(state.phase)
-      : state.phase === "BLOCKED"
-      ? span.red(state.phase)
-      : state.phase === "EXECUTING"
-      ? span.cyan(state.phase)
-      : span.yellow(state.phase);
+    const phaseColor =
+      state.phase === "COMPLETED"
+        ? span.green(state.phase)
+        : state.phase === "BLOCKED"
+          ? span.red(state.phase)
+          : state.phase === "EXECUTING"
+            ? span.cyan(state.phase)
+            : span.yellow(state.phase);
 
     out.writeln("  Phase:    ", phaseColor);
     if (state.spec !== null) {
@@ -133,10 +136,7 @@ export const main = async (
     if (state.phase === "EXECUTING") {
       out.writeln(`  Iteration: ${state.execution.iteration}`);
       if (state.execution.lastProgress !== null) {
-        out.writeln(
-          "  Progress:  ",
-          span.dim(state.execution.lastProgress),
-        );
+        out.writeln("  Progress:  ", span.dim(state.execution.lastProgress));
       }
       if (state.execution.debt !== null) {
         out.writeln(

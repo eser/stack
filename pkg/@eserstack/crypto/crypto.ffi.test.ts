@@ -11,10 +11,13 @@ Deno.test(
     sanitizeResources: false,
   },
   async () => {
-    const result = await ffi.ffiLoader.hash({ text: "hello" }, {
-      algorithm: "SHA-256",
-      length: 64,
-    });
+    const result = await ffi.ffiLoader.hash(
+      { text: "hello" },
+      {
+        algorithm: "SHA-256",
+        length: 64,
+      },
+    );
     assert.assertMatch(result, /^[0-9a-f]{64}$/);
     assert.assertEquals(
       result,

@@ -8,8 +8,7 @@ import * as scripts from "./scripts.ts";
 
 const buildShellArgsCases = [
   {
-    name:
-      "buildShellArgs runs the command as it is without forwarded arguments",
+    name: "buildShellArgs runs the command as it is without forwarded arguments",
     command: "deno test --allow-all",
     extraArgs: [],
     expected: ["-c", "deno test --allow-all"],
@@ -220,10 +219,9 @@ const parseScriptCases = [
 
 for (const { name, entry, expected } of parseScriptCases) {
   Deno.test(name, () => {
-    assert.assertEquals(
-      settled(scripts.parseScript("test", entry)),
-      { ok: expected },
-    );
+    assert.assertEquals(settled(scripts.parseScript("test", entry)), {
+      ok: expected,
+    });
   });
 }
 
@@ -231,19 +229,22 @@ const malformedEntryCases = [
   {
     name: "parseScript rejects an empty entry",
     entry: null,
-    message: 'script "test" must be a command string or an object with a ' +
+    message:
+      'script "test" must be a command string or an object with a ' +
       '"command" string, not null',
   },
   {
     name: "parseScript rejects a list entry",
     entry: ["deno test"],
-    message: 'script "test" must be a command string or an object with a ' +
+    message:
+      'script "test" must be a command string or an object with a ' +
       '"command" string, not ["deno test"]',
   },
   {
     name: "parseScript rejects an object without a command",
     entry: { description: "Run the tests" },
-    message: 'script "test" has no "command" string; add the command it ' +
+    message:
+      'script "test" has no "command" string; add the command it ' +
       "runs, for example command: deno test",
   },
   {
@@ -262,23 +263,24 @@ const malformedEntryCases = [
     // every letter as a script name.
     name: "parseScript rejects depends written as one name",
     entry: { command: "deno test", depends: "build" },
-    message: 'script "test" has depends "build"; write a list of script ' +
+    message:
+      'script "test" has depends "build"; write a list of script ' +
       "names, for example depends: [build]",
   },
   {
     name: "parseScript rejects depends with an entry that is not a name",
     entry: { command: "deno test", depends: ["build", 3] },
-    message: 'script "test" has depends ["build",3]; write a list of script ' +
+    message:
+      'script "test" has depends ["build",3]; write a list of script ' +
       "names, for example depends: [build]",
   },
 ];
 
 for (const { name, entry, message } of malformedEntryCases) {
   Deno.test(name, () => {
-    assert.assertEquals(
-      settled(scripts.parseScript("test", entry)),
-      { fail: message },
-    );
+    assert.assertEquals(settled(scripts.parseScript("test", entry)), {
+      fail: message,
+    });
   });
 }
 
@@ -292,8 +294,8 @@ const runOrderNames = (
   }
 
   return {
-    dependencies: result.value.dependencies.map((dependency) =>
-      dependency.name
+    dependencies: result.value.dependencies.map(
+      (dependency) => dependency.name,
     ),
     script: result.value.script.name,
   };
@@ -401,7 +403,8 @@ const runOrderErrorCases = [
     run: "second",
     reason: "unknown",
     chain: ["second", "frist"],
-    message: 'script "second" depends on "frist", which the manifest does ' +
+    message:
+      'script "second" depends on "frist", which the manifest does ' +
       'not define; add a "frist" script or correct the name in the depends ' +
       'of "second"',
   },
@@ -414,7 +417,8 @@ const runOrderErrorCases = [
     run: "third",
     reason: "unknown",
     chain: ["third", "second", "frist"],
-    message: 'script "second" depends on "frist" (third -> second -> frist), ' +
+    message:
+      'script "second" depends on "frist" (third -> second -> frist), ' +
       'which the manifest does not define; add a "frist" script or correct ' +
       'the name in the depends of "second"',
   },
@@ -432,7 +436,8 @@ const runOrderErrorCases = [
     run: "build",
     reason: "unknown",
     chain: ["build", "toString"],
-    message: 'script "build" depends on "toString", which the manifest does ' +
+    message:
+      'script "build" depends on "toString", which the manifest does ' +
       'not define; add a "toString" script or correct the name in the ' +
       'depends of "build"',
   },
@@ -445,14 +450,21 @@ const runOrderErrorCases = [
     run: "test",
     reason: "malformed",
     chain: ["test", "build"],
-    message: 'script "build" must be a command string or an object with a ' +
+    message:
+      'script "build" must be a command string or an object with a ' +
       '"command" string, not null',
   },
 ];
 
 for (const runOrderErrorCase of runOrderErrorCases) {
-  const { name, scripts: entries, run, reason, chain, message } =
-    runOrderErrorCase;
+  const {
+    name,
+    scripts: entries,
+    run,
+    reason,
+    chain,
+    message,
+  } = runOrderErrorCase;
 
   Deno.test(name, () => {
     const result = scripts.resolveRunOrder(run, entries);
@@ -482,7 +494,7 @@ const loggingScript = (
 const readLog = async (dir: string): Promise<string | null> => {
   const logPath = runtime.path.join(dir, "log.txt");
 
-  if (!await runtime.fs.exists(logPath)) {
+  if (!(await runtime.fs.exists(logPath))) {
     return null;
   }
 
@@ -554,7 +566,8 @@ Deno.test("runScript runs nothing when the dependencies form a cycle", async () 
 
     assert.assertEquals(settled(result), {
       fail: {
-        message: 'script "first" depends on itself through first -> second ' +
+        message:
+          'script "first" depends on itself through first -> second ' +
           "-> first; remove one of these depends entries",
         exitCode: 1,
       },

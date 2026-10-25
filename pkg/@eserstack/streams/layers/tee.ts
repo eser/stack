@@ -12,9 +12,7 @@ import type { Chunk, Layer, Sink } from "../types.ts";
  * @param sink - The extra sink that receives a copy of every chunk
  * @returns A layer named `tee(<sink name>)`
  */
-export const tee = <T = unknown>(
-  sink: Sink<T>,
-): Layer<T, T> => {
+export const tee = <T = unknown>(sink: Sink<T>): Layer<T, T> => {
   const sinkWriter = sink.writable.getWriter();
 
   return {

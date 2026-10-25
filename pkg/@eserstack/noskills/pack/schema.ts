@@ -89,9 +89,7 @@ export const validatePackManifest = (data: unknown): PackManifest => {
     typeof obj?.["description"] !== "string" ||
     obj["description"].length === 0
   ) {
-    throw new Error(
-      "Pack manifest must have a non-empty 'description' field",
-    );
+    throw new Error("Pack manifest must have a non-empty 'description' field");
   }
 
   return obj as unknown as PackManifest;

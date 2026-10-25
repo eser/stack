@@ -22,7 +22,7 @@ Deno.test("track-l-delete: RSC Client - Parse Simple JSON Stream", async () => {
 
   // Wait for stream processing to complete
   await new Promise((resolve) =>
-    setTimeout(resolve, TEST_STREAM_PROCESSING_DELAY_MS)
+    setTimeout(resolve, TEST_STREAM_PROCESSING_DELAY_MS),
   );
 
   const result = RSCTreeRoot();
@@ -55,7 +55,7 @@ Deno.test("track-l-delete: RSC Client - Parse Array", async () => {
 
   // Wait for stream processing to complete
   await new Promise((resolve) =>
-    setTimeout(resolve, TEST_STREAM_PROCESSING_DELAY_MS)
+    setTimeout(resolve, TEST_STREAM_PROCESSING_DELAY_MS),
   );
 
   const result = RSCTreeRoot();
@@ -65,16 +65,14 @@ Deno.test("track-l-delete: RSC Client - Parse Array", async () => {
 });
 
 Deno.test("track-l-delete: RSC Client - Parse Primitive", async () => {
-  const chunks: RSCChunk[] = [
-    { type: "J", id: 0, value: "Hello, RSC!" },
-  ];
+  const chunks: RSCChunk[] = [{ type: "J", id: 0, value: "Hello, RSC!" }];
 
   const stream = createMockStream(chunks);
   const RSCTreeRoot = await client.createFromReadableStream(stream);
 
   // Wait for stream processing to complete
   await new Promise((resolve) =>
-    setTimeout(resolve, TEST_STREAM_PROCESSING_DELAY_MS)
+    setTimeout(resolve, TEST_STREAM_PROCESSING_DELAY_MS),
   );
 
   const result = RSCTreeRoot();
@@ -83,16 +81,14 @@ Deno.test("track-l-delete: RSC Client - Parse Primitive", async () => {
 });
 
 Deno.test("track-l-delete: RSC Client - Parse Null", async () => {
-  const chunks: RSCChunk[] = [
-    { type: "J", id: 0, value: null },
-  ];
+  const chunks: RSCChunk[] = [{ type: "J", id: 0, value: null }];
 
   const stream = createMockStream(chunks);
   const RSCTreeRoot = await client.createFromReadableStream(stream);
 
   // Wait for stream processing to complete
   await new Promise((resolve) =>
-    setTimeout(resolve, TEST_STREAM_PROCESSING_DELAY_MS)
+    setTimeout(resolve, TEST_STREAM_PROCESSING_DELAY_MS),
   );
 
   const result = RSCTreeRoot();
@@ -101,16 +97,14 @@ Deno.test("track-l-delete: RSC Client - Parse Null", async () => {
 });
 
 Deno.test("track-l-delete: RSC Client - Parse Number", async () => {
-  const chunks: RSCChunk[] = [
-    { type: "J", id: 0, value: 42 },
-  ];
+  const chunks: RSCChunk[] = [{ type: "J", id: 0, value: 42 }];
 
   const stream = createMockStream(chunks);
   const RSCTreeRoot = await client.createFromReadableStream(stream);
 
   // Wait for stream processing to complete
   await new Promise((resolve) =>
-    setTimeout(resolve, TEST_STREAM_PROCESSING_DELAY_MS)
+    setTimeout(resolve, TEST_STREAM_PROCESSING_DELAY_MS),
   );
 
   const result = RSCTreeRoot();
@@ -128,7 +122,7 @@ Deno.test("track-l-delete: RSC Client - Parse Nested Object", async () => {
 
   // Wait for stream processing to complete
   await new Promise((resolve) =>
-    setTimeout(resolve, TEST_STREAM_PROCESSING_DELAY_MS)
+    setTimeout(resolve, TEST_STREAM_PROCESSING_DELAY_MS),
   );
 
   const result = RSCTreeRoot();
@@ -379,9 +373,8 @@ Deno.test("track-l-delete: RSC Client - createHybridRSCTree fails the root when 
 Deno.test("track-l-delete: RSC Client - a client module that fails to load fails only its chunk", async () => {
   const feed = createControlledStream();
   const loadError = new Error("chunk-missing.js is not in the build");
-  const valuePromise = client.createValueFromReadableStream(
-    feed.stream,
-    () => Promise.reject(loadError),
+  const valuePromise = client.createValueFromReadableStream(feed.stream, () =>
+    Promise.reject(loadError),
   );
 
   feed.send({
@@ -417,7 +410,14 @@ const VALUE_CASES: {
   {
     name: "a Map from its entries chunk",
     chunks: [
-      { type: "J", id: 1, value: [["views", 3], ["seen", "$D2026-01-02"]] },
+      {
+        type: "J",
+        id: 1,
+        value: [
+          ["views", 3],
+          ["seen", "$D2026-01-02"],
+        ],
+      },
       { type: "J", id: 0, value: "$Q1" },
     ],
     expected: new Map<string, unknown>([
@@ -435,18 +435,20 @@ const VALUE_CASES: {
   },
   {
     name: "numbers and values JSON cannot hold",
-    chunks: [{
-      type: "J",
-      id: 0,
-      value: {
-        big: "$n12345678901234567890",
-        missing: "$undefined",
-        nan: "$NaN",
-        infinity: "$Infinity",
-        negativeInfinity: "$-Infinity",
-        negativeZero: "$-0",
+    chunks: [
+      {
+        type: "J",
+        id: 0,
+        value: {
+          big: "$n12345678901234567890",
+          missing: "$undefined",
+          nan: "$NaN",
+          infinity: "$Infinity",
+          negativeInfinity: "$-Infinity",
+          negativeZero: "$-0",
+        },
       },
-    }],
+    ],
     expected: {
       big: 12345678901234567890n,
       missing: undefined,
@@ -479,9 +481,9 @@ for (const { name, chunks, expected } of VALUE_CASES) {
 }
 
 Deno.test("track-l-delete: RSC Client - a __proto__ key in the stream stays a plain property", async () => {
-  const value = await decodeValue([
+  const value = (await decodeValue([
     { type: "J", id: 0, value: JSON.parse('{"__proto__":{"admin":true}}') },
-  ]) as Record<string, unknown>;
+  ])) as Record<string, unknown>;
 
   assert.assertEquals(Object.getPrototypeOf(value), Object.prototype);
   assert.assertEquals(value["admin"], undefined);
@@ -489,18 +491,20 @@ Deno.test("track-l-delete: RSC Client - a __proto__ key in the stream stays a pl
 });
 
 Deno.test("track-l-delete: RSC Client - a Suspense boundary keeps text that starts with $", async () => {
-  const RSCTreeRoot = await client.createFromReadableStream(createMockStream([
-    { type: "J", id: 1, value: { fallback: "Loading", children: "$$5 off" } },
-    {
-      type: "J",
-      id: 0,
-      value: {
-        $$typeof: "react.element",
-        type: "Symbol(react.suspense)",
-        props: "$1",
+  const RSCTreeRoot = await client.createFromReadableStream(
+    createMockStream([
+      { type: "J", id: 1, value: { fallback: "Loading", children: "$$5 off" } },
+      {
+        type: "J",
+        id: 0,
+        value: {
+          $$typeof: "react.element",
+          type: "Symbol(react.suspense)",
+          props: "$1",
+        },
       },
-    },
-  ]));
+    ]),
+  );
   await flushMicrotasks();
 
   const boundary = RSCTreeRoot() as React.ReactElement<{ children: string }>;
@@ -519,9 +523,10 @@ Deno.test("track-l-delete: RSC Client - createValueFromReadableStream decodes a 
   ]);
 
   assert.assertEquals(React.isValidElement(value), true);
-  const element = value as React.ReactElement<
-    { className: string; children: string }
-  >;
+  const element = value as React.ReactElement<{
+    className: string;
+    children: string;
+  }>;
   assert.assertEquals(element.type, "p");
   assert.assertEquals(element.props.className, "notice");
   assert.assertEquals(element.props.children, "$5 off");
@@ -530,11 +535,13 @@ Deno.test("track-l-delete: RSC Client - createValueFromReadableStream decodes a 
 Deno.test("track-l-delete: RSC Client - createValueFromReadableStream rejects with an error chunk", async () => {
   await assert.assertRejects(
     () =>
-      decodeValue([{
-        type: "E",
-        id: 0,
-        value: { message: "encode server action result: unsupported value" },
-      }]),
+      decodeValue([
+        {
+          type: "E",
+          id: 0,
+          value: { message: "encode server action result: unsupported value" },
+        },
+      ]),
     Error,
     "unsupported value",
   );

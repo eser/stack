@@ -154,10 +154,7 @@ const buildCoaching = (commandPrefix: string): string => {
 };
 
 const buildRules = (rules: readonly string[]): string => {
-  const lines = [
-    "### Active Rules",
-    "",
-  ];
+  const lines = ["### Active Rules", ""];
 
   for (const rule of rules) {
     lines.push(`- ${rule}`);
@@ -215,7 +212,9 @@ export const syncAgentsMd = async (
     const endIdx = content.indexOf(NOS_SECTION_END);
 
     if (startIdx !== -1 && endIdx !== -1) {
-      content = content.slice(0, startIdx) + section +
+      content =
+        content.slice(0, startIdx) +
+        section +
         content.slice(endIdx + NOS_SECTION_END.length);
     } else {
       content = content.trimEnd() + "\n\n" + section + "\n";

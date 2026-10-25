@@ -34,7 +34,8 @@ const runNoskills = async (
 
   return {
     code: result.code,
-    output: new TextDecoder().decode(result.stdout) +
+    output:
+      new TextDecoder().decode(result.stdout) +
       new TextDecoder().decode(result.stderr),
   };
 };

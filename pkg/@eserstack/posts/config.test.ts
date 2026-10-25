@@ -324,7 +324,7 @@ bdd.describe("credential routing keys", () => {
       "http://127.0.0.1:1234/mock",
     );
     assert.assertThrows(() =>
-      config.requireServiceUrl("X", "http://attacker.invalid")
+      config.requireServiceUrl("X", "http://attacker.invalid"),
     );
     assert.assertThrows(() => config.requireServiceUrl("X", "not a url"));
   });
@@ -334,7 +334,7 @@ bdd.describe("credential routing keys", () => {
     assert.assertEquals(runtime.path.isAbsolute(expanded ?? ""), true);
     assert.assertEquals(expanded?.includes("~"), false);
     assert.assertThrows(() =>
-      config.requireTokenStorePath("./leaked/tokens.json")
+      config.requireTokenStorePath("./leaked/tokens.json"),
     );
   });
 });

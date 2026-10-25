@@ -63,9 +63,9 @@ export const main = async (
 
   out.writeln(
     span.green("✔"),
-    ` Spec reopened. Discovery answers preserved. Run \`${
-      cmd.cmd(`spec ${specResult.spec} next`)
-    }\` to revise them.`,
+    ` Spec reopened. Discovery answers preserved. Run \`${cmd.cmd(
+      `spec ${specResult.spec} next`,
+    )}\` to revise them.`,
   );
   await out.close();
 

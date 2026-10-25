@@ -27,7 +27,8 @@
  * Checks if a value is a string primitive.
  */
 export const isString = (value: unknown): value is string =>
-  value !== null && value !== undefined &&
+  value !== null &&
+  value !== undefined &&
   (value as object).constructor === String;
 
 /**
@@ -43,7 +44,8 @@ export const isNumber = (value: unknown): value is number =>
  * Checks if a value is a boolean primitive.
  */
 export const isBoolean = (value: unknown): value is boolean =>
-  value !== null && value !== undefined &&
+  value !== null &&
+  value !== undefined &&
   (value as object).constructor === Boolean;
 
 /**
@@ -58,7 +60,8 @@ export const isArray = <T = unknown>(value: unknown): value is T[] =>
 export const isPlainObject = (
   value: unknown,
 ): value is Record<string, unknown> =>
-  value !== null && value !== undefined &&
+  value !== null &&
+  value !== undefined &&
   (value as object).constructor === Object;
 
 /**
@@ -79,7 +82,8 @@ export const isNullish = (value: unknown): value is null | undefined =>
 export const isFunction = (
   value: unknown,
 ): value is (...args: unknown[]) => unknown =>
-  value !== null && value !== undefined &&
+  value !== null &&
+  value !== undefined &&
   (value as object).constructor === Function;
 
 /**

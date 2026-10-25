@@ -53,8 +53,10 @@ const runNoskills = async (
 
   return {
     code: result.code,
-    output: (new TextDecoder().decode(result.stdout) +
-      new TextDecoder().decode(result.stderr)).replace(ANSI_SEQUENCE, ""),
+    output: (
+      new TextDecoder().decode(result.stdout) +
+      new TextDecoder().decode(result.stderr)
+    ).replace(ANSI_SEQUENCE, ""),
   };
 };
 
@@ -132,13 +134,11 @@ bdd.describe("noskills session, config and diagrams", () => {
     });
 
     // --spec=x --free wrote a free session that still named the spec.
-    for (
-      const flags of [
-        ["--spec=add-login-page", "--free"],
-        ["--spec=add-login-page", "--auto"],
-        ["--free", "--auto"],
-      ]
-    ) {
+    for (const flags of [
+      ["--spec=add-login-page", "--free"],
+      ["--spec=add-login-page", "--auto"],
+      ["--free", "--auto"],
+    ]) {
       bdd.it(`refuses ${flags.join(" ")} together`, async () => {
         const result = await runNoskills(root, home, [
           "session",

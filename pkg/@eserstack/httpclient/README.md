@@ -202,14 +202,16 @@ import * as httpclient from "@eserstack/httpclient";
 const client = httpclient.createHttpClient({
   baseUrl: "https://api.example.com",
   interceptors: {
-    request: [{
-      name: "request-id",
-      intercept: (request) => {
-        const headers = new Headers(request.headers);
-        headers.set("X-Request-Id", crypto.randomUUID());
-        return new Request(request, { headers });
+    request: [
+      {
+        name: "request-id",
+        intercept: (request) => {
+          const headers = new Headers(request.headers);
+          headers.set("X-Request-Id", crypto.randomUUID());
+          return new Request(request, { headers });
+        },
       },
-    }],
+    ],
   },
 });
 ```

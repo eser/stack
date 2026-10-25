@@ -110,10 +110,7 @@ export const executeKubectl = async (
   const resourceType = resource.type === "configmap" ? "cm" : "secret";
 
   // Build command arguments array (safe from injection)
-  const args: string[] = [
-    "get",
-    `${resourceType}/${resource.name}`,
-  ];
+  const args: string[] = ["get", `${resourceType}/${resource.name}`];
 
   if (resource.namespace !== undefined) {
     args.push("-n", resource.namespace);
@@ -122,9 +119,7 @@ export const executeKubectl = async (
   args.push("-o", "json");
 
   // Execute kubectl directly without shell wrapper
-  const result = await shellExec.exec`kubectl ${args}`
-    .noThrow()
-    .spawn();
+  const result = await shellExec.exec`kubectl ${args}`.noThrow().spawn();
 
   const { success, stdout, stderr } = result;
 
@@ -142,9 +137,10 @@ export const executeKubectl = async (
     return Object.keys(data);
   } catch (_parseError) {
     throw new Error(
-      `Failed to parse kubectl output as JSON: ${
-        output.slice(0, ERROR_PREVIEW_LENGTH)
-      }...`,
+      `Failed to parse kubectl output as JSON: ${output.slice(
+        0,
+        ERROR_PREVIEW_LENGTH,
+      )}...`,
     );
   }
 };
@@ -335,7 +331,8 @@ export const sync = async (options: SyncOptions): Promise<string> => {
       // A merge patch must be a mapping. serialize() writes its items as a
       // YAML sequence, so the patch goes through the YAML format's writeItem,
       // which writes one document followed by a "---" separator.
-      patchString = formats.yamlFormat.writeItem(patchObject)
+      patchString = formats.yamlFormat
+        .writeItem(patchObject)
         .replace(/\n---\n$/, "")
         .trim();
     } else {
@@ -350,12 +347,12 @@ export const sync = async (options: SyncOptions): Promise<string> => {
     // Generate kubectl patch command
     // Resource name and namespace have been validated above (RFC 1123 compliant)
     // so they are safe to include in the command string
-    const resourceType = options.resource.type === "configmap"
-      ? "cm"
-      : "secret";
-    const namespaceFlag = options.resource.namespace !== undefined
-      ? ` -n ${options.resource.namespace}`
-      : "";
+    const resourceType =
+      options.resource.type === "configmap" ? "cm" : "secret";
+    const namespaceFlag =
+      options.resource.namespace !== undefined
+        ? ` -n ${options.resource.namespace}`
+        : "";
 
     // Escape single quotes in the patch data for shell usage
     const escapedPatch = patchString.replace(/'/g, "'\"'\"'");
@@ -400,11 +397,13 @@ export const syncApply = async (options: SyncOptions): Promise<string> => {
   // Quote the patch for a POSIX shell. Resource name and namespace are already
   // validated by sync()
   const resourceType = options.resource.type === "configmap" ? "cm" : "secret";
-  const namespaceFlag = options.resource.namespace !== undefined
-    ? ` -n ${options.resource.namespace}`
-    : "";
+  const namespaceFlag =
+    options.resource.namespace !== undefined
+      ? ` -n ${options.resource.namespace}`
+      : "";
 
-  return `kubectl patch ${resourceType} ${options.resource.name}${namespaceFlag} --type=merge -p '${
-    manifest.replace(/'/g, "'\"'\"'")
-  }'`;
+  return `kubectl patch ${resourceType} ${options.resource.name}${namespaceFlag} --type=merge -p '${manifest.replace(
+    /'/g,
+    "'\"'\"'",
+  )}'`;
 };

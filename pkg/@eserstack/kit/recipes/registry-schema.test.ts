@@ -131,13 +131,9 @@ Deno.test("validateRegistryManifest — rejects wrong type for recipes", () => {
 
 Deno.test("validateRegistryManifest — warns on unknown schema version", () => {
   const warnings: string[] = [];
-  using _warn = mock.stub(
-    globalThis.console,
-    "warn",
-    (message: string) => {
-      warnings.push(message);
-    },
-  );
+  using _warn = mock.stub(globalThis.console, "warn", (message: string) => {
+    warnings.push(message);
+  });
 
   registrySchema.validateRegistryManifest({
     ...VALID_MINIMAL,
@@ -150,13 +146,9 @@ Deno.test("validateRegistryManifest — warns on unknown schema version", () => 
 
 Deno.test("validateRegistryManifest — accepts known schema version", () => {
   const warnings: string[] = [];
-  using _warn = mock.stub(
-    globalThis.console,
-    "warn",
-    (message: string) => {
-      warnings.push(message);
-    },
-  );
+  using _warn = mock.stub(globalThis.console, "warn", (message: string) => {
+    warnings.push(message);
+  });
 
   registrySchema.validateRegistryManifest({
     ...VALID_MINIMAL,
@@ -169,12 +161,14 @@ Deno.test("validateRegistryManifest — accepts known schema version", () => {
 Deno.test("validateRegistryManifest — rejects invalid recipe (missing name)", () => {
   const manifest = {
     ...VALID_MINIMAL,
-    recipes: [{
-      description: "no name",
-      language: "ts",
-      scale: "utility",
-      files: [{ source: "a", target: "b" }],
-    }],
+    recipes: [
+      {
+        description: "no name",
+        language: "ts",
+        scale: "utility",
+        files: [{ source: "a", target: "b" }],
+      },
+    ],
   };
 
   assert.assertThrows(
@@ -256,10 +250,12 @@ Deno.test("validateRegistryManifest — rejects invalid dependencies type", () =
 Deno.test("validateRegistryManifest — accepts recipe with requires", () => {
   const manifest = {
     ...VALID_MINIMAL,
-    recipes: [{
-      ...VALID_RECIPE,
-      requires: ["other-recipe"],
-    }],
+    recipes: [
+      {
+        ...VALID_RECIPE,
+        requires: ["other-recipe"],
+      },
+    ],
   };
 
   const result = registrySchema.validateRegistryManifest(manifest);
@@ -296,17 +292,23 @@ Deno.test("validateRegistryManifest — rejects non-string requires entry", () =
 Deno.test("validateRegistryManifest — accepts recipe with variables", () => {
   const manifest = {
     ...VALID_MINIMAL,
-    recipes: [{
-      ...VALID_RECIPE,
-      variables: [
-        {
-          name: "project_name",
-          description: "Project name",
-          default: "my-app",
-        },
-        { name: "author", description: "Author name", prompt: "Who are you?" },
-      ],
-    }],
+    recipes: [
+      {
+        ...VALID_RECIPE,
+        variables: [
+          {
+            name: "project_name",
+            description: "Project name",
+            default: "my-app",
+          },
+          {
+            name: "author",
+            description: "Author name",
+            prompt: "Who are you?",
+          },
+        ],
+      },
+    ],
   };
 
   const result = registrySchema.validateRegistryManifest(manifest);
@@ -321,10 +323,12 @@ Deno.test("validateRegistryManifest — accepts recipe with variables", () => {
 Deno.test("validateRegistryManifest — rejects invalid variable (missing name)", () => {
   const manifest = {
     ...VALID_MINIMAL,
-    recipes: [{
-      ...VALID_RECIPE,
-      variables: [{ description: "no name" }],
-    }],
+    recipes: [
+      {
+        ...VALID_RECIPE,
+        variables: [{ description: "no name" }],
+      },
+    ],
   };
 
   assert.assertThrows(
@@ -337,10 +341,12 @@ Deno.test("validateRegistryManifest — rejects invalid variable (missing name)"
 Deno.test("validateRegistryManifest — accepts recipe with postInstall", () => {
   const manifest = {
     ...VALID_MINIMAL,
-    recipes: [{
-      ...VALID_RECIPE,
-      postInstall: ["deno install", "deno task build"],
-    }],
+    recipes: [
+      {
+        ...VALID_RECIPE,
+        postInstall: ["deno install", "deno task build"],
+      },
+    ],
   };
 
   const result = registrySchema.validateRegistryManifest(manifest);
@@ -367,17 +373,19 @@ Deno.test("validateRegistryManifest — rejects non-string postInstall entry", (
 Deno.test("validateRegistryManifest — accepts file with kind and provider", () => {
   const manifest = {
     ...VALID_MINIMAL,
-    recipes: [{
-      ...VALID_RECIPE,
-      files: [
-        {
-          source: "src/",
-          target: "pkg/src",
-          kind: "folder",
-          provider: "github",
-        },
-      ],
-    }],
+    recipes: [
+      {
+        ...VALID_RECIPE,
+        files: [
+          {
+            source: "src/",
+            target: "pkg/src",
+            kind: "folder",
+            provider: "github",
+          },
+        ],
+      },
+    ],
   };
 
   const result = registrySchema.validateRegistryManifest(manifest);
@@ -390,10 +398,12 @@ Deno.test("validateRegistryManifest — accepts file with kind and provider", ()
 Deno.test("validateRegistryManifest — rejects invalid file kind", () => {
   const manifest = {
     ...VALID_MINIMAL,
-    recipes: [{
-      ...VALID_RECIPE,
-      files: [{ source: "a", target: "b", kind: "symlink" }],
-    }],
+    recipes: [
+      {
+        ...VALID_RECIPE,
+        files: [{ source: "a", target: "b", kind: "symlink" }],
+      },
+    ],
   };
 
   assert.assertThrows(
@@ -406,10 +416,12 @@ Deno.test("validateRegistryManifest — rejects invalid file kind", () => {
 Deno.test("validateRegistryManifest — rejects invalid file provider", () => {
   const manifest = {
     ...VALID_MINIMAL,
-    recipes: [{
-      ...VALID_RECIPE,
-      files: [{ source: "a", target: "b", provider: "s3" }],
-    }],
+    recipes: [
+      {
+        ...VALID_RECIPE,
+        files: [{ source: "a", target: "b", provider: "s3" }],
+      },
+    ],
   };
 
   assert.assertThrows(

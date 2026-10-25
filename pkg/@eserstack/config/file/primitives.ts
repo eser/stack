@@ -11,9 +11,6 @@ export const FileFormats = {
 } as const;
 
 /** The name of a file format, such as `"Json"`. */
-export type FileFormatKey = Exclude<
-  keyof typeof FileFormats,
-  number
->;
+export type FileFormatKey = Exclude<keyof typeof FileFormats, number>;
 /** A file format value from `FileFormats`. */
-export type FileFormat = typeof FileFormats[FileFormatKey];
+export type FileFormat = (typeof FileFormats)[FileFormatKey];

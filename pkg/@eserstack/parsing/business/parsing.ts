@@ -52,6 +52,5 @@ export const tokenizeWith = (
  * @param loader - The loader that runs the tokenizer
  * @returns The definitions
  */
-export const simpleTokensWith = (
-  loader: Loader,
-): Promise<SimpleTokensResult> => loader.simpleTokens();
+export const simpleTokensWith = (loader: Loader): Promise<SimpleTokensResult> =>
+  loader.simpleTokens();

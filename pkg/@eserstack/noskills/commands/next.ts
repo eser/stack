@@ -126,10 +126,9 @@ export const main = async (
     const activeSpec = state.spec ?? "<name>";
     await formatter.writeFormatted(
       {
-        error:
-          `Error: the spec name is required while a spec is active. Run \`${
-            cmd.cmd(`spec ${activeSpec} next`)
-          }\`, or \`${cmd.cmd("spec list")}\` to see the other specs.`,
+        error: `Error: the spec name is required while a spec is active. Run \`${cmd.cmd(
+          `spec ${activeSpec} next`,
+        )}\`, or \`${cmd.cmd("spec list")}\` to see the other specs.`,
       },
       fmt,
     );
@@ -145,22 +144,26 @@ export const main = async (
 
   // State integrity check: verify active spec directory exists
   if (
-    state.spec !== null && state.phase !== "IDLE" && state.phase !== "COMPLETED"
+    state.spec !== null &&
+    state.phase !== "IDLE" &&
+    state.phase !== "COMPLETED"
   ) {
     const specDir = `${root}/${persistence.paths.specDir(state.spec)}`;
     try {
       await runtime.fs.stat(specDir);
     } catch {
-      await formatter.writeFormatted({
-        error: true,
-        message:
-          `Active spec '${state.spec}' directory not found. Files may have been deleted manually.`,
-        suggestion: `Run \`${
-          cmd.cmd(`spec ${state.spec} reset`)
-        }\` to return to idle, or \`${
-          cmd.cmd(`spec ${state.spec} cancel`)
-        }\` to mark as cancelled.`,
-      }, fmt);
+      await formatter.writeFormatted(
+        {
+          error: true,
+          message: `Active spec '${state.spec}' directory not found. Files may have been deleted manually.`,
+          suggestion: `Run \`${cmd.cmd(
+            `spec ${state.spec} reset`,
+          )}\` to return to idle, or \`${cmd.cmd(
+            `spec ${state.spec} cancel`,
+          )}\` to mark as cancelled.`,
+        },
+        fmt,
+      );
       return results.fail({ exitCode: 1 });
     }
   }
@@ -174,7 +177,7 @@ export const main = async (
   // Load active concerns
   const allConcerns = await persistence.listConcerns(root);
   const activeConcerns = allConcerns.filter((c) =>
-    config.concerns.includes(c.id)
+    config.concerns.includes(c.id),
   );
 
   // Handle --answer
@@ -216,11 +219,7 @@ export const main = async (
     // Sync session phase if NOSKILLS_SESSION is set
     const sessionId = runtime.env.get("NOSKILLS_SESSION") ?? null;
     if (sessionId !== null) {
-      await persistence.updateSessionPhase(
-        root,
-        sessionId,
-        touchedState.phase,
-      );
+      await persistence.updateSessionPhase(root, sessionId, touchedState.phase);
     }
 
     const scopedRules = await syncEngine.loadScopedRules(root);
@@ -228,9 +227,10 @@ export const main = async (
       scopedRules,
       touchedState.phase,
     );
-    const parsed = touchedState.spec !== null
-      ? await specParser.parseSpec(root, touchedState.spec)
-      : null;
+    const parsed =
+      touchedState.spec !== null
+        ? await specParser.parseSpec(root, touchedState.spec)
+        : null;
     // Collect folder rules from touched files (state + hook log)
     const touchedFiles = await collectTouchedFiles(root, touchedState);
     const fRules = await folderRules.collectFolderRules(root, touchedFiles);
@@ -260,18 +260,20 @@ export const main = async (
     const isSaveAnswer = answerText.trim().toLowerCase() === "save";
     const phaseSame = touchedState.phase === state.phase;
     if (
-      isSaveAnswer && phaseSame &&
+      isSaveAnswer &&
+      phaseSame &&
       (touchedState.phase === "SPEC_PROPOSAL" ||
         touchedState.phase === "SPEC_APPROVED")
     ) {
       const savedSpec = touchedState.spec ?? "<name>";
-      const savedInstruction = touchedState.phase === "SPEC_PROPOSAL"
-        ? `Spec draft saved. The spec stays in DRAFT and can be reviewed by anyone. Other users can add ACs (\`ac add\`), notes (\`note add\`), or tasks (\`task add\`) while in draft. When ready, any user can approve with \`${
-          cmd.cmd(`spec ${savedSpec} approve`)
-        }\`.`
-        : `Spec is approved and parked. Others can still add ACs or notes. When ready, run \`${
-          cmd.cmd(`spec ${savedSpec} next --answer="start"`)
-        }\` to begin execution.`;
+      const savedInstruction =
+        touchedState.phase === "SPEC_PROPOSAL"
+          ? `Spec draft saved. The spec stays in DRAFT and can be reviewed by anyone. Other users can add ACs (\`ac add\`), notes (\`note add\`), or tasks (\`task add\`) while in draft. When ready, any user can approve with \`${cmd.cmd(
+              `spec ${savedSpec} approve`,
+            )}\`.`
+          : `Spec is approved and parked. Others can still add ACs or notes. When ready, run \`${cmd.cmd(
+              `spec ${savedSpec} next --answer="start"`,
+            )}\` to begin execution.`;
       const savedOutput = {
         ...output,
         instruction: savedInstruction,
@@ -291,8 +293,7 @@ export const main = async (
   await persistence.writeStateAndSpec(root, touchedState);
 
   // Sync session phase
-  const noAnswerSessionId = runtime.env.get("NOSKILLS_SESSION") ??
-    null;
+  const noAnswerSessionId = runtime.env.get("NOSKILLS_SESSION") ?? null;
   if (noAnswerSessionId !== null) {
     await persistence.updateSessionPhase(
       root,
@@ -303,11 +304,12 @@ export const main = async (
 
   // No answer — just output current instruction
   const scopedRules = await syncEngine.loadScopedRules(root);
-  const { tier1: noAnswerTier1, tier2Count: noAnswerTier2Count } = syncEngine
-    .splitByTier(scopedRules, touchedState.phase);
-  const parsed = touchedState.spec !== null
-    ? await specParser.parseSpec(root, touchedState.spec)
-    : null;
+  const { tier1: noAnswerTier1, tier2Count: noAnswerTier2Count } =
+    syncEngine.splitByTier(scopedRules, touchedState.phase);
+  const parsed =
+    touchedState.spec !== null
+      ? await specParser.parseSpec(root, touchedState.spec)
+      : null;
   const touchedFiles = await collectTouchedFiles(root, touchedState);
   const fRules = await folderRules.collectFolderRules(root, touchedFiles);
 
@@ -320,13 +322,14 @@ export const main = async (
         name: s.name,
         phase: s.state.phase,
         iteration: s.state.execution.iteration,
-        detail: s.state.phase === "EXECUTING"
-          ? `${s.state.execution.completedTasks.length} tasks done, iteration ${s.state.execution.iteration}`
-          : s.state.phase === "SPEC_PROPOSAL"
-          ? "awaiting approval"
-          : s.state.phase === "COMPLETED"
-          ? "completed"
-          : undefined,
+        detail:
+          s.state.phase === "EXECUTING"
+            ? `${s.state.execution.completedTasks.length} tasks done, iteration ${s.state.execution.iteration}`
+            : s.state.phase === "SPEC_PROPOSAL"
+              ? "awaiting approval"
+              : s.state.phase === "COMPLETED"
+                ? "completed"
+                : undefined,
       })),
       rulesCount: noAnswerTier1.length,
     };
@@ -581,9 +584,10 @@ const applyLivingSpecToDiscoveryAnswer = async (
 
     const revealedTitles = newlyRevealedIds.map((id) => {
       const sec = sectionDefs.find((s) => s.id === id);
-      const concern = sec?.concernSource !== undefined
-        ? ` (from concern: ${sec.concernSource})`
-        : "";
+      const concern =
+        sec?.concernSource !== undefined
+          ? ` (from concern: ${sec.concernSource})`
+          : "";
       return `  • ${sec?.title ?? id}${concern}`;
     });
 
@@ -697,10 +701,14 @@ const handleApproveAnswer = async (
       // Create spec.proposal.md snapshot (write-once, best-effort)
       if (nextState.spec !== null) {
         const specDir = `${root}/${persistence.paths.specDir(nextState.spec)}`;
-        await livingSpec.createSpecSnapshot(
-          `${specDir}/spec.md`,
-          `${specDir}/spec.proposal.md`,
-        ).catch(() => {/* best-effort */});
+        await livingSpec
+          .createSpecSnapshot(
+            `${specDir}/spec.md`,
+            `${specDir}/spec.proposal.md`,
+          )
+          .catch(() => {
+            /* best-effort */
+          });
       }
       return nextState;
     } catch (err) {
@@ -709,9 +717,9 @@ const handleApproveAnswer = async (
         throw new Error(
           `${
             (err as Error).message
-          } — Your CEO review is saved and will be preserved (run '${
-            cmd.cmd(`spec ${state.spec ?? "<name>"} next`)
-          }' to see remaining gaps).`,
+          } — Your CEO review is saved and will be preserved (run '${cmd.cmd(
+            `spec ${state.spec ?? "<name>"} next`,
+          )}' to see remaining gaps).`,
         );
       }
       throw err;
@@ -784,7 +792,9 @@ const handleRefinementAnswer = async (
         );
       }
     }
-  } catch { /* not JSON — continue */ }
+  } catch {
+    /* not JSON — continue */
+  }
 
   // STEP 3: Stage-c keyword routing
   if (stage === "stage-c") {
@@ -814,7 +824,9 @@ const handleRefinementAnswer = async (
         await writeNotice(
           `Saved '${currentPosture}' as project default posture.`,
         );
-      } catch { /* best-effort */ }
+      } catch {
+        /* best-effort */
+      }
     }
     return state;
   }
@@ -828,7 +840,9 @@ const handleRefinementAnswer = async (
         await persistence.writeManifest(root, rest);
         await writeNotice("Cleared project default posture.");
       }
-    } catch { /* best-effort */ }
+    } catch {
+      /* best-effort */
+    }
     return state;
   }
 
@@ -846,8 +860,8 @@ const handleRefinementAnswer = async (
     );
     if (nextState !== state) {
       // Compute delta narrative for transition message
-      const initial = state.discovery.refinement?.initialCompletenessScore
-        ?.overall;
+      const initial =
+        state.discovery.refinement?.initialCompletenessScore?.overall;
       const final = state.discovery.refinement?.completenessScore?.overall;
       if (initial !== undefined && final !== undefined && initial !== final) {
         await writeNotice(
@@ -877,10 +891,11 @@ const handleRefinementAnswer = async (
     const nextState = machine.approveDiscoveryReview(newState);
     if (nextState.spec !== null) {
       const specDir = `${root}/${persistence.paths.specDir(nextState.spec)}`;
-      await livingSpec.createSpecSnapshot(
-        `${specDir}/spec.md`,
-        `${specDir}/spec.proposal.md`,
-      ).catch(() => {/* best-effort */});
+      await livingSpec
+        .createSpecSnapshot(`${specDir}/spec.md`, `${specDir}/spec.proposal.md`)
+        .catch(() => {
+          /* best-effort */
+        });
     }
     return nextState;
   }
@@ -896,7 +911,9 @@ const handleRefinementAnswer = async (
       try {
         const parsed = JSON.parse(answer);
         if (
-          parsed !== null && typeof parsed === "object" && "approach" in parsed
+          parsed !== null &&
+          typeof parsed === "object" &&
+          "approach" in parsed
         ) {
           const approach: schema.SelectedApproach = {
             id: String(parsed.approach),
@@ -910,7 +927,9 @@ const handleRefinementAnswer = async (
           updatedState = machine.selectApproach(state, approach);
           handled = true;
         }
-      } catch { /* Not JSON */ }
+      } catch {
+        /* Not JSON */
+      }
       if (!handled) {
         updatedState = machine.skipAlternatives(state);
       }
@@ -918,10 +937,11 @@ const handleRefinementAnswer = async (
     const nextState = machine.approveDiscoveryReview(updatedState!);
     if (nextState.spec !== null) {
       const specDir = `${root}/${persistence.paths.specDir(nextState.spec)}`;
-      await livingSpec.createSpecSnapshot(
-        `${specDir}/spec.md`,
-        `${specDir}/spec.proposal.md`,
-      ).catch(() => {/* best-effort */});
+      await livingSpec
+        .createSpecSnapshot(`${specDir}/spec.md`, `${specDir}/spec.proposal.md`)
+        .catch(() => {
+          /* best-effort */
+        });
     }
     return nextState;
   }
@@ -936,11 +956,9 @@ const handleRefinementAnswer = async (
         state.spec,
         "refinement",
       );
-      for (
-        const [qId, qAnswer] of Object.entries(
-          parsed.revise as Record<string, string>,
-        )
-      ) {
+      for (const [qId, qAnswer] of Object.entries(
+        parsed.revise as Record<string, string>,
+      )) {
         if (typeof qAnswer === "string" && qAnswer.length > 0) {
           newState = machine.addDiscoveryAnswer(newState, qId, qAnswer, user);
           newState = applyTokenSourceToLastAnswer(
@@ -952,7 +970,9 @@ const handleRefinementAnswer = async (
       }
       return newState;
     }
-  } catch { /* Not JSON */ }
+  } catch {
+    /* Not JSON */
+  }
 
   return state;
 };
@@ -968,10 +988,11 @@ export const handleAnswer = async (
   switch (state.phase) {
     case "DISCOVERY": {
       // Listen first: store user context before mode selection
-      const hasUserContext = state.discovery.userContext !== undefined &&
+      const hasUserContext =
+        state.discovery.userContext !== undefined &&
         state.discovery.userContext.length > 0;
-      const hasDescription = state.specDescription !== null &&
-        state.specDescription.length > 0;
+      const hasDescription =
+        state.specDescription !== null && state.specDescription.length > 0;
       const discoveryMode = state.discovery.mode;
 
       if (!hasUserContext && discoveryMode === undefined && hasDescription) {
@@ -1022,20 +1043,22 @@ export const handleAnswer = async (
         try {
           const parsed = JSON.parse(answer);
           if (
-            parsed !== null && typeof parsed === "object" &&
+            parsed !== null &&
+            typeof parsed === "object" &&
             "premises" in parsed
           ) {
-            const rawPremises = parsed.premises as Array<
-              { text: string; agreed: boolean; revision?: string }
-            >;
-            const typedPremises: schema.Premise[] = rawPremises
-              .map((p) => ({
-                text: p.text ?? "",
-                agreed: p.agreed ?? true,
-                revision: p.revision,
-                user: user?.name ?? "Unknown User",
-                timestamp: new Date().toISOString(),
-              }));
+            const rawPremises = parsed.premises as Array<{
+              text: string;
+              agreed: boolean;
+              revision?: string;
+            }>;
+            const typedPremises: schema.Premise[] = rawPremises.map((p) => ({
+              text: p.text ?? "",
+              agreed: p.agreed ?? true,
+              revision: p.revision,
+              user: user?.name ?? "Unknown User",
+              timestamp: new Date().toISOString(),
+            }));
             // Jidoka M3: reject empty premises array
             if (typedPremises.length === 0) {
               throw new Error(
@@ -1097,8 +1120,8 @@ export const handleAnswer = async (
           ...newState,
           discovery: {
             ...newState.discovery,
-            batchSubmitted: newState.discovery.batchSubmitted === true ||
-              unconfirmed,
+            batchSubmitted:
+              newState.discovery.batchSubmitted === true || unconfirmed,
           },
         };
       } else {
@@ -1168,11 +1191,7 @@ export const handleAnswer = async (
       if (workingState.classification === null) {
         workingState = machine.autoClassifyIfMissing(workingState);
         try {
-          await specGenerator.generateSpec(
-            root,
-            workingState,
-            activeConcerns,
-          );
+          await specGenerator.generateSpec(root, workingState, activeConcerns);
         } catch {
           // Keep classification even if spec gen fails
         }
@@ -1188,18 +1207,18 @@ export const handleAnswer = async (
           const refinementText: string = parsed.refinement;
 
           if (workingState.spec !== null) {
-            const specFile = `${root}/${
-              persistence.paths.specFile(workingState.spec)
-            }`;
+            const specFile = `${root}/${persistence.paths.specFile(
+              workingState.spec,
+            )}`;
             const currentContent = await runtime.fs.readTextFile(specFile);
 
             // If refinement contains "task-" patterns, replace the Tasks section
             if (refinementText.includes("task-")) {
               // Split ONLY on "task-N:" prefix boundaries, preserving full descriptions
               const taskLines = parseRefinementTasks(refinementText);
-              const newTasksSection = taskLines.map(
-                (t: string) => `- [ ] ${t}`,
-              ).join("\n");
+              const newTasksSection = taskLines
+                .map((t: string) => `- [ ] ${t}`)
+                .join("\n");
 
               // Replace the ## Tasks section in the spec
               const tasksRegex = /## Tasks\n\n([\s\S]*?)(?=\n## |\n*$)/;
@@ -1239,10 +1258,14 @@ export const handleAnswer = async (
         );
         // Create spec.approved.md snapshot (write-once, best-effort)
         const specDir = `${root}/${persistence.paths.specDir(execState.spec)}`;
-        await livingSpec.createSpecSnapshot(
-          `${specDir}/spec.md`,
-          `${specDir}/spec.approved.md`,
-        ).catch(() => {/* best-effort */});
+        await livingSpec
+          .createSpecSnapshot(
+            `${specDir}/spec.md`,
+            `${specDir}/spec.approved.md`,
+          )
+          .catch(() => {
+            /* best-effort */
+          });
       }
 
       return execState;
@@ -1261,7 +1284,8 @@ export const handleAnswer = async (
 
         // Run verification if configured (automated backpressure)
         if (
-          config.verifyCommand !== null && config.verifyCommand !== undefined &&
+          config.verifyCommand !== null &&
+          config.verifyCommand !== undefined &&
           config.verifyCommand.length > 0
         ) {
           const verification = await runVerification(
@@ -1349,7 +1373,7 @@ const handleSplit = async (
       name: item.name,
       description: item.description,
       answers: state.discovery.answers.filter((a) =>
-        item.relevantAnswers.includes(a.questionId)
+        item.relevantAnswers.includes(a.questionId),
       ),
     })),
     cmd.cmdPrefix(),
@@ -1409,7 +1433,8 @@ const processStatusReport = async (
   let currentState = state;
 
   if (
-    state.execution.debt !== null && state.execution.debt.items.length > 0 &&
+    state.execution.debt !== null &&
+    state.execution.debt.items.length > 0 &&
     typeof state.execution.debt.items[0] === "string"
   ) {
     const legacyItems = state.execution.debt.items as unknown as string[];
@@ -1442,10 +1467,9 @@ const processStatusReport = async (
       ...currentState,
       execution: {
         ...currentState.execution,
-        lastProgress:
-          `REJECTED: Tests and documentation ACs require explicit justification to mark as N/A. Explain why tests or docs are not needed for this spec. Rejected IDs: ${
-            rejectedMandatory.join(", ")
-          }`,
+        lastProgress: `REJECTED: Tests and documentation ACs require explicit justification to mark as N/A. Explain why tests or docs are not needed for this spec. Rejected IDs: ${rejectedMandatory.join(
+          ", ",
+        )}`,
         awaitingStatusReport: true,
       },
     };
@@ -1462,15 +1486,16 @@ const processStatusReport = async (
   const newIssueTexts = report.newIssues ?? [];
   const remainingIds = report.remaining ?? [];
   const blockedIds = report.blocked ?? [];
-  const prevUnaddressed = currentState.execution.debt?.unaddressedIterations ??
-    0;
+  const prevUnaddressed =
+    currentState.execution.debt?.unaddressedIterations ?? 0;
 
   // Filter out completed AND N/A items from existing debt (match by ID)
-  const survivingOldDebt = currentState.execution.debt !== null
-    ? currentState.execution.debt.items.filter(
-      (item) => !completedSet.has(item.id) && !naSet.has(item.id),
-    )
-    : [];
+  const survivingOldDebt =
+    currentState.execution.debt !== null
+      ? currentState.execution.debt.items.filter(
+          (item) => !completedSet.has(item.id) && !naSet.has(item.id),
+        )
+      : [];
 
   // Create new debt items from newIssues with auto-increment IDs
   const counter = currentState.execution.debtCounter ?? 0;
@@ -1485,18 +1510,22 @@ const processStatusReport = async (
 
   // Explicit completion signal: remaining=[] AND blocked=[] AND no new issues
   // When the agent says nothing remains, trust it — accept in one round-trip
-  const explicitlyComplete = remainingIds.length === 0 &&
-    blockedIds.length === 0 && newIssueTexts.length === 0;
+  const explicitlyComplete =
+    remainingIds.length === 0 &&
+    blockedIds.length === 0 &&
+    newIssueTexts.length === 0;
 
   const mergedDebt: schema.DebtState | null =
-    (explicitlyComplete || allDebtItems.length === 0) ? null : {
-      items: allDebtItems,
-      fromIteration: currentState.execution.debt?.fromIteration ??
-        currentState.execution.iteration,
-      unaddressedIterations: survivingOldDebt.length > 0
-        ? prevUnaddressed + 1
-        : 1,
-    };
+    explicitlyComplete || allDebtItems.length === 0
+      ? null
+      : {
+          items: allDebtItems,
+          fromIteration:
+            currentState.execution.debt?.fromIteration ??
+            currentState.execution.iteration,
+          unaddressedIterations:
+            survivingOldDebt.length > 0 ? prevUnaddressed + 1 : 1,
+        };
 
   // Persist N/A'd items so they're excluded from future criteria
   const updatedNaItems = [
@@ -1508,12 +1537,14 @@ const processStatusReport = async (
     progressParts.push(`Completed: ${completedIds.join(", ")}`);
   }
   if (naIds.length > 0) progressParts.push(`N/A: ${naIds.join(", ")}`);
-  const progressSummary = progressParts.length > 0
-    ? progressParts.join("; ")
-    : "Status report submitted";
+  const progressSummary =
+    progressParts.length > 0
+      ? progressParts.join("; ")
+      : "Status report submitted";
 
   // Task fully accepted: zero debt AND verification passed (or no verify configured)
-  const verifyPassed = currentState.execution.lastVerification === null ||
+  const verifyPassed =
+    currentState.execution.lastVerification === null ||
     currentState.execution.lastVerification.passed === true;
   const taskComplete = mergedDebt === null && verifyPassed;
 
@@ -1532,16 +1563,17 @@ const processStatusReport = async (
     // empty (no pre-existing debt), so taskComplete is always true regardless of
     // remaining dimensions. explicitlyComplete requires remaining:[] AND blocked:[].
     if (explicitlyComplete) {
-      const concernsWithDims = concerns.getReviewDimensions(
+      const concernsWithDims =
+        concerns.getReviewDimensions(
           activeConcerns,
           currentState.classification,
         ).length > 0
-        ? activeConcerns.filter(
-          (c) =>
-            concerns.getReviewDimensions([c], currentState.classification)
-              .length > 0,
-        )
-        : [];
+          ? activeConcerns.filter(
+              (c) =>
+                concerns.getReviewDimensions([c], currentState.classification)
+                  .length > 0,
+            )
+          : [];
       const nextCursor = gateConcernCursor + 1;
 
       if (nextCursor >= concernsWithDims.length) {
@@ -1557,10 +1589,9 @@ const processStatusReport = async (
             debt: mergedDebt,
             debtCounter: newDebtCounter,
             naItems: updatedNaItems,
-            lastProgress:
-              `Review gate complete: all concern dimensions satisfied. Run \`${
-                cmd.cmd(`spec ${currentState.spec ?? "<name>"} done`)
-              }\` to finish.`,
+            lastProgress: `Review gate complete: all concern dimensions satisfied. Run \`${cmd.cmd(
+              `spec ${currentState.spec ?? "<name>"} done`,
+            )}\` to finish.`,
           },
         };
       }
@@ -1592,8 +1623,7 @@ const processStatusReport = async (
         debt: mergedDebt,
         debtCounter: newDebtCounter,
         naItems: updatedNaItems,
-        lastProgress:
-          `Review gate: ${remainingIds.length} dimension(s) still remaining — verify them and resubmit with remaining:[]`,
+        lastProgress: `Review gate: ${remainingIds.length} dimension(s) still remaining — verify them and resubmit with remaining:[]`,
       },
     };
   }
@@ -1626,8 +1656,8 @@ const processStatusReport = async (
 
       // If no batch, find single current task (first incomplete)
       if (batchIds.length === 0) {
-        const currentTask = parsed.tasks.find((t) =>
-          !taskCompletedSet.has(t.id)
+        const currentTask = parsed.tasks.find(
+          (t) => !taskCompletedSet.has(t.id),
         );
         if (currentTask !== undefined) {
           batchIds = [currentTask.id];
@@ -1652,13 +1682,14 @@ const processStatusReport = async (
       }
 
       if (newlyCompleted.length > 0) {
-        const label = newlyCompleted.length === 1
-          ? `Task ${newlyCompleted[0]} accepted`
-          : `Tasks ${newlyCompleted.join(", ")} accepted`;
+        const label =
+          newlyCompleted.length === 1
+            ? `Task ${newlyCompleted[0]} accepted`
+            : `Tasks ${newlyCompleted.join(", ")} accepted`;
 
         const updatedCompletedTasks = [...taskCompletedIds, ...newlyCompleted];
         const allSpecTasksDone = parsed.tasks.every((t) =>
-          updatedCompletedTasks.includes(t.id)
+          updatedCompletedTasks.includes(t.id),
         );
 
         // If all spec tasks done and there are concern review dimensions,
@@ -1674,8 +1705,7 @@ const processStatusReport = async (
               ...currentState,
               execution: {
                 ...currentState.execution,
-                lastProgress:
-                  `${label}: ${progressSummary}. All spec tasks complete — entering review gate.`,
+                lastProgress: `${label}: ${progressSummary}. All spec tasks complete — entering review gate.`,
                 awaitingStatusReport: true,
                 criteriaScope: "review-gate",
                 gateConcernCursor: 0,

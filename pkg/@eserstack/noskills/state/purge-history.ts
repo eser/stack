@@ -141,17 +141,17 @@ export type HistoryEntry = {
 /** What restoring one category did. */
 export type RestoreOutcome =
   | {
-    readonly status: "restored";
-    /** The project paths written. */
-    readonly paths: readonly string[];
-    /** Symbolic links in the entry, which restore does not follow or copy. */
-    readonly skipped: readonly string[];
-  }
+      readonly status: "restored";
+      /** The project paths written. */
+      readonly paths: readonly string[];
+      /** Symbolic links in the entry, which restore does not follow or copy. */
+      readonly skipped: readonly string[];
+    }
   | {
-    readonly status: "refused";
-    /** The project paths that already exist and would be replaced. */
-    readonly conflicts: readonly string[];
-  };
+      readonly status: "refused";
+      /** The project paths that already exist and would be replaced. */
+      readonly conflicts: readonly string[];
+    };
 
 /** Options for restoring a category. */
 export type RestoreOptions = {
@@ -207,14 +207,11 @@ export const isEntryId = (name: string): boolean => ENTRY_ID_PATTERN.test(name);
  * id in `taken` already has that time, the id gets the first free suffix from
  * "-2" on.
  */
-export const entryIdFor = (
-  now: number,
-  taken: ReadonlySet<string>,
-): string => {
-  const base = new Date(now).toISOString().replaceAll(":", "-").replace(
-    ".",
-    "-",
-  );
+export const entryIdFor = (now: number, taken: ReadonlySet<string>): string => {
+  const base = new Date(now)
+    .toISOString()
+    .replaceAll(":", "-")
+    .replace(".", "-");
   let id = base;
 
   for (let suffix = 2; taken.has(id); suffix++) {
@@ -279,11 +276,9 @@ const listEntryIds = async (root: string): Promise<string[]> => {
   const ids: string[] = [];
 
   try {
-    for await (
-      const entry of crossRuntime.runtime.fs.readDir(
-        `${root}/${persistence.paths.purgeHistoryDir}`,
-      )
-    ) {
+    for await (const entry of crossRuntime.runtime.fs.readDir(
+      `${root}/${persistence.paths.purgeHistoryDir}`,
+    )) {
       if (entry.isDirectory && isEntryId(entry.name)) {
         ids.push(entry.name);
       }
@@ -309,7 +304,7 @@ const keptCategories = async (
         category === "manifest"
           ? `${dir}/${MANIFEST_SECTION_FILE}`
           : `${dir}/${category}`,
-      )
+      ),
     ),
   );
 
@@ -350,7 +345,7 @@ export const pruneHistory = async (
     dropped.map((id) =>
       crossRuntime.runtime.fs.remove(`${root}/${entryPath(id)}`, {
         recursive: true,
-      })
+      }),
     ),
   );
 
@@ -440,9 +435,7 @@ export const keepManifestSection = async (
     );
     await crossRuntime.runtime.fs.writeTextFile(
       file,
-      new yaml.Document({ noskills: section }).toString(
-        MANIFEST_YAML_OPTIONS,
-      ),
+      new yaml.Document({ noskills: section }).toString(MANIFEST_YAML_OPTIONS),
     );
   } catch (error) {
     throw new PurgeHistoryError(
@@ -482,15 +475,16 @@ const storedFiles = async (categoryDir: string): Promise<StoredFiles> => {
 
   for await (const entry of crossRuntime.runtime.fs.walk(categoryDir)) {
     // Project paths use "/" on every platform.
-    const path = crossRuntime.runtime.path.relative(categoryDir, entry.path)
+    const path = crossRuntime.runtime.path
+      .relative(categoryDir, entry.path)
       .replaceAll("\\", "/");
     const kind = entry.isSymlink
       ? links
       : entry.isDirectory
-      ? dirs
-      : entry.isFile
-      ? files
-      : links;
+        ? dirs
+        : entry.isFile
+          ? files
+          : links;
     kind.push(path);
   }
 

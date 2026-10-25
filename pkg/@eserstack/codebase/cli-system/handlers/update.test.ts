@@ -23,8 +23,10 @@ const PAYLOAD_SHA256 =
 const OTHER_SHA256 =
   "fbf22ec45a215e0d4711bfe2dde37292707edaf098c15bd5b204cb3ca72e6ca3";
 
-const servingText = (body: string, status = 200): typeof fetch => () =>
-  Promise.resolve(new Response(body, { status }));
+const servingText =
+  (body: string, status = 200): typeof fetch =>
+  () =>
+    Promise.resolve(new Response(body, { status }));
 
 const failingFetch: typeof fetch = () =>
   Promise.reject(new TypeError("error sending request for url"));
@@ -158,10 +160,8 @@ Deno.test("field matching survives surrounding whitespace", () => {
 // Paths reach the extractor as separate arguments. The Windows command used to
 // be a PowerShell string with the paths spliced in, which dropped every
 // backslash and let a quote in a path end the string.
-const HOSTILE_DIR =
-  `C:\\Users\\O'Brien "Ops"\\AppData\\Local\\Temp\\eser-update-$(whoami); rm -rf`;
-const HOSTILE_ARCHIVE =
-  `${HOSTILE_DIR}\\eser-v1.2.3-x86_64-pc-windows-msvc.zip`;
+const HOSTILE_DIR = `C:\\Users\\O'Brien "Ops"\\AppData\\Local\\Temp\\eser-update-$(whoami); rm -rf`;
+const HOSTILE_ARCHIVE = `${HOSTILE_DIR}\\eser-v1.2.3-x86_64-pc-windows-msvc.zip`;
 
 const extractCases: ReadonlyArray<{
   readonly name: string;

@@ -79,9 +79,7 @@ const SCOPE_FILES: Readonly<
 };
 
 /** Reports whether `value` is one of {@link CONCERN_SCOPES}. */
-export const isConcernScope = (
-  value: unknown,
-): value is schema.ConcernScope =>
+export const isConcernScope = (value: unknown): value is schema.ConcernScope =>
   typeof value === "string" &&
   (CONCERN_SCOPES as readonly string[]).includes(value);
 
@@ -93,7 +91,7 @@ export const reminderText = (reminder: schema.ConcernReminder): string =>
 export const reminderScope = (
   reminder: schema.ConcernReminder,
 ): readonly schema.ConcernScope[] =>
-  typeof reminder === "string" ? [] : reminder.scope ?? [];
+  typeof reminder === "string" ? [] : (reminder.scope ?? []);
 
 /**
  * Reports whether content with this scope applies to a spec with this
@@ -130,9 +128,10 @@ export const scopeMatchesFile = (
 ): boolean => {
   const extension = fileExtension(filePath);
 
-  return scope.some((value) =>
-    SCOPE_FILES[value](extension) &&
-    (classification === null || classification[SCOPE_FLAGS[value]] === true)
+  return scope.some(
+    (value) =>
+      SCOPE_FILES[value](extension) &&
+      (classification === null || classification[SCOPE_FLAGS[value]] === true),
   );
 };
 
@@ -163,8 +162,10 @@ export const sectionMatchesClassification = (
     return true;
   }
 
-  return (CONDITION_FLAGS as readonly string[]).includes(section.condition) &&
-    classification[section.condition as ClassificationFlag] === true;
+  return (
+    (CONDITION_FLAGS as readonly string[]).includes(section.condition) &&
+    classification[section.condition as ClassificationFlag] === true
+  );
 };
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>

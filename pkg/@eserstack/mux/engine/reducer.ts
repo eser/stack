@@ -108,9 +108,10 @@ const closeTabAt = (state: MuxState, index: number): ReducerResult => {
     };
   }
 
-  const activeTab = index < state.activeTab
-    ? state.activeTab - 1
-    : Math.min(state.activeTab, tabs.length - 1);
+  const activeTab =
+    index < state.activeTab
+      ? state.activeTab - 1
+      : Math.min(state.activeTab, tabs.length - 1);
 
   return {
     state: { ...state, panes, tabs, activeTab },
@@ -243,9 +244,8 @@ export const reduce = (state: MuxState, action: Action): ReducerResult => {
       const tab = activeTabOf(state);
       if (tab === undefined) return noop(state);
 
-      const fullscreenPane = tab.fullscreenPane === tab.focusedPane
-        ? undefined
-        : tab.focusedPane;
+      const fullscreenPane =
+        tab.fullscreenPane === tab.focusedPane ? undefined : tab.focusedPane;
 
       return {
         state: replaceActiveTab(state, { ...tab, fullscreenPane }),
@@ -316,8 +316,8 @@ export const reduce = (state: MuxState, action: Action): ReducerResult => {
       if (state.tabs.length <= 1) return noop(state);
 
       const step = action.type === "nextTab" ? 1 : -1;
-      const activeTab = (state.activeTab + step + state.tabs.length) %
-        state.tabs.length;
+      const activeTab =
+        (state.activeTab + step + state.tabs.length) % state.tabs.length;
 
       return { state: { ...state, activeTab }, effects: RENDER };
     }
@@ -328,11 +328,13 @@ export const reduce = (state: MuxState, action: Action): ReducerResult => {
 
       return {
         state,
-        effects: [{
-          type: "scrollPane",
-          pane: tab.focusedPane,
-          action: action.action,
-        }],
+        effects: [
+          {
+            type: "scrollPane",
+            pane: tab.focusedPane,
+            action: action.action,
+          },
+        ],
       };
     }
 
@@ -342,11 +344,13 @@ export const reduce = (state: MuxState, action: Action): ReducerResult => {
 
       return {
         state,
-        effects: [{
-          type: "writePty",
-          pane: tab.focusedPane,
-          data: action.data,
-        }],
+        effects: [
+          {
+            type: "writePty",
+            pane: tab.focusedPane,
+            data: action.data,
+          },
+        ],
       };
     }
 
@@ -369,7 +373,7 @@ export const reduce = (state: MuxState, action: Action): ReducerResult => {
 
     case "paneExited": {
       const tabIndex = state.tabs.findIndex((t) =>
-        tree.hasLeaf(t.root, action.pane)
+        tree.hasLeaf(t.root, action.pane),
       );
       if (tabIndex < 0) return noop(state);
 
@@ -390,9 +394,10 @@ export const reduce = (state: MuxState, action: Action): ReducerResult => {
 
         // A tab before the active one shifts every later index down by one, so
         // decrement to keep viewing the same tab; otherwise just clamp.
-        const activeTab = tabIndex < state.activeTab
-          ? state.activeTab - 1
-          : Math.min(state.activeTab, tabs.length - 1);
+        const activeTab =
+          tabIndex < state.activeTab
+            ? state.activeTab - 1
+            : Math.min(state.activeTab, tabs.length - 1);
 
         return {
           state: { ...state, panes, tabs, activeTab },
@@ -400,12 +405,12 @@ export const reduce = (state: MuxState, action: Action): ReducerResult => {
         };
       }
 
-      const focusedPane = tab.focusedPane === action.pane
-        ? (promoted ?? tree.firstLeaf(root))
-        : tab.focusedPane;
-      const fullscreenPane = tab.fullscreenPane === action.pane
-        ? undefined
-        : tab.fullscreenPane;
+      const focusedPane =
+        tab.focusedPane === action.pane
+          ? (promoted ?? tree.firstLeaf(root))
+          : tab.focusedPane;
+      const fullscreenPane =
+        tab.fullscreenPane === action.pane ? undefined : tab.fullscreenPane;
       const newTab: Tab = { ...tab, root, focusedPane, fullscreenPane };
 
       return {

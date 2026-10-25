@@ -64,16 +64,16 @@ export type NewProjectOutput = {
  */
 export type NewProjectError =
   | {
-    readonly _tag: "RegistryError";
-    readonly message: string;
-    readonly cause: unknown;
-  }
+      readonly _tag: "RegistryError";
+      readonly message: string;
+      readonly cause: unknown;
+    }
   | { readonly _tag: "TemplateNotFound"; readonly message: string }
   | {
-    readonly _tag: "ApplyError";
-    readonly message: string;
-    readonly cause: unknown;
-  };
+      readonly _tag: "ApplyError";
+      readonly message: string;
+      readonly cause: unknown;
+    };
 
 // =============================================================================
 // Handler
@@ -96,8 +96,8 @@ export const newProject = (
   task.task<NewProjectOutput, NewProjectError, HandlerContext>(
     async (ctx: HandlerContext) => {
       try {
-        const canUseFfi = input.interactive !== true &&
-          input.skipPostInstall !== true;
+        const canUseFfi =
+          input.interactive !== true && input.skipPostInstall !== true;
 
         await ffiClient.ensureLib();
         const lib = canUseFfi ? ffiClient.getLib() : null;
@@ -135,9 +135,9 @@ export const newProject = (
               ),
             );
 
-            const mainRecipe = goResult.recipes.find(
-              (r) => r.name === input.templateName,
-            ) ?? goResult.recipes[0];
+            const mainRecipe =
+              goResult.recipes.find((r) => r.name === input.templateName) ??
+              goResult.recipes[0];
 
             if (mainRecipe !== undefined) {
               for (const file of mainRecipe.written ?? []) {
@@ -188,19 +188,15 @@ export const newProject = (
           { local: input.local },
         );
 
-        const templates = manifest.recipes.filter(
-          (r) => r.scale === "project",
-        );
-        const template = templates.find(
-          (r) => r.name === input.templateName,
-        );
+        const templates = manifest.recipes.filter((r) => r.scale === "project");
+        const template = templates.find((r) => r.name === input.templateName);
 
         if (template === undefined) {
           return results.fail({
             _tag: "TemplateNotFound" as const,
-            message: `Template '${input.templateName}' not found. Available: ${
-              templates.map((t) => t.name).join(", ")
-            }`,
+            message: `Template '${input.templateName}' not found. Available: ${templates
+              .map((t) => t.name)
+              .join(", ")}`,
           });
         }
 
@@ -211,7 +207,7 @@ export const newProject = (
         // Templates reference {{.project_name}}; the key follows the recipe
         // variable naming, not TypeScript's.
         const variables = {
-          "project_name": input.projectName,
+          project_name: input.projectName,
           ...input.variables,
         };
 

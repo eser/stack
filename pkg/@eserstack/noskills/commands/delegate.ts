@@ -35,18 +35,16 @@ export const main = async (
   }
 
   // Parse positional args: delegate <questionId> <userName>
-  const positionals = (args ?? []).filter(
-    (a) => !a.startsWith("--"),
-  );
+  const positionals = (args ?? []).filter((a) => !a.startsWith("--"));
   const questionId = positionals[0];
   const userName = positionals.slice(1).join(" ");
 
   if (questionId === undefined || questionId === "" || userName === "") {
     out.writeln(
       span.red(
-        `Usage: ${
-          cmd.cmd(`spec ${specResult.spec} delegate <questionId> <userName>`)
-        }`,
+        `Usage: ${cmd.cmd(
+          `spec ${specResult.spec} delegate <questionId> <userName>`,
+        )}`,
       ),
     );
     await out.close();
@@ -63,9 +61,7 @@ export const main = async (
     return results.fail({ exitCode: 1 });
   }
 
-  if (
-    state.phase !== "DISCOVERY" && state.phase !== "DISCOVERY_REFINEMENT"
-  ) {
+  if (state.phase !== "DISCOVERY" && state.phase !== "DISCOVERY_REFINEMENT") {
     out.writeln(
       span.red(
         `Cannot delegate in phase: ${state.phase}. Only during discovery.`,
@@ -94,10 +90,7 @@ export const main = async (
     to: userName,
   });
 
-  out.writeln(
-    span.green("✔"),
-    ` Delegated "${questionId}" to ${userName}`,
-  );
+  out.writeln(span.green("✔"), ` Delegated "${questionId}" to ${userName}`);
   await out.close();
 
   return results.ok(undefined);

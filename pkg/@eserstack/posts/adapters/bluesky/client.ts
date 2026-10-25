@@ -51,9 +51,7 @@ export class BlueskyClient {
     return this._accessJwt !== undefined;
   }
 
-  private authHeaders(
-    authJwt?: string | null,
-  ): Record<string, string> {
+  private authHeaders(authJwt?: string | null): Record<string, string> {
     if (authJwt === null) {
       // Explicit null = no auth header (unauthenticated requests)
       return {};
@@ -85,7 +83,7 @@ export class BlueskyClient {
     authJwt: string | null | undefined = undefined,
   ): Promise<T> {
     const resp = await this._client.post<T>(nsid, {
-      body: body !== undefined ? body as Record<string, unknown> : undefined,
+      body: body !== undefined ? (body as Record<string, unknown>) : undefined,
       headers: this.authHeaders(authJwt),
     });
     return resp.data;

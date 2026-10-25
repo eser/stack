@@ -26,9 +26,7 @@ const hasWasm = ((): boolean => {
 
 const readNodeMajor = async (): Promise<number | null> => {
   try {
-    const { success, stdout } = await runtime.exec.spawn("node", [
-      "--version",
-    ]);
+    const { success, stdout } = await runtime.exec.spawn("node", ["--version"]);
     const version = new TextDecoder().decode(stdout).trim();
     return success ? Number(version.slice(1).split(".")[0]) : null;
   } catch {
@@ -40,18 +38,14 @@ const readNodeMajor = async (): Promise<number | null> => {
 const nodeMajor = (await readNodeMajor()) ?? 0;
 
 Deno.test({
-  name:
-    "a logger lives on one reactor instance under node --no-experimental-ffi",
+  name: "a logger lives on one reactor instance under node --no-experimental-ffi",
   ignore: !hasWasm || nodeMajor < 26,
   fn: async () => {
-    const result = await runtime.exec.spawn(
-      "node",
-      [
-        "--no-experimental-ffi",
-        "--disable-warning=ExperimentalWarning",
-        `${import.meta.dirname}/node-reactor-log.fixture.ts`,
-      ],
-    );
+    const result = await runtime.exec.spawn("node", [
+      "--no-experimental-ffi",
+      "--disable-warning=ExperimentalWarning",
+      `${import.meta.dirname}/node-reactor-log.fixture.ts`,
+    ]);
 
     const stdout = new TextDecoder().decode(result.stdout);
     const stderr = new TextDecoder().decode(result.stderr);
@@ -74,14 +68,15 @@ Deno.test({
 
     // The records reach the process's stderr through node:wasi, one per
     // write, with the scope once.
-    const records = stderr.trim().split("\n").filter((line) =>
-      line.startsWith("{")
-    ).map((line) => JSON.parse(line) as Record<string, unknown>);
-    assert.assertEquals(records.map((r) => r["msg"]), [
-      "write 1",
-      "write 2",
-      "write 3",
-    ]);
+    const records = stderr
+      .trim()
+      .split("\n")
+      .filter((line) => line.startsWith("{"))
+      .map((line) => JSON.parse(line) as Record<string, unknown>);
+    assert.assertEquals(
+      records.map((r) => r["msg"]),
+      ["write 1", "write 2", "write 3"],
+    );
     assert.assertEquals(records[0]!["scope"], "node-wasm");
   },
 });

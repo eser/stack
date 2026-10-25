@@ -37,9 +37,7 @@ const hasText = (value: string | undefined): value is string =>
 // Check if debug mode is enabled
 const isDebugMode = () => {
   if (typeof globalThis === "undefined") return false;
-  return (
-    new URLSearchParams(globalThis.location.search).get("debug") === "1"
-  );
+  return new URLSearchParams(globalThis.location.search).get("debug") === "1";
 };
 
 // Check if the error is a network-related error that should be handled silently
@@ -52,7 +50,7 @@ const isNetworkError = (error: Error | null): boolean => {
     message.includes("failed to fetch") ||
     message.includes("load failed") ||
     message.includes("networkerror") ||
-    error.name === "TypeError" && message.includes("network")
+    (error.name === "TypeError" && message.includes("network"))
   );
 };
 
@@ -61,8 +59,10 @@ const isNetworkError = (error: Error | null): boolean => {
  * server-rendered content and shows nothing; any other error shows an error
  * view with a retry button, and its details with `?debug=1` in the URL.
  */
-export class ErrorBoundary
-  extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+export class ErrorBoundary extends React.Component<
+  ErrorBoundaryProps,
+  ErrorBoundaryState
+> {
   /**
    * Creates the boundary with no error recorded.
    *
@@ -93,14 +93,18 @@ export class ErrorBoundary
       "error-boundary",
     ]);
     if (isNetworkError(error)) {
-      logger.with({ error }).warn(
-        "render hit a network error; keeping the server-rendered content",
-      );
+      logger
+        .with({ error })
+        .warn(
+          "render hit a network error; keeping the server-rendered content",
+        );
     } else {
-      logger.with({
-        error,
-        componentStack: errorInfo.componentStack,
-      }).error("render failed; showing the error view");
+      logger
+        .with({
+          error,
+          componentStack: errorInfo.componentStack,
+        })
+        .error("render failed; showing the error view");
     }
 
     this.setState({
@@ -128,53 +132,53 @@ export class ErrorBoundary
       const error = this.state.error as LarouxError;
       const _hasExtendedInfo = error?.code ?? error?.hint ?? error?.docUrl;
 
-      return (
+      return React.createElement(
+        "div",
+        {
+          style: {
+            padding: "2rem",
+            maxWidth: "800px",
+            margin: "2rem auto",
+            fontFamily: "system-ui, -apple-system, sans-serif",
+          },
+        },
         React.createElement(
           "div",
           {
             style: {
-              padding: "2rem",
-              maxWidth: "800px",
-              margin: "2rem auto",
-              fontFamily: "system-ui, -apple-system, sans-serif",
+              background: "#fee2e2",
+              border: "2px solid #dc2626",
+              borderRadius: "8px",
+              padding: "1.5rem",
             },
           },
           React.createElement(
             "div",
             {
               style: {
-                background: "#fee2e2",
-                border: "2px solid #dc2626",
-                borderRadius: "8px",
-                padding: "1.5rem",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                marginBottom: "1rem",
               },
             },
             React.createElement(
-              "div",
+              "h2",
               {
                 style: {
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  marginBottom: "1rem",
+                  color: "#991b1b",
+                  marginTop: 0,
+                  marginBottom: 0,
+                  fontSize: "1.5rem",
                 },
               },
-              React.createElement(
-                "h2",
-                {
-                  style: {
-                    color: "#991b1b",
-                    marginTop: 0,
-                    marginBottom: 0,
-                    fontSize: "1.5rem",
-                  },
-                },
-                "❌ ",
-                error?.name ?? "Error",
-              ),
-              hasText(error?.code)
-                ? (
-                  React.createElement("span", {
+              "❌ ",
+              error?.name ?? "Error",
+            ),
+            hasText(error?.code)
+              ? React.createElement(
+                  "span",
+                  {
                     style: {
                       background: "#7f1d1d",
                       color: "#fee2e2",
@@ -184,61 +188,69 @@ export class ErrorBoundary
                       fontWeight: "600",
                       fontFamily: "monospace",
                     },
-                  }, error.code)
+                  },
+                  error.code,
                 )
-                : null,
-            ),
-            React.createElement(
-              "p",
-              {
-                style: {
-                  color: "#7f1d1d",
-                  fontSize: "1rem",
-                  lineHeight: "1.6",
-                  marginTop: "1rem",
-                },
+              : null,
+          ),
+          React.createElement(
+            "p",
+            {
+              style: {
+                color: "#7f1d1d",
+                fontSize: "1rem",
+                lineHeight: "1.6",
+                marginTop: "1rem",
               },
-              error?.message ??
-                "The React Server Components renderer encountered an error while loading the page.",
-            ),
-            hasText(error?.hint)
-              ? (
+            },
+            error?.message ??
+              "The React Server Components renderer encountered an error while loading the page.",
+          ),
+          hasText(error?.hint)
+            ? React.createElement(
+                "div",
+                {
+                  style: {
+                    background: "#fef2f2",
+                    border: "1px solid #fecaca",
+                    borderRadius: "6px",
+                    padding: "1rem",
+                    marginTop: "1rem",
+                  },
+                },
                 React.createElement(
                   "div",
                   {
-                    style: {
-                      background: "#fef2f2",
-                      border: "1px solid #fecaca",
-                      borderRadius: "6px",
-                      padding: "1rem",
-                      marginTop: "1rem",
-                    },
-                  },
-                  React.createElement("div", {
                     style: {
                       color: "#991b1b",
                       fontWeight: "600",
                       marginBottom: "0.5rem",
                       fontSize: "0.875rem",
                     },
-                  }, "💡 Hint:"),
-                  React.createElement("div", {
+                  },
+                  "💡 Hint:",
+                ),
+                React.createElement(
+                  "div",
+                  {
                     style: {
                       color: "#7f1d1d",
                       fontSize: "0.875rem",
                       lineHeight: "1.5",
                       whiteSpace: "pre-wrap",
                     },
-                  }, error.hint),
-                )
+                  },
+                  error.hint,
+                ),
               )
-              : null,
-            hasText(error?.docUrl)
-              ? (
+            : null,
+          hasText(error?.docUrl)
+            ? React.createElement(
+                "div",
+                { style: { marginTop: "1rem" } },
                 React.createElement(
-                  "div",
-                  { style: { marginTop: "1rem" } },
-                  React.createElement("a", {
+                  "a",
+                  {
                     href: error.docUrl,
                     target: "_blank",
                     rel: "noopener noreferrer",
@@ -253,14 +265,17 @@ export class ErrorBoundary
                       fontWeight: "600",
                       border: "1px solid #93c5fd",
                     },
-                  }, "📖 View Documentation"),
-                )
+                  },
+                  "📖 View Documentation",
+                ),
               )
-              : null,
+            : null,
+          React.createElement(
+            "div",
+            { style: { marginTop: "1.5rem" } },
             React.createElement(
-              "div",
-              { style: { marginTop: "1.5rem" } },
-              React.createElement("button", {
+              "button",
+              {
                 type: "button",
                 onClick: this.handleRetry,
                 style: {
@@ -280,8 +295,12 @@ export class ErrorBoundary
                 onMouseOut: (e) => {
                   e.currentTarget.style.background = "#dc2626";
                 },
-              }, "🔄 Reload Page"),
-              React.createElement("button", {
+              },
+              "🔄 Reload Page",
+            ),
+            React.createElement(
+              "button",
+              {
                 type: "button",
                 onClick: () => {
                   this.setState({
@@ -306,46 +325,54 @@ export class ErrorBoundary
                 onMouseOut: (e) => {
                   e.currentTarget.style.background = "white";
                 },
-              }, "Try Again"),
+              },
+              "Try Again",
             ),
-            debugMode && this.state.error && (
-              React.createElement(
-                "details",
-                {
-                  style: {
-                    marginTop: "1.5rem",
-                    background: "#7f1d1d",
-                    color: "#fee2e2",
-                    padding: "1rem",
-                    borderRadius: "6px",
-                    fontSize: "0.875rem",
-                    fontFamily: "monospace",
-                  },
+          ),
+          debugMode &&
+            this.state.error &&
+            React.createElement(
+              "details",
+              {
+                style: {
+                  marginTop: "1.5rem",
+                  background: "#7f1d1d",
+                  color: "#fee2e2",
+                  padding: "1rem",
+                  borderRadius: "6px",
+                  fontSize: "0.875rem",
+                  fontFamily: "monospace",
                 },
-                React.createElement("summary", {
+              },
+              React.createElement(
+                "summary",
+                {
                   style: {
                     cursor: "pointer",
                     fontWeight: "600",
                     marginBottom: "0.5rem",
                   },
-                }, "🔍 Technical Details (Debug Mode)"),
+                },
+                "🔍 Technical Details (Debug Mode)",
+              ),
+              React.createElement(
+                "div",
+                { style: { marginTop: "1rem" } },
                 React.createElement(
                   "div",
-                  { style: { marginTop: "1rem" } },
-                  React.createElement(
-                    "div",
-                    { style: { marginBottom: "0.75rem" } },
-                    React.createElement("strong", null, "Error:"),
-                    " ",
-                    this.state.error.message,
-                  ),
-                  hasText(this.state.error.stack)
-                    ? (
+                  { style: { marginBottom: "0.75rem" } },
+                  React.createElement("strong", null, "Error:"),
+                  " ",
+                  this.state.error.message,
+                ),
+                hasText(this.state.error.stack)
+                  ? React.createElement(
+                      "div",
+                      null,
+                      React.createElement("strong", null, "Stack Trace:"),
                       React.createElement(
-                        "div",
-                        null,
-                        React.createElement("strong", null, "Stack Trace:"),
-                        React.createElement("pre", {
+                        "pre",
+                        {
                           style: {
                             overflow: "auto",
                             padding: "0.5rem",
@@ -355,16 +382,19 @@ export class ErrorBoundary
                             fontSize: "0.75rem",
                             lineHeight: "1.4",
                           },
-                        }, this.state.error.stack),
-                      )
+                        },
+                        this.state.error.stack,
+                      ),
                     )
-                    : null,
-                  this.state.errorInfo && (
+                  : null,
+                this.state.errorInfo &&
+                  React.createElement(
+                    "div",
+                    { style: { marginTop: "1rem" } },
+                    React.createElement("strong", null, "Component Stack:"),
                     React.createElement(
-                      "div",
-                      { style: { marginTop: "1rem" } },
-                      React.createElement("strong", null, "Component Stack:"),
-                      React.createElement("pre", {
+                      "pre",
+                      {
                         style: {
                           overflow: "auto",
                           padding: "0.5rem",
@@ -374,14 +404,13 @@ export class ErrorBoundary
                           fontSize: "0.75rem",
                           lineHeight: "1.4",
                         },
-                      }, this.state.errorInfo.componentStack),
-                    )
+                      },
+                      this.state.errorInfo.componentStack,
+                    ),
                   ),
-                ),
-              )
+              ),
             ),
-          ),
-        )
+        ),
       );
     }
 

@@ -20,7 +20,7 @@ import type * as shellArgs from "@eserstack/shell/args";
 export const main = async (
   cliArgs?: readonly string[],
 ): Promise<shellArgs.CliResult<void>> => {
-  const parsed = cliParseArgs.parseArgs(cliArgs as string[] ?? [], {
+  const parsed = cliParseArgs.parseArgs((cliArgs as string[]) ?? [], {
     string: ["name", "registry", "var"],
     boolean: ["local", "interactive", "no-interactive", "no-post-install"],
     collect: ["var"],
@@ -28,7 +28,8 @@ export const main = async (
   });
 
   const templateName = parsed._[0] as string | undefined;
-  const projectName = (parsed["name"] as string | undefined) ??
+  const projectName =
+    (parsed["name"] as string | undefined) ??
     (templateName as string | undefined);
   const registryUrl = parsed["registry"] as string | undefined;
   const local = parsed["local"] === true;
@@ -55,7 +56,7 @@ export const main = async (
 
   // Parse --var flags
   const variables: Record<string, string> = {};
-  for (const v of (parsed["var"] as string[])) {
+  for (const v of parsed["var"] as string[]) {
     const [key, ...valueParts] = String(v).split("=");
     if (key !== undefined && key !== "") {
       variables[key] = valueParts.join("=");
@@ -108,9 +109,7 @@ export const main = async (
     return results.fail({ exitCode: 1 });
   }
 
-  out.writeln(
-    span.cyan(`\nCreating ${projectName} from ${templateName}...\n`),
-  );
+  out.writeln(span.cyan(`\nCreating ${projectName} from ${templateName}...\n`));
 
   const targetDir = `${runtime.process.cwd()}/${projectName}`;
 

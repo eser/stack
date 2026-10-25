@@ -7,11 +7,7 @@ class ManifestFetchError extends Error {
   readonly url: string;
   readonly status: number;
 
-  constructor(
-    url: string,
-    status: number,
-    options?: ErrorOptions,
-  ) {
+  constructor(url: string, status: number, options?: ErrorOptions) {
     super(`fetch manifest ${url}: HTTP ${status}`, options);
     this.url = url;
     this.status = status;
@@ -140,7 +136,10 @@ Deno.test("serializeError keeps the errors of an AggregateError", () => {
   assert.assertEquals(json.message, "both failed");
   assert.assertEquals(
     json.errors.map((entry) => [entry.name, entry.message]),
-    [["Error", "one"], ["RangeError", "two"]],
+    [
+      ["Error", "one"],
+      ["RangeError", "two"],
+    ],
   );
 });
 

@@ -32,18 +32,18 @@ const encodeNative = (
     // Any other value is one whole document, written by a single WriteItem.
     const raw = Array.isArray(data)
       ? lib.symbols.EserAjanFormatEncodeDocument(
-        JSON.stringify({ format, items: data, pretty, indent }),
-      )
+          JSON.stringify({ format, items: data, pretty, indent }),
+        )
       : lib.symbols.EserAjanFormatEncode(
-        JSON.stringify({
-          format,
-          data,
-          pretty,
-          indent,
-          isFirst: true,
-          document: true,
-        }),
-      );
+          JSON.stringify({
+            format,
+            data,
+            pretty,
+            indent,
+            isFirst: true,
+            document: true,
+          }),
+        );
     const parsed = JSON.parse(raw) as { result?: string; error?: string };
 
     if (typeof parsed.error === "string" && parsed.error.length > 0) {

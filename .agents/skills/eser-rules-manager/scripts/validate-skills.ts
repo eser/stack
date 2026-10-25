@@ -74,9 +74,10 @@ const lineCount = (text: string): number =>
   text.replace(/\n$/, "").split("\n").length;
 
 const buildContents = (headings: readonly string[]): string =>
-  `## Contents\n\n${
-    headings.filter((h) => h !== "Contents").map((h) => `- ${h}`).join("\n")
-  }\n`;
+  `## Contents\n\n${headings
+    .filter((h) => h !== "Contents")
+    .map((h) => `- ${h}`)
+    .join("\n")}\n`;
 
 /**
  * Inserts or refreshes the `## Contents` block, which sits after the H1 and
@@ -91,9 +92,9 @@ const withContents = (text: string): string => {
   }
   const firstSection = text.search(/^(---|## )/m);
   if (firstSection < 0) return text;
-  return `${text.slice(0, firstSection)}${block}\n---\n\n${
-    text.slice(firstSection).replace(/^---\n\n/, "")
-  }`;
+  return `${text.slice(0, firstSection)}${block}\n---\n\n${text
+    .slice(firstSection)
+    .replace(/^---\n\n/, "")}`;
 };
 
 const contentsMatches = (text: string): boolean => {
@@ -101,19 +102,21 @@ const contentsMatches = (text: string): boolean => {
   if (block === null) return false;
   const listed = [...block[1]!.matchAll(/^- (.+)$/gm)].map((m) => m[1]!.trim());
   const actual = sectionHeadings(text).filter((h) => h !== "Contents");
-  return listed.length === actual.length &&
-    listed.every((h, i) => h === actual[i]);
+  return (
+    listed.length === actual.length && listed.every((h, i) => h === actual[i])
+  );
 };
 
 const referenceFiles = (dir: string): string[] => {
   const refs = path.join(dir, "references");
   if (!fs.existsSync(refs)) return [];
-  return fs.readdirSync(refs).filter((f) => f.endsWith(".md")).sort();
+  return fs
+    .readdirSync(refs)
+    .filter((f) => f.endsWith(".md"))
+    .sort();
 };
 
-const parseFrontmatter = (
-  text: string,
-): Record<string, string> | null => {
+const parseFrontmatter = (text: string): Record<string, string> | null => {
   const match = text.match(/^---\n([\s\S]*?)\n---\n/);
   if (match === null) return null;
   const fields: Record<string, string> = {};
@@ -165,9 +168,9 @@ const validateSkill = (dir: string): Finding[] => {
   for (const key of Object.keys(fm)) {
     if (!ALLOWED_KEYS.has(key)) {
       error(
-        `unexpected frontmatter key "${key}"; allowed: ${
-          [...ALLOWED_KEYS].join(", ")
-        }`,
+        `unexpected frontmatter key "${key}"; allowed: ${[...ALLOWED_KEYS].join(
+          ", ",
+        )}`,
       );
     }
   }
@@ -227,20 +230,21 @@ const validateSkill = (dir: string): Finding[] => {
   // (skill-format.md: Reference Files).
   const projectBound =
     /\b(for eserstack|in eserstack|eserstack's|eserstack (repository|repo|monorepo))\b/i;
-  for (
-    const file of [
-      "SKILL.md",
-      ...referenceFiles(dir).map((f) => `references/${f}`),
-    ]
-  ) {
+  for (const file of [
+    "SKILL.md",
+    ...referenceFiles(dir).map((f) => `references/${f}`),
+  ]) {
     const body = fs.readFileSync(path.join(dir, file), "utf8");
     body.split("\n").forEach((line, index) => {
       // Quoted text names the phrase rather than using it.
       if (projectBound.test(line.replace(/"[^"]*"/g, ""))) {
         warn(
-          `${file}:${index + 1} frames the skill as eserstack's own rules ("${
-            line.trim().slice(0, 60)
-          }"); state the convention for this codebase and point to AGENTS.md for facts`,
+          `${file}:${index + 1} frames the skill as eserstack's own rules ("${line
+            .trim()
+            .slice(
+              0,
+              60,
+            )}"); state the convention for this codebase and point to AGENTS.md for facts`,
         );
       }
     });
@@ -285,7 +289,7 @@ const validateCrossReferences = (dirs: readonly string[]): Finding[] => {
     headingsBySkill.set(
       path.basename(dir),
       files.flatMap((f) =>
-        headingsAt(fs.readFileSync(path.join(dir, f), "utf8"), /^#{2,4} /)
+        headingsAt(fs.readFileSync(path.join(dir, f), "utf8"), /^#{2,4} /),
       ),
     );
   }
@@ -298,19 +302,19 @@ const validateCrossReferences = (dirs: readonly string[]): Finding[] => {
       ...referenceFiles(dir).map((f) => `references/${f}`),
     ];
     for (const file of files) {
-      const text = fs.readFileSync(path.join(dir, file), "utf8").replace(
-        /[ \t]*\n(?!\n)[ \t]*/g,
-        " ",
-      );
+      const text = fs
+        .readFileSync(path.join(dir, file), "utf8")
+        .replace(/[ \t]*\n(?!\n)[ \t]*/g, " ");
       for (const [, target, rest] of text.matchAll(pointer)) {
         const headings = headingsBySkill.get(target!) ?? [];
         if (!headings.some((h) => rest!.startsWith(h))) {
           findings.push({
             skill,
             level: "warning",
-            message: `${file} points to "${target}: ${
-              rest!.slice(0, 50)
-            }", which matches no section heading in ${target}`,
+            message: `${file} points to "${target}: ${rest!.slice(
+              0,
+              50,
+            )}", which matches no section heading in ${target}`,
           });
         }
       }
@@ -360,11 +364,13 @@ const validateInventory = (skills: readonly string[]): Finding[] => {
 const main = (): number => {
   const fix = process.argv.includes("--fix");
   const args = process.argv.slice(2).filter((a) => a !== "--fix");
-  const dirs = args.length > 0
-    ? args.map((a) => path.resolve(a))
-    : fs.readdirSync(skillsRoot)
-      .map((d) => path.join(skillsRoot, d))
-      .filter((d) => fs.statSync(d).isDirectory());
+  const dirs =
+    args.length > 0
+      ? args.map((a) => path.resolve(a))
+      : fs
+          .readdirSync(skillsRoot)
+          .map((d) => path.join(skillsRoot, d))
+          .filter((d) => fs.statSync(d).isDirectory());
 
   if (fix) fixContents(dirs);
 

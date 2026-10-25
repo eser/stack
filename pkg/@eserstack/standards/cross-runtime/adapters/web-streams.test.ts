@@ -50,15 +50,16 @@ Deno.test("createLazyReadable passes every chunk through, then closes", async ()
 
 Deno.test("createLazyReadable cancel reaches an opened source", async () => {
   let cancelReason: unknown = null;
-  const stream = webStreams.createLazyReadable(() =>
-    new ReadableStream<Uint8Array>({
-      pull(controller) {
-        controller.enqueue(encoder.encode("chunk"));
-      },
-      cancel(reason) {
-        cancelReason = reason;
-      },
-    })
+  const stream = webStreams.createLazyReadable(
+    () =>
+      new ReadableStream<Uint8Array>({
+        pull(controller) {
+          controller.enqueue(encoder.encode("chunk"));
+        },
+        cancel(reason) {
+          cancelReason = reason;
+        },
+      }),
   );
 
   const reader = stream.getReader();

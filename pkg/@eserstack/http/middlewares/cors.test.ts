@@ -21,10 +21,7 @@ Deno.test("cors should allow all origins by default", async () => {
 
   const response = await middleware(req, okHandler);
 
-  assert.assertEquals(
-    response.headers.get("Access-Control-Allow-Origin"),
-    "*",
-  );
+  assert.assertEquals(response.headers.get("Access-Control-Allow-Origin"), "*");
 });
 
 Deno.test("cors should handle preflight OPTIONS request", async () => {
@@ -34,10 +31,7 @@ Deno.test("cors should handle preflight OPTIONS request", async () => {
   const response = await middleware(req, okHandler);
 
   assert.assertEquals(response.status, 204);
-  assert.assertEquals(
-    response.headers.get("Access-Control-Allow-Origin"),
-    "*",
-  );
+  assert.assertEquals(response.headers.get("Access-Control-Allow-Origin"), "*");
   assert.assertExists(response.headers.get("Access-Control-Allow-Methods"));
 });
 
@@ -106,10 +100,7 @@ Deno.test("cors should set max-age in preflight", async () => {
 
   const response = await middleware(req, okHandler);
 
-  assert.assertEquals(
-    response.headers.get("Access-Control-Max-Age"),
-    "86400",
-  );
+  assert.assertEquals(response.headers.get("Access-Control-Max-Age"), "86400");
 });
 
 Deno.test("cors should set allowed headers in preflight", async () => {
@@ -169,9 +160,8 @@ Deno.test("cors should pass through response from next handler", async () => {
   const middleware = cors.cors();
   const req = createRequest("GET", { Origin: "https://example.com" });
 
-  const response = await middleware(
-    req,
-    () => Response.json({ data: "test" }, { status: 201 }),
+  const response = await middleware(req, () =>
+    Response.json({ data: "test" }, { status: 201 }),
   );
 
   assert.assertEquals(response.status, 201);

@@ -29,9 +29,11 @@ const describeThread = (
     return `Thread failed at ${stoppedAt}, so nothing was published: ${cause.message}.`;
   }
 
-  return `Thread stopped at ${stoppedAt}: ${cause.message}. ` +
+  return (
+    `Thread stopped at ${stoppedAt}: ${cause.message}. ` +
     `${postedCount} of ${totalCount} posts were published and stay up; ` +
-    "the rest were not sent, so continue the thread from the last published post instead of posting it again.";
+    "the rest were not sent, so continue the thread from the last published post instead of posting it again."
+  );
 };
 
 /**
@@ -67,10 +69,9 @@ export class ThreadPartialError extends Error {
     totalCount: number,
     cause: Error,
   ) {
-    super(
-      describeThread(postedTweets.length, failedIndex, totalCount, cause),
-      { cause },
-    );
+    super(describeThread(postedTweets.length, failedIndex, totalCount, cause), {
+      cause,
+    });
     this.name = "ThreadPartialError";
     this.failureCause = cause;
     this.postedTweets = postedTweets;

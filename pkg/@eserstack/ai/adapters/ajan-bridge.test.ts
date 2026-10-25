@@ -164,30 +164,32 @@ Deno.test("unset options are absent rather than zeroed", async () => {
 
 Deno.test("content block payloads all reach the wire", async () => {
   const sent = await captureGenerate({
-    messages: [{
-      role: "user",
-      content: [
-        { kind: "text", text: "hi" },
-        {
-          kind: "image",
-          image: { mimeType: "image/png", data: new Uint8Array([104, 105]) },
-        },
-        { kind: "file", file: { uri: "gs://b/x", mimeType: "text/plain" } },
-        {
-          kind: "tool_call",
-          toolCall: { id: "tc-1", name: "f", arguments: { a: 1 } },
-        },
-        {
-          kind: "tool_result",
-          toolResult: { toolCallId: "tc-1", content: "ok", isError: false },
-        },
-      ],
-    }],
+    messages: [
+      {
+        role: "user",
+        content: [
+          { kind: "text", text: "hi" },
+          {
+            kind: "image",
+            image: { mimeType: "image/png", data: new Uint8Array([104, 105]) },
+          },
+          { kind: "file", file: { uri: "gs://b/x", mimeType: "text/plain" } },
+          {
+            kind: "tool_call",
+            toolCall: { id: "tc-1", name: "f", arguments: { a: 1 } },
+          },
+          {
+            kind: "tool_result",
+            toolResult: { toolCallId: "tc-1", content: "ok", isError: false },
+          },
+        ],
+      },
+    ],
   });
 
-  const blocks =
-    (sent["messages"] as Array<{ content: Array<Record<string, unknown>> }>)[0]!
-      .content;
+  const blocks = (
+    sent["messages"] as Array<{ content: Array<Record<string, unknown>> }>
+  )[0]!.content;
 
   // "aGk=" is base64("hi"). A Uint8Array does not survive JSON.stringify -- it
   // becomes {"0":104,"1":105} -- so this is what proves it was encoded.
@@ -214,12 +216,14 @@ Deno.test("tool calls in a response are decoded, not dropped", () => {
     symbols: {
       EserAjanAiGenerateText: () =>
         JSON.stringify({
-          content: [{
-            type: "tool_call",
-            id: "tc-7",
-            name: "get_weather",
-            arguments: { city: "Ankara" },
-          }],
+          content: [
+            {
+              type: "tool_call",
+              id: "tc-7",
+              name: "get_weather",
+              arguments: { city: "Ankara" },
+            },
+          ],
           usage: {},
           stopReason: "tool_use",
         }),
@@ -230,25 +234,25 @@ Deno.test("tool calls in a response are decoded, not dropped", () => {
     "tool_calling",
   ]);
 
-  return m.generateText(
-    { messages: [] } as unknown as Parameters<
+  return m
+    .generateText({ messages: [] } as unknown as Parameters<
       typeof m.generateText
-    >[0],
-  ).then((result) => {
-    assert.assert(results.isOk(result), "generateText failed");
+    >[0])
+    .then((result) => {
+      assert.assert(results.isOk(result), "generateText failed");
 
-    const blocks = result.value.content as unknown as Array<
-      Record<string, unknown>
-    >;
+      const blocks = result.value.content as unknown as Array<
+        Record<string, unknown>
+      >;
 
-    assert.assertEquals(blocks.length, 1, "the tool call was dropped");
-    assert.assertEquals(blocks[0]!["kind"], "tool_call");
+      assert.assertEquals(blocks.length, 1, "the tool call was dropped");
+      assert.assertEquals(blocks[0]!["kind"], "tool_call");
 
-    const call = blocks[0]!["toolCall"] as Record<string, unknown>;
-    assert.assertEquals(call["id"], "tc-7");
-    assert.assertEquals(call["name"], "get_weather");
-    assert.assertEquals(call["arguments"], { city: "Ankara" });
-  });
+      const call = blocks[0]!["toolCall"] as Record<string, unknown>;
+      assert.assertEquals(call["id"], "tc-7");
+      assert.assertEquals(call["name"], "get_weather");
+      assert.assertEquals(call["arguments"], { city: "Ankara" });
+    });
 });
 
 // ── Thinking and refusal (TASK-63) ──────────────────────────────────────────
@@ -293,17 +297,19 @@ Deno.test("thinking blocks and a refusal in a response are decoded", async () =>
 
 Deno.test("thinking blocks are sent back unchanged", async () => {
   const sent = await captureGenerate({
-    messages: [{
-      role: "assistant",
-      content: [
-        { kind: "thinking", thinking: { text: "plan", signature: "sig-1" } },
-      ],
-    }],
+    messages: [
+      {
+        role: "assistant",
+        content: [
+          { kind: "thinking", thinking: { text: "plan", signature: "sig-1" } },
+        ],
+      },
+    ],
   });
 
-  const blocks =
-    (sent["messages"] as Array<{ content: Array<Record<string, unknown>> }>)[0]!
-      .content;
+  const blocks = (
+    sent["messages"] as Array<{ content: Array<Record<string, unknown>> }>
+  )[0]!.content;
 
   // The shape the bridge's aiContentBlockReq decodes.
   assert.assertEquals(blocks[0], {
@@ -426,8 +432,8 @@ Deno.test("aborting mid-flight reaches the cancel symbol with the request's id",
   );
 
   const sentId = (JSON.parse(spy.sent[0]!) as { requestId: string }).requestId;
-  const cancelledId =
-    (JSON.parse(spy.cancels[0]!) as { requestId: string }).requestId;
+  const cancelledId = (JSON.parse(spy.cancels[0]!) as { requestId: string })
+    .requestId;
 
   // Cancelling a different id than the request carries would be a silent no-op.
   assert.assertEquals(cancelledId, sentId);
@@ -491,11 +497,9 @@ Deno.test("the abort listener is detached when the call completes", async () => 
 Deno.test("a call without a signal still carries a request id", async () => {
   const spy = cancelSpy();
 
-  const pending = spyModel(spy).generateText(
-    { messages: [] } as unknown as Parameters<
-      ReturnType<typeof spyModel>["generateText"]
-    >[0],
-  );
+  const pending = spyModel(spy).generateText({
+    messages: [],
+  } as unknown as Parameters<ReturnType<typeof spyModel>["generateText"]>[0]);
 
   const sent = JSON.parse(spy.sent[0]!) as { requestId?: string };
 
@@ -551,8 +555,8 @@ Deno.test("batch calls are cancellable and carry a request id", async () => {
   );
 
   const sentId = (JSON.parse(sent[0]!) as { requestId: string }).requestId;
-  const cancelledId =
-    (JSON.parse(cancels[0]!) as { requestId: string }).requestId;
+  const cancelledId = (JSON.parse(cancels[0]!) as { requestId: string })
+    .requestId;
 
   assert.assertEquals(cancelledId, sentId);
 
@@ -572,11 +576,13 @@ Deno.test("a classified bridge error rebuilds its typed class", async () => {
   const lib = {
     symbols: {
       EserAjanAiGenerateText: () =>
-        Promise.resolve(JSON.stringify({
-          error: "rate limited",
-          errorKind: "rate_limited",
-          errorStatus: 429,
-        })),
+        Promise.resolve(
+          JSON.stringify({
+            error: "rate limited",
+            errorKind: "rate_limited",
+            errorStatus: 429,
+          }),
+        ),
     },
   } as unknown as ffiTypes.FFILibrary;
 
@@ -584,9 +590,9 @@ Deno.test("a classified bridge error rebuilds its typed class", async () => {
     "text_generation",
   ]);
 
-  const result = await m.generateText(
-    { messages: [] } as unknown as Parameters<typeof m.generateText>[0],
-  );
+  const result = await m.generateText({ messages: [] } as unknown as Parameters<
+    typeof m.generateText
+  >[0]);
 
   assert.assert(results.isFail(result), "a classified error reported success");
   // Not a bare AiError: a caller has to be able to branch on this to back off.
@@ -602,20 +608,18 @@ Deno.test("a classified bridge error rebuilds its typed class", async () => {
 Deno.test("every bridge provider is advertised once the library loads", () => {
   const lib = { symbols: {} } as unknown as ffiTypes.FFILibrary;
 
-  const providers = ajanBridge.createBridgeFactories(lib).map((factory) =>
-    factory.provider
-  );
+  const providers = ajanBridge
+    .createBridgeFactories(lib)
+    .map((factory) => factory.provider);
 
-  for (
-    const provider of [
-      "claude-code",
-      "opencode",
-      "kiro",
-      "anthropic",
-      "openai",
-      "gemini",
-    ]
-  ) {
+  for (const provider of [
+    "claude-code",
+    "opencode",
+    "kiro",
+    "anthropic",
+    "openai",
+    "gemini",
+  ]) {
     assert.assert(providers.includes(provider), `${provider} was withheld`);
   }
 });

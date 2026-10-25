@@ -139,7 +139,12 @@ Deno.test("deepCopy() should handle arrays", () => {
 });
 
 Deno.test("deepCopy() should handle nested arrays", () => {
-  const obj = { matrix: [[1, 2], [3, 4]] };
+  const obj = {
+    matrix: [
+      [1, 2],
+      [3, 4],
+    ],
+  };
 
   const result = deepCopy.deepCopy(obj);
 

@@ -27,8 +27,8 @@ const runScript = async (
     runtime.path.join(import.meta.dirname ?? ".", "static", name),
   );
 
-  const saved = Object.keys(globals).map((key) =>
-    [key, Object.getOwnPropertyDescriptor(globalThis, key)] as const
+  const saved = Object.keys(globals).map(
+    (key) => [key, Object.getOwnPropertyDescriptor(globalThis, key)] as const,
   );
   const restore = (): void => {
     for (const [key, descriptor] of saved) {
@@ -132,7 +132,7 @@ const clientPage = async (
       selector === 'meta[name="noskills-token"]'
         ? { content: "page-token" }
         : null,
-    getElementById: (id: string) => id === "terminal-container" ? {} : null,
+    getElementById: (id: string) => (id === "terminal-container" ? {} : null),
     addEventListener: (type: string, listener: (event: unknown) => unknown) => {
       if (type === "click") {
         clickListeners.push(listener);
@@ -228,7 +228,7 @@ Deno.test("client.js shows a plain-text refusal in the alert", async () => {
   const page = await clientPage(() =>
     Promise.resolve(
       new Response("Forbidden: missing or invalid token", { status: 403 }),
-    )
+    ),
   );
 
   try {
@@ -252,7 +252,7 @@ Deno.test("client.js names the request id of a fault in the alert", async () => 
         { ok: false, error: "Action could not be completed", requestId: "r-1" },
         { status: 400 },
       ),
-    )
+    ),
   );
 
   try {
@@ -268,7 +268,7 @@ Deno.test("client.js names the request id of a fault in the alert", async () => 
 
 Deno.test("client.js tells the user when the server does not answer", async () => {
   const page = await clientPage(() =>
-    Promise.reject(new TypeError("connection refused"))
+    Promise.reject(new TypeError("connection refused")),
   );
 
   try {
@@ -290,7 +290,7 @@ const tab = element({ classes: ["tab"], dataset: { tab: "t2" } });
 
 Deno.test("client.js closes the tab of a close button", async () => {
   const page = await clientPage(() =>
-    Promise.resolve(Response.json({ ok: true }))
+    Promise.resolve(Response.json({ ok: true })),
   );
 
   try {
@@ -313,7 +313,7 @@ Deno.test("client.js closes the tab of a close button", async () => {
 
 Deno.test("client.js switches to the tab of a tab button", async () => {
   const page = await clientPage(() =>
-    Promise.resolve(Response.json({ ok: true }))
+    Promise.resolve(Response.json({ ok: true })),
   );
 
   try {
@@ -360,7 +360,10 @@ Deno.test("mux-render.js renders a close button beside each tab button", async (
     renderer.applyFrame({
       t: "scene",
       delta: {
-        tabs: [{ id: "t1", name: "upload" }, { id: "t2", name: '<b>"x"' }],
+        tabs: [
+          { id: "t1", name: "upload" },
+          { id: "t2", name: '<b>"x"' },
+        ],
         activeTab: 0,
       },
     });

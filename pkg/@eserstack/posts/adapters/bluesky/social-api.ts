@@ -47,9 +47,9 @@ export class BlueskySocialApi implements SocialApi {
     this.client = client;
   }
 
-  async createPost(
-    params: { text: string },
-  ): Promise<{ id: PostId; platformRef?: Record<string, string> }> {
+  async createPost(params: {
+    text: string;
+  }): Promise<{ id: PostId; platformRef?: Record<string, string> }> {
     const did = this.client.did;
     if (did === undefined) {
       throw new Error("Not authenticated — call loginWithCredentials first.");
@@ -61,7 +61,7 @@ export class BlueskySocialApi implements SocialApi {
         repo: did,
         collection: COLLECTION,
         record: {
-          "$type": POST_TYPE,
+          $type: POST_TYPE,
           text: params.text,
           createdAt: new Date().toISOString(),
         },
@@ -77,10 +77,11 @@ export class BlueskySocialApi implements SocialApi {
     const did = this.client.did;
     if (did === undefined) throw new Error("Not authenticated.");
 
-    await this.client.post(
-      "com.atproto.repo.deleteRecord",
-      { repo: did, collection: COLLECTION, rkey: extractRkey(String(id)) },
-    );
+    await this.client.post("com.atproto.repo.deleteRecord", {
+      repo: did,
+      collection: COLLECTION,
+      rkey: extractRkey(String(id)),
+    });
   }
 
   async getMe(): Promise<User> {
@@ -108,7 +109,7 @@ export class BlueskySocialApi implements SocialApi {
     );
 
     return (response.feed ?? []).map((item) =>
-      mappers.mapToDomainPost(item.post)
+      mappers.mapToDomainPost(item.post),
     );
   }
 
@@ -122,9 +123,10 @@ export class BlueskySocialApi implements SocialApi {
     return mappers.mapToDomainPost(postView);
   }
 
-  async replyToPost(
-    params: { text: string; inReplyToPost: Post },
-  ): Promise<{ id: PostId; platformRef?: Record<string, string> }> {
+  async replyToPost(params: {
+    text: string;
+    inReplyToPost: Post;
+  }): Promise<{ id: PostId; platformRef?: Record<string, string> }> {
     const did = this.client.did;
     if (did === undefined) throw new Error("Not authenticated.");
 
@@ -143,9 +145,10 @@ export class BlueskySocialApi implements SocialApi {
     const parent = { uri: parentUri, cid: parentCid };
     const rootUri = params.inReplyToPost.platformRef?.["rootUri"];
     const rootCid = params.inReplyToPost.platformRef?.["rootCid"];
-    const root = rootUri !== undefined && rootCid !== undefined
-      ? { uri: rootUri, cid: rootCid }
-      : parent;
+    const root =
+      rootUri !== undefined && rootCid !== undefined
+        ? { uri: rootUri, cid: rootCid }
+        : parent;
 
     const response = await this.client.post<BlueskyCreateRecordResponse>(
       "com.atproto.repo.createRecord",
@@ -153,7 +156,7 @@ export class BlueskySocialApi implements SocialApi {
         repo: did,
         collection: COLLECTION,
         record: {
-          "$type": POST_TYPE,
+          $type: POST_TYPE,
           text: params.text,
           createdAt: new Date().toISOString(),
           reply: { root, parent },
@@ -171,9 +174,9 @@ export class BlueskySocialApi implements SocialApi {
     };
   }
 
-  async postThread(
-    params: { texts: ReadonlyArray<string> },
-  ): Promise<results.Result<{ posts: Post[] }, Error>> {
+  async postThread(params: {
+    texts: ReadonlyArray<string>;
+  }): Promise<results.Result<{ posts: Post[] }, Error>> {
     const did = this.client.did;
     if (did === undefined) {
       return results.fail(new Error("Not authenticated."));
@@ -193,7 +196,7 @@ export class BlueskySocialApi implements SocialApi {
 
     for (const text of params.texts) {
       const record: Record<string, unknown> = {
-        "$type": POST_TYPE,
+        $type: POST_TYPE,
         text,
         createdAt: new Date().toISOString(),
       };
@@ -231,13 +234,16 @@ export class BlueskySocialApi implements SocialApi {
         platform: "bluesky",
         // Every post after the first is a reply, so it carries the thread root
         // that a reply to it must name.
-        platformRef: rootRef !== undefined
-          ? { ...currentRef, rootUri: rootRef.uri, rootCid: rootRef.cid }
-          : currentRef,
-        ...(parentRef !== undefined &&
-          { inReplyToId: postId.toPostId(parentRef.uri) }),
-        ...(rootRef !== undefined &&
-          { conversationId: postId.toPostId(rootRef.uri) }),
+        platformRef:
+          rootRef !== undefined
+            ? { ...currentRef, rootUri: rootRef.uri, rootCid: rootRef.cid }
+            : currentRef,
+        ...(parentRef !== undefined && {
+          inReplyToId: postId.toPostId(parentRef.uri),
+        }),
+        ...(rootRef !== undefined && {
+          conversationId: postId.toPostId(rootRef.uri),
+        }),
       };
 
       if (rootRef === undefined) rootRef = currentRef;
@@ -252,12 +258,12 @@ export class BlueskySocialApi implements SocialApi {
    * Fetch a post thread by AT-URI.
    * Returns all posts in the thread as a flat list.
    */
-  async getConversation(
-    params: { postId: PostId; maxResults?: number },
-  ): Promise<Post[]> {
-    const depth = params.maxResults !== undefined
-      ? Math.min(params.maxResults, 1000)
-      : 10;
+  async getConversation(params: {
+    postId: PostId;
+    maxResults?: number;
+  }): Promise<Post[]> {
+    const depth =
+      params.maxResults !== undefined ? Math.min(params.maxResults, 1000) : 10;
     const response = await this.client.get<BlueskyThreadResponse>(
       "app.bsky.feed.getPostThread",
       { uri: String(params.postId), depth: String(depth) },
@@ -301,7 +307,7 @@ export class BlueskySocialApi implements SocialApi {
         repo: did,
         collection: "app.bsky.feed.repost",
         record: {
-          "$type": "app.bsky.feed.repost",
+          $type: "app.bsky.feed.repost",
           subject: { uri, cid },
           createdAt: new Date().toISOString(),
         },
@@ -317,14 +323,11 @@ export class BlueskySocialApi implements SocialApi {
     // List the user's repost records (up to 100) and find the one matching this post URI.
     const response = await this.client.get<
       BlueskyListRecordsResponse<BlueskyRepostRecord>
-    >(
-      "com.atproto.repo.listRecords",
-      {
-        repo: did,
-        collection: "app.bsky.feed.repost",
-        limit: "100",
-      },
-    );
+    >("com.atproto.repo.listRecords", {
+      repo: did,
+      collection: "app.bsky.feed.repost",
+      limit: "100",
+    });
 
     const repostRecord = response.records.find(
       (r) => r.value.subject.uri === String(id),
@@ -337,15 +340,17 @@ export class BlueskySocialApi implements SocialApi {
     }
 
     const rkey = extractRkey(repostRecord.uri);
-    await this.client.post(
-      "com.atproto.repo.deleteRecord",
-      { repo: did, collection: "app.bsky.feed.repost", rkey },
-    );
+    await this.client.post("com.atproto.repo.deleteRecord", {
+      repo: did,
+      collection: "app.bsky.feed.repost",
+      rkey,
+    });
   }
 
-  async quotePost(
-    params: { text: string; quotedPostId: PostId },
-  ): Promise<{ id: PostId }> {
+  async quotePost(params: {
+    text: string;
+    quotedPostId: PostId;
+  }): Promise<{ id: PostId }> {
     const did = this.client.did;
     if (did === undefined) throw new Error("Not authenticated.");
 
@@ -365,11 +370,11 @@ export class BlueskySocialApi implements SocialApi {
         repo: did,
         collection: COLLECTION,
         record: {
-          "$type": POST_TYPE,
+          $type: POST_TYPE,
           text: params.text,
           createdAt: new Date().toISOString(),
           embed: {
-            "$type": "app.bsky.embed.record",
+            $type: "app.bsky.embed.record",
             record: { uri: quotedUri, cid: quotedCid },
           },
         },
@@ -378,9 +383,10 @@ export class BlueskySocialApi implements SocialApi {
     return { id: postId.toPostId(response.uri) };
   }
 
-  async searchPosts(
-    params: { query: string; maxResults?: number },
-  ): Promise<Post[]> {
+  async searchPosts(params: {
+    query: string;
+    maxResults?: number;
+  }): Promise<Post[]> {
     const queryParams: Record<string, string> = { q: params.query };
     if (params.maxResults !== undefined) {
       queryParams["limit"] = String(params.maxResults);
@@ -392,7 +398,7 @@ export class BlueskySocialApi implements SocialApi {
     );
 
     return (response.posts ?? []).map((postView) =>
-      mappers.mapToDomainPost(postView)
+      mappers.mapToDomainPost(postView),
     );
   }
 
@@ -405,15 +411,11 @@ export class BlueskySocialApi implements SocialApi {
   }
 
   removeBookmark(_id: PostId): Promise<void> {
-    return Promise.reject(
-      new Error("Bookmarks are not available on Bluesky."),
-    );
+    return Promise.reject(new Error("Bookmarks are not available on Bluesky."));
   }
 
   getBookmarks(_params?: { maxResults?: number }): Promise<Post[]> {
-    return Promise.reject(
-      new Error("Bookmarks are not available on Bluesky."),
-    );
+    return Promise.reject(new Error("Bookmarks are not available on Bluesky."));
   }
 }
 

@@ -42,9 +42,7 @@ export type CliContext = {
 const liveOutputs = new Set<streams.Output>();
 
 const flushLiveOutputs = async (): Promise<void> => {
-  await Promise.all(
-    [...liveOutputs].map((out) => out.flush().catch(() => {})),
-  );
+  await Promise.all([...liveOutputs].map((out) => out.flush().catch(() => {})));
 };
 
 /**
@@ -119,9 +117,7 @@ export const toCliEvent = (
 ): CliEvent => ({
   command,
   args: (parsed._ ?? []) as string[],
-  flags: Object.fromEntries(
-    Object.entries(parsed).filter(([k]) => k !== "_"),
-  ),
+  flags: Object.fromEntries(Object.entries(parsed).filter(([k]) => k !== "_")),
 });
 
 /**
@@ -224,25 +220,27 @@ export const attachStandardCommands = (
     ...app,
   };
 
-  return command
-    .lazyCommand("system", {
-      description: "Commands related with this CLI",
-      load: async () => {
-        const cliSystem = await import("./cli-system/mod.ts");
+  return (
+    command
+      .lazyCommand("system", {
+        description: "Commands related with this CLI",
+        load: async () => {
+          const cliSystem = await import("./cli-system/mod.ts");
 
-        return cliSystem.createSystemCommand(resolved);
-      },
-    })
-    // The short forms. `system` holds the canonical definitions; these are the
-    // names people type.
-    .shortcut(
-      "install",
-      "system install",
-      `Install ${resolved.command} globally`,
-    )
-    .shortcut("update", "system update", `Update ${resolved.command}`)
-    .shortcut("version", "system version", "Show version number")
-    .shortcut("doctor", "system doctor", "Run diagnostic checks");
+          return cliSystem.createSystemCommand(resolved);
+        },
+      })
+      // The short forms. `system` holds the canonical definitions; these are the
+      // names people type.
+      .shortcut(
+        "install",
+        "system install",
+        `Install ${resolved.command} globally`,
+      )
+      .shortcut("update", "system update", `Update ${resolved.command}`)
+      .shortcut("version", "system version", "Show version number")
+      .shortcut("doctor", "system doctor", "Run diagnostic checks")
+  );
 };
 
 /**

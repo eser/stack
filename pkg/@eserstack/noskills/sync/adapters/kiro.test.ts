@@ -248,19 +248,17 @@ bdd.describe("Kiro adapter: snapshot tests", () => {
 
         assert.assertEquals(pre?.timeout, 30);
         const matcher = new RegExp(pre?.matcher ?? "^$");
-        for (
-          const tool of [
-            "write",
-            "fs_write",
-            "fsWrite",
-            "fs_append",
-            "str_replace",
-            "delete_file",
-            "shell",
-            "execute_bash",
-            "execute_cmd",
-          ]
-        ) {
+        for (const tool of [
+          "write",
+          "fs_write",
+          "fsWrite",
+          "fs_append",
+          "str_replace",
+          "delete_file",
+          "shell",
+          "execute_bash",
+          "execute_cmd",
+        ]) {
           assert.assert(matcher.test(tool), tool);
         }
         assert.assertEquals(matcher.test("read"), false);

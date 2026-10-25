@@ -93,15 +93,15 @@ export type CloneRecipeOutput = {
  */
 export type CloneRecipeError =
   | {
-    readonly _tag: "FetchError";
-    readonly message: string;
-    readonly cause: unknown;
-  }
+      readonly _tag: "FetchError";
+      readonly message: string;
+      readonly cause: unknown;
+    }
   | {
-    readonly _tag: "ApplyError";
-    readonly message: string;
-    readonly cause: unknown;
-  };
+      readonly _tag: "ApplyError";
+      readonly message: string;
+      readonly cause: unknown;
+    };
 
 // =============================================================================
 // FFI eligibility — features the Go bridge does NOT implement
@@ -124,9 +124,8 @@ const canUseFfiPath = (
   // the TypeScript engine.
   if (hasNameSubstitution) return false;
 
-  const hasPatternedVar = recipe.variables?.some(
-    (v) => v.pattern !== undefined,
-  ) ?? false;
+  const hasPatternedVar =
+    recipe.variables?.some((v) => v.pattern !== undefined) ?? false;
   if (hasPatternedVar) return false; // FFI doesn't validate regex patterns
 
   return true;
@@ -207,9 +206,10 @@ export const cloneRecipe = (
           const lib = ffiClient.getLib();
 
           if (lib !== null) {
-            const specifierStr = specifier.subpath !== undefined
-              ? `gh:${specifier.owner}/${specifier.repo}/${specifier.subpath}#${specifier.ref}`
-              : `gh:${specifier.owner}/${specifier.repo}#${specifier.ref}`;
+            const specifierStr =
+              specifier.subpath !== undefined
+                ? `gh:${specifier.owner}/${specifier.repo}/${specifier.subpath}#${specifier.ref}`
+                : `gh:${specifier.owner}/${specifier.repo}#${specifier.ref}`;
 
             const raw = lib.symbols.EserAjanKitCloneRecipe(
               JSON.stringify({
@@ -235,25 +235,25 @@ export const cloneRecipe = (
             };
 
             if (
-              goResult.error === undefined && goResult.recipes !== undefined
+              goResult.error === undefined &&
+              goResult.recipes !== undefined
             ) {
               let totalWritten = 0;
               for (const entry of goResult.recipes) {
                 totalWritten += (entry.written ?? []).length;
               }
 
-              const targetDir = input.projectName !== undefined
-                ? `${input.cwd}/${input.projectName}`
-                : input.cwd;
+              const targetDir =
+                input.projectName !== undefined
+                  ? `${input.cwd}/${input.projectName}`
+                  : input.cwd;
 
               const verb = input.dryRun ? "Would write" : "Cloned";
-              ctx.out.writeln(
-                span.green(`✓ ${verb} ${totalWritten} file(s)`),
-              );
+              ctx.out.writeln(span.green(`✓ ${verb} ${totalWritten} file(s)`));
 
-              const mainRecipe = goResult.recipes.find(
-                (r) => r.name === specifier.repo,
-              ) ?? goResult.recipes[0];
+              const mainRecipe =
+                goResult.recipes.find((r) => r.name === specifier.repo) ??
+                goResult.recipes[0];
 
               if (mainRecipe !== undefined) {
                 for (const file of mainRecipe.written ?? []) {
@@ -304,12 +304,12 @@ export const cloneRecipe = (
           variables["project_name"] = input.projectName;
         }
 
-        const registryUrl =
-          `https://raw.githubusercontent.com/${specifier.owner}/${specifier.repo}/${specifier.ref}`;
+        const registryUrl = `https://raw.githubusercontent.com/${specifier.owner}/${specifier.repo}/${specifier.ref}`;
 
-        const specifierStr = specifier.subpath !== undefined
-          ? `gh:${specifier.owner}/${specifier.repo}/${specifier.subpath}#${specifier.ref}`
-          : `gh:${specifier.owner}/${specifier.repo}#${specifier.ref}`;
+        const specifierStr =
+          specifier.subpath !== undefined
+            ? `gh:${specifier.owner}/${specifier.repo}/${specifier.subpath}#${specifier.ref}`
+            : `gh:${specifier.owner}/${specifier.repo}#${specifier.ref}`;
 
         const result = await recipeApplier.applyRecipe(recipe, {
           cwd: targetDir,

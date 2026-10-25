@@ -125,29 +125,27 @@ export const render = (
     const row = panel.y + 1 + vi;
 
     if (idx >= range.end || idx >= items.length) {
-      lines.push(
-        tui.ansi.moveTo(row, panel.x + 1) + " ".repeat(innerWidth),
-      );
+      lines.push(tui.ansi.moveTo(row, panel.x + 1) + " ".repeat(innerWidth));
       continue;
     }
 
     const item = items[idx];
     if (item === undefined) {
-      lines.push(
-        tui.ansi.moveTo(row, panel.x + 1) + " ".repeat(innerWidth),
-      );
+      lines.push(tui.ansi.moveTo(row, panel.x + 1) + " ".repeat(innerWidth));
       continue;
     }
     const isSelectable = item.selectable !== false;
     const selected = idx === selectedIndex && isSelectable;
-    const bullet = item.active === true
-      ? tui.ansi.green("\u25CF")
-      : selected
-      ? "\u25B8"
-      : " ";
-    const badge = item.badge !== undefined
-      ? " " + colorize(`[${item.badge}]`, item.badgeColor ?? "dim")
-      : "";
+    const bullet =
+      item.active === true
+        ? tui.ansi.green("\u25CF")
+        : selected
+          ? "\u25B8"
+          : " ";
+    const badge =
+      item.badge !== undefined
+        ? " " + colorize(`[${item.badge}]`, item.badgeColor ?? "dim")
+        : "";
     const label = item.dimmed === true ? tui.ansi.dim(item.label) : item.label;
     const line = ` ${bullet} ${label}${badge}`;
     const truncated = tui.ansi.truncate(line, innerWidth);

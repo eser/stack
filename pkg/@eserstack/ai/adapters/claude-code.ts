@@ -109,7 +109,7 @@ export class ClaudeCodeModel implements model.LanguageModel {
     //   - "stream-json": structured JSONL events (tool calls, usage stats)
     const streamFormat =
       (this.config.properties?.["streamFormat"] as string | undefined) ??
-        "text";
+      "text";
     const args = buildArgs(
       this.config,
       options,
@@ -437,7 +437,8 @@ const mapResultFromArray = (
 
   const resultEvent = events.find(
     (e) =>
-      isObj(e) && e["type"] === "result" &&
+      isObj(e) &&
+      e["type"] === "result" &&
       (e["result"] !== undefined || e["structured_output"] !== undefined),
   );
   if (resultEvent !== undefined) {
@@ -472,7 +473,8 @@ const mapResultFromJson = (
   // its result field. Otherwise Claude Code JSON output has { result: "text" }
   // or { type: "result", result: "text" }.
   if (
-    parsed.structured_output !== undefined && parsed.structured_output !== null
+    parsed.structured_output !== undefined &&
+    parsed.structured_output !== null
   ) {
     contentBlocks.push({
       kind: "text",
@@ -513,8 +515,8 @@ const mapResultFromJson = (
     usage: {
       inputTokens: parsed.usage?.input_tokens ?? 0,
       outputTokens: parsed.usage?.output_tokens ?? 0,
-      totalTokens: (parsed.usage?.input_tokens ?? 0) +
-        (parsed.usage?.output_tokens ?? 0),
+      totalTokens:
+        (parsed.usage?.input_tokens ?? 0) + (parsed.usage?.output_tokens ?? 0),
     },
     modelId,
     rawResponse: parsed,
@@ -536,9 +538,7 @@ const mapStopReason = (reason: unknown): generation.StopReason => {
   return "end_turn";
 };
 
-const mapStreamEvent = (
-  event: unknown,
-): generation.StreamEvent | null => {
+const mapStreamEvent = (event: unknown): generation.StreamEvent | null => {
   if (event === null || typeof event !== "object") {
     return null;
   }
@@ -572,14 +572,15 @@ const mapStreamEvent = (
   if (obj.type === "result") {
     return {
       kind: "message_done",
-      stopReason: obj.subtype === "tool_use"
-        ? "tool_use"
-        : mapStopReason(obj.stop_reason),
+      stopReason:
+        obj.subtype === "tool_use"
+          ? "tool_use"
+          : mapStopReason(obj.stop_reason),
       usage: {
         inputTokens: obj.usage?.input_tokens ?? 0,
         outputTokens: obj.usage?.output_tokens ?? 0,
-        totalTokens: (obj.usage?.input_tokens ?? 0) +
-          (obj.usage?.output_tokens ?? 0),
+        totalTokens:
+          (obj.usage?.input_tokens ?? 0) + (obj.usage?.output_tokens ?? 0),
       },
     };
   }

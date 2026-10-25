@@ -13,6 +13,7 @@ persists spec/state via `pkg/ajan/noskillsfx`, spawns long-lived Claude Code
 sessions, and must serve CLI, TUI, and browser clients from the same endpoint.
 
 The daemon needs:
+
 1. A **REST surface** for project/session/spec management (request/response).
 2. A **bidirectional streaming surface** for live session attach (multi-client
    fan-out, permission requests, transcript replay).
@@ -85,6 +86,7 @@ throughput becomes the bottleneck at scale, the same `HTTP3Service` will benefit
 ## Consequences
 
 **Positive**:
+
 - Single port (default `:4433`) serves REST, WebTransport bidi streams, and
   datagrams. No separate WS port to firewall or route.
 - Future LAN/Tailscale exposure (Phase 8) uses the same transport; QUIC handles
@@ -94,6 +96,7 @@ throughput becomes the bottleneck at scale, the same `HTTP3Service` will benefit
   `fetch` — both negotiate `h3` ALPN automatically.
 
 **Negative**:
+
 - `quic-go` is the first non-stdlib transport in `pkg/ajan/`. Sets the
   convention for future HTTP/3 services in the repo (e.g. `apps/services`).
 - UDP may be blocked by restrictive corporate firewalls. Mitigation: HTTP/3

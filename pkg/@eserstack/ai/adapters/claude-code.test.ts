@@ -7,9 +7,7 @@ import * as errors from "../errors.ts";
 import type * as generation from "../generation.ts";
 import * as claudeCode from "./claude-code.ts";
 
-const textOf = (
-  r: ReturnType<typeof claudeCode.parseJsonResult>,
-): string =>
+const textOf = (r: ReturnType<typeof claudeCode.parseJsonResult>): string =>
   r.content
     .filter((b): b is { kind: "text"; text: string } => b.kind === "text")
     .map((b) => b.text)
@@ -113,10 +111,12 @@ const claudeConfig = config.withDefaults({
   provider: "claude-code",
   model: "",
 });
-const hi = [{
-  role: "user" as const,
-  content: [{ kind: "text" as const, text: "hi" }],
-}];
+const hi = [
+  {
+    role: "user" as const,
+    content: [{ kind: "text" as const, text: "hi" }],
+  },
+];
 
 Deno.test("buildArgs sends the effort level as --effort", () => {
   const args = claudeCode.buildArgs(
@@ -247,7 +247,7 @@ Deno.test("parseJsonResult takes the structured_output as the reply", () => {
       type: "result",
       subtype: "success",
       result: "Here is the title.",
-      "structured_output": { title: "Deno workspaces" },
+      structured_output: { title: "Deno workspaces" },
     },
   ]);
 

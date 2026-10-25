@@ -61,9 +61,10 @@ export type PageRequestInput = {
  * escapes; a value with a malformed escape is kept as sent.
  */
 function decodeCookieValue(raw: string): string {
-  const unquoted = raw.length >= 2 && raw.startsWith('"') && raw.endsWith('"')
-    ? raw.slice(1, -1)
-    : raw;
+  const unquoted =
+    raw.length >= 2 && raw.startsWith('"') && raw.endsWith('"')
+      ? raw.slice(1, -1)
+      : raw;
 
   if (!unquoted.includes("%")) {
     return unquoted;

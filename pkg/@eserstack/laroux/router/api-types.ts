@@ -65,10 +65,7 @@ export type ApiRouteDefinition = {
  * content type is `application/json; charset=utf-8` unless `init.headers` sets
  * one, in any letter case and in any HeadersInit form.
  */
-export function jsonResponse(
-  data: unknown,
-  init?: ResponseInit,
-): Response {
+export function jsonResponse(data: unknown, init?: ResponseInit): Response {
   const headers = new Headers(init?.headers);
   if (!headers.has("content-type")) {
     headers.set("content-type", "application/json; charset=utf-8");

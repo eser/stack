@@ -33,11 +33,7 @@ Deno.test("text returns empty string on immediate Enter", async () => {
 });
 
 Deno.test("text returns typed characters on Enter", async () => {
-  const { ctx } = ctxWithKeys(
-    charKey("h"),
-    charKey("i"),
-    ENTER,
-  );
+  const { ctx } = ctxWithKeys(charKey("h"), charKey("i"), ENTER);
   const result = await textMod.text(ctx, { message: "Name?" });
   assert.assertEquals(result, "hi");
 });
@@ -92,7 +88,7 @@ Deno.test("text validate blocks submission until valid", async () => {
   );
   const result = await textMod.text(ctx, {
     message: "Name?",
-    validate: (v) => v.length === 0 ? "Required!" : undefined,
+    validate: (v) => (v.length === 0 ? "Required!" : undefined),
   });
   assert.assertEquals(result, "ok");
 });
@@ -105,7 +101,7 @@ Deno.test("text validate error clears on next input", async () => {
   );
   await textMod.text(ctx, {
     message: "Name?",
-    validate: (v) => v.length === 0 ? "Required!" : undefined,
+    validate: (v) => (v.length === 0 ? "Required!" : undefined),
   });
   await ctx.output.flush();
   const out = getOutput();

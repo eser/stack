@@ -52,7 +52,7 @@ const readHooks = async (root: string): Promise<CodexHooksFile> =>
 
 const commandsOf = (file: CodexHooksFile): readonly string[] =>
   Object.values(file.hooks).flatMap((groups) =>
-    groups.flatMap((group) => group.hooks.map((handler) => handler.command))
+    groups.flatMap((group) => group.hooks.map((handler) => handler.command)),
   );
 
 // =============================================================================
@@ -242,14 +242,18 @@ bdd.describe("Codex adapter: snapshot tests", () => {
         await codexAdapterMod.codexAdapter.syncHooks!(makeCtx(tempDir));
         const parsed = await readHooks(tempDir);
 
-        assert.assertEquals(parsed.hooks["PreToolUse"], [{
-          matcher: "^(Bash|apply_patch)$",
-          hooks: [{
-            type: "command",
-            command: `${CMD_PREFIX} invoke-hook pre-tool-use`,
-            timeout: 30,
-          }],
-        }]);
+        assert.assertEquals(parsed.hooks["PreToolUse"], [
+          {
+            matcher: "^(Bash|apply_patch)$",
+            hooks: [
+              {
+                type: "command",
+                command: `${CMD_PREFIX} invoke-hook pre-tool-use`,
+                timeout: 30,
+              },
+            ],
+          },
+        ]);
       },
     );
 
@@ -294,7 +298,7 @@ bdd.describe("Codex adapter: snapshot tests", () => {
 
       await codexAdapterMod.codexAdapter.syncHooks!(makeCtx(tempDir));
       await codexAdapterMod.codexAdapter.syncHooks!(makeCtx(tempDir));
-      const parsed = await readHooks(tempDir) as CodexHooksFile & {
+      const parsed = (await readHooks(tempDir)) as CodexHooksFile & {
         description: string;
       };
 
@@ -562,8 +566,7 @@ bdd.describe("codexAdapter.withoutNoskillsMcpTable", () => {
   const cases: readonly { name: string; toml: string; expected: string }[] = [
     {
       name: "removes the table up to the next header, past array values",
-      toml:
-        '[a]\nx = 1\n[mcp_servers.noskills]\nargs = [\n  "noskills",\n]\n[b]\ny = 2\n',
+      toml: '[a]\nx = 1\n[mcp_servers.noskills]\nargs = [\n  "noskills",\n]\n[b]\ny = 2\n',
       expected: "[a]\nx = 1\n[b]\ny = 2\n",
     },
     {
@@ -679,7 +682,7 @@ bdd.describe("Codex adapter: structure validation", () => {
         // Key=value pairs follow the section
         const lines = content.split("\n");
         const sectionIdx = lines.findIndex((l) =>
-          l.includes("[mcp_servers.noskills]")
+          l.includes("[mcp_servers.noskills]"),
         );
         assert.assert(sectionIdx !== -1);
 

@@ -69,7 +69,10 @@ Deno.test("ServerWebSocket opens, then runs listeners and the onopen handler", (
   events.opened();
 
   assert.assertEquals(socket.readyState, WebSocket.OPEN);
-  assert.assertEquals(seen.map((event) => event.type), ["open"]);
+  assert.assertEquals(
+    seen.map((event) => event.type),
+    ["open"],
+  );
   assert.assertEquals(handled, 1);
 });
 
@@ -94,7 +97,10 @@ Deno.test("ServerWebSocket closes with the code, reason and cleanness it is give
   );
   assert.assertEquals(closeCode, 4001);
   // A second closed report changes nothing.
-  assert.assertEquals(seen.map((event) => event.type), ["open", "close"]);
+  assert.assertEquals(
+    seen.map((event) => event.type),
+    ["open", "close"],
+  );
 });
 
 Deno.test("ServerWebSocket reports a failure as an error event", () => {
@@ -105,11 +111,10 @@ Deno.test("ServerWebSocket reports a failure as an error event", () => {
   events.failed();
   events.closed(1006, "", false);
 
-  assert.assertEquals(seen.map((event) => event.type), [
-    "open",
-    "error",
-    "close",
-  ]);
+  assert.assertEquals(
+    seen.map((event) => event.type),
+    ["open", "error", "close"],
+  );
 });
 
 // =============================================================================
@@ -151,7 +156,10 @@ Deno.test("ServerWebSocket drops messages that arrive after close()", () => {
   socket.close();
   events.received("late");
 
-  assert.assertEquals(seen.map((event) => event.type), ["open"]);
+  assert.assertEquals(
+    seen.map((event) => event.type),
+    ["open"],
+  );
 });
 
 Deno.test("ServerWebSocket sends strings and every kind of bytes", () => {

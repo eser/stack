@@ -9,15 +9,16 @@ import * as serializer from "./serializer.ts";
 
 Deno.test(
   {
-    name:
-      "FFI round-trip: encodeDocument JSON via EserAjanFormatEncodeDocument",
+    name: "FFI round-trip: encodeDocument JSON via EserAjanFormatEncodeDocument",
     sanitizeResources: false,
   },
   async () => {
-    const result = await ffi.ffiFormats.encodeDocument("json", [{
-      name: "app1",
-      count: 42,
-    }]);
+    const result = await ffi.ffiFormats.encodeDocument("json", [
+      {
+        name: "app1",
+        count: 42,
+      },
+    ]);
     const parsed = JSON.parse(result);
     assert.assert(Array.isArray(parsed));
     assert.assertEquals(parsed[0].name, "app1");
@@ -96,19 +97,22 @@ Deno.test(
       () => ffi.ffiFormats.decode("no-such-format", "data"),
       errors.FormatFfiError,
     );
-    await ffi.ffiFormats.decode("no-such-format", "data").catch(
-      (e: unknown) => {
+    await ffi.ffiFormats
+      .decode("no-such-format", "data")
+      .catch((e: unknown) => {
         if (e instanceof errors.FormatFfiError) {
           assert.assertEquals(e.code, errors.FORMAT_NOT_FOUND);
         }
-      },
-    );
+      });
   },
 );
 
 // Keys are in sorted order, so Go's sorted maps do not differ by order.
 const app = { name: "app", replicas: 3, server: { port: 80 } };
-const apps = [{ name: "app1", replicas: 1 }, { name: "app2", replicas: 2 }];
+const apps = [
+  { name: "app1", replicas: 1 },
+  { name: "app2", replicas: 2 },
+];
 
 const sameTextCases = [
   { name: "a single value as one YAML mapping", data: app, format: "yaml" },

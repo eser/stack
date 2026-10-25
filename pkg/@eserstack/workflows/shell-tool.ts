@@ -54,8 +54,8 @@ export const shellTool: WorkflowTool = {
   ): Promise<WorkflowToolResult> => {
     const command = options["command"] as string | undefined;
     const fixCommand = options["fixCommand"] as string | undefined;
-    const displayName = (options["name"] as string | undefined) ?? command ??
-      "shell";
+    const displayName =
+      (options["name"] as string | undefined) ?? command ?? "shell";
     const fix = (options["fix"] as boolean | undefined) ?? false;
     const dryRun = (options["dryRun"] as boolean | undefined) ?? false;
     const root = (options["root"] as string | undefined) ?? ".";
@@ -68,9 +68,8 @@ export const shellTool: WorkflowTool = {
       );
     }
 
-    const cmd = fix && !dryRun && fixCommand !== undefined
-      ? fixCommand
-      : command;
+    const cmd =
+      fix && !dryRun && fixCommand !== undefined ? fixCommand : command;
 
     // Stopped at the step's timeout, so the command does not run on after the
     // engine has failed the step. spawn() then throws CommandRunError, which
@@ -100,18 +99,21 @@ export const shellTool: WorkflowTool = {
     const decoder = new TextDecoder();
     const stderr = decoder.decode(output.stderr).trim();
     const stdout = decoder.decode(output.stdout).trim();
-    const combinedOutput = [stdout, stderr].filter((s) => s.length > 0).join(
-      "\n",
-    );
+    const combinedOutput = [stdout, stderr]
+      .filter((s) => s.length > 0)
+      .join("\n");
 
     return {
       name: displayName,
       passed: false,
-      issues: [{
-        message: combinedOutput.length > 0
-          ? combinedOutput
-          : `Command exited with code ${exitCode}`,
-      }],
+      issues: [
+        {
+          message:
+            combinedOutput.length > 0
+              ? combinedOutput
+              : `Command exited with code ${exitCode}`,
+        },
+      ],
       mutations: [],
       stats: { exitCode },
     };

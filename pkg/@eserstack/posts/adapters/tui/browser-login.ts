@@ -47,11 +47,12 @@ const receiveCallback = async (
   options: BrowserLoginOptions,
 ): Promise<results.Result<CallbackParams, Error>> => {
   const { ctx } = options;
-  const waitForCallback = options.waitForCallback ??
+  const waitForCallback =
+    options.waitForCallback ??
     ((expected: callbackServer.CallbackExpectation) =>
       callbackServer.waitForOAuthCallback(expected));
-  const enterRedirectUrl = options.enterRedirectUrl ??
-    callbackServer.manualCodeEntry;
+  const enterRedirectUrl =
+    options.enterRedirectUrl ?? callbackServer.manualCodeEntry;
 
   try {
     const expected = callbackServer.expectationFor(options.redirectUri, state);

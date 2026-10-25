@@ -34,7 +34,8 @@ Deno.test("chrome reserved regions offset and shrink the pane area", () => {
     focusedPane: "p",
   };
   const chrome = { tabBarRows: 1, statusBarRows: 1, leftCols: 20, topRows: 5 };
-  const geom = geometry.computeTabGeoms(tab, { cols: 100, rows: 30 }, chrome)
+  const geom = geometry
+    .computeTabGeoms(tab, { cols: 100, rows: 30 }, chrome)
     .get("p")!;
 
   // x past the sidebar, y past tab bar + monitor strip; size reduced by both.
@@ -42,12 +43,15 @@ Deno.test("chrome reserved regions offset and shrink the pane area", () => {
 });
 
 Deno.test("decorationRegions yields 1-based sidebar and top-strip rects", () => {
-  const r = geometry.decorationRegions({ cols: 100, rows: 30 }, {
-    tabBarRows: 1,
-    statusBarRows: 1,
-    leftCols: 20,
-    topRows: 5,
-  });
+  const r = geometry.decorationRegions(
+    { cols: 100, rows: 30 },
+    {
+      tabBarRows: 1,
+      statusBarRows: 1,
+      leftCols: 20,
+      topRows: 5,
+    },
+  );
 
   assert.assertEquals(r.left, { x: 1, y: 2, width: 20, height: 28 });
   assert.assertEquals(r.top, { x: 21, y: 2, width: 80, height: 5 });

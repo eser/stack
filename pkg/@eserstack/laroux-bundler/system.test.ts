@@ -135,7 +135,7 @@ async function writeReactApp(projectRoot: string): Promise<void> {
       dependencies: {
         "@eserstack/laroux": "^4.5.2",
         "@eserstack/laroux-react": "^4.5.2",
-        "react": "^19.3.0",
+        react: "^19.3.0",
         "react-dom": "^19.3.0",
       },
     }),
@@ -156,7 +156,7 @@ async function writeReactApp(projectRoot: string): Promise<void> {
       fs.ensureSymlink(
         runtime.path.join(larouxReact, "node_modules", name),
         runtime.path.join(projectRoot, "node_modules", name),
-      )
+      ),
     ),
     // The server bundle imports the client component references' protocol
     // from laroux-react
@@ -201,8 +201,7 @@ Deno.test("build of a minimal laroux app with the React plugin succeeds", async 
 /** A file URL for a path on the local file system, for a dynamic import. */
 const toFileUrl = (filePath: string): string => {
   const slashed = filePath.replaceAll("\\", "/");
-  return new URL(`file://${slashed.startsWith("/") ? "" : "/"}${slashed}`)
-    .href;
+  return new URL(`file://${slashed.startsWith("/") ? "" : "/"}${slashed}`).href;
 };
 
 /** Run fn with console.warn replaced by a recorder, and return its calls. */
@@ -244,12 +243,12 @@ Deno.test("a dev build gives client code the browser logger, with() included", a
     const main = manifest.chunks["src/app/components/counter.tsx"]?.main;
     assert.assertExists(main);
     const chunkFile = main.includes("/") ? `${main}.js` : `chunk-${main}.js`;
-    const counterModule = await import(
+    const counterModule = (await import(
       toFileUrl(runtime.path.join(config.distDir, "client", chunkFile))
-    ) as { reportSlowRender: (durationMs: number) => Promise<unknown> };
+    )) as { reportSlowRender: (durationMs: number) => Promise<unknown> };
 
     const warnings = await recordWarnings(() =>
-      counterModule.reportSlowRender(1200)
+      counterModule.reportSlowRender(1200),
     );
 
     assert.assertEquals(warnings, [
@@ -410,38 +409,42 @@ Deno.test("build hands the stylesheet, the fonts and the images to the ports it 
       runtime.fs.readTextFile(runtime.path.join(clientDir, name));
 
     assert.assertEquals(result.success, true);
-    assert.assertEquals(calls.stylesheets, [{
-      css: "a { color: red; }\n",
-      filename: runtime.path.join(projectRoot, "src/app/styles/global.css"),
-      minify: true,
-    }]);
+    assert.assertEquals(calls.stylesheets, [
+      {
+        css: "a { color: red; }\n",
+        filename: runtime.path.join(projectRoot, "src/app/styles/global.css"),
+        minify: true,
+      },
+    ]);
     assert.assertEquals(
       await readClientFile("styles.css"),
       "/* processed */\na { color: red; }\n",
     );
-    assert.assertEquals(calls.fonts, [{
-      fonts: [INTER],
-      options: {
-        outputDir: runtime.path.join(clientDir, "fonts"),
-        publicPath: "/fonts",
+    assert.assertEquals(calls.fonts, [
+      {
+        fonts: [INTER],
+        options: {
+          outputDir: runtime.path.join(clientDir, "fonts"),
+          publicPath: "/fonts",
+        },
       },
-    }]);
+    ]);
     assert.assertEquals(
       await readClientFile("fonts.css"),
       "@font-face { font-family: Inter; }",
     );
     assert.assertEquals(
       JSON.parse(await readClientFile("font-preloads.json")),
-      [
-        '<link rel="preload" href="/fonts/inter.woff2">',
-      ],
+      ['<link rel="preload" href="/fonts/inter.woff2">'],
     );
-    assert.assertEquals(calls.images, [{
-      inputDir: runtime.path.join(projectRoot, "public/images"),
-      outputDir: runtime.path.join(clientDir, "images"),
-      publicPath: "/images",
-      config: config.images,
-    }]);
+    assert.assertEquals(calls.images, [
+      {
+        inputDir: runtime.path.join(projectRoot, "public/images"),
+        outputDir: runtime.path.join(clientDir, "images"),
+        publicPath: "/images",
+        config: config.images,
+      },
+    ]);
   });
 });
 
@@ -483,8 +486,7 @@ const referenceCases = [
     expected: true,
   },
   {
-    name:
-      "build tells the CSS plugin not to add @reference when the config says so",
+    name: "build tells the CSS plugin not to add @reference when the config says so",
     noCssModuleAutoReference: true,
     expected: false,
   },

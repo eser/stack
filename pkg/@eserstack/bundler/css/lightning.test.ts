@@ -275,21 +275,13 @@ Deno.test("transformCssFile reads, transforms, and writes CSS file", async () =>
 
   try {
     const inputPath = runtime.path.join(tempDir, "input.css");
-    const outputPath = runtime.path.join(
-      tempDir,
-      "output.css",
-    );
-    await runtime.fs.writeTextFile(
-      inputPath,
-      ".foo { color: red; }",
-    );
+    const outputPath = runtime.path.join(tempDir, "output.css");
+    await runtime.fs.writeTextFile(inputPath, ".foo { color: red; }");
 
     const result = await lightning.transformCssFile(inputPath, outputPath);
 
     assert.assertExists(result.code);
-    const outputContent = await runtime.fs.readTextFile(
-      outputPath,
-    );
+    const outputContent = await runtime.fs.readTextFile(outputPath);
     assert.assertEquals(outputContent, result.code);
   } finally {
     await cleanup();
@@ -306,9 +298,7 @@ Deno.test("transformCssFile overwrites input when no output specified", async ()
 
     await lightning.transformCssFile(inputPath, undefined, { minify: true });
 
-    const updatedContent = await runtime.fs.readTextFile(
-      inputPath,
-    );
+    const updatedContent = await runtime.fs.readTextFile(inputPath);
     // Content should be minified (no newlines)
     assert.assertEquals(updatedContent.includes("\n"), false);
   } finally {
@@ -321,14 +311,8 @@ Deno.test("transformCssFile applies options", async () => {
 
   try {
     const inputPath = runtime.path.join(tempDir, "opts.css");
-    const outputPath = runtime.path.join(
-      tempDir,
-      "opts-out.css",
-    );
-    await runtime.fs.writeTextFile(
-      inputPath,
-      ".test {\n  padding: 10px;\n}",
-    );
+    const outputPath = runtime.path.join(tempDir, "opts-out.css");
+    await runtime.fs.writeTextFile(inputPath, ".test {\n  padding: 10px;\n}");
 
     await lightning.transformCssFile(inputPath, outputPath, { minify: true });
 

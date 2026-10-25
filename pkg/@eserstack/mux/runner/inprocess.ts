@@ -48,7 +48,8 @@ export const runInProcess = async (
     rows: size.rows,
   });
 
-  const resolveSpawn: muxServer.SpawnResolver = opts.resolveSpawn ??
+  const resolveSpawn: muxServer.SpawnResolver =
+    opts.resolveSpawn ??
     ((pane) => {
       const fallback = defaultShell();
 

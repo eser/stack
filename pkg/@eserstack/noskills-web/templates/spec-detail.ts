@@ -31,7 +31,8 @@ export const renderSpecDetail = (
 
   // Always show note/question buttons for active specs
   if (
-    spec.phase !== "COMPLETED" && spec.phase !== "IDLE" &&
+    spec.phase !== "COMPLETED" &&
+    spec.phase !== "IDLE" &&
     spec.phase !== "UNINITIALIZED"
   ) {
     ctas.push(components.ctaButton("Add Note", spec.slug, "note"));
@@ -39,64 +40,66 @@ export const renderSpecDetail = (
   }
 
   // Pending questions
-  const questionsHtml = spec.pendingQuestions.length > 0
-    ? `<div class="questions-section">
+  const questionsHtml =
+    spec.pendingQuestions.length > 0
+      ? `<div class="questions-section">
         <h3>Open Questions</h3>
-        ${
-      spec.pendingQuestions.map((q) =>
-        `<div class="question-item">
-            <strong>${escape.escHtml(q.user)}</strong>: ${
-          escape.escHtml(q.text)
-        }
-            ${
-          components.ctaButton("Reply", spec.slug, "reply", {
-            "question-id": q.id,
-          })
-        }
-          </div>`
-      ).join("")
-    }
+        ${spec.pendingQuestions
+          .map(
+            (q) =>
+              `<div class="question-item">
+            <strong>${escape.escHtml(q.user)}</strong>: ${escape.escHtml(
+              q.text,
+            )}
+            ${components.ctaButton("Reply", spec.slug, "reply", {
+              "question-id": q.id,
+            })}
+          </div>`,
+          )
+          .join("")}
       </div>`
-    : "";
+      : "";
 
   // Task list
-  const tasksHtml = spec.tasks.length > 0
-    ? `<div class="tasks-section">
+  const tasksHtml =
+    spec.tasks.length > 0
+      ? `<div class="tasks-section">
         <h3>Tasks (${
-      spec.tasks.filter((t) => t.done).length
-    }/${spec.tasks.length})</h3>
+          spec.tasks.filter((t) => t.done).length
+        }/${spec.tasks.length})</h3>
         <ul class="task-list">
-          ${
-      spec.tasks.map((t) =>
-        `<li class="${t.done ? "done" : ""}">
+          ${spec.tasks
+            .map(
+              (t) =>
+                `<li class="${t.done ? "done" : ""}">
               <input type="checkbox" ${t.done ? "checked" : ""} disabled />
-              <span>${escape.escHtml(t.id)}: ${
-          escape.escHtml(t.description)
-        }</span>
+              <span>${escape.escHtml(t.id)}: ${escape.escHtml(
+                t.description,
+              )}</span>
               ${
-          t.files !== undefined && t.files.length > 0
-            ? `<span class="file-hints">${
-              t.files.map((f) => `<code>${escape.escHtml(f)}</code>`).join(", ")
-            }</span>`
-            : ""
-        }
-            </li>`
-      ).join("")
-    }
+                t.files !== undefined && t.files.length > 0
+                  ? `<span class="file-hints">${t.files
+                      .map((f) => `<code>${escape.escHtml(f)}</code>`)
+                      .join(", ")}</span>`
+                  : ""
+              }
+            </li>`,
+            )
+            .join("")}
         </ul>
       </div>`
-    : "";
+      : "";
 
   // Spec markdown content
-  const specHtml = specContent.length > 0
-    ? `<div class="spec-content"><pre>${
-      escape.escHtml(specContent)
-    }</pre></div>`
-    : "";
+  const specHtml =
+    specContent.length > 0
+      ? `<div class="spec-content"><pre>${escape.escHtml(
+          specContent,
+        )}</pre></div>`
+      : "";
 
-  const ctaBar = ctas.length > 0
-    ? `<div class="cta-bar">${ctas.join("")}</div>`
-    : "";
+  const ctaBar =
+    ctas.length > 0 ? `<div class="cta-bar">${ctas.join("")}</div>` : "";
 
   const body = `
   <div class="spec-detail">
@@ -113,12 +116,12 @@ export const renderSpecDetail = (
     ${specHtml}
 
     ${
-    spec.contributors.length > 0
-      ? `<div class="contributors">Contributors: ${
-        spec.contributors.map((n) => escape.escHtml(n)).join(", ")
-      }</div>`
-      : ""
-  }
+      spec.contributors.length > 0
+        ? `<div class="contributors">Contributors: ${spec.contributors
+            .map((n) => escape.escHtml(n))
+            .join(", ")}</div>`
+        : ""
+    }
   </div>`;
 
   // The token lets the action buttons pass the guard on mutating requests.

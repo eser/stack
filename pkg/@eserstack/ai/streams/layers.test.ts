@@ -27,7 +27,8 @@ bdd.describe("extractText layer", () => {
     const source = sourcesModule.streamEventSource(events());
     const layer = layersModule.extractText();
 
-    const result = await streams.pipeline()
+    const result = await streams
+      .pipeline()
       .from(source)
       .through(layer)
       .collect<string>();
@@ -40,9 +41,8 @@ bdd.describe("extractText layer", () => {
 
 bdd.describe("tokenCounter layer", () => {
   bdd.it("should call onUsage when message_done event arrives", async () => {
-    let capturedUsage: generation.Usage | null = null as
-      | generation.Usage
-      | null;
+    let capturedUsage: generation.Usage | null =
+      null as generation.Usage | null;
 
     async function* events(): AsyncIterable<generation.StreamEvent> {
       yield { kind: "content_delta", textDelta: "Hello" };
@@ -58,7 +58,8 @@ bdd.describe("tokenCounter layer", () => {
       capturedUsage = usage;
     });
 
-    const result = await streams.pipeline()
+    const result = await streams
+      .pipeline()
       .from(source)
       .through(counter)
       .collect<generation.StreamEvent>();

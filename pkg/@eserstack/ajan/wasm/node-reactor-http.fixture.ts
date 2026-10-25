@@ -14,9 +14,11 @@ import * as ffi from "../ffi/mod.ts";
 
 // Plain Node, so the arguments and the exit code come from its process
 // object; the cross-runtime layer is not importable from here.
-const nodeProcess = (globalThis as unknown as {
-  process: { argv: string[]; exitCode?: number };
-}).process;
+const nodeProcess = (
+  globalThis as unknown as {
+    process: { argv: string[]; exitCode?: number };
+  }
+).process;
 
 const errorText = (error: unknown): string =>
   error instanceof Error ? error.message : String(error);
@@ -80,9 +82,9 @@ const main = async (): Promise<void> => {
     url: "/slow",
     signal: controller.signal,
   });
-  const formatsDuringWait = JSON.parse(
-    symbols["EserAjanFormatList"]!(),
-  ) as { error?: string };
+  const formatsDuringWait = JSON.parse(symbols["EserAjanFormatList"]!()) as {
+    error?: string;
+  };
   setTimeout(() => controller.abort(), 100);
   let aborted = "";
   const startedAt = Date.now();

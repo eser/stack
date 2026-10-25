@@ -22,10 +22,7 @@ bdd.describe("npm provider — parse", () => {
   });
 
   bdd.it("throws on empty npm: specifier", () => {
-    assert.assertThrows(
-      () => npm.provider.parse("npm:"),
-      Error,
-    );
+    assert.assertThrows(() => npm.provider.parse("npm:"), Error);
   });
 });
 

@@ -81,9 +81,10 @@ type UpgradeContext = {
   /** The open WebSockets of the server that received the request. */
   readonly connections: Set<Connection>;
   /** Set by upgradeWebSocket. */
-  accepted:
-    | { readonly response: Response; readonly connection: Connection }
-    | null;
+  accepted: {
+    readonly response: Response;
+    readonly connection: Connection;
+  } | null;
 };
 
 /**
@@ -93,9 +94,10 @@ type UpgradeContext = {
  * @returns The base64 SHA-1 digest of the key and the handshake GUID
  */
 export const computeAcceptKey = (key: string): string =>
-  deps.crypto.createHash("sha1").update(key + HANDSHAKE_GUID).digest(
-    "base64",
-  );
+  deps.crypto
+    .createHash("sha1")
+    .update(key + HANDSHAKE_GUID)
+    .digest("base64");
 
 /**
  * Serializes a response for a raw socket: the status line, the headers, a
@@ -109,9 +111,10 @@ export const serializeRawResponse = (
   response: Response,
   body: Uint8Array,
 ): Uint8Array => {
-  const statusText = response.statusText !== ""
-    ? response.statusText
-    : deps.http.STATUS_CODES[response.status] ?? "";
+  const statusText =
+    response.statusText !== ""
+      ? response.statusText
+      : (deps.http.STATUS_CODES[response.status] ?? "");
   const lines = [`HTTP/1.1 ${response.status} ${statusText}`];
 
   for (const [name, value] of response.headers) {
@@ -162,7 +165,7 @@ const toRequest = (
       headers,
       signal,
       body: hasBody
-        ? deps.stream.Readable.toWeb(incoming) as ReadableStream<Uint8Array>
+        ? (deps.stream.Readable.toWeb(incoming) as ReadableStream<Uint8Array>)
         : null,
       duplex: "half",
     };
@@ -178,9 +181,7 @@ const toRequest = (
 };
 
 /** Resolves once `response` can take more data or has closed. */
-const drainOrClose = (
-  response: deps.http.ServerResponse,
-): Promise<void> =>
+const drainOrClose = (response: deps.http.ServerResponse): Promise<void> =>
   new Promise((resolve) => {
     const done = (): void => {
       response.off("drain", done);
@@ -575,9 +576,10 @@ export const createNodeHttp = (): RuntimeHttp => {
           return;
         }
 
-        fallbackHost = address.family === "IPv6"
-          ? `[${address.address}]:${address.port}`
-          : `${address.address}:${address.port}`;
+        fallbackHost =
+          address.family === "IPv6"
+            ? `[${address.address}]:${address.port}`
+            : `${address.address}:${address.port}`;
 
         if (options.signal?.aborted === true) {
           stop();

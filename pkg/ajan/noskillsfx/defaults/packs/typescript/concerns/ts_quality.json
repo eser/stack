@@ -9,10 +9,6 @@
     }
   ],
   "specSections": [],
-  "reminders": [
-    "Run tsc --noEmit before reporting task complete"
-  ],
-  "acceptanceCriteria": [
-    "TypeScript strict mode passes with zero errors"
-  ]
+  "reminders": ["Run tsc --noEmit before reporting task complete"],
+  "acceptanceCriteria": ["TypeScript strict mode passes with zero errors"]
 }

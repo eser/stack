@@ -13,12 +13,12 @@ const makeAnswers = (
   overrides: Partial<Record<string, string>> = {},
 ): readonly schema.DiscoveryAnswer[] => {
   const defaults: Record<string, string> = {
-    "status_quo": "Users manually upload photos via email.",
+    status_quo: "Users manually upload photos via email.",
     ambition: "1-star: basic upload. 10-star: drag-and-drop with preview.",
     reversibility: "No irreversible decisions.",
-    "user_impact": "No breaking changes.",
+    user_impact: "No breaking changes.",
     verification: "Unit tests and manual QA.",
-    "scope_boundary": "No video support.",
+    scope_boundary: "No video support.",
   };
 
   const merged = { ...defaults, ...overrides };

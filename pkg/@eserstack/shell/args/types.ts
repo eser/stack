@@ -161,9 +161,7 @@ export type LazyCommandOptions = {
  * Used by group for registry-style command namespaces.
  */
 export type DispatchableModule = {
-  readonly main: (
-    cliArgs?: readonly string[],
-  ) => Promise<CliResult<void>>;
+  readonly main: (cliArgs?: readonly string[]) => Promise<CliResult<void>>;
 };
 
 /**

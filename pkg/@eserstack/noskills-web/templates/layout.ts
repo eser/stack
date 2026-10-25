@@ -27,8 +27,7 @@ const XTERM_SCRIPTS = [
       "sha384-/nfmYPUzWMS6v2atn8hbljz7NE0EI1iGx34lJaNzyVjWGDzMv+ciUZUeJpKA3Glc",
   },
   {
-    src:
-      `${XTERM_CDN}/xterm-addon-web-links@0.9.0/lib/xterm-addon-web-links.js`,
+    src: `${XTERM_CDN}/xterm-addon-web-links@0.9.0/lib/xterm-addon-web-links.js`,
     integrity:
       "sha384-U4fBROT3kCM582gaYiNaOSQiJbXPzd9SfR1598Y7yeGSYVBzikXrNg0XyuU+mOnl",
   },
@@ -65,20 +64,21 @@ export const layout = (
   // The per-process token, handed to the browser the only way it can legally
   // obtain one: by loading a page from an allowed origin. client.js reads it
   // from here for the /mux upgrade and for every mutating fetch.
-  const tokenMeta = opts?.token === undefined
-    ? ""
-    : `\n  <meta name="noskills-token" content="${
-      escape.escHtml(opts.token)
-    }" />`;
+  const tokenMeta =
+    opts?.token === undefined
+      ? ""
+      : `\n  <meta name="noskills-token" content="${escape.escHtml(
+          opts.token,
+        )}" />`;
 
-  const terminalScripts = opts?.includeTerminal === true
-    ? `
-    <link rel="stylesheet" href="${XTERM_CSS.href}" integrity="${XTERM_CSS.integrity}" crossorigin="anonymous" />${
-      XTERM_SCRIPTS.map((s) =>
-        `\n    <script src="${s.src}" integrity="${s.integrity}" crossorigin="anonymous"></script>`
-      ).join("")
-    }`
-    : "";
+  const terminalScripts =
+    opts?.includeTerminal === true
+      ? `
+    <link rel="stylesheet" href="${XTERM_CSS.href}" integrity="${XTERM_CSS.integrity}" crossorigin="anonymous" />${XTERM_SCRIPTS.map(
+      (s) =>
+        `\n    <script src="${s.src}" integrity="${s.integrity}" crossorigin="anonymous"></script>`,
+    ).join("")}`
+      : "";
 
   return `<!DOCTYPE html>
 <html lang="en">

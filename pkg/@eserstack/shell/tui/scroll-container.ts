@@ -115,9 +115,8 @@ export const renderScrollbar = (
 
   // Thumb position proportional to offset within scrollable range
   const max = maxOffset(state);
-  const thumbTop = max > 0
-    ? Math.round((state.offset / max) * (height - thumbSize))
-    : 0;
+  const thumbTop =
+    max > 0 ? Math.round((state.offset / max) * (height - thumbSize)) : 0;
 
   const parts: string[] = [];
 

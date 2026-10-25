@@ -122,9 +122,11 @@ function transformWithLightningCss(
 
     return new TextDecoder().decode(result.code);
   } catch (error) {
-    cssLogger.with({ error }).warn(
-      `Lightning CSS could not transform ${options.filename}, keeping it unchanged`,
-    );
+    cssLogger
+      .with({ error })
+      .warn(
+        `Lightning CSS could not transform ${options.filename}, keeping it unchanged`,
+      );
     return cssContent;
   }
 }

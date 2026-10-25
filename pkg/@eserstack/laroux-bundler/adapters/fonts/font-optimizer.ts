@@ -75,12 +75,8 @@ export async function optimizeMultipleGoogleFonts(
     maxPreloadFonts: 2,
   });
 
-  fontLogger.info(
-    `   ✅ Optimized ${result.files.length} total font file(s)`,
-  );
-  fontLogger.debug(
-    `   Total size: ${(result.totalSize / 1024).toFixed(2)} KB`,
-  );
+  fontLogger.info(`   ✅ Optimized ${result.files.length} total font file(s)`);
+  fontLogger.debug(`   Total size: ${(result.totalSize / 1024).toFixed(2)} KB`);
 
   return result;
 }

@@ -12,7 +12,7 @@ Deno.test("import-map", async (t) => {
     // Create test deno.json
     const denoJson = {
       imports: {
-        "react": "npm:react@^19.0.0",
+        react: "npm:react@^19.0.0",
         "lucide-react": "npm:lucide-react@^0.500.0",
         "@eserstack/logging": "jsr:@eserstack/logging@^4.0.0",
         "@/": "./src/",
@@ -52,10 +52,7 @@ Deno.test("import-map", async (t) => {
     // Check externals include npm/jsr packages
     assert.assertEquals(map.externals.includes("react"), true);
     assert.assertEquals(map.externals.includes("lucide-react"), true);
-    assert.assertEquals(
-      map.externals.includes("@eserstack/logging"),
-      true,
-    );
+    assert.assertEquals(map.externals.includes("@eserstack/logging"), true);
     // Local path should not be in externals
     assert.assertEquals(map.externals.includes("@/"), false);
 
@@ -67,11 +64,11 @@ Deno.test("import-map", async (t) => {
     // Create test package.json
     const packageJson = {
       dependencies: {
-        "react": "^19.0.0",
+        react: "^19.0.0",
         "react-dom": "^19.0.0",
       },
       devDependencies: {
-        "typescript": "^5.0.0",
+        typescript: "^5.0.0",
       },
     };
     await runtime.fs.writeTextFile(
@@ -108,13 +105,13 @@ Deno.test("import-map", async (t) => {
       // deno.json takes priority over package.json
       const denoJson = {
         imports: {
-          "react": "npm:react@^19.2.0", // Different version
+          react: "npm:react@^19.2.0", // Different version
           "@eserstack/logging": "jsr:@eserstack/logging@^4.0.0",
         },
       };
       const packageJson = {
         dependencies: {
-          "react": "^18.0.0", // Older version - should be overwritten
+          react: "^18.0.0", // Older version - should be overwritten
           "lucide-react": "^0.500.0",
         },
       };
@@ -155,7 +152,7 @@ Deno.test("import-map", async (t) => {
   await t.step("resolveSpecifier - exact match", async () => {
     const denoJson = {
       imports: {
-        "react": "npm:react@^19.0.0",
+        react: "npm:react@^19.0.0",
         "lucide-react": "npm:lucide-react@^0.500.0",
       },
     };
@@ -216,7 +213,7 @@ Deno.test("import-map", async (t) => {
   await t.step("isExternal - checks external packages", async () => {
     const denoJson = {
       imports: {
-        "react": "npm:react@^19.0.0",
+        react: "npm:react@^19.0.0",
         "@eserstack/logging": "jsr:@eserstack/logging@^4.0.0",
         "@/": "./src/",
       },
@@ -257,7 +254,7 @@ Deno.test("import-map", async (t) => {
   await t.step("getExternals - returns external package list", async () => {
     const denoJson = {
       imports: {
-        "react": "npm:react@^19.0.0",
+        react: "npm:react@^19.0.0",
         "lucide-react": "npm:lucide-react@^0.500.0",
         "@eserstack/logging": "jsr:@eserstack/logging@^4.0.0",
         "@/": "./src/",

@@ -34,8 +34,7 @@ export const RECIPES_FILENAME = ".eser/recipes.json";
  * The registry that {@link fetchRegistry} loads when it is given no source:
  * `.eser/recipes.json` on the main branch of eser/stack.
  */
-export const DEFAULT_REGISTRY_URL: string =
-  `https://raw.githubusercontent.com/${DEFAULT_OWNER}/${DEFAULT_REPO}/${DEFAULT_REF}/.eser/recipes.json`;
+export const DEFAULT_REGISTRY_URL: string = `https://raw.githubusercontent.com/${DEFAULT_OWNER}/${DEFAULT_REPO}/${DEFAULT_REF}/.eser/recipes.json`;
 
 /** The same path as {@link RECIPES_FILENAME}, kept for code that imports this name. */
 export const LOCAL_REGISTRY_PATH: string = RECIPES_FILENAME;
@@ -145,13 +144,13 @@ export class RecipeLoadError extends Error {
 export type ResolvedSpecifier =
   | { readonly kind: "name"; readonly name: string; readonly ref?: string }
   | {
-    readonly kind: "repo";
-    readonly owner: string;
-    readonly repo: string;
-    readonly ref: string;
-    /** Optional subpath within the repo (e.g., "packages/foo" from gh:owner/repo/packages/foo) */
-    readonly subpath?: string;
-  };
+      readonly kind: "repo";
+      readonly owner: string;
+      readonly repo: string;
+      readonly ref: string;
+      /** Optional subpath within the repo (e.g., "packages/foo" from gh:owner/repo/packages/foo) */
+      readonly subpath?: string;
+    };
 
 /**
  * Parse a specifier string into a resolved specifier.
@@ -325,7 +324,8 @@ export const fetchRegistry = async (
     }
   }
 
-  const isRemote = registrySource.startsWith("http://") ||
+  const isRemote =
+    registrySource.startsWith("http://") ||
     registrySource.startsWith("https://");
 
   if (options?.verbose === true) {
@@ -347,9 +347,10 @@ export const fetchRegistry = async (
     try {
       rawJson = await crossRuntime.runtime.fs.readTextFile(registrySource);
     } catch (error) {
-      const step = error instanceof crossRuntime.NotFoundError
-        ? "the file does not exist; pass --registry with the path or URL of a recipes.json"
-        : "read the file";
+      const step =
+        error instanceof crossRuntime.NotFoundError
+          ? "the file does not exist; pass --registry with the path or URL of a recipes.json"
+          : "read the file";
       throw new RegistryLoadError(registrySource, step, { cause: error });
     }
   }
@@ -385,8 +386,7 @@ export const fetchRegistryFromRepo = async (
   ref: string,
   options?: FetchRegistryOptions,
 ): Promise<registrySchema.RegistryManifest> => {
-  const url =
-    `https://raw.githubusercontent.com/${owner}/${repo}/${ref}/${RECIPES_FILENAME}`;
+  const url = `https://raw.githubusercontent.com/${owner}/${repo}/${ref}/${RECIPES_FILENAME}`;
 
   return await fetchRegistry(url, options);
 };
@@ -504,19 +504,19 @@ export const fetchRecipeFolder = async (
     );
   }
 
-  const folderPath = parsed.basePath !== ""
-    ? `${parsed.basePath}/${sourcePath}`.replace(/\/+/g, "/")
-    : sourcePath;
+  const folderPath =
+    parsed.basePath !== ""
+      ? `${parsed.basePath}/${sourcePath}`.replace(/\/+/g, "/")
+      : sourcePath;
   const location = `${parsed.owner}/${parsed.repo}@${parsed.ref}/${folderPath}`;
 
-  const apiUrl =
-    `https://api.github.com/repos/${parsed.owner}/${parsed.repo}/contents/${folderPath}?ref=${parsed.ref}`;
+  const apiUrl = `https://api.github.com/repos/${parsed.owner}/${parsed.repo}/contents/${folderPath}?ref=${parsed.ref}`;
 
   // Field names follow the GitHub contents API, which uses snake_case.
   type ContentsEntry = {
     readonly type: string;
     readonly path: string;
-    readonly "download_url": string | null;
+    readonly download_url: string | null;
   };
 
   let entries: unknown;
@@ -534,36 +534,34 @@ export const fetchRecipeFolder = async (
     );
   }
 
-  const fileEntries = (entries as readonly ContentsEntry[]).filter((e) =>
-    e.type === "file"
+  const fileEntries = (entries as readonly ContentsEntry[]).filter(
+    (e) => e.type === "file",
   );
 
-  const fetchPromises = fileEntries.map(
-    async (entry): Promise<FetchedFile> => {
-      if (entry.download_url === null) {
-        throw new RecipeLoadError(
-          location,
-          `file ${entry.path} has no download URL in the GitHub listing; list it as its own file entry in the registry`,
-        );
-      }
+  const fetchPromises = fileEntries.map(async (entry): Promise<FetchedFile> => {
+    if (entry.download_url === null) {
+      throw new RecipeLoadError(
+        location,
+        `file ${entry.path} has no download URL in the GitHub listing; list it as its own file entry in the registry`,
+      );
+    }
 
-      let content: string;
-      try {
-        const fileResponse = await requestOk(entry.download_url);
-        content = await fileResponse.text();
-      } catch (error) {
-        throw new RecipeLoadError(location, `download ${entry.path}`, {
-          cause: error,
-        });
-      }
+    let content: string;
+    try {
+      const fileResponse = await requestOk(entry.download_url);
+      content = await fileResponse.text();
+    } catch (error) {
+      throw new RecipeLoadError(location, `download ${entry.path}`, {
+        cause: error,
+      });
+    }
 
-      const relativePath = entry.path.startsWith(folderPath)
-        ? entry.path.slice(folderPath.length).replace(/^\//, "")
-        : entry.path;
+    const relativePath = entry.path.startsWith(folderPath)
+      ? entry.path.slice(folderPath.length).replace(/^\//, "")
+      : entry.path;
 
-      return { path: relativePath, content };
-    },
-  );
+    return { path: relativePath, content };
+  });
 
   return await Promise.all(fetchPromises);
 };
@@ -641,13 +639,13 @@ export const fetchRecipeFromRepo = async (
   recipePath = "recipe.json",
   subpath?: string,
 ): Promise<registrySchema.Recipe> => {
-  const effectivePath = subpath !== undefined && subpath !== ""
-    ? `${subpath}/${recipePath}`
-    : recipePath;
+  const effectivePath =
+    subpath !== undefined && subpath !== ""
+      ? `${subpath}/${recipePath}`
+      : recipePath;
   const location = `${owner}/${repo}@${ref}/${effectivePath}`;
 
-  const url =
-    `https://raw.githubusercontent.com/${owner}/${repo}/${ref}/${effectivePath}`;
+  const url = `https://raw.githubusercontent.com/${owner}/${repo}/${ref}/${effectivePath}`;
 
   let rawJson: string;
   try {

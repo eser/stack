@@ -70,16 +70,13 @@ export async function renderRSC(
 ): Promise<ReadableStream> {
   try {
     // Use provided module map or load from disk
-    const bundlerConfig = moduleMap ?? await loadModuleMap(config);
+    const bundlerConfig = moduleMap ?? (await loadModuleMap(config));
 
     // Debug: log module map
     rscRenderer.debug("Module map keys:", {
       keys: Object.keys(bundlerConfig),
     });
-    rscRenderer.debug(
-      "Module map:",
-      { moduleMap: bundlerConfig },
-    );
+    rscRenderer.debug("Module map:", { moduleMap: bundlerConfig });
 
     // Render to RSC wire format stream
     // renderToReadableStream now returns immediately (not async)
@@ -91,9 +88,9 @@ export async function renderRSC(
     rscRenderer.debug("RSC stream created");
     return stream;
   } catch (error) {
-    rscRenderer.with({ error }).error(
-      "render RSC: start the stream; sending an error stream instead",
-    );
+    rscRenderer
+      .with({ error })
+      .error("render RSC: start the stream; sending an error stream instead");
 
     // Return error stream in RSC format
     const errorMessage = error instanceof Error ? error.message : String(error);

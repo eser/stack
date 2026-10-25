@@ -28,10 +28,8 @@ bdd.describe("withFreshTokens", () => {
         auths: new Map([[platform, auth]]),
       };
 
-      const result = await withFreshTokens.withFreshTokens(
-        ctx,
-        platform,
-        () => Promise.resolve(results.ok("done")),
+      const result = await withFreshTokens.withFreshTokens(ctx, platform, () =>
+        Promise.resolve(results.ok("done")),
       );
 
       assert.assertEquals(results.isOk(result), true);
@@ -87,60 +85,50 @@ bdd.describe("withFreshTokens", () => {
     },
   );
 
-  bdd.it(
-    "saves tokens even when the operation fails",
-    async () => {
-      const tokenStore = testing.createMockTokenStore();
-      const auth = testing.createMockAuthProvider();
-      tokenStore.store.set(platform, testing.createTestTokens());
+  bdd.it("saves tokens even when the operation fails", async () => {
+    const tokenStore = testing.createMockTokenStore();
+    const auth = testing.createMockAuthProvider();
+    tokenStore.store.set(platform, testing.createTestTokens());
 
-      const ctx = {
-        postService: noopPostService,
-        tokenStore,
-        auths: new Map([[platform, auth]]),
-      };
+    const ctx = {
+      postService: noopPostService,
+      tokenStore,
+      auths: new Map([[platform, auth]]),
+    };
 
-      const err = new Error("API error");
-      const result = await withFreshTokens.withFreshTokens(
-        ctx,
-        platform,
-        () => Promise.resolve(results.fail(err)),
-      );
+    const err = new Error("API error");
+    const result = await withFreshTokens.withFreshTokens(ctx, platform, () =>
+      Promise.resolve(results.fail(err)),
+    );
 
-      assert.assertEquals(results.isFail(result), true);
-      assert.assertEquals(
-        tokenStore.calls.some((c) => c.method === "save"),
-        true,
-        "release must save tokens even after a failing operation",
-      );
-    },
-  );
+    assert.assertEquals(results.isFail(result), true);
+    assert.assertEquals(
+      tokenStore.calls.some((c) => c.method === "save"),
+      true,
+      "release must save tokens even after a failing operation",
+    );
+  });
 
-  bdd.it(
-    "returns AuthRequiredError when no tokens are stored",
-    async () => {
-      const tokenStore = testing.createMockTokenStore(); // store is empty
-      const auth = testing.createMockAuthProvider();
+  bdd.it("returns AuthRequiredError when no tokens are stored", async () => {
+    const tokenStore = testing.createMockTokenStore(); // store is empty
+    const auth = testing.createMockAuthProvider();
 
-      const ctx = {
-        postService: noopPostService,
-        tokenStore,
-        auths: new Map([[platform, auth]]),
-      };
+    const ctx = {
+      postService: noopPostService,
+      tokenStore,
+      auths: new Map([[platform, auth]]),
+    };
 
-      const result = await withFreshTokens.withFreshTokens(
-        ctx,
-        platform,
-        () => Promise.resolve(results.ok("never")),
-      );
+    const result = await withFreshTokens.withFreshTokens(ctx, platform, () =>
+      Promise.resolve(results.ok("never")),
+    );
 
-      assert.assertEquals(results.isFail(result), true);
-      assert.assertInstanceOf(
-        results.isFail(result) ? result.error : null,
-        authRequiredError.AuthRequiredError,
-      );
-    },
-  );
+    assert.assertEquals(results.isFail(result), true);
+    assert.assertInstanceOf(
+      results.isFail(result) ? result.error : null,
+      authRequiredError.AuthRequiredError,
+    );
+  });
 
   bdd.it(
     "returns AuthRequiredError when token is expired and has no refresh token",
@@ -161,10 +149,8 @@ bdd.describe("withFreshTokens", () => {
         auths: new Map([[platform, auth]]),
       };
 
-      const result = await withFreshTokens.withFreshTokens(
-        ctx,
-        platform,
-        () => Promise.resolve(results.ok("never")),
+      const result = await withFreshTokens.withFreshTokens(ctx, platform, () =>
+        Promise.resolve(results.ok("never")),
       );
 
       assert.assertEquals(results.isFail(result), true);

@@ -72,9 +72,8 @@ export const faultResponse = async (
   };
 
   if (debugErrorsEnabled()) {
-    body["detail"] = cause instanceof Error
-      ? (cause.stack ?? cause.message)
-      : String(cause);
+    body["detail"] =
+      cause instanceof Error ? (cause.stack ?? cause.message) : String(cause);
   }
 
   return json(body, status);
@@ -229,10 +228,7 @@ export const handleCreateTab = async (
 };
 
 /** DELETE /api/tab/:id — Close a tab. */
-export const handleCloseTab = (
-  host: MuxHost,
-  tabId: string,
-): Response => {
+export const handleCloseTab = (host: MuxHost, tabId: string): Response => {
   host.closeTab(tabId);
   return json({ ok: true });
 };

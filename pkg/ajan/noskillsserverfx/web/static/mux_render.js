@@ -109,8 +109,7 @@
 
   function measureCell(fontFamily, fontSize) {
     const span = document.createElement("span");
-    span.style.cssText =
-      `position:absolute;visibility:hidden;white-space:pre;font-family:${fontFamily};font-size:${fontSize}px;line-height:normal;`;
+    span.style.cssText = `position:absolute;visibility:hidden;white-space:pre;font-family:${fontFamily};font-size:${fontSize}px;line-height:normal;`;
     span.textContent = "W".repeat(50);
     document.body.appendChild(span);
     const rect = span.getBoundingClientRect();
@@ -235,7 +234,7 @@
 
   const EMPTY_LINE = Object.freeze({ runs: Object.freeze([]), wrapped: false });
 
-  const nonNegative = (n) => Number.isInteger(n) && n >= 0 ? n : 0;
+  const nonNegative = (n) => (Number.isInteger(n) && n >= 0 ? n : 0);
 
   /**
    * A run as a screen message sends it (muxfx screen_wire.go): an array
@@ -437,8 +436,8 @@
         opts.onLeave();
         return;
       }
-      const target = opts.tabBar?.querySelector?.(".tab-select, .tab-add") ??
-        null;
+      const target =
+        opts.tabBar?.querySelector?.(".tab-select, .tab-add") ?? null;
       if (target !== null) target.focus();
       else document.activeElement?.blur?.();
     }
@@ -574,9 +573,10 @@
       const top = pane.history.length - pane.scroll;
       for (let i = 0; i < pane.rows; i++) {
         const index = top + i;
-        const line = index < pane.history.length
-          ? pane.history[index]
-          : pane.lines[index - pane.history.length] ?? EMPTY_LINE;
+        const line =
+          index < pane.history.length
+            ? pane.history[index]
+            : (pane.lines[index - pane.history.length] ?? EMPTY_LINE);
         if (pane.shown[i] === line) continue;
         pane.shown[i] = line;
         paintRow(pane.rowEls[i], line);
@@ -599,9 +599,10 @@
       pane.input.style.top = `${y * cell.h}px`;
 
       pane.note.hidden = pane.scroll === 0;
-      pane.note.textContent = pane.scroll === 0
-        ? ""
-        : `History, ${pane.scroll} lines up. Type or press Shift+Page Down to return.`;
+      pane.note.textContent =
+        pane.scroll === 0
+          ? ""
+          : `History, ${pane.scroll} lines up. Type or press Shift+Page Down to return.`;
 
       const label = pane.title !== "" ? `Terminal: ${pane.title}` : "Terminal";
       pane.el.setAttribute("aria-label", label);
@@ -647,19 +648,18 @@
       const history = update.history;
       if (history !== undefined && history !== null) {
         // A history line is [runs] or [runs, 1] when it wrapped.
-        const added = (Array.isArray(history.lines) ? history.lines : []).map((
-          line,
-        ) =>
-          Array.isArray(line)
-            ? convertLine(
-              line[0],
-              line[1] === 1,
-              styles,
-              links,
-              styleCache,
-              cols,
-            )
-            : EMPTY_LINE
+        const added = (Array.isArray(history.lines) ? history.lines : []).map(
+          (line) =>
+            Array.isArray(line)
+              ? convertLine(
+                  line[0],
+                  line[1] === 1,
+                  styles,
+                  links,
+                  styleCache,
+                  cols,
+                )
+              : EMPTY_LINE,
         );
         if (history.reset === true) {
           pane.history = added;
@@ -725,7 +725,8 @@
     /** The key message of a keydown, or null for one the browser keeps. */
     function keyMessage(e) {
       const printable = [...e.key].length === 1;
-      const altGraph = typeof e.getModifierState === "function" &&
+      const altGraph =
+        typeof e.getModifierState === "function" &&
         e.getModifierState("AltGraph");
       // AltGr and the macOS Option key compose characters: their text goes as
       // typed, with alt and ctrl cleared.
@@ -744,8 +745,10 @@
     function onKeyDown(pane, e) {
       if (e.isComposing === true || e.keyCode === 229) return;
       if (
-        MODIFIER_KEYS.has(e.key) || e.key === "Dead" ||
-        e.key === "Unidentified" || e.key === "Process"
+        MODIFIER_KEYS.has(e.key) ||
+        e.key === "Dead" ||
+        e.key === "Unidentified" ||
+        e.key === "Process"
       ) {
         return;
       }
@@ -758,7 +761,8 @@
 
       const plainShift = e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey;
       if (
-        plainShift && !pane.altScreen &&
+        plainShift &&
+        !pane.altScreen &&
         (e.key === "PageUp" || e.key === "PageDown")
       ) {
         e.preventDefault();
@@ -795,7 +799,10 @@
     // The selection as text, without the blanks that pad each row.
     function selectedText() {
       const selection = globalThis.getSelection?.()?.toString() ?? "";
-      return selection.split("\n").map((line) => line.trimEnd()).join("\n");
+      return selection
+        .split("\n")
+        .map((line) => line.trimEnd())
+        .join("\n");
     }
 
     function bindInput(pane) {
@@ -918,11 +925,15 @@
         const button = BUTTONS[e.button] ?? "left";
         pane.pressed = button;
         sendMouse(pane, e, "press", button);
-        document.addEventListener("mouseup", (up) => {
-          if (pane.pressed === null) return;
-          pane.pressed = null;
-          sendMouse(pane, up, "release", button);
-        }, { once: true });
+        document.addEventListener(
+          "mouseup",
+          (up) => {
+            if (pane.pressed === null) return;
+            pane.pressed = null;
+            sendMouse(pane, up, "release", button);
+          },
+          { once: true },
+        );
       });
 
       screen.addEventListener("mouseup", (e) => {
@@ -937,7 +948,8 @@
         if (!reportsMouse(pane, e)) return;
         const button = heldButton(e);
         if (
-          pane.mouse === "any" || (pane.mouse === "drag" && button !== null)
+          pane.mouse === "any" ||
+          (pane.mouse === "drag" && button !== null)
         ) {
           const at = mouseCell(pane, e);
           const key = `${at.row}:${at.col}:${button}`;
@@ -951,39 +963,44 @@
         if (reportsMouse(pane, e)) e.preventDefault();
       });
 
-      screen.addEventListener("wheel", (e) => {
-        e.preventDefault();
-        // Pixels, lines or pages, counted in rows; a trackpad's small steps
-        // add up until they make a row.
-        const unit = e.deltaMode === 1
-          ? cell.h
-          : e.deltaMode === 2
-          ? cell.h * pane.rows
-          : 1;
-        pane.wheel += e.deltaY * unit;
-        const steps = Math.trunc(pane.wheel / cell.h);
-        if (steps === 0) return;
-        pane.wheel -= steps * cell.h;
-        const count = Math.min(
-          Math.abs(steps),
-          pane.rows === 0 ? 1 : pane.rows,
-        );
-        const up = steps < 0;
+      screen.addEventListener(
+        "wheel",
+        (e) => {
+          e.preventDefault();
+          // Pixels, lines or pages, counted in rows; a trackpad's small steps
+          // add up until they make a row.
+          const unit =
+            e.deltaMode === 1
+              ? cell.h
+              : e.deltaMode === 2
+                ? cell.h * pane.rows
+                : 1;
+          pane.wheel += e.deltaY * unit;
+          const steps = Math.trunc(pane.wheel / cell.h);
+          if (steps === 0) return;
+          pane.wheel -= steps * cell.h;
+          const count = Math.min(
+            Math.abs(steps),
+            pane.rows === 0 ? 1 : pane.rows,
+          );
+          const up = steps < 0;
 
-        if (reportsMouse(pane, e)) {
-          for (let i = 0; i < count; i++) sendMouse(pane, e, "wheel", null);
-          return;
-        }
-        if (pane.altScreen) {
-          // A full-screen program without mouse reports scrolls by cursor keys.
-          const key = up ? "ArrowUp" : "ArrowDown";
-          for (let i = 0; i < count; i++) {
-            sendInput(pane, "key", { key, code: key });
+          if (reportsMouse(pane, e)) {
+            for (let i = 0; i < count; i++) sendMouse(pane, e, "wheel", null);
+            return;
           }
-          return;
-        }
-        scrollBy(pane, up ? count : -count);
-      }, { passive: false });
+          if (pane.altScreen) {
+            // A full-screen program without mouse reports scrolls by cursor keys.
+            const key = up ? "ArrowUp" : "ArrowDown";
+            for (let i = 0; i < count; i++) {
+              sendInput(pane, "key", { key, code: key });
+            }
+            return;
+          }
+          scrollBy(pane, up ? count : -count);
+        },
+        { passive: false },
+      );
 
       // With mouse reports a click on a link is the program's; Ctrl or
       // Command opens it anyway.
@@ -1001,9 +1018,11 @@
       screen.addEventListener("copy", (e) => {
         const text = selectedText();
         if (
-          text === "" || e.clipboardData === undefined ||
+          text === "" ||
+          e.clipboardData === undefined ||
           e.clipboardData === null
-        ) return;
+        )
+          return;
         e.preventDefault();
         e.clipboardData.setData("text/plain", text);
       });
@@ -1014,7 +1033,9 @@
     function renderTabBar() {
       const bar = opts.tabBar;
       if (
-        bar === undefined || bar === null || scene === null ||
+        bar === undefined ||
+        bar === null ||
+        scene === null ||
         !Array.isArray(scene.tabs)
       ) {
         return;
@@ -1087,7 +1108,8 @@
         el.hidden = false;
 
         if (
-          p.focused === true && keyboardIsFree() &&
+          p.focused === true &&
+          keyboardIsFree() &&
           document.activeElement !== pane.input
         ) {
           pane.input.focus();
@@ -1107,7 +1129,8 @@
         renderTabBar();
       }
       if (
-        delta.panes !== undefined || delta.focusedPane !== undefined ||
+        delta.panes !== undefined ||
+        delta.focusedPane !== undefined ||
         delta.viewport !== undefined
       ) {
         renderPanes();

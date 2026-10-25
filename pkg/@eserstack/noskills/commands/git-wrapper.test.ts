@@ -105,7 +105,9 @@ const COMMAND_PREFIX = [
   "--config",
   `${REPO_ROOT}/deno.json`,
   `${REPO_ROOT}/pkg/@eserstack/noskills/main.ts`,
-].map(gitWrapper.shellQuote).join(" ");
+]
+  .map(gitWrapper.shellQuote)
+  .join(" ");
 
 type Spawned = { readonly code: number; readonly stderr: string };
 
@@ -144,15 +146,13 @@ const createRepo = async (realGit: string, dir: string): Promise<void> => {
   const hooksDir = `${dir}/.test-hooks`;
   await fs.mkdir(hooksDir, { recursive: true });
 
-  for (
-    const args of [
-      ["init", "-q"],
-      ["config", "user.name", "noskills test"],
-      ["config", "user.email", "test@example.com"],
-      ["config", "commit.gpgsign", "false"],
-      ["config", "core.hooksPath", hooksDir],
-    ]
-  ) {
+  for (const args of [
+    ["init", "-q"],
+    ["config", "user.name", "noskills test"],
+    ["config", "user.email", "test@example.com"],
+    ["config", "commit.gpgsign", "false"],
+    ["config", "core.hooksPath", hooksDir],
+  ]) {
     // Each step configures the repository the previous one created.
     // deno-lint-ignore no-await-in-loop
     const result = await spawn(realGit, args, dir);
@@ -230,9 +230,9 @@ const interpreterGit = async (
   args: readonly string[],
   cwd: string = project.root,
 ): Promise<Spawned> => {
-  const program = `const r = new Deno.Command("g" + "it", { args: ${
-    JSON.stringify(args)
-  }, stdout: "inherit", stderr: "inherit" }).outputSync(); Deno.exit(r.code);`;
+  const program = `const r = new Deno.Command("g" + "it", { args: ${JSON.stringify(
+    args,
+  )}, stdout: "inherit", stderr: "inherit" }).outputSync(); Deno.exit(r.code);`;
 
   return await spawn(
     crossRuntime.runtime.process.execPath(),
@@ -327,7 +327,7 @@ Deno.test("wrapper refuses a write that names the project after another global o
             project,
             [option, "-C", project.root, "commit", "--allow-empty", "-m", "x"],
             elsewhere,
-          )
+          ),
         ),
       );
 
@@ -467,7 +467,8 @@ for (const { name, script } of HANGING_CHECKS) {
       assert.assertLess(
         elapsedMs,
         (HANG_TIMEOUT_SECONDS + gitWrapper.GIT_CHECK_KILL_GRACE_SECONDS) *
-            1000 + HANG_SLACK_MS,
+          1000 +
+          HANG_SLACK_MS,
       );
       assert.assertEquals(await commitCount(project.realGit, project.root), 1);
     });

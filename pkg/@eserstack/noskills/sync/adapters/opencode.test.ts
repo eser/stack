@@ -35,19 +35,24 @@ type PluginHooks = {
     input: { tool: string; sessionID: string; callID: string },
     output: { args: unknown },
   ) => Promise<void>;
-  readonly "tool.execute.after": (
-    input: { tool: string; sessionID: string; callID: string; args: unknown },
-  ) => Promise<void>;
+  readonly "tool.execute.after": (input: {
+    tool: string;
+    sessionID: string;
+    callID: string;
+    args: unknown;
+  }) => Promise<void>;
 };
 
 type PluginModule = {
-  readonly NoskillsPlugin: (
-    input: { directory: string },
-  ) => Promise<PluginHooks>;
+  readonly NoskillsPlugin: (input: {
+    directory: string;
+  }) => Promise<PluginHooks>;
 };
 
 const importPlugin = async (root: string): Promise<PluginModule> =>
-  await import(`file://${root}/.opencode/plugins/noskills.ts`) as PluginModule;
+  (await import(
+    `file://${root}/.opencode/plugins/noskills.ts`
+  )) as PluginModule;
 
 // =============================================================================
 // Snapshot tests — generated file content
@@ -457,9 +462,7 @@ bdd.describe("OpenCode adapter: snapshot tests", () => {
       // Skills directory should not even be created
       let exists = true;
       try {
-        await crossRuntime.runtime.fs.stat(
-          `${tempDir}/.opencode/skills`,
-        );
+        await crossRuntime.runtime.fs.stat(`${tempDir}/.opencode/skills`);
       } catch {
         exists = false;
       }
@@ -780,7 +783,9 @@ bdd.describe("OpenCode plugin: the hooks it runs", () => {
       rules: [],
       commandPrefix: `sh ${root}/fake-noskills.sh`,
     });
-    hooks = await (await importPlugin(root)).NoskillsPlugin({
+    hooks = await (
+      await importPlugin(root)
+    ).NoskillsPlugin({
       directory: root,
     });
   });
@@ -798,11 +803,11 @@ bdd.describe("OpenCode plugin: the hooks it runs", () => {
       );
 
       assert.assertEquals(await stdinOf("pre-tool-use"), {
-        "hook_event_name": "PreToolUse",
-        "session_id": "ses_1",
+        hook_event_name: "PreToolUse",
+        session_id: "ses_1",
         cwd: root,
-        "tool_name": "bash",
-        "tool_input": { command: "git status" },
+        tool_name: "bash",
+        tool_input: { command: "git status" },
       });
     },
   );
@@ -861,11 +866,11 @@ bdd.describe("OpenCode plugin: the hooks it runs", () => {
     });
 
     assert.assertEquals(
-      (await stdinOf("post-file-write") as { "tool_name": string }).tool_name,
+      ((await stdinOf("post-file-write")) as { tool_name: string }).tool_name,
       "apply_patch",
     );
     assert.assertEquals(
-      (await stdinOf("post-bash") as { "tool_input": unknown }).tool_input,
+      ((await stdinOf("post-bash")) as { tool_input: unknown }).tool_input,
       { command: "ls" },
     );
   });
@@ -876,7 +881,7 @@ bdd.describe("OpenCode plugin: the hooks it runs", () => {
 
     assert.assertEquals(await stdinOf("session-start"), {});
     assert.assertEquals(
-      (await stdinOf("stop") as { "hook_event_name": string }).hook_event_name,
+      ((await stdinOf("stop")) as { hook_event_name: string }).hook_event_name,
       "Stop",
     );
   });
@@ -918,7 +923,9 @@ bdd.describe("OpenCode plugin: with the real noskills command", () => {
   });
 
   bdd.it("refuses a git write and an allowGit edit", async () => {
-    const hooks = await (await importPlugin(root)).NoskillsPlugin({
+    const hooks = await (
+      await importPlugin(root)
+    ).NoskillsPlugin({
       directory: root,
     });
     const before = hooks["tool.execute.before"];

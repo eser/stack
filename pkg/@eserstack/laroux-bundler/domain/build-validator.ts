@@ -48,11 +48,11 @@ export class BuildIsolationError extends Error {
   // stripping cannot emit the assignment a parameter property implies.
   constructor(violations: readonly FileViolation[]) {
     super(
-      `build isolation: ${violations.length} file(s) modified outside dist/: ${
-        violations.map((violation) =>
-          `${violation.relativePath} (${violation.type})`
-        ).join(", ")
-      }. Fix the build to write only to dist/, or validate without strict.`,
+      `build isolation: ${violations.length} file(s) modified outside dist/: ${violations
+        .map((violation) => `${violation.relativePath} (${violation.type})`)
+        .join(
+          ", ",
+        )}. Fix the build to write only to dist/, or validate without strict.`,
     );
     this.name = "BuildIsolationError";
     this.violations = violations;
@@ -147,7 +147,7 @@ export async function validateBuildIsolation(
 
   for (const violation of violations) {
     const isKnown = KNOWN_SRC_ARTIFACTS.some((artifact) =>
-      violation.relativePath.includes(artifact)
+      violation.relativePath.includes(artifact),
     );
 
     if (isKnown) {
@@ -176,9 +176,11 @@ async function scanForViolations(
   const violations: FileViolation[] = [];
 
   try {
-    for await (
-      const relPath of collector.walkFiles(dirPath, undefined, IGNORE_PATTERN)
-    ) {
+    for await (const relPath of collector.walkFiles(
+      dirPath,
+      undefined,
+      IGNORE_PATTERN,
+    )) {
       const filePath = runtime.path.join(dirPath, relPath);
 
       // Check if file matches ignore patterns
@@ -203,9 +205,9 @@ async function scanForViolations(
       }
     }
   } catch (error) {
-    validatorLogger.with({ error }).debug(
-      `scan ${dirPath} for files changed during the build; skipping it`,
-    );
+    validatorLogger
+      .with({ error })
+      .debug(`scan ${dirPath} for files changed during the build; skipping it`);
   }
 
   return violations;
@@ -214,15 +216,14 @@ async function scanForViolations(
 /**
  * Check if a path is within the allowed output directory
  */
-export function isWithinOutputDir(
-  filePath: string,
-  distDir: string,
-): boolean {
+export function isWithinOutputDir(filePath: string, distDir: string): boolean {
   const resolvedFilePath = runtime.path.resolve(filePath);
   const resolvedDistDir = runtime.path.resolve(distDir);
 
-  return resolvedFilePath.startsWith(resolvedDistDir + runtime.path.sep) ||
-    resolvedFilePath === resolvedDistDir;
+  return (
+    resolvedFilePath.startsWith(resolvedDistDir + runtime.path.sep) ||
+    resolvedFilePath === resolvedDistDir
+  );
 }
 
 /**
@@ -281,12 +282,14 @@ export async function cleanSrcArtifacts(
   validatorLogger.debug("Cleaning build artifacts from src/...");
 
   try {
-    for await (
-      const relPath of collector.walkFiles(srcDir, undefined, /node_modules/)
-    ) {
+    for await (const relPath of collector.walkFiles(
+      srcDir,
+      undefined,
+      /node_modules/,
+    )) {
       const filePath = runtime.path.join(srcDir, relPath);
       const isArtifact = KNOWN_SRC_ARTIFACTS.some((pattern) =>
-        filePath.endsWith(pattern)
+        filePath.endsWith(pattern),
       );
 
       if (isArtifact) {
@@ -296,9 +299,9 @@ export async function cleanSrcArtifacts(
           validatorLogger.debug(`  Deleted: ${filePath}`);
         } catch (error) {
           failed.push(runtime.path.relative(projectRoot, filePath));
-          validatorLogger.with({ error }).warn(
-            `delete build artifact ${filePath}; delete it by hand`,
-          );
+          validatorLogger
+            .with({ error })
+            .warn(`delete build artifact ${filePath}; delete it by hand`);
         }
       }
     }

@@ -68,8 +68,9 @@ export async function createAppContext(): Promise<AppContext> {
       {
         clientId: cfg.twitter.clientId,
         redirectUri: cfg.twitter.redirectUri,
-        ...(cfg.twitter.clientSecret !== undefined &&
-          { clientSecret: cfg.twitter.clientSecret }),
+        ...(cfg.twitter.clientSecret !== undefined && {
+          clientSecret: cfg.twitter.clientSecret,
+        }),
       },
       twitterClient,
     );
@@ -104,9 +105,10 @@ export async function createAppContext(): Promise<AppContext> {
 
   // The key goes to the translator directly: a key from a .env file is not in
   // the process environment, where the Anthropic SDK would look for it.
-  const translator = cfg.ai.apiKey !== undefined
-    ? new anthropic.AnthropicTranslator({ apiKey: cfg.ai.apiKey })
-    : stubs.noopTranslator;
+  const translator =
+    cfg.ai.apiKey !== undefined
+      ? new anthropic.AnthropicTranslator({ apiKey: cfg.ai.apiKey })
+      : stubs.noopTranslator;
 
   const service = new postServiceMod.PostService(
     connections,

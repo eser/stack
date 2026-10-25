@@ -89,7 +89,8 @@ Deno.test("defineLayer should produce a working TransformStream", async () => {
   });
 
   // Test via pipeline (avoids manual stream lifecycle issues)
-  const result = await pipeline.pipeline()
+  const result = await pipeline
+    .pipeline()
     .from(values.values(5))
     .through(doubler)
     .collect<number>();
@@ -232,7 +233,8 @@ Deno.test("events source removes its listener when the stream is cancelled", asy
 // =============================================================================
 
 Deno.test("map layer should transform chunk data", async () => {
-  const result = await pipeline.pipeline()
+  const result = await pipeline
+    .pipeline()
     .from(values.values(1, 2, 3))
     .through(map.map((n: number) => n * 10))
     .collect<number>();
@@ -245,7 +247,8 @@ Deno.test("map layer should transform chunk data", async () => {
 // =============================================================================
 
 Deno.test("filter layer should drop non-matching chunks", async () => {
-  const result = await pipeline.pipeline()
+  const result = await pipeline
+    .pipeline()
     .from(values.values(1, 2, 3, 4, 5))
     .through(filter.filter((n: number) => n > 3))
     .collect<number>();
@@ -254,7 +257,8 @@ Deno.test("filter layer should drop non-matching chunks", async () => {
 });
 
 Deno.test("filter layer should pass all if predicate always true", async () => {
-  const result = await pipeline.pipeline()
+  const result = await pipeline
+    .pipeline()
     .from(values.values("a", "b"))
     .through(filter.filter(() => true))
     .collect<string>();
@@ -269,11 +273,14 @@ Deno.test("filter layer should pass all if predicate always true", async () => {
 Deno.test("tap layer should call side-effect without modifying chunk", async () => {
   const observed: string[] = [];
 
-  const result = await pipeline.pipeline()
+  const result = await pipeline
+    .pipeline()
     .from(values.values("hello", "world"))
-    .through(tap.tap((item: Chunk<string>) => {
-      observed.push(item.data);
-    }))
+    .through(
+      tap.tap((item: Chunk<string>) => {
+        observed.push(item.data);
+      }),
+    )
     .collect<string>();
 
   assert.assertEquals(result, ["hello", "world"]);
@@ -287,7 +294,8 @@ Deno.test("tap layer should call side-effect without modifying chunk", async () 
 Deno.test("tee layer should send to extra sink and pass through", async () => {
   const teeBuf = sinks.buffer<string>();
 
-  const result = await pipeline.pipeline()
+  const result = await pipeline
+    .pipeline()
     .from(values.values("a", "b", "c"))
     .through(tee.tee(teeBuf))
     .collect<string>();
@@ -303,7 +311,8 @@ Deno.test("tee layer should send to extra sink and pass through", async () => {
 Deno.test("pipeline should chain from → through → to → run", async () => {
   const buf = sinks.buffer<number>();
 
-  await pipeline.pipeline()
+  await pipeline
+    .pipeline()
     .from(values.values(1, 2, 3))
     .through(map.map((n: number) => n + 100))
     .to(buf)
@@ -313,7 +322,8 @@ Deno.test("pipeline should chain from → through → to → run", async () => {
 });
 
 Deno.test("pipeline collect() should return data array", async () => {
-  const result = await pipeline.pipeline()
+  const result = await pipeline
+    .pipeline()
     .from(values.values("x", "y"))
     .collect<string>();
 
@@ -321,9 +331,7 @@ Deno.test("pipeline collect() should return data array", async () => {
 });
 
 Deno.test("pipeline should handle empty source", async () => {
-  const result = await pipeline.pipeline()
-    .from(values.values())
-    .collect();
+  const result = await pipeline.pipeline().from(values.values()).collect();
 
   assert.assertEquals(result, []);
 });
@@ -345,7 +353,8 @@ Deno.test("pipeline should throw PipelineError with no sink", async () => {
 });
 
 Deno.test("pipeline should support multiple layers", async () => {
-  const result = await pipeline.pipeline()
+  const result = await pipeline
+    .pipeline()
     .from(values.values(1, 2, 3, 4, 5))
     .through(
       filter.filter((n: number) => n % 2 === 0),
@@ -368,7 +377,8 @@ Deno.test("pipeline should propagate layer errors", async () => {
 
   await assert.assertRejects(
     () =>
-      pipeline.pipeline()
+      pipeline
+        .pipeline()
         .from(values.values("test"))
         .through(failLayer)
         .to(sinks.nullSink())
@@ -394,7 +404,8 @@ Deno.test({
 
     await assert.assertRejects(
       () =>
-        pipeline.pipeline()
+        pipeline
+          .pipeline()
           .from(values.values("test"))
           .through(slowLayer)
           .to(sinks.nullSink())
@@ -646,7 +657,8 @@ Deno.test("defineLayer with start and flush callbacks", async () => {
     }),
   });
 
-  await pipeline.pipeline()
+  await pipeline
+    .pipeline()
     .from(values.values("x"))
     .through(traced)
     .to(sinks.nullSink())
@@ -656,7 +668,8 @@ Deno.test("defineLayer with start and flush callbacks", async () => {
 });
 
 Deno.test("pipeline with zero layers (source → sink directly)", async () => {
-  const result = await pipeline.pipeline()
+  const result = await pipeline
+    .pipeline()
     .from(values.values(42))
     .collect<number>();
 
@@ -684,7 +697,8 @@ Deno.test("multiplex sink close() should close all sinks", async () => {
 Deno.test("integration: values → filter → map → tap → buffer", async () => {
   const tapped: number[] = [];
 
-  const result = await pipeline.pipeline()
+  const result = await pipeline
+    .pipeline()
     .from(values.values(1, 2, 3, 4, 5, 6))
     .through(
       filter.filter((n: number) => n % 2 === 0),
@@ -702,7 +716,8 @@ Deno.test("integration: values → filter → map → tap → buffer", async () 
 Deno.test("integration: values → tee → map → buffer", async () => {
   const teeBuf = sinks.buffer<number>();
 
-  const result = await pipeline.pipeline()
+  const result = await pipeline
+    .pipeline()
     .from(values.values(10, 20, 30))
     .through(
       tee.tee(teeBuf),

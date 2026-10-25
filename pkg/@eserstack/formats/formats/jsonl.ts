@@ -7,10 +7,7 @@ export const writeStart = (_options?: FormatOptions): string => {
   return "";
 };
 
-export const writeItem = (
-  data: unknown,
-  _options?: FormatOptions,
-): string => {
+export const writeItem = (data: unknown, _options?: FormatOptions): string => {
   try {
     return JSON.stringify(data) + "\n";
   } catch (error) {

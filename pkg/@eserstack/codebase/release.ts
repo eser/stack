@@ -140,8 +140,9 @@ const gitIsClean = async (): Promise<boolean> => {
 
 /** List unpushed commits (empty array means up to date). */
 const gitUnpushedCommits = async (): Promise<string[]> => {
-  const text = await shellExec
-    .exec`git log @{u}..HEAD --oneline`.noThrow().text();
+  const text = await shellExec.exec`git log @{u}..HEAD --oneline`
+    .noThrow()
+    .text();
   return text.length > 0 ? text.split("\n") : [];
 };
 
@@ -197,7 +198,8 @@ const gitDeleteTag = async (tag: string): Promise<void> => {
 const deleteGitHubRelease = async (tag: string): Promise<boolean> => {
   try {
     const result = await shellExec.exec`gh release delete ${tag} --yes`
-      .noThrow().spawn();
+      .noThrow()
+      .spawn();
     return result.code === 0;
   } catch {
     return false;
@@ -241,18 +243,16 @@ export const release = async (
 
   // 1. Validate clean tree
   if (!(await gitIsClean())) {
-    throw new Error(
-      "Working tree is dirty. Commit or stash changes first.",
-    );
+    throw new Error("Working tree is dirty. Commit or stash changes first.");
   }
 
   // 2. Check for unpushed commits
   const unpushed = await gitUnpushedCommits();
   if (unpushed.length > 0 && options.yes !== true) {
     throw new Error(
-      `You have ${unpushed.length} unpushed commit(s):\n${
-        unpushed.join("\n")
-      }\n\nPush first, or re-run with --yes to continue anyway.`,
+      `You have ${unpushed.length} unpushed commit(s):\n${unpushed.join(
+        "\n",
+      )}\n\nPush first, or re-run with --yes to continue anyway.`,
     );
   }
 
@@ -277,8 +277,8 @@ export const release = async (
   }
 
   // 5. Resolve the new version
-  const version = bumpedVersion ?? (await versions.readVersionFile()) ??
-    previousVersion;
+  const version =
+    bumpedVersion ?? (await versions.readVersionFile()) ?? previousVersion;
   const tag = `v${version}`;
 
   // 6. Generate changelog
@@ -340,9 +340,9 @@ export const release = async (
     } catch (err) {
       throw new Error(
         "Release commit created but push failed. Fix the push, then run: " +
-          `git push origin HEAD && eser codebase gh release-tag${
-            cliSupport.commandFailureDetail(err)
-          }`,
+          `git push origin HEAD && eser codebase gh release-tag${cliSupport.commandFailureDetail(
+            err,
+          )}`,
         { cause: err },
       );
     }
@@ -407,27 +407,23 @@ export const rerelease = async (
 
   // Validate clean tree
   if (!(await gitIsClean())) {
-    throw new Error(
-      "Working tree is dirty. Commit and push first.",
-    );
+    throw new Error("Working tree is dirty. Commit and push first.");
   }
 
   // Check for unpushed commits
   const unpushed = await gitUnpushedCommits();
   if (unpushed.length > 0) {
     throw new Error(
-      `You have unpushed commits. Push first, then rerelease.\n${
-        unpushed.join("\n")
-      }`,
+      `You have unpushed commits. Push first, then rerelease.\n${unpushed.join(
+        "\n",
+      )}`,
     );
   }
 
   // Read current version
   const version = await versions.readVersionFile();
   if (version === undefined || !/^\d+\.\d+\.\d+$/.test(version)) {
-    throw new Error(
-      `Invalid or missing version in VERSION file: "${version}"`,
-    );
+    throw new Error(`Invalid or missing version in VERSION file: "${version}"`);
   }
 
   const tag = `v${version}`;
@@ -448,9 +444,9 @@ export const rerelease = async (
     } catch (err) {
       throw new Error(
         `${tag} was deleted but could not be recreated — the version now has ` +
-          `no tag. Run "eser codebase gh release-tag" to push it.${
-            cliSupport.commandFailureDetail(err)
-          }`,
+          `no tag. Run "eser codebase gh release-tag" to push it.${cliSupport.commandFailureDetail(
+            err,
+          )}`,
         { cause: err },
       );
     }
@@ -480,9 +476,7 @@ export const unrelease = async (
   // Read current version
   const version = await versions.readVersionFile();
   if (version === undefined || !/^\d+\.\d+\.\d+$/.test(version)) {
-    throw new Error(
-      `Invalid or missing version in VERSION file: "${version}"`,
-    );
+    throw new Error(`Invalid or missing version in VERSION file: "${version}"`);
   }
 
   const tag = `v${version}`;
@@ -586,9 +580,10 @@ const releaseResponseMapper: functions.handler.ResponseMapper<
 
   if (primitives.results.isFail(result)) {
     const err = result.error;
-    const message = err instanceof Error
-      ? err.message
-      : (err as functions.handler.AdaptError).message ?? String(err);
+    const message =
+      err instanceof Error
+        ? err.message
+        : ((err as functions.handler.AdaptError).message ?? String(err));
     tui.log.error(ctx, message);
     return primitives.results.fail({ exitCode: 1 });
   }
@@ -628,14 +623,8 @@ const releaseResponseMapper: functions.handler.ResponseMapper<
     // is only reached when every step succeeded, so they could never print
     // anything but true.
     tui.log.info(ctx, "  Commit: pushed to origin");
-    tui.log.info(
-      ctx,
-      `  Tag: ${value.tag} pushed — release pipeline started.`,
-    );
-    tui.log.info(
-      ctx,
-      "  Watch: https://github.com/eser/stack/actions",
-    );
+    tui.log.info(ctx, `  Tag: ${value.tag} pushed — release pipeline started.`);
+    tui.log.info(ctx, "  Watch: https://github.com/eser/stack/actions");
   }
 
   return primitives.results.ok(undefined);
@@ -651,9 +640,10 @@ const rereleaseResponseMapper: functions.handler.ResponseMapper<
 
   if (primitives.results.isFail(result)) {
     const err = result.error;
-    const message = err instanceof Error
-      ? err.message
-      : (err as functions.handler.AdaptError).message ?? String(err);
+    const message =
+      err instanceof Error
+        ? err.message
+        : ((err as functions.handler.AdaptError).message ?? String(err));
     tui.log.error(ctx, message);
     return primitives.results.fail({ exitCode: 1 });
   }
@@ -668,10 +658,7 @@ const rereleaseResponseMapper: functions.handler.ResponseMapper<
   } else {
     tui.log.success(ctx, `Re-created tag ${value.tag} at HEAD`);
     tui.log.info(ctx, "Tag push re-fired the release pipeline.");
-    tui.log.info(
-      ctx,
-      "Watch: https://github.com/eser/stack/actions",
-    );
+    tui.log.info(ctx, "Watch: https://github.com/eser/stack/actions");
   }
 
   return primitives.results.ok(undefined);
@@ -687,9 +674,10 @@ const unreleaseResponseMapper: functions.handler.ResponseMapper<
 
   if (primitives.results.isFail(result)) {
     const err = result.error;
-    const message = err instanceof Error
-      ? err.message
-      : (err as functions.handler.AdaptError).message ?? String(err);
+    const message =
+      err instanceof Error
+        ? err.message
+        : ((err as functions.handler.AdaptError).message ?? String(err));
     tui.log.error(ctx, message);
     return primitives.results.fail({ exitCode: 1 });
   }
@@ -697,10 +685,7 @@ const unreleaseResponseMapper: functions.handler.ResponseMapper<
   const { value } = result;
 
   if (value.deleted) {
-    tui.log.success(
-      ctx,
-      `Deleted tag ${value.tag} (local + remote).`,
-    );
+    tui.log.success(ctx, `Deleted tag ${value.tag} (local + remote).`);
   }
 
   if (value.releaseDeleted) {
@@ -761,13 +746,10 @@ export const handleUnreleaseCli: (
 export const main = async (
   cliArgs?: readonly string[],
 ): Promise<shellArgs.CliResult<void>> => {
-  const parsed = cliParseArgs.parseArgs(
-    (cliArgs ?? []) as string[],
-    {
-      boolean: ["dry-run", "yes"],
-      alias: { n: "dry-run", y: "yes" },
-    },
-  );
+  const parsed = cliParseArgs.parseArgs((cliArgs ?? []) as string[], {
+    boolean: ["dry-run", "yes"],
+    alias: { n: "dry-run", y: "yes" },
+  });
 
   // Interactive confirmation for release (when not --yes and not --dry-run)
   const typeArg = parsed._[0] as string | undefined;
@@ -775,7 +757,9 @@ export const main = async (
   const yes = parsed["yes"] === true;
 
   if (
-    typeArg !== undefined && !dryRun && !yes &&
+    typeArg !== undefined &&
+    !dryRun &&
+    !yes &&
     ["patch", "minor", "major", "same"].includes(typeArg)
   ) {
     // Preview version
@@ -791,12 +775,13 @@ export const main = async (
     // reading "push tag vv4.3.1" on every bump.
     let nextVersion: string | undefined;
     try {
-      const bumped = typeArg === "same"
-        ? previousVersion
-        : await versions.bumpVersion(
-          previousVersion,
-          typeArg as VersionCommand,
-        );
+      const bumped =
+        typeArg === "same"
+          ? previousVersion
+          : await versions.bumpVersion(
+              previousVersion,
+              typeArg as VersionCommand,
+            );
       nextVersion = bumped.replace(/^v/, "");
     } catch {
       nextVersion = undefined;
@@ -831,13 +816,10 @@ export const main = async (
 export const rereleaseMain = async (
   cliArgs?: readonly string[],
 ): Promise<shellArgs.CliResult<void>> => {
-  const parsed = cliParseArgs.parseArgs(
-    (cliArgs ?? []) as string[],
-    {
-      boolean: ["dry-run", "yes"],
-      alias: { n: "dry-run", y: "yes" },
-    },
-  );
+  const parsed = cliParseArgs.parseArgs((cliArgs ?? []) as string[], {
+    boolean: ["dry-run", "yes"],
+    alias: { n: "dry-run", y: "yes" },
+  });
 
   const dryRun = parsed["dry-run"] === true;
   const yes = parsed["yes"] === true;
@@ -864,13 +846,10 @@ export const rereleaseMain = async (
 export const unreleaseMain = async (
   cliArgs?: readonly string[],
 ): Promise<shellArgs.CliResult<void>> => {
-  const parsed = cliParseArgs.parseArgs(
-    (cliArgs ?? []) as string[],
-    {
-      boolean: ["yes"],
-      alias: { y: "yes" },
-    },
-  );
+  const parsed = cliParseArgs.parseArgs((cliArgs ?? []) as string[], {
+    boolean: ["yes"],
+    alias: { y: "yes" },
+  });
 
   if (parsed["yes"] !== true) {
     const version = (await versions.readVersionFile()) ?? "0.0.0";

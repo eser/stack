@@ -71,11 +71,15 @@ const ruleAdd = async (
   if (args !== undefined) {
     for (const arg of args) {
       if (arg.startsWith("--phases=")) {
-        phases = arg.slice("--phases=".length).split(",").map((s) => s.trim());
+        phases = arg
+          .slice("--phases=".length)
+          .split(",")
+          .map((s) => s.trim());
       } else if (arg.startsWith("--applies-to=")) {
-        appliesTo = arg.slice("--applies-to=".length).split(",").map((s) =>
-          s.trim().replace(/^["']|["']$/g, "")
-        );
+        appliesTo = arg
+          .slice("--applies-to=".length)
+          .split(",")
+          .map((s) => s.trim().replace(/^["']|["']$/g, ""));
       } else if (!arg.startsWith("-")) {
         textParts.push(arg);
       }
@@ -117,12 +121,9 @@ const ruleAdd = async (
   content += ruleText + "\n";
 
   const filePath = `${root}/${persistence.paths.rulesDir}/${slug}.md`;
-  await runtime.fs.mkdir(
-    `${root}/${persistence.paths.rulesDir}`,
-    {
-      recursive: true,
-    },
-  );
+  await runtime.fs.mkdir(`${root}/${persistence.paths.rulesDir}`, {
+    recursive: true,
+  });
   await runtime.fs.writeTextFile(filePath, content);
 
   const scope = [];
@@ -166,9 +167,7 @@ const ruleList = async (): Promise<shellArgs.CliResult<void>> => {
 
   if (rules.length === 0) {
     out.writeln(
-      span.dim(
-        `  No rules yet. Add one with: ${cmd.cmd('rule add "..."')}`,
-      ),
+      span.dim(`  No rules yet. Add one with: ${cmd.cmd('rule add "..."')}`),
     );
   } else {
     for (let i = 0; i < rules.length; i++) {
@@ -184,10 +183,7 @@ const ruleList = async (): Promise<shellArgs.CliResult<void>> => {
       } else {
         scope.push("all files");
       }
-      out.writeln(
-        `  ${i + 1}. ${r.text} `,
-        span.dim(`[${scope.join(", ")}]`),
-      );
+      out.writeln(`  ${i + 1}. ${r.text} `, span.dim(`[${scope.join(", ")}]`));
     }
   }
 

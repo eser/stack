@@ -58,6 +58,5 @@ export const decodeWith = (
   text: string,
 ): Promise<unknown[]> => loader.decode(format, text);
 
-export const listFormatsWith = (
-  loader: Loader,
-): Promise<FormatListItem[]> => loader.list();
+export const listFormatsWith = (loader: Loader): Promise<FormatListItem[]> =>
+  loader.list();

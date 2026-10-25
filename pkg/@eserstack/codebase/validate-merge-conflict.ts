@@ -11,11 +11,7 @@ import * as cliSupport from "./cli-support.ts";
 import * as fileTool from "./file-tool.ts";
 import type { FileTool } from "./file-tool.ts";
 
-const CONFLICT_PATTERNS = [
-  /^<{7}\s/,
-  /^={7}$/,
-  /^>{7}\s/,
-];
+const CONFLICT_PATTERNS = [/^<{7}\s/, /^={7}$/, /^>{7}\s/];
 
 export const tool: FileTool = fileTool.withGoValidator(
   fileTool.createFileTool({

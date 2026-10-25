@@ -29,17 +29,21 @@ export const tool: FileTool = fileTool.withGoValidator(
       }
 
       if (!content.endsWith("\n")) {
-        return [{
-          path: file.path,
-          message: "file does not end with a newline",
-        }];
+        return [
+          {
+            path: file.path,
+            message: "file does not end with a newline",
+          },
+        ];
       }
 
       if (content.endsWith("\n\n")) {
-        return [{
-          path: file.path,
-          message: "file has multiple trailing newlines",
-        }];
+        return [
+          {
+            path: file.path,
+            message: "file has multiple trailing newlines",
+          },
+        ];
       }
 
       return [];

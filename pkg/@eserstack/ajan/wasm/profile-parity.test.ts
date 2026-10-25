@@ -238,7 +238,7 @@ Deno.test({
       const wasmSeq = sequence(wasmCall);
       const nativeSeq = sequence(nativeCall);
       wasmSeq.forEach(([fn, answer], i) =>
-        compare(fn, answer, nativeSeq[i]![1])
+        compare(fn, answer, nativeSeq[i]![1]),
       );
 
       // Logging: the writes are below the logger's level, so neither side
@@ -268,7 +268,7 @@ Deno.test({
       const wasmLogging = logging(wasmCall);
       const nativeLogging = logging(nativeCall);
       wasmLogging.forEach(([fn, answer], i) =>
-        compare(fn, answer, nativeLogging[i]![1])
+        compare(fn, answer, nativeLogging[i]![1]),
       );
 
       // HTTP against a local server (TASK-277). The reactor's requests wait on
@@ -341,7 +341,7 @@ Deno.test({
         });
         const nativeHttp = await http(nativeCall);
         wasmHttp.forEach(([fn, answer], i) =>
-          compare(fn, answer, nativeHttp[i]![1])
+          compare(fn, answer, nativeHttp[i]![1]),
         );
       } finally {
         worker.postMessage("stop");

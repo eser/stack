@@ -51,12 +51,10 @@ export const main = async (
   if (!TEMPLATES.includes(templateName as TemplateName)) {
     await out.close();
     return results.fail({
-      message: `${
-        renderer.render([
+      message:
+        `${renderer.render([
           span.red(`\nError: Invalid template "${templateName}"`),
-        ])
-      }\n` +
-        `Available templates: ${TEMPLATES.join(", ")}`,
+        ])}\n` + `Available templates: ${TEMPLATES.join(", ")}`,
       exitCode: 1,
     });
   }
@@ -69,9 +67,7 @@ export const main = async (
   const specOwner = "eser";
   const specRepo = `laroux-template-${templateName}`;
 
-  out.writeln(
-    span.dim(`   Fetching from gh:${specOwner}/${specRepo}...\n`),
-  );
+  out.writeln(span.dim(`   Fetching from gh:${specOwner}/${specRepo}...\n`));
 
   const specifierStr = `gh:${specOwner}/${specRepo}`;
   const specifier = cloneRecipeHandler.parseSpecifier(specifierStr);

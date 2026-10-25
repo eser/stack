@@ -53,10 +53,8 @@ Deno.test("resolveWasmPath: ESER_AJAN_WASM_PATH wins when the file exists", asyn
       "not a real module",
     );
 
-    const resolved = withEnvironment(
-      tempRoot,
-      override,
-      () => resolve.resolveWasmPath(tempRoot),
+    const resolved = withEnvironment(tempRoot, override, () =>
+      resolve.resolveWasmPath(tempRoot),
     );
 
     assert.assertEquals(resolved, override);
@@ -74,10 +72,8 @@ Deno.test("resolveWasmPath: finds the module next to the loader", async () => {
       "not a real module",
     );
 
-    const resolved = withEnvironment(
-      tempRoot,
-      undefined,
-      () => resolve.resolveWasmPath(tempRoot),
+    const resolved = withEnvironment(tempRoot, undefined, () =>
+      resolve.resolveWasmPath(tempRoot),
     );
 
     assert.assertEquals(resolved, `${tempRoot}/eser-ajan.wasm`);
@@ -95,10 +91,8 @@ Deno.test("resolveWasmPath: reports every probed location when nothing matches",
 
     const error = assert.assertThrows(
       () =>
-        withEnvironment(
-          tempRoot,
-          `${tempRoot}/missing.wasm`,
-          () => resolve.resolveWasmPath(moduleDir),
+        withEnvironment(tempRoot, `${tempRoot}/missing.wasm`, () =>
+          resolve.resolveWasmPath(moduleDir),
         ),
       Error,
     );

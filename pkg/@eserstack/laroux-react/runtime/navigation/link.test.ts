@@ -56,9 +56,8 @@ const click = (
 
   try {
     const element = link.Link(props);
-    const anchorProps = element.props as React.AnchorHTMLAttributes<
-      HTMLAnchorElement
-    >;
+    const anchorProps =
+      element.props as React.AnchorHTMLAttributes<HTMLAnchorElement>;
     anchorProps.onClick?.(
       event as unknown as React.MouseEvent<HTMLAnchorElement>,
     );

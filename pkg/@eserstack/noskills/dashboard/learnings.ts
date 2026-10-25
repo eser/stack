@@ -91,7 +91,8 @@ export const removeLearning = async (
 
   const remaining = all.filter((_, i) => i !== index);
   const file = `${root}/${LEARNINGS_FILE}`;
-  const content = remaining.map((l) => JSON.stringify(l)).join("\n") +
+  const content =
+    remaining.map((l) => JSON.stringify(l)).join("\n") +
     (remaining.length > 0 ? "\n" : "");
   await runtime.fs.writeTextFile(file, content);
   return true;
@@ -110,7 +111,10 @@ export const getRelevantLearnings = async (
   if (all.length === 0) return [];
 
   const descWords = new Set(
-    specDescription.toLowerCase().split(/\s+/).filter((w) => w.length > 3),
+    specDescription
+      .toLowerCase()
+      .split(/\s+/)
+      .filter((w) => w.length > 3),
   );
 
   // Score each learning by keyword overlap with spec description
@@ -148,20 +152,22 @@ export const formatLearnings = (
   learnings: readonly Learning[],
 ): readonly string[] => {
   return learnings.map((l) => {
-    const icon = l.type === "mistake"
-      ? "\u26A0"
-      : l.type === "success"
-      ? "\u2713"
-      : l.type === "convention"
-      ? "\u2713"
-      : "\u26A0";
-    const label = l.type === "mistake"
-      ? "Past mistake"
-      : l.type === "success"
-      ? "Success"
-      : l.type === "convention"
-      ? "Convention"
-      : "Dependency";
+    const icon =
+      l.type === "mistake"
+        ? "\u26A0"
+        : l.type === "success"
+          ? "\u2713"
+          : l.type === "convention"
+            ? "\u2713"
+            : "\u26A0";
+    const label =
+      l.type === "mistake"
+        ? "Past mistake"
+        : l.type === "success"
+          ? "Success"
+          : l.type === "convention"
+            ? "Convention"
+            : "Dependency";
     return `${icon} ${label}: ${l.text} (from spec: ${l.spec})`;
   });
 };

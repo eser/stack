@@ -77,8 +77,8 @@ export const main = async (
   // Get question texts
   const allConcerns = await persistence.listConcerns(root);
   const config = await persistence.readManifest(root);
-  const activeConcerns = allConcerns.filter((c) =>
-    config?.concerns.includes(c.id) ?? false
+  const activeConcerns = allConcerns.filter(
+    (c) => config?.concerns.includes(c.id) ?? false,
   );
   const allQuestions = questions.getQuestionsWithExtras(activeConcerns);
   const questionMap = new Map(allQuestions.map((q) => [q.id, q.text]));
@@ -94,11 +94,7 @@ export const main = async (
     for (let i = 0; i < myPending.length; i++) {
       const d = myPending[i]!;
       const qText = questionMap.get(d.questionId) ?? d.questionId;
-      out.writeln(
-        `  ${i + 1}. `,
-        span.red("[PENDING]"),
-        ` ${qText}`,
-      );
+      out.writeln(`  ${i + 1}. `, span.red("[PENDING]"), ` ${qText}`);
       out.writeln(
         span.dim(
           `     Delegated by: ${d.delegatedBy} (${d.delegatedAt.slice(0, 10)})`,
@@ -109,9 +105,7 @@ export const main = async (
 
   if (myAnswered.length > 0) {
     out.writeln("");
-    out.writeln(
-      span.green(`${myAnswered.length} answered delegation(s):`),
-    );
+    out.writeln(span.green(`${myAnswered.length} answered delegation(s):`));
     for (const d of myAnswered) {
       const qText = questionMap.get(d.questionId) ?? d.questionId;
       out.writeln(`  `, span.green("✔"), ` ${qText}`);
@@ -132,8 +126,10 @@ export const main = async (
   }
 
   if (
-    answerText !== null && answerIndex !== null &&
-    answerIndex >= 0 && answerIndex < myPending.length
+    answerText !== null &&
+    answerIndex !== null &&
+    answerIndex >= 0 &&
+    answerIndex < myPending.length
   ) {
     const delegation = myPending[answerIndex]!;
     const newState = machine.answerDelegation(
@@ -153,10 +149,7 @@ export const main = async (
     });
 
     out.writeln("");
-    out.writeln(
-      span.green("✔"),
-      ` Answered: ${delegation.questionId}`,
-    );
+    out.writeln(span.green("✔"), ` Answered: ${delegation.questionId}`);
   }
 
   await out.close();

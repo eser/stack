@@ -73,8 +73,8 @@ export async function compileStylesheet(
 ): Promise<string> {
   const { plugin, processor, context, minify } = options;
 
-  const pluginClaimsFile = plugin !== null &&
-    (plugin.shouldProcess?.(css, context) ?? true);
+  const pluginClaimsFile =
+    plugin !== null && (plugin.shouldProcess?.(css, context) ?? true);
 
   if (pluginClaimsFile && plugin.compile !== undefined) {
     return await plugin.compile(css, context);

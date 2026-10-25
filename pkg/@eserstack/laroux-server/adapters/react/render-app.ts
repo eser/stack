@@ -70,19 +70,17 @@ export function renderApp(
   // declared props require request, hence the cast through unknown.
   const pageElement = protocol.isClientReference(Page)
     ? React.createElement(
-      Page as unknown as React.ComponentType<
-        Omit<larouxRouter.PageProps, "request">
-      >,
-      pageProps,
-    )
+        Page as unknown as React.ComponentType<
+          Omit<larouxRouter.PageProps, "request">
+        >,
+        pageProps,
+      )
     : React.createElement(Page, { ...pageProps, request });
 
   return protocol.isClientReference(Layout)
     ? React.createElement(
-      Layout as unknown as React.ComponentType<
-        { children: React.ReactNode }
-      >,
-      { children: pageElement },
-    )
+        Layout as unknown as React.ComponentType<{ children: React.ReactNode }>,
+        { children: pageElement },
+      )
     : React.createElement(Layout, { children: pageElement, request });
 }

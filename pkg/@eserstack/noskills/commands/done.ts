@@ -47,9 +47,7 @@ export const main = async (
 
   if (state.phase !== "EXECUTING") {
     out.writeln(span.red(`Cannot complete in phase: ${state.phase}`));
-    out.writeln(
-      span.dim("Only EXECUTING phase can transition to COMPLETED."),
-    );
+    out.writeln(span.dim("Only EXECUTING phase can transition to COMPLETED."));
     await out.close();
 
     return results.fail({ exitCode: 1 });
@@ -57,16 +55,12 @@ export const main = async (
 
   // Jidoka C2: verify last status report exists and has no critical remaining items
   if (state.execution.awaitingStatusReport) {
-    out.writeln(
-      span.red("Cannot complete: status report is pending."),
-    );
+    out.writeln(span.red("Cannot complete: status report is pending."));
     out.writeln(
       span.dim(
-        `Submit a status report first: ${
-          cmd.cmd(
-            `spec ${specResult.spec} next --answer='{"completed":[...],"remaining":[...]}'`,
-          )
-        }`,
+        `Submit a status report first: ${cmd.cmd(
+          `spec ${specResult.spec} next --answer='{"completed":[...],"remaining":[...]}'`,
+        )}`,
       ),
     );
     await out.close();
@@ -149,9 +143,7 @@ export const main = async (
   if (state.decisions.length > 0) {
     const promoted = state.decisions.filter((d) => d.promoted);
     if (promoted.length > 0) {
-      out.writeln(
-        span.dim(`  Promoted to rules: ${promoted.length}`),
-      );
+      out.writeln(span.dim(`  Promoted to rules: ${promoted.length}`));
     }
   }
 

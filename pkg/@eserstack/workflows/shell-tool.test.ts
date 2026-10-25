@@ -22,7 +22,7 @@ const contextFor = (timeoutMs: number): WorkflowToolContext => ({
 
 // kill -0 sends no signal: it exits 0 only while the process exists.
 const isRunning = async (pid: string): Promise<boolean> =>
-  await shellExec.exec`kill -0 ${pid}`.code() === 0;
+  (await shellExec.exec`kill -0 ${pid}`.code()) === 0;
 
 // Runs `fn` with a fresh temporary directory and removes it afterwards.
 const withTempDir = async (
@@ -195,14 +195,16 @@ Deno.test({
           {
             id: "sleepy",
             on: ["test"],
-            steps: [{
-              shell: {
-                name: "sleeper",
-                command: sleeperCommand(pidFile),
-                timeout: 0.5,
-                continueOnError: true,
+            steps: [
+              {
+                shell: {
+                  name: "sleeper",
+                  command: sleeperCommand(pidFile),
+                  timeout: 0.5,
+                  continueOnError: true,
+                },
               },
-            }],
+            ],
           },
           toolRegistry,
           { root: dir },

@@ -105,7 +105,7 @@ const buildRoadmap = (phase: string): string => {
     BLOCKED: "EXECUTING",
   };
   const mapped = phaseMap[phase] ?? phase;
-  return ROADMAP.map((p) => p === mapped ? `[ ${p} ]` : p).join(" → ");
+  return ROADMAP.map((p) => (p === mapped ? `[ ${p} ]` : p)).join(" → ");
 };
 
 // =============================================================================
@@ -183,19 +183,20 @@ const summarizeSpec = async (
 
   // Determine timestamps
   const history = state.transitionHistory ?? [];
-  const createdAt = history.length > 0
-    ? history[0]!.timestamp
-    : new Date().toISOString();
+  const createdAt =
+    history.length > 0 ? history[0]!.timestamp : new Date().toISOString();
   const updatedAt = state.lastCalledAt ?? createdAt;
 
   // Confidence scoring
   const findings = state.execution.confidenceFindings ?? [];
-  const avgConfidence = findings.length > 0
-    ? Math.round(
-      (findings.reduce((acc, f) => acc + f.confidence, 0) / findings.length) *
-        10,
-    ) / 10
-    : null;
+  const avgConfidence =
+    findings.length > 0
+      ? Math.round(
+          (findings.reduce((acc, f) => acc + f.confidence, 0) /
+            findings.length) *
+            10,
+        ) / 10
+      : null;
   const lowConfidenceItems = findings.filter((f) => f.confidence < 5).length;
 
   return {
@@ -225,11 +226,9 @@ export const getState = async (root: string): Promise<DashboardState> => {
   // Also check spec directories without state files
   try {
     const specsDir = `${root}/${persistence.paths.specsDir}`;
-    for await (
-      const entry of (await import("@eserstack/standards/cross-runtime"))
-        .runtime.fs
-        .readDir(specsDir)
-    ) {
+    for await (const entry of (
+      await import("@eserstack/standards/cross-runtime")
+    ).runtime.fs.readDir(specsDir)) {
       if (entry.isDirectory && !specNames.has(entry.name)) {
         specNames.add(entry.name);
       }
@@ -243,15 +242,15 @@ export const getState = async (root: string): Promise<DashboardState> => {
   // state.json is read at most once, by the first spec that needs it.
   let activeState: Promise<schema.StateFile> | null = null;
   const readActiveState = (): Promise<schema.StateFile> =>
-    activeState ??= persistence.readState(root);
+    (activeState ??= persistence.readState(root));
 
   const summaries = await Promise.all(
     [...specNames].map((name) =>
-      summarizeSpec(root, name, readActiveState).catch(() => null)
+      summarizeSpec(root, name, readActiveState).catch(() => null),
     ),
   );
-  const specs = summaries.filter((summary): summary is SpecSummary =>
-    summary !== null
+  const specs = summaries.filter(
+    (summary): summary is SpecSummary => summary !== null,
   );
 
   // Sort: active specs first, then by updatedAt
@@ -264,9 +263,8 @@ export const getState = async (root: string): Promise<DashboardState> => {
   });
 
   // Active spec = first non-completed, non-idle spec
-  const activeSpec = specs.find(
-    (s) => s.phase !== "COMPLETED" && s.phase !== "IDLE",
-  ) ?? null;
+  const activeSpec =
+    specs.find((s) => s.phase !== "COMPLETED" && s.phase !== "IDLE") ?? null;
 
   // Recent events
   const recentEvents = await events.readEvents(root, { limit: 50 });
@@ -303,15 +301,15 @@ export const getState = async (root: string): Promise<DashboardState> => {
 
   // Current user
   const user = await identity.resolveUser(root);
-  const currentUser: User | null = user !== undefined
-    ? { name: user.name, email: user.email }
-    : null;
+  const currentUser: User | null =
+    user !== undefined ? { name: user.name, email: user.email } : null;
 
   // Roles from manifest
   const manifest = await persistence.readManifest(root);
-  const roles = (manifest as unknown as Record<string, unknown>)?.["roles"] as
-    | RoleMap
-    | null ?? null;
+  const roles =
+    ((manifest as unknown as Record<string, unknown>)?.[
+      "roles"
+    ] as RoleMap | null) ?? null;
 
   return {
     specs,

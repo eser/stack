@@ -10,10 +10,7 @@ import type { LarouxGlobalThis } from "./globals.d.ts";
 // The page-wide state the laroux client keeps on globalThis, with its types.
 const larouxGlobals = globalThis as LarouxGlobalThis;
 
-const hmrLogger = logging.logger.getLogger([
-  "laroux-bundler",
-  "hmr-client",
-]);
+const hmrLogger = logging.logger.getLogger(["laroux-bundler", "hmr-client"]);
 
 /**
  * Initialize HMR WebSocket connection
@@ -67,18 +64,20 @@ export function initializeHMR(): void {
             break;
 
           case "update":
-            hmrLogger.with({
-              changedModules: message.changedModules,
-            }).debug("Update received");
+            hmrLogger
+              .with({
+                changedModules: message.changedModules,
+              })
+              .debug("Update received");
             // Debounce reload to handle multiple rapid updates
             if (reloadTimeout) {
               clearTimeout(reloadTimeout);
             }
             reloadTimeout = setTimeout(() => {
               // Check if only CSS files changed
-              const onlyCssChanged = message.changedModules?.every((
-                mod: string,
-              ) => mod.endsWith(".css"));
+              const onlyCssChanged = message.changedModules?.every(
+                (mod: string) => mod.endsWith(".css"),
+              );
 
               if (onlyCssChanged) {
                 hmrLogger.debug("CSS-only update, reloading stylesheet");
@@ -98,13 +97,14 @@ export function initializeHMR(): void {
               ) {
                 hmrLogger.debug("Attempting Smart Refresh");
                 // Pass changed modules for targeted updates
-                larouxGlobals.__performSmartRefresh__(
-                  message.changedModules,
-                )
+                larouxGlobals
+                  .__performSmartRefresh__(message.changedModules)
                   .catch((error: Error) => {
-                    hmrLogger.with({ error }).error(
-                      "Smart Refresh failed, falling back to full reload",
-                    );
+                    hmrLogger
+                      .with({ error })
+                      .error(
+                        "Smart Refresh failed, falling back to full reload",
+                      );
                     globalThis.location.reload();
                   });
               } else {
@@ -133,10 +133,12 @@ export function initializeHMR(): void {
       if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
         reconnectAttempts++;
         const delay = getReconnectDelay(reconnectAttempts);
-        hmrLogger.with({
-          attempt: reconnectAttempts,
-          delayMs: delay,
-        }).debug("Reconnecting...");
+        hmrLogger
+          .with({
+            attempt: reconnectAttempts,
+            delayMs: delay,
+          })
+          .debug("Reconnecting...");
         setTimeout(connect, delay);
       } else {
         hmrLogger.warn(

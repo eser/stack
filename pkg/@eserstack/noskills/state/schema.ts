@@ -639,8 +639,12 @@ export type ConcernLifecycle = {
    * Note: spec kind detection is not yet automated — this field is informational
    * and intended for future compiler filtering.
    */
-  readonly appliesToKinds?:
-    readonly ("feature" | "bugfix" | "refactor" | "docs")[];
+  readonly appliesToKinds?: readonly (
+    | "feature"
+    | "bugfix"
+    | "refactor"
+    | "docs"
+  )[];
 };
 
 export type ConcernDefinition = {

@@ -71,9 +71,7 @@ export const parseSpecContent = (
 
     // Parse task checkboxes: - [ ] task-N: Title
     if (currentSection.startsWith("tasks")) {
-      const taskMatch = trimmed.match(
-        /^-\s*\[[ x]\]\s*(task-\d+):\s*(.+)$/i,
-      );
+      const taskMatch = trimmed.match(/^-\s*\[[ x]\]\s*(task-\d+):\s*(.+)$/i);
       if (taskMatch !== null) {
         tasks.push({
           id: taskMatch[1]!,

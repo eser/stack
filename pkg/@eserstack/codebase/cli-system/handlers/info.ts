@@ -18,11 +18,7 @@ const runtime = standardsCrossRuntime.runtime;
 
 const LABEL_WIDTH = 20;
 
-const info = (
-  out: streams.Output,
-  label: string,
-  value: string,
-): void => {
+const info = (out: streams.Output, label: string, value: string): void => {
   const padded = `${label}:`.padEnd(LABEL_WIDTH);
 
   out.writeln(span.text(`  ${padded}${value}`));
@@ -91,9 +87,8 @@ export const infoHandler = async (
   for (const key of envKeys) {
     const value = runtime.env.get(key);
     if (value !== undefined) {
-      const display = key === "PATH"
-        ? `(${value.split(":").length} entries)`
-        : value;
+      const display =
+        key === "PATH" ? `(${value.split(":").length} entries)` : value;
       info(out, key, display);
     }
   }

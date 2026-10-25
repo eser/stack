@@ -11,9 +11,7 @@ import * as shellExec from "@eserstack/shell/exec";
 
 export const format = async (input: string) => {
   const execPath = runtime.process.execPath();
-  const child = shellExec.exec`${execPath} fmt -`
-    .stderr("null")
-    .child();
+  const child = shellExec.exec`${execPath} fmt -`.stderr("null").child();
 
   const raw = new ReadableStream({
     start(controller) {

@@ -51,10 +51,7 @@ function toBase64Url(bytes: Uint8Array): string {
   for (const byte of bytes) {
     binary += String.fromCharCode(byte);
   }
-  return btoa(binary)
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=/g, "");
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
 }
 
 /** Generate a cryptographically random URL-safe string of the given byte length. */
@@ -77,11 +74,9 @@ async function deriveCodeChallenge(verifier: string): Promise<string> {
  * also keeps the input to btoa within ASCII.
  */
 const basicAuthHeader = (clientId: string, clientSecret: string): string =>
-  `Basic ${
-    btoa(
-      `${encodeURIComponent(clientId)}:${encodeURIComponent(clientSecret)}`,
-    )
-  }`;
+  `Basic ${btoa(
+    `${encodeURIComponent(clientId)}:${encodeURIComponent(clientSecret)}`,
+  )}`;
 
 /** Implements AuthProvider using Twitter OAuth 2.0 PKCE browser flow. */
 export class TwitterAuthProvider implements AuthProvider {
@@ -149,9 +144,10 @@ export class TwitterAuthProvider implements AuthProvider {
     return tokens;
   }
 
-  loginWithCredentials(
-    _params: { identifier: string; password: string },
-  ): Promise<OAuthTokens> {
+  loginWithCredentials(_params: {
+    identifier: string;
+    password: string;
+  }): Promise<OAuthTokens> {
     return Promise.reject(
       new Error(
         "Twitter uses browser-based OAuth, not direct credential login.",

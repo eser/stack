@@ -192,9 +192,8 @@ bdd.describe("Spec naming", () => {
 
   bdd.it("spec directory uses the name", async () => {
     // The persistence paths use the spec name
-    const { specDir, specFile } = (
-      await import("../state/persistence.ts")
-    ).paths;
+    const { specDir, specFile } = (await import("../state/persistence.ts"))
+      .paths;
     assert.assertEquals(specDir("photo-upload"), ".eser/specs/photo-upload");
     assert.assertEquals(
       specFile("photo-upload"),
@@ -218,10 +217,7 @@ bdd.describe("Spec naming", () => {
     );
     assert.assertEquals(slugify("fix login bug!!!"), "fix-login-bug");
     assert.assertEquals(slugify("   spaces   "), "spaces");
-    assert.assertEquals(
-      slugify("a".repeat(60)),
-      "a".repeat(50),
-    );
+    assert.assertEquals(slugify("a".repeat(60)), "a".repeat(50));
   });
 });
 
@@ -282,9 +278,7 @@ bdd.describe("Spec switching", () => {
   });
 
   bdd.it("per-spec state file path uses spec name", async () => {
-    const { specStateFile } = (
-      await import("../state/persistence.ts")
-    ).paths;
+    const { specStateFile } = (await import("../state/persistence.ts")).paths;
     assert.assertEquals(
       specStateFile("photo-upload"),
       ".eser/.state/progresses/specs/photo-upload.json",
@@ -331,7 +325,7 @@ bdd.describe("Agentless end-to-end: text output at every phase", () => {
 
       const outputs = await Promise.all(
         phases.map((p) =>
-          compiler.compile(p.state, noConcerns, noRules, config())
+          compiler.compile(p.state, noConcerns, noRules, config()),
         ),
       );
 
@@ -397,18 +391,18 @@ bdd.describe("No active spec behavior", () => {
 
     const cmdMap = output.commandMap ?? {};
     const hasSpecNew = Object.values(cmdMap).some((cmd) =>
-      cmd.includes("spec new")
+      cmd.includes("spec new"),
     );
     assert.assertEquals(hasSpecNew, true);
   });
 
   bdd.it("IDLE output includes availableConcerns list", async () => {
-    const output = await compiler.compile(
+    const output = (await compiler.compile(
       idle(),
       noConcerns,
       noRules,
       config(),
-    ) as compiler.IdleOutput;
+    )) as compiler.IdleOutput;
 
     assert.assertEquals(output.availableConcerns !== undefined, true);
     assert.assertEquals(output.availableConcerns!.length > 0, true);
@@ -429,7 +423,7 @@ bdd.describe("No active spec behavior", () => {
       );
 
       const hasRule = output.behavioral.rules.some((r) =>
-        r.includes("AskUserQuestion")
+        r.includes("AskUserQuestion"),
       );
       assert.assertEquals(hasRule, true);
     },
@@ -438,12 +432,12 @@ bdd.describe("No active spec behavior", () => {
   bdd.it(
     "IDLE with zero concerns includes hint about adding concerns",
     async () => {
-      const output = await compiler.compile(
+      const output = (await compiler.compile(
         idle(),
         [],
         noRules,
         config(),
-      ) as compiler.IdleOutput;
+      )) as compiler.IdleOutput;
 
       assert.assertEquals(output.hint !== undefined, true);
       assert.assertEquals(output.hint!.includes("concern"), true);

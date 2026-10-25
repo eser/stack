@@ -501,9 +501,7 @@ const createSymbolWrappers = (
     },
     EserAjanDIResolve: (name: string): string => {
       const cName = toCString(name);
-      const rawPtr = rawSymbols.EserAjanDIResolve(
-        Deno.UnsafePointer.of(cName),
-      );
+      const rawPtr = rawSymbols.EserAjanDIResolve(Deno.UnsafePointer.of(cName));
       return readAndFree(rawPtr);
     },
     EserAjanAiCreateModel: (configJSON: string): string => {
@@ -639,23 +637,17 @@ const createSymbolWrappers = (
     },
     EserAjanLogCreate: (configJSON: string): string => {
       const cStr = toCString(configJSON);
-      const rawPtr = rawSymbols.EserAjanLogCreate(
-        Deno.UnsafePointer.of(cStr),
-      );
+      const rawPtr = rawSymbols.EserAjanLogCreate(Deno.UnsafePointer.of(cStr));
       return readAndFree(rawPtr);
     },
     EserAjanLogWrite: (requestJSON: string): string => {
       const cStr = toCString(requestJSON);
-      const rawPtr = rawSymbols.EserAjanLogWrite(
-        Deno.UnsafePointer.of(cStr),
-      );
+      const rawPtr = rawSymbols.EserAjanLogWrite(Deno.UnsafePointer.of(cStr));
       return readAndFree(rawPtr);
     },
     EserAjanLogClose: (handle: string): string => {
       const cStr = toCString(handle);
-      const rawPtr = rawSymbols.EserAjanLogClose(
-        Deno.UnsafePointer.of(cStr),
-      );
+      const rawPtr = rawSymbols.EserAjanLogClose(Deno.UnsafePointer.of(cStr));
       return readAndFree(rawPtr);
     },
     EserAjanLogShouldLog: (requestJSON: string): string => {
@@ -674,9 +666,7 @@ const createSymbolWrappers = (
     },
     EserAjanHttpCreate: (configJSON: string): string => {
       const cStr = toCString(configJSON);
-      const rawPtr = rawSymbols.EserAjanHttpCreate(
-        Deno.UnsafePointer.of(cStr),
-      );
+      const rawPtr = rawSymbols.EserAjanHttpCreate(Deno.UnsafePointer.of(cStr));
       return readAndFree(rawPtr);
     },
     EserAjanHttpRequest: (requestJSON: string): string => {
@@ -688,9 +678,7 @@ const createSymbolWrappers = (
     },
     EserAjanHttpClose: (handle: string): string => {
       const cStr = toCString(handle);
-      const rawPtr = rawSymbols.EserAjanHttpClose(
-        Deno.UnsafePointer.of(cStr),
-      );
+      const rawPtr = rawSymbols.EserAjanHttpClose(Deno.UnsafePointer.of(cStr));
       return readAndFree(rawPtr);
     },
     EserAjanHttpRequestStream: (requestJSON: string): string => {
@@ -744,9 +732,7 @@ const createSymbolWrappers = (
     },
     EserAjanCryptoHash: (requestJSON: string): string => {
       const cStr = toCString(requestJSON);
-      const rawPtr = rawSymbols.EserAjanCryptoHash(
-        Deno.UnsafePointer.of(cStr),
-      );
+      const rawPtr = rawSymbols.EserAjanCryptoHash(Deno.UnsafePointer.of(cStr));
       return readAndFree(rawPtr);
     },
     EserAjanCacheCreate: (requestJSON: string): string => {
@@ -772,9 +758,7 @@ const createSymbolWrappers = (
     },
     EserAjanCacheList: (requestJSON: string): string => {
       const cStr = toCString(requestJSON);
-      const rawPtr = rawSymbols.EserAjanCacheList(
-        Deno.UnsafePointer.of(cStr),
-      );
+      const rawPtr = rawSymbols.EserAjanCacheList(Deno.UnsafePointer.of(cStr));
       return readAndFree(rawPtr);
     },
     EserAjanCacheRemove: (requestJSON: string): string => {
@@ -786,30 +770,22 @@ const createSymbolWrappers = (
     },
     EserAjanCacheClear: (requestJSON: string): string => {
       const cStr = toCString(requestJSON);
-      const rawPtr = rawSymbols.EserAjanCacheClear(
-        Deno.UnsafePointer.of(cStr),
-      );
+      const rawPtr = rawSymbols.EserAjanCacheClear(Deno.UnsafePointer.of(cStr));
       return readAndFree(rawPtr);
     },
     EserAjanCacheClose: (requestJSON: string): string => {
       const cStr = toCString(requestJSON);
-      const rawPtr = rawSymbols.EserAjanCacheClose(
-        Deno.UnsafePointer.of(cStr),
-      );
+      const rawPtr = rawSymbols.EserAjanCacheClose(Deno.UnsafePointer.of(cStr));
       return readAndFree(rawPtr);
     },
     EserAjanCsGenerate: (requestJSON: string): string => {
       const cStr = toCString(requestJSON);
-      const rawPtr = rawSymbols.EserAjanCsGenerate(
-        Deno.UnsafePointer.of(cStr),
-      );
+      const rawPtr = rawSymbols.EserAjanCsGenerate(Deno.UnsafePointer.of(cStr));
       return readAndFree(rawPtr);
     },
     EserAjanCsSync: (requestJSON: string): string => {
       const cStr = toCString(requestJSON);
-      const rawPtr = rawSymbols.EserAjanCsSync(
-        Deno.UnsafePointer.of(cStr),
-      );
+      const rawPtr = rawSymbols.EserAjanCsSync(Deno.UnsafePointer.of(cStr));
       return readAndFree(rawPtr);
     },
     EserAjanKitListRecipes: (requestJSON: string): string => {
@@ -877,9 +853,7 @@ const createSymbolWrappers = (
     },
     EserAjanPostsClose: (requestJSON: string): string => {
       const cStr = toCString(requestJSON);
-      const rawPtr = rawSymbols.EserAjanPostsClose(
-        Deno.UnsafePointer.of(cStr),
-      );
+      const rawPtr = rawSymbols.EserAjanPostsClose(Deno.UnsafePointer.of(cStr));
       return readAndFree(rawPtr);
     },
     EserAjanCodebaseGitCurrentBranch: (requestJSON: string): string => {
@@ -1072,9 +1046,7 @@ const createSymbolWrappers = (
     },
     EserAjanShellExec: (requestJSON: string): string => {
       const cStr = toCString(requestJSON);
-      const rawPtr = rawSymbols.EserAjanShellExec(
-        Deno.UnsafePointer.of(cStr),
-      );
+      const rawPtr = rawSymbols.EserAjanShellExec(Deno.UnsafePointer.of(cStr));
       return readAndFree(rawPtr);
     },
     EserAjanShellTuiKeypressCreate: (requestJSON: string): string => {

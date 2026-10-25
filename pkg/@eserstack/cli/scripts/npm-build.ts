@@ -75,10 +75,10 @@ const createImportMetaMainPlugin = (entryPath: string): esbuild.Plugin => ({
         loader: args.path.endsWith(".tsx")
           ? "tsx"
           : args.path.endsWith(".ts")
-          ? "ts"
-          : args.path.endsWith(".jsx")
-          ? "jsx"
-          : "js",
+            ? "ts"
+            : args.path.endsWith(".jsx")
+              ? "jsx"
+              : "js",
       };
     });
   },
@@ -124,8 +124,7 @@ const main = async (): Promise<void> => {
       platform: "node",
       target: "node26",
       banner: {
-        js:
-          'import { createRequire } from "node:module"; const require = createRequire(import.meta.url);',
+        js: 'import { createRequire } from "node:module"; const require = createRequire(import.meta.url);',
       },
       minify: true,
       // @eserstack/* imports need no plugin: pnpm links each workspace package
@@ -145,9 +144,9 @@ const main = async (): Promise<void> => {
   if (result.errors.length > 0) {
     const details = result.errors.map((error) => `  - ${error.text}`);
     throw new Error(
-      `bundle ${mainTsPath} with esbuild: ${result.errors.length} error(s)\n${
-        details.join("\n")
-      }`,
+      `bundle ${mainTsPath} with esbuild: ${result.errors.length} error(s)\n${details.join(
+        "\n",
+      )}`,
     );
   }
 

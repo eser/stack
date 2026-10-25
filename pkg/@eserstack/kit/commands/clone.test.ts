@@ -61,7 +61,8 @@ Deno.test("parseSpecifier — handles complex repo names", () => {
 
 const envOf =
   (vars: Readonly<Record<string, string>>) =>
-  (name: string): string | undefined => vars[name];
+  (name: string): string | undefined =>
+    vars[name];
 
 const limitCases: ReadonlyArray<{
   readonly name: string;

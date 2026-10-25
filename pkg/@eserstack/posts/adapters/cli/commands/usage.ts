@@ -30,9 +30,7 @@ export const main = async (
 
   const { cliTriggers } = await wiring.createAppContext();
 
-  const usageResult = await task.runTask(
-    cliTriggers.getUsage({ platform }),
-  );
+  const usageResult = await task.runTask(cliTriggers.getUsage({ platform }));
   if (results.isFail(usageResult)) {
     await output.outputError(usageResult.error.message);
     return results.fail({ exitCode: 1 });

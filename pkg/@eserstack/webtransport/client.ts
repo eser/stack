@@ -84,9 +84,10 @@ class WebTransportClientImpl implements IWebTransportClient {
     const options = this.#buildOptions();
     const newTransport = this.#config._newTransport;
 
-    const wt = newTransport !== undefined
-      ? newTransport(url, options)
-      : new globalThis.WebTransport(url, options);
+    const wt =
+      newTransport !== undefined
+        ? newTransport(url, options)
+        : new globalThis.WebTransport(url, options);
 
     await this.#waitUntilReady(wt);
 
@@ -131,8 +132,10 @@ class WebTransportClientImpl implements IWebTransportClient {
     const baseUrl = this.#config.baseUrl;
 
     if (
-      baseUrl === undefined || baseUrl === "" ||
-      urlOrPath.startsWith("https://") || urlOrPath.startsWith("http://")
+      baseUrl === undefined ||
+      baseUrl === "" ||
+      urlOrPath.startsWith("https://") ||
+      urlOrPath.startsWith("http://")
     ) {
       return urlOrPath;
     }

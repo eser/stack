@@ -90,13 +90,13 @@ Correct:
 ```tsx
 <button type="button" aria-label="Close panel" onClick={props.onClose}>
   ×
-</button>;
+</button>
 ```
 
 Incorrect:
 
 ```tsx
-<div onClick={props.onClose}>×</div>;
+<div onClick={props.onClose}>×</div>
 ```
 
 ---

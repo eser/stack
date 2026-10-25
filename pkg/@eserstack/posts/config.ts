@@ -127,9 +127,10 @@ export const requireTokenStorePath = (
   if (value === undefined) return undefined;
 
   const { path } = crossRuntime.runtime;
-  const expanded = value === "~" || value.startsWith("~/")
-    ? path.join(crossRuntime.getHomedir(), value.slice(1))
-    : value;
+  const expanded =
+    value === "~" || value.startsWith("~/")
+      ? path.join(crossRuntime.getHomedir(), value.slice(1))
+      : value;
 
   if (!path.isAbsolute(expanded)) {
     throw new Error(
@@ -159,42 +160,40 @@ export const requireTokenStorePath = (
  * cloned repository controls. An empty value counts as unset.
  */
 export async function loadPostsConfig(): Promise<PostsConfig> {
-  const result = await dotenv.configure<PostsConfig>(
-    (reader) => {
-      // Build the config as a plain object — avoids readonly assignment errors
-      // while still producing the correctly-typed PostsConfig.
-      const cfg: PostsConfig = {
-        env: reader.getCurrentEnv(),
-        twitter: {
-          clientId: readOptional(reader, "TWITTER_CLIENT_ID"),
-          clientSecret: readOptional(reader, "TWITTER_CLIENT_SECRET"),
-          redirectUri: reader.readString(
-            "TWITTER_REDIRECT_URI",
-            DEFAULT_REDIRECT_URI,
-          ),
-          apiBaseUrl: requireServiceUrl(
-            "TWITTER_API_BASE_URL",
-            readOperatorEnv("TWITTER_API_BASE_URL"),
-          ),
-        },
-        bluesky: {
-          pdsHost: requireServiceUrl(
-            "BLUESKY_PDS_HOST",
-            readOperatorEnv("BLUESKY_PDS_HOST"),
-          ),
-          identifier: readOptional(reader, "BLUESKY_IDENTIFIER"),
-          appPassword: readOptional(reader, "BLUESKY_APP_PASSWORD"),
-        },
-        ai: {
-          apiKey: readOptional(reader, "ANTHROPIC_API_KEY"),
-        },
-        tokenStorePath: requireTokenStorePath(
-          readOperatorEnv("POSTS_TOKEN_STORE_PATH"),
+  const result = await dotenv.configure<PostsConfig>((reader) => {
+    // Build the config as a plain object — avoids readonly assignment errors
+    // while still producing the correctly-typed PostsConfig.
+    const cfg: PostsConfig = {
+      env: reader.getCurrentEnv(),
+      twitter: {
+        clientId: readOptional(reader, "TWITTER_CLIENT_ID"),
+        clientSecret: readOptional(reader, "TWITTER_CLIENT_SECRET"),
+        redirectUri: reader.readString(
+          "TWITTER_REDIRECT_URI",
+          DEFAULT_REDIRECT_URI,
         ),
-      };
-      return cfg;
-    },
-  );
+        apiBaseUrl: requireServiceUrl(
+          "TWITTER_API_BASE_URL",
+          readOperatorEnv("TWITTER_API_BASE_URL"),
+        ),
+      },
+      bluesky: {
+        pdsHost: requireServiceUrl(
+          "BLUESKY_PDS_HOST",
+          readOperatorEnv("BLUESKY_PDS_HOST"),
+        ),
+        identifier: readOptional(reader, "BLUESKY_IDENTIFIER"),
+        appPassword: readOptional(reader, "BLUESKY_APP_PASSWORD"),
+      },
+      ai: {
+        apiKey: readOptional(reader, "ANTHROPIC_API_KEY"),
+      },
+      tokenStorePath: requireTokenStorePath(
+        readOperatorEnv("POSTS_TOKEN_STORE_PATH"),
+      ),
+    };
+    return cfg;
+  });
 
   // configure() returns T | undefined; undefined only if the fn returns void.
   // Our fn always returns a fully-constructed PostsConfig, so this is

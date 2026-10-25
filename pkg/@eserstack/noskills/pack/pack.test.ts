@@ -34,9 +34,7 @@ const filesExist = (paths: readonly string[]): Promise<boolean[]> =>
   Promise.all(paths.map((path) => fileExists(path)));
 
 const removeFiles = async (paths: readonly string[]): Promise<void> => {
-  await Promise.all(
-    paths.map((path) => crossRuntime.runtime.fs.remove(path)),
-  );
+  await Promise.all(paths.map((path) => crossRuntime.runtime.fs.remove(path)));
 };
 
 const readJson = async (path: string): Promise<unknown> => {
@@ -221,9 +219,9 @@ bdd.describe("Pack install (built-in)", () => {
     assert.assertMatch(concernFile, /^\d{3}-ts-quality\.json$/);
     assert.assert(await fileExists(`${tempDir}/.eser/concerns/${concernFile}`));
 
-    const content = await readJson(
+    const content = (await readJson(
       `${tempDir}/.eser/concerns/${concernFile}`,
-    ) as { id: string };
+    )) as { id: string };
     assert.assertEquals(content.id, "ts-quality");
   });
 
@@ -313,11 +311,11 @@ bdd.describe("Pack uninstall", () => {
     );
     await packCmd.writePacksFile(tempDir, { installed: [installed] });
 
-    const rulePaths = installed.rules.map((ruleFile) =>
-      `${tempDir}/.eser/rules/${ruleFile}`
+    const rulePaths = installed.rules.map(
+      (ruleFile) => `${tempDir}/.eser/rules/${ruleFile}`,
     );
-    const concernPaths = installed.concerns.map((concernFile) =>
-      `${tempDir}/.eser/concerns/${concernFile}`
+    const concernPaths = installed.concerns.map(
+      (concernFile) => `${tempDir}/.eser/concerns/${concernFile}`,
     );
 
     // Verify files exist
@@ -342,8 +340,8 @@ bdd.describe("Pack uninstall", () => {
       builtin,
     );
 
-    const concernPaths = installed.concerns.map((concernFile) =>
-      `${tempDir}/.eser/concerns/${concernFile}`
+    const concernPaths = installed.concerns.map(
+      (concernFile) => `${tempDir}/.eser/concerns/${concernFile}`,
     );
 
     // Verify concern exists
@@ -355,10 +353,7 @@ bdd.describe("Pack uninstall", () => {
     // Remove
     await removeFiles(concernPaths);
 
-    assert.assertEquals(
-      (await filesExist(concernPaths)).includes(true),
-      false,
-    );
+    assert.assertEquals((await filesExist(concernPaths)).includes(true), false);
   });
 });
 
@@ -516,9 +511,9 @@ bdd.describe("Concern install", () => {
       builtin,
     );
 
-    const content = await readJson(
+    const content = (await readJson(
       `${tempDir}/.eser/concerns/${installed.concerns[0]}`,
-    ) as Record<string, unknown>;
+    )) as Record<string, unknown>;
 
     assert.assertEquals(typeof content["id"], "string");
     assert.assertEquals(typeof content["name"], "string");
@@ -579,10 +574,11 @@ bdd.describe("Sync after install", () => {
     const rules = await loadScopedRules(tempDir);
 
     // Should find the pack rules
-    const packRules = rules.filter((r) =>
-      r.text.includes("explicit types") ||
-      r.text.includes("any") ||
-      r.text.includes("const")
+    const packRules = rules.filter(
+      (r) =>
+        r.text.includes("explicit types") ||
+        r.text.includes("any") ||
+        r.text.includes("const"),
     );
     assert.assert(
       packRules.length >= 3,
@@ -663,9 +659,9 @@ bdd.describe("Pack install (remote): concern scopes", () => {
     );
 
     assert.assertEquals(installed.concerns.length, 1);
-    const written = await readJson(
+    const written = (await readJson(
       `${tempDir}/.eser/concerns/${installed.concerns[0]}`,
-    ) as { reminders: unknown[] };
+    )) as { reminders: unknown[] };
     assert.assertEquals(written.reminders[1], {
       text: "Design every state",
       scope: ["ui"],

@@ -13,7 +13,10 @@ const cookieCases: ReadonlyArray<{
   {
     name: "reads every pair and trims the spaces around it",
     header: " theme=dark ;user=ada ",
-    expected: [["theme", "dark"], ["user", "ada"]],
+    expected: [
+      ["theme", "dark"],
+      ["user", "ada"],
+    ],
   },
   {
     name: "keeps an = inside the value",
@@ -23,7 +26,10 @@ const cookieCases: ReadonlyArray<{
   {
     name: "decodes percent escapes and removes surrounding quotes",
     header: 'user=ada%20lovelace; note="hello world"',
-    expected: [["user", "ada lovelace"], ["note", "hello world"]],
+    expected: [
+      ["user", "ada lovelace"],
+      ["note", "hello world"],
+    ],
   },
   {
     name: "keeps a value with a malformed escape as sent",

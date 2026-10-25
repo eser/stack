@@ -127,18 +127,20 @@ the findings to you before it asks for your approval:
       "id": "spec-proposal",
       "from": "SPEC_PROPOSAL",
       "to": "SPEC_APPROVED",
-      "approval": "The user approves the spec draft, and its tasks and acceptance criteria become the work to execute and check."
+      "approval": "The user approves the spec draft, and its tasks and acceptance criteria become the work to execute and check.",
     },
     "agent": "claude-code",
     "model": "claude-sonnet-5",
     "summary": "One task has no acceptance criterion.",
-    "findings": [{
-      "severity": "medium",
-      "issue": "task-3 names no acceptance criterion.",
-      "suggestion": "Add a criterion that names the expected output."
-    }],
-    "instruction": "A second model checked this transition in an isolated context: ..."
-  }
+    "findings": [
+      {
+        "severity": "medium",
+        "issue": "task-3 names no acceptance criterion.",
+        "suggestion": "Add a criterion that names the expected output.",
+      },
+    ],
+    "instruction": "A second model checked this transition in an isolated context: ...",
+  },
 }
 ```
 
@@ -167,7 +169,7 @@ Every `noskills next` call returns a structured JSON payload:
     "id": "task-2",
     "title": "Add photo upload endpoint with validation",
     "totalTasks": 5,
-    "completedTasks": 1
+    "completedTasks": 1,
   },
   "meta": {
     "protocol": "Run `eser noskills next --answer=\"...\"` to submit results and advance",
@@ -184,31 +186,31 @@ Every `noskills next` call returns a structured JSON payload:
         "Git write guard",
         "Stop iteration tracking",
         "PostToolUse file logging",
-        "Sub-agent delegation"
-      ]
-    }
+        "Sub-agent delegation",
+      ],
+    },
   },
   "behavioral": {
     "rules": [
       "NEVER run git write commands.",
       "Do not explore beyond the current task.",
       "Do not refactor outside this task's scope.",
-      "Complete the task, then report progress."
+      "Complete the task, then report progress.",
     ],
-    "tone": "Direct. Orchestrate immediately — spawn sub-agents."
+    "tone": "Direct. Orchestrate immediately — spawn sub-agents.",
   },
   "context": {
     "rules": ["Use Deno for all TypeScript"],
     "concernReminders": [
       "open-source: Endpoint should be documented in API docs",
-      "beautiful-product: Loading and error states must be designed"
-    ]
+      "beautiful-product: Loading and error states must be designed",
+    ],
   },
   "transition": {
     "onComplete": "eser noskills next --answer=\"...\"",
     "onBlocked": "eser noskills block \"reason\"",
-    "iteration": 3
-  }
+    "iteration": 3,
+  },
 }
 ```
 
@@ -216,10 +218,12 @@ When concerns conflict, the output includes a tension block:
 
 ```jsonc
 {
-  "concernTensions": [{
-    "between": ["move-fast", "compliance"],
-    "issue": "Skipping audit log saves ~2h but violates compliance concern."
-  }]
+  "concernTensions": [
+    {
+      "between": ["move-fast", "compliance"],
+      "issue": "Skipping audit log saves ~2h but violates compliance concern.",
+    },
+  ],
 }
 ```
 
@@ -372,9 +376,9 @@ spec never sees UI dimensions.
       "label": "Test Pyramid Strategy",
       "prompt": "Map every new behavior to a test layer: Unit | Integration | E2E. Flag untested failure paths.",
       "evidenceRequired": true,
-      "scope": "all" // "all" | "ui" | "api" | "data" | "migration"
-    }
-  ]
+      "scope": "all", // "all" | "ui" | "api" | "data" | "migration"
+    },
+  ],
 }
 ```
 
@@ -413,7 +417,7 @@ synthesis step in discovery:
 ```jsonc
 // long-lived pushes architectural trajectory
 {
-  "dreamStatePrompt": "Synthesize: CURRENT STATE → THIS SPEC → 6-MONTH IDEAL..."
+  "dreamStatePrompt": "Synthesize: CURRENT STATE → THIS SPEC → 6-MONTH IDEAL...",
 }
 ```
 
@@ -448,32 +452,37 @@ edit):
   "id": "fintech-compliance", // stable identifier — used as prefix in prompt reminders
   "name": "Fintech Compliance", // human-readable label
   "description": "Short description of what this concern enforces.",
-  "extras": [ // sub-questions injected into DISCOVERY
+  "extras": [
+    // sub-questions injected into DISCOVERY
     {
       "questionId": "reversibility", // matches one of the 6 base question IDs
-      "text": "Is the audit trail preserved on rollback?"
-    }
+      "text": "Is the audit trail preserved on rollback?",
+    },
   ],
   "specSections": ["Audit Trail"], // sections added to the generated spec
-  "reminders": [ // a plain string is shown in every EXECUTING prompt
+  "reminders": [
+    // a plain string is shown in every EXECUTING prompt
     "Every state change must be traceable to an actor and timestamp",
-    { // a scoped reminder reaches only the specs and files its scope names
+    {
+      // a scoped reminder reaches only the specs and files its scope names
       "text": "Mask account numbers in every log line",
-      "scope": ["data"]
-    }
+      "scope": ["data"],
+    },
   ],
-  "acceptanceCriteria": [ // checked in status reports
-    "Audit log entries present for all mutations"
+  "acceptanceCriteria": [
+    // checked in status reports
+    "Audit log entries present for all mutations",
   ],
-  "reviewDimensions": [ // shown in DISCOVERY_REFINEMENT
+  "reviewDimensions": [
+    // shown in DISCOVERY_REFINEMENT
     {
       "id": "audit-completeness",
       "label": "Audit Trail Completeness",
       "prompt": "For every mutation: is it logged with actor, action, resource, from-value, to-value, timestamp?",
       "evidenceRequired": true,
-      "scope": "data" // "all" | "ui" | "api" | "data" | "migration"
-    }
-  ]
+      "scope": "data", // "all" | "ui" | "api" | "data" | "migration"
+    },
+  ],
 }
 ```
 
@@ -527,8 +536,8 @@ Reminders are plain strings or `{ "text": "...", "scope": [...] }` objects:
     "Every state change must be traceable", // every spec, every EXECUTING prompt
     { "text": "Every screen has an empty state", "scope": ["ui"] }, // .tsx and the other UI files, in UI specs
     { "text": "Version every public route", "scope": ["api"] }, // .ts, .go, .py and .rs files, in API specs
-    { "text": "Write the down migration too", "scope": ["migration"] } // every file, in migration specs
-  ]
+    { "text": "Write the down migration too", "scope": ["migration"] }, // every file, in migration specs
+  ],
 }
 ```
 
@@ -543,9 +552,9 @@ while one of its values has its flag set:
       "title": "Retention Policy",
       "placeholder": "_How long is each new data element kept?_",
       "scope": ["data"],
-      "position": "after:acceptance-criteria"
-    }
-  ]
+      "position": "after:acceptance-criteria",
+    },
+  ],
 }
 ```
 
@@ -995,8 +1004,8 @@ import * as noskills from "@eserstack/noskills/mod";
 const { root } = await noskills.persistence.resolveProjectRoot();
 const config = await noskills.persistence.readManifest(root);
 const allConcerns = await noskills.concerns.loadDefaultConcerns();
-const activeConcerns = allConcerns.filter((c) =>
-  config?.concerns.includes(c.id) === true
+const activeConcerns = allConcerns.filter(
+  (c) => config?.concerns.includes(c.id) === true,
 );
 
 const state = noskills.machine.startSpec(
@@ -1026,9 +1035,10 @@ either shape with `noskills.concerns.reminderText(reminder)` and
 import * as noskills from "@eserstack/noskills/mod";
 
 const concerns = await noskills.concerns.loadDefaultConcerns();
-const uiReminders = concerns.flatMap((concern) => concern.reminders)
+const uiReminders = concerns
+  .flatMap((concern) => concern.reminders)
   .filter((reminder) =>
-    noskills.concerns.reminderScope(reminder).includes("ui")
+    noskills.concerns.reminderScope(reminder).includes("ui"),
   )
   .map((reminder) => noskills.concerns.reminderText(reminder));
 ```

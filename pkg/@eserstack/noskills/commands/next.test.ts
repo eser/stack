@@ -42,12 +42,12 @@ const inDiscoveryHuman = (): schema.StateFile =>
 
 // Keys are the discovery question ids `next` takes, so they keep snake case.
 const SIX_ANSWERS = {
-  "status_quo": "Users manually upload files",
+  status_quo: "Users manually upload files",
   ambition: "Add smart upload with validation",
   reversibility: "No irreversible changes",
-  "user_impact": "No breaking changes to existing workflows",
+  user_impact: "No breaking changes to existing workflows",
   verification: "Unit tests pass and coverage meets threshold",
-  "scope_boundary": "No admin panel changes in this iteration",
+  scope_boundary: "No admin panel changes in this iteration",
 };
 
 // =============================================================================
@@ -165,29 +165,26 @@ bdd.describe("Agent batch discovery", () => {
     },
   );
 
-  bdd.it(
-    "keeps discovery open while a follow-up is pending",
-    async () => {
-      const state = machine.addFollowUp(
-        inDiscoveryAgent(),
-        "reversibility",
-        "What is the rollback plan?",
-        "agent",
-      );
+  bdd.it("keeps discovery open while a follow-up is pending", async () => {
+    const state = machine.addFollowUp(
+      inDiscoveryAgent(),
+      "reversibility",
+      "What is the rollback plan?",
+      "agent",
+    );
 
-      const result = await next.handleAnswer(
-        "/tmp/test",
-        state,
-        config(),
-        [],
-        JSON.stringify(SIX_ANSWERS),
-      );
+    const result = await next.handleAnswer(
+      "/tmp/test",
+      state,
+      config(),
+      [],
+      JSON.stringify(SIX_ANSWERS),
+    );
 
-      assert.assertEquals(result.phase, "DISCOVERY");
-      assert.assertEquals(result.discovery.answers.length, 6);
-      assert.assertEquals(machine.getPendingFollowUps(result).length, 1);
-    },
-  );
+    assert.assertEquals(result.phase, "DISCOVERY");
+    assert.assertEquals(result.discovery.answers.length, 6);
+    assert.assertEquals(machine.getPendingFollowUps(result).length, 1);
+  });
 
   bdd.it("plain string in agent mode stores for current question", async () => {
     const state = inDiscoveryAgent();
@@ -293,25 +290,22 @@ bdd.describe("Answers submitted together: provenance", () => {
     },
   );
 
-  bdd.it(
-    "flags the answers (Jidoka C1) when one was not asked",
-    async () => {
-      await writeSteps(Object.keys(SIX_ANSWERS).slice(0, 4));
+  bdd.it("flags the answers (Jidoka C1) when one was not asked", async () => {
+    await writeSteps(Object.keys(SIX_ANSWERS).slice(0, 4));
 
-      const result = await next.handleAnswer(
-        root,
-        inDiscoveryAgent(),
-        config(),
-        [],
-        JSON.stringify(SIX_ANSWERS),
-      );
+    const result = await next.handleAnswer(
+      root,
+      inDiscoveryAgent(),
+      config(),
+      [],
+      JSON.stringify(SIX_ANSWERS),
+    );
 
-      const sources = sourcesOf(result);
-      assert.assertEquals(sources["user_impact"], "STATED");
-      assert.assertEquals(sources["verification"], "INFERRED");
-      assert.assertEquals(result.discovery.batchSubmitted, true);
-    },
-  );
+    const sources = sourcesOf(result);
+    assert.assertEquals(sources["user_impact"], "STATED");
+    assert.assertEquals(sources["verification"], "INFERRED");
+    assert.assertEquals(result.discovery.batchSubmitted, true);
+  });
 
   bdd.it("flags answers sent with no ask token at all", async () => {
     const result = await next.handleAnswer(
@@ -456,9 +450,7 @@ bdd.describe("DISCOVERY_REFINEMENT split gating", () => {
       prefix: "nos_next_split_",
     });
     try {
-      const state = machine.approveDiscoveryAnswers(
-        multiAreaDiscoveryReview(),
-      );
+      const state = machine.approveDiscoveryAnswers(multiAreaDiscoveryReview());
 
       const result = await next.handleAnswer(
         root,
@@ -471,7 +463,8 @@ bdd.describe("DISCOVERY_REFINEMENT split gating", () => {
       assert.assertEquals(result.phase, "COMPLETED");
       assert.assertEquals(result.completionReason, "cancelled");
       assert.assertNotEquals(result.completionNote, null);
-      const childNames = result.completionNote!.replace("Split into: ", "")
+      const childNames = result
+        .completionNote!.replace("Split into: ", "")
         .split(", ");
       assert.assertEquals(childNames.length >= 2, true);
       const children = await Promise.all(
@@ -491,11 +484,10 @@ bdd.describe("DISCOVERY_REFINEMENT split gating", () => {
       prefix: "nos_next_split_taken_",
     });
     try {
-      const state = machine.approveDiscoveryAnswers(
-        multiAreaDiscoveryReview(),
-      );
-      const [taken] = splitDetector.analyzeForSplit(state.discovery.answers)
-        .proposals;
+      const state = machine.approveDiscoveryAnswers(multiAreaDiscoveryReview());
+      const [taken] = splitDetector.analyzeForSplit(
+        state.discovery.answers,
+      ).proposals;
       if (taken === undefined) throw new Error("the fixture has no split");
       const existing = machine.startSpec(idle(), taken.name, "spec/existing");
       await crossRuntime.runtime.fs.mkdir(
@@ -632,11 +624,7 @@ bdd.describe("consumeAskToken", () => {
       askedQuestion: "What is the current behavior?",
     });
 
-    const result = await next.consumeAskToken(
-      tempDir,
-      "my-spec",
-      "status_quo",
-    );
+    const result = await next.consumeAskToken(tempDir, "my-spec", "status_quo");
 
     assert.assertEquals(result.source, "STATED");
     assert.assertEquals(result.questionMatch, "exact");
@@ -701,11 +689,7 @@ bdd.describe("consumeAskToken", () => {
       createdAt: old,
     });
 
-    const result = await next.consumeAskToken(
-      tempDir,
-      "my-spec",
-      "status_quo",
-    );
+    const result = await next.consumeAskToken(tempDir, "my-spec", "status_quo");
 
     assert.assertEquals(result.source, "INFERRED");
     assert.assertEquals(result.questionMatch, "not-asked");
@@ -713,11 +697,7 @@ bdd.describe("consumeAskToken", () => {
 
   bdd.it("returns INFERRED for missing token file", async () => {
     // No file written.
-    const result = await next.consumeAskToken(
-      tempDir,
-      "my-spec",
-      "status_quo",
-    );
+    const result = await next.consumeAskToken(tempDir, "my-spec", "status_quo");
 
     assert.assertEquals(result.source, "INFERRED");
     assert.assertEquals(result.questionMatch, "not-asked");
@@ -734,22 +714,14 @@ bdd.describe("consumeAskToken", () => {
 
     assert.assertEquals(await tokenExists(tempDir), true);
 
-    const result = await next.consumeAskToken(
-      tempDir,
-      "my-spec",
-      "status_quo",
-    );
+    const result = await next.consumeAskToken(tempDir, "my-spec", "status_quo");
     assert.assertEquals(result.source, "STATED");
 
     // File should be gone now.
     assert.assertEquals(await tokenExists(tempDir), false);
 
     // Second call must fall through to INFERRED.
-    const second = await next.consumeAskToken(
-      tempDir,
-      "my-spec",
-      "status_quo",
-    );
+    const second = await next.consumeAskToken(tempDir, "my-spec", "status_quo");
     assert.assertEquals(second.source, "INFERRED");
   });
 
@@ -761,11 +733,7 @@ bdd.describe("consumeAskToken", () => {
       "{ this is not valid json",
     );
 
-    const result = await next.consumeAskToken(
-      tempDir,
-      "my-spec",
-      "status_quo",
-    );
+    const result = await next.consumeAskToken(tempDir, "my-spec", "status_quo");
 
     assert.assertEquals(result.source, "INFERRED");
     assert.assertEquals(result.questionMatch, "not-asked");
@@ -878,13 +846,15 @@ bdd.describe("Review-gate state machine", () => {
     specSections: [],
     reminders: [],
     acceptanceCriteria: [],
-    reviewDimensions: [{
-      id: "test-dim",
-      label: "Test Dimension",
-      prompt: "Check this thing exists in the implementation.",
-      evidenceRequired: false,
-      scope: "all" as const,
-    }],
+    reviewDimensions: [
+      {
+        id: "test-dim",
+        label: "Test Dimension",
+        prompt: "Check this thing exists in the implementation.",
+        evidenceRequired: false,
+        scope: "all" as const,
+      },
+    ],
   });
 
   // Build a state that is already inside the review gate at the given cursor
@@ -1293,7 +1263,7 @@ bdd.describe("import-plan answer handling", () => {
         );
         assert.assertEquals(
           (result.discovery.userContext ?? []).some((c) =>
-            c.includes("No active plan found")
+            c.includes("No active plan found"),
           ),
           true,
         );

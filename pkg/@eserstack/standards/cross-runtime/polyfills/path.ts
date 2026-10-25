@@ -48,9 +48,7 @@ export const toPosix = (path: string): string => normalizeSlashes(path);
 const join = (...paths: string[]): string => {
   if (paths.length === 0) return ".";
 
-  const joined = paths
-    .filter((p) => p.length > 0)
-    .join(POSIX_SEP);
+  const joined = paths.filter((p) => p.length > 0).join(POSIX_SEP);
 
   if (joined.length === 0) return ".";
 
@@ -202,10 +200,7 @@ const isAbsolute = (path: string): boolean => {
   if (path.startsWith("/")) return true;
 
   // Windows absolute path (C:\ or C:/)
-  if (
-    path.length >= 3 &&
-    /^[a-zA-Z]:[/\\]/.test(path)
-  ) {
+  if (path.length >= 3 && /^[a-zA-Z]:[/\\]/.test(path)) {
     return true;
   }
 
@@ -239,10 +234,7 @@ const relative = (from: string, to: string): string => {
   const upCount = fromParts.length - commonLength;
   const remaining = toParts.slice(commonLength);
 
-  const result = [
-    ...Array(upCount).fill(".."),
-    ...remaining,
-  ];
+  const result = [...Array(upCount).fill(".."), ...remaining];
 
   return result.join("/") ?? ".";
 };
@@ -286,7 +278,7 @@ const format = (pathObject: Partial<ParsedPath>): string => {
   const { root = "", dir, base, ext = "", name = "" } = pathObject;
 
   // If base is provided, use it directly
-  const finalBase = base ?? (name + ext);
+  const finalBase = base ?? name + ext;
 
   // If dir is provided, join with base
   if (dir) {

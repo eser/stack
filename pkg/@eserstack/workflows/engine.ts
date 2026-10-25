@@ -83,10 +83,8 @@ const workflowError = (message: string): WorkflowError => ({
 /**
  * Join names for an error message, or "(none)" when there are none.
  */
-const joinOrNone = (
-  names: readonly string[],
-  separator: string,
-): string => names.length > 0 ? names.join(separator) : "(none)";
+const joinOrNone = (names: readonly string[], separator: string): string =>
+  names.length > 0 ? names.join(separator) : "(none)";
 
 /**
  * Convert a step's `timeout` option, in seconds, to milliseconds.
@@ -96,7 +94,9 @@ const joinOrNone = (
  */
 const parseStepTimeout = (stepName: string, value: unknown): number => {
   if (
-    typeof value !== "number" || !Number.isFinite(value) || value <= 0 ||
+    typeof value !== "number" ||
+    !Number.isFinite(value) ||
+    value <= 0 ||
     value > MAX_TIMEOUT_SECONDS
   ) {
     throw new Error(
@@ -270,7 +270,8 @@ export const runWorkflow = (
     const defaultTimeout = options.defaultTimeout ?? DEFAULT_STEP_TIMEOUT_MS;
 
     if (
-      !Number.isFinite(defaultTimeout) || defaultTimeout <= 0 ||
+      !Number.isFinite(defaultTimeout) ||
+      defaultTimeout <= 0 ||
       defaultTimeout > MAX_TIMEOUT_MS
     ) {
       return results.fail(
@@ -359,7 +360,8 @@ export const runWorkflow = (
 
       // Apply mutations between steps so subsequent tools see the fixed state
       if (
-        toolResult.mutations.length > 0 && options.onMutations !== undefined
+        toolResult.mutations.length > 0 &&
+        options.onMutations !== undefined
       ) {
         // The next step must not start before these mutations are applied.
         // deno-lint-ignore no-await-in-loop
@@ -394,9 +396,7 @@ export const resolveIncludes = (
   allWorkflows: readonly WorkflowDefinition[],
   visited: ReadonlySet<string> = new Set(),
 ): WorkflowDefinition => {
-  if (
-    workflow.includes === undefined || workflow.includes.length === 0
-  ) {
+  if (workflow.includes === undefined || workflow.includes.length === 0) {
     return workflow;
   }
 
@@ -409,9 +409,9 @@ export const resolveIncludes = (
     if (currentVisited.has(includeId)) {
       throw new Error(
         `Circular include detected: workflow '${workflow.id}' includes '${includeId}' ` +
-          `which is already in the include chain: ${
-            [...currentVisited].join(" → ")
-          }`,
+          `which is already in the include chain: ${[...currentVisited].join(
+            " → ",
+          )}`,
       );
     }
 
@@ -419,7 +419,10 @@ export const resolveIncludes = (
     if (included === undefined) {
       throw new Error(
         `Workflow '${workflow.id}' includes '${includeId}' but no workflow with that id exists. ` +
-          `Available: ${joinOrNone(allWorkflows.map((w) => w.id), ", ")}`,
+          `Available: ${joinOrNone(
+            allWorkflows.map((w) => w.id),
+            ", ",
+          )}`,
       );
     }
 
@@ -456,7 +459,10 @@ export const runWorkflowWithConfig = (
       return results.fail(
         workflowError(
           `Workflow '${workflowId}' not found. ` +
-            `Available: ${joinOrNone(config.workflows.map((w) => w.id), ", ")}`,
+            `Available: ${joinOrNone(
+              config.workflows.map((w) => w.id),
+              ", ",
+            )}`,
         ),
       );
     }
@@ -487,12 +493,10 @@ export const runByEvent = (
       return results.fail(
         workflowError(
           `No workflows found for event '${event}'. ` +
-            `Available: ${
-              joinOrNone(
-                workflows.map((w) => `${w.id} (${w.on.join(", ")})`),
-                "; ",
-              )
-            }`,
+            `Available: ${joinOrNone(
+              workflows.map((w) => `${w.id} (${w.on.join(", ")})`),
+              "; ",
+            )}`,
         ),
       );
     }

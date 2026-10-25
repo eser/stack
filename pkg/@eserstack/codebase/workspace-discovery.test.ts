@@ -25,7 +25,7 @@ Deno.test("getPackageFiles leaves out tests, benches, private files and testdata
     });
     await Promise.all(
       files.map((file) =>
-        runtime.fs.writeTextFile(runtime.path.join(root, file), "export {};\n")
+        runtime.fs.writeTextFile(runtime.path.join(root, file), "export {};\n"),
       ),
     );
 

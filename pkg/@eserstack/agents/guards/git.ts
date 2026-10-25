@@ -39,34 +39,34 @@ export const GIT_ALLOWED_SUBCOMMANDS: ReadonlySet<string> = new Set([
  * Subcommands that read only when their first argument is one of the listed
  * values. The empty string stands for no argument at all (`git branch`).
  */
-export const GIT_CONDITIONAL_READS: ReadonlyMap<string, ReadonlySet<string>> =
-  new Map(
-    [
-      [
-        "branch",
-        new Set([
-          "",
-          "--list",
-          "-l",
-          "-a",
-          "--all",
-          "-r",
-          "--remotes",
-          "-v",
-          "--verbose",
-          "--contains",
-          "--no-contains",
-          "--merged",
-          "--no-merged",
-          "--show-current",
-        ]),
-      ],
-      ["tag", new Set(["", "-l", "--list", "-v", "--verify", "-n"])],
-      ["stash", new Set(["list", "show"])],
-      ["remote", new Set(["", "-v", "--verbose", "show", "get-url"])],
-      ["reflog", new Set(["", "show"])],
-    ],
-  );
+export const GIT_CONDITIONAL_READS: ReadonlyMap<
+  string,
+  ReadonlySet<string>
+> = new Map([
+  [
+    "branch",
+    new Set([
+      "",
+      "--list",
+      "-l",
+      "-a",
+      "--all",
+      "-r",
+      "--remotes",
+      "-v",
+      "--verbose",
+      "--contains",
+      "--no-contains",
+      "--merged",
+      "--no-merged",
+      "--show-current",
+    ]),
+  ],
+  ["tag", new Set(["", "-l", "--list", "-v", "--verify", "-n"])],
+  ["stash", new Set(["list", "show"])],
+  ["remote", new Set(["", "-v", "--verbose", "show", "get-url"])],
+  ["reflog", new Set(["", "show"])],
+]);
 
 /**
  * Options before the subcommand that take a value: as the next argument
@@ -231,8 +231,9 @@ const isInlineGlobalFlag = (arg: string): boolean => {
   if (!arg.startsWith("--") || eq === -1) return false;
   const name = arg.slice(0, eq);
 
-  return GIT_GLOBAL_FLAGS_WITH_ARG.has(name) ||
-    GIT_GLOBAL_FLAGS_INLINE_ARG.has(name);
+  return (
+    GIT_GLOBAL_FLAGS_WITH_ARG.has(name) || GIT_GLOBAL_FLAGS_INLINE_ARG.has(name)
+  );
 };
 
 const extractGitSubcommandIndex = (tokens: readonly string[]): number => {
@@ -570,8 +571,7 @@ export const writesFile = (command: string, path: string): boolean => {
   const escaped = path.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   return new RegExp(
     String.raw`(?:>>?|\btee(?:\s+-a)?)\s*["']?${escaped}["']?(?:\s|$|[;&|])`,
-  )
-    .test(command);
+  ).test(command);
 };
 
 /**

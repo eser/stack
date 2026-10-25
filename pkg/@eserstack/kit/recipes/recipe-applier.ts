@@ -126,9 +126,10 @@ export class RecipeApplyError extends Error {
     written: readonly string[],
     options?: ErrorOptions,
   ) {
-    const leftover = written.length === 0
-      ? "no files were written"
-      : `${written.length} file(s) written before it stay in place; once the cause below is fixed, rerun with --force to overwrite them`;
+    const leftover =
+      written.length === 0
+        ? "no files were written"
+        : `${written.length} file(s) written before it stay in place; once the cause below is fixed, rerun with --force to overwrite them`;
     super(`apply recipe ${recipeName}: ${step}; ${leftover}`, options);
     this.name = "RecipeApplyError";
     this.recipeName = recipeName;
@@ -212,8 +213,7 @@ export class PostInstallError extends Error {
       detail =
         "it did not start; check that the program is installed and on PATH";
     } else {
-      detail =
-        `exit code ${exitCode}; fix the problem in its output above, then run it by hand`;
+      detail = `exit code ${exitCode}; fix the problem in its output above, then run it by hand`;
     }
     super(`run post-install command "${command}": ${detail}`, options);
     this.name = "PostInstallError";
@@ -254,9 +254,11 @@ export const isPathSafe = (cwd: string, target: string): boolean => {
   if (runtime.path.isAbsolute(rel)) return false;
 
   // Reject "..", "../foo", "..\\foo" — anything that escapes the base.
-  return rel !== ".." &&
+  return (
+    rel !== ".." &&
     !rel.startsWith(`..${runtime.path.sep}`) &&
-    !rel.startsWith("../");
+    !rel.startsWith("../")
+  );
 };
 
 // =============================================================================
@@ -482,16 +484,12 @@ export const runPostInstall = async (
       // Post-install commands run in the declared order, each one may depend
       // on the previous, and the first failure stops the rest.
       // deno-lint-ignore no-await-in-loop
-      result = await runtime.exec.spawn(
-        parts[0]!,
-        parts.slice(1),
-        {
-          cwd,
-          stdout: "inherit",
-          stderr: "inherit",
-          signal: controller.signal,
-        },
-      );
+      result = await runtime.exec.spawn(parts[0]!, parts.slice(1), {
+        cwd,
+        stdout: "inherit",
+        stderr: "inherit",
+        signal: controller.signal,
+      });
     } catch (error) {
       // Node rejects an aborted spawn; Deno and Bun resolve it as a failure.
       const timedOut = controller.signal.aborted ? { timeoutMs } : {};
@@ -526,7 +524,7 @@ export const printVariablesApplied = (
   variables: Readonly<Record<string, string>>,
 ): void => {
   const entries = Object.entries(variables).sort(([a], [b]) =>
-    a.localeCompare(b)
+    a.localeCompare(b),
   );
   if (entries.length === 0) return;
 
@@ -573,8 +571,8 @@ export const applyFromFiles = async (
 
   // Phase 2: Check for conflicts (file-level only, unless force/skip)
   if (options.force !== true && options.skipExisting !== true) {
-    const fileTargets = files.filter((file) =>
-      (file.kind ?? "file") === "file"
+    const fileTargets = files.filter(
+      (file) => (file.kind ?? "file") === "file",
     );
     // The checks are independent reads, one per declared file, so they run
     // together; the results are reported below in the declared order.
@@ -724,9 +722,9 @@ export const applyWholeRepo = async (
     const alwaysIgnore = [".git", "recipe.json", "eser-registry.json"];
     const ignore = [...alwaysIgnore, ...(recipe.ignore ?? [])];
 
-    for await (
-      const entry of runtime.fs.walk(tempDir, { includeDirs: false })
-    ) {
+    for await (const entry of runtime.fs.walk(tempDir, {
+      includeDirs: false,
+    })) {
       const relPath = runtime.path.relative(tempDir, entry.path);
 
       if (processor.shouldIgnore(relPath, ignore)) continue;
@@ -739,7 +737,7 @@ export const applyWholeRepo = async (
       if (!isPathSafe(options.cwd, targetAbs)) continue;
 
       // Conflict check
-      if (await fileExists(targetAbs) && options.force !== true) {
+      if ((await fileExists(targetAbs)) && options.force !== true) {
         if (options.skipExisting === true) {
           skipped.push(targetRel);
           if (options.verbose === true) {

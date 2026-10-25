@@ -76,9 +76,7 @@ export const main = async (
           e.referencedFiles.length === 0 ? "none" : e.referencedFiles.join(", ")
         }`,
       );
-      out.writeln(
-        span.dim(`    verified: ${e.lastVerified.slice(0, 10)}`),
-      );
+      out.writeln(span.dim(`    verified: ${e.lastVerified.slice(0, 10)}`));
     }
     await out.close();
     return results.ok(undefined);
@@ -133,9 +131,7 @@ export const main = async (
     return results.ok(undefined);
   }
 
-  out.writeln(
-    span.red("Unknown subcommand. Use: scan, list, check, verify"),
-  );
+  out.writeln(span.red("Unknown subcommand. Use: scan, list, check, verify"));
   await out.close();
   return results.fail({ exitCode: 1 });
 };

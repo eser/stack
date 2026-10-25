@@ -19,9 +19,8 @@ import type { BlueskyPostView, BlueskyProfileResponse } from "./types.ts";
  */
 export function mapToDomainPost(raw: BlueskyPostView): Post {
   const replyRoot = raw.record.reply?.root;
-  const inReplyToId = replyRoot !== undefined
-    ? postId.toPostId(replyRoot.uri)
-    : undefined;
+  const inReplyToId =
+    replyRoot !== undefined ? postId.toPostId(replyRoot.uri) : undefined;
 
   return {
     id: postId.toPostId(raw.uri),
@@ -32,8 +31,10 @@ export function mapToDomainPost(raw: BlueskyPostView): Post {
     platformRef: {
       uri: raw.uri,
       cid: raw.cid,
-      ...(replyRoot !== undefined &&
-        { rootUri: replyRoot.uri, rootCid: replyRoot.cid }),
+      ...(replyRoot !== undefined && {
+        rootUri: replyRoot.uri,
+        rootCid: replyRoot.cid,
+      }),
     },
     ...(inReplyToId !== undefined && { inReplyToId }),
   };

@@ -147,8 +147,8 @@ export const resizeFocused = (
   const childKey = hasLeaf(node.first, target)
     ? "first"
     : hasLeaf(node.second, target)
-    ? "second"
-    : null;
+      ? "second"
+      : null;
   if (childKey === null) return node;
 
   // Prefer the deepest matching branch: recurse first.
@@ -158,9 +158,8 @@ export const resizeFocused = (
     return { ...node, [childKey]: adjustedChild };
   }
 
-  const axis: SplitDirection = direction === "left" || direction === "right"
-    ? "vertical"
-    : "horizontal";
+  const axis: SplitDirection =
+    direction === "left" || direction === "right" ? "vertical" : "horizontal";
   if (node.direction !== axis) return node;
 
   const sign = direction === "right" || direction === "down" ? 1 : -1;

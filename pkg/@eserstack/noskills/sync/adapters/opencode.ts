@@ -499,9 +499,7 @@ export const opencodeAdapter: adapter.ToolAdapter = {
     );
   },
 
-  syncMcp: async (
-    ctx: adapter.SyncContext,
-  ): Promise<void> => {
+  syncMcp: async (ctx: adapter.SyncContext): Promise<void> => {
     const configPath = `${ctx.root}/${CONFIG_FILE}`;
 
     // Read existing config (preserve non-noskills config)
@@ -512,7 +510,8 @@ export const opencodeAdapter: adapter.ToolAdapter = {
         const parsed: unknown = JSON.parse(content);
         // A file holding null, an array or a scalar counts as no config.
         if (
-          parsed !== null && typeof parsed === "object" &&
+          parsed !== null &&
+          typeof parsed === "object" &&
           !Array.isArray(parsed)
         ) {
           existing = parsed as OpenCodeConfig;

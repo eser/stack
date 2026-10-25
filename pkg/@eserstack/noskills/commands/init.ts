@@ -34,8 +34,8 @@ export const main = async (
   const outputMode = mode.detectMode(args);
   // Read before stripModeFlag, which removes --non-interactive with the mode
   // flags.
-  const nonInteractive = (args ?? []).includes("--non-interactive") ||
-    outputMode === "agent";
+  const nonInteractive =
+    (args ?? []).includes("--non-interactive") || outputMode === "agent";
   const ctx = tui.createTuiContext({
     target: nonInteractive ? "non-interactive" : "interactive",
   });
@@ -76,10 +76,10 @@ export const main = async (
   const detectedTools = await toolDetect.detectCodingTools(root);
 
   const currentAgent = env.detectAgentTool();
-  const guaranteed: schema.CodingToolId[] = currentAgent !== null &&
-      !detectedTools.includes(currentAgent)
-    ? [currentAgent]
-    : [];
+  const guaranteed: schema.CodingToolId[] =
+    currentAgent !== null && !detectedTools.includes(currentAgent)
+      ? [currentAgent]
+      : [];
   const allDetected: schema.CodingToolId[] = [
     ...new Set([...guaranteed, ...detectedTools]),
   ];
@@ -100,15 +100,14 @@ export const main = async (
       "copilot-cli",
     ];
     const parsed = parsedTools.filter((t): t is schema.CodingToolId =>
-      valid.includes(t as schema.CodingToolId)
+      valid.includes(t as schema.CodingToolId),
     );
     codingTools = [...new Set([...guaranteed, ...parsed])];
   } else if (alreadyInitialized) {
     // Re-init: use tools from existing config
     const existingConfig = await persistence.readManifest(root);
-    codingTools = existingConfig !== null
-      ? [...existingConfig.tools]
-      : [...allDetected];
+    codingTools =
+      existingConfig !== null ? [...existingConfig.tools] : [...allDetected];
   } else if (nonInteractive) {
     codingTools = [...allDetected];
   } else {
@@ -119,15 +118,12 @@ export const main = async (
   tui.gap(ctx);
 
   // ── Step 4: Detect AI providers ──
-  const providerSpinner = tui.createSpinner(
-    ctx,
-    "Detecting AI providers...",
-  );
+  const providerSpinner = tui.createSpinner(ctx, "Detecting AI providers...");
   providerSpinner.start();
   const providers = await toolDetect.detectProviders();
-  const availableProviders = providers.filter((p) => p.available).map((p) =>
-    p.name
-  );
+  const availableProviders = providers
+    .filter((p) => p.available)
+    .map((p) => p.name);
   providerSpinner.succeed(`${availableProviders.length} provider(s) detected`);
 
   tui.gap(ctx);
@@ -144,9 +140,8 @@ export const main = async (
   } else if (alreadyInitialized) {
     // Re-init: use concerns from existing config
     const existingConfig = await persistence.readManifest(root);
-    selectedConcernIds = existingConfig !== null
-      ? [...existingConfig.concerns]
-      : [];
+    selectedConcernIds =
+      existingConfig !== null ? [...existingConfig.concerns] : [];
   } else if (nonInteractive) {
     selectedConcernIds = [];
   } else {
@@ -164,7 +159,7 @@ export const main = async (
 
     selectedConcernIds = tui.isCancel(selected)
       ? []
-      : [...selected as string[]];
+      : [...(selected as string[])];
   }
 
   if (selectedConcernIds.length > 0) {
@@ -175,7 +170,7 @@ export const main = async (
 
   // ── Step 6: Write concerns ──
   const selectedConcerns = allConcerns.filter((c) =>
-    selectedConcernIds.includes(c.id)
+    selectedConcernIds.includes(c.id),
   );
   await Promise.all(
     selectedConcerns.map((concern) => persistence.writeConcern(root, concern)),
@@ -216,9 +211,10 @@ export const main = async (
 
   // The hooks start this command for every guarded tool call, and most tools
   // let the call through when a hook does not answer in time.
-  const networkWarning = syncEngine.toolsWithHooks(codingTools).length > 0
-    ? hookCommands.networkCommandWarning(commandPrefix)
-    : null;
+  const networkWarning =
+    syncEngine.toolsWithHooks(codingTools).length > 0
+      ? hookCommands.networkCommandWarning(commandPrefix)
+      : null;
   if (networkWarning !== null) {
     tui.log.warn(ctx, networkWarning);
   }
@@ -234,7 +230,7 @@ export const main = async (
     const state = await persistence.readState(root);
     const allConcernDefs = await concernDefs.loadDefaultConcerns();
     const active = allConcernDefs.filter((c) =>
-      selectedConcernIds.includes(c.id)
+      selectedConcernIds.includes(c.id),
     );
     const rules = await syncEngine.loadRules(root);
     const hints = syncEngine.resolveInteractionHints(config?.tools ?? []);
@@ -268,7 +264,7 @@ export const main = async (
     }
 
     const hasActiveSpecs = specStates.some((s) =>
-      ACTIVE_SPEC_PHASES.has(s.state.phase)
+      ACTIVE_SPEC_PHASES.has(s.state.phase),
     );
 
     if (!hasActiveSpecs) {
@@ -312,9 +308,10 @@ const pickCodingTools = async (
   detected: readonly schema.CodingToolId[],
   currentAgent: schema.CodingToolId | null,
 ): Promise<schema.CodingToolId[]> => {
-  const message = detected.length === 0
-    ? "No coding tools detected. Which tools do you use? (space to toggle)"
-    : "Any additional tools? (space to toggle, enter to skip)";
+  const message =
+    detected.length === 0
+      ? "No coding tools detected. Which tools do you use? (space to toggle)"
+      : "Any additional tools? (space to toggle, enter to skip)";
 
   const detectedSet = new Set(detected);
 
@@ -322,11 +319,12 @@ const pickCodingTools = async (
     message,
     options: ALL_TOOLS.map((t) => ({
       ...t,
-      hint: t.value === currentAgent
-        ? "you're running inside it"
-        : detectedSet.has(t.value)
-        ? "detected"
-        : undefined,
+      hint:
+        t.value === currentAgent
+          ? "you're running inside it"
+          : detectedSet.has(t.value)
+            ? "detected"
+            : undefined,
       disabled: t.value === currentAgent,
     })),
     initialValues: [...detected],
@@ -337,7 +335,7 @@ const pickCodingTools = async (
     return [...detected];
   }
 
-  const result = [...selected as schema.CodingToolId[]];
+  const result = [...(selected as schema.CodingToolId[])];
   if (currentAgent !== null && !result.includes(currentAgent)) {
     result.unshift(currentAgent);
   }
@@ -357,9 +355,11 @@ export const parseListFlag = (
 
   for (const arg of args) {
     if (arg.startsWith(`${flag}=`)) {
-      return arg.slice(flag.length + 1).split(",").map((s) => s.trim()).filter(
-        (item) => item !== "",
-      );
+      return arg
+        .slice(flag.length + 1)
+        .split(",")
+        .map((s) => s.trim())
+        .filter((item) => item !== "");
     }
   }
 

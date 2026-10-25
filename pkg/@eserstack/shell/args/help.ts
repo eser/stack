@@ -47,20 +47,15 @@ const formatFlag = (flag: FlagDef): string => {
   return `${short}--${flag.name}${typeSuffix}`;
 };
 
-const generateTitle = (
-  meta: HelpCommandMeta,
-  fullName: string,
-): string[] => {
-  const title = meta.description !== undefined
-    ? `${fullName} - ${meta.description}`
-    : fullName;
+const generateTitle = (meta: HelpCommandMeta, fullName: string): string[] => {
+  const title =
+    meta.description !== undefined
+      ? `${fullName} - ${meta.description}`
+      : fullName;
   return [title, ""];
 };
 
-const generateUsage = (
-  meta: HelpCommandMeta,
-  fullName: string,
-): string[] => {
+const generateUsage = (meta: HelpCommandMeta, fullName: string): string[] => {
   if (meta.usage !== undefined) {
     return ["Usage:", `  ${meta.usage}`, ""];
   }
@@ -100,9 +95,10 @@ const generateShortcuts = (
 
   const lines = shortcuts.map(
     (s) =>
-      `  ${padRight(s.name, maxName + 2)}${
-        padRight(targetCol(s.target), maxTarget + 2)
-      }${s.description}`,
+      `  ${padRight(s.name, maxName + 2)}${padRight(
+        targetCol(s.target),
+        maxTarget + 2,
+      )}${s.description}`,
   );
   return ["Shortcuts:", ...lines, ""];
 };

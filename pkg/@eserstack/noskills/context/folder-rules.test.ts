@@ -36,10 +36,10 @@ Deno.test("collectFolderRules walks from the file up to the root", async () => {
     const rules = await folderRules.collectFolderRules(root, [
       "src/app/page.tsx",
     ]);
-    assert.assertEquals(rules.map((r) => `${r.folder}: ${r.rule}`), [
-      "src: src rule",
-      ".: root rule",
-    ]);
+    assert.assertEquals(
+      rules.map((r) => `${r.folder}: ${r.rule}`),
+      ["src: src rule", ".: root rule"],
+    );
   });
 });
 
@@ -60,6 +60,9 @@ Deno.test("collectFolderRules never reads outside the project", async () => {
     const inside = await folderRules.collectFolderRules(root, [
       "src/app/../page.ts",
     ]);
-    assert.assertEquals(inside.map((r) => r.rule), ["src rule", "root rule"]);
+    assert.assertEquals(
+      inside.map((r) => r.rule),
+      ["src rule", "root rule"],
+    );
   });
 });

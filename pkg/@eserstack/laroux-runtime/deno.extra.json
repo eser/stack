@@ -1,11 +1,6 @@
 {
   "//": "Fields the generated deno.json cannot derive from package.json. Merged in by etc/scripts/gen-jsr-manifests.ts.",
   "publish": {
-    "include": [
-      "mod.ts",
-      "primitives.ts",
-      "README.md",
-      "LICENSE"
-    ]
+    "include": ["mod.ts", "primitives.ts", "README.md", "LICENSE"]
   }
 }

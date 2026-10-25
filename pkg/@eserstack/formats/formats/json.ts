@@ -17,17 +17,17 @@ const isWholeDocument = (options?: FormatOptions): boolean =>
 // JSON.stringify(array, null, indent) lays out array elements.
 const indentLines = (json: string, indent: number): string => {
   const padding = " ".repeat(indent);
-  return json.split("\n").map((line) => padding + line).join("\n");
+  return json
+    .split("\n")
+    .map((line) => padding + line)
+    .join("\n");
 };
 
 export const writeStart = (options?: FormatOptions): string => {
   return isWholeDocument(options) ? "" : "[";
 };
 
-export const writeItem = (
-  data: unknown,
-  options?: FormatOptions,
-): string => {
+export const writeItem = (data: unknown, options?: FormatOptions): string => {
   const inArray = options?.["_inArray"] === true;
   const indent = getIndent(options);
   let json: string | undefined;

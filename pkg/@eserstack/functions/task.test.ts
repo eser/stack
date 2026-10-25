@@ -79,9 +79,8 @@ bdd.describe("task", () => {
     });
 
     bdd.it("flatMap() short-circuits on failure", async () => {
-      const t = task.flatMap(
-        task.failTask("error"),
-        (_x: number) => task.succeed(99),
+      const t = task.flatMap(task.failTask("error"), (_x: number) =>
+        task.succeed(99),
       );
       const result = await task.runTask(t);
       assert.assert(results.isFail(result));
@@ -93,9 +92,8 @@ bdd.describe("task", () => {
       type E2 = { readonly _tag: "E2" };
 
       const t1: Task<number, E1> = task.succeed(21) as Task<number, E1>;
-      const t = task.flatMapW(
-        t1,
-        (x) => task.task<number, E2>(() => Promise.resolve(results.ok(x * 2))),
+      const t = task.flatMapW(t1, (x) =>
+        task.task<number, E2>(() => Promise.resolve(results.ok(x * 2))),
       );
       const result = await task.runTask(t);
       assert.assert(results.isOk(result));
@@ -112,7 +110,7 @@ bdd.describe("task", () => {
         task.task(() => {
           order.push(n);
           return Promise.resolve(results.ok(n));
-        })
+        }),
       );
       const result = await task.runTask(task.all(tasks));
       assert.assert(results.isOk(result));
@@ -158,7 +156,7 @@ bdd.describe("task", () => {
           );
         });
 
-      const mockDb = { get: (id: string) => id === "1" ? "Alice" : null };
+      const mockDb = { get: (id: string) => (id === "1" ? "Alice" : null) };
       const result = await task.runTask(getUser("1"), { db: mockDb });
       assert.assert(results.isOk(result));
       assert.assertEquals(result.value, "Alice");
@@ -181,7 +179,7 @@ bdd.describe("task", () => {
 
     bdd.it("map() propagates context", async () => {
       const t: Task<number, never, DbContext> = task.task((_ctx) =>
-        Promise.resolve(results.ok(21))
+        Promise.resolve(results.ok(21)),
       );
       const doubled = task.map(t, (x) => x * 2);
       const result = await task.runTask(doubled, { db: { get: () => null } });
@@ -192,7 +190,7 @@ bdd.describe("task", () => {
     bdd.it("all() propagates context", async () => {
       type CountCtx = { readonly multiplier: number };
       const tasks: Task<number, never, CountCtx>[] = [1, 2, 3].map((n) =>
-        task.task((ctx) => Promise.resolve(results.ok(n * ctx.multiplier)))
+        task.task((ctx) => Promise.resolve(results.ok(n * ctx.multiplier))),
       );
       const result = await task.runTask(task.all(tasks), { multiplier: 10 });
       assert.assert(results.isOk(result));
@@ -202,7 +200,7 @@ bdd.describe("task", () => {
     bdd.it("allPar() propagates context", async () => {
       type CountCtx = { readonly multiplier: number };
       const tasks: Task<number, never, CountCtx>[] = [1, 2, 3].map((n) =>
-        task.task((ctx) => Promise.resolve(results.ok(n * ctx.multiplier)))
+        task.task((ctx) => Promise.resolve(results.ok(n * ctx.multiplier))),
       );
       const result = await task.runTask(task.allPar(tasks), { multiplier: 5 });
       assert.assert(results.isOk(result));
@@ -222,7 +220,7 @@ bdd.describe("task", () => {
           ctx.auth.verify("token")
             ? results.ok("user-1")
             : results.fail("unauthorized"),
-        )
+        ),
       );
 
       const loadName = (id: string): Task<string, string, DbCtx> =>
@@ -238,7 +236,7 @@ bdd.describe("task", () => {
 
       const ctx: AuthCtx & DbCtx = {
         auth: { verify: () => true },
-        db: { get: (id) => id === "user-1" ? "Alice" : null },
+        db: { get: (id) => (id === "user-1" ? "Alice" : null) },
       };
 
       const result = await task.runTask(composed, ctx);
@@ -255,7 +253,7 @@ bdd.describe("task", () => {
           ctx.auth.verify("token")
             ? results.ok("user-1")
             : results.fail({ _tag: "AuthError" as const }),
-        )
+        ),
       );
 
       const loadName = (id: string): Task<string, DbError, DbCtx> =>
@@ -273,7 +271,7 @@ bdd.describe("task", () => {
 
       const ctx: AuthCtx & DbCtx = {
         auth: { verify: () => true },
-        db: { get: (id) => id === "user-1" ? "Alice" : null },
+        db: { get: (id) => (id === "user-1" ? "Alice" : null) },
       };
 
       const result = await task.runTask(composed, ctx);
@@ -302,7 +300,7 @@ bdd.describe("task", () => {
     bdd.it("satisfies context requirements", async () => {
       type AppCtx = { readonly greeting: string };
       const greet: Task<string, never, AppCtx> = task.task((ctx) =>
-        Promise.resolve(results.ok(`Hello, ${ctx.greeting}!`))
+        Promise.resolve(results.ok(`Hello, ${ctx.greeting}!`)),
       );
 
       const provided = task.provideContext(greet, { greeting: "World" });
@@ -326,10 +324,7 @@ bdd.describe("task", () => {
         signal: controller.signal,
       });
       assert.assert(results.isFail(result));
-      assert.assertEquals(
-        (result.error as AbortError)._tag,
-        "AbortError",
-      );
+      assert.assertEquals((result.error as AbortError)._tag, "AbortError");
     });
 
     bdd.it("succeeds when not aborted", async () => {
@@ -362,16 +357,13 @@ bdd.describe("task", () => {
       if (slowTimerId !== undefined) clearTimeout(slowTimerId);
 
       assert.assert(results.isFail(result));
-      assert.assertEquals(
-        (result.error as AbortError)._tag,
-        "AbortError",
-      );
+      assert.assertEquals((result.error as AbortError)._tag, "AbortError");
     });
 
     bdd.it("merges context with Cancellable", async () => {
       type AppCtx = { readonly multiplier: number };
       const multiply: Task<number, never, AppCtx> = task.task((ctx) =>
-        Promise.resolve(results.ok(21 * ctx.multiplier))
+        Promise.resolve(results.ok(21 * ctx.multiplier)),
       );
 
       // withAbort adds Cancellable → MergeContext<AppCtx, Cancellable>
@@ -434,7 +426,7 @@ bdd.describe("task", () => {
       };
 
       const greet: Task<string, never, AppCtx> = task.task((ctx) =>
-        Promise.resolve(results.ok(`${ctx.prefix} World`))
+        Promise.resolve(results.ok(`${ctx.prefix} World`)),
       );
 
       const logged = task.withLogging(greet, "greet");
@@ -519,7 +511,7 @@ bdd.describe("task", () => {
       type AppCtx = { readonly value: number };
 
       const fast: Task<number, string, AppCtx> = task.task((ctx) =>
-        Promise.resolve(results.ok(ctx.value))
+        Promise.resolve(results.ok(ctx.value)),
       );
 
       const timed = task.withTimeout(fast, 1000, "timeout");

@@ -44,7 +44,9 @@ Correct:
 import * as functions from "@eserstack/functions";
 
 // Access through namespace
-const result = await functions.run(async function* () {/* ... */});
+const result = await functions.run(async function* () {
+  /* ... */
+});
 const pipeline = functions.collect<string, Error>();
 const myTask = functions.task.fromPromise(() => fetch("/api"));
 const data = await functions.resources.bracket(acquire, use, release);

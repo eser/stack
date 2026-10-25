@@ -483,15 +483,24 @@ Deno.test("contains() returns false for None", () => {
 
 Deno.test("exists() returns true when predicate matches Some", () => {
   const option = options.some(10);
-  assert.assertEquals(options.exists(option, (x) => x > 5), true);
+  assert.assertEquals(
+    options.exists(option, (x) => x > 5),
+    true,
+  );
 });
 
 Deno.test("exists() returns false when predicate does not match Some", () => {
   const option = options.some(3);
-  assert.assertEquals(options.exists(option, (x) => x > 5), false);
+  assert.assertEquals(
+    options.exists(option, (x) => x > 5),
+    false,
+  );
 });
 
 Deno.test("exists() returns false for None", () => {
   const option = options.none;
-  assert.assertEquals(options.exists(option, (_x: number) => true), false);
+  assert.assertEquals(
+    options.exists(option, (_x: number) => true),
+    false,
+  );
 });

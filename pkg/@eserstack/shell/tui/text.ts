@@ -43,22 +43,20 @@ const renderFrame = (
   }
 
   // Active state
-  const displayValue = value.length > 0
-    ? span.text(value)
-    : placeholder !== undefined
-    ? span.dim(placeholder)
-    : span.text("");
+  const displayValue =
+    value.length > 0
+      ? span.text(value)
+      : placeholder !== undefined
+        ? span.dim(placeholder)
+        : span.text("");
 
-  const headerSymbol = error !== undefined
-    ? span.yellow(symbols.S_WARN)
-    : span.cyan(symbols.PROMPT_ACTIVE);
+  const headerSymbol =
+    error !== undefined
+      ? span.yellow(symbols.S_WARN)
+      : span.cyan(symbols.PROMPT_ACTIVE);
 
   ctx.output.writeln(headerSymbol, span.text(`  ${message}`));
-  ctx.output.writeln(
-    span.dim(symbols.BAR),
-    span.text("  "),
-    displayValue,
-  );
+  ctx.output.writeln(span.dim(symbols.BAR), span.text("  "), displayValue);
 
   let lineCount = 2;
 

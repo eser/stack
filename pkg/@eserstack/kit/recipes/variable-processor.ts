@@ -26,9 +26,7 @@ export class MissingVariableError extends Error {
    * @param variableName - The variable that has no value
    */
   constructor(variableName: string) {
-    super(
-      `Required variable '${variableName}' has no value and no default`,
-    );
+    super(`Required variable '${variableName}' has no value and no default`);
     this.name = "MissingVariableError";
   }
 }
@@ -73,9 +71,8 @@ export const validateVariable = (
  */
 export const promptVariable = (variable: TemplateVariable): string => {
   const description = variable.description ?? variable.name;
-  const defaultHint = variable.default !== undefined
-    ? ` [${variable.default}]`
-    : "";
+  const defaultHint =
+    variable.default !== undefined ? ` [${variable.default}]` : "";
 
   while (true) {
     const promptText = `${description}${defaultHint}: `;
@@ -139,9 +136,7 @@ const collectVariables = (
       // Override provided — validate it if a pattern is set
       const validation = validateVariable(def, override);
       if (validation.ok === false) {
-        throw new Error(
-          `Variable '${def.name}': ${validation.reason}`,
-        );
+        throw new Error(`Variable '${def.name}': ${validation.reason}`);
       }
       resolved[def.name] = override;
       continue;
@@ -195,16 +190,13 @@ export const substituteVariables = (
   content: string,
   variables: Readonly<Record<string, string>>,
 ): string => {
-  return content.replace(
-    /\{\{\s*\.(\w+)\s*\}\}/g,
-    (match, name: string) => {
-      if (name in variables) {
-        return variables[name]!;
-      }
-      // Leave unresolved variables as-is (they may be intended for a different processor)
-      return match;
-    },
-  );
+  return content.replace(/\{\{\s*\.(\w+)\s*\}\}/g, (match, name: string) => {
+    if (name in variables) {
+      return variables[name]!;
+    }
+    // Leave unresolved variables as-is (they may be intended for a different processor)
+    return match;
+  });
 };
 
 /**

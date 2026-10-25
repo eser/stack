@@ -78,14 +78,10 @@ export interface ConfigMapContext {
 }
 
 /** Builds a ConfigMap from a context, or returns `null` to build nothing. */
-export type ConfigMapBuilder = (
-  context: ConfigMapContext,
-) => ConfigMap | null;
+export type ConfigMapBuilder = (context: ConfigMapContext) => ConfigMap | null;
 
 /** Builds a Secret from a context, or returns `null` to build nothing. */
-export type SecretBuilder = (
-  context: ConfigMapContext,
-) => Secret | null;
+export type SecretBuilder = (context: ConfigMapContext) => Secret | null;
 
 /** Points at one ConfigMap or Secret in a cluster. */
 export interface KubectlResourceReference {

@@ -41,16 +41,15 @@ export const validateConfig = (config: WorkflowsConfig): void => {
   const workflows = config.workflows;
 
   if (!Array.isArray(workflows)) {
-    throw new Error(
-      "Invalid config: 'workflows' must be an array",
-    );
+    throw new Error("Invalid config: 'workflows' must be an array");
   }
 
   for (let i = 0; i < workflows.length; i++) {
     const wf = workflows[i];
-    const label = wf?.id !== undefined && wf.id !== ""
-      ? `workflow '${wf.id}'`
-      : `workflow at index ${i}`;
+    const label =
+      wf?.id !== undefined && wf.id !== ""
+        ? `workflow '${wf.id}'`
+        : `workflow at index ${i}`;
 
     if (typeof wf?.id !== "string" || wf.id === "") {
       throw new Error(
@@ -77,9 +76,7 @@ export const validateConfig = (config: WorkflowsConfig): void => {
         continue;
       }
 
-      if (
-        typeof step !== "object" || step === null || Array.isArray(step)
-      ) {
+      if (typeof step !== "object" || step === null || Array.isArray(step)) {
         throw new Error(
           `Invalid config: ${label}, step ${j} must be a string or an object with exactly one key`,
         );

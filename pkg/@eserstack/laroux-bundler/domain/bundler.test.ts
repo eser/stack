@@ -91,7 +91,7 @@ export function Counter() {
     // Create a deno.json for import resolution
     const denoJson = {
       imports: {
-        "react": "npm:react@^19.0.0",
+        react: "npm:react@^19.0.0",
       },
     };
     await runtime.fs.writeTextFile(

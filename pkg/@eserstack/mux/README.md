@@ -53,10 +53,9 @@ const [serverSide, frontendSide] = mux.createInProcessPair<
 >();
 server.connect(serverSide);
 
-const keymap = mux.keybindings.mergeOverrides(
-  mux.keybindings.defaultKeymap,
-  { normal: { "ctrl+b": { type: "switchMode", mode: "pane" } } },
-);
+const keymap = mux.keybindings.mergeOverrides(mux.keybindings.defaultKeymap, {
+  normal: { "ctrl+b": { type: "switchMode", mode: "pane" } },
+});
 
 const frontend = mux.createTuiFrontend({ transport: frontendSide, keymap });
 server.dispatch({ type: "newTab" });

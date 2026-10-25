@@ -114,21 +114,23 @@ export const splitSpec = async (
   const repeated = names.filter((name, index) => names.indexOf(name) !== index);
   if (repeated.length > 0) {
     throw new SplitRefusedError(
-      `Cannot split: child spec names must be unique, and these repeat: ${
-        quoted(repeated)
-      }.`,
+      `Cannot split: child spec names must be unique, and these repeat: ${quoted(
+        repeated,
+      )}.`,
       [...new Set(repeated)],
     );
   }
 
-  const existing = (await Promise.all(
-    names.map(async (name) => (await specExists(root, name)) ? name : null),
-  )).filter((name): name is string => name !== null);
+  const existing = (
+    await Promise.all(
+      names.map(async (name) => ((await specExists(root, name)) ? name : null)),
+    )
+  ).filter((name): name is string => name !== null);
   if (existing.length > 0) {
     throw new SplitRefusedError(
-      `Cannot split: these specs already exist: ${
-        quoted(existing)
-      }. Choose other names with \`${commandPrefix} spec ${
+      `Cannot split: these specs already exist: ${quoted(
+        existing,
+      )}. Choose other names with \`${commandPrefix} spec ${
         parent.spec ?? "<name>"
       } split --into <first> "<description>" --into <second> "<description>"\`.`,
       existing,

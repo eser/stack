@@ -20,18 +20,17 @@ const encoder = new TextEncoder();
  * Stands in for globalThis.fetch: answers each URL in `routes` and rejects
  * any other request, so a test cannot reach the network by accident.
  */
-const fakeFetch = (
-  routes: Readonly<Record<string, () => Response>>,
-): typeof globalThis.fetch =>
-(input) => {
-  const url = input instanceof Request ? input.url : String(input);
-  const route = routes[url];
-  if (route === undefined) {
-    return Promise.reject(new TypeError(`fake fetch: no route for ${url}`));
-  }
+const fakeFetch =
+  (routes: Readonly<Record<string, () => Response>>): typeof globalThis.fetch =>
+  (input) => {
+    const url = input instanceof Request ? input.url : String(input);
+    const route = routes[url];
+    if (route === undefined) {
+      return Promise.reject(new TypeError(`fake fetch: no route for ${url}`));
+    }
 
-  return Promise.resolve(route());
-};
+    return Promise.resolve(route());
+  };
 
 type ArchiveEntry =
   | { readonly type: "file"; readonly path: string; readonly content: string }
@@ -81,10 +80,7 @@ const withTempDir = async (
 // =============================================================================
 
 Deno.test("isPathSafe — allows safe relative path", () => {
-  assert.assertEquals(
-    recipeApplier.isPathSafe("/project", "src/foo.ts"),
-    true,
-  );
+  assert.assertEquals(recipeApplier.isPathSafe("/project", "src/foo.ts"), true);
 });
 
 Deno.test("isPathSafe — allows nested path", () => {
@@ -162,9 +158,7 @@ Deno.test("applyRecipe — rejects recipe with path traversal", async () => {
     description: "Evil",
     language: "typescript",
     scale: "utility" as const,
-    files: [
-      { source: "src/a.ts", target: "../../../etc/evil.ts" },
-    ],
+    files: [{ source: "src/a.ts", target: "../../../etc/evil.ts" }],
   };
 
   const tmpDir = await runtime.fs.makeTempDir();
@@ -287,9 +281,7 @@ Deno.test("applyRecipe — dry-run with variables reports correctly", async () =
     variables: [
       { name: "project_name", description: "Name", default: "default-app" },
     ],
-    files: [
-      { source: "src/a.ts", target: "lib/a.ts" },
-    ],
+    files: [{ source: "src/a.ts", target: "lib/a.ts" }],
   };
 
   const tmpDir = await runtime.fs.makeTempDir();
@@ -487,22 +479,17 @@ bdd.describe("applyRecipe: failed apply", () => {
       assert.assertEquals(cause.url, "https://registry.example/src/b.ts");
       assert.assertEquals(cause.status, 503);
 
-      assert.assertEquals(
-        errorChain.formatErrorChain(error).split("\n"),
-        [
-          error.message,
-          "  caused by: GET https://registry.example/src/b.ts: HTTP 503; the host had an error, so retry later",
-        ],
-      );
+      assert.assertEquals(errorChain.formatErrorChain(error).split("\n"), [
+        error.message,
+        "  caused by: GET https://registry.example/src/b.ts: HTTP 503; the host had an error, so retry later",
+      ]);
     });
   });
 
   bdd.it("wraps the network error of a request with no response", async () => {
     const offline = new TypeError("error sending request: connection refused");
-    using _fetch = mock.stub(
-      globalThis,
-      "fetch",
-      () => Promise.reject(offline),
+    using _fetch = mock.stub(globalThis, "fetch", () =>
+      Promise.reject(offline),
     );
 
     await withTempDir(async (dir) => {
@@ -564,24 +551,27 @@ bdd.describe("applyRecipe: whole-repo tarball limits", () => {
   const tarballUrl = "https://codeload.github.com/owner/repo/tar.gz/main";
   const wholeRepo = { schema: "registry/v1" };
 
-  const cloneWith = (
-    entries: readonly ArchiveEntry[],
-    limits: Pick<recipeApplier.ApplyOptions, "maxBytes" | "maxEntries">,
-  ) =>
-  async (dir: string): Promise<recipeApplier.ApplyResult> => {
-    using _fetch = mock.stub(
-      globalThis,
-      "fetch",
-      fakeFetch({ [tarballUrl]: () => new Response(gzippedTarball(entries)) }),
-    );
+  const cloneWith =
+    (
+      entries: readonly ArchiveEntry[],
+      limits: Pick<recipeApplier.ApplyOptions, "maxBytes" | "maxEntries">,
+    ) =>
+    async (dir: string): Promise<recipeApplier.ApplyResult> => {
+      using _fetch = mock.stub(
+        globalThis,
+        "fetch",
+        fakeFetch({
+          [tarballUrl]: () => new Response(gzippedTarball(entries)),
+        }),
+      );
 
-    return await recipeApplier.applyRecipe(wholeRepo, {
-      cwd: dir,
-      registryUrl: "https://raw.githubusercontent.com/owner/repo/main",
-      specifier: "gh:owner/repo",
-      ...limits,
-    });
-  };
+      return await recipeApplier.applyRecipe(wholeRepo, {
+        cwd: dir,
+        registryUrl: "https://raw.githubusercontent.com/owner/repo/main",
+        specifier: "gh:owner/repo",
+        ...limits,
+      });
+    };
 
   const oneKibFile: readonly ArchiveEntry[] = [
     { type: "file", path: "repo-main/data.txt", content: "x".repeat(1024) },

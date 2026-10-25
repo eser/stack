@@ -33,12 +33,14 @@ const goIssues = (
   options: Record<string, unknown> = {},
   gitAware = false,
 ): GoIssue[] => {
-  const raw = lib!.symbols.EserAjanCodebaseValidateFiles(JSON.stringify({
-    dir,
-    validators: [validator],
-    validatorOptions: { [validator]: options },
-    gitAware,
-  }));
+  const raw = lib!.symbols.EserAjanCodebaseValidateFiles(
+    JSON.stringify({
+      dir,
+      validators: [validator],
+      validatorOptions: { [validator]: options },
+      gitAware,
+    }),
+  );
   const parsed = JSON.parse(raw) as {
     results?: Array<{ issues?: GoIssue[] }>;
     error?: string;
@@ -90,8 +92,8 @@ const selfImportCompare = async (root: string, gitAware: boolean) => {
       go.map((i) => `${relative(root, i.file)}:${i.line}: ${i.message}`),
     ),
     sortedLines(
-      ts.issues.map((i) =>
-        `${relative(root, i.path ?? "")}:${i.line}: ${i.message}`
+      ts.issues.map(
+        (i) => `${relative(root, i.path ?? "")}:${i.line}: ${i.message}`,
       ),
     ),
   );
@@ -103,27 +105,30 @@ Deno.test({
   name: "self-imports: Go matches TypeScript on fixtures",
   ignore: lib === null,
   fn: () =>
-    withFixture({
-      "pkg/@eserstack/foo/mod.ts": [
-        `import * as a from "@eserstack/foo";`,
-        `import * as b from "@eserstack/foo/sub";`,
-        `export { c } from "@eserstack/foo/c";`,
-        `import "@eserstack/foo/side-effect";`,
-        `const d = await import("@eserstack/foo/lazy");`,
-        `// import * as e from "@eserstack/foo";`,
-        ` * import * as f from "@eserstack/foo";`,
-        `import * as g from "@eserstack/foobar";`,
-        `import * as h from "@eserstack/bar";`,
-        `import {`,
-        `  i,`,
-        `} from "@eserstack/foo/multi";`,
-      ].join("\n"),
-      "pkg/@eserstack/bar/mod.ts": `import * as foo from "@eserstack/foo";\n`,
-      "elsewhere/mod.ts": `import * as foo from "@eserstack/foo";\n`,
-    }, async (dir) => {
-      const found = await selfImportCompare(dir, false);
-      assert.assertEquals(found, 6);
-    }),
+    withFixture(
+      {
+        "pkg/@eserstack/foo/mod.ts": [
+          `import * as a from "@eserstack/foo";`,
+          `import * as b from "@eserstack/foo/sub";`,
+          `export { c } from "@eserstack/foo/c";`,
+          `import "@eserstack/foo/side-effect";`,
+          `const d = await import("@eserstack/foo/lazy");`,
+          `// import * as e from "@eserstack/foo";`,
+          ` * import * as f from "@eserstack/foo";`,
+          `import * as g from "@eserstack/foobar";`,
+          `import * as h from "@eserstack/bar";`,
+          `import {`,
+          `  i,`,
+          `} from "@eserstack/foo/multi";`,
+        ].join("\n"),
+        "pkg/@eserstack/bar/mod.ts": `import * as foo from "@eserstack/foo";\n`,
+        "elsewhere/mod.ts": `import * as foo from "@eserstack/foo";\n`,
+      },
+      async (dir) => {
+        const found = await selfImportCompare(dir, false);
+        assert.assertEquals(found, 6);
+      },
+    ),
 });
 
 Deno.test({
@@ -186,10 +191,7 @@ Deno.test({
   ignore: lib === null,
   fn: () =>
     withFixture({ "pkg/errors.go": errorsGo }, async (dir) => {
-      assert.assertEquals(
-        await errorCoverageCompare(dir, "pkg/errors.go"),
-        2,
-      );
+      assert.assertEquals(await errorCoverageCompare(dir, "pkg/errors.go"), 2);
       assert.assertEquals(
         await errorCoverageCompare(dir, "pkg/errors.go", [
           "NSError",
@@ -198,9 +200,7 @@ Deno.test({
         3,
       );
       assert.assertEquals(
-        await errorCoverageCompare(dir, "pkg/errors.go", ["NSError"], [
-          "Code",
-        ]),
+        await errorCoverageCompare(dir, "pkg/errors.go", ["NSError"], ["Code"]),
         0,
       );
     }),
@@ -234,8 +234,9 @@ const serverLocCompare = async (
   assert.assertEquals(
     sortedLines(go.map((i) => `${relative(root, i.file)}: ${i.message}`)),
     sortedLines(
-      ts.violations.map((v) =>
-        `${relative(root, v.path)}: ${v.lines} lines (limit ${maxLines ?? 500})`
+      ts.violations.map(
+        (v) =>
+          `${relative(root, v.path)}: ${v.lines} lines (limit ${maxLines ?? 500})`,
       ),
     ),
   );
@@ -247,18 +248,21 @@ Deno.test({
   name: "server-loc: Go matches TypeScript on fixtures",
   ignore: lib === null,
   fn: () =>
-    withFixture({
-      "srv/short.go": "package srv\n",
-      "srv/long.go": "x\n".repeat(5),
-      "srv/exact.go": "x\n".repeat(3).slice(0, -1) + "\n",
-      "srv/long_test.go": "x\n".repeat(9),
-      "srv/notes.md": "x\n".repeat(9),
-      "srv/nested/deep.go": "x\n".repeat(7),
-      "other/long.go": "x\n".repeat(9),
-    }, async (dir) => {
-      assert.assertEquals(await serverLocCompare(dir, "srv", 4), 2);
-      assert.assertEquals(await serverLocCompare(dir, "srv"), 0);
-    }),
+    withFixture(
+      {
+        "srv/short.go": "package srv\n",
+        "srv/long.go": "x\n".repeat(5),
+        "srv/exact.go": "x\n".repeat(3).slice(0, -1) + "\n",
+        "srv/long_test.go": "x\n".repeat(9),
+        "srv/notes.md": "x\n".repeat(9),
+        "srv/nested/deep.go": "x\n".repeat(7),
+        "other/long.go": "x\n".repeat(9),
+      },
+      async (dir) => {
+        assert.assertEquals(await serverLocCompare(dir, "srv", 4), 2);
+        assert.assertEquals(await serverLocCompare(dir, "srv"), 0);
+      },
+    ),
 });
 
 Deno.test({

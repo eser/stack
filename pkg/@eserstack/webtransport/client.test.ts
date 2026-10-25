@@ -11,9 +11,8 @@ const createFakeTransport = (
   const ready = Promise.withResolvers<void>();
   const closed = Promise.withResolvers<WebTransportCloseInfo>();
   const closeCalls: Array<WebTransportCloseInfo | undefined> = [];
-  let incoming:
-    | ReadableStreamDefaultController<WebTransportBidirectionalStream>
-    | null = null;
+  let incoming: ReadableStreamDefaultController<WebTransportBidirectionalStream> | null =
+    null;
 
   const bidirectionalStream = {
     readable: new ReadableStream<Uint8Array>(),
@@ -29,13 +28,12 @@ const createFakeTransport = (
     ready: ready.promise,
     closed: closed.promise,
     datagrams,
-    incomingBidirectionalStreams: new ReadableStream<
-      WebTransportBidirectionalStream
-    >({
-      start: (controller) => {
-        incoming = controller;
-      },
-    }),
+    incomingBidirectionalStreams:
+      new ReadableStream<WebTransportBidirectionalStream>({
+        start: (controller) => {
+          incoming = controller;
+        },
+      }),
     createBidirectionalStream: () => Promise.resolve(bidirectionalStream),
     createUnidirectionalStream: () => Promise.resolve(unidirectionalStream),
     close: (closeInfo?: WebTransportCloseInfo) => {
@@ -94,8 +92,7 @@ const urlCases = [
     expected: "https://localhost:4433/attach/app/s-1",
   },
   {
-    name:
-      "joins a path without a leading slash to a baseUrl with a trailing one",
+    name: "joins a path without a leading slash to a baseUrl with a trailing one",
     baseUrl: "https://localhost:4433/",
     target: "attach/app/s-1",
     expected: "https://localhost:4433/attach/app/s-1",
@@ -132,7 +129,10 @@ for (const { name, baseUrl, target, expected } of urlCases) {
 
     await client.connect(target);
 
-    assert.assertEquals(dialed.map((fake) => fake.url), [expected]);
+    assert.assertEquals(
+      dialed.map((fake) => fake.url),
+      [expected],
+    );
   });
 }
 
@@ -179,9 +179,8 @@ const handshakeCases = [
 
 for (const { name, dialTimeout } of handshakeCases) {
   Deno.test(`connect rejects with the handshake error ${name}`, async () => {
-    const { client } = createClient(
-      { dialTimeout },
-      (fake) => fake.failHandshake(new Error("certificate hash mismatch")),
+    const { client } = createClient({ dialTimeout }, (fake) =>
+      fake.failHandshake(new Error("certificate hash mismatch")),
     );
 
     await assert.assertRejects(

@@ -35,7 +35,7 @@ export const markDirty = (
 
   return {
     regions: tracker.regions.map((r) =>
-      r.panelId === panelId ? { ...r, dirty: true } : r
+      r.panelId === panelId ? { ...r, dirty: true } : r,
     ),
   };
 };
@@ -63,11 +63,11 @@ export const markClean = (
     regions: tracker.regions.map((r) =>
       r.panelId === panelId
         ? {
-          ...r,
-          dirty: false,
-          lastRenderHash: contentHash ?? r.lastRenderHash,
-        }
-        : r
+            ...r,
+            dirty: false,
+            lastRenderHash: contentHash ?? r.lastRenderHash,
+          }
+        : r,
     ),
   };
 };
@@ -110,7 +110,7 @@ export const markDirtyIfChanged = (
 
   return {
     regions: tracker.regions.map((r) =>
-      r.panelId === panelId ? { ...r, dirty: true } : r
+      r.panelId === panelId ? { ...r, dirty: true } : r,
     ),
   };
 };
@@ -123,7 +123,7 @@ export const simpleHash = (content: string): number => {
   let hash = 5381;
 
   for (let i = 0; i < content.length; i++) {
-    hash = ((hash << 5) + hash) + content.charCodeAt(i);
+    hash = (hash << 5) + hash + content.charCodeAt(i);
   }
 
   return hash >>> 0;

@@ -7,9 +7,10 @@
  * @returns A new array
  */
 export const reverseArray = <T>(instance: Iterable<T>): Array<T> => {
-  const arrInstance = (instance.constructor === Array)
-    ? instance as ReadonlyArray<T>
-    : [...instance];
+  const arrInstance =
+    instance.constructor === Array
+      ? (instance as ReadonlyArray<T>)
+      : [...instance];
 
   return arrInstance.reduce<Array<T>>(
     (obj, itemValue) => [itemValue, ...obj],

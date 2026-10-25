@@ -79,23 +79,25 @@ const collectRulesForFile = async (
     (_, k) => parts.length - k,
   );
 
-  const rulesPerDir = await Promise.all(depths.map(async (i) => {
-    const dir = i === 0 ? root : `${root}/${parts.slice(0, i).join("/")}`;
-    const rulesFile = `${dir}/.folder-rules.md`;
-    const folderLabel = i === 0 ? "." : parts.slice(0, i).join("/");
+  const rulesPerDir = await Promise.all(
+    depths.map(async (i) => {
+      const dir = i === 0 ? root : `${root}/${parts.slice(0, i).join("/")}`;
+      const rulesFile = `${dir}/.folder-rules.md`;
+      const folderLabel = i === 0 ? "." : parts.slice(0, i).join("/");
 
-    try {
-      const content = await runtime.fs.readTextFile(rulesFile);
+      try {
+        const content = await runtime.fs.readTextFile(rulesFile);
 
-      return parseRulesFile(content).map((rule) => ({
-        folder: folderLabel,
-        rule,
-      }));
-    } catch {
-      // No .folder-rules.md in this directory
-      return [];
-    }
-  }));
+        return parseRulesFile(content).map((rule) => ({
+          folder: folderLabel,
+          rule,
+        }));
+      } catch {
+        // No .folder-rules.md in this directory
+        return [];
+      }
+    }),
+  );
 
   return rulesPerDir.flat();
 };

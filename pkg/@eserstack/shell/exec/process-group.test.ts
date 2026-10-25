@@ -47,7 +47,10 @@ Deno.test("killAll signals every active process and waits for them to exit", asy
 
   assert.assertEquals(first.signals, ["SIGINT"]);
   assert.assertEquals(second.signals, ["SIGINT"]);
-  assert.assertEquals(group.list().every((managed) => !managed.active), true);
+  assert.assertEquals(
+    group.list().every((managed) => !managed.active),
+    true,
+  );
 });
 
 Deno.test("killAll skips processes that already exited", async () => {

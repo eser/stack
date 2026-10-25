@@ -60,9 +60,8 @@ di.registry.setTransient("dbConnection", () => new DatabaseConnection());
 
 // Register the userList as a lazy-loaded service,
 // which is created when first called
-di.registry.setLazy(
-  "userList",
-  (container) => container.get("dbConnection").query("SELECT * FROM users"),
+di.registry.setLazy("userList", (container) =>
+  container.get("dbConnection").query("SELECT * FROM users"),
 );
 ```
 
@@ -75,9 +74,8 @@ di.registry
   .set("mailService", new MailService())
   .set("notifyService", new PushNotificationService())
   .setTransient("dbConnection", () => new DatabaseConnection())
-  .setLazy(
-    "userList",
-    (container) => container.get("dbConnection").query("SELECT * FROM users"),
+  .setLazy("userList", (container) =>
+    container.get("dbConnection").query("SELECT * FROM users"),
   );
 ```
 

@@ -10,18 +10,15 @@ Deno.test("basic", () => {
     aliases: [],
   };
 
-  const result = mutate.mutate(obj1, (x) => x.firstName = "Helo");
+  const result = mutate.mutate(obj1, (x) => (x.firstName = "Helo"));
 
   assert.assertNotStrictEquals(result, obj1);
   assert.assertEquals(Object.keys(result).length, 3);
-  assert.assertEquals(
-    result,
-    {
-      firstName: "Helo",
-      lastName: "Ozvataf",
-      aliases: [],
-    },
-  );
+  assert.assertEquals(result, {
+    firstName: "Helo",
+    lastName: "Ozvataf",
+    aliases: [],
+  });
 });
 
 Deno.test("array-push", () => {
@@ -39,16 +36,11 @@ Deno.test("array-push", () => {
 
   assert.assertNotStrictEquals(result, obj1);
   assert.assertEquals(Object.keys(result).length, 3);
-  assert.assertEquals(
-    result,
-    {
-      firstName: "Helo",
-      lastName: "Ozvataf",
-      aliases: [
-        "laroux",
-      ],
-    },
-  );
+  assert.assertEquals(result, {
+    firstName: "Helo",
+    lastName: "Ozvataf",
+    aliases: ["laroux"],
+  });
 });
 
 Deno.test("with-class", () => {
@@ -69,10 +61,5 @@ Deno.test("with-class", () => {
   assert.assertNotStrictEquals(result, obj1);
   assert.assertEquals(result.constructor, Dummy);
   assert.assertEquals(Object.keys(result), ["items"]);
-  assert.assertEquals(
-    result.items,
-    [
-      "laroux",
-    ],
-  );
+  assert.assertEquals(result.items, ["laroux"]);
 });

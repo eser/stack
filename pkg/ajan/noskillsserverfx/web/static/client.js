@@ -38,7 +38,8 @@
     try {
       const event = JSON.parse(e.data);
       if (
-        event.type === "phase-change" || event.type === "spec-created" ||
+        event.type === "phase-change" ||
+        event.type === "spec-created" ||
         event.type === "task-completed"
       ) {
         refreshSpecList();
@@ -47,7 +48,9 @@
       // ignore malformed events
     }
   };
-  events.onerror = () => {/* EventSource auto-reconnects */};
+  events.onerror = () => {
+    /* EventSource auto-reconnects */
+  };
 
   async function refreshSpecList() {
     try {
@@ -119,7 +122,9 @@
         }, 1000);
       }
     };
-    ws.onerror = () => {/* close handler retries */};
+    ws.onerror = () => {
+      /* close handler retries */
+    };
   }
 
   // The result of a spec action. The action routes answer JSON, but the guard
@@ -173,7 +178,9 @@
       const spec = target.dataset.spec;
       const action = target.dataset.action;
       if (
-        spec === undefined || spec === "" || action === undefined ||
+        spec === undefined ||
+        spec === "" ||
+        action === undefined ||
         action === ""
       ) {
         return;
@@ -193,8 +200,8 @@
         if (text === null || text === "") return;
         // Dashboard mentions carry data-mention-id, spec questions
         // data-question-id; both name the thread the reply belongs to.
-        const mentionId = target.dataset.mentionId ??
-          target.dataset.questionId ?? "";
+        const mentionId =
+          target.dataset.mentionId ?? target.dataset.questionId ?? "";
         body = { text, mentionId };
       }
 
@@ -215,9 +222,10 @@
         return;
       }
       // A fault carries the request id that its record in the server log has.
-      const reference = typeof result.requestId === "string"
-        ? ` (request ${result.requestId} in the noskills web log)`
-        : "";
+      const reference =
+        typeof result.requestId === "string"
+          ? ` (request ${result.requestId} in the noskills web log)`
+          : "";
       alert(`Action failed: ${result.error ?? "Unknown error"}${reference}`);
       return;
     }

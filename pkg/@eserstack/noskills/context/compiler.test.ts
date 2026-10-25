@@ -96,11 +96,11 @@ bdd.describe("compile", () => {
   bdd.it(
     "DISCOVERY includes rules and concern reminders in context",
     async () => {
-      const output = await compiler.compile(
+      const output = (await compiler.compile(
         inDiscovery(),
         [openSource],
         someRules,
-      ) as compiler.DiscoveryOutput;
+      )) as compiler.DiscoveryOutput;
 
       assert.assertEquals(output.context.rules.length, 2);
       assert.assertEquals(output.context.concernReminders.length > 0, true);
@@ -108,11 +108,11 @@ bdd.describe("compile", () => {
   );
 
   bdd.it("DISCOVERY includes concern extras in question", async () => {
-    const output = await compiler.compile(
+    const output = (await compiler.compile(
       inDiscovery(),
       [openSource],
       noRules,
-    ) as compiler.DiscoveryOutput;
+    )) as compiler.DiscoveryOutput;
 
     // open-source adds an extra to status_quo question
     assert.assertEquals((output.questions[0]?.extras.length ?? 0) > 0, true);
@@ -188,11 +188,11 @@ bdd.describe("compile", () => {
   });
 
   bdd.it("EXECUTING with tensions includes concernTensions array", async () => {
-    const output = await compiler.compile(
+    const output = (await compiler.compile(
       inExecuting(),
       [moveFast, compliance],
       noRules,
-    ) as compiler.ExecutionOutput;
+    )) as compiler.ExecutionOutput;
 
     assert.assertEquals(output.concernTensions !== undefined, true);
     assert.assertEquals(output.concernTensions!.length, 1);
@@ -279,12 +279,12 @@ bdd.describe("compile", () => {
         ci: [],
         testRunner: null,
       });
-      const output = await compiler.compile(
+      const output = (await compiler.compile(
         state,
         noConcerns,
         noRules,
         config,
-      ) as compiler.ExecutionOutput & { meta: compiler.MetaBlock };
+      )) as compiler.ExecutionOutput & { meta: compiler.MetaBlock };
 
       assert.assertEquals(output.restartRecommended, true);
       // The flag is for the formatter and dashboards; no prose goes to the agent.
@@ -295,11 +295,11 @@ bdd.describe("compile", () => {
   bdd.it(
     "EXECUTING omits restartRecommended when under threshold",
     async () => {
-      const output = await compiler.compile(
+      const output = (await compiler.compile(
         inExecuting(),
         noConcerns,
         noRules,
-      ) as compiler.ExecutionOutput & { meta: compiler.MetaBlock };
+      )) as compiler.ExecutionOutput & { meta: compiler.MetaBlock };
 
       assert.assertEquals(output.restartRecommended, undefined);
     },
@@ -372,24 +372,21 @@ bdd.describe("compile", () => {
     },
   );
 
-  bdd.it(
-    "SPEC_PROPOSAL states the read-only rule once",
-    async () => {
-      const output = await compiler.compile(inSpecDraft(), noConcerns, noRules);
-      const readOnly = output.behavioral.rules.filter((r) =>
-        r.includes("This phase is read-only")
-      );
+  bdd.it("SPEC_PROPOSAL states the read-only rule once", async () => {
+    const output = await compiler.compile(inSpecDraft(), noConcerns, noRules);
+    const readOnly = output.behavioral.rules.filter((r) =>
+      r.includes("This phase is read-only"),
+    );
 
-      assert.assertEquals(readOnly.length, 1);
-      assert.assertEquals(
-        output.behavioral.rules.some((r) =>
-          r.includes("DO NOT create, edit, or write any files")
-        ),
-        false,
-      );
-      assert.assertEquals(output.behavioral.modeOverride, "plan mode");
-    },
-  );
+    assert.assertEquals(readOnly.length, 1);
+    assert.assertEquals(
+      output.behavioral.rules.some((r) =>
+        r.includes("DO NOT create, edit, or write any files"),
+      ),
+      false,
+    );
+    assert.assertEquals(output.behavioral.modeOverride, "plan mode");
+  });
 });
 
 // =============================================================================
@@ -412,14 +409,17 @@ bdd.describe("agent discovery: base questions together", () => {
   });
 
   bdd.it("returns every base question with one instruction", async () => {
-    const output = await compiler.compile(
+    const output = (await compiler.compile(
       agentDiscovery(),
       noConcerns,
       noRules,
-    ) as compiler.DiscoveryOutput;
+    )) as compiler.DiscoveryOutput;
 
     assert.assertEquals(output.phase, "DISCOVERY");
-    assert.assertEquals(output.questions.map((q) => q.id), QUESTION_IDS);
+    assert.assertEquals(
+      output.questions.map((q) => q.id),
+      QUESTION_IDS,
+    );
     assert.assertEquals(output.totalQuestions, 6);
     assert.assertEquals("currentQuestion" in output, false);
     assert.assertStringIncludes(
@@ -430,11 +430,11 @@ bdd.describe("agent discovery: base questions together", () => {
   });
 
   bdd.it("asks for one JSON answer keyed by the question ids", async () => {
-    const output = await compiler.compile(
+    const output = (await compiler.compile(
       agentDiscovery(),
       noConcerns,
       noRules,
-    ) as compiler.DiscoveryOutput;
+    )) as compiler.DiscoveryOutput;
 
     const submit = output.transition.onComplete;
     assert.assertStringIncludes(submit, "next --agent --answer='");
@@ -458,14 +458,17 @@ bdd.describe("agent discovery: base questions together", () => {
         "1-star: manual upload; 10-star: drag and drop with previews",
       );
 
-      const output = await compiler.compile(
+      const output = (await compiler.compile(
         state,
         noConcerns,
         noRules,
-      ) as compiler.DiscoveryOutput;
+      )) as compiler.DiscoveryOutput;
 
       const open = QUESTION_IDS.slice(2);
-      assert.assertEquals(output.questions.map((q) => q.id), open);
+      assert.assertEquals(
+        output.questions.map((q) => q.id),
+        open,
+      );
       assert.assertEquals(output.answeredCount, 2);
       assert.assertStringIncludes(
         output.instruction,
@@ -523,7 +526,7 @@ bdd.describe("agent discovery: base questions together", () => {
         );
       }
 
-      const output = await compiler.compile(
+      const output = (await compiler.compile(
         state,
         noConcerns,
         noRules,
@@ -532,18 +535,18 @@ bdd.describe("agent discovery: base questions together", () => {
         undefined,
         undefined,
         hints,
-      ) as compiler.DiscoveryOutput;
+      )) as compiler.DiscoveryOutput;
 
       assert.assertStringIncludes(output.instruction, expected);
     });
   }
 
   bdd.it("human mode (no --agent) returns all 6 questions", async () => {
-    const output = await compiler.compile(
+    const output = (await compiler.compile(
       inDiscovery(),
       noConcerns,
       noRules,
-    ) as compiler.DiscoveryOutput;
+    )) as compiler.DiscoveryOutput;
 
     assert.assertEquals(output.phase, "DISCOVERY");
     assert.assertEquals(output.questions.length, 6);
@@ -607,11 +610,11 @@ bdd.describe("discovery follow-ups: one at a time", () => {
 
   for (const audience of ["agent", "human"] as const) {
     bdd.it(`${audience} mode returns the first follow-up alone`, async () => {
-      const output = await compiler.compile(
+      const output = (await compiler.compile(
         answeredWithFollowUps(audience),
         noConcerns,
         noRules,
-      ) as compiler.DiscoveryOutput;
+      )) as compiler.DiscoveryOutput;
 
       assert.assertEquals(output.phase, "DISCOVERY");
       assert.assertEquals(output.questions.length, 1);
@@ -637,11 +640,11 @@ bdd.describe("discovery follow-ups: one at a time", () => {
   }
 
   bdd.it("names the base question the follow-up belongs to", async () => {
-    const output = await compiler.compile(
+    const output = (await compiler.compile(
       answeredWithFollowUps("agent"),
       noConcerns,
       noRules,
-    ) as compiler.DiscoveryOutput;
+    )) as compiler.DiscoveryOutput;
 
     assert.assertStringIncludes(
       output.instruction,
@@ -660,13 +663,16 @@ bdd.describe("discovery follow-ups: one at a time", () => {
       "Feature flag, off by default",
     );
 
-    const output = await compiler.compile(
+    const output = (await compiler.compile(
       state,
       noConcerns,
       noRules,
-    ) as compiler.DiscoveryOutput;
+    )) as compiler.DiscoveryOutput;
 
-    assert.assertEquals(output.questions.map((q) => q.id), ["user_impacta"]);
+    assert.assertEquals(
+      output.questions.map((q) => q.id),
+      ["user_impacta"],
+    );
     assert.assertStringIncludes(
       output.instruction,
       "Discovery moves on to the review once this one is answered or skipped.",
@@ -687,16 +693,17 @@ bdd.describe("discovery follow-ups: one at a time", () => {
         "agent",
       );
 
-      const output = await compiler.compile(
+      const output = (await compiler.compile(
         state,
         noConcerns,
         noRules,
-      ) as compiler.DiscoveryOutput;
+      )) as compiler.DiscoveryOutput;
 
       assert.assertEquals(output.questions.length, 6);
-      assert.assertEquals(output.pendingFollowUps?.map((f) => f.id), [
-        "status_quoa",
-      ]);
+      assert.assertEquals(
+        output.pendingFollowUps?.map((f) => f.id),
+        ["status_quoa"],
+      );
     },
   );
 });
@@ -778,11 +785,11 @@ bdd.describe("DISCOVERY_REFINEMENT split proposal", () => {
 
   bdd.it("multi-area discovery includes splitProposal in output", async () => {
     const state = multiAreaReview();
-    const output = await compiler.compile(
+    const output = (await compiler.compile(
       state,
       noConcerns,
       noRules,
-    ) as compiler.DiscoveryReviewOutput;
+    )) as compiler.DiscoveryReviewOutput;
 
     assert.assertEquals(output.phase, "DISCOVERY_REFINEMENT");
     assert.assertEquals(output.splitProposal !== undefined, true);
@@ -792,11 +799,11 @@ bdd.describe("DISCOVERY_REFINEMENT split proposal", () => {
 
   bdd.it("single-area discovery omits splitProposal", async () => {
     const state = singleAreaReview();
-    const output = await compiler.compile(
+    const output = (await compiler.compile(
       state,
       noConcerns,
       noRules,
-    ) as compiler.DiscoveryReviewOutput;
+    )) as compiler.DiscoveryReviewOutput;
 
     assert.assertEquals(output.phase, "DISCOVERY_REFINEMENT");
     assert.assertEquals(output.splitProposal, undefined);
@@ -804,11 +811,11 @@ bdd.describe("DISCOVERY_REFINEMENT split proposal", () => {
 
   bdd.it("approved + split shows split-specific instruction", async () => {
     const state = machine.approveDiscoveryAnswers(multiAreaReview());
-    const output = await compiler.compile(
+    const output = (await compiler.compile(
       state,
       noConcerns,
       noRules,
-    ) as compiler.DiscoveryReviewOutput;
+    )) as compiler.DiscoveryReviewOutput;
 
     assert.assertEquals(output.phase, "DISCOVERY_REFINEMENT");
     assert.assertEquals(output.splitProposal !== undefined, true);
@@ -824,8 +831,9 @@ bdd.describe("DISCOVERY_REFINEMENT split proposal", () => {
     const output = await compiler.compile(state, noConcerns, noRules);
 
     const labels =
-      (output as { interactiveOptions?: readonly { label: string }[] })
-        .interactiveOptions?.map((o) => o.label) ?? [];
+      (
+        output as { interactiveOptions?: readonly { label: string }[] }
+      ).interactiveOptions?.map((o) => o.label) ?? [];
     assert.assertEquals(labels.includes("Keep as one spec"), true);
     assert.assertEquals(labels.includes("Split into separate specs"), true);
   });
@@ -835,8 +843,9 @@ bdd.describe("DISCOVERY_REFINEMENT split proposal", () => {
     const output = await compiler.compile(state, noConcerns, noRules);
 
     const labels =
-      (output as { interactiveOptions?: readonly { label: string }[] })
-        .interactiveOptions?.map((o) => o.label) ?? [];
+      (
+        output as { interactiveOptions?: readonly { label: string }[] }
+      ).interactiveOptions?.map((o) => o.label) ?? [];
     assert.assertEquals(labels.includes("Approve all answers"), true);
     assert.assertEquals(labels.includes("Revise answers"), true);
   });
@@ -944,9 +953,7 @@ bdd.describe("inferClassification", () => {
       specDescription: null,
       discovery: {
         ...schema.createInitialState().discovery,
-        answers: [
-          { questionId: "status_quo", answer: "REST api endpoint" },
-        ],
+        answers: [{ questionId: "status_quo", answer: "REST api endpoint" }],
       },
     });
     const result = compiler.inferClassification(state);
@@ -960,9 +967,7 @@ bdd.describe("inferClassification", () => {
       discovery: {
         ...schema.createInitialState().discovery,
         userContext: ["button"],
-        answers: [
-          { questionId: "status_quo", answer: "terminal" },
-        ],
+        answers: [{ questionId: "status_quo", answer: "terminal" }],
       },
     });
     const result = compiler.inferClassification(state);
@@ -1013,7 +1018,7 @@ bdd.describe("Discovery Conduct Rules in DISCOVERY phase", () => {
       );
       assert.assertEquals(
         rules.some((r) =>
-          r.includes("Do NOT fill placeholders with assumptions")
+          r.includes("Do NOT fill placeholders with assumptions"),
         ),
         true,
       );
@@ -1144,7 +1149,7 @@ bdd.describe("Discovery Conduct Rules in DISCOVERY_REFINEMENT phase", () => {
 
       assert.assertEquals(
         rules.some((r) =>
-          r.includes("Double-check scope boundary in refinement XYZ")
+          r.includes("Double-check scope boundary in refinement XYZ"),
         ),
         true,
       );
@@ -1491,7 +1496,7 @@ bdd.describe("activePlanDetected in listen-first", () => {
           planContent,
         );
 
-        const output = await compiler.compile(
+        const output = (await compiler.compile(
           inDiscoveryWithDesc(),
           noConcerns,
           noRules,
@@ -1503,7 +1508,7 @@ bdd.describe("activePlanDetected in listen-first", () => {
           undefined,
           undefined,
           tmpDir,
-        ) as compiler.DiscoveryOutput;
+        )) as compiler.DiscoveryOutput;
 
         assert.assertEquals(output.activePlanDetected !== undefined, true);
         assert.assertEquals(
@@ -1537,7 +1542,7 @@ bdd.describe("activePlanDetected in listen-first", () => {
           "## Tasks\nTodo.",
         );
 
-        const output = await compiler.compile(
+        const output = (await compiler.compile(
           inDiscoveryWithDesc(),
           noConcerns,
           noRules,
@@ -1549,7 +1554,7 @@ bdd.describe("activePlanDetected in listen-first", () => {
           undefined,
           undefined,
           tmpDir,
-        ) as compiler.DiscoveryOutput;
+        )) as compiler.DiscoveryOutput;
 
         assert.assertEquals(output.instruction.includes("⚠"), true);
       } finally {
@@ -1578,11 +1583,11 @@ bdd.describe("activePlanDetected in listen-first", () => {
         },
       };
 
-      const output = await compiler.compile(
+      const output = (await compiler.compile(
         stateWithPlan,
         noConcerns,
         noRules,
-      ) as compiler.DiscoveryOutput;
+      )) as compiler.DiscoveryOutput;
 
       assert.assertEquals(
         (output as compiler.DiscoveryOutput).planImported,
@@ -1625,7 +1630,7 @@ bdd.describe(
         const output = await compiler.compile(inStageA(), noConcerns, noRules);
         assert.assertEquals(
           output.behavioral.rules.some((r) =>
-            r.includes("COMPLETENESS ASSESSMENT")
+            r.includes("COMPLETENESS ASSESSMENT"),
           ),
           true,
         );
@@ -1637,8 +1642,9 @@ bdd.describe(
       async () => {
         const output = await compiler.compile(inStageA(), noConcerns, noRules);
         assert.assertEquals(
-          output.behavioral.rules.some((r) =>
-            r.includes("Selective expansion") && r.includes("Hold scope")
+          output.behavioral.rules.some(
+            (r) =>
+              r.includes("Selective expansion") && r.includes("Hold scope"),
           ),
           true,
         );
@@ -1646,25 +1652,28 @@ bdd.describe(
     );
 
     bdd.it("subPhase is 'stage-a' in DiscoveryReviewOutput", async () => {
-      const output = await compiler.compile(
+      const output = (await compiler.compile(
         inStageA(),
         noConcerns,
         noRules,
-      ) as compiler.DiscoveryReviewOutput;
+      )) as compiler.DiscoveryReviewOutput;
       assert.assertEquals(output.subPhase, "stage-a");
     });
 
     bdd.it(
       "injects defaultReviewPosture message when manifest has default",
       async () => {
-        const base = schema.createInitialManifest([], ["claude-code"], [
-          "anthropic",
-        ], {
-          languages: [],
-          frameworks: [],
-          ci: [],
-          testRunner: null,
-        });
+        const base = schema.createInitialManifest(
+          [],
+          ["claude-code"],
+          ["anthropic"],
+          {
+            languages: [],
+            frameworks: [],
+            ci: [],
+            testRunner: null,
+          },
+        );
         const configWithDefault: schema.NosManifest = {
           ...base,
           defaultReviewPosture: "hold-scope",
@@ -1677,7 +1686,7 @@ bdd.describe(
         );
         assert.assertEquals(
           output.behavioral.rules.some((r) =>
-            r.includes("project default posture")
+            r.includes("project default posture"),
           ),
           true,
         );
@@ -1745,13 +1754,13 @@ bdd.describe("DISCOVERY_REFINEMENT Stage B — posture-guided review", () => {
       // hold-scope = abbreviated — does NOT include the extended-only rules
       assert.assertEquals(
         output.behavioral.rules.some((r) =>
-          r.includes("CEO REVIEW — REUSE SCORE")
+          r.includes("CEO REVIEW — REUSE SCORE"),
         ),
         false,
       );
       assert.assertEquals(
         output.behavioral.rules.some((r) =>
-          r.includes("CEO REVIEW — FAILURE MODE REGISTRY")
+          r.includes("CEO REVIEW — FAILURE MODE REGISTRY"),
         ),
         false,
       );
@@ -1805,18 +1814,18 @@ bdd.describe(
       const output = await compiler.compile(inStageC(), noConcerns, noRules);
       assert.assertEquals(
         output.behavioral.rules.some((r) =>
-          r.includes("CEO review is complete")
+          r.includes("CEO review is complete"),
         ),
         true,
       );
     });
 
     bdd.it("subPhase is 'stage-c' when ceoReview is present", async () => {
-      const output = await compiler.compile(
+      const output = (await compiler.compile(
         inStageC(),
         noConcerns,
         noRules,
-      ) as compiler.DiscoveryReviewOutput;
+      )) as compiler.DiscoveryReviewOutput;
       assert.assertEquals(output.subPhase, "stage-c");
     });
 
@@ -1841,11 +1850,11 @@ bdd.describe(
           machine.setReviewPosture(inDiscoveryReview(), "selective-expansion"),
           testScore,
         );
-        const output = await compiler.compile(
+        const output = (await compiler.compile(
           state,
           noConcerns,
           noRules,
-        ) as compiler.DiscoveryReviewOutput;
+        )) as compiler.DiscoveryReviewOutput;
         assert.assertEquals(output.completenessScore?.overall, 7);
         assert.assertEquals(output.reviewPosture, "selective-expansion");
       },
@@ -1860,11 +1869,11 @@ bdd.describe("discovery after a revisit names the phase it came from", () => {
     machine.revisitSpec(inBlocked(), "the API changed");
 
   bdd.it("with questions still open", async () => {
-    const output = await compiler.compile(
+    const output = (await compiler.compile(
       revisitedFromBlocked(),
       noConcerns,
       noRules,
-    ) as compiler.DiscoveryOutput;
+    )) as compiler.DiscoveryOutput;
 
     assert.assertStringIncludes(output.instruction, "revisited from BLOCKED");
   });
@@ -1879,11 +1888,11 @@ bdd.describe("discovery after a revisit names the phase it came from", () => {
       );
     }
 
-    const output = await compiler.compile(
+    const output = (await compiler.compile(
       state,
       noConcerns,
       noRules,
-    ) as compiler.DiscoveryOutput;
+    )) as compiler.DiscoveryOutput;
 
     assert.assertStringIncludes(output.instruction, "revisited from BLOCKED");
   });

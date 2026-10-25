@@ -105,7 +105,9 @@ export const createPtyHost = (cb: PtyHostCallbacks): PtyHost => {
         }),
       ]);
       if (timer !== undefined) clearTimeout(timer);
-      if (timedOut) { for (const p of live) p.kill("SIGKILL"); }
+      if (timedOut) {
+        for (const p of live) p.kill("SIGKILL");
+      }
     },
 
     has(pane: PaneId): boolean {

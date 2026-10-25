@@ -72,11 +72,11 @@ for (const { name, value } of VALUE_CASES) {
 
 Deno.test("renderValueToReadableStream sends a Date, a Map and a React element in one result", async () => {
   const savedAt = new Date("2026-01-02T03:04:05.000Z");
-  const result = await roundTrip({
+  const result = (await roundTrip({
     savedAt,
     counts: new Map([["views", 3]]),
     message: React.createElement("p", { className: "notice" }, "Saved $5"),
-  }) as {
+  })) as {
     savedAt: Date;
     counts: Map<string, number>;
     message: React.ReactElement<{ className: string; children: string }>;
@@ -97,9 +97,9 @@ Deno.test("renderValueToReadableStream renders server components in a result", a
     return React.createElement("strong", null, `Hello ${props.name}`);
   };
 
-  const result = await roundTrip({
+  const result = (await roundTrip({
     message: React.createElement(Greeting, { name: "Ada" }),
-  }) as { message: React.ReactElement<{ children: string }> };
+  })) as { message: React.ReactElement<{ children: string }> };
 
   assert.assertEquals(result.message.type, "strong");
   assert.assertEquals(result.message.props.children, "Hello Ada");
@@ -110,7 +110,7 @@ Deno.test("renderValueToReadableStream sends client components as module referen
     React.createElement("output", null, props.start);
   const loaded: string[] = [];
 
-  const result = await roundTrip(
+  const result = (await roundTrip(
     React.createElement(
       // The bundler turns a "use client" export into this reference.
       protocol.createClientReference(
@@ -132,7 +132,7 @@ Deno.test("renderValueToReadableStream sends client components as module referen
         return Counter;
       },
     },
-  ) as React.ReactElement<{ start: number }>;
+  )) as React.ReactElement<{ start: number }>;
 
   assert.assertEquals(loaded, ["/chunk-counter.js#Counter"]);
   assert.assertStrictEquals(result.type, Counter);
@@ -146,7 +146,7 @@ Deno.test("renderValueToReadableStream sends server actions as callable referenc
     $$bound: null,
   });
 
-  const result = await roundTrip({ save }) as {
+  const result = (await roundTrip({ save })) as {
     save: { $$id: string };
   };
 
@@ -200,9 +200,10 @@ Deno.test("renderToReadableStream escapes text and props that start with $", asy
   // Let the stream apply before the tree is read.
   await new Promise((resolve) => setTimeout(resolve, 0));
 
-  const element = RSCTreeRoot() as React.ReactElement<
-    { title: string; children: string }
-  >;
+  const element = RSCTreeRoot() as React.ReactElement<{
+    title: string;
+    children: string;
+  }>;
   assert.assertEquals(element.props.title, "$5 off");
   assert.assertEquals(element.props.children, "$D-day");
 });
@@ -213,12 +214,18 @@ Deno.test("renderToReadableStream sends the items of an array a server component
     React.createElement("li", { key: "b" }, "B"),
   ];
 
-  const items = await larouxClient.createValueFromReadableStream(
+  const items = (await larouxClient.createValueFromReadableStream(
     rscFlightRenderer.renderToReadableStream(React.createElement(List), {}),
-  ) as React.ReactElement<{ children: string }>[];
+  )) as React.ReactElement<{ children: string }>[];
 
-  assert.assertEquals(items.map((item) => item.type), ["li", "li"]);
-  assert.assertEquals(items.map((item) => item.props.children), ["A", "B"]);
+  assert.assertEquals(
+    items.map((item) => item.type),
+    ["li", "li"],
+  );
+  assert.assertEquals(
+    items.map((item) => item.props.children),
+    ["A", "B"],
+  );
 });
 
 Deno.test("a Link that a server component renders navigates on the client", async () => {
@@ -231,12 +238,12 @@ Deno.test("a Link that a server component renders navigates on the client", asyn
       children: "Stories",
     });
 
-  const anchor = await larouxClient.createValueFromReadableStream(
+  const anchor = (await larouxClient.createValueFromReadableStream(
     rscFlightRenderer.renderToReadableStream(
       React.createElement(StoriesNav),
       {},
     ),
-  ) as React.ReactElement<{
+  )) as React.ReactElement<{
     readonly onClick?: unknown;
     readonly [name: string]: unknown;
   }>;

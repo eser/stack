@@ -53,8 +53,8 @@ export const serveStatic = async (
     return notFound();
   }
 
-  const contentType = MIME_TYPES[runtime.path.extname(filePath)] ??
-    "application/octet-stream";
+  const contentType =
+    MIME_TYPES[runtime.path.extname(filePath)] ?? "application/octet-stream";
 
   // readFile's type allows any ArrayBufferLike, a Response body only an
   // ArrayBuffer-backed view: the copy is one.

@@ -47,7 +47,8 @@ export const main = async (
 
   if (
     state.phase === "IDLE" ||
-    state.phase === "UNINITIALIZED" || state.phase === "COMPLETED"
+    state.phase === "UNINITIALIZED" ||
+    state.phase === "COMPLETED"
   ) {
     out.writeln(span.red(`Cannot cancel in phase: ${state.phase}`));
     await out.close();
@@ -84,11 +85,7 @@ export const main = async (
 
   // Per-spec: preserve COMPLETED state for history
   if (completedState.spec !== null) {
-    await persistence.writeSpecState(
-      root,
-      completedState.spec,
-      completedState,
-    );
+    await persistence.writeSpecState(root, completedState.spec, completedState);
   }
 
   // Global: return to IDLE

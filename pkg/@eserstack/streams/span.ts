@@ -137,7 +137,7 @@ export type SpanInput = string | Span;
 
 /** Turns each string into a text span and keeps spans as they are. */
 export const normalize = (inputs: readonly SpanInput[]): Span[] =>
-  inputs.map((i) => typeof i === "string" ? text(i) : i);
+  inputs.map((i) => (typeof i === "string" ? text(i) : i));
 
 // =============================================================================
 // Inline constructors

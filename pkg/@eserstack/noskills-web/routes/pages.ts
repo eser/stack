@@ -49,7 +49,10 @@ export const specNotFound = (): Response =>
  * it: not empty, not `.` or `..`, and without a separator or a NUL.
  */
 export const isSpecDirName = (name: string): boolean =>
-  name !== "" && name !== "." && name !== ".." && !/[/\\]/.test(name) &&
+  name !== "" &&
+  name !== "." &&
+  name !== ".." &&
+  !/[/\\]/.test(name) &&
   !name.includes("\0");
 
 /**

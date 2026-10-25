@@ -31,11 +31,12 @@ export const tool: FileTool = fileTool.withGoValidator(
       const submoduleCount = (content.match(/\[submodule\s/g) ?? []).length;
 
       if (submoduleCount > 0) {
-        return [{
-          path: gitmodulesPath,
-          message:
-            `found ${submoduleCount} submodule(s) — submodules are not allowed`,
-        }];
+        return [
+          {
+            path: gitmodulesPath,
+            message: `found ${submoduleCount} submodule(s) — submodules are not allowed`,
+          },
+        ];
       }
 
       return [];

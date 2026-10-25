@@ -85,7 +85,8 @@ const getEnv = (name: string): string | undefined => {
     // process.env works on Deno 2.7+, Node.js, and Bun
     if (
       typeof g.process !== "undefined" &&
-      g.process.env !== undefined && g.process.env !== null
+      g.process.env !== undefined &&
+      g.process.env !== null
     ) {
       return g.process.env[name] as string | undefined;
     }
@@ -198,9 +199,12 @@ export const selectBackend = (
   options?: Pick<LoadOptions, "backends">,
 ): types.FFIBackend => {
   const requested = options?.backends;
-  const candidates: readonly types.FFIBackend[] = requested === undefined
-    ? BACKENDS
-    : requested.flatMap((id) => BACKENDS.filter((entry) => entry.name === id));
+  const candidates: readonly types.FFIBackend[] =
+    requested === undefined
+      ? BACKENDS
+      : requested.flatMap((id) =>
+          BACKENDS.filter((entry) => entry.name === id),
+        );
 
   for (const backend of candidates) {
     if (!backend.available()) {
@@ -237,9 +241,8 @@ const openEserAjan = async (
   // Resolve overloaded arguments
   const libraryPath: string | undefined =
     typeof libraryPathOrOptions === "string" ? libraryPathOrOptions : undefined;
-  const opts: LoadOptions | undefined = typeof libraryPathOrOptions === "object"
-    ? libraryPathOrOptions
-    : options;
+  const opts: LoadOptions | undefined =
+    typeof libraryPathOrOptions === "object" ? libraryPathOrOptions : options;
 
   // --- Global kill switch ---
   if (isDisabledByEnv("ESER_AJAN")) {
@@ -251,10 +254,10 @@ const openEserAjan = async (
   }
 
   // --- Determine what's allowed ---
-  const nativeAllowed = !isDisabledByEnv("ESER_AJAN_NATIVE") &&
-    (opts?.native !== false);
-  const wasmAllowed = !isDisabledByEnv("ESER_AJAN_WASM") &&
-    (opts?.wasm !== false);
+  const nativeAllowed =
+    !isDisabledByEnv("ESER_AJAN_NATIVE") && opts?.native !== false;
+  const wasmAllowed =
+    !isDisabledByEnv("ESER_AJAN_WASM") && opts?.wasm !== false;
 
   // Say WHICH of the two causes applied. "disabled" alone reads like a global
   // capability being switched off, when the usual cause is a single caller
@@ -286,8 +289,8 @@ const openEserAjan = async (
 
   if (nativeAllowed) {
     try {
-      const resolvedPath = libraryPath ??
-        resolve.resolveLibraryPath(FFI_MODULE_DIR);
+      const resolvedPath =
+        libraryPath ?? resolve.resolveLibraryPath(FFI_MODULE_DIR);
       const backend = selectBackend(opts);
       return await backend.open(resolvedPath);
     } catch (error) {
@@ -430,9 +433,8 @@ export const loadEserAjan = async (
 ): Promise<types.FFILibrary> => {
   const libraryPath: string | undefined =
     typeof libraryPathOrOptions === "string" ? libraryPathOrOptions : undefined;
-  const opts: LoadOptions | undefined = typeof libraryPathOrOptions === "object"
-    ? libraryPathOrOptions
-    : options;
+  const opts: LoadOptions | undefined =
+    typeof libraryPathOrOptions === "object" ? libraryPathOrOptions : options;
 
   const key = cacheKey(libraryPath, opts);
   let entry = openLibraries.get(key);

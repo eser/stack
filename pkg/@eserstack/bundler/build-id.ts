@@ -9,7 +9,8 @@ let initPromise: Promise<string> | null = null;
 
 const computeBuildId = async (): Promise<string> => {
   const env = runtime.env.toObject();
-  const deploymentId = env["DENO_DEPLOYMENT_ID"] ??
+  const deploymentId =
+    env["DENO_DEPLOYMENT_ID"] ??
     // For CI
     env["GITHUB_SHA"] ??
     crypto.randomUUID();

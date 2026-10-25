@@ -702,8 +702,8 @@ const CEO_REVIEW_RULES = (posture: schema.ReviewPosture): string[] => {
 const concernPostureSuggestion = (
   activeConcerns: readonly schema.ConcernDefinition[],
 ): string | null => {
-  const suggestors = activeConcerns.filter((c) =>
-    c.suggestsPosture !== undefined
+  const suggestors = activeConcerns.filter(
+    (c) => c.suggestsPosture !== undefined,
   );
   if (suggestors.length === 0) return null;
   if (suggestors.length === 1) {
@@ -711,9 +711,9 @@ const concernPostureSuggestion = (
       suggestors[0]!.suggestsPosture
     } (${suggestors[0]!.name} active).`;
   }
-  const list = suggestors.map((c) => `${c.name}: ${c.suggestsPosture}`).join(
-    ", ",
-  );
+  const list = suggestors
+    .map((c) => `${c.name}: ${c.suggestsPosture}`)
+    .join(", ");
   return `Multiple concerns suggest different postures (${list}). Please select manually: a/b/c/d.`;
 };
 
@@ -742,9 +742,10 @@ const buildBehavioral = (
     "Report progress honestly. Not done = 'not done'. Partial = 'partial: [works]/[doesn't]'. Untested = 'untested'. 4 of 6 = '4 of 6 done, 2 remaining'.",
     interactive
       ? `Never skip steps or infer decisions. ${askMethod} Recommend first, then ask.`
-      : `Never skip steps or infer decisions. Nobody answers questions during this run: when a decision needs the user, run \`${
-        cs('block "reason"', specScoped)
-      }\` and stop.`,
+      : `Never skip steps or infer decisions. Nobody answers questions during this run: when a decision needs the user, run \`${cs(
+          'block "reason"',
+          specScoped,
+        )}\` and stop.`,
   );
   if (interactive) {
     mandatoryRules.push(
@@ -758,9 +759,10 @@ const buildBehavioral = (
   if (interactive) {
     mandatoryRules.push(
       "Listen first: after spec creation, ask 'Tell me about this. Share as much context as you have.' Wait for their response before mode selection. Rich context (>200 chars) → suggest pre-filled discovery answers from it, marked STATED or INFERRED for the user to confirm. Brief response → proceed normally.",
-      `Discovery questions are adaptive. Once the user has answered the base questions, write 1-3 follow-up questions for each answer that reveals ambiguity, risk, dependencies, or missing detail, and register them with \`${
-        cs('followup <questionId> "question"', specScoped)
-      }\` before you submit the answers (max 3 per question). noskills then gives you the follow-ups one at a time.`,
+      `Discovery questions are adaptive. Once the user has answered the base questions, write 1-3 follow-up questions for each answer that reveals ambiguity, risk, dependencies, or missing detail, and register them with \`${cs(
+        'followup <questionId> "question"',
+        specScoped,
+      )}\` before you submit the answers (max 3 per question). noskills then gives you the follow-ups one at a time.`,
     );
   }
   mandatoryRules.push(
@@ -770,38 +772,39 @@ const buildBehavioral = (
 
   switch (state.phase) {
     case "IDLE": {
-      const optionRule = hints.optionPresentation === "tool"
-        ? "Pass interactiveOptions DIRECTLY to AskUserQuestion options array (header max 12 chars). Use commandMap to resolve selections. For availableConcerns: AskUserQuestion with multiSelect:true, max 4 per question — split across questions if needed. Present ALL concerns."
-        : "Present interactiveOptions as numbered list. Use commandMap to resolve selections. Present ALL availableConcerns as numbered list for multiselect.";
+      const optionRule =
+        hints.optionPresentation === "tool"
+          ? "Pass interactiveOptions DIRECTLY to AskUserQuestion options array (header max 12 chars). Use commandMap to resolve selections. For availableConcerns: AskUserQuestion with multiSelect:true, max 4 per question — split across questions if needed. Present ALL concerns."
+          : "Present interactiveOptions as numbered list. Use commandMap to resolve selections. Present ALL availableConcerns as numbered list for multiselect.";
 
       return {
         rules: [
-          `If the user described a feature/bug/task, create a spec immediately: \`${
-            c('spec new "description"')
-          }\`; the name is auto-generated. Do NOT present menus or ask 'What would you like to do?' unless the conversation has no prior context.`,
+          `If the user described a feature/bug/task, create a spec immediately: \`${c(
+            'spec new "description"',
+          )}\`; the name is auto-generated. Do NOT present menus or ask 'What would you like to do?' unless the conversation has no prior context.`,
           ...mandatoryRules,
           optionRule,
-          `Encourage full context: 'Tell me what you want to build: a one-liner, detailed requirements, meeting notes, anything.' Slug is auto-generated. Pass full text to \`${
-            c('spec new "..."')
-          }\`.`,
+          `Encourage full context: 'Tell me what you want to build: a one-liner, detailed requirements, meeting notes, anything.' Slug is auto-generated. Pass full text to \`${c(
+            'spec new "..."',
+          )}\`.`,
           "After spec new, run next and present the discovery mode options it returns; never skip discovery without asking.",
           "Every task gets a spec. No exceptions. A one-liner fix, a config change, a 'simple' refactor — all get specs. The spec can be short but it must exist. 'Too simple for a spec' is the anti-pattern.",
-          `SPEC CREATION: When the user says 'create a new spec', 'new spec', or similar, do NOT run \`${
-            c("spec new")
-          }\` without a description. Ask the user 'What do you want to build?'${
+          `SPEC CREATION: When the user says 'create a new spec', 'new spec', or similar, do NOT run \`${c(
+            "spec new",
+          )}\` without a description. Ask the user 'What do you want to build?'${
             hints.hasAskUserTool ? " via AskUserQuestion" : ""
-          } first. Wait for their response. Then run: \`${
-            c('spec new "their full response"')
-          }\`.`,
-          `CONCERN MANAGEMENT: When the user wants to add or view concerns, run \`${
-            c("concern list")
-          }\` immediately. Do NOT analyze or recommend concerns. ${
+          } first. Wait for their response. Then run: \`${c(
+            'spec new "their full response"',
+          )}\`.`,
+          `CONCERN MANAGEMENT: When the user wants to add or view concerns, run \`${c(
+            "concern list",
+          )}\` immediately. Do NOT analyze or recommend concerns. ${
             hints.optionPresentation === "tool"
               ? "Present the list via AskUserQuestion (multiSelect:true, max 4 per question)."
               : "Present the list as a numbered list; the user may pick several numbers."
-          } Use a SINGLE \`${
-            c("concern add id1 id2 id3")
-          }\` command for all selections.`,
+          } Use a SINGLE \`${c(
+            "concern add id1 id2 id3",
+          )}\` command for all selections.`,
         ],
         tone: "Welcoming. Present choices, then wait.",
       };
@@ -835,9 +838,10 @@ const buildBehavioral = (
           // Dream state + expansions + architecture + error map
           (() => {
             const dreamPrompts = concerns.getDreamStatePrompts(activeConcerns);
-            const dreamBase = dreamPrompts.length > 0
-              ? `After answers, ${dreamPrompts.join(" Also: ")}`
-              : "After answers, synthesize CURRENT STATE → THIS SPEC → 6-MONTH IDEAL vision.";
+            const dreamBase =
+              dreamPrompts.length > 0
+                ? `After answers, ${dreamPrompts.join(" Also: ")}`
+                : "After answers, synthesize CURRENT STATE → THIS SPEC → 6-MONTH IDEAL vision.";
             return `${dreamBase} Then: (1) expansion opportunities as numbered proposals with effort (S/M/L/XL), risk, completeness delta — options: Add/Defer/Skip. (2) Architectural decisions that BLOCK implementation — present with options, RECOMMENDATION, completeness scores. Unresolved = risk flag. (3) Error/rescue map: codepath | failure mode | handling. Flag CRITICAL GAPS as decisions.`;
           })(),
 
@@ -848,8 +852,7 @@ const buildBehavioral = (
           ...DISCOVERY_CONDUCT_RULES,
           ...concernConductRules,
         ],
-        tone:
-          "Curious interviewer with a stake in the answers. Comes PREPARED — read the codebase first. Challenge assumptions, think about architecture and failure modes.",
+        tone: "Curious interviewer with a stake in the answers. Comes PREPARED — read the codebase first. Challenge assumptions, think about architecture and failure modes.",
       };
     }
 
@@ -888,13 +891,14 @@ const buildBehavioral = (
         );
       } else if (stage === "stage-b") {
         const posture = state.discovery.refinement?.reviewPosture;
-        const postureRule = posture === "selective-expansion"
-          ? "REVIEW POSTURE: Selective expansion. Hold core scope rigid. Only suggest additions that address gaps from the completeness assessment. Each suggestion must explain: what gap it fills, what goes wrong if skipped. Target: raise completeness to 9+/10 with minimal additions."
-          : posture === "hold-scope"
-          ? "REVIEW POSTURE: Hold scope. Do NOT propose any additions or changes. Surface risks as observations, not change requests. Your job is to confirm the spec is ready, not to improve it."
-          : posture === "scope-expansion"
-          ? "REVIEW POSTURE: Scope expansion. Actively look for adjacent concerns and missing features. Each expansion must ride on infrastructure already being built. Present ALL suggestions as a multi-select table with columns: Addition | Why it rides cheap | LOC estimate."
-          : "REVIEW POSTURE: Scope reduction. Identify everything that can be deferred. For each item: what's deferred, risk of deferring, minimal viable version. Present cut list for user approval.";
+        const postureRule =
+          posture === "selective-expansion"
+            ? "REVIEW POSTURE: Selective expansion. Hold core scope rigid. Only suggest additions that address gaps from the completeness assessment. Each suggestion must explain: what gap it fills, what goes wrong if skipped. Target: raise completeness to 9+/10 with minimal additions."
+            : posture === "hold-scope"
+              ? "REVIEW POSTURE: Hold scope. Do NOT propose any additions or changes. Surface risks as observations, not change requests. Your job is to confirm the spec is ready, not to improve it."
+              : posture === "scope-expansion"
+                ? "REVIEW POSTURE: Scope expansion. Actively look for adjacent concerns and missing features. Each expansion must ride on infrastructure already being built. Present ALL suggestions as a multi-select table with columns: Addition | Why it rides cheap | LOC estimate."
+                : "REVIEW POSTURE: Scope reduction. Identify everything that can be deferred. For each item: what's deferred, risk of deferring, minimal viable version. Present cut list for user approval.";
 
         stageRules = [postureRule];
 
@@ -928,11 +932,12 @@ const buildBehavioral = (
           ...DISCOVERY_CONDUCT_RULES,
           ...concernConductRulesRefinement,
         ],
-        tone: stage === "stage-a"
-          ? "Structured evaluator. Score honestly — do not inflate."
-          : stage === "stage-b"
-          ? "Posture-guided reviewer. Follow the posture rules exactly."
-          : "Decisive closer. Present delta and get a final decision.",
+        tone:
+          stage === "stage-a"
+            ? "Structured evaluator. Score honestly — do not inflate."
+            : stage === "stage-b"
+              ? "Posture-guided reviewer. Follow the posture rules exactly."
+              : "Decisive closer. Present delta and get a final decision.",
       };
     }
 
@@ -943,10 +948,11 @@ const buildBehavioral = (
       if (delegations.length > 0) {
         const pending = delegations.filter((d) => d.status === "pending");
         const answered = delegations.filter((d) => d.status === "answered");
-        const lines = delegations.map((d) =>
-          `- ${d.questionId}: delegated to ${d.delegatedTo} — ${
-            d.status === "answered" ? "ANSWERED ✓" : "PENDING"
-          }`
+        const lines = delegations.map(
+          (d) =>
+            `- ${d.questionId}: delegated to ${d.delegatedTo} — ${
+              d.status === "answered" ? "ANSWERED ✓" : "PENDING"
+            }`,
         );
         delegationRules.push(
           `DELEGATION STATUS:\n${lines.join("\n")}${
@@ -973,11 +979,11 @@ const buildBehavioral = (
             : "When presenting classification options, present them as a numbered list with multiselect (user picks multiple numbers). Do NOT infer classification yourself.",
           "When generating or refining tasks, include a 'Files:' hint listing likely files to create/modify. Format: 'Files: `path/to/file.ts`, `path/to/other.ts`'. Hints, not constraints — helps sub-agents load right context.",
           "If you identify issues in the spec (vague tasks, irrelevant sections, missing acceptance criteria), submit a refinement via: `" +
-          cs(
-            'next --answer=\'{"refinement":"task-1: Add upload endpoint, task-2: Add validation middleware, task-3: Write integration tests"}\'',
-            specName,
-          ) +
-          "`. The spec will be updated and you can review again.",
+            cs(
+              'next --answer=\'{"refinement":"task-1: Add upload endpoint, task-2: Add validation middleware, task-3: Write integration tests"}\'',
+              specName,
+            ) +
+            "`. The spec will be updated and you can review again.",
         ],
         tone: "Thoughtful reviewer preparing to hand off to an implementer.",
       };
@@ -1010,28 +1016,19 @@ const buildBehavioral = (
         "Verifier scope: (1) AC verification with evidence. (2) Plan alignment — does implementation match task description? Flag deviations. (3) Code quality — follows existing patterns? Flag style breaks, missing error handling. Categorize findings: CRITICAL (blocks completion), IMPORTANT (should fix), SUGGESTION (nice to have).";
 
       if (hints.subAgentMethod === "task") {
-        spawnInstruction =
-          `Spawn noskills-executor via Agent tool. Pass: task title, description, ACs, rules, scope constraints, concern reminders, file paths. Report via \`${reportCmd}\`.`;
-        verifyInstruction =
-          `After executor completes, spawn noskills-verifier with changed files + ACs + test commands. Never trust executor self-report alone. ${verifierScope}`;
+        spawnInstruction = `Spawn noskills-executor via Agent tool. Pass: task title, description, ACs, rules, scope constraints, concern reminders, file paths. Report via \`${reportCmd}\`.`;
+        verifyInstruction = `After executor completes, spawn noskills-verifier with changed files + ACs + test commands. Never trust executor self-report alone. ${verifierScope}`;
       } else if (hints.subAgentMethod === "spawn") {
-        spawnInstruction =
-          `Use spawn_agent for noskills-executor. Pass: task, ACs, rules, scope, file paths. Use wait_agent to collect. Report via \`${reportCmd}\`.`;
-        verifyInstruction =
-          `After executor completes, spawn noskills-verifier with changed files + ACs + test commands. ${verifierScope}`;
+        spawnInstruction = `Use spawn_agent for noskills-executor. Pass: task, ACs, rules, scope, file paths. Use wait_agent to collect. Report via \`${reportCmd}\`.`;
+        verifyInstruction = `After executor completes, spawn noskills-verifier with changed files + ACs + test commands. ${verifierScope}`;
       } else if (hints.subAgentMethod === "fleet") {
-        spawnInstruction =
-          `Use /fleet for parallel executors. Pass each: task, ACs, rules, scope, file paths. Report via \`${reportCmd}\`.`;
-        verifyInstruction =
-          `After fleet completes, run verification pass. ${verifierScope}`;
+        spawnInstruction = `Use /fleet for parallel executors. Pass each: task, ACs, rules, scope, file paths. Report via \`${reportCmd}\`.`;
+        verifyInstruction = `After fleet completes, run verification pass. ${verifierScope}`;
       } else if (hints.subAgentMethod === "delegation") {
-        spawnInstruction =
-          `Use Kiro agent delegation for noskills-executor. Pass: task, ACs, rules, scope, file paths. Report via \`${reportCmd}\`.`;
-        verifyInstruction =
-          `After executor completes, delegate to noskills-verifier with changed files + ACs + test commands. ${verifierScope}`;
+        spawnInstruction = `Use Kiro agent delegation for noskills-executor. Pass: task, ACs, rules, scope, file paths. Report via \`${reportCmd}\`.`;
+        verifyInstruction = `After executor completes, delegate to noskills-verifier with changed files + ACs + test commands. ${verifierScope}`;
       } else {
-        spawnInstruction =
-          `Execute tasks sequentially yourself. Verify (type-check + tests) after each. Report via \`${reportCmd}\`.`;
+        spawnInstruction = `Execute tasks sequentially yourself. Verify (type-check + tests) after each. Report via \`${reportCmd}\`.`;
         verifyInstruction = "";
       }
 
@@ -1050,18 +1047,18 @@ const buildBehavioral = (
         // Sub-agent splitting (only for tools with sub-agents)
         ...(hasSubAgents
           ? [
-            "Show a dispatch table: | Step | Agent | Files | Tasks | Est. |. Separate executor for implementation vs tests. Batch tightly-coupled files; parallelize independent modules.",
-          ]
+              "Show a dispatch table: | Step | Agent | Files | Tasks | Est. |. Separate executor for implementation vs tests. Batch tightly-coupled files; parallelize independent modules.",
+            ]
           : []),
         // Edit discipline (merged from 5 rules)
         "Run type-check and lint after edits; never mark an AC passed while type-check fails.",
         // Convention discovery asks the user, so a headless run leaves it out
         ...(interactive
           ? [
-            `On recurring patterns or corrections, ask: 'Permanent rule or just this task?' If permanent: \`${
-              c('rule add "<description>"')
-            }\`. Never write to \`.eser/rules/\` directly.`,
-          ]
+              `On recurring patterns or corrections, ask: 'Permanent rule or just this task?' If permanent: \`${c(
+                'rule add "<description>"',
+              )}\`. Never write to \`.eser/rules/\` directly.`,
+            ]
           : []),
         // Dead code + commitment
         "Work through the spec's tasks to the end; the user decides when to stop.",
@@ -1074,11 +1071,11 @@ const buildBehavioral = (
         // Jidoka I3: verifier enforcement
         ...(hasSubAgents
           ? [
-            "After each task, spawn noskills-verifier and include its PASS/FAIL results in the status report before reporting the task done.",
-          ]
+              "After each task, spawn noskills-verifier and include its PASS/FAIL results in the status report before reporting the task done.",
+            ]
           : [
-            "VERIFICATION REQUIRED: After EVERY task completion, run type-check + tests before reporting done. Evidence of passing tests must be included in the status report.",
-          ]),
+              "VERIFICATION REQUIRED: After EVERY task completion, run type-check + tests before reporting done. Evidence of passing tests must be included in the status report.",
+            ]),
       ];
 
       if (state.execution.lastVerification?.passed === false) {
@@ -1105,9 +1102,10 @@ const buildBehavioral = (
           "MODE: Enter plan mode. Analyze the blocker. Present options to the user. Do not edit files.",
           "Present the decision to the user exactly as described.",
           "Do not suggest a preferred option unless the user asks for your opinion.",
-          `After the user decides, submit the decision right away with \`${
-            cs('next --answer="<decision>"', specScoped)
-          }\`.`,
+          `After the user decides, submit the decision right away with \`${cs(
+            'next --answer="<decision>"',
+            specScoped,
+          )}\`.`,
         ],
         tone: "Brief. The user is making a decision, not having a discussion.",
       };
@@ -1182,38 +1180,33 @@ const buildMeta = (
 
   switch (state.phase) {
     case "IDLE":
-      resumeHint = `No active spec. Start one with: \`${
-        c('spec new --name=<slug> "description"')
-      }\``;
+      resumeHint = `No active spec. Start one with: \`${c(
+        'spec new --name=<slug> "description"',
+      )}\``;
       break;
     case "DISCOVERY":
-      resumeHint =
-        `Discovery in progress for "${state.spec}". ${state.discovery.answers.length} questions answered so far.`;
+      resumeHint = `Discovery in progress for "${state.spec}". ${state.discovery.answers.length} questions answered so far.`;
       break;
     case "DISCOVERY_REFINEMENT":
-      resumeHint =
-        `Discovery answers ready for review. ${state.discovery.answers.length} answers collected. Waiting for user confirmation.`;
+      resumeHint = `Discovery answers ready for review. ${state.discovery.answers.length} answers collected. Waiting for user confirmation.`;
       break;
     case "SPEC_PROPOSAL":
-      resumeHint =
-        `Spec draft ready for review at ${state.specState.path}. Waiting for approval.`;
+      resumeHint = `Spec draft ready for review at ${state.specState.path}. Waiting for approval.`;
       break;
     case "SPEC_APPROVED":
-      resumeHint =
-        `Spec "${state.spec}" is approved. Waiting to start execution.`;
+      resumeHint = `Spec "${state.spec}" is approved. Waiting to start execution.`;
       break;
     case "EXECUTING":
-      resumeHint = state.execution.lastProgress !== null
-        ? `Executing "${state.spec}", iteration ${state.execution.iteration}. Last progress: ${state.execution.lastProgress}. Continue with the current task.`
-        : `Executing "${state.spec}", iteration ${state.execution.iteration}. Start the first task.`;
+      resumeHint =
+        state.execution.lastProgress !== null
+          ? `Executing "${state.spec}", iteration ${state.execution.iteration}. Last progress: ${state.execution.lastProgress}. Continue with the current task.`
+          : `Executing "${state.spec}", iteration ${state.execution.iteration}. Start the first task.`;
       break;
     case "BLOCKED":
-      resumeHint =
-        `Execution blocked: ${state.execution.lastProgress}. Ask the user to resolve.`;
+      resumeHint = `Execution blocked: ${state.execution.lastProgress}. Ask the user to resolve.`;
       break;
     case "COMPLETED":
-      resumeHint =
-        `Spec "${state.spec}" completed in ${state.execution.iteration} iterations.`;
+      resumeHint = `Spec "${state.spec}" completed in ${state.execution.iteration} iterations.`;
       break;
     default:
       resumeHint = `Run \`${cs("next", specName)}\` to get started.`;
@@ -1222,9 +1215,10 @@ const buildMeta = (
   const enforcement = buildEnforcement(hints);
 
   return {
-    protocol: `Run \`${
-      cs('next --answer="..."', specName)
-    }\` to submit results and advance`,
+    protocol: `Run \`${cs(
+      'next --answer="..."',
+      specName,
+    )}\` to submit results and advance`,
     spec: state.spec,
     branch: state.branch,
     iteration: state.execution.iteration,
@@ -1243,13 +1237,14 @@ const buildProtocolGuide = (
   if (state.lastCalledAt === null) {
     // First call ever — include guide
     return {
-      what:
-        "noskills orchestrates your work: IDLE → DISCOVERY → DISCOVERY_REFINEMENT → SPEC_PROPOSAL → SPEC_APPROVED → EXECUTING → DONE → IDLE",
-      how: `Run \`${
-        cs("next", specName)
-      }\` for instructions. Submit results with \`${
-        cs('next --answer="..."', specName)
-      }\`. Never make architectural decisions without asking.`,
+      what: "noskills orchestrates your work: IDLE → DISCOVERY → DISCOVERY_REFINEMENT → SPEC_PROPOSAL → SPEC_APPROVED → EXECUTING → DONE → IDLE",
+      how: `Run \`${cs(
+        "next",
+        specName,
+      )}\` for instructions. Submit results with \`${cs(
+        'next --answer="..."',
+        specName,
+      )}\`. Never make architectural decisions without asking.`,
       currentPhase: state.phase,
     };
   }
@@ -1259,13 +1254,14 @@ const buildProtocolGuide = (
 
   if (now - lastCalled > STALE_SESSION_MS) {
     return {
-      what:
-        "noskills orchestrates your work: IDLE → DISCOVERY → DISCOVERY_REFINEMENT → SPEC_PROPOSAL → SPEC_APPROVED → EXECUTING → DONE → IDLE",
-      how: `Run \`${
-        cs("next", specName)
-      }\` for instructions. Submit results with \`${
-        cs('next --answer="..."', specName)
-      }\`. Never make architectural decisions without asking.`,
+      what: "noskills orchestrates your work: IDLE → DISCOVERY → DISCOVERY_REFINEMENT → SPEC_PROPOSAL → SPEC_APPROVED → EXECUTING → DONE → IDLE",
+      how: `Run \`${cs(
+        "next",
+        specName,
+      )}\` for instructions. Submit results with \`${cs(
+        'next --answer="..."',
+        specName,
+      )}\`. Never make architectural decisions without asking.`,
       currentPhase: state.phase,
     };
   }
@@ -1292,7 +1288,7 @@ const buildRoadmap = (phase: schema.Phase): string => {
   if (phase === "BLOCKED") {
     // Show EXECUTING highlighted with BLOCKED note
     return ROADMAP_PHASES.map((p) =>
-      p.key === "EXECUTING" ? `[ EXECUTING (BLOCKED) ]` : p.label
+      p.key === "EXECUTING" ? `[ EXECUTING (BLOCKED) ]` : p.label,
     ).join(" → ");
   }
   // Highlight current phase — IDLE highlights the first IDLE in the roadmap
@@ -1311,26 +1307,24 @@ const buildGate = (
     case "DISCOVERY_REFINEMENT": {
       // Surface completeness status — if spec.md is active, check placeholder coverage
       const report = livingSpec.checkSpecCompleteness(state.specState);
-      const answersInfo =
-        `${state.discovery.answers.length}/6 answers collected.`;
+      const answersInfo = `${state.discovery.answers.length}/6 answers collected.`;
       if (!report.canAdvance) {
-        const blockerCount = report.unresolvedSections.length +
-          report.pendingDecisions.length;
+        const blockerCount =
+          report.unresolvedSections.length + report.pendingDecisions.length;
         return {
-          message:
-            `${answersInfo} Spec incomplete: ${blockerCount} item(s) need resolution before advancing.`,
+          message: `${answersInfo} Spec incomplete: ${blockerCount} item(s) need resolution before advancing.`,
           action:
             "Resolve every placeholder + pending decision before approving. Do NOT advance until 100%. " +
-            `Unresolved: ${
-              listOrNone(report.unresolvedSections.map((s) => s.sectionTitle))
-            }. ` +
-            `Pending: ${
-              listOrNone(report.pendingDecisions.map((d) => d.section))
-            }.` +
+            `Unresolved: ${listOrNone(
+              report.unresolvedSections.map((s) => s.sectionTitle),
+            )}. ` +
+            `Pending: ${listOrNone(
+              report.pendingDecisions.map((d) => d.section),
+            )}.` +
             (report.unresolvedSections.length > 0
-              ? ` Ask the user about each unresolved section. ${
-                machine.sectionCommandsHint(state.spec ?? "<name>")
-              }`
+              ? ` Ask the user about each unresolved section. ${machine.sectionCommandsHint(
+                  state.spec ?? "<name>",
+                )}`
               : ""),
           phase: "DISCOVERY_REFINEMENT",
         };
@@ -1389,15 +1383,15 @@ export const compile = async (
   // Inject tier2 summary for EXECUTING phase
   if (state.phase === "EXECUTING") {
     const ruleT2 = tier2Count ?? 0;
-    const reminderT2 =
-      concerns.splitRemindersByTier(activeConcerns, state.classification).tier2
-        .length;
+    const reminderT2 = concerns.splitRemindersByTier(
+      activeConcerns,
+      state.classification,
+    ).tier2.length;
     const totalT2 = ruleT2 + reminderT2;
     if (totalT2 > 0) {
       behavioral = {
         ...behavioral,
-        tier2Summary:
-          `${totalT2} file-specific rules delivered via PreToolUse hook when editing matching files.`,
+        tier2Summary: `${totalT2} file-specific rules delivered via PreToolUse hook when editing matching files.`,
       };
     }
   }
@@ -1495,21 +1489,23 @@ export const compile = async (
     phaseOutput,
   );
   if (internalOptions.length > 0) {
-    const options: InteractiveOption[] = internalOptions.map((
-      { label, description },
-    ) => ({ label, description }));
+    const options: InteractiveOption[] = internalOptions.map(
+      ({ label, description }) => ({ label, description }),
+    );
     const cmdMap: Record<string, string> = {};
     for (const opt of internalOptions) {
       cmdMap[opt.label] = opt.command;
     }
 
     // Tool hint adapts based on the active tool's interaction model
-    const toolHint = hints.optionPresentation === "tool"
-      ? "AskUserQuestion"
-      : "prose-numbered-list";
-    const toolHintInstruction = hints.optionPresentation === "tool"
-      ? "Present these options with AskUserQuestion so the user's pick maps to `commandMap`."
-      : "Present options as a numbered list. Ask user to pick a number.";
+    const toolHint =
+      hints.optionPresentation === "tool"
+        ? "AskUserQuestion"
+        : "prose-numbered-list";
+    const toolHintInstruction =
+      hints.optionPresentation === "tool"
+        ? "Present these options with AskUserQuestion so the user's pick maps to `commandMap`."
+        : "Present options as a numbered list. Ask user to pick a number.";
 
     result = {
       ...result,
@@ -1543,8 +1539,7 @@ const buildInteractiveOptions = (
         return [
           {
             label: `Convert plan (${detected.age})`,
-            description:
-              `Import ${detected.path} as STATED pre-fill for discovery`,
+            description: `Import ${detected.path} as STATED pre-fill for discovery`,
             command: cs('next --answer="import-plan"', specName),
           },
           {
@@ -1592,9 +1587,9 @@ const buildInteractiveOptions = (
       if (activeConcerns.length > 0) {
         opts.push({
           label: "Edit concerns",
-          description: `Currently: ${
-            activeConcerns.map((c) => c.id).join(", ")
-          }`,
+          description: `Currently: ${activeConcerns
+            .map((c) => c.id)
+            .join(", ")}`,
           command: c("concern list"),
         });
       }
@@ -1730,13 +1725,14 @@ const compileIdle = (
   idleContext?: IdleContext,
 ): IdleOutput => ({
   phase: "IDLE",
-  instruction: (idleContext?.existingSpecs ?? []).length === 0
-    ? `No specs yet. Ask the user "What do you want to build?" and accept any input, then run \`${
-      c('spec new "their answer"')
-    }\` immediately. Do NOT list options or ask clarifying questions first.`
-    : `No active spec. If the user described what they want, run \`${
-      c('spec new "description"')
-    }\` immediately; the name is auto-generated. Present ALL available concerns (split across multiple calls if needed).`,
+  instruction:
+    (idleContext?.existingSpecs ?? []).length === 0
+      ? `No specs yet. Ask the user "What do you want to build?" and accept any input, then run \`${c(
+          'spec new "their answer"',
+        )}\` immediately. Do NOT list options or ask clarifying questions first.`
+      : `No active spec. If the user described what they want, run \`${c(
+          'spec new "description"',
+        )}\` immediately; the name is auto-generated. Present ALL available concerns (split across multiple calls if needed).`,
   welcome: WELCOME,
   existingSpecs: idleContext?.existingSpecs ?? [],
   availableConcerns: allConcernDefs.map((c) => ({
@@ -1747,9 +1743,10 @@ const compileIdle = (
   activeRulesCount: idleContext?.rulesCount ?? rulesCount,
   behavioralNote:
     "These options are fallbacks. If the user already described what they want, act on it directly without presenting these options.",
-  hint: activeConcerns.length === 0
-    ? "No concerns active. Consider adding concerns first — they shape discovery questions and specs."
-    : undefined,
+  hint:
+    activeConcerns.length === 0
+      ? "No concerns active. Consider adding concerns first — they shape discovery questions and specs."
+      : undefined,
 });
 
 // =============================================================================
@@ -1888,14 +1885,14 @@ export const detectActivePlan = async (
       const nonWS = stripped.replace(/\s/g, "").length;
       const hasHeading = /^## /m.test(stripped);
       // AND: both conditions required — a stub with just "## Tasks" heading is still sparse
-      const quality: "ok" | "sparse" = (nonWS >= 100 && hasHeading)
-        ? "ok"
-        : "sparse";
-      const ageLabel = age < 60_000
-        ? "just now"
-        : Math.floor(age / 3_600_000) > 0
-        ? `${Math.floor(age / 3_600_000)}h ago`
-        : `${Math.floor((age % 3_600_000) / 60_000)}m ago`;
+      const quality: "ok" | "sparse" =
+        nonWS >= 100 && hasHeading ? "ok" : "sparse";
+      const ageLabel =
+        age < 60_000
+          ? "just now"
+          : Math.floor(age / 3_600_000) > 0
+            ? `${Math.floor(age / 3_600_000)}h ago`
+            : `${Math.floor((age % 3_600_000) / 60_000)}m ago`;
       return { path: p, age, ageLabel, preview, quality };
     } catch {
       continue;
@@ -1934,8 +1931,10 @@ const generateFollowUpHints = (answer: string): readonly string[] => {
 
   // Vague signals
   if (
-    lower.includes("should work") || lower.includes("standard approach") ||
-    lower.includes("probably") || lower.includes("i think") ||
+    lower.includes("should work") ||
+    lower.includes("standard approach") ||
+    lower.includes("probably") ||
+    lower.includes("i think") ||
     lower.includes("not sure")
   ) {
     hints.push("Answer is vague — ask for specifics");
@@ -1943,24 +1942,30 @@ const generateFollowUpHints = (answer: string): readonly string[] => {
 
   // Scope signals
   if (
-    lower.includes("and also") || lower.includes("we might") ||
-    lower.includes("could also") || lower.includes("maybe we should")
+    lower.includes("and also") ||
+    lower.includes("we might") ||
+    lower.includes("could also") ||
+    lower.includes("maybe we should")
   ) {
     hints.push("Scope expansion signal — clarify if in scope or deferred");
   }
 
   // Risk signals
   if (
-    lower.includes("tricky") || lower.includes("complicated") ||
-    lower.includes("risky") || lower.includes("not sure about")
+    lower.includes("tricky") ||
+    lower.includes("complicated") ||
+    lower.includes("risky") ||
+    lower.includes("not sure about")
   ) {
     hints.push("Risk signal — dig deeper into what makes it risky");
   }
 
   // Dependency signals
   if (
-    lower.includes("depends on") || lower.includes("after") ||
-    lower.includes("blocked by") || lower.includes("waiting for")
+    lower.includes("depends on") ||
+    lower.includes("after") ||
+    lower.includes("blocked by") ||
+    lower.includes("waiting for")
   ) {
     hints.push(
       "Dependency detected — clarify what happens if dependency isn't ready",
@@ -1969,8 +1974,10 @@ const generateFollowUpHints = (answer: string): readonly string[] => {
 
   // Performance/scale
   if (
-    lower.includes("real-time") || lower.includes("scalab") ||
-    lower.includes("performance") || lower.includes("latency") ||
+    lower.includes("real-time") ||
+    lower.includes("scalab") ||
+    lower.includes("performance") ||
+    lower.includes("latency") ||
     lower.includes("concurrent")
   ) {
     hints.push(
@@ -2018,15 +2025,18 @@ const getModeRules = (mode: schema.DiscoveryMode): readonly string[] => {
 };
 
 const computeContributors = (
-  answers:
-    readonly (schema.DiscoveryAnswer | schema.AttributedDiscoveryAnswer)[],
+  answers: readonly (
+    | schema.DiscoveryAnswer
+    | schema.AttributedDiscoveryAnswer
+  )[],
   currentUser?: { name: string; email: string },
 ): readonly DiscoveryContributor[] => {
   const userMap = new Map<string, number>();
   for (const a of answers) {
-    const name = "user" in a
-      ? (a as schema.AttributedDiscoveryAnswer).user
-      : "Unknown User";
+    const name =
+      "user" in a
+        ? (a as schema.AttributedDiscoveryAnswer).user
+        : "Unknown User";
     if (currentUser !== undefined && name === currentUser.name) continue;
     userMap.set(name, (userMap.get(name) ?? 0) + 1);
   }
@@ -2056,14 +2066,11 @@ const baseQuestionsInstruction = (
       ? "Ask the user this discovery question through AskUserQuestion and wait for the answer."
       : "Ask the user this discovery question and wait for the answer.";
   } else if (!hints.hasAskUserTool) {
-    ask =
-      `Ask the user these ${count} discovery questions together in one message, as a numbered list, and wait for the answers.`;
+    ask = `Ask the user these ${count} discovery questions together in one message, as a numbered list, and wait for the answers.`;
   } else if (count > 4) {
-    ask =
-      `Ask the user these ${count} discovery questions together through AskUserQuestion, up to 4 questions per call, and wait for the answers.`;
+    ask = `Ask the user these ${count} discovery questions together through AskUserQuestion, up to 4 questions per call, and wait for the answers.`;
   } else {
-    ask =
-      `Ask the user these ${count} discovery questions together in one AskUserQuestion call and wait for the answers.`;
+    ask = `Ask the user these ${count} discovery questions together in one AskUserQuestion call and wait for the answers.`;
   }
 
   return `${ask} For an answer that needs a follow-up, register it with \`${followUpCommand}\` first. Then submit the confirmed answers as one JSON object: \`${submitCommand}\`. noskills then gives you each follow-up on its own.`;
@@ -2092,26 +2099,29 @@ const compileFollowUpStep = (
   const ask = hints.hasAskUserTool
     ? "Ask the user this follow-up on its own, as the only question of an AskUserQuestion call, and wait for the answer."
     : "Ask the user this follow-up on its own and wait for the answer.";
-  const parentNote = parent !== undefined
-    ? ` It follows up the answer to "${parent.text}".`
-    : "";
+  const parentNote =
+    parent !== undefined
+      ? ` It follows up the answer to "${parent.text}".`
+      : "";
   const remaining = pending.length - 1;
-  const after = remaining === 0
-    ? "Discovery moves on to the review once this one is answered or skipped."
-    : `${remaining} more follow-up${
-      remaining === 1 ? " comes" : "s come"
-    } after this one, each on its own.`;
+  const after =
+    remaining === 0
+      ? "Discovery moves on to the review once this one is answered or skipped."
+      : `${remaining} more follow-up${
+          remaining === 1 ? " comes" : "s come"
+        } after this one, each on its own.`;
 
   return {
     phase: "DISCOVERY",
-    instruction:
-      `${ask}${parentNote} Submit the answer with \`${answerCommand}\`, or run \`${skipCommand}\` if the user declines it. ${after}`,
-    questions: [{
-      id: followUp.id,
-      text: followUp.question,
-      concerns: [...(parent?.concerns ?? [])],
-      extras: [],
-    }],
+    instruction: `${ask}${parentNote} Submit the answer with \`${answerCommand}\`, or run \`${skipCommand}\` if the user declines it. ${after}`,
+    questions: [
+      {
+        id: followUp.id,
+        text: followUp.question,
+        concerns: [...(parent?.concerns ?? [])],
+        extras: [],
+      },
+    ],
     answeredCount: state.discovery.answers.length,
     context,
     transition: { onComplete: answerCommand },
@@ -2167,12 +2177,14 @@ const compileDiscovery = async (
       detectedPlan = await detectActivePlan(projectRoot);
     }
 
-    const planWarning = detectedPlan?.quality === "sparse"
-      ? "\n⚠ The plan appears sparse — limited content detected."
-      : "";
-    const planNotice = detectedPlan !== null
-      ? `\n\nA plan.md was detected (${detectedPlan.ageLabel}, ${detectedPlan.path}).${planWarning}\nYou can import it or share your own context directly.`
-      : "";
+    const planWarning =
+      detectedPlan?.quality === "sparse"
+        ? "\n⚠ The plan appears sparse — limited content detected."
+        : "";
+    const planNotice =
+      detectedPlan !== null
+        ? `\n\nA plan.md was detected (${detectedPlan.ageLabel}, ${detectedPlan.path}).${planWarning}\nYou can import it or share your own context directly.`
+        : "";
 
     const listenOutput: DiscoveryOutput = {
       phase: "DISCOVERY",
@@ -2197,13 +2209,13 @@ const compileDiscovery = async (
       ...multiUserFields,
       ...(detectedPlan !== null
         ? {
-          activePlanDetected: {
-            path: detectedPlan.path,
-            age: detectedPlan.ageLabel,
-            preview: detectedPlan.preview,
-            quality: detectedPlan.quality,
-          },
-        }
+            activePlanDetected: {
+              path: detectedPlan.path,
+              age: detectedPlan.ageLabel,
+              preview: detectedPlan.preview,
+              quality: detectedPlan.quality,
+            },
+          }
         : {}),
     };
 
@@ -2300,28 +2312,29 @@ const compileDiscovery = async (
   if (stage === "premises") {
     // Mode-aware forcing questions — YC office-hours style for full/validate,
     // narrowest-wedge only for ship-fast, brainstorm framing for explore.
-    const forcingPrompts: readonly string[] = mode === "ship-fast"
-      ? [
-        "Narrowest Wedge: What's the absolute minimum version of this that creates real, measurable value — without any surrounding features?",
-      ]
-      : mode === "explore"
-      ? [
-        "Demand Reality: What do users actually do today when they can't use this feature? Describe concrete workarounds — not hypothetical ones.",
-        "Status Quo: Why hasn't this been solved before? What existing solution is insufficient, and specifically where does it break down?",
-        "Desperate Specificity: Describe the exact moment a real user feels this pain — who, where, what did they do next?",
-        "Narrowest Wedge: What's the smallest version of this that creates real value?",
-        "Observation & Surprise: What's the most surprising thing you know about this problem or this user?",
-        "Think bigger: If this works perfectly, what's the 10x version? What should you build next?",
-      ]
-      : [
-        // mode=full, mode=validate, mode=technical-depth — full YC office-hours set
-        "Demand Reality: What do users actually do today when they can't use this feature? Describe concrete workarounds — not hypothetical ones.",
-        "Status Quo: Why hasn't this been solved before? What existing solution is insufficient, and specifically where does it break down?",
-        "Desperate Specificity: Describe the exact moment a real user feels this pain. Name them if possible. What did they do next?",
-        "Narrowest Wedge: What's the smallest version of this that creates real, measurable value — without the surrounding features?",
-        "Observation & Surprise: What's the most surprising thing you've learned from watching real users encounter this problem?",
-        "Future-Fit: If this works perfectly in 6 months, what should you build next? Does that constrain any decisions you're making now?",
-      ];
+    const forcingPrompts: readonly string[] =
+      mode === "ship-fast"
+        ? [
+            "Narrowest Wedge: What's the absolute minimum version of this that creates real, measurable value — without any surrounding features?",
+          ]
+        : mode === "explore"
+          ? [
+              "Demand Reality: What do users actually do today when they can't use this feature? Describe concrete workarounds — not hypothetical ones.",
+              "Status Quo: Why hasn't this been solved before? What existing solution is insufficient, and specifically where does it break down?",
+              "Desperate Specificity: Describe the exact moment a real user feels this pain — who, where, what did they do next?",
+              "Narrowest Wedge: What's the smallest version of this that creates real value?",
+              "Observation & Surprise: What's the most surprising thing you know about this problem or this user?",
+              "Think bigger: If this works perfectly, what's the 10x version? What should you build next?",
+            ]
+          : [
+              // mode=full, mode=validate, mode=technical-depth — full YC office-hours set
+              "Demand Reality: What do users actually do today when they can't use this feature? Describe concrete workarounds — not hypothetical ones.",
+              "Status Quo: Why hasn't this been solved before? What existing solution is insufficient, and specifically where does it break down?",
+              "Desperate Specificity: Describe the exact moment a real user feels this pain. Name them if possible. What did they do next?",
+              "Narrowest Wedge: What's the smallest version of this that creates real, measurable value — without the surrounding features?",
+              "Observation & Surprise: What's the most surprising thing you've learned from watching real users encounter this problem?",
+              "Future-Fit: If this works perfectly in 6 months, what should you build next? Does that constrain any decisions you're making now?",
+            ];
 
     const premiseOutput: DiscoveryOutput = {
       phase: "DISCOVERY",
@@ -2342,7 +2355,8 @@ const compileDiscovery = async (
       ...planImportedField,
       premiseChallenge: {
         required: true,
-        instruction: "Read the spec description" +
+        instruction:
+          "Read the spec description" +
           (state.discovery.planPath !== null ? " and the plan document" : "") +
           '. Identify 2-4 premises the spec assumes. Present each premise and ask the user to agree or disagree. Submit as JSON: {"premises":[{"text":"...","agreed":true/false,"revision":"..."}]}',
         prompts: forcingPrompts as string[],
@@ -2393,11 +2407,13 @@ const compileDiscovery = async (
     const lastRevisit = history.at(-1) ?? null;
     const base: DiscoveryOutput = {
       phase: "DISCOVERY",
-      instruction: lastRevisit !== null
-        ? `This spec was revisited from ${lastRevisit.from}. All previous answers are preserved. Review and approve, or revise answers before regenerating the spec.`
-        : `All discovery questions answered. Run: \`${
-          cs("approve", specName)
-        }\``,
+      instruction:
+        lastRevisit !== null
+          ? `This spec was revisited from ${lastRevisit.from}. All previous answers are preserved. Review and approve, or revise answers before regenerating the spec.`
+          : `All discovery questions answered. Run: \`${cs(
+              "approve",
+              specName,
+            )}\``,
       questions: [],
       answeredCount,
       context: { rules, concernReminders: [] },
@@ -2467,7 +2483,7 @@ const compileDiscovery = async (
     // Answers already in (an earlier, partial submission) may call for
     // follow-ups; each hint names the question it came from.
     const followUpHints = state.discovery.answers.flatMap((a) =>
-      generateFollowUpHints(a.answer).map((hint) => `${a.questionId}: ${hint}`)
+      generateFollowUpHints(a.answer).map((hint) => `${a.questionId}: ${hint}`),
     );
     if (followUpHints.length > 0) {
       agentOutput = { ...agentOutput, followUpHints };
@@ -2476,9 +2492,7 @@ const compileDiscovery = async (
     // Research, plan context and the rich description come with the first
     // set of questions only.
     if (answeredCount === 0) {
-      const research = buildPreDiscoveryResearch(
-        state.specDescription ?? null,
-      );
+      const research = buildPreDiscoveryResearch(state.specDescription ?? null);
       if (research !== undefined) {
         agentOutput = { ...agentOutput, preDiscoveryResearch: research };
       }
@@ -2510,11 +2524,13 @@ const compileDiscovery = async (
   const history = state.revisitHistory ?? [];
   const lastRevisit = history.at(-1) ?? null;
   const isRevisited = lastRevisit !== null;
-  const revisitInstruction = lastRevisit !== null
-    ? `This spec was revisited from ${lastRevisit.from}. Previous discovery answers are preserved — review and revise as needed, or approve to regenerate tasks.`
-    : `Conduct a thorough discovery conversation. FIRST: perform a pre-discovery codebase scan (README, CLAUDE.md, recent git log, TODOs, directory structure) and present a brief audit summary. THEN: challenge the user's spec description against your findings. THEN: ask the unanswered discovery questions together, offering concrete options based on codebase knowledge, and register a follow-up for each unclear answer with \`${
-      cs('followup <questionId> "question"', specName)
-    }\` before you submit; noskills then gives you each follow-up on its own. AFTER questions: present a dream state table (current → this spec → future), scored expansion proposals, architectural decisions, and an error/rescue map. FINALLY: present a complete discovery synthesis for user confirmation before submitting answers as a JSON object.`;
+  const revisitInstruction =
+    lastRevisit !== null
+      ? `This spec was revisited from ${lastRevisit.from}. Previous discovery answers are preserved — review and revise as needed, or approve to regenerate tasks.`
+      : `Conduct a thorough discovery conversation. FIRST: perform a pre-discovery codebase scan (README, CLAUDE.md, recent git log, TODOs, directory structure) and present a brief audit summary. THEN: challenge the user's spec description against your findings. THEN: ask the unanswered discovery questions together, offering concrete options based on codebase knowledge, and register a follow-up for each unclear answer with \`${cs(
+          'followup <questionId> "question"',
+          specName,
+        )}\` before you submit; noskills then gives you each follow-up on its own. AFTER questions: present a dream state table (current → this spec → future), scored expansion proposals, architectural decisions, and an error/rescue map. FINALLY: present a complete discovery synthesis for user confirmation before submitting answers as a JSON object.`;
 
   const output: DiscoveryOutput = {
     phase: "DISCOVERY",
@@ -2602,9 +2618,7 @@ const compileDiscoveryReview = (
   );
 
   // Analyze for potential spec split
-  const splitProposal = splitDetector.analyzeForSplit(
-    state.discovery.answers,
-  );
+  const splitProposal = splitDetector.analyzeForSplit(state.discovery.answers);
 
   // Sub-phases:
   // 1. Not yet approved → user reviews answers, approves or revises
@@ -2646,9 +2660,10 @@ const compileDiscoveryReview = (
       },
       alternatives: {
         required: true,
-        instruction: hints.optionPresentation === "tool"
-          ? "Generate 2-3 approaches from discovery answers and codebase. Present via AskUserQuestion."
-          : "Generate 2-3 approaches from discovery answers and codebase. Present them as a numbered list and ask the user to pick one.",
+        instruction:
+          hints.optionPresentation === "tool"
+            ? "Generate 2-3 approaches from discovery answers and codebase. Present via AskUserQuestion."
+            : "Generate 2-3 approaches from discovery answers and codebase. Present them as a numbered list and ask the user to pick one.",
         format: {
           fields: ["id", "name", "summary", "effort", "risk", "pros", "cons"],
         },
@@ -2657,9 +2672,10 @@ const compileDiscoveryReview = (
   }
 
   // Jidoka C1: batch-submitted answers get stronger confirmation language
-  const batchWarning = state.discovery.batchSubmitted === true
-    ? " These answers arrived in one batch, so noskills cannot tell whether the user confirmed each one. Present each answer on its own and get the user's confirmation for each before approving."
-    : "";
+  const batchWarning =
+    state.discovery.batchSubmitted === true
+      ? " These answers arrived in one batch, so noskills cannot tell whether the user confirmed each one. Present each answer on its own and get the user's confirmation for each before approving."
+      : "";
 
   // Build review checklist from concern review dimensions
   const allDimensions = concerns.getReviewDimensions(activeConcerns);
@@ -2681,15 +2697,14 @@ const compileDiscoveryReview = (
     const hasRegistries = checklistDimensions.some((d) => d.isRegistry);
     reviewChecklist = {
       dimensions: checklistDimensions,
-      instruction:
-        `Before approving, review the plan against each dimension below. For dimensions marked evidenceRequired, cite specific files or code. Present findings to the user for each dimension${
-          hints.hasAskUserTool ? " via AskUserQuestion" : ""
-        }, one dimension at a time, and wait for the reply before the next.`,
+      instruction: `Before approving, review the plan against each dimension below. For dimensions marked evidenceRequired, cite specific files or code. Present findings to the user for each dimension${
+        hints.hasAskUserTool ? " via AskUserQuestion" : ""
+      }, one dimension at a time, and wait for the reply before the next.`,
       ...(hasRegistries
         ? {
-          registryInstruction:
-            "Registry dimensions (isRegistry=true) require a structured table with every row filled. These tables will be included in the generated spec.",
-        }
+            registryInstruction:
+              "Registry dimensions (isRegistry=true) require a structured table with every row filled. These tables will be included in the generated spec.",
+          }
         : {}),
     };
   }
@@ -2707,10 +2722,10 @@ const compileDiscoveryReview = (
     instruction: splitProposal.detected
       ? `Present ALL discovery answers to the user for review. ALSO present the split proposal — noskills detected multiple independent areas.${batchWarning}`
       : `Present ALL discovery answers to the user for review. The user must confirm or correct each answer before the spec can be generated.${
-        hints.hasAskUserTool
-          ? " Use AskUserQuestion to ask for confirmation."
-          : ""
-      }${batchWarning}`,
+          hints.hasAskUserTool
+            ? " Use AskUserQuestion to ask for confirmation."
+            : ""
+        }${batchWarning}`,
     answers: reviewAnswers,
     transition: {
       onApprove: cs('next --answer="approve"', specName),
@@ -2739,12 +2754,10 @@ const compileSpecDraft = (state: schema.StateFile): SpecDraftOutput => {
         "Before generating the spec, classify what this spec involves. Ask the user to select all that apply.",
       specPath: state.specState.path ?? "",
       transition: {
-        onApprove: `${
-          cs(
-            'next --answer=\'{"involvesWebUI":false,"involvesCLI":false,"involvesPublicAPI":false,"involvesMigration":false,"involvesDataHandling":false}\'',
-            specName,
-          )
-        }`,
+        onApprove: `${cs(
+          'next --answer=\'{"involvesWebUI":false,"involvesCLI":false,"involvesPublicAPI":false,"involvesMigration":false,"involvesDataHandling":false}\'',
+          specName,
+        )}`,
       },
       classificationRequired: true,
       classificationPrompt: {
@@ -2766,7 +2779,8 @@ const compileSpecDraft = (state: schema.StateFile): SpecDraftOutput => {
           },
           { id: "involvesDataHandling", label: "Data handling or privacy" },
         ],
-        instruction: "Select all that apply. Submit as JSON: `" +
+        instruction:
+          "Select all that apply. Submit as JSON: `" +
           cs(
             'next --answer=\'{"involvesWebUI":true,"involvesCLI":false,"involvesPublicAPI":false,...}\'',
             specName,
@@ -2824,7 +2838,8 @@ const isACRelevant = (
 
   // Web-only ACs (mobile layout, responsive design)
   if (
-    lower.includes("mobile") || lower.includes("layout") ||
+    lower.includes("mobile") ||
+    lower.includes("layout") ||
     lower.includes("interaction design")
   ) {
     return classification.involvesWebUI;
@@ -2837,8 +2852,9 @@ const isACRelevant = (
 
   // Documentation ACs (README, docs) — always relevant
   if (
-    lower.includes("readme") || lower.includes("documentation updated") ||
-    lower.includes("reflected in") && lower.includes("docs")
+    lower.includes("readme") ||
+    lower.includes("documentation updated") ||
+    (lower.includes("reflected in") && lower.includes("docs"))
   ) {
     return true;
   }
@@ -2850,7 +2866,8 @@ const isACRelevant = (
 
   // Migration and backward compatibility ACs
   if (
-    lower.includes("migration") || lower.includes("backward compat") ||
+    lower.includes("migration") ||
+    lower.includes("backward compat") ||
     lower.includes("deprecat")
   ) {
     return classification.involvesMigration;
@@ -2858,8 +2875,10 @@ const isACRelevant = (
 
   // Data handling and audit ACs
   if (
-    lower.includes("audit trail") || lower.includes("access control") ||
-    lower.includes("data handling") || lower.includes("data retention")
+    lower.includes("audit trail") ||
+    lower.includes("access control") ||
+    lower.includes("data handling") ||
+    lower.includes("data retention")
   ) {
     return classification.involvesDataHandling;
   }
@@ -2963,15 +2982,15 @@ const buildAcceptanceCriteria = (
 
   // Jidoka I4: scope violation check when task declares files
   if (parsedSpec !== null && parsedSpec !== undefined) {
-    const currentTask = parsedSpec.tasks?.find((t) =>
-      t.files !== undefined && t.files.length > 0
+    const currentTask = parsedSpec.tasks?.find(
+      (t) => t.files !== undefined && t.files.length > 0,
     );
     if (currentTask?.files !== undefined && currentTask.files.length > 0) {
       criteria.push({
         id: "scope-check",
-        text: `Scope check: only files listed in task (${
-          currentTask.files.join(", ")
-        }) should be modified. Report any out-of-scope changes with justification.`,
+        text: `Scope check: only files listed in task (${currentTask.files.join(
+          ", ",
+        )}) should be modified. Report any out-of-scope changes with justification.`,
       });
     }
   }
@@ -3009,17 +3028,18 @@ const compileExecution = (
   const completedIds = state.execution.completedTasks ?? [];
   const completedSet = new Set(completedIds);
   const nextTask = specTasks.find((t) => !completedSet.has(t.id)) ?? null;
-  const taskBlock: TaskBlock | undefined = nextTask !== null
-    ? {
-      id: nextTask.id,
-      title: nextTask.title,
-      totalTasks: specTasks.length,
-      completedTasks: completedIds.length,
-      ...(nextTask.files !== undefined && nextTask.files.length > 0
-        ? { files: nextTask.files }
-        : {}),
-    }
-    : undefined;
+  const taskBlock: TaskBlock | undefined =
+    nextTask !== null
+      ? {
+          id: nextTask.id,
+          title: nextTask.title,
+          totalTasks: specTasks.length,
+          completedTasks: completedIds.length,
+          ...(nextTask.files !== undefined && nextTask.files.length > 0
+            ? { files: nextTask.files }
+            : {}),
+        }
+      : undefined;
 
   // Status report requested — agent must check off criteria before proceeding
   if (state.execution.awaitingStatusReport) {
@@ -3048,27 +3068,24 @@ const compileExecution = (
       const cursor = gateConcernCursor ?? 0;
       const currentConcern = concernsWithDims[cursor];
       const total = concernsWithDims.length;
-      batchInstruction = currentConcern !== undefined
-        ? `REVIEW GATE (${
-          cursor + 1
-        }/${total}): Evaluate the ${currentConcern.name} concern dimensions against the actual implementation. ` +
-          `Point to specific files, line numbers, and test names. ` +
-          `File edits are BLOCKED — this is a review-only pass. ` +
-          `Submit: ${
-            cs(
+      batchInstruction =
+        currentConcern !== undefined
+          ? `REVIEW GATE (${
+              cursor + 1
+            }/${total}): Evaluate the ${currentConcern.name} concern dimensions against the actual implementation. ` +
+            `Point to specific files, line numbers, and test names. ` +
+            `File edits are BLOCKED — this is a review-only pass. ` +
+            `Submit: ${cs(
               'next --answer=\'{"completed":[...],"remaining":[...]}\'',
               specName,
-            )
-          }`
-        : "Review gate complete — submit to advance.";
+            )}`
+          : "Review gate complete — submit to advance.";
     } else {
       // ── Normal task instruction ──
       // Detect batch task claims from lastProgress
       let batchTaskIds: string[] = [];
       try {
-        const prevAnswer = JSON.parse(
-          state.execution.lastProgress ?? "",
-        );
+        const prevAnswer = JSON.parse(state.execution.lastProgress ?? "");
         if (Array.isArray(prevAnswer.completed)) {
           batchTaskIds = (prevAnswer.completed as string[]).filter(
             (id: string) => typeof id === "string" && id.startsWith("task-"),
@@ -3078,9 +3095,10 @@ const compileExecution = (
         // Not batch JSON
       }
 
-      batchInstruction = batchTaskIds.length >= 2
-        ? `${batchTaskIds.length} tasks reported complete. Report status against ALL relevant acceptance criteria.`
-        : "Before this task is accepted, report your completion status against these acceptance criteria.";
+      batchInstruction =
+        batchTaskIds.length >= 2
+          ? `${batchTaskIds.length} tasks reported complete. Report status against ALL relevant acceptance criteria.`
+          : "Before this task is accepted, report your completion status against these acceptance criteria.";
     }
 
     let output: ExecutionOutput = {
@@ -3092,38 +3110,37 @@ const compileExecution = (
           .tier1 as string[],
       },
       transition: {
-        onComplete: `${
-          cs(
-            'next --answer=\'{"completed":[...],"remaining":[...],"blocked":[...]}\'',
-            specName,
-          )
-        }`,
-        onBlocked: criteriaScope !== "review-gate"
-          ? `${cs('block "reason"', specName)}`
-          : undefined,
+        onComplete: `${cs(
+          'next --answer=\'{"completed":[...],"remaining":[...],"blocked":[...]}\'',
+          specName,
+        )}`,
+        onBlocked:
+          criteriaScope !== "review-gate"
+            ? `${cs('block "reason"', specName)}`
+            : undefined,
         iteration: state.execution.iteration,
       },
       statusReportRequired: true,
       statusReport: {
         criteria,
-        reportFormat: criteriaScope === "review-gate"
-          ? {
-            completed:
-              "list dimension IDs you verified with evidence (file:line, test name)",
-            remaining: "list dimension IDs not yet verified",
-            blocked:
-              "list dimension IDs that need a decision before you can verify",
-          }
-          : {
-            completed:
-              "list item IDs you finished (e.g., ['debt-1', 'ac-3']) with evidence",
-            remaining: "list item IDs not yet done",
-            blocked: "list item IDs that need a decision from the user",
-            na:
-              "(optional) list item IDs that are not applicable to this task — they will be removed from future criteria",
-            newIssues:
-              "(optional) list NEW issues discovered during implementation — free text, will be assigned debt IDs automatically",
-          },
+        reportFormat:
+          criteriaScope === "review-gate"
+            ? {
+                completed:
+                  "list dimension IDs you verified with evidence (file:line, test name)",
+                remaining: "list dimension IDs not yet verified",
+                blocked:
+                  "list dimension IDs that need a decision before you can verify",
+              }
+            : {
+                completed:
+                  "list item IDs you finished (e.g., ['debt-1', 'ac-3']) with evidence",
+                remaining: "list item IDs not yet done",
+                blocked: "list item IDs that need a decision from the user",
+                na: "(optional) list item IDs that are not applicable to this task — they will be removed from future criteria",
+                newIssues:
+                  "(optional) list NEW issues discovered during implementation — free text, will be assigned debt IDs automatically",
+              },
       },
       ...(criteriaScope === "review-gate"
         ? { subphase: "review-gate" as const }
@@ -3134,9 +3151,7 @@ const compileExecution = (
       // Batch task claims only relevant in task mode
       let batchTaskIds: string[] = [];
       try {
-        const prevAnswer = JSON.parse(
-          state.execution.lastProgress ?? "",
-        );
+        const prevAnswer = JSON.parse(state.execution.lastProgress ?? "");
         if (Array.isArray(prevAnswer.completed)) {
           batchTaskIds = (prevAnswer.completed as string[]).filter(
             (id: string) => typeof id === "string" && id.startsWith("task-"),
@@ -3169,20 +3184,21 @@ const compileExecution = (
   const debtUnaddressed = state.execution.debt?.unaddressedIterations ?? 0;
 
   // Normal execution — include current task inline
-  const taskInstruction = taskBlock !== undefined
-    ? `Execute task ${taskBlock.id}: ${taskBlock.title} (${taskBlock.completedTasks}/${taskBlock.totalTasks} completed)`
-    : "All tasks completed. Run `" + cs("done", specName) + "` to finish.";
+  const taskInstruction =
+    taskBlock !== undefined
+      ? `Execute task ${taskBlock.id}: ${taskBlock.title} (${taskBlock.completedTasks}/${taskBlock.totalTasks} completed)`
+      : "All tasks completed. Run `" + cs("done", specName) + "` to finish.";
 
   let baseInstruction: string;
   if (verifyFailed) {
     baseInstruction =
       "Verification FAILED. Fix the failing tests before continuing.";
   } else if (wasRejected && debtItems.length > 0) {
-    const urgency = debtUnaddressed >= 3
-      ? ` These items have been outstanding for ${debtUnaddressed} iterations.`
-      : "";
-    baseInstruction =
-      `Task not accepted — ${debtItems.length} remaining item(s) must be addressed before this task can be completed.${urgency} Address them, then submit a new status report.`;
+    const urgency =
+      debtUnaddressed >= 3
+        ? ` These items have been outstanding for ${debtUnaddressed} iterations.`
+        : "";
+    baseInstruction = `Task not accepted — ${debtItems.length} remaining item(s) must be addressed before this task can be completed.${urgency} Address them, then submit a new status report.`;
   } else {
     baseInstruction = taskInstruction;
   }
@@ -3208,8 +3224,7 @@ const compileExecution = (
     output = {
       ...output,
       taskRejected: true,
-      rejectionReason:
-        `${debtItems.length} remaining item(s) must be addressed.`,
+      rejectionReason: `${debtItems.length} remaining item(s) must be addressed.`,
       rejectionRemaining: debtItems.map((d) => d.text),
     };
   }
@@ -3217,9 +3232,10 @@ const compileExecution = (
   // Carry forward debt from previous iterations
   if (state.execution.debt !== null && state.execution.debt.items.length > 0) {
     const unaddressed = state.execution.debt.unaddressedIterations ?? 0;
-    const debtNote = unaddressed >= 3
-      ? `These items have been open for ${unaddressed} iterations. Address them before any new work.`
-      : "These were not completed in a previous iteration. Address them BEFORE starting new work.";
+    const debtNote =
+      unaddressed >= 3
+        ? `These items have been open for ${unaddressed} iterations. Address them before any new work.`
+        : "These were not completed in a previous iteration. Address them BEFORE starting new work.";
 
     output = {
       ...output,
@@ -3242,21 +3258,22 @@ const compileExecution = (
 
   // Jidoka I6: tensions are a blocking gate — require explicit user resolution
   if (tensions.length > 0) {
-    const tensionList = tensions.map((t) =>
-      `${t.between.join(" vs ")}: ${t.issue}`
-    ).join("; ");
-    const resolution = hints.interactive === false
-      ? `The user must choose which side to prioritize, and nobody answers during this run: run \`${
-        cs('block "concern tension: <which concerns>"', specName)
-      }\` and stop.`
-      : hints.hasAskUserTool
-      ? "You MUST present these to the user and get explicit resolution for each before proceeding. Use AskUserQuestion to ask which side to prioritize."
-      : "You MUST present these to the user and get explicit resolution for each before proceeding. Ask which side to prioritize as a numbered list.";
+    const tensionList = tensions
+      .map((t) => `${t.between.join(" vs ")}: ${t.issue}`)
+      .join("; ");
+    const resolution =
+      hints.interactive === false
+        ? `The user must choose which side to prioritize, and nobody answers during this run: run \`${cs(
+            'block "concern tension: <which concerns>"',
+            specName,
+          )}\` and stop.`
+        : hints.hasAskUserTool
+          ? "You MUST present these to the user and get explicit resolution for each before proceeding. Use AskUserQuestion to ask which side to prioritize."
+          : "You MUST present these to the user and get explicit resolution for each before proceeding. Ask which side to prioritize as a numbered list.";
     output = {
       ...output,
       concernTensions: tensions,
-      instruction:
-        `TENSION GATE: ${tensions.length} concern tension(s) detected: ${tensionList}. ${resolution}`,
+      instruction: `TENSION GATE: ${tensions.length} concern tension(s) detected: ${tensionList}. ${resolution}`,
     };
   }
 
@@ -3282,10 +3299,9 @@ const compileExecution = (
         decisionId: lastUnpromoted.id,
         question: lastUnpromoted.question,
         choice: lastUnpromoted.choice,
-        prompt:
-          `You just resolved a decision: "${lastUnpromoted.choice}". Ask the user: "Should this be a permanent rule for future specs too?" If yes, run: \`${
-            c(`rule add "${lastUnpromoted.choice}"`)
-          }\``,
+        prompt: `You just resolved a decision: "${lastUnpromoted.choice}". Ask the user: "Should this be a permanent rule for future specs too?" If yes, run: \`${c(
+          `rule add "${lastUnpromoted.choice}"`,
+        )}\``,
       },
     };
   }
@@ -3302,8 +3318,8 @@ const compileExecution = (
   }
 
   // Design checklist when beautiful-product concern is active
-  const hasBeautifulProduct = activeConcerns.some((cc) =>
-    cc.id === "beautiful-product"
+  const hasBeautifulProduct = activeConcerns.some(
+    (cc) => cc.id === "beautiful-product",
   );
   if (hasBeautifulProduct) {
     output = {
@@ -3369,10 +3385,10 @@ const compileCompleted = async (
       completionNote: state.completionNote,
     },
     learningPrompt: {
-      instruction:
-        `LEARNING PENDING: record learnings before moving on. For each insight, decide: one-time learning or permanent rule? One-time ("assumed X, was Y") → \`learn "text"\`. Permanent ("always/never do X") → \`learn "text" --rule\`. Run: \`${
-          cs('learn "text"', state.spec ?? "<name>")
-        }\` or \`learn "text" --rule\`.`,
+      instruction: `LEARNING PENDING: record learnings before moving on. For each insight, decide: one-time learning or permanent rule? One-time ("assumed X, was Y") → \`learn "text"\`. Permanent ("always/never do X") → \`learn "text" --rule\`. Run: \`${cs(
+        'learn "text"',
+        state.spec ?? "<name>",
+      )}\` or \`learn "text" --rule\`.`,
       examples: [
         cs('learn "Assumed S3 SDK v2, was v3"', state.spec ?? "upload"),
         cs('learn "Always use Result types" --rule', state.spec ?? "upload"),

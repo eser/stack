@@ -50,9 +50,9 @@ export const assertTransition = (
 ): void => {
   if (!canTransition(from, to)) {
     throw new Error(
-      `Invalid phase transition: ${from} → ${to}. Allowed: ${
-        VALID_TRANSITIONS[from].join(", ")
-      }`,
+      `Invalid phase transition: ${from} → ${to}. Allowed: ${VALID_TRANSITIONS[
+        from
+      ].join(", ")}`,
     );
   }
 };
@@ -177,9 +177,7 @@ export const selectApproach = (
   };
 };
 
-export const skipAlternatives = (
-  state: schema.StateFile,
-): schema.StateFile => {
+export const skipAlternatives = (state: schema.StateFile): schema.StateFile => {
   if (state.phase !== "DISCOVERY_REFINEMENT") {
     throw new Error(`Cannot skip alternatives in phase: ${state.phase}`);
   }
@@ -327,11 +325,11 @@ export const autoClassifyIfMissing = (
  * for the ids.
  */
 export const sectionCommandsHint = (specName: string): string =>
-  `Record each answer with \`${
-    cmd.cmd(`spec ${specName} section <id> fill "text"`)
-  }\`, or mark a section that does not apply with \`${
-    cmd.cmd(`spec ${specName} section <id> na "reason"`)
-  }\`; \`${cmd.cmd(`spec ${specName} section list`)}\` shows the ids.`;
+  `Record each answer with \`${cmd.cmd(
+    `spec ${specName} section <id> fill "text"`,
+  )}\`, or mark a section that does not apply with \`${cmd.cmd(
+    `spec ${specName} section <id> na "reason"`,
+  )}\`; \`${cmd.cmd(`spec ${specName} section list`)}\` shows the ids.`;
 
 export const approveDiscoveryReview = (
   state: schema.StateFile,
@@ -344,10 +342,11 @@ export const approveDiscoveryReview = (
       .map((s) => `  - ${s.sectionTitle} (${s.sectionId})`)
       .join("\n");
     const decisions = report.pendingDecisions
-      .map((d) =>
-        `  - ${d.section}: ${d.question} (waiting for ${
-          d.waitingFor.join(", ")
-        })`
+      .map(
+        (d) =>
+          `  - ${d.section}: ${d.question} (waiting for ${d.waitingFor.join(
+            ", ",
+          )})`,
       )
       .join("\n");
     throw new Error(
@@ -409,9 +408,7 @@ export const advanceDiscoveryQuestion = (
   };
 };
 
-export const approveSpec = (
-  state: schema.StateFile,
-): schema.StateFile => {
+export const approveSpec = (state: schema.StateFile): schema.StateFile => {
   assertTransition(state.phase, "SPEC_APPROVED");
 
   return {
@@ -421,9 +418,7 @@ export const approveSpec = (
   };
 };
 
-export const startExecution = (
-  state: schema.StateFile,
-): schema.StateFile => {
+export const startExecution = (state: schema.StateFile): schema.StateFile => {
   assertTransition(state.phase, "EXECUTING");
 
   return {
@@ -519,9 +514,7 @@ export const completeSpec = (
   };
 };
 
-export const reopenSpec = (
-  state: schema.StateFile,
-): schema.StateFile => {
+export const reopenSpec = (state: schema.StateFile): schema.StateFile => {
   if (state.phase !== "COMPLETED") {
     throw new Error(`Cannot reopen in phase: ${state.phase}`);
   }
@@ -903,8 +896,9 @@ export const addFollowUp = (
   const existing = state.discovery.followUps ?? [];
 
   // Enforce max 3 per parent question
-  const parentCount =
-    existing.filter((f) => f.parentQuestionId === parentQuestionId).length;
+  const parentCount = existing.filter(
+    (f) => f.parentQuestionId === parentQuestionId,
+  ).length;
   if (parentCount >= MAX_FOLLOWUPS_PER_QUESTION) {
     return state; // silently cap
   }
@@ -1070,9 +1064,7 @@ export const resetRefusal = (phase: schema.Phase): string | null =>
     ? null
     : `Cannot reset from ${phase}. Use \`cancel\` or \`wontfix\` instead.`;
 
-export const resetToIdle = (
-  state: schema.StateFile,
-): schema.StateFile => {
+export const resetToIdle = (state: schema.StateFile): schema.StateFile => {
   const refusal = resetRefusal(state.phase);
   if (refusal !== null) {
     throw new Error(refusal);

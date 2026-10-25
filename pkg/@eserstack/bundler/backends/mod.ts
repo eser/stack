@@ -76,7 +76,8 @@ export function createBundler(
 ): Bundler {
   // Handle config object form
   if (
-    typeof backendOrConfig === "object" && backendOrConfig !== null &&
+    typeof backendOrConfig === "object" &&
+    backendOrConfig !== null &&
     "backend" in backendOrConfig
   ) {
     const config = backendOrConfig;
@@ -88,9 +89,7 @@ export function createBundler(
 
   switch (backend) {
     case "rolldown":
-      return rolldown.createRolldownBackend(
-        options as RolldownBackendOptions,
-      );
+      return rolldown.createRolldownBackend(options as RolldownBackendOptions);
     default:
       throw new Error(`Unknown bundler backend: ${backend}`);
   }

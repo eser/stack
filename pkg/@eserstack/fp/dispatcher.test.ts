@@ -33,12 +33,11 @@ Deno.test("logger", async () => {
   const logs: Array<LogType<StateType>> = [];
   const logger = (entry: LogType<StateType>) => logs.push(entry);
 
-  const result = await dispatcher.dispatcher(initialState, [
-    actionAdd5,
-    actionDiv2,
-  ], [
-    logger,
-  ]);
+  const result = await dispatcher.dispatcher(
+    initialState,
+    [actionAdd5, actionDiv2],
+    [logger],
+  );
 
   assert.assertEquals(result, { quarter: 1, year: 2018, sum: 3 });
   assert.assertEquals(logs, [
@@ -61,9 +60,9 @@ Deno.test("promises", async () => {
   const delay = (num: number) =>
     new Promise<number>((resolve) => setTimeout(() => resolve(num), 200));
   const actionFirst = async (state: number, next: NextType<number>) =>
-    next(state + await delay(5));
+    next(state + (await delay(5)));
   const actionSecond = async (state: number, next: NextType<number>) =>
-    next(state + await delay(3));
+    next(state + (await delay(3)));
 
   const result = await dispatcher.dispatcher(initialState, [
     actionFirst,

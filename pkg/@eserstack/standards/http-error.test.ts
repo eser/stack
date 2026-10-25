@@ -20,9 +20,10 @@ Deno.test("HttpError should use default message from status code", () => {
 });
 
 Deno.test("HttpError should handle various status codes", () => {
-  const testCases: Array<
-    { status: 400 | 401 | 403 | 404 | 500; expected: string }
-  > = [
+  const testCases: Array<{
+    status: 400 | 401 | 403 | 404 | 500;
+    expected: string;
+  }> = [
     { status: 400, expected: "Bad Request" },
     { status: 401, expected: "Unauthorized" },
     { status: 403, expected: "Forbidden" },

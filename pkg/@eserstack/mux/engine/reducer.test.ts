@@ -22,7 +22,10 @@ Deno.test("newTab opens a tab with one pane and asks to spawn it", () => {
     tab.focusedPane,
     tab.root.kind === "leaf" ? tab.root.pane : "",
   );
-  assert.assertEquals(r.effects.some((e) => e.type === "spawnPty"), true);
+  assert.assertEquals(
+    r.effects.some((e) => e.type === "spawnPty"),
+    true,
+  );
 });
 
 Deno.test("splitPane adds a pane, focuses it, and emits spawn", () => {
@@ -57,7 +60,10 @@ Deno.test("closeFocusedPane on the last pane closes the tab and exits", () => {
 
   assert.assertEquals(r.state.tabs.length, 0);
   assert.assertEquals(r.state.running, false);
-  assert.assertEquals(r.effects.some((e) => e.type === "exit"), true);
+  assert.assertEquals(
+    r.effects.some((e) => e.type === "exit"),
+    true,
+  );
 });
 
 Deno.test("focusNext cycles through panes", () => {
@@ -106,11 +112,13 @@ Deno.test("writeToPane targets a specific pane regardless of focus", () => {
   assert.assertEquals(s.tabs[0]!.focusedPane, b); // focus is on b
 
   const r = reducer.reduce(s, { type: "writeToPane", pane: a!, data: "hi\r" });
-  assert.assertEquals(r.effects, [{
-    type: "writePty",
-    pane: a!,
-    data: "hi\r",
-  }]);
+  assert.assertEquals(r.effects, [
+    {
+      type: "writePty",
+      pane: a!,
+      data: "hi\r",
+    },
+  ]);
 });
 
 Deno.test("writeToPane ignores an unknown pane", () => {
@@ -132,8 +140,14 @@ Deno.test("paneExited removes a non-focused pane without killing it", () => {
   const tab = r.state.tabs[0]!;
 
   assert.assertEquals(tree.collectLeaves(tab.root), [b]);
-  assert.assertEquals(r.effects.some((e) => e.type === "killPty"), false);
-  assert.assertEquals(r.effects.some((e) => e.type === "render"), true);
+  assert.assertEquals(
+    r.effects.some((e) => e.type === "killPty"),
+    false,
+  );
+  assert.assertEquals(
+    r.effects.some((e) => e.type === "render"),
+    true,
+  );
 });
 
 Deno.test("resizeViewport updates the viewport", () => {
@@ -165,7 +179,10 @@ Deno.test("closeTab with a lower index keeps the same tab visible", () => {
   const r = reducer.reduce(s, { type: "closeTab", index: 0 });
   assert.assertEquals(r.state.tabs.length, 2);
   assert.assertEquals(r.state.tabs[r.state.activeTab]!.id, viewedId); // not yanked
-  assert.assertEquals(r.effects.some((e) => e.type === "killPty"), true);
+  assert.assertEquals(
+    r.effects.some((e) => e.type === "killPty"),
+    true,
+  );
 });
 
 Deno.test("closeTab without an index closes the active tab", () => {

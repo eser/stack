@@ -20,7 +20,8 @@ the manifest is loaded:
 ```typescript
 import * as larouxRuntime from "@eserstack/laroux-runtime";
 
-const instance = larouxRuntime.createRuntime()
+const instance = larouxRuntime
+  .createRuntime()
   .setBaseUrl(import.meta.url)
   .loadManifest();
 

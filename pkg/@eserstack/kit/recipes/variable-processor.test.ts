@@ -19,10 +19,13 @@ bdd.describe("validateVariable", () => {
   });
 
   bdd.it("returns ok when value matches pattern", () => {
-    const result = variableProcessor.validateVariable({
-      name: "x",
-      pattern: "^[a-z]+$",
-    }, "foo");
+    const result = variableProcessor.validateVariable(
+      {
+        name: "x",
+        pattern: "^[a-z]+$",
+      },
+      "foo",
+    );
     assert.assertEquals(result.ok, true);
   });
 
@@ -167,10 +170,10 @@ bdd.describe("resolveVariables", () => {
       { name: "author", description: "Author", default: "unknown" },
     ];
 
-    const result = await variableProcessor.resolveVariables(
-      defs,
-      { name: "my-app", author: "eser" },
-    );
+    const result = await variableProcessor.resolveVariables(defs, {
+      name: "my-app",
+      author: "eser",
+    });
 
     assert.assertEquals(result["name"], "my-app");
     assert.assertEquals(result["version"], "0.1.0");
@@ -186,9 +189,7 @@ bdd.describe("resolveVariables", () => {
   });
 
   bdd.it("validates overridden value against pattern", async () => {
-    const defs: TemplateVariable[] = [
-      { name: "tag", pattern: "^v\\d+$" },
-    ];
+    const defs: TemplateVariable[] = [{ name: "tag", pattern: "^v\\d+$" }];
 
     await assert.assertRejects(
       () => variableProcessor.resolveVariables(defs, { tag: "not-a-version" }),
@@ -202,9 +203,13 @@ bdd.describe("resolveVariables", () => {
     globalThis.prompt = (_msg?: string) => "prompted-value";
     try {
       const defs: TemplateVariable[] = [{ name: "name" }];
-      const result = await variableProcessor.resolveVariables(defs, {}, {
-        interactive: true,
-      });
+      const result = await variableProcessor.resolveVariables(
+        defs,
+        {},
+        {
+          interactive: true,
+        },
+      );
       assert.assertEquals(result["name"], "prompted-value");
     } finally {
       globalThis.prompt = original;
@@ -275,8 +280,7 @@ bdd.describe("substituteVariables", () => {
   });
 
   bdd.it("handles multiline content", () => {
-    const content =
-      `{\n  "name": "{{.project_name}}",\n  "version": "{{.version}}"\n}`;
+    const content = `{\n  "name": "{{.project_name}}",\n  "version": "{{.version}}"\n}`;
     const result = variableProcessor.substituteVariables(content, {
       project_name: "my-lib",
       version: "1.0.0",

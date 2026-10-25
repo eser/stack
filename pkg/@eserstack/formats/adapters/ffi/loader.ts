@@ -10,7 +10,8 @@ import type {
 import * as errors from "../../business/errors.ts";
 
 const isMissingFormat = (msg: string): boolean =>
-  msg.includes("format not found") || msg.includes("not registered") ||
+  msg.includes("format not found") ||
+  msg.includes("not registered") ||
   msg.includes("not found in registry");
 
 /**

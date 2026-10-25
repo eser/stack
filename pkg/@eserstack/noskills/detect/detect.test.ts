@@ -72,9 +72,7 @@ bdd.describe("Concern picker input parsing", () => {
     { id: "learning-project", name: "Learning Project" },
   ];
 
-  const parseConcernInput = (
-    input: string | null,
-  ): string[] => {
+  const parseConcernInput = (input: string | null): string[] => {
     if (input === null || input.trim().length === 0) return [];
     const ids: string[] = [];
 

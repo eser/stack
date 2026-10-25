@@ -80,8 +80,7 @@ Deno.test({
 });
 
 Deno.test({
-  name:
-    "validate-self-imports: relative, sibling-package and documented imports pass",
+  name: "validate-self-imports: relative, sibling-package and documented imports pass",
   sanitizeResources: false,
   sanitizeOps: false,
   fn: async () => {

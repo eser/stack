@@ -30,9 +30,10 @@ import * as compositor from "./compositor.ts";
 import * as inputSource from "./input-source.ts";
 
 /** Render extra content into the chrome's reserved regions (sidebars/strips). */
-export type DecorateFn = (
-  ctx: { readonly regions: DecorationRegions; readonly scene: Scene },
-) => string;
+export type DecorateFn = (ctx: {
+  readonly regions: DecorationRegions;
+  readonly scene: Scene;
+}) => string;
 
 export type TuiFrontendOptions = {
   readonly transport: Transport<FrontendToServer, ServerToFrontend>;
@@ -114,7 +115,8 @@ export const createTuiFrontend = (opts: TuiFrontendOptions): Frontend => {
         scene,
       });
     }
-    out += tui.ansi.moveTo(frame.cursor.row, frame.cursor.col) +
+    out +=
+      tui.ansi.moveTo(frame.cursor.row, frame.cursor.col) +
       (frame.cursor.visible ? tui.terminal.showCursorSeq() : "");
 
     write(out);
@@ -132,15 +134,19 @@ export const createTuiFrontend = (opts: TuiFrontendOptions): Frontend => {
           activeTab: d.activeTab ?? prev?.activeTab ?? 0,
           mode: d.mode ?? prev?.mode ?? "normal",
           viewport: d.viewport ?? prev?.viewport ?? lastViewport,
-          focusedPane: d.focusedPane !== undefined
-            ? d.focusedPane
-            : (prev?.focusedPane ?? null),
+          focusedPane:
+            d.focusedPane !== undefined
+              ? d.focusedPane
+              : (prev?.focusedPane ?? null),
           panes: d.panes ?? prev?.panes ?? [],
           chrome: d.chrome ?? prev?.chrome ?? geometry.DEFAULT_CHROME,
         };
 
-        const structural = msg.full || d.panes !== undefined ||
-          d.tabs !== undefined || d.viewport !== undefined ||
+        const structural =
+          msg.full ||
+          d.panes !== undefined ||
+          d.tabs !== undefined ||
+          d.viewport !== undefined ||
           d.chrome !== undefined;
         if (structural) reconcileWidgets();
 
@@ -203,9 +209,10 @@ export const createTuiFrontend = (opts: TuiFrontendOptions): Frontend => {
 
     abort = new AbortController();
     await tui.withRawMode(async () => {
-      for await (
-        const ev of tui.readInput(runtime.process.stdin, abort!.signal)
-      ) {
+      for await (const ev of tui.readInput(
+        runtime.process.stdin,
+        abort!.signal,
+      )) {
         if (!running) break;
 
         // A throwing consumer interceptor must not kill the input pump.
@@ -217,13 +224,11 @@ export const createTuiFrontend = (opts: TuiFrontendOptions): Frontend => {
             }
           } else {
             if (opts.onKey?.(ev.event, scene) === true) continue;
-            for (
-              const m of inputSource.keyToMessages(
-                ev.event,
-                scene?.mode ?? "normal",
-                keymap,
-              )
-            ) {
+            for (const m of inputSource.keyToMessages(
+              ev.event,
+              scene?.mode ?? "normal",
+              keymap,
+            )) {
               transport.send(m);
             }
           }

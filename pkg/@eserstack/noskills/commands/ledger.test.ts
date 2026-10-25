@@ -25,13 +25,13 @@ const RECORD: decisionLedger.LedgerRecord = {
 };
 
 const SUMMARY: decisionLedger.LedgerSummary = {
-  "resolved_decisions": 1,
-  "provenance_breakdown": { ratified: 1, inferred: 0, default: 0 },
-  "open_questions": 2,
+  resolved_decisions: 1,
+  provenance_breakdown: { ratified: 1, inferred: 0, default: 0 },
+  open_questions: 2,
   specificity: {
-    "named_artifacts_count": 3,
-    "acceptance_criteria_present": true,
-    "out_of_scope_present": false,
+    named_artifacts_count: 3,
+    acceptance_criteria_present: true,
+    out_of_scope_present: false,
   },
 };
 
@@ -74,14 +74,16 @@ bdd.describe("noskills ledger: the human formats", () => {
         specId: "upload",
         title: "upload (live ledger)",
         guided: {
-          decisions: [{
-            id: "d-1",
-            category: "scope",
-            question: "Which file types?",
-            resolution: "JPEG and PNG",
-            provenance: "ratified",
-            phase: "DISCOVERY",
-          }],
+          decisions: [
+            {
+              id: "d-1",
+              category: "scope",
+              question: "Which file types?",
+              resolution: "JPEG and PNG",
+              provenance: "ratified",
+              phase: "DISCOVERY",
+            },
+          ],
         },
       },
       "markdown",

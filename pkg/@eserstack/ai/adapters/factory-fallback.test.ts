@@ -13,8 +13,8 @@ import * as adapters from "./mod.ts";
 // break every other FFI test file alongside it.
 
 Deno.test("every provider has a pure-TypeScript fallback", async () => {
-  const providers = (await adapters.defaultFactories()).map((factory) =>
-    factory.provider
+  const providers = (await adapters.defaultFactories()).map(
+    (factory) => factory.provider,
   );
 
   assert.assert(providers.length > 0, "defaultFactories returned nothing");

@@ -186,11 +186,7 @@ bdd.describe("addDiscoveryAnswer", () => {
   bdd.it("throws if not in DISCOVERY phase", () => {
     assert.assertThrows(
       () =>
-        machine.addDiscoveryAnswer(
-          idle(),
-          "q1",
-          "a meaningful answer here",
-        ),
+        machine.addDiscoveryAnswer(idle(), "q1", "a meaningful answer here"),
       Error,
       "Cannot add discovery answer in phase: IDLE",
     );
@@ -250,10 +246,7 @@ bdd.describe("approveDiscoveryReview", () => {
   });
 
   bdd.it("throws if not in DISCOVERY_REFINEMENT", () => {
-    assert.assertThrows(
-      () => machine.approveDiscoveryReview(idle()),
-      Error,
-    );
+    assert.assertThrows(() => machine.approveDiscoveryReview(idle()), Error);
   });
 });
 
@@ -906,11 +899,13 @@ bdd.describe("Jidoka Completeness Gate: approveDiscoveryReview", () => {
   bdd.it("throws when a pending decision exists", () => {
     const state = makeRefinementState(
       [{ sectionId: "summary", sectionTitle: "Summary", status: "filled" }],
-      [{
-        section: "auth",
-        question: "Which provider?",
-        waitingFor: ["@alice"],
-      }],
+      [
+        {
+          section: "auth",
+          question: "Which provider?",
+          waitingFor: ["@alice"],
+        },
+      ],
     );
     assert.assertThrows(
       () => machine.approveDiscoveryReview(state),

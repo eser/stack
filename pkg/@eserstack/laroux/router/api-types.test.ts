@@ -14,10 +14,13 @@ Deno.test("jsonResponse sends the data as JSON with status 200", async () => {
 });
 
 Deno.test("jsonResponse keeps the status and status text from init", async () => {
-  const response = apiTypes.jsonResponse({ created: true }, {
-    status: 201,
-    statusText: "Created",
-  });
+  const response = apiTypes.jsonResponse(
+    { created: true },
+    {
+      status: 201,
+      statusText: "Created",
+    },
+  );
 
   assert.assertEquals(response.status, 201);
   assert.assertEquals(response.statusText, "Created");
@@ -50,9 +53,12 @@ for (const { name, headers } of headerForms) {
 }
 
 Deno.test("jsonResponse lets the caller's content type win, in any letter case", async () => {
-  const response = apiTypes.jsonResponse({ ok: true }, {
-    headers: { "content-type": "application/problem+json" },
-  });
+  const response = apiTypes.jsonResponse(
+    { ok: true },
+    {
+      headers: { "content-type": "application/problem+json" },
+    },
+  );
 
   assert.assertEquals(
     response.headers.get("content-type"),

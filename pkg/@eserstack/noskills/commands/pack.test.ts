@@ -107,8 +107,8 @@ Deno.test("a remote pack cannot write outside its folders", async () => {
       }
 
       // Nothing appeared next to the project.
-      const outside = (await listFiles(outer)).filter((f) =>
-        !f.startsWith("project/")
+      const outside = (await listFiles(outer)).filter(
+        (f) => !f.startsWith("project/"),
       );
       assert.assertEquals(outside, [], JSON.stringify(extra));
     });
@@ -122,7 +122,7 @@ Deno.test("a remote pack installs its files when they stay inside", async () => 
       const installed = await pack.installRemotePack(
         root,
         SPECIFIER,
-        manifest({ rules: ["rules/style.md"], folderRules: { "src": "f.md" } }),
+        manifest({ rules: ["rules/style.md"], folderRules: { src: "f.md" } }),
       );
       assert.assertEquals(installed.rules, ["pack-demo-style.md"]);
       assert.assertEquals(installed.folderRules, ["src/.folder-rules.md"]);

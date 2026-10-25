@@ -52,10 +52,11 @@ bdd.describe("drawBox", () => {
 
 bdd.describe("fillBox", () => {
   bdd.it("renders content inside box", () => {
-    const result = box.fillBox(
-      { x: 1, y: 1, width: 20, height: 5 },
-      ["line 1", "line 2", "line 3"],
-    );
+    const result = box.fillBox({ x: 1, y: 1, width: 20, height: 5 }, [
+      "line 1",
+      "line 2",
+      "line 3",
+    ]);
     assert.assertEquals(result.includes("line 1"), true);
     assert.assertEquals(result.includes("line 2"), true);
     assert.assertEquals(result.includes("line 3"), true);
@@ -63,10 +64,9 @@ bdd.describe("fillBox", () => {
 
   bdd.it("truncates content that exceeds width", () => {
     const longLine = "a".repeat(100);
-    const result = box.fillBox(
-      { x: 1, y: 1, width: 20, height: 5 },
-      [longLine],
-    );
+    const result = box.fillBox({ x: 1, y: 1, width: 20, height: 5 }, [
+      longLine,
+    ]);
     // The visible content should be truncated
     const stripped = ansi.stripAnsi(result);
     // Should not contain 100 'a' characters in a row

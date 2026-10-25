@@ -45,9 +45,7 @@ export const loadManifest = async (
 /**
  * Get the manifest file path in a directory (if it exists).
  */
-export const getManifestPath = async (
-  dir: string,
-): Promise<string | null> => {
+export const getManifestPath = async (dir: string): Promise<string | null> => {
   for (const filename of MANIFEST_FILENAMES) {
     const filepath = crossRuntime.runtime.path.join(dir, filename);
     try {

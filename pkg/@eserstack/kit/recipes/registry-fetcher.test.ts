@@ -11,18 +11,17 @@ const { runtime } = crossRuntime;
  * Stands in for globalThis.fetch: answers each URL in `routes` and rejects
  * any other request, so a test cannot reach the network by accident.
  */
-const fakeFetch = (
-  routes: Readonly<Record<string, () => Response>>,
-): typeof globalThis.fetch =>
-(input) => {
-  const url = input instanceof Request ? input.url : String(input);
-  const route = routes[url];
-  if (route === undefined) {
-    return Promise.reject(new TypeError(`fake fetch: no route for ${url}`));
-  }
+const fakeFetch =
+  (routes: Readonly<Record<string, () => Response>>): typeof globalThis.fetch =>
+  (input) => {
+    const url = input instanceof Request ? input.url : String(input);
+    const route = routes[url];
+    if (route === undefined) {
+      return Promise.reject(new TypeError(`fake fetch: no route for ${url}`));
+    }
 
-  return Promise.resolve(route());
-};
+    return Promise.resolve(route());
+  };
 
 // =============================================================================
 // parseGitHubRawUrl
@@ -139,8 +138,7 @@ const badRegistryFiles: ReadonlyArray<{
   {
     name: "a missing file",
     content: null,
-    step:
-      "the file does not exist; pass --registry with the path or URL of a recipes.json",
+    step: "the file does not exist; pass --registry with the path or URL of a recipes.json",
     causeType: crossRuntime.NotFoundError,
     causeMessage: "No such file or directory",
   },
@@ -304,11 +302,7 @@ Deno.test("detectLocalRegistry: starts at the given directory", async () => {
 
 Deno.test("detectLocalRegistry: wraps a path it cannot check", async () => {
   const denied = new Error("permission denied");
-  using _exists = mock.stub(
-    runtime.fs,
-    "exists",
-    () => Promise.reject(denied),
-  );
+  using _exists = mock.stub(runtime.fs, "exists", () => Promise.reject(denied));
 
   const error = await assert.assertRejects(
     () => registryFetcher.detectLocalRegistry(),

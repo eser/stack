@@ -57,16 +57,17 @@ export function Image(props: ImageProps): React.ReactElement {
   // format variants derived from the missing source. srcSet and sizes are left
   // out too: the browser prefers srcset over src, so it would hide the fallback.
   if (props.src === "" && hasFallback) {
-    const { srcSet: _srcSet, sizes: _sizes, ...fallbackImgAttributes } =
-      imgAttributes;
+    const {
+      srcSet: _srcSet,
+      sizes: _sizes,
+      ...fallbackImgAttributes
+    } = imgAttributes;
 
-    return (
-      React.createElement("img", {
-        ...fallbackImgAttributes,
-        src: fallback,
-        style: placeholderStyles,
-      })
-    );
+    return React.createElement("img", {
+      ...fallbackImgAttributes,
+      src: fallback,
+      style: placeholderStyles,
+    });
   }
 
   const fallbackAttributes = hasFallback
@@ -82,35 +83,31 @@ export function Image(props: ImageProps): React.ReactElement {
       sizes: props.sizes,
     });
 
-    return (
-      React.createElement(
-        "picture",
-        { style: placeholderStyles },
-        sources.map((source) => (
-          React.createElement("source", {
-            key: source.type,
-            type: source.type,
-            srcSet: source.srcSet,
-            sizes: source.sizes,
-          })
-        )),
-        React.createElement("img", {
-          ...imgAttributes,
-          ...fallbackAttributes,
-          src: props.src,
+    return React.createElement(
+      "picture",
+      { style: placeholderStyles },
+      sources.map((source) =>
+        React.createElement("source", {
+          key: source.type,
+          type: source.type,
+          srcSet: source.srcSet,
+          sizes: source.sizes,
         }),
-      )
+      ),
+      React.createElement("img", {
+        ...imgAttributes,
+        ...fallbackAttributes,
+        src: props.src,
+      }),
     );
   }
 
-  return (
-    React.createElement("img", {
-      ...imgAttributes,
-      ...fallbackAttributes,
-      src: props.src,
-      style: placeholderStyles,
-    })
-  );
+  return React.createElement("img", {
+    ...imgAttributes,
+    ...fallbackAttributes,
+    src: props.src,
+    style: placeholderStyles,
+  });
 }
 
 /**
@@ -124,26 +121,24 @@ export function ResponsiveImage(
   const aspectRatioClass = image.ASPECT_RATIO_CLASSES[aspectRatio];
   const hasBlur = image.shouldShowPlaceholder("blur", props.blurDataURL);
 
-  return (
-    React.createElement(
-      "div",
-      {
-        className: `relative overflow-hidden ${aspectRatioClass} ${
-          props.containerClassName ?? ""
-        }`.trim(),
-      },
-      React.createElement(Image, {
-        src: props.src,
-        alt: props.alt,
-        className: `absolute inset-0 w-full h-full ${props.className ?? ""}`
-          .trim(),
-        priority: props.priority ?? false,
-        fallback: props.fallback,
-        sizes: props.sizes ?? image.DEFAULT_SIZES,
-        formats: props.formats,
-        placeholder: hasBlur ? "blur" : undefined,
-        blurDataURL: props.blurDataURL,
-      }),
-    )
+  return React.createElement(
+    "div",
+    {
+      className: `relative overflow-hidden ${aspectRatioClass} ${
+        props.containerClassName ?? ""
+      }`.trim(),
+    },
+    React.createElement(Image, {
+      src: props.src,
+      alt: props.alt,
+      className:
+        `absolute inset-0 w-full h-full ${props.className ?? ""}`.trim(),
+      priority: props.priority ?? false,
+      fallback: props.fallback,
+      sizes: props.sizes ?? image.DEFAULT_SIZES,
+      formats: props.formats,
+      placeholder: hasBlur ? "blur" : undefined,
+      blurDataURL: props.blurDataURL,
+    }),
   );
 }

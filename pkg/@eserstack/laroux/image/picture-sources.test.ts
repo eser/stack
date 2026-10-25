@@ -11,10 +11,10 @@ Deno.test("buildPictureSources puts AVIF before WebP whatever the order asked", 
     formats: ["webp", "avif"],
   });
 
-  assert.assertEquals(sources.map((source) => source.type), [
-    "image/avif",
-    "image/webp",
-  ]);
+  assert.assertEquals(
+    sources.map((source) => source.type),
+    ["image/avif", "image/webp"],
+  );
 });
 
 Deno.test("buildPictureSources infers each format's srcset from the base path", () => {
@@ -27,7 +27,8 @@ Deno.test("buildPictureSources infers each format's srcset from the base path", 
 
   assert.assertEquals(source, {
     type: "image/webp",
-    srcSet: "/images/photo-640w.webp 640w, /images/photo-768w.webp 768w, " +
+    srcSet:
+      "/images/photo-640w.webp 640w, /images/photo-768w.webp 768w, " +
       "/images/photo-1024w.webp 1024w, /images/photo-1280w.webp 1280w, " +
       "/images/photo-1920w.webp 1920w",
     sizes: "100vw",

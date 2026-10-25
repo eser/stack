@@ -22,11 +22,13 @@ const reviewed: transitionValidation.ReviewedValidation = {
   agent: "anthropic",
   model: "claude-opus-4-1",
   summary: "One gap.",
-  findings: [{
-    severity: "high",
-    issue: "Task 2 has no acceptance criterion.",
-    suggestion: "Add one.",
-  }],
+  findings: [
+    {
+      severity: "high",
+      issue: "Task 2 has no acceptance criterion.",
+      suggestion: "Add one.",
+    },
+  ],
   instruction: "Present the findings.",
 };
 

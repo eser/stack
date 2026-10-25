@@ -1,15 +1,10 @@
 {
   "compilerOptions": {
     "target": "esnext",
-    "lib": [
-      "esnext",
-      "dom"
-    ],
+    "lib": ["esnext", "dom"],
     "module": "nodenext",
     "moduleResolution": "nodenext",
-    "types": [
-      "node"
-    ],
+    "types": ["node"],
     "jsx": "react-jsx",
     "noEmit": true,
     "declaration": true,
@@ -28,11 +23,7 @@
     "exactOptionalPropertyTypes": false,
     "skipLibCheck": true
   },
-  "include": [
-    "**/*.ts",
-    "**/*.tsx",
-    ".agents/**/*.ts"
-  ],
+  "include": ["**/*.ts", "**/*.tsx", ".agents/**/*.ts"],
   "exclude": [
     ".claude/",
     "backlog/",

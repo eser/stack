@@ -80,7 +80,7 @@ Deno.test("Node adapter serve rejects a port in use", async () => {
 
   try {
     await assert.assertRejects(() =>
-      http.serve({ port: first.port }, () => new Response("second"))
+      http.serve({ port: first.port }, () => new Response("second")),
     );
   } finally {
     controller.abort();
@@ -89,10 +89,12 @@ Deno.test("Node adapter serve rejects a port in use", async () => {
 });
 
 Deno.test("Node adapter serve stops at once on an aborted signal", async () => {
-  const server = await nodeHttp.createNodeHttp().serve(
-    { port: 0, signal: AbortSignal.abort() },
-    () => new Response("never"),
-  );
+  const server = await nodeHttp
+    .createNodeHttp()
+    .serve(
+      { port: 0, signal: AbortSignal.abort() },
+      () => new Response("never"),
+    );
 
   await server.finished;
 });
@@ -124,14 +126,16 @@ Deno.test("Node adapter closes a socket whose client sends an unmasked frame", a
   let connectionOpen = true;
 
   try {
-    await connection.write(encoder.encode(
-      "GET /socket HTTP/1.1\r\n" +
-        `Host: 127.0.0.1:${server.port}\r\n` +
-        "Upgrade: websocket\r\n" +
-        "Connection: Upgrade\r\n" +
-        "Sec-WebSocket-Version: 13\r\n" +
-        "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n\r\n",
-    ));
+    await connection.write(
+      encoder.encode(
+        "GET /socket HTTP/1.1\r\n" +
+          `Host: 127.0.0.1:${server.port}\r\n` +
+          "Upgrade: websocket\r\n" +
+          "Connection: Upgrade\r\n" +
+          "Sec-WebSocket-Version: 13\r\n" +
+          "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n\r\n",
+      ),
+    );
     // An unmasked text frame holding "x".
     await connection.write(new Uint8Array([0x81, 0x01, 0x78]));
 

@@ -94,17 +94,17 @@ const fakeProvider = (reply: FakeReply) => {
   return { factory, calls, closedCount: () => closed };
 };
 
-const textReply = (
-  text: string,
-  stopReason: ai.StopReason = "end_turn",
-): FakeReply =>
-() =>
-  Promise.resolve(results.ok({
-    content: [{ kind: "text", text }],
-    stopReason,
-    usage: { inputTokens: 1, outputTokens: 1, totalTokens: 2 },
-    modelId: SETTINGS.model,
-  }));
+const textReply =
+  (text: string, stopReason: ai.StopReason = "end_turn"): FakeReply =>
+  () =>
+    Promise.resolve(
+      results.ok({
+        content: [{ kind: "text", text }],
+        stopReason,
+        usage: { inputTokens: 1, outputTokens: 1, totalTokens: 2 },
+        modelId: SETTINGS.model,
+      }),
+    );
 
 const FINDINGS_REPLY = JSON.stringify({
   summary: "The answers leave the size limit open.",
@@ -194,9 +194,8 @@ bdd.describe("transitionToValidate", () => {
   }
 
   bdd.it("names the phases each transition joins", () => {
-    const transition = transitionValidation.transitionToValidate(
-      inRefinement(),
-    );
+    const transition =
+      transitionValidation.transitionToValidate(inRefinement());
     assert.assertEquals(transition?.from, "DISCOVERY_REFINEMENT");
     assert.assertEquals(transition?.to, "SPEC_PROPOSAL");
   });
@@ -309,8 +308,8 @@ bdd.describe("validationInputOf", () => {
       "A second view",
       { name: "Ada Lovelace", email: "ada@example.com" },
     );
-    const answer = inputFor(state).answers.find((a) =>
-      a.questionId === "ambition"
+    const answer = inputFor(state).answers.find(
+      (a) => a.questionId === "ambition",
     );
     assert.assertEquals(
       answer?.answer,
@@ -330,14 +329,16 @@ bdd.describe("validationInputOf", () => {
     state = machine.answerFollowUp(state, answered!.id, "A versioned bucket");
 
     const baseIds = new Set(questions.QUESTIONS.map((q) => q.id));
-    const followUps = inputFor(state).answers.filter((a) =>
-      !baseIds.has(a.questionId)
+    const followUps = inputFor(state).answers.filter(
+      (a) => !baseIds.has(a.questionId),
     );
-    assert.assertEquals(followUps, [{
-      questionId: answered!.id,
-      question: "Rollback?",
-      answer: "A versioned bucket",
-    }]);
+    assert.assertEquals(followUps, [
+      {
+        questionId: answered!.id,
+        question: "Rollback?",
+        answer: "A versioned bucket",
+      },
+    ]);
   });
 
   // TASK-329: a hand-edited follow-up marked answered without an answer
@@ -372,10 +373,7 @@ bdd.describe("validationInputOf", () => {
       document,
       `[cut at ${transitionValidation.MAX_SPEC_DOCUMENT_CHARS} characters]`,
     );
-    assert.assertEquals(
-      document.length < long.length + 40,
-      true,
-    );
+    assert.assertEquals(document.length < long.length + 40, true);
   });
 });
 
@@ -465,14 +463,12 @@ bdd.describe("parseValidationReply", () => {
     },
     {
       name: "an unknown severity",
-      text:
-        '{"summary": "s", "findings": [{"severity": "critical", "issue": "i", "suggestion": ""}]}',
+      text: '{"summary": "s", "findings": [{"severity": "critical", "issue": "i", "suggestion": ""}]}',
       reason: "findings[0]",
     },
     {
       name: "an empty issue",
-      text:
-        '{"summary": "s", "findings": [{"severity": "low", "issue": " ", "suggestion": ""}]}',
+      text: '{"summary": "s", "findings": [{"severity": "low", "issue": " ", "suggestion": ""}]}',
       reason: "findings[0]",
     },
   ];
@@ -586,7 +582,7 @@ bdd.describe("runValidator with a fake ai provider", () => {
         fakeProvider(() =>
           Promise.resolve(
             results.fail(new ai.AiError("rate limited", { provider: "fake" })),
-          )
+          ),
         ).factory,
       reason: "fake-judge returned an error: rate limited",
     },
@@ -644,14 +640,15 @@ bdd.describe("runValidator with a fake ai provider", () => {
   bdd.it("skips the validation when the call times out", async () => {
     // Answers only by failing once the signal aborts, as a provider whose
     // process is killed on abort does.
-    const fake = fakeProvider((_options, signal) =>
-      new Promise((_resolve, reject) => {
-        signal?.addEventListener(
-          "abort",
-          () => reject(new ai.AiError("request aborted")),
-          { once: true },
-        );
-      })
+    const fake = fakeProvider(
+      (_options, signal) =>
+        new Promise((_resolve, reject) => {
+          signal?.addEventListener(
+            "abort",
+            () => reject(new ai.AiError("request aborted")),
+            { once: true },
+          );
+        }),
     );
 
     const validation = await transitionValidation.runValidator(
@@ -707,10 +704,10 @@ bdd.describe("validationKeyOf", () => {
       inputFor(inRefinement(), "# Spec: upload, edited"),
       SETTINGS,
     );
-    const otherModel = await transitionValidation.validationKeyOf(
-      inputFor(),
-      { ...SETTINGS, model: "judge-2" },
-    );
+    const otherModel = await transitionValidation.validationKeyOf(inputFor(), {
+      ...SETTINGS,
+      model: "judge-2",
+    });
 
     assert.assertNotEquals(key, edited);
     assert.assertNotEquals(key, otherModel);

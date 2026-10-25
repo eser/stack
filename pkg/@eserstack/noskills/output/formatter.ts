@@ -23,9 +23,7 @@ export type OutputFormat = "json" | "markdown" | "text";
 // =============================================================================
 
 /** Extract -o / --output flag from args. Returns "json" if not specified. */
-export const parseOutputFormat = (
-  args?: readonly string[],
-): OutputFormat => {
+export const parseOutputFormat = (args?: readonly string[]): OutputFormat => {
   if (args === undefined) return "json";
 
   for (const arg of args) {
@@ -107,18 +105,17 @@ type ValidationLines = {
 };
 
 /** The second agent's result as plain lines, or null when there is none. */
-const validationOf = (
-  obj: Record<string, unknown>,
-): ValidationLines | null => {
+const validationOf = (obj: Record<string, unknown>): ValidationLines | null => {
   const validation = get<transitionValidation.TransitionValidation>(
     obj,
     "validation",
   );
   if (validation === undefined) return null;
 
-  const by = validation.agent === null
-    ? "not run"
-    : `${validation.agent}, ${validation.model}`;
+  const by =
+    validation.agent === null
+      ? "not run"
+      : `${validation.agent}, ${validation.model}`;
 
   if (validation.status === "skipped") {
     return { by, summary: `Skipped: ${validation.reason}`, items: [] };
@@ -126,13 +123,14 @@ const validationOf = (
 
   return {
     by,
-    summary: validation.findings.length === 0
-      ? [validation.summary, "No findings."].filter((t) => t !== "").join(" ")
-      : validation.summary,
+    summary:
+      validation.findings.length === 0
+        ? [validation.summary, "No findings."].filter((t) => t !== "").join(" ")
+        : validation.summary,
     items: validation.findings.map((f) =>
       f.suggestion === ""
         ? `[${f.severity}] ${f.issue}`
-        : `[${f.severity}] ${f.issue} Suggestion: ${f.suggestion}`
+        : `[${f.severity}] ${f.issue} Suggestion: ${f.suggestion}`,
     ),
   };
 };
@@ -248,10 +246,7 @@ const formatMarkdown = (data: unknown): string => {
     if (validation.items.length > 0) lines.push("");
   }
 
-  const behavioral = get<{ rules: string[]; tone: string }>(
-    obj,
-    "behavioral",
-  );
+  const behavioral = get<{ rules: string[]; tone: string }>(obj, "behavioral");
   if (behavioral !== undefined) {
     lines.push("## Behavioral");
     lines.push("");
@@ -366,9 +361,9 @@ const formatText = (data: unknown): string => {
   if (get<boolean>(obj, "verificationFailed") === true) {
     lines.push("");
     lines.push(
-      `Verification failed: ${
-        String(get<string>(obj, "verificationOutput") ?? "").slice(0, 200)
-      }`,
+      `Verification failed: ${String(
+        get<string>(obj, "verificationOutput") ?? "",
+      ).slice(0, 200)}`,
     );
   }
 

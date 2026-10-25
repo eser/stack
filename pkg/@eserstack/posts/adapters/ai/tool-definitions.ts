@@ -33,7 +33,8 @@ const charLimit = (
 ): number => charLimits.getCharacterLimit({ platform, subscriptionTier });
 
 /** Post length limits, stated on every parameter the model writes text into. */
-const TEXT_LIMITS = `Twitter/X allows ${charLimit("twitter", "free")} ` +
+const TEXT_LIMITS =
+  `Twitter/X allows ${charLimit("twitter", "free")} ` +
   `characters (${charLimit("twitter", "premium_plus")} on Premium+ and ` +
   `Business accounts) and Bluesky ${charLimit("bluesky", "free")}.`;
 
@@ -60,8 +61,7 @@ const POST_ID_PATTERN = "^(?:[0-9]{1,19}|at://\\S+)$";
 const postIdSchema = (purpose: string) => ({
   type: "string",
   pattern: POST_ID_PATTERN,
-  description:
-    `${purpose}: the numeric ID on Twitter/X, the at:// URI on Bluesky.`,
+  description: `${purpose}: the numeric ID on Twitter/X, the at:// URI on Bluesky.`,
 });
 
 /** The compose_post tool: publish one post on one platform. */
@@ -121,8 +121,7 @@ export const translateAndPostDefinition: ai.ToolDefinition = {
       text: {
         type: "string",
         minLength: 1,
-        description:
-          `Text to translate, in the source language. The translation must fit the platform limit: ${TEXT_LIMITS}`,
+        description: `Text to translate, in the source language. The translation must fit the platform limit: ${TEXT_LIMITS}`,
       },
       from: {
         type: "string",
@@ -178,8 +177,7 @@ export const postThreadDefinition: ai.ToolDefinition = {
         type: "array",
         items: { type: "string", minLength: 1 },
         minItems: 2,
-        description:
-          `Post texts in thread order, at least 2. Each text must fit the platform limit on its own: ${TEXT_LIMITS}`,
+        description: `Post texts in thread order, at least 2. Each text must fit the platform limit on its own: ${TEXT_LIMITS}`,
       },
       platform: PLATFORM_SCHEMA,
     },
@@ -284,8 +282,7 @@ export const searchPostsAllDefinition: ai.ToolDefinition = {
       maxResultsPerPlatform: {
         type: "integer",
         minimum: 1,
-        description:
-          `Maximum number of posts to collect from each platform. When omitted, ${defaults.DEFAULT_MAX_RESULTS_PER_PLATFORM} per platform.`,
+        description: `Maximum number of posts to collect from each platform. When omitted, ${defaults.DEFAULT_MAX_RESULTS_PER_PLATFORM} per platform.`,
       },
     },
     required: ["query"],

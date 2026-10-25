@@ -12,10 +12,7 @@ Deno.test("basic", () => {
     ["banana", () => "Banana is selected."],
   ]);
 
-  assert.assertEquals(
-    result,
-    "Apple is selected.",
-  );
+  assert.assertEquals(result, "Apple is selected.");
 });
 
 Deno.test("conditions", () => {
@@ -30,17 +27,18 @@ Deno.test("conditions", () => {
     [str3 === "banana", () => "Banana is selected."],
   ]);
 
-  assert.assertEquals(
-    result,
-    "Pear is selected.",
-  );
+  assert.assertEquals(result, "Pear is selected.");
 });
 
 Deno.test("otherwise callback when no pattern matches", () => {
-  const result = match.match("orange", [
-    ["apple", () => "Apple is selected."],
-    ["pear", () => "Pear is selected."],
-  ], () => "No match found.");
+  const result = match.match(
+    "orange",
+    [
+      ["apple", () => "Apple is selected."],
+      ["pear", () => "Pear is selected."],
+    ],
+    () => "No match found.",
+  );
 
   assert.assertEquals(result, "No match found.");
 });

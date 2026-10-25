@@ -88,9 +88,10 @@ export const readKeypressFFI = async function* (
 
       if (ev.error !== undefined) throw new Error(ev.error);
 
-      const rawBytes = ev.raw !== undefined
-        ? Uint8Array.from(atob(ev.raw), (c) => c.charCodeAt(0))
-        : new Uint8Array(0);
+      const rawBytes =
+        ev.raw !== undefined
+          ? Uint8Array.from(atob(ev.raw), (c) => c.charCodeAt(0))
+          : new Uint8Array(0);
 
       yield {
         name: ev.name,
@@ -143,9 +144,11 @@ export type TerminalSize = {
  */
 export const getTerminalSizeFFI = async (): Promise<TerminalSize> => {
   const lib = await requireLib();
-  const result = JSON.parse(
-    lib.symbols.EserAjanShellTuiGetSize("{}"),
-  ) as { cols?: number; rows?: number; error?: string };
+  const result = JSON.parse(lib.symbols.EserAjanShellTuiGetSize("{}")) as {
+    cols?: number;
+    rows?: number;
+    error?: string;
+  };
 
   if (result.error !== undefined) throw new Error(result.error);
 

@@ -77,11 +77,7 @@ export const getXdgDataHome = (): string => {
   const homedir = standardsCrossRuntime.getHomedir();
 
   if (platform === "darwin") {
-    return runtime.path.join(
-      homedir,
-      "Library",
-      "Application Support",
-    );
+    return runtime.path.join(homedir, "Library", "Application Support");
   }
 
   if (platform === "windows") {
@@ -116,11 +112,7 @@ export const getXdgConfigHome = (): string => {
   const homedir = standardsCrossRuntime.getHomedir();
 
   if (platform === "darwin") {
-    return runtime.path.join(
-      homedir,
-      "Library",
-      "Preferences",
-    );
+    return runtime.path.join(homedir, "Library", "Preferences");
   }
 
   if (platform === "windows") {
@@ -200,9 +192,5 @@ export const getVersionedCachePath = (
   // Normalize version to always have 'v' prefix
   const normalizedVersion = version.startsWith("v") ? version : `v${version}`;
 
-  return runtime.path.join(
-    appCacheDir,
-    normalizedVersion,
-    name,
-  );
+  return runtime.path.join(appCacheDir, normalizedVersion, name);
 };

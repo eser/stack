@@ -52,9 +52,8 @@ function deserialize(raw: PersistedEntry): OAuthTokens {
   return {
     accessToken: raw.accessToken,
     refreshToken: raw.refreshToken,
-    expiresAt: raw.expiresAt !== undefined
-      ? new Date(raw.expiresAt)
-      : undefined,
+    expiresAt:
+      raw.expiresAt !== undefined ? new Date(raw.expiresAt) : undefined,
     platformData: raw.platformData,
   };
 }
@@ -62,12 +61,15 @@ function deserialize(raw: PersistedEntry): OAuthTokens {
 function serialize(tokens: OAuthTokens): PersistedEntry {
   return {
     accessToken: tokens.accessToken,
-    ...(tokens.refreshToken !== undefined &&
-      { refreshToken: tokens.refreshToken }),
-    ...(tokens.expiresAt !== undefined &&
-      { expiresAt: tokens.expiresAt.toISOString() }),
-    ...(tokens.platformData !== undefined &&
-      { platformData: tokens.platformData }),
+    ...(tokens.refreshToken !== undefined && {
+      refreshToken: tokens.refreshToken,
+    }),
+    ...(tokens.expiresAt !== undefined && {
+      expiresAt: tokens.expiresAt.toISOString(),
+    }),
+    ...(tokens.platformData !== undefined && {
+      platformData: tokens.platformData,
+    }),
   };
 }
 

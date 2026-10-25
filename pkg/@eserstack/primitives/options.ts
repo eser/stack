@@ -67,7 +67,7 @@ export const fromNullable = <T>(value: T | null | undefined): Option<T> =>
  */
 export const fromFalsy = <T>(
   value: T | null | undefined | false | 0 | "",
-): Option<T> => value ? some(value as T) : none;
+): Option<T> => (value ? some(value as T) : none);
 
 // Combinators
 /** Applies `f` to a held value; `none` passes through as is. */
@@ -98,8 +98,8 @@ export const getOrElse = <T>(option: Option<T>, fallback: T | (() => T)): T =>
   isSome(option)
     ? option.value
     : typeof fallback === "function"
-    ? (fallback as () => T)()
-    : fallback;
+      ? (fallback as () => T)()
+      : fallback;
 
 /** Returns the held value, or `null` for `none`. */
 export const getOrNull = <T>(option: Option<T>): T | null =>
@@ -177,8 +177,8 @@ export const orElse = <T>(
   isSome(option)
     ? option
     : typeof alternative === "function"
-    ? (alternative as () => Option<T>)()
-    : alternative;
+      ? (alternative as () => Option<T>)()
+      : alternative;
 
 // Tap utilities (for side effects)
 /** Calls `fn` with a held value and returns `option` unchanged. */

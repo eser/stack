@@ -135,9 +135,10 @@ const normalizeSection = (
   idx: number,
 ): Omit<SpecSection, "concernSource"> => {
   if (typeof raw === "string") {
-    const id = `${concernId}-${
-      raw.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")
-    }`;
+    const id = `${concernId}-${raw
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "")}`;
     return {
       id,
       title: raw,
@@ -224,8 +225,10 @@ const isSectionVisible = (
 ): boolean => {
   if (!concernScope.isConditionalSection(section)) return true;
 
-  return classification !== null &&
-    concernScope.sectionMatchesClassification(section, classification);
+  return (
+    classification !== null &&
+    concernScope.sectionMatchesClassification(section, classification)
+  );
 };
 
 /**
@@ -307,14 +310,14 @@ export const getRevealNotification = (
   next: readonly schema.PlaceholderStatus[],
 ): RevealNotification | null => {
   const prevVisible = new Set(
-    prev.filter((p) => p.status !== "conditional-hidden").map((p) =>
-      p.sectionId
-    ),
+    prev
+      .filter((p) => p.status !== "conditional-hidden")
+      .map((p) => p.sectionId),
   );
   const nextVisible = new Set(
-    next.filter((p) => p.status !== "conditional-hidden").map((p) =>
-      p.sectionId
-    ),
+    next
+      .filter((p) => p.status !== "conditional-hidden")
+      .map((p) => p.sectionId),
   );
   const revealed = [...nextVisible].filter((id) => !prevVisible.has(id));
   const hidden = [...prevVisible].filter((id) => !nextVisible.has(id));
@@ -450,8 +453,9 @@ export const replaceTOCBlock = (
   const endIdx = content.indexOf(TOC_END);
   if (startIdx === -1 || endIdx === -1) return content;
   const newToc = renderTOC(placeholders);
-  return content.slice(0, startIdx) + newToc +
-    content.slice(endIdx + TOC_END.length);
+  return (
+    content.slice(0, startIdx) + newToc + content.slice(endIdx + TOC_END.length)
+  );
 };
 
 // =============================================================================
@@ -469,13 +473,13 @@ export const markPlaceholderFilled = (
   placeholders.map((p) =>
     p.sectionId === sectionId
       ? {
-        ...p,
-        status: "filled" as const,
-        filledBy: user,
-        filledAt: now.toISOString(),
-        source,
-      }
-      : p
+          ...p,
+          status: "filled" as const,
+          filledBy: user,
+          filledAt: now.toISOString(),
+          source,
+        }
+      : p,
   );
 
 /**
@@ -500,13 +504,13 @@ export const markPlaceholderNa = (
   return placeholders.map((p) =>
     p.sectionId === sectionId
       ? {
-        ...p,
-        status: "na" as const,
-        naReason: reason.trim(),
-        naBy: user,
-        naAt: now.toISOString(),
-      }
-      : p
+          ...p,
+          status: "na" as const,
+          naReason: reason.trim(),
+          naBy: user,
+          naAt: now.toISOString(),
+        }
+      : p,
   );
 };
 
@@ -540,7 +544,8 @@ export const checkSpecCompleteness = (
       if (p.status === "conditional-hidden") return false;
       if (p.status === "filled") return false;
       if (
-        p.status === "na" && p.naReason !== undefined &&
+        p.status === "na" &&
+        p.naReason !== undefined &&
         p.naReason.trim().length >= 20
       ) {
         return false;
@@ -552,8 +557,8 @@ export const checkSpecCompleteness = (
   const pendingDecisions = specState.metadata.pendingDecisions;
 
   return {
-    canAdvance: unresolvedSections.length === 0 &&
-      pendingDecisions.length === 0,
+    canAdvance:
+      unresolvedSections.length === 0 && pendingDecisions.length === 0,
     unresolvedSections,
     pendingDecisions,
   };
@@ -566,17 +571,17 @@ export const checkSpecCompleteness = (
 export type MetadataAction =
   | { readonly type: "answer"; readonly user: string; readonly section: string }
   | {
-    readonly type: "delegation-created";
-    readonly user: string;
-    readonly section: string;
-    readonly question: string;
-    readonly waitingFor: readonly string[];
-  }
+      readonly type: "delegation-created";
+      readonly user: string;
+      readonly section: string;
+      readonly question: string;
+      readonly waitingFor: readonly string[];
+    }
   | {
-    readonly type: "delegation-answered";
-    readonly user: string;
-    readonly section: string;
-  }
+      readonly type: "delegation-answered";
+      readonly user: string;
+      readonly section: string;
+    }
   | { readonly type: "approval"; readonly user: string }
   | { readonly type: "note"; readonly user: string };
 
@@ -597,12 +602,13 @@ export const applyMetadataAction = (
     lastAction: action.type,
     date: dateStr,
   };
-  const existingIdx = metadata.contributors.findIndex((c) =>
-    c.user === action.user
+  const existingIdx = metadata.contributors.findIndex(
+    (c) => c.user === action.user,
   );
-  const contributors = existingIdx >= 0
-    ? metadata.contributors.map((c, i) => i === existingIdx ? newEntry : c)
-    : [...metadata.contributors, newEntry];
+  const contributors =
+    existingIdx >= 0
+      ? metadata.contributors.map((c, i) => (i === existingIdx ? newEntry : c))
+      : [...metadata.contributors, newEntry];
 
   switch (action.type) {
     case "delegation-created": {
@@ -623,24 +629,25 @@ export const applyMetadataAction = (
         ...metadata,
         lastModified,
         contributors,
-        pendingDecisions: metadata.pendingDecisions.filter((d) =>
-          d.section !== action.section
+        pendingDecisions: metadata.pendingDecisions.filter(
+          (d) => d.section !== action.section,
         ),
       };
     case "approval": {
-      const existingApprovalIdx = metadata.approvals.findIndex((a) =>
-        a.user === action.user
+      const existingApprovalIdx = metadata.approvals.findIndex(
+        (a) => a.user === action.user,
       );
       const newApproval: schema.ApprovalEntry = {
         user: action.user,
         status: "approved",
         date: dateStr,
       };
-      const approvals = existingApprovalIdx >= 0
-        ? metadata.approvals.map((a, i) =>
-          i === existingApprovalIdx ? newApproval : a
-        )
-        : [...metadata.approvals, newApproval];
+      const approvals =
+        existingApprovalIdx >= 0
+          ? metadata.approvals.map((a, i) =>
+              i === existingApprovalIdx ? newApproval : a,
+            )
+          : [...metadata.approvals, newApproval];
       return { ...metadata, lastModified, contributors, approvals };
     }
     default:
@@ -657,10 +664,10 @@ export const applyMetadataAction = (
  * stored in state files as written, so the snake_case keys are quoted.
  */
 const QUESTION_TO_SECTION: Record<string, string> = {
-  "status_quo": "problem-statement",
-  "user_impact": "user-impact",
+  status_quo: "problem-statement",
+  user_impact: "user-impact",
   ambition: "ambition",
-  "scope_boundary": "scope-boundary",
+  scope_boundary: "scope-boundary",
   verification: "verification-strategy",
   reversibility: "reversibility",
 };
@@ -703,19 +710,21 @@ export const generateInitialSpec = (args: {
     sectionId: s.id,
     sectionTitle: s.title,
     status: isSectionVisible(s, classification)
-      ? "placeholder" as const
-      : "conditional-hidden" as const,
+      ? ("placeholder" as const)
+      : ("conditional-hidden" as const),
     concernSource: s.concernSource,
   }));
 
   const metadata: schema.SpecMetadata = {
     created: { date: dateStr, user: creator.name },
     lastModified: { date: dateStr, user: creator.name },
-    contributors: [{
-      user: creator.name,
-      lastAction: "created",
-      date: dateStr,
-    }],
+    contributors: [
+      {
+        user: creator.name,
+        lastAction: "created",
+        date: dateStr,
+      },
+    ],
     approvals: [],
     pendingDecisions: [],
   };
@@ -778,8 +787,7 @@ export const applyAnswerToFile = async (args: {
   const newFrontmatter = renderFrontmatter(metadata);
 
   const dateStr = attribution.date.toISOString().split("T")[0];
-  const answerBody =
-    `${body}\n\n_Answered by ${attribution.user} on ${dateStr}_`;
+  const answerBody = `${body}\n\n_Answered by ${attribution.user} on ${dateStr}_`;
 
   let newBody = replacePlaceholderMarker(docBody, sectionId, answerBody);
   newBody = replaceTOCBlock(newBody, visiblePlaceholders);
@@ -787,9 +795,9 @@ export const applyAnswerToFile = async (args: {
   if (args.classificationChanged) {
     // Reveal newly visible sections: append heading + marker at end
     for (const sec of args.newlyRevealedSections ?? []) {
-      newBody += `\n\n## ${sec.title}\n\n${
-        placeholderMarker(sec.id)
-      }\n${sec.placeholder}`;
+      newBody += `\n\n## ${sec.title}\n\n${placeholderMarker(
+        sec.id,
+      )}\n${sec.placeholder}`;
     }
     // Hide sections: remove heading + marker block
     for (const hiddenId of args.newlyHiddenIds ?? []) {

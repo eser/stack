@@ -40,7 +40,8 @@ export const getLibraryExtension = (): types.LibraryExtension => {
 
   // Node.js / Bun — use process.platform
   if (
-    typeof g.process !== "undefined" && typeof g.process.platform === "string"
+    typeof g.process !== "undefined" &&
+    typeof g.process.platform === "string"
   ) {
     const platform = g.process.platform as string;
     if (platform === "darwin") return ".dylib";
@@ -122,9 +123,10 @@ const getStatSync = (): ((path: string) => unknown) | null => {
   }
 
   try {
-    const fs = typeof g.process?.getBuiltinModule === "function"
-      ? g.process.getBuiltinModule("node:fs")
-      : undefined;
+    const fs =
+      typeof g.process?.getBuiltinModule === "function"
+        ? g.process.getBuiltinModule("node:fs")
+        : undefined;
 
     if (typeof fs?.statSync === "function") {
       statSyncImpl = (path: string) => fs.statSync(path);
@@ -278,11 +280,11 @@ export const resolveLibraryPath = (moduleDirHint?: string): string => {
   // Map npm platform slug to build target name format
   // (e.g. "darwin-arm64" → "aarch64-darwin", "win32-x64" → "x86_64-windows")
   const archMap: Record<string, string> = {
-    "x64": "x86_64",
-    "arm64": "aarch64",
+    x64: "x86_64",
+    arm64: "aarch64",
   };
   const osMap: Record<string, string> = {
-    "win32": "windows",
+    win32: "windows",
   };
   const parts = platformSlug.split("-");
   const slugOs = parts[0] ?? "linux";
@@ -334,8 +336,7 @@ export const resolveLibraryPath = (moduleDirHint?: string): string => {
       continue;
     }
 
-    const npmPath =
-      `${root}/node_modules/@eserstack/ajan-${platformSlug}/${libName}`;
+    const npmPath = `${root}/node_modules/@eserstack/ajan-${platformSlug}/${libName}`;
     if (probe(npmPath)) {
       return npmPath;
     }
@@ -347,10 +348,7 @@ export const resolveLibraryPath = (moduleDirHint?: string): string => {
   // CLI run from the checkout can no longer pick up a stale dev build.
 
   // 5. System library paths (Linux / macOS)
-  const systemPaths = [
-    `/usr/local/lib/${libName}`,
-    `/usr/lib/${libName}`,
-  ];
+  const systemPaths = [`/usr/local/lib/${libName}`, `/usr/lib/${libName}`];
   for (const sysPath of systemPaths) {
     if (probe(sysPath)) {
       return sysPath;

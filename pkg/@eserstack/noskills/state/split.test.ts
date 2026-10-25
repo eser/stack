@@ -147,14 +147,19 @@ bdd.describe("split.createChildSpec and split.splitSpec", () => {
   bdd.it("splitSpec creates each child and cancels the parent", async () => {
     const parent = parentInRefinement();
 
-    const cancelled = await split.splitSpec(root, parent, [
-      { name: "log-levels", description: "Log levels", answers: [AMBITION] },
-      {
-        name: "bot-pronouns",
-        description: "Bot pronouns",
-        answers: [STATUS_QUO, STATUS_QUO_ADDITION],
-      },
-    ], PREFIX);
+    const cancelled = await split.splitSpec(
+      root,
+      parent,
+      [
+        { name: "log-levels", description: "Log levels", answers: [AMBITION] },
+        {
+          name: "bot-pronouns",
+          description: "Bot pronouns",
+          answers: [STATUS_QUO, STATUS_QUO_ADDITION],
+        },
+      ],
+      PREFIX,
+    );
 
     assert.assertEquals(cancelled.phase, "COMPLETED");
     assert.assertEquals(cancelled.completionReason, "cancelled");
@@ -173,11 +178,16 @@ bdd.describe("split.createChildSpec and split.splitSpec", () => {
   bdd.it("splitSpec refuses a repeated name and creates nothing", async () => {
     const error = await assert.assertRejects(
       () =>
-        split.splitSpec(root, parentInRefinement(), [
-          { name: "same", description: null, answers: [] },
-          { name: "other", description: null, answers: [] },
-          { name: "same", description: null, answers: [] },
-        ], PREFIX),
+        split.splitSpec(
+          root,
+          parentInRefinement(),
+          [
+            { name: "same", description: null, answers: [] },
+            { name: "other", description: null, answers: [] },
+            { name: "same", description: null, answers: [] },
+          ],
+          PREFIX,
+        ),
       split.SplitRefusedError,
       `these repeat: "same"`,
     );
@@ -197,10 +207,15 @@ bdd.describe("split.createChildSpec and split.splitSpec", () => {
 
       const error = await assert.assertRejects(
         () =>
-          split.splitSpec(root, parentInRefinement(), [
-            { name: "fresh", description: null, answers: [] },
-            { name: "taken", description: null, answers: [] },
-          ], PREFIX),
+          split.splitSpec(
+            root,
+            parentInRefinement(),
+            [
+              { name: "fresh", description: null, answers: [] },
+              { name: "taken", description: null, answers: [] },
+            ],
+            PREFIX,
+          ),
         split.SplitRefusedError,
       );
 

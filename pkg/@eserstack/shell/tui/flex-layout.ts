@@ -181,9 +181,7 @@ const layoutNode = (
   const overflow = totalAllocated - availableMain;
 
   if (overflow > 0) {
-    const shrinkableChildren = allocs.filter(
-      (a) => a.isFlex && a.shrink > 0,
-    );
+    const shrinkableChildren = allocs.filter((a) => a.isFlex && a.shrink > 0);
     const totalShrink = shrinkableChildren.reduce(
       (sum, a) => sum + a.shrink,
       0,
@@ -212,17 +210,17 @@ const layoutNode = (
     const alloc = allocs[i]!;
     const childRect: Rect = isRow
       ? {
-        x: offset,
-        y: inner.y,
-        width: alloc.mainSize,
-        height: crossAxis,
-      }
+          x: offset,
+          y: inner.y,
+          width: alloc.mainSize,
+          height: crossAxis,
+        }
       : {
-        x: inner.x,
-        y: offset,
-        width: crossAxis,
-        height: alloc.mainSize,
-      };
+          x: inner.x,
+          y: offset,
+          width: crossAxis,
+          height: alloc.mainSize,
+        };
 
     // Recurse into child.
     const childPanels = layoutNode(alloc.node, childRect);

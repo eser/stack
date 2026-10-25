@@ -30,10 +30,9 @@ const createSpec = async (
   const state = schema.createInitialState();
   const specState = machine.startSpec(state, name, `spec/${name}`, description);
 
-  await runtime.fs.mkdir(
-    `${root}/${persistence.paths.specDir(name)}`,
-    { recursive: true },
-  );
+  await runtime.fs.mkdir(`${root}/${persistence.paths.specDir(name)}`, {
+    recursive: true,
+  });
   await persistence.writeSpecState(root, name, specState);
 };
 
@@ -48,10 +47,9 @@ const createExecutingSpec = async (
   state = machine.approveSpec(state);
   state = machine.startExecution(state);
 
-  await runtime.fs.mkdir(
-    `${root}/${persistence.paths.specDir(name)}`,
-    { recursive: true },
-  );
+  await runtime.fs.mkdir(`${root}/${persistence.paths.specDir(name)}`, {
+    recursive: true,
+  });
   await persistence.writeSpecState(root, name, state);
 };
 

@@ -143,9 +143,9 @@ export function generateChunkManifest(
   if (missingChunks.length > 0) {
     const availableFiles = Object.keys(manifest.files);
     throw new ChunkManifestError(
-      `chunk manifest: ${missingChunks.length} chunk(s) referenced but not found in bundle outputs: ${
-        missingChunks.join("; ")
-      }. Bundle outputs: ${availableFiles.join(", ")}`,
+      `chunk manifest: ${missingChunks.length} chunk(s) referenced but not found in bundle outputs: ${missingChunks.join(
+        "; ",
+      )}. Bundle outputs: ${availableFiles.join(", ")}`,
       missingChunks,
       availableFiles,
     );
@@ -180,9 +180,9 @@ function findChunksForComponent(
     const availableMappings = Object.keys(bundleResult.manifest);
     throw new ChunkManifestError(
       `chunk manifest: no chunks found for ${component.relativePath} (${component.filePath}); ` +
-        `the bundler did not analyze the component's dependencies. Mapped entry points: ${
-          availableMappings.join(", ")
-        }`,
+        `the bundler did not analyze the component's dependencies. Mapped entry points: ${availableMappings.join(
+          ", ",
+        )}`,
       [component.filePath],
       availableMappings,
     );
@@ -241,10 +241,7 @@ export async function saveChunkManifest(
   manifest: ChunkManifest,
   outputPath: string,
 ): Promise<void> {
-  await runtime.fs.writeTextFile(
-    outputPath,
-    JSON.stringify(manifest, null, 2),
-  );
+  await runtime.fs.writeTextFile(outputPath, JSON.stringify(manifest, null, 2));
   manifestLogger.debug(`📝 Chunk manifest saved: ${outputPath}`);
 }
 

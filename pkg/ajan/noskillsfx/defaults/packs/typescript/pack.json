@@ -8,7 +8,5 @@
     "rules/no-any.md",
     "rules/prefer-const.md"
   ],
-  "concerns": [
-    "concerns/ts-quality.json"
-  ]
+  "concerns": ["concerns/ts-quality.json"]
 }

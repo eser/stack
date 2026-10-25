@@ -50,9 +50,10 @@ const renderFrame = <T>(
   }
 
   // Active state
-  const headerSymbol = error !== undefined
-    ? span.yellow(symbols.S_WARN)
-    : span.cyan(symbols.PROMPT_ACTIVE);
+  const headerSymbol =
+    error !== undefined
+      ? span.yellow(symbols.S_WARN)
+      : span.cyan(symbols.PROMPT_ACTIVE);
 
   ctx.output.writeln(headerSymbol, span.text(`  ${message}`));
 
@@ -69,12 +70,11 @@ const renderFrame = <T>(
     const label = isDisabled
       ? span.dim(` ${opt.label}`)
       : isCursor
-      ? span.text(` ${opt.label}`)
-      : span.dim(` ${opt.label}`);
+        ? span.text(` ${opt.label}`)
+        : span.dim(` ${opt.label}`);
 
-    const hint = opt.hint !== undefined
-      ? span.dim(`  (${opt.hint})`)
-      : span.text("");
+    const hint =
+      opt.hint !== undefined ? span.dim(`  (${opt.hint})`) : span.text("");
 
     ctx.output.writeln(
       span.dim(symbols.BAR),

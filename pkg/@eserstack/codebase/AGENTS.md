@@ -44,7 +44,9 @@ export const tool: FileTool = createFileTool({
   canFix: true,
   stacks: [],
   defaults: {},
-  checkFile(file, content) {/* return issues */},
+  checkFile(file, content) {
+    /* return issues */
+  },
   fixFile(file, content) {
     return { path: file.path, oldContent: content, newContent: fixed };
   },

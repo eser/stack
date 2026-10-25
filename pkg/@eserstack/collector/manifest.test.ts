@@ -44,10 +44,7 @@ Deno.test("specifierToIdentifier", () => {
     manifest.specifierToIdentifier("foo/foo.bar.baz.tsx", used),
     "foo_foo_bar_baz",
   );
-  assert.assertEquals(
-    manifest.specifierToIdentifier("404", used),
-    "_404",
-  );
+  assert.assertEquals(manifest.specifierToIdentifier("404", used), "_404");
   assert.assertEquals(
     manifest.specifierToIdentifier("foo/_middleware", used),
     "foo_middleware",

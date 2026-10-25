@@ -23,7 +23,7 @@ Deno.test("pipeline.collect() creates empty pipeline", async () => {
 
 Deno.test("pipeline.collect() with single sync function", async () => {
   const testPipeline = pipeline.collect<string, Error>(() =>
-    results.ok("hello")
+    results.ok("hello"),
   );
   const result = await testPipeline.run();
 
@@ -76,7 +76,8 @@ Deno.test("pipeline.collect() with async generator function", async () => {
 // === use() Tests ===
 
 Deno.test("use() adds middleware to pipeline", async () => {
-  const testPipeline = pipeline.collect<string, Error>()
+  const testPipeline = pipeline
+    .collect<string, Error>()
     .use(() => results.ok("first"))
     .use(() => results.ok("second"));
 
@@ -90,7 +91,8 @@ Deno.test("use() adds middleware to pipeline", async () => {
 });
 
 Deno.test("use() with next() chains middleware", async () => {
-  const testPipeline = pipeline.collect<string, Error>()
+  const testPipeline = pipeline
+    .collect<string, Error>()
     .use(async function* (ctx) {
       yield results.ok("first");
       yield* ctx.next();
@@ -108,7 +110,8 @@ Deno.test("use() with next() chains middleware", async () => {
 });
 
 Deno.test("use() middleware receives arguments", async () => {
-  const testPipeline = pipeline.collect<string, Error>()
+  const testPipeline = pipeline
+    .collect<string, Error>()
     .use((_ctx, ...args) => results.ok(`args: ${args.join(",")}`));
 
   const result = await testPipeline.run("a", "b", "c");
@@ -196,7 +199,7 @@ Deno.test("runFirst() returns failure for empty pipeline", async () => {
 
 Deno.test("runFirst() returns first failure", async () => {
   const testPipeline = pipeline.collect<number, string>(() =>
-    results.fail("first-error")
+    results.fail("first-error"),
   );
   const result = await testPipeline.runFirst();
 
@@ -248,9 +251,8 @@ Deno.test("runLast() stops on failure", async () => {
 // === mapError() Tests ===
 
 Deno.test("mapError() transforms error type", async () => {
-  const testPipeline = pipeline.collect<number, string>(() =>
-    results.fail("string-error")
-  )
+  const testPipeline = pipeline
+    .collect<number, string>(() => results.fail("string-error"))
     .mapError((e) => new Error(e));
 
   const result = await testPipeline.runFirst();
@@ -263,7 +265,8 @@ Deno.test("mapError() transforms error type", async () => {
 });
 
 Deno.test("mapError() does not affect success", async () => {
-  const testPipeline = pipeline.collect<number, string>(() => results.ok(42))
+  const testPipeline = pipeline
+    .collect<number, string>(() => results.ok(42))
     .mapError((e) => new Error(e));
 
   const result = await testPipeline.runFirst();
@@ -277,9 +280,8 @@ Deno.test("mapError() does not affect success", async () => {
 // === recover() Tests ===
 
 Deno.test("recover() transforms failure to success", async () => {
-  const testPipeline = pipeline.collect<number, string>(() =>
-    results.fail("error")
-  )
+  const testPipeline = pipeline
+    .collect<number, string>(() => results.fail("error"))
     .recover((_e) => results.ok(0));
 
   const result = await testPipeline.runFirst();
@@ -291,7 +293,8 @@ Deno.test("recover() transforms failure to success", async () => {
 });
 
 Deno.test("recover() does not affect success", async () => {
-  const testPipeline = pipeline.collect<number, string>(() => results.ok(42))
+  const testPipeline = pipeline
+    .collect<number, string>(() => results.ok(42))
     .recover((_e) => results.ok(0));
 
   const result = await testPipeline.runFirst();
@@ -336,7 +339,8 @@ Deno.test("context provides state object", async () => {
 Deno.test("context state is shared by the middleware of one run", async () => {
   const seen: unknown[] = [];
 
-  const testPipeline = pipeline.collect<string, Error>()
+  const testPipeline = pipeline
+    .collect<string, Error>()
     .use(async function* (ctx) {
       seen.push(ctx.state["user"]);
       ctx.state["user"] = "eser";
@@ -356,7 +360,8 @@ Deno.test("context state is shared by the middleware of one run", async () => {
 // === Context.next() Delegation Tests ===
 
 Deno.test("mapError() maps a failure that passes through next() once", async () => {
-  const testPipeline = pipeline.collect<number, string>()
+  const testPipeline = pipeline
+    .collect<number, string>()
     .use(async function* (ctx) {
       yield* ctx.next();
     })
@@ -372,7 +377,8 @@ Deno.test("mapError() maps a failure that passes through next() once", async () 
 });
 
 Deno.test("recover() recovers a failure that passes through next()", async () => {
-  const testPipeline = pipeline.collect<number, string>()
+  const testPipeline = pipeline
+    .collect<number, string>()
     .use(async function* (ctx) {
       yield results.ok(1);
       yield* ctx.next();
@@ -388,7 +394,8 @@ Deno.test("recover() recovers a failure that passes through next()", async () =>
 Deno.test("next() called twice throws when the next middleware delegates too", async () => {
   let downstreamRuns = 0;
 
-  const testPipeline = pipeline.collect<number, Error>()
+  const testPipeline = pipeline
+    .collect<number, Error>()
     .use(async function* (ctx) {
       yield* ctx.next();
       yield* ctx.next();
@@ -412,7 +419,8 @@ Deno.test("next() called twice throws when the next middleware delegates too", a
 Deno.test("complex pipeline with multiple middleware", async () => {
   const log: string[] = [];
 
-  const testPipeline = pipeline.collect<string, Error>()
+  const testPipeline = pipeline
+    .collect<string, Error>()
     .use(async function* (ctx) {
       log.push("middleware1:before");
       yield results.ok("m1-result");
@@ -450,7 +458,8 @@ Deno.test("complex pipeline with multiple middleware", async () => {
 });
 
 Deno.test("pipeline with mixed return types", async () => {
-  const testPipeline = pipeline.collect<number, Error>()
+  const testPipeline = pipeline
+    .collect<number, Error>()
     .use(async function* (ctx) {
       // Async generator
       yield results.ok(1);

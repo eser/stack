@@ -73,35 +73,38 @@ const toResponseOrError = (error: unknown, request: Request): Response => {
  * fallback the signal stops the request in flight, and the call fails as
  * fetch fails on an abort.
  */
-export const createGoFetch = (
-  goClient: goClientModule.GoHttpClient,
-  stream: boolean,
-): FetchLike =>
-async (request) => {
-  request.signal.throwIfAborted();
+export const createGoFetch =
+  (goClient: goClientModule.GoHttpClient, stream: boolean): FetchLike =>
+  async (request) => {
+    request.signal.throwIfAborted();
 
-  const body = request.body === null ? "" : await request.text();
-  const goRequest: goClientModule.GoHttpRequest = {
-    method: request.method as goClientModule.GoHttpMethod,
-    url: request.url,
-    headers: Object.fromEntries(request.headers),
-    ...(body !== "" && { body }),
-    signal: request.signal,
-  };
+    const body = request.body === null ? "" : await request.text();
+    const goRequest: goClientModule.GoHttpRequest = {
+      method: request.method as goClientModule.GoHttpMethod,
+      url: request.url,
+      headers: Object.fromEntries(request.headers),
+      ...(body !== "" && { body }),
+      signal: request.signal,
+    };
 
-  try {
-    if (stream) {
-      const resp = await goClient.requestStream(goRequest);
+    try {
+      if (stream) {
+        const resp = await goClient.requestStream(goRequest);
+        return toResponse(
+          resp.status,
+          resp.statusText,
+          resp.headers,
+          resp.body,
+        );
+      }
+
+      const resp = await goClient.request(goRequest);
       return toResponse(resp.status, resp.statusText, resp.headers, resp.body);
-    }
+    } catch (error) {
+      if (request.signal.aborted) {
+        throw request.signal.reason;
+      }
 
-    const resp = await goClient.request(goRequest);
-    return toResponse(resp.status, resp.statusText, resp.headers, resp.body);
-  } catch (error) {
-    if (request.signal.aborted) {
-      throw request.signal.reason;
+      return toResponseOrError(error, request);
     }
-
-    return toResponseOrError(error, request);
-  }
-};
+  };

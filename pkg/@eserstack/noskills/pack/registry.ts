@@ -112,9 +112,11 @@ const parseIpv6 = (text: string): readonly number[] | null => {
 
   const toGroups = (part: string): number[] | null => {
     if (part === "") return [];
-    const groups = part.split(":").map((group) =>
-      /^[0-9a-f]{1,4}$/i.test(group) ? parseInt(group, 16) : Number.NaN
-    );
+    const groups = part
+      .split(":")
+      .map((group) =>
+        /^[0-9a-f]{1,4}$/i.test(group) ? parseInt(group, 16) : Number.NaN,
+      );
 
     return groups.some(Number.isNaN) ? null : groups;
   };
@@ -136,8 +138,8 @@ const ipv6Kind = (groups: readonly number[]): string | null => {
   const [g0 = 0, g1 = 0, g2 = 0, g3 = 0, g4 = 0, g5 = 0, g6 = 0, g7 = 0] =
     groups;
   const embeddedIpv4 = [g6 >> 8, g6 & 0xff, g7 >> 8, g7 & 0xff];
-  const firstFiveZero = g0 === 0 && g1 === 0 && g2 === 0 && g3 === 0 &&
-    g4 === 0;
+  const firstFiveZero =
+    g0 === 0 && g1 === 0 && g2 === 0 && g3 === 0 && g4 === 0;
 
   if (firstFiveZero && g5 === 0 && g6 === 0) {
     if (g7 === 0) return "unspecified";
@@ -225,9 +227,7 @@ export const parseRegistryUrl = (
   const kind = internalAddressKind(url.hostname);
   const isLoopback = kind === "loopback";
 
-  if (
-    url.protocol !== "https:" && !(url.protocol === "http:" && isLoopback)
-  ) {
+  if (url.protocol !== "https:" && !(url.protocol === "http:" && isLoopback)) {
     return results.fail(
       new PackRegistryError(
         value,
@@ -396,9 +396,8 @@ export const fetchRegistry = async (
       redirect: "manual",
       credentials: "omit",
       headers: { accept: "application/json" },
-      signal: signal === undefined
-        ? timeout
-        : AbortSignal.any([signal, timeout]),
+      signal:
+        signal === undefined ? timeout : AbortSignal.any([signal, timeout]),
     });
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
@@ -424,9 +423,10 @@ export const fetchRegistry = async (
     return fail(`the document is larger than ${MAX_REGISTRY_BYTES} bytes`);
   }
 
-  const bytes = response.body === null
-    ? new Uint8Array()
-    : await readBounded(response.body, MAX_REGISTRY_BYTES);
+  const bytes =
+    response.body === null
+      ? new Uint8Array()
+      : await readBounded(response.body, MAX_REGISTRY_BYTES);
   if (bytes === null) {
     return fail(`the document is larger than ${MAX_REGISTRY_BYTES} bytes`);
   }

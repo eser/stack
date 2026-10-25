@@ -73,62 +73,71 @@ export function ErrorOverlay(): React.ReactElement | null {
 
   if (error === null) return null;
 
-  return (
+  return React.createElement(
+    "div",
+    {
+      style: {
+        position: "fixed",
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        zIndex: 999999,
+        backgroundColor: "rgba(0, 0, 0, 0.85)",
+        color: "#fff",
+        fontFamily:
+          'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace',
+        fontSize: "14px",
+        overflow: "auto",
+        padding: "20px",
+      },
+      onClick: () => setError(null),
+    },
     React.createElement(
       "div",
       {
         style: {
-          position: "fixed",
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          zIndex: 999999,
-          backgroundColor: "rgba(0, 0, 0, 0.85)",
-          color: "#fff",
-          fontFamily:
-            'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace',
-          fontSize: "14px",
-          overflow: "auto",
-          padding: "20px",
+          maxWidth: "900px",
+          margin: "0 auto",
         },
-        onClick: () => setError(null),
+        onClick: (e) => e.stopPropagation(),
       },
       React.createElement(
         "div",
         {
           style: {
-            maxWidth: "900px",
-            margin: "0 auto",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "flex-start",
+            marginBottom: "20px",
           },
-          onClick: (e) => e.stopPropagation(),
         },
         React.createElement(
           "div",
-          {
-            style: {
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "flex-start",
-              marginBottom: "20px",
-            },
-          },
+          null,
           React.createElement(
             "div",
-            null,
-            React.createElement("div", {
+            {
               style: {
                 fontSize: "24px",
                 fontWeight: "bold",
                 color: "#ff6b6b",
                 marginBottom: "8px",
               },
-            }, "⚠ Error"),
-            React.createElement("div", {
-              style: { color: "#999", fontSize: "12px" },
-            }, "Click anywhere to dismiss, or fix the error"),
+            },
+            "⚠ Error",
           ),
-          React.createElement("button", {
+          React.createElement(
+            "div",
+            {
+              style: { color: "#999", fontSize: "12px" },
+            },
+            "Click anywhere to dismiss, or fix the error",
+          ),
+        ),
+        React.createElement(
+          "button",
+          {
             type: "button",
             onClick: () => setError(null),
             style: {
@@ -140,60 +149,69 @@ export function ErrorOverlay(): React.ReactElement | null {
               cursor: "pointer",
               fontSize: "14px",
             },
-          }, "Dismiss"),
+          },
+          "Dismiss",
         ),
+      ),
+      React.createElement(
+        "div",
+        {
+          style: {
+            backgroundColor: "#1a1a1a",
+            border: "1px solid #ff6b6b",
+            borderRadius: "8px",
+            padding: "20px",
+            marginBottom: "20px",
+          },
+        },
         React.createElement(
           "div",
           {
-            style: {
-              backgroundColor: "#1a1a1a",
-              border: "1px solid #ff6b6b",
-              borderRadius: "8px",
-              padding: "20px",
-              marginBottom: "20px",
-            },
-          },
-          React.createElement("div", {
             style: {
               fontSize: "16px",
               fontWeight: "500",
               marginBottom: "12px",
               color: "#ff6b6b",
             },
-          }, error.message),
-          error.file !== undefined && error.file !== ""
-            ? (
-              React.createElement(
-                "div",
-                {
-                  style: {
-                    fontSize: "12px",
-                    color: "#999",
-                    marginBottom: "8px",
-                  },
-                },
-                "at ",
-                error.file,
-                error.line !== undefined ? `:${error.line}` : null,
-                error.column !== undefined ? `:${error.column}` : null,
-              )
-            )
-            : null,
+          },
+          error.message,
         ),
-        error.stack !== undefined
-          ? (
+        error.file !== undefined && error.file !== ""
+          ? React.createElement(
+              "div",
+              {
+                style: {
+                  fontSize: "12px",
+                  color: "#999",
+                  marginBottom: "8px",
+                },
+              },
+              "at ",
+              error.file,
+              error.line !== undefined ? `:${error.line}` : null,
+              error.column !== undefined ? `:${error.column}` : null,
+            )
+          : null,
+      ),
+      error.stack !== undefined
+        ? React.createElement(
+            "div",
+            null,
             React.createElement(
               "div",
-              null,
-              React.createElement("div", {
+              {
                 style: {
                   fontSize: "14px",
                   fontWeight: "500",
                   marginBottom: "12px",
                   color: "#999",
                 },
-              }, "Stack Trace"),
-              React.createElement("pre", {
+              },
+              "Stack Trace",
+            ),
+            React.createElement(
+              "pre",
+              {
                 style: {
                   backgroundColor: "#1a1a1a",
                   border: "1px solid #333",
@@ -205,33 +223,37 @@ export function ErrorOverlay(): React.ReactElement | null {
                   lineHeight: "1.5",
                   color: "#ccc",
                 },
-              }, error.stack),
-            )
+              },
+              error.stack,
+            ),
           )
-          : null,
+        : null,
+      React.createElement(
+        "div",
+        {
+          style: {
+            marginTop: "20px",
+            padding: "16px",
+            backgroundColor: "#1a2332",
+            border: "1px solid #2d3748",
+            borderRadius: "8px",
+            fontSize: "13px",
+            color: "#a0aec0",
+          },
+        },
         React.createElement(
           "div",
           {
-            style: {
-              marginTop: "20px",
-              padding: "16px",
-              backgroundColor: "#1a2332",
-              border: "1px solid #2d3748",
-              borderRadius: "8px",
-              fontSize: "13px",
-              color: "#a0aec0",
-            },
-          },
-          React.createElement("div", {
             style: { fontWeight: "500", marginBottom: "8px" },
-          }, "💡 Tip"),
-          React.createElement(
-            "div",
-            null,
-            "This error occurred during development. Fix the error in your code and the app will automatically reload.",
-          ),
+          },
+          "💡 Tip",
+        ),
+        React.createElement(
+          "div",
+          null,
+          "This error occurred during development. Fix the error in your code and the app will automatically reload.",
         ),
       ),
-    )
+    ),
   );
 }

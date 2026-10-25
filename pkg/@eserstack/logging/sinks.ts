@@ -154,10 +154,8 @@ export const fingersCrossedSink = (
     maxBufferSize?: number;
   } = {},
 ): Sink & { flush: () => Promise<void>; clear: () => void } => {
-  const {
-    triggerLevel = logging.Severities.Error,
-    maxBufferSize = 1000,
-  } = options;
+  const { triggerLevel = logging.Severities.Error, maxBufferSize = 1000 } =
+    options;
   let buffer: LogRecord[] = [];
   let triggered = false;
 

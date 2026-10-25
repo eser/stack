@@ -44,43 +44,31 @@ const buildHooks = (
   PreToolUse: [
     {
       matcher: "Write|Edit|MultiEdit|Bash",
-      hooks: [
-        hookEntry(commandPrefix, "pre-tool-use"),
-      ],
+      hooks: [hookEntry(commandPrefix, "pre-tool-use")],
     },
   ],
   PostToolUse: [
     {
       matcher: "Write|Edit|MultiEdit",
-      hooks: [
-        hookEntry(commandPrefix, "post-file-write"),
-      ],
+      hooks: [hookEntry(commandPrefix, "post-file-write")],
     },
     {
       matcher: "Bash",
-      hooks: [
-        hookEntry(commandPrefix, "post-bash"),
-      ],
+      hooks: [hookEntry(commandPrefix, "post-bash")],
     },
     {
       matcher: "AskUserQuestion",
-      hooks: [
-        hookEntry(commandPrefix, "post-ask-user-question"),
-      ],
+      hooks: [hookEntry(commandPrefix, "post-ask-user-question")],
     },
   ],
   Stop: [
     {
-      hooks: [
-        hookEntry(commandPrefix, "stop"),
-      ],
+      hooks: [hookEntry(commandPrefix, "stop")],
     },
   ],
   SessionStart: [
     {
-      hooks: [
-        hookEntry(commandPrefix, "session-start"),
-      ],
+      hooks: [hookEntry(commandPrefix, "session-start")],
     },
   ],
 });
@@ -102,7 +90,9 @@ export const syncHooks = async (
     const parsed: unknown = JSON.parse(content);
     // A file holding null, an array or a scalar counts as no settings.
     if (
-      parsed !== null && typeof parsed === "object" && !Array.isArray(parsed)
+      parsed !== null &&
+      typeof parsed === "object" &&
+      !Array.isArray(parsed)
     ) {
       existingSettings = parsed as Record<string, unknown>;
     }

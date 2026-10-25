@@ -87,12 +87,10 @@ const expandWorkspacePaths = async (
       const regex = new RegExp(`^${regexPattern}$`);
 
       try {
-        for await (
-          const entry of runtime.fs.walk(parentDir, {
-            includeDirs: true,
-            includeFiles: false,
-          })
-        ) {
+        for await (const entry of runtime.fs.walk(parentDir, {
+          includeDirs: true,
+          includeFiles: false,
+        })) {
           const rel = runtime.path.relative(parentDir, entry.path);
           if (rel !== "" && regex.test(rel)) {
             paths.push(entry.path);

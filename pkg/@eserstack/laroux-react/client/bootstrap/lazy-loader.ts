@@ -134,7 +134,9 @@ export class LazyChunkLoader {
       for (const key of moduleKeys) {
         const value = mod[key];
         if (
-          value !== null && typeof value === "object" && exportName in value
+          value !== null &&
+          typeof value === "object" &&
+          exportName in value
         ) {
           return value[exportName];
         }
@@ -153,8 +155,9 @@ export class LazyChunkLoader {
     // This handles cases where bundler's entrypointManifest is incorrect
     if (!exported) {
       // Get all chunk files from manifest
-      const allChunkFiles = Object.keys(this.manifest.files)
-        .filter((f) => f.startsWith("chunk-") && f.endsWith(".js"));
+      const allChunkFiles = Object.keys(this.manifest.files).filter(
+        (f) => f.startsWith("chunk-") && f.endsWith(".js"),
+      );
 
       // Load all chunks that haven't been loaded yet
       const unloadedChunks = allChunkFiles.filter(
@@ -162,9 +165,7 @@ export class LazyChunkLoader {
       );
 
       if (unloadedChunks.length > 0) {
-        await Promise.all(
-          unloadedChunks.map((f) => this.loadChunk(`/${f}`)),
-        );
+        await Promise.all(unloadedChunks.map((f) => this.loadChunk(`/${f}`)));
       }
 
       // Now search all loaded modules
@@ -262,9 +263,12 @@ export class LazyChunkLoader {
     } catch (error) {
       // Handled here: preloading only saves time, and loadModule loads the
       // chunks again when the component renders.
-      await logging.logger.getLogger(["laroux-bundler", "loader"]).with({
-        error,
-      }).warn(`preload component ${id}; it loads when it renders instead`);
+      await logging.logger
+        .getLogger(["laroux-bundler", "loader"])
+        .with({
+          error,
+        })
+        .warn(`preload component ${id}; it loads when it renders instead`);
     }
   }
 

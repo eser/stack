@@ -47,8 +47,7 @@ const BASE_YEAR = "2023";
 const RX_COPYRIGHT = new RegExp(
   `// Copyright ([0-9]{4})-present Eser Ozvataf and other contributors\\. All rights reserved\\. ([0-9A-Za-z-.]+) license\\.\n`,
 );
-const COPYRIGHT =
-  `// Copyright ${BASE_YEAR}-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.`;
+const COPYRIGHT = `// Copyright ${BASE_YEAR}-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.`;
 
 /**
  * Tool-specific paths that are always skipped, regardless of user `exclude` config.
@@ -58,11 +57,7 @@ const COPYRIGHT =
  * Note: common directories (node_modules, .git, dist, etc.) are handled by
  * DEFAULT_EXCLUDES in file-tools-shared.ts.
  */
-const SKIP_PATTERNS = [
-  /docs\//,
-  /etc\/templates\//,
-  /manifest\.gen\.ts$/,
-];
+const SKIP_PATTERNS = [/docs\//, /etc\/templates\//, /manifest\.gen\.ts$/];
 
 // SKIP_PATTERNS are written with POSIX "/" separators. File paths arrive in the
 // OS-native form ("\" on Windows), so normalize to forward slashes before testing
@@ -94,18 +89,22 @@ const checkLicenseHeader = (
     if (match[1] === BASE_YEAR) {
       return [];
     }
-    return [{
-      path: file.path,
-      message: "incorrect copyright year",
-      fixed: options.fix,
-    }];
+    return [
+      {
+        path: file.path,
+        message: "incorrect copyright year",
+        fixed: options.fix,
+      },
+    ];
   }
 
-  return [{
-    path: file.path,
-    message: "missing copyright header",
-    fixed: options.fix,
-  }];
+  return [
+    {
+      path: file.path,
+      message: "missing copyright header",
+      fixed: options.fix,
+    },
+  ];
 };
 
 // =============================================================================

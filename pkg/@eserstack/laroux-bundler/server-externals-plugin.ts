@@ -59,14 +59,14 @@ export function createServerExternalsPlugin(
   // Build regex pattern for matching externals
   // e.g., ["@eserstack/laroux", "@eserstack/laroux-server"] -> /^(@eser\/laroux|@eser\/laroux-server)($|\/)/
   const escapedPackages = externals.map((pkg) =>
-    pkg.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+    pkg.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
   );
   const pattern = new RegExp(`^(${escapedPackages.join("|")})($|\\/)`);
 
   pluginLogger.debug(
-    `Server externals plugin initialized with ${externals.length} packages: ${
-      externals.join(", ")
-    }`,
+    `Server externals plugin initialized with ${externals.length} packages: ${externals.join(
+      ", ",
+    )}`,
   );
 
   return {

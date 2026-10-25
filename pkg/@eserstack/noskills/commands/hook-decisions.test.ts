@@ -753,7 +753,8 @@ bdd.describe("preToolUseContext", () => {
       name: "puts the reminder before the file rules",
       reminder: hookDecisions.EXECUTOR_REMINDER,
       fileRules: ["use namespace imports"],
-      expected: `${hookDecisions.EXECUTOR_REMINDER}\n\n` +
+      expected:
+        `${hookDecisions.EXECUTOR_REMINDER}\n\n` +
         "[noskills] Rules for this file:\n- use namespace imports",
     },
   ];
@@ -904,43 +905,59 @@ bdd.describe("contentAfterEdit", () => {
 
   bdd.it("applies an Edit to the first match", () => {
     assert.assertEquals(
-      hookDecisions.contentAfterEdit("Edit", {
-        "old_string": "false",
-        "new_string": "true",
-      }, "a: false\nb: false\n"),
+      hookDecisions.contentAfterEdit(
+        "Edit",
+        {
+          old_string: "false",
+          new_string: "true",
+        },
+        "a: false\nb: false\n",
+      ),
       "a: true\nb: false\n",
     );
   });
 
   bdd.it("applies an Edit with replace_all to every match", () => {
     assert.assertEquals(
-      hookDecisions.contentAfterEdit("Edit", {
-        "old_string": "false",
-        "new_string": "true",
-        "replace_all": true,
-      }, "a: false\nb: false\n"),
+      hookDecisions.contentAfterEdit(
+        "Edit",
+        {
+          old_string: "false",
+          new_string: "true",
+          replace_all: true,
+        },
+        "a: false\nb: false\n",
+      ),
       "a: true\nb: true\n",
     );
   });
 
   bdd.it("inserts replacement text with $ patterns as written", () => {
     assert.assertEquals(
-      hookDecisions.contentAfterEdit("Edit", {
-        "old_string": "false",
-        "new_string": "$&$&",
-      }, manifest),
+      hookDecisions.contentAfterEdit(
+        "Edit",
+        {
+          old_string: "false",
+          new_string: "$&$&",
+        },
+        manifest,
+      ),
       "noskills:\n  allowGit: $&$&\n",
     );
   });
 
   bdd.it("applies MultiEdit replacements in order", () => {
     assert.assertEquals(
-      hookDecisions.contentAfterEdit("MultiEdit", {
-        edits: [
-          { "old_string": "allowGit: false", "new_string": "allowGit: x" },
-          { "old_string": "x", "new_string": "true" },
-        ],
-      }, manifest),
+      hookDecisions.contentAfterEdit(
+        "MultiEdit",
+        {
+          edits: [
+            { old_string: "allowGit: false", new_string: "allowGit: x" },
+            { old_string: "x", new_string: "true" },
+          ],
+        },
+        manifest,
+      ),
       "noskills:\n  allowGit: true\n",
     );
   });
@@ -953,12 +970,12 @@ bdd.describe("contentAfterEdit", () => {
     {
       name: "an Edit whose text is not in the file",
       toolName: "Edit",
-      toolInput: { "old_string": "missing", "new_string": "x" },
+      toolInput: { old_string: "missing", new_string: "x" },
     },
     {
       name: "an Edit without new_string",
       toolName: "Edit",
-      toolInput: { "old_string": "false" },
+      toolInput: { old_string: "false" },
     },
     {
       name: "a MultiEdit without edits",
@@ -968,7 +985,7 @@ bdd.describe("contentAfterEdit", () => {
     {
       name: "a tool it does not know",
       toolName: "NotebookEdit",
-      toolInput: { "new_source": "x" },
+      toolInput: { new_source: "x" },
     },
   ];
 
@@ -1189,7 +1206,7 @@ bdd.describe("parseHookInput", () => {
     {
       name: "reads a JSON object",
       text: '{"tool_name":"Bash","cwd":"/p"}',
-      expected: { "tool_name": "Bash", cwd: "/p" },
+      expected: { tool_name: "Bash", cwd: "/p" },
     },
     { name: "gives {} for an array", text: "[1,2]", expected: {} },
     { name: "gives {} for null", text: "null", expected: {} },
@@ -1207,7 +1224,7 @@ bdd.describe("parseHookInput", () => {
 bdd.describe("toolInputOf and filePathOf", () => {
   bdd.it("reads file_path from tool_input", () => {
     const toolInput = hookDecisions.toolInputOf({
-      "tool_input": { "file_path": "src/a.ts" },
+      tool_input: { file_path: "src/a.ts" },
     });
 
     assert.assertEquals(hookDecisions.filePathOf(toolInput), "src/a.ts");
@@ -1215,14 +1232,14 @@ bdd.describe("toolInputOf and filePathOf", () => {
 
   bdd.it("falls back to path, as some tools name the field", () => {
     assert.assertEquals(
-      hookDecisions.filePathOf({ "file_path": "", path: "src/b.ts" }),
+      hookDecisions.filePathOf({ file_path: "", path: "src/b.ts" }),
       "src/b.ts",
     );
   });
 
   bdd.it("gives empty values for missing or mistyped fields", () => {
-    assert.assertEquals(hookDecisions.toolInputOf({ "tool_input": [1] }), {});
-    assert.assertEquals(hookDecisions.filePathOf({ "file_path": 7 }), "");
+    assert.assertEquals(hookDecisions.toolInputOf({ tool_input: [1] }), {});
+    assert.assertEquals(hookDecisions.filePathOf({ file_path: 7 }), "");
     assert.assertEquals(
       hookDecisions.stringField({ command: 7 }, "command"),
       "",
@@ -1254,15 +1271,15 @@ bdd.describe("toolNameOf and toolInputOf across tools", () => {
 
   bdd.it("keeps a tool input that is plain text as input", () => {
     assert.assertEquals(
-      hookDecisions.toolInputOf({ "tool_input": "*** Begin Patch" }),
+      hookDecisions.toolInputOf({ tool_input: "*** Begin Patch" }),
       { input: "*** Begin Patch" },
     );
   });
 
   bdd.it("prefers tool_name and tool_input when both forms are there", () => {
     const input = {
-      "tool_name": "Bash",
-      "tool_input": { command: "a" },
+      tool_name: "Bash",
+      tool_input: { command: "a" },
       toolName: "bash",
       toolArgs: { command: "b" },
     };
@@ -1274,9 +1291,9 @@ bdd.describe("toolNameOf and toolInputOf across tools", () => {
 
 bdd.describe("toolCallOf", () => {
   const manifestEdit = {
-    "old_string": "allowGit: false",
-    "new_string": "allowGit: true",
-    "replace_all": false,
+    old_string: "allowGit: false",
+    new_string: "allowGit: true",
+    replace_all: false,
   };
 
   const cases: readonly {
@@ -1312,13 +1329,15 @@ bdd.describe("toolCallOf", () => {
     {
       name: "Claude Code's Edit",
       toolName: "Edit",
-      toolInput: { "file_path": "m.yml", ...manifestEdit },
+      toolInput: { file_path: "m.yml", ...manifestEdit },
       expected: {
         kind: "file",
-        changes: [{
-          path: "m.yml",
-          edit: { tool: "Edit", input: manifestEdit },
-        }],
+        changes: [
+          {
+            path: "m.yml",
+            edit: { tool: "Edit", input: manifestEdit },
+          },
+        ],
       },
     },
     {
@@ -1331,10 +1350,12 @@ bdd.describe("toolCallOf", () => {
       },
       expected: {
         kind: "file",
-        changes: [{
-          path: "m.yml",
-          edit: { tool: "Edit", input: manifestEdit },
-        }],
+        changes: [
+          {
+            path: "m.yml",
+            edit: { tool: "Edit", input: manifestEdit },
+          },
+        ],
       },
     },
     {
@@ -1343,10 +1364,12 @@ bdd.describe("toolCallOf", () => {
       toolInput: { filePath: "a.ts", content: "x" },
       expected: {
         kind: "file",
-        changes: [{
-          path: "a.ts",
-          edit: { tool: "Write", input: { content: "x" } },
-        }],
+        changes: [
+          {
+            path: "a.ts",
+            edit: { tool: "Write", input: { content: "x" } },
+          },
+        ],
       },
     },
     {
@@ -1354,45 +1377,51 @@ bdd.describe("toolCallOf", () => {
       toolName: "edit",
       toolInput: {
         path: "m.yml",
-        "old_str": "allowGit: false",
-        "new_str": "allowGit: true",
+        old_str: "allowGit: false",
+        new_str: "allowGit: true",
       },
       expected: {
         kind: "file",
-        changes: [{
-          path: "m.yml",
-          edit: { tool: "Edit", input: manifestEdit },
-        }],
+        changes: [
+          {
+            path: "m.yml",
+            edit: { tool: "Edit", input: manifestEdit },
+          },
+        ],
       },
     },
     {
       name: "Copilot CLI's create",
       toolName: "create",
-      toolInput: { path: "a.ts", "file_text": "x" },
+      toolInput: { path: "a.ts", file_text: "x" },
       expected: {
         kind: "file",
-        changes: [{
-          path: "a.ts",
-          edit: { tool: "Write", input: { content: "x" } },
-        }],
+        changes: [
+          {
+            path: "a.ts",
+            edit: { tool: "Write", input: { content: "x" } },
+          },
+        ],
       },
     },
     {
       name: "Kiro's fs_write creating a file",
       toolName: "fs_write",
-      toolInput: { command: "create", path: "a.ts", "file_text": "x" },
+      toolInput: { command: "create", path: "a.ts", file_text: "x" },
       expected: {
         kind: "file",
-        changes: [{
-          path: "a.ts",
-          edit: { tool: "Write", input: { content: "x" } },
-        }],
+        changes: [
+          {
+            path: "a.ts",
+            edit: { tool: "Write", input: { content: "x" } },
+          },
+        ],
       },
     },
     {
       name: "Kiro's fs_write appending, whose result is unknown",
       toolName: "fs_write",
-      toolInput: { command: "append", path: "a.ts", "new_str": "x" },
+      toolInput: { command: "append", path: "a.ts", new_str: "x" },
       expected: { kind: "file", changes: [{ path: "a.ts", edit: null }] },
     },
     {
@@ -1470,24 +1499,28 @@ bdd.describe("toolCallOf", () => {
   bdd.it("maps a MultiEdit's edits to Claude Code's field names", () => {
     assert.assertEquals(
       hookDecisions.toolCallOf("MultiEdit", {
-        "file_path": "a.ts",
+        file_path: "a.ts",
         edits: [{ oldString: "a", newString: "b", replaceAll: true }],
       }),
       {
         kind: "file",
-        changes: [{
-          path: "a.ts",
-          edit: {
-            tool: "MultiEdit",
-            input: {
-              edits: [{
-                "old_string": "a",
-                "new_string": "b",
-                "replace_all": true,
-              }],
+        changes: [
+          {
+            path: "a.ts",
+            edit: {
+              tool: "MultiEdit",
+              input: {
+                edits: [
+                  {
+                    old_string: "a",
+                    new_string: "b",
+                    replace_all: true,
+                  },
+                ],
+              },
             },
           },
-        }],
+        ],
       },
     );
   });
@@ -1522,8 +1555,8 @@ bdd.describe("hookDialectOf", () => {
   bdd.it("takes tool_name inputs as the claude dialect", () => {
     assert.assertEquals(
       hookDecisions.hookDialectOf({
-        "hook_event_name": "PreToolUse",
-        "tool_name": "Bash",
+        hook_event_name: "PreToolUse",
+        tool_name: "Bash",
       }),
       "claude",
     );
@@ -1539,8 +1572,8 @@ bdd.describe("hookDialectOf", () => {
   bdd.it("takes the camelCase preToolUse event as Kiro's", () => {
     assert.assertEquals(
       hookDecisions.hookDialectOf({
-        "hook_event_name": "preToolUse",
-        "tool_name": "fs_write",
+        hook_event_name: "preToolUse",
+        tool_name: "fs_write",
       }),
       "kiro",
     );
@@ -1800,7 +1833,7 @@ bdd.describe("stopRecordsIteration", () => {
     () => {
       assert.assertEquals(
         hookDecisions.stopRecordsIteration(
-          { "stop_hook_active": true },
+          { stop_hook_active: true },
           "EXECUTING",
         ),
         false,
@@ -1914,10 +1947,13 @@ bdd.describe("discoveryAskSteps", () => {
       ],
     );
 
-    assert.assertEquals(steps.map((s) => [s.stepId, s.match]), [
-      ["ambition", "exact"],
-      ["status_quo", "exact"],
-    ]);
+    assert.assertEquals(
+      steps.map((s) => [s.stepId, s.match]),
+      [
+        ["ambition", "exact"],
+        ["status_quo", "exact"],
+      ],
+    );
   });
 
   bdd.it("gives a rephrased question the first open one left", () => {
@@ -1926,10 +1962,13 @@ bdd.describe("discoveryAskSteps", () => {
       ["Which upload tool do your customers use now?", "Anything else?"],
     );
 
-    assert.assertEquals(steps.map((s) => [s.stepId, s.match]), [
-      ["status_quo", "modified"],
-      ["ambition", "modified"],
-    ]);
+    assert.assertEquals(
+      steps.map((s) => [s.stepId, s.match]),
+      [
+        ["status_quo", "modified"],
+        ["ambition", "modified"],
+      ],
+    );
   });
 
   bdd.it("records no more steps than open questions", () => {
@@ -1938,14 +1977,15 @@ bdd.describe("discoveryAskSteps", () => {
       ["First?", "Second?"],
     );
 
-    assert.assertEquals(steps.map((s) => s.stepId), ["status_quo"]);
+    assert.assertEquals(
+      steps.map((s) => s.stepId),
+      ["status_quo"],
+    );
   });
 });
 
 bdd.describe("askTokenStepsAfter", () => {
-  const atQuestions = (
-    answered: readonly string[] = [],
-  ): schema.StateFile => {
+  const atQuestions = (answered: readonly string[] = []): schema.StateFile => {
     let state = machine.startSpec(
       schema.createInitialState(),
       "test-spec",
@@ -1966,12 +2006,10 @@ bdd.describe("askTokenStepsAfter", () => {
       baseTexts.slice(0, 4),
     );
 
-    assert.assertEquals(steps?.map((s) => s.stepId), [
-      "status_quo",
-      "ambition",
-      "reversibility",
-      "user_impact",
-    ]);
+    assert.assertEquals(
+      steps?.map((s) => s.stepId),
+      ["status_quo", "ambition", "reversibility", "user_impact"],
+    );
   });
 
   bdd.it("adds the second call to the steps the first recorded", () => {
@@ -1981,15 +2019,15 @@ bdd.describe("askTokenStepsAfter", () => {
       baseTexts.slice(0, 4),
     )!;
     // The second call asks the last two, rephrased beyond recognition.
-    const steps = hookDecisions.askTokenStepsAfter(
-      atQuestions(),
-      first,
-      ["How will you know it works?", "Where does it stop?"],
-    );
-
-    assert.assertEquals(steps?.map((s) => s.stepId), [
-      ...questions.QUESTIONS.map((q) => q.id),
+    const steps = hookDecisions.askTokenStepsAfter(atQuestions(), first, [
+      "How will you know it works?",
+      "Where does it stop?",
     ]);
+
+    assert.assertEquals(
+      steps?.map((s) => s.stepId),
+      [...questions.QUESTIONS.map((q) => q.id)],
+    );
   });
 
   bdd.it("skips the questions already answered", () => {
@@ -1999,7 +2037,10 @@ bdd.describe("askTokenStepsAfter", () => {
       ["Is there an irreversible decision?"],
     );
 
-    assert.assertEquals(steps?.map((s) => s.stepId), ["reversibility"]);
+    assert.assertEquals(
+      steps?.map((s) => s.stepId),
+      ["reversibility"],
+    );
   });
 
   bdd.it("keeps the token when the call asks no open base question", () => {
@@ -2018,9 +2059,13 @@ bdd.describe("askTokenStepsAfter", () => {
     const answered = questions.QUESTIONS.map((q) => q.id);
 
     assert.assertEquals(
-      hookDecisions.askTokenStepsAfter(atQuestions(answered), [], [
-        "What is the rollback plan?",
-      ])?.map((s) => s.stepId),
+      hookDecisions
+        .askTokenStepsAfter(
+          atQuestions(answered),
+          [],
+          ["What is the rollback plan?"],
+        )
+        ?.map((s) => s.stepId),
       ["discovery"],
     );
   });
@@ -2034,9 +2079,13 @@ bdd.describe("askTokenStepsAfter", () => {
     };
 
     assert.assertEquals(
-      hookDecisions.askTokenStepsAfter(premises, [], [
-        "Do you agree that users need uploads?",
-      ])?.map((s) => s.stepId),
+      hookDecisions
+        .askTokenStepsAfter(
+          premises,
+          [],
+          ["Do you agree that users need uploads?"],
+        )
+        ?.map((s) => s.stepId),
       ["discovery"],
     );
   });
@@ -2049,20 +2098,22 @@ bdd.describe("askTokenStepsAfter", () => {
 
     assert.assertEquals(
       hookDecisions.askTokenStepsAfter(state, [], ["Approve?"]),
-      [{
-        stepId: "approval",
-        match: "modified",
-        originalQuestion: "",
-        askedQuestion: "Approve?",
-      }],
+      [
+        {
+          stepId: "approval",
+          match: "modified",
+          originalQuestion: "",
+          askedQuestion: "Approve?",
+        },
+      ],
     );
   });
 
   bdd.it("records the unknown step without a readable state", () => {
     assert.assertEquals(
-      hookDecisions.askTokenStepsAfter(null, [], ["Anything?"])?.map((s) =>
-        s.stepId
-      ),
+      hookDecisions
+        .askTokenStepsAfter(null, [], ["Anything?"])
+        ?.map((s) => s.stepId),
       ["unknown"],
     );
   });

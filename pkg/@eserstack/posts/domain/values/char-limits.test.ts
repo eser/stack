@@ -48,10 +48,12 @@ bdd.describe("char-limits", () => {
       "should return the single platform limit when one context given",
       () => {
         assert.assertEquals(
-          charLimitsMod.getMinCharacterLimit([{
-            platform: "twitter",
-            subscriptionTier: "free",
-          }]),
+          charLimitsMod.getMinCharacterLimit([
+            {
+              platform: "twitter",
+              subscriptionTier: "free",
+            },
+          ]),
           280,
         );
       },
@@ -60,10 +62,10 @@ bdd.describe("char-limits", () => {
 
   bdd.describe("validatePostLength", () => {
     bdd.it("should be valid when text is within the limit", () => {
-      const result = charLimitsMod.validatePostLength(
-        "Hello world",
-        { platform: "twitter", subscriptionTier: "free" },
-      );
+      const result = charLimitsMod.validatePostLength("Hello world", {
+        platform: "twitter",
+        subscriptionTier: "free",
+      });
 
       assert.assertEquals(result.valid, true);
       assert.assertEquals(result.length, 11);
@@ -73,10 +75,10 @@ bdd.describe("char-limits", () => {
 
     bdd.it("should be invalid when text exceeds the limit", () => {
       const longText = "a".repeat(281);
-      const result = charLimitsMod.validatePostLength(
-        longText,
-        { platform: "twitter", subscriptionTier: "free" },
-      );
+      const result = charLimitsMod.validatePostLength(longText, {
+        platform: "twitter",
+        subscriptionTier: "free",
+      });
 
       assert.assertEquals(result.valid, false);
       assert.assertEquals(result.remaining, -1);
@@ -84,10 +86,10 @@ bdd.describe("char-limits", () => {
 
     bdd.it("should be valid exactly at the limit", () => {
       const text = "a".repeat(280);
-      const result = charLimitsMod.validatePostLength(
-        text,
-        { platform: "twitter", subscriptionTier: "free" },
-      );
+      const result = charLimitsMod.validatePostLength(text, {
+        platform: "twitter",
+        subscriptionTier: "free",
+      });
 
       assert.assertEquals(result.valid, true);
       assert.assertEquals(result.remaining, 0);
@@ -95,10 +97,10 @@ bdd.describe("char-limits", () => {
 
     bdd.it("should use the correct limit for premium_plus", () => {
       const longText = "a".repeat(300);
-      const result = charLimitsMod.validatePostLength(
-        longText,
-        { platform: "twitter", subscriptionTier: "premium_plus" },
-      );
+      const result = charLimitsMod.validatePostLength(longText, {
+        platform: "twitter",
+        subscriptionTier: "premium_plus",
+      });
 
       assert.assertEquals(result.valid, true);
       assert.assertEquals(result.limit, 25_000);

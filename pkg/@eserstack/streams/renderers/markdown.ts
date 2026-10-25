@@ -42,9 +42,11 @@ const renderSpan = (span: spanTypes.Span): string => {
       return `${header}\n${sep}\n${rows}\n`;
     }
     case "list":
-      return span.items
-        .map((item) => `- ${item.map(renderSpan).join("")}`)
-        .join("\n") + "\n";
+      return (
+        span.items
+          .map((item) => `- ${item.map(renderSpan).join("")}`)
+          .join("\n") + "\n"
+      );
     case "gauge": {
       const label = span.label ? ` — ${span.label}` : "";
       return `**${span.percent}%**${label}`;

@@ -25,12 +25,12 @@ const getInstallInstructions = (
   // completions directory automatically and needs no rc line; zsh and bash need
   // one, but it SOURCES a file rather than eval-ing a command substitution --
   // the latter booted the CLI on every terminal open.
-  const dir = config.completionsFile !== undefined
-    ? config.completionsFile.slice(0, config.completionsFile.lastIndexOf("/"))
-    : "";
+  const dir =
+    config.completionsFile !== undefined
+      ? config.completionsFile.slice(0, config.completionsFile.lastIndexOf("/"))
+      : "";
 
-  const write =
-    `mkdir -p ${dir} && ${appName} system completions --shell ${shell} > ${config.completionsFile}`;
+  const write = `mkdir -p ${dir} && ${appName} system completions --shell ${shell} > ${config.completionsFile}`;
 
   if (shell === "fish") {
     return `

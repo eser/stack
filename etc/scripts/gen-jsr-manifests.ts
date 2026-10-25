@@ -210,8 +210,8 @@ const main = async (): Promise<void> => {
   const mode: Mode = args.includes("--clean")
     ? "clean"
     : args.includes("--check")
-    ? "check"
-    : "write";
+      ? "check"
+      : "write";
 
   const version = (await Deno.readTextFile(join(REPO_ROOT, "VERSION"))).trim();
 
@@ -227,9 +227,9 @@ const main = async (): Promise<void> => {
   );
 
   const skipped = outcomes.filter((o) => o.outcome === "unpublishable").length;
-  const written =
-    outcomes.filter((o) => o.outcome === "written" || o.outcome === "removed")
-      .length;
+  const written = outcomes.filter(
+    (o) => o.outcome === "written" || o.outcome === "removed",
+  ).length;
   const drifted = outcomes
     .filter((o) => o.outcome === "drifted")
     .map((o) => join(o.dir, "deno.json"));

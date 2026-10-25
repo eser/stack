@@ -55,13 +55,15 @@ export const detectCodingTools = async (
 ): Promise<readonly schema.CodingToolId[]> => {
   // Every signal path is checked concurrently; the result keeps the order of
   // TOOL_SIGNALS.
-  const detected = await Promise.all(TOOL_SIGNALS.map(async (signal) => {
-    const found = await Promise.all(
-      signal.paths.map((p) => pathExists(`${root}/${p}`)),
-    );
+  const detected = await Promise.all(
+    TOOL_SIGNALS.map(async (signal) => {
+      const found = await Promise.all(
+        signal.paths.map((p) => pathExists(`${root}/${p}`)),
+      );
 
-    return found.includes(true) ? signal.id : null;
-  }));
+      return found.includes(true) ? signal.id : null;
+    }),
+  );
 
   return detected.filter((id): id is schema.CodingToolId => id !== null);
 };

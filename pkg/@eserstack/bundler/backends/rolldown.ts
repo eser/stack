@@ -117,15 +117,12 @@ function createDefinePlugin(defines: Record<string, string>): RollupPlugin {
   }
 
   const escapedKeys = keys.map((key) =>
-    key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+    key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
   );
 
   // Match whole words only using word boundaries for simple identifiers
   // For member expressions like process.env.NODE_ENV, match the full expression
-  const pattern = new RegExp(
-    `\\b(${escapedKeys.join("|")})\\b`,
-    "g",
-  );
+  const pattern = new RegExp(`\\b(${escapedKeys.join("|")})\\b`, "g");
 
   return {
     name: "define",
@@ -184,7 +181,8 @@ export class RolldownBackend implements Bundler {
       // Build plugins array, including define plugin if defines are provided
       const plugins = this.adaptPlugins(config.plugins);
       if (
-        config.define !== undefined && Object.keys(config.define).length > 0
+        config.define !== undefined &&
+        Object.keys(config.define).length > 0
       ) {
         plugins.push(
           createDefinePlugin(config.define as Record<string, string>),
@@ -194,12 +192,10 @@ export class RolldownBackend implements Bundler {
       // Configure resolve paths to include project's node_modules
       // This ensures transitive dependencies (like scheduler) are found
       // regardless of where source files are located (e.g., npm cache)
-      const resolveModules = config.projectRoot !== undefined
-        ? [
-          `${config.projectRoot}/node_modules`,
-          "node_modules",
-        ]
-        : ["node_modules"];
+      const resolveModules =
+        config.projectRoot !== undefined
+          ? [`${config.projectRoot}/node_modules`, "node_modules"]
+          : ["node_modules"];
 
       const bundle = await rolldown.rolldown({
         input: config.entrypoints as Record<string, string>,
@@ -214,10 +210,10 @@ export class RolldownBackend implements Bundler {
         config.sourcemap === true
           ? true
           : config.sourcemap === "inline"
-          ? "inline"
-          : config.sourcemap === "external"
-          ? true
-          : undefined;
+            ? "inline"
+            : config.sourcemap === "external"
+              ? true
+              : undefined;
 
       const outputOptions: RolldownOutputOptions = {
         dir: config.outputDir,
@@ -228,15 +224,15 @@ export class RolldownBackend implements Bundler {
         minify: config.minify,
         ...(this.options.advancedChunks !== undefined
           ? {
-            advancedChunks: {
-              minSize: this.options.advancedChunks.minSize ?? 20000,
-              groups: this.options.advancedChunks.groups?.map((g) => ({
-                name: g.name,
-                test: g.test,
-                priority: g.priority ?? 0,
-              })),
-            },
-          }
+              advancedChunks: {
+                minSize: this.options.advancedChunks.minSize ?? 20000,
+                groups: this.options.advancedChunks.groups?.map((g) => ({
+                  name: g.name,
+                  test: g.test,
+                  priority: g.priority ?? 0,
+                })),
+              },
+            }
           : {}),
       };
 
@@ -308,7 +304,7 @@ export class RolldownBackend implements Bundler {
       // The optional dependency's types are not imported; the module is
       // narrowed to the RolldownModule interface right below.
       // deno-lint-ignore no-explicit-any
-      const rolldownImport = await import("rolldown") as any;
+      const rolldownImport = (await import("rolldown")) as any;
 
       // Adapt the actual rolldown API to our internal interface
       const module: RolldownModule = {
@@ -330,9 +326,7 @@ export class RolldownBackend implements Bundler {
     }
   }
 
-  private adaptPlugins(
-    plugins?: readonly BundlerPlugin[],
-  ): RollupPlugin[] {
+  private adaptPlugins(plugins?: readonly BundlerPlugin[]): RollupPlugin[] {
     if (plugins === undefined || plugins.length === 0) {
       return [];
     }
@@ -414,9 +408,10 @@ export class RolldownBackend implements Bundler {
             });
             if (result?.contents !== undefined) {
               return {
-                code: typeof result.contents === "string"
-                  ? result.contents
-                  : new TextDecoder().decode(result.contents),
+                code:
+                  typeof result.contents === "string"
+                    ? result.contents
+                    : new TextDecoder().decode(result.contents),
               };
             }
           }
@@ -567,9 +562,10 @@ function encodeRolldownOutput(
       : output.source;
   }
 
-  const code = basePath !== undefined
-    ? output.code.replace(/\/_lime\/alive/g, `${basePath}/_lime/alive`)
-    : output.code;
+  const code =
+    basePath !== undefined
+      ? output.code.replace(/\/_lime\/alive/g, `${basePath}/_lime/alive`)
+      : output.code;
 
   return new TextEncoder().encode(code);
 }
@@ -647,8 +643,7 @@ export const RolldownPresets = {
         },
         {
           name: "framework",
-          test:
-            /[\\/]node_modules[\\/](@radix-ui|@headlessui|lucide-react)[\\/]/,
+          test: /[\\/]node_modules[\\/](@radix-ui|@headlessui|lucide-react)[\\/]/,
           priority: 20,
         },
         {
@@ -682,8 +677,7 @@ export const RolldownPresets = {
         },
         {
           name: "utils",
-          test:
-            /[\\/]node_modules[\\/](clsx|tailwind-merge|class-variance-authority)[\\/]/,
+          test: /[\\/]node_modules[\\/](clsx|tailwind-merge|class-variance-authority)[\\/]/,
           priority: 20,
         },
         {
@@ -720,21 +714,22 @@ export function createRolldownWithPreset(
   preset: keyof typeof RolldownPresets | RolldownBackendOptions,
   overrides?: Partial<RolldownBackendOptions>,
 ): RolldownBackend {
-  const baseOptions = typeof preset === "string"
-    ? RolldownPresets[preset]()
-    : preset;
+  const baseOptions =
+    typeof preset === "string" ? RolldownPresets[preset]() : preset;
 
   const mergedOptions: RolldownBackendOptions = {
     ...baseOptions,
     ...overrides,
-    advancedChunks: overrides?.advancedChunks !== undefined
-      ? {
-        ...baseOptions.advancedChunks,
-        ...overrides.advancedChunks,
-        groups: overrides.advancedChunks.groups ??
-          baseOptions.advancedChunks?.groups,
-      }
-      : baseOptions.advancedChunks,
+    advancedChunks:
+      overrides?.advancedChunks !== undefined
+        ? {
+            ...baseOptions.advancedChunks,
+            ...overrides.advancedChunks,
+            groups:
+              overrides.advancedChunks.groups ??
+              baseOptions.advancedChunks?.groups,
+          }
+        : baseOptions.advancedChunks,
   };
 
   return new RolldownBackend(mergedOptions);
@@ -820,10 +815,13 @@ interface RollupPlugin {
   resolveId?(
     source: string,
     importer: string | undefined,
-  ): Promise<{ id: string; external?: boolean } | null> | {
-    id: string;
-    external?: boolean;
-  } | null;
+  ):
+    | Promise<{ id: string; external?: boolean } | null>
+    | {
+        id: string;
+        external?: boolean;
+      }
+    | null;
   load?(id: string): Promise<{ code: string } | null> | { code: string } | null;
   transform?(
     code: string,

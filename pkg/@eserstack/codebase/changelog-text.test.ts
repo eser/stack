@@ -63,5 +63,8 @@ Deno.test("parseChangelogText still reads both heading styles", () => {
   const entries = changelogText.parseChangelogText(
     "# Changelog\n\n## 2.0.0 - 2026-01-02\n\n- b\n\n## [v1.0.0] - 2026-01-01\n\n- a\n",
   );
-  assert.assertEquals(entries.map((e) => e.tag), ["v2.0.0", "v1.0.0"]);
+  assert.assertEquals(
+    entries.map((e) => e.tag),
+    ["v2.0.0", "v1.0.0"],
+  );
 });

@@ -28,9 +28,9 @@ export interface FeedAggregator {
    * Unified timeline from all authenticated platforms, newest post first.
    * `maxResultsPerPlatform` defaults to `DEFAULT_MAX_RESULTS_PER_PLATFORM` (10).
    */
-  getUnifiedTimeline(
-    params?: { maxResultsPerPlatform?: number },
-  ): Promise<Post[]>;
+  getUnifiedTimeline(params?: {
+    maxResultsPerPlatform?: number;
+  }): Promise<Post[]>;
 }
 
 /** Default implementation using Promise.allSettled for fault tolerance. */
@@ -49,10 +49,11 @@ export class DefaultFeedAggregator implements FeedAggregator {
     this.connections = connections;
   }
 
-  async getUnifiedTimeline(
-    params?: { maxResultsPerPlatform?: number },
-  ): Promise<Post[]> {
-    const maxResults = params?.maxResultsPerPlatform ??
+  async getUnifiedTimeline(params?: {
+    maxResultsPerPlatform?: number;
+  }): Promise<Post[]> {
+    const maxResults =
+      params?.maxResultsPerPlatform ??
       defaults.DEFAULT_MAX_RESULTS_PER_PLATFORM;
 
     const settled = await Promise.allSettled(

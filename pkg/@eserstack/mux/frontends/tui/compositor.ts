@@ -34,11 +34,11 @@ const MODE_HINTS: Record<InputMode, string> = {
 
 const statusBar = (scene: Scene, override?: string): string => {
   const cols = scene.viewport.cols;
-  const text = override ??
-    ` ${scene.mode.toUpperCase()}  ${MODE_HINTS[scene.mode]}`;
+  const text =
+    override ?? ` ${scene.mode.toUpperCase()}  ${MODE_HINTS[scene.mode]}`;
   const visible = tui.ansi.visibleLength(text);
-  const padded = tui.ansi.truncate(text, cols) +
-    " ".repeat(Math.max(0, cols - visible));
+  const padded =
+    tui.ansi.truncate(text, cols) + " ".repeat(Math.max(0, cols - visible));
 
   return tui.ansi.moveTo(scene.viewport.rows, 1) + tui.ansi.inverse(padded);
 };

@@ -11,11 +11,11 @@ import * as container from "./container.ts";
 import * as fluentApiFactory from "./fluent-api-factory.ts";
 
 /** The default registry of the process. */
-export const registry: ServiceRegistry<ServiceKey, ServiceValue> = new container
-  .Registry();
+export const registry: ServiceRegistry<ServiceKey, ServiceValue> =
+  new container.Registry();
 /** The root scope of the default registry. */
-export const services: ServiceScope<ServiceKey, ServiceValue> = registry
-  .build();
+export const services: ServiceScope<ServiceKey, ServiceValue> =
+  registry.build();
 
 /**
  * Registers and resolves services in the default registry.

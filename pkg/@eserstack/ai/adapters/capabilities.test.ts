@@ -46,9 +46,9 @@ const stubLib = {
 const bridgeCapabilities = async (
   provider: string,
 ): Promise<readonly string[]> => {
-  const factory = ajanBridge.createBridgeFactories(stubLib).find((candidate) =>
-    candidate.provider === provider
-  );
+  const factory = ajanBridge
+    .createBridgeFactories(stubLib)
+    .find((candidate) => candidate.provider === provider);
   assert.assertExists(factory, `the bridge has no ${provider} provider`);
 
   const bridgeModel = await factory.createModel(target(provider));
@@ -61,11 +61,9 @@ const goCapabilityValues = async (): Promise<ReadonlyMap<string, string>> => {
   const source = await runtime.fs.readTextFile(aifxPath("generation.go"));
   const values = new Map<string, string>();
 
-  for (
-    const match of source.matchAll(
-      /\b(Capability\w+)\s+ProviderCapability\s*=\s*"(\w+)"/g,
-    )
-  ) {
+  for (const match of source.matchAll(
+    /\b(Capability\w+)\s+ProviderCapability\s*=\s*"(\w+)"/g,
+  )) {
     values.set(match[1]!, match[2]!);
   }
 

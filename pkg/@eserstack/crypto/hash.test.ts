@@ -7,17 +7,20 @@ import * as hash from "./hash.ts";
 // computeHash tests
 // ============================================================================
 
-Deno.test({
-  name: "computeHash returns hex string with default length",
-  sanitizeResources: false,
-}, async () => {
-  const content = new Uint8Array([1, 2, 3, 4, 5]);
-  const digest = await hash.computeHash(content);
+Deno.test(
+  {
+    name: "computeHash returns hex string with default length",
+    sanitizeResources: false,
+  },
+  async () => {
+    const content = new Uint8Array([1, 2, 3, 4, 5]);
+    const digest = await hash.computeHash(content);
 
-  assert.assertExists(digest);
-  assert.assertEquals(digest.length, 16);
-  assert.assertMatch(digest, /^[0-9a-f]+$/);
-});
+    assert.assertExists(digest);
+    assert.assertEquals(digest.length, 16);
+    assert.assertMatch(digest, /^[0-9a-f]+$/);
+  },
+);
 
 Deno.test("computeHash produces consistent results for same content", async () => {
   const content = new Uint8Array([1, 2, 3, 4, 5]);

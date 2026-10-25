@@ -26,9 +26,10 @@ export const events = <T = unknown>(
     readable: new ReadableStream<Chunk<T>>({
       start(controller) {
         handler = (event: Event) => {
-          const data = event instanceof CustomEvent
-            ? event.detail as T
-            : event as unknown as T;
+          const data =
+            event instanceof CustomEvent
+              ? (event.detail as T)
+              : (event as unknown as T);
           controller.enqueue(chunk.createChunk(data));
         };
 

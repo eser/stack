@@ -65,9 +65,10 @@ export async function withDeadline<T>(
   }
 
   const deadline = AbortSignal.timeout(timeoutMs);
-  const signal = callerSignal === undefined
-    ? deadline
-    : AbortSignal.any([callerSignal, deadline]);
+  const signal =
+    callerSignal === undefined
+      ? deadline
+      : AbortSignal.any([callerSignal, deadline]);
 
   try {
     return await raceSignal(work(signal), signal, discardLate);

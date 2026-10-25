@@ -103,34 +103,38 @@ export function createStreamingHtmlShellStart(
     : "";
 
   // Generate critical chunk preload hints
-  const criticalChunkPreloads = options.criticalChunks
-    ?.map((chunk) => `<link rel="modulepreload" href="${chunk}${cacheBuster}">`)
-    .join("\n  ") ?? "";
+  const criticalChunkPreloads =
+    options.criticalChunks
+      ?.map(
+        (chunk) => `<link rel="modulepreload" href="${chunk}${cacheBuster}">`,
+      )
+      .join("\n  ") ?? "";
 
   // Generate client module preloads
-  const clientModulePreloads = options.clientModules
-    ?.map((moduleId) => {
-      const chunkInfo = options.chunkManifest?.chunks?.[moduleId];
-      if (chunkInfo && "main" in chunkInfo) {
-        return `<link rel="modulepreload" href="/chunk-${chunkInfo.main}.js${cacheBuster}">`;
-      }
-      return "";
-    })
-    .filter(Boolean)
-    .join("\n  ") ?? "";
+  const clientModulePreloads =
+    options.clientModules
+      ?.map((moduleId) => {
+        const chunkInfo = options.chunkManifest?.chunks?.[moduleId];
+        if (chunkInfo && "main" in chunkInfo) {
+          return `<link rel="modulepreload" href="/chunk-${chunkInfo.main}.js${cacheBuster}">`;
+        }
+        return "";
+      })
+      .filter(Boolean)
+      .join("\n  ") ?? "";
 
   // Critical Universal CSS - dynamically extracted from compiled CSS at build time
   // Fallback is minimal (scrollbar-gutter + box-sizing) - real styles come from compiled CSS
   // NOTE: No hardcoded body/heading/a/button styles - these are extracted dynamically
   // to respect the app's global.css and prevent conflicts with @layer utilities
-  const defaultUniversalCSS =
-    `html{scrollbar-gutter:stable}*,*::before,*::after{box-sizing:border-box}`;
+  const defaultUniversalCSS = `html{scrollbar-gutter:stable}*,*::before,*::after{box-sizing:border-box}`;
 
   // An empty extraction result falls back to the default too
-  const criticalUniversalCSS = options.criticalUniversalCSS !== undefined &&
-      options.criticalUniversalCSS !== ""
-    ? options.criticalUniversalCSS
-    : defaultUniversalCSS;
+  const criticalUniversalCSS =
+    options.criticalUniversalCSS !== undefined &&
+    options.criticalUniversalCSS !== ""
+      ? options.criticalUniversalCSS
+      : defaultUniversalCSS;
 
   // Combine universal CSS (base/theme) with page CSS (layout utilities)
   const combinedCSS = `${criticalUniversalCSS}${options.criticalPageCSS ?? ""}`;
@@ -154,8 +158,8 @@ export function createStreamingHtmlShellStart(
   const metaTags = seo.generateMetaTags(seoConfig);
   const jsonLd = seo.generateJsonLd(seoConfig);
 
-  const lang = options.locale?.split("_")[0] ??
-    seoConfig.locale?.split("_")[0] ?? "en";
+  const lang =
+    options.locale?.split("_")[0] ?? seoConfig.locale?.split("_")[0] ?? "en";
 
   const cssPreload = options.deferredCSSPath
     ? `<link rel="preload" href="${options.deferredCSSPath}${cssCacheBuster}" as="style">`
@@ -214,9 +218,9 @@ export function createHtmlShell(options: HtmlShellOptions): string {
   const entrypoint = options.entrypoint ?? "/client.js";
 
   const manifestScript = options.chunkManifest
-    ? `<script>globalThis.__CHUNK_MANIFEST__ = ${
-      JSON.stringify(options.chunkManifest)
-    };</script>`
+    ? `<script>globalThis.__CHUNK_MANIFEST__ = ${JSON.stringify(
+        options.chunkManifest,
+      )};</script>`
     : "";
 
   // Use buildId for cache busting (more stable than timestamp)
@@ -236,35 +240,39 @@ export function createHtmlShell(options: HtmlShellOptions): string {
     : "";
 
   // Generate critical chunk preload hints for faster loading
-  const criticalChunkPreloads = options.criticalChunks
-    ?.map((chunk) => `<link rel="modulepreload" href="${chunk}${cacheBuster}">`)
-    .join("\n  ") ?? "";
+  const criticalChunkPreloads =
+    options.criticalChunks
+      ?.map(
+        (chunk) => `<link rel="modulepreload" href="${chunk}${cacheBuster}">`,
+      )
+      .join("\n  ") ?? "";
 
   // Generate client module preloads for SSR hydration
-  const clientModulePreloads = options.clientModules
-    ?.map((moduleId) => {
-      // Look up the module in chunk manifest to get actual chunk file
-      const chunkInfo = options.chunkManifest?.chunks?.[moduleId];
-      if (chunkInfo && "main" in chunkInfo) {
-        return `<link rel="modulepreload" href="/chunk-${chunkInfo.main}.js${cacheBuster}">`;
-      }
-      return "";
-    })
-    .filter(Boolean)
-    .join("\n  ") ?? "";
+  const clientModulePreloads =
+    options.clientModules
+      ?.map((moduleId) => {
+        // Look up the module in chunk manifest to get actual chunk file
+        const chunkInfo = options.chunkManifest?.chunks?.[moduleId];
+        if (chunkInfo && "main" in chunkInfo) {
+          return `<link rel="modulepreload" href="/chunk-${chunkInfo.main}.js${cacheBuster}">`;
+        }
+        return "";
+      })
+      .filter(Boolean)
+      .join("\n  ") ?? "";
 
   // Critical Universal CSS - dynamically extracted from compiled CSS at build time
   // Fallback is minimal (scrollbar-gutter + box-sizing) - real styles come from compiled CSS
   // NOTE: No hardcoded body/heading/a/button styles - these are extracted dynamically
   // to respect the app's global.css and prevent conflicts with @layer utilities
-  const defaultUniversalCSS =
-    `html{scrollbar-gutter:stable}*,*::before,*::after{box-sizing:border-box}`;
+  const defaultUniversalCSS = `html{scrollbar-gutter:stable}*,*::before,*::after{box-sizing:border-box}`;
 
   // An empty extraction result falls back to the default too
-  const criticalUniversalCSS = options.criticalUniversalCSS !== undefined &&
-      options.criticalUniversalCSS !== ""
-    ? options.criticalUniversalCSS
-    : defaultUniversalCSS;
+  const criticalUniversalCSS =
+    options.criticalUniversalCSS !== undefined &&
+    options.criticalUniversalCSS !== ""
+      ? options.criticalUniversalCSS
+      : defaultUniversalCSS;
 
   // Combine universal CSS (base/theme) with page CSS (layout utilities)
   const combinedCSS = `${criticalUniversalCSS}${options.criticalPageCSS ?? ""}`;
@@ -288,8 +296,8 @@ export function createHtmlShell(options: HtmlShellOptions): string {
   const jsonLd = seo.generateJsonLd(seoConfig);
 
   // Determine language from locale
-  const lang = options.locale?.split("_")[0] ??
-    seoConfig.locale?.split("_")[0] ?? "en";
+  const lang =
+    options.locale?.split("_")[0] ?? seoConfig.locale?.split("_")[0] ?? "en";
 
   // Generate CSS preload (early discovery for faster loading)
   const cssPreload = options.deferredCSSPath
@@ -334,9 +342,9 @@ export function createHtmlShell(options: HtmlShellOptions): string {
   ${
     options.rscPayload
       ? `<!-- RSC payload for hydration -->
-  <script id="__RSC_PAYLOAD__" type="application/json">${
-        scriptJson.escapeJsonForScript(options.rscPayload)
-      }</script>`
+  <script id="__RSC_PAYLOAD__" type="application/json">${scriptJson.escapeJsonForScript(
+    options.rscPayload,
+  )}</script>`
       : ""
   }
 

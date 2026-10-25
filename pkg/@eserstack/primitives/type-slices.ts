@@ -28,8 +28,11 @@ export type First<T extends ReadonlyArray<any>> = T[0];
 
 /** The type of the last element of the tuple `T`; `never` when it is empty. */
 // deno-lint-ignore no-explicit-any
-export type Last<T extends ReadonlyArray<any>> = T extends
-  [...infer _Rest, infer Last] ? Last
+export type Last<T extends ReadonlyArray<any>> = T extends [
+  ...infer _Rest,
+  infer Last,
+]
+  ? Last
   : never;
 
 /**
@@ -40,9 +43,10 @@ export type Last<T extends ReadonlyArray<any>> = T extends
 export type RemainingParameters<T1 extends any[], T2 extends any[]> =
   // deno-lint-ignore no-explicit-any
   T2 extends [any, ...infer T2Tail]
-    // deno-lint-ignore no-explicit-any
-    ? T1 extends [any, ...infer T1Tail] ? RemainingParameters<T1Tail, T2Tail>
-    : []
+    ? // deno-lint-ignore no-explicit-any
+      T1 extends [any, ...infer T1Tail]
+      ? RemainingParameters<T1Tail, T2Tail>
+      : []
     : T1;
 
 /**
@@ -53,8 +57,8 @@ export type RemainingParameters<T1 extends any[], T2 extends any[]> =
 export type RemainingParametersRight<T1 extends any[], T2 extends any[]> =
   // deno-lint-ignore no-explicit-any
   T2 extends [any, ...infer T2Tail]
-    // deno-lint-ignore no-explicit-any
-    ? T1 extends [...infer T1Tail, any]
+    ? // deno-lint-ignore no-explicit-any
+      T1 extends [...infer T1Tail, any]
       ? RemainingParametersRight<T1Tail, T2Tail>
-    : []
+      : []
     : T1;

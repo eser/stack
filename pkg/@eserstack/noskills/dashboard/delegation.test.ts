@@ -55,12 +55,7 @@ bdd.describe("setContributors", () => {
 bdd.describe("addDelegation", () => {
   bdd.it("creates pending delegation", () => {
     let state = createDiscoverySpec("test");
-    state = machine.addDelegation(
-      state,
-      "error_handling",
-      "ahmet",
-      "eser",
-    );
+    state = machine.addDelegation(state, "error_handling", "ahmet", "eser");
 
     const delegations = state.discovery.delegations ?? [];
     assert.assertEquals(delegations.length, 1);

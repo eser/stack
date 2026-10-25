@@ -58,9 +58,8 @@ function parseFingerprint(hex: string): Uint8Array<ArrayBuffer> | null {
     return null;
   }
 
-  return Uint8Array.from(
-    { length: SHA256_BYTES },
-    (_, index) => Number.parseInt(clean.slice(index * 2, index * 2 + 2), 16),
+  return Uint8Array.from({ length: SHA256_BYTES }, (_, index) =>
+    Number.parseInt(clean.slice(index * 2, index * 2 + 2), 16),
   );
 }
 
@@ -178,22 +177,24 @@ export async function fetchAndPinCertFingerprint(
     return null;
   }
 
-  const fields = answer.body instanceof Object
-    ? answer.body as { algorithm?: unknown; fingerprint?: unknown }
-    : {};
+  const fields =
+    answer.body instanceof Object
+      ? (answer.body as { algorithm?: unknown; fingerprint?: unknown })
+      : {};
   if (fields.algorithm !== undefined && fields.algorithm !== "sha-256") {
     throw new errors.CertFingerprintError(
       url,
       null,
-      `the fingerprint uses algorithm ${
-        JSON.stringify(fields.algorithm)
-      }; only sha-256 can be pinned`,
+      `the fingerprint uses algorithm ${JSON.stringify(
+        fields.algorithm,
+      )}; only sha-256 can be pinned`,
     );
   }
 
-  const bytes = typeof fields.fingerprint === "string"
-    ? parseFingerprint(fields.fingerprint)
-    : null;
+  const bytes =
+    typeof fields.fingerprint === "string"
+      ? parseFingerprint(fields.fingerprint)
+      : null;
   if (bytes === null) {
     throw new errors.CertFingerprintError(
       url,

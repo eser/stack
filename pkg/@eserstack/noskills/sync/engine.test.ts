@@ -359,7 +359,7 @@ bdd.it("loadScopedRules skips a rule file it cannot read", async () => {
     await fs.mkdir(rulesDir, { recursive: true });
     await Promise.all(
       ["a", "b", "c"].map((name) =>
-        fs.writeTextFile(`${rulesDir}/${name}.md`, `rule ${name}`)
+        fs.writeTextFile(`${rulesDir}/${name}.md`, `rule ${name}`),
       ),
     );
 

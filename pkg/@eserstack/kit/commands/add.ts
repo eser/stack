@@ -31,7 +31,7 @@ const parseVarFlags = (varFlags: string[]): Record<string, string> => {
 export const main = async (
   cliArgs?: readonly string[],
 ): Promise<shellArgs.CliResult<void>> => {
-  const parsed = cliParseArgs.parseArgs(cliArgs as string[] ?? [], {
+  const parsed = cliParseArgs.parseArgs((cliArgs as string[]) ?? [], {
     string: ["registry", "var", "cwd"],
     boolean: [
       "dry-run",

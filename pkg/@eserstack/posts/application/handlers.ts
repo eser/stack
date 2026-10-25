@@ -218,10 +218,8 @@ const onPlatform = <T>(
 ): Promise<results.Result<T, Error>> => {
   const platform = requested ?? firstAuthPlatform(ctx);
   if (platform === undefined) return operation(undefined);
-  return withFreshTokens.withFreshTokens(
-    ctx,
-    platform,
-    () => operation(platform),
+  return withFreshTokens.withFreshTokens(ctx, platform, () =>
+    operation(platform),
   );
 };
 
@@ -255,7 +253,8 @@ const reportFanOut = (
     failed.push({
       platform: entry.platform,
       // PostResult allows an entry with neither field; it is still a failure.
-      error: entry.error ??
+      error:
+        entry.error ??
         new Error(`${entry.platform} returned neither a post nor an error`),
     });
   }
@@ -284,11 +283,9 @@ export const composeTweetHandler = (
   input: ComposeInput,
 ): taskMod.Task<Post, Error, PostsCtx> =>
   taskMod.task((ctx) =>
-    onPlatform(
-      ctx,
-      input.platform,
-      (platform) => ctx.postService.composePost(input.text, platform),
-    )
+    onPlatform(ctx, input.platform, (platform) =>
+      ctx.postService.composePost(input.text, platform),
+    ),
   );
 
 /**
@@ -318,10 +315,8 @@ export const composePostToAllHandler = (
       // withFreshTokens saves each platform's tokens to one shared token file;
       // concurrent saves would overwrite each other.
       // deno-lint-ignore no-await-in-loop
-      const result = await withFreshTokens.withFreshTokens(
-        ctx,
-        platform,
-        () => ctx.postService.composePost(input.text, platform),
+      const result = await withFreshTokens.withFreshTokens(ctx, platform, () =>
+        ctx.postService.composePost(input.text, platform),
       );
       perPlatform.push(
         results.isOk(result)
@@ -341,17 +336,14 @@ export const translateAndPostHandler = (
   input: TranslateAndPostInput,
 ): taskMod.Task<Post, Error, PostsCtx> =>
   taskMod.task((ctx) =>
-    onPlatform(
-      ctx,
-      input.platform,
-      (platform) =>
-        ctx.postService.translateAndPost({
-          text: input.text,
-          from: input.from,
-          to: input.to,
-          platform,
-        }),
-    )
+    onPlatform(ctx, input.platform, (platform) =>
+      ctx.postService.translateAndPost({
+        text: input.text,
+        from: input.from,
+        to: input.to,
+        platform,
+      }),
+    ),
   );
 
 /** Fetch one post by its ID from the platform the input names. */
@@ -359,15 +351,9 @@ export const getPostHandler = (
   input: GetPostInput,
 ): taskMod.Task<Post, Error, PostsCtx> =>
   taskMod.task((ctx) =>
-    withFreshTokens.withFreshTokens(
-      ctx,
-      input.platform,
-      () =>
-        ctx.postService.getPost(
-          postIdValues.toPostId(input.id),
-          input.platform,
-        ),
-    )
+    withFreshTokens.withFreshTokens(ctx, input.platform, () =>
+      ctx.postService.getPost(postIdValues.toPostId(input.id), input.platform),
+    ),
   );
 
 /**
@@ -388,7 +374,7 @@ export const replyHandler = (
         text: input.text,
         inReplyToPost: originalResult.value,
       });
-    })
+    }),
   );
 
 /**
@@ -401,11 +387,9 @@ export const postThreadHandler = (
   input: PostThreadInput,
 ): taskMod.Task<Post[], Error, PostsCtx> =>
   taskMod.task((ctx) =>
-    onPlatform(
-      ctx,
-      input.platform,
-      (platform) => ctx.postService.postThread(input.texts, platform),
-    )
+    onPlatform(ctx, input.platform, (platform) =>
+      ctx.postService.postThread(input.texts, platform),
+    ),
   );
 
 /** Repost a post without commentary on the platform the input names. */
@@ -413,15 +397,12 @@ export const repostHandler = (
   input: RepostInput,
 ): taskMod.Task<void, Error, PostsCtx> =>
   taskMod.task((ctx) =>
-    withFreshTokens.withFreshTokens(
-      ctx,
-      input.platform,
-      () =>
-        ctx.postService.repost({
-          id: postIdValues.toPostId(input.id),
-          platform: input.platform,
-        }),
-    )
+    withFreshTokens.withFreshTokens(ctx, input.platform, () =>
+      ctx.postService.repost({
+        id: postIdValues.toPostId(input.id),
+        platform: input.platform,
+      }),
+    ),
   );
 
 /** Remove your repost of a post on the platform the input names. */
@@ -429,15 +410,12 @@ export const undoRepostHandler = (
   input: UndoRepostInput,
 ): taskMod.Task<void, Error, PostsCtx> =>
   taskMod.task((ctx) =>
-    withFreshTokens.withFreshTokens(
-      ctx,
-      input.platform,
-      () =>
-        ctx.postService.undoRepost({
-          id: postIdValues.toPostId(input.id),
-          platform: input.platform,
-        }),
-    )
+    withFreshTokens.withFreshTokens(ctx, input.platform, () =>
+      ctx.postService.undoRepost({
+        id: postIdValues.toPostId(input.id),
+        platform: input.platform,
+      }),
+    ),
   );
 
 /** Publish a post that quotes another one, on the platform the input names. */
@@ -445,16 +423,13 @@ export const quotePostHandler = (
   input: QuotePostInput,
 ): taskMod.Task<Post, Error, PostsCtx> =>
   taskMod.task((ctx) =>
-    withFreshTokens.withFreshTokens(
-      ctx,
-      input.platform,
-      () =>
-        ctx.postService.quotePost({
-          text: input.text,
-          quotedPostId: postIdValues.toPostId(input.quotedPostId),
-          platform: input.platform,
-        }),
-    )
+    withFreshTokens.withFreshTokens(ctx, input.platform, () =>
+      ctx.postService.quotePost({
+        text: input.text,
+        quotedPostId: postIdValues.toPostId(input.quotedPostId),
+        platform: input.platform,
+      }),
+    ),
   );
 
 /** Search for posts on the platform the input names. */
@@ -462,16 +437,13 @@ export const searchPostsHandler = (
   input: SearchPostsInput,
 ): taskMod.Task<Post[], Error, PostsCtx> =>
   taskMod.task((ctx) =>
-    withFreshTokens.withFreshTokens(
-      ctx,
-      input.platform,
-      () =>
-        ctx.postService.searchPosts({
-          query: input.query,
-          platform: input.platform,
-          maxResults: input.maxResults,
-        }),
-    )
+    withFreshTokens.withFreshTokens(ctx, input.platform, () =>
+      ctx.postService.searchPosts({
+        query: input.query,
+        platform: input.platform,
+        maxResults: input.maxResults,
+      }),
+    ),
   );
 
 /**
@@ -488,8 +460,8 @@ export const searchPostsAllHandler = (
   input: SearchPostsAllInput,
 ): taskMod.Task<Post[], Error, PostsCtx> =>
   taskMod.task(async (ctx) => {
-    const maxResults = input.maxResultsPerPlatform ??
-      defaults.DEFAULT_MAX_RESULTS_PER_PLATFORM;
+    const maxResults =
+      input.maxResultsPerPlatform ?? defaults.DEFAULT_MAX_RESULTS_PER_PLATFORM;
     const platforms = authPlatforms(ctx);
 
     if (platforms.length === 0) {
@@ -509,7 +481,8 @@ export const searchPostsAllHandler = (
           query: input.query,
           platform,
           maxResults,
-        }));
+        }),
+      );
       // A failed platform is left out, as the PostService does on the other
       // path; a search on that platform alone shows the error.
       if (results.isOk(result)) {
@@ -528,15 +501,12 @@ export const getTimelineHandler = (
   input: GetTimelineInput,
 ): taskMod.Task<Post[], Error, PostsCtx> =>
   taskMod.task((ctx) =>
-    onPlatform(
-      ctx,
-      input.platform,
-      (platform) =>
-        ctx.postService.getTimeline({
-          maxResults: input.maxResults,
-          platform,
-        }),
-    )
+    onPlatform(ctx, input.platform, (platform) =>
+      ctx.postService.getTimeline({
+        maxResults: input.maxResults,
+        platform,
+      }),
+    ),
   );
 
 /**
@@ -553,8 +523,8 @@ export const getUnifiedTimelineHandler = (
   input: GetUnifiedTimelineInput,
 ): taskMod.Task<Post[], Error, PostsCtx> =>
   taskMod.task(async (ctx) => {
-    const maxResults = input.maxResultsPerPlatform ??
-      defaults.DEFAULT_MAX_RESULTS_PER_PLATFORM;
+    const maxResults =
+      input.maxResultsPerPlatform ?? defaults.DEFAULT_MAX_RESULTS_PER_PLATFORM;
     const platforms = authPlatforms(ctx);
 
     if (platforms.length === 0) {
@@ -569,7 +539,8 @@ export const getUnifiedTimelineHandler = (
       // concurrent saves would overwrite each other.
       // deno-lint-ignore no-await-in-loop
       const result = await withFreshTokens.withFreshTokens(ctx, platform, () =>
-        ctx.postService.getTimeline({ platform, maxResults }));
+        ctx.postService.getTimeline({ platform, maxResults }),
+      );
       // A failed platform is left out, as the FeedAggregator does on the
       // other path.
       if (results.isOk(result)) {
@@ -585,15 +556,12 @@ export const getBookmarksHandler = (
   input: GetBookmarksInput,
 ): taskMod.Task<Post[], Error, PostsCtx> =>
   taskMod.task((ctx) =>
-    withFreshTokens.withFreshTokens(
-      ctx,
-      input.platform,
-      () =>
-        ctx.postService.getBookmarks({
-          platform: input.platform,
-          maxResults: input.maxResults,
-        }),
-    )
+    withFreshTokens.withFreshTokens(ctx, input.platform, () =>
+      ctx.postService.getBookmarks({
+        platform: input.platform,
+        maxResults: input.maxResults,
+      }),
+    ),
   );
 
 /** Add a post to your bookmarks on the platform the input names. */
@@ -601,15 +569,12 @@ export const bookmarkPostHandler = (
   input: BookmarkPostInput,
 ): taskMod.Task<void, Error, PostsCtx> =>
   taskMod.task((ctx) =>
-    withFreshTokens.withFreshTokens(
-      ctx,
-      input.platform,
-      () =>
-        ctx.postService.bookmarkPost({
-          id: postIdValues.toPostId(input.id),
-          platform: input.platform,
-        }),
-    )
+    withFreshTokens.withFreshTokens(ctx, input.platform, () =>
+      ctx.postService.bookmarkPost({
+        id: postIdValues.toPostId(input.id),
+        platform: input.platform,
+      }),
+    ),
   );
 
 /** Remove a post from your bookmarks on the platform the input names. */
@@ -617,15 +582,12 @@ export const removeBookmarkHandler = (
   input: RemoveBookmarkInput,
 ): taskMod.Task<void, Error, PostsCtx> =>
   taskMod.task((ctx) =>
-    withFreshTokens.withFreshTokens(
-      ctx,
-      input.platform,
-      () =>
-        ctx.postService.removeBookmark({
-          id: postIdValues.toPostId(input.id),
-          platform: input.platform,
-        }),
-    )
+    withFreshTokens.withFreshTokens(ctx, input.platform, () =>
+      ctx.postService.removeBookmark({
+        id: postIdValues.toPostId(input.id),
+        platform: input.platform,
+      }),
+    ),
   );
 
 /**
@@ -636,9 +598,7 @@ export const getUsageHandler = (
   input: GetUsageInput,
 ): taskMod.Task<UsageData, Error, PostsCtx> =>
   taskMod.task((ctx) =>
-    onPlatform(
-      ctx,
-      input.platform,
-      (platform) => ctx.postService.getUsage(platform),
-    )
+    onPlatform(ctx, input.platform, (platform) =>
+      ctx.postService.getUsage(platform),
+    ),
   );

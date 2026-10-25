@@ -65,7 +65,7 @@ Rule: Walk the data once:
 Correct:
 
 ```ts
-const activeNames = users.flatMap((user) => user.isActive ? [user.name] : []);
+const activeNames = users.flatMap((user) => (user.isActive ? [user.name] : []));
 
 function latest(projects: readonly Project[]): Project | null {
   let result: Project | null = null;
@@ -82,7 +82,7 @@ Incorrect:
 
 ```ts
 const activeNames = users
-  .map((user) => user.isActive ? user.name : null)
+  .map((user) => (user.isActive ? user.name : null))
   .filter(Boolean); // two passes and a truthiness check
 const latest = projects.toSorted((a, b) => b.updatedAt - a.updatedAt)[0];
 ```
@@ -233,7 +233,8 @@ the user is waiting for (the response to a click, a render) is never deferred.
 Correct:
 
 ```ts
-const scheduleIdle = globalThis.requestIdleCallback ??
+const scheduleIdle =
+  globalThis.requestIdleCallback ??
   ((callback: () => void, _options?: IdleRequestOptions) =>
     setTimeout(callback, 1));
 

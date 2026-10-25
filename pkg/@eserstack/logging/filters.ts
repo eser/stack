@@ -33,9 +33,7 @@ export const getLevelFilter = (level: logging.Severity): Filter => {
  * const http = logging.filters.getCategoryFilter(["app", "http"]);
  * ```
  */
-export const getCategoryFilter = (
-  baseCategory: Category | string,
-): Filter => {
+export const getCategoryFilter = (baseCategory: Category | string): Filter => {
   const normalized = category.normalizeCategory(baseCategory);
 
   return (record: LogRecord): boolean => {
@@ -108,8 +106,8 @@ export const getPropertyValueFilter = (
   predicate: (value: unknown) => boolean,
 ): Filter => {
   return (record: LogRecord): boolean => {
-    const value = record.properties[propertyName] ??
-      record.context[propertyName];
+    const value =
+      record.properties[propertyName] ?? record.context[propertyName];
 
     return predicate(value);
   };

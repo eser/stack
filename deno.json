@@ -2,15 +2,10 @@
   "nodeModulesDir": "manual",
   "lock": false,
   "minimumDependencyAge": 0,
-  "unstable": [
-    "sloppy-imports",
-    "unsafe-proto"
-  ],
+  "unstable": ["sloppy-imports", "unsafe-proto"],
   "lint": {
     "rules": {
-      "tags": [
-        "recommended"
-      ],
+      "tags": ["recommended"],
       "include": [
         "ban-untagged-todo",
         "camelcase",
@@ -34,9 +29,7 @@
     }
   },
   "fmt": {
-    "exclude": [
-      "pnpm-lock.yaml"
-    ]
+    "exclude": ["pnpm-lock.yaml"]
   },
   "exclude": [
     ".claude/",

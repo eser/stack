@@ -33,14 +33,8 @@ Deno.test("mixed keys", () => {
   const scope = registry.build();
 
   assert.assertStrictEquals(scope.get(Object.keys), "Object.keys method");
-  assert.assertStrictEquals(
-    scope.get(Object.values),
-    "Object.values method",
-  );
-  assert.assertStrictEquals(
-    scope.get(Object.entries),
-    "Object.entries method",
-  );
+  assert.assertStrictEquals(scope.get(Object.values), "Object.values method");
+  assert.assertStrictEquals(scope.get(Object.entries), "Object.entries method");
 });
 
 Deno.test("singleton value", () => {

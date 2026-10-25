@@ -322,8 +322,8 @@ bdd.describe("cross-platform read defaults", () => {
 
         assert.assert(results.isOk(result), String(result));
         for (const api of [world.apis.twitter, world.apis.bluesky]) {
-          const search = api.calls.find((call) =>
-            call.method === "searchPosts"
+          const search = api.calls.find(
+            (call) => call.method === "searchPosts",
           );
           assert.assertEquals(search?.args[0], {
             query: "deno",
@@ -354,7 +354,10 @@ bdd.describe("cross-platform read defaults", () => {
         );
 
         assert.assert(results.isOk(result));
-        assert.assertEquals(result.value.map((post) => post.text), ["found"]);
+        assert.assertEquals(
+          result.value.map((post) => post.text),
+          ["found"],
+        );
       },
     );
 
@@ -371,8 +374,8 @@ bdd.describe("cross-platform read defaults", () => {
           contextOf(world),
         );
 
-        const search = world.apis.bluesky.calls.find((call) =>
-          call.method === "searchPosts"
+        const search = world.apis.bluesky.calls.find(
+          (call) => call.method === "searchPosts",
         );
         assert.assertEquals(search?.args[0], { query: "deno", maxResults: 3 });
       },
@@ -391,8 +394,8 @@ bdd.describe("cross-platform read defaults", () => {
 
       assert.assert(results.isOk(result), String(result));
       for (const api of [world.apis.twitter, world.apis.bluesky]) {
-        const timeline = api.calls.find((call) =>
-          call.method === "getTimeline"
+        const timeline = api.calls.find(
+          (call) => call.method === "getTimeline",
         );
         assert.assertEquals(timeline?.args[0], {
           maxResults: defaults.DEFAULT_MAX_RESULTS_PER_PLATFORM,
@@ -415,9 +418,11 @@ bdd.describe("cross-platform read defaults", () => {
       assert.assertEquals(world.feedAggregator.calls, [
         {
           method: "getUnifiedTimeline",
-          args: [{
-            maxResultsPerPlatform: defaults.DEFAULT_MAX_RESULTS_PER_PLATFORM,
-          }],
+          args: [
+            {
+              maxResultsPerPlatform: defaults.DEFAULT_MAX_RESULTS_PER_PLATFORM,
+            },
+          ],
         },
       ]);
     },

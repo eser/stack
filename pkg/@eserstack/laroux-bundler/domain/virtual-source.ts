@@ -119,9 +119,9 @@ async function removeVirtualSource(virtualSrcDir: string): Promise<void> {
     await runtime.fs.remove(virtualSrcDir, { recursive: true });
     vsLogger.debug("Virtual source cleaned up");
   } catch (error) {
-    vsLogger.with({ error }).warn(
-      `remove virtual source ${virtualSrcDir}; delete it by hand`,
-    );
+    vsLogger
+      .with({ error })
+      .warn(`remove virtual source ${virtualSrcDir}; delete it by hand`);
   }
 }
 
@@ -135,11 +135,7 @@ async function incrementalCopySourceFiles(
   virtualDir: string,
 ): Promise<void> {
   // JS/TS extensions from standards + json and css for bundling
-  const relevantExtensions = [
-    ...patterns.JS_FILE_EXTENSIONS,
-    "json",
-    "css",
-  ];
+  const relevantExtensions = [...patterns.JS_FILE_EXTENSIONS, "json", "css"];
 
   let copiedCount = 0;
   let deletedCount = 0;
@@ -216,11 +212,7 @@ async function copySourceFiles(
   let copiedCount = 0;
 
   // JS/TS extensions from standards + json and css for bundling
-  const validExtensions = [
-    ...patterns.JS_FILE_EXTENSIONS,
-    "json",
-    "css",
-  ];
+  const validExtensions = [...patterns.JS_FILE_EXTENSIONS, "json", "css"];
 
   // Use @std/fs walk to include all file types (walkFiles only supports JS files)
   for await (const entry of fs.walk(srcDir, { includeDirs: false })) {
@@ -303,11 +295,7 @@ export function translateFromVirtualPath(
  */
 export function translateClientComponents<
   T extends { filePath: string; relativePath: string },
->(
-  components: T[],
-  srcDir: string,
-  virtualSrcDir: string,
-): T[] {
+>(components: T[], srcDir: string, virtualSrcDir: string): T[] {
   return components.map((component) => {
     const newFilePath = translateToVirtualPath(
       component.filePath,

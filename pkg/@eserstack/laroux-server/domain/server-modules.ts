@@ -53,8 +53,8 @@ type LoadedBuild = {
  */
 export class ServerModules {
   /** The API routes of the loaded build */
-  readonly apiRoutes: routeDispatcher.ApiRouteHandler = new routeDispatcher
-    .ApiRouteHandler();
+  readonly apiRoutes: routeDispatcher.ApiRouteHandler =
+    new routeDispatcher.ApiRouteHandler();
   /** The proxies of the loaded build */
   readonly proxies: middlewareDispatcher.MiddlewareDispatcher =
     new middlewareDispatcher.MiddlewareDispatcher();
@@ -120,9 +120,7 @@ export class ServerModules {
    * @throws {Error} When no build has been loaded yet
    */
   async getApp(pathname: string): Promise<AppComponents> {
-    const { buildId, pageRoutes, layoutModule } = this.#requireLoaded(
-      "getApp",
-    );
+    const { buildId, pageRoutes, layoutModule } = this.#requireLoaded("getApp");
     const match = router.findMatchingRoute(pathname, pageRoutes);
 
     if (match === null) {
@@ -226,9 +224,11 @@ async function loadServerActions(
       // Logged before the next module loads, so the entries keep the
       // manifest order of the imports above.
       // deno-lint-ignore no-await-in-loop
-      await modulesLogger.with({ actionPath, buildId, error }).warn(
-        "load server action module: importing it failed, so its actions answer 500 until it is fixed",
-      );
+      await modulesLogger
+        .with({ actionPath, buildId, error })
+        .warn(
+          "load server action module: importing it failed, so its actions answer 500 until it is fixed",
+        );
     }
   }
 

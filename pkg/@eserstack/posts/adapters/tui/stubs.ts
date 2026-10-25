@@ -12,9 +12,7 @@ import type { Translator } from "../../application/translator.ts";
 
 /** Translator stub — returns Fail with a helpful message when ANTHROPIC_API_KEY is absent. */
 export const noopTranslator: Translator = {
-  translate(
-    _params: { text: string; from: string; to: string },
-  ) {
+  translate(_params: { text: string; from: string; to: string }) {
     return Promise.resolve(
       results.fail(
         new Error(
@@ -27,9 +25,10 @@ export const noopTranslator: Translator = {
 
 /** Scheduler stub — listPending returns empty; all writes reject. */
 export const noopScheduler: Scheduler = {
-  schedule(
-    _params: { text: string; scheduledAt: Date },
-  ): Promise<{ id: string }> {
+  schedule(_params: {
+    text: string;
+    scheduledAt: Date;
+  }): Promise<{ id: string }> {
     return Promise.reject(new Error("Scheduler not configured."));
   },
   cancel(_id: string): Promise<void> {

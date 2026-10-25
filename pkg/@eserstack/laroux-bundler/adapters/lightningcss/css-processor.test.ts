@@ -75,8 +75,7 @@ Deno.test("css-processor", async (t) => {
 
 const lightningCases = [
   {
-    name:
-      "lightningCssProcessor lowers nesting for the target browsers and minifies when asked",
+    name: "lightningCssProcessor lowers nesting for the target browsers and minifies when asked",
     css: ".card { .title { color: red; } }\n",
     minify: true,
     expected: ".card .title{color:red}",
@@ -88,8 +87,7 @@ const lightningCases = [
     expected: ".card .title {\n  color: red;\n}\n",
   },
   {
-    name:
-      "lightningCssProcessor returns a stylesheet it cannot parse unchanged",
+    name: "lightningCssProcessor returns a stylesheet it cannot parse unchanged",
     css: "..card { color: red; }\n",
     minify: true,
     expected: "..card { color: red; }\n",

@@ -22,22 +22,21 @@ export interface CharacterLimitContext {
  * Platform-specific character limits keyed by subscription tier.
  * Values are the maximum number of characters allowed per post.
  */
-const LIMITS:
-  & Record<Platform, Partial<Record<SubscriptionTier, number>>>
-  & Record<string, Partial<Record<SubscriptionTier, number>>> = {
-    twitter: {
-      free: 280,
-      premium: 280,
-      premium_plus: 25_000,
-      business: 25_000,
-    },
-    bluesky: {
-      free: 300,
-      premium: 300,
-      premium_plus: 300,
-      business: 300,
-    },
-  };
+const LIMITS: Record<Platform, Partial<Record<SubscriptionTier, number>>> &
+  Record<string, Partial<Record<SubscriptionTier, number>>> = {
+  twitter: {
+    free: 280,
+    premium: 280,
+    premium_plus: 25_000,
+    business: 25_000,
+  },
+  bluesky: {
+    free: 300,
+    premium: 300,
+    premium_plus: 300,
+    business: 300,
+  },
+};
 
 /**
  * Returns the character limit for a given platform + tier combination.

@@ -4,6 +4,18 @@
   "description": "Framework-agnostic bundler for the laroux.js framework with hexagonal architecture",
   "license": "Apache-2.0",
   "type": "module",
+  "files": [
+    "mod.ts",
+    "system.ts",
+    "config.ts",
+    "types.ts",
+    "css-modules.ts",
+    "import-map-resolver-plugin.ts",
+    "server-externals-plugin.ts",
+    "domain/**/*.ts",
+    "adapters/**/*.ts",
+    "README.md"
+  ],
   "exports": {
     ".": "./mod.ts",
     "./adapters": "./adapters/mod.ts",
@@ -26,7 +38,6 @@
     "@eserstack/laroux-react": "workspace:*",
     "@eserstack/logging": "workspace:*",
     "@eserstack/standards": "workspace:*",
-    "@std/fs": "npm:@jsr/std__fs@^1.0.24",
     "@std/ulid": "npm:@jsr/std__ulid@^1.0.0",
     "lightningcss": "^1.33.0",
     "tailwindcss": "^4.3.3",

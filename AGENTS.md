@@ -36,7 +36,7 @@ that command once it exists.
 
 A Deno/TypeScript and Go monorepo.
 
-- `pkg/@eserstack/<name>/`: 47 TypeScript packages (40 libraries, the private
+- `pkg/@eserstack/<name>/`: 45 TypeScript packages (38 libraries, the private
   test seam `@eserstack/test-kit` and six `ajan-*` platform packages), all on
   the shared version in `VERSION`, plus `directives/`, which holds documents
   only. Tests import assertions and mocks from `@eserstack/test-kit`, never from

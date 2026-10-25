@@ -96,10 +96,6 @@
   color: "6f42c1"
   description: "Changes to @eserstack/bundler"
 
-- name: "pkg:jsx-runtime"
-  color: "6f42c1"
-  description: "Changes to @eserstack/jsx-runtime"
-
 # Areas
 - name: go
   color: "00ADD8"

@@ -5,23 +5,23 @@
  *
  * Packs `pkg/@eserstack/cli/dist` into a tarball, installs it with npm into a
  * scratch project OUTSIDE the repository, and runs the same smoke commands the
- * pipeline's no-Deno job runs. Doing it outside the repo is the whole point:
+ * pipeline's npm smoke job runs. Doing it outside the repo is the whole point:
  * inside the monorepo, Node walks up to the workspace's node_modules and hides
  * every unpublished or undeclared dependency — which is how v4.5.0 shipped a
  * bundle that imported a package not on npm and only failed in CI — or fails
- * to find one that IS declared (koffi lives under @eserstack/ajan in the pnpm
- * tree, unreachable from cli/dist), which kept the Node cross-runtime job red.
+ * to find one that IS declared (a dependency of @eserstack/ajan lives under it
+ * in the pnpm tree, unreachable from cli/dist), which kept the Node job red.
  *
- * Deliberately no workspace or registry imports (see gen-jsr-manifests.ts for
- * why).
+ * Deliberately no workspace or registry imports, only Node built-ins and
+ * dist-utils.ts: it checks the bundle as npm installs it, so it must not lean
+ * on the workspace it checks.
  *
  * Usage:
- *   deno run --allow-all etc/scripts/preflight-npm-consumer.ts [options]
+ *   node etc/scripts/preflight-npm-consumer.ts [options]
  *
  * Options:
- *   --runtime=node|bun   Run the installed bundle with this runtime (default:
- *                        node). Bun executes the same eser.js through its own
- *                        FFI backend.
+ *   --runtime=node       Run the installed bundle with this runtime (default
+ *                        and only value: node).
  *   --require-native     Fail unless `eser ajan version` loads the native
  *                        library and reports the bundle's version. Use with
  *                        ESER_AJAN_LIB_PATH pointing at a freshly built
@@ -35,9 +35,11 @@
 // The progress and result lines it prints are the preflight's log.
 /* oxlint-disable no-console */
 
+import * as childProcess from "node:child_process";
+import * as fs from "node:fs/promises";
+import * as os from "node:os";
+import * as process from "node:process";
 import * as distUtils from "./dist-utils.ts";
-
-const decoder = new TextDecoder();
 
 // Each bound fails one stalled step with a message that names it, inside the
 // preflight step's five-minute limit, which stays the backstop.
@@ -48,10 +50,14 @@ const NPM_PACK_TIMEOUT_MS = 60_000;
 /** npm install of the tarball, which fetches its dependencies from npm. */
 const NPM_INSTALL_TIMEOUT_MS = 180_000;
 
-/** One eser command (--help, version, ajan version) under Node or Bun. */
+/** One eser command (--help, version, ajan version) under Node. */
 const ESER_COMMAND_TIMEOUT_MS = 30_000;
 
-type RunResult = { code: number; stdout: string; stderr: string };
+/** The exit code and the decoded output of one command. */
+export type RunResult = { code: number; stdout: string; stderr: string };
+
+/** The options the preflight reads from its arguments. */
+export type PreflightOptions = { runtime: "node"; requireNative: boolean };
 
 /**
  * Runs `cmd` in `cwd` and returns its exit code and output for the caller to
@@ -59,35 +65,56 @@ type RunResult = { code: number; stdout: string; stderr: string };
  * say that it was killed, and `eser ajan version` would read that as the
  * expected graceful failure.
  */
-const run = async (
+export const run = (
   cmd: readonly string[],
   cwd: string,
   timeoutMs: number,
-): Promise<RunResult> => {
-  const signal = AbortSignal.timeout(timeoutMs);
-  const output = await new Deno.Command(cmd[0]!, {
-    args: cmd.slice(1),
-    cwd,
-    stdout: "piped",
-    stderr: "piped",
-    signal,
-  }).output();
+): Promise<RunResult> =>
+  new Promise((resolve, reject) => {
+    const signal = AbortSignal.timeout(timeoutMs);
+    const child = childProcess.spawn(cmd[0]!, cmd.slice(1), {
+      cwd,
+      signal,
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    const stdout: Buffer[] = [];
+    const stderr: Buffer[] = [];
 
-  // A failed run with an aborted signal is one the timeout stopped.
-  if (!output.success && signal.aborted) {
-    const commandLine = cmd.join(" ");
+    child.stdout.on("data", (chunk: Buffer) => stdout.push(chunk));
+    child.stderr.on("data", (chunk: Buffer) => stderr.push(chunk));
 
-    throw new Error(
-      `${commandLine} (in ${cwd}): did not finish within ${timeoutMs} ms and was stopped; rerun the preflight, and if it stops again, run the command by hand in that directory to see where it hangs (for npm, check that the registry is reachable)`,
-    );
-  }
+    child.on("error", (error) => {
+      // An aborted signal means the timeout stopped the run.
+      if (signal.aborted) {
+        const commandLine = cmd.join(" ");
 
-  return {
-    code: output.code,
-    stdout: decoder.decode(output.stdout),
-    stderr: decoder.decode(output.stderr),
-  };
-};
+        reject(
+          new Error(
+            `${commandLine} (in ${cwd}): did not finish within ${timeoutMs} ms and was stopped; rerun the preflight, and if it stops again, run the command by hand in that directory to see where it hangs (for npm, check that the registry is reachable)`,
+            { cause: error },
+          ),
+        );
+
+        return;
+      }
+
+      reject(error);
+    });
+
+    child.on("close", (code) => {
+      // The error handler already settled a run the timeout stopped.
+      if (signal.aborted) {
+        return;
+      }
+
+      resolve({
+        // A child that a signal killed has no exit code.
+        code: code === null ? 1 : code,
+        stdout: Buffer.concat(stdout).toString("utf8"),
+        stderr: Buffer.concat(stderr).toString("utf8"),
+      });
+    });
+  });
 
 const must = (result: RunResult, what: string): void => {
   if (result.code !== 0) {
@@ -97,37 +124,37 @@ const must = (result: RunResult, what: string): void => {
   }
 };
 
-const parseOptions = (): {
-  runtime: "node" | "bun";
-  requireNative: boolean;
-} => {
+/** Reads `--runtime=` and `--require-native` from the script's arguments. */
+export const parseOptions = (args: readonly string[]): PreflightOptions => {
   const runtimeArg =
-    Deno.args
-      .find((a) => a.startsWith("--runtime="))
-      ?.slice("--runtime=".length) ?? "node";
+    args.find((a) => a.startsWith("--runtime="))?.slice("--runtime=".length) ??
+    "node";
 
-  if (runtimeArg !== "node" && runtimeArg !== "bun") {
-    throw new Error(`--runtime must be node or bun, got "${runtimeArg}"`);
+  if (runtimeArg !== "node") {
+    throw new Error(`--runtime must be node, got "${runtimeArg}"`);
   }
 
   return {
     runtime: runtimeArg,
-    requireNative: Deno.args.includes("--require-native"),
+    requireNative: args.includes("--require-native"),
   };
 };
 
+const isNotFound = (error: unknown): boolean =>
+  error instanceof Error && "code" in error && error.code === "ENOENT";
+
 const main = async (): Promise<void> => {
-  const { runtime, requireNative } = parseOptions();
+  const { runtime, requireNative } = parseOptions(process.argv.slice(2));
   const repoRoot = distUtils.repoRootFrom(import.meta.dirname);
   const distDir = `${repoRoot}/pkg/@eserstack/cli/dist`;
 
   let packedText: string;
   try {
-    packedText = await Deno.readTextFile(`${distDir}/package.json`);
+    packedText = await fs.readFile(`${distDir}/package.json`, "utf8");
   } catch (error) {
-    if (error instanceof Deno.errors.NotFound) {
+    if (isNotFound(error)) {
       throw new Error(
-        `${distDir} has no package.json; run \`deno task cli build\` first.`,
+        `${distDir} has no package.json; run \`pnpm cli build\` first.`,
         { cause: error },
       );
     }
@@ -136,10 +163,10 @@ const main = async (): Promise<void> => {
   const packed = JSON.parse(packedText) as { version: string };
 
   // Both directories live under the OS temp dir, never under the repo.
-  const packDir = await Deno.makeTempDir({ prefix: "eser-preflight-pack-" });
-  const consumerDir = await Deno.makeTempDir({
-    prefix: "eser-preflight-consumer-",
-  });
+  const packDir = await fs.mkdtemp(`${os.tmpdir()}/eser-preflight-pack-`);
+  const consumerDir = await fs.mkdtemp(
+    `${os.tmpdir()}/eser-preflight-consumer-`,
+  );
 
   try {
     console.log(`Packing ${distDir} ...`);
@@ -152,16 +179,15 @@ const main = async (): Promise<void> => {
       "npm pack",
     );
 
-    const tarballs: string[] = [];
-    for await (const entry of Deno.readDir(packDir)) {
-      if (entry.name.endsWith(".tgz")) tarballs.push(entry.name);
-    }
+    const tarballs = (await fs.readdir(packDir)).filter((name) =>
+      name.endsWith(".tgz"),
+    );
     if (tarballs.length !== 1) {
       throw new Error(`expected one tarball in ${packDir}, found ${tarballs}`);
     }
     const tarball = `${packDir}/${tarballs[0]!}`;
 
-    await Deno.writeTextFile(
+    await fs.writeFile(
       `${consumerDir}/package.json`,
       '{"name":"eser-preflight-consumer","private":true,"version":"1.0.0"}\n',
     );
@@ -176,12 +202,16 @@ const main = async (): Promise<void> => {
       "npm install of the packed CLI",
     );
 
-    // Invoke the runtime explicitly rather than through the bin shim, so the
-    // matrix's Node or Bun is the one that runs — not whatever `node` the
-    // shebang finds first.
+    // Invoke the Node that runs this script rather than the bin shim, so the
+    // matrix's Node is the one that runs — not whatever `node` the shebang
+    // finds first.
     const entry = `${consumerDir}/node_modules/eser/eser.js`;
-    const eser = (...args: string[]) =>
-      run([runtime, entry, ...args], consumerDir, ESER_COMMAND_TIMEOUT_MS);
+    const eser = (...args: string[]): Promise<RunResult> =>
+      run(
+        [process.execPath, entry, ...args],
+        consumerDir,
+        ESER_COMMAND_TIMEOUT_MS,
+      );
 
     must(await eser("--help"), `${runtime} eser --help`);
 
@@ -192,10 +222,10 @@ const main = async (): Promise<void> => {
     const ajan = await eser("ajan", "version");
     const ajanOutput = `${ajan.stdout}${ajan.stderr}`;
 
-    // Whatever happens, the failure must never tell an npm user to install Deno.
+    // Whatever happens, the failure must never tell an npm user to install deno.
     if (/deno/i.test(ajanOutput)) {
       throw new Error(
-        `eser ajan version mentions Deno — the npm package must not require it:\n${ajanOutput}`,
+        `eser ajan version mentions deno — the npm package must not require it:\n${ajanOutput}`,
       );
     }
 
@@ -214,14 +244,14 @@ const main = async (): Promise<void> => {
       );
     } else {
       console.log(
-        `${runtime} eser ajan version → failed gracefully without mentioning Deno (no native library for an unreleased version)`,
+        `${runtime} eser ajan version → failed gracefully without mentioning deno (no native library for an unreleased version)`,
       );
     }
 
     console.log(`npm consumer preflight (${runtime}): OK`);
   } finally {
-    await Deno.remove(packDir, { recursive: true });
-    await Deno.remove(consumerDir, { recursive: true });
+    await fs.rm(packDir, { recursive: true, force: true });
+    await fs.rm(consumerDir, { recursive: true, force: true });
   }
 };
 

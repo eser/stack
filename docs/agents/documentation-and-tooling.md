@@ -143,9 +143,8 @@ the apps generated from them. The `npm install -g eser` and `npx eser` lines in
 
 `.eser/recipes/library-pkg/` is the template for a new `@eserstack/*` package
 and `go-service/` for a Go service. The other recipes (`laroux-app/`,
-`laroux-runtime-app/`, `jsx-runtime-app/`, `vanilla-app/`, `vite-app/`,
-`cf-workers-app/`, `fp-pipe/`) are app starters. Recipes are excluded from lint
-and format by the root `deno.json`.
+`vanilla-app/`, `vite-app/`, `cf-workers-app/`, `fp-pipe/`) are app starters.
+Recipes are excluded from lint and format by the root `deno.json`.
 
 To add a package, copy `library-pkg/` to `pkg/@eserstack/<name>/` and replace
 `package-name` in its `package.json` and README. The recipe ships no

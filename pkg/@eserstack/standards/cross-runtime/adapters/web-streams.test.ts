@@ -8,7 +8,14 @@ const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 
 const sourceOf = (...chunks: string[]): ReadableStream<Uint8Array> =>
-  ReadableStream.from(chunks.map((chunk) => encoder.encode(chunk)));
+  new ReadableStream<Uint8Array>({
+    start(controller): void {
+      for (const chunk of chunks) {
+        controller.enqueue(encoder.encode(chunk));
+      }
+      controller.close();
+    },
+  });
 
 // =============================================================================
 // createLazyReadable
@@ -168,92 +175,3 @@ nodeTest.test("createLazyWritable abort reaches an opened sink", async () => {
 
   assert.assertEquals(sink.events, ["abort:stopped"]);
 });
-
-// =============================================================================
-// createFileSinkWritable
-// =============================================================================
-
-const fakeFileSink = (): {
-  readonly calls: string[];
-  readonly sink: webStreams.FileSinkLike;
-} => {
-  const calls: string[] = [];
-  const sink: webStreams.FileSinkLike = {
-    write(chunk) {
-      calls.push(`write:${decoder.decode(chunk)}`);
-      return chunk.length;
-    },
-    flush() {
-      calls.push("flush");
-      return Promise.resolve(0);
-    },
-    end(error) {
-      calls.push(error === undefined ? "end" : `end:${error.message}`);
-      return 0;
-    },
-  };
-
-  return { calls, sink };
-};
-
-nodeTest.test(
-  "createFileSinkWritable flushes each write and ends on close",
-  async () => {
-    const fake = fakeFileSink();
-    const writer = webStreams.createFileSinkWritable(fake.sink).getWriter();
-
-    await writer.write(encoder.encode("hello"));
-    await writer.write(encoder.encode("world"));
-    await writer.close();
-
-    assert.assertEquals(fake.calls, [
-      "write:hello",
-      "flush",
-      "write:world",
-      "flush",
-      "end",
-    ]);
-  },
-);
-
-nodeTest.test(
-  "createFileSinkWritable abort ends the sink with the error",
-  async () => {
-    const fake = fakeFileSink();
-    const writer = webStreams.createFileSinkWritable(fake.sink).getWriter();
-
-    await writer.abort(new Error("parent gave up"));
-
-    assert.assertEquals(fake.calls, ["end:parent gave up"]);
-  },
-);
-
-nodeTest.test(
-  "createFileSinkWritable abort with a non-error reason ends the sink",
-  async () => {
-    const fake = fakeFileSink();
-    const writer = webStreams.createFileSinkWritable(fake.sink).getWriter();
-
-    await writer.abort("cancelled");
-
-    assert.assertEquals(fake.calls, ["end"]);
-  },
-);
-
-nodeTest.test(
-  "createFileSinkWritable rejects the write when the sink fails",
-  async () => {
-    const sink: webStreams.FileSinkLike = {
-      write: () => Promise.reject(new Error("EPIPE: child closed its stdin")),
-      flush: () => 0,
-      end: () => 0,
-    };
-    const writer = webStreams.createFileSinkWritable(sink).getWriter();
-
-    await assert.assertRejects(
-      () => writer.write(encoder.encode("lost")),
-      Error,
-      "EPIPE",
-    );
-  },
-);

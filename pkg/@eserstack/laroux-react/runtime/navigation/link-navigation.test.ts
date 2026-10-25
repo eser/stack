@@ -284,7 +284,7 @@ nodeTest.test(
     const document = createDocument();
     linkNavigation.installLinkNavigation(document, window);
 
-    // Link's handler uses globalThis.window; Deno has none, so the recording
+    // Link's handler uses globalThis.window; Node has none, so the recording
     // window stands in for the click.
     const target = globalThis as { window?: unknown };
     const previousWindow = target.window;

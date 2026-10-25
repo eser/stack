@@ -38,7 +38,7 @@ const XTERM_SCRIPTS = [
  * origin and the pinned CDN files above; there are no inline scripts. Inline
  * styles stay allowed because components and xterm set them.
  */
-export const PAGE_CSP = [
+export const PAGE_CSP: string = [
   "default-src 'self'",
   `script-src 'self' ${XTERM_CDN}/`,
   `style-src 'self' 'unsafe-inline' ${XTERM_CDN}/`,

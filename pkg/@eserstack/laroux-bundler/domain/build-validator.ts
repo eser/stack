@@ -5,15 +5,15 @@
  * Ensures the build process only writes to the designated output directory (dist/).
  * This is critical for:
  * - Docker/container deployments with read-only source volumes
- * - Deno permission scoping (--allow-write=dist/)
+ * - Runtime permission scoping (write access to dist/ only)
  * - CI/CD pipelines (clean git status after build)
  * - Build reproducibility
  */
 
 import { runtime } from "@eserstack/standards/cross-runtime";
 import * as collector from "@eserstack/collector";
-import * as fs from "@std/fs"; // copy not available in runtime
 import * as logging from "@eserstack/logging";
+import * as copyPath from "./copy-path.ts";
 
 // Pattern to ignore node_modules and hidden directories
 const IGNORE_PATTERN = /(?:node_modules|\/\.|\\\.)/;
@@ -261,8 +261,7 @@ export function createIsolatedWriter(distDir: string): IsolatedWriter {
         );
       }
 
-      await fs.ensureDir(runtime.path.dirname(dest));
-      await fs.copy(src, dest, { overwrite: true });
+      await copyPath.copyPath(src, dest);
     },
   };
 }

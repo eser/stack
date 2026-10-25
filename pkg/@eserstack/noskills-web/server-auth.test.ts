@@ -5,6 +5,7 @@
  * actually be refused on the wire, not just by the guard helpers in isolation.
  */
 
+import * as http from "node:http";
 import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as persistence from "@eserstack/noskills/persistence";
@@ -51,14 +52,33 @@ const withServer = async (
   }
 };
 
+/**
+ * The status the server answers a WebSocket upgrade request at `url` with.
+ * fetch refuses to send an upgrade header, so the request goes over node:http.
+ */
+const upgradeStatus = (
+  url: string,
+  headers: Readonly<Record<string, string>> = {},
+): Promise<number> =>
+  new Promise((resolve, reject) => {
+    const request = http.get(url, {
+      agent: false,
+      headers: { connection: "Upgrade", upgrade: "websocket", ...headers },
+    });
+    request.on("response", (response) => {
+      response.resume();
+      resolve(response.statusCode ?? 0);
+    });
+    request.on("upgrade", (response, socket) => {
+      socket.destroy();
+      resolve(response.statusCode ?? 0);
+    });
+    request.on("error", reject);
+  });
+
 nodeTest.test("/mux upgrade without a token is refused", () =>
   withServer(async (base) => {
-    const res = await fetch(`${base}/mux`, {
-      headers: { upgrade: "websocket" },
-    });
-    await res.body?.cancel();
-
-    assert.assertEquals(res.status, 403);
+    assert.assertEquals(await upgradeStatus(`${base}/mux`), 403);
   }),
 );
 
@@ -66,12 +86,11 @@ nodeTest.test(
   "/mux upgrade from a foreign Origin is refused even with the token",
   () =>
     withServer(async (base) => {
-      const res = await fetch(`${base}/mux?token=${TOKEN}`, {
-        headers: { upgrade: "websocket", origin: "https://evil.example" },
+      const status = await upgradeStatus(`${base}/mux?token=${TOKEN}`, {
+        origin: "https://evil.example",
       });
-      await res.body?.cancel();
 
-      assert.assertEquals(res.status, 403);
+      assert.assertEquals(status, 403);
     }),
 );
 

@@ -171,6 +171,8 @@ const clientPage = async (
   };
 
   const restore = await runScript("client.js", {
+    // The window's resize listener; Node has no window event target.
+    addEventListener: () => {},
     document,
     fetch,
     location: { protocol: "http:", host: "127.0.0.1:3000" },

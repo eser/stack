@@ -15,7 +15,7 @@ import * as patterns from "@eserstack/standards/patterns";
 import * as serverActionTransform from "./domain/server-action-transform.ts";
 import * as clientActionStub from "./domain/client-action-stub.ts";
 import * as buildValidator from "./domain/build-validator.ts";
-import * as fs from "@std/fs"; // copy not available in runtime
+import * as copyPath from "./domain/copy-path.ts";
 import * as ulid from "@std/ulid";
 import type {
   ClientComponent,
@@ -57,14 +57,9 @@ const PUBLIC_DIR = "public";
 
 /**
  * Project files besides the source and public directories whose changes make
- * a build stale: the laroux config and the import maps the bundler reads.
+ * a build stale: the laroux config and the package.json the bundler reads.
  */
-const PROJECT_BUILD_INPUTS = [
-  "laroux.config.ts",
-  "package.json",
-  "deno.json",
-  "deno.jsonc",
-];
+const PROJECT_BUILD_INPUTS = ["laroux.config.ts", "package.json"];
 
 /** Entries the staleness check skips: dependencies and hidden files. */
 const STALENESS_SKIP_PATTERNS = [
@@ -640,7 +635,7 @@ export async function build(
 
     // Step 22: Bundle server components
     // This resolves all bare specifiers (react, lucide-react, etc.) via the bundler
-    // instead of manual rewriting to npm: specifiers (which breaks Node.js)
+    // and keeps external ones bare instead of rewriting them (ADR 0004)
     const serverBundlerBackend = context.bundlerBackend ?? "rolldown";
     buildLogger.info(
       `📦 Step 22: Server bundling check - components: ${serverComponentPaths.length}`,
@@ -788,8 +783,7 @@ export async function build(
  * The build is up to date when the chunk manifest of a finished build exists
  * and no build input changed after its timestamp: no file under the source
  * directory or public/ (at any depth, skipping node_modules and hidden
- * entries) and none of laroux.config.ts, package.json, deno.json and
- * deno.jsonc.
+ * entries) and neither laroux.config.ts nor package.json.
  * @param context - Build context with configuration and paths
  * @returns Build result; a skipped build returns the existing build's
  *   timestamp, module map and client bundle, with a duration of 0
@@ -1195,7 +1189,7 @@ async function bundleClient(
   try {
     // Bundle with code splitting, bundling the packages too
     // Pass ALL component files as entrypoints for proper code splitting
-    // Deno will create separate chunks for each and extract shared deps (React) into common chunks
+    // Rolldown creates separate chunks for each and extracts shared deps (React) into common chunks
     const componentEntrypoints = clientComponents.map((c) => c.filePath);
     const clientOutputDir = crossRuntime.runtime.path.resolve(
       distDir,
@@ -1203,7 +1197,7 @@ async function bundleClient(
     );
 
     // Create import map resolver plugin to handle all bare imports
-    // Uses both deno.json and package.json for import resolution
+    // Bare imports resolve from the importing files through node_modules
     // autoMarkExternal: false ensures npm packages are bundled inline for browsers
     // (browsers can't resolve bare specifiers without an import map)
     const importMapPlugin =
@@ -1284,7 +1278,7 @@ async function copyPublicAssets(
   for await (const entry of crossRuntime.runtime.fs.readDir(publicDir)) {
     const sourcePath = crossRuntime.runtime.path.resolve(publicDir, entry.name);
     const destPath = crossRuntime.runtime.path.resolve(distDir, entry.name);
-    await fs.copy(sourcePath, destPath, { overwrite: true });
+    await copyPath.copyPath(sourcePath, destPath);
   }
 }
 
@@ -1330,7 +1324,7 @@ async function copyTranslationFiles(
           appMessagesDestDir,
           entry.name,
         );
-        await fs.copy(sourcePath, destPath, { overwrite: true });
+        await copyPath.copyPath(sourcePath, destPath);
         totalCopied++;
       }
     }
@@ -1361,7 +1355,7 @@ async function copyTranslationFiles(
           i18nMessagesDestDir,
           entry.name,
         );
-        await fs.copy(sourcePath, destPath, { overwrite: true });
+        await copyPath.copyPath(sourcePath, destPath);
         totalCopied++;
       }
     }
@@ -2069,7 +2063,7 @@ async function copyCssModuleJsonFile(
 
   // Copy JSON file
   try {
-    await fs.copy(sourceJsonPath, targetJsonPath, { overwrite: true });
+    await copyPath.copyPath(sourceJsonPath, targetJsonPath);
     return true;
   } catch (error) {
     buildLogger

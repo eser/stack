@@ -15,7 +15,7 @@
  * Resolves the repository root from the directory of a script in
  * `etc/scripts/`, two levels below it. The release scripts use this instead of
  * a path library because they run from a fresh checkout with nothing resolved
- * from a registry. Deno and Node accept "/" separators on Windows too.
+ * from a registry. Node accepts "/" separators on Windows too.
  *
  * @param scriptDir - The calling script's `import.meta.dirname`
  * @returns The repository root, with "/" separators

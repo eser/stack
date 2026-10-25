@@ -173,7 +173,6 @@ const main = async (): Promise<void> => {
     bin: { eser: "./eser.js" },
     dependencies: {
       "@tailwindcss/oxide": "^4.3.3",
-      koffi: "^2.15.0",
       lightningcss: "^1.30.0",
       tailwindcss: "^4.1.8",
     },

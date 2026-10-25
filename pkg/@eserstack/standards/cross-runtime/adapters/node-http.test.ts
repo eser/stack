@@ -1,12 +1,13 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as net from "node:net";
 import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as nodeHttp from "./node-http.ts";
 import * as httpScenario from "./testdata/http-scenario.ts";
 
-// These tests run the Node adapter on Deno's node:http. node.test.ts runs the
-// same contract on a real Node.
+// These tests run the Node adapter in the test process. node.test.ts runs the
+// same contract in a child process.
 
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
@@ -137,14 +138,18 @@ nodeTest.test(
     );
 
     // A raw connection, since a WebSocket client always masks its frames.
-    const connection = await Deno.connect({
-      hostname: "127.0.0.1",
-      port: server.port,
-    });
-    let connectionOpen = true;
+    const connection = net.connect({ host: "127.0.0.1", port: server.port });
 
     try {
-      await connection.write(
+      const received: number[] = [];
+      const ended = new Promise<void>((resolve, reject) => {
+        connection.on("data", (chunk: Uint8Array) => received.push(...chunk));
+        // The server's answer arrives in pieces until it closes the connection.
+        connection.on("end", () => resolve());
+        connection.on("error", reject);
+      });
+
+      connection.write(
         encoder.encode(
           "GET /socket HTTP/1.1\r\n" +
             `Host: 127.0.0.1:${server.port}\r\n` +
@@ -155,23 +160,9 @@ nodeTest.test(
         ),
       );
       // An unmasked text frame holding "x".
-      await connection.write(new Uint8Array([0x81, 0x01, 0x78]));
+      connection.write(new Uint8Array([0x81, 0x01, 0x78]));
 
-      const received: number[] = [];
-      const buffer = new Uint8Array(1024);
-      while (true) {
-        // The server's answer arrives in pieces until it closes the connection.
-        // oxlint-disable-next-line no-await-in-loop
-        const count = await connection.read(buffer);
-        if (count === null) {
-          break;
-        }
-        received.push(...buffer.subarray(0, count));
-      }
-
-      // The server has ended its side; closing ours lets the connection end.
-      connection.close();
-      connectionOpen = false;
+      await ended;
 
       const text = decoder.decode(new Uint8Array(received));
       assert.assertStringIncludes(text, "HTTP/1.1 101 Switching Protocols\r\n");
@@ -187,9 +178,8 @@ nodeTest.test(
       await serverClosed.promise;
       assert.assertEquals(serverSide, ["error", "close:1006"]);
     } finally {
-      if (connectionOpen) {
-        connection.close();
-      }
+      // A failed assertion must not leave the connection holding the server.
+      connection.destroy();
       controller.abort();
       await server.finished;
     }

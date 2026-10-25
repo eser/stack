@@ -1,14 +1,13 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 /**
- * Closed-state guard shared by the three native FFI backends.
+ * Closed-state guard for the node:ffi backend.
  *
- * Each backend owns a runtime handle -- `Deno.dlopen`, `bun:ffi`'s `dlopen`,
- * node:ffi's `dlopen` -- whose unload is not safe to repeat and whose symbols are not
- * safe to call once it has run. Deno throws `BadResource`, and unloading a Go
- * c-shared image is undefined behaviour: a Go runtime cannot be dlclosed, which
- * is why pin_image_posix.go pins the image in the first place. This module
- * turns both into defined behaviour, identically for every backend.
+ * The backend owns the handle node:ffi's `dlopen` returns, whose unload is not
+ * safe to repeat and whose symbols are not safe to call once it has run:
+ * unloading a Go c-shared image is undefined behaviour, because a Go runtime
+ * cannot be dlclosed, which is why pin_image_posix.go pins the image in the
+ * first place. This module turns both into defined behaviour.
  *
  * @module
  */
@@ -34,10 +33,8 @@ type RawSymbol = (...args: any[]) => any;
  * Two things stay the caller's contract and are deliberately not enforced here:
  * - `close()` does not call `EserAjanShutdown`. Shutting the Go runtime down and
  *   releasing the library handle are separate steps, in that order.
- * - On Deno the nonblocking symbols may still be executing on the FFI
- *   threadpool when `close()` runs. Callers must settle every outstanding
- *   promise and close every stream handle first; in-flight calls are not
- *   tracked.
+ * - In-flight calls are not tracked. Callers must settle every outstanding
+ *   promise and close every stream handle before `close()`.
  *
  * @param backendName Backend identity used in the after-close error message.
  * @param symbols The backend's fully wrapped symbol table.

@@ -13,7 +13,7 @@ import * as seo from "./seo/index.ts";
 const DEFAULT_SEO_CONFIG: SeoConfig = {
   title: "laroux.js 3.0",
   description:
-    "Zero-configuration React Server Components on Deno 2.x. Modern, simple, and built with cutting-edge technology.",
+    "Zero-configuration React framework built on Server Components. Modern, simple, and built with cutting-edge technology.",
   siteName: "laroux.js",
   siteUrl: "https://laroux.now",
   locale: "en_US",

@@ -1,11 +1,10 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 /**
- * The server end of a WebSocket, for the Node and Bun adapters.
+ * The server end of a WebSocket, for the Node adapter.
  *
- * Deno's `upgradeWebSocket` returns a standard `WebSocket`. Node has no
- * WebSocket server, and Bun's server sockets have no event listeners, so those
- * adapters drive a {@link ServerWebSocket} instead: the adapter writes frames
+ * Node has no WebSocket server, so the adapter drives a
+ * {@link ServerWebSocket} instead: the adapter writes frames
  * through a {@link WebSocketWire} and reports what happens on the connection
  * through {@link WebSocketEvents}.
  *
@@ -72,17 +71,17 @@ export type WebSocketEvents = {
  */
 export class ServerWebSocket extends EventTarget implements WebSocket {
   /** The value of readyState while the handshake is in progress. */
-  readonly CONNECTING = CONNECTING;
+  readonly CONNECTING: 0 = CONNECTING;
   /** The value of readyState while messages can flow. */
-  readonly OPEN = OPEN;
+  readonly OPEN: 1 = OPEN;
   /** The value of readyState while the closing handshake is in progress. */
-  readonly CLOSING = CLOSING;
+  readonly CLOSING: 2 = CLOSING;
   /** The value of readyState once the connection has ended. */
-  readonly CLOSED = CLOSED;
+  readonly CLOSED: 3 = CLOSED;
 
   /**
-   * How binary messages are delivered: as an ArrayBuffer (the default, as for
-   * Deno's server sockets) or as a Blob.
+   * How binary messages are delivered: as an ArrayBuffer (the default) or as
+   * a Blob.
    */
   binaryType: BinaryType = "arraybuffer";
   /** Bytes queued for sending, as of the last send or drain. */

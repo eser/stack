@@ -414,11 +414,14 @@ async function preprocessTree(
             const safeFallback = Array.isArray(fallbackContent)
               ? ensureArrayKeys(fallbackContent)
               : fallbackContent;
-            const placeholder = React.createElement("div", {
-              "data-async-boundary": id,
-              "data-component": componentName(type, "async"),
-              children: safeFallback,
-            });
+            const placeholder = React.createElement(
+              "div",
+              {
+                "data-async-boundary": id,
+                "data-component": componentName(type, "async"),
+              },
+              safeFallback,
+            );
 
             // DON'T track the promise - prevents execution and allows GC
             // The async function was already called above (type(props)), but by

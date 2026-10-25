@@ -6,6 +6,7 @@
   "exports": {
     "./assert": "./assert.ts",
     "./capture": "./capture.ts",
+    "./leaks": "./leaks.ts",
     "./mock": "./mock.ts"
   },
   "dependencies": {

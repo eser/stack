@@ -10,7 +10,6 @@
 
 import { runtime } from "@eserstack/standards/cross-runtime";
 import * as patterns from "@eserstack/standards/patterns";
-import * as fs from "@std/fs"; // emptyDir, copy, walk not available in runtime
 import * as logging from "@eserstack/logging";
 
 // Pattern to ignore node_modules and hidden files
@@ -83,11 +82,10 @@ export async function createVirtualSource(
   } else {
     // FULL COPY MODE: First build or no changed files specified
     // Clean any existing virtual source
-    try {
-      await fs.emptyDir(virtualSrcDir);
-    } catch {
-      // Directory may not exist yet
+    if (await runtime.fs.exists(virtualSrcDir)) {
+      await runtime.fs.remove(virtualSrcDir, { recursive: true });
     }
+    await runtime.fs.ensureDir(virtualSrcDir);
 
     // Copy src/ to virtual source's src/ subdirectory
     // This maintains the same structure as original project
@@ -185,8 +183,8 @@ async function syncChangedFile(
   try {
     await runtime.fs.stat(filePath);
     // File exists - copy it
-    await fs.ensureDir(runtime.path.dirname(targetPath));
-    await fs.copy(filePath, targetPath, { overwrite: true });
+    await runtime.fs.ensureDir(runtime.path.dirname(targetPath));
+    await runtime.fs.copyFile(filePath, targetPath);
     return "copied";
   } catch {
     // File was deleted - remove from virtual source
@@ -214,8 +212,8 @@ async function copySourceFiles(
   // JS/TS extensions from standards + json and css for bundling
   const validExtensions = [...patterns.JS_FILE_EXTENSIONS, "json", "css"];
 
-  // Use @std/fs walk to include all file types (walkFiles only supports JS files)
-  for await (const entry of fs.walk(srcDir, { includeDirs: false })) {
+  // walk includes all file types (walkFiles only supports JS files)
+  for await (const entry of runtime.fs.walk(srcDir, { includeDirs: false })) {
     // Check extension
     if (!patterns.hasExtension(entry.path, validExtensions)) {
       continue;
@@ -234,7 +232,7 @@ async function copySourceFiles(
     await runtime.fs.ensureDir(runtime.path.dirname(targetPath));
 
     // Copy file
-    await fs.copy(entry.path, targetPath);
+    await runtime.fs.copyFile(entry.path, targetPath);
     copiedCount++;
   }
 

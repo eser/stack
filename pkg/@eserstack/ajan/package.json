@@ -10,8 +10,7 @@
     "./wasm": "./wasm/mod.ts"
   },
   "dependencies": {
-    "@eserstack/standards": "workspace:*",
-    "koffi": "^3.3.0"
+    "@eserstack/standards": "workspace:*"
   },
   "devDependencies": {
     "@eserstack/test-kit": "workspace:*"

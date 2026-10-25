@@ -3,8 +3,8 @@
 /**
  * Shared types for the FFI abstraction layer.
  *
- * Defines the unified interface that all runtime backends (Deno, Bun, Node)
- * must implement when loading the eser-ajan C-shared library.
+ * Defines the interface that the node:ffi backend and the WASM fallback both
+ * implement when loading the eser-ajan C-shared library.
  *
  * @module
  */
@@ -40,11 +40,13 @@ export interface FFILibrary {
     /**
      * Performs a text generation.
      *
-     * Awaitable, and on Deno genuinely off-thread: a model round-trip takes
-     * seconds to minutes, and running it on the isolate froze every timer,
-     * socket and other request for its whole duration. It is also what makes
-     * cancellation possible at all — an AbortSignal cannot fire while the
-     * isolate is blocked inside the call it would cancel.
+     * Awaitable, so that a backend can run it off the main thread: a model
+     * round-trip takes seconds to minutes, and running it on the main thread
+     * freezes every timer, socket and other request for its whole duration.
+     * Off-thread is also what makes cancellation possible at all, since an
+     * AbortSignal cannot fire while the thread is blocked inside the call it
+     * would cancel. Under node:ffi the call is still synchronous until the
+     * worker threads of M2-T8.
      *
      * Pass `requestId` in optionsJSON to make the call cancellable via
      * {@link FFILibrary.symbols.EserAjanAiCancelRequest}.
@@ -393,7 +395,7 @@ export interface FFILibrary {
      */
     EserAjanCodebaseCheckCircularDeps: (requestJSON: string) => string;
     /**
-     * Validates deno.json export path naming conventions.
+     * Validates that the export paths in each package's JSR manifest are kebab-case.
      * Accepts JSON: { dir?, ignoreWords? }
      * Returns JSON: { isValid, violations, packagesChecked } | { error: string }
      */
@@ -405,7 +407,7 @@ export interface FFILibrary {
      */
     EserAjanCodebaseCheckModExports: (requestJSON: string) => string;
     /**
-     * Validates deno.json / package.json field consistency.
+     * Validates field consistency between each package's JSR manifest and package.json.
      * Accepts JSON: { dir? }
      * Returns JSON: { isConsistent, inconsistencies, dependencyInconsistencies, packagesChecked } | { error: string }
      */
@@ -572,8 +574,9 @@ export interface FFILibrary {
      */
     EserAjanShellPtySpawn: (requestJSON: string) => string;
     /**
-     * Reads the next merged output chunk from the PTY. Nonblocking on Deno
-     * (resolves when bytes arrive) — always returns a Promise for uniformity.
+     * Reads the next merged output chunk from the PTY. Always returns a
+     * Promise, so that a backend can resolve it when bytes arrive; under
+     * node:ffi the read is still a blocking call wrapped in a resolved Promise.
      * Accepts: handle string
      * Returns JSON: { chunk: string } | "null" (§20 done) | { error: string }
      */
@@ -606,22 +609,6 @@ export interface FFILibrary {
   /** Closes the shared library handle and releases resources. */
   close: () => void;
 }
-
-/**
- * A backend that knows how to open a shared library using a specific runtime's
- * FFI mechanism.
- */
-export interface FFIBackend {
-  /** Human-readable backend name (e.g. "deno", "bun", "node"). */
-  name: string;
-  /** Returns true if this backend can be used in the current runtime. */
-  available: () => boolean;
-  /** Opens the shared library at `libraryPath` and returns a unified handle. */
-  open: (libraryPath: string) => Promise<FFILibrary>;
-}
-
-/** Supported runtime identifiers. */
-export type RuntimeId = "deno" | "bun" | "node" | "unknown";
 
 /** Platform-specific shared library file extensions. */
 export type LibraryExtension = ".so" | ".dylib" | ".dll";

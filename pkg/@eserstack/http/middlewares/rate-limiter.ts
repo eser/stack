@@ -34,7 +34,8 @@ const DEFAULT_TRUSTED_PROXIES = ["127.0.0.1", "::1"];
 
 /**
  * Address of the peer that opened the connection, as reported by the server
- * (for example Deno.serve's `info.remoteAddr`). Only `hostname` is read.
+ * (for example `info.remoteAddr` from runtime.http.serve). Only `hostname` is
+ * read.
  */
 export type RemoteAddress = { readonly hostname: string } | null | undefined;
 

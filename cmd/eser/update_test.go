@@ -252,7 +252,7 @@ func TestReleaseTriplesMatchTargetsTS(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	entry := regexp.MustCompile(`(?s)goos: "(\w+)",\s*goarch: "(\w+)",.*?(?:releaseTriple|denoTarget): "([\w-]+)"`)
+	entry := regexp.MustCompile(`(?s)goos: "(\w+)",\s*goarch: "(\w+)",.*?releaseTriple: "([\w-]+)"`)
 	fromTS := map[string]string{}
 
 	for _, m := range entry.FindAllStringSubmatch(string(source), -1) {

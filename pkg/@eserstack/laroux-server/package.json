@@ -4,6 +4,19 @@
   "description": "Server runtime for the laroux.js framework",
   "license": "Apache-2.0",
   "type": "module",
+  "files": [
+    "main.ts",
+    "options.ts",
+    "module.ts",
+    "cli.ts",
+    "commands/**/*.ts",
+    "domain/**/*.ts",
+    "adapters/**/*.ts",
+    "runtime/**/*.ts",
+    "config/**/*.ts",
+    "proxy/**/*.ts",
+    "README.md"
+  ],
   "exports": {
     ".": "./main.ts",
     "./config": "./config/load-config.ts",

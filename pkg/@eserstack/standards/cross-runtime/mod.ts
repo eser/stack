@@ -5,7 +5,7 @@
  * Provides runtime-agnostic APIs for filesystem, path, exec, environment,
  * process control (signals included) and an HTTP server with WebSockets.
  *
- * Supports: Deno, Node.js, Bun, Cloudflare Workers
+ * Supports: Node.js, with fallbacks for Cloudflare Workers and browsers
  *
  * @example
  * ```typescript
@@ -128,39 +128,23 @@ import type {
   Runtime,
   RuntimeCapabilities,
 } from "./types.ts";
-import * as shared from "./adapters/shared.ts";
-
-// Adapters are loaded lazily via dynamic import() — only the detected
-// runtime's adapter is imported. This avoids loading all 5 adapters
-// (and their platform-specific dependencies) at startup.
-
 import type { RuntimeName } from "./types.ts";
+import * as shared from "./adapters/shared.ts";
+import * as browser from "./adapters/browser.ts";
+import * as node from "./adapters/node.ts";
+import * as workerd from "./adapters/workerd.ts";
+
+// The adapters are imported statically, so the module loads synchronously and
+// `require()` can load it. Client bundles map the browser entry
+// (`@eserstack/standards/cross-runtime/browser`) instead of this module.
 
 /**
- * Runtime factory lookup table — each factory lazily imports its adapter.
- * Only the detected runtime's adapter module is loaded.
+ * Runtime factory lookup table, keyed by the detected runtime.
  */
-const runtimeFactories: Partial<Record<RuntimeName, () => Promise<Runtime>>> = {
-  deno: async () => {
-    const mod = await import("./adapters/deno.ts");
-    return mod.createDenoRuntime();
-  },
-  node: async () => {
-    const mod = await import("./adapters/node.ts");
-    return mod.createNodeRuntime();
-  },
-  bun: async () => {
-    const mod = await import("./adapters/bun.ts");
-    return mod.createBunRuntime();
-  },
-  workerd: async () => {
-    const mod = await import("./adapters/workerd.ts");
-    return mod.createWorkerdRuntime();
-  },
-  browser: async () => {
-    const mod = await import("./adapters/browser.ts");
-    return mod.createBrowserRuntime();
-  },
+const runtimeFactories: Partial<Record<RuntimeName, () => Runtime>> = {
+  node: node.createNodeRuntime,
+  workerd: workerd.createWorkerdRuntime,
+  browser: browser.createBrowserRuntime,
 };
 
 /**
@@ -202,20 +186,16 @@ const mergeRuntime = (
 });
 
 /**
- * Creates a runtime instance for the detected or specified runtime.
- *
- * @param options - Optional overrides for testing or customization
- * @returns A Runtime instance
+ * Creates the runtime instance for the detected runtime, with the overrides
+ * applied, synchronously.
  */
-export const createRuntime = async (
-  options?: CreateRuntimeOptions,
-): Promise<Runtime> => {
+const createRuntimeSync = (options?: CreateRuntimeOptions): Runtime => {
   const runtimeName = shared.detectRuntime();
   const factory = runtimeFactories[runtimeName];
 
   const baseRuntime =
     factory !== undefined
-      ? await factory()
+      ? factory()
       : shared.createFallbackRuntime(runtimeName);
 
   // Apply capability overrides if provided
@@ -236,6 +216,16 @@ export const createRuntime = async (
   return baseRuntime;
 };
 
+/**
+ * Creates a runtime instance for the detected runtime.
+ *
+ * @param options - Optional overrides for testing or customization
+ * @returns A Runtime instance
+ */
+export const createRuntime = (
+  options?: CreateRuntimeOptions,
+): Promise<Runtime> => Promise.resolve(createRuntimeSync(options));
+
 // =============================================================================
 // Singleton Instance
 // =============================================================================
@@ -253,7 +243,4 @@ export const createRuntime = async (
  * }
  * ```
  */
-// Consumers import this ready instance directly, and the detected runtime's
-// adapter loads through a dynamic import, so creating it needs this await.
-// oxlint-disable-next-line node/no-top-level-await
-export const runtime: Runtime = await createRuntime();
+export const runtime: Runtime = createRuntimeSync();

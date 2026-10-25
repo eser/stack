@@ -118,7 +118,7 @@ export async function renderRSC(
  * @returns HTTP Response ready to send to client
  */
 export function streamToResponse(stream: ReadableStream): Response {
-  // Return the stream directly - Deno will handle Transfer-Encoding: chunked automatically
+  // Return the stream directly - the runtime handles Transfer-Encoding: chunked automatically
   // Any intermediate piping or TransformStream can cause buffering issues
   return new Response(stream, {
     headers: {

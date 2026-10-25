@@ -40,31 +40,34 @@ const propsOf = (element: React.ReactElement) => {
   };
 };
 
-nodeTest.test("renderApp passes the request to the page and the layout", () => {
-  const element = renderApp.renderApp(Layout, Page, {
-    pathname: "/stories/hello",
-    params: { slug: "hello" },
-    requestContext: {
-      cookieHeader: "user=ada%20l; theme=dark",
-      host: "shop.test",
-      localeParam: "tr",
-    },
-  });
-  const { layout, page } = propsOf(element);
+nodeTest.test(
+  "track-l-delete: renderApp passes the request to the page and the layout",
+  () => {
+    const element = renderApp.renderApp(Layout, Page, {
+      pathname: "/stories/hello",
+      params: { slug: "hello" },
+      requestContext: {
+        cookieHeader: "user=ada%20l; theme=dark",
+        host: "shop.test",
+        localeParam: "tr",
+      },
+    });
+    const { layout, page } = propsOf(element);
 
-  assert.assertEquals(page.pathname, "/stories/hello");
-  assert.assertEquals(page.params, { slug: "hello" });
+    assert.assertEquals(page.pathname, "/stories/hello");
+    assert.assertEquals(page.params, { slug: "hello" });
 
-  const request = page.request as larouxRouter.PageRequest;
-  assert.assertEquals(request.cookies.get("user"), "ada l");
-  assert.assertEquals(request.cookies.get("theme"), "dark");
-  assert.assertEquals(request.host, "shop.test");
-  assert.assertEquals(request.locale, "tr");
-  assert.assertStrictEquals(layout.request, page.request);
-});
+    const request = page.request as larouxRouter.PageRequest;
+    assert.assertEquals(request.cookies.get("user"), "ada l");
+    assert.assertEquals(request.cookies.get("theme"), "dark");
+    assert.assertEquals(request.host, "shop.test");
+    assert.assertEquals(request.locale, "tr");
+    assert.assertStrictEquals(layout.request, page.request);
+  },
+);
 
 nodeTest.test(
-  "renderApp gives an empty request when the request data is left out",
+  "track-l-delete: renderApp gives an empty request when the request data is left out",
   () => {
     const { page } = propsOf(renderApp.renderApp(Layout, Page));
 
@@ -77,24 +80,27 @@ nodeTest.test(
   },
 );
 
-nodeTest.test("renderApp keeps the request away from client components", () => {
-  // The bundler turns "use client" exports into references like these.
-  const ClientLayout = protocol.createClientReference(
-    "./layout.tsx",
-    "Layout",
-  ) as unknown as LayoutComponent;
-  const ClientPage = protocol.createClientReference(
-    "./page.tsx",
-    "HomePage",
-  ) as unknown as PageComponent;
+nodeTest.test(
+  "track-l-delete: renderApp keeps the request away from client components",
+  () => {
+    // The bundler turns "use client" exports into references like these.
+    const ClientLayout = protocol.createClientReference(
+      "./layout.tsx",
+      "Layout",
+    ) as unknown as LayoutComponent;
+    const ClientPage = protocol.createClientReference(
+      "./page.tsx",
+      "HomePage",
+    ) as unknown as PageComponent;
 
-  const element = renderApp.renderApp(ClientLayout, ClientPage, {
-    pathname: "/",
-    requestContext: { cookieHeader: "session=secret" },
-  });
-  const { layout, page } = propsOf(element);
+    const element = renderApp.renderApp(ClientLayout, ClientPage, {
+      pathname: "/",
+      requestContext: { cookieHeader: "session=secret" },
+    });
+    const { layout, page } = propsOf(element);
 
-  assert.assertEquals("request" in layout, false);
-  assert.assertEquals("request" in page, false);
-  assert.assertEquals(page.pathname, "/");
-});
+    assert.assertEquals("request" in layout, false);
+    assert.assertEquals("request" in page, false);
+    assert.assertEquals(page.pathname, "/");
+  },
+);

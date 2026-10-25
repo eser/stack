@@ -11,8 +11,8 @@
 (() => {
   "use strict";
 
-  // Browser globals come from globalThis: deno lint checks this file against
-  // Deno's globals, which have no DOM. xterm's Terminal and WebLinksAddon are
+  // Browser globals come from globalThis, where browser-scripts.test.ts puts
+  // its stand-in for the DOM. xterm's Terminal and WebLinksAddon are
   // read when a pane is created, since a page without a terminal has neither.
   const { document } = globalThis;
 

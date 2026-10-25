@@ -559,8 +559,7 @@ its blocking receive.
 
 ## ~~P0~~ DONE — Node FFI backend frees none of its C strings
 
-**What:** Declare the Node backend's returns as `void*`, use `koffi.decode`, and
-free.
+**What:** Declare the Node backend's returns as `void*`, decode them, and free.
 
 **Why:** `pkg/@eserstack/ajan/ffi/backend-node.ts:355-358` has no binding to
 `EserAjanFree` at all — 96 malloc'd C strings are never released. Deno and Bun
@@ -568,8 +567,9 @@ backends both do this correctly.
 
 **Effort:** S
 
-**Done (2026-08-01):** All 96 string returns re-declared `void*`, decoded with
-`koffi.decode(ptr, "char", -1)`, then freed. Measured end-to-end against the
+**Done (2026-08-01):** All 96 string returns re-declared `void*`, decoded as C
+strings, then freed (node:ffi reads them with `ffi.toString` since TASK-202).
+Measured end-to-end against the
 real bridge: 73.7 MB -> 22 MB RSS growth over 200k calls.
 
 ## ~~P1~~ DONE — One memoized FFI client, replacing 19 copies
@@ -1702,8 +1702,9 @@ Note the constraint the guard now imposes — the loaders' symbol names must sta
 _literal_ object keys, or the extractor needs updating in the same commit.
 
 **What:** (a) A shared `symbols-table.ts` — `{name, arity, nonblocking}` for all
-100 symbols (~120 lines); derive Deno's dlopen map, Bun's dlopen map, koffi's
-prototype strings, and all wrapper functions from it by a loop. Each backend
+100 symbols (~120 lines); derive Deno's dlopen map, Bun's dlopen map, the Node
+backend's prototype strings, and all wrapper functions from it by a loop. Each
+backend
 shrinks to a ~60-100-line adapter
 (`open/encodeArg/call/callAsync/decodeAndFree/close`). (b) Make `types.ts`'s
 570-line `symbols` interface a mapped type over the table. (c) A small generated
@@ -1811,7 +1812,7 @@ contract.
 **Why:** All three backends (`backend-deno.ts:1398-1401`,
 `backend-bun.ts:967-969`, `backend-node.ts:705-707`) call the runtime's
 `close()`/`unload()` unguarded. Double-close is whatever the runtime does (Deno
-throws `BadResource`; koffi `unload` of a Go c-shared library is undefined
+throws `BadResource`; unloading a Go c-shared library from Node is undefined
 behavior — a Go runtime cannot be dlclosed safely, which is exactly why
 `pin_image_posix.go` exists). Any symbol call after `close()` is a UB/segfault
 path. On Deno, `nonblocking: true` symbols may still be executing on the FFI
@@ -1878,11 +1879,11 @@ wrappers carried now also sits on the generate/stream/batch wrappers in both
 backends, so the constraint is visible where it bites. **The behaviour is
 unchanged** — under Bun and Node these calls still park the event loop and
 `EserAjanAiCancelRequest` still cannot fire mid-call. Making them genuinely
-async (bun:ffi `threadsafe`, koffi async, or a worker) is the remaining work.
+async (node:ffi calls in worker threads, TASK-239) is the remaining work.
 
 **What:** Use Bun's `FFIFunction.threadsafe`/async support for the 9 long-
-running symbols (AI generate/stream/batch, PTY read); for koffi, either its
-async call mode or a worker. At minimum, extend the LIMITATION comment that the
+running symbols (AI generate/stream/batch, PTY read); for node:ffi, worker
+threads (TASK-239). At minimum, extend the LIMITATION comment that the
 PTY wrappers already carry to the AI wrappers, and note it where
 `types.ts:41-56` promises cancellability.
 
@@ -1899,7 +1900,8 @@ generate/stream/batch.
 ## ~~P3~~ DONE — TS backend small fixes (leaks on decode-throw, stale messages, doc bugs)
 
 **Done (2026-08-09).** `try/finally` around the free in all three decode
-helpers. koffi version message corrected to the pinned range; the stale symbol
+helpers. The Node binding's version message corrected to the pinned range; the
+stale symbol
 count rephrased so it cannot go stale again. The `backends` option was
 implemented (see the loader entry above) rather than removed from the docs.
 `Commit.body` no longer claims to be a required `string` when Go emits it
@@ -1912,7 +1914,7 @@ implemented (see the loader entry above) rather than removed from the docs.
   Node `takeString` (`backend-node.ts:77-86`), Deno `readCString`+`freePtr`
   (`backend-deno.ts:457-479`). Happy paths are leak-free (audited); these are
   exceptional-path one-offs.
-- `backend-node.ts:56-61` error message claims koffi "^2.15.0" while
+- `backend-node.ts:56-61` error message claims the Node binding "^2.15.0" while
   package.json pins `^3.1.4` — misdirects anyone debugging a version mismatch.
   Also `backend-node.ts:68` says "96 symbols"; it's 97 malloc'd returns.
 - `ffi/mod.ts:34` advertises `loadEserAjan({ backends: ["deno"] })` but

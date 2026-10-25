@@ -1,10 +1,5 @@
 {
   "namespace-import": {
-    "pkg/@eserstack/fp/chunk.bench.ts": 1,
-    "pkg/@eserstack/fp/get.bench.ts": 1,
-    "pkg/@eserstack/fp/group-by.bench.ts": 1,
-    "pkg/@eserstack/fp/key-by.bench.ts": 1,
-    "pkg/@eserstack/fp/memoize.bench.ts": 1,
     "pkg/@eserstack/shell/vterm/terminal.ts": 1
   },
   "or-default": {},

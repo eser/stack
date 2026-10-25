@@ -522,7 +522,7 @@ func bridgeCodebaseCheckCircularDeps(requestJSON string) string {
 	return marshalResponse(result)
 }
 
-// bridgeCodebaseCheckExportNames validates deno.json export path naming.
+// bridgeCodebaseCheckExportNames validates JSR manifest export path naming.
 func bridgeCodebaseCheckExportNames(requestJSON string) string {
 	var req workspaceCheckRequest
 	if err := json.Unmarshal([]byte(requestJSON), &req); err != nil {
@@ -562,7 +562,7 @@ func bridgeCodebaseCheckModExports(requestJSON string) string {
 	return marshalResponse(result)
 }
 
-// bridgeCodebaseCheckPackageConfigs validates deno.json / package.json consistency.
+// bridgeCodebaseCheckPackageConfigs validates JSR manifest / package.json consistency.
 func bridgeCodebaseCheckPackageConfigs(requestJSON string) string {
 	var req workspaceCheckRequest
 	if err := json.Unmarshal([]byte(requestJSON), &req); err != nil {

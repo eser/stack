@@ -18,27 +18,24 @@ const withEnvironment = <T>(
   wasmPathOverride: string | undefined,
   fn: () => T,
 ): T => {
-  // globalThis does not declare Deno, Bun or process on every runtime.
-  // oxlint-disable-next-line typescript/no-explicit-any
-  const g = globalThis as any;
-  const originalCwd = g.process.cwd;
-  const originalOverride = g.process.env["ESER_AJAN_WASM_PATH"];
+  const originalCwd = process.cwd;
+  const originalOverride = process.env["ESER_AJAN_WASM_PATH"];
 
-  g.process.cwd = () => cwd;
+  process.cwd = () => cwd;
   if (wasmPathOverride === undefined) {
-    delete g.process.env["ESER_AJAN_WASM_PATH"];
+    delete process.env["ESER_AJAN_WASM_PATH"];
   } else {
-    g.process.env["ESER_AJAN_WASM_PATH"] = wasmPathOverride;
+    process.env["ESER_AJAN_WASM_PATH"] = wasmPathOverride;
   }
 
   try {
     return fn();
   } finally {
-    g.process.cwd = originalCwd;
+    process.cwd = originalCwd;
     if (originalOverride === undefined) {
-      delete g.process.env["ESER_AJAN_WASM_PATH"];
+      delete process.env["ESER_AJAN_WASM_PATH"];
     } else {
-      g.process.env["ESER_AJAN_WASM_PATH"] = originalOverride;
+      process.env["ESER_AJAN_WASM_PATH"] = originalOverride;
     }
   }
 };
@@ -113,7 +110,7 @@ nodeTest.test(
       assert.assertStringIncludes(error.message, `${moduleDir}/eser-ajan.wasm`);
       assert.assertStringIncludes(
         error.message,
-        `${moduleDir}/../dist/wasi/eser-ajan.wasm.bin`,
+        `${moduleDir}/../dist/wasi/eser-ajan.wasm`,
       );
       assert.assertStringIncludes(
         error.message,

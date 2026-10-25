@@ -65,8 +65,8 @@ type streamState struct {
 	requestID string
 
 	// mu serializes reads on one handle. StreamIterator is not safe for
-	// concurrent use, and Deno's nonblocking FFI symbols let two reads of the
-	// same handle land on different threads.
+	// concurrent use, and FFI calls from worker threads (decision-37) let two
+	// reads of the same handle land on different threads.
 	mu sync.Mutex
 
 	wg sync.WaitGroup

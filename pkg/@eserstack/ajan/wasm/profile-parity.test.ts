@@ -14,6 +14,7 @@
  */
 
 import * as nodeTest from "node:test";
+import * as workerThreads from "node:worker_threads";
 import * as assert from "@eserstack/test-kit/assert";
 import { runtime } from "@eserstack/standards/cross-runtime";
 import * as ffiClient from "../ffi/client.ts";
@@ -274,12 +275,14 @@ nodeTest.test(
       // HTTP against a local server (TASK-277). The reactor's requests wait on
       // the host's fetch, so they go through callEnvelopeAsync. The Date
       // header is the only part of an answer that may differ.
-      const worker = new Worker(
+      const worker = new workerThreads.Worker(
         new URL("./profile-parity-server.worker.ts", import.meta.url),
-        { type: "module" },
       );
-      const port = await new Promise<number>((resolve) => {
-        worker.onmessage = (event) => resolve(event.data.port);
+      const port = await new Promise<number>((resolve, reject) => {
+        worker.once("message", (message: { port: number }) =>
+          resolve(message.port),
+        );
+        worker.once("error", reject);
       });
       try {
         const base = `http://127.0.0.1:${port}`;
@@ -345,7 +348,7 @@ nodeTest.test(
         );
       } finally {
         worker.postMessage("stop");
-        worker.terminate();
+        await worker.terminate();
       }
 
       // init and shutdown, on the WASM instance only (see the module doc).

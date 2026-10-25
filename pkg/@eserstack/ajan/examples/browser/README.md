@@ -45,7 +45,7 @@ Open [http://localhost:8080](http://localhost:8080) in your browser.
    module's input arena (`eser_ajan_alloc`), runs `eser_ajan_call` and parses
    the JSON envelope at `eser_ajan_result_ptr()`.
 
-This is the protocol of the Deno and Node loader in `wasm/loader-reactor.ts`,
+This is the protocol of the Node loader in `wasm/loader-reactor.ts`,
 with the WASI shim inlined as plain JavaScript for zero-dependency browser use.
 The shim has no filesystem, so the functions that read files answer the WASI
 error here.

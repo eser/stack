@@ -34,5 +34,5 @@ export type CliApp = {
  */
 export const appFromName = (command: string): CliApp => ({
   command,
-  devCommand: `deno task cli ${command}`,
+  devCommand: `pnpm cli ${command}`,
 });

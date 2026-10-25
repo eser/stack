@@ -22,8 +22,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// jsRuntimes are the programs the TypeScript mux worker ran under.
-var jsRuntimes = []string{"node", "deno", "bun"} //nolint:gochecknoglobals // test fixture
+// jsRuntimes are the JavaScript runtimes the daemon must not need.
+var jsRuntimes = []string{"node"} //nolint:gochecknoglobals // test fixture
 
 // pathWithoutJSRuntimes returns PATH with first in front and without every
 // directory that holds one of jsRuntimes.
@@ -54,7 +54,7 @@ func pathWithoutJSRuntimes(first string) string {
 }
 
 // TestMuxSessionRunsWithoutAJavaScriptRuntime runs a kind=mux session through
-// the daemon, over WebTransport, with no node, deno or bun on PATH. The client
+// the daemon, over WebTransport, with no node on PATH. The client
 // speaks the protocol the TypeScript clients speak (noskills-client's attach
 // and the web UI's mux-remote.js): {"type":"mux","frame":...} lines in, and
 // sequenced {"type":"mux","v":1,"frame":...} lines out.

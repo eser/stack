@@ -16,9 +16,6 @@
  * - `@eserstack/ajan-*`, `@eserstack/ajan-wasm` — the per-platform shared
  *   libraries and the WASM fallback. They are optionalDependencies of the npm
  *   package and are located at runtime by the FFI loader via dlopen.
- * - `koffi` — the Node FFI binding, a native module.
- * - `bun:ffi` — a Bun-only builtin that exists in no registry; esbuild cannot
- *   resolve it, so the bundle must leave the import untouched.
  *
  * What is deliberately NOT external: `@eserstack/ajan` itself. It is published
  * to JSR only, so declaring it as an npm dependency leaves the package
@@ -36,6 +33,4 @@ export const NPM_EXTERNAL_PACKAGES: readonly string[] = [
   "lightningcss",
   "@eserstack/ajan-*",
   "@eserstack/ajan-wasm",
-  "koffi",
-  "bun:ffi",
 ];

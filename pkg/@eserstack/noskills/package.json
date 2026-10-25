@@ -25,7 +25,6 @@
   },
   "devDependencies": {
     "@eserstack/test-kit": "workspace:*",
-    "@std/testing": "npm:@jsr/std__testing@^1.0.20",
     "esbuild": "^0.28.2"
   },
   "optionalDependencies": {

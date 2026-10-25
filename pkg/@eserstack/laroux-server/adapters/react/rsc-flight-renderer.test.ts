@@ -67,7 +67,7 @@ const VALUE_CASES: { name: string; value: unknown }[] = [
 
 for (const { name, value } of VALUE_CASES) {
   nodeTest.test(
-    `renderValueToReadableStream sends ${name} to the client intact`,
+    `track-l-delete: renderValueToReadableStream sends ${name} to the client intact`,
     async () => {
       assert.assertEquals(await roundTrip(value), value);
     },
@@ -75,7 +75,7 @@ for (const { name, value } of VALUE_CASES) {
 }
 
 nodeTest.test(
-  "renderValueToReadableStream sends a Date, a Map and a React element in one result",
+  "track-l-delete: renderValueToReadableStream sends a Date, a Map and a React element in one result",
   async () => {
     const savedAt = new Date("2026-01-02T03:04:05.000Z");
     const result = (await roundTrip({
@@ -99,7 +99,7 @@ nodeTest.test(
 );
 
 nodeTest.test(
-  "renderValueToReadableStream renders server components in a result",
+  "track-l-delete: renderValueToReadableStream renders server components in a result",
   async () => {
     const Greeting = async (props: { readonly name: string }) => {
       await Promise.resolve();
@@ -116,7 +116,7 @@ nodeTest.test(
 );
 
 nodeTest.test(
-  "renderValueToReadableStream sends client components as module references",
+  "track-l-delete: renderValueToReadableStream sends client components as module references",
   async () => {
     const Counter = (props: { readonly start: number }) =>
       React.createElement("output", null, props.start);
@@ -153,7 +153,7 @@ nodeTest.test(
 );
 
 nodeTest.test(
-  "renderValueToReadableStream sends server actions as callable references",
+  "track-l-delete: renderValueToReadableStream sends server actions as callable references",
   async () => {
     const save = Object.assign(() => Promise.resolve(), {
       $$typeof: Symbol.for("react.server.reference"),
@@ -202,7 +202,7 @@ const UNSUPPORTED_CASES = [
 
 for (const { name, value, message } of UNSUPPORTED_CASES) {
   nodeTest.test(
-    `renderValueToReadableStream rejects ${name} with a message that names it`,
+    `track-l-delete: renderValueToReadableStream rejects ${name} with a message that names it`,
     async () => {
       await assert.assertRejects(() => roundTrip(value), Error, message);
     },
@@ -210,7 +210,7 @@ for (const { name, value, message } of UNSUPPORTED_CASES) {
 }
 
 nodeTest.test(
-  "renderToReadableStream escapes text and props that start with $",
+  "track-l-delete: renderToReadableStream escapes text and props that start with $",
   async () => {
     const RSCTreeRoot = await larouxClient.createFromReadableStream(
       rscFlightRenderer.renderToReadableStream(
@@ -231,7 +231,7 @@ nodeTest.test(
 );
 
 nodeTest.test(
-  "renderToReadableStream sends the items of an array a server component returns",
+  "track-l-delete: renderToReadableStream sends the items of an array a server component returns",
   async () => {
     const List = () => [
       React.createElement("li", { key: "a" }, "A"),
@@ -254,16 +254,19 @@ nodeTest.test(
 );
 
 nodeTest.test(
-  "a Link that a server component renders navigates on the client",
+  "track-l-delete: a Link that a server component renders navigates on the client",
   async () => {
     // laroux calls a server component as a plain function, so the Link in it
     // runs on the server too.
     const StoriesNav = () =>
-      React.createElement(larouxReact.Link, {
-        href: "/stories",
-        replace: true,
-        children: "Stories",
-      });
+      React.createElement(
+        // children is the third argument, which the props type does not see
+        larouxReact.Link as React.ComponentType<
+          Omit<React.ComponentProps<typeof larouxReact.Link>, "children">
+        >,
+        { href: "/stories", replace: true },
+        "Stories",
+      );
 
     const anchor = (await larouxClient.createValueFromReadableStream(
       rscFlightRenderer.renderToReadableStream(

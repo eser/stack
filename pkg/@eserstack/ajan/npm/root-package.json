@@ -1,7 +1,7 @@
 {
   "name": "@eserstack/ajan",
   "version": "1.0.0",
-  "description": "Go FFI bridge for eser CLI — cross-runtime (Node.js, Bun, Deno)",
+  "description": "Go FFI bridge for eser CLI on Node.js, through node:ffi with a WASM fallback",
   "type": "module",
   "exports": {
     ".": "./ffi/mod.ts",

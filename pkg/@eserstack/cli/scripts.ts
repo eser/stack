@@ -99,7 +99,7 @@ export const parseScript = (
   if (typeof command !== "string") {
     return results.fail(
       `script "${name}" has no "command" string; add the command it runs, ` +
-        `for example command: deno test`,
+        `for example command: pnpm test`,
     );
   }
 
@@ -257,34 +257,33 @@ export type CliPrefixPaths = {
   /** The running executable: a runtime, or the compiled `eser` binary. */
   readonly execPath: string;
   /**
-   * The file the runtime started (`argv[1]`). Under Node and Bun it is the
-   * entry file of the npm bundle; null when the runtime started no file.
+   * The file the runtime started (`argv[1]`). Under Node it is the entry file
+   * of the npm bundle; null when the runtime started no file.
    */
   readonly entryPath: string | null;
-  /** This package's `main.ts`, the entry point `deno run` loads. */
+  /** This package's `main.ts`, the entry point a dev run starts with node. */
   readonly mainPath: string;
 };
 
 /**
  * Build the command that runs this CLI again, the same way it was started.
  *
- * | Invoker                           | Prefix                                      |
- * | --------------------------------- | ------------------------------------------- |
- * | `binary`                          | `'<execPath>'`                              |
- * | `npm`, `npx`, `pnpm`, `pnpx`      | `'<execPath>' '<entryPath>'`                |
- * | `bun`, `bunx`                     | `'<execPath>' '<entryPath>'`                |
- * | `deno`, `dev`                     | `'<execPath>' run --allow-all '<mainPath>'` |
- * | `unknown`, or no `entryPath`      | `eser`, the one on `PATH`                   |
+ * | Invoker                      | Prefix                         |
+ * | ---------------------------- | ------------------------------ |
+ * | `binary`                     | `'<execPath>'`                 |
+ * | `npm`, `npx`, `pnpm`, `pnpx` | `'<execPath>' '<entryPath>'`   |
+ * | `dev`                        | `'<execPath>' '<mainPath>'`    |
+ * | `unknown`, or no `entryPath` | `eser`, the one on `PATH`      |
  *
  * The compiled binary is the CLI itself. The npm bundle is run by the same
- * Node or Bun from its own entry file, so a script never reaches a different
- * `eser` version. Deno runs the source entry point with every permission.
+ * Node from its own entry file, so a script never reaches a different `eser`
+ * version. A dev run starts the source entry point with the same Node.
  *
  * The prefix is spliced into a script that runs under `sh -c`, so each path is
  * one single-quoted word. A space, a quote, `$` or "\" in a path reaches the
- * runtime as data and never splits the word or runs. For `deno`,
- * `/opt/John Smith/deno` and `/src/main.ts` the result is
- * `'/opt/John Smith/deno' run --allow-all '/src/main.ts'`.
+ * runtime as data and never splits the word or runs. For `dev`,
+ * `/opt/John Smith/node` and `/src/main.ts` the result is
+ * `'/opt/John Smith/node' '/src/main.ts'`.
  */
 export const buildCliPrefix = (
   invoker: crossRuntime.CliInvoker,
@@ -299,14 +298,11 @@ export const buildCliPrefix = (
     case "npx":
     case "pnpm":
     case "pnpx":
-    case "bun":
-    case "bunx":
       return paths.entryPath === null
         ? ESER_ON_PATH
         : `${executable} ${shellQuote(paths.entryPath)}`;
-    case "deno":
     case "dev":
-      return `${executable} run --allow-all ${shellQuote(paths.mainPath)}`;
+      return `${executable} ${shellQuote(paths.mainPath)}`;
     case "unknown":
       return ESER_ON_PATH;
     default: {
@@ -323,22 +319,19 @@ export const buildCliPrefix = (
 /**
  * Tell how this CLI was started, for `buildCliPrefix`.
  *
- * `detectInvoker` reports `binary` only for a runtime it does not know, and a
- * `deno compile` binary runs on Deno, so it would pass for a Deno install.
- * `Deno.build.standalone` is true only inside such a binary, and the `typeof`
- * check keeps reading it safe under Node and Bun. Cross-runtime does not expose
- * it yet; drop this check once `detectInvoker` reports such a binary itself.
+ * `detectInvoker` reports `binary` for an executable that is not a known
+ * runtime, which is how the compiled `eser` binary shows up.
  */
 const detectCliInvoker = (execPath: string): crossRuntime.CliInvoker => {
-  if (typeof Deno !== "undefined" && Deno.build.standalone) {
-    return "binary";
-  }
-
   // The package manager (npm, pnpm, npx) does not change the prefix, so its
   // environment variables are not read.
   const detected = crossRuntime.detectInvoker(
     crossRuntime.runtime.path.basename(execPath),
-    crossRuntime.detectRuntime(),
+    // A single executable application is the CLI itself, so it gets no
+    // runtime name and is detected as the binary.
+    crossRuntime.runtime.process.isStandalone
+      ? "compiled"
+      : crossRuntime.detectRuntime(),
     crossRuntime.runtime.process.argv,
     {},
   );
@@ -394,8 +387,8 @@ export const resolveCommand = (command: string, cliPrefix: string): string => {
  * reaches the command as exactly one word: spaces, quotes, `$`, `*` and `;`
  * arrive as data and are never split, expanded or run.
  *
- * For `deno test` with the arguments `--filter` and `my test`, the result is
- * `["-c", 'deno test "$@"', "sh", "--filter", "my test"]`.
+ * For `pnpm test` with the arguments `--filter` and `my test`, the result is
+ * `["-c", 'pnpm test "$@"', "sh", "--filter", "my test"]`.
  */
 export const buildShellArgs = (
   command: string,

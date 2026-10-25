@@ -1,49 +1,50 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as fs from "node:fs";
+import * as fsPromises from "node:fs/promises";
+import * as os from "node:os";
+import * as path from "node:path";
 import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as resolve from "./resolve.ts";
 
 const libName = `libeser_ajan${resolve.getLibraryExtension()}`;
 
-const platformSlug = `${
-  Deno.build.os === "windows" ? "win32" : Deno.build.os
-}-${Deno.build.arch === "aarch64" ? "arm64" : "x64"}`;
+const platformSlug = `${process.platform}-${
+  process.arch === "arm64" ? "arm64" : "x64"
+}`;
 
 /**
  * Runs `fn` with `process.cwd()` reporting `cwd` and `ESER_AJAN_LIB_PATH` set
  * to `libPathOverride`.
  *
  * Resolution reads the cwd through `process.cwd()`, so stubbing it is both
- * sufficient and safer than `Deno.chdir`, which would leak into other test
- * files sharing the process under `deno test --parallel`.
+ * sufficient and safer than `process.chdir`, which would leak into other tests
+ * sharing the process.
  */
 const withEnvironment = <T>(
   cwd: string,
   libPathOverride: string | undefined,
   fn: () => T,
 ): T => {
-  // globalThis does not declare Deno, Bun or process on every runtime.
-  // oxlint-disable-next-line typescript/no-explicit-any
-  const g = globalThis as any;
-  const originalCwd = g.process.cwd;
-  const originalOverride = g.process.env["ESER_AJAN_LIB_PATH"];
+  const originalCwd = process.cwd;
+  const originalOverride = process.env["ESER_AJAN_LIB_PATH"];
 
-  g.process.cwd = () => cwd;
+  process.cwd = () => cwd;
   if (libPathOverride === undefined) {
-    delete g.process.env["ESER_AJAN_LIB_PATH"];
+    delete process.env["ESER_AJAN_LIB_PATH"];
   } else {
-    g.process.env["ESER_AJAN_LIB_PATH"] = libPathOverride;
+    process.env["ESER_AJAN_LIB_PATH"] = libPathOverride;
   }
 
   try {
     return fn();
   } finally {
-    g.process.cwd = originalCwd;
+    process.cwd = originalCwd;
     if (originalOverride === undefined) {
-      delete g.process.env["ESER_AJAN_LIB_PATH"];
+      delete process.env["ESER_AJAN_LIB_PATH"];
     } else {
-      g.process.env["ESER_AJAN_LIB_PATH"] = originalOverride;
+      process.env["ESER_AJAN_LIB_PATH"] = originalOverride;
     }
   }
 };
@@ -57,27 +58,29 @@ const createInstallTree = async (): Promise<{
   projectRoot: string;
   moduleDir: string;
 }> => {
-  const tempRoot = await Deno.makeTempDir({ prefix: "ajan-resolve-" });
+  const tempRoot = await fsPromises.mkdtemp(
+    path.join(os.tmpdir(), "ajan-resolve-"),
+  );
   const projectRoot = `${tempRoot}/proj`;
   const moduleDir = `${projectRoot}/node_modules/@eserstack/ajan/ffi`;
 
-  await Deno.mkdir(moduleDir, { recursive: true });
+  await fsPromises.mkdir(moduleDir, { recursive: true });
 
   return { tempRoot, projectRoot, moduleDir };
 };
 
 const writeDummyLibrary = async (dir: string): Promise<string> => {
-  await Deno.mkdir(dir, { recursive: true });
+  await fsPromises.mkdir(dir, { recursive: true });
 
-  const path = `${dir}/${libName}`;
-  await Deno.writeTextFile(path, "not a real shared library");
+  const libraryPath = `${dir}/${libName}`;
+  await fsPromises.writeFile(libraryPath, "not a real shared library");
 
-  return path;
+  return libraryPath;
 };
 
 /** Compares two candidate paths by identity, past `..` segments and symlinks. */
 const assertSameFile = (actual: string, expected: string): void => {
-  assert.assertEquals(Deno.realPathSync(actual), Deno.realPathSync(expected));
+  assert.assertEquals(fs.realpathSync(actual), fs.realpathSync(expected));
 };
 
 nodeTest.test(
@@ -91,7 +94,7 @@ nodeTest.test(
       );
 
       const subdirectory = `${projectRoot}/src/nested/deep`;
-      await Deno.mkdir(subdirectory, { recursive: true });
+      await fsPromises.mkdir(subdirectory, { recursive: true });
 
       // The project root is the only cwd the previous implementation handled;
       // the other two are what an installed CLI invocation actually looks like.
@@ -103,7 +106,7 @@ nodeTest.test(
         assertSameFile(resolved, expected);
       }
     } finally {
-      await Deno.remove(tempRoot, { recursive: true });
+      await fsPromises.rm(tempRoot, { recursive: true, force: true });
     }
   },
 );
@@ -124,7 +127,7 @@ nodeTest.test(
 
       assertSameFile(resolved, expected);
     } finally {
-      await Deno.remove(tempRoot, { recursive: true });
+      await fsPromises.rm(tempRoot, { recursive: true, force: true });
     }
   },
 );
@@ -140,7 +143,7 @@ nodeTest.test(
       );
 
       const subdirectory = `${projectRoot}/apps/web`;
-      await Deno.mkdir(subdirectory, { recursive: true });
+      await fsPromises.mkdir(subdirectory, { recursive: true });
 
       // No usable module directory: the JSR/remote case, where `getModuleDir()`
       // falls back to the cwd and resolution has nothing else to work with.
@@ -150,7 +153,7 @@ nodeTest.test(
 
       assertSameFile(resolved, expected);
     } finally {
-      await Deno.remove(tempRoot, { recursive: true });
+      await fsPromises.rm(tempRoot, { recursive: true, force: true });
     }
   },
 );
@@ -172,7 +175,7 @@ nodeTest.test(
 
       assert.assertEquals(resolved, override);
     } finally {
-      await Deno.remove(tempRoot, { recursive: true });
+      await fsPromises.rm(tempRoot, { recursive: true, force: true });
     }
   },
 );
@@ -203,7 +206,7 @@ nodeTest.test(
       );
       assert.assertStringIncludes(error.message, `/usr/local/lib/${libName}`);
     } finally {
-      await Deno.remove(tempRoot, { recursive: true });
+      await fsPromises.rm(tempRoot, { recursive: true, force: true });
     }
   },
 );

@@ -1,14 +1,20 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as fsPromises from "node:fs/promises"; // symlinks are not available in runtime
 import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
-import * as fs from "@std/fs"; // symlinks are not available in runtime
 import { runtime } from "@eserstack/standards/cross-runtime";
 import * as larouxConfig from "@eserstack/laroux/config";
 import * as bundler from "../../domain/bundler.ts";
 import * as importMapResolverPlugin from "../../import-map-resolver-plugin.ts";
 import * as rscClientEntry from "./rsc-client-entry.ts";
 import type { ClientComponent } from "./rsc-analyze.ts";
+
+/** Link linkPath to target, creating the parent directories of linkPath. */
+async function linkDir(target: string, linkPath: string): Promise<void> {
+  await fsPromises.mkdir(runtime.path.dirname(linkPath), { recursive: true });
+  await fsPromises.symlink(target, linkPath, "dir");
+}
 
 // The component goes to createClientEntry directly, so it needs no
 // "use client" directive, which rolldown would warn about when bundling.
@@ -75,7 +81,7 @@ async function withMinimalApp(
     const sourceModules = larouxReactNodeModules();
     await Promise.all(
       APP_DEPENDENCIES.map((name) =>
-        fs.ensureSymlink(
+        linkDir(
           runtime.path.join(sourceModules, name),
           runtime.path.join(appRoot, "node_modules", name),
         ),

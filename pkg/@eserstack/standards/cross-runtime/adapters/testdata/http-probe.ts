@@ -3,7 +3,7 @@
 /**
  * Runs the http-scenario.ts contract against `runtime.http` on the runtime
  * that runs this file, and prints what it observed as one JSON object. The
- * Node and Bun adapter tests run it (see probes.ts).
+ * Node adapter tests run it (see probes.ts).
  *
  * @module
  */

@@ -4,7 +4,7 @@
  * Minimal runnable demo: a standalone multiplexer running your shell.
  *
  * Run in a real terminal:
- *   deno run -A pkg/@eserstack/mux/examples/demo.ts
+ *   node pkg/@eserstack/mux/examples/demo.ts
  *
  * Keys: ctrl+p then v/s to split, hjkl to move focus, x to close a pane;
  * ctrl+t then n for a new tab, h/l to switch; ctrl+q to quit. (See the default

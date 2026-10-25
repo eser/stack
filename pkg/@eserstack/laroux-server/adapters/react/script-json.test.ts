@@ -13,7 +13,7 @@ const count = (haystack: string, needle: string): number =>
   haystack.toLowerCase().split(needle.toLowerCase()).length - 1;
 
 nodeTest.test(
-  "escapeJsonForScript round-trips and removes markup characters",
+  "track-l-delete: escapeJsonForScript round-trips and removes markup characters",
   () => {
     const json = JSON.stringify({ v: PAYLOAD, amp: "a&b>c" });
     const escaped = scriptJson.escapeJsonForScript(json);
@@ -23,7 +23,7 @@ nodeTest.test(
 );
 
 nodeTest.test(
-  "chunkToInlineScript keeps a </script value inside its element",
+  "track-l-delete: chunkToInlineScript keeps a </script value inside its element",
   () => {
     const html = inlineRscEmitter.chunkToInlineScript(
       `J5:${JSON.stringify(PAYLOAD)}`,
@@ -35,7 +35,7 @@ nodeTest.test(
 );
 
 nodeTest.test(
-  "createInlineRSCStream escapes rendered strings and props",
+  "track-l-delete: createInlineRSCStream escapes rendered strings and props",
   async () => {
     const element = React.createElement("div", { title: PAYLOAD }, PAYLOAD);
     const html = await new Response(
@@ -48,7 +48,7 @@ nodeTest.test(
 );
 
 nodeTest.test(
-  "generateRSCPayloadScript cannot be closed or commented out by a value",
+  "track-l-delete: generateRSCPayloadScript cannot be closed or commented out by a value",
   () => {
     const html = ssrRenderer.generateRSCPayloadScript([
       { type: "J", id: 0, value: PAYLOAD },

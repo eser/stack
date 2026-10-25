@@ -1,6 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 /**
- * React Flight Client - RSC Parser for Deno/Browser
+ * React Flight Client - RSC Parser for the Browser
  *
  * This module implements the client-side RSC wire protocol parser.
  * It reconstructs React elements from the streaming RSC payload sent by the server.
@@ -773,11 +773,11 @@ function parseReactElement(element: any, context: ClientContext): any {
             : {};
 
         // Return Suspense with ChunkReader as children
-        return React.createElement(type, {
-          ...parsedOtherProps,
-          fallback: parsedFallback,
-          children: React.createElement(ChunkReader, { chunk: childChunk }),
-        });
+        return React.createElement(
+          type,
+          { ...parsedOtherProps, fallback: parsedFallback },
+          React.createElement(ChunkReader, { chunk: childChunk }),
+        );
       }
     }
   }

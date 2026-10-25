@@ -14,7 +14,7 @@ React Server Components adapter for laroux.js framework.
 
 This package implements the React Server Components (RSC) protocol for the
 laroux.js framework. It provides the necessary adapters and utilities to enable
-server-side rendering with React 19.x's Server Components architecture on Deno.
+server-side rendering with React 19.x's Server Components architecture on Node.
 Pages in a laroux app use its `Link`, `useRouter` and `Image` exports; the
 laroux server and client bootstrap use its RSC protocol and client parser.
 
@@ -47,7 +47,6 @@ export function HomePage() {
 - **Streaming SSR**: Stream React components from server to client
 - **Client Components**: Automatic code splitting for client-side interactivity
 - **Server Actions**: Type-safe server-side mutations
-- **Deno-first**: Built specifically for the Deno runtime
 
 ## Installation
 
@@ -278,8 +277,8 @@ bundles it from there, so its imports resolve from the app: install `react`,
 
 ## Architecture
 
-This package bridges React's Server Components implementation with Deno's
-runtime and integrates with the eser stack handler architecture:
+This package bridges React's Server Components implementation with the laroux
+server and integrates with the eser stack handler architecture:
 
 1. **Server**: Renders Server Components to RSC protocol streams
 2. **Client**: Hydrates and renders Client Components in the browser

@@ -11,7 +11,7 @@
  * @module
  */
 
-import * as fs from "@std/fs";
+import * as fs from "node:fs/promises";
 import { runtime } from "@eserstack/standards/cross-runtime";
 import type { CssModuleOptions, CssModuleResult } from "./types.ts";
 import * as lightning from "./lightning.ts";
@@ -198,9 +198,12 @@ export async function findCssModules(
 ): Promise<string[]> {
   const modules: string[] = [];
 
-  for await (const entry of fs.expandGlob(runtime.path.join(dir, pattern))) {
-    if (entry.isFile) {
-      modules.push(entry.path);
+  for await (const entry of fs.glob(pattern, {
+    cwd: runtime.path.resolve(dir),
+    withFileTypes: true,
+  })) {
+    if (entry.isFile()) {
+      modules.push(runtime.path.join(entry.parentPath, entry.name));
     }
   }
 

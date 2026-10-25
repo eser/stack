@@ -14,8 +14,8 @@
 (() => {
   "use strict";
 
-  // Browser globals come from globalThis: deno lint checks this file against
-  // Deno's globals, which have no DOM.
+  // Browser globals are read from globalThis, where browser_scripts.test.ts
+  // installs its stand-ins for them.
   const { document } = globalThis;
 
   // The terminal font. Callers measure the cell with the same values, so the

@@ -1,21 +1,21 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 /**
- * Unified FFI entry point for the eser-ajan C-shared library.
+ * Entry point for the eser-ajan C-shared library on Node.
  *
- * Provides a single `loadEserAjan()` function that abstracts away the
- * differences between Deno (`Deno.dlopen`), Bun (`bun:ffi`), and
- * Node.js (`node:ffi`) FFI APIs. Falls back to WASM when no native FFI
- * backend is available.
+ * `loadEserAjan()` has one loader order (decision-37): the native library
+ * through the built-in `node:ffi` module first; if that cannot load, the WASM
+ * build (the wasi-profile reactor, decision-45); if that fails too, an error
+ * that names both causes.
  *
  * ## Feature Flags
  *
- * Environment variables control which backends are enabled for incremental
- * rollout. Set any of these to `"disabled"` to skip the corresponding backend:
+ * Environment variables switch the two steps off. Set any of these to
+ * `"disabled"`:
  *
- * - `ESER_AJAN=disabled` — disable everything; `loadEserAjan()` throws immediately
- * - `ESER_AJAN_NATIVE=disabled` — disable native FFI; skip straight to WASM fallback
- * - `ESER_AJAN_WASM=disabled` — disable WASM fallback; only try native
+ * - `ESER_AJAN=disabled`: disable everything; `loadEserAjan()` throws immediately
+ * - `ESER_AJAN_NATIVE=disabled`: skip node:ffi and go straight to the WASM build
+ * - `ESER_AJAN_WASM=disabled`: disable the WASM fallback; only try node:ffi
  *
  * Usage:
  * ```ts
@@ -30,22 +30,15 @@
  *
  * Programmatic control:
  * ```ts
- * const lib = await ffi.loadEserAjan({ native: false }); // skip native, use WASM
- * const lib = await ffi.loadEserAjan({ backends: ["deno"] }); // only try Deno
+ * const wasmOnly = await ffi.loadEserAjan({ native: false });
+ * const nativeOnly = await ffi.loadEserAjan({ wasm: false });
  * ```
  *
  * @module
  */
 
-export type {
-  FFIBackend,
-  FFILibrary,
-  LibraryExtension,
-  RuntimeId,
-} from "./types.ts";
+export type { FFILibrary, LibraryExtension } from "./types.ts";
 
-import * as backendDeno from "./backend-deno.ts";
-import * as backendBun from "./backend-bun.ts";
 import * as backendNode from "./backend-node.ts";
 import * as resolve from "./resolve.ts";
 import type * as types from "./types.ts";
@@ -55,47 +48,20 @@ import type * as types from "./types.ts";
 // ---------------------------------------------------------------------------
 
 /**
- * Options for programmatic control of backend selection.
- * Environment variables take precedence — if an env var disables a backend,
- * it stays disabled even if `LoadOptions` would enable it.
+ * Options for programmatic control of the loader order.
+ * Environment variables take precedence: if an env var disables a step, it
+ * stays disabled even if `LoadOptions` would enable it.
  */
 export interface LoadOptions {
-  /** Allow native FFI backends. Default: `true` (unless `ESER_AJAN_NATIVE=disabled`). */
+  /** Allow the native library through node:ffi. Default: `true` (unless `ESER_AJAN_NATIVE=disabled`). */
   native?: boolean;
-  /** Allow WASM fallback. Default: `true` (unless `ESER_AJAN_WASM=disabled`). */
+  /** Allow the WASM fallback. Default: `true` (unless `ESER_AJAN_WASM=disabled`). */
   wasm?: boolean;
-  /**
-   * Restrict native backend selection to these runtimes, tried in the order
-   * given here rather than the built-in priority order. Unknown ids are
-   * ignored. Default: every registered backend, in priority order.
-   */
-  backends?: readonly types.RuntimeId[];
 }
 
-/**
- * Reads an environment variable in a runtime-agnostic way.
- * Uses `process.env` which works on Deno 2.7+, Node.js, and Bun.
- */
-const getEnv = (name: string): string | undefined => {
-  try {
-    // globalThis does not declare Deno, Bun or process on every runtime.
-    // oxlint-disable-next-line typescript/no-explicit-any
-    const g = globalThis as any;
-
-    // process.env works on Deno 2.7+, Node.js, and Bun
-    if (
-      typeof g.process !== "undefined" &&
-      g.process.env !== undefined &&
-      g.process.env !== null
-    ) {
-      return g.process.env[name] as string | undefined;
-    }
-  } catch {
-    // Permission denied or similar — treat as unset
-  }
-
-  return undefined;
-};
+/** Reads an environment variable; `undefined` where there is no `process`. */
+const getEnv = (name: string): string | undefined =>
+  globalThis.process?.env[name];
 
 /** Returns `true` when the given env var is set to `"disabled"` (case-insensitive). */
 const isDisabledByEnv = (envVar: string): boolean => {
@@ -104,17 +70,11 @@ const isDisabledByEnv = (envVar: string): boolean => {
 };
 
 /**
- * Emit a diagnostic about FFI backend selection.
+ * Emit a diagnostic about the loader order.
  *
- * Off unless ESER_AJAN_DEBUG is set, and on stderr when it is. It used to call
- * console.debug unconditionally, which Deno writes to STDOUT -- so every single
- * CLI invocation printed "[eser-ajan/ffi] WASM fallback disabled" into its own
- * output. That is not merely noise: `eser . commitmsg` documents piping its
- * result to pbcopy, and the line went into the clipboard along with the commit
- * message.
- *
- * Diagnostics belong on stderr regardless of the flag, so that a caller
- * enabling them can still pipe stdout.
+ * Off unless ESER_AJAN_DEBUG is set, and on stderr when it is: stdout carries
+ * command output, and `eser . commitmsg` documents piping its result to
+ * pbcopy, so a diagnostic there would land in the clipboard.
  */
 const debugLog = (message: string): void => {
   if (getEnv("ESER_AJAN_DEBUG") === undefined) {
@@ -152,85 +112,19 @@ export const getLibraryExtension: () => types.LibraryExtension =
 export const resolveLibraryPath = (moduleDirHint?: string): string =>
   resolve.resolveLibraryPath(moduleDirHint ?? FFI_MODULE_DIR);
 
-/** All registered backends in priority order. */
-const BACKENDS: readonly types.FFIBackend[] = [
-  backendDeno.backend,
-  backendBun.backend,
-  backendNode.backend,
-];
-
 /**
- * Detects the current JavaScript runtime.
+ * What a failed native load needs the reader to know: how node:ffi is turned
+ * on and off, and how to point the loader at the library.
  */
-export const detectRuntime = (): types.RuntimeId => {
-  // globalThis does not declare Deno, Bun or process on every runtime.
-  // oxlint-disable-next-line typescript/no-explicit-any
-  const g = globalThis as any;
-
-  if (typeof g.Deno !== "undefined" && typeof g.Deno.dlopen === "function") {
-    return "deno";
-  }
-  if (typeof g.Bun !== "undefined") {
-    return "bun";
-  }
-  if (
-    typeof g.process !== "undefined" &&
-    typeof g.process.versions?.node === "string" &&
-    typeof g.Deno === "undefined" &&
-    typeof g.Bun === "undefined"
-  ) {
-    return "node";
-  }
-
-  return "unknown";
-};
+const NATIVE_HELP =
+  `The native library loads through node:ffi, which needs Node 26.9 or later.\n` +
+  `  - --no-experimental-ffi turns node:ffi off; drop that flag to use it.\n` +
+  `  - Under the permission model (--permission), node:ffi needs --allow-ffi.\n` +
+  `  - Set ESER_AJAN_LIB_PATH to the full path of the library to skip the search.\n` +
+  `  See: https://github.com/eser/stack/tree/main/pkg/@eserstack/ajan`;
 
 /**
- * Selects the first registered native FFI backend that reports itself as
- * available in the current runtime.
- *
- * Feature-flag env vars are not read here — `loadEserAjan()` resolves those
- * before deciding whether to call this at all.
- *
- * @param options - Optional `backends` allow-list; see `LoadOptions.backends`.
- * @throws {Error} If none of the candidate backends is available.
- */
-export const selectBackend = (
-  options?: Pick<LoadOptions, "backends">,
-): types.FFIBackend => {
-  const requested = options?.backends;
-  const candidates: readonly types.FFIBackend[] =
-    requested === undefined
-      ? BACKENDS
-      : requested.flatMap((id) =>
-          BACKENDS.filter((entry) => entry.name === id),
-        );
-
-  for (const backend of candidates) {
-    if (!backend.available()) {
-      continue;
-    }
-
-    return backend;
-  }
-
-  const runtime = detectRuntime();
-
-  throw new Error(
-    `No FFI backend available for runtime "${runtime}".\n` +
-      `Supported runtimes:\n` +
-      `  - Deno 2.7+ (Deno.dlopen)\n` +
-      `  - Bun 1.3+  (bun:ffi)\n` +
-      `  - Node 25+  (node:ffi, experimental)\n` +
-      `\nCurrent runtime: ${runtime}` +
-      (requested === undefined
-        ? ``
-        : `\nRestricted to backends: ${requested.join(", ")}`),
-  );
-};
-
-/**
- * Performs one real open: resolve, select a backend, dlopen, or fall back to
+ * Performs one real open: resolve, dlopen through node:ffi, or fall back to
  * WASM. Every call reaches the runtime, so callers go through
  * {@link loadEserAjan}, which shares the result.
  */
@@ -281,9 +175,9 @@ const openEserAjan = async (
     );
   }
 
-  // --- Try native FFI ---
-  // Kept for the failure paths below: whichever of resolveLibraryPath,
-  // selectBackend or dlopen failed is the only description of WHY native is
+  // --- Try node:ffi ---
+  // Kept for the failure paths below: whichever of resolveLibraryPath, the
+  // node:ffi import or dlopen failed is the only description of WHY native is
   // unavailable, and every later throw has to carry it or it is lost for good.
   let nativeError: unknown;
 
@@ -291,8 +185,7 @@ const openEserAjan = async (
     try {
       const resolvedPath =
         libraryPath ?? resolve.resolveLibraryPath(FFI_MODULE_DIR);
-      const backend = selectBackend(opts);
-      return await backend.open(resolvedPath);
+      return await backendNode.open(resolvedPath);
     } catch (error) {
       nativeError = error;
       debugLog(`native FFI failed: ${errorMessage(error)}`);
@@ -313,15 +206,16 @@ const openEserAjan = async (
       return await wasmMod.loadEserAjanWasm();
     } catch (wasmErr) {
       throw new Error(
-        `No native FFI backend available and WASM fallback failed.\n` +
+        (nativeError === undefined
+          ? `eser-ajan did not load: node:ffi was not tried, and the WASM fallback failed to load.\n`
+          : `eser-ajan did not load through node:ffi, and the WASM fallback also failed to load.\n`) +
           `Native error: ${
             nativeError === undefined
-              ? "native FFI not attempted"
+              ? "node:ffi not attempted"
               : errorMessage(nativeError)
           }\n` +
           `WASM error: ${errorMessage(wasmErr)}\n\n` +
-          `To fix this, install the @eserstack/ajan package or build the native library.\n` +
-          `  See: https://github.com/eser/stack/tree/main/pkg/@eserstack/ajan`,
+          NATIVE_HELP,
         // The native failure is the root cause whenever there was one; the WASM
         // failure is only the fallback declining to paper over it.
         { cause: nativeError ?? wasmErr },
@@ -352,17 +246,16 @@ const openEserAjan = async (
   // the one diagnostic that explains the failure.
   if (nativeError !== undefined) {
     throw new Error(
-      `Native FFI failed and no fallback is available.\n` +
+      `eser-ajan did not load through node:ffi, and no fallback is available.\n` +
         `Native error: ${errorMessage(nativeError)}\n` +
         `Fallback unavailable: ${reasons.join(", ")}\n\n` +
-        `To fix this, install the @eserstack/ajan package or build the native library.\n` +
-        `  See: https://github.com/eser/stack/tree/main/pkg/@eserstack/ajan`,
+        NATIVE_HELP,
       { cause: nativeError },
     );
   }
 
   throw new Error(
-    `All FFI backends are disabled.\n` +
+    `Both node:ffi and the WASM fallback are disabled.\n` +
       `Reasons: ${reasons.join(", ")}\n\n` +
       `To fix this, unset the relevant environment variables or adjust LoadOptions.`,
   );
@@ -393,17 +286,16 @@ const cacheKey = (
     path: libraryPath ?? null,
     native: options?.native ?? null,
     wasm: options?.wasm ?? null,
-    backends: options?.backends ?? null,
   });
 
 /**
- * Opens the eser-ajan shared library using the best available FFI backend,
- * falling back to WASM when no native backend or library is found.
+ * Opens the eser-ajan shared library through node:ffi, falling back to WASM
+ * when node:ffi or the library cannot load.
  *
  * Callers asking for the same thing share one open. Roughly twenty packages in
  * this repo each used to hold their own loader singleton, so a process touching
- * logging, shell, formats and codebase paid four `Deno.dlopen` calls for one
- * file; they now share one handle.
+ * logging, shell, formats and codebase paid four `dlopen` calls for one file;
+ * they now share one handle.
  *
  * Sharing makes `close()` a cross-package action, so handles are reference
  * counted: every call hands back a wrapper whose `close()` is idempotent for

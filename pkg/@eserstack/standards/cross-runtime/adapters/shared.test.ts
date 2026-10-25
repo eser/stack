@@ -142,7 +142,6 @@ nodeTest.test(
 nodeTest.test(
   "getProcess reads the platform and arch of the process global",
   () => {
-    // Deno 2 defines the Node-compatible process global.
     const result = shared.getProcess();
 
     assert.assertNotEquals(result, null);

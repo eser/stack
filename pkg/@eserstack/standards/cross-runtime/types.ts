@@ -15,13 +15,7 @@
 /**
  * Known JavaScript runtime names.
  */
-export type RuntimeName =
-  | "deno"
-  | "node"
-  | "bun"
-  | "workerd"
-  | "browser"
-  | "unknown";
+export type RuntimeName = "node" | "workerd" | "browser" | "unknown";
 
 // =============================================================================
 // Platform Types
@@ -74,7 +68,7 @@ export interface PlatformInfo {
 export interface RuntimeCapabilities {
   /** Filesystem access (async) */
   readonly fs: boolean;
-  /** Synchronous filesystem access */
+  /** Synchronous filesystem access (`runtime.fs.statSync`) */
   readonly fsSync: boolean;
   /** Process execution (spawn/exec) */
   readonly exec: boolean;
@@ -262,6 +256,14 @@ export interface RuntimeFs {
    * @throws {NotFoundError} If path doesn't exist
    */
   stat(path: string): Promise<FileInfo>;
+
+  /**
+   * Get file or directory information synchronously, for code that cannot
+   * await, such as a module that probes for a file while it loads.
+   * Check `runtime.capabilities.fsSync` before using.
+   * @throws {NotFoundError} If path doesn't exist
+   */
+  statSync(path: string): FileInfo;
 
   /**
    * Get file or directory information, following symlinks.
@@ -501,7 +503,10 @@ export interface SpawnOptions {
   stdout?: "inherit" | "piped" | "null";
   /** Standard error handling */
   stderr?: "inherit" | "piped" | "null";
-  /** AbortSignal to cancel the process */
+  /**
+   * AbortSignal that stops the process. An abort kills it with SIGTERM, and
+   * the call resolves with the failed result instead of rejecting.
+   */
   signal?: AbortSignal;
 }
 
@@ -646,9 +651,9 @@ export interface RuntimeExec {
    * ```typescript
    * import { runtime } from "@eserstack/standards/cross-runtime";
    *
-   * const input = "const answer   =   42;\n";
+   * const input = "banana\napple\n";
    *
-   * const child = runtime.exec.spawnChild("deno", ["fmt", "-"], {
+   * const child = runtime.exec.spawnChild("sort", [], {
    *   stdin: "piped",
    *   stdout: "piped",
    *   stderr: "null",
@@ -667,7 +672,7 @@ export interface RuntimeExec {
    * ```typescript
    * import { runtime } from "@eserstack/standards/cross-runtime";
    *
-   * const child = runtime.exec.spawnChild("deno", ["repl"], {
+   * const child = runtime.exec.spawnChild("node", [], {
    *   stdin: "inherit",
    *   stdout: "inherit",
    *   stderr: "inherit",
@@ -726,10 +731,8 @@ export interface RuntimeEnv {
  * Operating system signals a process can listen for with
  * `runtime.process.addSignalListener`.
  *
- * Not every platform has every signal. Deno throws a TypeError for one it
- * cannot listen for there: SIGBREAK outside Windows, and anything but SIGINT
- * and SIGBREAK on Windows. Node and Bun accept every name; a listener for a
- * signal the platform never sends never runs.
+ * Not every platform has every signal. Node accepts every name; a listener
+ * for a signal the platform never sends never runs.
  */
 export type SignalName =
   | "SIGBREAK"
@@ -780,6 +783,13 @@ export interface RuntimeProcess {
   execPath(): string;
 
   /**
+   * True when the program runs as a single executable application, a binary
+   * that bundles the runtime with the program. `execPath()` is then the
+   * program's own binary, not a runtime.
+   */
+  readonly isStandalone: boolean;
+
+  /**
    * Get the process launch arguments.
    */
   readonly argv: readonly string[];
@@ -820,8 +830,6 @@ export interface RuntimeProcess {
    *
    * @param signal - The signal to listen for
    * @param listener - Called once per delivery of the signal
-   * @throws {TypeError} On Deno, if it cannot listen for `signal` on this
-   * platform (see {@link SignalName})
    *
    * @example
    * ```typescript
@@ -847,7 +855,7 @@ export interface RuntimeProcess {
 
   /**
    * Standard input as a readable stream.
-   * On Node and Bun it attaches to the process's stdin on the first read, so a
+   * It attaches to the process's stdin on the first read, so a
    * program that never reads stdin can exit while an open pipe feeds it.
    */
   readonly stdin: ReadableStream<Uint8Array>;
@@ -1059,7 +1067,7 @@ export interface RuntimeHttp {
  * ```
  */
 export interface Runtime {
-  /** Runtime name (deno, node, bun, workerd, browser, unknown) */
+  /** Runtime name (node, workerd, browser, unknown) */
   readonly name: RuntimeName;
 
   /** Runtime version string */

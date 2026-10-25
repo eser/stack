@@ -7,7 +7,7 @@
  * `_lib`/`_libPromise` pair, an `ensureLib` ending in `.catch(() => {})`, and a
  * `getLib`. Three of them carried two copies, in the same package, both
  * reachable from its public `mod.ts`. Since `loadEserAjan` was not memoized,
- * every copy meant another `Deno.dlopen` of the same file, and every
+ * every copy meant another `dlopen` of the same file, and every
  * `.catch(() => {})` discarded the one string that explains why the bridge is
  * missing -- the checked-paths list, the permission error, the native-vs-WASM
  * cause.
@@ -111,8 +111,7 @@ export interface CallJsonOptions {
  * made earlier attempts at this helper not fit.
  *
  * `invoke` receives the loaded library and returns the raw reply. Awaiting it
- * covers both the synchronous symbols and the nine Deno marks `nonblocking`,
- * which return a promise.
+ * covers both the synchronous symbols and the ones typed to return a promise.
  */
 export const callJson = async <TResponse>(
   invoke: (lib: types.FFILibrary) => string | Promise<string>,

@@ -70,7 +70,8 @@ nodeTest.test("no parameters", () => {
   mock.assertSpyCalls(spyFn, 1);
 
   const arg = spyFn.calls[0]?.args[0] as CustomEvent;
-  assert.assertStrictEquals(arg.detail, undefined);
+  // CustomEventInit.detail defaults to null in the DOM standard.
+  assert.assertStrictEquals(arg.detail, null);
 });
 
 nodeTest.test("remove listener", () => {

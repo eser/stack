@@ -7,8 +7,20 @@ const getFunctionParametersFromString = (fnSerialized: string) => {
   // Limit input length to prevent ReDoS on pathological inputs
   const limitedInput = fnSerialized.slice(0, 10000);
 
-  // Extract parameter list without regex — find first balanced parentheses
   const openIdx = limitedInput.indexOf("(");
+  const arrowIdx = limitedInput.indexOf("=>");
+
+  // An arrow whose "=>" comes before any "(" has a single parameter without
+  // parentheses (`j => j()` or `async j => j()`). Node's type stripping keeps
+  // the source text, so `toString()` returns this form as written.
+  if (arrowIdx !== -1 && (openIdx === -1 || arrowIdx < openIdx)) {
+    const head = limitedInput.slice(0, arrowIdx).trim();
+    const param = head.startsWith("async ") ? head.slice(6).trim() : head;
+
+    return param === "" ? [] : [param];
+  }
+
+  // Extract parameter list without regex — find first balanced parentheses
   if (openIdx === -1) return [];
   const closeIdx = limitedInput.indexOf(")", openIdx);
   if (closeIdx === -1) return [];

@@ -58,7 +58,7 @@ export const ABOVE_FOLD_PATTERNS: RegExp[] = [
  * CSS features that require @property declarations
  * These must be in critical CSS for the features to work on initial render
  */
-export const CRITICAL_PROPERTY_PATTERNS = [
+export const CRITICAL_PROPERTY_PATTERNS: readonly RegExp[] = [
   // Gradients
   /--tw-gradient/,
   // Transforms
@@ -72,7 +72,7 @@ export const CRITICAL_PROPERTY_PATTERNS = [
   // Filters
   /--tw-blur/,
   /--tw-brightness/,
-] as const;
+];
 
 /**
  * Configuration type for critical CSS extraction

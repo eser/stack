@@ -28,7 +28,7 @@ nodeTest.test(
 
     const output = await runtime.exec.spawn(
       runtime.process.execPath(),
-      ["run", "--allow-all", probe],
+      [probe],
       {
         env: { NOSKILLS_WEB_TOKEN: TOKEN },
         stdout: "piped",

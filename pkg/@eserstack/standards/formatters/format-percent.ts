@@ -21,8 +21,8 @@ const DEFAULT_DECIMALS = 1;
  */
 export const formatPercent = (
   value: number,
-  decimals = DEFAULT_DECIMALS,
-  isRatio = false,
+  decimals: number = DEFAULT_DECIMALS,
+  isRatio: boolean = false,
 ): string => {
   if (!Number.isFinite(value)) {
     throw new Error("Value must be a finite number");

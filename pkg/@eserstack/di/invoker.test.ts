@@ -32,3 +32,30 @@ nodeTest.test("basic", () => {
     transient: "value3",
   });
 });
+
+nodeTest.test("arrow function without parentheses", () => {
+  const { registry, services } = create();
+
+  registry.set("singleton", "value1");
+
+  // Node's type stripping keeps the source text, so `fn.toString()` returns
+  // the arrow exactly as written here.
+  // oxfmt-ignore
+  const result = invoker.invoke(services, singleton => singleton);
+
+  assert.assertEquals(result, "value1");
+});
+
+nodeTest.test("async arrow function without parentheses", async () => {
+  const { registry, services } = create();
+
+  registry.set("singleton", "value1");
+
+  // The arrow is async to check the `async` keyword is skipped; it has
+  // nothing to await.
+  // oxfmt-ignore
+  // oxlint-disable-next-line require-await
+  const result = await invoker.invoke(services, async singleton => singleton);
+
+  assert.assertEquals(result, "value1");
+});

@@ -6,7 +6,7 @@
 
 > **eserstack Product-Candidate** — build pipeline for laroux ·
 > [eser/stack](https://github.com/eser/stack) **Install:**
-> `pnpm add jsr:@eserstack/laroux-bundler`
+> `pnpm add @eserstack/laroux-bundler`
 
 Build system and bundler for [laroux.js](https://github.com/eser/stack), a React
 Server Components framework. It turns the `src/` directory of a laroux app into
@@ -31,8 +31,8 @@ This package provides the build system for laroux.js:
   development-mode error overlay
 - CSS processing: Tailwind CSS v4, Lightning CSS, CSS modules and critical CSS
   extraction
-- Import rewriting: bare specifiers resolved through the project's `deno.json`
-  and `package.json` import maps, with browser shims for server-only packages
+- Import resolution: bare specifiers stay as written and resolve from the app's
+  `node_modules`, with browser shims for server-only packages
 - Font self-hosting for Google Fonts and image optimization with sharp
 - Client and server bundles on Rolldown
 - Runtime bundler that bundles in memory during development, and prebuilt
@@ -41,13 +41,7 @@ This package provides the build system for laroux.js:
 ## Installation
 
 ```bash
-pnpm add jsr:@eserstack/laroux-bundler
-```
-
-With Deno:
-
-```bash
-deno add jsr:@eserstack/laroux-bundler
+pnpm add @eserstack/laroux-bundler
 ```
 
 ## Quick Start
@@ -108,7 +102,7 @@ client bundle, with a `duration` of 0. The output is stale when
 `dist/client/manifest.json` is missing or when a build input changed after the
 timestamp in it. The inputs are every file under the source directory and
 `public/` at any depth (except `node_modules` and hidden entries), plus
-`laroux.config.ts`, `package.json`, `deno.json` and `deno.jsonc`. `build()`
+`laroux.config.ts` and `package.json`. `build()`
 writes the chunk manifest as its last step, so a build that failed halfway
 leaves none behind and the next call builds again:
 
@@ -142,8 +136,8 @@ class names.
 Each result carries the `buildId` of the code in `dist/`. The generated routes
 file imports every page and layout with it as a query, `page.js?v=` and the id,
 so a server that imports the routes file under a new build id gets the rebuilt
-pages instead of the ones Deno cached by URL; laroux dev loads each rebuild this
-way.
+pages instead of the ones the runtime cached by URL; laroux dev loads each
+rebuild this way.
 
 ```typescript
 let lastGoodBuild = result;
@@ -403,6 +397,26 @@ lists the changes in every package.
   in `?v=<buildId>`. A tool that reads that file as text allows the query;
   `generateRouteFile()` without the new `moduleVersion` option still writes
   plain specifiers.
+- The bundler reads no `deno.json` or `deno.jsonc`. Client bundles resolve
+  bare imports from the app's `node_modules`, so declare every package the app
+  imports in `package.json`; a `deno.json` import map, `npm:` or `jsr:`
+  specifier, or `@/` alias is no longer resolved. A change to `deno.json` no
+  longer makes a build stale.
+- `createClientEntry` copies the laroux-react bootstrap only from an installed
+  `@eserstack/laroux-react` in `node_modules`; fetching it from JSR is removed.
+- `ImportMapEntry` is `{ specifier, target, version }`, where `target` is the
+  bare specifier itself, and `ImportMap` has no `hasDenoJson`.
+  `resolveSpecifier()` returns the specifier for a declared package instead of
+  an `npm:` target. `ImportMapResolverOptions` has no `importMap` field:
+
+  ```typescript
+  import * as larouxBundler from "@eserstack/laroux-bundler";
+
+  const map = await larouxBundler.loadImportMap(projectRoot);
+  const react = map.entries.get("react");
+  // Before: react.target was "npm:react@^19.0.0"
+  // After: react.target is "react" and react.version is "^19.0.0"
+  ```
 
 ## 🔗 Links
 

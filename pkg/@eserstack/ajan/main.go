@@ -11,13 +11,13 @@ import (
 	"unsafe"
 )
 
-// Every exported symbol in this file is an ABI contract with the FFI hosts
-// (Deno/Node/Bun): the names, their order and their signatures must not change.
+// Every exported symbol in this file is an ABI contract with the FFI host
+// (node:ffi): the names, their order and their signatures must not change.
 //
 // Each body funnels through a guard from panic_guard.go. A panic escaping an
 // exported function unwinds through cgo and aborts the host process, so the
 // guard is what stands between a bug in a downstream fx package and a dead
-// Deno/Node/Bun runtime. The C.GoString calls live inside the guarded closure
+// Node process. The C.GoString calls live inside the guarded closure
 // on purpose, so argument marshalling is covered too.
 
 //export EserAjanVersion

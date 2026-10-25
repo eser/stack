@@ -1,5 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as fsPromises from "node:fs/promises"; // utimes is not available in runtime
 import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import { runtime } from "@eserstack/standards/cross-runtime";
@@ -146,7 +147,7 @@ nodeTest.test("route-scanner with two projects", async (t) => {
     // by every project and checked by mtime alone would hand this project
     // the first one's routes.
     const anHourAgo = new Date(Date.now() - 60 * 60 * 1000);
-    await Deno.utime(shop.routesDir, anHourAgo, anHourAgo);
+    await fsPromises.utimes(shop.routesDir, anHourAgo, anHourAgo);
 
     await t.test(
       "scanRoutes without a cache returns each directory's own routes",

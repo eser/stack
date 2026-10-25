@@ -13,7 +13,8 @@ with its tasks, open questions and phase actions, and coding-agent tabs rendered
 with xterm.js. The pages are HTML rendered from TypeScript templates, with plain
 browser scripts and no build step. The server listens, accepts the `/mux`
 WebSocket and handles Ctrl+C through `runtime.http` and `runtime.process` from
-`@eserstack/standards/cross-runtime`, so it calls no `Deno.*` API itself.
+`@eserstack/standards/cross-runtime`, so it calls no runtime-specific API
+itself.
 
 ## Quick Start
 

@@ -649,8 +649,8 @@ jobs:
 
       # Node and Bun get the bundle the way a user does: packed, installed with
       # npm into a scratch project outside the repo, then run from there. In
-      # place under pkg/@eserstack/cli/dist the bundle cannot find koffi (pnpm
-      # keeps it under @eserstack/ajan), which kept the Node entries red for
+      # place under pkg/@eserstack/cli/dist the bundle cannot find what pnpm
+      # keeps under @eserstack/ajan, which kept the Node entries red for
       # months behind continue-on-error. --require-native: with the library
       # just built and named in ESER_AJAN_LIB_PATH, a graceful "no native
       # library" is a failure here, not an acceptable outcome.

@@ -1,9 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 /**
- * Shared Node.js-compatible adapter implementations.
- * Used by both Node.js and Bun adapters since Bun provides
- * Node.js-compatible APIs for filesystem, path, env, and process.
+ * The filesystem, path, env and process parts of the Node.js adapter.
  *
  * @module
  */
@@ -129,6 +127,14 @@ export const createNodeCompatFs = (): RuntimeFs => {
       }
     },
 
+    statSync(path: string): FileInfo {
+      try {
+        return mapStats(deps.fs.statSync(path));
+      } catch (error) {
+        return handleFsError(error, path);
+      }
+    },
+
     async lstat(path: string): Promise<FileInfo> {
       try {
         const stats = await deps.fsPromises.lstat(path);
@@ -190,8 +196,11 @@ export const createNodeCompatFs = (): RuntimeFs => {
       const dir = options?.dir ?? deps.os.tmpdir();
       const prefix = options?.prefix ?? "";
       const suffix = options?.suffix ?? "";
+      // mkdtemp appends random characters to the template, so a template that
+      // ends in the directory name would create a sibling of it. The trailing
+      // separator puts the new directory inside.
       const tempPath = await deps.fsPromises.mkdtemp(
-        deps.path.join(dir, prefix),
+        deps.path.join(dir, prefix === "" ? deps.path.sep : prefix),
       );
       if (suffix !== "") {
         const newPath = tempPath + suffix;
@@ -422,6 +431,8 @@ export const createNodeCompatProcess = (): RuntimeProcess => ({
   execPath(): string {
     return deps.process.execPath;
   },
+
+  isStandalone: deps.sea.isSea(),
 
   argv: deps.process.argv,
 

@@ -32,16 +32,10 @@ import * as path from "../polyfills/path.ts";
 // =============================================================================
 
 /**
- * Gets an environment variable from any runtime (Deno, Node, Bun).
+ * Gets an environment variable from the `process` global.
  * Returns undefined if the variable is not set or not accessible.
  */
 export const getEnvVar = (key: string): string | undefined => {
-  // Deno
-  if (typeof Deno !== "undefined" && Deno.env?.get) {
-    return Deno.env.get(key);
-  }
-
-  // Node.js / Bun
   // The Node types declare process as always present, but browsers and
   // workers lack it, so it is read untyped and checked before use.
   // oxlint-disable-next-line typescript/no-explicit-any
@@ -87,7 +81,7 @@ export const tryRequire = <T>(moduleName: string): T | undefined => {
 };
 
 /**
- * The fields of the Node.js and Bun `process` object that platform detection
+ * The fields of the Node.js `process` object that platform detection
  * reads. Each one is optional because a bundler's browser shim of `process`
  * can lack it.
  */
@@ -144,7 +138,7 @@ export const toNavigatorInfo = (value: unknown): NavigatorInfo | null => {
 };
 
 /**
- * Gets the platform fields of the Node.js or Bun process object, or null when
+ * Gets the platform fields of the Node.js process object, or null when
  * the runtime has no `process` global. The global is read as unknown because
  * the Node types declare it as always present, while browsers and workers
  * lack it.
@@ -172,7 +166,7 @@ export interface NodeOsModule {
 // Runtime Detection
 // =============================================================================
 
-// Detection probes globals (Bun, Deno, process, caches, window) that exist in
+// Detection probes globals (process, caches, window) that exist in
 // only some runtimes, so they are read untyped and checked with typeof.
 // oxlint-disable-next-line typescript/no-explicit-any
 const globalRef = globalThis as any;
@@ -198,21 +192,16 @@ const isBrowserEnv = (): boolean =>
  * Detects the current JavaScript runtime environment.
  *
  * Detection order matters:
- * 1. Bun - check first because Bun also sets process.versions.node
- * 2. Deno - unique Deno global
- * 3. Node.js - has process.versions.node but not Bun
- * 4. Cloudflare Workers (workerd) - has caches and Response but no window
- * 5. Browser - has window/document
- * 6. Unknown - fallback
+ * 1. Node.js - has process.versions.node
+ * 2. Cloudflare Workers (workerd) - has caches and Response but no window
+ * 3. Browser - has window/document
+ * 4. Unknown - fallback
  */
 export const detectRuntime = (): RuntimeName => {
   if (typeof globalThis === "undefined") return "unknown";
 
-  if (typeof globalRef.Bun !== "undefined") return "bun";
-  if (typeof globalRef.Deno !== "undefined") return "deno";
-
   const proc = globalRef.process;
-  if (proc?.versions?.node && !proc?.versions?.bun) return "node";
+  if (typeof proc?.versions?.node === "string") return "node";
 
   if (isWorkerdEnv()) return "workerd";
   if (isBrowserEnv()) return "browser";
@@ -224,8 +213,6 @@ export const detectRuntime = (): RuntimeName => {
  * Version getters by runtime.
  */
 const versionGetters: Record<RuntimeName, () => string> = {
-  deno: () => globalRef.Deno?.version?.deno ?? "unknown",
-  bun: () => globalRef.Bun?.version ?? "unknown",
   node: () => globalRef.process?.versions?.node ?? "unknown",
   workerd: () => "unknown",
   browser: () => globalRef.navigator?.userAgent ?? "unknown",
@@ -252,19 +239,15 @@ export const isBrowser = (): boolean => detectRuntime() === "browser";
 /**
  * Server-side runtime names.
  */
-const SERVER_RUNTIMES: ReadonlySet<RuntimeName> = new Set([
-  "deno",
-  "node",
-  "bun",
-]);
+const SERVER_RUNTIMES: ReadonlySet<RuntimeName> = new Set(["node"]);
 
 /**
- * Check if running in a server-side runtime (Deno, Node, Bun).
+ * Check if running in a server-side runtime (Node).
  */
 export const isServer = (): boolean => SERVER_RUNTIMES.has(detectRuntime());
 
 /**
- * Check if running in an edge runtime (Workers, Deno Deploy).
+ * Check if running in an edge runtime (Workers).
  */
 export const isEdge = (): boolean => detectRuntime() === "workerd";
 
@@ -284,12 +267,7 @@ const PLATFORM_MAP: Record<string, Platform> = {
  * Returns Go-style platform names for consistency.
  */
 export const getPlatform = (): Platform => {
-  // Deno
-  if (typeof Deno !== "undefined" && Deno.build?.os) {
-    return PLATFORM_MAP[Deno.build.os] ?? "linux";
-  }
-
-  // Node.js / Bun
+  // Node.js
   const proc = getProcess();
   if (proc?.platform !== undefined) {
     return PLATFORM_MAP[proc.platform] ?? "linux";
@@ -307,7 +285,7 @@ export const getPlatform = (): Platform => {
   return "linux";
 };
 
-// Keys are the names that Deno.build.arch and Node's process.arch report.
+// Keys are the names that Node's process.arch and browser user agents report.
 const ARCH_MAP: Record<string, Arch> = {
   x86_64: "amd64",
   x64: "amd64",
@@ -320,12 +298,7 @@ const ARCH_MAP: Record<string, Arch> = {
  * Returns Go-style architecture names (amd64 instead of x86_64).
  */
 export const getArch = (): Arch => {
-  // Deno
-  if (typeof Deno !== "undefined" && Deno.build?.arch) {
-    return ARCH_MAP[Deno.build.arch] ?? "amd64";
-  }
-
-  // Node.js / Bun
+  // Node.js
   const proc = getProcess();
   if (proc?.arch !== undefined) {
     return ARCH_MAP[proc.arch] ?? "amd64";
@@ -363,8 +336,8 @@ export const getTmpdir = (): string => {
   const isWindows = getPlatform() === "windows";
 
   // Use the platform's own temp-dir env-var precedence. On Windows the
-  // canonical vars are TMP/TEMP (what os.tmpdir(), Deno.makeTempDir, and the
-  // Win32 GetTempPath API consult); TMPDIR is a POSIX convention the Windows
+  // canonical vars are TMP/TEMP (what os.tmpdir() and the Win32 GetTempPath
+  // API consult); TMPDIR is a POSIX convention the Windows
   // runtime ignores. Checking them in platform order keeps getTmpdir()
   // consistent with where temp files are actually created.
   const tmp = isWindows
@@ -396,7 +369,6 @@ export const getPlatformInfo = (): PlatformInfo => ({
 
 export type StdioMode = "inherit" | "piped" | "null" | undefined;
 export type NodeStdioMode = "inherit" | "pipe" | "ignore";
-export type DenoStdioMode = "inherit" | "piped" | "null";
 export type ResolvedStdioMode = "inherit" | "piped" | "null";
 
 export interface StdioModes {
@@ -409,12 +381,6 @@ export const mapStdioToNode = (mode: StdioMode): NodeStdioMode => {
   if (mode === "inherit") return "inherit";
   if (mode === "piped") return "pipe";
   return "ignore";
-};
-
-export const mapStdioToDeno = (mode: StdioMode): DenoStdioMode => {
-  if (mode === "inherit") return "inherit";
-  if (mode === "piped") return "piped";
-  return "null";
 };
 
 export const getStdioModes = (options?: SpawnOptions): StdioModes => ({
@@ -432,15 +398,6 @@ export const getNodeStdioArray = (
     mapStdioToNode(modes.stdout),
     mapStdioToNode(modes.stderr),
   ];
-};
-
-export const getDenoStdioOptions = (options?: SpawnOptions) => {
-  const modes = getStdioModes(options);
-  return {
-    stdin: mapStdioToDeno(modes.stdin),
-    stdout: mapStdioToDeno(modes.stdout),
-    stderr: mapStdioToDeno(modes.stderr),
-  };
 };
 
 // =============================================================================
@@ -500,8 +457,8 @@ export const DEFAULT_SERVE_HOSTNAME = "127.0.0.1";
 /**
  * Wraps a serve handler so that an error it throws becomes a 500 response.
  *
- * Deno and Bun each answer such an error in their own way, and Node has no
- * fetch-style server, so every adapter wraps the handler the same way.
+ * Node has no fetch-style server that answers such an error, so the adapter
+ * wraps the handler itself.
  *
  * @param handler - The caller's handler
  * @returns A handler that never rejects
@@ -527,7 +484,7 @@ export const createSafeHandler =
 
 /**
  * Prints an error of `runtime.http.serve` that has no other owner, such as one
- * a handler did not catch. Deno.serve and Bun.serve print those to stderr too.
+ * a handler did not catch.
  *
  * @param problem - What failed, without request data that can hold secrets
  * @param error - The error
@@ -564,6 +521,7 @@ export const createStubFs = (runtimeName: RuntimeName): RuntimeFs => {
     writeTextFile: throwFs,
     exists: throwFs,
     stat: throwFs,
+    statSync: throwFs,
     lstat: throwFs,
     mkdir: throwFs,
     ensureDir: throwFs,
@@ -605,6 +563,8 @@ export const createStubProcess = (runtimeName: RuntimeName): RuntimeProcess => {
     chdir: throwProcess,
     hostname: throwProcess,
     execPath: throwProcess,
+    // A runtime with no process model runs no single executable application.
+    isStandalone: false,
     // Answered rather than thrown. A runtime with no process model has no live
     // processes to speak of, and callers use this to decide whether a recorded
     // claim still stands — throwing would turn "no process model" into a crash

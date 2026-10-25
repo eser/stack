@@ -26,6 +26,7 @@ Each middleware is a `MiddlewareFn`: it takes the request and a `next` function
 that produces the response.
 
 ```typescript
+import * as crossRuntime from "@eserstack/standards/cross-runtime";
 import * as http from "@eserstack/http";
 
 const cors = http.middlewares.cors.cors({
@@ -33,12 +34,15 @@ const cors = http.middlewares.cors.cors({
   credentials: true,
 });
 
-Deno.serve((req) => cors(req, () => new Response("OK")));
+await crossRuntime.runtime.http.serve({ port: 8000 }, (req) =>
+  cors(req, () => new Response("OK")),
+);
 ```
 
 ## Middleware Stack
 
 ```typescript
+import * as crossRuntime from "@eserstack/standards/cross-runtime";
 import * as http from "@eserstack/http";
 
 // Create your middleware stack
@@ -70,7 +74,7 @@ const app = (req: Request) =>
     cspMiddleware(req, () => csrfMiddleware(req, () => new Response("OK"))),
   );
 
-Deno.serve(app);
+await crossRuntime.runtime.http.serve({ port: 8000 }, app);
 ```
 
 ## CORS Middleware
@@ -140,6 +144,7 @@ Instance-based rate limiting with automatic cleanup, keyed on the connection's
 peer address.
 
 ```typescript
+import * as crossRuntime from "@eserstack/standards/cross-runtime";
 import * as http from "@eserstack/http";
 
 // Create a rate limiter instance
@@ -151,10 +156,14 @@ const limiter = http.middlewares.rateLimiter.createRateLimiter({
   trustedProxies: ["127.0.0.1", "::1"], // Your reverse proxy's address
 });
 
-// In your request handler (Deno.serve passes info as the second argument)
-function handleRequest(request: Request, info: Deno.ServeHandlerInfo) {
+// In your request handler (runtime.http.serve passes info as the second
+// argument)
+function handleRequest(
+  request: Request,
+  info: crossRuntime.ServeHandlerInfo,
+): Response {
   const url = new URL(request.url);
-  const remote = "hostname" in info.remoteAddr ? info.remoteAddr : null;
+  const remote = info.remoteAddr;
 
   // Check rate limit, keyed on the connection's peer address
   const rateLimitResponse = limiter.check(request, url.pathname, remote);
@@ -179,10 +188,10 @@ function handleRequest(request: Request, info: Deno.ServeHandlerInfo) {
   return response;
 }
 
-Deno.serve(handleRequest);
+await crossRuntime.runtime.http.serve({ port: 8000 }, handleRequest);
 
 // Cleanup on server shutdown
-Deno.addSignalListener("SIGTERM", () => {
+crossRuntime.runtime.process.addSignalListener("SIGTERM", () => {
   limiter.stop();
 });
 ```
@@ -234,10 +243,11 @@ as soon as the bytes read pass the limit, and the rest is not read. Both fail
 with `RequestBodyTooLargeError`, whose `status` is 413:
 
 ```typescript
+import * as crossRuntime from "@eserstack/standards/cross-runtime";
 import * as http from "@eserstack/http";
 import * as primitives from "@eserstack/primitives";
 
-Deno.serve(async (req) => {
+await crossRuntime.runtime.http.serve({ port: 8000 }, async (req) => {
   const event = await http.adapter.fromRequest(req, { maxBodyBytes: 65_536 });
 
   if (primitives.results.isFail(event)) {

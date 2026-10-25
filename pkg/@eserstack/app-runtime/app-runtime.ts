@@ -31,26 +31,26 @@ export const createAppRuntimeState = (): AppRuntimeState => {
 };
 
 export class AppRuntime<S extends AppRuntimeState = AppRuntimeState> {
-  static readonly default = Symbol("default");
+  static readonly default: unique symbol = Symbol("default");
   readonly state: S;
 
   constructor(state?: S) {
     this.state = state ?? (createAppRuntimeState() as S);
   }
 
-  addModule(module: Module) {
+  addModule(module: Module): void {
     const name = module.name ?? module.constructor.name;
 
     this.state.modules.set(name, module);
   }
 
-  addChannel(channel: Channel) {
+  addChannel(channel: Channel): void {
     const name = channel.name ?? channel.constructor.name;
 
     this.state.channels.set(name, channel);
   }
 
-  setAsDefault() {
+  setAsDefault(): void {
     this.state.di.set(AppRuntime.default, this);
   }
 

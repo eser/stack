@@ -1,8 +1,8 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as fsPromises from "node:fs/promises"; // symlinks and utimes are not available in runtime
 import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
-import * as fs from "@std/fs"; // symlinks are not available in runtime
 import { runtime } from "@eserstack/standards/cross-runtime";
 import * as larouxConfig from "@eserstack/laroux/config";
 import * as react from "./adapters/react/mod.ts";
@@ -13,6 +13,12 @@ import type { FrameworkPlugin } from "./domain/framework-plugin.ts";
 import * as virtualSource from "./domain/virtual-source.ts";
 import * as system from "./system.ts";
 import type * as types from "./types.ts";
+
+/** Link linkPath to target, creating the parent directories of linkPath. */
+async function linkDir(target: string, linkPath: string): Promise<void> {
+  await fsPromises.mkdir(runtime.path.dirname(linkPath), { recursive: true });
+  await fsPromises.symlink(target, linkPath, "dir");
+}
 
 /** A framework plugin whose client entry step fails, as a broken app would. */
 const failingClientEntryPlugin: FrameworkPlugin = {
@@ -58,7 +64,7 @@ async function withApp(fn: (projectRoot: string) => Promise<void>) {
 }
 
 nodeTest.test(
-  "build reports a failed client bundle and removes the virtual source",
+  "track-l-delete: build reports a failed client bundle and removes the virtual source",
   async () => {
     await withApp(async (projectRoot) => {
       const config = createBuildConfig(projectRoot);
@@ -157,14 +163,14 @@ async function writeReactApp(projectRoot: string): Promise<void> {
   const larouxReact = larouxReactRoot();
   await Promise.all([
     ...APP_DEPENDENCIES.map((name) =>
-      fs.ensureSymlink(
+      linkDir(
         runtime.path.join(larouxReact, "node_modules", name),
         runtime.path.join(projectRoot, "node_modules", name),
       ),
     ),
     // The server bundle imports the client component references' protocol
     // from laroux-react
-    fs.ensureSymlink(
+    linkDir(
       larouxReact,
       runtime.path.join(projectRoot, "node_modules", "@eserstack/laroux-react"),
     ),
@@ -182,7 +188,7 @@ async function readChunkManifest(
 }
 
 nodeTest.test(
-  "build of a minimal laroux app with the React plugin succeeds",
+  "track-l-delete: build of a minimal laroux app with the React plugin succeeds",
   async () => {
     await withApp(async (projectRoot) => {
       await writeReactApp(projectRoot);
@@ -231,7 +237,7 @@ async function recordWarnings(
 }
 
 nodeTest.test(
-  "a dev build gives client code the browser logger, with() included",
+  "track-l-delete: a dev build gives client code the browser logger, with() included",
   async () => {
     await withApp(async (projectRoot) => {
       await writeReactApp(projectRoot);
@@ -268,7 +274,7 @@ nodeTest.test(
 );
 
 nodeTest.test(
-  "ensureBuildIsReady skips an unchanged project and rebuilds after a nested change",
+  "track-l-delete: ensureBuildIsReady skips an unchanged project and rebuilds after a nested change",
   async () => {
     await withApp(async (projectRoot) => {
       await writeReactApp(projectRoot);
@@ -303,7 +309,7 @@ nodeTest.test(
         "src/app/components/counter.tsx",
       );
       const afterBuild = new Date(first.timestamp + 1000);
-      await Deno.utime(nestedSource, afterBuild, afterBuild);
+      await fsPromises.utimes(nestedSource, afterBuild, afterBuild);
 
       const third = await system.ensureBuildIsReady(context);
 
@@ -314,7 +320,7 @@ nodeTest.test(
 );
 
 nodeTest.test(
-  "a build that fails after bundling the client writes no chunk manifest, so the next ensureBuildIsReady builds again",
+  "track-l-delete: a build that fails after bundling the client writes no chunk manifest, so the next ensureBuildIsReady builds again",
   async () => {
     await withApp(async (projectRoot) => {
       await writeReactApp(projectRoot);
@@ -411,7 +417,7 @@ async function writeStylesAndImage(projectRoot: string): Promise<void> {
 }
 
 nodeTest.test(
-  "build hands the stylesheet, the fonts and the images to the ports it is given",
+  "track-l-delete: build hands the stylesheet, the fonts and the images to the ports it is given",
   async () => {
     await withApp(async (projectRoot) => {
       await writeReactApp(projectRoot);
@@ -474,7 +480,7 @@ nodeTest.test(
 );
 
 nodeTest.test(
-  "build without the optional ports copies the stylesheet as written and self-hosts no fonts",
+  "track-l-delete: build without the optional ports copies the stylesheet as written and self-hosts no fonts",
   async () => {
     await withApp(async (projectRoot) => {
       await writeReactApp(projectRoot);
@@ -523,7 +529,7 @@ const referenceCases = [
 ];
 
 for (const { name, noCssModuleAutoReference, expected } of referenceCases) {
-  nodeTest.test(name, async () => {
+  nodeTest.test(`track-l-delete: ${name}`, async () => {
     await withApp(async (projectRoot) => {
       await writeReactApp(projectRoot);
       const cssModule = runtime.path.join(
@@ -620,7 +626,7 @@ const readClientFile = (distDir: string, name: string): Promise<string> =>
   runtime.fs.readTextFile(runtime.path.join(distDir, "client", name));
 
 nodeTest.test(
-  "a CSS-only rebuild writes the styles.css a full build writes, CSS module styles included",
+  "track-l-delete: a CSS-only rebuild writes the styles.css a full build writes, CSS module styles included",
   async () => {
     await withApp(async (projectRoot) => {
       await writeReactApp(projectRoot);
@@ -672,7 +678,7 @@ nodeTest.test(
 );
 
 nodeTest.test(
-  "a JS-only rebuild of an app with CSS modules succeeds and keeps their styles once",
+  "track-l-delete: a JS-only rebuild of an app with CSS modules succeeds and keeps their styles once",
   async () => {
     await withApp(async (projectRoot) => {
       await writeReactApp(projectRoot);

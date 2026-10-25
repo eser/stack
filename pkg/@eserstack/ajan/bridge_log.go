@@ -40,8 +40,8 @@ type logEntry struct {
 
 	// mu guards filters and formatter.
 	//
-	// Deno declares the log FFI symbols nonblocking, so Configure and Write
-	// genuinely run on different threads: without this, Configure's writes race
+	// FFI calls from worker threads (decision-37) let Configure and Write run
+	// on different threads: without this, Configure's writes race
 	// Write's reads. levelVar needs no guard of its own -- slog.LevelVar is
 	// already goroutine-safe -- and logger/scopeName are never reassigned after
 	// creation.

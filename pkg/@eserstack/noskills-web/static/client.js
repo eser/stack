@@ -9,8 +9,8 @@
 (() => {
   "use strict";
 
-  // Browser globals come from globalThis: deno lint checks this file against
-  // Deno's globals, which have no DOM and no MuxRender.
+  // Browser globals come from globalThis, where browser-scripts.test.ts puts
+  // its stand-ins for the DOM and MuxRender.
   const { document } = globalThis;
 
   // The per-process token the server embedded in the page head. Every mutating

@@ -14,9 +14,9 @@ nodeTest.test("formatNumber adds thousands separators", () => {
   //
   // The old version passed against a function that added no separators at all --
   // "1000000" contains both substrings -- so it could not observe the one
-  // behaviour it was named for. That matters now: under `deno compile
-  // --engine quickjs` there is no Intl, and the previous toLocaleString
-  // implementation returned exactly that unseparated string.
+  // behaviour it was named for. That matters on an engine without Intl,
+  // where the previous toLocaleString implementation returned exactly that
+  // unseparated string.
   assert.assertEquals(formatNumber.formatNumber(1000000), "1,000,000");
   assert.assertEquals(formatNumber.formatNumber(1000), "1,000");
   assert.assertEquals(formatNumber.formatNumber(999), "999");

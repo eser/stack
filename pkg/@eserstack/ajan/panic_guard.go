@@ -3,7 +3,7 @@ package main
 // Panic safety for the FFI boundary.
 //
 // Every exported symbol in this module is called from a foreign runtime --
-// Deno/Node/Bun over cgo, or a WASM host over WASI. A Go panic that escapes an
+// Node over cgo through node:ffi, or a WASM host over WASI. A Go panic that escapes an
 // exported function does not become an exception the caller can catch: it
 // unwinds through the cgo prologue and aborts the ENTIRE host process (or traps
 // the whole WASM module). There is no host-side try/catch that helps.

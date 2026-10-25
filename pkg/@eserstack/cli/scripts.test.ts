@@ -261,7 +261,7 @@ const malformedEntryCases = [
     entry: { description: "Run the tests" },
     message:
       'script "test" has no "command" string; add the command it ' +
-      "runs, for example command: deno test",
+      "runs, for example command: pnpm test",
   },
   {
     name: "parseScript rejects a description that is not a string",
@@ -661,8 +661,7 @@ const prefixPaths: scripts.CliPrefixPaths = {
 };
 
 const NODE_FORM = "'/opt/John Smith/bin/exe' '/lib/it'\\''s/eser.js'";
-const DENO_FORM =
-  "'/opt/John Smith/bin/exe' run --allow-all '/src/$HOME/main.ts'";
+const DEV_FORM = "'/opt/John Smith/bin/exe' '/src/$HOME/main.ts'";
 
 const buildCliPrefixCases: readonly {
   readonly invoker: crossRuntime.CliInvoker;
@@ -673,10 +672,7 @@ const buildCliPrefixCases: readonly {
   { invoker: "npx", expected: NODE_FORM },
   { invoker: "pnpm", expected: NODE_FORM },
   { invoker: "pnpx", expected: NODE_FORM },
-  { invoker: "bun", expected: NODE_FORM },
-  { invoker: "bunx", expected: NODE_FORM },
-  { invoker: "deno", expected: DENO_FORM },
-  { invoker: "dev", expected: DENO_FORM },
+  { invoker: "dev", expected: DEV_FORM },
   { invoker: "unknown", expected: "eser" },
 ];
 
@@ -733,10 +729,7 @@ const selfInvocationCases: readonly {
 }[] = [
   { invoker: "binary", leadingArgs: () => [] },
   { invoker: "npm", leadingArgs: (entryPath) => [entryPath] },
-  {
-    invoker: "deno",
-    leadingArgs: (_entryPath, mainPath) => ["run", "--allow-all", mainPath],
-  },
+  { invoker: "dev", leadingArgs: (_entryPath, mainPath) => [mainPath] },
 ];
 
 for (const { invoker, leadingArgs } of selfInvocationCases) {

@@ -157,7 +157,7 @@ test.print(); // outputs "testing"
 ```
 
 The `@` form needs a runtime or build step that transforms decorators, such as
-Deno, TypeScript's compiler or a bundler plugin. Node 26 strips types without
+TypeScript's compiler or a bundler plugin. Node 26 strips types without
 transforming decorators and has no decorator syntax, so under Node call the
 decorator as a function:
 

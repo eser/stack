@@ -10,9 +10,13 @@
  * @module
  */
 
+import * as childProcess from "node:child_process";
+import * as http from "node:http";
+import type * as net from "node:net";
+import * as stream from "node:stream";
 import * as nodeTest from "node:test";
+import * as util from "node:util";
 import * as assert from "@eserstack/test-kit/assert";
-import { runtime } from "@eserstack/standards/cross-runtime";
 import * as resolve from "./resolve.ts";
 
 const hasWasm = ((): boolean => {
@@ -24,18 +28,7 @@ const hasWasm = ((): boolean => {
   }
 })();
 
-const readNodeMajor = async (): Promise<number | null> => {
-  try {
-    const { success, stdout } = await runtime.exec.spawn("node", ["--version"]);
-    const version = new TextDecoder().decode(stdout).trim();
-    return success ? Number(version.slice(1).split(".")[0]) : null;
-  } catch {
-    return null;
-  }
-};
-
-// oxlint-disable-next-line node/no-top-level-await
-const nodeMajor = (await readNodeMajor()) ?? 0;
+const nodeMajor = Number(process.versions.node.split(".")[0]);
 
 let flakyCalls = 0;
 
@@ -84,26 +77,78 @@ const handler = async (request: Request): Promise<Response> => {
   }
 };
 
+/**
+ * Serves `fetchHandler` over node:http on a free local port. The request's
+ * signal aborts when the client goes away before the answer is complete.
+ */
+const serve = async (
+  fetchHandler: (request: Request) => Promise<Response>,
+): Promise<http.Server> => {
+  const server = http.createServer(async (incoming, outgoing) => {
+    const controller = new AbortController();
+    outgoing.on("close", () => {
+      if (!outgoing.writableFinished) {
+        controller.abort();
+      }
+    });
+
+    const headers = new Headers();
+    for (const [name, value] of Object.entries(incoming.headers)) {
+      for (const item of [value ?? []].flat()) {
+        headers.append(name, item);
+      }
+    }
+
+    const hasBody = incoming.method !== "GET" && incoming.method !== "HEAD";
+    const request = new Request(
+      `http://${incoming.headers.host}${incoming.url ?? "/"}`,
+      {
+        method: incoming.method ?? "GET",
+        headers,
+        signal: controller.signal,
+        ...(hasBody
+          ? {
+              body: stream.Readable.toWeb(incoming) as ReadableStream,
+              duplex: "half",
+            }
+          : {}),
+      },
+    );
+
+    const response = await fetchHandler(request);
+    outgoing.writeHead(response.status, Object.fromEntries(response.headers));
+    if (response.body !== null) {
+      for await (const chunk of response.body) {
+        outgoing.write(chunk);
+      }
+    }
+    outgoing.end();
+  });
+
+  await new Promise<void>((done) => server.listen(0, "127.0.0.1", done));
+
+  return server;
+};
+
 nodeTest.test(
   "httpclient requests go through the reactor's host fetch",
   { skip: !hasWasm || nodeMajor < 26 },
   async () => {
-    const server = Deno.serve(
-      { hostname: "127.0.0.1", port: 0, onListen: () => {} },
-      handler,
-    );
+    const server = await serve(handler);
+    const { port } = server.address() as net.AddressInfo;
 
     try {
-      const result = await runtime.exec.spawn("node", [
-        "--no-experimental-ffi",
-        "--disable-warning=ExperimentalWarning",
-        `${import.meta.dirname}/node-reactor-http.fixture.ts`,
-        `http://127.0.0.1:${server.addr.port}`,
-      ]);
-
-      const stdout = new TextDecoder().decode(result.stdout);
-      const stderr = new TextDecoder().decode(result.stderr);
-      assert.assertEquals(result.success, true, stderr);
+      // Asynchronous on purpose: the server above runs on this thread.
+      const { stdout } = await util.promisify(childProcess.execFile)(
+        process.execPath,
+        [
+          "--no-experimental-ffi",
+          "--disable-warning=ExperimentalWarning",
+          `${import.meta.dirname}/node-reactor-http.fixture.ts`,
+          `http://127.0.0.1:${port}`,
+        ],
+        { encoding: "utf8", timeout: 60_000 },
+      );
 
       const seen = JSON.parse(stdout.trim());
       assert.assertEquals(seen.reactor, true);
@@ -137,7 +182,8 @@ nodeTest.test(
         retries: 2,
       });
     } finally {
-      await server.shutdown();
+      server.closeAllConnections();
+      await new Promise((done) => server.close(done));
     }
   },
 );

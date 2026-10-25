@@ -12,7 +12,7 @@
  *
  * | Source | Event Type | Response Type |
  * |---|---|---|
- * | HTTP (API Gateway, Deno.serve, Hono) | `HttpEvent` | `HttpResponse` |
+ * | HTTP (API Gateway, runtime.http.serve, Hono) | `HttpEvent` | `HttpResponse` |
  * | Queue (SQS, Kafka, BullMQ) | `QueueEvent` | `QueueAction` |
  * | CLI (command-line) | `CliEvent` | — (use `CliResult` from `@eserstack/shell/args`) |
  * | Cron (scheduled) | `CronEvent` | — |
@@ -27,7 +27,7 @@
 
 /**
  * HTTP request event.
- * Compatible with API Gateway, Deno.serve, Express, Hono, etc.
+ * Compatible with API Gateway, runtime.http.serve, Express, Hono, etc.
  */
 export type HttpEvent = {
   readonly method: string;

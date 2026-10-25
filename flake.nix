@@ -116,7 +116,52 @@
           noskills-server = "noskills-server - persistent Claude Code sessions that survive reboots";
         };
 
-        packages = builtins.mapAttrs mkBinary binaries;
+        # noskills is built from this source tree (TASK-261), at the version
+        # in VERSION, with cgo off like the release archives. vendorHash
+        # follows go.sum: `go run ./cmd/eser dev nix-vendor-hash` rewrites it,
+        # and the precommit workflow checks it.
+        noskills = pkgs.buildGoModule {
+          pname = "noskills";
+          version = pkgs.lib.fileContents ./VERSION;
+
+          src = pkgs.lib.fileset.toSource {
+            root = ./.;
+            fileset = pkgs.lib.fileset.unions [
+              ./go.mod
+              ./go.sum
+              ./cmd
+              ./pkg/ajan
+              ./third-party
+            ];
+          };
+
+          vendorHash = "sha256-Eow+/iep1OP2N3wgXmrPfQA94PoGeZLYyphG62gYTgE=";
+
+          subPackages = [ "cmd/noskills" ];
+
+          env.CGO_ENABLED = "0";
+
+          ldflags = [
+            "-s"
+            "-w"
+            "-X main.version=${pkgs.lib.fileContents ./VERSION}"
+          ];
+
+          # The gate runs the tests; some start git and fake agent CLIs that
+          # the build sandbox does not have.
+          doCheck = false;
+
+          meta = with pkgs.lib; {
+            description = "noskills - state-machine orchestrator for AI agents";
+            homepage = "https://github.com/eser/stack";
+            license = licenses.asl20;
+            mainProgram = "noskills";
+          };
+        };
+
+        packages = builtins.mapAttrs mkBinary binaries // {
+          inherit noskills;
+        };
       in
       {
         packages = packages // pkgs.lib.optionalAttrs (packages ? eser) {

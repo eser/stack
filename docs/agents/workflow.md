@@ -36,7 +36,7 @@ that touches TypeScript.
 | `pkg/@eserstack/ajan/`       | FFI bridge to the Go library; its own Go module                                     |
 | `pkg/ajan/`                  | Go library packages (`*fx`); `api/business/` is pure domain, `api/adapters/` is I/O |
 | `pkg/ajan/noskillsserverfx/` | The noskills daemon: sessions, ledger, agent and mux workers                        |
-| `cmd/`                       | Go entry points; only `noskills-server`, the other binaries are `deno compile`d     |
+| `cmd/`                       | Go entry points: `eser`, `noskills`, `noskills-server` and the laroux stub          |
 | `.github/workflows/`         | CI/CD; **high impact**                                                              |
 | `.eser/`                     | Workflow manifest, recipes and scripts                                              |
 | `.agents/skills/`            | Agent rules; update them when a convention changes                                  |

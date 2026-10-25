@@ -76,12 +76,16 @@ export.
 
 Every package's `package.json` sets `"type": "module"` except the six `ajan-*`
 platform packages (`ajan-darwin-arm64`, `ajan-darwin-x64`, `ajan-linux-arm64`,
-`ajan-linux-x64`, `ajan-win32-x64` and `ajan-wasm`). This is a deliberate
-exception. They ship no JavaScript, only a prebuilt shared library with its C
-header (or, in `ajan-wasm`, the two WebAssembly modules), and `type` only tells
-Node how to load `.js` files. They have no `exports` either, so the manifest
-generator skips them. They are published to npm only, where `@eserstack/ajan`
-and the `eser` npm package list them as `optionalDependencies`.
+`ajan-linux-x64`, `ajan-win32-x64` and `ajan-wasm`) and the five `noskills-*`
+binary packages (`noskills-darwin-arm64`, `noskills-darwin-x64`,
+`noskills-linux-arm64`, `noskills-linux-x64` and `noskills-win32-x64`). This is
+a deliberate exception. They ship no JavaScript, only a prebuilt shared library
+with its C header (or, in `ajan-wasm`, the two WebAssembly modules) or the Go
+`noskills` binary, and `type` only tells Node how to load `.js` files. They have
+no `exports` either, so the manifest generator skips them. They are published to
+npm only, where `@eserstack/ajan` and the `eser` npm package list the `ajan-*`
+packages as `optionalDependencies`, and the `noskills` npm package lists both
+sets.
 
 ## Dependency registries
 

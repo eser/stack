@@ -244,8 +244,12 @@ const detectPlatformTarget = (): string | undefined => {
 
 /**
  * Self-updates a compiled binary from GitHub Releases.
+ *
+ * Exported for the legacy-update preflight
+ * (cmd/legacy-forwarder/legacy_update_test.go), which runs this flow for a
+ * v4.5.2 laroux and noskills against a local release.
  */
-const updateCompiledBinary = async (
+export const updateCompiledBinary = async (
   app: CliApp,
   currentVersion: string,
 ): Promise<shellArgs.CliResult<void>> => {

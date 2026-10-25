@@ -6,10 +6,15 @@
 /**
  * Builds the noskills package for npm publishing.
  *
+ * The npm `noskills` package is a launcher for the Go binary (TASK-261):
+ * `noskills.js` runs the binary of the @eserstack/noskills-<platform>
+ * package npm installs with it. The TypeScript CLI rides along as
+ * `ts/noskills.js`, for the commands the binary hands to it.
+ *
  * This script:
  * 1. Cleans the dist/ directory
- * 2. Bundles TypeScript with esbuild
- * 3. Adds shebang for Node.js execution
+ * 2. Bundles the TypeScript CLI into dist/ts/ with esbuild
+ * 3. Bundles the launcher (scripts/npm-launcher.ts) into dist/noskills.js
  * 4. Generates package.json for npm
  * 5. Copies README.md
  *
@@ -88,6 +93,7 @@ const main = async (): Promise<void> => {
 
   const pkgDir = runtime.path.dirname(scriptDir);
   const distDir = runtime.path.join(pkgDir, "dist");
+  const tsDistDir = runtime.path.join(distDir, "ts");
   const mainTsPath = runtime.path.join(pkgDir, "main.ts");
 
   console.log("Building @eserstack/noskills for npm...\n");
@@ -101,53 +107,85 @@ const main = async (): Promise<void> => {
   }
   await runtime.fs.mkdir(distDir, { recursive: true });
 
-  // Step 2: Bundle using esbuild
-  console.log("2. Bundling with esbuild...");
+  // Step 2: Bundle the TypeScript CLI using esbuild
+  console.log("2. Bundling the TypeScript CLI with esbuild...");
 
   // A failed bundle is thrown with its context and not printed here: the
   // runtime reports the uncaught error from main() once.
-  let result: esbuild.BuildResult;
+  const launcherPath = runtime.path.join(scriptDir, "npm-launcher.ts");
+  let cliResult: esbuild.BuildResult;
+  let launcherResult: esbuild.BuildResult;
   try {
-    result = await esbuild.build({
-      entryPoints: [mainTsPath],
-      bundle: true,
-      outdir: distDir,
-      splitting: true,
-      entryNames: "noskills",
-      chunkNames: "chunks/[name]-[hash]",
-      format: "esm",
-      platform: "node",
-      target: "node26",
-      minify: true,
-      // @eserstack/* imports need no plugin: pnpm links each workspace package
-      // into node_modules, and esbuild reads the exports of its package.json.
-      external: [...EXTERNAL_PACKAGES],
-      plugins: [createImportMetaMainPlugin(mainTsPath)],
-      logLevel: "warning",
-    });
-  } catch (error) {
-    throw new Error(`bundle ${mainTsPath} with esbuild`, { cause: error });
+    try {
+      cliResult = await esbuild.build({
+        entryPoints: [mainTsPath],
+        bundle: true,
+        outdir: tsDistDir,
+        splitting: true,
+        entryNames: "noskills",
+        chunkNames: "chunks/[name]-[hash]",
+        format: "esm",
+        platform: "node",
+        target: "node26",
+        minify: true,
+        // @eserstack/* imports need no plugin: pnpm links each workspace
+        // package into node_modules, and esbuild reads the exports of its
+        // package.json.
+        external: [...EXTERNAL_PACKAGES],
+        plugins: [createImportMetaMainPlugin(mainTsPath)],
+        logLevel: "warning",
+      });
+    } catch (error) {
+      throw new Error(`bundle ${mainTsPath} with esbuild`, { cause: error });
+    }
+
+    // Step 3: Bundle the launcher. The entry calls main() itself, so the
+    // launcher runs however npm links the bin (a symlink, a cmd shim).
+    console.log("3. Bundling the launcher...");
+    try {
+      launcherResult = await esbuild.build({
+        stdin: {
+          contents: 'import { main } from "./npm-launcher.ts";\nmain();\n',
+          resolveDir: scriptDir,
+          sourcefile: "noskills-launcher.ts",
+          loader: "ts",
+        },
+        bundle: true,
+        outfile: runtime.path.join(distDir, "noskills.js"),
+        format: "esm",
+        platform: "node",
+        target: "node26",
+        banner: { js: "#!/usr/bin/env node" },
+        logLevel: "warning",
+      });
+    } catch (error) {
+      throw new Error(`bundle ${launcherPath} with esbuild`, { cause: error });
+    }
   } finally {
     await esbuild.stop();
   }
 
-  if (result.errors.length > 0) {
-    const details = result.errors.map((error) => `  - ${error.text}`);
-    throw new Error(
-      `bundle ${mainTsPath} with esbuild: ${result.errors.length} error(s)\n${details.join(
-        "\n",
-      )}`,
-    );
+  for (const [entry, result] of [
+    [mainTsPath, cliResult],
+    [launcherPath, launcherResult],
+  ] as const) {
+    if (result.errors.length > 0) {
+      const details = result.errors.map((error) => `  - ${error.text}`);
+      throw new Error(
+        `bundle ${entry} with esbuild: ${result.errors.length} error(s)\n${details.join(
+          "\n",
+        )}`,
+      );
+    }
   }
 
-  console.log("   Bundle created successfully");
+  console.log("   Bundles created successfully");
 
-  // Step 3: Add shebang to main entry file
-  console.log("3. Adding shebang...");
-  const bundlePath = runtime.path.join(distDir, "noskills.js");
+  // The TypeScript CLI runs as `node ts/noskills.js` from the binary, and
+  // keeps the shebang it always had.
+  const bundlePath = runtime.path.join(tsDistDir, "noskills.js");
   const content = await runtime.fs.readTextFile(bundlePath);
-  const shebang = "#!/usr/bin/env node\n";
-  await runtime.fs.writeTextFile(bundlePath, shebang + content);
+  await runtime.fs.writeTextFile(bundlePath, "#!/usr/bin/env node\n" + content);
 
   // Step 4: Generate dist/package.json
   console.log("4. Generating dist/package.json...");
@@ -161,10 +199,12 @@ const main = async (): Promise<void> => {
     version: sourcePackageJson.version,
     type: "module",
     bin: { noskills: "./noskills.js" },
-    // The bundle loads the Go bridge through node:ffi (decision-37), so it
-    // needs the platform library and the WASM fallback, pinned to this
-    // version: the ajan-* packages are workspace:* members, and this manifest
-    // is published from dist/, where pnpm does not rewrite the protocol.
+    // The launcher runs the binary of the noskills-<platform> package, and
+    // the TypeScript CLI loads the Go bridge through node:ffi (decision-37)
+    // from the ajan-<platform> library or the WASM fallback. All of them are
+    // pinned to this version: they are workspace:* members, and this
+    // manifest is published from dist/, where pnpm does not rewrite the
+    // protocol.
     optionalDependencies: npmWorkspaceSpecifiers.resolveWorkspaceSpecifiers(
       sourcePackageJson.optionalDependencies,
       sourcePackageJson.version,

@@ -33,6 +33,11 @@
     "@eserstack/ajan-linux-arm64": "workspace:*",
     "@eserstack/ajan-linux-x64": "workspace:*",
     "@eserstack/ajan-win32-x64": "workspace:*",
-    "@eserstack/ajan-wasm": "workspace:*"
+    "@eserstack/ajan-wasm": "workspace:*",
+    "@eserstack/noskills-darwin-arm64": "workspace:*",
+    "@eserstack/noskills-darwin-x64": "workspace:*",
+    "@eserstack/noskills-linux-arm64": "workspace:*",
+    "@eserstack/noskills-linux-x64": "workspace:*",
+    "@eserstack/noskills-win32-x64": "workspace:*"
   }
 }

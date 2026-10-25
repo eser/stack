@@ -786,6 +786,21 @@ importers:
       '@eserstack/ajan-win32-x64':
         specifier: workspace:*
         version: link:../ajan-win32-x64
+      '@eserstack/noskills-darwin-arm64':
+        specifier: workspace:*
+        version: link:../noskills-darwin-arm64
+      '@eserstack/noskills-darwin-x64':
+        specifier: workspace:*
+        version: link:../noskills-darwin-x64
+      '@eserstack/noskills-linux-arm64':
+        specifier: workspace:*
+        version: link:../noskills-linux-arm64
+      '@eserstack/noskills-linux-x64':
+        specifier: workspace:*
+        version: link:../noskills-linux-x64
+      '@eserstack/noskills-win32-x64':
+        specifier: workspace:*
+        version: link:../noskills-win32-x64
 
   pkg/@eserstack/noskills-client:
     dependencies:
@@ -799,6 +814,14 @@ importers:
       '@eserstack/test-kit':
         specifier: workspace:*
         version: link:../test-kit
+
+  pkg/@eserstack/noskills-darwin-arm64: {}
+
+  pkg/@eserstack/noskills-darwin-x64: {}
+
+  pkg/@eserstack/noskills-linux-arm64: {}
+
+  pkg/@eserstack/noskills-linux-x64: {}
 
   pkg/@eserstack/noskills-web:
     dependencies:
@@ -821,6 +844,8 @@ importers:
       '@eserstack/test-kit':
         specifier: workspace:*
         version: link:../test-kit
+
+  pkg/@eserstack/noskills-win32-x64: {}
 
   pkg/@eserstack/parsing:
     dependencies:

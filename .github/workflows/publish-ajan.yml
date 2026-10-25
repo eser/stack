@@ -93,7 +93,7 @@ jobs:
     name: Build (linux/windows/wasm) & publish
     needs: build-darwin
     runs-on: ubuntu-24.04-arm
-    timeout-minutes: 20
+    timeout-minutes: 30
 
     permissions:
       contents: read
@@ -157,13 +157,20 @@ jobs:
       - name: Stage platform libraries into their packages
         run: make ajan-packages
 
+      # The noskills binaries for the five targets, staged into the
+      # @eserstack/noskills-<platform> packages the noskills launcher pins.
+      - name: Compile and stage the noskills binaries
+        run: |
+          go run ./cmd/eser dev compile
+          go run ./cmd/eser dev npm-binaries
+
       # ── bootstrap mode: upload the generated tarballs so they can be published
       # manually (npm login as the eserstack org owner). Needed for the FIRST
       # publish of any package, because npm can't pre-configure a trusted
       # publisher for a not-yet-existing package, so OIDC can't create it.
       # The artifact's least-common-ancestor is pkg/@eserstack/, so it extracts
       # to `ajan-<platform>/` dirs at the top level — ready for a publish loop.
-      - name: Upload generated ajan platform packages (manual first publish)
+      - name: Upload generated platform packages (manual first publish)
         if: inputs.mode == 'bootstrap'
         uses: actions/upload-artifact@v7
         with:
@@ -173,6 +180,10 @@ jobs:
             pkg/@eserstack/ajan-*/README.md
             pkg/@eserstack/ajan-*/libeser_ajan.*
             pkg/@eserstack/ajan-*/*.wasm
+            pkg/@eserstack/noskills-*-*/package.json
+            pkg/@eserstack/noskills-*-*/README.md
+            pkg/@eserstack/noskills-*-*/noskills
+            pkg/@eserstack/noskills-*-*/noskills.exe
           if-no-files-found: error
 
       # ── publish mode: publish each generated package whose exact version isn't
@@ -192,7 +203,7 @@ jobs:
           set -euo pipefail
           published=0
           skipped=0
-          for dir in pkg/@eserstack/ajan-*/; do
+          for dir in pkg/@eserstack/ajan-*/ pkg/@eserstack/noskills-*-*/; do
             [ -f "$dir/package.json" ] || continue
             name=$(node -p "require('./$dir/package.json').name")
             version=$(node -p "require('./$dir/package.json').version")

@@ -10,8 +10,13 @@
 > `curl -fsSL https://raw.githubusercontent.com/eser/stack/main/etc/scripts/install.sh | sh -s noskills`
 
 `noskills` is a command, so install it as a binary — the line above, or
-`brew install eser/tap/noskills`, or `npm i -g noskills`. On Windows use
-`install.ps1 -Product noskills`.
+`brew install eser/tap/noskills`,
+`nix profile install github:eser/stack#noskills` or `npm i -g noskills`. On
+Windows use `install.ps1 -Product noskills`. Every one of them installs the Go
+build of the CLI ([cmd/noskills](../../../cmd/noskills)): the npm package is a
+launcher that runs the binary of its `@eserstack/noskills-<platform>`
+dependency, and carries this TypeScript CLI for the commands the binary hands
+over to it.
 
 Adding this package as a dependency (`pnpm add jsr:@eserstack/noskills`) gets
 you the modules, not the command: the source package declares no `bin`, which is

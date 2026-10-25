@@ -298,10 +298,16 @@ with their arguments as given, found in this order:
 
 1. `NOSKILLS_TS_CLI`, a command line split on whitespace, such as
    `node /path/to/pkg/@eserstack/noskills/main.ts`;
-2. a `noskills` bin in a directory of `ESER_PLUGIN_PATH`, which the eser npm
-   launcher sets to the Node noskills package (decision-10), unless that bin is
-   this binary;
+2. `NOSKILLS_TS_BUNDLE`, the TypeScript CLI bundle that the npm `noskills`
+   launcher ships and sets, run with the `node` on PATH;
 3. `npx --yes noskills@<version>`.
+
+The npm `noskills` package is the launcher of this binary (TASK-261), so step 3
+runs the binary again, with `NOSKILLS_TS_BUNDLE` set this time. The npx run gets
+`NOSKILLS_VIA_NPX=1`, and a binary that finds it set does not take step 3 again,
+so a launcher without its bundle cannot start a loop. A `noskills` in
+`ESER_PLUGIN_PATH` is not looked at: the eser npm launcher points that variable
+at the noskills launcher, which runs this binary too.
 
 `NOSKILLS_NO_FORWARD=1` turns this off, so a test can show that a command ran in
 Go.
@@ -315,9 +321,27 @@ command switches when `noskills init` runs again through the binary. A
 `NOSKILLS_CLI_PREFIX` you set yourself stays as it is.
 
 Hooks written by v4.5.x call `npx eser@latest noskills invoke-hook ...`. The
-eser launcher of M3-T11 (TASK-254) forwards them to a `noskills` on PATH, so
-they reach this binary once it is installed, and the Node package through
-`ESER_PLUGIN_PATH` before that.
+eser launcher of M3-T11 (TASK-254) forwards them to a `noskills` on PATH or in
+`ESER_PLUGIN_PATH`, and `npx noskills` runs the npm launcher of this binary, so
+they reach this binary either way.
+
+## Installing
+
+Every channel installs this binary (TASK-261):
+
+- `install.sh` and `install.ps1` (`-Product noskills`), Homebrew
+  (`brew install eser/tap/noskills`) and the release archives
+  `noskills-v<version>-<triple>`, which `eser dev compile` builds and which
+  installed v4.5.x noskills binaries self-update to;
+- Nix: `nix build .#noskills` builds it from source with `buildGoModule`
+  (`vendorHash` is kept by `eser dev nix-vendor-hash`);
+- npm: `npm i -g noskills` or `npx noskills` installs the launcher, which runs
+  the binary of the optional dependency `@eserstack/noskills-<platform>` for
+  darwin-arm64, darwin-x64, linux-arm64, linux-x64 or win32-x64, and fails with
+  the list of those on another platform.
+
+`cmd/noskills/install_dry_run_test.go` installs it with install.sh, install.ps1
+and the Homebrew formula from a local release.
 
 ## Links
 

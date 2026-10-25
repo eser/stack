@@ -19,10 +19,16 @@ import (
 //
 //  1. NOSKILLS_TS_CLI, a command line split on whitespace (no shell), such
 //     as `node /path/to/pkg/@eserstack/noskills/main.ts`;
-//  2. a `noskills` bin in a directory of ESER_PLUGIN_PATH, which the eser
-//     npm launcher sets to the Node noskills package (decision-10), unless
-//     it is this binary;
+//  2. NOSKILLS_TS_BUNDLE, the TypeScript CLI bundle that the npm noskills
+//     launcher ships next to itself and sets, run with `node` from PATH;
 //  3. `npx --yes noskills@<version>` when npx is on PATH.
+//
+// The npm noskills package is the launcher of this binary (TASK-261), so
+// step 3 runs this binary again, now with NOSKILLS_TS_BUNDLE set. The npx run
+// gets NOSKILLS_VIA_NPX=1, and a binary that finds it set never takes step 3
+// again, so a launcher without the bundle cannot start a loop. A noskills
+// bin in ESER_PLUGIN_PATH is not looked at: the eser npm launcher points it
+// at the noskills launcher, which is this binary too.
 //
 // NOSKILLS_NO_FORWARD=1 turns forwarding off, so a test can prove that a
 // command ran in Go. The forwarded CLI gets NOSKILLS_CLI_PREFIX set to the
@@ -32,19 +38,22 @@ import (
 
 const (
 	envTSCLI     = "NOSKILLS_TS_CLI"
+	envTSBundle  = "NOSKILLS_TS_BUNDLE"
+	envViaNpx    = "NOSKILLS_VIA_NPX"
 	envNoForward = "NOSKILLS_NO_FORWARD"
 	envCLIPrefix = "NOSKILLS_CLI_PREFIX"
-	envPlugin    = "ESER_PLUGIN_PATH"
 	npmPackage   = "noskills"
 )
 
 var semverPattern = regexp.MustCompile(`^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$`) //nolint:gochecknoglobals // compiled once
 
-// tsCLI is how the TypeScript CLI runs: a program and its leading
-// arguments, or a message when none is found.
+// tsCLI is how the TypeScript CLI runs: a program, its leading arguments
+// and the variables it gets on top of forwardEnviron, or a message when none
+// is found.
 type tsCLI struct {
 	program string
 	args    []string
+	env     []string
 	message string
 }
 
@@ -63,41 +72,21 @@ func sameFile(a, b string) bool {
 	return os.SameFile(left, right)
 }
 
-func isExecutable(path string) bool {
-	info, err := os.Stat(path)
-	if err != nil || !info.Mode().IsRegular() {
-		return false
-	}
-
-	return filepath.Ext(path) != "" || info.Mode().Perm()&0o111 != 0
+func failedLookup(message string) tsCLI {
+	return tsCLI{program: "", args: nil, env: nil, message: message}
 }
 
 func resolveTSCLI(e *env) tsCLI {
 	if e.getenv(envNoForward) == "1" {
-		return tsCLI{program: "", args: nil, message: envNoForward + " is set, so the TypeScript noskills CLI is not run."}
+		return failedLookup(envNoForward + " is set, so the TypeScript noskills CLI is not run.")
 	}
-
-	self, _ := e.executable()
 
 	if words := strings.Fields(e.getenv(envTSCLI)); len(words) > 0 {
-		return tsCLI{program: words[0], args: words[1:], message: ""}
+		return tsCLI{program: words[0], args: words[1:], env: nil, message: ""}
 	}
 
-	for _, dir := range filepath.SplitList(e.getenv(envPlugin)) {
-		if dir == "" {
-			continue
-		}
-
-		candidates := []string{filepath.Join(dir, "noskills")}
-		if e.goos == "windows" {
-			candidates = []string{filepath.Join(dir, "noskills.cmd"), filepath.Join(dir, "noskills.exe"), candidates[0]}
-		}
-
-		for _, candidate := range candidates {
-			if isExecutable(candidate) && (self == "" || !sameFile(candidate, self)) {
-				return tsCLI{program: candidate, args: nil, message: ""}
-			}
-		}
+	if bundle := e.getenv(envTSBundle); bundle != "" {
+		return bundledTSCLI(e, bundle)
 	}
 
 	spec := npmPackage
@@ -105,16 +94,33 @@ func resolveTSCLI(e *env) tsCLI {
 		spec += "@" + e.version
 	}
 
-	if npx, err := e.lookPath("npx"); err == nil {
-		return tsCLI{program: npx, args: []string{"--yes", spec}, message: ""}
+	if e.getenv(envViaNpx) == "1" {
+		return failedLookup("npx ran this binary without its TypeScript CLI (" + envTSBundle + " is not set), " +
+			"so " + spec + " is not run through npx again. Reinstall the noskills npm package, or set " + envTSCLI +
+			" to the command that runs the TypeScript CLI.")
 	}
 
-	return tsCLI{
-		program: "",
-		args:    nil,
-		message: "This command runs in the TypeScript noskills CLI, and none was found: install Node.js so npx " +
-			"can run " + spec + ", or set " + envTSCLI + " to the command that runs it.",
+	if npx, err := e.lookPath("npx"); err == nil {
+		return tsCLI{program: npx, args: []string{"--yes", spec}, env: []string{envViaNpx + "=1"}, message: ""}
 	}
+
+	return failedLookup("This command runs in the TypeScript noskills CLI, and none was found: install Node.js so npx " +
+		"can run " + spec + ", or set " + envTSCLI + " to the command that runs it.")
+}
+
+// bundledTSCLI runs the TypeScript CLI bundle of the npm launcher with the
+// node on PATH.
+func bundledTSCLI(e *env, bundle string) tsCLI {
+	if info, err := os.Stat(bundle); err != nil || !info.Mode().IsRegular() {
+		return failedLookup(envTSBundle + " names " + bundle + ", which is not a file: reinstall the noskills npm package.")
+	}
+
+	node, err := e.lookPath("node")
+	if err != nil {
+		return failedLookup("This command runs in the TypeScript noskills CLI at " + bundle + ", and node is not on PATH.")
+	}
+
+	return tsCLI{program: node, args: []string{bundle}, env: nil, message: ""}
 }
 
 // selfCommand is how a shell runs this binary: `noskills` when that name on
@@ -166,7 +172,7 @@ func forward(ctx context.Context, e *env, args []string) int {
 		return clifx.ExitFailure
 	}
 
-	code, err := e.runProcess(ctx, e, cli.program, append(cli.args, args...), forwardEnviron(e), e.cwd)
+	code, err := e.runProcess(ctx, e, cli.program, append(cli.args, args...), append(forwardEnviron(e), cli.env...), e.cwd)
 	if err != nil {
 		_, _ = fmt.Fprintf(e.stderr, "noskills: %v\n", err)
 

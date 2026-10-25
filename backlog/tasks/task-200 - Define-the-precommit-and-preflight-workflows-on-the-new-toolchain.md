@@ -63,4 +63,5 @@ TASK-200 (node 26.12.1):
 - AC #3: `pnpm cli workflows run -e preflight` ran all 8 steps under node. ajan-native-build and ajan-wasm-build fail because the bridge still calls the removed codebasefx.CheckPackageConfigs (codebase); the other six pass.
 - AC #4: the tests step writes etc/coverage.lcov.
 - Left for others: the root package.json `test` script still passes --test-force-exit; build.yml must run `pnpm cli ok` and `pnpm cli preflight` and drop the `deno coverage` step, because the gate writes etc/coverage.lcov itself (TASK-225); etc/scripts/package-export-roots.ts and its test have no caller now; the docs/api and deno.json rules in .gitignore, and the `deno` commands in AGENTS.md and docs/agents, still need changing.
+2026-10-26, after main was merged into cutover: the preflight step compile-current is back as `go run ./cmd/eser dev compile --current-only`. The step deleted above was the deno compile one; decision-8 replaces deno compile with the Go build, and npm-binaries-current needs the archive this step writes on a clean checkout.
 <!-- SECTION:NOTES:END -->

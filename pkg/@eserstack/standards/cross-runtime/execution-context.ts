@@ -270,7 +270,7 @@ export const isCommandInPath = async (name: string): Promise<boolean> => {
   for (const dir of dirs) {
     try {
       // PATH order decides which binary runs, and the first hit ends the scan.
-      // deno-lint-ignore no-await-in-loop
+      // oxlint-disable-next-line no-await-in-loop
       await mod.runtime.fs.stat(mod.runtime.path.join(dir, exeName));
       return true;
     } catch {

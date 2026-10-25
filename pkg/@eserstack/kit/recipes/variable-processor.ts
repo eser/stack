@@ -95,7 +95,7 @@ export const promptVariable = (variable: TemplateVariable): string => {
     const validation = validateVariable(variable, raw);
     if (validation.ok === false) {
       // The prompt loop talks to the person at the terminal on stderr.
-      // deno-lint-ignore no-console
+      // oxlint-disable-next-line no-console
       console.error(`  Error: ${validation.reason}. Try again.`);
       continue;
     }

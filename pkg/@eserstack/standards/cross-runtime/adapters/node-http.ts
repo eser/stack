@@ -234,14 +234,14 @@ const writeResponse = async (
   try {
     while (true) {
       // Chunks go out one at a time, in order, at the pace the client reads.
-      // deno-lint-ignore no-await-in-loop
+      // oxlint-disable-next-line no-await-in-loop
       const { done, value } = await reader.read();
       if (done) {
         break;
       }
 
       if (!outgoing.write(value)) {
-        // deno-lint-ignore no-await-in-loop
+        // oxlint-disable-next-line no-await-in-loop
         await drainOrClose(outgoing);
       }
     }

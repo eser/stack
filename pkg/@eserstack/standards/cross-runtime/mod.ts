@@ -255,5 +255,5 @@ export const createRuntime = async (
  */
 // Consumers import this ready instance directly, and the detected runtime's
 // adapter loads through a dynamic import, so creating it needs this await.
-// deno-lint-ignore no-top-level-await
+// oxlint-disable-next-line node/no-top-level-await
 export const runtime: Runtime = await createRuntime();

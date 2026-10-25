@@ -1,7 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 // Dry-run, verbose and conflict lines are kit's CLI output for the person running the command.
-// deno-lint-ignore-file no-console
+/* oxlint-disable no-console */
 
 /**
  * Recipe applier — downloads recipe files and copies them into the
@@ -386,7 +386,7 @@ const applyFolder = async (
     if (options.skipExisting === true) {
       // Files are checked and written one at a time so the written list and
       // the log lines follow the folder order and open handles stay bounded.
-      // deno-lint-ignore no-await-in-loop
+      // oxlint-disable-next-line no-await-in-loop
       const exists = await fileExists(targetPath);
       if (exists) {
         skipped.push(relativePath);
@@ -407,9 +407,9 @@ const applyFolder = async (
     const processed = processContent(fetched.content, options.variables);
 
     // Sequential for the same reason as the existence check above.
-    // deno-lint-ignore no-await-in-loop
+    // oxlint-disable-next-line no-await-in-loop
     await ensureParentDir(targetPath);
-    // deno-lint-ignore no-await-in-loop
+    // oxlint-disable-next-line no-await-in-loop
     await runtime.fs.writeTextFile(targetPath, processed);
     written.push(relativePath);
   }
@@ -483,7 +483,7 @@ export const runPostInstall = async (
     try {
       // Post-install commands run in the declared order, each one may depend
       // on the previous, and the first failure stops the rest.
-      // deno-lint-ignore no-await-in-loop
+      // oxlint-disable-next-line no-await-in-loop
       result = await runtime.exec.spawn(parts[0]!, parts.slice(1), {
         cwd,
         stdout: "inherit",
@@ -602,10 +602,10 @@ export const applyFromFiles = async (
       // Files apply one at a time: a failure reports how many files were
       // written before it, and each file is a separate registry request.
       if (kind === "folder") {
-        // deno-lint-ignore no-await-in-loop
+        // oxlint-disable-next-line no-await-in-loop
         await applyFolder(recipeName, file, effectiveOptions, written, skipped);
       } else {
-        // deno-lint-ignore no-await-in-loop
+        // oxlint-disable-next-line no-await-in-loop
         await applyFile(file, effectiveOptions, written, skipped);
       }
     } catch (error) {
@@ -878,7 +878,7 @@ export const applyRecipeChain = async (
 
     // Recipes apply in dependency order: each one may build on the files of
     // the recipes it requires.
-    // deno-lint-ignore no-await-in-loop
+    // oxlint-disable-next-line no-await-in-loop
     const result = await applyRecipe(recipe, options);
     results.push({ name: recipe.name ?? "", result });
   }

@@ -51,7 +51,7 @@ const main = async (): Promise<void> => {
     JSON.stringify({ handle: created.handle, level: "INFO", message: "late" }),
   );
 
-  // deno-lint-ignore no-console
+  // oxlint-disable-next-line no-console
   console.log(
     JSON.stringify({
       reactor,
@@ -66,7 +66,7 @@ const main = async (): Promise<void> => {
 };
 
 main().catch((error: unknown) => {
-  // deno-lint-ignore no-console
+  // oxlint-disable-next-line no-console
   console.error(error);
   throw error;
 });

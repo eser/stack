@@ -284,12 +284,12 @@ export const workflowTool: workflows.WorkflowTool = {
 
 if (import.meta.main) {
   // Entry point: these awaits only run when this file is executed directly.
-  // deno-lint-ignore no-top-level-await
+  // oxlint-disable-next-line node/no-top-level-await
   const cliSupport = await import("./cli-support.ts");
   const { output: out } = cliSupport.getCliContext();
-  // deno-lint-ignore no-top-level-await
+  // oxlint-disable-next-line node/no-top-level-await
   const result = await main();
   cliSupport.runCliMain(result, out);
-  // deno-lint-ignore no-top-level-await
+  // oxlint-disable-next-line node/no-top-level-await
   await out.close();
 }

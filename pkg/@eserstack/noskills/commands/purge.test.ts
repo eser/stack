@@ -66,7 +66,7 @@ bdd.describe({
 
       for (const args of cases) {
         // Each case runs on its own; none of them may touch the project.
-        // deno-lint-ignore no-await-in-loop
+        // oxlint-disable-next-line no-await-in-loop
         const result = await purge.main(args);
 
         assert.assertEquals(results.isFail(result), true, args.join(" "));
@@ -590,11 +590,11 @@ bdd.describe({
 
       for (let run = 1; run <= 7; run++) {
         // Purges run one after another, as a user runs them.
-        // deno-lint-ignore no-await-in-loop
+        // oxlint-disable-next-line no-await-in-loop
         await runtime.fs.mkdir(`${root}/.eser/rules`, { recursive: true });
-        // deno-lint-ignore no-await-in-loop
+        // oxlint-disable-next-line no-await-in-loop
         await runtime.fs.writeTextFile(`${root}/${path}`, `rule ${run}`);
-        // deno-lint-ignore no-await-in-loop
+        // oxlint-disable-next-line no-await-in-loop
         await purge.main(["--agent", "--force"], root);
       }
 
@@ -637,7 +637,7 @@ bdd.describe({
 
       for (const args of cases) {
         // Each case is checked on its own.
-        // deno-lint-ignore no-await-in-loop
+        // oxlint-disable-next-line no-await-in-loop
         const result = await restore(root, ...args);
 
         assert.assertEquals(results.isFail(result), true, args.join(" "));

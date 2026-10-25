@@ -115,7 +115,7 @@ export const spawnPtyGo = async (opts: PtyOptions): Promise<PtyProcess> => {
     try {
       while (true) {
         // Each read returns the next PTY chunk, so reads run one at a time.
-        // deno-lint-ignore no-await-in-loop
+        // oxlint-disable-next-line no-await-in-loop
         const raw = await lib.symbols.EserAjanShellPtyRead(handle);
 
         if (raw === "null") break;

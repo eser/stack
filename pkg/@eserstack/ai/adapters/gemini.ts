@@ -26,12 +26,12 @@ export class GeminiModel implements model.LanguageModel {
   readonly modelId: string;
 
   // The SDK is loaded lazily by the factory; its client type is not in scope.
-  // deno-lint-ignore no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   private readonly client: any;
   private readonly config: config.ResolvedConfigTarget;
 
   // Takes the lazily imported SDK client stored in the field above.
-  // deno-lint-ignore no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   constructor(client: any, cfg: config.ResolvedConfigTarget) {
     this.client = client;
     this.config = cfg;

@@ -79,7 +79,7 @@ const fakeProvider = (reply: FakeReply) => {
           return reply(options, signal);
         },
         // The fake throws on any call; the validator only calls generateText.
-        // deno-lint-ignore require-yield
+        // oxlint-disable-next-line require-yield
         streamText: async function* () {
           throw new Error("the validator never streams");
         },

@@ -1067,7 +1067,7 @@ export function watch(
 
         // Builds write to the same dist directory, so they run one after
         // another; changes that arrive during a build wait for the next pass.
-        // deno-lint-ignore no-await-in-loop
+        // oxlint-disable-next-line no-await-in-loop
         const result = await build(contextWithCache, {
           skipCss,
           cssOnly,
@@ -1092,7 +1092,7 @@ export function watch(
 
         // Sequential like the build above: the callback reads dist/, which
         // the next build rewrites.
-        // deno-lint-ignore no-await-in-loop
+        // oxlint-disable-next-line no-await-in-loop
         await onChange(result);
       } catch (error) {
         // build() reports its own failures in the result, so this is an
@@ -1983,7 +1983,7 @@ async function processCssModulesFiles(
     for (const [cssPath, result] of results) {
       // One module's files at a time keeps open file handles bounded; a
       // project can have more CSS modules than the open-file limit.
-      // deno-lint-ignore no-await-in-loop
+      // oxlint-disable-next-line no-await-in-loop
       await cssModules.saveCSSModuleOutputs(cssPath, result, distDir, {
         skipCss: options?.skipCss,
         projectRoot, // Pass projectRoot for correct relative path calculation
@@ -2022,7 +2022,7 @@ async function copyCssModuleJsonFilesFromSrc(
   for (const cssPath of cssModulePaths) {
     // One copy at a time keeps open file handles bounded; a project can have
     // more CSS modules than the open-file limit.
-    // deno-lint-ignore no-await-in-loop
+    // oxlint-disable-next-line no-await-in-loop
     const copied = await copyCssModuleJsonFile(cssPath, projectRoot, targetDir);
     if (copied) {
       copiedCount++;
@@ -2108,10 +2108,10 @@ async function appendCssModulesToStyles(
       // styles.css doesn't exist yet, that's fine
     }
     // Strip ANSI color codes from both existing styles and CSS module contents
-    // deno-lint-ignore no-control-regex
+    // oxlint-disable-next-line no-control-regex
     existingStyles = existingStyles.replace(/\x1B\[[0-9;]*[a-zA-Z]/g, "");
     const cleanedContents = cssModuleContents.map((content) =>
-      // deno-lint-ignore no-control-regex
+      // oxlint-disable-next-line no-control-regex
       content.replace(/\x1B\[[0-9;]*[a-zA-Z]/g, ""),
     );
     const combinedStyles = existingStyles + "\n" + cleanedContents.join("\n");

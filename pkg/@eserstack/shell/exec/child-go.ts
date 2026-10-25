@@ -65,7 +65,7 @@ const readAll = async (
   try {
     while (true) {
       // A stream reader hands out chunks one at a time, in order.
-      // deno-lint-ignore no-await-in-loop
+      // oxlint-disable-next-line no-await-in-loop
       const { done, value } = await reader.read();
       if (done) break;
       if (value) chunks.push(value);

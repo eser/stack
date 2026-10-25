@@ -413,7 +413,7 @@ const specNew = async (
       const candidateDir = `${root}/${persistence.paths.specDir(candidate)}`;
       try {
         // Suffixes are probed in order and the first free one wins.
-        // deno-lint-ignore no-await-in-loop
+        // oxlint-disable-next-line no-await-in-loop
         await runtime.fs.stat(candidateDir);
         // Exists — try next suffix
         candidate = `${specName}-${suffix}`;

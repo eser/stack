@@ -374,7 +374,7 @@ Deno.bench("Promise.resolve + Map.get", { group: "getAsync" }, async () => {
 const asyncLazyRegistry = (() => {
   const registryBuilder = builder.createRegistryBuilder<string, number>();
   // An async factory with nothing to await is the case this group measures.
-  // deno-lint-ignore require-await
+  // oxlint-disable-next-line require-await
   registryBuilder.setLazy("async", async () => {
     return 42;
   });
@@ -394,7 +394,7 @@ Deno.bench(
 
 Deno.bench("Manual async factory", { group: "getAsync-lazy" }, async () => {
   // The bare async factory is the baseline for the lazy registry entry above.
-  // deno-lint-ignore require-await
+  // oxlint-disable-next-line require-await
   await (async () => 42)();
 });
 

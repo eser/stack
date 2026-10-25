@@ -148,7 +148,7 @@ async function requiresRebuild(
     try {
       // Sequential on purpose: the first changed dependency answers the
       // question, so the remaining files are not stat'ed.
-      // deno-lint-ignore no-await-in-loop
+      // oxlint-disable-next-line no-await-in-loop
       const stat = await runtime.fs.stat(path);
       if ((stat.mtime?.getTime() ?? 0) > mtime) {
         return true;

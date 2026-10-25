@@ -96,7 +96,7 @@ export const readTextLimited = async (
 
   for (;;) {
     // Each chunk follows the one before it.
-    // deno-lint-ignore no-await-in-loop
+    // oxlint-disable-next-line no-await-in-loop
     const { done, value } = await reader.read();
     if (done) {
       break;
@@ -104,7 +104,7 @@ export const readTextLimited = async (
     size += value.length;
     if (size > limit) {
       // The read stops here, once.
-      // deno-lint-ignore no-await-in-loop
+      // oxlint-disable-next-line no-await-in-loop
       await reader.cancel();
       throw new Error(`${what} is larger than ${limit} bytes`);
     }
@@ -464,12 +464,12 @@ export const installRemotePack = async (
 
   if (manifest.rules !== undefined) {
     for (const rulePath of manifest.rules) {
-      // deno-lint-ignore no-await-in-loop
+      // oxlint-disable-next-line no-await-in-loop
       const content = await fetchRemoteFile(specifier, rulePath);
       const ruleName = rulePath.replace(/^rules\//, "").replace(/\.md$/, "");
       checkPackFileName("rule", ruleName);
       const fileName = `pack-${name}-${ruleName}.md`;
-      // deno-lint-ignore no-await-in-loop
+      // oxlint-disable-next-line no-await-in-loop
       await runtime.fs.writeTextFile(`${rulesDir}/${fileName}`, content);
       installedRules.push(fileName);
     }
@@ -483,7 +483,7 @@ export const installRemotePack = async (
     let prefix = await nextConcernPrefix(root);
 
     for (const concernPath of manifest.concerns) {
-      // deno-lint-ignore no-await-in-loop
+      // oxlint-disable-next-line no-await-in-loop
       const content = await fetchRemoteFile(specifier, concernPath);
       const concern = JSON.parse(content) as { id: string };
       checkPackFileName("concern id", String(concern.id));
@@ -498,7 +498,7 @@ export const installRemotePack = async (
       }
       const paddedPrefix = String(prefix).padStart(3, "0");
       const fileName = `${paddedPrefix}-${concern.id}.json`;
-      // deno-lint-ignore no-await-in-loop
+      // oxlint-disable-next-line no-await-in-loop
       await runtime.fs.writeTextFile(`${concernsDir}/${fileName}`, content);
       installedConcerns.push(fileName);
       prefix++;
@@ -516,12 +516,12 @@ export const installRemotePack = async (
           `folder rules target "${targetDir}" in ${specifier} leaves the project`,
         );
       }
-      // deno-lint-ignore no-await-in-loop
+      // oxlint-disable-next-line no-await-in-loop
       const content = await fetchRemoteFile(specifier, sourcePath);
       const folderPath = folder === "" ? root : `${root}/${folder}`;
-      // deno-lint-ignore no-await-in-loop
+      // oxlint-disable-next-line no-await-in-loop
       await runtime.fs.mkdir(folderPath, { recursive: true });
-      // deno-lint-ignore no-await-in-loop
+      // oxlint-disable-next-line no-await-in-loop
       await runtime.fs.writeTextFile(`${folderPath}/.folder-rules.md`, content);
       installedFolderRules.push(`${targetDir}/.folder-rules.md`);
     }
@@ -628,9 +628,9 @@ const installRequiredPacks = async (
     }
 
     out.writeln(span.dim(`  Installing dependency: ${dep}`));
-    // deno-lint-ignore no-await-in-loop
+    // oxlint-disable-next-line no-await-in-loop
     installedDeps.push(await installBuiltinPack(root, dep, depBuiltin));
-    // deno-lint-ignore no-await-in-loop
+    // oxlint-disable-next-line no-await-in-loop
     await writePacksFile(root, {
       installed: [...alreadyInstalled, ...installedDeps],
     });

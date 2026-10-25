@@ -9,7 +9,7 @@ import * as walkFs from "./walk-fs.ts";
 
 // Opened before the tests register, so the `ignore` flags know whether the
 // bridge loaded.
-// deno-lint-ignore no-top-level-await
+// oxlint-disable-next-line node/no-top-level-await
 await ffiClient.ensureLib();
 const ffiLib = ffiClient.getLib();
 
@@ -38,9 +38,9 @@ const withFixture = async (
     for (const file of FIXTURE_FILES) {
       const path = runtime.path.join(dir, file);
       // Sequential: each file's directory is created before it is written.
-      // deno-lint-ignore no-await-in-loop
+      // oxlint-disable-next-line no-await-in-loop
       await runtime.fs.ensureDir(runtime.path.dirname(path));
-      // deno-lint-ignore no-await-in-loop
+      // oxlint-disable-next-line no-await-in-loop
       await runtime.fs.writeTextFile(path, "");
     }
     await run(dir);
@@ -87,7 +87,7 @@ Deno.test({
       for (const ignore of [/\.test\./, /(^|\/)_/, /testdata\//, /^$/]) {
         assert.assertEquals(
           // Sequential: one walk at a time keeps the comparison readable.
-          // deno-lint-ignore no-await-in-loop
+          // oxlint-disable-next-line no-await-in-loop
           await walkFs.walkCollectableFiles(dir, ignore),
           goWalk(dir, ignore),
           ignore.source,

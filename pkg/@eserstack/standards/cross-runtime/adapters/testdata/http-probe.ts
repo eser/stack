@@ -12,7 +12,7 @@ import * as crossRuntime from "../../mod.ts";
 import * as httpScenario from "./http-scenario.ts";
 
 // The probe is a program: its output is the result.
-// deno-lint-ignore no-top-level-await
+// oxlint-disable-next-line node/no-top-level-await
 const result = await httpScenario.exerciseHttp(crossRuntime.runtime.http);
 crossRuntime.runtime.process.writeToStdout(
   new TextEncoder().encode(JSON.stringify(result)),

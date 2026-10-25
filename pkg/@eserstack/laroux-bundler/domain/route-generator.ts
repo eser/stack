@@ -68,7 +68,7 @@ export async function generateRouteFile(
 
     // One route's sources at a time keeps open file handles bounded; a
     // project can have more routes than the open-file limit.
-    // deno-lint-ignore no-await-in-loop
+    // oxlint-disable-next-line no-await-in-loop
     const { componentName, layoutName } = await resolveRouteExportNames(
       route,
       projectRoot,

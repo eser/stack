@@ -10,7 +10,7 @@ const HOSTILE =
   "hello \x1b]52;c;ZWNobyBwd25lZA==\x07\x1b[1A\x1b[2K\x1b[31mFAKE\x1b[0m" +
   "\x1b]8;;https://evil.example\x1b\\docs\x1b]8;;\x1b\\\x1bP+q\x1b\\\x9b31m\rX\x07\tok\n";
 
-// deno-lint-ignore no-control-regex
+// oxlint-disable-next-line no-control-regex
 const CONTROL = /[\x00-\x08\x0b-\x1f\x7f-\x9f]/;
 
 const render = async (...spans: span.SpanInput[]): Promise<string> => {
@@ -40,7 +40,7 @@ Deno.test("untrusted text nested in a style span is still stripped", async () =>
   await out.close();
   const printed = sink.items().join("");
   // Only the renderer's own SGR codes remain.
-  // deno-lint-ignore no-control-regex
+  // oxlint-disable-next-line no-control-regex
   const withoutSgr = printed.replace(/\x1b\[[0-9;]*m/g, "");
   assert.assertEquals(CONTROL.test(withoutSgr.replace(/[\t\n]/g, "")), false);
 });

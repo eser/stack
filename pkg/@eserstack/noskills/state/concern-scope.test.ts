@@ -1,7 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 // One test replaces console.error to capture the warning persistence writes.
-// deno-lint-ignore-file no-console
+/* oxlint-disable no-console */
 
 import * as bdd from "@std/testing/bdd";
 import * as assert from "@eserstack/test-kit/assert";

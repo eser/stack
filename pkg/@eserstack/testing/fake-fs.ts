@@ -101,7 +101,7 @@ export const createFakeFs = (files: Record<string, string>): FakeFs => {
   return {
     // Async to match the FakeFs contract, so a miss is a rejection, not a
     // throw.
-    // deno-lint-ignore require-await
+    // oxlint-disable-next-line require-await
     async readTextFile(path: string): Promise<string> {
       const content = files[path];
       if (content !== undefined) {
@@ -113,7 +113,7 @@ export const createFakeFs = (files: Record<string, string>): FakeFs => {
 
     // Async to match the FakeFs contract, so a miss is a rejection, not a
     // throw.
-    // deno-lint-ignore require-await
+    // oxlint-disable-next-line require-await
     async readFile(path: string): Promise<Uint8Array> {
       const content = files[path];
       if (content !== undefined) {

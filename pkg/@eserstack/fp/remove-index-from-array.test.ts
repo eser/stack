@@ -33,7 +33,7 @@ Deno.test("with-generator", () => {
     int2,
   );
 
-  // deno-lint-ignore no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   assert.assertNotStrictEquals(result as any, generated1 as any);
   assert.assertEquals(result.length, 3);
   assert.assertEquals(result, [1, 2, 5]);

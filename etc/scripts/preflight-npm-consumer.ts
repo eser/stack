@@ -33,7 +33,7 @@
  */
 
 // The progress and result lines it prints are the preflight's log.
-// deno-lint-ignore-file no-console
+/* oxlint-disable no-console */
 
 import * as distUtils from "./dist-utils.ts";
 
@@ -227,6 +227,6 @@ const main = async (): Promise<void> => {
 
 if (import.meta.main) {
   // Script entry point: the preflight and CI run the file directly.
-  // deno-lint-ignore no-top-level-await
+  // oxlint-disable-next-line node/no-top-level-await
   await main();
 }

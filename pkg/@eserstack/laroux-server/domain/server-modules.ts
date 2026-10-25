@@ -32,9 +32,9 @@ const SERVER_DIR = "server";
 export type AppComponents = {
   // Layout and Page come from app modules imported at runtime; the renderer
   // adapter, not this layer, knows their component type.
-  // deno-lint-ignore no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   Layout: any;
-  // deno-lint-ignore no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   Page: any;
   params: Record<string, string | string[]>;
 };
@@ -212,7 +212,7 @@ async function loadServerActions(
     try {
       // Action modules register themselves on import, so they load one at a
       // time to keep the registration order equal to the manifest order.
-      // deno-lint-ignore no-await-in-loop
+      // oxlint-disable-next-line no-await-in-loop
       const loaded = await buildModule.importOptionalBuildModule(
         fullPath,
         buildId,
@@ -223,7 +223,7 @@ async function loadServerActions(
     } catch (error) {
       // Logged before the next module loads, so the entries keep the
       // manifest order of the imports above.
-      // deno-lint-ignore no-await-in-loop
+      // oxlint-disable-next-line no-await-in-loop
       await modulesLogger
         .with({ actionPath, buildId, error })
         .warn(
@@ -276,7 +276,7 @@ async function resolveServerComponentPath(
   for (const ext of patterns.JS_FILE_EXTENSIONS) {
     const sourcePath = runtime.path.join(appDir, `${baseName}.${ext}`);
     // Extensions are tried in preference order and the first match wins.
-    // deno-lint-ignore no-await-in-loop
+    // oxlint-disable-next-line no-await-in-loop
     if (await runtime.fs.exists(sourcePath)) {
       return sourcePath;
     }

@@ -314,7 +314,7 @@ export const composePostToAllHandler = (
     for (const platform of platforms) {
       // withFreshTokens saves each platform's tokens to one shared token file;
       // concurrent saves would overwrite each other.
-      // deno-lint-ignore no-await-in-loop
+      // oxlint-disable-next-line no-await-in-loop
       const result = await withFreshTokens.withFreshTokens(ctx, platform, () =>
         ctx.postService.composePost(input.text, platform),
       );
@@ -475,7 +475,7 @@ export const searchPostsAllHandler = (
     for (const platform of platforms) {
       // withFreshTokens saves each platform's tokens to one shared token file;
       // concurrent saves would overwrite each other.
-      // deno-lint-ignore no-await-in-loop
+      // oxlint-disable-next-line no-await-in-loop
       const result = await withFreshTokens.withFreshTokens(ctx, platform, () =>
         ctx.postService.searchPosts({
           query: input.query,
@@ -537,7 +537,7 @@ export const getUnifiedTimelineHandler = (
     for (const platform of platforms) {
       // withFreshTokens saves each platform's tokens to one shared token file;
       // concurrent saves would overwrite each other.
-      // deno-lint-ignore no-await-in-loop
+      // oxlint-disable-next-line no-await-in-loop
       const result = await withFreshTokens.withFreshTokens(ctx, platform, () =>
         ctx.postService.getTimeline({ platform, maxResults }),
       );

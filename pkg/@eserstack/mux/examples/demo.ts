@@ -18,6 +18,6 @@ import * as inprocess from "../runner/inprocess.ts";
 import { runtime } from "@eserstack/standards/cross-runtime";
 
 // A runnable script, not a library module: the await is its entry point.
-// deno-lint-ignore no-top-level-await
+// oxlint-disable-next-line node/no-top-level-await
 const code = await inprocess.runInProcess();
 runtime.process.exit(code);

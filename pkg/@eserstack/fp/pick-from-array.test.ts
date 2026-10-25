@@ -34,13 +34,13 @@ Deno.test("with-generator-1", () => {
   const generated1 = gen1();
   const result = pickFromArray.pickFromArray(generated1, arr1);
 
-  // deno-lint-ignore no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   assert.assertNotStrictEquals(result.items as any, generated1 as any);
   assert.assertNotStrictEquals(result.items, arr1);
   assert.assertEquals(result.items.length, 2);
   assert.assertEquals(result.items, [2, 3]);
 
-  // deno-lint-ignore no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   assert.assertNotStrictEquals(result.rest as any, generated1 as any);
   assert.assertNotStrictEquals(result.rest, arr1);
   assert.assertEquals(result.rest.length, 3);
@@ -59,13 +59,13 @@ Deno.test("with-generator-2", () => {
   const result = pickFromArray.pickFromArray(arr1, generated1);
 
   assert.assertNotStrictEquals(result.items, arr1);
-  // deno-lint-ignore no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   assert.assertNotStrictEquals(result.items as any, generated1 as any);
   assert.assertEquals(result.items.length, 2);
   assert.assertEquals(result.items, [2, 3]);
 
   assert.assertNotStrictEquals(result.rest, arr1);
-  // deno-lint-ignore no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   assert.assertNotStrictEquals(result.rest as any, generated1 as any);
   assert.assertEquals(result.rest.length, 3);
   assert.assertEquals(result.rest, [1, 4, 5]);

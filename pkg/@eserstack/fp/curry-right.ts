@@ -22,7 +22,7 @@ import type * as typeSlices from "@eserstack/primitives/type-slices";
  * ```
  */
 export const curryRight = <
-  // deno-lint-ignore no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   TF extends functions.GenericFunction<any, any>,
   TP extends Partial<Parameters<TF>>,
 >(

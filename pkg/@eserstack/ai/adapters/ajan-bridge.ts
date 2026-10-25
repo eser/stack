@@ -543,8 +543,8 @@ export class AjanBridgeModel implements model.BatchCapableModel {
 
         // The bridge hands out one stream event per read, in order, and the
         // abort check above must run before each read.
-        // deno-lint-ignore no-await-in-loop
         const eventRaw =
+          // oxlint-disable-next-line no-await-in-loop
           await this.#lib.symbols.EserAjanAiStreamRead(streamHandle);
 
         if (eventRaw === "null" || eventRaw === "") {

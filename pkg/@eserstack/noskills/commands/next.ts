@@ -1102,7 +1102,7 @@ export const handleAnswer = async (
 
           // Each answer updates spec.md in turn, building on the state the
           // previous one left, so they run one after another.
-          // deno-lint-ignore no-await-in-loop
+          // oxlint-disable-next-line no-await-in-loop
           const living = await applyLivingSpecToDiscoveryAnswer(
             root,
             newState,
@@ -1669,9 +1669,9 @@ const processStatusReport = async (
       // Every task rewrites the same spec.md and progress file, so the
       // updates run one after another to keep each read-modify-write whole.
       for (const taskId of batchIds) {
-        // deno-lint-ignore no-await-in-loop
+        // oxlint-disable-next-line no-await-in-loop
         await specUpdater.markTaskCompleted(root, currentState.spec, taskId);
-        // deno-lint-ignore no-await-in-loop
+        // oxlint-disable-next-line no-await-in-loop
         await specUpdater.updateProgressTask(
           root,
           currentState.spec,

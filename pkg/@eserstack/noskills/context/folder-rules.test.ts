@@ -49,7 +49,7 @@ Deno.test("collectFolderRules never reads outside the project", async () => {
   await withProject(async (_outer, root) => {
     for (const file of ["../secret/a.ts", "src/../../secret/a.ts", "../a.ts"]) {
       // One path at a time, so a failure names it.
-      // deno-lint-ignore no-await-in-loop
+      // oxlint-disable-next-line no-await-in-loop
       const rules = await folderRules.collectFolderRules(root, [file]);
       const texts = rules.map((r) => r.rule);
       assert.assertEquals(texts.includes("outside rule"), false, file);

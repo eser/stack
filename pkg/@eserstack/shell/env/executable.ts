@@ -98,7 +98,7 @@ export const resolveExecutable = async (
       }`;
 
       // PATH order decides which binary wins, so stop at the first match.
-      // deno-lint-ignore no-await-in-loop
+      // oxlint-disable-next-line no-await-in-loop
       if (await isExecutableFile(candidate)) {
         return candidate;
       }

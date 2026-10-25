@@ -118,7 +118,7 @@ reactorTest("warm calls cost microseconds on one instance", async () => {
   const median = timings[Math.floor(timings.length / 2)]!;
   const p99 = timings[Math.floor(timings.length * 0.99)]!;
 
-  // deno-lint-ignore no-console
+  // oxlint-disable-next-line no-console
   console.log(
     `reactor load ${loadMs.toFixed(1)} ms; formatEncode median ${(
       median * 1000

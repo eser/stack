@@ -224,7 +224,7 @@ export class PostService implements InboundPostService {
       // Platforms publish one after another in configuration order, as
       // composePostToAllHandler does with saved tokens, so every wiring sends
       // the posts in the same order.
-      // deno-lint-ignore no-await-in-loop
+      // oxlint-disable-next-line no-await-in-loop
       const r = await this.composePost(text, platform);
       postResults.push(
         results.isOk(r)

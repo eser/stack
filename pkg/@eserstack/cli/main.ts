@@ -151,10 +151,10 @@ if (import.meta.main) {
       sink: streams.sinks.stderr(),
     });
     errorOutput.writeln(notice);
-    // deno-lint-ignore no-top-level-await
+    // oxlint-disable-next-line node/no-top-level-await
     await errorOutput.close();
   }
 
-  // deno-lint-ignore no-top-level-await
+  // oxlint-disable-next-line node/no-top-level-await
   await cliSupport.exitCli(await main());
 }

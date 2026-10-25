@@ -24,7 +24,7 @@ const getFunctionParametersFromString = (fnSerialized: string) => {
   return [];
 };
 
-// deno-lint-ignore no-explicit-any
+// oxlint-disable-next-line typescript/no-explicit-any
 const getFunctionParameters = (fn: functions.GenericFunction<any, any>) => {
   return getFunctionParametersFromString(fn.toString());
 };
@@ -64,7 +64,7 @@ const getFunctionParameters = (fn: functions.GenericFunction<any, any>) => {
 // };
 
 export const invoke = <
-  // deno-lint-ignore no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   T extends functions.GenericFunction<ReturnType<T>, any>,
   K = ServiceKey,
   V = ServiceValue,

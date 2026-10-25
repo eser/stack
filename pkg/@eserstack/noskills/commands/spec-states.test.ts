@@ -119,7 +119,7 @@ bdd.describe("noskills spec state commands", () => {
       ["note", "list"],
     ]) {
       // One command at a time, so a failure names it.
-      // deno-lint-ignore no-await-in-loop
+      // oxlint-disable-next-line no-await-in-loop
       const { code, output } = await runNoskills(root, [
         "spec",
         "ghost",
@@ -145,7 +145,7 @@ bdd.describe("noskills spec state commands", () => {
     );
 
     for (const args of [["free"], ["validate"]]) {
-      // deno-lint-ignore no-await-in-loop
+      // oxlint-disable-next-line no-await-in-loop
       const { output } = await runNoskills(root, args);
 
       assert.assertStringIncludes(output, "my-noskills", args[0]);

@@ -34,14 +34,14 @@ export const main = async (): Promise<
 if (import.meta.main) {
   // CLI entry point: the await runs only when this file is the program, never
   // on import.
-  // deno-lint-ignore no-top-level-await
+  // oxlint-disable-next-line node/no-top-level-await
   const exitCode = results.match(await main(), {
     ok: () => 0,
     fail: (error) => {
       if (error.message !== undefined) {
         // Not a streams Output: an Output buffers its writes, and the hard
         // exit below would drop whatever it still holds.
-        // deno-lint-ignore no-console
+        // oxlint-disable-next-line no-console
         console.error(error.message);
       }
       return error.exitCode;

@@ -457,7 +457,7 @@ const toCString = (str: string): Uint8Array<ArrayBuffer> => {
  */
 const createSymbolWrappers = (
   // Deno types dlopen symbols per definition; the wrappers below take them all.
-  // deno-lint-ignore no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   rawSymbols: any,
 ): types.FFILibrary["symbols"] => {
   /**

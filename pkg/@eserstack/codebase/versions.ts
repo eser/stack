@@ -333,7 +333,7 @@ export const versions = async (
     if (!dryRun) {
       // Packages are bumped one at a time to bound open file handles in a
       // large workspace.
-      // deno-lint-ignore no-await-in-loop
+      // oxlint-disable-next-line no-await-in-loop
       const moduleResult = await pkg.updateVersion(
         module.config,
         targetVersion,
@@ -569,7 +569,7 @@ export const main = async (
 
 if (import.meta.main) {
   // Entry point: the await only runs when this file is executed directly.
-  // deno-lint-ignore no-top-level-await
+  // oxlint-disable-next-line node/no-top-level-await
   const result = await main(
     standards.crossRuntime.runtime.process.args as string[],
   );

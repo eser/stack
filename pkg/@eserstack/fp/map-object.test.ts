@@ -28,7 +28,7 @@ Deno.test("with-value-skipping", () => {
 
   const result = mapObject.mapObject(obj1, func1);
 
-  // deno-lint-ignore no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   assert.assertNotStrictEquals(result as any, obj1 as any);
   assert.assertEquals(Object.keys(result).length, 2);
   assert.assertEquals(result, { a: 0, b: 1 });

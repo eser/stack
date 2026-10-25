@@ -56,7 +56,7 @@ Deno.test("track-l-delete: RSC Protocol - Parse Module Chunk", () => {
   assert.assertExists(parsed);
   assert.assertEquals(parsed?.type, "M");
   assert.assertEquals(parsed?.id, 1);
-  // deno-lint-ignore no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   assert.assertEquals((parsed?.value as any).id, "./counter.tsx");
 });
 
@@ -67,7 +67,7 @@ Deno.test("track-l-delete: RSC Protocol - Parse JSON Chunk", () => {
   assert.assertExists(parsed);
   assert.assertEquals(parsed?.type, "J");
   assert.assertEquals(parsed?.id, 0);
-  // deno-lint-ignore no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   assert.assertEquals((parsed?.value as any).message, "Hello");
 });
 

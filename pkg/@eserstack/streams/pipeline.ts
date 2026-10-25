@@ -64,11 +64,11 @@ export const pipeline = (): Pipeline => {
       }
 
       // Build the pipeline chain
-      // deno-lint-ignore no-explicit-any
+      // oxlint-disable-next-line typescript/no-explicit-any
       let stream: ReadableStream<Chunk<any>> = source.readable;
 
       for (const layer of layers) {
-        // deno-lint-ignore no-explicit-any
+        // oxlint-disable-next-line typescript/no-explicit-any
         stream = stream.pipeThrough(layer.transform() as any);
       }
 

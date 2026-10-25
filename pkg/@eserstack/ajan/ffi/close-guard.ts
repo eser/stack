@@ -21,7 +21,7 @@ import type * as types from "./types.ts";
  * generically.
  */
 // A guard wraps symbols of every signature, so the type cannot be narrower.
-// deno-lint-ignore no-explicit-any
+// oxlint-disable-next-line typescript/no-explicit-any
 type RawSymbol = (...args: any[]) => any;
 
 /**

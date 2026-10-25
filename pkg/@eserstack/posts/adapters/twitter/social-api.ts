@@ -169,7 +169,7 @@ export class TwitterSocialApi implements SocialApi {
       let response: TwitterApiSingleResponse<TwitterApiTweet>;
       try {
         // Each post replies to the one before it, so the thread posts in order.
-        // deno-lint-ignore no-await-in-loop
+        // oxlint-disable-next-line no-await-in-loop
         response = await this.client.post<
           TwitterApiSingleResponse<TwitterApiTweet>
         >("/tweets", body);

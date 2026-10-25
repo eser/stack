@@ -102,7 +102,7 @@ export const main = async (
 
 if (import.meta.main) {
   // Entry point: the await only runs when this file is executed directly.
-  // deno-lint-ignore no-top-level-await
+  // oxlint-disable-next-line node/no-top-level-await
   const result = await main();
   cliSupport.runCliMain(result, cliSupport.getCliContext().output);
 }

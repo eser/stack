@@ -11,7 +11,6 @@
 // deps.ts: the other built-ins there make every Deno program that imports
 // cross-runtime start about 6 ms slower (49 ms against 43 ms for deno run of
 // such a script, mean of 80 runs each).
-// deno-lint-ignore no-external-import
 import * as nodeProcess from "node:process";
 import * as denoPath from "@std/path";
 import type {

@@ -157,7 +157,7 @@ async function incrementalCopySourceFiles(
 
     // One file at a time keeps open file handles bounded; a branch switch
     // can change more files than the open-file limit.
-    // deno-lint-ignore no-await-in-loop
+    // oxlint-disable-next-line no-await-in-loop
     const outcome = await syncChangedFile(filePath, targetPath);
     if (outcome === "copied") {
       copiedCount++;

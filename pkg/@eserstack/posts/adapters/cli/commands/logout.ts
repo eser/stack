@@ -49,7 +49,7 @@ export const main = async (
   for (const p of targetPlatforms) {
     // Every platform's tokens live in one token file, so concurrent clears
     // would overwrite each other; one at a time also keeps the output in order.
-    // deno-lint-ignore no-await-in-loop
+    // oxlint-disable-next-line no-await-in-loop
     await logoutPlatform(p, auths.get(p), tokenStore);
   }
 

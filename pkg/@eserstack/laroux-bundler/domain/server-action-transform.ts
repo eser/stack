@@ -185,7 +185,7 @@ export async function transformServerActions(
     // Use relativePath directly for action IDs (e.g., "src/app/actions#addComment").
     // One file at a time keeps open file handles bounded; a project can have
     // more action files than the open-file limit.
-    // deno-lint-ignore no-await-in-loop
+    // oxlint-disable-next-line no-await-in-loop
     const transformedActions = await transformServerActionFile(
       match.filePath,
       match.relativePath,

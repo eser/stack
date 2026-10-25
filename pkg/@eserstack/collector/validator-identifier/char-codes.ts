@@ -108,7 +108,7 @@ export const rightCurlyBrace = 125 as const; //  '}'
 export const tilde = 126 as const; //  '~'
 export const nonBreakingSpace = 160 as const;
 // The comment shows the character itself, which is irregular whitespace.
-// deno-lint-ignore no-irregular-whitespace
+// oxlint-disable-next-line no-irregular-whitespace
 export const oghamSpaceMark = 5760 as const; // ' '
 export const lineSeparator = 8232 as const;
 export const paragraphSeparator = 8233 as const;

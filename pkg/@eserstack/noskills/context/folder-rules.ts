@@ -116,7 +116,7 @@ export const collectFolderRules = async (
   // Files are walked one at a time: a turn can touch many files, and this
   // bounds the reads in flight to one directory chain.
   for (const file of touchedFiles) {
-    // deno-lint-ignore no-await-in-loop
+    // oxlint-disable-next-line no-await-in-loop
     const fileRules = await collectRulesForFile(root, file);
 
     for (const fr of fileRules) {

@@ -208,7 +208,7 @@ const buildVerifierAgentToml = (): string => {
 const tomlString = (value: string): string =>
   `"${
     // Control characters are what the class matches, on purpose.
-    // deno-lint-ignore no-control-regex
+    // oxlint-disable-next-line no-control-regex
     value.replace(/[\\"\u0000-\u001f\u007f]/g, (c) => {
       switch (c) {
         case "\\":

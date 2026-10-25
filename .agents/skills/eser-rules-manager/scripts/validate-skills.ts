@@ -19,7 +19,7 @@
 
 // The script runs on a bare `node` with built-ins only, so it imports `node:`
 // modules and prints its report straight to the terminal.
-// deno-lint-ignore-file no-external-import no-console
+/* oxlint-disable no-console */
 
 import * as fs from "node:fs";
 import * as path from "node:path";

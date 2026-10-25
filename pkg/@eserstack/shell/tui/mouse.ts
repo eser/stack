@@ -50,7 +50,7 @@ export const disableMouse = (): string =>
 // =============================================================================
 
 /** SGR mouse sequence regex: \x1b[<{code};{x};{y}[Mm] */
-// deno-lint-ignore no-control-regex
+// oxlint-disable-next-line no-control-regex
 const SGR_MOUSE_RE = /^\x1b\[<(\d+);(\d+);(\d+)([Mm])$/;
 
 /**

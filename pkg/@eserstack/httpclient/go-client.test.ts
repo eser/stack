@@ -8,7 +8,7 @@ import * as ffiClient from "./ffi-client.ts";
 // Importing the package loads nothing, so this test module opens the bridge
 // before registering tests: the `ignore` flags below need to know whether it
 // loaded, and the load stays outside every test body.
-// deno-lint-ignore no-top-level-await
+// oxlint-disable-next-line node/no-top-level-await
 await ffiClient.ensureLib();
 const withoutFfi = ffiClient.getLib() === null;
 

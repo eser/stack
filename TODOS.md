@@ -1301,8 +1301,8 @@ logic stays dependency-free" gets violated repo-wide — but the specific findin
 was refuted on its stated impact, so **no verified finding covers it**. This is
 a known unknown, not a confirmed defect: scope it before committing to a fix.
 
-**Context:** `pkg/@eserstack/standards/cross-runtime/mod.ts:240-241` carries an
-explicit `// deno-lint-ignore no-top-level-await`.
+**Context:** `pkg/@eserstack/standards/cross-runtime/mod.ts:258-259` carries an
+explicit `// oxlint-disable-next-line node/no-top-level-await`.
 
 **Effort:** M to investigate
 

@@ -72,7 +72,7 @@ const readLimited = async (
 
   for (;;) {
     // Each chunk follows the one before it.
-    // deno-lint-ignore no-await-in-loop
+    // oxlint-disable-next-line no-await-in-loop
     const { done, value } = await reader.read();
     if (done) {
       break;
@@ -81,7 +81,7 @@ const readLimited = async (
     size += value.length;
     if (size > limit) {
       // The reader is cancelled once, at the limit.
-      // deno-lint-ignore no-await-in-loop
+      // oxlint-disable-next-line no-await-in-loop
       await reader.cancel();
       return null;
     }
@@ -111,7 +111,7 @@ const fetchFollowing = async (
 
   for (let hops = 0; ; hops += 1) {
     // Each redirect hop needs the previous response.
-    // deno-lint-ignore no-await-in-loop
+    // oxlint-disable-next-line no-await-in-loop
     const response = await fetch(url, {
       method,
       headers,
@@ -136,7 +136,7 @@ const fetchFollowing = async (
     }
 
     // The redirect's body is dropped before the next hop.
-    // deno-lint-ignore no-await-in-loop
+    // oxlint-disable-next-line no-await-in-loop
     await response.body?.cancel();
 
     if (next.host !== url.host) {

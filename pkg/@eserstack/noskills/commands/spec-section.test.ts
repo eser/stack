@@ -165,7 +165,7 @@ bdd.describe("noskills spec <name> section", () => {
       [["summary", "bogus", "x"], "Usage:"],
     ] as const) {
       // One command at a time, so a failure names it.
-      // deno-lint-ignore no-await-in-loop
+      // oxlint-disable-next-line no-await-in-loop
       const { code, output } = await section(root, ...args);
 
       assert.assertEquals(code, 1, `${args.join(" ")}: ${output}`);
@@ -215,7 +215,7 @@ bdd.describe("noskills spec <name> section", () => {
 
     for (const p of open) {
       // The commands write the same state files, so they run in order.
-      // deno-lint-ignore no-await-in-loop
+      // oxlint-disable-next-line no-await-in-loop
       const { code, output } = await section(root, p.sectionId, "na", REASON);
       assert.assertEquals(code, 0, `${p.sectionId}: ${output}`);
     }

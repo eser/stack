@@ -323,7 +323,7 @@ export const runWorkflow = (
 
       // Steps run one at a time on purpose: each step sees the files the
       // previous step fixed, and a failing step stops the workflow.
-      // deno-lint-ignore no-await-in-loop
+      // oxlint-disable-next-line no-await-in-loop
       const stepTaskResult = await runStepTool(
         tool,
         mergedOptions,
@@ -364,7 +364,7 @@ export const runWorkflow = (
         options.onMutations !== undefined
       ) {
         // The next step must not start before these mutations are applied.
-        // deno-lint-ignore no-await-in-loop
+        // oxlint-disable-next-line no-await-in-loop
         await options.onMutations(toolResult.mutations);
       }
 
@@ -506,7 +506,7 @@ export const runByEvent = (
       const resolved = resolveIncludes(workflow, workflows);
       // Workflows run one at a time on purpose: in fix mode they change the
       // same files, and the first failing workflow stops the run.
-      // deno-lint-ignore no-await-in-loop
+      // oxlint-disable-next-line no-await-in-loop
       const result = await task.runTask(
         runWorkflow(resolved, registry, options),
       );

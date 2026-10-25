@@ -48,7 +48,7 @@ export interface DeepCopyOptions {
  * original.a.b.c; // still 1
  * ```
  */
-// deno-lint-ignore no-explicit-any
+// oxlint-disable-next-line typescript/no-explicit-any
 export const deepCopy = <T extends Record<Key, any>>(
   instance: T,
   options?: DeepCopyOptions,
@@ -85,13 +85,13 @@ export const deepCopy = <T extends Record<Key, any>>(
     try {
       // Handle arrays specially
       if (Array.isArray(obj)) {
-        // deno-lint-ignore no-explicit-any
+        // oxlint-disable-next-line typescript/no-explicit-any
         return obj.map((item) => copyRecursive(item, currentDepth + 1)) as any;
       }
 
       const Type = obj.constructor as { new (): U };
       const keys = Object.keys(obj);
-      // deno-lint-ignore no-explicit-any
+      // oxlint-disable-next-line typescript/no-explicit-any
       const objCopy: Record<Key, any> = new Type();
 
       for (const key of keys) {
@@ -127,7 +127,7 @@ export const deepCopy = <T extends Record<Key, any>>(
  * @returns A deep copy of the input object
  * @throws {DeepCopyError} If a circular reference is detected or max depth is exceeded
  */
-// deno-lint-ignore no-explicit-any
+// oxlint-disable-next-line typescript/no-explicit-any
 export const deepCopy2 = <T extends Record<string | number | symbol, any>>(
   instance: T,
   options?: DeepCopyOptions,
@@ -162,7 +162,7 @@ export const deepCopy2 = <T extends Record<string | number | symbol, any>>(
     try {
       // Handle arrays specially
       if (Array.isArray(obj)) {
-        // deno-lint-ignore no-explicit-any
+        // oxlint-disable-next-line typescript/no-explicit-any
         return obj.map((item) => copyRecursive(item, currentDepth + 1)) as any;
       }
 
@@ -181,7 +181,7 @@ export const deepCopy2 = <T extends Record<string | number | symbol, any>>(
           acc[itemKey] = value;
           return acc;
         },
-        // deno-lint-ignore no-explicit-any
+        // oxlint-disable-next-line typescript/no-explicit-any
         new Type() as any,
       );
     } finally {

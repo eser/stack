@@ -162,7 +162,7 @@ export class WasiShim {
    * The WASI snapshot preview1 import object.
    */
   // Each WASI import has its own parameter list; the host calls them by name.
-  // deno-lint-ignore no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   get wasiImport(): Record<string, (...args: any[]) => number | void> {
     return {
       // -- I/O --

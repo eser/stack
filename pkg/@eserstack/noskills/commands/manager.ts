@@ -135,7 +135,7 @@ export const main = async (
   // ── decorations: spec-list sidebar + monitor strip ──
   // Forward-declared: the decorate/onKey/onMouse closures below reference
   // frontend.refresh() but are created before createTuiFrontend assigns it.
-  // deno-lint-ignore prefer-const
+  // oxlint-disable-next-line prefer-const
   let frontend: mux.Frontend;
 
   const decorate = (ctx: {

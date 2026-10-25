@@ -148,7 +148,7 @@ bdd.describe("getRelevantLearnings", () => {
     const root = await makeTempDir();
     for (let i = 0; i < 10; i++) {
       // Every learning goes to the same file, so they are added in order.
-      // deno-lint-ignore no-await-in-loop
+      // oxlint-disable-next-line no-await-in-loop
       await learnings.addLearning(
         root,
         makeLearning(`spec-${i}`, "convention", `Learning ${i}`),

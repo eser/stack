@@ -204,7 +204,7 @@ export const createFileTool = (config: FileToolConfig): FileTool => {
       for (const file of files) {
         // Files load one at a time: reading thousands at once can exhaust the
         // open file handle limit.
-        // deno-lint-ignore no-await-in-loop
+        // oxlint-disable-next-line no-await-in-loop
         const content = await fileToolsShared.loadContent(file);
         const issues = config.checkFile(file, content, options);
         allIssues.push(...issues);
@@ -215,7 +215,7 @@ export const createFileTool = (config: FileToolConfig): FileTool => {
     if (options.fix && config.canFix && config.fixFile !== undefined) {
       for (const file of files) {
         // One file at a time, for the same reason as the check loop.
-        // deno-lint-ignore no-await-in-loop
+        // oxlint-disable-next-line no-await-in-loop
         const content = await fileToolsShared.loadContent(file);
         if (content === undefined) {
           continue;

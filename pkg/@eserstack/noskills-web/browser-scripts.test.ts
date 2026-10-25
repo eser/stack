@@ -194,7 +194,7 @@ const clientPage = async (
   const click = async (target: FakeElement): Promise<void> => {
     for (const listener of clickListeners) {
       // The listeners run in order, as the browser runs them.
-      // deno-lint-ignore no-await-in-loop
+      // oxlint-disable-next-line no-await-in-loop
       await listener({ target, stopPropagation: () => {} });
     }
   };

@@ -26,7 +26,7 @@ import * as buffer from "./sinks/buffer.ts";
 const defaultErrorHandler: ErrorHandler = (context: ErrorContext) => {
   // Last-resort report when the caller passes no onError. This package sits
   // below @eserstack/logging, so stderr through console is the reporter left.
-  // deno-lint-ignore no-console
+  // oxlint-disable-next-line no-console
   console.error(
     `[streams] Error at chunk #${context.chunkIndex} (${context.pendingCount} pending):`,
     context.error,
@@ -82,7 +82,7 @@ export const output = (options?: OutputOptions): Output => {
     let stream: ReadableStream<Chunk> = readable;
 
     for (const layer of layers) {
-      // deno-lint-ignore no-explicit-any
+      // oxlint-disable-next-line typescript/no-explicit-any
       stream = stream.pipeThrough(layer.transform() as any);
     }
 
@@ -116,9 +116,9 @@ export const output = (options?: OutputOptions): Output => {
         try {
           // Chunks are written one at a time so they reach the sink in order
           // and each write waits for the sink's backpressure.
-          // deno-lint-ignore no-await-in-loop
+          // oxlint-disable-next-line no-await-in-loop
           await writer.ready;
-          // deno-lint-ignore no-await-in-loop
+          // oxlint-disable-next-line no-await-in-loop
           await writer.write(nextChunk);
           chunkIndex++;
         } catch (error) {

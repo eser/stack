@@ -150,7 +150,7 @@ export const text = (value: string): TextSpan => ({ kind: "text", value });
 // other two-byte ESC forms), their 8-bit CSI/OSC forms, C0 controls other than
 // tab and newline, DEL, and C1 controls.
 const TERMINAL_CONTROL =
-  // deno-lint-ignore no-control-regex
+  // oxlint-disable-next-line no-control-regex
   /\x1b\[[\x30-\x3f]*[\x20-\x2f]*[\x40-\x7e]|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)?|\x1b[PX^_][\s\S]*?(?:\x1b\\|$)|\x1b[\x20-\x2f]*[\x30-\x7e]?|\x9b[\x30-\x3f]*[\x20-\x2f]*[\x40-\x7e]|\x9d[^\x07\x9c]*[\x07\x9c]?|[\x00-\x08\x0b-\x1f\x7f-\x9f]/g;
 
 /**

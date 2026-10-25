@@ -154,7 +154,7 @@ const createRepo = async (realGit: string, dir: string): Promise<void> => {
     ["config", "core.hooksPath", hooksDir],
   ]) {
     // Each step configures the repository the previous one created.
-    // deno-lint-ignore no-await-in-loop
+    // oxlint-disable-next-line no-await-in-loop
     const result = await spawn(realGit, args, dir);
     assert.assertEquals(result.code, 0, result.stderr);
   }

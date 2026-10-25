@@ -204,7 +204,7 @@ export class ClaudeCodeModel implements model.LanguageModel {
 
         // Reads stay sequential: each chunk is yielded in order before the
         // next one is requested.
-        // deno-lint-ignore no-await-in-loop
+        // oxlint-disable-next-line no-await-in-loop
         readResult = await reader.read();
       }
     } finally {
@@ -463,7 +463,7 @@ const mapResultFromArray = (
 
 const mapResultFromJson = (
   // The response is untyped vendor JSON; only the mapped fields are read.
-  // deno-lint-ignore no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   parsed: any,
   modelId: string,
 ): generation.GenerateTextResult => {
@@ -544,7 +544,7 @@ const mapStreamEvent = (event: unknown): generation.StreamEvent | null => {
   }
 
   // Stream events are untyped JSON; each field is checked before use.
-  // deno-lint-ignore no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   const obj = event as any;
 
   // Claude Code stream-json events

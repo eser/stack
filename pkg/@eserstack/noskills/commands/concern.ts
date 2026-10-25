@@ -90,14 +90,14 @@ const concernAdd = async (
   // at once.
   for (const concernId of concernIds) {
     // Find concern: check .eser/concerns/ first, then built-in defaults
-    // deno-lint-ignore no-await-in-loop
+    // oxlint-disable-next-line no-await-in-loop
     let concern = await persistence.readConcern(root, concernId);
 
     if (concern === null) {
       concern = defaults.find((c) => c.id === concernId) ?? null;
 
       if (concern !== null) {
-        // deno-lint-ignore no-await-in-loop
+        // oxlint-disable-next-line no-await-in-loop
         await persistence.writeConcern(root, concern);
       }
     }

@@ -425,7 +425,7 @@ export const validateRegistryManifest = (data: unknown): RegistryManifest => {
     if (!hasSupported) {
       // An unknown schema version still loads; the warning tells the person
       // running kit that this CLI only knows v1.
-      // deno-lint-ignore no-console
+      // oxlint-disable-next-line no-console
       console.warn(
         `Warning: Registry uses unknown schema "${schema}". This CLI supports v1.`,
       );

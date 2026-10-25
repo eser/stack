@@ -349,7 +349,7 @@ export const mapGenAIFinishReason = (
  */
 export const isGenAIPromptBlocked = (
   // The response is untyped vendor JSON; only the mapped fields are read.
-  // deno-lint-ignore no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   response: any,
 ): boolean => {
   const reason = response?.promptFeedback?.blockReason;
@@ -364,7 +364,7 @@ export const isGenAIPromptBlocked = (
 /** Maps a genai part's function call to a tool call. */
 const mapFunctionCall = (
   // The call is untyped vendor JSON; only the mapped fields are read.
-  // deno-lint-ignore no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   functionCall: any,
 ): types.ToolCall => ({
   id: functionCall.name,
@@ -374,7 +374,7 @@ const mapFunctionCall = (
 
 export const mapGenAIResponseToResult = (
   // The response is untyped vendor JSON; only the mapped fields are read.
-  // deno-lint-ignore no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   response: any,
   modelId: string,
 ): generation.GenerateTextResult => {
@@ -435,7 +435,7 @@ export const mapGenAIResponseToResult = (
  */
 export async function* mapGenAIStream(
   // The chunks are untyped vendor JSON; only the mapped fields are read.
-  // deno-lint-ignore no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   stream: AsyncIterable<any>,
 ): AsyncIterable<generation.StreamEvent> {
   let inputTokens = 0;
@@ -494,7 +494,7 @@ export async function* mapGenAIStream(
 
 export const classifyGenAIError = (
   // SDK errors carry status or code fields with no exported type.
-  // deno-lint-ignore no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   error: any,
 ): number => {
   if (error?.status !== undefined) {

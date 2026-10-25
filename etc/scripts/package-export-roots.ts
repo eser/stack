@@ -14,7 +14,7 @@
  */
 
 // The root list is the command's output.
-// deno-lint-ignore-file no-console
+/* oxlint-disable no-console */
 
 // etc/scripts belongs to no workspace package, so no import map resolves the
 // bare "@eserstack/standards/cross-runtime". The cross-runtime layer imports
@@ -81,6 +81,6 @@ const main = async (): Promise<void> => {
 
 if (import.meta.main) {
   // Entry point: the await only runs when this file is executed directly.
-  // deno-lint-ignore no-top-level-await
+  // oxlint-disable-next-line node/no-top-level-await
   await main();
 }

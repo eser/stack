@@ -38,7 +38,7 @@ export const factory = <K = ServiceKey, V = ServiceValue>(
 
   di.getMany = (...tokens: ReadonlyArray<K>) => services.getMany(...tokens);
 
-  // deno-lint-ignore no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   di.invoke = <T extends functions.GenericFunction<ReturnType<T>, any>>(
     fn: T,
   ): ReturnType<T> => services.invoke(fn);

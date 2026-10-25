@@ -173,7 +173,7 @@ const formatTime = (seconds: number | null): string => {
 
 // The pattern matches ANSI color escapes, which start with the ESC control
 // character.
-// deno-lint-ignore no-control-regex
+// oxlint-disable-next-line no-control-regex
 const stripAnsi = (s: string): string => s.replace(/\x1b\[[0-9;]*m/g, "");
 
 /** Pad text to fit within a box cell, stripping ANSI for length calc. */
@@ -463,12 +463,12 @@ export const main = async (
   // A polling loop: each pass waits out the interval, checks the state file and
   // renders, so its awaits run one after another by design.
   while (true) {
-    // deno-lint-ignore no-await-in-loop
+    // oxlint-disable-next-line no-await-in-loop
     await new Promise((resolve) => setTimeout(resolve, POLL_MS));
 
     // Check if state file changed
     try {
-      // deno-lint-ignore no-await-in-loop
+      // oxlint-disable-next-line no-await-in-loop
       const stat = await runtime.fs.stat(`${stateDir}/state.json`);
       const mtime = stat.mtime?.getTime() ?? 0;
 
@@ -476,10 +476,10 @@ export const main = async (
         lastMtime = mtime;
 
         // Debounce: wait 200ms for rapid changes to settle
-        // deno-lint-ignore no-await-in-loop
+        // oxlint-disable-next-line no-await-in-loop
         await new Promise((resolve) => setTimeout(resolve, 200));
 
-        // deno-lint-ignore no-await-in-loop
+        // oxlint-disable-next-line no-await-in-loop
         const isDone = await render();
         if (isDone) break;
       }

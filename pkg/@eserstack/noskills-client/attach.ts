@@ -44,7 +44,7 @@ async function* readLines(
   try {
     while (true) {
       // A stream reader hands out chunks in order, one read at a time.
-      // deno-lint-ignore no-await-in-loop
+      // oxlint-disable-next-line no-await-in-loop
       const { value, done } = await reader.read();
       if (done) break;
       buf += decoder.decode(value, { stream: true });

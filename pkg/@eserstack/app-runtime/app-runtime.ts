@@ -15,7 +15,7 @@ export type AppRuntimeState = {
   modules: Map<string, Module>;
   // Public state type: narrowing it to `unknown` would change what code that
   // reads the queue gets back.
-  // deno-lint-ignore no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   awaits: Array<Promise<any>>;
 };
 

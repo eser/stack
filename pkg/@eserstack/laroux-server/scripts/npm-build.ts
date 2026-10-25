@@ -1,7 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 // A build script run by hand: its progress lines are its user-facing output.
-// deno-lint-ignore-file no-console
+/* oxlint-disable no-console */
 
 /**
  * Builds the laroux package for npm publishing.
@@ -194,6 +194,6 @@ const main = async (): Promise<void> => {
 if (import.meta.main) {
   // Script entry point: the await runs only when this file is the program,
   // never on import. A failed build rejects and exits non-zero.
-  // deno-lint-ignore no-top-level-await
+  // oxlint-disable-next-line node/no-top-level-await
   await main();
 }

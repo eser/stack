@@ -23,7 +23,7 @@ const withEnvironment = <T>(
   fn: () => T,
 ): T => {
   // globalThis does not declare Deno, Bun or process on every runtime.
-  // deno-lint-ignore no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   const g = globalThis as any;
   const originalCwd = g.process.cwd;
   const originalOverride = g.process.env["ESER_AJAN_LIB_PATH"];

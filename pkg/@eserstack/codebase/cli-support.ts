@@ -176,7 +176,7 @@ export const exitCli = async (
       if (error.message !== undefined) {
         // console.error writes synchronously, so the hard exit below cannot
         // drop the message.
-        // deno-lint-ignore no-console
+        // oxlint-disable-next-line no-console
         console.error(error.message);
       }
       return error.exitCode;

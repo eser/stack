@@ -12,15 +12,15 @@ import type * as functions from "@eserstack/primitives/functions";
  * @returns A promise that resolves when every call has finished
  */
 export const iterate = async (
-  // deno-lint-ignore no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   iterable: promises.Promisable<Iterable<any>>,
-  // deno-lint-ignore no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   func: (...args: functions.ArgList<any>) => promises.Promisable<any>,
 ): Promise<void> => {
   for (const value of await iterable) {
     // func runs for one value at a time, in iteration order, so it can update
     // shared state without racing the next call.
-    // deno-lint-ignore no-await-in-loop
+    // oxlint-disable-next-line no-await-in-loop
     await func(value);
   }
 };

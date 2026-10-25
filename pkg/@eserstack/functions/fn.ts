@@ -47,7 +47,7 @@ export const run = async <T, E>(
 
     // Each step resumes the generator with the previous step's value, so the
     // steps cannot overlap.
-    // deno-lint-ignore no-await-in-loop
+    // oxlint-disable-next-line no-await-in-loop
     next = await iter.next(result.value);
   }
 

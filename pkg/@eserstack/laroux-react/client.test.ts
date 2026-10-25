@@ -210,9 +210,9 @@ const SUSPENSE_WITH_FORWARD_REFERENCE: RSCChunk[] = [
 
 /** The ChunkReader element the client puts inside a pending boundary. */
 // The element tree comes from the RSC parser, which returns it untyped.
-// deno-lint-ignore no-explicit-any
+// oxlint-disable-next-line typescript/no-explicit-any
 function findChunkReader(boundary: any): {
-  // deno-lint-ignore no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   read: () => any;
 } {
   const reader = boundary.props.children;
@@ -227,14 +227,14 @@ const STREAM_ENTRY_POINTS = [
   {
     name: "createFromReadableStream",
     // Both entry points return Promise<any>, the untyped root component.
-    // deno-lint-ignore no-explicit-any
+    // oxlint-disable-next-line typescript/no-explicit-any
     create: (stream: ReadableStream<Uint8Array>): Promise<any> =>
       client.createFromReadableStream(stream),
   },
   {
     name: "createHybridRSCTree",
     // Same untyped root component as above.
-    // deno-lint-ignore no-explicit-any
+    // oxlint-disable-next-line typescript/no-explicit-any
     create: (stream: ReadableStream<Uint8Array>): Promise<any> =>
       client.createHybridRSCTree(null, Promise.resolve(new Response(stream))),
   },
@@ -253,7 +253,7 @@ for (const entryPoint of STREAM_ENTRY_POINTS) {
 
     // React suspends on the chunk it is thrown and waits on its listeners.
     // The thrown chunk is an internal thenable the client does not export.
-    // deno-lint-ignore no-explicit-any
+    // oxlint-disable-next-line typescript/no-explicit-any
     let suspendedOn: any = null;
     try {
       reader.read();
@@ -318,7 +318,7 @@ Deno.test("track-l-delete: RSC Client - the root fails when the stream fails bef
   const RSCTreeRoot = await client.createFromReadableStream(feed.stream);
 
   // The thrown chunk is an internal thenable the client does not export.
-  // deno-lint-ignore no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   let suspendedOn: any = null;
   try {
     RSCTreeRoot();

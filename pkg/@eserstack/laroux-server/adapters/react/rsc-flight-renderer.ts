@@ -37,7 +37,7 @@ const flightLogger = logging.logger.getLogger([
  * A node of a React tree as the renderer walks it: an element, props,
  * children or a primitive, all produced by user components and untyped here.
  */
-// deno-lint-ignore no-explicit-any
+// oxlint-disable-next-line typescript/no-explicit-any
 type TreeNode = any;
 
 /**
@@ -583,7 +583,7 @@ async function renderProps(
       // Children and fallback are React elements - render as chunks and reference them
       if (Array.isArray(value)) {
         // Sequential across props to keep chunk ids in prop order.
-        // deno-lint-ignore no-await-in-loop
+        // oxlint-disable-next-line no-await-in-loop
         const childIds = await Promise.all(
           value.map((child) => renderElement(child, context)),
         );
@@ -594,7 +594,7 @@ async function renderProps(
         "$$typeof" in value
       ) {
         // It's a React element - render it, in prop order like above
-        // deno-lint-ignore no-await-in-loop
+        // oxlint-disable-next-line no-await-in-loop
         const childId = await renderElement(value, context);
         renderedProps[key] = `$${childId}`;
       } else {
@@ -684,7 +684,7 @@ function createRenderStream(
           );
           // Each round waits for every pending chunk at once; the loop only
           // repeats for chunks registered while the previous round resolved.
-          // deno-lint-ignore no-await-in-loop
+          // oxlint-disable-next-line no-await-in-loop
           await Promise.all(context.pendingChunks.values());
         }
         flightLogger.debug("All async components resolved");
@@ -743,7 +743,7 @@ function createRenderStream(
  */
 export function renderToReadableStream(
   // Any value a server component tree can hold; the walk narrows it per node.
-  // deno-lint-ignore no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   element: ReactElement | any,
   bundlerConfig: BundlerConfig,
 ): ReadableStream<Uint8Array> {

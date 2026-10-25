@@ -210,7 +210,7 @@ const writeMutations = async (
     // One write at a time on purpose: a step can fix hundreds of files, so
     // this keeps one file open at a time, and a later mutation of the same
     // path overwrites an earlier one instead of racing it.
-    // deno-lint-ignore no-await-in-loop
+    // oxlint-disable-next-line no-await-in-loop
     await runtime.fs.writeTextFile(mutation.path, mutation.newContent);
   }
 };

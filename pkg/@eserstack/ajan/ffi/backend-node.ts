@@ -78,7 +78,7 @@ export const backend: types.FFIBackend = {
 
   available: (): boolean => {
     // globalThis does not declare Deno, Bun or process on every runtime.
-    // deno-lint-ignore no-explicit-any
+    // oxlint-disable-next-line typescript/no-explicit-any
     const g = globalThis as any;
 
     return (
@@ -93,7 +93,7 @@ export const backend: types.FFIBackend = {
     // An opaque specifier: Deno and its compiler do not know node:ffi, and
     // this backend only ever runs under Node.
     const specifier = "node:ffi";
-    // deno-lint-ignore no-explicit-any
+    // oxlint-disable-next-line typescript/no-explicit-any
     let ffi: any;
     try {
       ffi = await import(specifier);
@@ -108,14 +108,14 @@ export const backend: types.FFIBackend = {
     // Every export is declared first and bound by one dlopen below; a raw
     // function looks its binding up when it is called.
     const definitions: Record<string, FfiDefinition> = {};
-    // deno-lint-ignore no-explicit-any
+    // oxlint-disable-next-line typescript/no-explicit-any
     let functions: Record<string, (...args: any[]) => any> = {};
 
     const declare = (signature: string) => {
       const { name, definition } = parseSignature(signature);
       definitions[name] = definition;
 
-      // deno-lint-ignore no-explicit-any
+      // oxlint-disable-next-line typescript/no-explicit-any
       return (...args: any[]): any => functions[name]!(...args);
     };
 

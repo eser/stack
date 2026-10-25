@@ -675,7 +675,7 @@ Deno.test("getFunctionParameters - caches results", () => {
 
 Deno.test("getFunctionParameters - handles async functions", () => {
   // The parser must read the parameters of an async function.
-  // deno-lint-ignore require-await
+  // oxlint-disable-next-line require-await
   const fn = async (data: unknown) => data;
   const params = collections.getFunctionParameters(fn);
 
@@ -703,7 +703,7 @@ Deno.test("lazy - computes value once", () => {
 Deno.test("lazyAsync - computes async value once", async () => {
   let callCount = 0;
   // lazyAsync takes a promise-returning factory; this one has nothing to await.
-  // deno-lint-ignore require-await
+  // oxlint-disable-next-line require-await
   const getValue = collections.lazyAsync(async () => {
     callCount++;
     return 42;
@@ -970,7 +970,7 @@ Deno.test("Registry.get - returns undefined for async factory when called sync",
   const registry = collections
     .createRegistryBuilder<string, number>()
     // An async factory is the case under test; it has nothing to await.
-    // deno-lint-ignore require-await
+    // oxlint-disable-next-line require-await
     .setLazy("async", async () => {
       return 42;
     })
@@ -1179,7 +1179,7 @@ Deno.test("Registry.getAsync - sequential async access caches correctly", async 
   const registry = collections
     .createRegistryBuilder<string, number>()
     // An async factory is the case under test; it has nothing to await.
-    // deno-lint-ignore require-await
+    // oxlint-disable-next-line require-await
     .setLazy("async", async () => {
       callCount++;
       return 42;

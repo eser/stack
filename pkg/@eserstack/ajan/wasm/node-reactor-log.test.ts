@@ -34,7 +34,7 @@ const readNodeMajor = async (): Promise<number | null> => {
   }
 };
 
-// deno-lint-ignore no-top-level-await
+// oxlint-disable-next-line node/no-top-level-await
 const nodeMajor = (await readNodeMajor()) ?? 0;
 
 Deno.test({

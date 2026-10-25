@@ -63,7 +63,7 @@ Deno.test("di.invoke(): lambda", () => {
 
   di.set("j", mock.spy());
 
-  // deno-fmt-ignore
+  // oxfmt-ignore
   const fn: (_: () => void) => void = (j) => j();
 
   di.invoke(fn);

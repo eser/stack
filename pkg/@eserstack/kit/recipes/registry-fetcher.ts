@@ -1,7 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 // Verbose registry lines are kit's CLI output for the person running the command.
-// deno-lint-ignore-file no-console
+/* oxlint-disable no-console */
 
 /**
  * Registry fetcher — loads and validates recipe manifests from local
@@ -256,7 +256,7 @@ export const detectLocalRegistry = async (
     try {
       // The nearest ancestor wins, so each level is checked before its parent
       // and the walk stops at the first registry it finds.
-      // deno-lint-ignore no-await-in-loop
+      // oxlint-disable-next-line no-await-in-loop
       found = await crossRuntime.runtime.fs.exists(candidate);
     } catch (error) {
       throw new RegistryLoadError(candidate, "check whether the file exists", {
@@ -633,9 +633,7 @@ export const fetchRecipeFromRepo = async (
   repo: string,
   // fetchRecipeFromRepo is public API (./recipes/fetcher); putting the
   // defaults last would change its positional signature for every caller.
-  // deno-lint-ignore default-param-last
   ref = "main",
-  // deno-lint-ignore default-param-last
   recipePath = "recipe.json",
   subpath?: string,
 ): Promise<registrySchema.Recipe> => {

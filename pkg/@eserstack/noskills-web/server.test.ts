@@ -406,7 +406,7 @@ bdd.describe("Spec page actions", () => {
       const host = new muxHost.MuxHost(root);
       for (const action of actions) {
         // One spec state file takes every action, so they run one at a time.
-        // deno-lint-ignore no-await-in-loop
+        // oxlint-disable-next-line no-await-in-loop
         const response = await api.handleAction(
           root,
           "page-actions",
@@ -415,7 +415,7 @@ bdd.describe("Spec page actions", () => {
           host,
           actionContext("page-actions", action),
         );
-        // deno-lint-ignore no-await-in-loop
+        // oxlint-disable-next-line no-await-in-loop
         const body = await response.json();
 
         assert.assertNotEquals(body.error, `Unknown action: ${action}`);

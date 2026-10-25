@@ -16,7 +16,7 @@ import config from "./package.json" with { type: "json" };
 
 if (import.meta.main) {
   // Binary entry point: the process runs the CLI and exits when it settles.
-  // deno-lint-ignore no-top-level-await
+  // oxlint-disable-next-line node/no-top-level-await
   await cliSupport.runStandaloneModule(
     module.moduleDef,
     "laroux",

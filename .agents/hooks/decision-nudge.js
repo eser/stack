@@ -1,6 +1,4 @@
 #!/usr/bin/env node
-// A Node script: `process` is the Node global, which deno lint does not know.
-// deno-lint-ignore-file no-undef
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 /**
  * decision-nudge.js — Claude Code PostToolUse hook

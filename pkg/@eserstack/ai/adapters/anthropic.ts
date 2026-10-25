@@ -31,12 +31,12 @@ export class AnthropicModel
   readonly modelId: string;
 
   // The SDK is loaded lazily by the factory; its client type is not in scope.
-  // deno-lint-ignore no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   private readonly client: any;
   private readonly config: config.ResolvedConfigTarget;
 
   // Takes the lazily imported SDK client stored in the field above.
-  // deno-lint-ignore no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   constructor(client: any, cfg: config.ResolvedConfigTarget) {
     this.client = client;
     this.config = cfg;
@@ -517,7 +517,7 @@ const mapContentBlock = (
 
 const mapResponse = (
   // The response is untyped vendor JSON; only the mapped fields are read.
-  // deno-lint-ignore no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   response: any,
   modelId: string,
 ): generation.GenerateTextResult => {
@@ -609,7 +609,7 @@ const finishThinking = (draft: ThinkingDraft): types.ThinkingPart => {
  */
 const toThinkingPart = (
   // A content block is untyped vendor JSON; only the mapped fields are read.
-  // deno-lint-ignore no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   block: any,
 ): types.ThinkingPart | null => {
   if (block?.type === "thinking") {
@@ -625,7 +625,7 @@ const toThinkingPart = (
 };
 
 // The batch job is untyped vendor JSON; only the mapped fields are read.
-// deno-lint-ignore no-explicit-any
+// oxlint-disable-next-line typescript/no-explicit-any
 const mapBatchJob = (result: any): batch.BatchJob => {
   return {
     id: result.id,
@@ -660,7 +660,7 @@ const classifyError = (err: unknown): errors.AiError => {
 
   const error = err instanceof Error ? err : new Error(String(err));
   // SDK errors carry the HTTP status on a field their type does not declare.
-  // deno-lint-ignore no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   const statusCode = (err as any)?.status ?? (err as any)?.statusCode ?? 500;
 
   return errors.classifyAndWrap("anthropic", statusCode, error);

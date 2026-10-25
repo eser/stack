@@ -108,7 +108,7 @@ Deno.test("classes", () => {
 // ============================================================================
 
 Deno.test("deepMerge() should detect circular reference in first argument", () => {
-  // deno-lint-ignore no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   const obj1: any = { value: 1 };
   obj1.self = obj1;
 
@@ -124,7 +124,7 @@ Deno.test("deepMerge() should detect circular reference in first argument", () =
 Deno.test("deepMerge() should detect circular reference in second argument", () => {
   const obj1 = { value: 1 };
 
-  // deno-lint-ignore no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   const obj2: any = { extra: "data" };
   obj2.self = obj2;
 
@@ -136,7 +136,7 @@ Deno.test("deepMerge() should detect circular reference in second argument", () 
 });
 
 Deno.test("deepMerge() should detect deep circular references", () => {
-  // deno-lint-ignore no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   const obj1: any = {
     level1: {
       level2: {
@@ -156,9 +156,9 @@ Deno.test("deepMerge() should detect deep circular references", () => {
 });
 
 Deno.test("deepMerge() should detect mutually circular references", () => {
-  // deno-lint-ignore no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   const objA: any = { name: "A" };
-  // deno-lint-ignore no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   const objB: any = { name: "B" };
   objA.ref = objB;
   objB.ref = objA;
@@ -219,7 +219,7 @@ Deno.test("deepMerge() should allow custom max depth", () => {
 Deno.test("deepMerge() should handle undefined second argument", () => {
   const obj1 = { a: 1, b: { c: 2 } };
 
-  // deno-lint-ignore no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   const result = deepMerge.deepMerge(obj1, undefined as any);
 
   assert.assertEquals(result.a, 1);
@@ -238,9 +238,9 @@ Deno.test("deepMerge() should handle null values", () => {
 });
 
 Deno.test("deepMerge() should override primitives with objects", () => {
-  // deno-lint-ignore no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   const obj1: any = { a: 1 };
-  // deno-lint-ignore no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   const obj2: any = { a: { nested: true } };
 
   const result = deepMerge.deepMerge(obj1, obj2);
@@ -249,9 +249,9 @@ Deno.test("deepMerge() should override primitives with objects", () => {
 });
 
 Deno.test("deepMerge() should override objects with primitives", () => {
-  // deno-lint-ignore no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   const obj1: any = { a: { nested: true } };
-  // deno-lint-ignore no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   const obj2: any = { a: 1 };
 
   const result = deepMerge.deepMerge(obj1, obj2);
@@ -330,14 +330,14 @@ Deno.test("deepMerge() with noSkipUndefined: true should override with undefined
 
 Deno.test("deepMerge() with noSkipUndefined: true should add undefined keys", () => {
   const obj1 = { a: 1 };
-  // deno-lint-ignore no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   const obj2: any = { b: undefined };
 
   const result = deepMerge.deepMerge(obj1, obj2, { noSkipUndefined: true });
 
   assert.assertEquals(result.a, 1);
   assert.assert("b" in result);
-  // deno-lint-ignore no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   assert.assertEquals((result as any).b, undefined);
 });
 

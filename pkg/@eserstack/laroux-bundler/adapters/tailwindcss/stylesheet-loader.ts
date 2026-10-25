@@ -39,7 +39,7 @@ export async function loadStylesheet(
     for (const candidate of nodeModulesCandidates(searchBase, id)) {
       // Candidates are tried in resolution order and the walk stops at the
       // first readable one, so later candidates are never read.
-      // deno-lint-ignore no-await-in-loop
+      // oxlint-disable-next-line no-await-in-loop
       const loaded = await tryLoadStylesheet(candidate);
       if (loaded !== null) {
         return loaded;

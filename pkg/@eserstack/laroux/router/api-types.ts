@@ -80,7 +80,6 @@ export function jsonResponse(data: unknown, init?: ResponseInit): Response {
 export function errorResponse(
   message: string,
   // Public API: moving `status` after `details` would break every caller.
-  // deno-lint-ignore default-param-last
   status = 500,
   details?: unknown,
 ): Response {

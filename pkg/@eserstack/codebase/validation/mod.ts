@@ -197,7 +197,7 @@ export const validate = async (
 
     // Validators run one at a time: with fix on, each one writes files that
     // the next one reads.
-    // deno-lint-ignore no-await-in-loop
+    // oxlint-disable-next-line no-await-in-loop
     const result = await validator.validate({
       root,
       options: mergedOptions,
@@ -376,7 +376,7 @@ export const main = async (
     // so we must run validators one at a time.
     for (const validator of validatorsToRun) {
       // First pass: always run in check-only mode. Sequential, as above.
-      // deno-lint-ignore no-await-in-loop
+      // oxlint-disable-next-line no-await-in-loop
       const checkResult = await validator.validate({
         root: resolvedRoot,
         options: {},
@@ -392,7 +392,7 @@ export const main = async (
         if (isInteractive && !autoYes && !jsonMode) {
           const issueCount = checkResult.issues.length;
           // One prompt at a time, as above.
-          // deno-lint-ignore no-await-in-loop
+          // oxlint-disable-next-line no-await-in-loop
           const confirmed = await tui.confirm(ctx, {
             message: `Fix ${issueCount} issue(s) found by ${validator.name}?`,
             initialValue: true,
@@ -405,7 +405,7 @@ export const main = async (
 
         if (shouldFix) {
           // Re-run with fix enabled. Sequential, as above.
-          // deno-lint-ignore no-await-in-loop
+          // oxlint-disable-next-line no-await-in-loop
           finalResult = await validator.validate({
             root: resolvedRoot,
             options: { fix: true },
@@ -434,7 +434,7 @@ export const main = async (
         try {
           // A worker runs one validator at a time; the worker count is what
           // bounds the concurrency.
-          // deno-lint-ignore no-await-in-loop
+          // oxlint-disable-next-line no-await-in-loop
           const result = await validator.validate({
             root: resolvedRoot,
             options: {},
@@ -526,7 +526,7 @@ export const main = async (
       ];
 
       // Interactive loop: each prompt waits for the previous answer.
-      // deno-lint-ignore no-await-in-loop
+      // oxlint-disable-next-line no-await-in-loop
       const selected = await tui.select<string>(ctx, {
         message: "View details for which validator?",
         options: selectOptions,
@@ -613,6 +613,6 @@ export const main = async (
 
 if (import.meta.main) {
   // Entry point: the await only runs when this file is executed directly.
-  // deno-lint-ignore no-top-level-await
+  // oxlint-disable-next-line node/no-top-level-await
   await cliSupport.exitCli(await main());
 }

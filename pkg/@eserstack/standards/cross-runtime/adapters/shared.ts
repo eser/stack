@@ -44,7 +44,7 @@ export const getEnvVar = (key: string): string | undefined => {
   // Node.js / Bun
   // The Node types declare process as always present, but browsers and
   // workers lack it, so it is read untyped and checked before use.
-  // deno-lint-ignore no-explicit-any
+  // oxlint-disable-next-line typescript/no-explicit-any
   const proc = (globalThis as any).process;
   if (proc?.env) {
     return proc.env[key];
@@ -75,7 +75,7 @@ export const tryRequire = <T>(moduleName: string): T | undefined => {
   try {
     // require exists only in CommonJS contexts, while the Node types declare it
     // everywhere; it is read untyped and narrowed by the instanceof check.
-    // deno-lint-ignore no-explicit-any
+    // oxlint-disable-next-line typescript/no-explicit-any
     const requireFn = (globalThis as any).require;
     if (requireFn instanceof Function) {
       return requireFn(moduleName) as T;
@@ -174,7 +174,7 @@ export interface NodeOsModule {
 
 // Detection probes globals (Bun, Deno, process, caches, window) that exist in
 // only some runtimes, so they are read untyped and checked with typeof.
-// deno-lint-ignore no-explicit-any
+// oxlint-disable-next-line typescript/no-explicit-any
 const globalRef = globalThis as any;
 
 /**
@@ -535,7 +535,7 @@ export const createSafeHandler =
 export const reportServeError = (problem: string, error: unknown): void => {
   // standards cannot depend on @eserstack/logging, and stderr is where the
   // runtimes' own servers report these errors.
-  // deno-lint-ignore no-console
+  // oxlint-disable-next-line no-console
   console.error(`runtime.http.serve: ${problem}`, error);
 };
 

@@ -11,7 +11,7 @@
  */
 
 import * as bdd from "@std/testing/bdd";
-import * as assert from "@std/assert";
+import * as assert from "@eserstack/test-kit/assert";
 import * as crossRuntime from "@eserstack/standards/cross-runtime";
 import * as opencodeAdapterMod from "./opencode.ts";
 
@@ -62,6 +62,21 @@ bdd.describe("OpenCode adapter: snapshot tests", () => {
 
   bdd.afterEach(async () => {
     await crossRuntime.runtime.fs.remove(tempDir, { recursive: true });
+  });
+
+  // TASK-327: an opencode.json holding null threw on existing.mcp.
+  bdd.it("syncMcp treats an opencode.json holding null as empty", async () => {
+    await crossRuntime.runtime.fs.writeTextFile(
+      `${tempDir}/opencode.json`,
+      "null",
+    );
+
+    await opencodeAdapterMod.opencodeAdapter.syncMcp!(makeCtx(tempDir));
+
+    const config = JSON.parse(
+      await crossRuntime.runtime.fs.readTextFile(`${tempDir}/opencode.json`),
+    ) as { mcp?: { noskills?: unknown } };
+    assert.assert(config.mcp?.noskills !== undefined);
   });
 
   // ---------------------------------------------------------------------------

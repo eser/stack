@@ -30,7 +30,7 @@ func writeAnthropicJSON(t *testing.T, w http.ResponseWriter, body map[string]any
 	_, _ = w.Write(data)
 }
 
-func anthropicMessage(stopReason string, content ...map[string]any) map[string]any {
+func anthropicMessageJSON(stopReason string, content ...map[string]any) map[string]any {
 	return map[string]any{
 		"id":          "msg_thinking_01",
 		"type":        "message",
@@ -46,7 +46,7 @@ func TestAnthropicRefusalIsReported(t *testing.T) {
 	t.Parallel()
 
 	srv := newAnthropicTestServer(func(w http.ResponseWriter, _ *http.Request) {
-		writeAnthropicJSON(t, w, anthropicMessage("refusal",
+		writeAnthropicJSON(t, w, anthropicMessageJSON("refusal",
 			map[string]any{"type": "text", "text": "I can't help with that."},
 		))
 	})
@@ -68,7 +68,7 @@ func TestAnthropicResponseKeepsThinkingBlocks(t *testing.T) {
 	t.Parallel()
 
 	srv := newAnthropicTestServer(func(w http.ResponseWriter, _ *http.Request) {
-		writeAnthropicJSON(t, w, anthropicMessage("tool_use",
+		writeAnthropicJSON(t, w, anthropicMessageJSON("tool_use",
 			map[string]any{"type": "thinking", "thinking": "Check the weather.", "signature": "sig-1"},
 			// Claude 5 omits the thinking text by default; the signature still matters.
 			map[string]any{"type": "thinking", "thinking": "", "signature": "sig-2"},
@@ -128,7 +128,7 @@ func TestAnthropicReplaysThinkingUnchanged(t *testing.T) {
 			t.Errorf("decode request: %v", err)
 		}
 
-		writeAnthropicJSON(t, w, anthropicMessage("end_turn",
+		writeAnthropicJSON(t, w, anthropicMessageJSON("end_turn",
 			map[string]any{"type": "text", "text": "Sunny."},
 		))
 	})
@@ -182,7 +182,7 @@ func TestAnthropicReplaysThinkingUnchanged(t *testing.T) {
 }
 
 // sseEvent formats one server-sent event the way the Messages API streams it.
-func sseEvent(eventType string, data string) string {
+func sseEventText(eventType string, data string) string {
 	return "event: " + eventType + "\ndata: " + data + "\n\n"
 }
 
@@ -190,17 +190,17 @@ func TestAnthropicStreamCarriesThinking(t *testing.T) {
 	t.Parallel()
 
 	events := strings.Join([]string{
-		sseEvent("message_start", `{"type":"message_start","message":{"id":"msg_1","type":"message","role":"assistant","model":"claude-opus-4-5","content":[],"stop_reason":null,"usage":{"input_tokens":10,"output_tokens":0}}}`),
-		sseEvent("content_block_start", `{"type":"content_block_start","index":0,"content_block":{"type":"thinking","thinking":"","signature":""}}`),
-		sseEvent("content_block_delta", `{"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":"Check "}}`),
-		sseEvent("content_block_delta", `{"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":"first."}}`),
-		sseEvent("content_block_delta", `{"type":"content_block_delta","index":0,"delta":{"type":"signature_delta","signature":"sig-stream"}}`),
-		sseEvent("content_block_stop", `{"type":"content_block_stop","index":0}`),
-		sseEvent("content_block_start", `{"type":"content_block_start","index":1,"content_block":{"type":"text","text":""}}`),
-		sseEvent("content_block_delta", `{"type":"content_block_delta","index":1,"delta":{"type":"text_delta","text":"I can't help with that."}}`),
-		sseEvent("content_block_stop", `{"type":"content_block_stop","index":1}`),
-		sseEvent("message_delta", `{"type":"message_delta","delta":{"stop_reason":"refusal","stop_sequence":null},"usage":{"output_tokens":12}}`),
-		sseEvent("message_stop", `{"type":"message_stop"}`),
+		sseEventText("message_start", `{"type":"message_start","message":{"id":"msg_1","type":"message","role":"assistant","model":"claude-opus-4-5","content":[],"stop_reason":null,"usage":{"input_tokens":10,"output_tokens":0}}}`),
+		sseEventText("content_block_start", `{"type":"content_block_start","index":0,"content_block":{"type":"thinking","thinking":"","signature":""}}`),
+		sseEventText("content_block_delta", `{"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":"Check "}}`),
+		sseEventText("content_block_delta", `{"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":"first."}}`),
+		sseEventText("content_block_delta", `{"type":"content_block_delta","index":0,"delta":{"type":"signature_delta","signature":"sig-stream"}}`),
+		sseEventText("content_block_stop", `{"type":"content_block_stop","index":0}`),
+		sseEventText("content_block_start", `{"type":"content_block_start","index":1,"content_block":{"type":"text","text":""}}`),
+		sseEventText("content_block_delta", `{"type":"content_block_delta","index":1,"delta":{"type":"text_delta","text":"I can't help with that."}}`),
+		sseEventText("content_block_stop", `{"type":"content_block_stop","index":1}`),
+		sseEventText("message_delta", `{"type":"message_delta","delta":{"stop_reason":"refusal","stop_sequence":null},"usage":{"output_tokens":12}}`),
+		sseEventText("message_stop", `{"type":"message_stop"}`),
 	}, "")
 
 	srv := newAnthropicTestServer(func(w http.ResponseWriter, _ *http.Request) {

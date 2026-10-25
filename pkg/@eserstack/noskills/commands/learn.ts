@@ -87,7 +87,9 @@ export const main = async (
         ? span.red("HIGH")
         : span.dim(l.severity);
 
-      out.writeln(`  ${i + 1}. ${icon} ${typeLabel} ${l.text}`);
+      // Spans go in as their own arguments; inside a template string they
+      // print as "[object Object]".
+      out.writeln(`  ${i + 1}. `, icon, " ", typeLabel, ` ${l.text}`);
       out.writeln(
         span.dim(`     spec: ${l.spec} | severity: `),
         severity,
@@ -140,8 +142,8 @@ export const main = async (
 
     // Auto-sync
     const config = await persistence.readManifest(root);
-    if (config !== null && config.tools.length > 0) {
-      await syncEngine.syncAll(root, config.tools, config);
+    if (config !== null && (config.tools ?? []).length > 0) {
+      await syncEngine.syncAll(root, config.tools ?? [], config);
     }
 
     out.writeln(span.green("\u2714"), ` Promoted to rule: ${filePath}`);
@@ -173,8 +175,8 @@ export const main = async (
   if (isRule) {
     const filePath = await createRuleFile(root, text, specName);
     const config = await persistence.readManifest(root);
-    if (config !== null && config.tools.length > 0) {
-      await syncEngine.syncAll(root, config.tools, config);
+    if (config !== null && (config.tools ?? []).length > 0) {
+      await syncEngine.syncAll(root, config.tools ?? [], config);
     }
 
     out.writeln(span.green("\u2714"), ` Rule created: ${filePath}`);

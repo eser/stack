@@ -95,6 +95,18 @@ export const validateCommitMsg = (
     } catch { /* fall through to TS */ }
   }
 
+  return validateCommitMsgLocal(message, options);
+};
+
+/**
+ * The TypeScript rules {@link validateCommitMsg} falls back to when the
+ * native library is not loaded. The Go validator implements the same rules;
+ * the parity test in go-validator-parity.test.ts keeps the two equal.
+ */
+export const validateCommitMsgLocal = (
+  message: string,
+  options: CommitMsgOptions = {},
+): CommitMsgResult => {
   const allowAsterisk = options.allowAsterisk ?? true;
   const allowMultipleScopes = options.allowMultipleScopes ?? true;
   const forceScope = options.forceScope ?? false;

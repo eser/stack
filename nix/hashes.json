@@ -1,6 +1,15 @@
 {
-  "x86_64-unknown-linux-gnu": "sha256-ch3isonm/LLLrbW3C47HkO2HspmAKE0wpZztnDrjOxA=",
-  "aarch64-unknown-linux-gnu": "sha256-UGaTdXKVoz4z+e6B+MzPb3fMggXEWbKA49WHFBQo2Is=",
-  "x86_64-apple-darwin": "sha256-zTCrDIRlobazoXCri1VDmc9hjJqX7waLTLAeNrn4x6c=",
-  "aarch64-apple-darwin": "sha256-RM5axhTDypumSEXZXw5FNN3x0AMwRkKpkkB2EqJyjYk="
+  "version": "4.5.1",
+  "eser": {
+    "x86_64-unknown-linux-gnu": "sha256-TUXKqbtmYMSOzKSw5pe2hf1jhaw0fhaN+ta9Qa0wY+Y=",
+    "aarch64-unknown-linux-gnu": "sha256-npLdvBIjMhY/AU/iYnpb130Oz4/k5WY3NBL93ivfzuc=",
+    "x86_64-apple-darwin": "sha256-Zs74P1ZSmU3snX86GXP5hDnJ3ctxs4yxYq/W5RKNJOs=",
+    "aarch64-apple-darwin": "sha256-HmIYHmuXIbk8wzKcLjmnFu8l7HVvJp/OadGn/oYxKUM="
+  },
+  "noskills-server": {
+    "x86_64-unknown-linux-gnu": "sha256-p/7gNOqK6c8oIRwuW/khkTqopHW4ROFbiHxQrDbFO04=",
+    "aarch64-unknown-linux-gnu": "sha256-bWn0zCKcdlhis1yK+/HHtlgGbKgfMoxhtPxqucs3Qyo=",
+    "x86_64-apple-darwin": "sha256-ZuNdP7XsPyc7g35+eFY5M+P5sXTKeD3wsb33Uc17rTo=",
+    "aarch64-apple-darwin": "sha256-4VzC9vdttMw/w+MLPaEYOpuiw5a8hEo1cYs3HT0HN1M="
+  }
 }

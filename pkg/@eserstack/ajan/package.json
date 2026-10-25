@@ -6,6 +6,7 @@
     ".": "./ffi/mod.ts",
     "./ffi": "./ffi/mod.ts",
     "./ffi/client": "./ffi/client.ts",
+    "./ffi/request-signals": "./ffi/request-signals.ts",
     "./wasm": "./wasm/mod.ts"
   },
   "dependencies": {
@@ -13,7 +14,7 @@
     "koffi": "^3.3.0"
   },
   "devDependencies": {
-    "@std/assert": "npm:@jsr/std__assert@^1.0.19"
+    "@eserstack/test-kit": "workspace:*"
   },
   "optionalDependencies": {
     "@eserstack/ajan-darwin-arm64": "workspace:*",

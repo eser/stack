@@ -9,7 +9,7 @@
  */
 
 import * as bdd from "@std/testing/bdd";
-import * as assert from "@std/assert";
+import * as assert from "@eserstack/test-kit/assert";
 import * as crossRuntime from "@eserstack/standards/cross-runtime";
 import * as persistence from "./persistence.ts";
 
@@ -225,6 +225,41 @@ bdd.describe("migrateLegacyLayout", () => {
       );
     },
   );
+
+  // TASK-329: only the state.json/progresses conflict was checked, so a
+  // legacy .eser/.events beside a non-empty .eser/.state/events failed with
+  // ENOTEMPTY, after the progresses had already moved.
+  bdd.it(
+    "refuses before moving anything when both events folders hold files",
+    async () => {
+      await seedLegacyLayout(tempDir);
+      await crossRuntime.runtime.fs.mkdir(`${tempDir}/.eser/.state/events`, {
+        recursive: true,
+      });
+      await writeFile(`${tempDir}/.eser/.state/events/new.jsonl`, "{}\n");
+
+      await assert.assertRejects(
+        () => persistence.migrateLegacyLayout(tempDir),
+        Error,
+        "partial migration detected",
+      );
+      assert.assertEquals(
+        await exists(`${tempDir}/.eser/.state/state.json`),
+        true,
+      );
+      assert.assertEquals(await exists(`${tempDir}/.eser/.events`), true);
+    },
+  );
+
+  bdd.it("moves a legacy folder over an empty new one", async () => {
+    await seedLegacyLayout(tempDir);
+    await crossRuntime.runtime.fs.mkdir(`${tempDir}/.eser/.state/sessions`, {
+      recursive: true,
+    });
+
+    assert.assertEquals(await persistence.migrateLegacyLayout(tempDir), true);
+    assert.assertEquals(await exists(`${tempDir}/.eser/.sessions`), false);
+  });
 
   bdd.it("leaves the purge history where it is", async () => {
     await seedLegacyLayout(tempDir);

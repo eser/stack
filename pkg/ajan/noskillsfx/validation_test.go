@@ -29,18 +29,41 @@ var judgeSettings = noskillsfx.ValidatorSettings{Agent: "fake-judge", Model: "ju
 
 // inReview is a spec whose discovery answers all await the person's approval.
 func inReview() noskillsfx.StateFile {
-	state := stateIn(noskillsfx.PhaseDiscoveryRefinement, 0)
+	spec := "test-spec"
 	description := "Let users upload photos"
-	state.SpecDescription = &description
+	state := noskillsfx.StateFile{ //nolint:exhaustruct // the fields the validator reads
+		Version:         "0.1.0",
+		Phase:           noskillsfx.PhaseDiscoveryRefinement,
+		Spec:            &spec,
+		SpecDescription: &description,
+	}
 
 	for _, id := range baseIDs() {
-		state = noskillsfx.AddDiscoveryAnswer(state, noskillsfx.DiscoveryAnswer{
+		state.Discovery.Answers = append(state.Discovery.Answers, noskillsfx.DiscoveryAnswer{
 			QuestionID: id,
 			Answer:     "an answer with enough detail for " + id,
 		})
 	}
 
 	return state
+}
+
+// inReviewObject is inReview as the state file holds it.
+func inReviewObject() *noskillsfx.JSObject {
+	state := noskillsfx.InitialState()
+	state.Set("phase", noskillsfx.PhaseDiscoveryRefinement)
+	state.Set("spec", "test-spec")
+	state.Set("specDescription", "Let users upload photos")
+
+	return state
+}
+
+func compileReview() *noskillsfx.JSObject {
+	return noskillsfx.CompileNext(&noskillsfx.NextInput{ //nolint:exhaustruct // the defaults are the case under test
+		State:         inReviewObject(),
+		Hints:         noskillsfx.DefaultInteractionHints,
+		CommandPrefix: noskillsfx.DefaultCommandPrefix,
+	})
 }
 
 func reviewInput(t *testing.T, document *string) noskillsfx.ValidationInput {
@@ -59,8 +82,8 @@ type fakeJudge struct {
 	requests []noskillsfx.ValidationRequest
 }
 
-func (j *fakeJudge) Judge(ctx context.Context, request noskillsfx.ValidationRequest) (string, error) {
-	j.requests = append(j.requests, request)
+func (j *fakeJudge) Judge(ctx context.Context, request *noskillsfx.ValidationRequest) (string, error) {
+	j.requests = append(j.requests, *request)
 
 	return j.reply(ctx)
 }
@@ -348,9 +371,9 @@ func TestTransitionValidationJSON(t *testing.T) {
 			Summary: "Consistent.",
 		})
 
-		data, err := json.Marshal(noskillsfx.NextOutput{Phase: noskillsfx.PhaseSpecProposal, Validation: &reviewed}) //nolint:exhaustruct // only the validation field is checked
+		out, err := noskillsfx.AttachValidation(noskillsfx.JSObjectOf("phase", noskillsfx.PhaseSpecProposal), &reviewed)
 		require.NoError(t, err)
-		assert.Contains(t, string(data), `"validation":{"status":"reviewed","transition":{"id":"spec-proposal","from":"SPEC_PROPOSAL","to":"SPEC_APPROVED","approval":"approve"},"agent":"fake-judge","model":"judge-1","summary":"Consistent.","findings":[],"instruction":`)
+		assert.Contains(t, out.String(), `"validation":{"status":"reviewed","transition":{"id":"spec-proposal","from":"SPEC_PROPOSAL","to":"SPEC_APPROVED","approval":"approve"},"agent":"fake-judge","model":"judge-1","summary":"Consistent.","findings":[],"instruction":`)
 	})
 
 	t.Run("a skipped result without settings has null agent and a reason", func(t *testing.T) {
@@ -372,11 +395,7 @@ func TestTransitionValidationJSON(t *testing.T) {
 	t.Run("compile leaves validation out", func(t *testing.T) {
 		t.Parallel()
 
-		out := noskillsfx.Compile(inReview(), noskillsfx.NosManifest{}, noskillsfx.CompileOptions{}) //nolint:exhaustruct // the defaults are the case under test
-
-		data, err := json.Marshal(out)
-		require.NoError(t, err)
-		assert.NotContains(t, string(data), `"validation"`)
+		assert.NotContains(t, compileReview().String(), `"validation"`)
 	})
 }
 
@@ -391,33 +410,33 @@ func TestManifestValidateEntry(t *testing.T) {
 		0o600,
 	))
 
-	manifest, err := noskillsfx.ReadManifest(root)
-	require.NoError(t, err)
-	require.NotNil(t, manifest.Validate)
-	assert.Equal(t, noskillsfx.ValidatorConfig{Agent: "anthropic", Model: "claude-opus-4-1"}, *manifest.Validate)
+	assert.True(t, noskillsfx.ReadHookManifest(root).Validates)
 
-	// A write that changes another key keeps the entry.
-	manifest.Validate = nil
-	manifest.Concerns = []string{"security"}
-	require.NoError(t, noskillsfx.WriteManifest(root, manifest))
-
-	reread, err := noskillsfx.ReadManifest(root)
-	require.NoError(t, err)
-	require.NotNil(t, reread.Validate)
-	assert.Equal(t, "anthropic", reread.Validate.Agent)
+	// A section written without the entry turns the validator off.
+	require.NoError(t, noskillsfx.WriteManifestSection(root, noskillsfx.JSObjectOf("concerns", []any{"security"})))
+	assert.False(t, noskillsfx.ReadHookManifest(root).Validates)
 }
 
 func TestAttachValidation(t *testing.T) {
 	t.Parallel()
 
-	out := noskillsfx.Compile(inReview(), noskillsfx.NosManifest{}, noskillsfx.CompileOptions{}) //nolint:exhaustruct // the defaults are the case under test
-	instruction := out.Instruction
+	out := compileReview()
+	before, _ := out.Get("instruction")
 	input := reviewInput(t, nil)
 	validation := noskillsfx.NewSkippedValidation(input.Transition, &judgeSettings, "timed out.", "retry")
 
-	noskillsfx.AttachValidation(&out, &validation)
+	attached, err := noskillsfx.AttachValidation(out, &validation)
+	require.NoError(t, err)
 
-	assert.Equal(t, &validation, out.Validation)
-	assert.True(t, strings.HasPrefix(out.Instruction, instruction+" "))
-	assert.Contains(t, out.Instruction, "follow `validation.instruction` before you ask the user for approval")
+	instruction, _ := attached.Get("instruction")
+	_, hasValidation := attached.Get("validation")
+
+	assert.True(t, hasValidation)
+	assert.True(t, strings.HasPrefix(instruction.(string), before.(string)+" "))
+	assert.Contains(t, instruction, "follow `validation.instruction` before you ask the user for approval")
+}
+
+// baseIDs are the six base discovery question ids.
+func baseIDs() []string {
+	return []string{"status_quo", "ambition", "reversibility", "user_impact", "verification", "scope_boundary"}
 }

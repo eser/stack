@@ -3,5 +3,5 @@
  * Image components for Laroux.js
  */
 
-export { Image, ImageSizes, ResponsiveImage } from "./image.tsx";
-export type { ImageProps, ResponsiveImageProps } from "./image.tsx";
+export { Image, ImageSizes, ResponsiveImage } from "./image.ts";
+export type { ImageProps, ResponsiveImageProps } from "./image.ts";

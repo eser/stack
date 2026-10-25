@@ -29,13 +29,13 @@ that touches TypeScript.
 | `pkg/@eserstack/standards/`  | Cross-runtime abstractions; **high impact**, every package depends on it            |
 | `pkg/@eserstack/codebase/`   | Repo tooling and validators; owns `cli-system/`, the command tree of every binary   |
 | `pkg/@eserstack/cli/`        | The `eser` binary and its npm bundle                                                |
-| `pkg/@eserstack/noskills*/`  | Spec workflow, daemon client, web dashboard, mux worker                             |
+| `pkg/@eserstack/noskills*/`  | Spec workflow, daemon client, web dashboard                                         |
 | `pkg/@eserstack/laroux*/`    | Framework: server, bundler, React integration                                       |
 | `pkg/@eserstack/ai/`         | AI providers: TypeScript adapters and the Go bridge                                 |
 | `pkg/@eserstack/kit/`        | Recipes and scaffolding                                                             |
 | `pkg/@eserstack/ajan/`       | FFI bridge to the Go library; its own Go module                                     |
 | `pkg/ajan/`                  | Go library packages (`*fx`); `api/business/` is pure domain, `api/adapters/` is I/O |
-| `pkg/ajan/noskillsserverfx/` | The noskills daemon: sessions, ledger, workers                                      |
+| `pkg/ajan/noskillsserverfx/` | The noskills daemon: sessions, ledger, agent and mux workers                        |
 | `cmd/`                       | Go entry points; only `noskills-server`, the other binaries are `deno compile`d     |
 | `.github/workflows/`         | CI/CD; **high impact**                                                              |
 | `.eser/`                     | Workflow manifest, recipes and scripts                                              |

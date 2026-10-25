@@ -65,27 +65,6 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Setup Deno
-        uses: denoland/setup-deno@v2
-        with:
-          deno-version: v2.9.5
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v6
-        with:
-          version: 10
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v7
-        with:
-          node-version: "latest"
-          cache: "pnpm"
-
-      # build.ts imports @eserstack/standards (→ @std/path); under
-      # nodeModulesDir:manual deno needs node_modules populated to resolve it.
-      - name: Install dependencies (no frozen — platform pkgs not yet published)
-        run: pnpm install --no-frozen-lockfile
-
       - name: Setup Go
         uses: actions/setup-go@v7
         with:
@@ -97,10 +76,10 @@ jobs:
           cache-dependency-path: go.sum
 
       - name: Build aarch64-darwin (native)
-        run: deno run --allow-all pkg/@eserstack/ajan/scripts/build.ts --target=aarch64-darwin
+        run: make ajan-lib TARGET=aarch64-darwin
 
       - name: Build x86_64-darwin (cross-compile via clang -arch x86_64)
-        run: deno run --allow-all pkg/@eserstack/ajan/scripts/build.ts --target=x86_64-darwin
+        run: make ajan-lib TARGET=x86_64-darwin
 
       - name: Upload darwin dist
         uses: actions/upload-artifact@v7
@@ -126,20 +105,14 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Setup Deno
-        uses: denoland/setup-deno@v2
-        with:
-          deno-version: v2.9.5
-
       - name: Setup pnpm
+        # No version: pnpm/action-setup reads packageManager from package.json.
         uses: pnpm/action-setup@v6
-        with:
-          version: 10
 
       - name: Setup Node.js
         uses: actions/setup-node@v7
         with:
-          node-version: "latest"
+          node-version-file: .node-version
           registry-url: "https://registry.npmjs.org"
           cache: "pnpm"
 
@@ -174,15 +147,15 @@ jobs:
 
       - name: Build Go shared libraries (linux + windows)
         run: |
-          deno run --allow-all pkg/@eserstack/ajan/scripts/build.ts --target=aarch64-linux
-          deno run --allow-all pkg/@eserstack/ajan/scripts/build.ts --target=x86_64-linux
-          deno run --allow-all pkg/@eserstack/ajan/scripts/build.ts --target=x86_64-windows
+          make ajan-lib TARGET=aarch64-linux
+          make ajan-lib TARGET=x86_64-linux
+          make ajan-lib TARGET=x86_64-windows
 
       - name: Build Go WASM modules
-        run: deno run --allow-all pkg/@eserstack/ajan/scripts/build.ts --wasm
+        run: make ajan-wasm
 
       - name: Stage platform libraries into their packages
-        run: deno run --allow-all pkg/@eserstack/ajan/npm/generate-packages.ts
+        run: make ajan-packages
 
       # ── bootstrap mode: upload the generated tarballs so they can be published
       # manually (npm login as the eserstack org owner). Needed for the FIRST

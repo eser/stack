@@ -209,7 +209,9 @@ export const getTier2RemindersForFile = (
   const reminders: string[] = [];
 
   for (const concern of concerns) {
-    for (const reminder of concern.reminders) {
+    // A hand-written concern file may have no reminders; it adds none rather
+    // than failing the whole collection.
+    for (const reminder of concern.reminders ?? []) {
       if (
         concernScope.scopeMatchesFile(
           concernScope.reminderScope(reminder),

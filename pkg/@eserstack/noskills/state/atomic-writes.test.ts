@@ -16,7 +16,7 @@
  */
 
 import * as bdd from "@std/testing/bdd";
-import * as assert from "@std/assert";
+import * as assert from "@eserstack/test-kit/assert";
 import * as crossRuntime from "@eserstack/standards/cross-runtime";
 import * as persistence from "./persistence.ts";
 import * as schema from "./schema.ts";

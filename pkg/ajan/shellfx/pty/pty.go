@@ -6,8 +6,10 @@
 // buffered channel that the TypeScript side polls one chunk at a time, so the
 // blocking read never stalls the host event loop.
 //
-// Platform backends live in build-tag files: pty_unix.go (openpty + TIOCSWINSZ),
-// pty_windows.go (ConPTY), and pty_other.go (unsupported stub). A PTY merges the
+// Platform backends live in build-tag files: pty_unix.go (the child and
+// TIOCSWINSZ, with the pair opened through system calls in openpty_linux.go and
+// openpty_darwin.go, so no cgo is needed), pty_windows.go (ConPTY), and
+// pty_other.go (unsupported stub). A PTY merges the
 // child's stdout and stderr onto a single stream, so — unlike shellfx/exec — the
 // output chunk carries no stream tag.
 package pty

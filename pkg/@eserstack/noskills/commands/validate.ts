@@ -33,6 +33,8 @@ export const main = async (
   });
 
   const root = projectRoot ?? (await persistence.resolveProjectRoot()).root;
+  // The messages below name the project's command (cmd.cmdPrefix).
+  await cmd.loadCommandPrefix(root);
 
   // Resolve spec name from args
   const rawArgs = args ?? [];

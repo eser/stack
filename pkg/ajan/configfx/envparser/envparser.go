@@ -11,9 +11,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"unicode"
 
@@ -37,9 +37,23 @@ var (
 
 var ErrParsingError = errors.New("parsing error")
 
+// statement is one KEY=value line; expand marks an unquoted value, the only
+// kind whose ${NAME} and $NAME references are expanded.
+type statement struct {
+	key    string
+	value  string
+	expand bool
+}
+
+// ParseBytes reads .env text into out, in the dialect of @std/dotenv (see
+// the configfx README). Unquoted values are expanded after the whole file is
+// read, so a reference can name a key defined further down, as in
+// @std/dotenv.
 func ParseBytes(data []byte, keyCaseInsensitive bool, out *map[string]any) error {
 	src := bytes.ReplaceAll(data, []byte("\r\n"), []byte("\n"))
 	cutset := src
+
+	var statements []statement
 
 	for {
 		cutset = getStatementStart(cutset)
@@ -53,21 +67,46 @@ func ParseBytes(data []byte, keyCaseInsensitive bool, out *map[string]any) error
 			return err
 		}
 
-		value, left, err := extractVarValue(left, out)
+		value, expand, left, err := extractVarValue(left)
 		if err != nil {
 			return err
 		}
 
-		if keyCaseInsensitive {
-			lib.CaseInsensitiveSet(out, key, value)
-		} else {
-			(*out)[key] = value
-		}
-
+		statements = append(statements, statement{key: key, value: value, expand: expand})
 		cutset = left
 	}
 
+	// References resolve against this file's values as written, then the
+	// keys earlier sources loaded.
+	vars := maps.Clone(*out)
+	if vars == nil {
+		vars = map[string]any{}
+	}
+
+	for _, st := range statements {
+		set(&vars, keyCaseInsensitive, st.key, st.value)
+	}
+
+	for _, st := range statements {
+		value := st.value
+		if st.expand {
+			value = expandVariables(value, &vars)
+		}
+
+		set(out, keyCaseInsensitive, st.key, value)
+	}
+
 	return nil
+}
+
+func set(m *map[string]any, keyCaseInsensitive bool, key string, value string) {
+	if keyCaseInsensitive {
+		lib.CaseInsensitiveSet(m, key, value)
+
+		return
+	}
+
+	(*m)[key] = value
 }
 
 // getStatementPosition returns position of statement begin.
@@ -107,6 +146,14 @@ func extractKeyName(src []byte) (string, int, error) {
 			return key, i + 1, nil
 		}
 
+		// Spaces or tabs between the key and the separator, as in KEY = value.
+		if char == ' ' || char == '\t' {
+			rest := bytes.TrimLeft(src[i:], " \t")
+			if len(rest) > 0 && (rest[0] == '=' || rest[0] == ':') {
+				return string(src[0:i]), len(src) - len(rest) + 1, nil
+			}
+		}
+
 		return "", 0, fmt.Errorf(
 			"%w (char=%q, src=%q)",
 			ErrUnexpectedChar,
@@ -122,10 +169,15 @@ func extractKeyName(src []byte) (string, int, error) {
 	)
 }
 
+// trimExportPrefix drops a leading `export ` word; a key that only starts
+// with the letters (exported=1) keeps its name.
 func trimExportPrefix(src []byte) []byte {
-	trimmedSrc := bytes.TrimPrefix(src, []byte(exportPrefix))
+	rest, found := bytes.CutPrefix(src, []byte(exportPrefix))
+	if !found || len(rest) == 0 || (rest[0] != ' ' && rest[0] != '\t') {
+		return src
+	}
 
-	return lib.StringsTrimLeadingSpaceFromBytes(trimmedSrc)
+	return lib.StringsTrimLeadingSpaceFromBytes(rest)
 }
 
 // locateKeyName locates and parses key name and returns rest of slice.
@@ -146,12 +198,14 @@ func locateKeyName(src []byte) (string, []byte, error) {
 	}
 
 	key = lib.StringsTrimTrailingSpace(key)
-	cutset := lib.StringsTrimLeadingSpaceFromBytes(newSrc[offset:])
+	// Spaces and tabs only: a newline right after the separator ends an
+	// empty value, and the next line is the next statement.
+	cutset := bytes.TrimLeft(newSrc[offset:], " \t")
 
 	return key, cutset, nil
 }
 
-func extractUnquotedVarValue(src []byte, vars *map[string]any) (string, []byte, error) {
+func extractUnquotedVarValue(src []byte) (string, []byte) {
 	// unquoted value - read until end of line
 	endOfLine := bytes.IndexFunc(src, isLineEnd)
 
@@ -160,7 +214,7 @@ func extractUnquotedVarValue(src []byte, vars *map[string]any) (string, []byte, 
 		endOfLine = len(src)
 
 		if endOfLine == 0 {
-			return "", nil, nil
+			return "", nil
 		}
 	}
 
@@ -170,7 +224,7 @@ func extractUnquotedVarValue(src []byte, vars *map[string]any) (string, []byte, 
 	// Assume end of line is end of var
 	endOfVar := len(line)
 	if endOfVar == 0 {
-		return "", src[endOfLine:], nil
+		return "", src[endOfLine:]
 	}
 
 	// Work backwards to check if the line ends in whitespace then
@@ -187,29 +241,33 @@ func extractUnquotedVarValue(src []byte, vars *map[string]any) (string, []byte, 
 
 	trimmed := strings.TrimFunc(string(line[0:endOfVar]), isSpace)
 
-	return expandVariables(trimmed, vars), src[endOfLine:], nil
+	return trimmed, src[endOfLine:]
 }
 
-func extractQuotedVarValue(src []byte, vars *map[string]any, quote byte) (string, []byte, error) {
-	// lookup quoted string terminator
+// extractQuotedVarValue reads a quoted value, which may span lines. A
+// double-quoted value ends at the first quote not escaped with a backslash
+// and has its escapes applied; a single-quoted one ends at the next single
+// quote and is taken as written. Neither is expanded. One newline right
+// after the opening quote and one right before the closing quote are
+// dropped, as in @std/dotenv.
+func extractQuotedVarValue(src []byte, quote byte) (string, []byte, error) {
 	for i := 1; i < len(src); i++ {
-		if char := src[i]; char != quote {
+		if quote == prefixDoubleQuote && src[i] == '\\' {
+			i++
+
 			continue
 		}
 
-		// skip escaped quote symbol (\" or \', depends on quote)
-		if prevChar := src[i-1]; prevChar == '\\' {
+		if src[i] != quote {
 			continue
 		}
 
-		// trim quotes
-		trimFunc := isCharFunc(rune(quote))
-		value := string(bytes.TrimLeftFunc(bytes.TrimRightFunc(src[0:i], trimFunc), trimFunc))
+		value := string(src[1:i])
+		value = strings.TrimPrefix(value, "\n")
+		value = strings.TrimSuffix(value, "\n")
 
 		if quote == prefixDoubleQuote {
-			// unescape newlines for double quote (this is compat feature)
-			// and expand environment variables
-			value = expandVariables(expandEscapes(value), vars)
+			value = expandEscapes(value)
 		}
 
 		return value, src[i+1:], nil
@@ -228,31 +286,55 @@ func extractQuotedVarValue(src []byte, vars *map[string]any, quote byte) (string
 	)
 }
 
-// extractVarValue extracts variable value and returns rest of slice.
-func extractVarValue(src []byte, vars *map[string]any) (string, []byte, error) {
+// extractVarValue extracts the value, whether it is expanded (unquoted
+// values only) and the rest of the slice.
+func extractVarValue(src []byte) (string, bool, []byte, error) {
 	quote, hasPrefix := hasQuotePrefix(src)
 
 	if !hasPrefix {
-		return extractUnquotedVarValue(src, vars)
+		value, left := extractUnquotedVarValue(src)
+
+		return value, true, left, nil
 	}
 
-	return extractQuotedVarValue(src, vars, quote)
+	value, left, err := extractQuotedVarValue(src, quote)
+
+	return value, false, left, err
+}
+
+// doubleQuoteEscapes are the escapes of a double-quoted value; any other
+// backslash pair stays as written.
+var doubleQuoteEscapes = map[byte]byte{ //nolint:gochecknoglobals // a lookup table
+	'n':  '\n',
+	'r':  '\r',
+	't':  '\t',
+	'"':  '"',
+	'\'': '\'',
+	'\\': '\\',
 }
 
 func expandEscapes(str string) string {
-	out := escapeRegex.ReplaceAllStringFunc(str, func(match string) string {
-		c := strings.TrimPrefix(match, `\`)
-		switch c {
-		case "n":
-			return "\n"
-		case "r":
-			return "\r"
-		default:
-			return match
-		}
-	})
+	var out strings.Builder
 
-	return unescapeCharsRegex.ReplaceAllString(out, "$1")
+	out.Grow(len(str))
+
+	for i := 0; i < len(str); i++ {
+		if str[i] == '\\' && i+1 < len(str) {
+			if replacement, ok := doubleQuoteEscapes[str[i+1]]; ok {
+				out.WriteByte(replacement)
+			} else {
+				out.WriteString(str[i : i+2])
+			}
+
+			i++
+
+			continue
+		}
+
+		out.WriteByte(str[i])
+	}
+
+	return out.String()
 }
 
 func indexOfNonSpaceChar(src []byte) int {
@@ -301,33 +383,99 @@ func isLineEnd(r rune) bool {
 	return false
 }
 
-var (
-	escapeRegex        = regexp.MustCompile(`\\.`)
-	expandVarRegex     = regexp.MustCompile(`(\\)?(\$)(\()?\{?([A-Z0-9_]+)?\}?`)
-	unescapeCharsRegex = regexp.MustCompile(`\\([^$])`)
-)
+// maxExpandPasses bounds the expansion of a value whose references expand
+// to more references; a self reference (A=$A) stops once nothing changes.
+const maxExpandPasses = 10
 
-func expandVariables(v string, m *map[string]any) string { //nolint:varnamelen
-	return expandVarRegex.ReplaceAllStringFunc(v, func(s string) string { //nolint:varnamelen
-		submatch := expandVarRegex.FindStringSubmatch(s)
-
-		if submatch == nil {
-			return s
+// expandVariables expands ${NAME}, ${NAME:-default}, $NAME and
+// $NAME:-default in an unquoted value, again while a pass changes it.
+func expandVariables(value string, vars *map[string]any) string {
+	for range maxExpandPasses {
+		next := expandOnce(value, vars)
+		if next == value {
+			break
 		}
 
-		if submatch[1] == "\\" || submatch[2] == "(" {
-			return submatch[0][1:]
-		}
+		value = next
+	}
 
-		if submatch[4] != "" {
-			return lookupVar(m, submatch[4])
-		}
-
-		return s
-	})
+	return value
 }
 
-// lookupVar resolves an expanded ${NAME}, yielding "" when it is not defined.
+// expandOnce is one pass of @std/dotenv's expansion. ${...} always expands;
+// $NAME stays as written after a backslash. A default after :- runs to the
+// closing brace, or to the end of the value for $NAME.
+func expandOnce(value string, vars *map[string]any) string { //nolint:cyclop // one branch per reference form
+	var out strings.Builder
+
+	for i := 0; i < len(value); {
+		if value[i] != '$' {
+			out.WriteByte(value[i])
+			i++
+
+			continue
+		}
+
+		if i+1 < len(value) && value[i+1] == '{' {
+			end := strings.IndexByte(value[i+2:], '}')
+			if end > 0 {
+				name, fallback, hasDefault := strings.Cut(value[i+2:i+2+end], ":-")
+				if name == "" || fallback == "" {
+					name, hasDefault = value[i+2:i+2+end], false
+				}
+
+				out.WriteString(resolveVar(vars, name, fallback, hasDefault))
+				i += end + 3
+
+				continue
+			}
+		}
+
+		end := i + 1
+		for end < len(value) && isWordByte(value[end]) {
+			end++
+		}
+
+		if end == i+1 || (i > 0 && value[i-1] == '\\') {
+			out.WriteByte('$')
+			i++
+
+			continue
+		}
+
+		name := value[i+1 : end]
+		if fallback, ok := strings.CutPrefix(value[end:], ":-"); ok && fallback != "" {
+			out.WriteString(resolveVar(vars, name, fallback, true))
+
+			break
+		}
+
+		out.WriteString(resolveVar(vars, name, "", false))
+		i = end
+	}
+
+	return out.String()
+}
+
+func isWordByte(c byte) bool {
+	return c == '_' || ('0' <= c && c <= '9') || ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z')
+}
+
+// resolveVar is the value of name, else the default, else "" (@std/dotenv
+// falls back to the process environment and then prints "undefined").
+func resolveVar(vars *map[string]any, name, fallback string, hasDefault bool) string {
+	if value, ok := lookupVar(vars, name); ok {
+		return value
+	}
+
+	if hasDefault {
+		return fallback
+	}
+
+	return ""
+}
+
+// lookupVar resolves an expanded ${NAME}, and reports whether it is defined.
 //
 // This used to be a bare map index followed by a `.(string)` assertion, which
 // panicked two ways: an undefined name indexes to an untyped nil, and a name
@@ -339,19 +487,19 @@ func expandVariables(v string, m *map[string]any) string { //nolint:varnamelen
 //
 // Undefined expands to empty, following POSIX shells and godotenv, which this
 // parser is a port of.
-func lookupVar(m *map[string]any, name string) string {
+func lookupVar(m *map[string]any, name string) (string, bool) {
 	value, ok := lib.CaseInsensitiveGet(*m, name)
 	if !ok {
-		return ""
+		return "", false
 	}
 
 	if text, isText := value.(string); isText {
-		return text
+		return text, true
 	}
 
 	// A merged JSON source can put numbers and booleans in here. Rendering
 	// beats asserting: the value is going into a string either way.
-	return fmt.Sprint(value)
+	return fmt.Sprint(value), true
 }
 
 func Parse(m *map[string]any, keyCaseInsensitive bool, r io.Reader) error { //nolint:varnamelen

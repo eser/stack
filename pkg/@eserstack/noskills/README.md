@@ -1,12 +1,17 @@
 # 🚦 [@eserstack/noskills](./)
 
+> **Note:** JSR is frozen at 4.5.x. From 5.0.0, `@eserstack/noskills` is
+> published on npm under the same name, and the `noskills` command as the npm
+> package `noskills` (`npm install -g noskills`); the JSR versions stay
+> available but get no updates.
+
 > **eserstack Product** — AI development orchestrator ·
 > [eser/stack](https://github.com/eser/stack) **Install:**
 > `curl -fsSL https://raw.githubusercontent.com/eser/stack/main/etc/scripts/install.sh | sh -s noskills`
 
 `noskills` is a command, so install it as a binary — the line above, or
-`brew install eser/tap/noskills`, or `npm i -g @eserstack/noskills`. On Windows
-use `install.ps1 -Product noskills`.
+`brew install eser/tap/noskills`, or `npm i -g noskills`. On Windows use
+`install.ps1 -Product noskills`.
 
 Adding this package as a dependency (`pnpm add jsr:@eserstack/noskills`) gets
 you the modules, not the command: the source package declares no `bin`, which is
@@ -355,6 +360,10 @@ eser noskills next -o text                  # Shows all 6 questions at once
 eser noskills next --answer='{"status_quo":"...","ambition":"...","reversibility":"...","user_impact":"...","verification":"...","scope_boundary":"..."}' -o text
 # Classification: what does this spec involve?
 eser noskills next --answer='{"involvesWebUI":true,"involvesCLI":false,"involvesPublicAPI":false,"involvesMigration":false,"involvesDataHandling":false}' -o text
+# Resolve the sections no discovery answer fills, or approve refuses
+eser noskills spec photo-upload section list
+eser noskills spec photo-upload section summary fill "Users upload photos from the app"
+eser noskills spec photo-upload section premises na "The premises step already recorded them"
 eser noskills approve
 eser noskills next --answer="start" -o text # Begin execution
 eser noskills next --answer="task-1 done" -o text
@@ -464,7 +473,8 @@ check has 30 seconds to answer. When it does not, the wrapper stops it and
 refuses the command, so a slow registry cannot hang the agent's git call. The
 default `command`, `npx eser@latest noskills`, can wait on the npm registry
 before the check starts; set `command` to an installed noskills to keep the
-check off the network.
+check off the network. The Go binary is one: it answers the check in a few
+milliseconds.
 
 The PreToolUse hook also keeps the agent away from the settings these layers
 read. In every phase and session mode, it refuses an edit or a Bash command that
@@ -587,6 +597,15 @@ noskills starts, and `noskills init` warns when `command` runs through npx,
 install the eser CLI (`npm install -g eser` or
 `deno install -g -A jsr:@eserstack/cli`) and run `eser noskills init`, which
 sets `command` to `eser noskills`.
+
+The Go build of noskills (`cmd/noskills`, which `make build` builds until the
+release channels ship it) makes the 30-second timeout and the warning
+unnecessary. It runs every hook and the git wrapper's check itself, answers a
+PreToolUse call in about 4 ms, and needs neither Node nor the network. Running
+`noskills init` through it sets `command` to the binary, so every hook and the
+git wrapper it generates call the binary; run it again in a project that the npx
+command set up. The timeout stays at 30 seconds only for configs that still
+start noskills through npx, such as the ones v4.5.x wrote.
 
 When a spec's iteration count reaches `maxIterationsBeforeRestart` (default 15),
 the Stop hook prints a notice for you on stderr and `noskills next` sets

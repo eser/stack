@@ -28,6 +28,145 @@ import { runtime } from "@eserstack/standards/cross-runtime";
 const PACKS_FILE = ".eser/packs.json";
 const FETCH_TIMEOUT_MS = 30_000;
 
+/** The largest pack manifest or pack file a remote install reads. */
+export const MAX_REMOTE_PACK_FILE_BYTES = 1 << 20;
+
+/**
+ * Refuses a name that would leave its folder: a remote pack's name, rule
+ * names and concern ids become file names (as noskillsfx pack.go does).
+ *
+ * @param what - What the name is, for the message
+ * @param name - The name from the pack
+ * @throws {Error} When the name is empty, "." or "..", or holds a slash, a
+ *   backslash or a NUL
+ */
+export const checkPackFileName = (what: string, name: string): void => {
+  if (
+    name === "" || name === "." || name === ".." || /[/\\\0]/.test(name)
+  ) {
+    throw new Error(`${what} "${name}" must be a single file name`);
+  }
+};
+
+/**
+ * A pack's folder-rules target as a project-relative path, or null when it
+ * is absolute or leaves the project.
+ *
+ * @param dir - The target directory from the pack
+ * @returns The normalized relative path ("" for the project root), or null
+ */
+export const projectFolderOf = (dir: string): string | null => {
+  if (dir.startsWith("/") || dir.startsWith("\\") || /^[A-Za-z]:/.test(dir)) {
+    return null;
+  }
+
+  const parts: string[] = [];
+  for (const segment of dir.split(/[/\\]/)) {
+    if (segment === "" || segment === ".") {
+      continue;
+    }
+    if (segment === "..") {
+      if (parts.length === 0) {
+        return null;
+      }
+      parts.pop();
+      continue;
+    }
+    parts.push(segment);
+  }
+
+  return parts.join("/");
+};
+
+/**
+ * Reads a response body as text, refusing one larger than `limit` bytes.
+ *
+ * @throws {Error} When the body is larger than `limit`
+ */
+export const readTextLimited = async (
+  response: Response,
+  what: string,
+  limit: number = MAX_REMOTE_PACK_FILE_BYTES,
+): Promise<string> => {
+  if (response.body === null) {
+    return "";
+  }
+
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+
+  for (;;) {
+    // Each chunk follows the one before it.
+    // deno-lint-ignore no-await-in-loop
+    const { done, value } = await reader.read();
+    if (done) {
+      break;
+    }
+    size += value.length;
+    if (size > limit) {
+      // The read stops here, once.
+      // deno-lint-ignore no-await-in-loop
+      await reader.cancel();
+      throw new Error(`${what} is larger than ${limit} bytes`);
+    }
+    chunks.push(value);
+  }
+
+  const bytes = new Uint8Array(size);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.length;
+  }
+
+  return new TextDecoder().decode(bytes);
+};
+
+/**
+ * The files an installed pack wrote, as paths inside the project. An entry
+ * of packs.json that would point outside its folder is left out, so an
+ * edited packs.json cannot make uninstall remove other files.
+ */
+export const installedPackPaths = (
+  root: string,
+  installed: packSchema.InstalledPack,
+): readonly string[] => {
+  const single = (name: string): boolean => {
+    try {
+      checkPackFileName("file", name);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+  const rulesDir = `${root}/${persistence.paths.rulesDir}`;
+  const concernsDir = `${root}/${persistence.paths.concernsDir}`;
+
+  return [
+    ...installed.rules.filter(single).map((file) => `${rulesDir}/${file}`),
+    ...installed.concerns.filter(single).map((file) =>
+      `${concernsDir}/${file}`
+    ),
+    ...installed.folderRules.flatMap((path) => {
+      if (!path.endsWith("/.folder-rules.md") && path !== ".folder-rules.md") {
+        return [];
+      }
+      const folder = projectFolderOf(
+        path.slice(0, -".folder-rules.md".length),
+      );
+      if (folder === null) {
+        return [];
+      }
+      return [
+        folder === ""
+          ? `${root}/.folder-rules.md`
+          : `${root}/${folder}/.folder-rules.md`,
+      ];
+    }),
+  ];
+};
+
 // =============================================================================
 // Main
 // =============================================================================
@@ -35,6 +174,10 @@ const FETCH_TIMEOUT_MS = 30_000;
 export const main = async (
   args?: readonly string[],
 ): Promise<shellArgs.CliResult<void>> => {
+  // The messages below name the project's command (cmd.cmdPrefix).
+  const { root: projectRoot } = await persistence.resolveProjectRoot();
+  await cmd.loadCommandPrefix(projectRoot);
+
   const subcommand = args?.[0];
 
   if (subcommand === "list") {
@@ -178,7 +321,9 @@ const fetchRemotePackManifest = async (
     );
   }
 
-  const data = JSON.parse(await response.text()) as unknown;
+  const data = JSON.parse(
+    await readTextLimited(response, `the pack.json of ${specifier}`),
+  ) as unknown;
 
   return packSchema.validatePackManifest(data);
 };
@@ -206,7 +351,7 @@ const fetchRemoteFile = async (
     );
   }
 
-  return await response.text();
+  return await readTextLimited(response, `${filePath} of ${specifier}`);
 };
 
 // =============================================================================
@@ -313,6 +458,7 @@ export const installRemotePack = async (
   manifest: packSchema.PackManifest,
 ): Promise<packSchema.InstalledPack> => {
   const name = manifest.name;
+  checkPackFileName("pack name", name);
   const installedRules: string[] = [];
   const installedConcerns: string[] = [];
   const installedFolderRules: string[] = [];
@@ -331,6 +477,7 @@ export const installRemotePack = async (
       const ruleName = rulePath
         .replace(/^rules\//, "")
         .replace(/\.md$/, "");
+      checkPackFileName("rule", ruleName);
       const fileName = `pack-${name}-${ruleName}.md`;
       // deno-lint-ignore no-await-in-loop
       await runtime.fs.writeTextFile(`${rulesDir}/${fileName}`, content);
@@ -349,6 +496,7 @@ export const installRemotePack = async (
       // deno-lint-ignore no-await-in-loop
       const content = await fetchRemoteFile(specifier, concernPath);
       const concern = JSON.parse(content) as { id: string };
+      checkPackFileName("concern id", String(concern.id));
 
       // A concern with an unknown scope value would be skipped at every load,
       // so the install stops here and names the entry instead.
@@ -375,13 +523,19 @@ export const installRemotePack = async (
     for (
       const [targetDir, sourcePath] of Object.entries(manifest.folderRules)
     ) {
+      const folder = projectFolderOf(targetDir);
+      if (folder === null) {
+        throw new Error(
+          `folder rules target "${targetDir}" in ${specifier} leaves the project`,
+        );
+      }
       // deno-lint-ignore no-await-in-loop
       const content = await fetchRemoteFile(specifier, sourcePath);
-      const targetPath = `${root}/${targetDir}/.folder-rules.md`;
+      const folderPath = folder === "" ? root : `${root}/${folder}`;
       // deno-lint-ignore no-await-in-loop
-      await runtime.fs.mkdir(`${root}/${targetDir}`, { recursive: true });
+      await runtime.fs.mkdir(folderPath, { recursive: true });
       // deno-lint-ignore no-await-in-loop
-      await runtime.fs.writeTextFile(targetPath, content);
+      await runtime.fs.writeTextFile(`${folderPath}/.folder-rules.md`, content);
       installedFolderRules.push(`${targetDir}/.folder-rules.md`);
     }
   }
@@ -616,8 +770,8 @@ const packInstall = async (
 
   // Auto-sync tool files
   const config = await persistence.readManifest(root);
-  if (config !== null && config.tools.length > 0) {
-    await syncEngine.syncAll(root, config.tools, config);
+  if (config !== null && (config.tools ?? []).length > 0) {
+    await syncEngine.syncAll(root, config.tools ?? [], config);
     out.writeln(span.dim("  Tool files synced."));
   }
 
@@ -701,15 +855,7 @@ const packUninstall = async (
 
   // Remove the pack's rule, concern and folder-rule files. Each is a separate
   // file, so they are removed concurrently; one that is already gone is fine.
-  const rulesDir = `${root}/${persistence.paths.rulesDir}`;
-  const concernsDir = `${root}/${persistence.paths.concernsDir}`;
-  const packFiles = [
-    ...installed.rules.map((ruleFile) => `${rulesDir}/${ruleFile}`),
-    ...installed.concerns.map((concernFile) => `${concernsDir}/${concernFile}`),
-    ...installed.folderRules.map((folderRulePath) =>
-      `${root}/${folderRulePath}`
-    ),
-  ];
+  const packFiles = installedPackPaths(root, installed);
   await Promise.all(
     packFiles.map((filePath) => runtime.fs.remove(filePath).catch(() => {})),
   );
@@ -722,8 +868,8 @@ const packUninstall = async (
 
   // Auto-sync tool files
   const config = await persistence.readManifest(root);
-  if (config !== null && config.tools.length > 0) {
-    await syncEngine.syncAll(root, config.tools, config);
+  if (config !== null && (config.tools ?? []).length > 0) {
+    await syncEngine.syncAll(root, config.tools ?? [], config);
     out.writeln(span.dim("  Tool files synced."));
   }
 

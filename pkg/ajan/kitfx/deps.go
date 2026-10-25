@@ -6,94 +6,163 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/eser/stack/pkg/ajan/processfx"
 )
 
-// projectFiles maps sentinel filenames to their ProjectType.
-var projectFiles = map[string]ProjectType{
-	"go.mod":       ProjectTypeGo,
-	"deno.json":    ProjectTypeDeno,
-	"deno.jsonc":   ProjectTypeDeno,
-	"package.json": ProjectTypeNode,
+// projectFiles are the config files DetectProjectType looks for, in the
+// order it checks them; the first one found wins.
+var projectFiles = []struct {
+	name string
+	kind ProjectType
+}{
+	{"go.mod", ProjectTypeGo},
+	{"deno.json", ProjectTypeDeno},
+	{"deno.jsonc", ProjectTypeDeno},
+	{"package.json", ProjectTypeNode},
 }
 
-// DetectProjectType scans dir for well-known build-system files and returns
-// the first match. Detection order follows projectFiles map iteration, which
-// is non-deterministic; if multiple project files coexist, the result is
-// implementation-defined (typically the last-iterated winner).
+// DetectProjectType looks in dir for go.mod, deno.json, deno.jsonc and
+// package.json, in that order, and returns the type of the first one found.
 func DetectProjectType(dir string) ProjectDetection {
-	for filename, pt := range projectFiles {
-		path := filepath.Join(dir, filename)
+	for _, candidate := range projectFiles {
+		path := filepath.Join(dir, candidate.name)
 		if _, err := os.Stat(path); err == nil {
-			return ProjectDetection{Type: pt, ConfigFile: path}
+			return ProjectDetection{Type: candidate.kind, ConfigFile: path}
 		}
 	}
 
-	return ProjectDetection{Type: ProjectTypeUnknown}
+	return ProjectDetection{Type: ProjectTypeUnknown, ConfigFile: ""}
 }
 
-// GetDependencyInstructions returns shell install commands for the recipe's
-// declared dependencies, matched against the detected project type.
-//
-// Mismatches (e.g. NPM deps in a Go project) are surfaced as Warnings rather
-// than errors so callers can display them without blocking.
+// languageMatches reports whether a recipe language suits a project type.
+func languageMatches(language string, project ProjectType) bool {
+	switch language {
+	case "go":
+		return project == ProjectTypeGo
+	case "typescript", "javascript":
+		return project == ProjectTypeDeno || project == ProjectTypeNode
+	default:
+		return false
+	}
+}
+
+// GetDependencyInstructions returns the install commands for the recipe's
+// declared dependencies, as the TypeScript kit does: `go get` for each Go
+// module, then `deno add` for each JSR package, then `npm install` for each
+// npm package. When the project type is known and does not suit the recipe's
+// language, Warnings says so; callers show it without blocking.
 func GetDependencyInstructions(recipe *Recipe, detection ProjectDetection) DependencyInstructions {
 	if recipe.Dependencies == nil {
 		return DependencyInstructions{}
 	}
 
 	var instructions []string
+
 	var warnings []string
+
+	if detection.Type != ProjectTypeUnknown && !languageMatches(recipe.Language, detection.Type) {
+		warnings = append(warnings, fmt.Sprintf(
+			"Recipe '%s' is for %s, but detected %s project (%s).",
+			recipe.Name, recipe.Language, detection.Type, filepath.Base(detection.ConfigFile),
+		))
+	}
 
 	deps := recipe.Dependencies
 
-	if len(deps.Go) > 0 {
-		if detection.Type != ProjectTypeGo && detection.Type != ProjectTypeUnknown {
-			warnings = append(warnings,
-				fmt.Sprintf("recipe declares Go dependencies but project type is %q", detection.Type),
-			)
-		}
-
-		for _, pkg := range deps.Go {
-			instructions = append(instructions, "go get "+pkg)
-		}
+	for _, pkg := range deps.Go {
+		instructions = append(instructions, "go get "+pkg)
 	}
 
-	if len(deps.NPM) > 0 {
-		if detection.Type != ProjectTypeNode && detection.Type != ProjectTypeUnknown {
-			warnings = append(warnings,
-				fmt.Sprintf("recipe declares npm dependencies but project type is %q", detection.Type),
-			)
-		}
-
-		if len(deps.NPM) == 1 {
-			instructions = append(instructions, "npm install "+deps.NPM[0])
-		} else {
-			instructions = append(instructions, "npm install "+strings.Join(deps.NPM, " "))
-		}
+	for _, pkg := range deps.JSR {
+		instructions = append(instructions, "deno add "+pkg)
 	}
 
-	if len(deps.JSR) > 0 {
-		if detection.Type != ProjectTypeDeno && detection.Type != ProjectTypeNode && detection.Type != ProjectTypeUnknown {
-			warnings = append(warnings,
-				fmt.Sprintf("recipe declares JSR dependencies but project type is %q", detection.Type),
-			)
-		}
-
-		for _, pkg := range deps.JSR {
-			instructions = append(instructions, "deno add "+pkg)
-		}
+	for _, pkg := range deps.NPM {
+		instructions = append(instructions, "npm install "+pkg)
 	}
 
 	return DependencyInstructions{
 		Instructions: instructions,
 		Warnings:     warnings,
 	}
+}
+
+// InstallOptions configures RunInstallCommands.
+type InstallOptions struct {
+	CWD string
+	// Stdout and Stderr receive the commands' output; nil discards it.
+	Stdout io.Writer
+	Stderr io.Writer
+	// Verbose prints "  [install] <command>" on Stdout before each one.
+	Verbose bool
+	// Timeout bounds each command; zero selects DefaultCommandTimeout.
+	Timeout time.Duration
+}
+
+// RunInstallCommands runs the install commands in order with their output on
+// opts.Stdout and opts.Stderr, and stops at the first one that fails, as the
+// TypeScript kit does. A failed result's Error is "Exit code <n>", or why the
+// command could not start.
+func RunInstallCommands(ctx context.Context, instructions []string, opts InstallOptions) []InstallResult {
+	timeout := opts.Timeout
+	if timeout <= 0 {
+		timeout = DefaultCommandTimeout
+	}
+
+	results := make([]InstallResult, 0, len(instructions))
+
+	for _, instruction := range instructions {
+		parts := strings.Fields(instruction)
+		if len(parts) == 0 {
+			continue
+		}
+
+		if opts.Verbose {
+			_, _ = fmt.Fprintf(writerOrDiscard(opts.Stdout), "  [install] %s\n", instruction)
+		}
+
+		result := runStreamingInstall(ctx, instruction, parts, opts, timeout)
+		results = append(results, result)
+
+		if !result.Success {
+			break
+		}
+	}
+
+	return results
+}
+
+func runStreamingInstall(ctx context.Context, instruction string, parts []string, opts InstallOptions, timeout time.Duration) InstallResult {
+	cmdCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	cmd := exec.CommandContext(cmdCtx, parts[0], parts[1:]...) //nolint:gosec // instruction comes from registry manifest
+	cmd.Dir = opts.CWD
+	cmd.Stdout = opts.Stdout
+	cmd.Stderr = opts.Stderr
+	processfx.HardenCommand(cmd)
+
+	err := cmd.Run()
+	if err == nil {
+		return InstallResult{Command: instruction, Success: true, Error: ""}
+	}
+
+	if exitErr, ok := errors.AsType[*exec.ExitError](err); ok && cmdCtx.Err() == nil {
+		return InstallResult{Command: instruction, Success: false, Error: fmt.Sprintf("Exit code %d", exitErr.ExitCode())}
+	}
+
+	if ctx.Err() == nil && errors.Is(cmdCtx.Err(), context.DeadlineExceeded) {
+		err = fmt.Errorf("no exit within %v: %w", timeout, context.DeadlineExceeded)
+	}
+
+	return InstallResult{Command: instruction, Success: false, Error: err.Error()}
 }
 
 // InstallDependencies executes each instruction in cwd and records results.

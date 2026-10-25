@@ -177,8 +177,9 @@ func TestUnknownToolIsTreatedAsAWrite(t *testing.T) {
 //
 // dispatchClientMessage used to rewrite an empty decision to "allow", so a
 // truncated or malformed client message granted a permission the user was never
-// asked about. The decision must not reach the worker at all, and the client
-// must be told why.
+// asked about. The decision must not reach the worker at all, the ledger must
+// not record it as a decision, and the client must be told why; the ledger
+// keeps the rejection, which is the event the client got.
 func TestMalformedDecisionIsRejectedNotAllowed(t *testing.T) {
 	for _, decision := range []string{"", "yes", "ALLOW", "allow "} {
 		worker := &recordingWorker{} //nolint:exhaustruct
@@ -196,14 +197,25 @@ func TestMalformedDecisionIsRejectedNotAllowed(t *testing.T) {
 		}
 
 		data, _ := os.ReadFile(path) //nolint:gosec // a path this test just built
-		if len(data) != 0 {
-			t.Fatalf("decision %q was journalled: %q", decision, string(data))
+
+		var journalled struct {
+			Type     string `json:"type"`
+			Decision string `json:"decision"`
+		}
+
+		if err := json.Unmarshal(data, &journalled); err != nil || strings.Count(string(data), "\n") != 1 {
+			t.Fatalf("decision %q left a ledger of %q, want the one rejection line", decision, string(data))
+		}
+
+		if journalled.Type != "permission_response_rejected" || journalled.Decision != decision {
+			t.Fatalf("decision %q was journalled as %+v, want its rejection", decision, journalled)
 		}
 
 		select {
 		case evt := <-client:
-			if evt.Type != "permission_response_rejected" {
-				t.Fatalf("decision %q produced a %s event", decision, evt.Type)
+			if evt.Type != "permission_response_rejected" || evt.Line != 1 {
+				t.Fatalf("decision %q produced a %s event on ledger line %d, want the rejection on line 1",
+					decision, evt.Type, evt.Line)
 			}
 		default:
 			t.Fatalf("decision %q was dropped silently", decision)

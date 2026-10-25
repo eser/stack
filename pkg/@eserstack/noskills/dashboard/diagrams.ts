@@ -35,7 +35,8 @@ export type StaleDiagram = {
 // Paths
 // =============================================================================
 
-const DIAGRAMS_FILE = ".eser/diagrams.json";
+const DIAGRAMS_DIR = ".eser";
+const DIAGRAMS_FILE = `${DIAGRAMS_DIR}/diagrams.json`;
 
 // =============================================================================
 // Scanning
@@ -64,12 +65,13 @@ const extractReferences = (content: string): readonly string[] => {
     refs.add(match[0]);
   }
 
-  // Match module-like references: @eserstack/noskills, dashboard/state
+  // Match module-like references: @eserstack/noskills, dashboard/state. The
+  // file names found above are blanked first, so "src/login.ts" does not
+  // also yield "src/login".
+  const rest = content.replace(filePattern, " ");
   const modulePattern = /(?:@[\w-]+\/[\w-]+|[\w-]+\/[\w-]+)/g;
-  while ((match = modulePattern.exec(content)) !== null) {
-    if (!match[0].includes(".")) {
-      refs.add(match[0]);
-    }
+  while ((match = modulePattern.exec(rest)) !== null) {
+    refs.add(match[0]);
   }
 
   return [...refs];
@@ -148,7 +150,9 @@ const scanMarkdownFile = async (
           lastVerified: now,
         });
       }
-      // Skip processed lines (let the loop continue naturally)
+      // The collected lines are one drawing: continue after them, so each
+      // of its lines does not start a drawing of its own.
+      i = j - 1;
     }
   }
 
@@ -236,11 +240,12 @@ export const readRegistry = async (
   }
 };
 
-/** Write the diagram registry. */
+/** Write the diagram registry, creating `.eser/` when it does not exist. */
 export const writeRegistry = async (
   root: string,
   entries: readonly DiagramEntry[],
 ): Promise<void> => {
+  await runtime.fs.mkdir(`${root}/${DIAGRAMS_DIR}`, { recursive: true });
   await runtime.fs.writeTextFile(
     `${root}/${DIAGRAMS_FILE}`,
     JSON.stringify(entries, null, 2) + "\n",
@@ -289,8 +294,9 @@ export const checkStaleness = async (
   const stale: StaleDiagram[] = [];
 
   for (const diagram of registry) {
-    for (const ref of diagram.referencedFiles) {
-      // Check if any modified file matches a reference (partial match)
+    // The first reference a modified file matches (partially) is the reason;
+    // one reason per diagram is enough.
+    diagramRefs: for (const ref of diagram.referencedFiles) {
       for (const mod of modSet) {
         if (mod.includes(ref) || ref.includes(mod)) {
           stale.push({
@@ -299,7 +305,7 @@ export const checkStaleness = async (
             type: diagram.type,
             reason: `${mod} was modified but diagram references ${ref}`,
           });
-          break; // one reason per diagram is enough
+          break diagramRefs;
         }
       }
     }

@@ -25,7 +25,7 @@ const requireLib = async () => {
   if (lib === null) {
     throw new Error(
       "@eserstack/ajan native library is not available — " +
-        "EserAjanShellTui* requires FFI or command-mode WASM" +
+        "EserAjanShellTui* requires the native library (the WASM fallback does not serve shell functions)" +
         ffiClient.describeLoadFailure(),
     );
   }

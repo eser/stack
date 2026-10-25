@@ -4,7 +4,7 @@
  * Tests for Hot Module Replacement WebSocket management
  */
 
-import * as assert from "@std/assert";
+import * as assert from "@eserstack/test-kit/assert";
 import * as hmrManager from "../domain/hmr-manager.ts";
 
 /**

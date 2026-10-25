@@ -4,7 +4,7 @@
  * One-shot command execution through the Go bridge's `EserAjanShellExec`.
  *
  * `CommandBuilder.spawn()` and `goExec()` both build their request here, so the
- * two cannot drift apart again. bridge.go `shellExecRequest` reads `env` as
+ * two cannot drift apart again. the bridge's `shellExecRequest` reads `env` as
  * `KEY=VALUE` strings and `timeout` as a Go duration string; a `Record` or a
  * plain number fails its JSON unmarshal with "invalid request JSON".
  *
@@ -16,7 +16,7 @@ import * as types from "./types.ts";
 
 /**
  * How long a command may run when the caller sets no timeout: 10 minutes, the
- * same value as bridge.go `defaultShellExecTimeout`. Every request carries it
+ * same value as the bridge's `defaultShellExecTimeout`. Every request carries it
  * explicitly, so the runtime spawn and the bridge stop a command at the same
  * point.
  */
@@ -73,7 +73,7 @@ export type ExecGoOptions = {
   readonly timeout?: number;
 };
 
-/** The JSON body of an `EserAjanShellExec` call: bridge.go `shellExecRequest`. */
+/** The JSON body of an `EserAjanShellExec` call: the bridge's `shellExecRequest`. */
 export type ExecGoRequest = {
   readonly command: string;
   readonly args?: readonly string[];
@@ -125,7 +125,7 @@ export const runExecGo = (
   request: ExecGoRequest,
 ): ExecGoReply => {
   const raw = lib.symbols.EserAjanShellExec(JSON.stringify(request));
-  // bridge.go shellExecResponse: stdout and stderr are omitted when empty,
+  // The bridge's shellExecResponse: stdout and stderr are omitted when empty,
   // code is always present.
   const reply = JSON.parse(raw) as {
     readonly stdout?: string;

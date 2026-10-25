@@ -24,7 +24,6 @@ export const BROWSER_CAPABILITIES: RuntimeCapabilities = {
   stdin: false,
   stdout: false,
   http: false,
-  kv: false,
 } as const;
 
 /**

@@ -141,6 +141,20 @@ const validationOf = (
 // JSON formatter (default — for agents and pipes)
 // =============================================================================
 
+/**
+ * An acceptance criterion or a debt item: "id: text" for the { id, text }
+ * objects the compiler emits, the value itself for anything else.
+ */
+const itemLabel = (item: unknown): string => {
+  if (item === null || typeof item !== "object" || !("text" in item)) {
+    return `${item}`;
+  }
+
+  const id = "id" in item ? item.id : undefined;
+
+  return id === undefined ? `${item.text}` : `${id}: ${item.text}`;
+};
+
 const formatJson = (data: unknown): string => {
   return JSON.stringify(data, null, 2);
 };
@@ -188,17 +202,17 @@ const formatMarkdown = (data: unknown): string => {
     }
   }
 
-  const statusReport = get<{ criteria: string[] }>(obj, "statusReport");
+  const statusReport = get<{ criteria: unknown[] }>(obj, "statusReport");
   if (statusReport !== undefined) {
     lines.push("## Acceptance Criteria");
     lines.push("");
     for (const c of statusReport.criteria) {
-      lines.push(`- [ ] ${c}`);
+      lines.push(`- [ ] ${itemLabel(c)}`);
     }
     lines.push("");
   }
 
-  const debt = get<{ fromIteration: number; items: string[]; note: string }>(
+  const debt = get<{ fromIteration: number; items: unknown[]; note: string }>(
     obj,
     "previousIterationDebt",
   );
@@ -208,7 +222,7 @@ const formatMarkdown = (data: unknown): string => {
     lines.push(`> ${debt.note}`);
     lines.push("");
     for (const item of debt.items) {
-      lines.push(`- ${item}`);
+      lines.push(`- ${itemLabel(item)}`);
     }
     lines.push("");
   }
@@ -328,16 +342,16 @@ const formatText = (data: unknown): string => {
     }
   }
 
-  const statusReport = get<{ criteria: string[] }>(obj, "statusReport");
+  const statusReport = get<{ criteria: unknown[] }>(obj, "statusReport");
   if (statusReport !== undefined) {
     lines.push("");
     lines.push("Criteria:");
     for (const c of statusReport.criteria) {
-      lines.push(`  - ${c}`);
+      lines.push(`  - ${itemLabel(c)}`);
     }
   }
 
-  const debt = get<{ items: string[]; note: string }>(
+  const debt = get<{ items: unknown[]; note: string }>(
     obj,
     "previousIterationDebt",
   );
@@ -345,7 +359,7 @@ const formatText = (data: unknown): string => {
     lines.push("");
     lines.push(debt.note);
     for (const item of debt.items) {
-      lines.push(`  - ${item}`);
+      lines.push(`  - ${itemLabel(item)}`);
     }
   }
 
@@ -416,7 +430,11 @@ export const writeFormatted = async (
   data: unknown,
   fmt: OutputFormat,
 ): Promise<void> => {
-  const text = format(data, fmt);
+  await writeLine(format(data, fmt));
+};
+
+/** Writes text that is already formatted, with its newline, to stdout. */
+export const writeLine = async (text: string): Promise<void> => {
   const encoder = new TextEncoder();
   const writer = runtime.process.stdout.getWriter();
   await writer.write(encoder.encode(text + "\n"));

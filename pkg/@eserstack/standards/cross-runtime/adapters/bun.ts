@@ -38,7 +38,6 @@ export const BUN_CAPABILITIES: RuntimeCapabilities = {
   stdin: true,
   stdout: true,
   http: true,
-  kv: false,
 } as const;
 
 /** The part of Bun's ServerWebSocket that the adapter calls. */
@@ -54,6 +53,7 @@ type BunServer = {
   readonly hostname: string;
   readonly port: number;
   upgrade(request: Request, options: { data: BunSocketBinding }): boolean;
+  requestIP(request: Request): { address: string; port: number } | null;
   stop(closeActiveConnections?: boolean): Promise<void>;
 };
 
@@ -280,7 +280,12 @@ const createBunHttp = (): RuntimeHttp => {
 
           let response: Response;
           try {
-            response = await respond(request);
+            const peer = bunServer.requestIP(request);
+            response = await respond(request, {
+              remoteAddr: peer === null
+                ? null
+                : { hostname: peer.address, port: peer.port },
+            });
           } finally {
             upgrades.delete(request);
           }
@@ -334,6 +339,7 @@ const createBunHttp = (): RuntimeHttp => {
         options.signal?.addEventListener("abort", stop, { once: true });
       }
 
+      options.onListen?.({ hostname: server.hostname, port: server.port });
       resolve({
         hostname: server.hostname,
         port: server.port,

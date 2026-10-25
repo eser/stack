@@ -120,6 +120,10 @@ type RunOptions struct {
 	Root string
 	// Fix enables auto-fix mode, passed as options["fix"].
 	Fix bool
+	// DryRun reports what a run would do without changing anything: it is
+	// passed as options["dryRun"] (the shell tool then never runs a
+	// fixCommand), and OnMutations is not called.
+	DryRun bool
 	// Only runs only the named step; empty string means run all steps.
 	Only string
 	// Args are extra CLI arguments passed as options["_args"].
@@ -149,9 +153,11 @@ func (o *RunOptions) defaultTimeout() time.Duration {
 }
 
 // WorkflowsConfig mirrors the top-level .eser/manifest YAML structure.
+// ParseManifest and LoadManifest fill it from a manifest file.
 type WorkflowsConfig struct {
 	Stack     []string
 	Workflows []*WorkflowDefinition
+	Scripts   map[string]ScriptConfig
 }
 
 // WorkflowNotFoundError is returned when an ID cannot be resolved.

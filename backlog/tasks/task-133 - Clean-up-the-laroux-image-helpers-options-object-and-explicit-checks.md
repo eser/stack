@@ -1,9 +1,10 @@
 ---
 id: TASK-133
 title: 'Clean up the laroux image helpers: options object and explicit checks'
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-10-04 20:51'
+updated_date: '2026-10-15 19:34'
 labels:
   - laroux
   - refactor
@@ -23,7 +24,15 @@ buildPictureSources(basePath, originalExt, formats, srcSet?, sizes?) in pkg/@ese
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 buildPictureSources takes { basePath, ext, formats, srcSet, sizes } and laroux-react is updated
-- [ ] #2 The placeholder helpers compare explicitly, with tests for blur with, without and with an empty data URL
-- [ ] #3 The breaking change is noted in the changelog
+- [x] #1 buildPictureSources takes { basePath, ext, formats, srcSet, sizes } and laroux-react is updated
+- [x] #2 The placeholder helpers compare explicitly, with tests for blur with, without and with an empty data URL
+- [x] #3 The breaking change is noted in the changelog
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Completed in round 3 of the autonomous backlog run (2026-10-05); deno task cli ok passes.
+
+AC #3 is met. The buildPictureSources options-object change and the quoted buildPlaceholderStyles url are in CHANGELOG Unreleased > Migration > @eserstack/laroux and in the laroux README. The example type-checks against laroux/image (PictureSourcesOptions, ParsedImageSrc). ACs #1 and #2 belong to the laroux unit.
+<!-- SECTION:NOTES:END -->

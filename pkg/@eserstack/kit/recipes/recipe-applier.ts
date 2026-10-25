@@ -340,7 +340,7 @@ const applyFile = async (
   }
 
   const content = await registryFetcher.fetchRecipeFile(
-    options.registryUrl,
+    registryFetcher.sourceBaseFor(file, options.registryUrl),
     file.source,
   );
 
@@ -364,7 +364,7 @@ const applyFolder = async (
 ): Promise<void> => {
   // Fetch all files in the folder into memory first
   const fetchedFiles = await registryFetcher.fetchRecipeFolder(
-    options.registryUrl,
+    registryFetcher.sourceBaseFor(file, options.registryUrl),
     file.source,
   );
 

@@ -156,11 +156,29 @@ export const exerciseHttp = async (
 ): Promise<Record<string, unknown>> => {
   const controller = new AbortController();
   const serverEvents: string[] = [];
+  let listenedPort: number | null = null;
+  let peer: unknown = null;
 
   const server = await http.serve(
-    { port: 0, signal: controller.signal },
-    (request) => handle(http, request, serverEvents),
+    {
+      port: 0,
+      signal: controller.signal,
+      onListen: (addr) => {
+        listenedPort = addr.port;
+      },
+    },
+    (request, info) => {
+      if (new URL(request.url).pathname === "/hello") {
+        // The client connects from this machine, on a port the system picks.
+        peer = info.remoteAddr === null
+          ? null
+          : [info.remoteAddr.hostname, info.remoteAddr.port > 0];
+      }
+
+      return handle(http, request, serverEvents);
+    },
   );
+  const listenedBeforeResolve = listenedPort === server.port;
 
   const base = `http://127.0.0.1:${server.port}`;
   const socketBase = `ws://127.0.0.1:${server.port}`;
@@ -222,6 +240,8 @@ export const exerciseHttp = async (
 
   return {
     hostname: server.hostname,
+    listenedBeforeResolve,
+    peer,
     get: [get.status, await get.text()],
     post: [post.status, await post.text(), post.headers.getSetCookie()],
     stream: await stream.text(),
@@ -238,6 +258,8 @@ export const exerciseHttp = async (
 /** What {@link exerciseHttp} returns on every runtime. */
 export const EXPECTED_HTTP_RESULT: Record<string, unknown> = {
   hostname: "127.0.0.1",
+  listenedBeforeResolve: true,
+  peer: ["127.0.0.1", true],
   get: [200, "GET /hello?name=probe"],
   post: [200, "POST posted", ["a=1", "b=2"]],
   stream: "one two three",

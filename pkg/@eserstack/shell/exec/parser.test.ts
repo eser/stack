@@ -1,6 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import * as assert from "@std/assert";
+import * as assert from "@eserstack/test-kit/assert";
 import * as exec from "./mod.ts";
 
 // The property under test is that an interpolated argument arrives at the

@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/eser/stack/pkg/ajan/httpfx"
-	"github.com/eser/stack/pkg/ajan/lib"
+	"github.com/eser/stack/pkg/ajan/lib/netlib"
 )
 
 // ── Push REST handlers ────────────────────────────────────────────────────────
@@ -50,7 +50,7 @@ func (s *Server) handleSubscribe(ctx *httpfx.Context) httpfx.Result {
 
 	// Push services are public HTTPS endpoints; anything else would let an
 	// authenticated user aim the server's signed POSTs at internal addresses.
-	if err := lib.ValidateExternalURL(req.Endpoint, true); err != nil {
+	if err := netlib.ValidateExternalURL(req.Endpoint, true); err != nil {
 		return ctx.Results.BadRequest(httpfx.WithPlainText("invalid push endpoint"))
 	}
 

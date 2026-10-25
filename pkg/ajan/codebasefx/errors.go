@@ -18,4 +18,8 @@ var (
 	// ErrNoWorkspaceMembers means the root package.json `workspaces` and
 	// deno.json `workspace` fields matched no directory with a named package.
 	ErrNoWorkspaceMembers = errors.New("no workspace members found")
+
+	// ErrUnreadableWalkRoot means the root of a file walk does not exist or
+	// cannot be read. Unreadable entries below the root are skipped instead.
+	ErrUnreadableWalkRoot = errors.New("walk root cannot be read")
 )

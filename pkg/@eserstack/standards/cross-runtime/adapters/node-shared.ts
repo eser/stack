@@ -48,12 +48,14 @@ const mapStats = (stats: deps.fs.Stats): FileInfo => ({
 });
 
 const handleFsError = (error: unknown, path: string): never => {
-  if (
-    error instanceof Error &&
-    "code" in error &&
-    error.code === "ENOENT"
-  ) {
-    throw new types.NotFoundError(path);
+  if (error instanceof Error && "code" in error) {
+    if (error.code === "ENOENT") {
+      throw new types.NotFoundError(path);
+    }
+
+    if (error.code === "EACCES" || error.code === "EPERM") {
+      throw new types.PermissionDeniedError(path, { cause: error });
+    }
   }
   throw error;
 };

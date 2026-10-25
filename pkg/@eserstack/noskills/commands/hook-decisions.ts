@@ -1139,6 +1139,39 @@ export const askMatch = (
 // Stop: user-facing iteration notice
 // =============================================================================
 
+/** The restart threshold when the manifest does not set one. */
+export const DEFAULT_RESTART_THRESHOLD = 15;
+
+/**
+ * The manifest's `maxIterationsBeforeRestart`, or
+ * {@link DEFAULT_RESTART_THRESHOLD} when the manifest is missing, lacks it or
+ * holds something other than a positive whole number.
+ *
+ * @param config - The noskills section of the manifest, or null
+ * @returns The iteration count at which the restart notice shows
+ */
+export const restartThreshold = (
+  config: { readonly maxIterationsBeforeRestart?: unknown } | null,
+): number => {
+  const value = config?.maxIterationsBeforeRestart;
+
+  return typeof value === "number" && Number.isInteger(value) && value > 0
+    ? value
+    : DEFAULT_RESTART_THRESHOLD;
+};
+
+/**
+ * The real git binary NOSKILLS_REAL_GIT names, or undefined when it is unset
+ * or empty, so the caller resolves git from PATH instead.
+ *
+ * @param value - The variable's value
+ * @returns The path, or undefined
+ */
+export const explicitRealGit = (
+  value: string | undefined,
+): string | undefined =>
+  value === undefined || value === "" ? undefined : value;
+
 /**
  * The stderr notice the Stop hook prints for the user once a spec reaches
  * `maxIterationsBeforeRestart` iterations, or null below it. The agent does

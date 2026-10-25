@@ -5,11 +5,9 @@
  */
 
 /**
- * Bundler backend types.
- * - "deno-bundler": Uses native Deno.bundle() API (stable, requires --unstable-bundle)
- * - "rolldown": Uses Rolldown bundler (faster, advanced chunking)
+ * Bundler backend: Rolldown, for the client and the server bundles.
  */
-export type BundlerBackend = "deno-bundler" | "rolldown";
+export type BundlerBackend = "rolldown";
 
 /**
  * Build settings type

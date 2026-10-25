@@ -1,4 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
+
+//go:build !wasip1
+
 // Wave 4 Phase D — leak gate: verify HTTP stream handles are released on close.
 
 package main

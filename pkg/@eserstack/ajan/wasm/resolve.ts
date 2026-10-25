@@ -31,11 +31,8 @@ const getEnvVar = (name: string): string | undefined => {
   return undefined;
 };
 
-/** WASM file names for each mode. */
-const WASM_FILENAMES: Record<string, string> = {
-  command: "eser-ajan.wasm",
-  reactor: "eser-ajan-reactor.wasm",
-};
+/** The WASM module's file name. */
+const WASM_FILENAME = "eser-ajan.wasm";
 
 /**
  * Resolves the path to a WASM file.
@@ -43,24 +40,20 @@ const WASM_FILENAMES: Record<string, string> = {
  * Search order:
  * 1. `ESER_AJAN_WASM_PATH` environment variable (explicit override)
  * 2. Adjacent to this module (`./eser-ajan.wasm`)
- * 3. In the dist directory (`dist/wasi/` or `dist/wasi-reactor/`)
+ * 3. In the dist directory (`dist/wasi/`)
  * 4. npm package (`node_modules/@eserstack/ajan-wasm/`)
  * 5. System paths (`/usr/local/lib/`)
  *
- * @param mode - The WASM mode: "command" or "reactor"
  * @param moduleDirHint - Optional path to the directory containing this module.
  *   Callers should pass `import.meta.dirname` when available.
  * @throws {Error} If no WASM file is found at any location.
  */
-export const resolveWasmPath = (
-  mode: "command" | "reactor",
-  moduleDirHint?: string,
-): string => {
-  const wasmFile = WASM_FILENAMES[mode] ?? WASM_FILENAMES["command"]!;
+export const resolveWasmPath = (moduleDirHint?: string): string => {
+  const wasmFile = WASM_FILENAME;
   // Also try .wasm.bin — used in compiled binaries where .wasm is renamed
   // to avoid Deno's static WASM import validation during deno compile.
   const wasmVariants = [wasmFile, `${wasmFile}.bin`];
-  const distSubdir = mode === "reactor" ? "wasi-reactor" : "wasi";
+  const distSubdir = "wasi";
   const checkedPaths: string[] = [];
 
   // 1. Environment variable override

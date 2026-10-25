@@ -10,6 +10,7 @@
  */
 
 import * as task from "@eserstack/functions/task";
+import { runtime } from "@eserstack/standards/cross-runtime";
 import * as results from "@eserstack/primitives/results";
 import * as span from "@eserstack/streams/span";
 import * as registryFetcher from "../registry-fetcher.ts";
@@ -137,8 +138,15 @@ export const listRecipes = (
       const lib = ffiClient.getLib();
 
       if (lib !== null) {
+        // The same source the TypeScript path below loads: Go would search
+        // for a local registry whether or not --local was given.
+        const registryUrl = input.registrySource ??
+          (input.local === true
+            ? await registryFetcher.detectLocalRegistry()
+            : undefined) ??
+          registryFetcher.DEFAULT_REGISTRY_URL;
         const raw = lib.symbols.EserAjanKitListRecipes(
-          JSON.stringify({ registryUrl: input.registrySource, cwd: "." }),
+          JSON.stringify({ registryUrl, cwd: runtime.process.cwd() }),
         );
         const goResult = JSON.parse(raw) as {
           manifest?: {

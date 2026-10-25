@@ -13,6 +13,7 @@
 import * as pages from "./routes/pages.ts";
 import * as api from "./routes/api.ts";
 import * as sse from "./routes/sse.ts";
+import * as staticRoute from "./routes/static.ts";
 import * as wsBridge from "./terminal/ws-bridge.ts";
 import * as muxHost from "./terminal/mux-host.ts";
 import * as auth from "./auth.ts";
@@ -40,38 +41,8 @@ const STATIC_DIR: string | null = import.meta.dirname === undefined
   ? null
   : runtime.path.join(import.meta.dirname, "static");
 
-const MIME_TYPES: Record<string, string> = {
-  ".css": "text/css",
-  ".js": "application/javascript",
-  ".html": "text/html",
-  ".json": "application/json",
-  ".png": "image/png",
-  ".svg": "image/svg+xml",
-};
-
-const serveStatic = async (path: string): Promise<Response> => {
-  if (STATIC_DIR === null) {
-    return new Response("Not found", { status: 404 });
-  }
-
-  try {
-    // Join against the static dir, then guard against path traversal in a
-    // separator-agnostic way: the resolved file must stay inside STATIC_DIR.
-    const filePath = runtime.path.join(STATIC_DIR, path);
-    const rel = runtime.path.relative(STATIC_DIR, filePath);
-    if (rel.startsWith("..") || runtime.path.isAbsolute(rel)) {
-      return new Response("Not found", { status: 404 });
-    }
-    const content = await runtime.fs.readTextFile(filePath);
-    const ext = runtime.path.extname(filePath);
-    const contentType = MIME_TYPES[ext] ?? "application/octet-stream";
-    return new Response(content, {
-      headers: { "content-type": contentType },
-    });
-  } catch {
-    return new Response("Not found", { status: 404 });
-  }
-};
+const serveStatic = (path: string): Promise<Response> =>
+  staticRoute.serveStatic(STATIC_DIR, path);
 
 // =============================================================================
 // Request router
@@ -200,10 +171,15 @@ const route = async (
     );
   }
 
-  // Spec detail page
+  // Spec detail page. The path is percent-encoded; the spec is its decoded
+  // name, which must name one directory under .eser/specs/.
   if (path.startsWith("/spec/") && method === "GET") {
-    const specName = path.slice("/spec/".length);
-    return pages.handleSpecDetail(root, specName);
+    const specName = pages.specNameFromPath(path.slice("/spec/".length));
+    if (specName === null) {
+      return pages.specNotFound();
+    }
+
+    return pages.handleSpecDetail(root, specName, guard.token);
   }
 
   // Dashboard (home)

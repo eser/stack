@@ -1,5 +1,9 @@
 # 📑 [@eserstack/standards](./)
 
+> **Note:** JSR is frozen at 4.5.x. From 5.0.0, `@eserstack/standards` is
+> published on npm under the same name (`pnpm add @eserstack/standards`); the
+> JSR versions stay available but get no updates.
+
 > **eserstack Foundation** —
 > [eser/stack on GitHub](https://github.com/eser/stack) **Install:**
 > `pnpm add jsr:@eserstack/standards`
@@ -219,6 +223,25 @@ const mockRuntime = await standards.crossRuntime.createRuntime({
 });
 ```
 
+File operations throw typed errors: `NotFoundError` for a missing path,
+`AlreadyExistsError` for one that exists, and `PermissionDeniedError` (from
+`EACCES` or `EPERM`) for one the process may not access. Each carries the
+`path`; `PermissionDeniedError` keeps the runtime's error as `cause`.
+
+```typescript
+import * as standards from "@eserstack/standards";
+
+const { runtime, PermissionDeniedError } = standards.crossRuntime;
+
+try {
+  await runtime.fs.readTextFile("/etc/shadow");
+} catch (error) {
+  if (error instanceof PermissionDeniedError) {
+    console.error(`no read access to ${error.path}`);
+  }
+}
+```
+
 #### File modes and live processes
 
 `runtime.fs.stat()` and `runtime.fs.lstat()` return a `FileInfo` carrying
@@ -244,6 +267,12 @@ browsers have no server. It resolves once the server listens, binds to
 closing open connections and WebSockets. A handler that throws sends the client
 a 500 response, and the error is printed to stderr.
 
+The handler gets a second argument, `info`. `info.remoteAddr` is the
+`{ hostname, port }` of the peer's socket, or `null` when the runtime cannot
+tell; it is the direct peer, so behind a proxy it is the proxy, and a forwarded
+header is yours to trust or not. `onListen` in the options is called with the
+bound address, the chosen port when `port` is 0, before `serve` resolves.
+
 Inside a handler, `runtime.http.upgradeWebSocket(request)` accepts a WebSocket
 handshake. Add the socket's listeners, then return `response` unchanged from the
 handler. `runtime.process.addSignalListener` and `removeSignalListener` listen
@@ -259,10 +288,15 @@ const { runtime } = standards.crossRuntime;
 const controller = new AbortController();
 
 const server = await runtime.http.serve(
-  { port: 8080, signal: controller.signal },
-  (request) => {
+  {
+    port: 8080,
+    hostname: "127.0.0.1",
+    signal: controller.signal,
+    onListen: ({ hostname, port }) => console.log(`http://${hostname}:${port}`),
+  },
+  (request, info) => {
     if (request.headers.get("upgrade")?.toLowerCase() !== "websocket") {
-      return new Response("Hello from every runtime");
+      return new Response(`Hello, ${info.remoteAddr?.hostname ?? "stranger"}`);
     }
 
     // Echo each WebSocket message back to the client.

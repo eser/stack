@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/eser/stack/pkg/ajan/noskillsfx"
 )
@@ -47,19 +48,17 @@ func TestGcStaleSessionsNeverDeletesOutsideSessionsDir(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if _, err := noskillsfx.GcStaleSessions(root); err != nil {
-		t.Fatal(err)
-	}
+	noskillsfx.GcStaleSessions(root, time.Now())
 
 	if _, err := os.Stat(victim); err != nil {
 		t.Fatalf("victim file was removed: %v", err)
 	}
 
-	if _, err := noskillsfx.DeleteSession(root, "../../../victim"); !errors.Is(err, noskillsfx.ErrInvalidSessionID) {
-		t.Fatalf("DeleteSession traversal err = %v, want ErrInvalidSessionID", err)
+	if noskillsfx.DeleteSession(root, "../../../victim") {
+		t.Fatal("DeleteSession accepted a traversal id")
 	}
 
-	if err := noskillsfx.CreateSession(root, noskillsfx.Session{ID: "../x"}); !errors.Is(err, noskillsfx.ErrInvalidSessionID) {
+	if err := noskillsfx.CreateSession(root, &noskillsfx.Session{ID: "../x"}); !errors.Is(err, noskillsfx.ErrInvalidSessionID) { //nolint:exhaustruct // only the id matters
 		t.Fatalf("CreateSession traversal err = %v, want ErrInvalidSessionID", err)
 	}
 }

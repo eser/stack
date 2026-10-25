@@ -1,7 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 import * as bdd from "@std/testing/bdd";
-import * as assert from "@std/assert";
+import * as assert from "@eserstack/test-kit/assert";
 import * as events from "./events.ts";
 import { runtime } from "@eserstack/standards/cross-runtime";
 
@@ -76,6 +76,25 @@ bdd.describe("appendEvent", () => {
       assert.assert(typeof parsed.ts === "string");
       assert.assert(typeof parsed.type === "string");
     }
+  });
+
+  bdd.it("keeps every event of concurrent appends", async () => {
+    const root = await makeTempDir();
+    const count = 40;
+
+    await Promise.all(
+      Array.from(
+        { length: count },
+        (_, i) => events.appendEvent(root, makeEvent("note", `spec-${i}`)),
+      ),
+    );
+
+    const written = await events.readEvents(root);
+    assert.assertEquals(written.length, count);
+    assert.assertEquals(
+      new Set(written.map((event) => event.spec)).size,
+      count,
+    );
   });
 
   bdd.it("creates events directory if missing", async () => {
@@ -172,6 +191,74 @@ bdd.describe("readEvents", () => {
 // watchEvents
 // =============================================================================
 
+bdd.describe("openEventTail", () => {
+  const encoder = new TextEncoder();
+
+  /** Appends raw bytes to the events log, as a writer part-way through a line. */
+  const appendBytes = async (root: string, bytes: Uint8Array) =>
+    await runtime.fs.writeFile(`${root}/${events.eventsFile}`, bytes, {
+      append: true,
+    });
+
+  bdd.it("starts at the end of the log", async () => {
+    const root = await makeTempDir();
+    await events.appendEvent(root, makeEvent("spec-created", "old"));
+
+    const tail = await events.openEventTail(root);
+    await events.appendEvent(root, makeEvent("note", "new"));
+
+    const read = await tail.poll();
+    assert.assertEquals(read.map((event) => event.spec), ["new"]);
+    assert.assertEquals(await tail.poll(), []);
+  });
+
+  bdd.it("keeps a half-written line until its newline arrives", async () => {
+    const root = await makeTempDir();
+    const tail = await events.openEventTail(root);
+    const line = encoder.encode(
+      JSON.stringify(makeEvent("note", "split")) + "\n",
+    );
+
+    await appendBytes(root, line.slice(0, 20));
+    assert.assertEquals(await tail.poll(), []);
+
+    await appendBytes(root, line.slice(20));
+    const read = await tail.poll();
+    assert.assertEquals(read.map((event) => event.spec), ["split"]);
+  });
+
+  bdd.it("reads a line split inside a multi-byte character", async () => {
+    const root = await makeTempDir();
+    await events.appendEvent(root, makeEvent("note", "before", { user: "Öz" }));
+    const tail = await events.openEventTail(root);
+
+    const line = encoder.encode(
+      JSON.stringify(makeEvent("note", "after", { user: "Özge ğüş" })) + "\n",
+    );
+    // The byte after the first "Ö" byte, so the character is cut in two.
+    const cut = line.indexOf(0xc3) + 1;
+
+    await appendBytes(root, line.slice(0, cut));
+    assert.assertEquals(await tail.poll(), []);
+
+    await appendBytes(root, line.slice(cut));
+    const read = await tail.poll();
+    assert.assertEquals(read.length, 1);
+    assert.assertEquals(read[0]!.user, "Özge ğüş");
+  });
+
+  bdd.it("reads nothing from a missing log until it is written", async () => {
+    const root = await makeTempDir();
+    const tail = await events.openEventTail(root);
+
+    assert.assertEquals(await tail.poll(), []);
+
+    await events.appendEvent(root, makeEvent("note", "first"));
+    const read = await tail.poll();
+    assert.assertEquals(read.map((event) => event.spec), ["first"]);
+  });
+});
+
 bdd.describe("watchEvents", () => {
   bdd.it("returns an unsubscribe function", () => {
     const unsub = events.watchEvents("/nonexistent", () => {});
@@ -202,4 +289,31 @@ bdd.describe("watchEvents", () => {
     assert.assertEquals(received.length, 1);
     assert.assertEquals(received[0]!.type, "phase-change");
   });
+
+  bdd.it(
+    "does not replay the log when the first poll comes early",
+    async () => {
+      const root = await makeTempDir();
+      for (let i = 0; i < 5; i++) {
+        // Every append goes to the same log file, so they run in order.
+        // deno-lint-ignore no-await-in-loop
+        await events.appendEvent(root, makeEvent("note", `old-${i}`));
+      }
+
+      const received: events.DashboardEvent[] = [];
+      const unsub = events.watchEvents(root, (event) => {
+        received.push(event);
+      }, { intervalMs: 1 });
+
+      try {
+        await new Promise((r) => setTimeout(r, 50));
+        await events.appendEvent(root, makeEvent("note", "new"));
+        await new Promise((r) => setTimeout(r, 100));
+      } finally {
+        unsub();
+      }
+
+      assert.assertEquals(received.map((event) => event.spec), ["new"]);
+    },
+  );
 });

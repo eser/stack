@@ -1,7 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 import * as bdd from "@std/testing/bdd";
-import * as assert from "@std/assert";
+import * as assert from "@eserstack/test-kit/assert";
 import * as crossRuntime from "@eserstack/standards/cross-runtime";
 import * as persistence from "../state/persistence.ts";
 import * as schema from "../state/schema.ts";
@@ -75,5 +75,39 @@ bdd.describe("cmd.loadCommandPrefix", () => {
       await cmd.loadCommandPrefix(tempDir),
       schema.DEFAULT_COMMAND_PREFIX,
     );
+  });
+});
+
+bdd.describe("cmd.extractPrefix", () => {
+  bdd.it("takes the Go binary's NOSKILLS_CLI_PREFIX first", async () => {
+    const before = crossRuntime.runtime.env.get(cmd.CLI_PREFIX_ENV);
+    crossRuntime.runtime.env.set(cmd.CLI_PREFIX_ENV, "  /opt/bin/noskills  ");
+
+    try {
+      assert.assertEquals(await cmd.extractPrefix(), "/opt/bin/noskills");
+    } finally {
+      if (before === undefined) {
+        crossRuntime.runtime.env.delete(cmd.CLI_PREFIX_ENV);
+      } else {
+        crossRuntime.runtime.env.set(cmd.CLI_PREFIX_ENV, before);
+      }
+    }
+  });
+
+  const ignored: readonly { readonly name: string; readonly value?: string }[] =
+    [
+      { name: "an unset variable" },
+      { name: "a blank value", value: "   " },
+      { name: "a value on two lines", value: "noskills\nrm -rf /" },
+    ];
+
+  for (const { name, value } of ignored) {
+    bdd.it(`ignores ${name}`, () => {
+      assert.assertEquals(cmd.prefixFromEnv(value), null);
+    });
+  }
+
+  bdd.it("reads a single-line value as the prefix", () => {
+    assert.assertEquals(cmd.prefixFromEnv("noskills"), "noskills");
   });
 });

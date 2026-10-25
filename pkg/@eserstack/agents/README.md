@@ -1,5 +1,9 @@
 # 🤖 [@eserstack/agents](./)
 
+> **Note:** JSR is frozen at 4.5.x. From 5.0.0, `@eserstack/agents` is published
+> on npm under the same name (`pnpm add @eserstack/agents`); the JSR versions
+> stay available but get no updates.
+
 `@eserstack/agents` finds interactive coding agents (Claude Code, OpenCode,
 Codex) on `PATH` and builds the spec to launch one in a terminal pane. It also
 holds the read-only git guard: pure predicates that decide whether a shell

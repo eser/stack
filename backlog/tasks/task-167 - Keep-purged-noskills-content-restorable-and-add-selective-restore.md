@@ -1,9 +1,10 @@
 ---
 id: TASK-167
 title: Keep purged noskills content restorable and add selective restore
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-10-05 00:58'
+updated_date: '2026-10-15 19:34'
 labels:
   - noskills
   - feature
@@ -31,9 +32,23 @@ Decisions: purge keeps history by default and `--no-history` skips it (`--force`
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 purge keeps each removed category in a timestamped history entry, bounded by a documented entry count, and a flag purges without keeping history
-- [ ] #2 `noskills purge restore` lists history entries and restores the chosen categories, refusing to overwrite existing content unless asked
-- [ ] #3 Tests cover purge then restore for each category, the history limit and the refusal to overwrite
-- [ ] #4 The noskills README documents purge history and restore
-- [ ] #5 deno task cli ok passes
+- [x] #1 purge keeps each removed category in a timestamped history entry, bounded by a documented entry count, and a flag purges without keeping history
+- [x] #2 `noskills purge restore` lists history entries and restores the chosen categories, refusing to overwrite existing content unless asked
+- [x] #3 Tests cover purge then restore for each category, the history limit and the refusal to overwrite
+- [x] #4 The noskills README documents purge history and restore
+- [x] #5 deno task cli ok passes
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Completed in round 3 of the autonomous backlog run (2026-10-05); deno task cli ok passes.
+
+Verified:
+- state/purge-history.ts has PURGE_HISTORY_LIMIT = 5, `--no-history`, and `--force` that still keeps history.
+- commands/purge-restore.ts parses `[entry_id|latest] [category ...] [--overwrite]`, refuses unknown flags, categories and entries, and refuses conflicts unless `--overwrite` is passed.
+- The agent integration comes back through syncEngine.syncAll.
+- README.md "Removing noskills and restoring it" and the README-HOW rows match the code.
+
+The `purge` description in module.ts (owned by types-docs) is still "Remove all noskills content (specs, rules, concerns, hooks)"; this is listed in crossUnitNeeds.
+<!-- SECTION:NOTES:END -->

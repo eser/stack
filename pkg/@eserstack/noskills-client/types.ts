@@ -282,11 +282,12 @@ export interface CertRotatingEvent {
 /**
  * A mux multiplexer frame, for sessions whose worker hosts a {@link
  * https://jsr.io/@eserstack/mux | mux} server (terminal panes) instead of the
- * one-shot AI agent worker. The whole neutral mux protocol rides inside `frame`,
- * so the daemon's ledger seq / `?after=` replay / fanout keep working unchanged —
- * each mux frame is just one more sequenced ledger entry. `frame` is one of the
- * mux server→frontend messages: `scene` (full or delta), `output` (per-pane VT
- * bytes), or `exit`.
+ * one-shot AI agent worker. The whole neutral mux protocol rides inside `frame`.
+ * Mux frames are not ledger entries: their `seq` repeats the number of the last
+ * ledger line sent, so `?after=` replays only missed ledger events and a
+ * reconnecting client gets the current screen from the mux server instead.
+ * `frame` is one of the mux server→frontend messages, such as `scene` (full or
+ * delta), `screen` or `exit`.
  */
 export interface MuxFrameEvent {
   type: "mux";
@@ -294,9 +295,10 @@ export interface MuxFrameEvent {
   frame: MuxServerFrame;
 }
 
-// seq is injected by the server's wtSend helper on every outbound message.
-// Clients save the last received seq and pass it as ?after=<seq> on reconnect
-// so the server can skip already-delivered events (mobile network partition recovery).
+// seq is the number of the last ledger line the server has sent; the server
+// stamps it on every outbound message. Clients save the last received seq and
+// pass it as ?after=<seq> on reconnect so the server replays only the ledger
+// events they missed (mobile network partition recovery).
 export type DaemonEvent =
   & (
     | SessionMetaEvent

@@ -33,7 +33,8 @@ type LanguageModel interface {
 	// Close releases resources held by the model.
 	Close(ctx context.Context) error
 
-	// GetRawClient returns the underlying provider SDK client.
+	// GetRawClient returns the underlying client: the *http.Client of an HTTP
+	// provider, or the provider's own client type.
 	GetRawClient() any
 }
 
@@ -68,11 +69,11 @@ type ProviderFactory interface {
 }
 
 // GetTypedClient extracts a typed client from a LanguageModel interface.
-// This provides type-safe access to the underlying provider SDK client.
+// This provides type-safe access to the underlying provider client.
 //
 // Example usage:
 //
-//	client, err := aifx.GetTypedClient[*anthropic.Client](registry, "default")
+//	client, err := aifx.GetTypedClient[*http.Client](registry, "default")
 //	if err != nil { return err }
 func GetTypedClient[T any](registry *Registry, name string) (T, error) { //nolint:ireturn
 	var zero T

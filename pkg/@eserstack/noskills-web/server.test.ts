@@ -1,7 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 import * as bdd from "@std/testing/bdd";
-import * as assert from "@std/assert";
+import * as assert from "@eserstack/test-kit/assert";
 import * as persistence from "@eserstack/noskills/persistence";
 import * as noskills from "@eserstack/noskills/mod";
 import * as dashboard from "@eserstack/noskills/dashboard";
@@ -774,6 +774,18 @@ bdd.describe("Templates", () => {
     assert.assert(html.includes('class="tab active"'));
     assert.assert(html.includes("upload"));
     assert.assert(html.includes("IDLE")); // null spec → IDLE label
+  });
+
+  bdd.it("components tabBar gives each tab a close button of its own", () => {
+    const html = components.tabBar(
+      [{ id: "t1", specName: "upload", phase: "EXECUTING" }],
+      "t1",
+    );
+
+    assert.assertEquals(
+      html,
+      '<div class="tab-bar"><div class="tab active" data-tab="t1"><button type="button" class="tab-select" data-index="0">upload (EXECUTING)</button><button type="button" class="tab-close" data-close="t1" aria-label="Close upload (EXECUTING)">&times;</button></div><button type="button" class="tab-add" id="add-tab" aria-label="New tab">+</button></div>',
+    );
   });
 
   bdd.it("spec detail template includes CTAs for SPEC_PROPOSAL", async () => {

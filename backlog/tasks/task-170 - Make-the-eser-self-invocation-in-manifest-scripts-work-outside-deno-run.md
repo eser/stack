@@ -1,9 +1,10 @@
 ---
 id: TASK-170
 title: Make the eser self-invocation in manifest scripts work outside deno run
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-10-05 00:58'
+updated_date: '2026-10-15 19:34'
 labels:
   - cli
   - bug
@@ -22,9 +23,17 @@ Decision: pick the invocation from cross-runtime detectInvoker: the compiled bin
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 A compiled binary runs a manifest script `eser version --bare` and prints the version
-- [ ] #2 The npm bundle under Node runs the same script
-- [ ] #3 The prefix keeps every path as a single-quoted word
-- [ ] #4 Tests cover the prefix for each invoker
-- [ ] #5 deno task cli ok passes
+- [x] #1 A compiled binary runs a manifest script `eser version --bare` and prints the version
+- [x] #2 The npm bundle under Node runs the same script
+- [x] #3 The prefix keeps every path as a single-quoted word
+- [x] #4 Tests cover the prefix for each invoker
+- [x] #5 deno task cli ok passes
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Completed in round 3 of the autonomous backlog run (2026-10-05); deno task cli ok passes.
+
+Verified independently. The prefix comes from cross-runtime detectInvoker, as the unit decided: the binary runs itself, npm/npx/pnpm/pnpx/bun/bunx run argv[1] with the current runtime, deno/dev keep `run --allow-all main.ts`, and unknown or a missing entry file falls back to `eser` on PATH. The CLI checks Deno.build.standalone itself because cross-runtime reports a deno-compiled binary as a Deno install (the crossUnitNeeds entry stands). detectCliInvoker reads Deno.build.standalone, so no unit test covers it; I checked it with a real compiled binary instead. The README recipe replacement (cool-lime-app to laroux-runtime-app) is in place.
+<!-- SECTION:NOTES:END -->

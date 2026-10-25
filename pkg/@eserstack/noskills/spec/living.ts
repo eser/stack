@@ -333,6 +333,11 @@ const STATUS_SYMBOLS: Record<schema.PlaceholderStatus["status"], string> = {
   "conditional-hidden": "⊘",
 };
 
+/** The symbol the TOC and `spec <name> section list` show for a status. */
+export const placeholderSymbol = (
+  status: schema.PlaceholderStatus["status"],
+): string => STATUS_SYMBOLS[status];
+
 const TOC_START = "<!-- TOC:START -->";
 const TOC_END = "<!-- TOC:END -->";
 

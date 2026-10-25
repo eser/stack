@@ -1,0 +1,17 @@
+{
+  "name": "noskills",
+  "short_name": "noskills",
+  "description": "noskills-server — persistent Claude Code sessions that survive reboots",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#7c3aed",
+  "icons": [
+    {
+      "src": "/static/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

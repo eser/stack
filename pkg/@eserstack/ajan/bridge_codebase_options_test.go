@@ -1,8 +1,11 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+//go:build !wasip1
+
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -106,5 +109,29 @@ func TestResolveValidatorEntries_LargeFileHonoursMaxKb(t *testing.T) {
 				t.Fatalf("Passed = %v, want %v (issues: %+v)", results[0].Passed, tt.wantPassed, results[0].Issues)
 			}
 		})
+	}
+}
+
+func TestBridgeCodebaseValidateFiles_MissingRoot(t *testing.T) {
+	t.Parallel()
+
+	missing := filepath.Join(t.TempDir(), "does-not-exist")
+
+	request, err := json.Marshal(map[string]any{"dir": missing})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var resp codebaseValidateResponse
+	if err := json.Unmarshal([]byte(bridgeCodebaseValidateFiles(string(request))), &resp); err != nil {
+		t.Fatal(err)
+	}
+
+	if !strings.Contains(resp.Error, codebasefx.ErrUnreadableWalkRoot.Error()) || !strings.Contains(resp.Error, missing) {
+		t.Fatalf("expected an error naming %q, got %+v", missing, resp)
+	}
+
+	if len(resp.Results) != 0 {
+		t.Errorf("expected no validator results, got %d", len(resp.Results))
 	}
 }

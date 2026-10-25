@@ -3,38 +3,59 @@
 /**
  * Go-backed noskills orchestrator client.
  *
- * Delegates to EserAjanNoskills* for spec management and step advancement
- * via the native Go library.
+ * Calls EserAjanNoskills* of the native Go library
+ * (pkg/@eserstack/ajan/bridge_noskills.go) on a project directory:
+ *   1. `initNoskills({ root })` sets the project up once.
+ *   2. `newNoskillsSpec({ root, description })` creates a spec.
+ *   3. `nextNoskillsStep({ root, specName, answer? })` reads or advances it.
  *
- * Protocol:
- *   1. `initNoskills()` — initialise the session (called once per process)
- *   2. `newNoskillsSpec(description)` — create a new spec, returns spec name
- *   3. `nextNoskillsStep(specName, answer?)` — advance or query current step
+ * The WASM fallback does not serve these names (they answer
+ * UNSUPPORTED_IN_WASM); they need the native library.
  *
  * @module
  */
 
 import * as ffiClient from "./ffi-client.ts";
 
+/** Options for {@link initNoskills}. */
 export type NoskillsInitOptions = {
-  readonly configDir?: string;
+  /** The project directory. */
+  readonly root: string;
 };
 
+/** What {@link initNoskills} answers. */
 export type NoskillsInitResult = {
-  readonly sessionId: string;
+  /** The project directory it set up. */
+  readonly root: string;
 };
 
+/** Options for {@link newNoskillsSpec}. */
 export type NoskillsSpecNewOptions = {
-  readonly description: string;
-  readonly mode?: string;
+  /** The project directory. */
+  readonly root: string;
+  /** What the spec is about. */
+  readonly description?: string;
+  /** The spec's name; generated from the description when absent. */
+  readonly specName?: string;
+  /** A plan file to start the spec from. */
+  readonly planPath?: string;
 };
 
+/** What {@link newNoskillsSpec} answers. */
 export type NoskillsSpecNewResult = {
-  readonly name: string;
+  /** The spec's name. */
+  readonly specName: string;
+  /** The absolute path of the spec document. */
+  readonly specFile: string;
 };
 
+/** Options for {@link nextNoskillsStep}. */
 export type NoskillsNextOptions = {
-  readonly specName: string;
+  /** The project directory. */
+  readonly root: string;
+  /** The spec; required while a spec is active. */
+  readonly specName?: string;
+  /** The answer to the current question. */
   readonly answer?: string;
 };
 
@@ -51,21 +72,21 @@ export type NoskillsNextResult = {
 };
 
 /**
- * Initialise the noskills session via the native Go library.
+ * Sets up noskills in a project directory via the native Go library.
  *
- * @param options - Init options (optional configDir)
- * @returns Session identifier
+ * @param options - The project directory
+ * @returns The directory it set up
  * @throws Error if the native library is unavailable.
  *
  * @example
  * ```typescript
  * import { initNoskills } from "@eserstack/noskills/go-noskills";
  *
- * const { sessionId } = await initNoskills();
+ * await initNoskills({ root: "/path/to/project" });
  * ```
  */
 export const initNoskills = async (
-  options: NoskillsInitOptions = {},
+  options: NoskillsInitOptions,
 ): Promise<NoskillsInitResult> => {
   await ffiClient.ensureLib();
   const lib = ffiClient.getLib();
@@ -81,22 +102,25 @@ export const initNoskills = async (
     throw new Error(result.error);
   }
 
-  return { sessionId: result.sessionId };
+  return { root: result.root };
 };
 
 /**
  * Create a new noskills spec via the native Go library.
  *
- * @param options - Spec creation options
- * @returns Auto-generated spec name
+ * @param options - The project directory and the spec's description or name
+ * @returns The spec's name and the path of its document
  * @throws Error if the native library is unavailable.
  *
  * @example
  * ```typescript
  * import { newNoskillsSpec } from "@eserstack/noskills/go-noskills";
  *
- * const { name } = await newNoskillsSpec({ description: "add auth to the API" });
- * console.log(name); // e.g. "spec-abc123"
+ * const { specName } = await newNoskillsSpec({
+ *   root: "/path/to/project",
+ *   description: "add auth to the API",
+ * });
+ * console.log(specName); // e.g. "add-auth-to-the-api"
  * ```
  */
 export const newNoskillsSpec = async (
@@ -116,13 +140,14 @@ export const newNoskillsSpec = async (
     throw new Error(result.error);
   }
 
-  return { name: result.name };
+  return { specName: result.specName, specFile: result.specFile };
 };
 
 /**
  * Advance or query the current step for a noskills spec.
  *
- * @param options - Step options: specName (required), answer (optional, submits current step)
+ * @param options - The project directory, the spec (required while a spec is
+ *   active) and an optional answer to the current question
  * @returns Current step details including roadmap, gate, question, and modeDirective
  * @throws Error if the native library is unavailable.
  *
@@ -131,11 +156,16 @@ export const newNoskillsSpec = async (
  * import { nextNoskillsStep } from "@eserstack/noskills/go-noskills";
  *
  * // Query current step
- * const step = await nextNoskillsStep({ specName: "spec-abc123" });
+ * const root = "/path/to/project";
+ * const step = await nextNoskillsStep({ root, specName: "add-auth-to-the-api" });
  * console.log(step.question);
  *
  * // Submit answer and advance
- * const next = await nextNoskillsStep({ specName: "spec-abc123", answer: "yes" });
+ * const next = await nextNoskillsStep({
+ *   root,
+ *   specName: "add-auth-to-the-api",
+ *   answer: "yes",
+ * });
  * ```
  */
 export const nextNoskillsStep = async (

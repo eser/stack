@@ -4,7 +4,7 @@
  * Closed-state guard shared by the three native FFI backends.
  *
  * Each backend owns a runtime handle -- `Deno.dlopen`, `bun:ffi`'s `dlopen`,
- * `koffi.load` -- whose unload is not safe to repeat and whose symbols are not
+ * node:ffi's `dlopen` -- whose unload is not safe to repeat and whose symbols are not
  * safe to call once it has run. Deno throws `BadResource`, and unloading a Go
  * c-shared image is undefined behaviour: a Go runtime cannot be dlclosed, which
  * is why pin_image_posix.go pins the image in the first place. This module

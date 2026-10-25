@@ -1,9 +1,10 @@
 ---
 id: TASK-84
 title: Make Link navigate on the client when a server component renders it
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-10-04 20:51'
+updated_date: '2026-10-15 19:34'
 labels:
   - laroux-react
   - laroux-bundler
@@ -26,7 +27,15 @@ laroux treats only "use client" files under the app's srcDir as client component
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 A Link rendered by a server component navigates on the client, shown by a test
-- [ ] #2 The limitation is removed from the laroux-react README and from frontend-practices references/laroux.md
-- [ ] #3 deno task cli ok passes
+- [x] #1 A Link rendered by a server component navigates on the client, shown by a test
+- [x] #2 The limitation is removed from the laroux-react README and from frontend-practices references/laroux.md
+- [x] #3 deno task cli ok passes
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Completed in round 3 of the autonomous backlog run (2026-10-05); deno task cli ok passes.
+
+AC #2 is met. laroux.md and the laroux-react README describe server-rendered Link client navigation through data-laroux-link/data-laroux-scroll and no longer state the limitation. The verifier also corrected the list of links left to the browser in both files to match analyzeNavigation: every scheme and protocol-relative URLs, not only http(s)/mailto/hash. AC #1 belongs to the laroux unit; AC #3 is the orchestrator's gate.
+<!-- SECTION:NOTES:END -->

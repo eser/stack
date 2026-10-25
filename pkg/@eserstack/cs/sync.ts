@@ -164,7 +164,7 @@ const isNamedNamespace = (namespace: string | undefined): boolean =>
  * @returns A Kubernetes Secret resource object
  *
  * @remarks
- * **Security Note:** The btoa() function performs Base64 encoding, which is NOT encryption.
+ * **Security Note:** Base64 encoding is NOT encryption.
  * Kubernetes Secrets are stored unencrypted in etcd by default. Base64 encoding is used
  * to support binary data and is required by the Kubernetes API, but it provides no
  * confidentiality. For sensitive data, consider:
@@ -172,6 +172,34 @@ const isNamedNamespace = (namespace: string | undefined): boolean =>
  * - Using external secret management (HashiCorp Vault, AWS Secrets Manager, etc.)
  * - Using sealed-secrets or similar solutions
  */
+/**
+ * Base64 of the UTF-8 bytes of a value, the bytes Kubernetes hands back
+ * (btoa encodes Latin-1 and throws above U+00FF).
+ */
+const encodeBase64 = (value: string): string => {
+  let binary = "";
+  for (const byte of new TextEncoder().encode(value)) {
+    binary += String.fromCharCode(byte);
+  }
+
+  return btoa(binary);
+};
+
+/**
+ * The variables of an env map sorted by key, as the Go csfx writes them,
+ * without the loader's symbol-keyed environment name.
+ */
+const sortedVariables = (data: dotenv.EnvMap): [string, string][] => {
+  const entries: [string, string][] = [];
+  for (const [key, value] of data) {
+    if (typeof key === "string") {
+      entries.push([key, value]);
+    }
+  }
+
+  return entries.sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+};
+
 export const buildSecretFromContext = (
   name: string,
   namespace: string | undefined,
@@ -180,8 +208,8 @@ export const buildSecretFromContext = (
   const encodedData: Record<string, string> = {};
 
   // Base64 encode data for Kubernetes API compatibility (NOT for security)
-  for (const [key, value] of data) {
-    encodedData[String(key)] = btoa(value);
+  for (const [key, value] of sortedVariables(data)) {
+    encodedData[key] = encodeBase64(value);
   }
 
   return {
@@ -217,7 +245,7 @@ export const buildConfigMapFromContext = (
       name,
       ...(isNamedNamespace(namespace) ? { namespace } : {}),
     },
-    data: Object.fromEntries(data.entries()),
+    data: Object.fromEntries(sortedVariables(data)),
   };
 };
 
@@ -291,7 +319,7 @@ export const sync = async (options: SyncOptions): Promise<string> => {
       // Base64 encode values for Kubernetes API (NOT for security - see buildSecretFromContext docs)
       patchData = {};
       for (const [key, value] of Object.entries(envData)) {
-        patchData[key] = btoa(value);
+        patchData[key] = encodeBase64(value);
       }
     } else {
       // Use values as-is for configmaps

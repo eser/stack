@@ -37,7 +37,8 @@ type ConfigTarget struct {
 	MaxTokens   int     `conf:"max_tokens"  default:"16000"`
 	Temperature float64 `conf:"temperature" default:"0.7"`
 
-	// RequestTimeout sets the per-request timeout for AI SDK calls.
+	// RequestTimeout bounds each attempt of an HTTP provider request,
+	// including the whole body of a streamed reply. Zero means no timeout.
 	RequestTimeout time.Duration `conf:"request_timeout" default:"60s"`
 }
 
@@ -81,16 +82,16 @@ type credentialSource struct {
 // provider is "available". A different name here would mean detect reports a
 // provider as configured while the bridge refuses it.
 var credentialEnvVars = map[string][]credentialSource{ //nolint:gochecknoglobals
-	// Order and kinds taken from the pinned anthropic-sdk-go, whose
-	// DefaultClientOptions documents "1. ANTHROPIC_API_KEY 2.
-	// ANTHROPIC_AUTH_TOKEN" and returns on the first hit.
+	// Order and kinds as anthropic-sdk-go's DefaultClientOptions documents
+	// them, "1. ANTHROPIC_API_KEY 2. ANTHROPIC_AUTH_TOKEN", returning on the
+	// first hit; the TypeScript SDK reads them the same way.
 	"anthropic": {
 		{EnvVar: "ANTHROPIC_API_KEY", Kind: CredentialAPIKey},
 		{EnvVar: "ANTHROPIC_AUTH_TOKEN", Kind: CredentialAuthToken},
 	},
 	"openai": {{EnvVar: "OPENAI_API_KEY", Kind: CredentialAPIKey}},
-	// GOOGLE_API_KEY first, matching the pinned genai SDK: with both set it
-	// logs "Using GOOGLE_API_KEY". Preferring GEMINI_API_KEY here would mean a
+	// GOOGLE_API_KEY first, matching the genai SDKs: with both set they use
+	// GOOGLE_API_KEY. Preferring GEMINI_API_KEY here would mean a
 	// machine with both exported authenticates as a different project depending
 	// on whether the FFI bridge or the pure-TS path served the call.
 	"gemini": {

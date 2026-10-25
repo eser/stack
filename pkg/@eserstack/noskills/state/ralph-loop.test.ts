@@ -6,7 +6,7 @@
  */
 
 import * as bdd from "@std/testing/bdd";
-import * as assert from "@std/assert";
+import * as assert from "@eserstack/test-kit/assert";
 import * as compiler from "../context/compiler.ts";
 import * as machine from "./machine.ts";
 import * as schema from "./schema.ts";

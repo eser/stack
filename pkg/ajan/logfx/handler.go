@@ -14,7 +14,6 @@ import (
 	"github.com/eser/stack/pkg/ajan/lib"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/log"
-	sdklog "go.opentelemetry.io/otel/sdk/log"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -31,11 +30,6 @@ var (
 	ErrFailedToWriteLog      = errors.New("failed to write log")
 	ErrFailedToHandleLog     = errors.New("failed to handle log")
 )
-
-// OTLPLogExporter defines the interface for OTLP log export capability.
-type OTLPLogExporter interface {
-	GetLoggerProvider() *sdklog.LoggerProvider
-}
 
 type Handler struct {
 	InitError error

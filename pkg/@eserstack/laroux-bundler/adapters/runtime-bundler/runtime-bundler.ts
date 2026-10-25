@@ -146,8 +146,8 @@ class RuntimeCache {
       );
 
       // The same backend and import map resolver plugin as a production
-      // client build, so the browser shims apply here too: Deno.bundle()
-      // runs no plugins and would bundle the FFI-backed logger.
+      // client build, so the browser shims apply here too and the FFI-backed
+      // logger stays out of the browser bundle.
       const clientBundler = backends.createBundler(
         bundler.CLIENT_BUNDLER_BACKEND,
         { entryName: "client" },

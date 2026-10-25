@@ -108,7 +108,8 @@ export const main = async (
   if (initialState.phase === "SPEC_APPROVED") {
     out.writeln(span.dim("Starting execution from approved spec..."));
     const newState = machine.startExecution(initialState);
-    await persistence.writeState(root, newState);
+    // The spec's own file too: the agent's `spec <name> next` reads it first.
+    await persistence.writeStateAndSpec(root, newState);
   }
 
   const config = await persistence.readManifest(root);
@@ -136,6 +137,7 @@ export const main = async (
 
   let loopIteration = 0;
   let exitCode = 0;
+  let stopped = false;
 
   // Claim iteration recording for this loop before the first turn.
   //
@@ -165,12 +167,14 @@ export const main = async (
           unattended,
           maxTurns,
           gitWrapper: agentGit.wrapper,
+          spec: initialState.spec,
         },
         loopIteration,
       );
 
       if (outcome.kind === "stop") {
         exitCode = outcome.exitCode;
+        stopped = true;
         break;
       }
     }
@@ -183,8 +187,9 @@ export const main = async (
     await iteration.setDriver(root, null);
   }
 
-  // ── Safety valve ──
-  if (loopIteration >= maxIterations) {
+  // ── Safety valve ── only when the iterations ran out; a turn that stopped
+  // the loop on the last allowed iteration keeps its own exit code.
+  if (!stopped && loopIteration >= maxIterations) {
     out.writeln("");
     out.writeln(
       span.yellow("⚠"),
@@ -223,6 +228,27 @@ type LoopContext = {
   readonly maxTurns: number;
   /** The wrapper on the agent's PATH, or null while allowGit is true. */
   readonly gitWrapper: gitWrapperInstall.InstalledGitWrapper | null;
+  /** The spec the loop drives, or null for a state without one. */
+  readonly spec: string | null;
+};
+
+/**
+ * The spec's own state, which keeps a terminal phase after `spec <name> done`
+ * resets state.json to IDLE; state.json for a loop without a spec or a spec
+ * without its own file.
+ */
+const readLoopState = async (
+  root: string,
+  spec: string | null,
+): Promise<schema.StateFile> => {
+  if (spec !== null) {
+    const own = await persistence.readSpecState(root, spec);
+    if (own.spec === spec) {
+      return own;
+    }
+  }
+
+  return await persistence.readState(root);
 };
 
 /**
@@ -236,7 +262,7 @@ const runTurn = async (
   const { root, config, out, unattended, maxTurns } = loop;
 
   // Read fresh state each iteration
-  const state = await persistence.readState(root);
+  const state = await readLoopState(root, loop.spec);
 
   // ── Exit: COMPLETED ──
   if (state.phase === "COMPLETED") {
@@ -281,7 +307,7 @@ const runTurn = async (
 
     // Submit resolution via library API (not shell)
     const unblocked = machine.transition(state, "EXECUTING");
-    await persistence.writeState(root, {
+    await persistence.writeStateAndSpec(root, {
       ...unblocked,
       execution: {
         ...unblocked.execution,
@@ -438,6 +464,13 @@ const runTurn = async (
   // than trusting the in-agent Stop hook to have done it. setDriver told the
   // hook to stand down for exactly this reason -- two writers doing a
   // read-modify-write on state.json for one turn lose updates.
+  // A turn that left EXECUTING (the agent blocked or finished the spec) is
+  // not recorded: the next turn reports the new phase, and after `done`
+  // state.json is IDLE.
+  if ((await readLoopState(root, loop.spec)).phase !== "EXECUTING") {
+    return NEXT_TURN;
+  }
+
   const record = await iteration.recordIteration(root);
 
   if (record === null) {

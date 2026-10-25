@@ -1,169 +1,131 @@
-//go:build wasip1 && eserajan_reactor
+// Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
+
+//go:build wasip1
 
 package main
 
-// Reactor mode: exports functions directly as WASM exports using
-// //go:wasmexport (Go 1.24+). This file is only included when both
-// "wasip1" and "eserajan_reactor" build tags are set.
+// The WASM build is a reactor (decision-45, TASK-273). Built with
+// -buildmode=c-shared, the module exports _initialize, which runs package
+// init once, and the functions below; it never calls proc_exit, so one
+// instance serves every call and keeps its handles between calls.
 //
-// Build with:
-//   GOOS=wasip1 GOARCH=wasm go build -tags eserajan_reactor -o eser-ajan-reactor.wasm .
+// Calling protocol:
+//  1. ptr := eser_ajan_alloc(n) hands out n bytes of a Go-owned input arena.
+//  2. The host writes the function name into it, then the arguments. Each
+//     argument is a little-endian uint32 byte count followed by that many
+//     bytes; most functions take one, their request JSON.
+//  3. n := eser_ajan_call(namePtr, nameLen, argsPtr, argsLen) runs the named
+//     function from the dispatch registry and stores a JSON envelope:
+//     {"ok":true,"result":"..."} or {"ok":false,"error":"...","result":"..."}.
+//     A function whose answer is a JSON object with an "error" string fails
+//     the envelope, with the full answer kept in "result".
+//  4. eser_ajan_result_ptr() points at the n envelope bytes. The pointer is
+//     valid until the next call.
 //
-// String results are stored in a shared buffer. The host reads the buffer
-// after calling the function. Flow:
-//   1. Call eser_ajan_version() → returns byte length
-//   2. Call eser_ajan_result_ptr() → returns pointer to buffer
-//   3. Read `length` bytes from that pointer
-
-import "unsafe"
-
-// resultBuf holds the last string result for the host to read.
-var resultBuf []byte
-
-// setResult stores a string result and returns its byte length.
-func setResult(s string) int32 {
-	resultBuf = []byte(s)
-
-	return int32(len(resultBuf))
-}
-
-// argRange reads the [offset, offset+length) window of resultBuf that the host
-// claims holds an argument.
+// The envelope of "version" also carries the handshake the host checks at
+// load: "abi", "profile" and "names", the sorted names this build serves.
 //
-// The offsets and lengths are supplied by the host and are entirely untrusted:
-// a negative value, a length past the end of the buffer, or any call made before
-// the first setResult (when resultBuf is still nil) would slice out of range.
-// In WASM that is not a recoverable error at the call site -- it traps the whole
-// module -- so the window is validated up front and bad input is routed to the
-// module's error path instead. The bounds arithmetic widens to int64 so that
-// offset+length cannot itself overflow into a value that looks in range.
-func argRange(offset, length int32) (string, bool) {
-	if offset < 0 || length < 0 {
-		return "", false
+// ABI 2 (TASK-277) adds network: the module imports eser_host (http_fetch,
+// http_read, http_release, http_take, sleep) and exports
+// eser_ajan_call_async and eser_ajan_async_result_ptr, the same protocol
+// with its own result buffer, for the calls that wait on the host
+// (host_fetch_wasi.go).
+
+import (
+	"encoding/json"
+	"unsafe"
+)
+
+var (
+	// inputArena is where the host writes a call's name and arguments.
+	inputArena []byte //nolint:gochecknoglobals
+	// resultBuf holds the envelope of the last call.
+	resultBuf []byte //nolint:gochecknoglobals
+)
+
+//go:wasmexport eser_ajan_alloc
+func eserAjanAlloc(size int32) unsafe.Pointer {
+	if size < 1 {
+		size = 1
 	}
 
-	end := int64(offset) + int64(length)
-	if end > int64(len(resultBuf)) {
-		return "", false
+	if cap(inputArena) < int(size) {
+		inputArena = make([]byte, size)
+	} else {
+		inputArena = inputArena[:size]
 	}
 
-	return string(resultBuf[offset:end]), true
+	return unsafe.Pointer(&inputArena[0])
 }
 
-// argRangeError reports an out-of-range argument window through the same
-// result-buffer channel a successful call would use.
-func argRangeError() int32 {
-	return setResult(errorResponse("invalid argument range for shared result buffer"))
+//go:wasmexport eser_ajan_call
+func eserAjanCall(namePtr unsafe.Pointer, nameLen int32, argsPtr unsafe.Pointer, argsLen int32) int32 {
+	name, nameOK := arenaBytes(namePtr, nameLen)
+	rawArgs, argsOK := arenaBytes(argsPtr, argsLen)
+
+	if !nameOK || !argsOK {
+		return storeEnvelope(envelope{Error: "the name or the arguments lie outside the input arena"}) //nolint:exhaustruct
+	}
+
+	args, err := decodeArgs(rawArgs)
+	if err != nil {
+		return storeEnvelope(envelope{Error: err.Error()}) //nolint:exhaustruct
+	}
+
+	return storeEnvelope(runCall(string(name), args))
 }
 
 //go:wasmexport eser_ajan_result_ptr
-func eserGoResultPtr() unsafe.Pointer {
+func eserAjanResultPtr() unsafe.Pointer {
 	if len(resultBuf) == 0 {
-		return unsafe.Pointer(nil)
+		return nil
 	}
 
 	return unsafe.Pointer(&resultBuf[0])
 }
 
-//go:wasmexport eser_ajan_version
-func eserGoVersion() int32 {
-	return setResult(guardString(bridgeVersion))
-}
-
-//go:wasmexport eser_ajan_init
-func eserGoInit() int32 {
-	return int32(guardInt(bridgeInit))
-}
-
-//go:wasmexport eser_ajan_shutdown
-func eserGoShutdown() {
-	guardVoid(bridgeShutdown)
-}
-
-//go:wasmexport eser_ajan_config_load
-func eserGoConfigLoad() int32 {
-	// In reactor mode without string args, the host must set up
-	// input via stdin or a shared memory protocol. For now this
-	// calls the bridge with an empty path.
-	return setResult(guardString(func() string { return bridgeConfigLoad("") }))
-}
-
-//go:wasmexport eser_ajan_di_resolve
-func eserGoDIResolve() int32 {
-	// Same as config_load — host provides input via protocol.
-	return setResult(guardString(func() string { return bridgeDIResolve("") }))
-}
-
-//go:wasmexport eser_ajan_ai_create_model
-func eserGoAiCreateModel(configJSONLen int32) int32 {
-	configJSON, ok := argRange(0, configJSONLen)
-	if !ok {
-		return argRangeError()
+// arenaBytes returns a copy of [ptr, ptr+n) when that range lies inside the
+// input arena. The host passes the pointers, so they are not trusted: an
+// out-of-range slice would trap the whole module.
+func arenaBytes(ptr unsafe.Pointer, n int32) ([]byte, bool) {
+	if n == 0 {
+		return []byte{}, true
 	}
 
-	return setResult(guardString(func() string { return bridgeAiCreateModel(configJSON) }))
+	if n < 0 || len(inputArena) == 0 {
+		return nil, false
+	}
+
+	base := uintptr(unsafe.Pointer(&inputArena[0]))
+	start := uintptr(ptr)
+
+	if start < base {
+		return nil, false
+	}
+
+	offset := start - base
+	if offset > uintptr(len(inputArena)) || uintptr(n) > uintptr(len(inputArena))-offset {
+		return nil, false
+	}
+
+	out := make([]byte, n)
+	copy(out, inputArena[offset:offset+uintptr(n)])
+
+	return out, true
 }
 
-//go:wasmexport eser_ajan_ai_generate_text
-func eserGoAiGenerateText(modelHandleLen, optionsJSONOffset, optionsJSONLen int32) int32 {
-	modelHandle, ok := argRange(0, modelHandleLen)
-	if !ok {
-		return argRangeError()
+// storeEnvelope keeps the envelope for the host and returns its length.
+func storeEnvelope(env envelope) int32 {
+	data, err := json.Marshal(env)
+	if err != nil {
+		data = []byte(`{"ok":false,"error":"internal marshal error"}`)
 	}
 
-	optionsJSON, ok := argRange(optionsJSONOffset, optionsJSONLen)
-	if !ok {
-		return argRangeError()
-	}
+	resultBuf = data
 
-	return setResult(guardString(func() string { return bridgeAiGenerateText(modelHandle, optionsJSON) }))
+	return int32(len(resultBuf)) //nolint:gosec // an envelope is far below 2 GiB
 }
 
-//go:wasmexport eser_ajan_ai_stream_text
-func eserGoAiStreamText(modelHandleLen, optionsJSONOffset, optionsJSONLen int32) int32 {
-	modelHandle, ok := argRange(0, modelHandleLen)
-	if !ok {
-		return argRangeError()
-	}
-
-	optionsJSON, ok := argRange(optionsJSONOffset, optionsJSONLen)
-	if !ok {
-		return argRangeError()
-	}
-
-	return setResult(guardString(func() string { return bridgeAiStreamText(modelHandle, optionsJSON) }))
-}
-
-//go:wasmexport eser_ajan_ai_stream_read
-func eserGoAiStreamRead(streamHandleLen int32) int32 {
-	streamHandle, ok := argRange(0, streamHandleLen)
-	if !ok {
-		return argRangeError()
-	}
-
-	return setResult(guardString(func() string { return bridgeAiStreamRead(streamHandle) }))
-}
-
-//go:wasmexport eser_ajan_ai_close_model
-func eserGoAiCloseModel(modelHandleLen int32) int32 {
-	modelHandle, ok := argRange(0, modelHandleLen)
-	if !ok {
-		return argRangeError()
-	}
-
-	return setResult(guardString(func() string { return bridgeAiCloseModel(modelHandle) }))
-}
-
-//go:wasmexport eser_ajan_ai_free_stream
-func eserGoAiFreeStream(streamHandleLen int32) int32 {
-	streamHandle, ok := argRange(0, streamHandleLen)
-	if !ok {
-		return argRangeError()
-	}
-
-	return setResult(guardString(func() string { return bridgeAiFreeStream(streamHandle) }))
-}
-
-// main is required by wasip1 but does nothing in reactor mode.
-// The WASM host calls exported functions directly.
+// main is required by wasip1 but never runs in a reactor; the host calls the
+// exports above after _initialize.
 func main() {}

@@ -110,7 +110,7 @@ const main = async (): Promise<void> => {
       chunkNames: "chunks/[name]-[hash]",
       format: "esm",
       platform: "node",
-      target: "node18",
+      target: "node26",
       minify: true,
       // @eserstack/* imports need no plugin: pnpm links each workspace package
       // into node_modules, and esbuild reads the exports of its package.json.

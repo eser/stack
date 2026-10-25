@@ -29,6 +29,45 @@ type SessionEntry struct {
 	// arrives from the worker, the decision arrives from a client, and only
 	// together do they say how durably the decision must be journalled.
 	Pending *pendingPermissions
+
+	// publishMu holds a ledger append and its broadcast together, so clients
+	// get the session's events in the order of their ledger lines.
+	publishMu sync.Mutex
+}
+
+// publish writes line, the client-wire form of evt, to the ledger, fdatasynced
+// when durable, and broadcasts evt carrying the number of that line. When the
+// line does not reach the ledger nothing is broadcast, and the error is
+// returned.
+//
+// Every event a client gets live goes through here, whoever writes it: the
+// session pump, a permission decision or its rejection, a fork notice. That
+// is what makes an attach's seq the ledger's line number.
+func (e *SessionEntry) publish(evt WorkerEvent, line []byte, durable bool) error {
+	e.publishMu.Lock()
+	defer e.publishMu.Unlock()
+
+	n, err := e.Ledger.appendLine(line, durable)
+	if err != nil {
+		return err
+	}
+
+	evt.Line = n
+	e.Broadcaster.Broadcast(evt)
+
+	return nil
+}
+
+// publishOrSend publishes evt like publish, and when the ledger refuses the
+// line it still broadcasts evt, with no line number, so attached clients are
+// told; it returns the ledger's error.
+func (e *SessionEntry) publishOrSend(evt WorkerEvent, line []byte) error {
+	err := e.publish(evt, line, false)
+	if err != nil {
+		e.Broadcaster.Broadcast(evt)
+	}
+
+	return err
 }
 
 // ── Session manager ───────────────────────────────────────────────────────────
@@ -108,11 +147,11 @@ func (sm *SessionManager) RecordKind(slug, sid, kind string) {
 	sm.mu.Unlock()
 }
 
-// GetOrCreate looks up an existing session or creates a new one (spawning the
-// TS worker, opening the ledger, and starting the pump goroutine).
+// GetOrCreate looks up an existing session or creates a new one (starting its
+// worker, opening the ledger, and starting the pump goroutine).
 // Returns the entry and whether it was newly created.
 //
-// Creation is expensive -- SpawnWorker carries a 30s deadline -- so it runs
+// Creation is expensive -- an agent worker's start can take seconds -- so it runs
 // with sm.mu released; holding the global session mutex across a spawn stalls
 // every other session operation behind the slowest one. To keep "one worker per
 // key" without the lock, the creating caller publishes a placeholder channel in
@@ -214,21 +253,13 @@ func (sm *SessionManager) discard(ctx context.Context, entry *SessionEntry) {
 }
 
 // spawnSession performs the expensive half of GetOrCreate. It must be called
-// with sm.mu released: it spawns a child process and opens a file, and on the
-// failure path it tears the worker back down (which kills that child).
+// with sm.mu released: it starts a worker and opens a file, and on the
+// failure path it tears the worker back down.
 func (sm *SessionManager) spawnSession(
 	ctx context.Context,
 	slug, sid, root, kind, dataDir string,
 ) (*SessionEntry, error) {
-	worker, err := SpawnWorker(
-		ctx,
-		sid,
-		root,
-		dataDir,
-		"", // workerPath: resolved inside SpawnWorker
-		kind,
-		sm.logger,
-	)
+	worker, err := SpawnWorker(ctx, sid, root, dataDir, kind, sm.logger)
 	if err != nil {
 		return nil, fmt.Errorf("spawn worker: %w", err)
 	}
@@ -298,7 +329,8 @@ func (sm *SessionManager) ListBySlug(slug string) []*SessionEntry {
 
 // runPump is the single consumer of entry.Worker.Events(). For each event it:
 //  1. Writes the translated client JSON to the JSONL ledger (persistent)
-//  2. Broadcasts the raw WorkerEvent to all registered WT clients
+//  2. Broadcasts the raw WorkerEvent, with its ledger line, to all registered
+//     WT clients; an event with no client form is neither written nor sent
 //  3. Lets the push dispatcher decide whether to notify, under ctx
 //
 // ctx is the server's lifetime context. When it ends, runPump closes the
@@ -342,12 +374,10 @@ func (sm *SessionManager) runPump(ctx context.Context, entry *SessionEntry) {
 		}
 
 		if data := marshalEventForLedger(ctx, evt, sm.logger); data != nil {
-			if err := entry.Ledger.Append(data); err != nil {
+			if err := entry.publishOrSend(evt, data); err != nil {
 				sm.logger.WarnContext(ctx, "runPump: ledger append failed", "sid", entry.SID, "err", err)
 			}
 		}
-
-		entry.Broadcaster.Broadcast(evt)
 
 		if sm.server.push != nil {
 			sm.server.push.MaybeTrigger(ctx, entry, evt)

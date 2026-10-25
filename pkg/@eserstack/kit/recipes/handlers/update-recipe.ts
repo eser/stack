@@ -104,7 +104,7 @@ export const updateRecipe = (
           const goResult = JSON.parse(raw) as {
             recipes?: Array<{
               name: string;
-              written: string[];
+              written?: string[];
               skipped: string[];
               total: number;
               postInstallRan: string[];
@@ -115,7 +115,7 @@ export const updateRecipe = (
           if (goResult.error === undefined && goResult.recipes !== undefined) {
             let totalWritten = 0;
             for (const entry of goResult.recipes) {
-              totalWritten += entry.written.length;
+              totalWritten += (entry.written ?? []).length;
             }
 
             const verb = input.dryRun ? "Would update" : "Updated";
@@ -130,7 +130,7 @@ export const updateRecipe = (
             ) ?? goResult.recipes[0];
 
             if (mainRecipe !== undefined) {
-              for (const file of mainRecipe.written) {
+              for (const file of mainRecipe.written ?? []) {
                 ctx.out.writeln(`  → ${file}`);
               }
             }
@@ -139,7 +139,7 @@ export const updateRecipe = (
               name: input.recipeName,
             } as unknown as registrySchema.Recipe;
             const fakeResult = {
-              written: goResult.recipes.flatMap((r) => r.written),
+              written: goResult.recipes.flatMap((r) => r.written ?? []),
               skipped: goResult.recipes.flatMap((r) => r.skipped ?? []),
               total: goResult.recipes.reduce((s, r) => s + r.total, 0),
               postInstallRan: goResult.recipes.flatMap(
@@ -167,7 +167,7 @@ export const updateRecipe = (
 
         const manifest = await registryFetcher.fetchRegistry(
           input.registrySource,
-          { verbose: input.verbose, local: input.local },
+          { verbose: input.verbose, local: input.local, cwd: input.cwd },
         );
 
         const recipe = manifest.recipes.find(

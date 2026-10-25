@@ -1,0 +1,14 @@
+{
+  "name": "security",
+  "version": "1.0.0",
+  "description": "Security audit rules",
+  "tags": ["security", "audit"],
+  "rules": [
+    "rules/no-secrets-in-code.md",
+    "rules/validate-input.md",
+    "rules/no-eval.md"
+  ],
+  "concerns": [
+    "concerns/security-audit.json"
+  ]
+}

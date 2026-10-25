@@ -9,7 +9,7 @@
  * @module
  */
 
-import * as assert from "@std/assert";
+import * as assert from "@eserstack/test-kit/assert";
 import * as path from "@std/path";
 import { runtime } from "@eserstack/standards/cross-runtime";
 import * as validateSelfImports from "./validate-self-imports.ts";

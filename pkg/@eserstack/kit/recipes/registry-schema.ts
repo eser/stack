@@ -48,10 +48,9 @@ export interface RecipeFile {
    */
   readonly kind?: RecipeFileKind;
   /**
-   * Where `source` lives: `"local"` (the default) next to the registry
-   * manifest, or `"github"` at the root of the repository that a
-   * `gh:owner/repo` registry URL names. Only the Go implementation reads it;
-   * the TypeScript applier resolves every source against `registryUrl`.
+   * Where `source` lives: `"local"` (the default) relative to `registryUrl`,
+   * or `"github"` at the root of the repository that `registryUrl` names, a
+   * raw.githubusercontent.com URL or a `gh:owner/repo` specifier.
    */
   readonly provider?: RecipeFileProvider;
 }

@@ -242,11 +242,14 @@ const requestOk = async (url: string): Promise<Response> => {
 /**
  * Detect local `.eser/recipes.json` by walking up the directory tree.
  *
+ * @param startDir - Where the walk starts; defaults to the working directory
  * @throws {RegistryLoadError} When a candidate path cannot be checked, for
  *   example because a parent directory is not readable.
  */
-export const detectLocalRegistry = async (): Promise<string | undefined> => {
-  let dir = crossRuntime.runtime.process.cwd();
+export const detectLocalRegistry = async (
+  startDir?: string,
+): Promise<string | undefined> => {
+  let dir = startDir ?? crossRuntime.runtime.process.cwd();
 
   for (let i = 0; i < 10; i++) {
     const candidate = `${dir}/${RECIPES_FILENAME}`;
@@ -287,6 +290,11 @@ export interface FetchRegistryOptions {
    * working directory or one of its parents, before the default registry.
    */
   readonly local?: boolean;
+  /**
+   * Where the `local` search starts, such as `kit add --cwd`; defaults to the
+   * working directory.
+   */
+  readonly cwd?: string;
 }
 
 /**
@@ -308,7 +316,7 @@ export const fetchRegistry = async (
   let registrySource = source ?? DEFAULT_REGISTRY_URL;
 
   if (options?.local === true && source === undefined) {
-    const localPath = await detectLocalRegistry();
+    const localPath = await detectLocalRegistry(options.cwd);
     if (localPath !== undefined) {
       registrySource = localPath;
       if (options?.verbose === true) {
@@ -437,6 +445,42 @@ export const parseGitHubRawUrl = (
     ref: match[3]!,
     basePath: match[4] ?? "",
   };
+};
+
+/**
+ * The base a recipe file's source resolves against: the registry URL, or,
+ * for `provider: "github"`, the root of the repository the registry URL
+ * names (a `https://raw.githubusercontent.com/<owner>/<repo>/<ref>/...` URL or
+ * a `gh:owner/repo#ref` specifier), so a registry kept in a subfolder can
+ * point at files anywhere in its repository.
+ *
+ * @throws {RecipeLoadError} For a github-provider source when the registry
+ *   URL names no GitHub repository
+ */
+export const sourceBaseFor = (
+  file: registrySchema.RecipeFile,
+  registryUrl: string,
+): string => {
+  if (file.provider !== "github") {
+    return registryUrl;
+  }
+
+  const raw = parseGitHubRawUrl(registryUrl);
+  if (raw !== undefined) {
+    return `https://raw.githubusercontent.com/${raw.owner}/${raw.repo}/${raw.ref}`;
+  }
+
+  if (/^(gh:|github:)/.test(registryUrl)) {
+    const spec = resolveSpecifier(registryUrl);
+    if (spec.kind === "repo") {
+      return `https://raw.githubusercontent.com/${spec.owner}/${spec.repo}/${spec.ref}`;
+    }
+  }
+
+  throw new RecipeLoadError(
+    `${registryUrl}/${file.source}`,
+    `provider "github" needs a registryUrl on GitHub (https://raw.githubusercontent.com/<owner>/<repo>/<ref> or gh:owner/repo), not ${registryUrl}`,
+  );
 };
 
 /**
@@ -576,8 +620,9 @@ export class RecipeFileNotFoundError extends Error {
  * Fetch a standalone recipe.json from a specific GitHub repo.
  *
  * When `subpath` is provided, reads `${subpath}/recipe.json` relative to
- * the repo root. RecipeFile.source paths in the returned Recipe are also
- * expected to be relative to that subpath.
+ * the repo root. The RecipeFile.source paths of that recipe still resolve
+ * against the repository root, not the subpath (clone-recipe.ts builds the
+ * registry URL from owner, repo and ref only).
  *
  * @throws {RecipeFileNotFoundError} When recipe.json is absent (HTTP 404); the
  *   caller decides whether that means whole-repo mode.

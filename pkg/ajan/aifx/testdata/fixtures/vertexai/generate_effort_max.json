@@ -1,0 +1,64 @@
+{
+  "provider": "vertexai",
+  "scenario": "generate_effort_max",
+  "exchanges": [
+    {
+      "request": {
+        "headers": {
+          "accept-encoding": "gzip",
+          "content-length": "161",
+          "content-type": "application/json",
+          "user-agent": "google-genai-sdk/1.71.0 gl-go/go1.26.6",
+          "x-goog-api-client": "google-genai-sdk/1.71.0 gl-go/go1.26.6",
+          "x-goog-api-key": "test-vertex-key",
+          "x-server-timeout": "30"
+        },
+        "method": "POST",
+        "path": "/v1beta1/projects/fixture-project/locations/us-central1/publishers/google/models/gemini-test:generateContent",
+        "body": {
+          "contents": [
+            {
+              "parts": [
+                {
+                  "text": "Think harder."
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "generationConfig": {
+            "responseMimeType": "text/plain",
+            "thinkingConfig": {
+              "thinkingLevel": "HIGH"
+            }
+          }
+        }
+      },
+      "response": {
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"Partial\"}]},\"finishReason\":\"SAFETY\"}],\"usageMetadata\":{\"promptTokenCount\":3,\"totalTokenCount\":3}}",
+        "status": 200
+      }
+    }
+  ],
+  "outcome": {
+    "result": {
+      "content": [
+        {
+          "text": "Partial",
+          "type": "text"
+        }
+      ],
+      "modelID": "gemini-test",
+      "stopReason": "refusal",
+      "usage": {
+        "InputTokens": 3,
+        "OutputTokens": 0,
+        "TotalTokens": 3,
+        "ThinkingTokens": 0
+      }
+    }
+  }
+}

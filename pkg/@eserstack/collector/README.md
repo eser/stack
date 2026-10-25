@@ -1,5 +1,9 @@
 # ⚙️ [@eserstack/collector](./)
 
+> **Note:** JSR is frozen at 4.5.x. From 5.0.0, `@eserstack/collector` is
+> published on npm under the same name (`pnpm add @eserstack/collector`); the
+> JSR versions stay available but get no updates.
+
 > **eserstack Library** — [eser/stack on GitHub](https://github.com/eser/stack)
 > **Install:** `pnpm add jsr:@eserstack/collector`
 
@@ -59,7 +63,16 @@ const exports = await collector.collectExports({
 
 ### `walkFiles(baseDir, globFilter, ignoreFilePattern)`
 
-Async generator that yields relative file paths matching the criteria.
+Async generator that yields relative file paths matching the criteria. It walks
+`.ts`, `.tsx`, `.js`, `.jsx`, `.mts`, `.cts`, `.mjs` and `.cjs` files, skips
+`node_modules`, `.git`, `dist`, `coverage`, `.output` and `.cache` directories
+and unreadable directories below `baseDir`, and yields files in depth-first,
+name-sorted order. A `baseDir` that cannot be read is an error.
+
+The walk runs in Go when the native ajan library is loaded. Without it (no
+library, `ESER_AJAN=disabled`, or only the WASM build, which has no filesystem)
+the same walk runs in TypeScript on the runtime's file system, so no native
+library is required.
 
 ```typescript
 import * as collector from "@eserstack/collector";

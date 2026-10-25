@@ -5,6 +5,7 @@
 // Usage:
 //
 //	noskills-server start [--listen :4433] [--data-dir ~/.noskills] [--self-signed]
+//	noskills-server web [--root .] [--port 3000] [--open]
 package main
 
 import (
@@ -37,6 +38,8 @@ func run() int {
 	switch os.Args[1] {
 	case "start":
 		return runStart(os.Args[2:])
+	case "web":
+		return runWeb(os.Args[2:])
 	case "doctor":
 		return runDoctor(os.Args[2:])
 	case "pin":
@@ -238,6 +241,7 @@ func printUsage() {
 
 Usage:
   noskills-server start [flags]   Start the daemon
+  noskills-server web [flags]     Serve one project's dashboard on 127.0.0.1
   noskills-server doctor          Run health checks
   noskills-server pin             Reset and reprint the daemon PIN
   noskills-server install-service Install as a system service (launchd / systemd)
@@ -258,6 +262,12 @@ Start flags:
   --allowed-origins string
                        Comma-separated browser origins, besides the daemon's
                        own, that may open WebTransport sessions (default none)
+
+Web flags:
+  --root string        Project root (default: the nearest directory with .eser/)
+  --port int           Port on 127.0.0.1 (default 3000)
+  --open               Open the dashboard in the default browser
+  --log-level string   Log level: DEBUG, INFO, WARN, ERROR (default "WARN")
 `)
 }
 

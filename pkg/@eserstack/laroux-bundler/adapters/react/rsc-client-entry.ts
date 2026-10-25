@@ -24,13 +24,13 @@ const BOOTSTRAP_EXPORT_SUFFIX = /\/client\/bootstrap(?:\/index\.ts)?$/;
 export const BOOTSTRAP_COPY_DIR = "_laroux-react";
 
 /** The bootstrap module the generated entry imports, inside the copy. */
-const BOOTSTRAP_ENTRY_FILE = "client/bootstrap/entry.tsx";
+const BOOTSTRAP_ENTRY_FILE = "client/bootstrap/entry.ts";
 
 /**
  * laroux-react files the client entry bundles, relative to the package root.
  *
  * They are copied with this layout so the relative imports between them
- * (entry.tsx imports ../../client.ts) resolve inside the copy. The copy sits
+ * (entry.ts imports ../../client.ts) resolve inside the copy. The copy sits
  * in the app's dist directory instead of being bundled from the package
  * location for two reasons: bare imports such as react then resolve from the
  * app, so the bootstrap and the app's client components share one React
@@ -47,14 +47,14 @@ const BOOTSTRAP_SOURCE_FILES = [
   "protocol.ts",
   "runtime/image/fallback.ts",
   "runtime/navigation/link-navigation.ts",
-  "client/bootstrap/entry.tsx",
-  "client/bootstrap/error-boundary.tsx",
-  "client/bootstrap/error-overlay.tsx",
+  "client/bootstrap/entry.ts",
+  "client/bootstrap/error-boundary.ts",
+  "client/bootstrap/error-overlay.ts",
   "client/bootstrap/globals.d.ts",
-  "client/bootstrap/hmr-client.tsx",
+  "client/bootstrap/hmr-client.ts",
   "client/bootstrap/index.ts",
   "client/bootstrap/lazy-loader.ts",
-  "client/bootstrap/smart-refresh.tsx",
+  "client/bootstrap/smart-refresh.ts",
 ] as const;
 
 /** Where the laroux-react package files come from. */

@@ -119,28 +119,42 @@ export const addRecipe = (
               variables: input.variables,
             }),
           );
+          // The bridge sends each recipe flat (bridge_kit.go
+          // kitApplyRecipeResult) and leaves empty lists out.
           const goResult = JSON.parse(raw) as {
             recipes?: Array<{
               name: string;
-              result: { written: string[]; skipped: string[] };
+              written?: string[];
+              skipped?: string[];
+              total?: number;
+              postInstallRan?: string[];
             }>;
             error?: string;
           };
 
           if (goResult.error === undefined && goResult.recipes !== undefined) {
+            const applied = goResult.recipes.map((entry) => ({
+              name: entry.name,
+              result: {
+                written: entry.written ?? [],
+                skipped: entry.skipped ?? [],
+                total: entry.total ?? 0,
+                postInstallRan: entry.postInstallRan ?? [],
+              },
+            }));
             let totalWritten = 0;
             let totalSkipped = 0;
-            for (const entry of goResult.recipes) {
+            for (const entry of applied) {
               totalWritten += entry.result.written.length;
               totalSkipped += entry.result.skipped.length;
             }
 
             ctx.out.writeln(span.green(`✓ Added ${totalWritten} file(s)`));
 
-            if (goResult.recipes.length > 1) {
+            if (applied.length > 1) {
               ctx.out.writeln(
                 span.dim(
-                  `  Applied ${goResult.recipes.length} recipes (including dependencies)`,
+                  `  Applied ${applied.length} recipes (including dependencies)`,
                 ),
               );
             }
@@ -151,7 +165,7 @@ export const addRecipe = (
               );
             }
 
-            const targetResult = goResult.recipes.find(
+            const targetResult = applied.find(
               (r) => r.name === input.recipeName,
             );
             if (targetResult !== undefined) {
@@ -161,7 +175,7 @@ export const addRecipe = (
             }
 
             const chainResult = {
-              recipes: goResult.recipes,
+              recipes: applied,
             } as unknown as recipeApplier.ApplyChainResult;
             const depInfo = {
               instructions: [],
@@ -198,7 +212,7 @@ export const addRecipe = (
         // Fallback: TS apply chain
         const manifest = await registryFetcher.fetchRegistry(
           input.registrySource,
-          { verbose: input.verbose, local: input.local },
+          { verbose: input.verbose, local: input.local, cwd: input.cwd },
         );
 
         const recipe = manifest.recipes.find(

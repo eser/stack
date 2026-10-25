@@ -1,9 +1,10 @@
 ---
 id: TASK-97
 title: Pass request data to laroux pages or drop renderApp's requestContext
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-10-04 20:51'
+updated_date: '2026-10-15 19:34'
 labels:
   - laroux-server
   - feature
@@ -23,7 +24,15 @@ renderApp in laroux-server adapters/react/render-app.tsx:20-24 accepts requestCo
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Pages receive request data through a documented prop or request-scoped context, or requestContext is removed from renderApp
-- [ ] #2 frontend-practices references/laroux.md 'Per-Request Data Under laroux' matches the result
-- [ ] #3 A test covers concurrent requests with different cookies if the data is passed
+- [x] #1 Pages receive request data through a documented prop or request-scoped context, or requestContext is removed from renderApp
+- [x] #2 frontend-practices references/laroux.md 'Per-Request Data Under laroux' matches the result
+- [x] #3 A test covers concurrent requests with different cookies if the data is passed
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Completed in round 3 of the autonomous backlog run (2026-10-05); deno task cli ok passes.
+
+AC #2 is met. 'Per-Request Data Under laroux' matches laroux/router/page-request.ts: request prop on page and layout, cookies a ReadonlyMap of decoded values, host and locale null when missing. The Correct example uses laroux.PageProps and checks for undefined.
+<!-- SECTION:NOTES:END -->

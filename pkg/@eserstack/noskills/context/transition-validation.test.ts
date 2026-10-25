@@ -7,7 +7,7 @@
  */
 
 import * as bdd from "@std/testing/bdd";
-import * as assert from "@std/assert";
+import * as assert from "@eserstack/test-kit/assert";
 import * as ai from "@eserstack/ai/mod";
 import * as results from "@eserstack/primitives/results";
 import * as transitionValidation from "./transition-validation.ts";
@@ -257,6 +257,19 @@ bdd.describe("validatorSettingsOf", () => {
     },
   ];
 
+  // TASK-329: an object value was described as "a object".
+  bdd.it("describes an object value with its article", () => {
+    const settings = transitionValidation.validatorSettingsOf({
+      agent: { name: "openai" },
+      model: "m",
+    });
+    assert.assertEquals(results.isFail(settings), true);
+    if (results.isFail(settings)) {
+      assert.assertStringIncludes(settings.error, "an object");
+      assert.assertEquals(settings.error.includes("a object"), false);
+    }
+  });
+
   for (const { name, entry, field } of refused) {
     bdd.it(`refuses ${name} and names the field`, () => {
       const settings = transitionValidation.validatorSettingsOf(entry);
@@ -325,6 +338,31 @@ bdd.describe("validationInputOf", () => {
       question: "Rollback?",
       answer: "A versioned bucket",
     }]);
+  });
+
+  // TASK-329: a hand-edited follow-up marked answered without an answer
+  // threw inside cut().
+  bdd.it("leaves out an answered follow-up that has no answer", () => {
+    let state = inRefinement();
+    state = machine.addFollowUp(state, "reversibility", "Rollback?", "agent");
+    const [followUp] = machine.getPendingFollowUps(state);
+    const { answer: _dropped, ...withoutAnswer } = {
+      ...followUp!,
+      status: "answered" as const,
+    };
+    state = {
+      ...state,
+      discovery: {
+        ...state.discovery,
+        followUps: [withoutAnswer as unknown as schema.FollowUp],
+      },
+    };
+
+    const baseIds = new Set(questions.QUESTIONS.map((q) => q.id));
+    assert.assertEquals(
+      inputFor(state).answers.filter((a) => !baseIds.has(a.questionId)),
+      [],
+    );
   });
 
   bdd.it("cuts a spec document past the limit", () => {

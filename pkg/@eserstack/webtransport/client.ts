@@ -8,7 +8,7 @@
  *           automatically by the browser — no client-side configuration needed.
  *
  * Node:     Node 22+ has experimental WebTransport via --experimental-fetch.
- *           Long-term path: extend pkg/@eserstack/ajan/bridge.go HTTP-client FFI
+ *           Long-term path: extend the ajan bridge HTTP-client FFI
  *           surface with protocol:"h3" so the TS bridge gets HTTP/3 natively.
  *
  * @module

@@ -1,0 +1,84 @@
+{
+  "provider": "anthropic",
+  "scenario": "stream_tool_input_cut_off",
+  "exchanges": [
+    {
+      "request": {
+        "headers": {
+          "accept": "application/json",
+          "accept-encoding": "gzip",
+          "anthropic-version": "2023-06-01",
+          "content-length": "172",
+          "content-type": "application/json",
+          "user-agent": "Anthropic/Go 1.73.0",
+          "x-api-key": "test-anthropic-key",
+          "x-stainless-arch": "arm64",
+          "x-stainless-lang": "go",
+          "x-stainless-os": "MacOS",
+          "x-stainless-package-version": "1.73.0",
+          "x-stainless-retry-count": "0",
+          "x-stainless-runtime": "go",
+          "x-stainless-runtime-version": "go1.26.6",
+          "x-stainless-timeout": "10"
+        },
+        "method": "POST",
+        "path": "/v1/messages",
+        "body": {
+          "max_tokens": 256,
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "Hello",
+                  "type": "text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "claude-test",
+          "system": [
+            {
+              "text": "Be brief.",
+              "type": "text"
+            }
+          ],
+          "stream": true
+        }
+      },
+      "response": {
+        "headers": {
+          "Content-Type": "text/event-stream"
+        },
+        "body": "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_s5\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"claude-test\",\"content\":[],\"stop_reason\":null,\"stop_sequence\":null,\"usage\":{\"input_tokens\":9,\"output_tokens\":1}}}\n\nevent: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_c\",\"name\":\"get_weather\",\"input\":{}}}\n\nevent: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"{\\\"city\\\": \\\"Ist\"}}\n\nevent: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}\n\nevent: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"max_tokens\",\"stop_sequence\":null},\"usage\":{\"output_tokens\":4}}\n\nevent: message_stop\ndata: {\"type\":\"message_stop\"}\n\n",
+        "status": 200
+      }
+    }
+  ],
+  "outcome": {
+    "events": [
+      {
+        "text": "{\"city\": \"Ist",
+        "type": "tool_call_delta"
+      },
+      {
+        "toolCall": {
+          "arguments": "{}",
+          "id": "toolu_c",
+          "name": "get_weather"
+        },
+        "type": "tool_call_delta"
+      },
+      {
+        "stopReason": "max_tokens",
+        "type": "message_done",
+        "usage": {
+          "InputTokens": 9,
+          "OutputTokens": 4,
+          "TotalTokens": 13,
+          "ThinkingTokens": 0
+        }
+      }
+    ]
+  }
+}

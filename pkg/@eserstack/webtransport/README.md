@@ -1,5 +1,9 @@
 # 🚇 [@eserstack/webtransport](./)
 
+> **Note:** JSR is frozen at 4.5.x. From 5.0.0, `@eserstack/webtransport` is
+> published on npm under the same name (`pnpm add @eserstack/webtransport`); the
+> JSR versions stay available but get no updates.
+
 > **eserstack Tool** · [eser/stack on GitHub](https://github.com/eser/stack) ·
 > **Install:** `pnpm add jsr:@eserstack/webtransport`
 

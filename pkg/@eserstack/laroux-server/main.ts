@@ -193,14 +193,14 @@ async function initializeServer(
     middlewareDispatcher: modules.proxies,
   };
 
-  // Watch mode rebuilds on change; the server bundle uses deno-bundler there.
+  // Watch mode rebuilds on change, with rolldown like every other build.
   // Only a successful rebuild reaches HMR clients, after the server has
   // loaded the rebuilt pages, API routes, proxies and server actions.
   const isWatching = config.mode.isWatch && buildPlugins !== null;
   if (isWatching) {
     const buildContext = system.createBuildContext(toBuildConfig(config), {
       ...buildPlugins,
-      bundlerBackend: "deno-bundler",
+      bundlerBackend: "rolldown",
     });
     system.watch(
       buildContext,
@@ -221,11 +221,12 @@ async function initializeServer(
   }
 
   serverLogger.info(`RSC Server${modeIndicator}`);
-  serverLogger.info(`   Local: http://localhost:${config.server.port}`);
-
   // Dynamically import server module to avoid loading react-dom/server during build
   const server = await import("./runtime/server.ts");
-  server.startHTTPServer(completeDeps);
+  const listening = await server.startHTTPServer(completeDeps);
+  serverLogger.info(
+    `   Local: http://${config.server.host}:${listening.port}`,
+  );
 
   return completeDeps;
 }
@@ -295,11 +296,11 @@ export async function startServer(options: ServerOptions): Promise<void> {
 
   // Build before serving when a framework plugin is provided: always in dev,
   // and in serve mode when dist/ holds no finished build or a build input
-  // changed after it. Dev uses deno-bundler, production serve uses rolldown.
+  // changed after it. Dev and serve both bundle with rolldown.
   if (buildPlugins !== null) {
     const context = system.createBuildContext(toBuildConfig(config), {
       ...buildPlugins,
-      bundlerBackend: isDev ? "deno-bundler" : "rolldown",
+      bundlerBackend: "rolldown",
     });
     const buildResult = isDev
       ? await system.build(context)

@@ -128,7 +128,7 @@ export function createInlineRSCStream(
  * 1. A buffer array for chunks that arrive before JS loads
  * 2. A handler function that stores chunks in the buffer
  *
- * The client entry.tsx will later process buffered chunks and
+ * The client entry.ts will later process buffered chunks and
  * replace the handler with a direct processor.
  */
 export function generateInlineBootstrapScript(): string {

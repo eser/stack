@@ -1,4 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
+
+//go:build !wasip1
+
 // Wave 4 Phase B — retroactive bridge tests for parsingfx.TokenizeStream FFI.
 // Five functional tests + 1000-loop handle leak gate.
 

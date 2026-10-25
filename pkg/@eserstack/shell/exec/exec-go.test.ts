@@ -1,6 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import * as assert from "@std/assert";
+import * as assert from "@eserstack/test-kit/assert";
 import type * as ffiTypes from "@eserstack/ajan/ffi";
 import * as execGo from "./exec-go.ts";
 import * as types from "./types.ts";
@@ -24,7 +24,7 @@ const fakeLib = (
 };
 
 Deno.test("buildExecGoRequest sends env as KEY=VALUE strings", () => {
-  // bridge.go reads env as []string; a JSON object failed its unmarshal with
+  // The bridge's reads env as []string; a JSON object failed its unmarshal with
   // "invalid request JSON", so every goExec call that set env failed.
   const request = execGo.buildExecGoRequest("printenv", {
     env: { GREETING: "hello", EMPTY: "", WITH_EQUALS: "a=b" },
@@ -65,7 +65,7 @@ const timeoutCases = [
 
 for (const { name, input, wire } of timeoutCases) {
   Deno.test(`buildExecGoRequest ${name}`, () => {
-    // bridge.go reads timeout as a duration string; a JSON number failed its
+    // The bridge's reads timeout as a duration string; a JSON number failed its
     // unmarshal the same way env did.
     const request = execGo.buildExecGoRequest("true", { timeout: input });
 

@@ -34,8 +34,9 @@ const c = (sub: string): string => cmd.cmd(sub);
  * Build a spec-scoped command string using positional format:
  *   `spec <specName> <subcommand> [args]`
  */
-const cs = (sub: string, specName: string | null): string => {
-  if (specName === null) return c(sub);
+const cs = (sub: string, specName: string | null | undefined): string => {
+  // A state whose JSON has no "spec" key reads as undefined here.
+  if (specName === null || specName === undefined) return c(sub);
   return c(`spec ${specName} ${sub}`);
 };
 
@@ -1325,7 +1326,12 @@ const buildGate = (
             }. ` +
             `Pending: ${
               listOrNone(report.pendingDecisions.map((d) => d.section))
-            }.`,
+            }.` +
+            (report.unresolvedSections.length > 0
+              ? ` Ask the user about each unresolved section. ${
+                machine.sectionCommandsHint(state.spec ?? "<name>")
+              }`
+              : ""),
           phase: "DISCOVERY_REFINEMENT",
         };
       }
@@ -2384,11 +2390,11 @@ const compileDiscovery = async (
 
   if (allAnswered) {
     const history = state.revisitHistory ?? [];
-    const lastRevisit = history.length > 0 ? history[history.length - 1] : null;
+    const lastRevisit = history.at(-1) ?? null;
     const base: DiscoveryOutput = {
       phase: "DISCOVERY",
       instruction: lastRevisit !== null
-        ? "This spec was revisited from EXECUTING. All previous answers are preserved. Review and approve, or revise answers before regenerating the spec."
+        ? `This spec was revisited from ${lastRevisit.from}. All previous answers are preserved. Review and approve, or revise answers before regenerating the spec.`
         : `All discovery questions answered. Run: \`${
           cs("approve", specName)
         }\``,
@@ -2502,10 +2508,10 @@ const compileDiscovery = async (
   // ── Human mode: every unanswered question at once ──
   // Check for revisit context
   const history = state.revisitHistory ?? [];
-  const lastRevisit = history.length > 0 ? history[history.length - 1] : null;
+  const lastRevisit = history.at(-1) ?? null;
   const isRevisited = lastRevisit !== null;
-  const revisitInstruction = isRevisited
-    ? "This spec was revisited from EXECUTING. Previous discovery answers are preserved — review and revise as needed, or approve to regenerate tasks."
+  const revisitInstruction = lastRevisit !== null
+    ? `This spec was revisited from ${lastRevisit.from}. Previous discovery answers are preserved — review and revise as needed, or approve to regenerate tasks.`
     : `Conduct a thorough discovery conversation. FIRST: perform a pre-discovery codebase scan (README, CLAUDE.md, recent git log, TODOs, directory structure) and present a brief audit summary. THEN: challenge the user's spec description against your findings. THEN: ask the unanswered discovery questions together, offering concrete options based on codebase knowledge, and register a follow-up for each unclear answer with \`${
       cs('followup <questionId> "question"', specName)
     }\` before you submit; noskills then gives you each follow-up on its own. AFTER questions: present a dream state table (current → this spec → future), scored expansion proposals, architectural decisions, and an error/rescue map. FINALLY: present a complete discovery synthesis for user confirmation before submitting answers as a JSON object.`;

@@ -1,5 +1,9 @@
 # 📣 [@eserstack/posts](./)
 
+> **Note:** JSR is frozen at 4.5.x. From 5.0.0, `@eserstack/posts` is published
+> on npm under the same name (`pnpm add @eserstack/posts`); the JSR versions
+> stay available but get no updates.
+
 > **eserstack Tool** · [eser/stack on GitHub](https://github.com/eser/stack) ·
 > **Install:** `pnpm add jsr:@eserstack/posts`
 

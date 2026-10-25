@@ -777,12 +777,11 @@ const handleStop = async (): Promise<shellArgs.CliResult<void>> => {
     // best effort — may not exist
   }
 
-  let maxIter = 15;
+  let maxIter = hookDecisions.DEFAULT_RESTART_THRESHOLD;
   try {
-    const config = await persistence.readManifest(root);
-    if (config !== null) {
-      maxIter = config.maxIterationsBeforeRestart;
-    }
+    maxIter = hookDecisions.restartThreshold(
+      await persistence.readManifest(root),
+    );
   } catch {
     // use default
   }
@@ -949,7 +948,9 @@ const handleGitExec = async (
 ): Promise<shellArgs.CliResult<void>> => {
   const root = runtime.env.get("NOSKILLS_PROJECT_ROOT") ??
     (await persistence.resolveProjectRoot()).root;
-  const realGit = runtime.env.get("NOSKILLS_REAL_GIT") ??
+  const realGit = hookDecisions.explicitRealGit(
+    runtime.env.get("NOSKILLS_REAL_GIT"),
+  ) ??
     await gitWrapperInstall.resolveRealGit(
       runtime.env.get("PATH") ?? "",
       gitWrapperInstall.wrapperDir(root),

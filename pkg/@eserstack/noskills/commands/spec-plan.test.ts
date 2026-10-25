@@ -7,7 +7,7 @@
  */
 
 import * as bdd from "@std/testing/bdd";
-import * as assert from "@std/assert";
+import * as assert from "@eserstack/test-kit/assert";
 import * as crossRuntime from "@eserstack/standards/cross-runtime";
 import * as schema from "../state/schema.ts";
 import * as machine from "../state/machine.ts";
@@ -269,4 +269,65 @@ bdd.describe("planContext in compiler output", () => {
       );
     },
   );
+});
+
+// TASK-324: with --from-plan, spec new saved the state from before the
+// IDLE -> DISCOVERY transition was recorded, so the spec had no
+// transitionHistory.
+bdd.describe("spec new --from-plan", () => {
+  bdd.it("records the transition and the plan path", async () => {
+    const repo = crossRuntime.runtime.path.resolve(
+      import.meta.dirname ?? ".",
+      "../../../..",
+    );
+    const root = await crossRuntime.runtime.fs.makeTempDir({
+      prefix: "nos_from_plan_",
+    });
+    const run = (args: readonly string[]) =>
+      crossRuntime.runtime.exec.spawn(
+        crossRuntime.runtime.process.execPath(),
+        [
+          "run",
+          "-A",
+          "--config",
+          `${repo}/deno.json`,
+          `${repo}/pkg/@eserstack/noskills/main.ts`,
+          ...args,
+        ],
+        { cwd: root, stdin: "null", stdout: "piped", stderr: "piped" },
+      );
+
+    try {
+      await run(["init", "--non-interactive", "--tools=claude-code"]);
+      await crossRuntime.runtime.fs.writeTextFile(
+        `${root}/plan.md`,
+        "# Plan\n",
+      );
+      const created = await run([
+        "spec",
+        "new",
+        "--name=planned",
+        "--from-plan=plan.md",
+        "a spec started from a plan",
+      ]);
+      assert.assertEquals(
+        created.code,
+        0,
+        new TextDecoder().decode(created.stderr),
+      );
+
+      const state = JSON.parse(
+        await crossRuntime.runtime.fs.readTextFile(
+          `${root}/${persistence.paths.specStatesDir}/planned.json`,
+        ),
+      ) as schema.StateFile;
+      assert.assertEquals(state.discovery.planPath, "plan.md");
+      assert.assertEquals(
+        state.transitionHistory?.map((t) => `${t.from}->${t.to}`),
+        ["IDLE->DISCOVERY"],
+      );
+    } finally {
+      await crossRuntime.runtime.fs.remove(root, { recursive: true });
+    }
+  });
 });

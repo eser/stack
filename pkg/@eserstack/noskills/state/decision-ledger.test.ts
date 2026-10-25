@@ -1,7 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 import * as bdd from "@std/testing/bdd";
-import * as assert from "@std/assert";
+import * as assert from "@eserstack/test-kit/assert";
 import { runtime } from "@eserstack/standards/cross-runtime";
 import * as schema from "./schema.ts";
 import * as persistence from "./persistence.ts";
@@ -640,4 +640,32 @@ bdd.describe("writeSpecState integration", () => {
     assert.assertEquals(recs[0]!.category, "scope");
     assert.assert(recs[0]!.provenance === "ratified");
   });
+});
+
+// TASK-327: the spec name from the CLI went into the ledger path unchecked,
+// so `ledger ../x` read files outside the ledger folder.
+bdd.describe("ledger paths", () => {
+  bdd.it(
+    "a spec name that leaves the ledger folder reads nothing",
+    async () => {
+      const dir = await runtime.fs.makeTempDir({ prefix: "nos_ledger_path_" });
+      try {
+        // A ledger file one level above the ledger folder.
+        const planted = `${dir}/${persistence.paths.ledgerFile("..")}`;
+        await runtime.fs.mkdir(planted.slice(0, planted.lastIndexOf("/")), {
+          recursive: true,
+        });
+        await runtime.fs.writeTextFile(
+          planted,
+          JSON.stringify({ id: "x", spec: "x" }) + "\n",
+        );
+
+        assert.assertEquals(await ledger.readLedger(dir, ".."), []);
+        assert.assertEquals(await ledger.readLedger(dir, "../x"), []);
+        assert.assertEquals(await ledger.readSummary(dir, "a/b"), null);
+      } finally {
+        await runtime.fs.remove(dir, { recursive: true });
+      }
+    },
+  );
 });

@@ -1,5 +1,9 @@
 # 🖥️ [@eserstack/noskills-web](./)
 
+> **Note:** JSR is frozen at 4.5.x. From 5.0.0, `@eserstack/noskills-web` is
+> published on npm under the same name (`pnpm add @eserstack/noskills-web`); the
+> JSR versions stay available but get no updates.
+
 > **eserstack Product** · [eser/stack on GitHub](https://github.com/eser/stack)
 > · **Install:** `pnpm add jsr:@eserstack/noskills-web`
 
@@ -204,7 +208,10 @@ The files in `static/` load as plain `<script>` tags:
   same scene from a `noskills-server` daemon over WebTransport. Its header marks
   it as not yet tested against a live daemon.
 - `sw.js` and `sw-register.js` register the service worker that shows push
-  notifications and stores the daemon's certificate fingerprint.
+  notifications. On a page served over HTTPS, which is the `noskills-server`
+  daemon, `sw-register.js` also hands the worker the daemon's certificate
+  fingerprint from `/api/cert-fingerprint`. The plain-HTTP dashboard has no
+  certificate, so it skips that request.
 
 ## Upgrading from 4.x
 

@@ -9,7 +9,7 @@
     "./client": "./client.ts",
     "./protocol": "./protocol.ts",
     "./client/bootstrap": "./client/bootstrap/index.ts",
-    "./span-renderer": "./span-renderer.tsx",
+    "./span-renderer": "./span-renderer.ts",
     "./use-function": "./use-function.ts"
   },
   "dependencies": {
@@ -22,7 +22,7 @@
     "react-dom": "^19.3.0"
   },
   "devDependencies": {
-    "@std/assert": "npm:@jsr/std__assert@^1.0.19",
+    "@eserstack/test-kit": "workspace:*",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0"
   }

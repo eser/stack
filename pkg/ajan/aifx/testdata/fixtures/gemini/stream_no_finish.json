@@ -1,0 +1,67 @@
+{
+  "provider": "gemini",
+  "scenario": "stream_no_finish",
+  "exchanges": [
+    {
+      "request": {
+        "query": {
+          "alt": [
+            "sse"
+          ]
+        },
+        "headers": {
+          "accept-encoding": "gzip",
+          "content-length": "168",
+          "content-type": "application/json",
+          "user-agent": "google-genai-sdk/1.71.0 gl-go/go1.26.6",
+          "x-goog-api-client": "google-genai-sdk/1.71.0 gl-go/go1.26.6",
+          "x-goog-api-key": "test-gemini-key",
+          "x-server-timeout": "30"
+        },
+        "method": "POST",
+        "path": "/v1beta/models/gemini-test:streamGenerateContent",
+        "body": {
+          "contents": [
+            {
+              "parts": [
+                {
+                  "text": "Hello"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "generationConfig": {
+            "maxOutputTokens": 256
+          },
+          "systemInstruction": {
+            "parts": [
+              {
+                "text": "Be brief."
+              }
+            ],
+            "role": "user"
+          }
+        }
+      },
+      "response": {
+        "headers": {
+          "Content-Type": "text/event-stream"
+        },
+        "body": "data: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"No end\"}]}}]}\n\n",
+        "status": 200
+      }
+    }
+  ],
+  "outcome": {
+    "events": [
+      {
+        "text": "No end",
+        "type": "content_delta"
+      },
+      {
+        "type": "message_done"
+      }
+    ]
+  }
+}

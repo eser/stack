@@ -1,6 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import * as assert from "@std/assert";
+import * as assert from "@eserstack/test-kit/assert";
 import * as mutate from "./mutate.ts";
 
 Deno.test("basic", () => {
@@ -28,7 +28,7 @@ Deno.test("array-push", () => {
   const obj1 = {
     firstName: "Eser",
     lastName: "Ozvataf",
-    aliases: <Array<string>> [],
+    aliases: [] as Array<string>,
   };
 
   const result = mutate.mutate(obj1, (x) => {

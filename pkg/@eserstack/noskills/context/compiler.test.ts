@@ -1,7 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 import * as bdd from "@std/testing/bdd";
-import * as assert from "@std/assert";
+import * as assert from "@eserstack/test-kit/assert";
 import * as crossRuntime from "@eserstack/standards/cross-runtime";
 import * as compiler from "./compiler.ts";
 import * as schema from "../state/schema.ts";
@@ -55,6 +55,19 @@ const inBlocked = (): schema.StateFile =>
 
 const inCompleted = (): schema.StateFile =>
   machine.completeSpec(inExecuting(), "done");
+
+// TASK-323: a state whose JSON has no "spec" key used to print commands as
+// "spec undefined <subcommand>".
+bdd.it("compile never names an undefined spec", async () => {
+  const { spec: _dropped, ...withoutSpec } = inDiscovery();
+  const output = await compiler.compile(
+    withoutSpec as unknown as schema.StateFile,
+    noConcerns,
+    noRules,
+  );
+
+  assert.assertEquals(JSON.stringify(output).includes("spec undefined"), false);
+});
 
 // =============================================================================
 // compile
@@ -1175,6 +1188,15 @@ bdd.describe("buildGate for DISCOVERY_REFINEMENT completeness", () => {
         true,
       );
       assert.assertEquals(output.gate?.action.includes("Summary"), true);
+      // TASK-325: the action names the command that resolves a section.
+      assert.assertStringIncludes(
+        output.gate?.action ?? "",
+        'section <id> fill "text"',
+      );
+      assert.assertStringIncludes(
+        output.gate?.action ?? "",
+        'section <id> na "reason"',
+      );
     },
   );
 
@@ -1830,3 +1852,39 @@ bdd.describe(
     );
   },
 );
+
+// TASK-329: both revisit instructions said "revisited from EXECUTING", also
+// after a revisit from BLOCKED.
+bdd.describe("discovery after a revisit names the phase it came from", () => {
+  const revisitedFromBlocked = (): schema.StateFile =>
+    machine.revisitSpec(inBlocked(), "the API changed");
+
+  bdd.it("with questions still open", async () => {
+    const output = await compiler.compile(
+      revisitedFromBlocked(),
+      noConcerns,
+      noRules,
+    ) as compiler.DiscoveryOutput;
+
+    assert.assertStringIncludes(output.instruction, "revisited from BLOCKED");
+  });
+
+  bdd.it("with every question answered", async () => {
+    let state = revisitedFromBlocked();
+    for (const id of QUESTION_IDS) {
+      state = machine.addDiscoveryAnswer(
+        state,
+        id,
+        `A meaningful answer for ${id}`,
+      );
+    }
+
+    const output = await compiler.compile(
+      state,
+      noConcerns,
+      noRules,
+    ) as compiler.DiscoveryOutput;
+
+    assert.assertStringIncludes(output.instruction, "revisited from BLOCKED");
+  });
+});

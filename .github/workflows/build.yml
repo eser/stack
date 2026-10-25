@@ -98,14 +98,13 @@ jobs:
           restore-keys: deno-${{ runner.arch }}-
 
       - name: Setup pnpm
+        # No version: pnpm/action-setup reads packageManager from package.json.
         uses: pnpm/action-setup@v6
-        with:
-          version: 10
 
       - name: Setup Node.js
         uses: actions/setup-node@v7
         with:
-          node-version: "latest"
+          node-version-file: .node-version
           cache: "pnpm"
 
       - name: Install dependencies
@@ -141,6 +140,72 @@ jobs:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
         with:
           files: ./etc/coverage.lcov
+
+  # ── Mux sessions with no JavaScript runtime ─────────────────────
+  # noskills-server hosts mux sessions in its own process (pkg/ajan/muxfx).
+  # This job proves it on a machine with no JS runtime: every PATH directory
+  # holding node, deno or bun is dropped before the tests run, and the end-to-end
+  # test drives a mux session through the daemon over WebTransport.
+  mux-no-js-runtime:
+    name: Mux Sessions (no JS runtime)
+    if: >-
+      !(github.event_name == 'workflow_dispatch' && inputs.tag != '' &&
+        inputs.stage == 'post-publish')
+    # GitHub-hosted: the stock image puts Node in /usr/local/bin, apart from the
+    # compiler and shell in /usr/bin that the race build and the panes need.
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 10
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+          ref: ${{ inputs.tag && format('refs/tags/{0}', inputs.tag) || github.ref }}
+
+      - name: Setup Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+          cache-dependency-path: go.sum
+
+      - name: Download Go modules
+        run: go mod download
+
+      - name: Run mux sessions and the dashboard terminal with no JavaScript runtime on PATH
+        run: |
+          set -euo pipefail
+
+          clean=""
+          IFS=:
+          for dir in $PATH; do
+            if [ -e "$dir/node" ] || [ -e "$dir/deno" ] || [ -e "$dir/bun" ]; then
+              echo "Dropping $dir from PATH"
+              continue
+            fi
+            clean="${clean:+$clean:}$dir"
+          done
+          unset IFS
+          export PATH="$clean"
+
+          for runtime in node deno bun; do
+            if command -v "$runtime" >/dev/null 2>&1; then
+              echo "::error::$runtime is still on PATH at $(command -v "$runtime")"
+              exit 1
+            fi
+          done
+          echo "Confirmed: no node, deno or bun on PATH; go is $(command -v go)"
+
+          # CGO_ENABLED=0 is how `eser dev compile` builds the release binaries,
+          # so the pseudo-terminals are opened without libc here.
+          CGO_ENABLED=0 go build -o "$RUNNER_TEMP/noskills-server" ./cmd/noskills-server
+          CGO_ENABLED=0 go test -count=1 ./pkg/ajan/shellfx/pty/ ./pkg/ajan/muxfx/...
+          CGO_ENABLED=0 go test -count=1 -run 'TestMuxSession|TestMuxWorker|TestBrowserTerminal' -v ./pkg/ajan/noskillsserverfx/
+          go test -race -count=1 -run 'TestMuxSession|TestMuxWorker|TestBrowserTerminal' ./pkg/ajan/noskillsserverfx/
 
   # ── Release preflight ──────────────────────────────────────────
   # Runs the release-only steps (npm bundles installed outside the repo,
@@ -188,14 +253,13 @@ jobs:
           restore-keys: deno-${{ runner.arch }}-
 
       - name: Setup pnpm
+        # No version: pnpm/action-setup reads packageManager from package.json.
         uses: pnpm/action-setup@v6
-        with:
-          version: 10
 
       - name: Setup Node.js
         uses: actions/setup-node@v7
         with:
-          node-version: "latest"
+          node-version-file: .node-version
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -348,14 +412,13 @@ jobs:
           restore-keys: deno-${{ runner.arch }}-
 
       - name: Setup pnpm
+        # No version: pnpm/action-setup reads packageManager from package.json.
         uses: pnpm/action-setup@v6
-        with:
-          version: 10
 
       - name: Setup Node.js
         uses: actions/setup-node@v7
         with:
-          node-version: "latest"
+          node-version-file: .node-version
           cache: "pnpm"
 
       - name: Install dependencies
@@ -413,9 +476,8 @@ jobs:
 
     steps:
       - name: Setup pnpm
+        # No version: pnpm/action-setup reads packageManager from package.json.
         uses: pnpm/action-setup@v6
-        with:
-          version: 10
 
       # No `cache: "pnpm"`: this job never checks out the repo -- it installs a
       # downloaded artifact -- and setup-node resolves the pnpm cache key from
@@ -424,7 +486,7 @@ jobs:
       - name: Setup Node.js only
         uses: actions/setup-node@v7
         with:
-          node-version: "26"
+          node-version-file: .node-version
 
       - name: Verify Deno is NOT installed
         run: |
@@ -516,7 +578,7 @@ jobs:
           - runtime: deno
             version: "2.9.5"
           - runtime: node
-            version: "26"
+            version: ".node-version"
           - runtime: bun
             version: "1.3"
 
@@ -546,9 +608,8 @@ jobs:
           restore-keys: deno-${{ runner.arch }}-
 
       - name: Setup pnpm
+        # No version: pnpm/action-setup reads packageManager from package.json.
         uses: pnpm/action-setup@v6
-        with:
-          version: 10
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -567,7 +628,8 @@ jobs:
         if: matrix.runtime == 'node'
         uses: actions/setup-node@v7
         with:
-          node-version: ${{ matrix.version }}
+          # The node row uses the pinned version, as every other job does.
+          node-version-file: .node-version
 
       - name: Setup Bun
         if: matrix.runtime == 'bun'
@@ -576,7 +638,14 @@ jobs:
           bun-version: ${{ matrix.version }}
 
       - name: Build Go shared library (native)
-        run: deno run --allow-all pkg/@eserstack/ajan/scripts/build.ts
+        run: make ajan-lib
+
+      # TASK-279: the darwin/arm64 library stays within its 14 MB budget and
+      # links no vendor AI SDK or gRPC. One matrix row is enough, so the Deno
+      # row on macOS runs it.
+      - name: Check the native library's size and links
+        if: runner.os == 'macOS' && matrix.runtime == 'deno'
+        run: make ajan-lib-check
 
       # Node and Bun get the bundle the way a user does: packed, installed with
       # npm into a scratch project outside the repo, then run from there. In
@@ -615,6 +684,56 @@ jobs:
   # Installing into a scratch directory and asserting Get-Command finds the
   # binaries is the whole point: "extracted" is not the property that matters --
   # "on PATH" is.
+  node-ffi-cli:
+    name: CLI on node:ffi (${{ matrix.os }})
+    needs: validate
+    # Runs the eser CLI from source under plain node, which loads the bridge
+    # through node:ffi with no FFI flag (TASK-189, decision-37): the gate
+    # runner M1 depends on, proven before the cutover.
+    if: "!startsWith(github.ref, 'refs/tags/') && inputs.tag == ''"
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04-arm, macos-latest]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build the native library
+        run: make ajan-lib
+
+      # The excludes are the manifest's: a standalone validator run reads its
+      # options from flags only.
+      - name: eser ajan version
+        run: node pkg/@eserstack/cli/main.ts ajan version
+
+      - name: eser codebase validate-eof
+        run: node pkg/@eserstack/cli/main.ts codebase validate-eof --exclude docs/api/ --exclude third-party/
+
+      - name: eser codebase validate-licenses
+        run: node pkg/@eserstack/cli/main.ts codebase validate-licenses --exclude .eser/recipes/ --exclude third-party/
+
   windows-smoke:
     name: Windows Smoke Test
     # Skipped on tags for the same reason as cross-runtime-test: no release job
@@ -759,14 +878,13 @@ jobs:
           restore-keys: deno-${{ runner.arch }}-
 
       - name: Setup pnpm
+        # No version: pnpm/action-setup reads packageManager from package.json.
         uses: pnpm/action-setup@v6
-        with:
-          version: 10
 
       - name: Setup Node.js
         uses: actions/setup-node@v7
         with:
-          node-version: "latest"
+          node-version-file: .node-version
           registry-url: "https://registry.npmjs.org"
           cache: "pnpm"
 
@@ -875,7 +993,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v7
         with:
-          node-version: "26"
+          node-version-file: .node-version
 
       # This job holds contents: write, so it runs nothing resolved from a
       # registry at release time. It used to install eser@$VERSION from npm into a
@@ -946,27 +1064,6 @@ jobs:
           fetch-depth: 1
           ref: ${{ inputs.tag && format('refs/tags/{0}', inputs.tag) || github.ref }}
 
-      - name: Setup Deno
-        uses: denoland/setup-deno@v2
-        with:
-          deno-version: v2.9.5
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v6
-        with:
-          version: 10
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v7
-        with:
-          node-version: "latest"
-          cache: "pnpm"
-
-      # build.ts imports @eserstack/standards (→ @std/path); under
-      # nodeModulesDir:manual deno needs node_modules populated to resolve it.
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
       - name: Setup Go
         uses: actions/setup-go@v7
         with:
@@ -978,10 +1075,10 @@ jobs:
           cache-dependency-path: go.sum
 
       - name: Build aarch64-darwin (native)
-        run: deno run --allow-all pkg/@eserstack/ajan/scripts/build.ts --target=aarch64-darwin
+        run: make ajan-lib TARGET=aarch64-darwin
 
       - name: Build x86_64-darwin (cross-compile via clang -arch x86_64)
-        run: deno run --allow-all pkg/@eserstack/ajan/scripts/build.ts --target=x86_64-darwin
+        run: make ajan-lib TARGET=x86_64-darwin
 
       - name: Upload darwin dist
         uses: actions/upload-artifact@v7
@@ -1033,9 +1130,14 @@ jobs:
           restore-keys: deno-${{ runner.arch }}-
 
       - name: Setup pnpm
+        # No version: pnpm/action-setup reads packageManager from package.json.
         uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
         with:
-          version: 10
+          node-version-file: .node-version
+          cache: "pnpm"
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -1065,20 +1167,22 @@ jobs:
 
       - name: Build Go shared libraries (linux + windows)
         run: |
-          deno run --allow-all pkg/@eserstack/ajan/scripts/build.ts --target=aarch64-linux
-          deno run --allow-all pkg/@eserstack/ajan/scripts/build.ts --target=x86_64-linux
-          deno run --allow-all pkg/@eserstack/ajan/scripts/build.ts --target=x86_64-windows
+          make ajan-lib TARGET=aarch64-linux
+          make ajan-lib TARGET=x86_64-linux
+          make ajan-lib TARGET=x86_64-windows
 
       - name: Build Go WASM modules
-        run: deno run --allow-all pkg/@eserstack/ajan/scripts/build.ts --wasm
+        run: make ajan-wasm
 
       # Copies each built library into its workspace member
       # (pkg/@eserstack/ajan-<platform>/); the manifests are committed.
       - name: Stage platform libraries into their packages
-        run: deno run --allow-all pkg/@eserstack/ajan/npm/generate-packages.ts
+        run: make ajan-packages
 
+      # The Go release binaries (eser, noskills-server) for the five targets,
+      # with the commit time in the archives so a rebuild gives the same bytes.
       - name: Compile for all platforms
-        run: deno run --allow-all ./pkg/@eserstack/cli/scripts/compile.ts
+        run: SOURCE_DATE_EPOCH="$(git log -1 --format=%ct)" go run ./cmd/eser dev compile
 
       - name: Upload binary bundle
         uses: actions/upload-artifact@v7
@@ -1129,9 +1233,8 @@ jobs:
           path: ajan-npm/
 
       - name: Setup pnpm
+        # No version: pnpm/action-setup reads packageManager from package.json.
         uses: pnpm/action-setup@v6
-        with:
-          version: 10
 
       # No `cache: "pnpm"` -- same reason as npm-no-deno-test: this job
       # publishes prebuilt directories from an artifact and never checks
@@ -1139,7 +1242,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v7
         with:
-          node-version: "latest"
+          node-version-file: .node-version
           registry-url: "https://registry.npmjs.org"
 
       # Auth = npm OIDC trusted publishing (id-token:write + --provenance + the
@@ -1294,9 +1397,10 @@ jobs:
     # are skipped by design on a post-publish resume. Only the direct needs
     # decide here.
     if: "!cancelled() && needs.upload-assets.result == 'success'"
-    # ubicloud: a short Deno script pushing to the tap with an App token.
+    # ubicloud: a short Go command pushing to the tap with an App token; the
+    # minutes cover compiling it.
     runs-on: ubicloud-standard-2-arm
-    timeout-minutes: 5
+    timeout-minutes: 10
     continue-on-error: true
 
     permissions:
@@ -1309,13 +1413,12 @@ jobs:
           fetch-depth: 1
           ref: ${{ inputs.tag && format('refs/tags/{0}', inputs.tag) || github.ref }}
 
-      - name: Setup Deno
-        uses: denoland/setup-deno@v2
+      # `eser dev` is Go (pkg/ajan/codebasefx); it imports nothing from the
+      # TypeScript workspace, so no pnpm install either.
+      - name: Setup Go
+        uses: actions/setup-go@v7
         with:
-          deno-version: v2.9.5
-
-      # No pnpm install and no generated manifests: the script imports nothing
-      # from the workspace on purpose (see its header), so Deno alone suffices.
+          go-version-file: go.mod
 
       - name: Generate GitHub App token
         id: app-token
@@ -1327,7 +1430,7 @@ jobs:
           repositories: homebrew-tap
 
       - name: Update formula
-        run: deno run --allow-all ./etc/scripts/update-homebrew-formula.ts
+        run: go run ./cmd/eser dev homebrew
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
 
@@ -1340,9 +1443,10 @@ jobs:
     # are skipped by design on a post-publish resume. Only the direct needs
     # decide here.
     if: "!cancelled() && needs.upload-assets.result == 'success'"
-    # ubicloud: a short Deno script pushing hashes with an App token.
+    # ubicloud: a short Go command writing hashes, pushed with an App token;
+    # the minutes cover compiling it.
     runs-on: ubicloud-standard-2-arm
-    timeout-minutes: 5
+    timeout-minutes: 10
     continue-on-error: true
 
     permissions:
@@ -1355,13 +1459,12 @@ jobs:
           fetch-depth: 1
           ref: ${{ inputs.tag && format('refs/tags/{0}', inputs.tag) || github.ref }}
 
-      - name: Setup Deno
-        uses: denoland/setup-deno@v2
+      # `eser dev` is Go (pkg/ajan/codebasefx); it imports nothing from the
+      # TypeScript workspace, so no pnpm install either.
+      - name: Setup Go
+        uses: actions/setup-go@v7
         with:
-          deno-version: v2.9.5
-
-      # No pnpm install and no generated manifests: the script imports nothing
-      # from the workspace on purpose (see its header), so Deno alone suffices.
+          go-version-file: go.mod
 
       - name: Generate GitHub App token
         id: app-token
@@ -1373,7 +1476,7 @@ jobs:
           repositories: stack
 
       - name: Update hashes
-        run: deno run --allow-all ./etc/scripts/update-nix-hashes.ts
+        run: go run ./cmd/eser dev nix-hashes
 
       # Two trees, because the constraints pull opposite ways: the hashes have
       # to be computed from the TAG's tree (main's VERSION may already point

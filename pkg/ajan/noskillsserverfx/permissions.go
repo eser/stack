@@ -105,7 +105,8 @@ var validPermissionDecisions = map[string]bool{ //nolint:gochecknoglobals
 }
 
 // journalPermissionDecision records a decision in the ledger with the
-// durability its tool requires, and reports whether it reached disk.
+// durability its tool requires, sends it to the attached clients once it is
+// there, and reports whether it reached disk.
 //
 // For a write tool this is a synchronous append: the contract on Ledger.
 // AppendSync is that "the worker must not execute a write tool until the
@@ -135,11 +136,15 @@ func journalPermissionDecision(entry *SessionEntry, requestID, decision string) 
 		return false
 	}
 
+	// Attached clients get the decision as it is journalled, with its ledger
+	// line, as a reattaching client gets it in the replay.
+	evt := WorkerEvent{Type: "permission_decision", Payload: line}
+
 	if class == "read" {
-		_ = entry.Ledger.Append(line)
+		_ = entry.publishOrSend(evt, line)
 
 		return true
 	}
 
-	return entry.Ledger.AppendSync(line) == nil
+	return entry.publish(evt, line, true) == nil
 }

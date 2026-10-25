@@ -18,12 +18,13 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Setup Deno
-        uses: denoland/setup-deno@v2
+      - name: Setup Go
+        uses: actions/setup-go@v7
         with:
-          deno-version: v2.9.5
+          go-version-file: go.mod
 
+      # The Go eser (cmd/eser, TASK-249); gh comes with the runner image.
       - name: Update contributor list
-        run: deno task cli codebase gh contributors --commit
+        run: go run ./cmd/eser codebase gh contributors --commit
         env:
           GH_TOKEN: ${{ github.token }}

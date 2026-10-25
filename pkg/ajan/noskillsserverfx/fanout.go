@@ -17,6 +17,11 @@ import (
 type FanoutBroadcaster struct {
 	mu      sync.Mutex
 	clients map[string]chan WorkerEvent
+
+	// onRegister, when set, runs after each Register, in the registering
+	// goroutine. It is a test seam: an attach registers and then reads the
+	// ledger, and a test uses it to append between the two. Set under mu.
+	onRegister func()
 }
 
 func newFanoutBroadcaster() *FanoutBroadcaster {
@@ -33,7 +38,12 @@ func (f *FanoutBroadcaster) Register(clientID string) <-chan WorkerEvent {
 
 	f.mu.Lock()
 	f.clients[clientID] = ch
+	onRegister := f.onRegister
 	f.mu.Unlock()
+
+	if onRegister != nil {
+		onRegister()
+	}
 
 	return ch
 }
@@ -105,7 +115,7 @@ func translateWorkerEvent(ctx context.Context, evt WorkerEvent, logger *logfx.Lo
 		return map[string]any{"type": "error", "code": "query_error", "message": qe.Error}
 
 	case "sdk_event", "permission_request", "query_done", "spawn_progress", "fork_created",
-		"mux", "permission_response_rejected":
+		"permission_response_rejected", "permission_decision":
 		var raw map[string]any
 		if err := json.Unmarshal(evt.Payload, &raw); err != nil {
 			logger.WarnContext(ctx, "fanout: malformed event payload", "type", evt.Type, "err", err)
@@ -123,15 +133,6 @@ func translateWorkerEvent(ctx context.Context, evt WorkerEvent, logger *logfx.Lo
 // marshalEventForLedger translates evt to client-wire JSON for persistent storage.
 // Returns nil for events that should not be persisted (unknown types, marshal errors).
 func marshalEventForLedger(ctx context.Context, evt WorkerEvent, logger *logfx.Logger) []byte {
-	// Mux frames are a live terminal stream, not durable transcript: per-pane
-	// output would grow the ledger without bound and scene frames are deltas that
-	// only reconstruct from a fresh full scene. A reattaching mux client sends
-	// `attach`, which makes the mux server emit a current full scene, so nothing
-	// needs replaying from the ledger. Broadcast them live, never persist.
-	if evt.Type == "mux" {
-		return nil
-	}
-
 	msg := translateWorkerEvent(ctx, evt, logger)
 	if msg == nil {
 		return nil

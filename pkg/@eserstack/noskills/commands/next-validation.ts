@@ -175,6 +175,18 @@ export const validationFor = async (
   return validation;
 };
 
+/** Whether a relative path stays inside its base once "." and ".." apply. */
+const insideProject = (relative: string): boolean => {
+  let depth = 0;
+  for (const segment of relative.split(/[/\\]/)) {
+    if (segment === "" || segment === ".") continue;
+    depth += segment === ".." ? -1 : 1;
+    if (depth < 0) return false;
+  }
+
+  return true;
+};
+
 /**
  * Reads the spec document the validator sees. No document yet is null; a
  * document that exists but cannot be read fails with the reason, because
@@ -184,8 +196,27 @@ const readSpecDocument = async (
   root: string,
   relative: string,
 ): Promise<results.Result<string | null, string>> => {
+  // The path comes from state.json, so it is held to the project, by its
+  // segments and, through symlinks, by where it really points; the document
+  // goes to a model.
+  const leaves = `${relative} could not be read: the path leaves the project.`;
+  if (
+    relative.startsWith("/") || /^[A-Za-z]:/.test(relative) ||
+    !insideProject(relative)
+  ) {
+    return results.fail(leaves);
+  }
+
   try {
-    return results.ok(await runtime.fs.readTextFile(`${root}/${relative}`));
+    const [realRoot, realFile] = await Promise.all([
+      runtime.fs.realPath(root),
+      runtime.fs.realPath(`${root}/${relative}`),
+    ]);
+    if (realFile !== realRoot && !realFile.startsWith(`${realRoot}/`)) {
+      return results.fail(leaves);
+    }
+
+    return results.ok(await runtime.fs.readTextFile(realFile));
   } catch (error) {
     if (error instanceof crossRuntime.NotFoundError) return results.ok(null);
 

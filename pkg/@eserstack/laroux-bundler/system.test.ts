@@ -1,6 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import * as assert from "@std/assert";
+import * as assert from "@eserstack/test-kit/assert";
 import * as fs from "@std/fs"; // symlinks are not available in runtime
 import { runtime } from "@eserstack/standards/cross-runtime";
 import * as larouxConfig from "@eserstack/laroux/config";
@@ -228,12 +228,12 @@ Deno.test("a dev build gives client code the browser logger, with() included", a
   await withApp(async (projectRoot) => {
     await writeReactApp(projectRoot);
 
-    // laroux dev bundles the server with deno-bundler, which runs no plugins;
-    // the client bundle still has to get the browser shims.
+    // laroux dev bundles with rolldown, as serve does; the client bundle of a
+    // dev build still has to get the browser shims.
     const config = createBuildConfig(projectRoot);
     const context = system.createBuildContext(config, {
       framework: react.reactPlugin,
-      bundlerBackend: "deno-bundler",
+      bundlerBackend: "rolldown",
     });
 
     const result = await system.build(context);
@@ -595,7 +595,7 @@ Deno.test("a CSS-only rebuild writes the styles.css a full build writes, CSS mod
     const context = system.createBuildContext(config, {
       framework: react.reactPlugin,
       css: deferringCssPlugin,
-      bundlerBackend: "deno-bundler",
+      bundlerBackend: "rolldown",
     });
     const first = await system.build(context);
 
@@ -641,7 +641,7 @@ Deno.test("a JS-only rebuild of an app with CSS modules succeeds and keeps their
     const context = system.createBuildContext(config, {
       framework: react.reactPlugin,
       css: deferringCssPlugin,
-      bundlerBackend: "deno-bundler",
+      bundlerBackend: "rolldown",
     });
     const first = await system.build(context);
     const stylesBefore = await readClientFile(config.distDir, "styles.css");

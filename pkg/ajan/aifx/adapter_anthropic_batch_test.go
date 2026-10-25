@@ -3,25 +3,23 @@ package aifx
 import (
 	"testing"
 	"time"
-
-	"github.com/anthropics/anthropic-sdk-go"
 )
 
 func TestMapAnthropicBatchStatus(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		input anthropic.MessageBatchProcessingStatus
+		input string
 		want  BatchStatus
 	}{
-		{anthropic.MessageBatchProcessingStatusInProgress, BatchStatusProcessing},
-		{anthropic.MessageBatchProcessingStatusCanceling, BatchStatusProcessing},
-		{anthropic.MessageBatchProcessingStatusEnded, BatchStatusCompleted},
+		{anthropicBatchInProgress, BatchStatusProcessing},
+		{anthropicBatchCanceling, BatchStatusProcessing},
+		{anthropicBatchEnded, BatchStatusCompleted},
 		{"unknown_status", BatchStatusPending},
 	}
 
 	for _, tc := range tests {
-		t.Run(string(tc.input), func(t *testing.T) {
+		t.Run(tc.input, func(t *testing.T) {
 			t.Parallel()
 
 			got := mapAnthropicBatchStatus(tc.input)
@@ -37,10 +35,10 @@ func TestMapAnthropicBatchJob_InProgress(t *testing.T) {
 
 	now := time.Now().UTC()
 
-	batch := &anthropic.MessageBatch{ //nolint:exhaustruct
+	batch := &anthropicBatch{ //nolint:exhaustruct
 		ID:               "batch-1",
-		ProcessingStatus: anthropic.MessageBatchProcessingStatusInProgress,
-		RequestCounts: anthropic.MessageBatchRequestCounts{
+		ProcessingStatus: anthropicBatchInProgress,
+		RequestCounts: anthropicBatchCounters{
 			Processing: 5,
 			Succeeded:  3,
 			Errored:    1,
@@ -84,10 +82,10 @@ func TestMapAnthropicBatchJob_Ended(t *testing.T) {
 	now := time.Now().UTC()
 	endedAt := now.Add(5 * time.Minute)
 
-	batch := &anthropic.MessageBatch{ //nolint:exhaustruct
+	batch := &anthropicBatch{ //nolint:exhaustruct
 		ID:               "batch-2",
-		ProcessingStatus: anthropic.MessageBatchProcessingStatusEnded,
-		RequestCounts: anthropic.MessageBatchRequestCounts{
+		ProcessingStatus: anthropicBatchEnded,
+		RequestCounts: anthropicBatchCounters{
 			Processing: 0,
 			Succeeded:  10,
 			Errored:    0,
@@ -95,7 +93,7 @@ func TestMapAnthropicBatchJob_Ended(t *testing.T) {
 			Expired:    0,
 		},
 		CreatedAt: now,
-		EndedAt:   endedAt,
+		EndedAt:   &endedAt,
 	}
 
 	job := mapAnthropicBatchJob(batch)
@@ -127,18 +125,10 @@ func TestNewAnthropicUsage(t *testing.T) {
 	}
 }
 
-func TestNewEmptyAnthropicMessage(t *testing.T) {
-	t.Parallel()
-
-	msg := newEmptyAnthropicMessage()
-	// Just verify it's a zero-value message without panicking.
-	_ = msg
-}
-
 func TestNewAnthropicBatchRequest(t *testing.T) {
 	t.Parallel()
 
-	params := anthropic.MessageNewParams{ //nolint:exhaustruct
+	params := &anthropicMessageRequest{ //nolint:exhaustruct
 		Model:     "claude-opus-4-5",
 		MaxTokens: 256,
 	}

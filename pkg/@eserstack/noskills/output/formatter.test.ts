@@ -5,7 +5,7 @@
  */
 
 import * as bdd from "@std/testing/bdd";
-import * as assert from "@std/assert";
+import * as assert from "@eserstack/test-kit/assert";
 import * as formatter from "./formatter.ts";
 import type * as transitionValidation from "../context/transition-validation.ts";
 
@@ -75,5 +75,44 @@ bdd.describe("formatter: the validation block", () => {
     );
 
     assert.assertStringIncludes(text, "One gap. No findings.");
+  });
+});
+
+// TASK-329: the criteria and debt items are objects, and both formats printed
+// "[object Object]" for each of them.
+bdd.describe("formatter: acceptance criteria and debt", () => {
+  const data = {
+    phase: "EXECUTING",
+    statusReport: {
+      criteria: [{ id: "ac-1", text: "Uploads over 10 MB are refused" }],
+      reportFormat: { completed: "", remaining: "", blocked: "" },
+    },
+    previousIterationDebt: {
+      fromIteration: 2,
+      items: [{ id: "debt-1", text: "Add the size check test", since: 2 }],
+      note: "Address these first.",
+    },
+  };
+
+  bdd.it("names each criterion and debt item in markdown", () => {
+    const text = formatter.format(data, "markdown");
+
+    assert.assertStringIncludes(
+      text,
+      "- [ ] ac-1: Uploads over 10 MB are refused",
+    );
+    assert.assertStringIncludes(text, "- debt-1: Add the size check test");
+    assert.assertEquals(text.includes("[object Object]"), false, text);
+  });
+
+  bdd.it("names each criterion and debt item in text", () => {
+    const text = formatter.format(data, "text");
+
+    assert.assertStringIncludes(
+      text,
+      "  - ac-1: Uploads over 10 MB are refused",
+    );
+    assert.assertStringIncludes(text, "  - debt-1: Add the size check test");
+    assert.assertEquals(text.includes("[object Object]"), false, text);
   });
 });

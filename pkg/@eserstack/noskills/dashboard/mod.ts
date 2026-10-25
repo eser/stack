@@ -31,8 +31,18 @@ export {
 export type { ActionResult } from "./actions.ts";
 export { ActionRejectedError } from "./actions.ts";
 
-export { appendEvent, readEvents, watchEvents } from "./events.ts";
-export type { DashboardEvent, EventType } from "./events.ts";
+export {
+  appendEvent,
+  openEventTail,
+  readEvents,
+  watchEvents,
+} from "./events.ts";
+export type {
+  DashboardEvent,
+  EventTail,
+  EventType,
+  WatchOptions,
+} from "./events.ts";
 
 export {
   addLearning,

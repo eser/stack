@@ -1,0 +1,18 @@
+{
+  "id": "ts-quality",
+  "name": "TypeScript Quality",
+  "description": "Enforces TypeScript best practices",
+  "extras": [
+    {
+      "questionId": "verification",
+      "text": "Does the code pass strict TypeScript checks (noEmit, strict mode)?"
+    }
+  ],
+  "specSections": [],
+  "reminders": [
+    "Run tsc --noEmit before reporting task complete"
+  ],
+  "acceptanceCriteria": [
+    "TypeScript strict mode passes with zero errors"
+  ]
+}

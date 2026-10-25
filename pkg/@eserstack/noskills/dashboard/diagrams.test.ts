@@ -1,7 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 import * as bdd from "@std/testing/bdd";
-import * as assert from "@std/assert";
+import * as assert from "@eserstack/test-kit/assert";
 import * as diagrams from "./diagrams.ts";
 import * as persistence from "../state/persistence.ts";
 import { runtime } from "@eserstack/standards/cross-runtime";
@@ -214,5 +214,93 @@ bdd.describe("checkStaleness", () => {
       "pkg/@eserstack/noskills/dashboard/state.ts",
     ]);
     assert.assertEquals(stale.length, 1);
+  });
+});
+
+// =============================================================================
+// TASK-328: the scan and staleness bugs found while porting them to Go
+// =============================================================================
+
+bdd.describe("diagram scan and staleness (TASK-328)", () => {
+  bdd.it(
+    "reports a diagram once when it names several modified files",
+    async () => {
+      const root = await makeTempDir();
+      await diagrams.writeRegistry(root, [
+        {
+          file: "README.md",
+          line: 3,
+          type: "mermaid",
+          hash: "abc",
+          referencedFiles: ["src/login.ts", "src/store.ts"],
+          lastVerified: "2026-01-01",
+        },
+      ]);
+
+      const stale = await diagrams.checkStaleness(root, [
+        "src/login.ts",
+        "src/store.ts",
+      ]);
+
+      assert.assertEquals(stale.length, 1);
+      assert.assertEquals(
+        stale[0]!.reason,
+        "src/login.ts was modified but diagram references src/login.ts",
+      );
+    },
+  );
+
+  bdd.it("gives one entry for one box drawing", async () => {
+    const root = await makeTempDir();
+    await runtime.fs.writeTextFile(
+      `${root}/arch.md`,
+      "# Architecture\n\n" +
+        "┌──────────┐    ┌──────────┐\n" +
+        "│ main.go  │───▶│ store.go │\n" +
+        "└──────────┘    └──────────┘\n" +
+        "\n" +
+        "┌────┐\n" +
+        "│ db │\n" +
+        "└────┘\n",
+    );
+
+    const entries = await diagrams.scanProject(root);
+
+    assert.assertEquals(
+      entries.map((e) => [e.type, e.line]),
+      [["ascii", 3], ["ascii", 7]],
+    );
+  });
+
+  bdd.it("does not take a file path's prefix as a module name", async () => {
+    const root = await makeTempDir();
+    await runtime.fs.writeTextFile(
+      `${root}/README.md`,
+      "```mermaid\ngraph TD\n  A[src/login.ts] --> B[dashboard/state]\n" +
+        "  B --> C[pkg/@eserstack/noskills/main.ts]\n```\n",
+    );
+
+    const entries = await diagrams.scanProject(root);
+
+    assert.assertEquals(entries.length, 1);
+    assert.assertEquals(entries[0]!.referencedFiles, [
+      "src/login.ts",
+      "pkg/@eserstack/noskills/main.ts",
+      "dashboard/state",
+    ]);
+  });
+
+  bdd.it("writes the registry when .eser/ does not exist yet", async () => {
+    const root = await runtime.fs.makeTempDir({ prefix: "nos_diagrams_" });
+    try {
+      await diagrams.writeRegistry(root, []);
+
+      assert.assertEquals(
+        await runtime.fs.readTextFile(`${root}/.eser/diagrams.json`),
+        "[]\n",
+      );
+    } finally {
+      await runtime.fs.remove(root, { recursive: true });
+    }
   });
 });

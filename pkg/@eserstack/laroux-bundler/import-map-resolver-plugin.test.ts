@@ -1,6 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import * as assert from "@std/assert";
+import * as assert from "@eserstack/test-kit/assert";
 import { runtime } from "@eserstack/standards/cross-runtime";
 import * as importMapResolverPlugin from "./import-map-resolver-plugin.ts";
 import type { ImportMap } from "./domain/import-map.ts";

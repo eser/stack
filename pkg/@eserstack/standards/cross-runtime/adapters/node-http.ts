@@ -15,6 +15,7 @@ import type {
   HttpHandler,
   HttpServer,
   RuntimeHttp,
+  ServeHandlerInfo,
   ServeOptions,
   WebSocketUpgrade,
 } from "../types.ts";
@@ -47,6 +48,21 @@ const encoder = new TextEncoder();
 
 /** The raw socket Node hands over with an upgrade request. */
 type RawSocket = deps.stream.Duplex;
+
+/**
+ * The handler info for a request on `socket`: its remote address, which a
+ * net.Socket carries and which is gone once the socket has closed.
+ */
+const handlerInfo = (socket: unknown): ServeHandlerInfo => {
+  const peer = socket as { remoteAddress?: string; remotePort?: number };
+
+  return {
+    remoteAddr:
+      peer.remoteAddress !== undefined && peer.remotePort !== undefined
+        ? { hostname: peer.remoteAddress, port: peer.remotePort }
+        : null,
+  };
+};
 
 /** One WebSocket running over a raw socket. */
 type Connection = {
@@ -455,7 +471,10 @@ export const createNodeHttp = (): RuntimeHttp => {
           return;
         }
 
-        await writeResponse(outgoing, await respond(request));
+        await writeResponse(
+          outgoing,
+          await respond(request, handlerInfo(incoming.socket)),
+        );
       };
 
       const handleUpgrade = async (
@@ -484,7 +503,7 @@ export const createNodeHttp = (): RuntimeHttp => {
 
         let response: Response;
         try {
-          response = await respond(request);
+          response = await respond(request, handlerInfo(raw));
         } finally {
           upgrades.delete(request);
           pendingSockets.delete(raw);
@@ -566,6 +585,7 @@ export const createNodeHttp = (): RuntimeHttp => {
           options.signal?.addEventListener("abort", stop, { once: true });
         }
 
+        options.onListen?.({ hostname: address.address, port: address.port });
         resolve({ hostname: address.address, port: address.port, finished });
       });
     });

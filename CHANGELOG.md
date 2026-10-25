@@ -265,6 +265,14 @@ in `.eser/concerns/`, which several entries below depend on.
   native library return the new DISCOVERY and EXECUTING shapes (see
   `pkg/ajan/noskillsfx` below). Upgrade `@eserstack/noskills`, `@eserstack/ajan`
   and noskills-server together.
+- `@eserstack/noskills/go-noskills` takes the project directory and uses the
+  bridge's field names. It used to send `configDir` and read `sessionId` and
+  `name`, which the native library never used or sent, so every call answered
+  undefined fields. Before: `initNoskills()`, `newNoskillsSpec({ description })`
+  returning `{ name }`, `nextNoskillsStep({ specName })`. After:
+  `initNoskills({ root })` returning `{ root }`,
+  `newNoskillsSpec({ root, description, specName? })` returning
+  `{ specName, specFile }`, and `nextNoskillsStep({ root, specName, answer? })`.
 
 #### @eserstack/noskills-client
 
@@ -1242,9 +1250,9 @@ in `.eser/concerns/`, which several entries below depend on.
 #### Go: pkg/ajan/noskillsserverfx and noskills-server
 
 - `WorkerHandle` methods take a context first: `PushMessage`,
-  `PermissionResponse`, `SendMux`, `SetMode` and `StopTask`. A mux worker write
-  gives up after 5 s or at the context's deadline. Implementations add the
-  parameter, and callers pass their request context:
+  `PermissionResponse`, `SendMux`, `SetMode` and `StopTask`. Nothing is sent
+  once the context has ended. Implementations add the parameter, and callers
+  pass their request context:
 
   ```go
   // Before
@@ -1283,6 +1291,36 @@ in `.eser/concerns/`, which several entries below depend on.
 - `noskills-server start` exits with status 1 when the daemon cannot start (port
   in use, TLS setup failure) instead of waiting for a signal, and no longer asks
   the timing question or reads `telemetry.json`, which you can delete.
+- noskills-server runs mux sessions (`?kind=mux`) in its own process on
+  `pkg/ajan/muxfx`, so it needs no Deno, Bun or Node, and it no longer reads
+  `NOSKILLS_MUX_WORKER_PATH` or `NOSKILLS_WORKER_RUNTIME`. Remove both from your
+  shell profile, launchd plist or systemd unit; `mux-worker.ts` no longer has to
+  sit beside the binary. Clients speak the same protocol as before. The
+  `runtime/` directory in the data directory held the worker's sockets and is
+  unused, so you can delete it, and `noskills-server doctor` no longer reports a
+  worker runtime or the runtime directory:
+
+  ```bash
+  # Before
+  NOSKILLS_MUX_WORKER_PATH="$PWD/pkg/@eserstack/noskills-server-worker/mux-worker.ts" \
+  NOSKILLS_WORKER_RUNTIME=bun \
+  noskills-server start
+  # After
+  noskills-server start
+  ```
+
+- `SpawnWorker` has no `workerPath` parameter. `ErrWorkerRuntimeMissing`,
+  `ErrWorkerStalled` and `NSErrors.WorkerRuntimeMissing` (code `503.NS03`) are
+  removed. A mux worker's sends fail with `ErrMuxWorkerClosed` once its session
+  has ended, and `SendMux` fails with `ErrMuxFrameNotObject` for a frame that is
+  not a JSON object:
+
+  ```go
+  // Before
+  worker, err := noskillsserverfx.SpawnWorker(ctx, sid, root, dataDir, "", kind, logger)
+  // After
+  worker, err := noskillsserverfx.SpawnWorker(ctx, sid, root, dataDir, kind, logger)
+  ```
 
 #### Go: pkg/ajan/noskillsfx
 
@@ -1432,6 +1470,32 @@ in `.eser/concerns/`, which several entries below depend on.
   longer loads into an int field; write integers without a fraction or exponent.
   `null` removes the key and its children so the default applies (it used to set
   the string `<nil>`), and an empty array clears a slice default.
+- The `.env` parser (`configfx/envparser`) reads the dialect of `@std/dotenv`,
+  so a file loads to the same values in Go and TypeScript. Check `.env` files
+  that relied on the old reading:
+  - `${NAME}` and `$NAME` inside double quotes stay as written; only unquoted
+    values expand. Move a value that needs expansion out of the quotes.
+  - An escaped dollar keeps its backslash: `\$NAME` reads as `\$NAME`, and
+    `\${NAME}` as a backslash followed by the value. Put a literal `$` in single
+    quotes.
+  - In double quotes, `\t` is a tab and `\"`, `\'`, `\\` drop the backslash;
+    other pairs such as `\q` keep it.
+  - `${NAME:-default}` uses the default when `NAME` is undefined (it read as
+    `:-default}`), and a reference can name a key defined further down.
+  - `KEY = value` is accepted, and `exported=1` keeps its name (it read as
+    `ed`).
+
+#### Go: pkg/ajan/connfx
+
+- `OTLPConnection.GetLogExporter` returns `sdklog.Exporter` and
+  `GetMetricExporter` returns `sdkmetric.Exporter` (from
+  `go.opentelemetry.io/otel/sdk/log` and `sdk/metric`) instead of the OTLP/HTTP
+  exporter types, because the `transport` property or
+  `OTEL_EXPORTER_OTLP_PROTOCOL` can now pick gRPC. The same holds for
+  `OTLPConnectionImpl`. Code that called a method only the HTTP exporter has
+  asserts the type: `exp, ok := conn.GetLogExporter().(*otlploghttp.Exporter)`.
+  A process that sets `OTEL_EXPORTER_OTLP_PROTOCOL` to anything other than
+  `grpc` or `http/protobuf` now fails to create the connection.
 
 #### Go: pkg/ajan/logfx, processfx, types and i18nfx
 

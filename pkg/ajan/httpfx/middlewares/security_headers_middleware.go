@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/eser/stack/pkg/ajan/httpfx"
-	"github.com/eser/stack/pkg/ajan/lib"
+	"github.com/eser/stack/pkg/ajan/lib/netlib"
 )
 
 const (
@@ -106,7 +106,7 @@ func isHTTPSRequest(ctx *httpfx.Context, trustedProxies *httpfx.TrustedProxies) 
 		return false
 	}
 
-	host, _, err := lib.SplitHostPort(ctx.Request.RemoteAddr)
+	host, _, err := netlib.SplitHostPort(ctx.Request.RemoteAddr)
 	if err != nil || !trustedProxies.Contains(net.ParseIP(host)) {
 		return false
 	}

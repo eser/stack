@@ -4,8 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
-
-	"google.golang.org/genai"
+	"net/http"
+	"os"
 )
 
 // Sentinel errors for the Vertex AI adapter.
@@ -20,19 +20,10 @@ var (
 const vertexAIProviderName = "vertexai"
 
 // classifyVertexAIError wraps err with the provider sentinel and, when the
-// underlying error is a GenAI API error, inserts a provider-agnostic
-// classification sentinel so callers can use errors.Is without importing the SDK.
+// underlying error is a Vertex AI API error, inserts a provider-agnostic
+// classification sentinel so callers can use errors.Is.
 func classifyVertexAIError(providerSentinel error, err error) error {
-	ctxErr := classifyContextError(providerSentinel, err)
-	if ctxErr != nil {
-		return ctxErr
-	}
-
-	if apiErr, ok := errors.AsType[genai.APIError](err); ok {
-		return classifyAndWrap(providerSentinel, apiErr.Code, err)
-	}
-
-	return fmt.Errorf("%w: %w", providerSentinel, err)
+	return classifyProviderError(providerSentinel, err)
 }
 
 // vertexAICapabilities returns the capabilities supported by the Vertex AI adapter.
@@ -76,19 +67,7 @@ func (f *vertexAIModelFactory) CreateModel(
 		return nil, fmt.Errorf("%w: %w", ErrVertexAIClientCreate, ErrInvalidModel)
 	}
 
-	clientConfig := &genai.ClientConfig{ //nolint:exhaustruct
-		Backend:  genai.BackendVertexAI,
-		Project:  config.ProjectID,
-		Location: config.Location,
-	}
-
-	// Vertex AI uses application default credentials by default.
-	// If an API key is explicitly provided, set it.
-	if config.APIKey != "" {
-		clientConfig.APIKey = config.APIKey
-	}
-
-	client, err := genai.NewClient(ctx, clientConfig)
+	client, err := newVertexAIClient(ctx, config, &http.Client{}) //nolint:exhaustruct
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrVertexAIClientCreate, err)
 	}
@@ -99,9 +78,62 @@ func (f *vertexAIModelFactory) CreateModel(
 	}, nil
 }
 
+// newVertexAIClient builds the Vertex AI client. An explicitly configured API
+// key is sent as x-goog-api-key (Vertex AI express mode); without one, the
+// request carries an access token from Application Default Credentials (see
+// google_credentials.go).
+//
+// The base URL is config.BaseURL, else GOOGLE_VERTEX_BASE_URL, else the
+// location's endpoint: aiplatform.googleapis.com for the global location or an
+// API key, aiplatform.<location>.rep.googleapis.com for the us and eu
+// multi-regions, and <location>-aiplatform.googleapis.com otherwise.
+func newVertexAIClient(ctx context.Context, config *ConfigTarget, httpClient *http.Client) (*googleClient, error) {
+	baseURL := config.BaseURL
+	if baseURL == "" {
+		baseURL = os.Getenv("GOOGLE_VERTEX_BASE_URL")
+	}
+
+	if baseURL == "" {
+		baseURL = vertexAIBaseURL(config.Location, config.APIKey != "")
+	}
+
+	headers := http.Header{}
+
+	transport := newGoogleTransport(baseURL, headers, config, httpClient)
+
+	if config.APIKey != "" {
+		headers.Set("X-Goog-Api-Key", config.APIKey)
+	} else {
+		credentials, err := detectGoogleCredentials(ctx, httpClient)
+		if err != nil {
+			return nil, err
+		}
+
+		transport.authorize = credentials.authorize
+	}
+
+	return &googleClient{
+		transport: transport,
+		project:   config.ProjectID,
+		location:  config.Location,
+		backend:   googleBackendVertexAI,
+	}, nil
+}
+
+func vertexAIBaseURL(location string, apiKey bool) string {
+	switch {
+	case location == "global" || apiKey:
+		return "https://aiplatform.googleapis.com/"
+	case location == "us" || location == "eu":
+		return "https://aiplatform." + location + ".rep.googleapis.com/"
+	default:
+		return "https://" + location + "-aiplatform.googleapis.com/"
+	}
+}
+
 // VertexAIModel implements LanguageModel for Google Vertex AI.
 type VertexAIModel struct {
-	client  *genai.Client
+	client  *googleClient
 	modelID string
 }
 
@@ -117,12 +149,16 @@ func (m *VertexAIModel) GetModelID() string {
 	return m.modelID
 }
 
+// GetRawClient returns the *http.Client the model sends through.
 func (m *VertexAIModel) GetRawClient() any {
-	return m.client
+	if m.client == nil {
+		return nil
+	}
+
+	return m.client.transport.client
 }
 
 func (m *VertexAIModel) Close(_ context.Context) error {
-	// The genai client does not require explicit cleanup.
 	return nil
 }
 
@@ -136,9 +172,9 @@ func (m *VertexAIModel) GenerateText(
 		return nil, classifyVertexAIError(ErrVertexAIGenerationFailed, err)
 	}
 
-	contents := mapMessagesToGenAI(opts.Messages)
+	request := newGenAIRequest(mapMessagesToGenAI(opts.Messages), config)
 
-	resp, err := m.client.Models.GenerateContent(ctx, m.modelID, contents, config)
+	resp, err := m.client.generate(ctx, m.modelID, request)
 	if err != nil {
 		return nil, classifyVertexAIError(ErrVertexAIGenerationFailed, err)
 	}
@@ -149,6 +185,7 @@ func (m *VertexAIModel) GenerateText(
 	}
 
 	result.ModelID = m.modelID
+	result.RawRequest = request
 
 	return result, nil
 }
@@ -163,30 +200,18 @@ func (m *VertexAIModel) StreamText(
 		return nil, classifyVertexAIError(ErrVertexAIStreamFailed, err)
 	}
 
-	contents := mapMessagesToGenAI(opts.Messages)
+	request := newGenAIRequest(mapMessagesToGenAI(opts.Messages), config)
 
 	streamCtx, cancel := context.WithCancel(ctx)
 	eventCh := make(chan StreamEvent, 64) //nolint:mnd
 
 	go func() {
 		defer close(eventCh)
+		defer cancel()
 
-		mapper := &genAIStreamMapper{calledTool: false}
-
-		for resp, err := range m.client.Models.GenerateContentStream(streamCtx, m.modelID, contents, config) {
-			if err != nil {
-				sendStreamEvent(streamCtx, eventCh, newStreamEventError(
-					classifyVertexAIError(ErrVertexAIStreamFailed, err),
-				))
-
-				return
-			}
-
-			mapper.emit(streamCtx, eventCh, resp)
-		}
-
-		// Stream completed successfully -- send the done event.
-		sendStreamEvent(streamCtx, eventCh, newStreamEventDone("", nil))
+		streamGenAI(streamCtx, m.client, m.modelID, request, eventCh, func(err error) error {
+			return classifyVertexAIError(ErrVertexAIStreamFailed, err)
+		})
 	}()
 
 	return NewStreamIterator(eventCh, cancel), nil

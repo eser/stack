@@ -11,7 +11,7 @@
  */
 
 import * as bdd from "@std/testing/bdd";
-import * as assert from "@std/assert";
+import * as assert from "@eserstack/test-kit/assert";
 import * as crossRuntime from "@eserstack/standards/cross-runtime";
 import * as codexAdapterMod from "./codex.ts";
 
@@ -448,6 +448,27 @@ bdd.describe("Codex adapter: snapshot tests", () => {
   // ---------------------------------------------------------------------------
   // syncMcp — .codex/config.toml
   // ---------------------------------------------------------------------------
+
+  // TASK-327: the command words were quoted without escaping, so a prefix
+  // holding a quote or a backslash wrote invalid TOML.
+  bdd.it("syncMcp escapes quotes and backslashes in the command", async () => {
+    await codexAdapterMod.codexAdapter.syncMcp!({
+      ...makeCtx(tempDir),
+      commandPrefix: 'C:\\tools\\noskills.exe --tag "a b"',
+    });
+
+    const toml = await crossRuntime.runtime.fs.readTextFile(
+      `${tempDir}/.codex/config.toml`,
+    );
+    assert.assertStringIncludes(
+      toml,
+      'command = "C:\\\\tools\\\\noskills.exe"',
+    );
+    assert.assertStringIncludes(
+      toml,
+      'args = ["--tag", "\\"a", "b\\"", "mcp-serve"]',
+    );
+  });
 
   bdd.describe("syncMcp: .codex/config.toml", () => {
     bdd.it("contains [mcp_servers.noskills] section", async () => {

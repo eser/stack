@@ -1,9 +1,10 @@
 ---
 id: TASK-125
 title: Add the missing JSDoc in the small foundation packages
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-10-04 20:51'
+updated_date: '2026-10-15 19:34'
 labels:
   - fp
   - logging
@@ -36,5 +37,13 @@ ordinal: 125000
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 deno doc --lint on each listed package's mod.ts reports no errors
+- [x] #1 deno doc --lint on each listed package's mod.ts reports no errors
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Completed in round 3 of the autonomous backlog run (2026-10-05); deno task cli ok passes.
+
+Re-ran deno doc --lint on the mod.ts of fp, logging, streams, cs, di, config, functions and parsing: all report 'Checked 1 file'. primitives/mod.ts and streams/renderers/mod.ts are also clean.
+<!-- SECTION:NOTES:END -->

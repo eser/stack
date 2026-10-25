@@ -14,7 +14,7 @@
  * under any other test file sharing this isolate's module graph.
  */
 
-import * as assert from "@std/assert";
+import * as assert from "@eserstack/test-kit/assert";
 import * as ffiMod from "./mod.ts";
 import * as client from "./client.ts";
 

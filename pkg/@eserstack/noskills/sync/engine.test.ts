@@ -11,7 +11,8 @@
  */
 
 import * as bdd from "@std/testing/bdd";
-import * as assert from "@std/assert";
+import * as assert from "@eserstack/test-kit/assert";
+import * as mock from "@eserstack/test-kit/mock";
 import * as crossRuntime from "@eserstack/standards/cross-runtime";
 import * as engine from "./engine.ts";
 
@@ -343,4 +344,38 @@ bdd.describe("toolsWithHooks", () => {
       ["claude-code", "kiro", "opencode", "codex", "copilot-cli"],
     );
   });
+});
+
+// TASK-323: one unreadable rule file used to end the walk, so every rule after
+// it was lost; it is skipped and the rest still load.
+bdd.it("loadScopedRules skips a rule file it cannot read", async () => {
+  const root = await crossRuntime.runtime.fs.makeTempDir({
+    prefix: "noskills-rules-",
+  });
+  const rulesDir = `${root}/.eser/rules`;
+  const fs = crossRuntime.runtime.fs;
+
+  try {
+    await fs.mkdir(rulesDir, { recursive: true });
+    await Promise.all(
+      ["a", "b", "c"].map((name) =>
+        fs.writeTextFile(`${rulesDir}/${name}.md`, `rule ${name}`)
+      ),
+    );
+
+    const read = fs.readTextFile.bind(fs);
+    using _read = mock.stub(
+      fs,
+      "readTextFile",
+      (path: string | URL, ...rest: unknown[]) =>
+        String(path).endsWith("/b.md")
+          ? Promise.reject(new Error("permission denied"))
+          : (read as (...a: unknown[]) => Promise<string>)(path, ...rest),
+    );
+
+    const rules = await engine.loadScopedRules(root);
+    assert.assertEquals(rules.map((r) => r.text).sort(), ["rule a", "rule c"]);
+  } finally {
+    await fs.remove(root, { recursive: true });
+  }
 });

@@ -112,17 +112,44 @@ const buildRoadmap = (phase: string): string => {
 // State Builder
 // =============================================================================
 
+/**
+ * The state of a spec, picked as `resolveState` picks it: its own state file
+ * when that names the spec, else the active state.json when that names it,
+ * else its own file (the initial state when it has none). A spec that is
+ * active but has no file of its own yet lives only in state.json.
+ */
+const readSummaryState = async (
+  root: string,
+  specName: string,
+  readActiveState: () => Promise<schema.StateFile>,
+): Promise<schema.StateFile> => {
+  const specState = await persistence.readSpecState(root, specName);
+  if (specState.spec === specName) {
+    return specState;
+  }
+
+  const activeState = await readActiveState();
+
+  return activeState.spec === specName ? activeState : specState;
+};
+
 /** Build a SpecSummary from persisted state. */
 export const getSpecSummary = async (
   root: string,
   specName: string,
+): Promise<SpecSummary> =>
+  await summarizeSpec(root, specName, () => persistence.readState(root));
+
+/**
+ * getSpecSummary with the active state read by `readActiveState`, so
+ * getState reads state.json once for all of its specs.
+ */
+const summarizeSpec = async (
+  root: string,
+  specName: string,
+  readActiveState: () => Promise<schema.StateFile>,
 ): Promise<SpecSummary> => {
-  let state: schema.StateFile;
-  try {
-    state = await persistence.readSpecState(root, specName);
-  } catch {
-    state = await persistence.readState(root);
-  }
+  const state = await readSummaryState(root, specName, readActiveState);
 
   // Parse spec.md for tasks
   const parsed = await specParser.parseSpec(root, specName);
@@ -213,8 +240,15 @@ export const getState = async (root: string): Promise<DashboardState> => {
 
   // Each spec is summarized from its own files, so they load concurrently. A
   // broken spec is skipped.
+  // state.json is read at most once, by the first spec that needs it.
+  let activeState: Promise<schema.StateFile> | null = null;
+  const readActiveState = (): Promise<schema.StateFile> =>
+    activeState ??= persistence.readState(root);
+
   const summaries = await Promise.all(
-    [...specNames].map((name) => getSpecSummary(root, name).catch(() => null)),
+    [...specNames].map((name) =>
+      summarizeSpec(root, name, readActiveState).catch(() => null)
+    ),
   );
   const specs = summaries.filter((summary): summary is SpecSummary =>
     summary !== null

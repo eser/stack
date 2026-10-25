@@ -9,7 +9,7 @@
  * caller as itself rather than as a WASM problem.
  */
 
-import * as assert from "@std/assert";
+import * as assert from "@eserstack/test-kit/assert";
 
 import * as ffiMod from "./mod.ts";
 

@@ -1,10 +1,8 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-// etc/scripts belongs to no workspace package, so no import map resolves a
-// bare "@std/assert"; the jsr: specifier carries the version range instead.
-// The ignore goes once the root package.json lists @std/assert.
-// deno-lint-ignore no-external-import
-import * as assert from "jsr:@std/assert@^1.0.16";
+// etc/scripts belongs to no workspace package; the root package.json lists
+// @eserstack/test-kit, so it resolves from the root node_modules.
+import * as assert from "@eserstack/test-kit/assert";
 import * as exportRoots from "./package-export-roots.ts";
 
 Deno.test("exportTargets: reads the string form", () => {

@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	"github.com/eser/stack/pkg/ajan/codebasefx"
+	"github.com/eser/stack/pkg/ajan/codebasefx/validatortools"
 	"github.com/eser/stack/pkg/ajan/workflowfx"
 )
 
@@ -306,7 +307,7 @@ func TestValidatorTool_Description(t *testing.T) {
 	t.Parallel()
 
 	r := workflowfx.NewRegistry()
-	codebasefx.RegisterAllValidators(r)
+	validatortools.RegisterAllValidators(r)
 
 	for _, name := range r.Names() {
 		tool := r.MustGet(name)

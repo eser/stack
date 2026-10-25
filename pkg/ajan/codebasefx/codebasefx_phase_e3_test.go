@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/eser/stack/pkg/ajan/codebasefx"
+	"github.com/eser/stack/pkg/ajan/codebasefx/validatortools"
 	"github.com/eser/stack/pkg/ajan/workflowfx"
 )
 
@@ -181,15 +182,26 @@ func TestAllRegisteredTools_Run(t *testing.T) {
 	}
 
 	r := workflowfx.NewRegistry()
-	codebasefx.RegisterAllValidators(r)
+	validatortools.RegisterAllValidators(r)
 
 	ctx := context.Background()
 	opts := map[string]any{"root": dir}
 
+	// The tools with a required option get it; the rest run with the root only.
+	required := map[string]map[string]any{
+		"codebase-error-coverage": {"root": dir, "file": "config.json"},
+		"codebase-server-loc":     {"root": dir, "directory": "."},
+	}
+
 	for _, name := range r.Names() {
 		tool := r.MustGet(name)
 
-		result, err := tool.Run(ctx, opts)
+		toolOpts := opts
+		if extra, ok := required[name]; ok {
+			toolOpts = extra
+		}
+
+		result, err := tool.Run(ctx, toolOpts)
 		if err != nil {
 			t.Errorf("tool %q Run returned engine error: %v", name, err)
 			continue
@@ -212,7 +224,7 @@ func TestRegisteredTool_FilenamesWithRulesJSON(t *testing.T) {
 	}
 
 	r := workflowfx.NewRegistry()
-	codebasefx.RegisterAllValidators(r)
+	validatortools.RegisterAllValidators(r)
 
 	tool := r.MustGet("codebase-filenames")
 	result, err := tool.Run(context.Background(), map[string]any{
@@ -240,7 +252,7 @@ func TestRegisteredTool_LargeFileWithInt64(t *testing.T) {
 	}
 
 	r := workflowfx.NewRegistry()
-	codebasefx.RegisterAllValidators(r)
+	validatortools.RegisterAllValidators(r)
 
 	tool := r.MustGet("codebase-large-file")
 	result, err := tool.Run(context.Background(), map[string]any{

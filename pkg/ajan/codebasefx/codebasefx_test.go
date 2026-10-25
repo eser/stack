@@ -14,25 +14,35 @@ import (
 func TestValidateCommitMsg(t *testing.T) {
 	t.Parallel()
 
+	def := codebasefx.DefaultCommitMsgOptions()
+	withForce, noMulti, noAsterisk := def, def, def
+	withForce.ForceScope = true
+	noMulti.AllowMultipleScopes = false
+	noAsterisk.AllowAsterisk = false
+
 	tests := []struct {
 		name    string
 		message string
 		opts    codebasefx.CommitMsgOptions
 		valid   bool
 	}{
-		{"valid feat", "feat: add login page", codebasefx.CommitMsgOptions{}, true},
-		{"valid fix with scope", "fix(auth): handle token expiry", codebasefx.CommitMsgOptions{}, true},
-		{"valid breaking", "feat!: remove legacy API", codebasefx.CommitMsgOptions{}, true},
-		{"valid scoped breaking", "refactor(core)!: rename package", codebasefx.CommitMsgOptions{}, true},
-		{"empty message", "", codebasefx.CommitMsgOptions{}, false},
-		{"no colon", "feat add stuff", codebasefx.CommitMsgOptions{}, false},
-		{"unknown type", "hax: inject db", codebasefx.CommitMsgOptions{}, false},
-		{"force scope missing", "feat: no scope", codebasefx.CommitMsgOptions{ForceScope: true}, false},
-		{"force scope present", "feat(ui): with scope", codebasefx.CommitMsgOptions{ForceScope: true}, true},
-		{"multiple scopes denied", "feat(a,b): stuff", codebasefx.CommitMsgOptions{AllowMultipleScopes: false}, false},
-		{"multiple scopes allowed", "feat(a,b): stuff", codebasefx.CommitMsgOptions{AllowMultipleScopes: true}, true},
-		{"asterisk denied", "*", codebasefx.CommitMsgOptions{AllowAsterisk: false}, false},
-		{"asterisk allowed", "*", codebasefx.CommitMsgOptions{AllowAsterisk: true}, true},
+		{"valid feat", "feat: add login page", def, true},
+		{"valid fix with scope", "fix(auth): handle token expiry", def, true},
+		{"valid breaking", "feat!: remove legacy API", def, true},
+		{"valid scoped breaking", "refactor(core)!: rename package", def, true},
+		{"a body after the subject", "feat: subject\n\nbody text", def, true},
+		{"a merge commit", "Merge branch 'main'", def, true},
+		{"empty message", "", def, false},
+		{"no colon", "feat add stuff", def, false},
+		{"unknown type", "hax: inject db", def, false},
+		{"a type outside the default list", "style: format", def, false},
+		{"force scope missing", "feat: no scope", withForce, false},
+		{"force scope present", "feat(ui): with scope", withForce, true},
+		{"multiple scopes denied", "feat(a,b): stuff", noMulti, false},
+		{"multiple scopes allowed", "feat(a,b): stuff", def, true},
+		{"an empty scope part", "feat(a,): stuff", def, false},
+		{"wildcard scope denied", "fix(*): stuff", noAsterisk, false},
+		{"wildcard scope allowed", "fix(*): stuff", def, true},
 	}
 
 	for _, tt := range tests {

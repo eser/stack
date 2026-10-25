@@ -7,7 +7,7 @@
  */
 
 import * as bdd from "@std/testing/bdd";
-import * as assert from "@std/assert";
+import * as assert from "@eserstack/test-kit/assert";
 import * as ai from "@eserstack/ai/mod";
 import * as results from "@eserstack/primitives/results";
 import { runtime } from "@eserstack/standards/cross-runtime";
@@ -157,6 +157,54 @@ bdd.describe("noskills next: the transition validator step", () => {
   bdd.afterEach(async () => {
     await runtime.fs.remove(root, { recursive: true });
   });
+
+  // TASK-329: state.specState.path came from state.json unchecked, so a
+  // crafted state could send a file from outside the project to the model.
+  bdd.it(
+    "never sends a spec path outside the project to the agent",
+    async () => {
+      const outside = `${root}-secret.md`;
+      await runtime.fs.writeTextFile(outside, "TOP SECRET\n");
+      try {
+        for (
+          const path of [
+            "../" + outside.split("/").pop(),
+            outside,
+            "a/../../x.md",
+          ]
+        ) {
+          const { deps, recorded } = fakeDeps(answer(REPLY));
+          const crafted = {
+            ...state,
+            specState: { ...state.specState, path },
+          };
+
+          // One path at a time, so a failure names it.
+          // deno-lint-ignore no-await-in-loop
+          const validation = await nextValidation.validationFor(
+            root,
+            crafted,
+            manifest(VALIDATE_ENTRY),
+            false,
+            deps,
+          );
+
+          assert.assertEquals(recorded.agents, [], path);
+          assert.assertEquals(
+            recorded.prompts.some((p) => p.includes("TOP SECRET")),
+            false,
+            path,
+          );
+          assert.assertStringIncludes(
+            JSON.stringify(validation),
+            "leaves the project",
+          );
+        }
+      } finally {
+        await runtime.fs.remove(outside);
+      }
+    },
+  );
 
   bdd.it("does nothing unless the flag or the manifest asks", async () => {
     const { deps, recorded } = fakeDeps(answer(REPLY));

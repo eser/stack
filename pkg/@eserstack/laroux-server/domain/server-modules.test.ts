@@ -1,6 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import * as assert from "@std/assert";
+import * as assert from "@eserstack/test-kit/assert";
 import { runtime } from "@eserstack/standards/cross-runtime";
 import * as larouxConfig from "@eserstack/laroux/config";
 import * as system from "@eserstack/laroux-bundler/system";
@@ -228,10 +228,10 @@ Deno.test("after a dev rebuild the server answers with the changed page, route.t
   await withTempDir("laroux-reload-", async (projectRoot) => {
     await writeApp(projectRoot);
     const config = createBuildConfig(projectRoot);
-    // laroux dev bundles the server with deno-bundler
+    // laroux dev bundles the server with rolldown
     const context = system.createBuildContext(config, {
       framework: reactBundler.reactPlugin,
-      bundlerBackend: "deno-bundler",
+      bundlerBackend: "rolldown",
     });
 
     const first = await system.build(context);

@@ -1,7 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 import * as bdd from "@std/testing/bdd";
-import * as assert from "@std/assert";
+import * as assert from "@eserstack/test-kit/assert";
 import * as hookDecisions from "./hook-decisions.ts";
 import * as questions from "../context/questions.ts";
 import * as machine from "../state/machine.ts";
@@ -790,6 +790,47 @@ bdd.describe("restartNotice", () => {
       assert.assertEquals(hookDecisions.restartNotice(iteration, 15), expected);
     });
   }
+});
+
+// TASK-323: a manifest without maxIterationsBeforeRestart used to pass
+// undefined to restartNotice, so the notice never showed.
+bdd.describe("restartThreshold", () => {
+  bdd.it("defaults to 15 without a manifest or the setting", () => {
+    assert.assertEquals(hookDecisions.restartThreshold(null), 15);
+    assert.assertEquals(hookDecisions.restartThreshold({}), 15);
+  });
+
+  bdd.it("takes a positive whole number from the manifest", () => {
+    assert.assertEquals(
+      hookDecisions.restartThreshold({ maxIterationsBeforeRestart: 4 }),
+      4,
+    );
+  });
+
+  bdd.it("ignores a value that is not a positive whole number", () => {
+    for (const value of [0, -2, 2.5, "8", null]) {
+      assert.assertEquals(
+        hookDecisions.restartThreshold({ maxIterationsBeforeRestart: value }),
+        15,
+      );
+    }
+  });
+});
+
+// TASK-323: an empty NOSKILLS_REAL_GIT used to be taken as the git path and
+// crash the check; it means "not set", as in the Go hook.
+bdd.describe("explicitRealGit", () => {
+  bdd.it("treats an unset or empty variable as not given", () => {
+    assert.assertEquals(hookDecisions.explicitRealGit(undefined), undefined);
+    assert.assertEquals(hookDecisions.explicitRealGit(""), undefined);
+  });
+
+  bdd.it("keeps a path", () => {
+    assert.assertEquals(
+      hookDecisions.explicitRealGit("/usr/bin/git"),
+      "/usr/bin/git",
+    );
+  });
 });
 
 // =============================================================================

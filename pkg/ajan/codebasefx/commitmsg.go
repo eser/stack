@@ -8,12 +8,6 @@ import (
 	"strings"
 )
 
-// defaultConventionalTypes are the types recognised by conventional commits.
-var defaultConventionalTypes = []string{
-	"feat", "fix", "docs", "style", "refactor",
-	"perf", "test", "build", "ci", "chore", "revert",
-}
-
 // conventionalPattern matches: type(scope)!: subject
 // Groups: 1=type, 2=scope (with parens), 3=breaking (!), 4=subject
 var conventionalPattern = regexp.MustCompile(`^(\w+)(\([^)]+\))?(!)?: *(.+)$`)
@@ -21,61 +15,105 @@ var conventionalPattern = regexp.MustCompile(`^(\w+)(\([^)]+\))?(!)?: *(.+)$`)
 // takeSuffixPattern strips "(take II)" / "(take 2)" trailing labels.
 var takeSuffixPattern = regexp.MustCompile(`\s+\(take\s+[IVXivx\d]+\)\s*$`)
 
-// ValidateCommitMsg validates a message against the conventional commit spec.
-// Returns a CommitMsgResult with Valid=false and explanatory Issues on failure.
-func ValidateCommitMsg(message string, opts CommitMsgOptions) CommitMsgResult {
-	message = strings.TrimSpace(message)
-	result := CommitMsgResult{Valid: true}
+// commitMsgTypes are the default types ValidateCommitMsg accepts, as in the
+// TypeScript validator (pkg/@eserstack/codebase/validate-commit-msg.ts).
+var commitMsgTypes = []string{"ci", "chore", "docs", "feat", "fix", "perf", "refactor", "revert", "test"} //nolint:gochecknoglobals
 
-	if message == "" {
+// commitMsgPattern matches a commit subject: type(scope)!: subject, with one to
+// five spaces after the colon.
+var commitMsgPattern = regexp.MustCompile(`^(\w+)(?:\(([^)]+)\))?!?:\s{1,5}.+$`) //nolint:gochecknoglobals
+
+// DefaultCommitMsgOptions are the defaults of the TypeScript validator: the
+// wildcard scope and multiple scopes are allowed, a scope is optional, and the
+// types are commitMsgTypes.
+func DefaultCommitMsgOptions() CommitMsgOptions {
+	return CommitMsgOptions{AllowAsterisk: true, AllowMultipleScopes: true, ForceScope: false, Types: nil}
+}
+
+// ValidateCommitMsg checks the first line of a commit message against the
+// conventional commit format, with the rules and messages of the TypeScript
+// validator: a merge commit ("Merge ...") passes; the type must be one of
+// opts.Types (commitMsgTypes when empty); ForceScope requires a scope; the
+// wildcard scope "*" needs AllowAsterisk; a comma-separated scope needs
+// AllowMultipleScopes and no empty part. Start from DefaultCommitMsgOptions
+// for the TypeScript defaults.
+func ValidateCommitMsg(message string, opts CommitMsgOptions) CommitMsgResult {
+	firstLine, _, _ := strings.Cut(message, "\n")
+	firstLine = strings.TrimSpace(firstLine)
+
+	if firstLine == "" {
+		return CommitMsgResult{Valid: false, Issues: []string{"commit message is empty"}}
+	}
+
+	if strings.HasPrefix(firstLine, "Merge ") {
+		return CommitMsgResult{Valid: true, Issues: nil}
+	}
+
+	m := commitMsgPattern.FindStringSubmatch(firstLine)
+	if m == nil {
 		return CommitMsgResult{
 			Valid:  false,
-			Issues: []string{"commit message must not be empty"},
+			Issues: []string{fmt.Sprintf(`invalid format: expected "type(scope): message", got: "%s"`, firstLine)},
 		}
 	}
 
-	// Allow "*" as a wildcard (useful in pre-commit hooks that skip validation)
-	if opts.AllowAsterisk && message == "*" {
-		return result
+	commitType := strings.ToLower(m[1])
+	scope := m[2]
+
+	types := opts.Types
+	if len(types) == 0 {
+		types = commitMsgTypes
 	}
 
-	m := conventionalPattern.FindStringSubmatch(message)
-	if m == nil {
-		result.Valid = false
-		result.Issues = append(result.Issues,
-			fmt.Sprintf("does not match conventional commit format <type>(<scope>): <subject>; got: %q", message))
+	types = uniqueStrings(types)
 
-		return result
+	var issues []string
+
+	if !contains(types, commitType) {
+		issues = append(issues, fmt.Sprintf(`invalid type "%s". Must be one of: %s`, commitType, strings.Join(types, ", ")))
 	}
 
-	commitType := m[1]
-	scope := strings.Trim(m[2], "()")
-	// m[3] is the breaking-change "!"
-
-	// Validate type
-	allowed := opts.Types
-	if len(allowed) == 0 {
-		allowed = defaultConventionalTypes
+	if opts.ForceScope && strings.TrimSpace(scope) == "" {
+		issues = append(issues, "scope is required: use type(scope): message")
 	}
 
-	if !contains(allowed, commitType) {
-		result.Valid = false
-		result.Issues = append(result.Issues,
-			fmt.Sprintf("unknown type %q; allowed: %s", commitType, strings.Join(allowed, ", ")))
+	if strings.TrimSpace(scope) != "" {
+		if scope == "*" && !opts.AllowAsterisk {
+			issues = append(issues, `wildcard scope "*" is not allowed (allowAsterisk is false)`)
+		}
+
+		if strings.Contains(scope, ",") {
+			if !opts.AllowMultipleScopes {
+				issues = append(issues, "multiple scopes are not allowed (allowMultipleScopes is false)")
+			} else if hasEmptyScope(scope) {
+				issues = append(issues, "invalid scope: each comma-separated scope must be non-empty")
+			}
+		}
 	}
 
-	// Scope rules
-	if opts.ForceScope && scope == "" {
-		result.Valid = false
-		result.Issues = append(result.Issues, "scope is required")
+	return CommitMsgResult{Valid: len(issues) == 0, Issues: issues}
+}
+
+func hasEmptyScope(scope string) bool {
+	for part := range strings.SplitSeq(scope, ",") {
+		if strings.TrimSpace(part) == "" {
+			return true
+		}
 	}
 
-	if !opts.AllowMultipleScopes && strings.Contains(scope, ",") {
-		result.Valid = false
-		result.Issues = append(result.Issues, "multiple scopes are not allowed; use a single scope")
+	return false
+}
+
+func uniqueStrings(values []string) []string {
+	out := make([]string, 0, len(values))
+
+	for _, v := range values {
+		if !contains(out, v) {
+			out = append(out, v)
+		}
 	}
 
-	return result
+	return out
 }
 
 // ParseConventionalCommit parses a single commit subject into a ConventionalCommit.

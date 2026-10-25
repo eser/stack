@@ -1,5 +1,10 @@
 # eserstack
 
+> **Note:** JSR is frozen at 4.5.x. From 5.0.0 the `@eserstack/*` libraries are
+> published on npm under the same names, and the `eser`, `noskills` and `laroux`
+> tools as the npm packages of those names; the JSR versions stay available but
+> get no updates.
+
 [![JSR @eser](https://jsr.io/badges/@eser)](https://jsr.io/@eser)
 [![codecov](https://codecov.io/gh/eser/stack/branch/main/graph/badge.svg?token=7TIL2XPJB6)](https://codecov.io/gh/eser/stack)
 [![Build Pipeline](https://github.com/eser/stack/actions/workflows/build.yml/badge.svg)](https://github.com/eser/stack/actions/workflows/build.yml)

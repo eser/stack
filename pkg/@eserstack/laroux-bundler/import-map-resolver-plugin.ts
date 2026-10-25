@@ -11,7 +11,7 @@
  * 3. Properly marks external packages (npm/jsr)
  * 4. Provides browser shims for server-only packages
  *
- * Works with both deno-bundler and rolldown backends.
+ * Runs as a Rolldown plugin.
  *
  * @module
  */
@@ -302,7 +302,7 @@ export function createImportMapResolverPlugin(
             }
 
             // For browser bundles, return empty to let bundler's default npm resolution handle it
-            // Rolldown will resolve npm packages from node_modules just like deno-bundler does
+            // Rolldown resolves npm packages from node_modules
             resolverLogger.debug(
               `Letting bundler resolve ${specifier} from node_modules`,
             );

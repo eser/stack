@@ -4,14 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-
-	"google.golang.org/genai"
 )
 
-// genaiRoleUser is the role name for user messages in the genai SDK.
+// genaiRoleUser is the role name for user messages in the generateContent API.
 const genaiRoleUser = "user"
 
-// genaiRoleModel is the role name for assistant/model messages in the genai SDK.
+// genaiRoleModel is the role name for assistant/model messages in the generateContent API.
 const genaiRoleModel = "model"
 
 // Sentinel errors shared across Google adapters.
@@ -21,8 +19,8 @@ var ErrGenAINilResponse = errors.New("genai returned nil response")
 // Gemini uses "user" and "model" as role names; "assistant" is mapped to "model".
 // System messages are excluded here (they go into SystemInstruction).
 // Tool result messages are mapped as "user" role with FunctionResponse parts.
-func mapMessagesToGenAI(messages []Message) []*genai.Content {
-	contents := make([]*genai.Content, 0, len(messages))
+func mapMessagesToGenAI(messages []Message) []*genaiContent {
+	contents := make([]*genaiContent, 0, len(messages))
 
 	for _, msg := range messages {
 		// Skip system messages -- they are handled separately via SystemInstruction.
@@ -34,7 +32,7 @@ func mapMessagesToGenAI(messages []Message) []*genai.Content {
 		parts := mapContentBlocksToGenAIParts(msg.Content)
 
 		if len(parts) > 0 {
-			contents = append(contents, &genai.Content{
+			contents = append(contents, &genaiContent{
 				Role:  role,
 				Parts: parts,
 			})
@@ -57,8 +55,8 @@ func mapRoleToGenAI(role Role) string {
 }
 
 // mapContentBlocksToGenAIParts converts content blocks to genai Part slices.
-func mapContentBlocksToGenAIParts(blocks []ContentBlock) []*genai.Part {
-	parts := make([]*genai.Part, 0, len(blocks))
+func mapContentBlocksToGenAIParts(blocks []ContentBlock) []*genaiPart {
+	parts := make([]*genaiPart, 0, len(blocks))
 
 	for idx := range blocks {
 		block := &blocks[idx]
@@ -73,10 +71,10 @@ func mapContentBlocksToGenAIParts(blocks []ContentBlock) []*genai.Part {
 }
 
 // mapSingleBlockToGenAIPart converts a single content block to a genai Part.
-func mapSingleBlockToGenAIPart(block *ContentBlock) *genai.Part { //nolint:cyclop
+func mapSingleBlockToGenAIPart(block *ContentBlock) *genaiPart { //nolint:cyclop
 	switch block.Type {
 	case ContentBlockText:
-		return &genai.Part{ //nolint:exhaustruct
+		return &genaiPart{ //nolint:exhaustruct
 			Text: block.Text,
 		}
 
@@ -111,7 +109,7 @@ func mapSingleBlockToGenAIPart(block *ContentBlock) *genai.Part { //nolint:cyclo
 
 // mapImagePartToGenAI converts an ImagePart to a genai Part.
 // Data URLs and raw bytes produce InlineData; HTTP URLs produce FileData.
-func mapImagePartToGenAI(img *ImagePart) *genai.Part {
+func mapImagePartToGenAI(img *ImagePart) *genaiPart {
 	// If raw data is already available, use InlineData.
 	if len(img.Data) > 0 {
 		mimeType := img.MIMEType
@@ -119,8 +117,8 @@ func mapImagePartToGenAI(img *ImagePart) *genai.Part {
 			mimeType = "image/png"
 		}
 
-		return &genai.Part{ //nolint:exhaustruct
-			InlineData: &genai.Blob{ //nolint:exhaustruct
+		return &genaiPart{ //nolint:exhaustruct
+			InlineData: &genaiBlob{ //nolint:exhaustruct
 				MIMEType: mimeType,
 				Data:     img.Data,
 			},
@@ -131,8 +129,8 @@ func mapImagePartToGenAI(img *ImagePart) *genai.Part {
 	if IsDataURL(img.URL) {
 		mimeType, data, err := DecodeDataURL(img.URL)
 		if err == nil {
-			return &genai.Part{ //nolint:exhaustruct
-				InlineData: &genai.Blob{ //nolint:exhaustruct
+			return &genaiPart{ //nolint:exhaustruct
+				InlineData: &genaiBlob{ //nolint:exhaustruct
 					MIMEType: mimeType,
 					Data:     data,
 				},
@@ -146,8 +144,8 @@ func mapImagePartToGenAI(img *ImagePart) *genai.Part {
 		mimeType = DetectMIMEFromURL(img.URL)
 	}
 
-	return &genai.Part{ //nolint:exhaustruct
-		FileData: &genai.FileData{ //nolint:exhaustruct
+	return &genaiPart{ //nolint:exhaustruct
+		FileData: &genaiFileData{ //nolint:exhaustruct
 			MIMEType: mimeType,
 			FileURI:  img.URL,
 		},
@@ -155,15 +153,15 @@ func mapImagePartToGenAI(img *ImagePart) *genai.Part {
 }
 
 // mapAudioPartToGenAI converts an AudioPart to a genai Part.
-func mapAudioPartToGenAI(audio *AudioPart) *genai.Part {
+func mapAudioPartToGenAI(audio *AudioPart) *genaiPart {
 	if len(audio.Data) > 0 {
 		mimeType := audio.MIMEType
 		if mimeType == "" {
 			mimeType = "audio/mpeg"
 		}
 
-		return &genai.Part{ //nolint:exhaustruct
-			InlineData: &genai.Blob{ //nolint:exhaustruct
+		return &genaiPart{ //nolint:exhaustruct
+			InlineData: &genaiBlob{ //nolint:exhaustruct
 				MIMEType: mimeType,
 				Data:     audio.Data,
 			},
@@ -173,8 +171,8 @@ func mapAudioPartToGenAI(audio *AudioPart) *genai.Part {
 	if IsDataURL(audio.URL) {
 		mimeType, data, err := DecodeDataURL(audio.URL)
 		if err == nil {
-			return &genai.Part{ //nolint:exhaustruct
-				InlineData: &genai.Blob{ //nolint:exhaustruct
+			return &genaiPart{ //nolint:exhaustruct
+				InlineData: &genaiBlob{ //nolint:exhaustruct
 					MIMEType: mimeType,
 					Data:     data,
 				},
@@ -187,8 +185,8 @@ func mapAudioPartToGenAI(audio *AudioPart) *genai.Part {
 		mimeType = DetectMIMEFromURL(audio.URL)
 	}
 
-	return &genai.Part{ //nolint:exhaustruct
-		FileData: &genai.FileData{ //nolint:exhaustruct
+	return &genaiPart{ //nolint:exhaustruct
+		FileData: &genaiFileData{ //nolint:exhaustruct
 			MIMEType: mimeType,
 			FileURI:  audio.URL,
 		},
@@ -196,14 +194,14 @@ func mapAudioPartToGenAI(audio *AudioPart) *genai.Part {
 }
 
 // mapFilePartToGenAI converts a FilePart to a genai Part.
-func mapFilePartToGenAI(file *FilePart) *genai.Part {
+func mapFilePartToGenAI(file *FilePart) *genaiPart {
 	mimeType := file.MIMEType
 	if mimeType == "" {
 		mimeType = DetectMIMEFromURL(file.URI)
 	}
 
-	return &genai.Part{ //nolint:exhaustruct
-		FileData: &genai.FileData{ //nolint:exhaustruct
+	return &genaiPart{ //nolint:exhaustruct
+		FileData: &genaiFileData{ //nolint:exhaustruct
 			MIMEType: mimeType,
 			FileURI:  file.URI,
 		},
@@ -211,14 +209,14 @@ func mapFilePartToGenAI(file *FilePart) *genai.Part {
 }
 
 // mapToolCallToGenAIPart converts a ToolCall to a genai FunctionCall Part.
-func mapToolCallToGenAIPart(toolCall *ToolCall) *genai.Part {
+func mapToolCallToGenAIPart(toolCall *ToolCall) *genaiPart {
 	var args map[string]any
 	if len(toolCall.Arguments) > 0 {
 		_ = json.Unmarshal(toolCall.Arguments, &args)
 	}
 
-	return &genai.Part{ //nolint:exhaustruct
-		FunctionCall: &genai.FunctionCall{ //nolint:exhaustruct
+	return &genaiPart{ //nolint:exhaustruct
+		FunctionCall: &genaiFunctionCall{ //nolint:exhaustruct
 			Name: toolCall.Name,
 			Args: args,
 		},
@@ -226,7 +224,7 @@ func mapToolCallToGenAIPart(toolCall *ToolCall) *genai.Part {
 }
 
 // mapToolResultToGenAIPart converts a ToolResult to a genai FunctionResponse Part.
-func mapToolResultToGenAIPart(toolResult *ToolResult) *genai.Part {
+func mapToolResultToGenAIPart(toolResult *ToolResult) *genaiPart {
 	response := map[string]any{
 		"result": toolResult.Content,
 	}
@@ -235,8 +233,8 @@ func mapToolResultToGenAIPart(toolResult *ToolResult) *genai.Part {
 		response["error"] = toolResult.Content
 	}
 
-	return &genai.Part{ //nolint:exhaustruct
-		FunctionResponse: &genai.FunctionResponse{ //nolint:exhaustruct
+	return &genaiPart{ //nolint:exhaustruct
+		FunctionResponse: &genaiFunctionResponse{ //nolint:exhaustruct
 			Name:     toolResult.ToolCallID,
 			Response: response,
 		},
@@ -245,16 +243,16 @@ func mapToolResultToGenAIPart(toolResult *ToolResult) *genai.Part {
 
 // mapToolsToGenAI converts unified tool definitions to genai Tool format.
 // Uses ParametersJsonSchema for JSON Schema parameters.
-func mapToolsToGenAI(tools []ToolDefinition) ([]*genai.Tool, error) {
+func mapToolsToGenAI(tools []ToolDefinition) ([]*genaiTool, error) {
 	if len(tools) == 0 {
 		return nil, nil
 	}
 
-	declarations := make([]*genai.FunctionDeclaration, 0, len(tools))
+	declarations := make([]*genaiFunctionDeclaration, 0, len(tools))
 
 	for idx := range tools {
 		tool := &tools[idx]
-		decl := &genai.FunctionDeclaration{ //nolint:exhaustruct
+		decl := &genaiFunctionDeclaration{ //nolint:exhaustruct
 			Name:        tool.Name,
 			Description: tool.Description,
 		}
@@ -268,13 +266,13 @@ func mapToolsToGenAI(tools []ToolDefinition) ([]*genai.Tool, error) {
 
 		// A nil map stored in the field would be sent as null.
 		if schemaMap != nil {
-			decl.ParametersJsonSchema = schemaMap
+			decl.ParametersJSONSchema = schemaMap
 		}
 
 		declarations = append(declarations, decl)
 	}
 
-	return []*genai.Tool{
+	return []*genaiTool{
 		{
 			FunctionDeclarations: declarations,
 		},
@@ -282,45 +280,45 @@ func mapToolsToGenAI(tools []ToolDefinition) ([]*genai.Tool, error) {
 }
 
 // mapSafetySettings converts unified safety settings to genai SafetySetting format.
-func mapSafetySettings(settings []SafetySetting) []*genai.SafetySetting {
+func mapSafetySettings(settings []SafetySetting) []*genaiSafetySetting {
 	if len(settings) == 0 {
 		return nil
 	}
 
-	genaiSettings := make([]*genai.SafetySetting, 0, len(settings))
+	genaiSettings := make([]*genaiSafetySetting, 0, len(settings))
 
 	for idx := range settings {
 		setting := &settings[idx]
 
-		genaiSettings = append(genaiSettings, &genai.SafetySetting{ //nolint:exhaustruct
-			Category:  genai.HarmCategory(setting.Category),
-			Threshold: genai.HarmBlockThreshold(setting.Threshold),
+		genaiSettings = append(genaiSettings, &genaiSafetySetting{ //nolint:exhaustruct
+			Category:  setting.Category,
+			Threshold: setting.Threshold,
 		})
 	}
 
 	return genaiSettings
 }
 
-// buildSystemInstruction creates a genai.Content for the system instruction.
-func buildSystemInstruction(system string) *genai.Content {
+// buildSystemInstruction creates the content of the system instruction.
+func buildSystemInstruction(system string) *genaiContent {
 	if system == "" {
 		return nil
 	}
 
-	return &genai.Content{ //nolint:exhaustruct
-		Parts: []*genai.Part{
+	return &genaiContent{ //nolint:exhaustruct
+		Parts: []*genaiPart{
 			{Text: system},
 		},
 	}
 }
 
-// buildGenerateContentConfig constructs the genai.GenerateContentConfig from
+// buildGenerateContentConfig constructs the generateContent settings from
 // unified options. A tool or response schema that does not decode fails here,
 // before the request is sent.
 func buildGenerateContentConfig(
 	opts *GenerateTextOptions,
-) (*genai.GenerateContentConfig, error) {
-	config := &genai.GenerateContentConfig{} //nolint:exhaustruct
+) (*genaiGenerateContentConfig, error) {
+	config := &genaiGenerateContentConfig{} //nolint:exhaustruct
 
 	// System instruction.
 	config.SystemInstruction = buildSystemInstruction(opts.System)
@@ -348,7 +346,7 @@ func buildGenerateContentConfig(
 }
 
 func applyGenAIGenerationParams(
-	config *genai.GenerateContentConfig,
+	config *genaiGenerateContentConfig,
 	opts *GenerateTextOptions,
 ) {
 	if opts.MaxTokens > 0 {
@@ -356,11 +354,11 @@ func applyGenAIGenerationParams(
 	}
 
 	if opts.Temperature != nil {
-		config.Temperature = genai.Ptr(float32(*opts.Temperature))
+		config.Temperature = new(float32(*opts.Temperature))
 	}
 
 	if opts.TopP != nil {
-		config.TopP = genai.Ptr(float32(*opts.TopP))
+		config.TopP = new(float32(*opts.TopP))
 	}
 
 	if len(opts.StopWords) > 0 {
@@ -369,7 +367,7 @@ func applyGenAIGenerationParams(
 }
 
 func applyGenAITools(
-	config *genai.GenerateContentConfig,
+	config *genaiGenerateContentConfig,
 	opts *GenerateTextOptions,
 ) error {
 	tools, err := mapToolsToGenAI(opts.Tools)
@@ -383,7 +381,7 @@ func applyGenAITools(
 }
 
 func applyGenAISafetySettings(
-	config *genai.GenerateContentConfig,
+	config *genaiGenerateContentConfig,
 	opts *GenerateTextOptions,
 ) {
 	if len(opts.SafetySettings) > 0 {
@@ -396,7 +394,7 @@ func applyGenAISafetySettings(
 // which asks for any JSON. responseSchema stays unset: the API takes only one
 // of the two schema fields.
 func applyGenAIResponseFormat(
-	config *genai.GenerateContentConfig,
+	config *genaiGenerateContentConfig,
 	opts *GenerateTextOptions,
 ) error {
 	if opts.ResponseFormat == nil {
@@ -411,7 +409,7 @@ func applyGenAIResponseFormat(
 		}
 
 		config.ResponseMIMEType = "application/json"
-		config.ResponseJsonSchema = schema
+		config.ResponseJSONSchema = schema
 	case "json_object":
 		config.ResponseMIMEType = "application/json"
 	case "text":
@@ -426,7 +424,7 @@ func applyGenAIResponseFormat(
 // so an explicit Effort wins over the budget, as it does on anthropic and
 // openai. An unknown level fails here, before the request is sent.
 func applyGenAIThinkingConfig(
-	config *genai.GenerateContentConfig,
+	config *genaiGenerateContentConfig,
 	opts *GenerateTextOptions,
 ) error {
 	err := checkEffort(opts.Effort)
@@ -435,7 +433,7 @@ func applyGenAIThinkingConfig(
 	}
 
 	if opts.Effort != EffortDefault {
-		config.ThinkingConfig = &genai.ThinkingConfig{ //nolint:exhaustruct
+		config.ThinkingConfig = &genaiThinkingConfig{ //nolint:exhaustruct
 			ThinkingLevel: mapGenAIThinkingLevel(opts.Effort),
 		}
 
@@ -443,8 +441,8 @@ func applyGenAIThinkingConfig(
 	}
 
 	if opts.ThinkingBudget != nil {
-		config.ThinkingConfig = &genai.ThinkingConfig{ //nolint:exhaustruct
-			ThinkingBudget: genai.Ptr(int32(*opts.ThinkingBudget)),
+		config.ThinkingConfig = &genaiThinkingConfig{ //nolint:exhaustruct
+			ThinkingBudget: new(int32(*opts.ThinkingBudget)),
 		}
 	}
 
@@ -455,14 +453,14 @@ func applyGenAIThinkingConfig(
 // Gemini's levels stop at HIGH, so xhigh and max send HIGH. The levels a model
 // takes differ per model (gemini-3-pro-preview has no MEDIUM) and are not
 // checked here; the API answers for the model, as on openai.
-func mapGenAIThinkingLevel(effort Effort) genai.ThinkingLevel {
+func mapGenAIThinkingLevel(effort Effort) genaiThinkingLevel {
 	switch effort {
 	case EffortLow:
-		return genai.ThinkingLevelLow
+		return genaiThinkingLevelLow
 	case EffortMedium:
-		return genai.ThinkingLevelMedium
+		return genaiThinkingLevelMedium
 	case EffortHigh, EffortXHigh, EffortMax:
-		return genai.ThinkingLevelHigh
+		return genaiThinkingLevelHigh
 	case EffortDefault:
 		return ""
 	}
@@ -472,7 +470,7 @@ func mapGenAIThinkingLevel(effort Effort) genai.ThinkingLevel {
 
 // mapGenAIResponse converts a genai GenerateContentResponse to the unified GenerateTextResult.
 func mapGenAIResponse(
-	resp *genai.GenerateContentResponse,
+	resp *genaiGenerateContentResponse,
 ) (*GenerateTextResult, error) {
 	if resp == nil {
 		return nil, ErrGenAINilResponse
@@ -525,14 +523,14 @@ func mapGenAIResponse(
 
 // genAIPromptBlocked reports whether a filter blocked the prompt itself. The
 // response then has no candidates and names the filter in promptFeedback.
-func genAIPromptBlocked(resp *genai.GenerateContentResponse) bool {
+func genAIPromptBlocked(resp *genaiGenerateContentResponse) bool {
 	if resp.PromptFeedback == nil {
 		return false
 	}
 
 	reason := resp.PromptFeedback.BlockReason
 
-	return reason != "" && reason != genai.BlockedReasonUnspecified
+	return reason != "" && reason != genaiBlockedReasonUnspecified
 }
 
 // hasToolCall reports whether any block is a tool call.
@@ -552,24 +550,24 @@ func hasToolCall(blocks []ContentBlock) bool {
 // recitation and their image variants) withhold the answer, so they map to
 // refusal. Gemini ends a turn that called a tool with STOP, so calledTool turns
 // that into tool_use. Any other reason has no closer match than stop.
-func mapGenAIFinishReason(reason genai.FinishReason, calledTool bool) StopReason {
+func mapGenAIFinishReason(reason genaiFinishReason, calledTool bool) StopReason {
 	switch reason { //nolint:exhaustive
-	case genai.FinishReasonStop:
+	case genaiFinishReasonStop:
 		if calledTool {
 			return StopReasonToolUse
 		}
 
 		return StopReasonEndTurn
-	case genai.FinishReasonMaxTokens:
+	case genaiFinishReasonMaxTokens:
 		return StopReasonMaxTokens
-	case genai.FinishReasonSafety,
-		genai.FinishReasonBlocklist,
-		genai.FinishReasonProhibitedContent,
-		genai.FinishReasonSPII,
-		genai.FinishReasonRecitation,
-		genai.FinishReasonImageSafety,
-		genai.FinishReasonImageProhibitedContent,
-		genai.FinishReasonImageRecitation:
+	case genaiFinishReasonSafety,
+		genaiFinishReasonBlocklist,
+		genaiFinishReasonProhibitedContent,
+		genaiFinishReasonSPII,
+		genaiFinishReasonRecitation,
+		genaiFinishReasonImageSafety,
+		genaiFinishReasonImageProhibitedContent,
+		genaiFinishReasonImageRecitation:
 		return StopReasonRefusal
 	default:
 		return StopReasonStop
@@ -577,7 +575,7 @@ func mapGenAIFinishReason(reason genai.FinishReason, calledTool bool) StopReason
 }
 
 // mapGenAIPartsToContentBlocks converts genai Parts to unified ContentBlock slices.
-func mapGenAIPartsToContentBlocks(parts []*genai.Part) []ContentBlock {
+func mapGenAIPartsToContentBlocks(parts []*genaiPart) []ContentBlock {
 	blocks := make([]ContentBlock, 0, len(parts))
 
 	for _, part := range parts {
@@ -655,7 +653,7 @@ type genAIStreamMapper struct {
 func (s *genAIStreamMapper) emit(
 	ctx context.Context,
 	eventCh chan<- StreamEvent,
-	resp *genai.GenerateContentResponse,
+	resp *genaiGenerateContentResponse,
 ) {
 	if resp == nil {
 		return
@@ -687,7 +685,7 @@ func (s *genAIStreamMapper) emit(
 func emitGenAIContentParts(
 	ctx context.Context,
 	eventCh chan<- StreamEvent,
-	parts []*genai.Part,
+	parts []*genaiPart,
 ) bool {
 	calledTool := false
 
@@ -724,7 +722,7 @@ func emitGenAIContentParts(
 func emitGenAIDone(
 	ctx context.Context,
 	eventCh chan<- StreamEvent,
-	usageMetadata *genai.GenerateContentResponseUsageMetadata,
+	usageMetadata *genaiUsageMetadata,
 	stopReason StopReason,
 ) {
 	var usage *Usage

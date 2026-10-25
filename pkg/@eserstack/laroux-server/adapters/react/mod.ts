@@ -82,4 +82,4 @@ export {
   renderApp,
   type RenderAppProps,
   type RenderAppRequestContext,
-} from "./render-app.tsx";
+} from "./render-app.ts";

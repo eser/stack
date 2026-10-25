@@ -3,7 +3,7 @@
 // These tests swap the global fetch and put the original back in a finally;
 // the tests of one module run one at a time.
 
-import * as assert from "@std/assert";
+import * as assert from "@eserstack/test-kit/assert";
 import * as bdd from "@std/testing/bdd";
 import * as h3Fetch from "./h3-fetch.ts";
 

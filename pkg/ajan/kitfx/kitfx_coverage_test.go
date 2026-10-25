@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -278,6 +279,7 @@ func TestGetDependencyInstructions_GoDeps_Matching(t *testing.T) {
 	t.Parallel()
 
 	recipe := &kitfx.Recipe{
+		Language: "go",
 		Dependencies: &kitfx.RecipeDependencies{
 			Go: []string{"github.com/pkg/errors@latest"},
 		},
@@ -298,15 +300,18 @@ func TestGetDependencyInstructions_GoDeps_Mismatch(t *testing.T) {
 	t.Parallel()
 
 	recipe := &kitfx.Recipe{
+		Name:     "errors",
+		Language: "go",
 		Dependencies: &kitfx.RecipeDependencies{
 			Go: []string{"github.com/pkg/errors@latest"},
 		},
 	}
 
-	instr := kitfx.GetDependencyInstructions(recipe, kitfx.ProjectDetection{Type: kitfx.ProjectTypeNode})
+	instr := kitfx.GetDependencyInstructions(recipe, kitfx.ProjectDetection{Type: kitfx.ProjectTypeNode, ConfigFile: "/p/package.json"})
 
-	if len(instr.Warnings) == 0 {
-		t.Error("expected warning for Go deps in Node project")
+	want := "Recipe 'errors' is for go, but detected node project (package.json)."
+	if len(instr.Warnings) != 1 || instr.Warnings[0] != want {
+		t.Errorf("Warnings = %q, want [%q]", instr.Warnings, want)
 	}
 
 	if len(instr.Instructions) == 0 {
@@ -341,12 +346,9 @@ func TestGetDependencyInstructions_NPMDeps_Multi(t *testing.T) {
 
 	instr := kitfx.GetDependencyInstructions(recipe, kitfx.ProjectDetection{Type: kitfx.ProjectTypeNode})
 
-	if len(instr.Instructions) != 1 {
-		t.Fatalf("expected 1 npm install instruction, got %d", len(instr.Instructions))
-	}
-
-	if !strings.Contains(instr.Instructions[0], "express") || !strings.Contains(instr.Instructions[0], "lodash") {
-		t.Errorf("expected both packages in instruction, got %q", instr.Instructions[0])
+	want := []string{"npm install express", "npm install lodash"}
+	if !slices.Equal(instr.Instructions, want) {
+		t.Errorf("Instructions = %q, want one npm install per package %q", instr.Instructions, want)
 	}
 }
 
@@ -399,8 +401,9 @@ func TestGetDependencyInstructions_UnknownType_NoWarning(t *testing.T) {
 		t.Errorf("expected no warnings for Unknown project type, got %v", instr.Warnings)
 	}
 
-	if len(instr.Instructions) != 3 {
-		t.Errorf("expected 3 instructions (go get + npm install + deno add), got %d", len(instr.Instructions))
+	want := []string{"go get github.com/pkg/errors@latest", "deno add @std/path", "npm install express"}
+	if !slices.Equal(instr.Instructions, want) {
+		t.Errorf("Instructions = %q, want Go, then JSR, then npm: %q", instr.Instructions, want)
 	}
 }
 

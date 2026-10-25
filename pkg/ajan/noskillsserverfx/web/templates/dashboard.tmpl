@@ -1,0 +1,46 @@
+{{- /* GET /: the spec list, the pending mentions and the agent tabs. client.js
+fills the terminal container with the panes of the /mux scene, painted by
+mux-render.js from the server's screen messages; it is rendered even with no
+tab, so the browser has a mount point. Each tab is a select button and a
+close button side by side, the markup mux-render.js renders, so both take
+keyboard focus. */ -}}
+{{define "body"}}
+  <div class="dashboard">
+    <aside class="sidebar">
+      <div class="spec-list">
+        <h2>Specs</h2>
+        {{- range .Specs}}
+        <a href="/spec/{{.Slug}}" class="spec-item{{if .Active}} active{{end}}">
+          <span class="spec-name">{{.Name}}</span>
+          {{template "phase_badge" .Badge}}
+          {{- if gt .TaskTotal 0}}
+          <span class="task-progress">{{.TaskDone}}/{{.TaskTotal}}</span>
+          {{- end}}
+        </a>
+        {{- else}}
+        <div class="empty-state">No specs yet. Create one from the terminal.</div>
+        {{- end}}
+      </div>
+      {{- if .Mentions}}
+      <div class="pending-section"><h3>Pending Mentions ({{len .Mentions}})</h3>
+        {{- range .Mentions}}
+        <div class="mention-item">
+          <span class="mention-from">{{.From}}</span> asks about <strong>{{.Spec}}</strong>:
+          <p>{{.Question}}</p>
+          <button class="cta-btn small" data-spec="{{.Spec}}" data-action="reply" data-mention-id="{{.ID}}">Reply</button>
+        </div>
+        {{- end}}
+      </div>
+      {{- end}}
+    </aside>
+    <main class="main-area" id="main">
+      <div class="tab-bar">
+        {{- range $index, $tab := .Tabs -}}
+        <div class="tab{{if $tab.Active}} active{{end}}" data-tab="{{$tab.ID}}"><button type="button" class="tab-select" data-index="{{$index}}">{{$tab.Label}}</button><button type="button" class="tab-close" data-close="{{$tab.ID}}" aria-label="Close {{$tab.Label}}">&times;</button></div>
+        {{- end -}}
+        <button type="button" class="tab-add" id="add-tab" aria-label="New tab">+</button>
+      </div>
+      <div class="terminal-container" id="terminal-container" role="region" aria-label="Agent terminals"></div>
+    </main>
+  </div>
+{{end}}

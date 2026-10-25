@@ -1,5 +1,9 @@
 # ⚙️ [@eserstack/di](./)
 
+> **Note:** JSR is frozen at 4.5.x. From 5.0.0, `@eserstack/di` is published on
+> npm under the same name (`pnpm add @eserstack/di`); the JSR versions stay
+> available but get no updates.
+
 > **eserstack Foundation** —
 > [eser/stack on GitHub](https://github.com/eser/stack) **Install:**
 > `pnpm add jsr:@eserstack/di`
@@ -152,6 +156,22 @@ class PrinterClass {
 
 const test = di.di`PrinterClass`;
 test.print(); // outputs "testing"
+```
+
+The `@` form needs a runtime or build step that transforms decorators, such as
+Deno, TypeScript's compiler or a bundler plugin. Node 26 strips types without
+transforming decorators and has no decorator syntax, so under Node call the
+decorator as a function:
+
+```js
+import * as di from "@eserstack/di";
+
+class PrinterClass {
+  print() {
+    console.log("testing");
+  }
+}
+di.injectable()(PrinterClass);
 ```
 
 ## 📕 API Reference

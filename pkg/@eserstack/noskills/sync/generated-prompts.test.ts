@@ -9,7 +9,7 @@
  */
 
 import * as bdd from "@std/testing/bdd";
-import * as assert from "@std/assert";
+import * as assert from "@eserstack/test-kit/assert";
 import * as crossRuntime from "@eserstack/standards/cross-runtime";
 import type * as adapter from "./adapter.ts";
 import * as discoveryAnswers from "../context/discovery-answers.ts";

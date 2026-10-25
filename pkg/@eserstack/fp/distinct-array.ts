@@ -13,7 +13,7 @@ export const distinctArray = <T>(
   predicate: (value: T, index: number, instance: Iterable<T>) => unknown,
 ): Array<T> => {
   const arrInstance = (instance.constructor === Array)
-    ? <ReadonlyArray<T>> instance
+    ? instance as ReadonlyArray<T>
     : [...instance];
 
   const predicateValue = predicate ?? ((value: T) => value);

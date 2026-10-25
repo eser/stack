@@ -3,7 +3,7 @@
  * Tests for HtmlShellBuilder port interface
  */
 
-import * as assert from "@std/assert";
+import * as assert from "@eserstack/test-kit/assert";
 import * as htmlShell from "./html-shell.ts";
 import type { HtmlShellBuilder, HtmlShellOptions } from "./html-shell.ts";
 

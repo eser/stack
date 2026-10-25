@@ -9,6 +9,9 @@
 import * as logger from "@eserstack/logging/logger";
 import * as patterns from "@eserstack/standards/patterns";
 import * as ffiClient from "./ffi-client.ts";
+import * as walkFs from "./walk-fs.ts";
+
+const collectorLogger = logger.getLogger(["collector"]);
 
 /**
  * Convert a simple glob pattern to a RegExp.
@@ -22,16 +25,44 @@ const simpleGlobToRegExp = (glob: string): RegExp => {
   return new RegExp(`^${escaped}$`);
 };
 
+/**
+ * Yields the paths, relative to `baseDir`, of the collectable source files
+ * under it.
+ *
+ * With the native bridge loaded, the walk runs in Go (collectorfx). Without it
+ * (the bridge is missing, `ESER_AJAN=disabled`, or only the WASM build loads,
+ * which has no filesystem), or when the Go walk reports an error, the walk
+ * runs in TypeScript on the runtime's file system with the same rules
+ * ({@link walkFs.walkCollectableFiles}). A base directory that cannot be read
+ * is an error either way.
+ */
 export async function* walkFiles(
   baseDir: string,
   globFilter: string | undefined,
   ignoreFilePattern: RegExp,
 ): AsyncGenerator<string> {
+  const glob = globFilter === undefined
+    ? undefined
+    : simpleGlobToRegExp(globFilter);
+
+  for (const relPath of await listFiles(baseDir, ignoreFilePattern)) {
+    if (glob !== undefined && !glob.test(relPath)) {
+      continue;
+    }
+    yield relPath;
+  }
+}
+
+/** The Go walk's result, or null when it cannot serve this walk. */
+const listFilesInGo = async (
+  baseDir: string,
+  ignoreFilePattern: RegExp,
+): Promise<string[] | null> => {
   await ffiClient.ensureLib();
   const lib = ffiClient.getLib();
 
   if (lib === null) {
-    throw new Error("native library unavailable");
+    return null;
   }
 
   const raw = lib.symbols.EserAjanCollectorWalkFiles(
@@ -41,24 +72,30 @@ export async function* walkFiles(
     }),
   );
   const result = JSON.parse(raw) as {
-    files: Array<{ relPath: string; absPath: string }>;
+    files?: Array<{ relPath: string; absPath: string }> | null;
     error?: string;
   };
 
-  if (result.error) {
-    throw new Error(result.error);
+  if (result.error !== undefined && result.error !== "") {
+    // The WASM build without a preopen cannot read the directory, and Go's
+    // regexp rejects some JavaScript patterns, such as lookaheads. The
+    // TypeScript walk handles both, and reports a root that is really
+    // unreadable itself.
+    collectorLogger.debug(
+      `collector walk in Go failed (${result.error}); walking in TypeScript`,
+    );
+    return null;
   }
 
-  for (const { relPath } of result.files) {
-    if (
-      globFilter !== undefined &&
-      !simpleGlobToRegExp(globFilter).test(relPath)
-    ) {
-      continue;
-    }
-    yield relPath;
-  }
-}
+  return (result.files ?? []).map((file) => file.relPath);
+};
+
+const listFiles = async (
+  baseDir: string,
+  ignoreFilePattern: RegExp,
+): Promise<string[]> =>
+  await listFilesInGo(baseDir, ignoreFilePattern) ??
+    await walkFs.walkCollectableFiles(baseDir, ignoreFilePattern);
 
 export type CollectExportsOptions = {
   baseDir: string;

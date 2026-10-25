@@ -3,7 +3,7 @@
  * Tests for Renderer port interface
  */
 
-import * as assert from "@std/assert";
+import * as assert from "@eserstack/test-kit/assert";
 import * as renderer from "./renderer.ts";
 import type { RenderContext, Renderer } from "./renderer.ts";
 

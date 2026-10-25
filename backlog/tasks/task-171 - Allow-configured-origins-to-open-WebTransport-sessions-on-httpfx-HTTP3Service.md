@@ -1,9 +1,10 @@
 ---
 id: TASK-171
 title: Allow configured origins to open WebTransport sessions on httpfx HTTP3Service
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-10-05 00:58'
+updated_date: '2026-10-15 19:34'
 labels:
   - httpfx
   - security
@@ -22,7 +23,15 @@ Decision: add an allowed-origins list to the httpfx HTTP3 config, passed to webt
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 The allowed WebTransport origins come from config and default to same-origin
-- [ ] #2 A test shows an allowed cross-origin CONNECT upgrades and a disallowed one is refused
-- [ ] #3 deno task cli ok passes
+- [x] #1 The allowed WebTransport origins come from config and default to same-origin
+- [x] #2 A test shows an allowed cross-origin CONNECT upgrades and a disallowed one is refused
+- [x] #3 deno task cli ok passes
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Completed in round 3 of the autonomous backlog run (2026-10-05); deno task cli ok passes.
+
+Verified in /Users/eser/projects/eser/stack/pkg/ajan/httpfx/http3_origin.go, http3_service.go and config.go. H3AllowedOrigins (conf h3_allowed_origins) feeds webtransport.Server.CheckOrigin and WebTransportUpgrader.Upgrade. The default is same-origin: a request without Origin passes, and so does one whose Origin host equals the request Host. Entries are exact and normalized; wildcards, paths and non-http(s) schemes are rejected, and Start returns ErrHTTP3InvalidAllowedOrigin before it opens the socket. noskills-server: ServerConfig.AllowedOrigins and --allowed-origins (splitList), documented in the usage text and the README. wt_attach.go answers 403 on ErrWebTransportOriginNotAllowed. TestHTTP3Service_WebTransportAllowedOrigins dials real HTTP/3: a listed cross-origin page upgrades, a same-origin page upgrades, an unlisted one gets 403. TestAttachChecksTheOrigin covers the daemon. Both stayed stable over 5 race runs.
+<!-- SECTION:NOTES:END -->

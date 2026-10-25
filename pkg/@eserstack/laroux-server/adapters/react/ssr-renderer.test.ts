@@ -1,6 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import * as assert from "@std/assert";
+import * as assert from "@eserstack/test-kit/assert";
 import * as React from "react";
 import * as larouxClient from "@eserstack/laroux-react/client";
 import * as protocol from "@eserstack/laroux-react/protocol";

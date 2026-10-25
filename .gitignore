@@ -67,6 +67,6 @@ result-*
 docs/api/
 
 # Platform library packages are workspace members whose only payload is a build
-# output written by pkg/@eserstack/ajan/scripts/build.ts; the manifests are committed.
+# output that `make ajan-packages` stages; the manifests are committed.
 /pkg/@eserstack/ajan-*/libeser_ajan.*
 /pkg/@eserstack/ajan-wasm/*.wasm

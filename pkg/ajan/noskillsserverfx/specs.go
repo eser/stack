@@ -2,14 +2,17 @@ package noskillsserverfx
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
-	"strings"
-	"time"
 
 	"github.com/eser/stack/pkg/ajan/httpfx"
 	"github.com/eser/stack/pkg/ajan/noskillsfx"
 )
+
+// The spec endpoints run the lifecycle commands of noskillsfx, the ones
+// the noskills CLI runs, so a spec moves through the same states and files
+// whichever of them drives it.
 
 // ── List specs ────────────────────────────────────────────────────────────────
 
@@ -27,23 +30,17 @@ func (s *Server) handleListSpecs(ctx *httpfx.Context) httpfx.Result {
 			httpfx.WithSanitizedError(fmt.Errorf("project %q not found", slug))) //nolint:err113
 	}
 
-	names, err := noskillsfx.ListSpecStates(root)
-	if err != nil {
-		return ctx.Results.Error(http.StatusInternalServerError,
-			httpfx.WithSanitizedError(fmt.Errorf("list specs: %w", err)))
-	}
+	entries := noskillsfx.SpecList(lifecycleEnv(root))
+	list := make([]specSummary, 0, len(entries))
 
-	list := make([]specSummary, 0, len(names))
+	for _, item := range entries {
+		entry, _ := item.(*noskillsfx.JSObject)
+		name, _ := entry.Get("name")
+		phase, _ := entry.Get("phase")
+		nameText, _ := name.(string)
+		phaseText, _ := phase.(string)
 
-	for _, name := range names {
-		entry := specSummary{Name: name}
-
-		// Best-effort: enrich with phase from per-spec state.
-		if st, err := noskillsfx.ReadSpecState(root, name); err == nil && st != nil {
-			entry.Phase = st.Phase
-		}
-
-		list = append(list, entry)
+		list = append(list, specSummary{Name: nameText, Phase: phaseText})
 	}
 
 	return ctx.Results.JSON(list)
@@ -61,6 +58,24 @@ type createSpecResponse struct {
 	Phase string `json:"phase"`
 }
 
+// refusalResult answers a lifecycle refusal with its message and status.
+func refusalResult(ctx *httpfx.Context, err error, status int) httpfx.Result {
+	var notFound *noskillsfx.SpecNotFoundError
+	if errors.As(err, &notFound) {
+		return ctx.Results.Error(http.StatusNotFound, httpfx.WithErrorMessage(err.Error()))
+	}
+
+	if refusal, ok := noskillsfx.IsRefusal(err); ok {
+		return ctx.Results.Error(status, httpfx.WithErrorMessage(refusal.Message))
+	}
+
+	if errors.Is(err, noskillsfx.ErrLifecycle) {
+		return ctx.Results.Error(status, httpfx.WithErrorMessage(err.Error()))
+	}
+
+	return ctx.Results.Error(http.StatusInternalServerError, httpfx.WithSanitizedError(err))
+}
+
 func (s *Server) handleCreateSpec(ctx *httpfx.Context) httpfx.Result {
 	slug := ctx.Request.PathValue("slug")
 
@@ -68,13 +83,6 @@ func (s *Server) handleCreateSpec(ctx *httpfx.Context) httpfx.Result {
 	if !ok {
 		return ctx.Results.Error(http.StatusNotFound,
 			httpfx.WithSanitizedError(fmt.Errorf("project %q not found", slug))) //nolint:err113
-	}
-
-	if !noskillsfx.IsInitialized(root) {
-		if err := noskillsfx.ScaffoldEserDir(root); err != nil {
-			return ctx.Results.Error(http.StatusInternalServerError,
-				httpfx.WithSanitizedError(fmt.Errorf("scaffold .eser: %w", err)))
-		}
 	}
 
 	var req createSpecRequest
@@ -88,39 +96,24 @@ func (s *Server) handleCreateSpec(ctx *httpfx.Context) httpfx.Result {
 			httpfx.WithSanitizedError(fmt.Errorf("description is required"))) //nolint:err113
 	}
 
-	name := req.Name
-	if name == "" {
-		name = noskillsfx.SlugFromDescription(req.Description)
+	env := lifecycleEnv(root)
+
+	if !noskillsfx.IsHookInitialized(root) {
+		if _, err := noskillsfx.InitWithoutPrompts(env, providerProbe(ctx.Request.Context()),
+			noskillsfx.DefaultCommandPrefix); err != nil {
+			return ctx.Results.Error(http.StatusInternalServerError,
+				httpfx.WithSanitizedError(fmt.Errorf("initialize noskills: %w", err)))
+		}
 	}
 
-	if name == "" {
-		return ctx.Results.Error(http.StatusBadRequest,
-			httpfx.WithSanitizedError(fmt.Errorf("could not derive spec name from description"))) //nolint:err113
-	}
-
-	state, err := noskillsfx.ReadState(root)
-	if err != nil {
-		return ctx.Results.Error(http.StatusInternalServerError,
-			httpfx.WithSanitizedError(fmt.Errorf("read state: %w", err)))
-	}
-
-	desc := req.Description
-	newState, err := noskillsfx.StartSpec(state, name, "", &desc)
-
-	if err != nil {
-		return ctx.Results.Error(http.StatusConflict,
-			httpfx.WithSanitizedError(fmt.Errorf("start spec: %w", err)))
-	}
-
-	if err := noskillsfx.WriteState(root, newState); err != nil {
-		return ctx.Results.Error(http.StatusInternalServerError,
-			httpfx.WithSanitizedError(fmt.Errorf("write state: %w", err)))
-	}
-
-	return ctx.Results.JSON(&createSpecResponse{
-		Name:  name,
-		Phase: newState.Phase,
+	result, err := noskillsfx.SpecNew(ctx.Request.Context(), env, noskillsfx.SpecNewOptions{
+		Name: req.Name, Description: req.Description, PlanPath: "",
 	})
+	if err != nil {
+		return refusalResult(ctx, err, http.StatusConflict)
+	}
+
+	return ctx.Results.JSON(&createSpecResponse{Name: result.Name, Phase: noskillsfx.PhaseDiscovery})
 }
 
 // ── Decision ledger (read-only) ─────────────────────────────────────────────
@@ -178,9 +171,9 @@ func (s *Server) handleSpecSummary(ctx *httpfx.Context) httpfx.Result {
 // ── Spec actions ──────────────────────────────────────────────────────────────
 
 type specActionRequest struct {
-	// Answer is submitted with the `next` action during DISCOVERY.
-	Answer string `json:"answer,omitempty"`
-	// Reason is used with `done` and `block`.
+	// Answer is submitted with the `next` action.
+	Answer *string `json:"answer,omitempty"`
+	// Reason is used with `done` (the completion note) and `block`.
 	Reason string `json:"reason,omitempty"`
 }
 
@@ -200,236 +193,61 @@ func (s *Server) handleSpecAction(ctx *httpfx.Context) httpfx.Result {
 	// Body is optional — ignore parse errors for action-only calls.
 	_ = ctx.ParseJSONBody(&req)
 
+	env := lifecycleEnv(root)
+	requestCtx := ctx.Request.Context()
+
 	switch action {
 	case "next":
-		return s.actionNext(ctx, root, name, req.Answer)
+		answer := req.Answer
+		if answer != nil && *answer == "" {
+			answer = nil
+		}
+
+		// next answers a missing spec with an error object, as the CLI does;
+		// the endpoint answers it with 404, as the other actions do.
+		if _, err := noskillsfx.ResolveState(root, name, noskillsfx.DefaultCommandPrefix, nil); err != nil {
+			return refusalResult(ctx, err, http.StatusUnprocessableEntity)
+		}
+
+		result, err := noskillsfx.Next(requestCtx, env, noskillsfx.NextOptions{Spec: name, Answer: answer, Audience: "human"})
+
+		switch {
+		case errors.Is(err, noskillsfx.ErrNeedsTypeScript):
+			return ctx.Results.Error(http.StatusNotImplemented, httpfx.WithErrorMessage(
+				"This answer runs in the noskills CLI only; run it there."))
+		case err != nil:
+			return refusalResult(ctx, err, http.StatusUnprocessableEntity)
+		case result.ExitCode != 0:
+			return ctx.Results.Error(http.StatusUnprocessableEntity, httpfx.WithJSON(result.Output))
+		}
+
+		return ctx.Results.JSON(result.Output)
 	case "approve":
-		return s.actionApprove(ctx, root, name)
+		result, err := noskillsfx.Approve(requestCtx, env, name)
+		if err != nil {
+			return refusalResult(ctx, err, http.StatusConflict)
+		}
+
+		if result.From == result.To {
+			return ctx.Results.Error(http.StatusConflict,
+				httpfx.WithErrorMessage("Cannot approve in phase: "+result.From))
+		}
+
+		return ctx.Results.JSON(map[string]string{"phase": result.To})
 	case "done":
-		return s.actionDone(ctx, root, name, req.Reason)
+		if _, err := noskillsfx.Done(requestCtx, env, name, req.Reason); err != nil {
+			return refusalResult(ctx, err, http.StatusConflict)
+		}
+
+		return ctx.Results.JSON(map[string]string{"phase": noskillsfx.PhaseCompleted})
 	case "block":
-		return s.actionBlock(ctx, root, name, req.Reason)
+		if err := noskillsfx.Block(requestCtx, env, name, req.Reason); err != nil {
+			return refusalResult(ctx, err, http.StatusConflict)
+		}
+
+		return ctx.Results.JSON(map[string]string{"phase": noskillsfx.PhaseBlocked})
 	default:
 		return ctx.Results.Error(http.StatusBadRequest,
 			httpfx.WithSanitizedError(fmt.Errorf("unknown action %q (supported: next, approve, done, block)", action))) //nolint:err113
 	}
-}
-
-// ── next ──────────────────────────────────────────────────────────────────────
-
-func (s *Server) actionNext(ctx *httpfx.Context, root, specName, answer string) httpfx.Result {
-	state, err := readSpecState(root, specName)
-	if err != nil {
-		return ctx.Results.Error(http.StatusNotFound,
-			httpfx.WithSanitizedError(fmt.Errorf("read spec state: %w", err)))
-	}
-
-	manifest, _ := noskillsfx.ReadManifest(root) // best-effort; empty manifest is OK
-
-	p := noskillsfx.NewPaths(root)
-
-	allConcerns, _ := noskillsfx.LoadConcerns(p.ConcernsDir) // best-effort
-
-	activeConcerns := noskillsfx.FilterActiveConcerns(allConcerns, manifest.Concerns)
-
-	if answer != "" {
-		newState, err := applySpecAnswer(state, answer, activeConcerns)
-		if err != nil {
-			return ctx.Results.Error(http.StatusUnprocessableEntity,
-				httpfx.WithSanitizedError(fmt.Errorf("apply answer: %w", err)))
-		}
-
-		newState.LastCalledAt = ptrTime()
-
-		if err := writeSpecState(root, specName, newState); err != nil {
-			return ctx.Results.Error(http.StatusInternalServerError,
-				httpfx.WithSanitizedError(fmt.Errorf("write state: %w", err)))
-		}
-
-		state = newState
-	}
-
-	out := noskillsfx.Compile(state, manifest, noskillsfx.CompileOptions{
-		AllConcerns: allConcerns,
-	})
-
-	return ctx.Results.JSON(out)
-}
-
-// ── approve ───────────────────────────────────────────────────────────────────
-
-func (s *Server) actionApprove(ctx *httpfx.Context, root, specName string) httpfx.Result {
-	state, err := readSpecState(root, specName)
-	if err != nil {
-		return ctx.Results.Error(http.StatusNotFound,
-			httpfx.WithSanitizedError(fmt.Errorf("read spec state: %w", err)))
-	}
-
-	var newState noskillsfx.StateFile
-
-	switch state.Phase {
-	case noskillsfx.PhaseDiscoveryRefinement:
-		newState, err = noskillsfx.ApproveDiscoveryReview(state)
-	case noskillsfx.PhaseSpecProposal:
-		newState, err = noskillsfx.ApproveSpec(state)
-	case noskillsfx.PhaseSpecApproved:
-		newState, err = noskillsfx.StartExecution(state)
-	default:
-		return ctx.Results.Error(http.StatusConflict,
-			httpfx.WithSanitizedError(fmt.Errorf("cannot approve from phase %q", state.Phase))) //nolint:err113
-	}
-
-	if err != nil {
-		return ctx.Results.Error(http.StatusConflict,
-			httpfx.WithSanitizedError(fmt.Errorf("approve: %w", err)))
-	}
-
-	if err := writeSpecState(root, specName, newState); err != nil {
-		return ctx.Results.Error(http.StatusInternalServerError,
-			httpfx.WithSanitizedError(fmt.Errorf("write state: %w", err)))
-	}
-
-	return ctx.Results.JSON(map[string]string{"phase": newState.Phase})
-}
-
-// ── done ──────────────────────────────────────────────────────────────────────
-
-func (s *Server) actionDone(ctx *httpfx.Context, root, specName, note string) httpfx.Result {
-	state, err := readSpecState(root, specName)
-	if err != nil {
-		return ctx.Results.Error(http.StatusNotFound,
-			httpfx.WithSanitizedError(fmt.Errorf("read spec state: %w", err)))
-	}
-
-	var notePtr *string
-	if note != "" {
-		notePtr = &note
-	}
-
-	newState, err := noskillsfx.CompleteSpec(state, noskillsfx.CompletionDone, notePtr,
-		time.Now().UTC().Format(time.RFC3339))
-	if err != nil {
-		return ctx.Results.Error(http.StatusConflict,
-			httpfx.WithSanitizedError(fmt.Errorf("complete spec: %w", err)))
-	}
-
-	if err := writeSpecState(root, specName, newState); err != nil {
-		return ctx.Results.Error(http.StatusInternalServerError,
-			httpfx.WithSanitizedError(fmt.Errorf("write state: %w", err)))
-	}
-
-	return ctx.Results.JSON(map[string]string{"phase": newState.Phase})
-}
-
-// ── block ─────────────────────────────────────────────────────────────────────
-
-func (s *Server) actionBlock(ctx *httpfx.Context, root, specName, reason string) httpfx.Result {
-	state, err := readSpecState(root, specName)
-	if err != nil {
-		return ctx.Results.Error(http.StatusNotFound,
-			httpfx.WithSanitizedError(fmt.Errorf("read spec state: %w", err)))
-	}
-
-	newState, err := noskillsfx.BlockExecution(state)
-	if err != nil {
-		return ctx.Results.Error(http.StatusConflict,
-			httpfx.WithSanitizedError(fmt.Errorf("block execution: %w", err)))
-	}
-
-	if reason != "" {
-		newState.Discovery.UserContext = append(newState.Discovery.UserContext, "BLOCKED: "+reason)
-	}
-
-	if err := writeSpecState(root, specName, newState); err != nil {
-		return ctx.Results.Error(http.StatusInternalServerError,
-			httpfx.WithSanitizedError(fmt.Errorf("write state: %w", err)))
-	}
-
-	return ctx.Results.JSON(map[string]string{"phase": newState.Phase})
-}
-
-// ── helpers ───────────────────────────────────────────────────────────────────
-
-// readSpecState reads per-spec state, falling back to ReadState when the
-// per-spec file is absent and the global state matches specName.
-func readSpecState(root, specName string) (noskillsfx.StateFile, error) {
-	perSpec, err := noskillsfx.ReadSpecState(root, specName)
-	if err != nil {
-		return noskillsfx.StateFile{}, err
-	}
-
-	if perSpec != nil {
-		return *perSpec, nil
-	}
-
-	// Fall back: try global state.
-	global, err := noskillsfx.ReadState(root)
-	if err != nil {
-		return noskillsfx.StateFile{}, err
-	}
-
-	if global.Spec != nil && *global.Spec == specName {
-		return global, nil
-	}
-
-	return noskillsfx.StateFile{}, fmt.Errorf("spec %q not found", specName) //nolint:err113
-}
-
-// writeSpecState persists both the per-spec state and the global state.json
-// so both the per-spec and the "active" view stay consistent.
-func writeSpecState(root, specName string, state noskillsfx.StateFile) error { //nolint:gocritic // hugeParam: StateFile is copied on purpose; transitions return a new state
-	if err := noskillsfx.WriteSpecState(root, specName, state); err != nil {
-		return err
-	}
-
-	// Keep global state.json in sync when the spec name matches.
-	global, _ := noskillsfx.ReadState(root)
-	if global.Spec == nil || *global.Spec == specName {
-		_ = noskillsfx.WriteState(root, state)
-	}
-
-	return nil
-}
-
-// applySpecAnswer applies a single answer to the state during DISCOVERY.
-// Mirrors the CLI's applyAnswer function.
-func applySpecAnswer(
-	state noskillsfx.StateFile, //nolint:gocritic // hugeParam: StateFile is copied on purpose; transitions return a new state
-	answer string,
-	activeConcerns []noskillsfx.ConcernDefinition,
-) (noskillsfx.StateFile, error) {
-	switch state.Phase {
-	case noskillsfx.PhaseDiscovery:
-		if state.Discovery.Mode == nil {
-			mode := strings.TrimSpace(answer)
-			disc := state.Discovery
-			disc.Mode = &mode
-			state.Discovery = disc
-
-			return state, nil
-		}
-
-		questions := noskillsfx.GetQuestionsWithExtras(activeConcerns)
-		next := noskillsfx.GetNextUnanswered(questions, state.Discovery.Answers)
-
-		if next != nil {
-			state = noskillsfx.AddDiscoveryAnswer(state, noskillsfx.DiscoveryAnswer{
-				QuestionID: next.ID,
-				Answer:     answer,
-			})
-
-			return state, nil
-		}
-
-		return state, fmt.Errorf("no unanswered questions in DISCOVERY phase") //nolint:err113
-
-	default:
-		return state, fmt.Errorf("answer not applicable in phase %q", state.Phase) //nolint:err113
-	}
-}
-
-func ptrTime() *string {
-	now := time.Now().UTC().Format(time.RFC3339)
-
-	return &now
 }

@@ -1,0 +1,14 @@
+{
+  "name": "typescript",
+  "version": "1.0.0",
+  "description": "TypeScript best practices",
+  "tags": ["typescript", "types"],
+  "rules": [
+    "rules/use-strict-types.md",
+    "rules/no-any.md",
+    "rules/prefer-const.md"
+  ],
+  "concerns": [
+    "concerns/ts-quality.json"
+  ]
+}

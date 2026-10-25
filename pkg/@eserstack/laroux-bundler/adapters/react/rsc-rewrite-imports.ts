@@ -595,7 +595,7 @@ const CSS_IMPORTER_EXTENSIONS: readonly string[] = ["tsx", "ts"];
 /**
  * Rewrite CSS module imports in ALL source files that might be bundled
  * This is necessary because client components may import server components
- * that have CSS module imports, and Deno.bundle() doesn't understand CSS imports
+ * that have CSS module imports, which the bundler cannot load as CSS
  */
 export async function rewriteAllSrcCSSModuleImports(
   srcDir: string,

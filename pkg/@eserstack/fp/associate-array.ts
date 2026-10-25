@@ -26,7 +26,7 @@ export const associateArray = <T>(
   ) => string | number | symbol | undefined,
 ): Record<string | number | symbol, T> => {
   const arrInstance = (instance.constructor === Array)
-    ? <ReadonlyArray<T>> instance
+    ? instance as ReadonlyArray<T>
     : [...instance];
 
   const result: Record<string | number | symbol, T> = {};

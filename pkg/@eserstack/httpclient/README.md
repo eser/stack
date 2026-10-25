@@ -1,5 +1,9 @@
 # 📨 [@eserstack/httpclient](./)
 
+> **Note:** JSR is frozen at 4.5.x. From 5.0.0, `@eserstack/httpclient` is
+> published on npm under the same name (`pnpm add @eserstack/httpclient`); the
+> JSR versions stay available but get no updates.
+
 `@eserstack/httpclient` is an HTTP client for services and CLIs that talk to
 remote APIs. It wraps `fetch` with a base URL, a timeout on every request,
 retries with exponential backoff, rate-limit headers, request and response
@@ -240,11 +244,14 @@ Every method behaves the same on both transports: the request is built the same
 way, interceptors run, the retry policy applies, and failures throw the same
 errors. Only the exchange itself differs:
 
-- A call into the Go client blocks the JavaScript thread until it returns. The
-  client's `timeout` bounds the call and covers reading the response body too,
-  so a `requestStream` body is cut off once `timeout` has passed. A per-request
-  `timeout` or `signal` is checked before each attempt but cannot stop one that
-  is already in the Go client.
+- With the native library, a call into the Go client blocks the JavaScript
+  thread until it returns. The client's `timeout` bounds the call and covers
+  reading the response body too, so a `requestStream` body is cut off once
+  `timeout` has passed. A per-request `timeout` or `signal` is checked before
+  each attempt but cannot stop one that is already in the Go client. On the WASM
+  fallback (no native library for the platform), the requests wait on the
+  runtime's `fetch` without blocking, and a `signal` stops one in flight; see
+  the `@eserstack/ajan` README, "Network on the WASM fallback".
 - Request bodies must be text: a string, `URLSearchParams`, or an object sent as
   JSON. A binary, `FormData`, `Blob` or stream body throws an `HttpClientError`;
   send those with the default transport.

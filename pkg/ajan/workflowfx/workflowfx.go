@@ -34,4 +34,20 @@
 //	    Include("ci").          // prepend steps from "ci"
 //	    Step("integration-tests").
 //	    MustBuild()
+//
+// # Manifest files
+//
+// LoadManifest reads .eser/manifest.yml (or .eser/manifest.yaml) and
+// ParseManifest parses manifest bytes. Both validate against the manifest
+// schema, docs/schema/manifest.json (embedded as manifest_schema.json), and
+// return the workflows as definitions and the scripts as ScriptConfig values.
+// A step is a tool name or a one-key map from the tool name to its options;
+// the keys continueOnError, timeout (seconds), if, bypass, loop and
+// inputSchema are engine directives and are taken out of the options. Every
+// problem is a *ManifestError naming the file, the YAML path and the line:
+//
+//	.eser/manifest.yml:154: workflows[0].steps[12].shell.timeout: exclusiveMinimum: got 0, want 0
+//
+//	config, err := workflowfx.LoadManifest(".")
+//	results, err := workflowfx.RunByEvent(ctx, "precommit", config.Workflows, reg, nil)
 package workflowfx

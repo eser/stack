@@ -1,15 +1,17 @@
 # 📦 [@eserstack/bundler](./)
 
+> **Note:** JSR is frozen at 4.5.x. From 5.0.0, `@eserstack/bundler` is
+> published on npm under the same name (`pnpm add @eserstack/bundler`); the JSR
+> versions stay available but get no updates.
+
 > **eserstack Tool** — [eser/stack on GitHub](https://github.com/eser/stack)
 > **Install:** `pnpm add jsr:@eserstack/bundler`
 
-A unified bundler abstraction for Deno with multiple backend support and CSS
-processing utilities.
+A bundler abstraction on Rolldown, with CSS processing utilities.
 
 ## Features
 
-- **Multi-Backend Support**: Switch between Rolldown and Deno.bundle backends
-- **Unified API**: Consistent configuration across bundler backends
+- **Rolldown Backend**: One configuration and output shape for every build
 - **CSS Processing**: Tailwind CSS, Lightning CSS, CSS Modules
 - **Font Optimization**: Google Fonts self-hosting with preload hints
 - **Code Splitting**: Advanced chunking strategies for optimal loading
@@ -56,25 +58,6 @@ if (result.success) {
 }
 ```
 
-### Using Deno.bundle Fallback
-
-```typescript
-import * as bundler from "@eserstack/bundler";
-
-// Use native Deno.bundle API
-const backend = bundler.createBundler("deno-bundler");
-
-const result = await backend.bundle({
-  entrypoints: { app: "./src/app.tsx" },
-  outputDir: "./dist",
-  format: "esm",
-  platform: "browser",
-  codeSplitting: true,
-  minify: false,
-  sourcemap: "inline",
-});
-```
-
 ## Bundler Backends
 
 ### Rolldown (Default)
@@ -104,67 +87,6 @@ const chunked = bundler.createRolldownBackend({
 const react = bundler.createRolldownWithPreset("react");
 // Available presets: "default", "react", "library", "ssr", "performance"
 ```
-
-### Deno Bundler
-
-Uses the native `Deno.bundle()` API (requires `--unstable-bundle` flag).
-
-```typescript
-import * as bundler from "@eserstack/bundler";
-
-const backend = bundler.createDenoBundlerBackend({
-  buildId: "abc123", // Optional build ID for cache busting
-  entryName: "client", // Key of the main entry (default: "main")
-});
-```
-
-`Deno.bundle()` has no `define` option, so this backend applies `config.define`
-to the bundled output after the build.
-
-`Deno.bundle()` writes each entry below the common parent directory of all the
-entries. This backend renames the outputs the way the Rolldown backend names
-them:
-
-- The entry under the key `src/app.ts` becomes `src/app.ts.js`, and `client`
-  becomes `client.js`. Shared chunks keep their `chunk-HASH.js` names.
-- With `buildId`, a `build-id.js` entry exports the ID as `BUILD_ID`.
-- The relative imports between the outputs follow the new names.
-- With `sourcemap: true` or `"external"`, each output carries its map in `map`,
-  the map is also an output of its own (`client.js.map`), the code ends with a
-  `sourceMappingURL` comment, and the map's `sources` resolve from the map's new
-  place. With `sourcemap: "inline"`, the map stays at the end of the code and
-  its `sources` are rewritten the same way.
-- `entrypoint` is `${entryName}.js` when an entry has that key, and the first
-  entry's output otherwise. `entrypointManifest` maps the path of each entry in
-  `config.entrypoints` to its own output followed by the chunks it imports
-  statically.
-
-### Backend Comparison
-
-| Feature              | Rolldown              | Deno Bundler  |
-| -------------------- | --------------------- | ------------- |
-| **Performance**      | Rust-based            | Native Deno   |
-| **Format**           | ESM, CJS, IIFE        | ESM only      |
-| **External Modules** | ✓                     | ✓             |
-| **Plugins**          | ✓ (Rollup-compatible) | ✗             |
-| **Code Splitting**   | ✓ (Advanced)          | ✓             |
-| **Watch Mode**       | ✓                     | ✓             |
-| **Sourcemaps**       | ✓                     | ✓             |
-| **basePath Rewrite** | ✓                     | ✓             |
-| **Dependencies**     | npm:rolldown          | None (native) |
-
-**When to use Rolldown:**
-
-- Production builds requiring maximum performance
-- Need CJS or IIFE output format
-- Advanced code splitting with vendor chunking
-- Plugin support (e.g., custom transformations)
-
-**When to use Deno Bundler:**
-
-- Simple builds without external dependencies
-- Native Deno integration preferred
-- Fallback when Rolldown is unavailable
 
 ## CSS Processing
 
@@ -510,12 +432,11 @@ These changes since 4.5.2 need a change in code, commands or files that use this
 package. The [changelog](https://github.com/eser/stack/blob/main/CHANGELOG.md)
 lists the changes in every package.
 
-- The deno-bundler backend names each entry's output `${key}.js` (and the build
-  ID entry `build-id.js`), lists every entry in `entrypointManifest`, `main` and
-  `client` included, with the entry's own output first, and sets `entrypoint` to
-  `${entryName}.js`. Look outputs up by `${key}.js`, as with the Rolldown
-  backend, and read the first element of a manifest entry as the entry's own
-  file.
+- The backend on Deno's native bundle API is removed, together with
+  `createDenoBundlerBackend`, `DenoBundlerBackend`, `DenoBundlerBackendOptions`
+  and its subpath export; `BundlerBackend` is only `"rolldown"`. Call
+  `createBundler("rolldown")` or `createRolldownBackend()` instead; it names
+  each entry's output `${key}.js` as the removed backend did.
 
 ---
 

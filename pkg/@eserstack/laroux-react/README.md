@@ -1,5 +1,9 @@
 # ⚛️ [@eserstack/laroux-react](./)
 
+> **Note:** JSR is frozen at 4.5.x. From 5.0.0, `@eserstack/laroux-react` is
+> published on npm under the same name (`pnpm add @eserstack/laroux-react`); the
+> JSR versions stay available but get no updates.
+
 > **eserstack Product-Candidate** — React integration for laroux ·
 > [eser/stack](https://github.com/eser/stack) **Install:**
 > `pnpm add jsr:@eserstack/laroux-react`

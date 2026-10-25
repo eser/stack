@@ -6,7 +6,7 @@
 // when the Go client does the exchange.
 
 import * as bdd from "@std/testing/bdd";
-import * as assert from "@std/assert";
+import * as assert from "@eserstack/test-kit/assert";
 import * as clientModule from "./client.ts";
 import * as errors from "./errors.ts";
 import * as goClientModule from "./go-client.ts";

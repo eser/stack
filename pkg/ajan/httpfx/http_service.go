@@ -10,7 +10,7 @@ import (
 	"net/http"
 	"sync/atomic"
 
-	"github.com/eser/stack/pkg/ajan/lib"
+	"github.com/eser/stack/pkg/ajan/lib/netlib"
 	"github.com/eser/stack/pkg/ajan/logfx"
 )
 
@@ -119,7 +119,7 @@ func (hs *HTTPService) SetupTLS(ctx context.Context) error {
 			MinVersion:   tls.VersionTLS12,
 		}
 	case hs.Config.SelfSigned:
-		cert, err := lib.GenerateSelfSignedCert()
+		cert, err := netlib.GenerateSelfSignedCert()
 		if err != nil {
 			return fmt.Errorf("%w: %w", ErrFailedToGenerateSelfSignedCert, err)
 		}

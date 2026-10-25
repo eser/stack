@@ -17,8 +17,9 @@ release-and-ci skill refers to.
   - changelog: `deno task cli codebase changelog-gen`.
 - The preflight builds the three npm bundles, installs the CLI outside the repo
   from a packed tarball, runs `deno publish --dry-run`, builds the native and
-  wasm ajan libraries, runs the release `deno compile` for the host, and runs
-  the Homebrew and Nix scripts in dry-run mode.
+  wasm ajan libraries, runs the release compile for the host
+  (`eser dev compile --current-only`), and runs `eser dev homebrew` and
+  `eser dev nix-hashes` in dry-run mode.
 - Tag runs are watched at https://github.com/eser/stack/actions.
 
 ## Release Run in build.yml
@@ -56,8 +57,8 @@ both Go modules).
 - **Go modules:** not published. `noskills-server` and the bridge library are
   built from the release tag; the modules get no tags of their own.
 - **npm platform packages:** the six `@eserstack/ajan-*` packages carry the
-  prebuilt Go library. `pkg/@eserstack/ajan/scripts/build.ts` builds it and
-  `pkg/@eserstack/ajan/npm/generate-packages.ts` stages it into each package;
+  prebuilt Go library. `make ajan-lib TARGET=<id>` and `make ajan-wasm` build it
+  and `make ajan-packages` stages it into each package;
   `publish-ajan` publishes them before the bundles need them.
 - **New npm packages:** published once by hand from the artifacts of
   `publish-ajan.yml` in bootstrap mode, then given a trusted publisher.

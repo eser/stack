@@ -4,246 +4,301 @@ package noskillsfx
 
 import (
 	"crypto/rand"
-	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"os"
-	"strings"
+	"path/filepath"
 	"time"
 )
 
-// =============================================================================
-// Session type
-// =============================================================================
+// Sessions bind one coding-tool instance to a spec or to free mode, so
+// several instances can work on one project (persistence.ts Sessions and
+// commands/session.ts). Each is .eser/.state/sessions/<id>.json, and the
+// file name is its identity. The files are read as JSON values, so a
+// rewrite keeps every field it does not change.
 
-const sessionStaleDuration = 2 * time.Hour
+// sessionStaleAfter is STALE_THRESHOLD_MS.
+const sessionStaleAfter = 2 * time.Hour
 
-// SessionMode is the mode in which a session was started.
+// SessionMode is the mode a session was started in.
 type SessionMode = string
 
+// The modes a session file holds. `session start --auto` resolves to one
+// of them; the TypeScript CLI never writes an auto mode.
 const (
 	SessionModeFree SessionMode = "free"
 	SessionModeSpec SessionMode = "spec"
-	SessionModeAuto SessionMode = "auto"
 )
 
-// Session represents a running agent session bound to a spec (or free-running).
+// Session is the Session record of persistence.ts. Spec and Phase are nil
+// for JSON null; ProjectRoot "" leaves the optional field out.
 type Session struct {
-	ID           string  `json:"id"`
-	Spec         *string `json:"spec,omitempty"`
-	Phase        string  `json:"phase"`
-	Mode         string  `json:"mode"` // SessionMode
-	LastActiveAt string  `json:"lastActiveAt"`
-	ProjectRoot  *string `json:"projectRoot,omitempty"`
-	Tool         string  `json:"tool"`
+	ID    string
+	Spec  *string
+	Mode  SessionMode
+	Phase *string
+	// Pid is the owning process, or 0 when none is known; `session start`
+	// writes 0, as the process that runs it exits before the session is used.
+	Pid          int
+	StartedAt    string
+	LastActiveAt string
+	Tool         string
+	ProjectRoot  string
 }
 
-// =============================================================================
-// Session ID generation
-// =============================================================================
+// object is the session as the TypeScript CLI writes it, in its key order.
+func (s *Session) object() *JSObject {
+	o := JSObjectOf(
+		"id", s.ID,
+		"spec", stringOrNull(s.Spec),
+		"mode", s.Mode,
+		"phase", stringOrNull(s.Phase),
+		"pid", float64(s.Pid),
+		"startedAt", s.StartedAt,
+		"lastActiveAt", s.LastActiveAt,
+		"tool", s.Tool,
+	)
 
-// GenerateSessionID returns an 8-character lowercase hex string using
-// cryptographically random bytes — matches generateSessionId() in persistence.ts.
+	if s.ProjectRoot != "" {
+		o.set("projectRoot", s.ProjectRoot)
+	}
+
+	return o
+}
+
+func stringOrNull(s *string) any {
+	if s == nil {
+		return nil
+	}
+
+	return *s
+}
+
+func stringPointer(o *JSObject, key string) *string {
+	if value, ok := o.strOK(key); ok {
+		return &value
+	}
+
+	return nil
+}
+
+func sessionOf(o *JSObject) Session {
+	return Session{
+		ID:           o.str("id"),
+		Spec:         stringPointer(o, "spec"),
+		Mode:         o.str("mode"),
+		Phase:        stringPointer(o, "phase"),
+		Pid:          int(o.num("pid")),
+		StartedAt:    o.str("startedAt"),
+		LastActiveAt: o.str("lastActiveAt"),
+		Tool:         o.str("tool"),
+		ProjectRoot:  o.str("projectRoot"),
+	}
+}
+
+// GenerateSessionID is generateSessionId: 8 lowercase hex characters from
+// a CSPRNG.
 func GenerateSessionID() (string, error) {
 	buf := make([]byte, 4)
 	if _, err := rand.Read(buf); err != nil {
-		return "", fmt.Errorf("generateSessionID: %w", err)
+		return "", fmt.Errorf("generate a session id: %w", err)
 	}
 
 	return fmt.Sprintf("%08x", buf), nil
-}
-
-// =============================================================================
-// Session staleness
-// =============================================================================
-
-// IsSessionStale reports whether more than 2 hours have passed since
-// session.LastActiveAt (mirrors isSessionStale() in persistence.ts).
-func IsSessionStale(session Session) bool { //nolint:gocritic // hugeParam: existing public signature; a pointer would break callers
-	last, err := time.Parse(time.RFC3339, session.LastActiveAt)
-	if err != nil {
-		return true // unparseable timestamps are treated as stale
-	}
-
-	return time.Since(last) > sessionStaleDuration
 }
 
 // ErrInvalidSessionID is returned when a session id could name a path outside
 // the sessions directory.
 var ErrInvalidSessionID = errors.New("invalid session id")
 
-// ValidSessionID reports whether id is safe to use as a session file name:
-// 1-64 characters from [A-Za-z0-9_-], so no '.', '/' or '\' can escape the
-// sessions directory. GenerateSessionID produces 8 hex characters.
+// ValidSessionID is isValidSessionId: 1-64 characters from [A-Za-z0-9_-],
+// so no '.', '/' or '\' can leave the sessions directory.
 func ValidSessionID(id string) bool {
-	if id == "" || len(id) > 64 {
-		return false
-	}
-
-	for _, c := range id {
-		isAlnum := (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')
-		if !isAlnum && c != '_' && c != '-' {
-			return false
-		}
-	}
-
-	return true
+	return sessionIDPattern.MatchString(id)
 }
 
-// =============================================================================
-// Session CRUD
-// =============================================================================
+func sessionPath(root, id string) string {
+	return filepath.Join(root, sessionsDir, id+".json")
+}
 
-// CreateSession writes session to .eser/.state/sessions/<id>.json.
-func CreateSession(root string, session Session) error { //nolint:gocritic // hugeParam: existing public signature; a pointer would break callers
+// CreateSession is createSession: it writes the session file, two-space
+// JSON and a newline, atomically.
+func CreateSession(root string, session *Session) error {
 	if !ValidSessionID(session.ID) {
-		return fmt.Errorf("createSession %q: %w", session.ID, ErrInvalidSessionID)
+		return fmt.Errorf("create session %q: %w", session.ID, ErrInvalidSessionID)
 	}
 
-	p := NewPaths(root)
-
-	if err := os.MkdirAll(p.SessionsDir, 0o750); err != nil {
-		return fmt.Errorf("createSession: mkdir: %w", err)
+	if err := os.MkdirAll(filepath.Join(root, sessionsDir), 0o750); err != nil {
+		return fmt.Errorf("create the sessions directory: %w", err)
 	}
 
-	data, err := json.MarshalIndent(session, "", "  ")
-	if err != nil {
-		return fmt.Errorf("createSession: marshal: %w", err)
-	}
-
-	path := p.SessionFile(session.ID)
-
-	if err := os.WriteFile(path, append(data, '\n'), 0o644); err != nil { //nolint:gosec
-		return fmt.Errorf("createSession: write: %w", err)
+	if err := writeFileAtomic(sessionPath(root, session.ID), stateJSON(session.object()), stateFilePerm); err != nil {
+		return fmt.Errorf("write session %s: %w", session.ID, err)
 	}
 
 	return nil
 }
 
-// ReadSession reads a session by ID. Returns nil, nil when the file does not exist.
-// A file whose embedded id differs from its name is treated as absent, so the
-// file name stays the session's identity.
-func ReadSession(root, sessionID string) (*Session, error) {
-	if !ValidSessionID(sessionID) {
-		return nil, nil
-	}
-
-	p := NewPaths(root)
-	data, err := os.ReadFile(p.SessionFile(sessionID))
-
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return nil, nil
-		}
-
-		return nil, fmt.Errorf("readSession %s: %w", sessionID, err)
-	}
-
-	var s Session
-	if err := json.Unmarshal(data, &s); err != nil {
-		return nil, fmt.Errorf("readSession %s: parse: %w", sessionID, err)
-	}
-
-	if s.ID != sessionID {
-		return nil, nil
-	}
-
-	return &s, nil
-}
-
-// ListSessions returns all sessions stored in the sessions directory.
-// Corrupt files are silently skipped.
-func ListSessions(root string) ([]Session, error) {
-	p := NewPaths(root)
-	entries, err := os.ReadDir(p.SessionsDir)
-
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return []Session{}, nil
-		}
-
-		return nil, fmt.Errorf("listSessions: %w", err)
-	}
-
-	sessions := make([]Session, 0, len(entries))
-
-	for _, e := range entries {
-		if e.IsDir() || !strings.HasSuffix(e.Name(), ".json") {
-			continue
-		}
-
-		id := strings.TrimSuffix(e.Name(), ".json")
-
-		s, err := ReadSession(root, id)
-		if err != nil || s == nil {
-			continue // skip corrupt or missing files
-		}
-
-		sessions = append(sessions, *s)
-	}
-
-	return sessions, nil
-}
-
-// DeleteSession removes a session file. Returns false when the file does not exist.
-func DeleteSession(root, sessionID string) (bool, error) {
-	if !ValidSessionID(sessionID) {
-		return false, fmt.Errorf("deleteSession %q: %w", sessionID, ErrInvalidSessionID)
-	}
-
-	p := NewPaths(root)
-	err := os.Remove(p.SessionFile(sessionID))
-
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return false, nil
-		}
-
-		return false, fmt.Errorf("deleteSession %s: %w", sessionID, err)
-	}
-
-	return true, nil
-}
-
-// UpdateSessionPhase reads the session, updates Phase and LastActiveAt, and
-// writes it back. No-ops silently if the session does not exist.
-func UpdateSessionPhase(root, sessionID, phase string) error {
-	s, err := ReadSession(root, sessionID)
-	if err != nil {
-		return err
-	}
-
-	if s == nil {
+// ReadSession is readSession: the session of a valid id whose file parses
+// and names the same id, or nil.
+func ReadSession(root, sessionID string) *Session {
+	o := ReadHookSession(root, sessionID)
+	if o == nil {
 		return nil
 	}
 
-	s.Phase = phase
-	s.LastActiveAt = time.Now().UTC().Format(time.RFC3339)
+	session := sessionOf(o)
 
-	return CreateSession(root, *s)
+	return &session
 }
 
-// GcStaleSessions removes all sessions whose LastActiveAt is older than 2 hours.
-// Returns the IDs of removed sessions.
-func GcStaleSessions(root string) ([]string, error) {
-	sessions, err := ListSessions(root)
-	if err != nil {
-		return nil, err
+// ListSessions is listSessions: every session ListHookSessions reads, in
+// name order.
+func ListSessions(root string) []Session {
+	objects := ListHookSessions(root)
+	sessions := make([]Session, 0, len(objects))
+
+	for _, o := range objects {
+		sessions = append(sessions, sessionOf(o))
 	}
 
-	removed := make([]string, 0)
+	return sessions
+}
 
-	for _, s := range sessions {
-		if !IsSessionStale(s) {
+// DeleteSession is deleteSession: false for an id that is not valid or a
+// file that cannot be removed.
+func DeleteSession(root, sessionID string) bool {
+	if !ValidSessionID(sessionID) {
+		return false
+	}
+
+	return os.Remove(sessionPath(root, sessionID)) == nil
+}
+
+// UpdateSessionPhase is updateSessionPhase: the session's phase and
+// lastActiveAt change and every other field stays. A session that cannot
+// be read is left alone.
+func UpdateSessionPhase(root, sessionID, phase string, now time.Time) error {
+	session := ReadHookSession(root, sessionID)
+	if session == nil {
+		return nil
+	}
+
+	updated := session.with("phase", phase, "lastActiveAt", ISOTime(now))
+
+	if err := writeFileAtomic(sessionPath(root, sessionID), stateJSON(updated), stateFilePerm); err != nil {
+		return fmt.Errorf("update session %s: %w", sessionID, err)
+	}
+
+	return nil
+}
+
+// sessionIdleMs is sessionIdleMs: the milliseconds from lastActiveAt to
+// now, and false when the file holds no readable time there (a value that
+// is not a string, or a string that is not a date).
+func sessionIdleMs(session *JSObject, now time.Time) (float64, bool) {
+	value, ok := session.strOK("lastActiveAt")
+	if !ok {
+		return 0, false
+	}
+
+	t, ok := parseISODate(value)
+	if !ok {
+		return 0, false
+	}
+
+	return float64(now.UnixMilli() - t.UnixMilli()), true
+}
+
+// sessionObjectStale is isSessionStale: idle for more than two hours, or
+// with no readable lastActiveAt, so gc removes it.
+func sessionObjectStale(session *JSObject, now time.Time) bool {
+	idle, ok := sessionIdleMs(session, now)
+
+	return !ok || idle > float64(sessionStaleAfter.Milliseconds())
+}
+
+// IsSessionStale is isSessionStale: more than two hours since
+// LastActiveAt at now, or a LastActiveAt that is not a date.
+func IsSessionStale(session *Session, now time.Time) bool {
+	return sessionObjectStale(session.object(), now)
+}
+
+// GcStaleSessions is gcStaleSessions: it deletes the stale sessions and
+// returns their ids, in name order.
+func GcStaleSessions(root string, now time.Time) []string {
+	removed := []string{}
+
+	for _, session := range ListHookSessions(root) {
+		if !sessionObjectStale(session, now) {
 			continue
 		}
 
-		if _, delErr := DeleteSession(root, s.ID); delErr != nil {
-			return removed, delErr
-		}
+		id := session.str("id")
+		DeleteSession(root, id)
 
-		removed = append(removed, s.ID)
+		removed = append(removed, id)
 	}
 
-	return removed, nil
+	return removed
+}
+
+// SessionLine is one row of `session list`.
+type SessionLine struct {
+	ID string
+	// Mode is "free", or "spec:" and the spec ("?" for none).
+	Mode string
+	// Phase is the phase, or an em dash for none.
+	Phase string
+	// Age is "<n>min ago" under an hour, "<n>h ago" otherwise, and
+	// "unknown" for a session with no readable time.
+	Age   string
+	Stale bool
+}
+
+// SessionLines are the rows of `session list`, in name order.
+func SessionLines(root string, now time.Time) []SessionLine {
+	sessions := ListHookSessions(root)
+	lines := make([]SessionLine, 0, len(sessions))
+
+	for _, session := range sessions {
+		mode := "free"
+		if session.str("mode") != SessionModeFree {
+			mode = "spec:?"
+			if !session.isNullish("spec") {
+				mode = "spec:" + jsString(session.getOr("spec"))
+			}
+		}
+
+		phase := "—"
+		if !session.isNullish("phase") {
+			phase = jsString(session.getOr("phase"))
+		}
+
+		lines = append(lines, SessionLine{
+			ID:    session.str("id"),
+			Mode:  mode,
+			Phase: phase,
+			Age:   sessionAgeLabel(sessionIdleMs(session, now)),
+			Stale: sessionObjectStale(session, now),
+		})
+	}
+
+	return lines
+}
+
+// sessionAgeLabel is idleLabel, the list's time label for an idle time in
+// milliseconds.
+func sessionAgeLabel(idleMs float64, readable bool) string {
+	if !readable {
+		return "unknown"
+	}
+
+	mins := math.Floor(idleMs / 60000)
+	if mins < 60 {
+		return jsNumberString(mins) + "min ago"
+	}
+
+	return jsNumberString(math.Floor(mins/60)) + "h ago"
 }

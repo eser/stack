@@ -47,6 +47,7 @@ export const RESERVED_NAMES: ReadonlySet<string> = new Set([
   "ac",
   "task",
   "note",
+  "section",
   "review",
   "delegate",
   "followup",
@@ -190,6 +191,28 @@ const SPEC_SUBCOMMANDS: ReadonlyMap<
 export const main = async (
   args?: readonly string[],
 ): Promise<shellArgs.CliResult<void>> => {
+  try {
+    return await dispatch(args);
+  } catch (error) {
+    // `spec <name> ...` on a spec that does not exist: every subcommand that
+    // reads the spec's state throws this, and it reached the user as an
+    // uncaught stack trace.
+    if (!(error instanceof persistence.SpecNotFoundError)) throw error;
+
+    const out = streams.output({
+      renderer: streams.renderers.ansi(),
+      sink: streams.sinks.stdout(),
+    });
+    out.writeln(span.red(error.message));
+    await out.close();
+
+    return results.fail({ exitCode: 1 });
+  }
+};
+
+const dispatch = async (
+  args?: readonly string[],
+): Promise<shellArgs.CliResult<void>> => {
   // The subcommands below build their command strings with this prefix.
   const { root } = await persistence.resolveProjectRoot();
   await cmd.loadCommandPrefix(root);
@@ -206,8 +229,11 @@ export const main = async (
     return await specList(args?.slice(1));
   }
 
-  // noskills spec help
-  if (arg1 === "help" || arg1 === undefined) {
+  // noskills spec help (also --help and -h, which would otherwise be taken
+  // for a spec name)
+  if (
+    arg1 === "help" || arg1 === "--help" || arg1 === "-h" || arg1 === undefined
+  ) {
     const prefix = cmd.cmdPrefix();
     const out = streams.output({
       renderer: streams.renderers.ansi(),
@@ -220,7 +246,7 @@ export const main = async (
     out.writeln(span.dim("  Commands for a spec:"));
     out.writeln(
       span.dim(
-        "    next, approve, done, block, reset, cancel, wontfix, reopen, revisit, split, ac, task, note, ledger",
+        "    next, approve, done, block, reset, cancel, wontfix, reopen, revisit, split, ac, task, note, section, ledger",
       ),
     );
     out.writeln("");
@@ -273,6 +299,9 @@ export const main = async (
   if (subcommand === "ac") return await specAC(specName, args?.slice(2));
   if (subcommand === "task") return await specTask(specName, args?.slice(2));
   if (subcommand === "note") return await specNote(specName, args?.slice(2));
+  if (subcommand === "section") {
+    return await specSection(specName, args?.slice(2) ?? []);
+  }
 
   // Delegate to command modules (next, approve, done, block, etc.)
   const loader = SPEC_SUBCOMMANDS.get(subcommand);
@@ -292,7 +321,7 @@ export const main = async (
   );
   out.writeln(
     span.dim(
-      `  Valid: next, approve, done, block, reset, cancel, wontfix, reopen, revisit, split, ac, task, note, ledger`,
+      `  Valid: next, approve, done, block, reset, cancel, wontfix, reopen, revisit, split, ac, task, note, section, ledger`,
     ),
   );
   await out.close();
@@ -505,9 +534,9 @@ const specNew = async (
   let stateToSave = withTransition;
   if (planPath !== null) {
     stateToSave = {
-      ...newState,
+      ...withTransition,
       discovery: {
-        ...newState.discovery,
+        ...withTransition.discovery,
         planPath,
       },
     };
@@ -734,7 +763,7 @@ const specSplit = async (
     out.writeln(
       span.dim("Example: "),
       span.bold(
-        `${cmd.cmdPrefix()} spec split --spec=parent --into name1 "desc1" --into name2 "desc2"`,
+        `${cmd.cmdPrefix()} spec parent split --into name1 "desc1" --into name2 "desc2"`,
       ),
     );
     await out.close();
@@ -896,7 +925,7 @@ const specRevisit = async (
     out.writeln(
       span.dim("Example: "),
       span.bold(
-        `${cmd.cmdPrefix()} spec revisit --spec=my-spec "reason for revisit"`,
+        `${cmd.cmdPrefix()} spec my-spec revisit "reason for revisit"`,
       ),
     );
     await out.close();
@@ -966,7 +995,13 @@ const specRevisit = async (
 
   const completedCount = specState.execution.completedTasks.length;
   const newState = machine.revisitSpec(specState, reason.trim());
-  await persistence.writeSpecState(root, specFlag, newState);
+  // state.json moves with the spec it names, as every other transition does;
+  // a state.json on another spec stays.
+  if ((await persistence.readState(root)).spec === specFlag) {
+    await persistence.writeStateAndSpec(root, newState);
+  } else {
+    await persistence.writeSpecState(root, specFlag, newState);
+  }
 
   out.writeln(span.green("Revisit complete."));
   out.writeln(
@@ -1255,4 +1290,260 @@ const specNote = async (
   );
   await out.close();
   return results.ok(undefined);
+};
+
+// =============================================================================
+// spec <name> section
+// =============================================================================
+
+/**
+ * The phases in which the completeness gate reads the spec's sections: it
+ * runs when DISCOVERY_REFINEMENT moves to SPEC_PROPOSAL, so a section
+ * changed after that would reach no gate.
+ */
+const SECTION_PHASES: ReadonlySet<schema.Phase> = new Set([
+  "DISCOVERY",
+  "DISCOVERY_REFINEMENT",
+]);
+
+/**
+ * `spec <name> section [list]`, `section <id> fill "text"` and
+ * `section <id> na "reason"`: list the sections the completeness gate
+ * checks, or resolve one with what the user said, in spec.md and in the
+ * state.
+ */
+const specSection = async (
+  specName: string,
+  args: readonly string[],
+): Promise<shellArgs.CliResult<void>> => {
+  const out = streams.output({
+    renderer: streams.renderers.ansi(),
+    sink: streams.sinks.stdout(),
+  });
+  const { root } = await persistence.resolveProjectRoot();
+  const state = await persistence.resolveState(
+    root,
+    specName,
+    cmd.cmdPrefix(),
+  );
+  const sectionId = args[0];
+
+  if (sectionId === undefined || sectionId === "list") {
+    writeSectionList(out, specName, state.specState.placeholders);
+    await out.close();
+
+    return results.ok(undefined);
+  }
+
+  const result = await resolveSection(root, specName, state, args);
+  for (const line of result.lines) out.writeln(...line);
+  await out.close();
+
+  return result.ok ? results.ok(undefined) : results.fail({ exitCode: 1 });
+};
+
+type OutputLine = readonly streams.SpanInput[];
+
+const writeSectionList = (
+  out: streams.Output,
+  specName: string,
+  placeholders: readonly schema.PlaceholderStatus[],
+): void => {
+  out.writeln(span.bold(`Sections of ${specName}`));
+  out.writeln("");
+  if (placeholders.length === 0) {
+    out.writeln(span.dim("  No sections."));
+  }
+  for (const p of placeholders) {
+    const note = p.status === "na" && p.naReason !== undefined
+      ? ` (N/A: ${p.naReason})`
+      : p.status === "conditional-hidden"
+      ? " (hidden: condition not met)"
+      : "";
+    out.writeln(
+      `  ${livingSpec.placeholderSymbol(p.status)} ${p.sectionId}`,
+      span.dim(`  ${p.sectionTitle}${note}`),
+    );
+  }
+  out.writeln("");
+  out.writeln(
+    span.dim(
+      `Fill: ${cmd.cmd(`spec ${specName} section <id> fill "text"`)}`,
+    ),
+  );
+  out.writeln(
+    span.dim(`N/A:  ${cmd.cmd(`spec ${specName} section <id> na "reason"`)}`),
+  );
+};
+
+/**
+ * Fills a section or marks it N/A, after the checks: the action and its
+ * text, the phase, a known and visible section that is still open, and an
+ * N/A reason the gate accepts. Returns the lines to print.
+ */
+const resolveSection = async (
+  root: string,
+  specName: string,
+  state: schema.StateFile,
+  args: readonly string[],
+): Promise<{ readonly ok: boolean; readonly lines: readonly OutputLine[] }> => {
+  const refuse = (...lines: OutputLine[]) => ({ ok: false, lines });
+  const sectionId = args[0]!;
+  const action = args[1];
+
+  if (action !== "fill" && action !== "na") {
+    return refuse([
+      `Usage: ${cmd.cmdPrefix()} spec ${specName} section <list | <id> fill "text" | <id> na "reason">`,
+    ]);
+  }
+
+  const text = args.slice(2).join(" ").trim();
+  if (text.length === 0) {
+    return refuse([
+      span.red(
+        action === "fill"
+          ? "Please provide the section text."
+          : "Please provide the reason the section does not apply.",
+      ),
+    ]);
+  }
+
+  if (!SECTION_PHASES.has(state.phase)) {
+    return refuse(
+      [span.red(`Cannot change spec sections in phase ${state.phase}.`)],
+      [
+        span.dim(
+          "The completeness gate checks them during DISCOVERY and DISCOVERY_REFINEMENT.",
+        ),
+      ],
+    );
+  }
+
+  const placeholders = state.specState.placeholders;
+  const placeholder = placeholders.find((p) => p.sectionId === sectionId);
+  if (placeholder === undefined) {
+    const valid = placeholders
+      .filter((p) => p.status !== "conditional-hidden")
+      .map((p) => p.sectionId);
+    return refuse(
+      [span.red(`Unknown section: ${sectionId}`)],
+      [span.dim(`  Valid: ${valid.length > 0 ? valid.join(", ") : "none"}`)],
+    );
+  }
+
+  if (placeholder.status === "conditional-hidden") {
+    return refuse([
+      span.red(
+        `Section ${sectionId} is hidden: its condition is not met, so the gate does not check it.`,
+      ),
+    ]);
+  }
+
+  const before = livingSpec.checkSpecCompleteness(state.specState);
+  if (!before.unresolvedSections.some((s) => s.sectionId === sectionId)) {
+    return refuse([span.red(`Section ${sectionId} is already resolved.`)]);
+  }
+
+  const user = await identity.resolveUser(root);
+  const now = new Date();
+  let updated: readonly schema.PlaceholderStatus[];
+  try {
+    updated = action === "fill"
+      ? livingSpec.markPlaceholderFilled(
+        placeholders,
+        sectionId,
+        user.name,
+        now,
+      )
+      : livingSpec.markPlaceholderNa(
+        placeholders,
+        sectionId,
+        text,
+        user.name,
+        now,
+      );
+  } catch (err) {
+    // markPlaceholderNa refuses a reason the gate would not accept.
+    return refuse([span.red((err as Error).message)]);
+  }
+
+  const metadata = livingSpec.applyMetadataAction(
+    state.specState.metadata,
+    { type: "answer", user: user.name, section: sectionId },
+    now,
+  );
+  const newState: schema.StateFile = {
+    ...state,
+    specState: { ...state.specState, placeholders: updated, metadata },
+  };
+
+  // The state is the record the gate reads; spec.md is its view, and a
+  // spec.md without the section's marker stays as it is.
+  let fileUpdated = state.specState.path !== null;
+  if (state.specState.path !== null) {
+    const fileArgs = {
+      path: `${root}/${state.specState.path}`,
+      sectionId,
+      attribution: { user: user.name, date: now },
+      metadata,
+      visiblePlaceholders: updated,
+    };
+    try {
+      if (action === "fill") {
+        await livingSpec.applyAnswerToFile({
+          ...fileArgs,
+          body: text,
+          classificationChanged: false,
+        });
+      } else {
+        await livingSpec.applyNaToFile({ ...fileArgs, reason: text });
+      }
+    } catch {
+      fileUpdated = false;
+    }
+  }
+
+  // state.json moves with the spec it names; a state.json on another spec
+  // stays.
+  if ((await persistence.readState(root)).spec === specName) {
+    await persistence.writeStateAndSpec(root, newState);
+  } else {
+    await persistence.writeSpecState(root, specName, newState);
+  }
+
+  const lines: OutputLine[] = [[
+    span.green(
+      action === "fill" ? "Section filled: " : "Section marked N/A: ",
+    ),
+    placeholder.sectionTitle,
+    span.dim(` (by ${identity.shortUser(user)})`),
+  ]];
+  if (!fileUpdated) {
+    lines.push([
+      span.yellow(
+        `spec.md has no placeholder for ${sectionId}; only the state records it.`,
+      ),
+    ]);
+  }
+
+  const after = livingSpec.checkSpecCompleteness(newState.specState);
+  if (after.unresolvedSections.length > 0) {
+    lines.push([
+      span.dim(
+        `Still open: ${
+          after.unresolvedSections.map((s) => s.sectionId).join(", ")
+        }`,
+      ),
+    ]);
+  } else if (after.pendingDecisions.length > 0) {
+    lines.push([
+      span.dim(
+        `All sections resolved. Pending decisions: ${after.pendingDecisions.length}.`,
+      ),
+    ]);
+  } else {
+    lines.push([span.dim("All sections resolved.")]);
+  }
+
+  return { ok: true, lines };
 };

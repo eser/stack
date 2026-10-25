@@ -6,7 +6,7 @@ import (
 	"net/http"
 
 	"github.com/eser/stack/pkg/ajan/httpfx"
-	"github.com/eser/stack/pkg/ajan/lib"
+	"github.com/eser/stack/pkg/ajan/lib/netlib"
 	"github.com/eser/stack/pkg/ajan/logfx"
 )
 
@@ -61,7 +61,7 @@ func ResolveAddressMiddleware(
 			addr,
 		)
 
-		isLocal, err := lib.DetectLocalNetwork(addr)
+		isLocal, err := netlib.DetectLocalNetwork(addr)
 		if err != nil {
 			logger.ErrorContext(
 				ctx.Request.Context(),

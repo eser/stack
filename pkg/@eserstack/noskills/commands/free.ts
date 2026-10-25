@@ -10,11 +10,16 @@ import * as results from "@eserstack/primitives/results";
 import * as streams from "@eserstack/streams";
 import * as span from "@eserstack/streams/span";
 import type * as shellArgs from "@eserstack/shell/args";
+import * as persistence from "../state/persistence.ts";
 import * as cmd from "../output/cmd.ts";
 
 export const main = async (
   _args?: readonly string[],
 ): Promise<shellArgs.CliResult<void>> => {
+  // The command below names the project's command (cmd.cmdPrefix).
+  const { root } = await persistence.resolveProjectRoot();
+  await cmd.loadCommandPrefix(root);
+
   const out = streams.output({
     renderer: streams.renderers.ansi(),
     sink: streams.sinks.stdout(),

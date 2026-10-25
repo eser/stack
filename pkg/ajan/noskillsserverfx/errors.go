@@ -25,7 +25,6 @@ var NSErrors = struct {
 	AuthLocked           *NSError
 	WorkerDied           *NSError
 	WorkerSpawnTimeout   *NSError
-	WorkerRuntimeMissing *NSError
 	LedgerWriteError     *NSError
 	DaemonAlreadyRunning *NSError
 }{
@@ -69,14 +68,7 @@ var NSErrors = struct {
 		Code:    "502.NS02",
 		Message: "worker spawn timeout",
 		Cause:   "worker did not report 'ready' within 5 seconds",
-		Fix:     "check that a worker runtime is installed: deno --version",
-	},
-	WorkerRuntimeMissing: &NSError{
-		Code:    "503.NS03",
-		Message: "no JavaScript runtime found in PATH",
-		Cause:   "mux sessions run their worker under deno, bun or node",
-		Fix: "install one of deno, bun or node (Node must be >= 26), " +
-			"or set NOSKILLS_WORKER_RUNTIME to choose explicitly",
+		Fix:     "run noskills-server doctor to check that the agent CLI is installed",
 	},
 	LedgerWriteError: &NSError{
 		Code:    "500.NS01",

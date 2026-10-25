@@ -10,7 +10,6 @@
 import * as crossRuntime from "@eserstack/standards/cross-runtime";
 import type { FsWatcher } from "@eserstack/standards/cross-runtime";
 import * as logging from "@eserstack/logging";
-import * as pkg from "@eserstack/codebase/package";
 import * as directiveAnalysis from "@eserstack/codebase/directive-analysis";
 import * as patterns from "@eserstack/standards/patterns";
 import * as serverActionTransform from "./domain/server-action-transform.ts";
@@ -95,8 +94,7 @@ export type BuildContext = {
   /** Build cache for incremental builds (watch mode) */
   cache?: BuildCache;
   /**
-   * Backend for the server bundle (default: "deno-bundler"). Client bundles
-   * always use rolldown; see `CLIENT_BUNDLER_BACKEND` in domain/bundler.ts.
+   * Backend for the server bundle (default and only value: "rolldown").
    */
   bundlerBackend?: BundlerBackend;
   /** Framework plugin for framework-specific build functionality */
@@ -166,9 +164,7 @@ export type BuildPlugins = {
    */
   imageOptimizer?: ImageOptimizer;
   /**
-   * Backend for the server bundle (default: "deno-bundler"). Client bundles
-   * always use rolldown, because the browser shims and the import map
-   * resolution they need are bundler plugins and Deno.bundle() runs none.
+   * Backend for the server bundle (default and only value: "rolldown").
    */
   bundlerBackend?: BundlerBackend;
 };
@@ -639,20 +635,15 @@ export async function build(
       projectRoot,
     );
 
-    // Step 21: Copy import maps to dist/server for dev mode dynamic imports
-    // In dev mode, Deno dynamically imports files from dist/server.
-    // These files have bare imports (e.g., "lucide-react") that need resolution.
-    // Copying the project's config files ensures import maps apply.
     const serverOutputDir = crossRuntime.runtime.path.resolve(
       distDir,
       SERVER_DIR,
     );
-    await copyConfigFilesWithImportMaps(projectRoot, serverOutputDir);
 
     // Step 22: Bundle server components
     // This resolves all bare specifiers (react, lucide-react, etc.) via the bundler
     // instead of manual rewriting to npm: specifiers (which breaks Node.js)
-    const serverBundlerBackend = context.bundlerBackend ?? "deno-bundler";
+    const serverBundlerBackend = context.bundlerBackend ?? "rolldown";
     buildLogger.info(
       `📦 Step 22: Server bundling check - components: ${serverComponentPaths.length}`,
     );
@@ -699,10 +690,8 @@ export async function build(
             externals: serverExternals,
           });
 
-        // Use the configured bundler backend for server bundling
-        // - deno-bundler: outputs browser-targeted ESM, but works in Deno
-        //   runtime; it runs no plugins, so the externals list does the work
-        // - rolldown: supports platform: "node" for Node.js-compatible output
+        // Rolldown bundles the server with platform: "node", running the
+        // externals plugin so the listed packages stay imports
         const serverBundleResult = await bundler.bundleServerComponents(
           {
             entrypoints: serverEntrypoints,
@@ -1208,7 +1197,7 @@ async function bundleClient(
   );
 
   try {
-    // Use Deno bundle with code splitting and --packages bundle
+    // Bundle with code splitting, bundling the packages too
     // Pass ALL component files as entrypoints for proper code splitting
     // Deno will create separate chunks for each and extract shared deps (React) into common chunks
     const componentEntrypoints = clientComponents.map((c) => c.filePath);
@@ -1277,97 +1266,6 @@ async function bundleClient(
       // Ignore cleanup errors
     }
     throw error;
-  }
-}
-
-/**
- * Adjust relative paths in a record of string values
- * Prepends relativePath to values that start with "./" or "../"
- */
-function adjustRelativePaths(
-  record: Record<string, string>,
-  relativePath: string,
-): void {
-  for (const [key, value] of Object.entries(record)) {
-    if (
-      typeof value === "string" &&
-      (value.startsWith("./") || value.startsWith("../"))
-    ) {
-      record[key] = crossRuntime.runtime.path.join(relativePath, value);
-    }
-  }
-}
-
-/**
- * Copy config files to output directory using @eserstack/codebase/package
- * Handles deno.json, deno.jsonc, and package.json
- * - deno.json/deno.jsonc: adjusts relative paths in "imports"
- * - package.json: copies as-is (dependencies use npm: specifiers)
- * @param projectRoot - Project root directory
- * @param outputDir - Output directory (e.g., dist/server)
- */
-async function copyConfigFilesWithImportMaps(
-  projectRoot: string,
-  outputDir: string,
-): Promise<void> {
-  // Load all config files using @eserstack/codebase/package
-  const config = await pkg.tryLoad({ baseDir: projectRoot });
-
-  if (config === undefined) {
-    buildLogger.debug("No config files found to copy");
-    return;
-  }
-
-  // Compute relative path from outputDir back to projectRoot
-  const relativePath = crossRuntime.runtime.path.relative(
-    outputDir,
-    projectRoot,
-  );
-  // Each loaded file has its own file type, so the writes target distinct paths
-  const copied = await Promise.all(
-    config._loadedFiles.map(async (file) => {
-      try {
-        // Clone the content to avoid mutating the original
-        const content = JSON.parse(JSON.stringify(file.content)) as Record<
-          string,
-          unknown
-        >;
-
-        // Adjust relative paths in "imports" field (deno.json/deno.jsonc)
-        if (
-          content["imports"] !== undefined &&
-          typeof content["imports"] === "object" &&
-          content["imports"] !== null
-        ) {
-          adjustRelativePaths(
-            content["imports"] as Record<string, string>,
-            relativePath,
-          );
-        }
-
-        // Write to output directory
-        const destPath = crossRuntime.runtime.path.join(
-          outputDir,
-          file.fileType,
-        );
-        await crossRuntime.runtime.fs.writeTextFile(
-          destPath,
-          JSON.stringify(content, null, 2),
-        );
-        return true;
-      } catch (error) {
-        buildLogger.with({ error }).debug(`copy ${file.fileType}; skipping it`);
-        return false;
-      }
-    }),
-  );
-  const copiedCount = copied.filter((isCopied) => isCopied).length;
-
-  if (copiedCount > 0) {
-    const fileList = copiedCount === 1 ? "config file" : "config files";
-    buildLogger.info(
-      `   📋 Copied ${copiedCount} ${fileList} to dist/server for import resolution`,
-    );
   }
 }
 

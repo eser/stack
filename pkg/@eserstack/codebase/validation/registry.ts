@@ -43,6 +43,7 @@ import * as validateLicenses from "../validate-licenses.ts";
 import * as validateRuntimeJsApis from "../validate-runtime-js-apis.ts";
 import * as validateSelfImports from "../validate-self-imports.ts";
 import * as validateCodeConventions from "../validate-code-conventions.ts";
+import * as validateNamingAndTodos from "../validate-naming-and-todos.ts";
 
 // Standalone scripts (not file tools)
 import * as validateCommitMsg from "../validate-commit-msg.ts";
@@ -95,6 +96,7 @@ const initializeBuiltinValidators = (): void => {
   registerValidator(validateRuntimeJsApis.validator);
   registerValidator(validateSelfImports.validator);
   registerValidator(validateCodeConventions.validator);
+  registerValidator(validateNamingAndTodos.validator);
 };
 
 const ensureInitialized = (): void => {
@@ -260,6 +262,7 @@ export const getWorkflowTools = (): readonly WorkflowCompatibleTool[] => {
     validateRuntimeJsApis.tool,
     validateSelfImports.tool,
     validateCodeConventions.tool,
+    validateNamingAndTodos.tool,
   ];
 
   for (const ft of fileTools) {

@@ -1,7 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import * as assert from "@std/assert";
-import * as mock from "@std/testing/mock";
+import * as assert from "@eserstack/test-kit/assert";
+import * as mock from "@eserstack/test-kit/mock";
 import * as crossRuntime from "@eserstack/standards/cross-runtime";
 import * as registryFetcher from "./registry-fetcher.ts";
 
@@ -27,6 +27,38 @@ const fakeFetch = (
 // =============================================================================
 // parseGitHubRawUrl
 // =============================================================================
+
+Deno.test("sourceBaseFor — a github-provider source sits at the repository root", () => {
+  const registry = "https://raw.githubusercontent.com/eser/stack/main/.eser";
+
+  assert.assertEquals(
+    registryFetcher.sourceBaseFor({ source: "x", target: "y" }, registry),
+    registry,
+  );
+  assert.assertEquals(
+    registryFetcher.sourceBaseFor(
+      { source: "pkg/ajan/lib/", target: "y", provider: "github" },
+      registry,
+    ),
+    "https://raw.githubusercontent.com/eser/stack/main",
+  );
+  assert.assertEquals(
+    registryFetcher.sourceBaseFor(
+      { source: "lib/", target: "y", provider: "github" },
+      "gh:eser/ajan#v1",
+    ),
+    "https://raw.githubusercontent.com/eser/ajan/v1",
+  );
+  assert.assertThrows(
+    () =>
+      registryFetcher.sourceBaseFor(
+        { source: "lib/", target: "y", provider: "github" },
+        "https://example.com/registry",
+      ),
+    registryFetcher.RecipeLoadError,
+    "GitHub",
+  );
+});
 
 Deno.test("parseGitHubRawUrl — parses standard raw URL", () => {
   const result = registryFetcher.parseGitHubRawUrl(
@@ -248,6 +280,27 @@ Deno.test("fetchRecipeFromRepo: wraps a recipe.json that is not JSON", async () 
 // =============================================================================
 // detectLocalRegistry
 // =============================================================================
+
+Deno.test("detectLocalRegistry: starts at the given directory", async () => {
+  const root = await runtime.fs.makeTempDir({ prefix: "kit_local_" });
+  try {
+    await runtime.fs.mkdir(`${root}/.eser`, { recursive: true });
+    await runtime.fs.writeTextFile(
+      `${root}/${registryFetcher.RECIPES_FILENAME}`,
+      "{}",
+    );
+    await runtime.fs.mkdir(`${root}/app/src`, { recursive: true });
+
+    // add --cwd points below the registry; the walk goes up from there, not
+    // from the process's working directory.
+    assert.assertEquals(
+      await registryFetcher.detectLocalRegistry(`${root}/app/src`),
+      `${root}/${registryFetcher.RECIPES_FILENAME}`,
+    );
+  } finally {
+    await runtime.fs.remove(root, { recursive: true });
+  }
+});
 
 Deno.test("detectLocalRegistry: wraps a path it cannot check", async () => {
   const denied = new Error("permission denied");

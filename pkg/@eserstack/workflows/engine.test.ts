@@ -1,6 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import * as assert from "@std/assert";
+import * as assert from "@eserstack/test-kit/assert";
 import * as task from "@eserstack/functions/task";
 import * as results from "@eserstack/primitives/results";
 import type {
@@ -487,4 +487,54 @@ Deno.test("runWorkflow keeps the error of a tool that fails within its time limi
 
   assert.assert(results.isFail(taskResult));
   assert.assertEquals(taskResult.error.message, "tool exploded");
+});
+
+// The Go engine's TestDryRunListsTheManifestSteps (pkg/ajan/workflowfx) checks
+// the same order, so the two engines list the same precommit steps.
+Deno.test("a precommit dry run lists every manifest step in order", async () => {
+  const loader = await import("./loader.ts");
+  const config = await loader.loadFromFile(`${import.meta.dirname}/../../..`);
+  assert.assert(config !== null);
+
+  const reg = registry.createRegistry();
+  const want: string[] = [];
+
+  for (const workflow of config.workflows) {
+    if (!workflow.on.includes("precommit")) continue;
+
+    for (const step of workflow.steps) {
+      const resolved = engine.resolveStep(step);
+      if (!reg.has(resolved.name)) {
+        const name = resolved.name;
+        reg.register({
+          name,
+          description: "stub",
+          run: (options) =>
+            Promise.resolve({
+              name: (options["name"] as string | undefined) ?? name,
+              passed: true,
+              issues: [],
+              mutations: [],
+              stats: {},
+            }),
+        });
+      }
+
+      want.push(
+        (resolved.options["name"] as string | undefined) ?? resolved.name,
+      );
+    }
+  }
+
+  const got: string[] = [];
+  const taskResult = await task.runTask(
+    engine.runByEvent("precommit", config.workflows, reg, {
+      dryRun: true,
+      onStepEnd: (result) => got.push(result.name),
+    }),
+  );
+
+  assert.assert(results.isOk(taskResult));
+  assert.assertEquals(got, want);
+  assert.assert(got.length >= 30);
 });

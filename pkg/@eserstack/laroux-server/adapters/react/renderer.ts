@@ -12,7 +12,7 @@ import type {
 import * as ssrRenderer from "./ssr-renderer.ts";
 import * as rscHandler from "./rsc-handler.ts";
 import type { BundlerConfig } from "./rsc-handler.ts";
-import * as renderApp from "./render-app.tsx";
+import * as renderApp from "./render-app.ts";
 import * as inlineRscEmitter from "./inline-rsc-emitter.ts";
 import type { LayoutProps, PageProps } from "@eserstack/laroux/router";
 import * as logging from "@eserstack/logging";

@@ -7,10 +7,10 @@ import (
 )
 
 // Provider-agnostic error classification sentinels.
-// Adapters wrap SDK errors with these so callers can detect error categories
-// without importing provider SDKs.
+// Adapters wrap provider errors with these so callers can detect error
+// categories without knowing each provider's error format.
 //
-// Error chain example: ErrOpenAIGenerationFailed -> ErrRateLimited -> <original sdk error>
+// Error chain example: ErrOpenAIGenerationFailed -> ErrRateLimited -> <original provider error>
 // Callers check: errors.Is(err, aifx.ErrRateLimited).
 var (
 	ErrRateLimited         = errors.New("rate limited")

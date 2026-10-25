@@ -1,362 +1,650 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 /**
- * Reactor-mode WASM loader for the eser-ajan module.
+ * The WASM loader of eser-ajan: one reused instance of the wasi-profile
+ * reactor (decision-45).
  *
- * Loads the `eser-ajan-reactor.wasm` module which exports functions directly
- * via `//go:wasmexport`. The loader keeps the WASM instance alive and calls
- * exported functions directly — faster than command mode.
+ * The module is compiled once per process and one instance serves every call,
+ * so handles (parsing and codebase streams, caches) live across calls. A call
+ * writes the dispatch name and its length-prefixed string arguments into the
+ * module's input arena, runs `eser_ajan_call` and reads the JSON envelope at
+ * `eser_ajan_result_ptr` (see main_wasi_reactor.go for the protocol).
  *
- * String return protocol:
- *   1. Call the exported function → returns byte length (i32)
- *   2. Call `eser_ajan_result_ptr()` → returns pointer to result buffer
- *   3. Read `length` bytes from WASM memory at that pointer → decode as UTF-8
- *
- * Works on Node.js, Bun, Deno, and browsers via the built-in WASI shim.
- *
- * ## Only the no-argument exports are reachable
- *
- * There is a return protocol but no argument protocol. Reachable today:
- * `version`, `init`, `shutdown`, `config_load` and `di_resolve`, all of which
- * take nothing (the last two run against an empty string on the Go side).
- * main_wasi_reactor.go also exports six AI functions that read their arguments
- * out of the result buffer, but a host cannot write into that buffer -- see the
- * comment on the AI stubs below. Everything else is stubbed with error JSON.
+ * Host rules:
+ * - At load, the `version` call is a handshake: its envelope names the ABI
+ *   version, the profile and every name the build serves. A module with
+ *   another ABI version is refused.
+ * - A name outside the profile throws {@link UnsupportedInWasmError} without
+ *   calling into the module.
+ * - Any exception that is not an envelope (a trap, a RangeError, proc_exit)
+ *   marks the instance dead, and the next call builds a new one from the
+ *   cached module. Its handles are gone with it.
+ * - `memory.buffer` is read again after every export call, because the
+ *   module's memory can grow and detach the old buffer.
+ * - With node:wasi available, the module gets a preopen of the working
+ *   directory, so the filesystem names work. Under the plain WASI shim (the
+ *   browser example) they answer the WASI error.
  *
  * @module
  */
 
 import type * as types from "../ffi/types.ts";
+import * as hostFetch from "./host-fetch.ts";
 import * as wasiShim from "./wasi-shim.ts";
 
+/** The reactor ABI this loader speaks, from main_wasi_reactor.go. */
+export const REACTOR_ABI_VERSION = 2;
+
+/** The envelope `eser_ajan_call` stores for one call. */
+export interface ReactorEnvelope {
+  readonly ok: boolean;
+  readonly result?: string;
+  readonly error?: string;
+  /** Handshake fields, set on the `version` envelope only. */
+  readonly abi?: number;
+  readonly profile?: string;
+  readonly names?: readonly string[];
+}
+
+/** What the `version` handshake reported at load. */
+export interface ReactorHandshake {
+  readonly abi: number;
+  readonly profile: string;
+  readonly names: readonly string[];
+  readonly version: string;
+}
+
+/** A call to a name the loaded WASM profile does not serve. */
+export class UnsupportedInWasmError extends Error {
+  readonly code = "UNSUPPORTED_IN_WASM";
+  readonly fn: string;
+
+  constructor(fn: string, profile: string) {
+    super(
+      `eser-ajan WASM: "${fn}" is not in the ${profile} profile ` +
+        `(UNSUPPORTED_IN_WASM). Install the native library (the ` +
+        `@eserstack/ajan platform package for this OS and architecture) or ` +
+        `set ESER_AJAN_LIB_PATH to an existing build.`,
+    );
+    this.fn = fn;
+    this.name = "UnsupportedInWasmError";
+  }
+}
+
+/** The exports of the reactor module. */
+export type ReactorExports = {
+  readonly memory: WebAssembly.Memory;
+  readonly "eser_ajan_alloc": (size: number) => number;
+  readonly "eser_ajan_call": (
+    namePtr: number,
+    nameLen: number,
+    argsPtr: number,
+    argsLen: number,
+  ) => number;
+  readonly "eser_ajan_result_ptr": () => number;
+  /** The same call for the names that wait on the host (ABI 2, TASK-277). */
+  readonly "eser_ajan_call_async": (
+    namePtr: number,
+    nameLen: number,
+    argsPtr: number,
+    argsLen: number,
+  ) => number;
+  readonly "eser_ajan_async_result_ptr": () => number;
+};
+
+/** The WASI side of one instance. */
+type WasiHost = {
+  readonly imports: WebAssembly.Imports;
+  readonly initialize: (instance: WebAssembly.Instance) => void;
+  /** Passes what the module wrote to stdout and stderr on to the process. */
+  readonly drain: () => void;
+};
+
+// globalThis does not declare process on every runtime.
+// deno-lint-ignore no-explicit-any
+const g = globalThis as any;
+
+const writeToProcess = (stream: "stdout" | "stderr", bytes: Uint8Array) => {
+  if (bytes.length > 0) {
+    g.process?.[stream]?.write?.(bytes);
+  }
+};
+
+/** Builds the WASI side of a new instance, synchronously. */
+type WasiHostFactory = () => WasiHost;
+
+const shimHost = (): WasiHost => {
+  const shim = new wasiShim.WasiShim();
+
+  return {
+    imports: { wasi_snapshot_preview1: shim.wasiImport },
+    initialize: (instance) => shim.initialize(instance),
+    drain: () => {
+      const output = shim.takeOutput();
+      writeToProcess("stdout", output.stdout);
+      writeToProcess("stderr", output.stderr);
+    },
+  };
+};
+
 /**
- * Shape of the WASM instance exports for the reactor-mode module.
- *
- * The snake_case keys are the export names fixed by the `//go:wasmexport`
- * directives in main_wasi_reactor.go, so they stay quoted as they are.
+ * node:wasi when the runtime provides it, with a preopen of the working
+ * directory; otherwise the built-in shim, which has no filesystem. The import
+ * happens once, so replacing a failed instance later is synchronous.
  */
-interface ReactorExports {
-  memory: WebAssembly.Memory;
-  _start?: () => void;
-  _initialize?: () => void;
-  "eser_ajan_result_ptr": () => number;
-  "eser_ajan_version": () => number;
-  "eser_ajan_init": () => number;
-  "eser_ajan_shutdown": () => void;
-  "eser_ajan_config_load": () => number;
-  "eser_ajan_di_resolve": () => number;
+const createWasiHostFactory = async (): Promise<WasiHostFactory> => {
+  let nodeWasi: typeof import("node:wasi") | null = null;
+  try {
+    nodeWasi = await import("node:wasi");
+  } catch {
+    return shimHost;
+  }
+
+  const wasiModule = nodeWasi;
+  return () => {
+    try {
+      const cwd: string = g.process.cwd();
+      const wasi = new wasiModule.WASI({
+        version: "preview1",
+        args: ["eser-ajan"],
+        // Go reads PWD for its working directory, so relative paths resolve
+        // against the host's.
+        env: { PWD: cwd },
+        preopens: { [cwd]: cwd },
+        returnOnExit: true,
+      });
+
+      return {
+        imports: wasi.getImportObject() as WebAssembly.Imports,
+        initialize: (instance) => wasi.initialize(instance),
+        drain: () => {},
+      };
+    } catch {
+      // node:wasi exists but cannot run here; use the shim.
+      return shimHost();
+    }
+  };
+};
+
+const encoder = new TextEncoder();
+const decoder = new TextDecoder();
+
+/** The arguments as little-endian uint32 lengths, each followed by its bytes. */
+const encodeArgs = (args: readonly string[]): Uint8Array => {
+  const encoded = args.map((arg) => encoder.encode(arg));
+  const size = encoded.reduce((total, bytes) => total + 4 + bytes.length, 0);
+  const out = new Uint8Array(size);
+  const view = new DataView(out.buffer);
+  let offset = 0;
+  for (const bytes of encoded) {
+    view.setUint32(offset, bytes.length, true);
+    out.set(bytes, offset + 4);
+    offset += 4 + bytes.length;
+  }
+  return out;
+};
+
+/** One reactor module and the instance that serves its calls. */
+export interface ReactorHost {
+  /** What the `version` handshake reported. */
+  readonly handshake: ReactorHandshake;
+  /** Runs one call and returns its envelope. */
+  readonly callEnvelope: (fn: string, ...args: string[]) => ReactorEnvelope;
+  /**
+   * Runs one call that may wait on the host's fetch, through
+   * `WebAssembly.promising`. These calls run one at a time; synchronous calls
+   * go on while one waits.
+   */
+  readonly callEnvelopeAsync: (
+    fn: string,
+    ...args: string[]
+  ) => Promise<ReactorEnvelope>;
+  /** Drops the instance; the next call builds a new one. */
+  readonly close: () => void;
+}
+
+/** Options for {@link createReactorHost}. */
+export interface ReactorHostOptions {
+  /**
+   * Wraps the exports of each new instance, for tests that need a call to
+   * fail the way a trapped instance does.
+   */
+  readonly wrapExports?: (exports: ReactorExports) => ReactorExports;
 }
 
 /**
- * Loads the reactor-mode WASM module and returns an FFILibrary-compatible handle.
+ * Checks the `version` envelope of a freshly loaded module and returns its
+ * handshake.
  *
- * The WASM instance is kept alive and exported functions are called directly.
- * This is faster than command mode but more complex due to the shared buffer
- * protocol for string returns.
+ * @throws {Error} When the module speaks another ABI version
+ */
+export const checkHandshake = (
+  version: ReactorEnvelope,
+  wasmPath: string,
+): ReactorHandshake => {
+  if (version.abi !== REACTOR_ABI_VERSION) {
+    throw new Error(
+      `eser-ajan WASM module ${wasmPath} speaks reactor ABI ${
+        version.abi ?? "none"
+      }, but this loader speaks ABI ${REACTOR_ABI_VERSION}; use a module and a loader from the same release`,
+    );
+  }
+
+  return {
+    abi: version.abi,
+    profile: version.profile ?? "unknown",
+    names: version.names ?? [],
+    version: version.result ?? "",
+  };
+};
+
+/**
+ * Compiles the reactor module at `wasmPath`, instantiates it and checks the
+ * handshake.
  *
- * @param wasmPath - Absolute path to the `eser-ajan-reactor.wasm` file.
+ * @throws {Error} When the module speaks another ABI version
+ */
+export const createReactorHost = async (
+  wasmPath: string,
+  options: ReactorHostOptions = {},
+): Promise<ReactorHost> => {
+  const nodeFs = await import("node:fs");
+  const wasmModule = await WebAssembly.compile(nodeFs.readFileSync(wasmPath));
+
+  const makeHost = await createWasiHostFactory();
+
+  type Live = {
+    readonly exports: ReactorExports;
+    readonly host: WasiHost;
+    readonly callAsync: (...args: number[]) => Promise<number>;
+  };
+  let current: Live | null = null;
+
+  const instantiate = (): Live => {
+    const host = makeHost();
+    let memory: WebAssembly.Memory | null = null;
+    const instance = new WebAssembly.Instance(wasmModule, {
+      ...host.imports,
+      eser_host: hostFetch.createHostImports(() => memory!),
+    });
+    host.initialize(instance);
+    const raw = instance.exports as unknown as ReactorExports;
+    const exports = options.wrapExports?.(raw) ?? raw;
+    memory = exports.memory;
+
+    const promising = (WebAssembly as unknown as {
+      promising?: (fn: unknown) => (...args: number[]) => Promise<number>;
+    }).promising;
+    const callAsync = hostFetch.hasJspi() && promising !== undefined
+      ? promising(exports.eser_ajan_call_async)
+      : (...args: number[]) =>
+        Promise.resolve().then(() =>
+          (exports.eser_ajan_call_async as (...a: number[]) => number)(...args)
+        );
+
+    return { exports, host, callAsync };
+  };
+
+  /** Writes the name and the arguments into the input arena. */
+  const writeInput = (
+    exports: ReactorExports,
+    fn: string,
+    args: readonly string[],
+  ): readonly [number, number, number, number] => {
+    const name = encoder.encode(fn);
+    const argBytes = encodeArgs(args);
+    const ptr = exports.eser_ajan_alloc(name.length + argBytes.length);
+    const input = new Uint8Array(
+      exports.memory.buffer,
+      ptr,
+      name.length + argBytes.length,
+    );
+    input.set(name, 0);
+    input.set(argBytes, name.length);
+
+    return [ptr, name.length, ptr + name.length, argBytes.length];
+  };
+
+  const invoke = (fn: string, args: readonly string[]): ReactorEnvelope => {
+    // A dead or closed instance is replaced from the cached module.
+    current ??= instantiate();
+    const { exports, host } = current;
+    try {
+      const length = exports.eser_ajan_call(...writeInput(exports, fn, args));
+      const resultPtr = exports.eser_ajan_result_ptr();
+      const text = decoder.decode(
+        new Uint8Array(exports.memory.buffer, resultPtr, length).slice(),
+      );
+      host.drain();
+
+      return JSON.parse(text) as ReactorEnvelope;
+    } catch (error) {
+      host.drain();
+      // Not an envelope: the instance may be corrupt, so the next call gets a
+      // new one.
+      current = null;
+      throw new Error(
+        `eser-ajan WASM call "${fn}" failed and the instance was replaced: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+        { cause: error },
+      );
+    }
+  };
+
+  // One waiting call at a time: the host hands each response over through
+  // one buffer per instance.
+  let asyncQueue: Promise<unknown> = Promise.resolve();
+
+  const invokeAsync = (
+    fn: string,
+    args: readonly string[],
+  ): Promise<ReactorEnvelope> => {
+    const run = async (): Promise<ReactorEnvelope> => {
+      current ??= instantiate();
+      const live = current;
+      try {
+        const length = await live.callAsync(
+          ...writeInput(live.exports, fn, args),
+        );
+        const resultPtr = live.exports.eser_ajan_async_result_ptr();
+        const text = decoder.decode(
+          new Uint8Array(live.exports.memory.buffer, resultPtr, length).slice(),
+        );
+        live.host.drain();
+
+        return JSON.parse(text) as ReactorEnvelope;
+      } catch (error) {
+        live.host.drain();
+        if (current === live) {
+          current = null;
+        }
+        throw new Error(
+          `eser-ajan WASM call "${fn}" failed and the instance was replaced: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+          { cause: error },
+        );
+      }
+    };
+
+    const result = asyncQueue.then(run, run);
+    asyncQueue = result.catch(() => {});
+
+    return result;
+  };
+
+  const handshake = checkHandshake(invoke("version", []), wasmPath);
+
+  return {
+    handshake,
+    callEnvelope: (fn, ...args) => invoke(fn, args),
+    callEnvelopeAsync: (fn, ...args) => invokeAsync(fn, args),
+    close: () => {
+      current = null;
+    },
+  };
+};
+
+/**
+ * Loads the reactor module and returns an FFILibrary-compatible handle, whose
+ * symbols map to the reactor's dispatch names.
+ *
+ * @param wasmPath - Absolute path to the `eser-ajan.wasm` file.
  * @returns An FFILibrary-compatible object.
  */
 export const loadReactorWasm = async (
   wasmPath: string,
 ): Promise<types.FFILibrary> => {
-  const nodeFs = await import("node:fs");
-
-  // Read and compile the WASM binary
-  const wasmBytes = nodeFs.readFileSync(wasmPath);
-  const wasmModule = await WebAssembly.compile(wasmBytes);
-
-  // Create a persistent WASI shim for the reactor lifetime
-  const wasi = new wasiShim.WasiShim();
-
-  const instance = new WebAssembly.Instance(wasmModule, {
-    wasi_snapshot_preview1: wasi.wasiImport,
-  });
-
-  const exports = instance.exports as unknown as ReactorExports;
-
-  // Initialize the WASI reactor
-  wasi.initialize(instance);
+  const reactor = await createReactorHost(wasmPath);
+  const served = new Set(reactor.handshake.names);
 
   /**
-   * Reads a string result from WASM memory using the shared buffer protocol.
-   *
-   * @param byteLength - Number of bytes returned by the exported function.
-   * @returns The decoded UTF-8 string.
+   * Calls one dispatch name. A bridge function answers failures as JSON with
+   * an "error" field, which the native library returns as a string too, so the
+   * answer comes back whenever there is one; only a call that produced none
+   * (an unknown name, a wrong argument count) throws.
    */
-  const readResult = (byteLength: number): string => {
-    if (byteLength <= 0) {
-      return "";
+  const call = (fn: string, ...args: string[]): string => {
+    if (!served.has(fn)) {
+      throw new UnsupportedInWasmError(fn, reactor.handshake.profile);
     }
 
-    const ptr = exports.eser_ajan_result_ptr();
-    if (ptr === 0) {
-      return "";
+    const envelope = reactor.callEnvelope(fn, ...args);
+    if (envelope.result !== undefined) {
+      return envelope.result;
     }
 
-    const memoryBuffer = new Uint8Array(exports.memory.buffer, ptr, byteLength);
-    // Copy the bytes — the buffer may be overwritten on the next call
-    const copy = new Uint8Array(byteLength);
-    copy.set(memoryBuffer);
-
-    return new TextDecoder().decode(copy);
+    throw new Error(
+      `eser-ajan WASM call "${fn}" failed: ${
+        envelope.error ?? "unknown error"
+      }`,
+    );
   };
 
+  /** {@link call} for the names that wait on the host's fetch. */
+  const callAsync = async (fn: string, ...args: string[]): Promise<string> => {
+    if (!served.has(fn)) {
+      throw new UnsupportedInWasmError(fn, reactor.handshake.profile);
+    }
+
+    const envelope = await reactor.callEnvelopeAsync(fn, ...args);
+    if (envelope.result !== undefined) {
+      return envelope.result;
+    }
+
+    throw new Error(
+      `eser-ajan WASM call "${fn}" failed: ${
+        envelope.error ?? "unknown error"
+      }`,
+    );
+  };
+
+  // Every symbol keeps its literal key and its literal dispatch name: the ABI
+  // parity guard in @eserstack/codebase/ajan-ffi-parity.test.ts reads both
+  // out of this source text.
   return {
     symbols: {
-      EserAjanVersion: () => {
-        const len = exports.eser_ajan_version();
-        return readResult(len);
-      },
+      EserAjanVersion: () => call("version"),
       EserAjanInit: () => {
-        return exports.eser_ajan_init();
+        call("init");
+        return 0;
       },
       EserAjanShutdown: () => {
-        exports.eser_ajan_shutdown();
+        call("shutdown");
       },
       EserAjanFree: (_ptr: unknown) => {
-        // No-op in WASM mode — Go's GC handles memory.
+        // No-op: the reactor's results are copied out of its memory.
       },
-      EserAjanConfigLoad: (_optionsJSON: string) => {
-        // Reactor mode doesn't support string args for config_load yet.
-        // A future shared-memory protocol will enable passing args.
-        const len = exports.eser_ajan_config_load();
-        return readResult(len);
-      },
-      EserAjanDIResolve: (_name: string) => {
-        // Same limitation as config_load — string args not yet supported.
-        const len = exports.eser_ajan_di_resolve();
-        return readResult(len);
-      },
-      // Format, log, and AI methods require string args which reactor mode doesn't yet support.
-      EserAjanFormatEncode: (_requestJSON: string) =>
-        '{"error":"Format calls require native FFI or command-mode WASM"}',
-      EserAjanFormatDecode: (_requestJSON: string) =>
-        '{"error":"Format calls require native FFI or command-mode WASM"}',
-      EserAjanFormatList: () =>
-        '{"error":"Format calls require native FFI or command-mode WASM"}',
-      EserAjanFormatEncodeDocument: (_requestJSON: string) =>
-        '{"error":"Format calls require native FFI or command-mode WASM"}',
-      // Log and AI methods require string args which reactor mode doesn't yet support.
-      // Return error JSON so callers can propagate a clean error.
-      EserAjanLogCreate: (_configJSON: string) =>
-        '{"error":"Log calls require native FFI or command-mode WASM"}',
-      EserAjanLogWrite: (_requestJSON: string) =>
-        '{"error":"Log calls require native FFI or command-mode WASM"}',
-      EserAjanLogClose: (_handle: string) =>
-        '{"error":"Log calls require native FFI or command-mode WASM"}',
-      EserAjanLogShouldLog: (_requestJSON: string) =>
-        '{"error":"Log calls require native FFI or command-mode WASM"}',
-      EserAjanLogConfigure: (_requestJSON: string) =>
-        '{"error":"Log calls require native FFI or command-mode WASM"}',
-      // The AI stubs below stay stubs even though main_wasi_reactor.go carries
-      // //go:wasmexport entries for create_model, generate_text, stream_text,
-      // stream_read, close_model and free_stream. Those exports take their
-      // string arguments as (offset, length) windows into `resultBuf`, the same
-      // buffer results are written to, and no export lets a host write into it:
-      // eser_ajan_result_ptr returns null while the buffer is empty, which is
-      // exactly its state before the first call. So there is no way to place an
-      // argument where the Go side reads it, and argRange would reject any
-      // window the host guessed. Do not "fix" this side by calling them --
-      // the Go side needs a host-writable input buffer first.
-      EserAjanAiCreateModel: (_configJSON: string) =>
-        '{"error":"AI calls require native FFI or command-mode WASM"}',
-      EserAjanAiGenerateText: (_modelHandle: string, _optionsJSON: string) =>
-        '{"error":"AI calls require native FFI or command-mode WASM"}',
-      EserAjanAiStreamText: (_modelHandle: string, _optionsJSON: string) =>
-        '{"error":"AI calls require native FFI or command-mode WASM"}',
-      EserAjanAiStreamRead: (_streamHandle: string) =>
-        '{"error":"AI calls require native FFI or command-mode WASM"}',
-      // Reported as an error rather than as silent success: this symbol has no
-      // reactor export at all, so a caller aborting a request has no way to
-      // learn that nothing was cancelled if it answers "{}".
-      EserAjanAiCancelRequest: (_requestJSON: string) =>
-        '{"error":"AI calls require native FFI or command-mode WASM"}',
-      EserAjanAiCloseModel: (_modelHandle: string) =>
-        '{"error":"AI calls require native FFI or command-mode WASM"}',
-      EserAjanAiFreeStream: (_streamHandle: string) =>
-        '{"error":"AI calls require native FFI or command-mode WASM"}',
-      // Batch methods require stateful server-side resources which reactor mode doesn't support.
-      EserAjanAiBatchCreate: (_requestJSON: string) =>
-        '{"error":"AI batch calls require native FFI or command-mode WASM"}',
-      EserAjanAiBatchGet: (_requestJSON: string) =>
-        '{"error":"AI batch calls require native FFI or command-mode WASM"}',
-      EserAjanAiBatchList: (_requestJSON: string) =>
-        '{"error":"AI batch calls require native FFI or command-mode WASM"}',
-      EserAjanAiBatchDownload: (_requestJSON: string) =>
-        '{"error":"AI batch calls require native FFI or command-mode WASM"}',
-      EserAjanAiBatchCancel: (_requestJSON: string) =>
-        '{"error":"AI batch calls require native FFI or command-mode WASM"}',
-      // HTTP methods require string args which reactor mode doesn't yet support.
-      EserAjanHttpCreate: (_configJSON: string) =>
-        '{"error":"HTTP calls require native FFI or command-mode WASM"}',
-      EserAjanHttpRequest: (_requestJSON: string) =>
-        '{"error":"HTTP calls require native FFI or command-mode WASM"}',
-      EserAjanHttpClose: (_handle: string) =>
-        '{"error":"HTTP calls require native FFI or command-mode WASM"}',
-      // HTTP streaming requires stateful handles which reactor mode doesn't support.
-      EserAjanHttpRequestStream: (_requestJSON: string) =>
-        '{"error":"HTTP stream calls require native FFI or command-mode WASM"}',
-      EserAjanHttpStreamRead: (_handle: string) =>
-        '{"error":"HTTP stream calls require native FFI or command-mode WASM"}',
-      EserAjanHttpStreamClose: (_handle: string) =>
-        '{"error":"HTTP stream calls require native FFI or command-mode WASM"}',
-      // Noskills methods require string args which reactor mode doesn't yet support.
-      EserAjanNoskillsInit: (_requestJSON: string) =>
-        '{"error":"Noskills calls require native FFI or command-mode WASM"}',
-      EserAjanNoskillsSpecNew: (_requestJSON: string) =>
-        '{"error":"Noskills calls require native FFI or command-mode WASM"}',
-      EserAjanNoskillsNext: (_requestJSON: string) =>
-        '{"error":"Noskills calls require native FFI or command-mode WASM"}',
-      // Workflow methods require string args which reactor mode doesn't yet support.
-      EserAjanWorkflowRun: (_requestJSON: string) =>
-        '{"error":"Workflow calls require native FFI or command-mode WASM"}',
-      // Crypto and cache methods require string args which reactor mode doesn't yet support.
-      EserAjanCryptoHash: (_requestJSON: string) =>
-        '{"error":"Crypto calls require native FFI or command-mode WASM"}',
-      EserAjanCacheCreate: (_requestJSON: string) =>
-        '{"error":"Cache calls require native FFI or command-mode WASM"}',
-      EserAjanCacheGetDir: (_requestJSON: string) =>
-        '{"error":"Cache calls require native FFI or command-mode WASM"}',
-      EserAjanCacheGetVersionedPath: (_requestJSON: string) =>
-        '{"error":"Cache calls require native FFI or command-mode WASM"}',
-      EserAjanCacheList: (_requestJSON: string) =>
-        '{"error":"Cache calls require native FFI or command-mode WASM"}',
-      EserAjanCacheRemove: (_requestJSON: string) =>
-        '{"error":"Cache calls require native FFI or command-mode WASM"}',
-      EserAjanCacheClear: (_requestJSON: string) =>
-        '{"error":"Cache calls require native FFI or command-mode WASM"}',
-      EserAjanCacheClose: (_requestJSON: string) =>
-        '{"error":"Cache calls require native FFI or command-mode WASM"}',
-      // CS methods require string args which reactor mode doesn't yet support.
-      EserAjanCsGenerate: (_requestJSON: string) =>
-        '{"error":"CS calls require native FFI or command-mode WASM"}',
-      EserAjanCsSync: (_requestJSON: string) =>
-        '{"error":"CS calls require native FFI or command-mode WASM"}',
-      // Kit methods require string args which reactor mode doesn't yet support.
-      EserAjanKitListRecipes: (_requestJSON: string) =>
-        '{"error":"Kit calls require native FFI or command-mode WASM"}',
-      EserAjanKitApplyRecipe: (_requestJSON: string) =>
-        '{"error":"Kit calls require native FFI or command-mode WASM"}',
-      EserAjanKitCloneRecipe: (_requestJSON: string) =>
-        '{"error":"Kit calls require native FFI or command-mode WASM"}',
-      EserAjanKitNewProject: (_requestJSON: string) =>
-        '{"error":"Kit calls require native FFI or command-mode WASM"}',
-      EserAjanKitUpdateRecipe: (_requestJSON: string) =>
-        '{"error":"Kit calls require native FFI or command-mode WASM"}',
-      // Posts methods require string args which reactor mode doesn't yet support.
-      EserAjanPostsCreateService: (_requestJSON: string) =>
-        '{"error":"Posts calls require native FFI or command-mode WASM"}',
-      EserAjanPostsCompose: (_requestJSON: string) =>
-        '{"error":"Posts calls require native FFI or command-mode WASM"}',
-      EserAjanPostsGetTimeline: (_requestJSON: string) =>
-        '{"error":"Posts calls require native FFI or command-mode WASM"}',
-      EserAjanPostsSearch: (_requestJSON: string) =>
-        '{"error":"Posts calls require native FFI or command-mode WASM"}',
-      EserAjanPostsClose: (_requestJSON: string) =>
-        '{"error":"Posts calls require native FFI or command-mode WASM"}',
-      // Codebase methods require string args which reactor mode doesn't yet support.
-      EserAjanCodebaseGitCurrentBranch: (_requestJSON: string) =>
-        '{"error":"Codebase calls require native FFI or command-mode WASM"}',
-      EserAjanCodebaseGitLatestTag: (_requestJSON: string) =>
-        '{"error":"Codebase calls require native FFI or command-mode WASM"}',
-      EserAjanCodebaseGitLog: (_requestJSON: string) =>
-        '{"error":"Codebase calls require native FFI or command-mode WASM"}',
-      EserAjanCodebaseValidateCommitMsg: (_requestJSON: string) =>
-        '{"error":"Codebase calls require native FFI or command-mode WASM"}',
-      EserAjanCodebaseGenerateChangelog: (_requestJSON: string) =>
-        '{"error":"Codebase calls require native FFI or command-mode WASM"}',
-      EserAjanCodebaseBumpVersion: (_requestJSON: string) =>
-        '{"error":"Codebase calls require native FFI or command-mode WASM"}',
-      EserAjanCodebaseWalkFiles: (_requestJSON: string) =>
-        '{"error":"Codebase calls require native FFI or command-mode WASM"}',
-      EserAjanCodebaseValidateFiles: (_requestJSON: string) =>
-        '{"error":"Codebase calls require native FFI or command-mode WASM"}',
-      EserAjanCodebaseCheckCircularDeps: (_requestJSON: string) =>
-        '{"error":"Codebase calls require native FFI or command-mode WASM"}',
-      EserAjanCodebaseCheckExportNames: (_requestJSON: string) =>
-        '{"error":"Codebase calls require native FFI or command-mode WASM"}',
-      EserAjanCodebaseCheckModExports: (_requestJSON: string) =>
-        '{"error":"Codebase calls require native FFI or command-mode WASM"}',
-      EserAjanCodebaseCheckPackageConfigs: (_requestJSON: string) =>
-        '{"error":"Codebase calls require native FFI or command-mode WASM"}',
-      EserAjanCodebaseCheckDocs: (_requestJSON: string) =>
-        '{"error":"Codebase calls require native FFI or command-mode WASM"}',
-      EserAjanCodebaseWalkFilesStreamCreate: (_requestJSON: string) =>
-        '{"error":"Codebase streaming requires native FFI or command-mode WASM"}',
-      // "null" (end of stream) and "{}" (closed) would report success for a
-      // handle that was never created, so both answer with the same error the
-      // create call gives.
-      EserAjanCodebaseWalkFilesStreamRead: (_handle: string) =>
-        '{"error":"Codebase streaming requires native FFI or command-mode WASM"}',
-      EserAjanCodebaseWalkFilesStreamClose: (_handle: string) =>
-        '{"error":"Codebase streaming requires native FFI or command-mode WASM"}',
-      EserAjanCodebaseValidateFilesStreamCreate: (_requestJSON: string) =>
-        '{"error":"Codebase streaming requires native FFI or command-mode WASM"}',
-      EserAjanCodebaseValidateFilesStreamRead: (_handle: string) =>
-        '{"error":"Codebase streaming requires native FFI or command-mode WASM"}',
-      EserAjanCodebaseValidateFilesStreamClose: (_handle: string) =>
-        '{"error":"Codebase streaming requires native FFI or command-mode WASM"}',
-      // Collector methods require string args which reactor mode doesn't yet support.
-      EserAjanCollectorSpecifierToIdentifier: (_requestJSON: string) =>
-        '{"error":"Collector calls require native FFI or command-mode WASM"}',
-      EserAjanCollectorWalkFiles: (_requestJSON: string) =>
-        '{"error":"Collector calls require native FFI or command-mode WASM"}',
-      EserAjanCollectorGenerateManifest: (_requestJSON: string) =>
-        '{"error":"Collector calls require native FFI or command-mode WASM"}',
-      // Parsing methods require string args which reactor mode doesn't yet support.
-      EserAjanParsingTokenize: (_requestJSON: string) =>
-        '{"error":"Parsing calls require native FFI or command-mode WASM"}',
-      EserAjanParsingSimpleTokens: () =>
-        '{"error":"Parsing calls require native FFI or command-mode WASM"}',
-      EserAjanParsingTokenizeStreamCreate: (_requestJSON: string) =>
-        '{"error":"Parsing calls require native FFI or command-mode WASM"}',
-      EserAjanParsingTokenizeStreamPush: (_requestJSON: string) =>
-        '{"error":"Parsing calls require native FFI or command-mode WASM"}',
-      EserAjanParsingTokenizeStreamClose: (_requestJSON: string) =>
-        '{"error":"Parsing calls require native FFI or command-mode WASM"}',
-      // Shell exec requires string args which reactor mode doesn't yet support.
-      EserAjanShellExec: (_requestJSON: string) =>
-        '{"error":"Shell exec calls require native FFI or command-mode WASM"}',
-      // Shell TUI requires stdin/terminal which reactor mode doesn't support.
-      EserAjanShellTuiKeypressCreate: (_requestJSON: string) =>
-        '{"error":"Shell TUI calls require native FFI or command-mode WASM"}',
-      EserAjanShellTuiKeypressRead: (_handle: string) =>
-        '{"error":"Shell TUI calls require native FFI or command-mode WASM"}',
-      EserAjanShellTuiKeypressClose: (_handle: string) =>
-        '{"error":"Shell TUI calls require native FFI or command-mode WASM"}',
-      EserAjanShellTuiSetStdinRaw: (_requestJSON: string) =>
-        '{"error":"Shell TUI calls require native FFI or command-mode WASM"}',
-      EserAjanShellTuiGetSize: (_requestJSON: string) =>
-        '{"error":"Shell TUI calls require native FFI or command-mode WASM"}',
-      // Shell exec spawn requires stdin/stdout I/O which reactor mode doesn't support.
-      EserAjanShellExecSpawn: (_requestJSON: string) =>
-        '{"error":"Shell exec spawn requires native FFI or command-mode WASM"}',
-      EserAjanShellExecRead: (_handle: string) =>
-        '{"error":"Shell exec spawn requires native FFI or command-mode WASM"}',
-      EserAjanShellExecWrite: (_requestJSON: string) =>
-        '{"error":"Shell exec spawn requires native FFI or command-mode WASM"}',
-      EserAjanShellExecClose: (_handle: string) =>
-        '{"error":"Shell exec spawn requires native FFI or command-mode WASM"}',
-      // Shell PTY requires a real terminal which reactor mode doesn't support.
-      EserAjanShellPtySpawn: (_requestJSON: string) =>
-        '{"error":"Shell PTY requires native FFI or command-mode WASM"}',
-      EserAjanShellPtyRead: (_handle: string): Promise<string> =>
-        Promise.resolve(
-          '{"error":"Shell PTY requires native FFI or command-mode WASM"}',
-        ),
-      EserAjanShellPtyWrite: (_requestJSON: string) =>
-        '{"error":"Shell PTY requires native FFI or command-mode WASM"}',
-      EserAjanShellPtyResize: (_requestJSON: string) =>
-        '{"error":"Shell PTY requires native FFI or command-mode WASM"}',
-      EserAjanShellPtyKill: (_requestJSON: string) =>
-        '{"error":"Shell PTY requires native FFI or command-mode WASM"}',
-      EserAjanShellPtyClose: (_handle: string) =>
-        '{"error":"Shell PTY requires native FFI or command-mode WASM"}',
+      EserAjanConfigLoad: (optionsJSON: string) =>
+        call("configLoad", optionsJSON),
+      EserAjanDIResolve: (name: string) => call("diResolve", name),
+      EserAjanAiCreateModel: (configJSON: string) =>
+        call("aiCreateModel", configJSON),
+      EserAjanAiGenerateText: (modelHandle: string, optionsJSON: string) =>
+        call("aiGenerateText", modelHandle, optionsJSON),
+      EserAjanAiStreamText: (modelHandle: string, optionsJSON: string) =>
+        call("aiStreamText", modelHandle, optionsJSON),
+      EserAjanAiStreamRead: (streamHandle: string) =>
+        call("aiStreamRead", streamHandle),
+      EserAjanAiCancelRequest: (requestJSON: string) =>
+        call("aiCancelRequest", requestJSON),
+      EserAjanAiCloseModel: (modelHandle: string) =>
+        call("aiCloseModel", modelHandle),
+      EserAjanAiFreeStream: (streamHandle: string) =>
+        call("aiFreeStream", streamHandle),
+      EserAjanAiBatchCreate: (requestJSON: string) =>
+        call("aiBatchCreate", requestJSON),
+      EserAjanAiBatchGet: (requestJSON: string) =>
+        call("aiBatchGet", requestJSON),
+      EserAjanAiBatchList: (requestJSON: string) =>
+        call("aiBatchList", requestJSON),
+      EserAjanAiBatchDownload: (requestJSON: string) =>
+        call("aiBatchDownload", requestJSON),
+      EserAjanAiBatchCancel: (requestJSON: string) =>
+        call("aiBatchCancel", requestJSON),
+      EserAjanFormatEncode: (requestJSON: string) =>
+        call("formatEncode", requestJSON),
+      EserAjanFormatDecode: (requestJSON: string) =>
+        call("formatDecode", requestJSON),
+      EserAjanFormatList: () => call("formatList"),
+      EserAjanFormatEncodeDocument: (requestJSON: string) =>
+        call("formatEncodeDocument", requestJSON),
+      EserAjanLogCreate: (configJSON: string) => call("logCreate", configJSON),
+      EserAjanLogWrite: (requestJSON: string) => call("logWrite", requestJSON),
+      EserAjanLogClose: (handle: string) => call("logClose", handle),
+      EserAjanLogShouldLog: (requestJSON: string) =>
+        call("logShouldLog", requestJSON),
+      EserAjanLogConfigure: (requestJSON: string) =>
+        call("logConfigure", requestJSON),
+      EserAjanHttpCreate: (configJSON: string) =>
+        call("httpCreate", configJSON),
+      // The three that wait on the host's fetch answer a promise.
+      EserAjanHttpRequest: (requestJSON: string) =>
+        callAsync("httpRequest", requestJSON),
+      EserAjanHttpClose: (handle: string) => call("httpClose", handle),
+      EserAjanHttpRequestStream: (requestJSON: string) =>
+        callAsync("httpRequestStream", requestJSON),
+      EserAjanHttpStreamRead: (handle: string) =>
+        callAsync("httpStreamRead", handle),
+      EserAjanHttpStreamClose: (handle: string) =>
+        call("httpStreamClose", handle),
+      EserAjanNoskillsInit: (requestJSON: string) =>
+        call("noskillsInit", requestJSON),
+      EserAjanNoskillsSpecNew: (requestJSON: string) =>
+        call("noskillsSpecNew", requestJSON),
+      EserAjanNoskillsNext: (requestJSON: string) =>
+        call("noskillsNext", requestJSON),
+      EserAjanWorkflowRun: (requestJSON: string) =>
+        call("workflowRun", requestJSON),
+      EserAjanCryptoHash: (requestJSON: string) =>
+        call("cryptoHash", requestJSON),
+      EserAjanCacheCreate: (requestJSON: string) =>
+        call("cacheCreate", requestJSON),
+      EserAjanCacheGetDir: (requestJSON: string) =>
+        call("cacheGetDir", requestJSON),
+      EserAjanCacheGetVersionedPath: (requestJSON: string) =>
+        call("cacheGetVersionedPath", requestJSON),
+      EserAjanCacheList: (requestJSON: string) =>
+        call("cacheList", requestJSON),
+      EserAjanCacheRemove: (requestJSON: string) =>
+        call("cacheRemove", requestJSON),
+      EserAjanCacheClear: (requestJSON: string) =>
+        call("cacheClear", requestJSON),
+      EserAjanCacheClose: (requestJSON: string) =>
+        call("cacheClose", requestJSON),
+      EserAjanCsGenerate: (requestJSON: string) =>
+        call("csGenerate", requestJSON),
+      EserAjanCsSync: (requestJSON: string) => call("csSync", requestJSON),
+      EserAjanKitListRecipes: (requestJSON: string) =>
+        call("kitListRecipes", requestJSON),
+      EserAjanKitApplyRecipe: (requestJSON: string) =>
+        call("kitApplyRecipe", requestJSON),
+      EserAjanKitCloneRecipe: (requestJSON: string) =>
+        call("kitCloneRecipe", requestJSON),
+      EserAjanKitNewProject: (requestJSON: string) =>
+        call("kitNewProject", requestJSON),
+      EserAjanKitUpdateRecipe: (requestJSON: string) =>
+        call("kitUpdateRecipe", requestJSON),
+      EserAjanPostsCreateService: (requestJSON: string) =>
+        call("postsCreateService", requestJSON),
+      EserAjanPostsCompose: (requestJSON: string) =>
+        call("postsCompose", requestJSON),
+      EserAjanPostsGetTimeline: (requestJSON: string) =>
+        call("postsGetTimeline", requestJSON),
+      EserAjanPostsSearch: (requestJSON: string) =>
+        call("postsSearch", requestJSON),
+      EserAjanPostsClose: (requestJSON: string) =>
+        call("postsClose", requestJSON),
+      EserAjanCodebaseGitCurrentBranch: (requestJSON: string) =>
+        call("codebaseGitCurrentBranch", requestJSON),
+      EserAjanCodebaseGitLatestTag: (requestJSON: string) =>
+        call("codebaseGitLatestTag", requestJSON),
+      EserAjanCodebaseGitLog: (requestJSON: string) =>
+        call("codebaseGitLog", requestJSON),
+      EserAjanCodebaseValidateCommitMsg: (requestJSON: string) =>
+        call("codebaseValidateCommitMsg", requestJSON),
+      EserAjanCodebaseGenerateChangelog: (requestJSON: string) =>
+        call("codebaseGenerateChangelog", requestJSON),
+      EserAjanCodebaseBumpVersion: (requestJSON: string) =>
+        call("codebaseBumpVersion", requestJSON),
+      EserAjanCodebaseWalkFiles: (requestJSON: string) =>
+        call("codebaseWalkFiles", requestJSON),
+      EserAjanCodebaseValidateFiles: (requestJSON: string) =>
+        call("codebaseValidateFiles", requestJSON),
+      EserAjanCodebaseCheckCircularDeps: (requestJSON: string) =>
+        call("codebaseCheckCircularDeps", requestJSON),
+      EserAjanCodebaseCheckExportNames: (requestJSON: string) =>
+        call("codebaseCheckExportNames", requestJSON),
+      EserAjanCodebaseCheckModExports: (requestJSON: string) =>
+        call("codebaseCheckModExports", requestJSON),
+      EserAjanCodebaseCheckPackageConfigs: (requestJSON: string) =>
+        call("codebaseCheckPackageConfigs", requestJSON),
+      EserAjanCodebaseCheckDocs: (requestJSON: string) =>
+        call("codebaseCheckDocs", requestJSON),
+      EserAjanCodebaseWalkFilesStreamCreate: (requestJSON: string) =>
+        call("codebaseWalkFilesStreamCreate", requestJSON),
+      EserAjanCodebaseWalkFilesStreamRead: (handle: string) =>
+        call("codebaseWalkFilesStreamRead", handle),
+      EserAjanCodebaseWalkFilesStreamClose: (handle: string) =>
+        call("codebaseWalkFilesStreamClose", handle),
+      EserAjanCodebaseValidateFilesStreamCreate: (requestJSON: string) =>
+        call("codebaseValidateFilesStreamCreate", requestJSON),
+      EserAjanCodebaseValidateFilesStreamRead: (handle: string) =>
+        call("codebaseValidateFilesStreamRead", handle),
+      EserAjanCodebaseValidateFilesStreamClose: (handle: string) =>
+        call("codebaseValidateFilesStreamClose", handle),
+      EserAjanCollectorSpecifierToIdentifier: (requestJSON: string) =>
+        call("collectorSpecifierToIdentifier", requestJSON),
+      EserAjanCollectorWalkFiles: (requestJSON: string) =>
+        call("collectorWalkFiles", requestJSON),
+      EserAjanCollectorGenerateManifest: (requestJSON: string) =>
+        call("collectorGenerateManifest", requestJSON),
+      EserAjanParsingTokenize: (requestJSON: string) =>
+        call("parsingTokenize", requestJSON),
+      EserAjanParsingSimpleTokens: () => call("parsingSimpleTokens"),
+      EserAjanParsingTokenizeStreamCreate: (requestJSON: string) =>
+        call("parsingTokenizeStreamCreate", requestJSON),
+      EserAjanParsingTokenizeStreamPush: (requestJSON: string) =>
+        call("parsingTokenizeStreamPush", requestJSON),
+      EserAjanParsingTokenizeStreamClose: (requestJSON: string) =>
+        call("parsingTokenizeStreamClose", requestJSON),
+      EserAjanShellExec: (requestJSON: string) =>
+        call("shellExec", requestJSON),
+      EserAjanShellTuiKeypressCreate: (requestJSON: string) =>
+        call("shellTuiKeypressCreate", requestJSON),
+      EserAjanShellTuiKeypressRead: (handle: string) =>
+        call("shellTuiKeypressRead", handle),
+      EserAjanShellTuiKeypressClose: (handle: string) =>
+        call("shellTuiKeypressClose", handle),
+      EserAjanShellTuiSetStdinRaw: (requestJSON: string) =>
+        call("shellTuiSetStdinRaw", requestJSON),
+      EserAjanShellTuiGetSize: (requestJSON: string) =>
+        call("shellTuiGetSize", requestJSON),
+      EserAjanShellExecSpawn: (requestJSON: string) =>
+        call("shellExecSpawn", requestJSON),
+      EserAjanShellExecRead: (handle: string) => call("shellExecRead", handle),
+      EserAjanShellExecWrite: (requestJSON: string) =>
+        call("shellExecWrite", requestJSON),
+      EserAjanShellExecClose: (handle: string) =>
+        call("shellExecClose", handle),
+      EserAjanShellPtySpawn: (requestJSON: string) =>
+        call("shellPtySpawn", requestJSON),
+      // Deferred through `then` so a failure surfaces on the returned promise:
+      // this symbol is declared async, and a synchronous throw would break
+      // callers that only attach a `catch`.
+      EserAjanShellPtyRead: (handle: string): Promise<string> =>
+        Promise.resolve().then(() => call("shellPtyRead", handle)),
+      EserAjanShellPtyWrite: (requestJSON: string) =>
+        call("shellPtyWrite", requestJSON),
+      EserAjanShellPtyResize: (requestJSON: string) =>
+        call("shellPtyResize", requestJSON),
+      EserAjanShellPtyKill: (requestJSON: string) =>
+        call("shellPtyKill", requestJSON),
+      EserAjanShellPtyClose: (handle: string) => call("shellPtyClose", handle),
     },
     close: () => {
-      // The WASM instance will be garbage collected.
-      // No explicit cleanup needed.
+      reactor.close();
     },
   };
 };

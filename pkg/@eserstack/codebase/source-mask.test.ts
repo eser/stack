@@ -1,6 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import * as assert from "@std/assert";
+import * as assert from "@eserstack/test-kit/assert";
 import * as sourceMask from "./source-mask.ts";
 
 // Masked positions become "_", so each expectation shows what counts as code.
@@ -54,6 +54,21 @@ const cases: ReadonlyArray<{
     name: "does not end a template at an escaped backtick",
     source: "`a\\`b` + c",
     expected: "______ + c",
+  },
+  {
+    name: "masks a regular expression literal, quotes and backticks included",
+    source: "x.replace(/[\"'`]/g, a || b)",
+    expected: "x.replace(________, a || b)",
+  },
+  {
+    name: "keeps a slash after a value as division",
+    source: "a = b / c; d = (e) / f / g",
+    expected: "a = b / c; d = (e) / f / g",
+  },
+  {
+    name: "masks a regex after a keyword and a class holding a slash",
+    source: "return /[/]x\\//.test(s) || t",
+    expected: "return ________.test(s) || t",
   },
 ];
 

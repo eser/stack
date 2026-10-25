@@ -1,8 +1,9 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import * as assert from "@std/assert";
+import * as assert from "@eserstack/test-kit/assert";
 import { runtime } from "@eserstack/standards/cross-runtime";
 import * as formats from "@eserstack/formats";
+import * as dotenv from "@eserstack/config/dotenv";
 import * as sync from "./sync.ts";
 import type * as types from "./types.ts";
 
@@ -134,6 +135,39 @@ Deno.test("buildSecretFromContext() should handle special characters in values",
   assert.assertEquals(
     secret.data?.["MULTILINE_VAR"],
     btoa("line1\\nline2\\nline3"),
+  );
+});
+
+Deno.test("buildSecretFromContext() should encode values as UTF-8 base64", () => {
+  const data = new Map([["LATIN", "ü"], ["TURKISH", "ğış"]]);
+
+  const secret = sync.buildSecretFromContext("utf8-secret", undefined, data);
+
+  // The bytes Kubernetes decodes are the UTF-8 bytes of the value, as the Go
+  // csfx writes them; btoa would encode "ü" as one Latin-1 byte and throw on
+  // "ğ".
+  assert.assertEquals(secret.data, { LATIN: "w7w=", TURKISH: "xJ/EscWf" });
+});
+
+Deno.test("build*FromContext() leave out the env name entry and sort the keys", async () => {
+  const dir = await createEnvDir({ ".env": { ZED: "z", ALPHA: "a" } });
+  const envMap = await dotenv.load({
+    baseDir: dir,
+    env: "staging",
+    loadProcessEnv: false,
+  });
+
+  // The loader's map carries the environment name under a symbol key, which
+  // is not a variable; the Go csfx writes the keys sorted.
+  assert.assertEquals(
+    Object.keys(sync.buildSecretFromContext("s", undefined, envMap).data ?? {}),
+    ["ALPHA", "ZED"],
+  );
+  assert.assertEquals(
+    Object.keys(
+      sync.buildConfigMapFromContext("c", undefined, envMap).data ?? {},
+    ),
+    ["ALPHA", "ZED"],
   );
 });
 

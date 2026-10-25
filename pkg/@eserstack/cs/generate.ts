@@ -61,14 +61,12 @@ export const generate = async (options: GenerateOptions): Promise<string> => {
   const lib = ffiClient.getLib();
   if (lib !== null) {
     try {
-      const cwd = options.cwd ?? runtime.process.cwd();
-      const envFilePath = options.env !== undefined
-        ? runtime.path.join(cwd, `.env.${options.env}`)
-        : "";
+      // Go reads the same layered .env files as the TypeScript loader below:
+      // .env, .env.<env>, .env.local and .env.<env>.local.
       const requestJSON = JSON.stringify({
         resource: options.resource,
-        envFile: envFilePath,
-        cwd: options.env === undefined ? cwd : "",
+        env: options.env ?? "",
+        cwd: options.cwd ?? runtime.process.cwd(),
         format: options.format,
         namespace: options.namespace ?? "",
       });

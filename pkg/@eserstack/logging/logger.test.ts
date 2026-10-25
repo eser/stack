@@ -1,6 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import * as assert from "@std/assert";
+import * as assert from "@eserstack/test-kit/assert";
 import * as logging from "@eserstack/standards/logging";
 import * as log from "./mod.ts";
 import * as ffiClient from "./ffi-client.ts";
@@ -355,6 +355,41 @@ Deno.test("Logger.log() writes an Error attribute with its cause on the console 
     record.slice(record.indexOf(`${message} `) + message.length + 1),
   ) as { error: unknown };
   assertSerializedErrorWithCause(attrs.error);
+});
+
+Deno.test("Logger.log() includes context set in an async parent in a nested awaited call", async () => {
+  await beforeEach();
+  await configureFallbackTest("context-nested");
+
+  // Forces the console fallback, so the record's attributes can be read back.
+  const restore = stubLogSymbols({
+    create: () => JSON.stringify({ error: "create-boom" }),
+  });
+
+  const message = "nested context call";
+  const logNested = async (): Promise<void> => {
+    await Promise.resolve();
+    await getLogger(["context-nested"]).info(message);
+  };
+
+  const lines = await captureConsole(async () => {
+    try {
+      await log.context.withContext({ requestId: "req-42" }, async () => {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        await logNested();
+      });
+    } finally {
+      restore();
+    }
+  });
+
+  const record = lines.find((line) => line.includes(`${message} `));
+  assert.assertExists(record);
+
+  const attrs = JSON.parse(
+    record.slice(record.indexOf(`${message} `) + message.length + 1),
+  ) as { requestId?: unknown };
+  assert.assertEquals(attrs.requestId, "req-42");
 });
 
 Deno.test("Logger constructor creates logger with category", async () => {

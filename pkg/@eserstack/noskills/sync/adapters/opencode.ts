@@ -509,8 +509,14 @@ export const opencodeAdapter: adapter.ToolAdapter = {
     if (await fileExists(configPath)) {
       try {
         const content = await crossRuntime.runtime.fs.readTextFile(configPath);
-        const parsed = JSON.parse(content) as OpenCodeConfig;
-        existing = parsed;
+        const parsed: unknown = JSON.parse(content);
+        // A file holding null, an array or a scalar counts as no config.
+        if (
+          parsed !== null && typeof parsed === "object" &&
+          !Array.isArray(parsed)
+        ) {
+          existing = parsed as OpenCodeConfig;
+        }
       } catch {
         // Malformed JSON — start fresh
       }

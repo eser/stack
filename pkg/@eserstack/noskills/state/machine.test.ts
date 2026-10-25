@@ -1,7 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 import * as bdd from "@std/testing/bdd";
-import * as assert from "@std/assert";
+import * as assert from "@eserstack/test-kit/assert";
 import * as machine from "./machine.ts";
 import * as schema from "./schema.ts";
 import * as questions from "../context/questions.ts";
@@ -875,6 +875,21 @@ bdd.describe("Jidoka Completeness Gate: approveDiscoveryReview", () => {
       Error,
       "Spec incomplete",
     );
+  });
+
+  // TASK-325: the refusal names the command that resolves a section.
+  bdd.it("names the section command when a section is open", () => {
+    const state = makeRefinementState([
+      { sectionId: "summary", sectionTitle: "Summary", status: "placeholder" },
+    ]);
+    const error = assert.assertThrows(
+      () => machine.approveDiscoveryReview(state),
+      Error,
+    );
+    assert.assertStringIncludes(error.message, "  - Summary (summary)");
+    assert.assertStringIncludes(error.message, 'section <id> fill "text"');
+    assert.assertStringIncludes(error.message, 'section <id> na "reason"');
+    assert.assertStringIncludes(error.message, "section list");
   });
 
   bdd.it("throws when N/A has no reason", () => {

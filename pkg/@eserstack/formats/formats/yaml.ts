@@ -13,7 +13,12 @@ export const writeItem = (
   options?: FormatOptions,
 ): string => {
   try {
-    const yamlOptions: yaml.ToStringOptions = {};
+    // Written as YAML 1.1, so strings that a 1.1 reader (kubectl, PyYAML)
+    // would take for booleans, numbers or dates (yes, off, 1_000,
+    // 2001-12-14) are quoted. Reading stays YAML 1.2.
+    const yamlOptions: yaml.DocumentOptions & yaml.ToStringOptions = {
+      version: "1.1",
+    };
 
     if (options?.indent !== undefined) {
       yamlOptions.indent = options.indent;

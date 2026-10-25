@@ -1,9 +1,10 @@
 ---
 id: TASK-169
 title: 'Reload API routes, proxies and page modules after a laroux dev rebuild'
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-10-05 00:58'
+updated_date: '2026-10-15 19:34'
 labels:
   - laroux
   - dev
@@ -27,7 +28,28 @@ Decision: in dev mode, the server imports the route registry, the proxy registry
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 After a dev rebuild, a changed route.ts, proxy.ts or page module is served without a restart, shown by a test
-- [ ] #2 A CSS-only rebuild keeps CSS module styles in styles.css
-- [ ] #3 deno task cli ok passes
+- [x] #1 After a dev rebuild, a changed route.ts, proxy.ts or page module is served without a restart, shown by a test
+- [x] #2 A CSS-only rebuild keeps CSS module styles in styles.css
+- [x] #3 deno task cli ok passes
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Completed in round 3 of the autonomous backlog run (2026-10-05); deno task cli ok passes.
+
+Verified. ServerModules.load(buildId) imports the page routes, the layout, the API route and proxy registries and the server actions by URLs that end in `?v=<buildId>` (build-module.ts). generateRouteFile adds the same query to page and layout imports through `moduleVersion`. The rebuild handler loads the new modules before it sends the HMR update. watch() waits for the callback's promise. The CSS-only path writes styles.css as a full build does (global stylesheet, then the CSS module styles) and regenerates the derived CSS.
+
+Tests cover each part:
+- An integration test in server-modules.test.ts runs a real dev build, changes page.tsx, route.ts and proxy.ts, rebuilds, and checks the new responses.
+- Unit tests cover the route and middleware dispatchers, the rebuild handler and build-module.
+- system.test.ts checks that a CSS-only rebuild writes the same styles.css as a full build, CSS module styles included.
+
+All of them pass.
+
+Two fixes in server-modules.ts:
+- I added a reason comment to the no-await-in-loop ignore in the catch block of loadServerActions.
+- The load() doc now says what happens when an API route or proxy registry fails to load after the pages loaded.
+
+I added the startup-failure strictness to breakingChanges. Known limitation, documented in the laroux-server README: a module that route.ts or proxy.ts imports keeps its first version until the dev server restarts. Stage 2 proposed a follow-up task for it.
+<!-- SECTION:NOTES:END -->

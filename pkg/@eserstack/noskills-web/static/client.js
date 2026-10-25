@@ -123,27 +123,40 @@
     ws.onerror = () => {/* close handler retries */};
   }
 
+  // The result of a spec action. The action routes answer JSON, but the guard
+  // in front of them answers a refusal in plain text ("Forbidden: missing or
+  // invalid token"), and so may a proxy; such a body becomes the error.
+  async function readActionResult(res) {
+    const text = await res.text();
+    try {
+      const parsed = JSON.parse(text);
+      if (parsed !== null && typeof parsed === "object") return parsed;
+    } catch {
+      // Not JSON: a plain-text answer.
+    }
+    const reason = text.trim() !== "" ? text.trim() : res.statusText;
+    return { ok: false, error: `${reason} (HTTP ${res.status})` };
+  }
+
   // ── Click delegation: tab switch (mux), tab add/close (REST), spec CTAs ────
   document.addEventListener("click", async (e) => {
     const target = e.target;
 
-    if (
-      target.classList.contains("tab") && target.dataset.index !== undefined
-    ) {
-      send({
-        t: "action",
-        action: { type: "gotoTab", index: Number(target.dataset.index) },
+    // Each tab is a select button and a close button side by side, so both
+    // take keyboard focus; Enter and Space on a button arrive here as a click.
+    const closeButton = target.closest(".tab-close");
+    if (closeButton !== null && closeButton.dataset.close !== undefined) {
+      await authedFetch(`/api/tab/${closeButton.dataset.close}`, {
+        method: "DELETE",
       });
       return;
     }
 
-    if (
-      target.classList.contains("tab-close") &&
-      target.dataset.close !== undefined
-    ) {
-      e.stopPropagation();
-      await authedFetch(`/api/tab/${target.dataset.close}`, {
-        method: "DELETE",
+    const tabButton = target.closest(".tab-select");
+    if (tabButton !== null && tabButton.dataset.index !== undefined) {
+      send({
+        t: "action",
+        action: { type: "gotoTab", index: Number(tabButton.dataset.index) },
       });
       return;
     }
@@ -186,12 +199,18 @@
         body = { text, mentionId };
       }
 
-      const res = await authedFetch(`/api/spec/${spec}/${action}`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      const result = await res.json();
+      let result;
+      try {
+        const res = await authedFetch(`/api/spec/${spec}/${action}`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        result = await readActionResult(res);
+      } catch {
+        alert("Action failed: the noskills web server did not answer");
+        return;
+      }
       if (result.ok === true) {
         location.reload();
         return;

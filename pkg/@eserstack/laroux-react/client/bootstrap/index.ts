@@ -4,18 +4,18 @@
  * Re-exports all client-side modules for the RSC bundler
  */
 
-export { ErrorBoundary } from "./error-boundary.tsx";
+export { ErrorBoundary } from "./error-boundary.ts";
 export type {
   ErrorBoundaryProps,
   ErrorBoundaryState,
-} from "./error-boundary.tsx";
-export { ErrorOverlay } from "./error-overlay.tsx";
-export { initializeHMR } from "./hmr-client.tsx";
+} from "./error-boundary.ts";
+export { ErrorOverlay } from "./error-overlay.ts";
+export { initializeHMR } from "./hmr-client.ts";
 export { LazyChunkLoader } from "./lazy-loader.ts";
 export {
   initializeSmartRefresh,
   triggerSmartRefresh,
-} from "./smart-refresh.tsx";
+} from "./smart-refresh.ts";
 export {
   installLinkNavigation,
   LINK_ATTRIBUTE,

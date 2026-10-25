@@ -5,7 +5,7 @@
 ### httpclient.bridgeHttpCreate — ServerErrorThreshold lost via WithConfig
 
 - **Status**: RESOLVED
-- **Location**: `pkg/@eserstack/ajan/bridge.go` function `bridgeHttpCreate`
+- **Location**: `pkg/@eserstack/ajan/bridge_http.go` function `bridgeHttpCreate`
 - **Go behavior**: `httpclient.Client` created via `NewClient(WithConfig(cfg))`
   has `ServerErrorThreshold` unset (zero/default) even when the incoming request
   specifies it. Root cause: `WithConfig` replaces the entire config pointer

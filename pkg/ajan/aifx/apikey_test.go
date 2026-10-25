@@ -6,9 +6,6 @@ import (
 	"net/http"
 	"net/url"
 	"testing"
-
-	"github.com/anthropics/anthropic-sdk-go"
-	"github.com/anthropics/anthropic-sdk-go/option"
 )
 
 // The property under test: a provider configured with no API key still works if
@@ -52,8 +49,8 @@ func TestResolveAPIKeyFallsBackToTheEnvironment(t *testing.T) {
 // the fallback has to cover both or detect would call the provider configured
 // while the factory refused it.
 //
-// The ORDER matters and is not arbitrary: the pinned genai SDK logs "Using
-// GOOGLE_API_KEY" when both are set. Preferring GEMINI_API_KEY here would make
+// The ORDER matters and is not arbitrary: the genai SDKs use GOOGLE_API_KEY
+// when both are set. Preferring GEMINI_API_KEY here would make
 // a machine with both exported authenticate as a different project depending on
 // whether the FFI bridge or the pure-TS path served the call.
 func TestResolveAPIKeyAcceptsEitherGeminiName(t *testing.T) {
@@ -206,7 +203,7 @@ func TestAPIKeyEnvVarsExcludesTokenVariables(t *testing.T) {
 	}
 }
 
-// capturingTransport records the request the SDK actually sent.
+// capturingTransport records the request the adapter actually sent.
 type capturingTransport struct {
 	header http.Header
 	url    *url.URL
@@ -221,12 +218,39 @@ func (t *capturingTransport) RoundTrip(req *http.Request) (*http.Response, error
 
 var errCaptured = errors.New("captured")
 
+// captureAnthropicRequest sends one request through the transport CreateModel
+// builds, with retries off, and returns what reached the network.
+func captureAnthropicRequest(t *testing.T, config *ConfigTarget, credential Credential) *capturingTransport {
+	t.Helper()
+
+	transport := &capturingTransport{} //nolint:exhaustruct
+
+	config.Model = "claude-test"
+
+	model := &AnthropicModel{
+		transport: newAnthropicTransport(config, credential, &http.Client{Transport: transport}), //nolint:exhaustruct
+		config:    config,
+	}
+	model.transport.retry.maxRetries = 0
+
+	// The call is expected to fail at the transport; the request is the point.
+	_, _ = model.GenerateText(context.Background(), &GenerateTextOptions{ //nolint:exhaustruct
+		Messages:  []Message{NewTextMessage(RoleUser, "hi")},
+		MaxTokens: 1,
+	})
+
+	if transport.header == nil {
+		t.Fatalf("%s: no request was sent", credential.Kind)
+	}
+
+	return transport
+}
+
 // TestCredentialReachesTheRightHeader is the assertion the branch alone cannot
 // make.
 //
-// Testing that credentialOption returns a different option per kind proves
-// nothing: what matters is which HEADER the SDK ends up sending. A bearer token
-// in X-Api-Key does not fail loudly — it 401s at request time, which reads as a
+// What matters is which HEADER ends up on the request. A bearer token in
+// X-Api-Key does not fail loudly — it 401s at request time, which reads as a
 // bad credential rather than as the wrong header, and that is exactly the
 // failure this routing exists to prevent.
 func TestCredentialReachesTheRightHeader(t *testing.T) {
@@ -251,34 +275,12 @@ func TestCredentialReachesTheRightHeader(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		transport := &capturingTransport{} //nolint:exhaustruct
-
-		// Through the production option list, and with the environment cleared.
-		// Built by hand this test leaked: anthropic.NewClient prepends its own
-		// env credential chain, so an exported ANTHROPIC_API_KEY put X-Api-Key on
-		// the auth_token case and the assertion failed for a reason that had
-		// nothing to do with the routing under test.
+		// With the environment cleared, so an exported key cannot leak into the
+		// auth_token case.
 		t.Setenv("ANTHROPIC_API_KEY", "")
 		t.Setenv("ANTHROPIC_AUTH_TOKEN", "")
 
-		opts := append(
-			anthropicClientOptions(&ConfigTarget{Provider: "anthropic"}, tc.credential), //nolint:exhaustruct
-			option.WithHTTPClient(&http.Client{Transport: transport}),                   //nolint:exhaustruct
-			option.WithMaxRetries(0),
-		)
-
-		client := anthropic.NewClient(opts...)
-
-		// The call is expected to fail at the transport; the request is the point.
-		_, _ = client.Messages.New(context.Background(), anthropic.MessageNewParams{ //nolint:exhaustruct
-			Model:     "claude-test",
-			MaxTokens: 1,
-			Messages:  []anthropic.MessageParam{anthropic.NewUserMessage(anthropic.NewTextBlock("hi"))},
-		})
-
-		if transport.header == nil {
-			t.Fatalf("%s: no request was sent", tc.credential.Kind)
-		}
+		transport := captureAnthropicRequest(t, &ConfigTarget{Provider: "anthropic"}, tc.credential) //nolint:exhaustruct
 
 		if got := transport.header.Get(tc.wantHeader); got != tc.wantValue {
 			t.Fatalf("%s: %s = %q, want %q",
@@ -293,12 +295,7 @@ func TestCredentialReachesTheRightHeader(t *testing.T) {
 }
 
 // TestNoAmbientCredentialIsSent pins that only the credential this package
-// resolved reaches the network.
-//
-// It drives anthropicClientOptions — the list CreateModel actually uses. An
-// earlier version of this test rebuilt the options by hand and therefore passed
-// against a factory with the guard removed, which is the failure mode it exists
-// to catch.
+// resolved reaches the network, through the transport CreateModel uses.
 func TestNoAmbientCredentialIsSent(t *testing.T) {
 	t.Setenv("ANTHROPIC_API_KEY", "")
 	t.Setenv("ANTHROPIC_AUTH_TOKEN", "ambient-token-must-not-be-sent")
@@ -309,28 +306,7 @@ func TestNoAmbientCredentialIsSent(t *testing.T) {
 		APIKey:   "configured-key",
 	}
 
-	credential := ResolveCredential(config)
-	transport := &capturingTransport{} //nolint:exhaustruct
-
-	opts := append(
-		anthropicClientOptions(config, credential),
-		option.WithHTTPClient(&http.Client{Transport: transport}), //nolint:exhaustruct
-		option.WithMaxRetries(0),
-	)
-
-	client := anthropic.NewClient(opts...)
-
-	_, _ = client.Messages.New(context.Background(), anthropic.MessageNewParams{ //nolint:exhaustruct
-		Model:     "claude-test",
-		MaxTokens: 1,
-		Messages: []anthropic.MessageParam{
-			anthropic.NewUserMessage(anthropic.NewTextBlock("hi")),
-		},
-	})
-
-	if transport.header == nil {
-		t.Fatal("no request was sent")
-	}
+	transport := captureAnthropicRequest(t, config, ResolveCredential(config))
 
 	if got := transport.header.Get("Authorization"); got != "" {
 		t.Fatalf("an ambient environment credential was sent: Authorization = %q", got)
@@ -341,39 +317,16 @@ func TestNoAmbientCredentialIsSent(t *testing.T) {
 	}
 }
 
-// TestBaseURLFallsBackToTheEnvironment pins a regression that
-// WithoutEnvironmentDefaults would otherwise introduce silently.
-//
-// Suppressing the SDK's env chain also suppresses its ANTHROPIC_BASE_URL
-// autoload. config.BaseURL is only applied when set, so a machine pointing at a
-// proxy purely through the environment would have started talking to the public
-// API instead — with no error, and with the credential attached.
+// TestBaseURLFallsBackToTheEnvironment pins that a machine pointing at a proxy
+// purely through ANTHROPIC_BASE_URL keeps reaching the proxy instead of the
+// public API, with the credential attached.
 func TestBaseURLFallsBackToTheEnvironment(t *testing.T) {
 	t.Setenv("ANTHROPIC_BASE_URL", "https://proxy.example/v1/")
 
-	transport := &capturingTransport{} //nolint:exhaustruct
-
-	opts := append(
-		anthropicClientOptions(
-			&ConfigTarget{Provider: "anthropic"}, //nolint:exhaustruct
-			Credential{Value: "k", Kind: CredentialAPIKey},
-		),
-		option.WithHTTPClient(&http.Client{Transport: transport}), //nolint:exhaustruct
-		option.WithMaxRetries(0),
+	transport := captureAnthropicRequest(t,
+		&ConfigTarget{Provider: "anthropic"}, //nolint:exhaustruct
+		Credential{Value: "k", Kind: CredentialAPIKey},
 	)
-
-	client := anthropic.NewClient(opts...)
-
-	_, _ = client.Messages.New(context.Background(), anthropic.MessageNewParams{ //nolint:exhaustruct
-		Model: "m", MaxTokens: 1,
-		Messages: []anthropic.MessageParam{
-			anthropic.NewUserMessage(anthropic.NewTextBlock("hi")),
-		},
-	})
-
-	if transport.url == nil {
-		t.Fatal("no request was sent")
-	}
 
 	if got := transport.url.Host; got != "proxy.example" {
 		t.Fatalf("request went to %q, not the ANTHROPIC_BASE_URL proxy", got)
@@ -384,25 +337,10 @@ func TestBaseURLFallsBackToTheEnvironment(t *testing.T) {
 func TestConfiguredBaseURLWinsOverTheEnvironment(t *testing.T) {
 	t.Setenv("ANTHROPIC_BASE_URL", "https://env.example/v1/")
 
-	transport := &capturingTransport{} //nolint:exhaustruct
-
-	opts := append(
-		anthropicClientOptions(
-			&ConfigTarget{Provider: "anthropic", BaseURL: "https://configured.example/v1/"}, //nolint:exhaustruct
-			Credential{Value: "k", Kind: CredentialAPIKey},
-		),
-		option.WithHTTPClient(&http.Client{Transport: transport}), //nolint:exhaustruct
-		option.WithMaxRetries(0),
+	transport := captureAnthropicRequest(t,
+		&ConfigTarget{Provider: "anthropic", BaseURL: "https://configured.example/v1/"}, //nolint:exhaustruct
+		Credential{Value: "k", Kind: CredentialAPIKey},
 	)
-
-	client := anthropic.NewClient(opts...)
-
-	_, _ = client.Messages.New(context.Background(), anthropic.MessageNewParams{ //nolint:exhaustruct
-		Model: "m", MaxTokens: 1,
-		Messages: []anthropic.MessageParam{
-			anthropic.NewUserMessage(anthropic.NewTextBlock("hi")),
-		},
-	})
 
 	if got := transport.url.Host; got != "configured.example" {
 		t.Fatalf("request went to %q, want the configured base URL", got)

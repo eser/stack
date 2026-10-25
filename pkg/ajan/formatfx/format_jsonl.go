@@ -53,6 +53,10 @@ func (r *jsonlReader) Push(chunk string) ([]any, error) {
 			continue
 		}
 
+		if err := CheckJSONDepth(line); err != nil {
+			return nil, newDeserializationError("jsonl", "failed to deserialize JSONL: "+err.Error(), err)
+		}
+
 		var item any
 		if err := json.Unmarshal([]byte(line), &item); err != nil {
 			// Incomplete line — keep in buffer for next Push
@@ -76,6 +80,10 @@ func (r *jsonlReader) Flush() ([]any, error) {
 
 	if text == "" {
 		return nil, nil
+	}
+
+	if err := CheckJSONDepth(text); err != nil {
+		return nil, newDeserializationError("jsonl", "failed to deserialize JSONL: "+err.Error(), err)
 	}
 
 	var item any

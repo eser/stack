@@ -11,7 +11,7 @@ import (
 	"slices"
 	"time"
 
-	"github.com/eser/stack/pkg/ajan/lib"
+	"github.com/eser/stack/pkg/ajan/lib/netlib"
 	"github.com/eser/stack/pkg/ajan/logfx"
 	"github.com/quic-go/quic-go"
 	"github.com/quic-go/quic-go/http3"
@@ -145,7 +145,7 @@ func (hs *HTTP3Service) SetupTLS(ctx context.Context, tlsConfig *tls.Config) err
 				MinVersion:   tls.VersionTLS13,
 			}
 		case hs.Config.SelfSigned:
-			cert, err := lib.GenerateSelfSignedCert()
+			cert, err := netlib.GenerateSelfSignedCert()
 			if err != nil {
 				return fmt.Errorf("%w: %w", ErrHTTP3FailedToGenerateSelfSigned, err)
 			}

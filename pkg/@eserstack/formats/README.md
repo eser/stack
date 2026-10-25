@@ -1,5 +1,9 @@
 # 🔄 [@eserstack/formats](./)
 
+> **Note:** JSR is frozen at 4.5.x. From 5.0.0, `@eserstack/formats` is
+> published on npm under the same name (`pnpm add @eserstack/formats`); the JSR
+> versions stay available but get no updates.
+
 `@eserstack/formats` converts data to and from JSON, JSONL, YAML, CSV and TOML
 through one API. Each format is a plain object with a writer and a streaming
 reader, kept in a registry you can extend with your own formats. When the

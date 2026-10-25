@@ -64,22 +64,23 @@
     // ── Tab management via mux actions (no REST on the daemon) ──────────────
     document.addEventListener("click", (e) => {
       const t = e.target;
-      if (t.classList.contains("tab") && t.dataset.index !== undefined) {
-        send({
-          t: "action",
-          action: { type: "gotoTab", index: Number(t.dataset.index) },
-        });
-      } else if (
-        t.classList.contains("tab-close") && t.dataset.close !== undefined
-      ) {
-        e.stopPropagation();
+      // Each tab is a select button and a close button side by side (see
+      // mux-render.js); Enter and Space on a button arrive as a click.
+      const closeButton = t.closest(".tab-close");
+      const tabButton = t.closest(".tab-select");
+      if (closeButton !== null && closeButton.dataset.close !== undefined) {
         const scene = renderer.getScene();
         const idx = scene !== null && Array.isArray(scene.tabs)
-          ? scene.tabs.findIndex((tab) => tab.id === t.dataset.close)
+          ? scene.tabs.findIndex((tab) => tab.id === closeButton.dataset.close)
           : -1;
         if (idx !== -1) {
           send({ t: "action", action: { type: "closeTab", index: idx } });
         }
+      } else if (tabButton !== null && tabButton.dataset.index !== undefined) {
+        send({
+          t: "action",
+          action: { type: "gotoTab", index: Number(tabButton.dataset.index) },
+        });
       } else if (t.closest("#add-tab") !== null) {
         send({ t: "action", action: { type: "newTab" } });
       }

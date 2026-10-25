@@ -1,6 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import * as assert from "@std/assert";
+import * as assert from "@eserstack/test-kit/assert";
 
 import * as results from "@eserstack/primitives/results";
 import * as shellExec from "@eserstack/shell/exec";
@@ -249,4 +249,41 @@ Deno.test({
       await runtime.fs.remove(root, { recursive: true });
     }
   },
+});
+
+Deno.test("missingArchiveMessage points to npm and the install script", () => {
+  const message = update.missingArchiveMessage(
+    { command: "laroux", npmPackage: "laroux" },
+    "v5.0.0",
+    "laroux-v5.0.0-aarch64-apple-darwin.tar.gz",
+    false,
+  );
+
+  assert.assertStringIncludes(
+    message,
+    "Release v5.0.0 has no laroux-v5.0.0-aarch64-apple-darwin.tar.gz",
+  );
+  assert.assertStringIncludes(message, "npm install -g laroux");
+  assert.assertStringIncludes(
+    message,
+    "curl -fsSL https://raw.githubusercontent.com/eser/stack/main/etc/scripts/install.sh | sh -s laroux",
+  );
+  // The message names no checksum or download error.
+  assert.assertFalse(/checksum|HTTP [0-9]/i.test(message));
+});
+
+Deno.test("missingArchiveMessage gives the PowerShell installer on Windows", () => {
+  const message = update.missingArchiveMessage(
+    { command: "eser" },
+    "v5.0.0",
+    "eser-v5.0.0-x86_64-pc-windows-msvc.zip",
+    true,
+  );
+
+  assert.assertStringIncludes(message, "npm install -g eser");
+  assert.assertStringIncludes(
+    message,
+    "irm https://raw.githubusercontent.com/eser/stack/main/etc/scripts/install.ps1",
+  );
+  assert.assertStringIncludes(message, "-Product eser");
 });

@@ -1,6 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import * as assert from "@std/assert";
+import * as assert from "@eserstack/test-kit/assert";
 import * as crossRuntime from "../mod.ts";
 import * as httpScenario from "./testdata/http-scenario.ts";
 import * as probes from "./testdata/probes.ts";
@@ -113,6 +113,52 @@ Deno.test("Node adapter process stdio", async (t) => {
       assert.assertEquals(result.timedOut, false, result.stderr);
       assert.assertEquals(result.code, 0, result.stderr);
       assert.assertEquals(result.stdout, "PING FROM DENO");
+    },
+  });
+});
+
+Deno.test("Node adapter maps EACCES to PermissionDeniedError", async (t) => {
+  const hasNode = await crossRuntime.isCommandInPath("node");
+  // root reads files regardless of their mode.
+  const isRoot = crossRuntime.runtime.env.get("USER") === "root";
+
+  await t.step({
+    name: "reading a file without read permission",
+    ignore: !hasNode || isRoot || crossRuntime.getPlatform() === "windows",
+    fn: async () => {
+      const dir = await crossRuntime.runtime.fs.makeTempDir();
+      const file = crossRuntime.runtime.path.join(dir, "locked.txt");
+      try {
+        await crossRuntime.runtime.fs.writeTextFile(file, "secret");
+        await crossRuntime.runtime.fs.chmod(file, 0o000);
+
+        const result = await runNodeProbe(
+          `const { runtime, PermissionDeniedError } = await import(process.argv[1]);
+          try {
+            await runtime.fs.readTextFile(${JSON.stringify(file)});
+            console.log("read");
+          } catch (error) {
+            console.log(JSON.stringify([
+              error instanceof PermissionDeniedError,
+              error.name,
+              error.path,
+              error.cause?.code,
+            ]));
+          }`,
+          "",
+        );
+
+        assert.assertEquals(result.code, 0, result.stderr);
+        assert.assertEquals(JSON.parse(result.stdout), [
+          true,
+          "PermissionDeniedError",
+          file,
+          "EACCES",
+        ]);
+      } finally {
+        await crossRuntime.runtime.fs.chmod(file, 0o600);
+        await crossRuntime.runtime.fs.remove(dir, { recursive: true });
+      }
     },
   });
 });

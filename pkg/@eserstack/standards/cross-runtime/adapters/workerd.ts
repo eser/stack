@@ -27,7 +27,6 @@ export const WORKERD_CAPABILITIES: RuntimeCapabilities = {
   stdin: false,
   stdout: false,
   http: false, // A Worker answers requests through its fetch export
-  kv: true, // Cloudflare KV bindings
 } as const;
 
 // =============================================================================

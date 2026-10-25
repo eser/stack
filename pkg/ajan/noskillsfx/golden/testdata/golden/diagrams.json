@@ -1,0 +1,209 @@
+[
+  {
+    "args": [
+      "diagrams",
+      "scan"
+    ],
+    "exitCode": 1,
+    "stdout": "noskills is not initialized. Run: npx eser@latest noskills init\n",
+    "files": {
+      "package.json": "{\"name\":\"fixture\",\"version\":\"1.0.0\"}\n"
+    }
+  },
+  {
+    "args": [
+      "diagrams",
+      "list"
+    ],
+    "exitCode": 0,
+    "stdout": "No diagrams registered. Run: npx eser@latest noskills diagrams scan\n",
+    "files": {}
+  },
+  {
+    "args": [
+      "init",
+      "--non-interactive"
+    ],
+    "exitCode": 0,
+    "stdout": "",
+    "files": {
+      ".eser/.gitignore": "# eser toolchain runtime state — not tracked by git\n.state/\n",
+      ".eser/.state/progresses/state.json": "{\n  \"version\": \"0.1.0\",\n  \"phase\": \"IDLE\",\n  \"spec\": null,\n  \"specDescription\": null,\n  \"branch\": null,\n  \"discovery\": {\n    \"answers\": [],\n    \"completed\": false,\n    \"currentQuestion\": 0,\n    \"audience\": \"human\",\n    \"approved\": false,\n    \"planPath\": null\n  },\n  \"specState\": {\n    \"path\": null,\n    \"status\": \"none\",\n    \"metadata\": {\n      \"created\": {\n        \"date\": \"\",\n        \"user\": \"\"\n      },\n      \"lastModified\": {\n        \"date\": \"\",\n        \"user\": \"\"\n      },\n      \"contributors\": [],\n      \"approvals\": [],\n      \"pendingDecisions\": []\n    },\n    \"placeholders\": []\n  },\n  \"execution\": {\n    \"iteration\": 0,\n    \"lastProgress\": null,\n    \"modifiedFiles\": [],\n    \"lastVerification\": null,\n    \"awaitingStatusReport\": false,\n    \"debt\": null,\n    \"completedTasks\": [],\n    \"debtCounter\": 0,\n    \"naItems\": []\n  },\n  \"decisions\": [],\n  \"lastCalledAt\": null,\n  \"classification\": null,\n  \"completionReason\": null,\n  \"completedAt\": null,\n  \"completionNote\": null,\n  \"reopenedFrom\": null,\n  \"revisitHistory\": []\n}\n",
+      ".eser/manifest.yml": "noskills:\n  # noskills orchestrator — inline comments in this section won't be preserved on next write\n  concerns: []\n  tools: []\n  providers: []\n  project:\n    languages:\n      - typescript\n    frameworks: []\n    ci: []\n    testRunner: null\n  maxIterationsBeforeRestart: 15\n  verifyCommand: null\n  allowGit: false\n  command: npx eser@latest noskills\n"
+    }
+  },
+  {
+    "args": [
+      "diagrams"
+    ],
+    "exitCode": 0,
+    "stdout": "No diagrams registered. Run: npx eser@latest noskills diagrams scan\n",
+    "files": {}
+  },
+  {
+    "args": [
+      "diagrams",
+      "check"
+    ],
+    "exitCode": 0,
+    "stdout": "✔ No stale diagrams.\n",
+    "files": {}
+  },
+  {
+    "args": [
+      "diagrams",
+      "scan"
+    ],
+    "exitCode": 0,
+    "stdout": "✔ Found 4 diagram(s):\n  README.md:3 [mermaid] refs: 3\n  docs/arch.md:3 [ascii] refs: 2\n  docs/nested/deep.md:2 [mermaid] refs: 2\n  arch.puml:1 [plantuml] refs: 1\n",
+    "files": {
+      ".eser/diagrams.json": "[\n  {\n    \"file\": \"README.md\",\n    \"line\": 3,\n    \"type\": \"mermaid\",\n    \"hash\": \"7bgjwm\",\n    \"referencedFiles\": [\n      \"src/login.ts\",\n      \"dashboard/state\",\n      \"@eserstack/noskills\"\n    ],\n    \"lastVerified\": \"\u003cTIME\u003e\"\n  },\n  {\n    \"file\": \"docs/arch.md\",\n    \"line\": 3,\n    \"type\": \"ascii\",\n    \"hash\": \"eli6tk\",\n    \"referencedFiles\": [\n      \"main.go\",\n      \"store.go\"\n    ],\n    \"lastVerified\": \"\u003cTIME\u003e\"\n  },\n  {\n    \"file\": \"docs/nested/deep.md\",\n    \"line\": 2,\n    \"type\": \"mermaid\",\n    \"hash\": \"7ehzs8\",\n    \"referencedFiles\": [\n      \"pkg/@eserstack/noskills/main.ts\",\n      \"api/client\"\n    ],\n    \"lastVerified\": \"\u003cTIME\u003e\"\n  },\n  {\n    \"file\": \"arch.puml\",\n    \"line\": 1,\n    \"type\": \"plantuml\",\n    \"hash\": \"f3qdo8\",\n    \"referencedFiles\": [\n      \"api/client.py\"\n    ],\n    \"lastVerified\": \"\u003cTIME\u003e\"\n  }\n]\n",
+      ".hidden/notes.md": "# Fixture\n\n```mermaid\ngraph TD\n  A[src/login.ts] --\u003e B[dashboard/state]\n  B --\u003e C[@eserstack/noskills]\n  A --\u003e D[src/login.ts]\n```\n\nSome text.\n",
+      "README.md": "# Fixture\n\n```mermaid\ngraph TD\n  A[src/login.ts] --\u003e B[dashboard/state]\n  B --\u003e C[@eserstack/noskills]\n  A --\u003e D[src/login.ts]\n```\n\nSome text.\n",
+      "arch.puml": "@startuml\nAlice -\u003e Bob: api/client.py\n@enduml\n",
+      "docs/arch.md": "# Architecture\n\n┌──────────┐    ┌──────────┐\n│ main.go  │───▶│ store.go │\n└──────────┘    └──────────┘\n\n| a | b |\n|---|---|\n",
+      "docs/broken.md": "```mermaid\ngraph LR\n  never/closed.md --\u003e x\n",
+      "docs/nested/deep.md": "Intro\n  ```mermaid\nsequenceDiagram\n  pkg/@eserstack/noskills/main.ts-\u003e\u003eapi/client: call\n  ```\n",
+      "node_modules/pkg/README.md": "# Fixture\n\n```mermaid\ngraph TD\n  A[src/login.ts] --\u003e B[dashboard/state]\n  B --\u003e C[@eserstack/noskills]\n  A --\u003e D[src/login.ts]\n```\n\nSome text.\n"
+    }
+  },
+  {
+    "args": [
+      "diagrams",
+      "list"
+    ],
+    "exitCode": 0,
+    "stdout": "4 diagram(s):\n  README.md:3 [mermaid] refs: src/login.ts, dashboard/state, @eserstack/noskills\n    verified: \u003cDATE\u003e\n  docs/arch.md:3 [ascii] refs: main.go, store.go\n    verified: \u003cDATE\u003e\n  docs/nested/deep.md:2 [mermaid] refs: pkg/@eserstack/noskills/main.ts, api/client\n    verified: \u003cDATE\u003e\n  arch.puml:1 [plantuml] refs: api/client.py\n    verified: \u003cDATE\u003e\n",
+    "files": {}
+  },
+  {
+    "args": [
+      "diagrams",
+      "check"
+    ],
+    "exitCode": 0,
+    "stdout": "✔ No stale diagrams.\n",
+    "files": {}
+  },
+  {
+    "args": [
+      "diagrams",
+      "check"
+    ],
+    "exitCode": 0,
+    "stdout": "⚠ 2 potentially stale diagram(s):\n  README.md:3 [mermaid]\n    src/login.ts was modified but diagram references src/login.ts\n  docs/arch.md:3 [ascii]\n    docs/store.go was modified but diagram references store.go\n",
+    "files": {
+      ".eser/.state/progresses/state.json": "{\n  \"version\": \"0.1.0\",\n  \"phase\": \"IDLE\",\n  \"spec\": null,\n  \"specDescription\": null,\n  \"branch\": null,\n  \"discovery\": {\n    \"answers\": [],\n    \"completed\": false,\n    \"currentQuestion\": 0,\n    \"audience\": \"human\",\n    \"approved\": false,\n    \"planPath\": null\n  },\n  \"specState\": {\n    \"path\": null,\n    \"status\": \"none\",\n    \"metadata\": {\n      \"created\": {\n        \"date\": \"\",\n        \"user\": \"\"\n      },\n      \"lastModified\": {\n        \"date\": \"\",\n        \"user\": \"\"\n      },\n      \"contributors\": [],\n      \"approvals\": [],\n      \"pendingDecisions\": []\n    },\n    \"placeholders\": []\n  },\n  \"execution\": {\n    \"iteration\": 0,\n    \"lastProgress\": null,\n    \"modifiedFiles\": [\"./src/login.ts\", \"docs/store.go\"],\n    \"lastVerification\": null,\n    \"awaitingStatusReport\": false,\n    \"debt\": null,\n    \"completedTasks\": [],\n    \"debtCounter\": 0,\n    \"naItems\": []\n  },\n  \"decisions\": [],\n  \"lastCalledAt\": null,\n  \"classification\": null,\n  \"completionReason\": null,\n  \"completedAt\": null,\n  \"completionNote\": null,\n  \"reopenedFrom\": null,\n  \"revisitHistory\": []\n}\n"
+    }
+  },
+  {
+    "args": [
+      "diagrams",
+      "verify"
+    ],
+    "exitCode": 1,
+    "stdout": "Usage: npx eser@latest noskills diagrams verify \u003cfile\u003e\n",
+    "files": {}
+  },
+  {
+    "args": [
+      "diagrams",
+      "verify",
+      "docs/arch.md",
+      "--line=x"
+    ],
+    "exitCode": 0,
+    "stdout": "Diagram not found in registry: docs/arch.md\n",
+    "files": {}
+  },
+  {
+    "args": [
+      "diagrams",
+      "verify",
+      "docs/arch.md",
+      "--line=99"
+    ],
+    "exitCode": 0,
+    "stdout": "Diagram not found in registry: docs/arch.md\n",
+    "files": {}
+  },
+  {
+    "args": [
+      "diagrams",
+      "verify",
+      "docs/arch.md",
+      "--line=3"
+    ],
+    "exitCode": 0,
+    "stdout": "✔ Verified: docs/arch.md\n",
+    "files": {}
+  },
+  {
+    "args": [
+      "diagrams",
+      "verify",
+      "arch.puml"
+    ],
+    "exitCode": 0,
+    "stdout": "✔ Verified: arch.puml\n",
+    "files": {}
+  },
+  {
+    "args": [
+      "diagrams",
+      "verify",
+      "nope.md"
+    ],
+    "exitCode": 0,
+    "stdout": "Diagram not found in registry: nope.md\n",
+    "files": {}
+  },
+  {
+    "args": [
+      "diagrams",
+      "bogus"
+    ],
+    "exitCode": 1,
+    "stdout": "Unknown subcommand. Use: scan, list, check, verify\n",
+    "files": {}
+  },
+  {
+    "args": [
+      "spec",
+      "new",
+      "add a login page"
+    ],
+    "exitCode": 0,
+    "stdout": "✔ Spec started: add-login-page\n  Directory: .eser/specs/add-login-page\n  Branch:    spec/add-login-page\n  Phase:     DISCOVERY\n\nRun npx eser@latest noskills spec add-login-page next to begin discovery questions.\n",
+    "files": {
+      ".eser/.state/events/events.jsonl": "{\"ts\":\"\u003cTIME\u003e\",\"type\":\"spec-created\",\"spec\":\"add-login-page\",\"user\":\"Unknown User\",\"description\":\"add a login page\"}\n",
+      ".eser/.state/progresses/ledger/add-login-page/ledger.jsonl": "{\"id\":\"tr:IDLE:DISCOVERY:\u003cEPOCH_MS\u003e\",\"state\":\"DISCOVERY\",\"category\":\"scope\",\"question\":\"Transition IDLE → DISCOVERY\",\"resolution\":\"IDLE → DISCOVERY approved\",\"provenance\":\"ratified\",\"timestamp\":\"\u003cTIME\u003e\",\"artifacts\":[\".eser/specs/add-login-page/spec.md\"]}\n",
+      ".eser/.state/progresses/ledger/add-login-page/summary.json": "{\n  \"resolved_decisions\": 1,\n  \"provenance_breakdown\": {\n    \"ratified\": 1,\n    \"inferred\": 0,\n    \"default\": 0\n  },\n  \"open_questions\": 16,\n  \"specificity\": {\n    \"named_artifacts_count\": 1,\n    \"acceptance_criteria_present\": false,\n    \"out_of_scope_present\": false\n  }\n}\n",
+      ".eser/.state/progresses/specs/add-login-page.json": "{\n  \"version\": \"0.1.0\",\n  \"phase\": \"DISCOVERY\",\n  \"spec\": \"add-login-page\",\n  \"specDescription\": \"add a login page\",\n  \"branch\": \"spec/add-login-page\",\n  \"discovery\": {\n    \"answers\": [],\n    \"completed\": false,\n    \"currentQuestion\": 0,\n    \"audience\": \"human\",\n    \"approved\": false,\n    \"planPath\": null\n  },\n  \"specState\": {\n    \"path\": \".eser/specs/add-login-page/spec.md\",\n    \"status\": \"draft\",\n    \"metadata\": {\n      \"created\": {\n        \"date\": \"\u003cTIME\u003e\",\n        \"user\": \"Unknown User\"\n      },\n      \"lastModified\": {\n        \"date\": \"\u003cTIME\u003e\",\n        \"user\": \"Unknown User\"\n      },\n      \"contributors\": [\n        {\n          \"user\": \"Unknown User\",\n          \"lastAction\": \"created\",\n          \"date\": \"\u003cTIME\u003e\"\n        }\n      ],\n      \"approvals\": [],\n      \"pendingDecisions\": []\n    },\n    \"placeholders\": [\n      {\n        \"sectionId\": \"summary\",\n        \"sectionTitle\": \"Summary\",\n        \"status\": \"placeholder\"\n      },\n      {\n        \"sectionId\": \"problem-statement\",\n        \"sectionTitle\": \"Problem Statement\",\n        \"status\": \"placeholder\"\n      },\n      {\n        \"sectionId\": \"ambition\",\n        \"sectionTitle\": \"Ambition\",\n        \"status\": \"placeholder\"\n      },\n      {\n        \"sectionId\": \"reversibility\",\n        \"sectionTitle\": \"Reversibility\",\n        \"status\": \"placeholder\"\n      },\n      {\n        \"sectionId\": \"user-impact\",\n        \"sectionTitle\": \"User Impact\",\n        \"status\": \"placeholder\"\n      },\n      {\n        \"sectionId\": \"verification-strategy\",\n        \"sectionTitle\": \"Verification Strategy\",\n        \"status\": \"placeholder\"\n      },\n      {\n        \"sectionId\": \"scope-boundary\",\n        \"sectionTitle\": \"Scope Boundary\",\n        \"status\": \"placeholder\"\n      },\n      {\n        \"sectionId\": \"premises\",\n        \"sectionTitle\": \"Premises\",\n        \"status\": \"placeholder\"\n      },\n      {\n        \"sectionId\": \"tasks\",\n        \"sectionTitle\": \"Tasks\",\n        \"status\": \"placeholder\"\n      },\n      {\n        \"sectionId\": \"acceptance-criteria\",\n        \"sectionTitle\": \"Acceptance Criteria\",\n        \"status\": \"placeholder\"\n      }\n    ]\n  },\n  \"execution\": {\n    \"iteration\": 0,\n    \"lastProgress\": null,\n    \"modifiedFiles\": [],\n    \"lastVerification\": null,\n    \"awaitingStatusReport\": false,\n    \"debt\": null,\n    \"completedTasks\": [],\n    \"debtCounter\": 0,\n    \"naItems\": []\n  },\n  \"decisions\": [],\n  \"lastCalledAt\": null,\n  \"classification\": null,\n  \"completionReason\": null,\n  \"completedAt\": null,\n  \"completionNote\": null,\n  \"reopenedFrom\": null,\n  \"revisitHistory\": [],\n  \"transitionHistory\": [\n    {\n      \"from\": \"IDLE\",\n      \"to\": \"DISCOVERY\",\n      \"user\": \"Unknown User\",\n      \"email\": \"\",\n      \"timestamp\": \"\u003cTIME\u003e\"\n    }\n  ]\n}\n",
+      ".eser/specs/add-login-page/spec.md": "---\ncreated:\n  date: \u003cTIME\u003e\n  user: Unknown User\nlastModified:\n  date: \u003cTIME\u003e\n  user: Unknown User\ncontributors:\n  - user: Unknown User\n    lastAction: created\n    date: \u003cTIME\u003e\napprovals: []\npendingDecisions: []\n---\n\n# Spec: add-login-page\n\n\u003c!-- TOC:START --\u003e\n## Sections\n- ○ Summary\n- ○ Problem Statement\n- ○ Ambition\n- ○ Reversibility\n- ○ User Impact\n- ○ Verification Strategy\n- ○ Scope Boundary\n- ○ Premises\n- ○ Tasks\n- ○ Acceptance Criteria\n\u003c!-- TOC:END --\u003e\n\n## Summary\n\n\u003c!-- PLACEHOLDER:summary --\u003e\n_Synthesize the spec in 2-3 sentences: what changes, why it matters, for whom._\n\n## Problem Statement\n\n\u003c!-- PLACEHOLDER:problem-statement --\u003e\n_Describe the current pain: what is broken, missing, or inefficient? For whom? What happens today when they try?_\n\n## Ambition\n\n\u003c!-- PLACEHOLDER:ambition --\u003e\n_What does success look like? Paint the 12-month ideal state — not just this feature, but the trajectory it starts._\n\n## Reversibility\n\n\u003c!-- PLACEHOLDER:reversibility --\u003e\n_If this ships and is wrong, how do we undo it? Rollback steps, feature flags, migration reversibility, blast radius._\n\n## User Impact\n\n\u003c!-- PLACEHOLDER:user-impact --\u003e\n_Who benefits and how? What changes for them — before/after their day, their workflow, their frustration?_\n\n## Verification Strategy\n\n\u003c!-- PLACEHOLDER:verification-strategy --\u003e\n_How will we know it worked? Automated tests, manual smoke tests, metrics to watch, acceptance checklist._\n\n## Scope Boundary\n\n\u003c!-- PLACEHOLDER:scope-boundary --\u003e\n_What is explicitly OUT of scope? Name specific features, use cases, or edge cases this spec does NOT address._\n\n## Premises\n\n\u003c!-- PLACEHOLDER:premises --\u003e\n_List every assumption this spec makes. If an assumption turns out wrong, what breaks?_\n\n## Tasks\n\n\u003c!-- PLACEHOLDER:tasks --\u003e\n_Break implementation into concrete tasks. Each task: what it does, how to verify it is done, any ordering constraints._\n\n## Acceptance Criteria\n\n\u003c!-- PLACEHOLDER:acceptance-criteria --\u003e\n_Binary, testable criteria. Each item: the system does X when Y. No fuzzy language._"
+    }
+  },
+  {
+    "args": [
+      "spec",
+      "add-login-page",
+      "next"
+    ],
+    "exitCode": 0,
+    "stdout": "{\n  \"phase\": \"COMPLETED\",\n  \"summary\": {\n    \"spec\": \"add-login-page\",\n    \"iterations\": 0,\n    \"decisionsCount\": 0,\n    \"completionReason\": null,\n    \"completionNote\": null\n  },\n  \"learningPrompt\": {\n    \"instruction\": \"LEARNING PENDING: record learnings before moving on. For each insight, decide: one-time learning or permanent rule? One-time (\\\"assumed X, was Y\\\") → `learn \\\"text\\\"`. Permanent (\\\"always/never do X\\\") → `learn \\\"text\\\" --rule`. Run: `npx eser@latest noskills spec add-login-page learn \\\"text\\\"` or `learn \\\"text\\\" --rule`.\",\n    \"examples\": [\n      \"npx eser@latest noskills spec add-login-page learn \\\"Assumed S3 SDK v2, was v3\\\"\",\n      \"npx eser@latest noskills spec add-login-page learn \\\"Always use Result types\\\" --rule\",\n      \"npx eser@latest noskills learn promote 1\"\n    ]\n  },\n  \"learningsPending\": true,\n  \"staleDiagrams\": [\n    {\n      \"file\": \"README.md\",\n      \"line\": 3,\n      \"reason\": \"src/login.ts was modified but diagram references src/login.ts\"\n    },\n    {\n      \"file\": \"docs/arch.md\",\n      \"line\": 3,\n      \"reason\": \"docs/store.go was modified but diagram references store.go\"\n    }\n  ],\n  \"staleDiagramsBlocking\": true,\n  \"meta\": {\n    \"protocol\": \"Run `npx eser@latest noskills spec add-login-page next --answer=\\\"...\\\"` to submit results and advance\",\n    \"spec\": \"add-login-page\",\n    \"branch\": \"spec/add-login-page\",\n    \"iteration\": 0,\n    \"lastProgress\": null,\n    \"activeConcerns\": [],\n    \"resumeHint\": \"Spec \\\"add-login-page\\\" completed in 0 iterations.\",\n    \"enforcement\": {\n      \"level\": \"enforced\",\n      \"capabilities\": [\n        \"PreToolUse file edit gate\",\n        \"Git write guard\",\n        \"Stop iteration tracking\",\n        \"PostToolUse file logging\",\n        \"Sub-agent delegation\"\n      ]\n    }\n  },\n  \"behavioral\": {\n    \"rules\": [\n      \"NEVER run git write commands (commit, add, push, checkout, stash, reset, merge, rebase, cherry-pick). Git is read-only for agents. The user controls git. You may read: git log, git diff, git status, git show, git blame.\",\n      \"Report progress honestly. Not done = 'not done'. Partial = 'partial: [works]/[doesn't]'. Untested = 'untested'. 4 of 6 = '4 of 6 done, 2 remaining'.\",\n      \"Never skip steps or infer decisions. Use AskUserQuestion for all decision points. Recommend first, then ask.\",\n      \"Display `roadmap` before other content. Display `gate` prominently.\",\n      \"NEVER suggest bypassing, skipping, or 'breaking out of' noskills. Discovery helps the user — it is not an obstacle. If scope changes: revise spec, reset and create new, or split.\",\n      \"Run the next noskills command as soon as the current step is done; each step has exactly one next step, so there is nothing to ask permission for.\",\n      \"Listen first: after spec creation, ask 'Tell me about this. Share as much context as you have.' Wait for their response before mode selection. Rich context (\u003e200 chars) → suggest pre-filled discovery answers from it, marked STATED or INFERRED for the user to confirm. Brief response → proceed normally.\",\n      \"Discovery questions are adaptive. Once the user has answered the base questions, write 1-3 follow-up questions for each answer that reveals ambiguity, risk, dependencies, or missing detail, and register them with `npx eser@latest noskills spec add-login-page followup \u003cquestionId\u003e \\\"question\\\"` before you submit the answers (max 3 per question). noskills then gives you the follow-ups one at a time.\",\n      \"Confidence scoring: every technical finding needs a confidence score (1-10). 9-10: verified (read code, ran test). 7-8: strong evidence. 5-6: reasonable inference. 3-4: guess. 1-2: speculation. State basis ('read X', 'inferred from Y'). If confidence \u003c 5, prefix with '⚠ Unverified:'.\",\n      \"Report the completion summary. Do not start new work.\",\n      \"If the user wants to continue, they start a new spec.\"\n    ],\n    \"tone\": \"Concise. Celebrate briefly, then stop.\"\n  },\n  \"roadmap\": \"IDLE → DISCOVERY → REFINEMENT → PROPOSAL → APPROVED → EXECUTING → [ COMPLETED ] → IDLE\",\n  \"modeDirective\": \"Plan mode optional. Review, record learnings.\",\n  \"interactiveOptions\": [\n    {\n      \"label\": \"New spec\",\n      \"description\": \"Start a new feature spec\"\n    },\n    {\n      \"label\": \"Reopen spec\",\n      \"description\": \"Reopen this spec for revision\"\n    },\n    {\n      \"label\": \"Check status\",\n      \"description\": \"Review completed spec summary\"\n    }\n  ],\n  \"commandMap\": {\n    \"New spec\": \"npx eser@latest noskills spec new --name=\u003cslug\u003e \\\"description\\\"\",\n    \"Reopen spec\": \"npx eser@latest noskills spec add-login-page reopen\",\n    \"Check status\": \"npx eser@latest noskills status\"\n  },\n  \"toolHint\": \"AskUserQuestion\",\n  \"toolHintInstruction\": \"Present these options with AskUserQuestion so the user's pick maps to `commandMap`.\"\n}\n",
+    "files": {
+      ".eser/.state/progresses/ledger/add-login-page/summary.json": "{\n  \"resolved_decisions\": 1,\n  \"provenance_breakdown\": {\n    \"ratified\": 1,\n    \"inferred\": 0,\n    \"default\": 0\n  },\n  \"open_questions\": 10,\n  \"specificity\": {\n    \"named_artifacts_count\": 3,\n    \"acceptance_criteria_present\": false,\n    \"out_of_scope_present\": false\n  }\n}\n",
+      ".eser/.state/progresses/specs/add-login-page.json": "{\n  \"version\": \"0.1.0\",\n  \"phase\": \"COMPLETED\",\n  \"spec\": \"add-login-page\",\n  \"specDescription\": \"add a login page\",\n  \"branch\": \"spec/add-login-page\",\n  \"discovery\": {\n    \"answers\": [],\n    \"completed\": false,\n    \"currentQuestion\": 0,\n    \"audience\": \"human\",\n    \"approved\": false,\n    \"planPath\": null\n  },\n  \"specState\": {\n    \"path\": \".eser/specs/add-login-page/spec.md\",\n    \"status\": \"draft\",\n    \"metadata\": {\n      \"created\": {\n        \"date\": \"\u003cTIME\u003e\",\n        \"user\": \"Unknown User\"\n      },\n      \"lastModified\": {\n        \"date\": \"\u003cTIME\u003e\",\n        \"user\": \"Unknown User\"\n      },\n      \"contributors\": [\n        {\n          \"user\": \"Unknown User\",\n          \"lastAction\": \"created\",\n          \"date\": \"\u003cTIME\u003e\"\n        }\n      ],\n      \"approvals\": [],\n      \"pendingDecisions\": []\n    },\n    \"placeholders\": [\n      {\n        \"sectionId\": \"summary\",\n        \"sectionTitle\": \"Summary\",\n        \"status\": \"placeholder\"\n      },\n      {\n        \"sectionId\": \"problem-statement\",\n        \"sectionTitle\": \"Problem Statement\",\n        \"status\": \"placeholder\"\n      },\n      {\n        \"sectionId\": \"ambition\",\n        \"sectionTitle\": \"Ambition\",\n        \"status\": \"placeholder\"\n      },\n      {\n        \"sectionId\": \"reversibility\",\n        \"sectionTitle\": \"Reversibility\",\n        \"status\": \"placeholder\"\n      },\n      {\n        \"sectionId\": \"user-impact\",\n        \"sectionTitle\": \"User Impact\",\n        \"status\": \"placeholder\"\n      },\n      {\n        \"sectionId\": \"verification-strategy\",\n        \"sectionTitle\": \"Verification Strategy\",\n        \"status\": \"placeholder\"\n      },\n      {\n        \"sectionId\": \"scope-boundary\",\n        \"sectionTitle\": \"Scope Boundary\",\n        \"status\": \"placeholder\"\n      },\n      {\n        \"sectionId\": \"premises\",\n        \"sectionTitle\": \"Premises\",\n        \"status\": \"placeholder\"\n      },\n      {\n        \"sectionId\": \"tasks\",\n        \"sectionTitle\": \"Tasks\",\n        \"status\": \"placeholder\"\n      },\n      {\n        \"sectionId\": \"acceptance-criteria\",\n        \"sectionTitle\": \"Acceptance Criteria\",\n        \"status\": \"placeholder\"\n      }\n    ]\n  },\n  \"execution\": {\n    \"iteration\": 0,\n    \"lastProgress\": null,\n    \"modifiedFiles\": [\n      \"./src/login.ts\",\n      \"docs/store.go\"\n    ],\n    \"lastVerification\": null,\n    \"awaitingStatusReport\": false,\n    \"debt\": null,\n    \"completedTasks\": [],\n    \"debtCounter\": 0,\n    \"naItems\": []\n  },\n  \"decisions\": [],\n  \"lastCalledAt\": \"\u003cTIME\u003e\",\n  \"classification\": null,\n  \"completionReason\": null,\n  \"completedAt\": null,\n  \"completionNote\": null,\n  \"reopenedFrom\": null,\n  \"revisitHistory\": [],\n  \"transitionHistory\": [\n    {\n      \"from\": \"IDLE\",\n      \"to\": \"DISCOVERY\",\n      \"user\": \"Unknown User\",\n      \"email\": \"\",\n      \"timestamp\": \"\u003cTIME\u003e\"\n    }\n  ]\n}\n",
+      ".eser/.state/progresses/state.json": "{\n  \"version\": \"0.1.0\",\n  \"phase\": \"COMPLETED\",\n  \"spec\": \"add-login-page\",\n  \"specDescription\": \"add a login page\",\n  \"branch\": \"spec/add-login-page\",\n  \"discovery\": {\n    \"answers\": [],\n    \"completed\": false,\n    \"currentQuestion\": 0,\n    \"audience\": \"human\",\n    \"approved\": false,\n    \"planPath\": null\n  },\n  \"specState\": {\n    \"path\": \".eser/specs/add-login-page/spec.md\",\n    \"status\": \"draft\",\n    \"metadata\": {\n      \"created\": {\n        \"date\": \"\u003cTIME\u003e\",\n        \"user\": \"Unknown User\"\n      },\n      \"lastModified\": {\n        \"date\": \"\u003cTIME\u003e\",\n        \"user\": \"Unknown User\"\n      },\n      \"contributors\": [\n        {\n          \"user\": \"Unknown User\",\n          \"lastAction\": \"created\",\n          \"date\": \"\u003cTIME\u003e\"\n        }\n      ],\n      \"approvals\": [],\n      \"pendingDecisions\": []\n    },\n    \"placeholders\": [\n      {\n        \"sectionId\": \"summary\",\n        \"sectionTitle\": \"Summary\",\n        \"status\": \"placeholder\"\n      },\n      {\n        \"sectionId\": \"problem-statement\",\n        \"sectionTitle\": \"Problem Statement\",\n        \"status\": \"placeholder\"\n      },\n      {\n        \"sectionId\": \"ambition\",\n        \"sectionTitle\": \"Ambition\",\n        \"status\": \"placeholder\"\n      },\n      {\n        \"sectionId\": \"reversibility\",\n        \"sectionTitle\": \"Reversibility\",\n        \"status\": \"placeholder\"\n      },\n      {\n        \"sectionId\": \"user-impact\",\n        \"sectionTitle\": \"User Impact\",\n        \"status\": \"placeholder\"\n      },\n      {\n        \"sectionId\": \"verification-strategy\",\n        \"sectionTitle\": \"Verification Strategy\",\n        \"status\": \"placeholder\"\n      },\n      {\n        \"sectionId\": \"scope-boundary\",\n        \"sectionTitle\": \"Scope Boundary\",\n        \"status\": \"placeholder\"\n      },\n      {\n        \"sectionId\": \"premises\",\n        \"sectionTitle\": \"Premises\",\n        \"status\": \"placeholder\"\n      },\n      {\n        \"sectionId\": \"tasks\",\n        \"sectionTitle\": \"Tasks\",\n        \"status\": \"placeholder\"\n      },\n      {\n        \"sectionId\": \"acceptance-criteria\",\n        \"sectionTitle\": \"Acceptance Criteria\",\n        \"status\": \"placeholder\"\n      }\n    ]\n  },\n  \"execution\": {\n    \"iteration\": 0,\n    \"lastProgress\": null,\n    \"modifiedFiles\": [\n      \"./src/login.ts\",\n      \"docs/store.go\"\n    ],\n    \"lastVerification\": null,\n    \"awaitingStatusReport\": false,\n    \"debt\": null,\n    \"completedTasks\": [],\n    \"debtCounter\": 0,\n    \"naItems\": []\n  },\n  \"decisions\": [],\n  \"lastCalledAt\": \"\u003cTIME\u003e\",\n  \"classification\": null,\n  \"completionReason\": null,\n  \"completedAt\": null,\n  \"completionNote\": null,\n  \"reopenedFrom\": null,\n  \"revisitHistory\": [],\n  \"transitionHistory\": [\n    {\n      \"from\": \"IDLE\",\n      \"to\": \"DISCOVERY\",\n      \"user\": \"Unknown User\",\n      \"email\": \"\",\n      \"timestamp\": \"\u003cTIME\u003e\"\n    }\n  ]\n}\n"
+    }
+  },
+  {
+    "args": [
+      "diagrams",
+      "list"
+    ],
+    "exitCode": 0,
+    "stdout": "4 diagram(s):\n  README.md:3 [mermaid] refs: src/login.ts, dashboard/state, @eserstack/noskills\n    verified: \u003cDATE\u003e\n  docs/arch.md:3 [ascii] refs: main.go, store.go\n    verified: \u003cDATE\u003e\n  docs/nested/deep.md:2 [mermaid] refs: pkg/@eserstack/noskills/main.ts, api/client\n    verified: \u003cDATE\u003e\n  arch.puml:1 [plantuml] refs: api/client.py\n    verified: \u003cDATE\u003e\n",
+    "files": {}
+  }
+]

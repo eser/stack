@@ -5,26 +5,21 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
-
-	"github.com/openai/openai-go"
-	"github.com/openai/openai-go/option"
 )
 
 func makeTestOpenAIModel(t *testing.T, srv *httptest.Server) *OpenAIModel {
 	t.Helper()
 
-	client := openai.NewClient(
-		option.WithAPIKey("test-key"),
-		option.WithBaseURL(srv.URL),
-	)
+	config := &ConfigTarget{ //nolint:exhaustruct
+		APIKey:      "test-key",
+		Model:       "gpt-4o",
+		Temperature: 0.7,
+		BaseURL:     srv.URL,
+	}
 
 	return &OpenAIModel{
-		client: client,
-		config: &ConfigTarget{
-			APIKey:      "test-key",
-			Model:       "gpt-4o",
-			Temperature: 0.7,
-		},
+		transport: newOpenAITransport(config, "test-key", srv.Client()),
+		config:    config,
 	}
 }
 
@@ -528,19 +523,17 @@ func TestOpenAIModel_ParseBatchResults_WithError(t *testing.T) {
 func TestMapOpenAIBatchToJob(t *testing.T) {
 	t.Parallel()
 
-	batch := &openai.Batch{ //nolint:exhaustruct
+	batch := &openAIBatch{ //nolint:exhaustruct
 		ID:           "batch-123",
 		Status:       "completed",
 		InputFileID:  "file-input",
 		OutputFileID: "file-output",
 		CreatedAt:    1700000000,
 		CompletedAt:  1700001000,
-		RequestCounts: openai.BatchRequestCounts{
-			Total:     10,
-			Completed: 8,
-			Failed:    2,
-		},
 	}
+	batch.RequestCounts.Total = 10
+	batch.RequestCounts.Completed = 8
+	batch.RequestCounts.Failed = 2
 
 	job := mapOpenAIBatchToJob(batch)
 
@@ -568,20 +561,13 @@ func TestMapOpenAIBatchToJob(t *testing.T) {
 func TestMapOpenAIBatchToJob_WithErrors(t *testing.T) {
 	t.Parallel()
 
-	batch := &openai.Batch{ //nolint:exhaustruct
-		ID:     "batch-err",
-		Status: "failed",
-		RequestCounts: openai.BatchRequestCounts{
-			Total:     5,
-			Completed: 3,
-			Failed:    2,
-		},
-		Errors: openai.BatchErrors{ //nolint:exhaustruct
-			Data: []openai.BatchError{
-				{Message: "item failed"},     //nolint:exhaustruct
-				{Message: "another failure"}, //nolint:exhaustruct
-			},
-		},
+	var batch *openAIBatch
+
+	err := json.Unmarshal([]byte(`{"id":"batch-err","status":"failed",
+		"request_counts":{"total":5,"completed":3,"failed":2},
+		"errors":{"data":[{"message":"item failed"},{"message":"another failure"}]}}`), &batch)
+	if err != nil {
+		t.Fatalf("decode batch: %v", err)
 	}
 
 	job := mapOpenAIBatchToJob(batch)
@@ -609,7 +595,7 @@ func TestMapOpenAIReasoningEffort(t *testing.T) {
 		t.Run("", func(t *testing.T) {
 			t.Parallel()
 
-			got := string(mapOpenAIReasoningEffort(tc.budget))
+			got := mapOpenAIReasoningEffort(tc.budget)
 			if got != tc.want {
 				t.Errorf("budget=%d: expected %q, got %q", tc.budget, tc.want, got)
 			}
@@ -627,9 +613,8 @@ func TestMapOpenAIResponseFormat_JsonObject(t *testing.T) {
 		t.Fatalf("mapOpenAIResponseFormat(json_object): %v", err)
 	}
 
-	// json_object format should set OfJSONObject.
-	if result.OfJSONObject == nil {
-		t.Error("expected OfJSONObject to be set for json_object format")
+	if result.Type != "json_object" || result.JSONSchema != nil {
+		t.Errorf("response format = %+v, want the json_object type alone", result)
 	}
 }
 
@@ -727,8 +712,8 @@ func TestOpenAIModel_MapMessage_UnknownRole(t *testing.T) {
 
 	// Constructing without a server — mapMessage does not make network calls.
 	m := &OpenAIModel{
-		client: openai.NewClient(option.WithAPIKey("test")),
-		config: &ConfigTarget{APIKey: "test", Model: "gpt-4o"},
+		transport: nil,
+		config:    &ConfigTarget{APIKey: "test", Model: "gpt-4o"}, //nolint:exhaustruct
 	}
 
 	_, err := m.mapMessage(Message{Role: Role("unknown_role")})

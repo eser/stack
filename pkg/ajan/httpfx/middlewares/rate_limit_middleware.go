@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/eser/stack/pkg/ajan/httpfx"
-	"github.com/eser/stack/pkg/ajan/lib"
+	"github.com/eser/stack/pkg/ajan/lib/netlib"
 )
 
 // RateLimitOption defines a functional option for configuring rate limiting.
@@ -103,7 +103,7 @@ func WithRateLimiterIPv6Prefix(bits int) RateLimitOption {
 func WithRateLimiterIPKeyFunc() RateLimitOption {
 	return func(config *rateLimitConfig) {
 		config.KeyFunc = func(ctx *httpfx.Context) string {
-			host, _, _ := lib.SplitHostPort(ctx.Request.RemoteAddr)
+			host, _, _ := netlib.SplitHostPort(ctx.Request.RemoteAddr)
 
 			return addressKey(host, config.IPv6PrefixBits)
 		}
@@ -316,13 +316,13 @@ func RateLimitMiddleware(options ...RateLimitOption) httpfx.Handler { //nolint:f
 		// This ensures correct rate limiting behind reverse proxies where
 		// RemoteAddr is always the proxy IP (often 127.0.0.1).
 		if addr, ok := ctx.Request.Context().Value(ClientAddr).(string); ok && addr != "" {
-			host, _, _ := lib.SplitHostPort(addr)
+			host, _, _ := netlib.SplitHostPort(addr)
 
 			return addressKey(host, cfg.IPv6PrefixBits)
 		}
 
 		// Fallback to socket address when ResolveAddressMiddleware hasn't run
-		host, _, _ := lib.SplitHostPort(ctx.Request.RemoteAddr)
+		host, _, _ := netlib.SplitHostPort(ctx.Request.RemoteAddr)
 
 		return addressKey(host, cfg.IPv6PrefixBits)
 	}
@@ -439,7 +439,7 @@ func addressKey(host string, ipv6PrefixBits int) string {
 // isLoopbackPeer reports whether remoteAddr (host:port or a bare IP) is a
 // loopback address.
 func isLoopbackPeer(remoteAddr string) bool {
-	host, _, err := lib.SplitHostPort(remoteAddr)
+	host, _, err := netlib.SplitHostPort(remoteAddr)
 	if err != nil {
 		return false
 	}

@@ -9,7 +9,7 @@
  */
 
 import * as bdd from "@std/testing/bdd";
-import * as assert from "@std/assert";
+import * as assert from "@eserstack/test-kit/assert";
 import { runtime } from "@eserstack/standards/cross-runtime";
 import * as machine from "../state/machine.ts";
 import * as schema from "../state/schema.ts";

@@ -1,6 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import * as assert from "@std/assert";
+import * as assert from "@eserstack/test-kit/assert";
+import * as mock from "@eserstack/test-kit/mock";
 
 import { runtime } from "@eserstack/standards/cross-runtime";
 
@@ -205,6 +206,71 @@ Deno.test("recordIteration reports failure rather than throwing when state is ab
 
   try {
     assert.assertEquals(await iteration.recordIteration(root), null);
+  } finally {
+    await runtime.fs.remove(root, { recursive: true });
+  }
+});
+
+// TASK-323: a hand-edited state with a string iteration used to concatenate
+// ("3" + 1 became "31"); a value that is not a finite number counts as 0, as
+// in the Go hook.
+Deno.test("a non-number iteration counts as 0", async () => {
+  const root = await makeProject({ iteration: "3" });
+
+  try {
+    const record = await iteration.recordIteration(root);
+
+    assert.assert(record !== null);
+    assert.assertEquals(record.iteration, 1);
+    assert.assertEquals(
+      ((await readState(root))["execution"] as Record<string, unknown>)[
+        "iteration"
+      ],
+      1,
+    );
+  } finally {
+    await runtime.fs.remove(root, { recursive: true });
+  }
+});
+
+// TASK-323: kill(0) signals the caller's own process group, so a driverPid of
+// 0 (or less) used to read as a live driver and silence the Stop hook.
+Deno.test("a driverPid of 0 or less is not a live driver", () => {
+  assert.assertFalse(
+    iteration.isDriverAuthoritative({ driver: "acp", driverPid: 0 }),
+  );
+  assert.assertFalse(
+    iteration.isDriverAuthoritative({ driver: "acp", driverPid: -1 }),
+  );
+});
+
+// TASK-323: state.json is replaced through a sibling temporary file, so a
+// failed write cannot leave it truncated.
+Deno.test("recordIteration never writes state.json in place", async () => {
+  const root = await makeProject({ iteration: 2 });
+  const write = runtime.fs.writeTextFile.bind(runtime.fs);
+  using _write = mock.stub(
+    runtime.fs,
+    "writeTextFile",
+    (path: string, ...rest: unknown[]) => {
+      if (path.endsWith("/state.json")) {
+        return Promise.reject(new Error("a truncating write"));
+      }
+
+      return (write as (...a: unknown[]) => Promise<void>)(path, ...rest);
+    },
+  );
+
+  try {
+    const record = await iteration.recordIteration(root);
+
+    assert.assert(record !== null);
+    assert.assertEquals(
+      ((await readState(root))["execution"] as Record<string, unknown>)[
+        "iteration"
+      ],
+      3,
+    );
   } finally {
     await runtime.fs.remove(root, { recursive: true });
   }

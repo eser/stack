@@ -21,6 +21,7 @@ import type {
   RuntimeHttp,
   RuntimeName,
   RuntimeProcess,
+  ServeHandlerInfo,
   SpawnOptions,
 } from "../types.ts";
 import * as types from "../types.ts";
@@ -507,10 +508,10 @@ export const DEFAULT_SERVE_HOSTNAME = "127.0.0.1";
  */
 export const createSafeHandler = (
   handler: HttpHandler,
-): (request: Request) => Promise<Response> =>
-async (request) => {
+): (request: Request, info: ServeHandlerInfo) => Promise<Response> =>
+async (request, info) => {
   try {
-    return await handler(request);
+    return await handler(request, info);
   } catch (error) {
     // The query string is left out because it can carry tokens.
     const { pathname } = new URL(request.url);
@@ -686,7 +687,6 @@ export const createFallbackRuntime = (name: RuntimeName): Runtime => ({
     stdin: false,
     stdout: false,
     http: false,
-    kv: false,
   },
   fs: createStubFs(name),
   path: path.posixPath,

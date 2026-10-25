@@ -45,6 +45,7 @@ export type {
   HttpServer,
   MakeTempOptions,
   MkdirOptions,
+  NetAddr,
   ParsedPath,
   Platform,
   PlatformInfo,
@@ -60,6 +61,7 @@ export type {
   RuntimeName,
   RuntimePath,
   RuntimeProcess,
+  ServeHandlerInfo,
   ServeOptions,
   SignalName,
   SpawnOptions,
@@ -74,6 +76,7 @@ export type {
 export {
   AlreadyExistsError,
   NotFoundError,
+  PermissionDeniedError,
   ProcessError,
   RuntimeCapabilityError,
 } from "./types.ts";

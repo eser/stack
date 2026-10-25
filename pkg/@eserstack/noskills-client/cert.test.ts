@@ -3,7 +3,7 @@
 // cert.ts reads the global fetch and indexedDB. Each test swaps them and puts
 // the originals back in a finally; tests in one module run one at a time.
 
-import * as assert from "@std/assert";
+import * as assert from "@eserstack/test-kit/assert";
 import * as cert from "./cert.ts";
 import * as errors from "./errors.ts";
 

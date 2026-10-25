@@ -1,6 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import * as assert from "@std/assert";
+import * as assert from "@eserstack/test-kit/assert";
 import * as callbackServer from "./callback-server.ts";
 
 const freePort = (): number => {
@@ -116,4 +116,20 @@ Deno.test("the receiver binds loopback, not every interface", async () => {
   const done = await fetch(`http://127.0.0.1:${port}/callback?code=x&state=s`);
   await done.body?.cancel();
   await pending;
+});
+
+Deno.test("the receiver times out", async () => {
+  const port = freePort();
+  const expected = callbackServer.expectationFor(
+    `http://127.0.0.1:${port}/callback`,
+    "s",
+  );
+
+  // The promise settles only after the server has stopped, so the test's
+  // resource sanitizer would catch a listener left open.
+  await assert.assertRejects(
+    () => callbackServer.waitForOAuthCallback(expected, 50),
+    Error,
+    "timed out",
+  );
 });

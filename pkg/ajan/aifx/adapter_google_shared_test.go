@@ -7,8 +7,6 @@ import (
 	"fmt"
 	"reflect"
 	"testing"
-
-	"google.golang.org/genai"
 )
 
 func TestMapRoleToGenAI(t *testing.T) {
@@ -343,7 +341,7 @@ func TestMapGenAIResponse_Nil(t *testing.T) {
 func TestMapGenAIResponse_EmptyCandidates(t *testing.T) {
 	t.Parallel()
 
-	resp := &genai.GenerateContentResponse{ //nolint:exhaustruct
+	resp := &genaiGenerateContentResponse{ //nolint:exhaustruct
 		Candidates: nil,
 	}
 
@@ -360,8 +358,8 @@ func TestMapGenAIResponse_EmptyCandidates(t *testing.T) {
 func TestMapGenAIResponse_WithUsage(t *testing.T) {
 	t.Parallel()
 
-	resp := &genai.GenerateContentResponse{ //nolint:exhaustruct
-		UsageMetadata: &genai.GenerateContentResponseUsageMetadata{ //nolint:exhaustruct
+	resp := &genaiGenerateContentResponse{ //nolint:exhaustruct
+		UsageMetadata: &genaiUsageMetadata{ //nolint:exhaustruct
 			PromptTokenCount:     10,
 			CandidatesTokenCount: 5,
 			TotalTokenCount:      15,
@@ -389,7 +387,7 @@ func TestApplyGenAIResponseFormat(t *testing.T) {
 	t.Run("json_schema format", func(t *testing.T) {
 		t.Parallel()
 
-		config := &genai.GenerateContentConfig{} //nolint:exhaustruct
+		config := &genaiGenerateContentConfig{} //nolint:exhaustruct
 		opts := &GenerateTextOptions{
 			ResponseFormat: &ResponseFormat{
 				Type:       "json_schema",
@@ -407,20 +405,15 @@ func TestApplyGenAIResponseFormat(t *testing.T) {
 		}
 
 		want := map[string]any{"type": "object"}
-		if !reflect.DeepEqual(config.ResponseJsonSchema, want) {
-			t.Errorf("ResponseJsonSchema = %v, want %v", config.ResponseJsonSchema, want)
-		}
-
-		// The API takes only one of the two schema fields.
-		if config.ResponseSchema != nil {
-			t.Errorf("ResponseSchema = %+v, want nil next to ResponseJsonSchema", config.ResponseSchema)
+		if !reflect.DeepEqual(config.ResponseJSONSchema, want) {
+			t.Errorf("ResponseJsonSchema = %v, want %v", config.ResponseJSONSchema, want)
 		}
 	})
 
 	t.Run("json_object format sends only the MIME type", func(t *testing.T) {
 		t.Parallel()
 
-		config := &genai.GenerateContentConfig{} //nolint:exhaustruct
+		config := &genaiGenerateContentConfig{} //nolint:exhaustruct
 		opts := &GenerateTextOptions{
 			ResponseFormat: &ResponseFormat{Type: "json_object"},
 		}
@@ -430,7 +423,7 @@ func TestApplyGenAIResponseFormat(t *testing.T) {
 			t.Fatalf("applyGenAIResponseFormat: %v", err)
 		}
 
-		if config.ResponseMIMEType != "application/json" || config.ResponseJsonSchema != nil {
+		if config.ResponseMIMEType != "application/json" || config.ResponseJSONSchema != nil {
 			t.Errorf("config = %+v, want the JSON MIME type and no schema", config)
 		}
 	})
@@ -438,7 +431,7 @@ func TestApplyGenAIResponseFormat(t *testing.T) {
 	t.Run("text format", func(t *testing.T) {
 		t.Parallel()
 
-		config := &genai.GenerateContentConfig{} //nolint:exhaustruct
+		config := &genaiGenerateContentConfig{} //nolint:exhaustruct
 		opts := &GenerateTextOptions{
 			ResponseFormat: &ResponseFormat{Type: "text"},
 		}
@@ -456,7 +449,7 @@ func TestApplyGenAIResponseFormat(t *testing.T) {
 	t.Run("nil response format is no-op", func(t *testing.T) {
 		t.Parallel()
 
-		config := &genai.GenerateContentConfig{} //nolint:exhaustruct
+		config := &genaiGenerateContentConfig{} //nolint:exhaustruct
 		opts := &GenerateTextOptions{}
 
 		err := applyGenAIResponseFormat(config, opts)
@@ -474,25 +467,25 @@ func TestMapGenAIFinishReason(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		input      genai.FinishReason
+		input      genaiFinishReason
 		calledTool bool
 		want       StopReason
 	}{
-		{genai.FinishReasonStop, false, StopReasonEndTurn},
-		{genai.FinishReasonStop, true, StopReasonToolUse},
-		{genai.FinishReasonMaxTokens, false, StopReasonMaxTokens},
-		{genai.FinishReasonSafety, false, StopReasonRefusal},
-		{genai.FinishReasonBlocklist, false, StopReasonRefusal},
-		{genai.FinishReasonProhibitedContent, false, StopReasonRefusal},
-		{genai.FinishReasonSPII, false, StopReasonRefusal},
-		{genai.FinishReasonRecitation, false, StopReasonRefusal},
-		{genai.FinishReasonImageSafety, false, StopReasonRefusal},
-		{genai.FinishReasonImageProhibitedContent, false, StopReasonRefusal},
-		{genai.FinishReasonImageRecitation, false, StopReasonRefusal},
-		{genai.FinishReasonSafety, true, StopReasonRefusal},
-		{genai.FinishReasonOther, false, StopReasonStop},
-		{genai.FinishReasonLanguage, false, StopReasonStop},
-		{genai.FinishReasonMalformedFunctionCall, false, StopReasonStop},
+		{genaiFinishReasonStop, false, StopReasonEndTurn},
+		{genaiFinishReasonStop, true, StopReasonToolUse},
+		{genaiFinishReasonMaxTokens, false, StopReasonMaxTokens},
+		{genaiFinishReasonSafety, false, StopReasonRefusal},
+		{genaiFinishReasonBlocklist, false, StopReasonRefusal},
+		{genaiFinishReasonProhibitedContent, false, StopReasonRefusal},
+		{genaiFinishReasonSPII, false, StopReasonRefusal},
+		{genaiFinishReasonRecitation, false, StopReasonRefusal},
+		{genaiFinishReasonImageSafety, false, StopReasonRefusal},
+		{genaiFinishReasonImageProhibitedContent, false, StopReasonRefusal},
+		{genaiFinishReasonImageRecitation, false, StopReasonRefusal},
+		{genaiFinishReasonSafety, true, StopReasonRefusal},
+		{genaiFinishReasonOther, false, StopReasonStop},
+		{genaiFinishReasonLanguage, false, StopReasonStop},
+		{genaiFinishReasonMalformedFunctionCall, false, StopReasonStop},
 	}
 
 	for _, tc := range tests {
@@ -513,7 +506,7 @@ func TestMapGenAIPartsToContentBlocks(t *testing.T) {
 	t.Run("text part", func(t *testing.T) {
 		t.Parallel()
 
-		parts := []*genai.Part{
+		parts := []*genaiPart{
 			{Text: "hello world"},
 		}
 
@@ -530,8 +523,8 @@ func TestMapGenAIPartsToContentBlocks(t *testing.T) {
 	t.Run("function call part", func(t *testing.T) {
 		t.Parallel()
 
-		parts := []*genai.Part{
-			{FunctionCall: &genai.FunctionCall{Name: "search", Args: map[string]any{"q": "test"}}}, //nolint:exhaustruct
+		parts := []*genaiPart{
+			{FunctionCall: &genaiFunctionCall{Name: "search", Args: map[string]any{"q": "test"}}}, //nolint:exhaustruct
 		}
 
 		blocks := mapGenAIPartsToContentBlocks(parts)
@@ -551,8 +544,8 @@ func TestMapGenAIPartsToContentBlocks(t *testing.T) {
 	t.Run("inline data part", func(t *testing.T) {
 		t.Parallel()
 
-		parts := []*genai.Part{
-			{InlineData: &genai.Blob{MIMEType: "image/png", Data: []byte{0x89, 0x50}}}, //nolint:exhaustruct
+		parts := []*genaiPart{
+			{InlineData: &genaiBlob{MIMEType: "image/png", Data: []byte{0x89, 0x50}}}, //nolint:exhaustruct
 		}
 
 		blocks := mapGenAIPartsToContentBlocks(parts)
@@ -568,7 +561,7 @@ func TestMapGenAIPartsToContentBlocks(t *testing.T) {
 	t.Run("nil part skipped", func(t *testing.T) {
 		t.Parallel()
 
-		parts := []*genai.Part{nil, {Text: "hi"}}
+		parts := []*genaiPart{nil, {Text: "hi"}}
 
 		blocks := mapGenAIPartsToContentBlocks(parts)
 		if len(blocks) != 1 {
@@ -580,15 +573,15 @@ func TestMapGenAIPartsToContentBlocks(t *testing.T) {
 func TestMapGenAIResponse_WithContent(t *testing.T) {
 	t.Parallel()
 
-	resp := &genai.GenerateContentResponse{ //nolint:exhaustruct
-		Candidates: []*genai.Candidate{
+	resp := &genaiGenerateContentResponse{ //nolint:exhaustruct
+		Candidates: []*genaiCandidate{
 			{
-				Content: &genai.Content{ //nolint:exhaustruct
-					Parts: []*genai.Part{
+				Content: &genaiContent{ //nolint:exhaustruct
+					Parts: []*genaiPart{
 						{Text: "response text"},
 					},
 				},
-				FinishReason: genai.FinishReasonStop,
+				FinishReason: genaiFinishReasonStop,
 			},
 		},
 	}
@@ -680,18 +673,18 @@ func TestEmitStreamEventsFromResponse_WithContent(t *testing.T) {
 	ch := make(chan StreamEvent, 16)
 	ctx := context.Background()
 
-	resp := &genai.GenerateContentResponse{ //nolint:exhaustruct
-		Candidates: []*genai.Candidate{
+	resp := &genaiGenerateContentResponse{ //nolint:exhaustruct
+		Candidates: []*genaiCandidate{
 			{
-				Content: &genai.Content{ //nolint:exhaustruct
-					Parts: []*genai.Part{
+				Content: &genaiContent{ //nolint:exhaustruct
+					Parts: []*genaiPart{
 						{Text: "streamed text"},
 					},
 				},
-				FinishReason: genai.FinishReasonStop,
+				FinishReason: genaiFinishReasonStop,
 			},
 		},
-		UsageMetadata: &genai.GenerateContentResponseUsageMetadata{ //nolint:exhaustruct
+		UsageMetadata: &genaiUsageMetadata{ //nolint:exhaustruct
 			PromptTokenCount:     5,
 			CandidatesTokenCount: 3,
 			TotalTokenCount:      8,
@@ -735,9 +728,9 @@ func TestEmitStreamEventsFromResponse_NoContent(t *testing.T) {
 	t.Parallel()
 
 	ch := make(chan StreamEvent, 4)
-	resp := &genai.GenerateContentResponse{ //nolint:exhaustruct
-		Candidates: []*genai.Candidate{
-			{Content: nil, FinishReason: genai.FinishReasonStop}, //nolint:exhaustruct
+	resp := &genaiGenerateContentResponse{ //nolint:exhaustruct
+		Candidates: []*genaiCandidate{
+			{Content: nil, FinishReason: genaiFinishReasonStop}, //nolint:exhaustruct
 		},
 	}
 
@@ -761,8 +754,8 @@ func TestEmitGenAIContentParts_FunctionCall(t *testing.T) {
 	ch := make(chan StreamEvent, 8)
 	ctx := context.Background()
 
-	parts := []*genai.Part{
-		{FunctionCall: &genai.FunctionCall{Name: "lookup", Args: map[string]any{"q": "go"}}}, //nolint:exhaustruct
+	parts := []*genaiPart{
+		{FunctionCall: &genaiFunctionCall{Name: "lookup", Args: map[string]any{"q": "go"}}}, //nolint:exhaustruct
 	}
 
 	emitGenAIContentParts(ctx, ch, parts)
@@ -800,7 +793,7 @@ func TestEmitGenAIDone_WithData(t *testing.T) {
 	t.Parallel()
 
 	ch := make(chan StreamEvent, 4)
-	meta := &genai.GenerateContentResponseUsageMetadata{ //nolint:exhaustruct
+	meta := &genaiUsageMetadata{ //nolint:exhaustruct
 		PromptTokenCount:     10,
 		CandidatesTokenCount: 5,
 		TotalTokenCount:      15,
@@ -848,7 +841,7 @@ func TestEmitGenAIDone_WithThinkingTokens(t *testing.T) {
 	ch := make(chan StreamEvent, 2)
 	ctx := context.Background()
 
-	metadata := &genai.GenerateContentResponseUsageMetadata{
+	metadata := &genaiUsageMetadata{
 		PromptTokenCount:     5,
 		CandidatesTokenCount: 3,
 		TotalTokenCount:      20,

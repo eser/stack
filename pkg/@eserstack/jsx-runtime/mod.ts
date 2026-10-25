@@ -1,6 +1,5 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-// @ts-types="@types/react/jsx-runtime"
 import * as reactJsxRuntime from "react/jsx-runtime";
 import * as encoder from "./encoder.ts";
 

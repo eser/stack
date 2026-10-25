@@ -413,24 +413,65 @@ func HexToSRI(hash string) (string, error) {
 	return "sha256-" + base64.StdEncoding.EncodeToString(raw), nil
 }
 
+// NixHashesResult is the nix/hashes.json a release writes.
+type NixHashesResult struct {
+	Data []byte
+	// Kept are the binaries the release has no archives of that stay on the
+	// hashes of the earlier release that had them, as name@version.
+	Kept []string
+	// Skipped are the binaries neither this release nor the previous file
+	// has; the flake does not package them.
+	Skipped []string
+}
+
 // NixHashes renders nix/hashes.json for a release: the version, and for each
 // of NixPackages the release has archives of, the SRI hash of its archive per
-// triple. The flake packages exactly the binaries it lists.
-func NixHashes(version string, sums map[string]string) ([]byte, []string, error) {
+// triple. A package the release has no archives of keeps its entry from
+// previous (the current nix/hashes.json, or nil) with that entry's version,
+// so the flake still fetches archives that exist. The flake packages exactly
+// the binaries the file lists.
+func NixHashes(version string, sums map[string]string, previous []byte) (*NixHashesResult, error) {
+	var (
+		prev    orderedValue
+		prevVer string
+	)
+
+	if previous != nil {
+		var err error
+
+		prev, err = decodeOrdered(previous)
+		if err != nil || prev.kind != 'o' {
+			return nil, fmt.Errorf("read the previous nix/hashes.json: %w", errors.Join(errNotJSONObject, err))
+		}
+
+		if v, ok := prev.get("version"); ok {
+			prevVer, _ = v.scalar.(string)
+		}
+	}
+
 	doc := orderedValue{kind: 'o', object: []orderedMember{ //nolint:exhaustruct
 		{key: "version", value: orderedValue{kind: 's', scalar: version}}, //nolint:exhaustruct
 	}}
 
-	var skipped []string
+	result := &NixHashesResult{} //nolint:exhaustruct
+	fresh := 0
 
 	for _, binary := range NixPackages {
 		hashes, err := releaseHashes(sums, binary, version)
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 
 		if hashes == nil {
-			skipped = append(skipped, binary)
+			kept, keptVer := keptNixEntry(&prev, binary, prevVer)
+			if kept == nil {
+				result.Skipped = append(result.Skipped, binary)
+
+				continue
+			}
+
+			doc.object = append(doc.object, orderedMember{key: binary, value: *kept})
+			result.Kept = append(result.Kept, binary+"@"+keptVer)
 
 			continue
 		}
@@ -440,18 +481,54 @@ func NixHashes(version string, sums map[string]string) ([]byte, []string, error)
 		for _, triple := range unixReleaseTriples {
 			sri, err := HexToSRI(hashes[triple])
 			if err != nil {
-				return nil, nil, err
+				return nil, err
 			}
 
 			entry.object = append(entry.object, orderedMember{key: triple, value: orderedValue{kind: 's', scalar: sri}}) //nolint:exhaustruct
 		}
 
 		doc.object = append(doc.object, orderedMember{key: binary, value: entry})
+		fresh++
 	}
 
-	if len(doc.object) == 1 {
-		return nil, nil, ErrNoArchives
+	if fresh == 0 {
+		return nil, ErrNoArchives
 	}
 
-	return doc.stringify(), skipped, nil
+	result.Data = doc.stringify()
+
+	return result, nil
+}
+
+// keptNixEntry returns the previous file's entry of binary with its version
+// written first: the entry's own version, or the file's when it has none.
+// It returns nil when there is no such entry or no version for it.
+func keptNixEntry(prev *orderedValue, binary, prevVer string) (*orderedValue, string) {
+	old, ok := prev.get(binary)
+	if !ok || old.kind != 'o' {
+		return nil, ""
+	}
+
+	entryVer := prevVer
+	entry := orderedValue{kind: 'o', object: []orderedMember{}} //nolint:exhaustruct
+
+	for _, member := range old.object {
+		if member.key == "version" {
+			entryVer, _ = member.value.scalar.(string)
+
+			continue
+		}
+
+		entry.object = append(entry.object, member)
+	}
+
+	if entryVer == "" {
+		return nil, ""
+	}
+
+	entry.object = append([]orderedMember{
+		{key: "version", value: orderedValue{kind: 's', scalar: entryVer}}, //nolint:exhaustruct
+	}, entry.object...)
+
+	return &entry, entryVer
 }

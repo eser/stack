@@ -31,8 +31,11 @@ commit) comes from this codebase's AGENTS.md.
 - Never revert what the user changed; undo your own edits with edits
 - Ask first before new dependencies, workflow changes, changes to shared
   foundation packages, publishing config or anything a release cannot undo
-- Never edit versions, generated files (such as a generated `deno.json`) or lock
-  files by hand
+- Never edit versions, generated files or lock files by hand; while AGENTS.md
+  names an integration agent, only it changes the lockfile, the root
+  `package.json` and dependencies
+- The git hooks run the full gate. Never skip them; only the owner turns them
+  off, for a whole branch
 - Bug fixes: root cause with file:line (in the notes or report, not the commit),
   failing test first, fix at the origin
 - Implement everything asked; TODOs only with a backlog task id

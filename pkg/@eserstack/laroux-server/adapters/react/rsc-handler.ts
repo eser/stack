@@ -43,7 +43,7 @@ export async function loadModuleMap(config: AppConfig): Promise<BundlerConfig> {
   } catch (error) {
     rscRenderer.warn("Module map not found, using empty map");
     if (error instanceof crossRuntime.NotFoundError) {
-      rscRenderer.warn("   Run `deno task build` to generate the module map");
+      rscRenderer.warn("   Run `laroux build` to generate the module map");
     }
     return {};
   }

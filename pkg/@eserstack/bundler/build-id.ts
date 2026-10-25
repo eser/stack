@@ -8,12 +8,8 @@ const buildIdState: { current: string | null } = { current: null };
 let initPromise: Promise<string> | null = null;
 
 const computeBuildId = async (): Promise<string> => {
-  const env = runtime.env.toObject();
-  const deploymentId =
-    env["DENO_DEPLOYMENT_ID"] ??
-    // For CI
-    env["GITHUB_SHA"] ??
-    crypto.randomUUID();
+  // The commit in CI, a random id elsewhere.
+  const deploymentId = runtime.env.get("GITHUB_SHA") ?? crypto.randomUUID();
 
   const buildIdHash = await crypto.subtle.digest(
     "SHA-1",

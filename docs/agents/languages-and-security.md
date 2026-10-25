@@ -14,7 +14,9 @@ to.
   `pkg/ajan/api/business/` is empty; the API service's adapters and its
   composition root are in `pkg/ajan/api/adapters/`
   (`appcontext/appcontext.go`).
-- The only Go binary is `cmd/noskills-server/`.
+- The Go binaries are `cmd/eser/`, `cmd/noskills/`, `cmd/noskills-server/` and
+  `cmd/legacy-forwarder/` (the laroux stub that installed v4.5.x binaries
+  update to); `eser dev compile` builds the release archives (ADR 0005).
 - The cgo and WASI FFI bridge is a second module, `github.com/eser/ajan`, in
   `pkg/@eserstack/ajan/`. Its bridge functions live in one file per domain
   (`bridge_format.go`, `bridge_ai.go`, ...) that registers its dispatch names
@@ -42,25 +44,24 @@ to.
 
 ## Go Commands
 
-- `make ok` checks only the root module. `deno task cli ok` also vets, builds
-  and lints the bridge module.
-- `make test` runs `go test -race ./...`; `deno task cli go-test` adds
-  coverage.
-- `deno task cli go-vuln` (`make vuln`) runs govulncheck on both modules, and
+- `make ok` checks only the root module. `pnpm cli ok` also vets, builds,
+  lints and tests the bridge module.
+- `make test` runs `go test -race ./...`; `pnpm cli go-test` adds coverage.
+- `pnpm cli go-vuln` (`make vuln`) runs govulncheck on both modules, and
   the Validate job in `.github/workflows/build.yml` runs it.
 - The encoding/json/v2 experiment (`GOEXPERIMENT=jsonv2`) is not set, so Go
   code uses `encoding/json`.
 
 ## TypeScript
 
-- Packages live in `pkg/@eserstack/<name>/`; run tests with
-  `deno task cli test`.
-- `validate-code-conventions` runs in `deno task cli ok` and fails on a new
+- Packages live in `pkg/@eserstack/<name>/`; run tests with `pnpm cli test`, or
+  one package with `node --test "pkg/@eserstack/<name>/**/*.test.ts"`.
+- `validate-code-conventions` runs in `pnpm cli ok` and fails on a new
   named import or `||` literal default. `.eser/baselines/code-conventions.json`
   holds the current count of older violations per rule and file; the counts
   only go down.
-- Some older test files use the `_test.ts` suffix (in `pkg/@eserstack/kit` and
-  `pkg/@eserstack/workflows`, for example); new ones use `.test.ts`.
+- Test files use the `.test.ts` suffix; the test glob does not pick up any
+  other name.
 
 ## Frontend
 

@@ -109,7 +109,7 @@ await larouxServer.startServer({
 
 In `serve` mode, the build is stale when `dist/client/manifest.json` is missing
 or a file under the source directory or `public/`, or the project's
-`laroux.config.ts`, `package.json`, `deno.json` or `deno.jsonc`, changed after
+`laroux.config.ts` or `package.json`, changed after
 the last build.
 
 When the build that `startServer` runs fails, it throws `BuildFailedError` and

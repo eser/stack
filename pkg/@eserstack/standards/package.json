@@ -22,7 +22,6 @@
     "./versions": "./versions.ts"
   },
   "dependencies": {
-    "@eserstack/primitives": "workspace:*",
     "@std/semver": "npm:@jsr/std__semver@^1.0.8"
   },
   "devDependencies": {

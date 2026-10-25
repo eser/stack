@@ -99,9 +99,6 @@ workflows:
       - validate-runtime-js-apis:
           exclude:
             - "pkg/@eserstack/standards/cross-runtime/"
-            # The Deno-to-Node codemods are Node scripts (process, node:fs);
-            # they go in M1-T37 (TASK-231).
-            - "etc/codemods/"
             # Release tooling: runs from a fresh checkout after publish and must
             # not depend on the workspace it just released.
             - "etc/scripts/preflight-npm-consumer.ts"
@@ -116,9 +113,15 @@ workflows:
             # process.getActiveResourcesInfo(), which only Node has and the
             # cross-runtime layer does not wrap; it is loaded by tests only.
             - "pkg/@eserstack/test-kit/leaks.ts"
-            # Tests run only under node --test, so they are exempt from the
-            # portable-API rule.
-            - ".test.ts"
+            # Its test starts a nested node --test with process.execPath and
+            # process.env; test-kit cannot import the cross-runtime layer,
+            # whose own tests import test-kit.
+            - "pkg/@eserstack/test-kit/leaks.test.ts"
+            # The library resolvers (ffi/resolve.ts, wasm/resolve.ts) read
+            # Node's process (cwd, env, platform, arch) without the
+            # cross-runtime layer, so their tests stub and read that object.
+            - "pkg/@eserstack/ajan/ffi/resolve.test.ts"
+            - "pkg/@eserstack/ajan/wasm/resolve.test.ts"
       - validate-self-imports:
           exclude:
             # Tests are not part of the published module graph.
@@ -140,13 +143,6 @@ workflows:
           file: "pkg/ajan/noskillsserverfx/errors.go"
           errorObjects:
             - NSError
-
-      # The Deno-to-Node codemods run under Node and have their own tests
-      # (M0-T18, M0-T19); the folder goes in M1-T37.
-      - shell:
-          name: codemod-tests
-          command: node --test etc/codemods
-          timeout: 120
 
       # Build the native FFI library before any step that loads it.
       #

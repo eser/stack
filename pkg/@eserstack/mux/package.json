@@ -11,7 +11,6 @@
     "./runner": "./runner/inprocess.ts"
   },
   "dependencies": {
-    "@eserstack/primitives": "workspace:*",
     "@eserstack/shell": "workspace:*",
     "@eserstack/standards": "workspace:*"
   },

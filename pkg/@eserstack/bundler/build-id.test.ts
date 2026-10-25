@@ -1,6 +1,8 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as nodeCrypto from "node:crypto";
 import * as nodeTest from "node:test";
+import { runtime } from "@eserstack/standards/cross-runtime";
 import * as assert from "@eserstack/test-kit/assert";
 import * as buildId from "./build-id.ts";
 
@@ -36,6 +38,38 @@ nodeTest.test(
     const id2 = await buildId.getBuildId();
 
     assert.assertEquals(id1, id2);
+  },
+);
+
+nodeTest.test(
+  "getBuildId hashes GITHUB_SHA and ignores DENO_DEPLOYMENT_ID",
+  async () => {
+    const names = ["DENO_DEPLOYMENT_ID", "GITHUB_SHA"] as const;
+    const saved = names.map((name) => runtime.env.get(name));
+    runtime.env.set("DENO_DEPLOYMENT_ID", "deploy-1");
+    runtime.env.set("GITHUB_SHA", "sha-1");
+
+    try {
+      // A fresh module instance, since getBuildId memoizes per module. A
+      // variable specifier, since tsc resolves no query string.
+      const specifier = "./build-id.ts?github-sha";
+      const fresh = (await import(specifier)) as typeof buildId;
+      const id = await fresh.getBuildId();
+
+      assert.assertEquals(
+        id,
+        nodeCrypto.createHash("sha1").update("sha-1").digest("hex"),
+      );
+    } finally {
+      for (const [i, name] of names.entries()) {
+        const value = saved[i];
+        if (value === undefined) {
+          runtime.env.delete(name);
+        } else {
+          runtime.env.set(name, value);
+        }
+      }
+    }
   },
 );
 

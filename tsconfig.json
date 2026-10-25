@@ -31,7 +31,6 @@
     "apps/",
     "docs/",
     "etc/temp/",
-    "etc/codemods/",
     "etc/scripts/ffi-client.template.ts",
     "third-party/",
     ".eser/recipes/",

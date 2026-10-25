@@ -18,9 +18,6 @@ import * as toFileUrl from "@std/path/to-file-url";
  * The URL to import a module of one build by: its file URL with the build id
  * as the `v` query parameter.
  *
- * The URL is built at run time on purpose: `deno publish` rewrites the
- * specifier of a dynamic import it can analyze.
- *
  * @param filePath - Absolute path of the module
  * @param buildId - Id of the build whose modules are loaded
  * @returns The file URL with `?v=<buildId>`

@@ -52,7 +52,7 @@
     "should_trigger": false
   },
   {
-    "query": "bump deno to the latest version",
+    "query": "bump Node to the latest version",
     "should_trigger": false
   },
   {

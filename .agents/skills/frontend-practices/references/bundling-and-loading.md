@@ -20,14 +20,14 @@ paths, lazy loading, preloading, resource hints, scripts and static assets.
 Scope: Imports in code that ships to the browser
 
 Rule: Keep namespace imports (javascript-practices: Imports) and access their
-members by name (`icons.Check`). Deno's bundler and Rolldown, the two backends
-of laroux-bundler, both drop the unused exports of a namespace whose members are
-accessed by name; an access by computed key (`icons[name]`) keeps the whole
-module. When the choice is dynamic, write an explicit map of the members you
-use. For a large third-party library (an icon set, a component kit) whose entry
-pulls in modules with side effects, or that a dev server or test runner loads
-unbundled, import from the library's documented per-module entry point instead,
-and compare the bundle size before and after.
+members by name (`icons.Check`). Rolldown, the backend of laroux-bundler, drops
+the unused exports of a namespace whose members are accessed by name; an access
+by computed key (`icons[name]`) keeps the whole module. When the choice is
+dynamic, write an explicit map of the members you use. For a large third-party
+library (an icon set, a component kit) whose entry pulls in modules with side
+effects, or that a dev server or test runner loads unbundled, import from the
+library's documented per-module entry point instead, and compare the bundle size
+before and after.
 
 Correct:
 

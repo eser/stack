@@ -203,7 +203,8 @@ func devCommand(e *env) *clifx.Command {
 				Name:  "nix-hashes",
 				Short: "Write nix/hashes.json from the release's SHA256SUMS.txt",
 				Long: "Writes the version and, for each of eser and noskills-server the release has archives " +
-					"for, the SRI hash of each archive; the flake packages the binaries the file lists.",
+					"for, the SRI hash of each archive. A binary the release has no archives of keeps its " +
+					"entry from the current file, at that entry's version; the flake packages the binaries the file lists.",
 				Flags: sumsFlags,
 				Run: func(c *clifx.Context) error {
 					version, err := e.readVersion()
@@ -216,16 +217,28 @@ func devCommand(e *env) *clifx.Command {
 						return err
 					}
 
-					data, skipped, err := codebasefx.NixHashes(version, sums)
+					path := filepath.Join(e.cwd, "nix", "hashes.json")
+
+					previous, err := os.ReadFile(path) //nolint:gosec // G304: the repository's own file
+					if err != nil && !errors.Is(err, os.ErrNotExist) {
+						return fmt.Errorf("read nix/hashes.json: %w", err)
+					}
+
+					result, err := codebasefx.NixHashes(version, sums, previous)
 					if err != nil {
 						return err //nolint:wrapcheck
 					}
 
-					if len(skipped) > 0 {
-						_, _ = fmt.Fprintf(e.stdout, "Not packaged (no archives in this release): %s\n", strings.Join(skipped, ", "))
+					data := result.Data
+
+					if len(result.Kept) > 0 {
+						_, _ = fmt.Fprintf(e.stdout, "Kept on an earlier release (no archives in this release): %s\n", strings.Join(result.Kept, ", "))
 					}
 
-					path := filepath.Join(e.cwd, "nix", "hashes.json")
+					if len(result.Skipped) > 0 {
+						_, _ = fmt.Fprintf(e.stdout, "Not packaged (no archives in this release): %s\n", strings.Join(result.Skipped, ", "))
+					}
+
 					if c.Bool("dry-run") {
 						_, _ = fmt.Fprintf(e.stdout, "[dry-run] would write %s:\n%s", path, data)
 

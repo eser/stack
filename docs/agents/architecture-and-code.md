@@ -12,9 +12,13 @@ design-principles and coding-practices skills refer to.
   binaries use directly and the TypeScript libraries reach through the bridge
   (ADR 0005). `pkg/ajan/api/business/` is empty; `pkg/ajan/api/adapters/` holds
   the API service wiring in `appcontext/appcontext.go`.
-- The cross-runtime adapter is `pkg/@eserstack/standards/cross-runtime/`;
-  `validate-runtime-js-apis` enforces it for the `Deno.*`, `process.*` and
-  `Bun.*` APIs it lists, outside the paths `.eser/manifest.yml` excludes.
+- The cross-runtime adapter is `pkg/@eserstack/standards/cross-runtime/`, and
+  the repository runs on Node only (decision-15). `validate-runtime-js-apis`
+  (Go, in `pkg/ajan/codebasefx/runtime_js_apis.go`, run through the native
+  library) reports members of Node's global `process` and every reference in
+  code to the globals of the two runtimes ADR 0005 dropped, outside that
+  adapter and the paths `.eser/manifest.yml` excludes. It has no baseline, so
+  every violation fails.
 
 ## ADRs
 
@@ -24,8 +28,8 @@ architecture-guidelines: Architectural Decision Records lists; a new one does.
 
 ## Tests
 
-- Tests run on `node:test`. Most files import it as `nodeTest`; the files the
-  codemod converted from `@std/testing/bdd` import it as `bdd`. Assertions,
+- Tests run on `node:test`. Most files import it as `nodeTest`; the files
+  converted from `@std/testing/bdd` import it as `bdd`. Assertions,
   mocks, error capture and the opt-in leak check come from the private
   `@eserstack/test-kit` package, which re-exports `@std/assert` and
   `@std/testing/mock` until M2-T4 moves it to `node:assert`.
@@ -36,9 +40,10 @@ architecture-guidelines: Architectural Decision Records lists; a new one does.
 
 ## Validators
 
-- `validate-circular-deps` (in `@eserstack/codebase`) is not part of the
-  precommit workflow; run `deno task cli codebase validate-circular-deps` after
-  moving code between modules.
+- `validate-circular-deps` runs in the precommit workflow, after the native
+  library build, and reads the members from the root `package.json`
+  `workspaces`; run it alone with `pnpm cli codebase validate-circular-deps`
+  after moving code between modules.
 - `validate-code-conventions` enforces namespace imports, `??` defaults and
   curated re-exports (no `export * from`) on new code, with existing violations
   in `.eser/baselines/code-conventions.json`. It accepts a namespace import of a

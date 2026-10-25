@@ -22,7 +22,7 @@ body:
       label: Steps to Reproduce
       description: How can we reproduce the issue?
       placeholder: |
-        1. Install package with `deno add @eserstack/...`
+        1. Install package with `npm install @eserstack/...`
         2. Call function `...`
         3. See error
     validations:
@@ -49,10 +49,10 @@ body:
     attributes:
       label: Runtime
       options:
-        - Deno
         - Node.js
-        - Bun
+        - Cloudflare Workers
         - Browser
+        - Go binary (eser, noskills, noskills-server)
         - Other
     validations:
       required: true
@@ -68,7 +68,7 @@ body:
     id: runtime-version
     attributes:
       label: Runtime Version
-      placeholder: "Deno 2.7.4 / Node 22.x"
+      placeholder: "Node 26.12.1"
 
   - type: textarea
     id: additional

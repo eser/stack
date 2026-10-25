@@ -429,7 +429,5 @@ lists the changes in every package.
 - [JSR package](https://jsr.io/@eserstack/laroux-bundler): symbol-level API
   reference, generated from source
 - [Architecture decision records](https://github.com/eser/stack/tree/main/docs/adr)
-- Generate the API reference locally with `deno task cli docs` (output lands in
-  `docs/api/`, which is not tracked)
 
 Apache-2.0 © [Eser Ozvataf](https://github.com/eser)

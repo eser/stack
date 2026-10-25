@@ -25,22 +25,22 @@ rules were broken.
 
 ## Skill Trigger Keywords
 
-| Skill                       | Trigger keywords and patterns                                               |
-| --------------------------- | --------------------------------------------------------------------------- |
-| `enrichment`                | enrich, grill, stress-test, interrogate a plan or idea                      |
-| `handoff`                   | user-invoked only: `/handoff [next focus]`                                  |
-| `workflow-practices`        | any file change, vague request, review, push, tag, delete                   |
-| `architecture-guidelines`   | structure, layers, hexagonal, ADR, test strategy                            |
-| `design-principles`         | pure function, immutability, interfaces, clock, cancel                      |
-| `coding-practices`          | errors, logging, timeouts, config, naming, comments                         |
-| `javascript-practices`      | .ts, .js, imports, types, async, TS tests                                   |
-| `frontend-practices`        | .tsx, React, components, forms, styles, a11y, bundle, laroux                |
-| `go-practices`              | .go, pkg/ajan, context, golangci-lint, benchmarks                           |
-| `security-practices`        | auth, secret, token, input, SSRF, injection, LLM input                      |
-| `tooling-standards`         | dependency, package.json, new package, file name, license header            |
-| `documentation-conventions` | README, docs, JSDoc, changelog prose, backlog text                          |
-| `release-and-ci`            | release, version bump, JSR or npm publish, workflow, CI, Dockerfile, deploy |
-| `eser-rules-manager`        | new rule, preference, create or change a skill, evals                       |
+| Skill                       | Trigger keywords and patterns                                                        |
+| --------------------------- | ------------------------------------------------------------------------------------ |
+| `enrichment`                | enrich, grill, stress-test, interrogate a plan or idea                               |
+| `handoff`                   | user-invoked only: `/handoff [next focus]`                                           |
+| `workflow-practices`        | any file change, vague request, review, push, tag, delete                            |
+| `architecture-guidelines`   | structure, layers, hexagonal, ADR, test strategy                                     |
+| `design-principles`         | pure function, immutability, interfaces, clock, cancel                               |
+| `coding-practices`          | errors, logging, timeouts, config, naming, comments                                  |
+| `javascript-practices`      | .ts, .js, imports, types, async, TS tests                                            |
+| `frontend-practices`        | .tsx, React, components, forms, styles, a11y, bundle, laroux                         |
+| `go-practices`              | .go, pkg/ajan, context, golangci-lint, benchmarks                                    |
+| `security-practices`        | auth, secret, token, input, SSRF, injection, LLM input                               |
+| `tooling-standards`         | dependency, package.json, new package, file name, license header                     |
+| `documentation-conventions` | README, docs, JSDoc, changelog prose, backlog text                                   |
+| `release-and-ci`            | release, version bump, npm publish, install script, workflow, CI, Dockerfile, deploy |
+| `eser-rules-manager`        | new rule, preference, create or change a skill, evals                                |
 
 ---
 

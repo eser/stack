@@ -1,6 +1,6 @@
 ---
 name: release-and-ci
-description: "Release and CI conventions of this codebase: one shared version, eser codebase release, tag-driven JSR and npm publishing over OIDC, changelog from commit subjects, migration entries, release recovery, GitHub Actions job rules, Dockerfiles, ArgoCD deploys. Use when bumping a version, cutting or recovering a release, writing a changelog, editing a workflow or a Dockerfile, fixing CI or deploying."
+description: "Release and CI conventions of this codebase: one shared version, eser codebase release, tag-driven npm publishing over OIDC, release binaries and install channels, changelog and migration entries, GitHub Actions, Dockerfiles, ArgoCD deploys. Use when bumping a version, cutting or recovering a release, writing a changelog, editing an install script, workflow or Dockerfile, fixing CI or deploying."
 ---
 
 # Releases and CI
@@ -26,6 +26,9 @@ codebase's `AGENTS.md` or the docs it links.
   example
 - Registry publishing is OIDC with provenance; no long-lived registry token
   exists
+- Install channels (install scripts, Homebrew, Nix, self-updaters) decide from
+  the archives a release has, never from what is merged; an archive name that
+  installed binaries update from is never dropped without the owner
 - Inspect before acting: `gh run view <id> --log-failed`, `gh pr checks`,
   read-only `kubectl` with an explicit namespace
 - Workflow changes need the user's approval
@@ -38,9 +41,9 @@ codebase's `AGENTS.md` or the docs it links.
 
 ## References
 
-| File                                                  | Read when                                                                                                    |
-| ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| [release-process.md](references/release-process.md)   | Cutting, verifying or recovering a release, choosing a bump, changelog or migration entries, publish targets |
-| [github-actions.md](references/github-actions.md)     | Editing a workflow or job, or debugging a CI run                                                             |
-| [container-images.md](references/container-images.md) | Writing or reviewing a Dockerfile, choosing a base image                                                     |
-| [deployments.md](references/deployments.md)           | Inspecting a cluster, deploying a service, or mapping tags to environments                                   |
+| File                                                  | Read when                                                                                                                                   |
+| ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| [release-process.md](references/release-process.md)   | Cutting, verifying or recovering a release, choosing a bump, changelog or migration entries, publish targets, binaries and install channels |
+| [github-actions.md](references/github-actions.md)     | Editing a workflow or job, or debugging a CI run                                                                                            |
+| [container-images.md](references/container-images.md) | Writing or reviewing a Dockerfile, choosing a base image                                                                                    |
+| [deployments.md](references/deployments.md)           | Inspecting a cluster, deploying a service, or mapping tags to environments                                                                  |

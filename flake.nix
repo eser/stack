@@ -17,8 +17,10 @@
         pkgs = import nixpkgs { inherit system; };
 
         # Written by `eser dev nix-hashes` after each release: the released
-        # version and, per binary whose archives the release has, the hash of
-        # each archive. A binary is packaged only when it is listed here.
+        # version and, per binary, the hash of each archive. A binary whose
+        # archives a release lacks keeps the entry of the earlier release that
+        # had them, with that release's version in the entry. A binary is
+        # packaged only when it is listed here.
         hashes = builtins.fromJSON (builtins.readFile ./nix/hashes.json);
 
         version = hashes.version;
@@ -44,19 +46,22 @@
         # Environment variable for shared library lookup
         libPathVar = if isDarwin then "DYLD_LIBRARY_PATH" else "LD_LIBRARY_PATH";
 
-        mkBinary = name: targetHashes: pkgs.stdenv.mkDerivation {
+        mkBinary = name: targetHashes: let
+          binaryVersion = targetHashes.version or version;
+        in pkgs.stdenv.mkDerivation {
           pname = name;
-          inherit version;
+          version = binaryVersion;
 
           src = pkgs.fetchurl {
-            url = "https://github.com/eser/stack/releases/download/v${version}/${name}-v${version}-${target}.tar.gz";
+            url = "https://github.com/eser/stack/releases/download/v${binaryVersion}/${name}-v${binaryVersion}-${target}.tar.gz";
             hash = targetHashes.${target};
           };
 
           sourceRoot = ".";
 
-          # deno compile keeps the program in an ELF/Mach-O section that strip
-          # removes, so the release binaries are installed unstripped.
+          # The v4.x archives hold deno compile binaries, which keep the
+          # program in an ELF/Mach-O section that strip removes, so the
+          # release binaries are installed unstripped.
           dontStrip = true;
 
           nativeBuildInputs = [

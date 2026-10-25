@@ -19,7 +19,8 @@ param(
   [Parameter(Mandatory)] [string] $Installer,
   [Parameter(Mandatory)] [string] $Releases,
   [Parameter(Mandatory)] [string] $Version,
-  [Parameter(Mandatory)] [string] $InstallDir
+  [Parameter(Mandatory)] [string] $InstallDir,
+  [string] $Product = 'noskills'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -57,4 +58,4 @@ function Invoke-WebRequest {
   Copy-Item -LiteralPath $source -Destination $OutFile -Force
 }
 
-& $Installer -Product noskills -InstallDir $InstallDir
+& $Installer -Product $Product -InstallDir $InstallDir

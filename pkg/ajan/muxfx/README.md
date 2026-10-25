@@ -615,7 +615,6 @@ which a differential run of random streams uses:
 ```sh
 python3 etc/temp/muxfx-vt/capture-pty.py etc/temp/muxfx-vt/captures.json
 node etc/temp/muxfx-vt/record-vt-snapshots.mjs etc/temp/muxfx-vt/captures.json pkg/ajan/muxfx/testdata
-deno fmt pkg/ajan/muxfx/testdata/vt_snapshots.json
 ```
 
 ## 🔗 Links

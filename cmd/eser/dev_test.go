@@ -154,6 +154,41 @@ func TestDevNixHashesFromSums(t *testing.T) {
 	if len(decoded["eser"]) != 4 {
 		t.Errorf("hashes.json:\n%s", data)
 	}
+
+	// A later release with no eser archive keeps eser on its 4.6.0 hashes.
+	if err := os.WriteFile(filepath.Join(e.cwd, "VERSION"), []byte("4.7.0\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	sums.Reset()
+	for name, hash := range codebasefx.PlaceholderSHA256Sums("4.7.0", []string{"noskills-server"}) {
+		sums.WriteString(hash + "  " + name + "\n")
+	}
+
+	if err := os.WriteFile(filepath.Join(e.cwd, "SHA256SUMS.txt"), []byte(sums.String()), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	out, stderr, code = runCLI(t, e, "dev", "nix-hashes", "--sums", "SHA256SUMS.txt")
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, stderr)
+	}
+
+	if !strings.Contains(out, "Kept on an earlier release (no archives in this release): eser@4.6.0") {
+		t.Errorf("output:\n%s", out)
+	}
+
+	data, err = os.ReadFile(filepath.Join(e.cwd, "nix", "hashes.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	decoded = nil
+	_ = json.Unmarshal(data, &decoded)
+
+	if decoded["eser"]["version"] != "4.6.0" || len(decoded["eser"]) != 5 || len(decoded["noskills-server"]) != 4 {
+		t.Errorf("hashes.json:\n%s", data)
+	}
 }
 
 func TestDevHomebrewPushesToTheTap(t *testing.T) {

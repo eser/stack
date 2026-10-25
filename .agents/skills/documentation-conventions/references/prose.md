@@ -145,16 +145,17 @@ editing; do not reformat a file you were not asked to change.
 Correct:
 
 ```markdown
-Every publish step is idempotent: `deno publish` skips versions already on JSR,
-and asset upload clobbers. The chain can therefore be run again for the same
-tag.
+Every publish step is idempotent: the npm step skips versions already
+published, and asset upload clobbers. The chain can therefore be run again for
+the same tag.
 ```
 
 Incorrect:
 
 ```markdown
-Every publish step is idempotent — `deno publish` skips versions already on JSR,
-asset upload clobbers — so the chain can be run again for the same tag.
+Every publish step is idempotent — the npm step skips versions already
+published, asset upload clobbers — so the chain can be run again for the same
+tag.
 ```
 
 ---

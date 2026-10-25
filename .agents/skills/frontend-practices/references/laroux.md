@@ -69,7 +69,7 @@ Scope: Every component file in a laroux app
 
 Rule: A component is a server component unless its file starts with the
 `"use client";` directive. laroux recognizes the directive only as the first
-statement, written with the semicolon that `deno fmt` adds; comments may come
+statement, written with the semicolon that oxfmt adds; comments may come
 before it. Mark the smallest leaf that needs state, effects, event handlers or
 browser APIs, and keep data fetching and heavy dependencies in server
 components, since everything a client file imports ships to the browser.

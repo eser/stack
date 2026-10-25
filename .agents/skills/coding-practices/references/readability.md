@@ -1,7 +1,7 @@
 # Readability
 
 Naming, comments, abstraction, checks and control flow, in TypeScript and Go.
-Formatting itself belongs to `deno fmt` and `gofmt`; what they enforce is not
+Formatting itself belongs to oxfmt and `gofmt`; what they enforce is not
 repeated here.
 
 ## Contents
@@ -28,7 +28,9 @@ Scope: All languages
 Rule: Name similar operations the same way within a package and across packages:
 all loaders are `load*`, not a mix of `load*`, `fetch*` and `get*`. Use full
 words, not abbreviations (`sessionRegistry`, not `sessReg`). Casing follows the
-language and lint (`camelcase` in deno lint).
+language. In TypeScript and JavaScript, `validate-naming-and-todos` rejects a
+declared name that is not camelCase, PascalCase or SCREAMING_SNAKE_CASE, since
+oxlint has no casing rule.
 
 **Why:** consistent verbs let a reader and a search find every operation of one
 kind; a mix hides some of them.
@@ -44,7 +46,10 @@ Every deliberate shortcut or exception (a lint ignore, a validator exclude, a
 hardcoded limit, a skipped case) carries a comment giving the reason and what
 would remove it. Do not commit commented-out code; git history keeps it. A TODO
 names its backlog task, `TODO(TASK-12): ...` (workflow-practices: Complete,
-Honest Work); deno lint `ban-untagged-todo` rejects one without a tag.
+Honest Work). `validate-naming-and-todos` rejects a TODO or FIXME comment
+without a `(TASK-<number>)` tag; text inside string and template literals is not
+read. A lint exception uses oxlint's pragma with the rule name,
+`// oxlint-disable-next-line <plugin>/<rule>`, or `//nolint:<linter>` in Go.
 
 Correct:
 
@@ -248,16 +253,16 @@ retire them one by one.
 
 ## Line Length and Breaking
 
-Scope: All code; TypeScript, JavaScript and Markdown are wrapped by `deno fmt`,
-so this governs Go and anything the formatter does not wrap
+Scope: All code; TypeScript and JavaScript are wrapped by oxfmt, so this governs
+Go, Markdown and anything else the formatter does not wrap
 
 Rule: There is no fixed column limit, but a line past about 120 characters is
 broken. Break where the structure already has a seam (between arguments, after
 an operator, before a chained call), not at whatever column the line reaches. A
 call with four or more arguments puts each argument on its own line, with the
 closing parenthesis on its own line. This holds for code written on request too;
-asking for a one-liner does not make a long call acceptable. Where `deno fmt`
-owns the layout, keep its output rather than hand-wrapping against it.
+asking for a one-liner does not make a long call acceptable. Where oxfmt owns
+the layout, keep its output rather than hand-wrapping against it.
 
 A signature that is too long to read usually has too many parameters. The fix is
 an options struct or object (see architecture-guidelines: Public API and CLI

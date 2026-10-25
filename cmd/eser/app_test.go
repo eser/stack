@@ -200,11 +200,11 @@ func TestScriptRunOrder(t *testing.T) {
 func TestShellArgsAndResolveCommand(t *testing.T) {
 	t.Parallel()
 
-	if got := shellArgs("deno test", []string{"--filter", "my test"}); strings.Join(got, "|") != `-c|deno test "$@"|sh|--filter|my test` {
+	if got := shellArgs("node --test", []string{"--filter", "my test"}); strings.Join(got, "|") != `-c|node --test "$@"|sh|--filter|my test` {
 		t.Errorf("shellArgs %q", got)
 	}
 
-	if got := shellArgs("deno test", nil); strings.Join(got, "|") != "-c|deno test" {
+	if got := shellArgs("node --test", nil); strings.Join(got, "|") != "-c|node --test" {
 		t.Errorf("shellArgs %q", got)
 	}
 

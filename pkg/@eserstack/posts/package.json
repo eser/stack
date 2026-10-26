@@ -41,7 +41,13 @@
         "types": "./dist/go-posts.d.ts",
         "import": "./dist/go-posts.js"
       }
+    },
+    "bin": {
+      "eser-posts": "./dist/main.js"
     }
+  },
+  "bin": {
+    "eser-posts": "./main.ts"
   },
   "scripts": {
     "tui": "node adapters/tui/app.ts",

@@ -19,7 +19,9 @@
  * The package.json text is edited in place: only the three fields this script
  * owns change (and inside `scripts` and `publishConfig`, only `build` and
  * `exports`), the other fields keep their order and text, and new fields go
- * next to `exports`. The output follows oxfmt's package.json layout, so
+ * next to `exports`. A `publishConfig.bin` that points a bin at its emitted
+ * dist/ file, as @eserstack/posts has for `eser-posts`, is the package's own
+ * and stays as written. The output follows oxfmt's package.json layout, so
  * `oxfmt --check` passes on it.
  *
  * Usage:

@@ -102,7 +102,8 @@ func TestResolvePlugin(t *testing.T) {
 		{name: "the npx fallback pins the eser version", command: "noskills", path: []string{npxDir}, program: filepath.Join(npxDir, "npx"), args: []string{"--yes", "noskills@4.5.2"}},
 		{name: "a dev build asks npx for the package without a version", command: "laroux", path: []string{npxDir}, version: "dev", program: filepath.Join(npxDir, "npx"), args: []string{"--yes", "laroux"}},
 		{name: "no npx: the npm install command", command: "noskills", message: "Install it with: npm install -g noskills@4.5.2"},
-		{name: "posts has no npm package", command: "posts", path: []string{npxDir}, message: `"eser-posts" on PATH or in ESER_PLUGIN_PATH`},
+		{name: "npx names the posts package and its bin", command: "posts", path: []string{npxDir}, program: filepath.Join(npxDir, "npx"), args: []string{"--yes", "--package", "@eserstack/posts@4.5.2", "eser-posts"}},
+		{name: "no npx: the posts install command", command: "posts", message: "Install it with: npm install -g @eserstack/posts@4.5.2"},
 		{name: "an unknown command", command: "nope", path: []string{npxDir}, message: `"eser-nope" executable on PATH`},
 		{name: "a path-like name", command: "../x", message: "is not a command name"},
 	}
@@ -288,9 +289,9 @@ func TestBuiltinsAndHelp(t *testing.T) {
 	}
 }
 
-// TestForwardReachesTheWorkspaceCLIs runs `eser laroux --help` and
-// `eser noskills --help` against the Node CLIs in this repository, through
-// ESER_PLUGIN_PATH shims like the ones the npm launcher provides.
+// TestForwardReachesTheWorkspaceCLIs runs `eser laroux --help`, `eser noskills
+// --help` and `eser posts --help` against the Node CLIs in this repository,
+// through ESER_PLUGIN_PATH shims like the ones the npm launcher provides.
 func TestForwardReachesTheWorkspaceCLIs(t *testing.T) {
 	t.Parallel()
 
@@ -308,21 +309,28 @@ func TestForwardReachesTheWorkspaceCLIs(t *testing.T) {
 		t.Skip("the workspace is not installed (pnpm install)")
 	}
 
-	plugins := t.TempDir()
-	shims := map[string]string{
-		"laroux":   "pkg/@eserstack/laroux-server/cli.ts",
-		"noskills": "pkg/@eserstack/noskills/main.ts",
+	cases := []struct {
+		command string
+		bin     string
+		entry   string
+		want    string
+	}{
+		{command: "laroux", bin: "laroux", entry: "pkg/@eserstack/laroux-server/cli.ts", want: "laroux.js framework commands"},
+		{command: "noskills", bin: "noskills", entry: "pkg/@eserstack/noskills/main.ts", want: "state-machine orchestrator"},
+		{command: "posts", bin: "eser-posts", entry: "pkg/@eserstack/posts/main.ts", want: "eser-posts <command> [options]"},
 	}
 
-	for bin, entry := range shims {
+	plugins := t.TempDir()
+
+	for _, tc := range cases {
 		script := "#!/bin/sh\nexec " + shellQuote(node) + " --disable-warning=ExperimentalWarning " +
-			shellQuote(filepath.Join(repo, entry)) + " \"$@\"\n"
-		if err := os.WriteFile(filepath.Join(plugins, bin), []byte(script), 0o755); err != nil { //nolint:gosec // G306: a shim
+			shellQuote(filepath.Join(repo, tc.entry)) + " \"$@\"\n"
+		if err := os.WriteFile(filepath.Join(plugins, tc.bin), []byte(script), 0o755); err != nil { //nolint:gosec // G306: a shim
 			t.Fatal(err)
 		}
 	}
 
-	for bin, want := range map[string]string{"laroux": "laroux.js framework commands", "noskills": "state-machine orchestrator"} {
+	for _, tc := range cases {
 		e := testEnv(t)
 		e.cwd = repo
 		e.getenv = func(key string) string {
@@ -333,12 +341,65 @@ func TestForwardReachesTheWorkspaceCLIs(t *testing.T) {
 			return ""
 		}
 
-		if code := run(context.Background(), e, []string{bin, "--help"}); code != 0 {
-			t.Errorf("eser %s --help: exit %d: %s", bin, code, e.stderr)
+		if code := run(context.Background(), e, []string{tc.command, "--help"}); code != 0 {
+			t.Errorf("eser %s --help: exit %d: %s", tc.command, code, e.stderr)
 		}
 
-		if out := e.stdout.(*bytes.Buffer).String(); !strings.Contains(out, want) { //nolint:forcetypeassert
-			t.Errorf("eser %s --help printed:\n%s", bin, out)
+		if out := e.stdout.(*bytes.Buffer).String(); !strings.Contains(out, tc.want) { //nolint:forcetypeassert
+			t.Errorf("eser %s --help printed:\n%s", tc.command, out)
 		}
+	}
+}
+
+// TestForwardReachesThePackedCLIs runs `eser posts --help`, `eser laroux
+// --help` and `eser noskills --help` against the bins that npm installed from
+// the packed packages into the directory ESER_PACKED_BINS names, through
+// ESER_PLUGIN_PATH as the npm launcher passes it. The plugin-bins preflight
+// (etc/scripts/preflight-plugin-bins.ts) installs the packages and sets it;
+// without it the test is skipped.
+func TestForwardReachesThePackedCLIs(t *testing.T) {
+	t.Parallel()
+
+	bins := os.Getenv("ESER_PACKED_BINS")
+	if bins == "" {
+		t.Skip("ESER_PACKED_BINS is not set; the plugin-bins preflight sets it")
+	}
+
+	cases := []struct {
+		command string
+		bin     string
+		want    string
+	}{
+		{command: "posts", bin: "eser-posts", want: "eser-posts <command> [options]"},
+		{command: "laroux", bin: "laroux", want: "laroux.js framework commands"},
+		{command: "noskills", bin: "noskills", want: "state-machine orchestrator"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.command, func(t *testing.T) {
+			t.Parallel()
+
+			e := testEnv(t)
+			e.getenv = func(key string) string {
+				if key == "ESER_PLUGIN_PATH" {
+					return bins
+				}
+
+				return ""
+			}
+
+			res := resolvePlugin(e, tc.command)
+			if filepath.Dir(res.program) != bins || !strings.HasPrefix(filepath.Base(res.program), tc.bin) {
+				t.Fatalf("eser %s resolved %q (message %q), want the %s bin in %s", tc.command, res.program, res.message, tc.bin, bins)
+			}
+
+			if code := run(context.Background(), e, []string{tc.command, "--help"}); code != 0 {
+				t.Errorf("eser %s --help: exit %d: %s", tc.command, code, e.stderr)
+			}
+
+			if out := e.stdout.(*bytes.Buffer).String(); !strings.Contains(out, tc.want) { //nolint:forcetypeassert
+				t.Errorf("eser %s --help printed:\n%s", tc.command, out)
+			}
+		})
 	}
 }

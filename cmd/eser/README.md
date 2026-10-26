@@ -204,8 +204,9 @@ Any other `eser <name> [args]` runs, in this order (decision-10):
 2. for `laroux`, `noskills` and `posts`, the bins `laroux`, `noskills` and
    `eser-posts`, on PATH and then in each directory of `ESER_PLUGIN_PATH`, which
    the npm launcher sets;
-3. `npx --yes laroux@<version>` or `npx --yes noskills@<version>`, when npx is
-   on PATH;
+3. `npx --yes laroux@<version>`, `npx --yes noskills@<version>` or
+   `npx --yes --package @eserstack/posts@<version> eser-posts`, when npx is on
+   PATH;
 4. otherwise a message naming the `npm install -g` command.
 
 The exit code of the plugin is the exit code of eser.

@@ -2,6 +2,11 @@
   "name": "@eserstack/config",
   "version": "4.5.2",
   "type": "module",
+  "files": [
+    "dist/**/*.js",
+    "dist/**/*.d.ts",
+    "dist/**/*.json"
+  ],
   "exports": {
     ".": "./mod.ts",
     "./business": "./business/mod.ts",
@@ -9,6 +14,37 @@
     "./file": "./file/mod.ts",
     "./dotenv": "./dotenv/mod.ts",
     "./manifest": "./manifest.ts"
+  },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/mod.d.ts",
+        "import": "./dist/mod.js"
+      },
+      "./business": {
+        "types": "./dist/business/mod.d.ts",
+        "import": "./dist/business/mod.js"
+      },
+      "./adapters/ffi": {
+        "types": "./dist/adapters/ffi/mod.d.ts",
+        "import": "./dist/adapters/ffi/mod.js"
+      },
+      "./file": {
+        "types": "./dist/file/mod.d.ts",
+        "import": "./dist/file/mod.js"
+      },
+      "./dotenv": {
+        "types": "./dist/dotenv/mod.d.ts",
+        "import": "./dist/dotenv/mod.js"
+      },
+      "./manifest": {
+        "types": "./dist/manifest.d.ts",
+        "import": "./dist/manifest.js"
+      }
+    }
+  },
+  "scripts": {
+    "build": "node ../../../etc/scripts/build-library.ts"
   },
   "dependencies": {
     "@eserstack/ajan": "workspace:*",

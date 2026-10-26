@@ -2,6 +2,11 @@
   "name": "@eserstack/shell",
   "version": "4.5.2",
   "type": "module",
+  "files": [
+    "dist/**/*.js",
+    "dist/**/*.d.ts",
+    "dist/**/*.json"
+  ],
   "exports": {
     ".": "./mod.ts",
     "./completions": "./completions/mod.ts",
@@ -15,6 +20,61 @@
     "./tui/colors": "./tui/colors.ts",
     "./vterm": "./vterm/mod.ts",
     "./go-exec": "./go-exec.ts"
+  },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/mod.d.ts",
+        "import": "./dist/mod.js"
+      },
+      "./completions": {
+        "types": "./dist/completions/mod.d.ts",
+        "import": "./dist/completions/mod.js"
+      },
+      "./args": {
+        "types": "./dist/args/mod.d.ts",
+        "import": "./dist/args/mod.js"
+      },
+      "./args/flags": {
+        "types": "./dist/args/flags.d.ts",
+        "import": "./dist/args/flags.js"
+      },
+      "./module": {
+        "types": "./dist/module.d.ts",
+        "import": "./dist/module.js"
+      },
+      "./exec": {
+        "types": "./dist/exec/mod.d.ts",
+        "import": "./dist/exec/mod.js"
+      },
+      "./env": {
+        "types": "./dist/env/mod.d.ts",
+        "import": "./dist/env/mod.js"
+      },
+      "./tui": {
+        "types": "./dist/tui/mod.d.ts",
+        "import": "./dist/tui/mod.js"
+      },
+      "./tui/types": {
+        "types": "./dist/tui/types.d.ts",
+        "import": "./dist/tui/types.js"
+      },
+      "./tui/colors": {
+        "types": "./dist/tui/colors.d.ts",
+        "import": "./dist/tui/colors.js"
+      },
+      "./vterm": {
+        "types": "./dist/vterm/mod.d.ts",
+        "import": "./dist/vterm/mod.js"
+      },
+      "./go-exec": {
+        "types": "./dist/go-exec.d.ts",
+        "import": "./dist/go-exec.js"
+      }
+    }
+  },
+  "scripts": {
+    "build": "node ../../../etc/scripts/build-library.ts"
   },
   "dependencies": {
     "@eserstack/ajan": "workspace:*",

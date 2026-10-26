@@ -2,6 +2,11 @@
   "name": "@eserstack/http",
   "version": "4.5.2",
   "type": "module",
+  "files": [
+    "dist/**/*.js",
+    "dist/**/*.d.ts",
+    "dist/**/*.json"
+  ],
   "exports": {
     ".": "./mod.ts",
     "./adapter": "./adapter.ts",
@@ -10,6 +15,41 @@
     "./middlewares/csp": "./middlewares/csp.ts",
     "./middlewares/csrf": "./middlewares/csrf.ts",
     "./middlewares/rate-limiter": "./middlewares/rate-limiter.ts"
+  },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/mod.d.ts",
+        "import": "./dist/mod.js"
+      },
+      "./adapter": {
+        "types": "./dist/adapter.d.ts",
+        "import": "./dist/adapter.js"
+      },
+      "./response": {
+        "types": "./dist/response.d.ts",
+        "import": "./dist/response.js"
+      },
+      "./middlewares/cors": {
+        "types": "./dist/middlewares/cors.d.ts",
+        "import": "./dist/middlewares/cors.js"
+      },
+      "./middlewares/csp": {
+        "types": "./dist/middlewares/csp.d.ts",
+        "import": "./dist/middlewares/csp.js"
+      },
+      "./middlewares/csrf": {
+        "types": "./dist/middlewares/csrf.d.ts",
+        "import": "./dist/middlewares/csrf.js"
+      },
+      "./middlewares/rate-limiter": {
+        "types": "./dist/middlewares/rate-limiter.d.ts",
+        "import": "./dist/middlewares/rate-limiter.js"
+      }
+    }
+  },
+  "scripts": {
+    "build": "node ../../../etc/scripts/build-library.ts"
   },
   "dependencies": {
     "@eserstack/functions": "workspace:*",

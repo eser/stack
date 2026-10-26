@@ -191,9 +191,9 @@ const runStepTool = async (
     }
 
     // A tool that applies the limit itself, as the shell tool does, fails at
-    // the deadline. When it blocks the event loop meanwhile (the native bridge
-    // runs a command synchronously), the timer above cannot fire first, so a
-    // failure at or past the limit is reported as the step's timeout too.
+    // the deadline, and can do so before the timer above fires (or, for a
+    // tool that blocks the event loop meanwhile, instead of it), so a failure
+    // at or past the limit is reported as the step's timeout too.
     if (results.isFail(outcome) && performance.now() - startedAt >= timeoutMs) {
       return results.fail(timeoutError);
     }

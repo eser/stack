@@ -2,6 +2,11 @@
   "name": "@eserstack/standards",
   "version": "4.5.2",
   "type": "module",
+  "files": [
+    "dist/**/*.js",
+    "dist/**/*.d.ts",
+    "dist/**/*.json"
+  ],
   "exports": {
     ".": "./mod.ts",
     "./datetimes": "./datetimes/mod.ts",
@@ -20,6 +25,81 @@
     "./cross-runtime/execution-context": "./cross-runtime/execution-context.ts",
     "./strings": "./strings/mod.ts",
     "./versions": "./versions.ts"
+  },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/mod.d.ts",
+        "import": "./dist/mod.js"
+      },
+      "./datetimes": {
+        "types": "./dist/datetimes/mod.d.ts",
+        "import": "./dist/datetimes/mod.js"
+      },
+      "./formatters": {
+        "types": "./dist/formatters/mod.d.ts",
+        "import": "./dist/formatters/mod.js"
+      },
+      "./http-error": {
+        "types": "./dist/http-error.d.ts",
+        "import": "./dist/http-error.js"
+      },
+      "./i18n": {
+        "types": "./dist/i18n/mod.d.ts",
+        "import": "./dist/i18n/mod.js"
+      },
+      "./logging": {
+        "types": "./dist/logging.d.ts",
+        "import": "./dist/logging.js"
+      },
+      "./patterns": {
+        "types": "./dist/patterns.d.ts",
+        "import": "./dist/patterns.js"
+      },
+      "./collections": {
+        "types": "./dist/collections/mod.d.ts",
+        "import": "./dist/collections/mod.js"
+      },
+      "./routes": {
+        "types": "./dist/routes/mod.d.ts",
+        "import": "./dist/routes/mod.js"
+      },
+      "./run-modes": {
+        "types": "./dist/run-modes.d.ts",
+        "import": "./dist/run-modes.js"
+      },
+      "./cross-runtime": {
+        "types": "./dist/cross-runtime/mod.d.ts",
+        "import": "./dist/cross-runtime/mod.js"
+      },
+      "./cross-runtime/browser": {
+        "types": "./dist/cross-runtime/adapters/browser.d.ts",
+        "import": "./dist/cross-runtime/adapters/browser.js"
+      },
+      "./cross-runtime/node": {
+        "types": "./dist/cross-runtime/adapters/node.d.ts",
+        "import": "./dist/cross-runtime/adapters/node.js"
+      },
+      "./cross-runtime/workerd": {
+        "types": "./dist/cross-runtime/adapters/workerd.d.ts",
+        "import": "./dist/cross-runtime/adapters/workerd.js"
+      },
+      "./cross-runtime/execution-context": {
+        "types": "./dist/cross-runtime/execution-context.d.ts",
+        "import": "./dist/cross-runtime/execution-context.js"
+      },
+      "./strings": {
+        "types": "./dist/strings/mod.d.ts",
+        "import": "./dist/strings/mod.js"
+      },
+      "./versions": {
+        "types": "./dist/versions.d.ts",
+        "import": "./dist/versions.js"
+      }
+    }
+  },
+  "scripts": {
+    "build": "node ../../../etc/scripts/build-library.ts"
   },
   "dependencies": {
     "semver": "^7.8.5"

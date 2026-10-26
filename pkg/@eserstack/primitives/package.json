@@ -2,6 +2,11 @@
   "name": "@eserstack/primitives",
   "version": "4.5.2",
   "type": "module",
+  "files": [
+    "dist/**/*.js",
+    "dist/**/*.d.ts",
+    "dist/**/*.json"
+  ],
   "exports": {
     ".": "./mod.ts",
     "./functions": "./functions.ts",
@@ -10,6 +15,41 @@
     "./results": "./results.ts",
     "./type-guards": "./type-guards.ts",
     "./type-slices": "./type-slices.ts"
+  },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/mod.d.ts",
+        "import": "./dist/mod.js"
+      },
+      "./functions": {
+        "types": "./dist/functions.d.ts",
+        "import": "./dist/functions.js"
+      },
+      "./options": {
+        "types": "./dist/options.d.ts",
+        "import": "./dist/options.js"
+      },
+      "./promises": {
+        "types": "./dist/promises.d.ts",
+        "import": "./dist/promises.js"
+      },
+      "./results": {
+        "types": "./dist/results.d.ts",
+        "import": "./dist/results.js"
+      },
+      "./type-guards": {
+        "types": "./dist/type-guards.d.ts",
+        "import": "./dist/type-guards.js"
+      },
+      "./type-slices": {
+        "types": "./dist/type-slices.d.ts",
+        "import": "./dist/type-slices.js"
+      }
+    }
+  },
+  "scripts": {
+    "build": "node ../../../etc/scripts/build-library.ts"
   },
   "devDependencies": {
     "@eserstack/test-kit": "workspace:*"

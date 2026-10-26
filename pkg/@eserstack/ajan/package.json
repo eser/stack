@@ -2,6 +2,11 @@
   "name": "@eserstack/ajan",
   "version": "4.5.2",
   "type": "module",
+  "files": [
+    "dist/**/*.js",
+    "dist/**/*.d.ts",
+    "dist/**/*.json"
+  ],
   "exports": {
     ".": "./ffi/mod.ts",
     "./ffi": "./ffi/mod.ts",
@@ -10,6 +15,41 @@
     "./ffi/fake": "./ffi/fake.ts",
     "./ffi/request-signals": "./ffi/request-signals.ts",
     "./wasm": "./wasm/mod.ts"
+  },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/ffi/mod.d.ts",
+        "import": "./dist/ffi/mod.js"
+      },
+      "./ffi": {
+        "types": "./dist/ffi/mod.d.ts",
+        "import": "./dist/ffi/mod.js"
+      },
+      "./ffi/bindings": {
+        "types": "./dist/ffi/bindings.d.ts",
+        "import": "./dist/ffi/bindings.js"
+      },
+      "./ffi/client": {
+        "types": "./dist/ffi/client.d.ts",
+        "import": "./dist/ffi/client.js"
+      },
+      "./ffi/fake": {
+        "types": "./dist/ffi/fake.d.ts",
+        "import": "./dist/ffi/fake.js"
+      },
+      "./ffi/request-signals": {
+        "types": "./dist/ffi/request-signals.d.ts",
+        "import": "./dist/ffi/request-signals.js"
+      },
+      "./wasm": {
+        "types": "./dist/wasm/mod.d.ts",
+        "import": "./dist/wasm/mod.js"
+      }
+    }
+  },
+  "scripts": {
+    "build": "node ../../../etc/scripts/build-library.ts"
   },
   "dependencies": {
     "@eserstack/standards": "workspace:*"

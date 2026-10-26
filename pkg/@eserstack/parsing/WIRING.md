@@ -2,14 +2,15 @@
 
 ## 1. Input marshalling
 
-Two FFI functions:
+Two names of the ajan dispatcher ABI (TASK-238), reached with
+`lib.call(name, request)`. The request is an object, which the library encodes
+as JSON for `EserAjanCall`; the request and answer types are in the ajan
+binding table (`ffi/bindings.ts`).
 
-**Tokenize** (`EserAjanParsingTokenize`):
+**Tokenize** (`parsingTokenize`):
 
 ```ts
-lib.symbols.EserAjanParsingTokenize(
-  JSON.stringify({ input: string, definitions?: [{name, pattern}]? }),
-);
+lib.call("parsingTokenize", { input: string, definitions?: [{name, pattern}] });
 ```
 
 Go `parsingTokenizeRequest`:
@@ -25,13 +26,20 @@ Go `parsingTokenizeRequest`:
 - `definitions`: optional array of `{name, pattern}` objects; if omitted, uses
   built-in `SimpleTokens()`
 
-**SimpleTokens** (`EserAjanParsingSimpleTokens`):
+**SimpleTokens** (`parsingSimpleTokens`):
 
 ```ts
-lib.symbols.EserAjanParsingSimpleTokens(); // no arguments
+lib.call("parsingSimpleTokens"); // no request
 ```
 
+The bridge also serves an incremental tokenizer this package does not use yet:
+`lib.stream("parsingTokenizeStream", { definitions? })` opens it, the
+`parsingTokenizeStreamPush` call (`{ handle, chunk }`) answers the tokens of
+each chunk, and the stream's `close()` answers the flushed rest.
+
 ## 2. Output marshalling
+
+`lib.call` answers the parsed JSON, error answers included.
 
 **Tokenize** success:
 `{ "tokens": [{"kind":"word","value":"hello","offset":0,"length":5},...] }`
@@ -59,8 +67,8 @@ Error substrings → TS codes:
 
 ## 4. Memory ownership
 
-Same as config/crypto. Go `C.CString` heap allocation; backend copies to JS
-string and frees via `EserAjanFree`.
+Same as config/crypto. Go allocates each answer with `C.CString`; the ajan
+library copies it to a JS string and frees it with `EserAjanFree` itself.
 
 ## 5. Sync vs async
 

@@ -16,7 +16,6 @@
   "dependencies": {
     "@eserstack/standards": "workspace:*",
     "@eserstack/streams": "workspace:*",
-    "@std/encoding": "npm:@jsr/std__encoding@^1.0.11",
     "@tailwindcss/node": "^4.3.3",
     "@tailwindcss/oxide": "^4.3.3",
     "lightningcss": "^1.33.0",

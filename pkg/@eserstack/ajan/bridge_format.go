@@ -258,8 +258,8 @@ func bridgeFormatList() string {
 }
 
 func init() {
-	register("formatEncode", []string{"requestJSON"}, func(a []string) string { return bridgeFormatEncode(a[0]) })
-	register("formatDecode", []string{"requestJSON"}, func(a []string) string { return bridgeFormatDecode(a[0]) })
-	register("formatList", nil, func(_ []string) string { return bridgeFormatList() })
-	register("formatEncodeDocument", []string{"requestJSON"}, func(a []string) string { return bridgeFormatEncodeDocument(a[0]) })
+	register("formatEncode", bridgeFormatEncode)
+	register("formatDecode", bridgeFormatDecode)
+	register("formatList", func(string) string { return bridgeFormatList() })
+	register("formatEncodeDocument", bridgeFormatEncodeDocument)
 }

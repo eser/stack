@@ -346,3 +346,20 @@ nodeTest.test(
     assert.assertEquals(second, -1);
   },
 );
+
+// =============================================================================
+// parseCliArgs
+// =============================================================================
+
+nodeTest.test("parseCliArgs - reads --dry-run and its -n alias", () => {
+  assert.assertEquals(
+    changelogGen.parseCliArgs(["--dry-run"]).flags["dry-run"],
+    true,
+  );
+  assert.assertEquals(changelogGen.parseCliArgs(["-n"]).flags["dry-run"], true);
+  assert.assertEquals(
+    changelogGen.parseCliArgs([]).flags["dry-run"],
+    undefined,
+  );
+  assert.assertEquals(changelogGen.parseCliArgs().command, "changelog-gen");
+});

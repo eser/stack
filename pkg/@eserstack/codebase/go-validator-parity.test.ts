@@ -34,15 +34,12 @@ const goIssues = (
   options: Record<string, unknown> = {},
   gitAware = false,
 ): GoIssue[] => {
-  const raw = lib!.symbols.EserAjanCodebaseValidateFiles(
-    JSON.stringify({
-      dir,
-      validators: [validator],
-      validatorOptions: { [validator]: options },
-      gitAware,
-    }),
-  );
-  const parsed = JSON.parse(raw) as {
+  const parsed = lib!.call("codebaseValidateFiles", {
+    dir,
+    validators: [validator],
+    validatorOptions: { [validator]: options },
+    gitAware,
+  }) as {
     results?: Array<{ issues?: GoIssue[] }>;
     error?: string;
   };
@@ -302,10 +299,10 @@ nodeTest.test(
 
     for (const options of optionSets) {
       for (const message of messages) {
-        const raw = lib!.symbols.EserAjanCodebaseValidateCommitMsg(
-          JSON.stringify({ message, ...options }),
-        );
-        const go = JSON.parse(raw) as { valid: boolean; issues?: string[] };
+        const go = lib!.call("codebaseValidateCommitMsg", {
+          message,
+          ...options,
+        }) as { valid: boolean; issues?: string[] };
 
         assert.assertEquals(
           { valid: go.valid, issues: go.issues ?? [] },

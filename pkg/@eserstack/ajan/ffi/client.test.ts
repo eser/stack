@@ -33,7 +33,7 @@ nodeTest.test(
       // Distinct wrappers, because close() has to be per-caller...
       assert.assertNotStrictEquals(first, second);
       // ...over one shared library.
-      assert.assertStrictEquals(first.symbols, second.symbols);
+      assert.assertStrictEquals(first.call, second.call);
     } finally {
       first.close();
       second.close();
@@ -52,13 +52,13 @@ nodeTest.test(
     // the count to zero while `second` is still holding the library.
     first.close();
 
-    assert.assertEquals(typeof second.symbols.EserAjanVersion(), "string");
+    assert.assertEquals(typeof second.call("version").version, "string");
 
     second.close();
 
     // Every holder has released, so the library really closed and the guard
     // now refuses calls rather than reaching into an unmapped image.
-    assert.assertThrows(() => second.symbols.EserAjanVersion());
+    assert.assertThrows(() => second.call("version"), Error, "already closed");
   },
 );
 
@@ -71,7 +71,7 @@ nodeTest.test(
     const second = await ffiMod.loadEserAjan(nativeOnly);
 
     try {
-      assert.assertEquals(typeof second.symbols.EserAjanVersion(), "string");
+      assert.assertEquals(typeof second.call("version").version, "string");
     } finally {
       second.close();
     }

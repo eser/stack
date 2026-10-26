@@ -239,5 +239,5 @@ func bridgeWorkflowRun(requestJSON string) string {
 }
 
 func init() {
-	register("workflowRun", []string{"requestJSON"}, func(a []string) string { return bridgeWorkflowRun(a[0]) })
+	register("workflowRun", bridgeWorkflowRun)
 }

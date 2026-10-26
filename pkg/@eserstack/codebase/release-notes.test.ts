@@ -219,3 +219,27 @@ nodeTest.test(
     assert.assertEquals(releaseNotes.normalizeTag("  v4.3.0  "), "v4.3.0");
   },
 );
+
+nodeTest.test(
+  "parseCliArgs reads --repo, --tag and --create-if-missing",
+  () => {
+    const event = releaseNotes.parseCliArgs([
+      "--repo",
+      "eser/stack",
+      "--tag=v4.5.2",
+      "--create-if-missing",
+    ]);
+
+    assert.assertEquals(event.flags["repo"], "eser/stack");
+    assert.assertEquals(event.flags["tag"], "v4.5.2");
+    assert.assertEquals(event.flags["create-if-missing"], true);
+  },
+);
+
+nodeTest.test("parseCliArgs leaves absent flags out and maps -h", () => {
+  const event = releaseNotes.parseCliArgs(["-h"]);
+
+  assert.assertEquals(event.flags["help"], true);
+  assert.assertEquals(event.flags["repo"], undefined);
+  assert.assertEquals(event.flags["create-if-missing"], undefined);
+});

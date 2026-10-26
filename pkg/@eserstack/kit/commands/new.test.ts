@@ -2,13 +2,13 @@
 
 import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
-import * as path from "@std/path";
 import * as results from "@eserstack/primitives/results";
 import { runtime } from "@eserstack/standards/cross-runtime";
 import * as newCommand from "./new.ts";
 
-const REGISTRY_PATH = path.fromFileUrl(
-  new URL("../../../../.eser/recipes.json", import.meta.url),
+const REGISTRY_PATH = runtime.path.join(
+  import.meta.dirname,
+  "../../../../.eser/recipes.json",
 );
 
 nodeTest.test("new — succeeds with no arg (shows templates)", async () => {
@@ -51,5 +51,40 @@ nodeTest.test(
     } finally {
       await runtime.fs.remove(dir, { recursive: true });
     }
+  },
+);
+
+nodeTest.test("new — parseCliArgs reads every flag and repeats --var", () => {
+  const parsed = newCommand.parseCliArgs([
+    "library-pkg",
+    "--name",
+    "demo",
+    "--registry=registry.json",
+    "--var",
+    "a=1",
+    "--var",
+    "b=2",
+    "--local",
+    "-i",
+    "--no-post-install",
+  ]);
+
+  assert.assertEquals(parsed.positionals, ["library-pkg"]);
+  assert.assertEquals(parsed.values["name"], "demo");
+  assert.assertEquals(parsed.values["registry"], "registry.json");
+  assert.assertEquals(parsed.values["var"], ["a=1", "b=2"]);
+  assert.assertEquals(parsed.values["local"], true);
+  assert.assertEquals(parsed.values["interactive"], true);
+  assert.assertEquals(parsed.values["no-post-install"], true);
+});
+
+nodeTest.test(
+  "new — parseCliArgs reads --no-interactive and defaults --var",
+  () => {
+    const parsed = newCommand.parseCliArgs(["library-pkg", "--no-interactive"]);
+
+    assert.assertEquals(parsed.values["no-interactive"], true);
+    assert.assertEquals(parsed.values["interactive"], undefined);
+    assert.assertEquals(parsed.values["var"], []);
   },
 );

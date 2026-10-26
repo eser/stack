@@ -41,7 +41,6 @@ export const loadPackageConfig = async (
  * Expands workspace patterns (including globs) to actual directory paths.
  *
  * Supports simple trailing `/*` patterns (e.g. `pkg/*`, `apps/*`).
- * Does NOT depend on `@std/fs/expand-glob`.
  */
 const expandWorkspacePaths = async (
   root: string,

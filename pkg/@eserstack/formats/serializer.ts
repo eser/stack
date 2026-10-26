@@ -30,21 +30,21 @@ const encodeNative = (
   try {
     // An array is a list of items: WriteStart, WriteItem per item, WriteEnd.
     // Any other value is one whole document, written by a single WriteItem.
-    const raw = Array.isArray(data)
-      ? lib.symbols.EserAjanFormatEncodeDocument(
-          JSON.stringify({ format, items: data, pretty, indent }),
-        )
-      : lib.symbols.EserAjanFormatEncode(
-          JSON.stringify({
-            format,
-            data,
-            pretty,
-            indent,
-            isFirst: true,
-            document: true,
-          }),
-        );
-    const parsed = JSON.parse(raw) as { result?: string; error?: string };
+    const parsed = Array.isArray(data)
+      ? lib.call("formatEncodeDocument", {
+          format,
+          items: data,
+          pretty,
+          indent,
+        })
+      : lib.call("formatEncode", {
+          format,
+          data,
+          pretty,
+          indent,
+          isFirst: true,
+          document: true,
+        });
 
     if (typeof parsed.error === "string" && parsed.error.length > 0) {
       return null;
@@ -52,7 +52,7 @@ const encodeNative = (
 
     return trimTrailingSeparator(parsed.result ?? "");
   } catch {
-    // A library without these symbols, or a reply that is not JSON, leaves the
+    // A library without these names, or a refused call, leaves the
     // TypeScript formats to do the work, the same as a Go-side error.
     return null;
   }

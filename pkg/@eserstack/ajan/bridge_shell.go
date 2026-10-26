@@ -595,20 +595,26 @@ func bridgeShellPtyClose(handle string) string {
 
 func init() {
 	registerShutdownDrain(drainShellHandles)
-	register("shellExec", []string{"requestJSON"}, func(a []string) string { return bridgeShellExec(a[0]) })
-	register("shellTuiKeypressCreate", []string{"requestJSON"}, func(a []string) string { return bridgeShellTuiKeypressCreate(a[0]) })
-	register("shellTuiKeypressRead", []string{"handle"}, func(a []string) string { return bridgeShellTuiKeypressRead(a[0]) })
-	register("shellTuiKeypressClose", []string{"handle"}, func(a []string) string { return bridgeShellTuiKeypressClose(a[0]) })
-	register("shellTuiSetStdinRaw", []string{"requestJSON"}, func(a []string) string { return bridgeShellTuiSetStdinRaw(a[0]) })
-	register("shellTuiGetSize", []string{"requestJSON"}, func(a []string) string { return bridgeShellTuiGetSize(a[0]) })
-	register("shellExecSpawn", []string{"requestJSON"}, func(a []string) string { return bridgeShellExecSpawn(a[0]) })
-	register("shellExecRead", []string{"handle"}, func(a []string) string { return bridgeShellExecRead(a[0]) })
-	register("shellExecWrite", []string{"requestJSON"}, func(a []string) string { return bridgeShellExecWrite(a[0]) })
-	register("shellExecClose", []string{"handle"}, func(a []string) string { return bridgeShellExecClose(a[0]) })
-	register("shellPtySpawn", []string{"requestJSON"}, func(a []string) string { return bridgeShellPtySpawn(a[0]) })
-	register("shellPtyRead", []string{"handle"}, func(a []string) string { return bridgeShellPtyRead(a[0]) })
-	register("shellPtyWrite", []string{"requestJSON"}, func(a []string) string { return bridgeShellPtyWrite(a[0]) })
-	register("shellPtyResize", []string{"requestJSON"}, func(a []string) string { return bridgeShellPtyResize(a[0]) })
-	register("shellPtyKill", []string{"requestJSON"}, func(a []string) string { return bridgeShellPtyKill(a[0]) })
-	register("shellPtyClose", []string{"handle"}, func(a []string) string { return bridgeShellPtyClose(a[0]) })
+	register("shellExec", bridgeShellExec)
+	registerStream("shellTuiKeypressStream", "tuikeypress", streamFuncs{
+		open:  bridgeShellTuiKeypressCreate,
+		read:  bridgeShellTuiKeypressRead,
+		close: bridgeShellTuiKeypressClose,
+	})
+	register("shellTuiSetStdinRaw", bridgeShellTuiSetStdinRaw)
+	register("shellTuiGetSize", bridgeShellTuiGetSize)
+	registerStream("shellExecStream", "exec", streamFuncs{
+		open:  bridgeShellExecSpawn,
+		read:  bridgeShellExecRead,
+		close: bridgeShellExecClose,
+	})
+	register("shellExecWrite", bridgeShellExecWrite)
+	registerStream("shellPtyStream", "pty", streamFuncs{
+		open:  bridgeShellPtySpawn,
+		read:  bridgeShellPtyRead,
+		close: bridgeShellPtyClose,
+	})
+	register("shellPtyWrite", bridgeShellPtyWrite)
+	register("shellPtyResize", bridgeShellPtyResize)
+	register("shellPtyKill", bridgeShellPtyKill)
 }

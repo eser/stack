@@ -13,7 +13,6 @@
  * @module
  */
 
-import * as path from "@std/path";
 import { runtime } from "@eserstack/standards/cross-runtime";
 import * as shared from "./file-tools-shared.ts";
 import type { FileEntry } from "./file-tools-shared.ts";
@@ -64,7 +63,10 @@ export const emptyBaseline = <R extends string>(
 
 /** `file` relative to `root`, with `/` separators on every platform. */
 export const relativePath = (root: string, file: string): string =>
-  path.relative(path.resolve(root), file).split(path.SEPARATOR).join("/");
+  runtime.path
+    .relative(runtime.path.resolve(root), file)
+    .split(runtime.path.sep)
+    .join("/");
 
 /**
  * Resolves the `baseline` option of a validator against the scanned root.
@@ -84,7 +86,7 @@ export const resolveBaselinePath = (
     );
   }
 
-  return path.resolve(root, option);
+  return runtime.path.resolve(root, option);
 };
 
 /**
@@ -227,6 +229,6 @@ export const writeBaselineFile = async <R extends string>(
     ),
   );
 
-  await runtime.fs.mkdir(path.dirname(file), { recursive: true });
+  await runtime.fs.mkdir(runtime.path.dirname(file), { recursive: true });
   await runtime.fs.writeTextFile(file, `${JSON.stringify(sorted, null, 2)}\n`);
 };

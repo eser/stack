@@ -1,7 +1,8 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 /**
- * FFI-backed ChildProcess implementation using EserAjanShellExecSpawn/Read/Write/Close.
+ * FFI-backed ChildProcess implementation on the bridge's `shellExecStream`
+ * stream and its `shellExecWrite` call.
  *
  * Option B: throws if the native library is not available (no TS fallback).
  *
@@ -27,7 +28,7 @@ const requireLib = async (): Promise<ffiTypes.FFILibrary> => {
   if (lib === null) {
     throw new Error(
       "@eserstack/ajan native library is not available — " +
-        "EserAjanShellExec* requires the native library (the WASM fallback does not serve shell functions)" +
+        "shellExecStream requires the native library (the WASM fallback does not serve shell functions)" +
         ffiClient.describeLoadFailure(),
     );
   }
@@ -84,22 +85,19 @@ export const spawnChildGoSync = (
   lib: ffiTypes.FFILibrary,
   opts: SpawnGoOptions,
 ): standardsCrossRuntime.ChildProcess => {
-  const spawnResult = JSON.parse(
-    lib.symbols.EserAjanShellExecSpawn(
-      JSON.stringify({
-        command: opts.command,
-        args: opts.args ?? [],
-        cwd: opts.cwd ?? "",
-        env: opts.env ?? [],
-      }),
-    ),
-  ) as { handle?: string; pid?: number; error?: string };
+  const exec = lib.stream("shellExecStream", {
+    command: opts.command,
+    args: opts.args ?? [],
+    cwd: opts.cwd ?? "",
+    env: opts.env ?? [],
+  });
+  const spawnResult = exec.opened;
 
   if (spawnResult.error !== undefined) {
     throw new Error(spawnResult.error);
   }
 
-  const handle = spawnResult.handle!;
+  const handle = exec.handle;
   const pid = spawnResult.pid!;
 
   // closeHandle may only be called once — guards double-close.
@@ -108,10 +106,7 @@ export const spawnChildGoSync = (
   const closeHandle = (): number => {
     if (closed) return -1;
     closed = true;
-    const result = JSON.parse(lib.symbols.EserAjanShellExecClose(handle)) as {
-      code?: number;
-      error?: string;
-    };
+    const result = exec.close();
     return result.code ?? -1;
   };
 
@@ -141,18 +136,12 @@ export const spawnChildGoSync = (
   const readNext = (): void => {
     if (streamDone) return;
 
-    const raw = lib.symbols.EserAjanShellExecRead(handle);
+    const ev = exec.read();
 
-    if (raw === "null") {
+    if (ev === null) {
       closeStreams(closeHandle());
       return;
     }
-
-    const ev = JSON.parse(raw) as {
-      stream?: string;
-      chunk?: string;
-      error?: string;
-    };
 
     if (ev.error !== undefined) {
       if (streamDone) return;
@@ -193,11 +182,7 @@ export const spawnChildGoSync = (
   const stdin = new WritableStream<Uint8Array>({
     write(chunk) {
       const encoded = btoa(String.fromCharCode(...chunk));
-      const result = JSON.parse(
-        lib.symbols.EserAjanShellExecWrite(
-          JSON.stringify({ handle, data: encoded }),
-        ),
-      ) as { error?: string };
+      const result = lib.call("shellExecWrite", { handle, data: encoded });
 
       if (result.error !== undefined) {
         throw new Error(result.error);

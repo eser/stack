@@ -119,7 +119,7 @@ func bridgeCollectorGenerateManifest(requestJSON string) string {
 }
 
 func init() {
-	register("collectorSpecifierToIdentifier", []string{"requestJSON"}, func(a []string) string { return bridgeCollectorSpecifierToIdentifier(a[0]) })
-	register("collectorWalkFiles", []string{"requestJSON"}, func(a []string) string { return bridgeCollectorWalkFiles(a[0]) })
-	register("collectorGenerateManifest", []string{"requestJSON"}, func(a []string) string { return bridgeCollectorGenerateManifest(a[0]) })
+	register("collectorSpecifierToIdentifier", bridgeCollectorSpecifierToIdentifier)
+	register("collectorWalkFiles", bridgeCollectorWalkFiles)
+	register("collectorGenerateManifest", bridgeCollectorGenerateManifest)
 }

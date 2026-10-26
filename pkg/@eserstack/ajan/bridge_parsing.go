@@ -231,9 +231,14 @@ func bridgeParsingTokenizerClose(requestJSON string) string {
 
 func init() {
 	registerShutdownDrain(drainTokenizerHandles)
-	register("parsingTokenize", []string{"requestJSON"}, func(a []string) string { return bridgeParsingTokenize(a[0]) })
-	register("parsingSimpleTokens", nil, func(_ []string) string { return bridgeParsingSimpleTokens() })
-	register("parsingTokenizeStreamCreate", []string{"requestJSON"}, func(a []string) string { return bridgeParsingTokenizerCreate(a[0]) })
-	register("parsingTokenizeStreamPush", []string{"requestJSON"}, func(a []string) string { return bridgeParsingTokenizerPush(a[0]) })
-	register("parsingTokenizeStreamClose", []string{"requestJSON"}, func(a []string) string { return bridgeParsingTokenizerClose(a[0]) })
+	register("parsingTokenize", bridgeParsingTokenize)
+	register("parsingSimpleTokens", func(string) string { return bridgeParsingSimpleTokens() })
+	// Push-fed: chunks go in through parsingTokenizeStreamPush, which answers
+	// their tokens, and close flushes the rest.
+	registerStream("parsingTokenizeStream", "tokenizer", streamFuncs{
+		open:  bridgeParsingTokenizerCreate,
+		read:  nil,
+		close: func(handle string) string { return bridgeParsingTokenizerClose(handleRequest(handle)) },
+	})
+	register("parsingTokenizeStreamPush", bridgeParsingTokenizerPush)
 }

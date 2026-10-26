@@ -10,8 +10,8 @@ release-and-ci skill refers to.
   `VERSION`. The next release is 5.0.0, the first after the move to Node
   (decision-29).
 - The release commands run through the manifest scripts:
-  - full gate: `pnpm cli ok`;
-  - release preflight: `pnpm cli preflight`;
+  - full gate: `pnpm ok` (`eser ok`, on the Go eser);
+  - release preflight: `pnpm preflight` (`eser preflight`);
   - release: `pnpm cli codebase release <patch|minor|major|same>` (also
     `pnpm cli release`);
   - `pnpm cli codebase rerelease`, `pnpm cli codebase unrelease`;

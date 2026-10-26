@@ -227,3 +227,58 @@ nodeTest.test(
     }
   },
 );
+
+nodeTest.test(
+  "clone — parseCliArgs reads every flag and both positionals",
+  () => {
+    const parsed = clone.parseCliArgs([
+      "owner/repo#v1",
+      "target",
+      "--recipe",
+      "kit/recipe.json",
+      "-p",
+      "demo",
+      "--var",
+      "a=1",
+      "--var=b=2",
+      "--max-bytes",
+      "1000",
+      "--max-entries=50",
+      "--force",
+      "--dry-run",
+      "--skip-existing",
+      "--verbose",
+      "-i",
+      "--no-post-install",
+    ]);
+
+    assert.assertEquals(parsed.positionals, ["owner/repo#v1", "target"]);
+    assert.assertEquals(parsed.values["recipe"], "kit/recipe.json");
+    assert.assertEquals(parsed.values["name"], "demo");
+    assert.assertEquals(parsed.values["var"], ["a=1", "b=2"]);
+    assert.assertEquals(parsed.values["max-bytes"], "1000");
+    assert.assertEquals(parsed.values["max-entries"], "50");
+    for (const flag of [
+      "force",
+      "dry-run",
+      "skip-existing",
+      "verbose",
+      "interactive",
+      "no-post-install",
+    ]) {
+      assert.assertEquals(parsed.values[flag], true, flag);
+    }
+    assert.assertEquals(parsed.values["no-interactive"], undefined);
+  },
+);
+
+nodeTest.test(
+  "clone — parseCliArgs reads --no-interactive as its own flag",
+  () => {
+    const parsed = clone.parseCliArgs(["owner/repo", "--no-interactive"]);
+
+    assert.assertEquals(parsed.values["no-interactive"], true);
+    assert.assertEquals(parsed.values["interactive"], undefined);
+    assert.assertEquals(parsed.values["var"], []);
+  },
+);

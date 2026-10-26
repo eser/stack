@@ -105,13 +105,14 @@ jobs:
           cache: true
           cache-dependency-path: go.sum
 
-      # The precommit workflow of .eser/manifest.yml; its tests step writes the
-      # LCOV report to etc/coverage.lcov, which the upload below reads.
+      # The precommit workflow of .eser/manifest.yml, run by the Go eser
+      # (`go run ./cmd/eser ok`); its tests step writes the LCOV report to
+      # etc/coverage.lcov, which the upload below reads.
       - name: Run validation
-        run: pnpm cli ok
+        run: pnpm ok
 
       # Fails on vulnerabilities the code can reach, in the standard library
-      # and dependencies of both Go modules. Not part of `pnpm cli ok`
+      # and dependencies of both Go modules. Not part of `pnpm ok`
       # because it needs the vulnerability database over the network.
       - name: Check Go vulnerabilities
         run: make vuln
@@ -238,8 +239,9 @@ jobs:
           cache: true
           cache-dependency-path: go.sum
 
+      # The preflight workflow of .eser/manifest.yml, run by the Go eser.
       - name: Run release preflight
-        run: pnpm cli preflight
+        run: pnpm preflight
 
   # ── Release: gate ───────────────────────────────────────────────
   # Preflight for everything downstream. It creates nothing (hence contents:

@@ -3,7 +3,7 @@
 ## The run command uses the TypeScript engine only
 
 `workflows run` runs every workflow on the TypeScript engine in `engine.ts`. It
-does not call the bridge's `EserAjanWorkflowRun`, which runs workflows on the Go
+does not call the bridge's `workflowRun` call, which runs workflows on the Go
 engine in `pkg/ajan/workflowfx`.
 
 `run.ts` used to try the Go engine first when no tools were injected. The
@@ -13,7 +13,7 @@ standalone CLI, so that branch never ran, and it was removed.
 The Go engine has since closed the gaps that kept it apart (TASK-244); each row
 has a Go test in `pkg/ajan/workflowfx/wiring_gaps_test.go`:
 
-| Area                       | TypeScript engine                                       | `workflowfx` and `EserAjanWorkflowRun`                                                                                      |
+| Area                       | TypeScript engine                                       | `workflowfx` and `workflowRun`                                                                                              |
 | -------------------------- | ------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
 | Tools                      | The shell tool and injected tools (codebase validators) | Injected tools; the bridge registers the shell tool and `validatortools.RegisterManifestTools` (the `validate-*` names)     |
 | Step format                | Manifest steps: a tool name, or `{ tool: options }`     | `ParseManifest`; the bridge takes the manifest text in `manifest`, or `{ name, options }` objects in `workflows`            |
@@ -33,7 +33,7 @@ per-step progress across it.
 ## Where the native library is still used
 
 The shell tool runs its command through `@eserstack/shell/exec`. When the native
-library is loaded, that is the bridge's `EserAjanShellExec`, which kills the
+library is loaded, that is the bridge's `shellExec` call, which kills the
 command's whole process group at the step's timeout. Otherwise the runtime spawn
 runs the command and, at the same timeout, signals the `sh` process only, so a
 process it started in the background keeps running.

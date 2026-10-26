@@ -2,7 +2,6 @@
 
 import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
-import * as path from "@std/path";
 import { runtime } from "@eserstack/standards/cross-runtime";
 import * as runtimeJsApis from "./validate-runtime-js-apis.ts";
 
@@ -19,10 +18,10 @@ const withFixture = async (
   });
   try {
     for (const [relPath, content] of Object.entries(files)) {
-      const file = path.join(root, relPath);
+      const file = runtime.path.join(root, relPath);
       // Sequential: a handful of small fixture files.
       // oxlint-disable-next-line no-await-in-loop
-      await runtime.fs.mkdir(path.dirname(file), { recursive: true });
+      await runtime.fs.mkdir(runtime.path.dirname(file), { recursive: true });
       // oxlint-disable-next-line no-await-in-loop
       await runtime.fs.writeTextFile(file, content);
     }
@@ -43,7 +42,7 @@ const found = (
   issues
     .map((issue) => {
       const what = issue.message.split("API usage: ")[1]?.split(";")[0];
-      return `${path.basename(issue.path)}:${issue.line}:${what}`;
+      return `${runtime.path.basename(issue.path)}:${issue.line}:${what}`;
     })
     .sort();
 
@@ -113,7 +112,7 @@ nodeTest.test(
 
         assert.assertEquals(result.passed, false);
         assert.assertEquals(
-          result.issues.map((issue) => path.basename(issue.file ?? "")),
+          result.issues.map((issue) => runtime.path.basename(issue.file ?? "")),
           ["lib.ts"],
         );
         assert.assertStringIncludes(

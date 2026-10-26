@@ -3,6 +3,7 @@
 import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import type * as ffiTypes from "@eserstack/ajan/ffi";
+import * as ffiFake from "@eserstack/ajan/ffi/fake";
 import * as execGo from "./exec-go.ts";
 import * as types from "./types.ts";
 
@@ -11,15 +12,14 @@ const fakeLib = (
   reply: string,
 ): { lib: ffiTypes.FFILibrary; requests: unknown[] } => {
   const requests: unknown[] = [];
-  const lib = {
-    symbols: {
-      EserAjanShellExec: (requestJSON: string): string => {
-        requests.push(JSON.parse(requestJSON));
-        return reply;
+  const lib = ffiFake.createFakeLibrary({
+    calls: {
+      shellExec: (request) => {
+        requests.push(request);
+        return JSON.parse(reply) as ffiTypes.ResponseOf<"shellExec">;
       },
     },
-    close: () => {},
-  } as unknown as ffiTypes.FFILibrary;
+  });
 
   return { lib, requests };
 };

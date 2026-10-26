@@ -22,13 +22,13 @@ const mapErrorCode = (msg: string): string => {
  */
 export const ffiLoader: Loader = {
   tokenize: async (input: TokenizeInput): Promise<FfiToken[]> => {
-    const req: Record<string, unknown> = { input: input.input };
-    if (input.definitions !== undefined && input.definitions.length > 0) {
-      req["definitions"] = input.definitions;
-    }
+    const req =
+      input.definitions !== undefined && input.definitions.length > 0
+        ? { input: input.input, definitions: input.definitions }
+        : { input: input.input };
 
-    const result = await client.callJson<{ tokens?: FfiToken[] }>(
-      (lib) => lib.symbols.EserAjanParsingTokenize(JSON.stringify(req)),
+    const result = await client.callJson(
+      (lib) => lib.call("parsingTokenize", req),
       {
         onUnavailable: () =>
           new errors.ParsingError(
@@ -39,22 +39,23 @@ export const ffiLoader: Loader = {
       },
     );
 
-    return result.tokens ?? [];
+    return [...(result.tokens ?? [])];
   },
 
   simpleTokens: async (): Promise<SimpleTokensResult> => {
-    const result = await client.callJson<{
-      definitions?: { name: string; pattern: string }[];
-    }>((lib) => lib.symbols.EserAjanParsingSimpleTokens(), {
-      onUnavailable: () =>
-        new errors.ParsingError(
-          "native library unavailable",
-          errors.PARSING_TOKENIZE_FAILED,
-        ),
-      onError: (msg) =>
-        new errors.ParsingError(msg, errors.PARSING_TOKENIZE_FAILED),
-    });
+    const result = await client.callJson(
+      (lib) => lib.call("parsingSimpleTokens"),
+      {
+        onUnavailable: () =>
+          new errors.ParsingError(
+            "native library unavailable",
+            errors.PARSING_TOKENIZE_FAILED,
+          ),
+        onError: (msg) =>
+          new errors.ParsingError(msg, errors.PARSING_TOKENIZE_FAILED),
+      },
+    );
 
-    return { definitions: result.definitions ?? [] };
+    return { definitions: [...(result.definitions ?? [])] };
   },
 };

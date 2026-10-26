@@ -13,51 +13,6 @@ import (
 	"github.com/eser/stack/pkg/ajan/workflowfx"
 )
 
-// manifestAliases maps the step names of .eser/manifest.yml (the TypeScript
-// tool names) to the Go validators registered under codebase-*.
-var manifestAliases = map[string]string{ //nolint:gochecknoglobals
-	"validate-eof":                 "codebase-eof",
-	"validate-trailing-whitespace": "codebase-trailing",
-	"validate-bom":                 "codebase-bom",
-	"validate-line-endings":        "codebase-line-endings",
-	"validate-large-files":         "codebase-large-file",
-	"validate-case-conflict":       "codebase-case-conflict",
-	"validate-merge-conflict":      "codebase-merge-conflicts",
-	"validate-json":                "codebase-json",
-	"validate-toml":                "codebase-toml",
-	"validate-yaml":                "codebase-yaml",
-	"validate-symlinks":            "codebase-symlinks",
-	"validate-shebangs":            "codebase-shebangs",
-	"validate-secrets":             "codebase-secrets",
-	"validate-filenames":           "codebase-filenames",
-	"validate-submodules":          "codebase-submodules",
-	"validate-licenses":            "codebase-license",
-	"validate-runtime-js-apis":     "codebase-runtime-js-apis",
-	"validate-self-imports":        "codebase-self-imports",
-	"validate-code-conventions":    "codebase-code-conventions",
-	"validate-naming-and-todos":    "codebase-naming-and-todos",
-	"validate-server-loc":          "codebase-server-loc",
-	"validate-error-coverage":      "codebase-error-coverage",
-}
-
-// aliasTool runs a registered tool under another name.
-type aliasTool struct {
-	name   string
-	target workflowfx.WorkflowTool
-}
-
-func (t *aliasTool) Name() string        { return t.name }
-func (t *aliasTool) Description() string { return t.target.Description() }
-
-func (t *aliasTool) Run(ctx context.Context, opts map[string]any) (*workflowfx.WorkflowToolResult, error) {
-	result, err := t.target.Run(ctx, opts)
-	if result != nil {
-		result.Name = t.name
-	}
-
-	return result, err //nolint:wrapcheck // the aliased tool's own error
-}
-
 // treeTool is a whole-repository check that runs once per step.
 type treeTool struct {
 	name string
@@ -224,18 +179,14 @@ func stringOption(raw any) ([]string, error) {
 }
 
 // RegisterManifestTools registers, in addition to RegisterAllValidators, the
-// tools under the step names .eser/manifest.yml uses: the validate-* aliases
-// of the codebase-* validators and the whole-repository checks.
+// tools under the step names .eser/manifest.yml uses: the validate-* file
+// validators, which check what the TypeScript tools of the same names check
+// (manifest_parity.go), and the whole-repository checks.
 func RegisterManifestTools(r *workflowfx.Registry) {
 	RegisterAllValidators(r)
 
-	for alias, target := range manifestAliases {
-		tool, ok := r.Get(target)
-		if !ok {
-			panic("validatortools: alias " + alias + " targets unregistered " + target)
-		}
-
-		r.Register(&aliasTool{name: alias, target: tool})
+	for _, tool := range manifestFileTools() {
+		r.Register(tool)
 	}
 
 	for _, tool := range treeTools() {

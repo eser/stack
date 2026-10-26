@@ -3,6 +3,7 @@
 import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import type * as ffiTypes from "@eserstack/ajan/ffi";
+import * as fake from "@eserstack/ajan/ffi/fake";
 import { runtime } from "@eserstack/standards/cross-runtime";
 import * as config from "../config.ts";
 import type * as model from "../model.ts";
@@ -37,12 +38,10 @@ const aifxPath = (file: string): string => {
 const target = (provider: string) =>
   config.withDefaults({ provider, model: "test-model" });
 
-/** A native library whose only symbol creates a model under one handle. */
-const stubLib = {
-  symbols: {
-    EserAjanAiCreateModel: () => JSON.stringify({ handle: "model-1" }),
-  },
-} as unknown as ffiTypes.FFILibrary;
+/** A native library whose only call creates a model under one handle. */
+const stubLib: ffiTypes.FFILibrary = fake.createFakeLibrary({
+  calls: { aiCreateModel: () => ({ handle: "model-1" }) },
+});
 
 const bridgeCapabilities = async (
   provider: string,

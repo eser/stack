@@ -1217,16 +1217,18 @@ func mapStreamEvent(event aifx.StreamEvent) aiStreamEventResponse { //nolint:goc
 
 func init() {
 	registerShutdownDrain(drainAIHandles)
-	register("aiCreateModel", []string{"configJSON"}, func(a []string) string { return bridgeAiCreateModel(a[0]) })
-	register("aiGenerateText", []string{"modelHandle", "optionsJSON"}, func(a []string) string { return bridgeAiGenerateText(a[0], a[1]) })
-	register("aiStreamText", []string{"modelHandle", "optionsJSON"}, func(a []string) string { return bridgeAiStreamText(a[0], a[1]) })
-	register("aiStreamRead", []string{"streamHandle"}, func(a []string) string { return bridgeAiStreamRead(a[0]) })
-	register("aiCancelRequest", []string{"requestJSON"}, func(a []string) string { return bridgeAiCancelRequest(a[0]) })
-	register("aiCloseModel", []string{"modelHandle"}, func(a []string) string { return bridgeAiCloseModel(a[0]) })
-	register("aiFreeStream", []string{"streamHandle"}, func(a []string) string { return bridgeAiFreeStream(a[0]) })
-	register("aiBatchCreate", []string{"requestJSON"}, func(a []string) string { return bridgeAiBatchCreate(a[0]) })
-	register("aiBatchGet", []string{"requestJSON"}, func(a []string) string { return bridgeAiBatchGet(a[0]) })
-	register("aiBatchList", []string{"requestJSON"}, func(a []string) string { return bridgeAiBatchList(a[0]) })
-	register("aiBatchDownload", []string{"requestJSON"}, func(a []string) string { return bridgeAiBatchDownload(a[0]) })
-	register("aiBatchCancel", []string{"requestJSON"}, func(a []string) string { return bridgeAiBatchCancel(a[0]) })
+	register("aiCreateModel", bridgeAiCreateModel)
+	register("aiGenerateText", withModel(bridgeAiGenerateText))
+	registerStream("aiTextStream", "stream", streamFuncs{
+		open:  withModel(bridgeAiStreamText),
+		read:  bridgeAiStreamRead,
+		close: bridgeAiFreeStream,
+	})
+	register("aiCancelRequest", bridgeAiCancelRequest)
+	register("aiCloseModel", bridgeAiCloseModel)
+	register("aiBatchCreate", bridgeAiBatchCreate)
+	register("aiBatchGet", bridgeAiBatchGet)
+	register("aiBatchList", bridgeAiBatchList)
+	register("aiBatchDownload", bridgeAiBatchDownload)
+	register("aiBatchCancel", bridgeAiBatchCancel)
 }

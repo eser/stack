@@ -3,8 +3,8 @@
 /**
  * FFI-backed TUI event source (Phase B: event source moved to Go).
  *
- * Wraps EserAjanShellTuiKeypress*, EserAjanShellTuiSetStdinRaw, and
- * EserAjanShellTuiGetSize exported by the ajan native library.
+ * Wraps the bridge's `shellTuiKeypressStream` stream and its
+ * `shellTuiSetStdinRaw` and `shellTuiGetSize` calls.
  *
  * Option B: throws if the native library is not available (no TS fallback).
  *
@@ -25,7 +25,7 @@ const requireLib = async () => {
   if (lib === null) {
     throw new Error(
       "@eserstack/ajan native library is not available — " +
-        "EserAjanShellTui* requires the native library (the WASM fallback does not serve shell functions)" +
+        "the shellTui names require the native library (the WASM fallback does not serve shell functions)" +
         ffiClient.describeLoadFailure(),
     );
   }
@@ -56,25 +56,18 @@ export const readKeypressFFI = async function* (
 ): AsyncGenerator<KeypressFFIEvent, void, unknown> {
   const lib = await requireLib();
 
-  const createResult = JSON.parse(
-    lib.symbols.EserAjanShellTuiKeypressCreate("{}"),
-  ) as { handle?: string; error?: string };
+  const keypress = lib.stream("shellTuiKeypressStream", {});
+  const createResult = keypress.opened;
 
   if (createResult.error !== undefined) {
     throw new Error(createResult.error);
   }
 
-  const handle = createResult.handle!;
-
   try {
     while (true) {
       if (signal?.aborted) break;
 
-      const raw = lib.symbols.EserAjanShellTuiKeypressRead(handle);
-
-      if (raw === "null") break;
-
-      const ev = JSON.parse(raw) as {
+      const ev = keypress.read() as {
         name: string;
         char?: string;
         ctrl: boolean;
@@ -84,7 +77,9 @@ export const readKeypressFFI = async function* (
         cols?: number;
         rows?: number;
         error?: string;
-      };
+      } | null;
+
+      if (ev === null) break;
 
       if (ev.error !== undefined) throw new Error(ev.error);
 
@@ -105,7 +100,7 @@ export const readKeypressFFI = async function* (
       };
     }
   } finally {
-    lib.symbols.EserAjanShellTuiKeypressClose(handle);
+    keypress.close();
   }
 };
 
@@ -119,9 +114,7 @@ export const readKeypressFFI = async function* (
  */
 export const setStdinRawFFI = async (enable: boolean): Promise<void> => {
   const lib = await requireLib();
-  const result = JSON.parse(
-    lib.symbols.EserAjanShellTuiSetStdinRaw(JSON.stringify({ enable })),
-  ) as { error?: string };
+  const result = lib.call("shellTuiSetStdinRaw", { enable });
 
   if (result.error !== undefined) throw new Error(result.error);
 };
@@ -144,11 +137,7 @@ export type TerminalSize = {
  */
 export const getTerminalSizeFFI = async (): Promise<TerminalSize> => {
   const lib = await requireLib();
-  const result = JSON.parse(lib.symbols.EserAjanShellTuiGetSize("{}")) as {
-    cols?: number;
-    rows?: number;
-    error?: string;
-  };
+  const result = lib.call("shellTuiGetSize", {});
 
   if (result.error !== undefined) throw new Error(result.error);
 

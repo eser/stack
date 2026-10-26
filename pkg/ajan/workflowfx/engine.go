@@ -93,7 +93,7 @@ func RunWorkflow(
 		step := queue[0]
 		queue = queue[1:]
 
-		if opts != nil && opts.Only != "" && step.Name != opts.Only {
+		if opts != nil && opts.Only != "" && !stepMatches(&step, opts.Only) {
 			continue
 		}
 
@@ -309,6 +309,46 @@ func RunWorkflow(
 	}, nil
 }
 
+// stepMatches reports whether a step answers to name: its tool name, or its
+// name option, which is the display name of a shell step.
+func stepMatches(step *StepConfig, name string) bool {
+	if step.Name == name {
+		return true
+	}
+
+	display, ok := step.Options["name"].(string)
+
+	return ok && display == name
+}
+
+// checkOnly returns ErrNoStepSelected when opts.Only is set and no step of
+// the workflows matches it. Steps a tool adds at run time (NextSteps) are not
+// known here, so only the declared steps count.
+func checkOnly(workflows []*WorkflowDefinition, opts *RunOptions) error {
+	if opts == nil || opts.Only == "" {
+		return nil
+	}
+
+	names := make([]string, 0)
+
+	for _, w := range workflows {
+		for i := range w.Steps {
+			if stepMatches(&w.Steps[i], opts.Only) {
+				return nil
+			}
+
+			name := w.Steps[i].Name
+			if display, ok := w.Steps[i].Options["name"].(string); ok && display != "" {
+				name = display
+			}
+
+			names = append(names, name)
+		}
+	}
+
+	return fmt.Errorf("%w %q; the steps are: %s", ErrNoStepSelected, opts.Only, strings.Join(names, ", "))
+}
+
 // buildStepOptions merges step-level options with run-level options.
 func buildStepOptions(step *StepConfig, opts *RunOptions) map[string]any {
 	merged := make(map[string]any, len(step.Options)+4)
@@ -379,7 +419,7 @@ func RunByEvent(
 		)
 	}
 
-	results := make([]*WorkflowResult, 0, len(matching))
+	resolvedAll := make([]*WorkflowDefinition, 0, len(matching))
 
 	for _, w := range matching {
 		resolved, err := ResolveIncludes(w, workflows)
@@ -387,6 +427,16 @@ func RunByEvent(
 			return nil, err
 		}
 
+		resolvedAll = append(resolvedAll, resolved)
+	}
+
+	if err := checkOnly(resolvedAll, opts); err != nil {
+		return nil, err
+	}
+
+	results := make([]*WorkflowResult, 0, len(resolvedAll))
+
+	for _, resolved := range resolvedAll {
 		result, err := RunWorkflow(ctx, resolved, registry, opts)
 		if err != nil {
 			return nil, err
@@ -424,6 +474,10 @@ func RunWorkflowWithConfig(
 
 	resolved, err := ResolveIncludes(w, cfg.Workflows)
 	if err != nil {
+		return nil, err
+	}
+
+	if err := checkOnly([]*WorkflowDefinition{resolved}, opts); err != nil {
 		return nil, err
 	}
 

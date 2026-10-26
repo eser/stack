@@ -73,14 +73,14 @@ export const createCacheManager = (
         if (lib === null) {
           throw new Error("native library unavailable");
         }
-        const raw = lib.symbols.EserAjanCacheCreate(
-          JSON.stringify({ app: { name: app.name, org: app.org }, baseDir }),
-        );
-        const result = JSON.parse(raw) as { handle: string; error?: string };
+        const result = lib.call("cacheCreate", {
+          app: { name: app.name, org: app.org },
+          baseDir,
+        });
         if (result.error) {
           throw new Error(result.error);
         }
-        return result.handle;
+        return result.handle ?? "";
       });
     }
     return _handlePromise;
@@ -126,8 +126,7 @@ export const createCacheManager = (
   const list = async (): Promise<CacheEntry[]> => {
     const handle = await getHandle();
     const lib = ffiClient.getLib()!;
-    const raw = lib.symbols.EserAjanCacheList(JSON.stringify({ handle }));
-    const result = JSON.parse(raw) as {
+    const result = lib.call("cacheList", { handle }) as {
       entries: Array<{
         path: string;
         name: string;
@@ -154,10 +153,7 @@ export const createCacheManager = (
     const lib = ffiClient.getLib()!;
     // Resolve to absolute path — Go's Manager.Remove calls os.RemoveAll(path)
     // directly (not relative to cache dir), so we must pass the absolute path.
-    const raw = lib.symbols.EserAjanCacheRemove(
-      JSON.stringify({ handle, path: resolvePath(path) }),
-    );
-    const result = JSON.parse(raw) as { error?: string };
+    const result = lib.call("cacheRemove", { handle, path: resolvePath(path) });
     if (result.error) {
       throw new Error(result.error);
     }
@@ -166,8 +162,7 @@ export const createCacheManager = (
   const clear = async (): Promise<void> => {
     const handle = await getHandle();
     const lib = ffiClient.getLib()!;
-    const raw = lib.symbols.EserAjanCacheClear(JSON.stringify({ handle }));
-    const result = JSON.parse(raw) as { error?: string };
+    const result = lib.call("cacheClear", { handle });
     if (result.error) {
       throw new Error(result.error);
     }
@@ -187,7 +182,7 @@ export const createCacheManager = (
     _handlePromise = null;
     const lib = ffiClient.getLib();
     if (lib !== null) {
-      lib.symbols.EserAjanCacheClose(JSON.stringify({ handle }));
+      lib.call("cacheClose", { handle });
     }
   };
 

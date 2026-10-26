@@ -3,8 +3,9 @@
 /**
  * Go-backed social posts service.
  *
- * Wraps EserAjanPostsCreateService / Compose / GetTimeline / Search / Close
- * for posting and reading from Twitter/X and Bluesky via the native Go library.
+ * Wraps the bridge's postsCreateService, postsCompose, postsGetTimeline,
+ * postsSearch and postsClose calls for posting and reading from Twitter/X and
+ * Bluesky via the native Go library.
  *
  * @module
  */
@@ -76,16 +77,13 @@ export const createGoPostService = async (
     throw new Error("native library not available for createGoPostService");
   }
 
-  const raw = lib.symbols.EserAjanPostsCreateService(
-    JSON.stringify(credentials),
-  );
-  const result = JSON.parse(raw) as { handle: string; error?: string };
+  const result = lib.call("postsCreateService", credentials);
 
   if (result.error) {
     throw new Error(result.error);
   }
 
-  const handle = result.handle;
+  const handle = result.handle ?? "";
 
   return {
     compose(text: string, platform?: GoPlatform): Promise<GoPost> {
@@ -94,10 +92,10 @@ export const createGoPostService = async (
         return Promise.reject(new Error("native library unavailable"));
       }
 
-      const raw2 = lib2.symbols.EserAjanPostsCompose(
-        JSON.stringify({ handle, text, platform }),
-      );
-      const res = JSON.parse(raw2) as { post: GoPost; error?: string };
+      const res = lib2.call("postsCompose", { handle, text, platform }) as {
+        post: GoPost;
+        error?: string;
+      };
       if (res.error) return Promise.reject(new Error(res.error));
       return Promise.resolve(res.post);
     },
@@ -110,10 +108,10 @@ export const createGoPostService = async (
         return Promise.reject(new Error("native library unavailable"));
       }
 
-      const raw2 = lib2.symbols.EserAjanPostsGetTimeline(
-        JSON.stringify({ handle, ...options }),
-      );
-      const res = JSON.parse(raw2) as { posts: GoPost[]; error?: string };
+      const res = lib2.call("postsGetTimeline", { handle, ...options }) as {
+        posts: GoPost[];
+        error?: string;
+      };
       if (res.error) return Promise.reject(new Error(res.error));
       return Promise.resolve(res.posts);
     },
@@ -127,10 +125,10 @@ export const createGoPostService = async (
         return Promise.reject(new Error("native library unavailable"));
       }
 
-      const raw2 = lib2.symbols.EserAjanPostsSearch(
-        JSON.stringify({ handle, query, ...options }),
-      );
-      const res = JSON.parse(raw2) as { posts: GoPost[]; error?: string };
+      const res = lib2.call("postsSearch", { handle, query, ...options }) as {
+        posts: GoPost[];
+        error?: string;
+      };
       if (res.error) return Promise.reject(new Error(res.error));
       return Promise.resolve(res.posts);
     },
@@ -138,7 +136,7 @@ export const createGoPostService = async (
     close(): void {
       const lib2 = ffiClient.getLib();
       if (lib2 === null) return;
-      lib2.symbols.EserAjanPostsClose(JSON.stringify({ handle }));
+      lib2.call("postsClose", { handle });
     },
   };
 };

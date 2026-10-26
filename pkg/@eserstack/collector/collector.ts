@@ -64,16 +64,10 @@ const listFilesInGo = async (
     return null;
   }
 
-  const raw = lib.symbols.EserAjanCollectorWalkFiles(
-    JSON.stringify({
-      dir: baseDir,
-      ignoreFilePattern: ignoreFilePattern.source,
-    }),
-  );
-  const result = JSON.parse(raw) as {
-    files?: Array<{ relPath: string; absPath: string }> | null;
-    error?: string;
-  };
+  const result = lib.call("collectorWalkFiles", {
+    dir: baseDir,
+    ignoreFilePattern: ignoreFilePattern.source,
+  });
 
   if (result.error !== undefined && result.error !== "") {
     // The WASM build without a preopen cannot read the directory, and Go's

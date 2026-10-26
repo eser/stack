@@ -1,8 +1,9 @@
 # eser (Go)
 
 The Go build of the eser CLI (M3-T4, ADR 0005). It does not replace the
-TypeScript CLI yet: it covers manifest scripts, its own install, update and
-diagnosis, plugin forwarding, the release commands of `eser codebase` and
+TypeScript CLI yet: it covers manifest scripts, the workflow runner and the
+gate (`eser ok`), the validators, git hooks and release commands of
+`eser codebase`, its own install, update and diagnosis, plugin forwarding,
 `eser dev`, and `eser kit`, `eser cs` and `eser ai`. The other commands the
 TypeScript CLI implements itself come in later M3 tasks.
 
@@ -27,6 +28,53 @@ bin/eser --help       # built-in commands and the manifest's scripts
   the `npm install -g eser` command.
 - `eser doctor` reports the version, platform, binary, PATH, git, node, pnpm and
   go, the manifest and the git hooks; `--json` prints it as JSON.
+
+## Workflows and the gate: `eser workflows`
+
+`eser workflows run -e <event>` runs every workflow of `.eser/manifest.yml`
+whose `on` lists the event, and `-w <id>` runs one workflow, on
+`pkg/ajan/workflowfx` (M3-T7). A step name resolves to a built-in tool
+(`shell` and the file tools) or to a codebasefx validator under its
+`validate-*` name; a name the Go eser does not know fails the run. Each step is
+printed as it ends, in the format of the TypeScript `workflows run`, followed by
+`All checks passed!` or the count of failed checks, and the exit code is 1 when
+a step fails.
+
+- `--fix` runs each shell step's `fixCommand` and writes the fixes of
+  `validate-eof`, `validate-trailing-whitespace`, `validate-bom`,
+  `validate-line-endings` and `validate-licenses`; a validator whose fixes
+  remove every issue passes. `--dry-run` runs no `fixCommand` and writes no
+  file.
+- `--only <name>` runs only the steps whose tool name or `name` is `<name>`, so
+  it selects a validator or a shell step; a filter that selects no step fails
+  and lists the steps.
+- Arguments after the flags reach the tools as `_args`: the commit-msg hook
+  passes the message file with `-- "$1"`. `--changed` limits the validators to
+  the files `git diff --name-only HEAD` lists, `--config <dir>` reads another
+  manifest, `-v` prints the issues of passing steps and `--json` prints the
+  results.
+- `eser workflows list` prints the workflows and the registered tools.
+
+The manifest's `ok`, `fix` and `preflight` scripts run
+`eser workflows run -e precommit [--fix]` and `-e preflight`, so `eser ok` is
+the full gate; the root `package.json` runs it as `go run ./cmd/eser ok`.
+
+## Validators and git hooks
+
+`eser codebase <validator> [--fix]` runs one validator of the gate, such as
+`validate-licenses`, with the options of its step in `.eser/manifest.yml`;
+`--no-manifest` ignores them, `--root <dir>` validates another directory and
+`--exclude <text>` (repeatable) adds a skipped path. Every `validate-*` step of
+the manifest is one of these commands.
+
+`eser codebase install` writes a `pre-commit`, `commit-msg` or `pre-push` hook
+for each event the manifest's workflows run on, into the hooks directory git
+reports (`core.hooksPath` included). The hooks run `go run ./cmd/eser` in an
+eser/stack checkout and `eser` elsewhere; `--command` sets another command.
+A hook eser did not write stays unless `--force`, and `--dry-run` writes
+nothing. `uninstall` removes the hooks eser wrote and `status` shows each one.
+The hooks carry the marker of the TypeScript `eser codebase install`, so each
+updates and removes the other's hooks.
 
 ## Release commands
 

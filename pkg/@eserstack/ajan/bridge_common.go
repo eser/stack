@@ -80,10 +80,6 @@ func marshalError(msg string) string {
 // Lifecycle bridge functions
 // ---------------------------------------------------------------------------
 
-func bridgeVersion() string {
-	return "eser-ajan version " + Version
-}
-
 func bridgeInit() int {
 	initMu.Lock()
 	defer initMu.Unlock()

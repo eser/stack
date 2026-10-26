@@ -1,9 +1,10 @@
 ---
 id: TASK-238
 title: 'ajan: replace the 100 FFI exports with a dispatcher ABI and one TS binding table'
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-10-15 20:38'
+updated_date: '2026-10-27 10:00'
 labels:
   - ffi
   - ajan
@@ -47,12 +48,20 @@ Plan key: M2-T7. Effort: large.
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 `grep '^//export' pkg/@eserstack/ajan/main.go` lists only EserAjanVersion, EserAjanCall, EserAjanStreamOpen, EserAjanStreamRead, EserAjanStreamClose and EserAjanFree
-- [ ] #2 A Go test calls EserAjanCall with an unknown name and gets error JSON with code UNKNOWN_FUNCTION; a TS test does the same through the loader, gets the typed error, and a later valid call on the same library succeeds
-- [ ] #3 A Go test makes a registered handler panic and gets error JSON while the test process keeps running
-- [ ] #4 A TS test feeds the loader a version handshake with a different ABI version and gets an error that names both versions
-- [ ] #5 `git grep -n 'symbols\.EserAjan' -- pkg` returns nothing
-- [ ] #6 codebase/ajan-ffi-parity.test.ts compares the TS table with the Go registry, and its fixture tests fail for a name present on one side only and for a kind mismatch
-- [ ] #7 A TS test starts Node with `--no-experimental-ffi`, loads the WASM build, makes a successful `call` through the same table, and gets the typed error for code UNSUPPORTED_IN_WASM from a name outside the wasi profile (shellExec or aiGenerate)
-- [ ] #8 Every *.ffi.test.ts suite and `pnpm cli ok` pass on the pinned Node 26 minor
+- [x] #1 `grep '^//export' pkg/@eserstack/ajan/main.go` lists only EserAjanVersion, EserAjanCall, EserAjanStreamOpen, EserAjanStreamRead, EserAjanStreamClose and EserAjanFree
+- [x] #2 A Go test calls EserAjanCall with an unknown name and gets error JSON with code UNKNOWN_FUNCTION; a TS test does the same through the loader, gets the typed error, and a later valid call on the same library succeeds
+- [x] #3 A Go test makes a registered handler panic and gets error JSON while the test process keeps running
+- [x] #4 A TS test feeds the loader a version handshake with a different ABI version and gets an error that names both versions
+- [x] #5 `git grep -n 'symbols\.EserAjan' -- pkg` returns nothing
+- [x] #6 codebase/ajan-ffi-parity.test.ts compares the TS table with the Go registry, and its fixture tests fail for a name present on one side only and for a kind mismatch
+- [x] #7 A TS test starts Node with `--no-experimental-ffi`, loads the WASM build, makes a successful `call` through the same table, and gets the typed error for code UNSUPPORTED_IN_WASM from a name outside the wasi profile (shellExec or aiGenerate)
+- [x] #8 Every *.ffi.test.ts suite and `pnpm cli ok` pass on the pinned Node 26 minor
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+2026-10-27. Go: main.go exports only EserAjanVersion, EserAjanCall, EserAjanStreamOpen, EserAjanStreamRead, EserAjanStreamClose and EserAjanFree (dispatcher ABI 3). The tag-free registry (bridge_registry.go) holds call entries (register(name, func(request string) string)) and stream entries (registerStream(name, handlePrefix, {open, read, close})); a stream read or close finds its stream from the handle prefix, so the dispatcher keeps no handle table. dispatch.go answers one envelope for every operation, {ok, result, code, error}: HANDLER_ERROR and PANIC keep the answer in result; UNKNOWN_FUNCTION (UNSUPPORTED_IN_WASM on wasip1), KIND_MISMATCH, UNKNOWN_HANDLE and BAD_REQUEST (JSON nested past formatfx.MaxNestingDepth) carry none. Every handler runs under its own recover. 75 calls and 8 streams natively (aiTextStream, httpRequestStream, shellExecStream, shellPtyStream, shellTuiKeypressStream, codebaseWalkFilesStream, codebaseValidateFilesStream, parsingTokenizeStream, which is push-fed and has no read); writes, resize, kill, push and cancel stay calls with the handle in the request. aiGenerateText and the aiTextStream open take {modelHandle, options}. version answers the handshake {version, abi, profile, names, streams}, the same JSON as EserAjanVersion; init and shutdown answer {}. The reactor sends the stream operations as the reserved names stream.open, stream.read and stream.close through eser_ajan_call and eser_ajan_call_async, with the same envelope; guardInt and bridgeVersion are gone. Go tests (dispatch_test.go through the cgo exports via export_call.go, reactor_protocol_test.go): unknown name, panicking call and stream read followed by a successful call, handler error, kind mismatch, deep request, a walk stream through the exports, unknown handles, the handshake, 83 names.
+
+TypeScript: ffi/bindings.ts is the one table (kind, blocking, wasm yes/fs/no, async, request and answer types carried by each entry's `as` type); ffi/library.ts builds call and stream over a backend transport (closed guard, wasm "no" refused without a round trip, envelopes without result raise UnknownFunctionError, UnsupportedInWasmError or AjanCallError), ffi/backend-node.ts declares the six prototypes and refuses another ABI after dlopen with AbiMismatchError naming both versions, wasm/loader-reactor.ts is a transport over the reactor, ffi/fake.ts builds a handler-backed library for tests; close-guard.ts is gone. Callers in ai, cache, cli, codebase, collector, config, crypto, cs, formats, httpclient, kit, logging, noskills, parsing, posts and shell use lib.call and lib.stream, their WIRING.md files, the ajan README and examples (C, Python and Rust run against the built library) describe the dispatcher. Bugs found by the migration, each with a test: httpclient and the Go logger sent {"handle":...} to httpClose and logClose, which take the bare handle, so those handles were never released; the httpclient stream body dropped bytes that arrived with done and never closed a stream read to its end. codebase/ajan-ffi-parity.test.ts compares the table with the Go register calls and with the native handshake (names and kinds both ways), the wasm fields with the reactor handshake, and the six exports with the node:ffi prototypes; its fixture tests report a name on one side only and a kind mismatch. AC #7 is ffi/mod.test.ts (--no-experimental-ffi, formatList through the table, shellExec gives UnsupportedInWasmError with code UNSUPPORTED_IN_WASM). Calls stay synchronous; blocking marks the names TASK-239 moves to workers. Verified on Node 26.12.1: go test and golangci-lint of the bridge module, the 7 *.ffi.test.ts suites, the ajan and caller package tests, and pnpm cli ok (all checks passed).
+<!-- SECTION:NOTES:END -->

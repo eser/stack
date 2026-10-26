@@ -12,15 +12,15 @@
  * import * as wasm from "./wasm/mod.ts";
  *
  * const lib = await wasm.loadEserAjanWasm();
- * console.log(lib.symbols.EserAjanVersion());
+ * console.log(lib.handshake.version);
  * lib.close();
  * ```
  *
  * The module is the slim "wasi" profile, built as a reactor and reused for
  * every call, so the handle-based APIs it serves (parsing and codebase
  * streams, caches) keep their handles between calls. Names outside the
- * profile, such as the AI, HTTP, logging and shell functions, throw
- * `UnsupportedInWasmError`; those need the native library.
+ * profile (`wasm: "no"` in the binding table), such as the AI, shell, kit and
+ * posts names, throw `UnsupportedInWasmError`; those need the native library.
  *
  * @module
  */

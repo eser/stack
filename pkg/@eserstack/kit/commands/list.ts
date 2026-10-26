@@ -7,19 +7,30 @@
  */
 
 import * as results from "@eserstack/primitives/results";
-import * as cliParseArgs from "@std/cli/parse-args";
+import * as shellFlags from "@eserstack/shell/args/flags";
 import * as task from "@eserstack/functions/task";
 import * as streams from "@eserstack/streams";
 import * as listRecipesHandler from "../recipes/handlers/list-recipes.ts";
 import type * as shellArgs from "@eserstack/shell/args";
 
+/** Parse the `eser kit list` arguments. */
+export const parseCliArgs = (
+  cliArgs?: readonly string[],
+): shellFlags.ParsedArgs =>
+  shellFlags.parseArgs(cliArgs ?? [], {
+    options: {
+      registry: { type: "string" },
+      language: { type: "string" },
+      scale: { type: "string" },
+      tag: { type: "string" },
+      local: { type: "boolean" },
+    },
+  });
+
 export const main = async (
   cliArgs?: readonly string[],
 ): Promise<shellArgs.CliResult<void>> => {
-  const flags = cliParseArgs.parseArgs((cliArgs as string[]) ?? [], {
-    string: ["registry", "language", "scale", "tag"],
-    boolean: ["local"],
-  });
+  const parsed = parseCliArgs(cliArgs);
 
   const out = streams.output({
     renderer: streams.renderers.ansi(),
@@ -28,11 +39,11 @@ export const main = async (
 
   const result = await task.runTask(
     listRecipesHandler.listRecipes({
-      registrySource: flags["registry"] as string | undefined,
-      language: flags["language"] as string | undefined,
-      scale: flags["scale"] as string | undefined,
-      tag: flags["tag"] as string | undefined,
-      local: flags["local"] === true,
+      registrySource: parsed.values["registry"] as string | undefined,
+      language: parsed.values["language"] as string | undefined,
+      scale: parsed.values["scale"] as string | undefined,
+      tag: parsed.values["tag"] as string | undefined,
+      local: parsed.values["local"] === true,
     }),
     { out },
   );

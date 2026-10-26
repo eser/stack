@@ -25,7 +25,6 @@
  * @module
  */
 
-import * as cliParseArgs from "@std/cli/parse-args";
 import * as primitives from "@eserstack/primitives";
 import * as standards from "@eserstack/standards";
 import * as functions from "@eserstack/functions";
@@ -362,15 +361,12 @@ export const generateChangelog = async (
   options: GenerateChangelogOptions = {},
 ): Promise<GenerateChangelogResult> => {
   const lib = await ffiClient.requireLib();
-  const raw = lib.symbols.EserAjanCodebaseGenerateChangelog(
-    JSON.stringify({
-      dir: options.root ?? ".",
-      // Omitted when undefined, which leaves the Go-side fallback in charge.
-      version: options.version,
-      dryRun: options.dryRun ?? false,
-    }),
-  );
-  const parsed = JSON.parse(raw) as GenerateChangelogResult | { error: string };
+  const parsed = lib.call("codebaseGenerateChangelog", {
+    dir: options.root ?? ".",
+    // Omitted when undefined, which leaves the Go-side fallback in charge.
+    version: options.version,
+    dryRun: options.dryRun ?? false,
+  }) as GenerateChangelogResult | { error: string };
   if ("error" in parsed) {
     throw new Error((parsed as { error: string }).error);
   }
@@ -436,17 +432,18 @@ export const handleCli: (
   adaptOutput: cliResponseMapper,
 });
 
+/** Parse the changelog-gen arguments: `--dry-run` (`-n`). */
+export const parseCliArgs = (
+  cliArgs?: readonly string[],
+): functions.triggers.CliEvent =>
+  cliSupport.parseCliEvent("changelog-gen", cliArgs, {
+    "dry-run": { type: "boolean", short: "n" },
+  });
+
 /** CLI entry point. */
 export const main = async (
   cliArgs?: readonly string[],
-): Promise<shellArgs.CliResult<void>> => {
-  const parsed = cliParseArgs.parseArgs((cliArgs ?? []) as string[], {
-    boolean: ["dry-run"],
-    alias: { n: "dry-run" },
-  });
-  const event = cliSupport.toCliEvent("changelog-gen", parsed);
-  return await handleCli(event);
-};
+): Promise<shellArgs.CliResult<void>> => await handleCli(parseCliArgs(cliArgs));
 
 if (import.meta.main) {
   // Entry point: the await only runs when this file is executed directly.

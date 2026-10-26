@@ -11,6 +11,9 @@
     "pkg/@eserstack/*"
   ],
   "scripts": {
+    "ok": "go run ./cmd/eser ok",
+    "fix": "go run ./cmd/eser fix",
+    "preflight": "go run ./cmd/eser preflight",
     "check": "tsc --noEmit",
     "lint": "oxlint",
     "fmt": "oxfmt",

@@ -21,7 +21,7 @@ import * as crossRuntime from "@eserstack/standards/cross-runtime";
 
 // Use the cross-platform path separator so the directory segments resolve
 // correctly on both POSIX ("/") and Windows ("\\"). The runtime path helper
-// is backed by @std/path, which selects win32/posix semantics per platform.
+// is backed by node:path, which selects win32/posix semantics per platform.
 const TOKEN_DIR_SEGMENTS = [".eser", "posts"] as const;
 const TOKEN_FILE = "tokens.json";
 

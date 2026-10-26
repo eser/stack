@@ -38,16 +38,14 @@ export const ffiFormats: Loader = {
   ): Promise<string> => {
     const result = await client.callJson<{ result?: string }>(
       (lib) =>
-        lib.symbols.EserAjanFormatEncode(
-          JSON.stringify({
-            format,
-            data,
-            pretty: opts?.pretty ?? false,
-            indent: opts?.indent ?? 0,
-            isFirst: opts?.isFirst ?? false,
-            document: opts?.document ?? false,
-          }),
-        ),
+        lib.call("formatEncode", {
+          format,
+          data,
+          pretty: opts?.pretty ?? false,
+          indent: opts?.indent ?? 0,
+          isFirst: opts?.isFirst ?? false,
+          document: opts?.document ?? false,
+        }),
       errorsFor(errors.FORMAT_ENCODE_FAILED),
     );
 
@@ -61,14 +59,12 @@ export const ffiFormats: Loader = {
   ): Promise<string> => {
     const result = await client.callJson<{ result?: string }>(
       (lib) =>
-        lib.symbols.EserAjanFormatEncodeDocument(
-          JSON.stringify({
-            format,
-            items,
-            pretty: opts?.pretty ?? false,
-            indent: opts?.indent ?? 0,
-          }),
-        ),
+        lib.call("formatEncodeDocument", {
+          format,
+          items,
+          pretty: opts?.pretty ?? false,
+          indent: opts?.indent ?? 0,
+        }),
       errorsFor(errors.FORMAT_ENCODE_FAILED),
     );
 
@@ -76,21 +72,23 @@ export const ffiFormats: Loader = {
   },
 
   decode: async (format: string, text: string): Promise<unknown[]> => {
-    const result = await client.callJson<{ items?: unknown[] }>(
-      (lib) =>
-        lib.symbols.EserAjanFormatDecode(JSON.stringify({ format, text })),
+    const result = await client.callJson(
+      (lib) => lib.call("formatDecode", { format, text }),
       errorsFor(errors.FORMAT_DECODE_FAILED),
     );
 
-    return result.items ?? [];
+    return [...(result.items ?? [])];
   },
 
   list: async (): Promise<FormatListItem[]> => {
-    const result = await client.callJson<{ formats?: FormatListItem[] }>(
-      (lib) => lib.symbols.EserAjanFormatList(),
+    const result = await client.callJson(
+      (lib) => lib.call("formatList"),
       errorsFor(errors.FORMAT_LIST_FAILED),
     );
 
-    return result.formats ?? [];
+    return (result.formats ?? []).map((item): FormatListItem => ({
+      ...item,
+      extensions: [...item.extensions],
+    }));
   },
 };

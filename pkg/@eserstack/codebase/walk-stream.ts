@@ -3,12 +3,14 @@
 /**
  * Streaming file walk via the Go FFI bridge.
  *
- * Returns an `AsyncIterable<FileEntry>` backed by `EserAjanCodebaseWalkFilesStream*`.
+ * Returns an `AsyncIterable<FileEntry>` backed by the bridge's
+ * `codebaseWalkFilesStream` stream.
  * Supports `await using` / `Symbol.asyncDispose` for deterministic cleanup.
  *
  * @module
  */
 
+import type * as ffiTypes from "@eserstack/ajan/ffi";
 import * as ffiClient from "./ffi-client.ts";
 import type { FileEntry } from "./file-tools-shared.ts";
 
@@ -28,32 +30,19 @@ export type WalkStreamOptions = {
 // =============================================================================
 
 export class WalkStream implements AsyncIterable<FileEntry>, AsyncDisposable {
-  readonly #handle: string;
+  readonly #stream: ffiTypes.AjanStream<"codebaseWalkFilesStream">;
 
-  constructor(handle: string) {
-    this.#handle = handle;
+  constructor(stream: ffiTypes.AjanStream<"codebaseWalkFilesStream">) {
+    this.#stream = stream;
   }
 
   async *[Symbol.asyncIterator](): AsyncGenerator<FileEntry> {
-    const lib = ffiClient.getLib();
-    if (lib === null) {
-      throw new Error("FFI library unavailable — cannot iterate walk stream");
-    }
-
     while (true) {
-      const raw = lib.symbols.EserAjanCodebaseWalkFilesStreamRead(this.#handle);
+      const parsed = this.#stream.read();
 
-      if (raw === "null") {
+      if (parsed === null) {
         break;
       }
-
-      const parsed = JSON.parse(raw) as {
-        path?: string;
-        name?: string;
-        size?: number;
-        isSymlink?: boolean;
-        error?: string;
-      };
 
       if (parsed.error !== undefined) {
         throw new Error(`walk stream error: ${parsed.error}`);
@@ -69,10 +58,7 @@ export class WalkStream implements AsyncIterable<FileEntry>, AsyncDisposable {
   }
 
   [Symbol.asyncDispose](): Promise<void> {
-    const lib = ffiClient.getLib();
-    if (lib !== null) {
-      lib.symbols.EserAjanCodebaseWalkFilesStreamClose(this.#handle);
-    }
+    this.#stream.close();
     return Promise.resolve();
   }
 }
@@ -91,16 +77,13 @@ export const walkFilesStream = async (
     throw new Error("FFI library unavailable — cannot create walk stream");
   }
 
-  const raw = lib.symbols.EserAjanCodebaseWalkFilesStreamCreate(
-    JSON.stringify({
-      dir: options.dir ?? ".",
-      extensions: options.extensions,
-      exclude: options.exclude,
-      gitAware: options.gitAware ?? false,
-    }),
-  );
-
-  const parsed = JSON.parse(raw) as { handle?: string; error?: string };
+  const stream = lib.stream("codebaseWalkFilesStream", {
+    dir: options.dir ?? ".",
+    extensions: options.extensions,
+    exclude: options.exclude,
+    gitAware: options.gitAware ?? false,
+  });
+  const parsed = stream.opened;
 
   if (parsed.error !== undefined || parsed.handle === undefined) {
     throw new Error(
@@ -108,5 +91,5 @@ export const walkFilesStream = async (
     );
   }
 
-  return new WalkStream(parsed.handle);
+  return new WalkStream(stream);
 };

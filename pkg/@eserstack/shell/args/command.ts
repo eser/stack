@@ -9,7 +9,6 @@
  * @module
  */
 
-import * as cliParseArgs from "@std/cli/parse-args";
 import * as results from "@eserstack/primitives/results";
 import { runtime } from "@eserstack/standards/cross-runtime";
 import type {
@@ -325,7 +324,6 @@ export class Command implements CommandLike {
     parentPath: string[],
   ): Promise<CliResult<void>> {
     const allFlags = this.#getAllFlags();
-    const parseOptions = flags.buildParseOptions(allFlags);
 
     const hasSubcommands =
       this.#children.length > 0 ||
@@ -334,13 +332,12 @@ export class Command implements CommandLike {
       this.#groupOptions !== undefined ||
       this.#shortcuts.size > 0;
 
-    const parsed = cliParseArgs.parseArgs(argv, {
-      ...parseOptions,
+    const parsed = flags.parseFlags(argv, allFlags, {
       stopEarly: hasSubcommands,
     });
 
-    const parsedFlags = flags.extractFlags(parsed, allFlags);
-    const positional = parsed._ as string[];
+    const parsedFlags = parsed.flags;
+    const positional = parsed.positional;
 
     // Handle --version at root
     if (this.#version !== undefined && parsedFlags["version"] === true) {

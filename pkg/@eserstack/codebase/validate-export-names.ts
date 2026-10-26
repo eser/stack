@@ -43,10 +43,10 @@ export const checkExportNames = async (
     throw new Error("native library not available for checkExportNames");
   }
 
-  const raw = lib.symbols.EserAjanCodebaseCheckExportNames(
-    JSON.stringify({ dir: root, ignoreWords }),
-  );
-  const result = JSON.parse(raw) as CheckExportNamesResult & { error?: string };
+  const result = lib.call("codebaseCheckExportNames", {
+    dir: root,
+    ignoreWords,
+  }) as CheckExportNamesResult & { error?: string };
 
   if (result.error) {
     throw new Error(result.error);

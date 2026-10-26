@@ -2,7 +2,6 @@
 
 import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
-import * as path from "@std/path";
 import * as crossRuntime from "@eserstack/standards/cross-runtime";
 import * as ffiClient from "./ffi-client.ts";
 import * as validateNamingAndTodos from "./validate-naming-and-todos.ts";
@@ -24,7 +23,7 @@ const withFixture = async (
       // Sequential: a handful of small fixture files.
       // oxlint-disable-next-line no-await-in-loop
       await crossRuntime.runtime.fs.writeTextFile(
-        path.join(dir, name),
+        crossRuntime.runtime.path.join(dir, name),
         content,
       );
     }

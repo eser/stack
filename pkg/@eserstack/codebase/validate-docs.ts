@@ -52,10 +52,10 @@ export const checkDocs = async (
     throw new Error("native library not available for checkDocs");
   }
 
-  const raw = lib.symbols.EserAjanCodebaseCheckDocs(
-    JSON.stringify({ dir: root, requireExamples }),
-  );
-  const result = JSON.parse(raw) as CheckDocsResult & { error?: string };
+  const result = lib.call("codebaseCheckDocs", {
+    dir: root,
+    requireExamples,
+  }) as CheckDocsResult & { error?: string };
 
   if (result.error) {
     throw new Error(result.error);

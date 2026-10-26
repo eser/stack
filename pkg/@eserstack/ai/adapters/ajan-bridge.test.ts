@@ -4,6 +4,7 @@ import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as results from "@eserstack/primitives/results";
 import type * as ffiTypes from "@eserstack/ajan/ffi";
+import * as fake from "@eserstack/ajan/ffi/fake";
 import * as ajanBridge from "./ajan-bridge.ts";
 
 // The bridge's wire contract is a set of JSON key names shared with Go, and it
@@ -20,23 +21,42 @@ import * as ajanBridge from "./ajan-bridge.ts";
 type Captured = { name: string; payload: string };
 
 const stubLib = (captured: Captured[]): ffiTypes.FFILibrary => {
-  const record = (name: string, reply: string) => (requestJSON: string) => {
-    captured.push({ name, payload: requestJSON });
+  const record = (name: string, reply: unknown) => (request: unknown) => {
+    captured.push({ name, payload: JSON.stringify(request) });
 
-    return reply;
+    return reply as ffiTypes.AiAnswer;
   };
 
-  const job = JSON.stringify({
+  const job = {
     job: { id: "job-1", status: "in_progress", requestCounts: {} },
-  });
+  };
 
-  return {
-    symbols: {
-      EserAjanAiBatchCreate: record("create", job),
-      EserAjanAiBatchList: record("list", JSON.stringify({ jobs: [] })),
+  return fake.createFakeLibrary({
+    calls: {
+      aiBatchCreate: record("create", job),
+      aiBatchList: record("list", { jobs: [] }),
     },
-  } as unknown as ffiTypes.FFILibrary;
+  });
 };
+
+/**
+ * A library whose calls are answered by `handlers`, which may answer a
+ * promise: it stands in for a backend that runs a call off the main thread,
+ * so a test can act while the call is in flight.
+ */
+const pendingLib = (
+  handlers: Readonly<Record<string, (request: unknown) => unknown>>,
+): ffiTypes.FFILibrary =>
+  ({
+    call: (name: string, request?: unknown) => {
+      const handler = handlers[name];
+      if (handler === undefined) {
+        throw new Error(`unexpected bridge call ${name}`);
+      }
+
+      return handler(request);
+    },
+  }) as unknown as ffiTypes.FFILibrary;
 
 const model = (captured: Captured[]) =>
   new ajanBridge.AjanBridgeModel(
@@ -102,19 +122,18 @@ const captureGenerate = async (
 ): Promise<Record<string, unknown>> => {
   const captured: Captured[] = [];
 
-  const lib = {
-    symbols: {
-      EserAjanAiGenerateText: (_handle: string, optionsJSON: string) => {
-        captured.push({ name: "generate", payload: optionsJSON });
-
-        return JSON.stringify({
-          content: [],
-          usage: {},
-          stopReason: "end_turn",
+  const lib = fake.createFakeLibrary({
+    calls: {
+      aiGenerateText: (request) => {
+        captured.push({
+          name: "generate",
+          payload: JSON.stringify(request.options),
         });
+
+        return { content: [], usage: {}, stopReason: "end_turn" };
       },
     },
-  } as unknown as ffiTypes.FFILibrary;
+  });
 
   const m = new ajanBridge.AjanBridgeModel(lib, "h", "anthropic", "x", [
     "text_generation",
@@ -219,23 +238,22 @@ nodeTest.test("content block payloads all reach the wire", async () => {
 });
 
 nodeTest.test("tool calls in a response are decoded, not dropped", () => {
-  const lib = {
-    symbols: {
-      EserAjanAiGenerateText: () =>
-        JSON.stringify({
-          content: [
-            {
-              type: "tool_call",
-              id: "tc-7",
-              name: "get_weather",
-              arguments: { city: "Ankara" },
-            },
-          ],
-          usage: {},
-          stopReason: "tool_use",
-        }),
+  const lib = fake.createFakeLibrary({
+    calls: {
+      aiGenerateText: () => ({
+        content: [
+          {
+            type: "tool_call",
+            id: "tc-7",
+            name: "get_weather",
+            arguments: { city: "Ankara" },
+          },
+        ],
+        usage: {},
+        stopReason: "tool_use",
+      }),
     },
-  } as unknown as ffiTypes.FFILibrary;
+  });
 
   const m = new ajanBridge.AjanBridgeModel(lib, "h", "anthropic", "x", [
     "tool_calling",
@@ -271,23 +289,22 @@ nodeTest.test("tool calls in a response are decoded, not dropped", () => {
 nodeTest.test(
   "thinking blocks and a refusal in a response are decoded",
   async () => {
-    const lib = {
-      symbols: {
-        EserAjanAiGenerateText: () =>
-          JSON.stringify({
-            content: [
-              {
-                type: "thinking",
-                thinking: { text: "plan", signature: "sig-1" },
-              },
-              { type: "thinking", thinking: { redactedData: "opaque" } },
-              { type: "text", text: "I can't help with that." },
-            ],
-            usage: {},
-            stopReason: "refusal",
-          }),
+    const lib = fake.createFakeLibrary({
+      calls: {
+        aiGenerateText: () => ({
+          content: [
+            {
+              type: "thinking",
+              thinking: { text: "plan", signature: "sig-1" },
+            },
+            { type: "thinking", thinking: { redactedData: "opaque" } },
+            { type: "text", text: "I can't help with that." },
+          ],
+          usage: {},
+          stopReason: "refusal",
+        }),
       },
-    } as unknown as ffiTypes.FFILibrary;
+    });
 
     const m = new ajanBridge.AjanBridgeModel(lib, "h", "anthropic", "x", [
       "text_generation",
@@ -329,21 +346,24 @@ nodeTest.test("thinking blocks are sent back unchanged", async () => {
 });
 
 nodeTest.test("a streamed thinking event is decoded", async () => {
-  const reads = [
-    JSON.stringify({
-      type: "thinking",
-      thinking: { text: "plan", signature: "sig-2" },
-    }),
-    JSON.stringify({ type: "message_done", stopReason: "refusal", usage: {} }),
+  const reads: ffiTypes.AiAnswer[] = [
+    { type: "thinking", thinking: { text: "plan", signature: "sig-2" } },
+    { type: "message_done", stopReason: "refusal", usage: {} },
   ];
+  const closed: string[] = [];
 
-  const lib = {
-    symbols: {
-      EserAjanAiStreamText: () => JSON.stringify({ handle: "s1" }),
-      EserAjanAiStreamRead: () => reads.shift() ?? "null",
-      EserAjanAiFreeStream: () => {},
+  const lib = fake.createFakeLibrary({
+    streams: {
+      aiTextStream: {
+        open: () => ({ handle: "stream-1" }),
+        read: () => reads.shift() ?? null,
+        close: (handle) => {
+          closed.push(handle);
+          return {};
+        },
+      },
     },
-  } as unknown as ffiTypes.FFILibrary;
+  });
 
   const m = new ajanBridge.AjanBridgeModel(lib, "h", "anthropic", "x", [
     "streaming",
@@ -367,13 +387,15 @@ nodeTest.test("a streamed thinking event is decoded", async () => {
       },
     },
   ]);
+  // The stream is closed once it ends, which releases its Go handle.
+  assert.assertEquals(closed, ["stream-1"]);
 });
 
 // ── AbortSignal ──────────────────────────────────────────────────────────────
 //
 // The Go half of the cancellation contract is pinned in
 // pkg/@eserstack/ajan/bridge_ai_cancel_test.go. These pin the producing half:
-// that a signal actually reaches the cancel symbol, that the request carries an
+// that a signal actually reaches the cancel call, that the request carries an
 // id for it to name, and that the listener is always detached afterwards.
 
 type CancelSpy = {
@@ -389,24 +411,22 @@ const cancelSpy = (): CancelSpy => {
   const spy: CancelSpy = {
     cancels,
     sent,
-    lib: {
-      symbols: {
-        // Deliberately async, mirroring an off-thread symbol: the whole point
-        // is that JS keeps running while the model call is in flight.
-        EserAjanAiGenerateText: (_h: string, optionsJSON: string) => {
-          sent.push(optionsJSON);
+    lib: pendingLib({
+      // Deliberately async, mirroring an off-thread call: the whole point is
+      // that JS keeps running while the model call is in flight.
+      aiGenerateText: (request) => {
+        sent.push(JSON.stringify((request as ffiTypes.ModelRequest).options));
 
-          return new Promise<string>((resolve) => {
-            spy.resolveGenerate = resolve;
-          });
-        },
-        EserAjanAiCancelRequest: (requestJSON: string) => {
-          cancels.push(requestJSON);
-
-          return "{}";
-        },
+        return new Promise<unknown>((resolve) => {
+          spy.resolveGenerate = (raw) => resolve(JSON.parse(raw));
+        });
       },
-    } as unknown as ffiTypes.FFILibrary,
+      aiCancelRequest: (request) => {
+        cancels.push(JSON.stringify(request));
+
+        return {};
+      },
+    }),
   };
 
   return spy;
@@ -431,7 +451,7 @@ nodeTest.test(
     );
 
     // The call is in flight and has not resolved. That JS reached this line at
-    // all is the nonblocking property: a blocking symbol would have frozen the
+    // all is the nonblocking property: a blocking call would have frozen the
     // isolate here and abort could never fire.
     assert.assertEquals(spy.cancels.length, 0);
 
@@ -440,7 +460,7 @@ nodeTest.test(
     assert.assertEquals(
       spy.cancels.length,
       1,
-      "abort did not reach the cancel symbol",
+      "abort did not reach the cancel call",
     );
 
     const sentId = (JSON.parse(spy.sent[0]!) as { requestId: string })
@@ -543,22 +563,20 @@ nodeTest.test(
     const sent: string[] = [];
     let resolveCall: ((raw: string) => void) | undefined;
 
-    const lib = {
-      symbols: {
-        EserAjanAiBatchGet: (requestJSON: string) => {
-          sent.push(requestJSON);
+    const lib = pendingLib({
+      aiBatchGet: (request) => {
+        sent.push(JSON.stringify(request));
 
-          return new Promise<string>((resolve) => {
-            resolveCall = resolve;
-          });
-        },
-        EserAjanAiCancelRequest: (requestJSON: string) => {
-          cancels.push(requestJSON);
-
-          return "{}";
-        },
+        return new Promise<unknown>((resolve) => {
+          resolveCall = (raw) => resolve(JSON.parse(raw));
+        });
       },
-    } as unknown as ffiTypes.FFILibrary;
+      aiCancelRequest: (request) => {
+        cancels.push(JSON.stringify(request));
+
+        return {};
+      },
+    });
 
     const m = new ajanBridge.AjanBridgeModel(lib, "h", "anthropic", "x", [
       "batch_processing",
@@ -567,13 +585,13 @@ nodeTest.test(
     const controller = new AbortController();
     const pending = m.getBatchJob("job-1", controller.signal);
 
-    // Reaching here proves the batch symbol no longer blocks the isolate.
+    // Reaching here proves the batch call no longer blocks the isolate.
     controller.abort();
 
     assert.assertEquals(
       cancels.length,
       1,
-      "abort did not reach the cancel symbol",
+      "abort did not reach the cancel call",
     );
 
     const sentId = (JSON.parse(sent[0]!) as { requestId: string }).requestId;
@@ -598,18 +616,15 @@ nodeTest.test(
 nodeTest.test(
   "a classified bridge error rebuilds its typed class",
   async () => {
-    const lib = {
-      symbols: {
-        EserAjanAiGenerateText: () =>
-          Promise.resolve(
-            JSON.stringify({
-              error: "rate limited",
-              errorKind: "rate_limited",
-              errorStatus: 429,
-            }),
-          ),
+    const lib = fake.createFakeLibrary({
+      calls: {
+        aiGenerateText: () => ({
+          error: "rate limited",
+          errorKind: "rate_limited",
+          errorStatus: 429,
+        }),
       },
-    } as unknown as ffiTypes.FFILibrary;
+    });
 
     const m = new ajanBridge.AjanBridgeModel(lib, "h", "anthropic", "x", [
       "text_generation",
@@ -637,7 +652,7 @@ nodeTest.test(
 nodeTest.test(
   "every bridge provider is advertised once the library loads",
   () => {
-    const lib = { symbols: {} } as unknown as ffiTypes.FFILibrary;
+    const lib = fake.createFakeLibrary();
 
     const providers = ajanBridge
       .createBridgeFactories(lib)

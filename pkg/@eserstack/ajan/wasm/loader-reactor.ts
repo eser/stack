@@ -7,69 +7,51 @@
  * The module is compiled once per process and one instance serves every call,
  * so handles (parsing and codebase streams, caches) live across calls. A call
  * writes the dispatch name and its length-prefixed string arguments into the
- * module's input arena, runs `eser_ajan_call` and reads the JSON envelope at
- * `eser_ajan_result_ptr` (see main_wasi_reactor.go for the protocol).
+ * module's input arena, runs `eser_ajan_call` and reads the dispatcher's JSON
+ * envelope at `eser_ajan_result_ptr` (see main_wasi_reactor.go for the
+ * protocol). A registry name takes one argument, its request; the stream
+ * operations are the reserved names `stream.open`, `stream.read` and
+ * `stream.close` (reactor_protocol.go).
  *
  * Host rules:
- * - At load, the `version` call is a handshake: its envelope names the ABI
- *   version, the profile and every name the build serves. A module with
- *   another ABI version is refused.
- * - A name outside the profile throws {@link UnsupportedInWasmError} without
- *   calling into the module.
+ * - At load, the `version` call is a handshake: it answers the ABI version,
+ *   the profile and every name the build serves. A module with another ABI
+ *   version is refused.
+ * - A name the binding table marks `wasm: "no"` throws
+ *   `UnsupportedInWasmError` without calling into the module.
  * - Any exception that is not an envelope (a trap, a RangeError, proc_exit)
  *   marks the instance dead, and the next call builds a new one from the
  *   cached module. Its handles are gone with it.
  * - `memory.buffer` is read again after every export call, because the
  *   module's memory can grow and detach the old buffer.
  * - With node:wasi available, the module gets a preopen of the working
- *   directory, so the filesystem names work. Under the plain WASI shim (the
- *   browser example) they answer the WASI error.
+ *   directory, so the filesystem names (`wasm: "fs"`) work. Under the plain
+ *   WASI shim (the browser example) they answer the WASI error.
  *
  * @module
  */
 
+import * as library from "../ffi/library.ts";
 import type * as types from "../ffi/types.ts";
 import * as hostFetch from "./host-fetch.ts";
 import * as wasiShim from "./wasi-shim.ts";
 
-/** The reactor ABI this loader speaks, from main_wasi_reactor.go. */
-export const REACTOR_ABI_VERSION = 2;
+/** The dispatcher ABI this loader speaks, from dispatch.go. */
+export const REACTOR_ABI_VERSION: number = library.ABI_VERSION;
 
-/** The envelope `eser_ajan_call` stores for one call. */
-export interface ReactorEnvelope {
-  readonly ok: boolean;
-  readonly result?: string;
-  readonly error?: string;
-  /** Handshake fields, set on the `version` envelope only. */
+/**
+ * The envelope `eser_ajan_call` stores for one call: the dispatcher's
+ * envelope. A module from before ABI 3 also put its ABI version on the
+ * `version` envelope, which the handshake check reads to name it.
+ */
+export interface ReactorEnvelope extends types.Envelope {
   readonly abi?: number;
-  readonly profile?: string;
-  readonly names?: readonly string[];
 }
 
 /** What the `version` handshake reported at load. */
-export interface ReactorHandshake {
-  readonly abi: number;
-  readonly profile: string;
-  readonly names: readonly string[];
-  readonly version: string;
-}
+export type ReactorHandshake = types.Handshake;
 
-/** A call to a name the loaded WASM profile does not serve. */
-export class UnsupportedInWasmError extends Error {
-  readonly code = "UNSUPPORTED_IN_WASM";
-  readonly fn: string;
-
-  constructor(fn: string, profile: string) {
-    super(
-      `eser-ajan WASM: "${fn}" is not in the ${profile} profile ` +
-        `(UNSUPPORTED_IN_WASM). Install the native library (the ` +
-        `@eserstack/ajan platform package for this OS and architecture) or ` +
-        `set ESER_AJAN_LIB_PATH to an existing build.`,
-    );
-    this.fn = fn;
-    this.name = "UnsupportedInWasmError";
-  }
-}
+export { UnsupportedInWasmError } from "../ffi/errors.ts";
 
 /** The exports of the reactor module. */
 export type ReactorExports = {
@@ -221,22 +203,8 @@ export interface ReactorHostOptions {
 export const checkHandshake = (
   version: ReactorEnvelope,
   wasmPath: string,
-): ReactorHandshake => {
-  if (version.abi !== REACTOR_ABI_VERSION) {
-    throw new Error(
-      `eser-ajan WASM module ${wasmPath} speaks reactor ABI ${
-        version.abi ?? "none"
-      }, but this loader speaks ABI ${REACTOR_ABI_VERSION}; use a module and a loader from the same release`,
-    );
-  }
-
-  return {
-    abi: version.abi,
-    profile: version.profile ?? "unknown",
-    names: version.names ?? [],
-    version: version.result ?? "",
-  };
-};
+): ReactorHandshake =>
+  library.checkHandshake(version.result ?? "", wasmPath, version.abi);
 
 /**
  * Compiles the reactor module at `wasmPath`, instantiates it and checks the
@@ -391,263 +359,46 @@ export const createReactorHost = async (
   };
 };
 
+/** The reserved names of the stream operations (reactor_protocol.go). */
+const STREAM_OPEN = "stream.open";
+const STREAM_READ = "stream.read";
+const STREAM_CLOSE = "stream.close";
+
 /**
- * Loads the reactor module and returns an FFILibrary-compatible handle, whose
- * symbols map to the reactor's dispatch names.
+ * Builds the dispatcher transport over one reactor host. The async
+ * operations wait on the host's fetch through `WebAssembly.promising`.
+ */
+export const createReactorTransport = (
+  reactor: ReactorHost,
+): types.Transport => ({
+  call: (name, request) => reactor.callEnvelope(name, request),
+  streamOpen: (name, request) =>
+    reactor.callEnvelope(STREAM_OPEN, name, request),
+  streamRead: (handle) => reactor.callEnvelope(STREAM_READ, handle),
+  streamClose: (handle) => reactor.callEnvelope(STREAM_CLOSE, handle),
+  callAsync: (name, request) => reactor.callEnvelopeAsync(name, request),
+  streamOpenAsync: (name, request) =>
+    reactor.callEnvelopeAsync(STREAM_OPEN, name, request),
+  streamReadAsync: (handle) => reactor.callEnvelopeAsync(STREAM_READ, handle),
+  close: () => {
+    reactor.close();
+  },
+});
+
+/**
+ * Loads the reactor module and returns the typed library over it.
  *
  * @param wasmPath - Absolute path to the `eser-ajan.wasm` file.
- * @returns An FFILibrary-compatible object.
+ * @returns The library.
  */
 export const loadReactorWasm = async (
   wasmPath: string,
 ): Promise<types.FFILibrary> => {
   const reactor = await createReactorHost(wasmPath);
-  const served = new Set(reactor.handshake.names);
 
-  /**
-   * Calls one dispatch name. A bridge function answers failures as JSON with
-   * an "error" field, which the native library returns as a string too, so the
-   * answer comes back whenever there is one; only a call that produced none
-   * (an unknown name, a wrong argument count) throws.
-   */
-  const call = (fn: string, ...args: string[]): string => {
-    if (!served.has(fn)) {
-      throw new UnsupportedInWasmError(fn, reactor.handshake.profile);
-    }
-
-    const envelope = reactor.callEnvelope(fn, ...args);
-    if (envelope.result !== undefined) {
-      return envelope.result;
-    }
-
-    throw new Error(
-      `eser-ajan WASM call "${fn}" failed: ${
-        envelope.error ?? "unknown error"
-      }`,
-    );
-  };
-
-  /** {@link call} for the names that wait on the host's fetch. */
-  const callAsync = async (fn: string, ...args: string[]): Promise<string> => {
-    if (!served.has(fn)) {
-      throw new UnsupportedInWasmError(fn, reactor.handshake.profile);
-    }
-
-    const envelope = await reactor.callEnvelopeAsync(fn, ...args);
-    if (envelope.result !== undefined) {
-      return envelope.result;
-    }
-
-    throw new Error(
-      `eser-ajan WASM call "${fn}" failed: ${
-        envelope.error ?? "unknown error"
-      }`,
-    );
-  };
-
-  // Every symbol keeps its literal key and its literal dispatch name: the ABI
-  // parity guard in @eserstack/codebase/ajan-ffi-parity.test.ts reads both
-  // out of this source text.
-  return {
-    symbols: {
-      EserAjanVersion: () => call("version"),
-      EserAjanInit: () => {
-        call("init");
-        return 0;
-      },
-      EserAjanShutdown: () => {
-        call("shutdown");
-      },
-      EserAjanFree: (_ptr: unknown) => {
-        // No-op: the reactor's results are copied out of its memory.
-      },
-      EserAjanConfigLoad: (optionsJSON: string) =>
-        call("configLoad", optionsJSON),
-      EserAjanDIResolve: (name: string) => call("diResolve", name),
-      EserAjanAiCreateModel: (configJSON: string) =>
-        call("aiCreateModel", configJSON),
-      EserAjanAiGenerateText: (modelHandle: string, optionsJSON: string) =>
-        call("aiGenerateText", modelHandle, optionsJSON),
-      EserAjanAiStreamText: (modelHandle: string, optionsJSON: string) =>
-        call("aiStreamText", modelHandle, optionsJSON),
-      EserAjanAiStreamRead: (streamHandle: string) =>
-        call("aiStreamRead", streamHandle),
-      EserAjanAiCancelRequest: (requestJSON: string) =>
-        call("aiCancelRequest", requestJSON),
-      EserAjanAiCloseModel: (modelHandle: string) =>
-        call("aiCloseModel", modelHandle),
-      EserAjanAiFreeStream: (streamHandle: string) =>
-        call("aiFreeStream", streamHandle),
-      EserAjanAiBatchCreate: (requestJSON: string) =>
-        call("aiBatchCreate", requestJSON),
-      EserAjanAiBatchGet: (requestJSON: string) =>
-        call("aiBatchGet", requestJSON),
-      EserAjanAiBatchList: (requestJSON: string) =>
-        call("aiBatchList", requestJSON),
-      EserAjanAiBatchDownload: (requestJSON: string) =>
-        call("aiBatchDownload", requestJSON),
-      EserAjanAiBatchCancel: (requestJSON: string) =>
-        call("aiBatchCancel", requestJSON),
-      EserAjanFormatEncode: (requestJSON: string) =>
-        call("formatEncode", requestJSON),
-      EserAjanFormatDecode: (requestJSON: string) =>
-        call("formatDecode", requestJSON),
-      EserAjanFormatList: () => call("formatList"),
-      EserAjanFormatEncodeDocument: (requestJSON: string) =>
-        call("formatEncodeDocument", requestJSON),
-      EserAjanLogCreate: (configJSON: string) => call("logCreate", configJSON),
-      EserAjanLogWrite: (requestJSON: string) => call("logWrite", requestJSON),
-      EserAjanLogClose: (handle: string) => call("logClose", handle),
-      EserAjanLogShouldLog: (requestJSON: string) =>
-        call("logShouldLog", requestJSON),
-      EserAjanLogConfigure: (requestJSON: string) =>
-        call("logConfigure", requestJSON),
-      EserAjanHttpCreate: (configJSON: string) =>
-        call("httpCreate", configJSON),
-      // The three that wait on the host's fetch answer a promise.
-      EserAjanHttpRequest: (requestJSON: string) =>
-        callAsync("httpRequest", requestJSON),
-      EserAjanHttpClose: (handle: string) => call("httpClose", handle),
-      EserAjanHttpRequestStream: (requestJSON: string) =>
-        callAsync("httpRequestStream", requestJSON),
-      EserAjanHttpStreamRead: (handle: string) =>
-        callAsync("httpStreamRead", handle),
-      EserAjanHttpStreamClose: (handle: string) =>
-        call("httpStreamClose", handle),
-      EserAjanNoskillsInit: (requestJSON: string) =>
-        call("noskillsInit", requestJSON),
-      EserAjanNoskillsSpecNew: (requestJSON: string) =>
-        call("noskillsSpecNew", requestJSON),
-      EserAjanNoskillsNext: (requestJSON: string) =>
-        call("noskillsNext", requestJSON),
-      EserAjanWorkflowRun: (requestJSON: string) =>
-        call("workflowRun", requestJSON),
-      EserAjanCryptoHash: (requestJSON: string) =>
-        call("cryptoHash", requestJSON),
-      EserAjanCacheCreate: (requestJSON: string) =>
-        call("cacheCreate", requestJSON),
-      EserAjanCacheGetDir: (requestJSON: string) =>
-        call("cacheGetDir", requestJSON),
-      EserAjanCacheGetVersionedPath: (requestJSON: string) =>
-        call("cacheGetVersionedPath", requestJSON),
-      EserAjanCacheList: (requestJSON: string) =>
-        call("cacheList", requestJSON),
-      EserAjanCacheRemove: (requestJSON: string) =>
-        call("cacheRemove", requestJSON),
-      EserAjanCacheClear: (requestJSON: string) =>
-        call("cacheClear", requestJSON),
-      EserAjanCacheClose: (requestJSON: string) =>
-        call("cacheClose", requestJSON),
-      EserAjanCsGenerate: (requestJSON: string) =>
-        call("csGenerate", requestJSON),
-      EserAjanCsSync: (requestJSON: string) => call("csSync", requestJSON),
-      EserAjanKitListRecipes: (requestJSON: string) =>
-        call("kitListRecipes", requestJSON),
-      EserAjanKitApplyRecipe: (requestJSON: string) =>
-        call("kitApplyRecipe", requestJSON),
-      EserAjanKitCloneRecipe: (requestJSON: string) =>
-        call("kitCloneRecipe", requestJSON),
-      EserAjanKitNewProject: (requestJSON: string) =>
-        call("kitNewProject", requestJSON),
-      EserAjanKitUpdateRecipe: (requestJSON: string) =>
-        call("kitUpdateRecipe", requestJSON),
-      EserAjanPostsCreateService: (requestJSON: string) =>
-        call("postsCreateService", requestJSON),
-      EserAjanPostsCompose: (requestJSON: string) =>
-        call("postsCompose", requestJSON),
-      EserAjanPostsGetTimeline: (requestJSON: string) =>
-        call("postsGetTimeline", requestJSON),
-      EserAjanPostsSearch: (requestJSON: string) =>
-        call("postsSearch", requestJSON),
-      EserAjanPostsClose: (requestJSON: string) =>
-        call("postsClose", requestJSON),
-      EserAjanCodebaseGitCurrentBranch: (requestJSON: string) =>
-        call("codebaseGitCurrentBranch", requestJSON),
-      EserAjanCodebaseGitLatestTag: (requestJSON: string) =>
-        call("codebaseGitLatestTag", requestJSON),
-      EserAjanCodebaseGitLog: (requestJSON: string) =>
-        call("codebaseGitLog", requestJSON),
-      EserAjanCodebaseValidateCommitMsg: (requestJSON: string) =>
-        call("codebaseValidateCommitMsg", requestJSON),
-      EserAjanCodebaseGenerateChangelog: (requestJSON: string) =>
-        call("codebaseGenerateChangelog", requestJSON),
-      EserAjanCodebaseBumpVersion: (requestJSON: string) =>
-        call("codebaseBumpVersion", requestJSON),
-      EserAjanCodebaseWalkFiles: (requestJSON: string) =>
-        call("codebaseWalkFiles", requestJSON),
-      EserAjanCodebaseValidateFiles: (requestJSON: string) =>
-        call("codebaseValidateFiles", requestJSON),
-      EserAjanCodebaseCheckCircularDeps: (requestJSON: string) =>
-        call("codebaseCheckCircularDeps", requestJSON),
-      EserAjanCodebaseCheckExportNames: (requestJSON: string) =>
-        call("codebaseCheckExportNames", requestJSON),
-      EserAjanCodebaseCheckModExports: (requestJSON: string) =>
-        call("codebaseCheckModExports", requestJSON),
-      EserAjanCodebaseCheckDocs: (requestJSON: string) =>
-        call("codebaseCheckDocs", requestJSON),
-      EserAjanCodebaseWalkFilesStreamCreate: (requestJSON: string) =>
-        call("codebaseWalkFilesStreamCreate", requestJSON),
-      EserAjanCodebaseWalkFilesStreamRead: (handle: string) =>
-        call("codebaseWalkFilesStreamRead", handle),
-      EserAjanCodebaseWalkFilesStreamClose: (handle: string) =>
-        call("codebaseWalkFilesStreamClose", handle),
-      EserAjanCodebaseValidateFilesStreamCreate: (requestJSON: string) =>
-        call("codebaseValidateFilesStreamCreate", requestJSON),
-      EserAjanCodebaseValidateFilesStreamRead: (handle: string) =>
-        call("codebaseValidateFilesStreamRead", handle),
-      EserAjanCodebaseValidateFilesStreamClose: (handle: string) =>
-        call("codebaseValidateFilesStreamClose", handle),
-      EserAjanCollectorSpecifierToIdentifier: (requestJSON: string) =>
-        call("collectorSpecifierToIdentifier", requestJSON),
-      EserAjanCollectorWalkFiles: (requestJSON: string) =>
-        call("collectorWalkFiles", requestJSON),
-      EserAjanCollectorGenerateManifest: (requestJSON: string) =>
-        call("collectorGenerateManifest", requestJSON),
-      EserAjanParsingTokenize: (requestJSON: string) =>
-        call("parsingTokenize", requestJSON),
-      EserAjanParsingSimpleTokens: () => call("parsingSimpleTokens"),
-      EserAjanParsingTokenizeStreamCreate: (requestJSON: string) =>
-        call("parsingTokenizeStreamCreate", requestJSON),
-      EserAjanParsingTokenizeStreamPush: (requestJSON: string) =>
-        call("parsingTokenizeStreamPush", requestJSON),
-      EserAjanParsingTokenizeStreamClose: (requestJSON: string) =>
-        call("parsingTokenizeStreamClose", requestJSON),
-      EserAjanShellExec: (requestJSON: string) =>
-        call("shellExec", requestJSON),
-      EserAjanShellTuiKeypressCreate: (requestJSON: string) =>
-        call("shellTuiKeypressCreate", requestJSON),
-      EserAjanShellTuiKeypressRead: (handle: string) =>
-        call("shellTuiKeypressRead", handle),
-      EserAjanShellTuiKeypressClose: (handle: string) =>
-        call("shellTuiKeypressClose", handle),
-      EserAjanShellTuiSetStdinRaw: (requestJSON: string) =>
-        call("shellTuiSetStdinRaw", requestJSON),
-      EserAjanShellTuiGetSize: (requestJSON: string) =>
-        call("shellTuiGetSize", requestJSON),
-      EserAjanShellExecSpawn: (requestJSON: string) =>
-        call("shellExecSpawn", requestJSON),
-      EserAjanShellExecRead: (handle: string) => call("shellExecRead", handle),
-      EserAjanShellExecWrite: (requestJSON: string) =>
-        call("shellExecWrite", requestJSON),
-      EserAjanShellExecClose: (handle: string) =>
-        call("shellExecClose", handle),
-      EserAjanShellPtySpawn: (requestJSON: string) =>
-        call("shellPtySpawn", requestJSON),
-      // Deferred through `then` so a failure surfaces on the returned promise:
-      // this symbol is declared async, and a synchronous throw would break
-      // callers that only attach a `catch`.
-      EserAjanShellPtyRead: (handle: string): Promise<string> =>
-        Promise.resolve().then(() => call("shellPtyRead", handle)),
-      EserAjanShellPtyWrite: (requestJSON: string) =>
-        call("shellPtyWrite", requestJSON),
-      EserAjanShellPtyResize: (requestJSON: string) =>
-        call("shellPtyResize", requestJSON),
-      EserAjanShellPtyKill: (requestJSON: string) =>
-        call("shellPtyKill", requestJSON),
-      EserAjanShellPtyClose: (handle: string) => call("shellPtyClose", handle),
-    },
-    close: () => {
-      reactor.close();
-    },
-  };
+  return library.createLibrary({
+    backend: "wasm",
+    handshake: reactor.handshake,
+    transport: createReactorTransport(reactor),
+  });
 };

@@ -28,8 +28,6 @@
  * @module
  */
 
-import * as cliParseArgs from "@std/cli/parse-args";
-import * as stdPath from "@std/path";
 import * as primitives from "@eserstack/primitives";
 import * as standards from "@eserstack/standards";
 import * as functions from "@eserstack/functions";
@@ -104,7 +102,10 @@ export const parseChangelog = async (
   options: ParseChangelogOptions = {},
 ): Promise<ParseChangelogResult> => {
   const { changelogPath = "CHANGELOG.md", root = "." } = options;
-  const fullPath = stdPath.resolve(root, changelogPath);
+  const fullPath = standards.crossRuntime.runtime.path.resolve(
+    root,
+    changelogPath,
+  );
   const text = await standards.crossRuntime.runtime.fs.readTextFile(fullPath);
   const entries = changelogText.parseChangelogText(text);
 
@@ -170,7 +171,10 @@ export const syncReleaseNotes = async (
   const tempDir = await standards.crossRuntime.runtime.fs.makeTempDir({
     prefix: "eserstack-release-",
   });
-  const notesPath = stdPath.join(tempDir, `${targetTag}-notes.md`);
+  const notesPath = standards.crossRuntime.runtime.path.join(
+    tempDir,
+    `${targetTag}-notes.md`,
+  );
   await standards.crossRuntime.runtime.fs.writeTextFile(notesPath, entry.notes);
 
   try {
@@ -317,18 +321,21 @@ export const handleCli: (
   adaptOutput: cliResponseMapper,
 });
 
+/** Parse the release-notes arguments: `--repo`, `--tag`, `--create-if-missing`. */
+export const parseCliArgs = (
+  cliArgs?: readonly string[],
+): functions.triggers.CliEvent =>
+  cliSupport.parseCliEvent("release-notes", cliArgs, {
+    repo: { type: "string" },
+    tag: { type: "string" },
+    "create-if-missing": { type: "boolean" },
+    help: { type: "boolean", short: "h" },
+  });
+
 /** CLI entry point for dispatcher compatibility. */
 export const main = async (
   cliArgs?: readonly string[],
-): Promise<shellArgs.CliResult<void>> => {
-  const parsed = cliParseArgs.parseArgs((cliArgs ?? []) as string[], {
-    string: ["repo", "tag"],
-    boolean: ["create-if-missing"],
-    alias: { h: "help" },
-  });
-  const event = cliSupport.toCliEvent("release-notes", parsed);
-  return await handleCli(event);
-};
+): Promise<shellArgs.CliResult<void>> => await handleCli(parseCliArgs(cliArgs));
 
 if (import.meta.main) {
   // Entry point: the await only runs when this file is executed directly.

@@ -15,18 +15,13 @@ export const deserialize = async (
   const lib = ffiClient.getLib();
   if (lib !== null) {
     try {
-      const requestJSON = JSON.stringify({
+      const parsed = lib.call("formatDecode", {
         format,
         text: input,
         headers: options?.headers,
       });
-      const raw = lib.symbols.EserAjanFormatDecode(requestJSON);
-      const parsed = JSON.parse(raw) as {
-        items?: unknown[];
-        error?: string;
-      };
       if (!parsed.error) {
-        return parsed.items ?? [];
+        return [...(parsed.items ?? [])];
       }
       // Non-fatal: fall through to TS fallback (e.g. format only registered in TS)
     } catch {

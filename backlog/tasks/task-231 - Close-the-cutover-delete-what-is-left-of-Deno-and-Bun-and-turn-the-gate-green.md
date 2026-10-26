@@ -68,7 +68,7 @@ Plan key: M1-T37. Effort: small.
 - [x] #1 deno.json, etc/codemods and every Deno-only file are deleted, and no temporary-aid marker remains
 - [x] #2 `git grep -wi deno` and `git grep -wi bun` match only the ADR 0005 allowlist
 - [ ] #3 With deno and bun off PATH, `pnpm cli ok`, `pnpm cli preflight` and `make ok` pass, and CI is green on the branch
-- [ ] #4 Git hooks run `pnpm cli ok`; the owner has the merge request
+- [x] #4 Git hooks run `pnpm cli ok`; the owner has the merge request
 <!-- AC:END -->
 
 ## Implementation Notes
@@ -81,4 +81,5 @@ Plan key: M1-T37. Effort: small.
 - ADR 0005 Appendix B gained six rows: versions.test.ts, cmd/eser/README.md, the laroux-bundler deno.json notes, the npm-consumer preflight, the Deno Fresh and @std/dotenv attributions, and flake.nix (dontStrip stays while nix/hashes.json pins the 4.5.1 deno compile archives).
 - With deno and bun off PATH, `pnpm cli ok`, `pnpm cli preflight` and `make ok` pass locally. AC #3 waits only on CI being green on the branch; AC #4 is the integration agent's (hooks, merge request).
 The integration agent removed oxc-parser from the root devDependencies (nothing uses it after etc/codemods) and refreshed pnpm-lock.yaml; `pnpm cli ok` passes again with deno and bun off PATH. AC #4: the hooks are not reinstalled on the branch, because .git/hooks is shared with the main checkout, which still runs Deno until the merge; the integration agent reinstalls them with `pnpm cli codebase install` right after the owner merges cutover into main, then checks that a commit on main runs `pnpm cli workflows run -e precommit`.
+2026-10-26: the owner merged cutover into main locally (fast-forward to 5b2c0412). On main, the stale generated artifacts the removed .gitignore rules no longer hid were deleted (the per-package deno.json files from gen-jsr-manifests, docs/api from deno doc, and the node_modules left in the removed jsx-runtime and laroux-runtime directories); `pnpm install --frozen-lockfile` and `make ajan-lib ajan-wasm-check` ran; `pnpm cli codebase install` rewrote pre-commit, commit-msg and pre-push to `pnpm cli workflows run -e <event>`; `pnpm cli ok` passes on main with Node 26.12.1. AC #4 holds. AC #3 still waits for a CI run on the merged main. The hooks need Node 26.9 or later first on PATH (.node-version pins 26.12.1); under an older Node pnpm warns about the engine and node:ffi is off.
 <!-- SECTION:NOTES:END -->

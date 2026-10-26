@@ -11,7 +11,6 @@
 
 import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
-import * as path from "@std/path";
 import { runtime } from "@eserstack/standards/cross-runtime";
 import * as validateSelfImports from "./validate-self-imports.ts";
 
@@ -22,7 +21,7 @@ const makeWorkspace = async (): Promise<string> => {
   const root = await runtime.fs.makeTempDir({
     prefix: "validate-self-imports-test-",
   });
-  await runtime.fs.mkdir(path.join(root, "pkg/@eserstack/shell/tui"), {
+  await runtime.fs.mkdir(runtime.path.join(root, "pkg/@eserstack/shell/tui"), {
     recursive: true,
   });
 
@@ -35,7 +34,7 @@ const writeShellFile = async (
   body: string,
 ): Promise<void> => {
   await runtime.fs.writeTextFile(
-    path.join(root, "pkg/@eserstack/shell", name),
+    runtime.path.join(root, "pkg/@eserstack/shell", name),
     HEADER + body,
   );
 };
@@ -117,11 +116,11 @@ nodeTest.test(
       prefix: "validate-self-imports-test-",
     });
     try {
-      await runtime.fs.mkdir(path.join(root, "etc/scripts"), {
+      await runtime.fs.mkdir(runtime.path.join(root, "etc/scripts"), {
         recursive: true,
       });
       await runtime.fs.writeTextFile(
-        path.join(root, "etc/scripts/tool.ts"),
+        runtime.path.join(root, "etc/scripts/tool.ts"),
         HEADER +
           'import * as env from "@eserstack/shell/env";\nexport { env };\n',
       );

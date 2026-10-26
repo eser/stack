@@ -1,5 +1,35 @@
 # @eserstack/logging — FFI wiring notes
 
+## Bridge calls
+
+The package reaches the Go logger through the dispatcher ABI of
+`@eserstack/ajan` (one `EserAjanCall` export; the names and their types are in
+`ajan/ffi/bindings.ts`):
+
+| Call           | Request                                       | Answer                       |
+| -------------- | --------------------------------------------- | ---------------------------- |
+| `logCreate`    | `{ scopeName?, level?, format?, addSource? }` | `{ handle }` or `{ error }`  |
+| `logWrite`     | `{ handle, level, message, attrs? }`          | `{}` or `{ error }`          |
+| `logShouldLog` | `{ handle, level }`                           | `{ allowed }` or `{ error }` |
+| `logConfigure` | `{ handle, level }`                           | `{}` or `{ error }`          |
+| `logClose`     | the bare handle string                        | `{}`                         |
+
+`Logger` and `createGoLogger` call `lib.call("logWrite", request)` with the
+request already encoded as JSON, because the attributes go through
+`serialize.jsonReplacer` (errors with their causes, bigints); the library sends
+a string request as it is. `lib.call` answers the parsed JSON, so an `error`
+field comes back as an answer and the logger falls back to the console sink.
+All five names are in the WASM fallback's profile.
+
+## Fixed: the Go logger's handle was never released
+
+- **Status**: RESOLVED (TASK-238)
+- **Location**: `go-logger.ts`, `close()`.
+- **Cause**: `close()` sent `{"handle":"log-N"}` to the close call, which takes
+  the bare handle, so Go found no logger under that name and kept it.
+- **Fix**: `close()` sends the handle itself; `go-logger.test.ts` checks the
+  request and that a later write on the handle answers "log handle not found".
+
 ## Behavioral divergences
 
 ### logger.test.ts — native library load inside a test body

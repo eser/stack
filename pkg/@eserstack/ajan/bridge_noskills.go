@@ -154,7 +154,7 @@ func bridgeNoskillsNext(requestJSON string) string {
 }
 
 func init() {
-	register("noskillsInit", []string{"requestJSON"}, func(a []string) string { return bridgeNoskillsInit(a[0]) })
-	register("noskillsSpecNew", []string{"requestJSON"}, func(a []string) string { return bridgeNoskillsSpecNew(a[0]) })
-	register("noskillsNext", []string{"requestJSON"}, func(a []string) string { return bridgeNoskillsNext(a[0]) })
+	register("noskillsInit", bridgeNoskillsInit)
+	register("noskillsSpecNew", bridgeNoskillsSpecNew)
+	register("noskillsNext", bridgeNoskillsNext)
 }

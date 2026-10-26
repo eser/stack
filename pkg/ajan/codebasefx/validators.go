@@ -389,9 +389,7 @@ func ValidateLicenseHeader(path string, content []byte) []ValidatorIssue {
 	}
 
 	// Skip generated / documentation paths.
-	if strings.Contains(path, "/docs/") ||
-		strings.Contains(path, "/etc/templates/") ||
-		strings.HasSuffix(path, "manifest.gen.ts") {
+	if licenseSkipped(path) {
 		return nil
 	}
 
@@ -615,10 +613,11 @@ func ParseFilenameRules(raw any) ([]FilenameRule, error) {
 
 // ValidateFilenames returns a ValidatorFunc that enforces filename conventions.
 // rules maps directory substrings to "kebab-case" or "snake_case"; nil uses the default.
-// globalExcludes is the list of path patterns to skip; nil uses the built-in defaults.
+// globalExcludes is the list of path patterns to skip; nil uses the built-in
+// defaults, and an empty list skips nothing.
 func ValidateFilenames(rules []FilenameRule, globalExcludes []string) ValidatorFunc {
 	excludes := globalExcludes
-	if len(excludes) == 0 {
+	if excludes == nil {
 		excludes = defaultFilenameExcludes
 	}
 

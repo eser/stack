@@ -2,7 +2,7 @@
 
 /**
  * The wasi profile answers like the native library (TASK-272): every one of
- * its 52 names is called on both, with the same fixtures, and the answers are
+ * its 44 names is called on both, with the same fixtures, and the answers are
  * compared after handle ids are normalized (the two builds number their
  * handles independently).
  *
@@ -18,6 +18,7 @@ import * as workerThreads from "node:worker_threads";
 import * as assert from "@eserstack/test-kit/assert";
 import { runtime } from "@eserstack/standards/cross-runtime";
 import * as ffiClient from "../ffi/client.ts";
+import * as library from "../ffi/library.ts";
 import * as reactor from "./loader-reactor.ts";
 import * as resolve from "./resolve.ts";
 
@@ -38,11 +39,19 @@ const normalize = (answer: string): string =>
   answer.replace(/"([a-z]+(?:-[a-z]+)*)-\d+"/g, '"$1-N"');
 
 /**
- * Puts answers whose order comes from a Go map into a fixed order. formatList
- * lists the formats in the iteration order of the format registry's map,
- * which differs between builds.
+ * Puts answers whose order comes from a Go map into a fixed order, and keeps
+ * of the handshake what both builds share. formatList lists the formats in
+ * the iteration order of the format registry's map, which differs between
+ * builds; the handshake's profile and names differ by design.
  */
 const canonical = (fn: string, answer: string): string => {
+  if (fn === "version") {
+    const { version, abi } = JSON.parse(answer) as {
+      version: string;
+      abi: number;
+    };
+    return JSON.stringify({ version, abi });
+  }
   if (fn !== "formatList") {
     return answer;
   }
@@ -51,7 +60,7 @@ const canonical = (fn: string, answer: string): string => {
   return JSON.stringify(parsed);
 };
 
-type Call = readonly [fn: string, ...args: string[]];
+type Call = readonly [fn: string, request?: string];
 
 nodeTest.test(
   "every wasi profile name answers like the native library",
@@ -127,20 +136,48 @@ nodeTest.test(
       ];
 
       const host = await reactor.createReactorHost(wasmPath!);
-      const wasmCall = (fn: string, ...args: string[]): string => {
-        const envelope = host.callEnvelope(fn, ...args);
-        return envelope.result ?? `no result: ${envelope.error}`;
+      const wasm = library.createLibrary({
+        backend: "wasm",
+        handshake: host.handshake,
+        transport: reactor.createReactorTransport(host),
+      });
+
+      // Both sides go through the typed library, with the request strings
+      // above decoded back (a bare handle stays a string) and each answer
+      // encoded again for the comparison.
+      type Lib = typeof wasm;
+      type AnyCall = (fn: string, request?: unknown) => unknown;
+      type AnyStream = (
+        fn: string,
+        request?: unknown,
+      ) => {
+        readonly opened: unknown;
+        readonly read: () => unknown;
+        readonly close: () => unknown;
       };
-      const nativeSymbols = native!.symbols as unknown as Record<
-        string,
-        (...args: string[]) => string
-      >;
-      const symbolOf = (fn: string): string =>
-        fn === "diResolve"
-          ? "EserAjanDIResolve"
-          : `EserAjan${fn[0]!.toUpperCase()}${fn.slice(1)}`;
-      const nativeCall = (fn: string, ...args: string[]): string =>
-        nativeSymbols[symbolOf(fn)]!(...args);
+      const decode = (request: string | undefined): unknown => {
+        if (request === undefined) {
+          return undefined;
+        }
+        try {
+          return JSON.parse(request);
+        } catch {
+          return request;
+        }
+      };
+      const answerOf = (run: () => unknown): string => {
+        try {
+          return JSON.stringify(run());
+        } catch (error) {
+          return `no result: ${(error as Error).message}`;
+        }
+      };
+      const caller =
+        (lib: Lib) =>
+        (fn: string, request?: string): string =>
+          answerOf(() => (lib.call as AnyCall)(fn, decode(request)));
+      const wasmCall = caller(wasm);
+      const nativeCall = caller(native!);
 
       const covered = new Set<string>();
       const mismatches: string[] = [];
@@ -162,7 +199,9 @@ nodeTest.test(
       }
 
       // Handle-based names run as a sequence on each side.
-      const sequence = (call: (fn: string, ...a: string[]) => string) => {
+      const sequence = (lib: Lib) => {
+        const call = caller(lib);
+        const stream = lib.stream as AnyStream;
         const out: Array<[string, string]> = [];
         const cache = call(
           "cacheCreate",
@@ -198,9 +237,8 @@ nodeTest.test(
           call("cacheClose", req({ handle: cacheHandle })),
         ]);
 
-        const tokenizer = call("parsingTokenizeStreamCreate", "{}");
-        out.push(["parsingTokenizeStreamCreate", tokenizer]);
-        const tokHandle = (JSON.parse(tokenizer) as { handle: string }).handle;
+        const tokenizer = stream("parsingTokenizeStream", {});
+        const tokHandle = (tokenizer.opened as { handle: string }).handle;
         out.push([
           "parsingTokenizeStreamPush",
           call(
@@ -209,41 +247,38 @@ nodeTest.test(
           ),
         ]);
         out.push([
-          "parsingTokenizeStreamClose",
-          call("parsingTokenizeStreamClose", req({ handle: tokHandle })),
+          "parsingTokenizeStream",
+          `${JSON.stringify(tokenizer.opened)}\n${answerOf(tokenizer.close)}`,
         ]);
 
-        for (const kind of ["Walk", "Validate"] as const) {
-          const created = call(
-            `codebase${kind}FilesStreamCreate`,
-            req({ dir: fixture, extensions: [".ts"] }),
-          );
-          out.push([`codebase${kind}FilesStreamCreate`, created]);
-          const handle = (JSON.parse(created) as { handle: string }).handle;
-          let item = "";
-          const items: string[] = [];
-          do {
-            item = call(`codebase${kind}FilesStreamRead`, handle);
+        for (const name of [
+          "codebaseWalkFilesStream",
+          "codebaseValidateFilesStream",
+        ]) {
+          const opened = stream(name, { dir: fixture, extensions: [".ts"] });
+          const items: string[] = [JSON.stringify(opened.opened)];
+          for (let i = 0; i < 50; i++) {
+            const item = answerOf(opened.read);
             items.push(item);
-          } while (!item.includes('"done":true') && items.length < 50);
-          out.push([`codebase${kind}FilesStreamRead`, items.join("\n")]);
-          out.push([
-            `codebase${kind}FilesStreamClose`,
-            call(`codebase${kind}FilesStreamClose`, handle),
-          ]);
+            if (item === "null") {
+              break;
+            }
+          }
+          items.push(answerOf(opened.close));
+          out.push([name, items.join("\n")]);
         }
         return out;
       };
 
-      const wasmSeq = sequence(wasmCall);
-      const nativeSeq = sequence(nativeCall);
+      const wasmSeq = sequence(wasm);
+      const nativeSeq = sequence(native!);
       wasmSeq.forEach(([fn, answer], i) =>
         compare(fn, answer, nativeSeq[i]![1]),
       );
 
       // Logging: the writes are below the logger's level, so neither side
       // prints; node-reactor-log.test.ts covers the output.
-      const logging = (call: (fn: string, ...a: string[]) => string) => {
+      const logging = (call: (fn: string, request?: string) => string) => {
         const created = call(
           "logCreate",
           req({ scopeName: "parity", level: "WARN" }),
@@ -272,8 +307,8 @@ nodeTest.test(
       );
 
       // HTTP against a local server (TASK-277). The reactor's requests wait on
-      // the host's fetch, so they go through callEnvelopeAsync. The Date
-      // header is the only part of an answer that may differ.
+      // the host's fetch, so the library awaits them. The Date header is the
+      // only part of an answer that may differ.
       const worker = new workerThreads.Worker(
         new URL("./profile-parity-server.worker.ts", import.meta.url),
       );
@@ -287,61 +322,64 @@ nodeTest.test(
         const base = `http://127.0.0.1:${port}`;
         const dropDate = (answer: string): string =>
           answer.replace(/"Date":"[^"]*",?/, "").replace(",}", "}");
-        const http = async (
-          call: (fn: string, ...a: string[]) => string | Promise<string>,
-        ): Promise<Array<[string, string]>> => {
+        const http = async (lib: Lib): Promise<Array<[string, string]>> => {
           const out: Array<[string, string]> = [];
-          const created = await call(
-            "httpCreate",
-            req({ baseUrl: base, timeoutMs: 5000 }),
-          );
-          out.push(["httpCreate", created]);
-          const { handle } = JSON.parse(created) as { handle: string };
+          const created = lib.call("httpCreate", {
+            baseUrl: base,
+            timeoutMs: 5000,
+          });
+          out.push(["httpCreate", JSON.stringify(created)]);
+          const handle = created.handle ?? "";
           out.push([
             "httpRequest",
             dropDate(
-              await call(
-                "httpRequest",
-                req({ handle, method: "POST", url: "/echo", body: "hi" }),
+              JSON.stringify(
+                await lib.call("httpRequest", {
+                  handle,
+                  method: "POST",
+                  url: "/echo",
+                  body: "hi",
+                }),
               ),
             ),
           ]);
           out.push([
             "httpRequest",
             dropDate(
-              await call("httpRequest", req({ handle, url: "/missing" })),
+              JSON.stringify(
+                await lib.call("httpRequest", { handle, url: "/missing" }),
+              ),
             ),
           ]);
-          const opened = await call(
-            "httpRequestStream",
-            req({ handle, url: "/stream" }),
-          );
-          out.push(["httpRequestStream", dropDate(opened)]);
-          const stream = (JSON.parse(opened) as { handle: string }).handle;
+          const opened = await lib.stream("httpRequestStream", {
+            handle,
+            url: "/stream",
+          });
           let body = "";
           for (let i = 0; i < 20; i++) {
             // Each read follows the one before it on the same stream.
             // oxlint-disable-next-line no-await-in-loop
-            const chunk = JSON.parse(await call("httpStreamRead", stream)) as {
-              chunk?: string;
-              done: boolean;
-            };
-            body += chunk.chunk === undefined ? "" : atob(chunk.chunk);
-            if (chunk.done) {
+            const chunk = await opened.read();
+            body += chunk?.chunk === undefined ? "" : atob(chunk.chunk);
+            if (chunk === null || chunk.done === true) {
               break;
             }
           }
           // Chunk sizes come from each side's reader; the bytes must match.
-          out.push(["httpStreamRead", body]);
-          out.push(["httpStreamClose", await call("httpStreamClose", stream)]);
-          out.push(["httpClose", await call("httpClose", handle)]);
+          out.push([
+            "httpRequestStream",
+            `${dropDate(JSON.stringify(opened.opened))}\n${body}\n${JSON.stringify(
+              opened.close(),
+            )}`,
+          ]);
+          out.push([
+            "httpClose",
+            JSON.stringify(lib.call("httpClose", handle)),
+          ]);
           return out;
         };
-        const wasmHttp = await http(async (fn, ...args) => {
-          const envelope = await host.callEnvelopeAsync(fn, ...args);
-          return envelope.result ?? `no result: ${envelope.error}`;
-        });
-        const nativeHttp = await http(nativeCall);
+        const wasmHttp = await http(wasm);
+        const nativeHttp = await http(native!);
         wasmHttp.forEach(([fn, answer], i) =>
           compare(fn, answer, nativeHttp[i]![1]),
         );
@@ -352,9 +390,9 @@ nodeTest.test(
 
       // init and shutdown, on the WASM instance only (see the module doc).
       covered.add("init");
-      assert.assertEquals(wasmCall("init"), "initialized");
+      assert.assertEquals(wasmCall("init"), "{}");
       covered.add("shutdown");
-      assert.assertEquals(wasmCall("shutdown"), "shutdown");
+      assert.assertEquals(wasmCall("shutdown"), "{}");
 
       assert.assertEquals(mismatches, [], mismatches.join("\n"));
       assert.assertEquals(

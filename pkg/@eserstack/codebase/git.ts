@@ -95,8 +95,10 @@ export const getLatestTag = async (): Promise<string> => {
   const lib = ffiClient.getLib();
   if (lib !== null) {
     try {
-      const raw = lib.symbols.EserAjanCodebaseGitLatestTag("{}");
-      const parsed = JSON.parse(raw) as { tag?: string; error?: string };
+      const parsed = lib.call("codebaseGitLatestTag", {}) as {
+        tag?: string;
+        error?: string;
+      };
       if (!parsed.error && parsed.tag !== undefined) {
         return parsed.tag.trim();
       }
@@ -124,8 +126,10 @@ export const getCurrentBranch = async (): Promise<string> => {
   const lib = ffiClient.getLib();
   if (lib !== null) {
     try {
-      const raw = lib.symbols.EserAjanCodebaseGitCurrentBranch("{}");
-      const parsed = JSON.parse(raw) as { branch?: string; error?: string };
+      const parsed = lib.call("codebaseGitCurrentBranch", {}) as {
+        branch?: string;
+        error?: string;
+      };
       if (!parsed.error && parsed.branch !== undefined) {
         return parsed.branch.trim();
       }
@@ -203,10 +207,7 @@ export const getCommitsBetween = async (
   const lib = ffiClient.getLib();
   if (lib !== null) {
     try {
-      const raw = lib.symbols.EserAjanCodebaseGitLog(
-        JSON.stringify({ start, end }),
-      );
-      const parsed = JSON.parse(raw) as {
+      const parsed = lib.call("codebaseGitLog", { start, end }) as {
         commits?: WireCommit[];
         error?: string;
       };
@@ -244,10 +245,7 @@ export const getCommitsSinceDate = async (date: string): Promise<Commit[]> => {
   const lib = ffiClient.getLib();
   if (lib !== null) {
     try {
-      const raw = lib.symbols.EserAjanCodebaseGitLog(
-        JSON.stringify({ since: date }),
-      );
-      const parsed = JSON.parse(raw) as {
+      const parsed = lib.call("codebaseGitLog", { since: date }) as {
         commits?: WireCommit[];
         error?: string;
       };

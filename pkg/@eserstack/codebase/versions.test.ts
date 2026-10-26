@@ -203,3 +203,16 @@ nodeTest.test("versions: a dry run writes nothing", async () => {
     await runtime.fs.remove(workspace.root, { recursive: true });
   }
 });
+
+nodeTest.test("parseCliArgs reads the command and --dry-run", () => {
+  const event = versions.parseCliArgs(["patch", "--dry-run"]);
+
+  assert.assertEquals(event.command, "versions");
+  assert.assertEquals(event.args, ["patch"]);
+  assert.assertEquals(event.flags["dry-run"], true);
+  assert.assertEquals(versions.parseCliArgs([]).flags["dry-run"], undefined);
+});
+
+nodeTest.test("parseCliArgs keeps a numeric version as a string", () => {
+  assert.assertEquals(versions.parseCliArgs(["4.5"]).args, ["4.5"]);
+});

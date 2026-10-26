@@ -23,32 +23,47 @@ const beforeEach = async () => {
 await ffiClient.ensureLib();
 
 // The FFI singleton is shared by the whole test process; the fallback tests
-// swap individual symbols on it and restore them before yielding.
+// answer individual names on it and restore it before yielding.
 const ffiLib = ffiClient.getLib();
 const withoutFfi = ffiLib === null;
 
+/** The shared library's `call`, as the stubs below swap it. */
+type AnyCall = (name: string, request?: unknown) => unknown;
+
+const mutableLib = ffiLib as unknown as { call: AnyCall } | null;
+const realCall: AnyCall | undefined = mutableLib?.call;
+
+/** The real logWrite, answering its JSON text, for stubs that pass through. */
+const passthroughWrite = (request: unknown): string =>
+  JSON.stringify(realCall?.("logWrite", request) ?? {});
+
+/**
+ * Answers logCreate and logWrite with the JSON text the overrides return,
+ * until the returned function restores the library. The overrides receive the
+ * request as the logger passed it.
+ */
 const stubLogSymbols = (overrides: {
-  create?: (configJSON: string) => string;
-  write?: (requestJSON: string) => string;
+  create?: (request: unknown) => string;
+  write?: (request: unknown) => string;
 }): (() => void) => {
-  if (ffiLib === null) {
+  if (mutableLib === null || realCall === undefined) {
     return () => {};
   }
 
-  const originalCreate = ffiLib.symbols.EserAjanLogCreate;
-  const originalWrite = ffiLib.symbols.EserAjanLogWrite;
+  mutableLib.call = (name, request) => {
+    if (name === "logCreate" && overrides.create !== undefined) {
+      return JSON.parse(overrides.create(request));
+    }
 
-  if (overrides.create !== undefined) {
-    ffiLib.symbols.EserAjanLogCreate = overrides.create;
-  }
+    if (name === "logWrite" && overrides.write !== undefined) {
+      return JSON.parse(overrides.write(request));
+    }
 
-  if (overrides.write !== undefined) {
-    ffiLib.symbols.EserAjanLogWrite = overrides.write;
-  }
+    return realCall(name, request);
+  };
 
   return () => {
-    ffiLib.symbols.EserAjanLogCreate = originalCreate;
-    ffiLib.symbols.EserAjanLogWrite = originalWrite;
+    mutableLib.call = realCall;
   };
 };
 
@@ -241,12 +256,11 @@ nodeTest.test(
     await configureFallbackTest("write-ok");
 
     const seen: string[] = [];
-    const passthrough = ffiLib?.symbols.EserAjanLogWrite;
     const restore = stubLogSymbols({
-      write: (requestJSON: string): string => {
-        seen.push(requestJSON);
+      write: (request: unknown): string => {
+        seen.push(String(request));
 
-        return passthrough?.(requestJSON) ?? "{}";
+        return passthroughWrite(request);
       },
     });
 
@@ -301,12 +315,11 @@ nodeTest.test(
     await configureFallbackTest("error-attr-go");
 
     const seen: string[] = [];
-    const passthrough = ffiLib?.symbols.EserAjanLogWrite;
     const restore = stubLogSymbols({
-      write: (requestJSON: string): string => {
-        seen.push(requestJSON);
+      write: (request: unknown): string => {
+        seen.push(String(request));
 
-        return passthrough?.(requestJSON) ?? "{}";
+        return passthroughWrite(request);
       },
     });
 

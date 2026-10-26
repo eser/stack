@@ -94,42 +94,6 @@ func TestGuardString(t *testing.T) {
 	}
 }
 
-func TestGuardInt(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		name string
-		fn   func() int
-		want int
-	}{
-		{
-			name: "passes result through when fn does not panic",
-			fn:   func() int { return 0 },
-			want: 0,
-		},
-		{
-			name: "passes non-zero result through unchanged",
-			fn:   func() int { return 7 },
-			want: 7,
-		},
-		{
-			name: "reports failure code on panic",
-			fn:   func() int { panic("init exploded") },
-			want: guardFailureCode,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-
-			if got := guardInt(tt.fn); got != tt.want {
-				t.Errorf("guardInt() = %d, want %d", got, tt.want)
-			}
-		})
-	}
-}
-
 func TestGuardVoid(t *testing.T) {
 	t.Parallel()
 

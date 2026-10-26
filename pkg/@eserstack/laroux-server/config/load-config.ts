@@ -10,7 +10,7 @@
 import { runtime } from "@eserstack/standards/cross-runtime";
 import * as logging from "@eserstack/logging";
 import * as deepMerge from "@eserstack/fp/deep-merge";
-import * as toFileUrl from "@std/path/to-file-url";
+import * as nodeUrl from "node:url";
 import type { AppConfig, LogLevel, UserConfig } from "@eserstack/laroux/config";
 import * as config from "@eserstack/laroux/config";
 
@@ -45,8 +45,8 @@ export type {
 const configLogger = logging.logger.getLogger(["laroux-server", "config"]);
 
 /**
- * Convert a filesystem path to a proper file:// URL using @std/path.
- * Handles both Unix and Windows paths correctly.
+ * Convert a filesystem path to a proper file:// URL with `pathToFileURL` from
+ * `node:url`, which handles both Unix and Windows paths.
  */
 function pathToFileUrl(filePath: string): string {
   // Ensure the path is absolute
@@ -54,8 +54,7 @@ function pathToFileUrl(filePath: string): string {
     ? filePath
     : runtime.path.resolve(filePath);
 
-  // Use @std/path's toFileUrl for cross-platform file:// URL generation
-  return toFileUrl.toFileUrl(absolutePath).href;
+  return nodeUrl.pathToFileURL(absolutePath).href;
 }
 
 /**

@@ -19,11 +19,11 @@ make ajan-lib
 
 # 2. Verify the Go bridge works
 node --run cli -- ajan version
-# prints "eser-ajan version" followed by the repository's VERSION
+# prints the repository's VERSION, the dispatcher ABI and the backend
 
 # 3. (Optional) Load an explicit library file from a script
 ESER_AJAN_LIB_PATH=$(pwd)/pkg/@eserstack/ajan/dist/aarch64-darwin/libeser_ajan.dylib \
-  node --input-type=module --eval 'import * as ffi from "./pkg/@eserstack/ajan/ffi/mod.ts"; const lib = await ffi.loadEserAjan(); console.log(lib.symbols.EserAjanVersion()); lib.close();'
+  node --input-type=module --eval 'import * as ffi from "./pkg/@eserstack/ajan/ffi/mod.ts"; const lib = await ffi.loadEserAjan(); console.log(lib.handshake.version); lib.close();'
 
 # 4. (Optional) Test the WASM fallback
 make ajan-wasm
@@ -39,12 +39,39 @@ WASM when `node:ffi` or the native library cannot be loaded:
 import * as ajan from "@eserstack/ajan";
 
 const lib = await ajan.loadEserAjan();
-console.log(lib.symbols.EserAjanVersion());
+console.log(lib.handshake.version, lib.backend);
+
+const encoded = lib.call("formatEncode", { format: "yaml", data: { a: 1 } });
+console.log(encoded.result);
+
+const walk = lib.stream("codebaseWalkFilesStream", { dir: "." });
+for (let file = walk.read(); file !== null; file = walk.read()) {
+  console.log(file.path);
+}
+walk.close();
+
 lib.close();
 ```
 
-Most symbols take and return JSON strings. The request and response shape of
-each one is documented on `FFILibrary` in `ffi/types.ts`.
+Every name the bridge serves is an entry of the binding table in
+`ffi/bindings.ts`: its kind (`call` or `stream`), whether it can block, whether
+the WASM fallback serves it, and its request and answer types. `lib.call(name,
+request)` runs a call; `lib.stream(name, request)` opens a stream whose
+`read()` answers the next chunk, or `null` when the stream is done, and whose
+`close()` releases it. A request is an object, or the bare handle string for
+the few names that take only a handle (`logClose`, `httpClose`,
+`aiCloseModel`).
+
+Both answer the bridge function's parsed JSON, an answer with an `error` field
+included, so each package keeps its own error mapping. They throw only when no
+bridge function ran, with the dispatcher's code: `UnknownFunctionError` for
+`UNKNOWN_FUNCTION`, `UnsupportedInWasmError` for `UNSUPPORTED_IN_WASM`, and
+`AjanCallError` for the others. The library stays loaded after either.
+
+The names marked `async` (`httpRequest` and the `httpRequestStream` open and
+reads) answer a promise on every backend, because the WASM fallback waits on
+the host's fetch for them; await them. For tests, `@eserstack/ajan/ffi/fake`
+builds a library whose names are answered by handlers.
 
 ### Loader order
 
@@ -59,7 +86,8 @@ each one is documented on `FFILibrary` in `ffi/types.ts`.
 
 When both fail, the error names both causes, the flags above and
 `ESER_AJAN_LIB_PATH`. Calls through `node:ffi` are synchronous: a long call such
-as `EserAjanAiGenerateText` blocks the event loop until it returns.
+as `aiGenerateText` blocks the event loop until it returns. The table marks
+those names `blocking`; M2-T8 (TASK-239) moves them to worker threads.
 
 ```bash
 # Run with node:ffi turned off, so the WASM build serves the calls
@@ -107,8 +135,43 @@ them from `dist/`.
 
 ## FFI Usage
 
-The shared library exports a stable C ABI. Any language with FFI/ctypes support
+The shared library exports the dispatcher ABI (ABI 3, `dispatch.go`): six
+functions, the same on every platform. Any language with FFI or ctypes support
 can call it directly.
+
+| Export                              | Answers                                                             |
+| ----------------------------------- | ------------------------------------------------------------------- |
+| `EserAjanVersion()`                 | The handshake JSON: `version`, `abi`, `profile`, `names`, `streams` |
+| `EserAjanCall(name, request)`       | The envelope of one call                                            |
+| `EserAjanStreamOpen(name, request)` | The envelope of a stream open; its result carries `handle`          |
+| `EserAjanStreamRead(handle)`        | The envelope of the next chunk; a result of `null` ends it          |
+| `EserAjanStreamClose(handle)`       | The envelope of the close                                           |
+| `EserAjanFree(ptr)`                 | Releases a string any of the above returned                         |
+
+`name` is a name of the Go dispatch registry, such as `cryptoHash`, and
+`request` is a string: JSON for most names, the bare handle for the few that
+take only a handle, empty for the ones that take nothing. Writes, resizes,
+kills, pushes and cancels on an open stream are calls that take the handle in
+their request (`shellExecWrite`, `shellPtyResize`, `parsingTokenizeStreamPush`,
+`aiCancelRequest`).
+
+Every operation answers an envelope:
+
+```json
+{"ok": true, "result": "{\"hash\":\"2cf24d...\"}"}
+{"ok": false, "code": "HANDLER_ERROR", "error": "...", "result": "{\"error\":\"...\"}"}
+{"ok": false, "code": "UNKNOWN_FUNCTION", "error": "unknown function: cryptoHashh"}
+```
+
+`result` is the bridge function's JSON answer. An answer with an `error` field
+fails the envelope with `HANDLER_ERROR` and stays in `result`; a Go panic does
+the same with `PANIC`, and the process keeps running. An envelope without
+`result` means no bridge function ran: `UNKNOWN_FUNCTION`,
+`UNSUPPORTED_IN_WASM`, `KIND_MISMATCH` (a call on a stream name or the other way
+round), `UNKNOWN_HANDLE` or `BAD_REQUEST` (a request nested deeper than the
+limit below). A host checks `abi` in the handshake right after loading the
+library; the TypeScript loader refuses a library with another ABI version and
+names both versions.
 
 ### C
 
@@ -117,11 +180,13 @@ can call it directly.
 #include <stdio.h>
 
 int main(void) {
-    EserAjanInit();
-    char* v = EserAjanVersion();
-    printf("%s\n", v);
-    EserAjanFree(v);
-    EserAjanShutdown();
+    char* handshake = EserAjanVersion();
+    printf("%s\n", handshake);
+    EserAjanFree(handshake);
+
+    char* hash = EserAjanCall("cryptoHash", "{\"text\":\"hello\"}");
+    printf("%s\n", hash);
+    EserAjanFree(hash);
     return 0;
 }
 ```
@@ -135,23 +200,27 @@ DYLD_LIBRARY_PATH=. ./example # macOS
 ### Python (ctypes)
 
 ```python
-import ctypes, sys, os
+import ctypes, json, sys
 ext = {"linux": ".so", "darwin": ".dylib", "win32": ".dll"}[sys.platform]
 lib = ctypes.cdll.LoadLibrary(f"./libeser_ajan{ext}")
-lib.EserAjanVersion.restype = ctypes.c_char_p
-lib.EserAjanInit()
-print(lib.EserAjanVersion().decode())
-lib.EserAjanShutdown()
+lib.EserAjanCall.restype = ctypes.c_void_p
+lib.EserAjanCall.argtypes = [ctypes.c_char_p, ctypes.c_char_p]
+lib.EserAjanFree.argtypes = [ctypes.c_void_p]
+ptr = lib.EserAjanCall(b"cryptoHash", b'{"text":"hello"}')
+print(json.loads(ctypes.string_at(ptr)))
+lib.EserAjanFree(ptr)
 ```
 
 ### Rust
 
 ```rust
 extern "C" {
-    fn EserAjanInit() -> i32;
     fn EserAjanVersion() -> *mut std::os::raw::c_char;
+    fn EserAjanCall(
+        name: *const std::os::raw::c_char,
+        request: *const std::os::raw::c_char,
+    ) -> *mut std::os::raw::c_char;
     fn EserAjanFree(ptr: *mut std::os::raw::c_char);
-    fn EserAjanShutdown();
 }
 ```
 
@@ -166,14 +235,12 @@ require "fiddle/import"
 module EserAjan
   extend Fiddle::Importer
   dlload "./libeser_ajan.so"
-  extern "int EserAjanInit()"
-  extern "char* EserAjanVersion()"
-  extern "void EserAjanFree(char*)"
-  extern "void EserAjanShutdown()"
+  extern "void* EserAjanCall(char*, char*)"
+  extern "void EserAjanFree(void*)"
 end
-EserAjan.EserAjanInit
-puts EserAjan.EserAjanVersion
-EserAjan.EserAjanShutdown
+ptr = EserAjan.EserAjanCall("cryptoHash", '{"text":"hello"}')
+puts ptr.to_s
+EserAjan.EserAjanFree(ptr)
 ```
 
 Full working examples live in [`examples/`](./examples/).
@@ -182,23 +249,26 @@ Full working examples live in [`examples/`](./examples/).
 
 The WASM build is one module, `eser-ajan.wasm`: the slim "wasi" profile of the
 bridge, built with `-buildmode=c-shared` as a reactor (decision-45). It serves
-the 52 functions that work on wasip1 (formats, crypto, config, parsing and its
+the 44 names that work on wasip1 (formats, crypto, config, parsing and its
 stream, collector, codebase walks, validators and checks with their streams,
-cache, csGenerate, logging, HTTP); every other name answers
-`UNSUPPORTED_IN_WASM`. The noskills names left the profile with TASK-258: the
+cache, csGenerate, logging, HTTP), the ones the binding table marks `wasm:
+"yes"` or `"fs"`; every other name answers `UNSUPPORTED_IN_WASM`, and the
+TypeScript loader refuses the names marked `"no"` without calling the module. The noskills names left the profile with TASK-258: the
 full spec lifecycle would take the module past its size limit. Loggers write
 their records to the instance's stderr. `make ajan-wasm-check` fails when the
 module grows past 8 MB, or 1.6 MB with brotli, or links aifx, the vendor AI
 SDKs, gRPC, protobuf, QUIC, `os/exec`, `net/http` or the OpenTelemetry SDK.
 
-The module exports `_initialize`, `memory` and five functions (reactor ABI 2):
+The module exports `_initialize`, `memory` and five functions (dispatcher ABI
+3, the same envelope as the native exports):
 
 - `eser_ajan_alloc(size)` returns a pointer to `size` bytes of an input arena.
-- `eser_ajan_call(namePtr, nameLen, argsPtr, argsLen)` runs the named function.
-  The host writes the name, then the arguments, into the arena; each argument is
-  a little-endian uint32 byte count followed by its bytes. It returns the length
-  of a JSON envelope: `{"ok":true,"result":"..."}`, or `ok: false` with `error`,
-  also when the function answers with a JSON `error` field.
+- `eser_ajan_call(namePtr, nameLen, argsPtr, argsLen)` runs one operation. The
+  host writes the name, then the arguments, into the arena; each argument is a
+  little-endian uint32 byte count followed by its bytes. A registry name is a
+  call and takes one argument, its request; the reserved names `stream.open`
+  (stream name, request), `stream.read` (handle) and `stream.close` (handle)
+  are the stream operations. It returns the length of the envelope.
 - `eser_ajan_result_ptr()` points at that envelope until the next call.
 - `eser_ajan_call_async` and `eser_ajan_async_result_ptr()` are the same for the
   calls that wait on the host, with their own result buffer.
@@ -206,13 +276,12 @@ The module exports `_initialize`, `memory` and five functions (reactor ABI 2):
 ### Network on the WASM fallback
 
 wasip1 cannot open a socket, so the HTTP names (`httpCreate`, `httpRequest`,
-`httpRequestStream`, `httpStreamRead`, `httpStreamClose`, `httpClose`) ask the
-host through the module's `eser_host` imports, which the loader provides on the
-runtime's `fetch` (decision-45, TASK-277). With JSPI (`WebAssembly.Suspending`,
-on in Node 26 and workerd), the module waits on the host's promise; the loader
-calls these names through `WebAssembly.promising`, so on the fallback
-`EserAjanHttpRequest`, `EserAjanHttpRequestStream` and `EserAjanHttpStreamRead`
-return promises. They run one at a time; other calls go on while one waits.
+the `httpRequestStream` stream, `httpClose`) ask the host through the module's
+`eser_host` imports, which the loader provides on the runtime's `fetch`
+(decision-45, TASK-277). With JSPI (`WebAssembly.Suspending`, on in Node 26 and
+workerd), the module waits on the host's promise; the loader calls these names
+through `WebAssembly.promising`, so `httpRequest` and the `httpRequestStream`
+open and reads return promises (the table marks them `async`). They run one at a time; other calls go on while one waits.
 Without JSPI the HTTP names answer an error.
 
 The answers match the native bridge's, with its retry and circuit-breaker rules,
@@ -230,8 +299,9 @@ and these differences:
 The module does not link `net/http`, which would pull in `crypto/tls` (+7.3 MB
 measured); it speaks to the host directly.
 
-The envelope of `version` also carries `abi`, `profile` and `names`, which the
-TypeScript loader checks once at load. `loadEserAjanWasm()` compiles the module
+The `version` call answers the same handshake as the native `EserAjanVersion`,
+with the profile `wasi` and its 44 names, which the TypeScript loader checks
+once at load. `loadEserAjanWasm()` compiles the module
 once, keeps one instance (so handles survive between calls), replaces it after a
 trap, and gives it a preopen of the working directory when `node:wasi` is
 available, which the filesystem functions need.
@@ -240,15 +310,15 @@ available, which the filesystem functions need.
 import * as wasm from "@eserstack/ajan/wasm";
 
 const lib = await wasm.loadEserAjanWasm();
-console.log(lib.symbols.EserAjanVersion());
-lib.symbols.EserAjanShellExec("{}"); // throws UnsupportedInWasmError
+console.log(lib.handshake.names.length); // 44
+lib.call("shellExec", { command: "true" }); // throws UnsupportedInWasmError
 ```
 
 ### Nesting limit
 
 The bridge refuses JSON and YAML (and TOML) nested deeper than 1,000 levels,
 `MaxNestingDepth` in [ajan/formatfx](../../ajan/formatfx/README.md), with error
-JSON that names the limit. The registry checks every JSON argument before a
+JSON that names the limit. The dispatcher checks every JSON request before a
 function decodes it, and formatfx checks documents before it decodes them.
 Decoding recurses once per level, and in the WASM build a few thousand levels
 overflow the host's stack, which Go cannot recover from; the limit keeps the
@@ -342,6 +412,29 @@ These changes since 4.5.2 need a change in code, commands or files that use this
 package. The [changelog](https://github.com/eser/stack/blob/main/CHANGELOG.md)
 lists the changes in every package.
 
+- The library exports the six functions of the dispatcher ABI instead of the 99
+  `EserAjan*` exports, and `FFILibrary.symbols` is gone. Before: the
+  `EserAjanCryptoHash` symbol with a JSON string in and a JSON string out.
+  After: `lib.call("cryptoHash", req)` with an object in and the parsed answer
+  out. A C, Python or Rust host calls
+  `EserAjanCall("cryptoHash", requestJson)` and reads `result` from the
+  envelope. The names are the dispatch names in `ffi/bindings.ts`.
+- The stream exports became streams: `aiStreamText`, `aiStreamRead` and
+  `aiFreeStream` are `lib.stream("aiTextStream", ...)` with `read()` and
+  `close()`; likewise `httpRequestStream`, `shellExecStream` (was
+  `shellExecSpawn`), `shellPtyStream` (was `shellPtySpawn`),
+  `shellTuiKeypressStream` (was `shellTuiKeypressCreate`),
+  `codebaseWalkFilesStream`, `codebaseValidateFilesStream` and
+  `parsingTokenizeStream` (its chunks still go in through
+  `parsingTokenizeStreamPush`, and `close()` answers the flushed tokens).
+- `aiGenerateText` and the `aiTextStream` open take one request,
+  `{ modelHandle, options }`, instead of a handle and an options JSON.
+- `version` answers the handshake JSON instead of `eser-ajan version X`, and
+  `init` and `shutdown` answer `{}` instead of `initialized` and `shutdown`;
+  read the version from `lib.handshake.version`.
+- The WASM module speaks ABI 3: a host of ABI 2 refuses it, and the stream
+  names go through `stream.open`, `stream.read` and `stream.close`.
+
 - The bridge runs on Node only, through `node:ffi` with the WASM build as the
   fallback; the other runtime backends and their native npm dependency are gone. Run on
   Node 26.9 or later, and pass `--allow-ffi` under `--permission`.
@@ -360,18 +453,18 @@ lists the changes in every package.
   `resolveWasmPath()` are gone; drop `mode` from calls. Names outside the
   profile throw `UnsupportedInWasmError` (code `UNSUPPORTED_IN_WASM`) instead of
   failing per call.
-- `EserAjanShellExec` stops a command after 10 minutes when the request has no
+- `shellExec` stops a command after 10 minutes when the request has no
   `timeout`, and rejects a zero or negative `timeout` before the command starts.
   Before: `{"timeout": "0s"}` meant no limit. After: omit `timeout` for the
   default, or send a positive Go duration such as `"30m"`.
-- `EserAjanHttpRequest` returns the status and headers with an error and no body
-  for a response over 32 MiB, and `EserAjanHttpRequestStream` reads error-status
+- `httpRequest` returns the status and headers with an error and no body
+  for a response over 32 MiB, and `httpRequestStream` reads error-status
   bodies under the same limit. Send `maxResponseBytes` in the request JSON, or
   use the stream variant.
-- `EserAjanCodebaseValidateFiles` and its stream variant fail the request for
+- `codebaseValidateFiles` and its stream variant fail the request for
   malformed `validatorOptions` of `filenames` or `large-file`, and `large-file`
   applies `maxKb`; it was always 1024 KB.
-- `EserAjanNoskillsInit` writes `command: npx eser@latest noskills`
+- `noskillsInit` writes `command: npx eser@latest noskills`
   (`noskillsfx.DefaultCommandPrefix`) into a new manifest instead of `noskills`.
   Edit the manifest's `command` to keep a bare `noskills`.
 

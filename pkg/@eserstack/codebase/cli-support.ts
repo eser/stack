@@ -9,10 +9,10 @@
  * @module
  */
 
-import type * as cliParseArgs from "@std/cli/parse-args";
 import * as results from "@eserstack/primitives/results";
 import type { CliEvent } from "@eserstack/functions/triggers";
 import type * as shellArgs from "@eserstack/shell/args";
+import * as shellFlags from "@eserstack/shell/args/flags";
 import * as shellExec from "@eserstack/shell/exec";
 
 import * as cliApp from "./cli-system/app.ts";
@@ -105,7 +105,8 @@ export const createCliOutput = (): streams.Output => {
 };
 
 /**
- * Convert a `@std/cli/parse-args` result to a `CliEvent`.
+ * Convert a `parseArgs` result from `@eserstack/shell/args/flags` to a
+ * `CliEvent`.
  *
  * @param command - Command name
  * @param parsed - Result from `parseArgs()`
@@ -113,12 +114,28 @@ export const createCliOutput = (): streams.Output => {
  */
 export const toCliEvent = (
   command: string,
-  parsed: ReturnType<typeof cliParseArgs.parseArgs>,
+  parsed: shellFlags.ParsedArgs,
 ): CliEvent => ({
   command,
-  args: (parsed._ ?? []) as string[],
-  flags: Object.fromEntries(Object.entries(parsed).filter(([k]) => k !== "_")),
+  args: parsed.positionals,
+  flags: { ...parsed.values },
 });
+
+/**
+ * Parse CLI arguments into a `CliEvent`. Unknown flags stay in `flags`, as
+ * the handlers of the codebase scripts read them by name.
+ *
+ * @param command - Command name
+ * @param cliArgs - The raw arguments; none when undefined
+ * @param options - The flags the command knows
+ * @returns A CliEvent with args and flags extracted
+ */
+export const parseCliEvent = (
+  command: string,
+  cliArgs: readonly string[] | undefined,
+  options: Readonly<Record<string, shellFlags.ArgOption>>,
+): CliEvent =>
+  toCliEvent(command, shellFlags.parseArgs(cliArgs ?? [], { options }));
 
 /**
  * Standard `import.meta.main` handler for all CLI scripts.

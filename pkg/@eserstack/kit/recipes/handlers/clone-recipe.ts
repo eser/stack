@@ -211,19 +211,16 @@ export const cloneRecipe = (
                 ? `gh:${specifier.owner}/${specifier.repo}/${specifier.subpath}#${specifier.ref}`
                 : `gh:${specifier.owner}/${specifier.repo}#${specifier.ref}`;
 
-            const raw = lib.symbols.EserAjanKitCloneRecipe(
-              JSON.stringify({
-                specifier: specifierStr,
-                cwd: input.cwd,
-                projectName: input.projectName,
-                dryRun: input.dryRun,
-                force: input.force,
-                skipExisting: input.skipExisting,
-                verbose: input.verbose,
-                variables: input.variables,
-              }),
-            );
-            const goResult = JSON.parse(raw) as {
+            const goResult = lib.call("kitCloneRecipe", {
+              specifier: specifierStr,
+              cwd: input.cwd,
+              projectName: input.projectName,
+              dryRun: input.dryRun,
+              force: input.force,
+              skipExisting: input.skipExisting,
+              verbose: input.verbose,
+              variables: input.variables,
+            }) as {
               recipes?: Array<{
                 name: string;
                 written?: string[];

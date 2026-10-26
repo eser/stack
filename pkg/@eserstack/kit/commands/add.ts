@@ -8,7 +8,7 @@
 
 import { runtime } from "@eserstack/standards/cross-runtime";
 import * as results from "@eserstack/primitives/results";
-import * as cliParseArgs from "@std/cli/parse-args";
+import * as shellFlags from "@eserstack/shell/args/flags";
 import * as task from "@eserstack/functions/task";
 import * as streams from "@eserstack/streams";
 import * as span from "@eserstack/streams/span";
@@ -28,23 +28,30 @@ const parseVarFlags = (varFlags: string[]): Record<string, string> => {
   return variables;
 };
 
+/** Parse the `eser kit add` arguments. */
+export const parseCliArgs = (
+  cliArgs?: readonly string[],
+): shellFlags.ParsedArgs =>
+  shellFlags.parseArgs(cliArgs ?? [], {
+    options: {
+      registry: { type: "string" },
+      var: { type: "string", multiple: true, default: [] },
+      cwd: { type: "string" },
+      "dry-run": { type: "boolean" },
+      force: { type: "boolean" },
+      "skip-existing": { type: "boolean" },
+      verbose: { type: "boolean" },
+      local: { type: "boolean" },
+      "no-install": { type: "boolean" },
+    },
+  });
+
 export const main = async (
   cliArgs?: readonly string[],
 ): Promise<shellArgs.CliResult<void>> => {
-  const parsed = cliParseArgs.parseArgs((cliArgs as string[]) ?? [], {
-    string: ["registry", "var", "cwd"],
-    boolean: [
-      "dry-run",
-      "force",
-      "skip-existing",
-      "verbose",
-      "local",
-      "no-install",
-    ],
-    collect: ["var"],
-  });
+  const parsed = parseCliArgs(cliArgs);
 
-  const recipeName = parsed._[0] as string | undefined;
+  const recipeName = parsed.positionals[0];
   const out = streams.output({
     renderer: streams.renderers.ansi(),
     sink: streams.sinks.stdout(),
@@ -64,7 +71,7 @@ export const main = async (
     return results.ok(undefined);
   }
 
-  const dryRun = parsed["dry-run"] === true;
+  const dryRun = parsed.values["dry-run"] === true;
 
   if (dryRun) {
     out.writeln(span.cyan(`\nDry run: ${recipeName}\n`));
@@ -82,15 +89,16 @@ export const main = async (
       // concurrently in the process and then deleted the directory on the way
       // out. Unrelated suites failed with reproducible-but-baffling errors
       // roughly one run in four.
-      cwd: (parsed["cwd"] as string | undefined) ?? runtime.process.cwd(),
-      registrySource: parsed["registry"] as string | undefined,
-      local: parsed["local"] === true,
+      cwd:
+        (parsed.values["cwd"] as string | undefined) ?? runtime.process.cwd(),
+      registrySource: parsed.values["registry"] as string | undefined,
+      local: parsed.values["local"] === true,
       dryRun,
-      force: parsed["force"] === true,
-      skipExisting: parsed["skip-existing"] === true,
-      verbose: parsed["verbose"] === true,
-      noInstall: parsed["no-install"] === true,
-      variables: parseVarFlags(parsed["var"] as string[]),
+      force: parsed.values["force"] === true,
+      skipExisting: parsed.values["skip-existing"] === true,
+      verbose: parsed.values["verbose"] === true,
+      noInstall: parsed.values["no-install"] === true,
+      variables: parseVarFlags(parsed.values["var"] as string[]),
     }),
     { out },
   );

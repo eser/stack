@@ -67,9 +67,9 @@ export const getLoadError = (): Error | null => loadError;
 /**
  * The retained load failure rendered for an error message, or "" when the
  * library was never asked to load. FFI-only entry points append this so the
- * operator sees WHY the library is missing ("Cannot find function
- * 'EserAjanAiCancelRequest' in shared library" names a version mismatch;
- * "Could not find eser-ajan shared library" names an install problem)
+ * operator sees WHY the library is missing ("speaks dispatcher ABI 2, but
+ * this loader speaks ABI 3" names a version mismatch; "Could not find
+ * eser-ajan shared library" names an install problem)
  * instead of only "native library is not available".
  */
 export const describeLoadFailure = (): string => {
@@ -101,20 +101,20 @@ export interface CallJsonOptions {
 }
 
 /**
- * Runs one bridge call and unwraps its JSON envelope.
+ * Runs one bridge call and turns an `error` answer into the caller's error.
  *
- * Every bridge call site repeated the same ten lines: ensure the library,
- * null-check it, stringify a request, invoke a symbol, parse the reply, test an
- * `error` field, throw or return. The two genuinely per-package parts are the
- * error TYPES -- each package throws its own, with its own code mapping -- so
- * they are injected rather than flattened into one generic error, which is what
- * made earlier attempts at this helper not fit.
+ * Every bridge call site repeated the same lines: ensure the library,
+ * null-check it, invoke a name, test an `error` field, throw or return. The
+ * two genuinely per-package parts are the error TYPES -- each package throws
+ * its own, with its own code mapping -- so they are injected rather than
+ * flattened into one generic error.
  *
- * `invoke` receives the loaded library and returns the raw reply. Awaiting it
- * covers both the synchronous symbols and the ones typed to return a promise.
+ * `invoke` receives the loaded library and returns the answer of
+ * `lib.call(...)`. Awaiting it covers both the synchronous names and the async
+ * ones.
  */
 export const callJson = async <TResponse>(
-  invoke: (lib: types.FFILibrary) => string | Promise<string>,
+  invoke: (lib: types.FFILibrary) => TResponse | Promise<TResponse>,
   options: CallJsonOptions,
 ): Promise<TResponse> => {
   await ensureLib();
@@ -125,12 +125,16 @@ export const callJson = async <TResponse>(
     throw options.onUnavailable();
   }
 
-  const raw = await invoke(lib);
-  const parsed = JSON.parse(raw) as TResponse & { error?: unknown };
+  const parsed = (await invoke(lib)) as TResponse & { error?: unknown };
 
   // Only a non-empty string counts: the bridge omits the field on success, and
   // some responses legitimately carry an `error` key holding null.
-  if (typeof parsed.error === "string" && parsed.error.length > 0) {
+  if (
+    typeof parsed === "object" &&
+    parsed !== null &&
+    typeof parsed.error === "string" &&
+    parsed.error.length > 0
+  ) {
     throw options.onError(parsed.error);
   }
 

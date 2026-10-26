@@ -9,7 +9,7 @@
  */
 
 import * as primitives from "@eserstack/primitives";
-import * as cliParseArgs from "@std/cli/parse-args";
+import * as shellFlags from "@eserstack/shell/args/flags";
 import type * as shellArgs from "@eserstack/shell/args";
 import * as span from "@eserstack/streams/span";
 import { runtime } from "@eserstack/standards/cross-runtime";
@@ -65,19 +65,51 @@ export const checkServerLoc = async (
   return { violations, checked, passed: violations.length === 0 };
 };
 
+/** The arguments of `eser codebase validate-server-loc`. */
+export type ServerLocArgs = {
+  /** The `--directory` to check; empty when not given. */
+  readonly directory: string;
+  /** The `--max-lines` ceiling. */
+  readonly maxLines: number | undefined;
+  readonly excludeSuffix: string | undefined;
+  readonly extension: string | undefined;
+};
+
+const stringValue = (value: unknown): string | undefined =>
+  typeof value === "string" ? value : undefined;
+
+/**
+ * Parse the validate-server-loc arguments: `--directory`, `--max-lines`,
+ * `--exclude-suffix`, `--extension`.
+ */
+export const parseCliArgs = (cliArgs?: readonly string[]): ServerLocArgs => {
+  const { values } = shellFlags.parseArgs(cliArgs ?? [], {
+    options: {
+      directory: { type: "string" },
+      "max-lines": { type: "string" },
+      "exclude-suffix": { type: "string" },
+      extension: { type: "string" },
+    },
+  });
+  const maxLines = stringValue(values["max-lines"]);
+
+  return {
+    directory: stringValue(values["directory"]) ?? "",
+    maxLines: maxLines !== undefined ? Number(maxLines) : undefined,
+    excludeSuffix: stringValue(values["exclude-suffix"]),
+    extension: stringValue(values["extension"]),
+  };
+};
+
 export const main = async (
   cliArgs?: readonly string[],
 ): Promise<shellArgs.CliResult<void>> => {
   const { output: out } = cliSupport.getCliContext();
 
-  const parsed = cliParseArgs.parseArgs((cliArgs ?? []) as string[], {
-    string: ["directory", "exclude-suffix", "extension"],
-    default: {},
-  });
+  const { directory, maxLines, excludeSuffix, extension } =
+    parseCliArgs(cliArgs);
 
-  const directory = parsed["directory"] as string | undefined;
-
-  if (!directory) {
+  if (directory === "") {
     out.writeln(
       span.red("✗"),
       span.text(" validate-server-loc requires a --directory argument"),
@@ -85,16 +117,13 @@ export const main = async (
     return primitives.results.fail({ exitCode: 1 });
   }
 
-  const maxLinesRaw = parsed["max-lines"];
-  const maxLines = maxLinesRaw !== undefined ? Number(maxLinesRaw) : undefined;
-
   try {
     const result = await checkServerLoc({
       root: ".",
       directory,
       maxLines,
-      excludeSuffix: parsed["exclude-suffix"] as string | undefined,
-      extension: parsed["extension"] as string | undefined,
+      excludeSuffix,
+      extension,
     });
 
     out.writeln(

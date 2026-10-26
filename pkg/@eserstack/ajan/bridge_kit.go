@@ -404,9 +404,9 @@ func bridgeKitOptions(manifest *kitfx.RegistryManifest, opts kitfx.ApplyOptions)
 }
 
 func init() {
-	register("kitListRecipes", []string{"requestJSON"}, func(a []string) string { return bridgeKitListRecipes(a[0]) })
-	register("kitApplyRecipe", []string{"requestJSON"}, func(a []string) string { return bridgeKitApplyRecipe(a[0]) })
-	register("kitCloneRecipe", []string{"requestJSON"}, func(a []string) string { return bridgeKitCloneRecipe(a[0]) })
-	register("kitNewProject", []string{"requestJSON"}, func(a []string) string { return bridgeKitNewProject(a[0]) })
-	register("kitUpdateRecipe", []string{"requestJSON"}, func(a []string) string { return bridgeKitUpdateRecipe(a[0]) })
+	register("kitListRecipes", bridgeKitListRecipes)
+	register("kitApplyRecipe", bridgeKitApplyRecipe)
+	register("kitCloneRecipe", bridgeKitCloneRecipe)
+	register("kitNewProject", bridgeKitNewProject)
+	register("kitUpdateRecipe", bridgeKitUpdateRecipe)
 }

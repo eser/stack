@@ -103,16 +103,13 @@ export const newProject = (
         const lib = canUseFfi ? ffiClient.getLib() : null;
 
         if (lib !== null) {
-          const raw = lib.symbols.EserAjanKitNewProject(
-            JSON.stringify({
-              templateName: input.templateName,
-              projectName: input.projectName,
-              targetDir: input.targetDir,
-              registrySource: input.registrySource,
-              variables: input.variables,
-            }),
-          );
-          const goResult = JSON.parse(raw) as {
+          const goResult = lib.call("kitNewProject", {
+            templateName: input.templateName,
+            projectName: input.projectName,
+            targetDir: input.targetDir,
+            registrySource: input.registrySource,
+            variables: input.variables,
+          }) as {
             recipes?: Array<{
               name: string;
               written?: string[];

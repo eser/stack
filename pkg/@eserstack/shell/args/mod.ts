@@ -60,9 +60,14 @@ export {
 } from "./types.ts";
 export { Command } from "./command.ts";
 export {
+  type ArgOption,
+  type ArgValue,
   buildParseOptions,
   coerceValue,
   extractFlags,
+  parseArgs,
+  type ParseArgsOptions,
+  type ParsedArgs,
   parseFlags,
   validateRequiredFlags,
 } from "./flags.ts";

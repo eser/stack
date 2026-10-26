@@ -13,18 +13,15 @@ package main
 // to stderr, because an FFI caller has no other channel through which to
 // diagnose what went wrong inside the module.
 //
-// This file deliberately carries NO build tag so the cgo, WASI command and WASI
-// reactor builds all share one implementation.
+// This file deliberately carries NO build tag so the cgo and WASI reactor
+// builds share one implementation. The dispatcher (dispatch.go) runs every
+// bridge function under its own recover, built on reportPanic.
 
 import (
 	"fmt"
 	"os"
 	"runtime/debug"
 )
-
-// guardFailureCode is the status returned by guardInt when the guarded function
-// panics. Hosts treat any non-zero value as failure.
-const guardFailureCode = -1
 
 // reportPanic writes the recovered value plus a full stack trace to stderr and
 // returns the compact message meant for the JSON payload handed back over FFI.
@@ -42,20 +39,6 @@ func guardString(fn func() string) (out string) {
 	defer func() {
 		if recovered := recover(); recovered != nil {
 			out = errorResponse(reportPanic(recovered))
-		}
-	}()
-
-	return fn()
-}
-
-// guardInt runs fn and converts a panic into guardFailureCode, so a panicking
-// initializer reports failure to the host instead of killing it.
-func guardInt(fn func() int) (out int) {
-	defer func() {
-		if recovered := recover(); recovered != nil {
-			reportPanic(recovered)
-
-			out = guardFailureCode
 		}
 	}()
 

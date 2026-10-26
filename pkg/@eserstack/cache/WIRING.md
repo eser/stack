@@ -4,14 +4,15 @@ Verified: 2026-04-17 (Wave 2)
 
 ## 1. Input marshalling
 
-All calls use `JSON.stringify` into a single `*C.char` argument.
+Every call goes through the dispatcher ABI of `@eserstack/ajan` (TASK-238):
+`lib.call(name, request)` with a request object, which the library encodes as
+JSON for `EserAjanCall`. The names and their request and answer types are in
+the ajan binding table (`ffi/bindings.ts`).
 
 **Create** (handle-based — must be called before list/remove/clear/close):
 
 ```ts
-lib.symbols.EserAjanCacheCreate(
-  JSON.stringify({ app: { name: app.name, org: app.org }, baseDir }),
-);
+lib.call("cacheCreate", { app: { name: app.name, org: app.org }, baseDir });
 ```
 
 Wire type:
@@ -29,17 +30,15 @@ Wire type:
 **List / Clear / Close** (handle-only):
 
 ```ts
-lib.symbols.EserAjanCacheList(JSON.stringify({ handle }));
-lib.symbols.EserAjanCacheClear(JSON.stringify({ handle }));
-lib.symbols.EserAjanCacheClose(JSON.stringify({ handle }));
+lib.call("cacheList", { handle });
+lib.call("cacheClear", { handle });
+lib.call("cacheClose", { handle });
 ```
 
 **Remove** (handle + absolute path):
 
 ```ts
-lib.symbols.EserAjanCacheRemove(
-  JSON.stringify({ handle, path: resolvePath(relativePath) }),
-);
+lib.call("cacheRemove", { handle, path: resolvePath(relativePath) });
 ```
 
 > **Footgun**: Go's `os.RemoveAll(path)` is path-literal — it does NOT prepend
@@ -48,17 +47,19 @@ lib.symbols.EserAjanCacheRemove(
 
 ## 2. Output marshalling
 
+`lib.call` answers the parsed JSON, error answers included.
+
 **Create** response:
 
 ```ts
-const result = JSON.parse(raw) as { handle: string; error?: string };
+const result = lib.call("cacheCreate", request); // { handle?, error? }
 // result.handle → "cache-1" (opaque string)
 ```
 
 **List** response:
 
 ```ts
-const result = JSON.parse(raw) as {
+const result = lib.call("cacheList", { handle }) as {
   entries?: Array<{
     path: string;
     name: string;
@@ -88,11 +89,11 @@ Go sends Unix seconds as `int64`; multiply by 1000 to get milliseconds for
 **Remove / Clear / Close** response:
 
 ```ts
-const result = JSON.parse(raw) as { error?: string };
+const result = lib.call("cacheClear", { handle }); // { error? }
 if (!result.error) return; // success
 ```
 
-`EserAjanCacheClose` return value is ignored entirely (fire-and-forget).
+The `cacheClose` answer is ignored entirely (fire-and-forget).
 
 ## 3. Error protocol
 
@@ -111,9 +112,9 @@ try/catch fallback, not code mapping.
 
 ## 4. Memory ownership
 
-Go allocates all return strings with `C.CString` (heap). FFI backends copy to JS
-string and call `EserAjanFree` internally. **TS calling code never calls
-`EserAjanFree` directly.**
+Go allocates every answer with `C.CString` (heap). The ajan library copies it
+to a JS string and frees it with `EserAjanFree` itself; TS calling code never
+sees a C string.
 
 Handles (`"cache-1"`, etc.) are opaque Go-side strings — do not parse,
 construct, or persist them.
@@ -127,7 +128,7 @@ let _handlePromise: Promise<string | null> | null = null;
 ```
 
 - **Create**: triggered on first async operation (`list`, `remove`, `clear`) —
-  calls `EserAjanCacheCreate`
+  calls `cacheCreate`
 - **Close**: `close()` resets `_handlePromise = null` BEFORE awaiting, so a
   concurrent second close sees null and returns early. This is intentional — it
   prevents double-free.
@@ -138,7 +139,7 @@ const close = async (): Promise<void> => {
   const handle = await _handlePromise;
   _handlePromise = null; // reset before Go call
   if (handle !== null) {
-    lib.symbols.EserAjanCacheClose(JSON.stringify({ handle }));
+    lib.call("cacheClose", { handle });
   }
 };
 ```
@@ -154,7 +155,7 @@ Supports `await using cache = ...` (TC39 explicit resource management) via
 
 ## 6. Known limitations / WASM
 
-- `EserAjanCacheCreate` uses XDG dir resolution which calls `os.UserCacheDir()`
+- `cacheCreate` uses XDG dir resolution which calls `os.UserCacheDir()`
   — this returns an error under WASM (`wasip1`). Cache FFI will fail silently
   under WASM; TS fallback handles all ops.
 - File mtime is returned as `mtimeUnix: int64` (Unix seconds). Zero means "stat

@@ -26,7 +26,7 @@
  * @module
  */
 
-import * as cliParseArgs from "@std/cli/parse-args";
+import * as shellFlags from "@eserstack/shell/args/flags";
 import * as results from "@eserstack/primitives/results";
 import type * as shellArgs from "@eserstack/shell/args";
 import * as tui from "@eserstack/shell/tui";
@@ -108,21 +108,14 @@ export const runBuiltinValidators = async (
     return [];
   }
   try {
-    const raw = lib.symbols.EserAjanCodebaseValidateFiles(
-      JSON.stringify({
-        dir: options.dir,
-        validators:
-          options.validators !== undefined
-            ? [...options.validators]
-            : undefined,
-        extensions:
-          options.extensions !== undefined
-            ? [...options.extensions]
-            : undefined,
-        gitAware: options.gitAware ?? true,
-      }),
-    );
-    const parsed = JSON.parse(raw) as {
+    const parsed = lib.call("codebaseValidateFiles", {
+      dir: options.dir,
+      validators:
+        options.validators !== undefined ? [...options.validators] : undefined,
+      extensions:
+        options.extensions !== undefined ? [...options.extensions] : undefined,
+      gitAware: options.gitAware ?? true,
+    }) as {
       results?: ValidatorResult[];
       error?: string;
     };
@@ -213,6 +206,52 @@ export const validate = async (
   };
 };
 
+/** The arguments of the standalone validation CLI. */
+export type ValidationCliArgs = {
+  readonly help: boolean;
+  readonly json: boolean;
+  readonly yes: boolean;
+  readonly fix: boolean;
+  /** The `--root` directory, or undefined for the working directory. */
+  readonly root: string | undefined;
+  /** The comma-separated `--only` validators. */
+  readonly onlyList: string[];
+  /** The comma-separated `--skip` validators. */
+  readonly skipList: string[];
+};
+
+const splitList = (value: unknown): string[] =>
+  typeof value === "string" ? value.split(",").map((s) => s.trim()) : [];
+
+/**
+ * Parse the validation CLI arguments: `--root`, `--only`, `--skip`, `--fix`,
+ * `--json`, `--yes` (`-y`), `--help` (`-h`).
+ */
+export const parseCliArgs = (cliArgs: readonly string[]): ValidationCliArgs => {
+  const { values } = shellFlags.parseArgs(cliArgs, {
+    options: {
+      root: { type: "string" },
+      only: { type: "string" },
+      skip: { type: "string" },
+      fix: { type: "boolean" },
+      help: { type: "boolean", short: "h" },
+      json: { type: "boolean" },
+      yes: { type: "boolean", short: "y" },
+    },
+  });
+  const root = values["root"];
+
+  return {
+    help: values["help"] === true,
+    json: values["json"] === true,
+    yes: values["yes"] === true,
+    fix: values["fix"] === true,
+    root: typeof root === "string" ? root : undefined,
+    onlyList: splitList(values["only"]),
+    skipList: splitList(values["skip"]),
+  };
+};
+
 /**
  * CLI main function for standalone usage.
  *
@@ -223,16 +262,9 @@ export const validate = async (
 export const main = async (
   cliArgs?: readonly string[],
 ): Promise<shellArgs.CliResult<void>> => {
-  const args = cliParseArgs.parseArgs(
-    (cliArgs ?? runtime.process.args) as string[],
-    {
-      string: ["root", "only", "skip"],
-      boolean: ["fix", "help", "json", "yes"],
-      alias: { h: "help", y: "yes" },
-    },
-  );
+  const args = parseCliArgs(cliArgs ?? runtime.process.args);
 
-  if (args["help"]) {
+  if (args.help) {
     const { output: out } = cliSupport.createCliContext();
     out.writeln("Usage: node ./validation/mod.ts [options]");
     out.writeln();
@@ -256,19 +288,7 @@ export const main = async (
     return results.ok(undefined);
   }
 
-  const jsonMode = args["json"] as boolean | undefined;
-  const autoYes = args["yes"] as boolean | undefined;
-
-  const root = args["root"] as string | undefined;
-  const fix = args["fix"] as boolean | undefined;
-
-  // Parse comma-separated validator lists
-  const onlyRaw = args["only"] as string | undefined;
-  const skipRaw = args["skip"] as string | undefined;
-  const onlyList =
-    onlyRaw !== undefined ? onlyRaw.split(",").map((s) => s.trim()) : [];
-  const skipList =
-    skipRaw !== undefined ? skipRaw.split(",").map((s) => s.trim()) : [];
+  const { json: jsonMode, yes: autoYes, root, fix, onlyList, skipList } = args;
 
   // --- JSON mode: force non-interactive, suppress all TUI output ---
   const { ctx } = jsonMode

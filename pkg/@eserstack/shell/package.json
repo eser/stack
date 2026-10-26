@@ -6,6 +6,7 @@
     ".": "./mod.ts",
     "./completions": "./completions/mod.ts",
     "./args": "./args/mod.ts",
+    "./args/flags": "./args/flags.ts",
     "./module": "./module.ts",
     "./exec": "./exec/mod.ts",
     "./env": "./env/mod.ts",
@@ -20,7 +21,6 @@
     "@eserstack/primitives": "workspace:*",
     "@eserstack/standards": "workspace:*",
     "@eserstack/streams": "workspace:*",
-    "@std/cli": "npm:@jsr/std__cli@^1.0.32",
     "@xterm/headless": "^6.0.0"
   },
   "devDependencies": {

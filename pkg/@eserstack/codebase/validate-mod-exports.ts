@@ -45,10 +45,9 @@ export const checkModExports = async (
     throw new Error("native library not available for checkModExports");
   }
 
-  const raw = lib.symbols.EserAjanCodebaseCheckModExports(
-    JSON.stringify({ dir: root }),
-  );
-  const result = JSON.parse(raw) as CheckModExportsResult & { error?: string };
+  const result = lib.call("codebaseCheckModExports", {
+    dir: root,
+  }) as CheckModExportsResult & { error?: string };
 
   if (result.error) {
     throw new Error(result.error);

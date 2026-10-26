@@ -52,19 +52,14 @@ func eserAjanCallAsync(namePtr unsafe.Pointer, nameLen int32, argsPtr unsafe.Poi
 
 	switch args, err := decodeArgs(rawArgs); {
 	case !nameOK || !argsOK:
-		env = envelope{Error: "the name or the arguments lie outside the input arena"} //nolint:exhaustruct
+		env = failed(codeBadRequest, "the name or the arguments lie outside the input arena")
 	case err != nil:
-		env = envelope{Error: err.Error()} //nolint:exhaustruct
+		env = failed(codeBadRequest, "%s", err.Error())
 	default:
-		env = runCall(string(name), args)
+		env = runReactorCall(string(name), args)
 	}
 
-	data, err := json.Marshal(env)
-	if err != nil {
-		data = []byte(`{"ok":false,"error":"internal marshal error"}`)
-	}
-
-	asyncResultBuf = data
+	asyncResultBuf = []byte(marshalEnvelope(env))
 
 	return int32(len(asyncResultBuf)) //nolint:gosec // an envelope is far below 2 GiB
 }

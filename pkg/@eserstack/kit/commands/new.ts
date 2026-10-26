@@ -7,7 +7,7 @@
  */
 
 import * as results from "@eserstack/primitives/results";
-import * as cliParseArgs from "@std/cli/parse-args";
+import * as shellFlags from "@eserstack/shell/args/flags";
 import * as task from "@eserstack/functions/task";
 import * as streams from "@eserstack/streams";
 import * as span from "@eserstack/streams/span";
@@ -17,25 +17,36 @@ import * as registryFetcher from "../recipes/registry-fetcher.ts";
 import * as errorChain from "../recipes/error-chain.ts";
 import type * as shellArgs from "@eserstack/shell/args";
 
+/** Parse the `eser kit new` arguments. */
+export const parseCliArgs = (
+  cliArgs?: readonly string[],
+): shellFlags.ParsedArgs =>
+  shellFlags.parseArgs(cliArgs ?? [], {
+    options: {
+      name: { type: "string" },
+      registry: { type: "string" },
+      var: { type: "string", multiple: true, default: [] },
+      local: { type: "boolean" },
+      interactive: { type: "boolean", short: "i" },
+      "no-interactive": { type: "boolean" },
+      "no-post-install": { type: "boolean" },
+    },
+  });
+
 export const main = async (
   cliArgs?: readonly string[],
 ): Promise<shellArgs.CliResult<void>> => {
-  const parsed = cliParseArgs.parseArgs((cliArgs as string[]) ?? [], {
-    string: ["name", "registry", "var"],
-    boolean: ["local", "interactive", "no-interactive", "no-post-install"],
-    collect: ["var"],
-    alias: { i: "interactive" },
-  });
+  const parsed = parseCliArgs(cliArgs);
 
-  const templateName = parsed._[0] as string | undefined;
+  const templateName = parsed.positionals[0];
   const projectName =
-    (parsed["name"] as string | undefined) ??
+    (parsed.values["name"] as string | undefined) ??
     (templateName as string | undefined);
-  const registryUrl = parsed["registry"] as string | undefined;
-  const local = parsed["local"] === true;
+  const registryUrl = parsed.values["registry"] as string | undefined;
+  const local = parsed.values["local"] === true;
 
-  const explicitInteractive = parsed["interactive"] === true;
-  const noInteractive = parsed["no-interactive"] === true;
+  const explicitInteractive = parsed.values["interactive"] === true;
+  const noInteractive = parsed.values["no-interactive"] === true;
   const isTty = runtime.process.isTerminal("stdin");
   const interactive = !noInteractive && (explicitInteractive || isTty);
 
@@ -47,7 +58,7 @@ export const main = async (
     );
   }
 
-  const skipPostInstall = parsed["no-post-install"] === true;
+  const skipPostInstall = parsed.values["no-post-install"] === true;
 
   const out = streams.output({
     renderer: streams.renderers.ansi(),
@@ -56,7 +67,7 @@ export const main = async (
 
   // Parse --var flags
   const variables: Record<string, string> = {};
-  for (const v of parsed["var"] as string[]) {
+  for (const v of parsed.values["var"] as string[]) {
     const [key, ...valueParts] = String(v).split("=");
     if (key !== undefined && key !== "") {
       variables[key] = valueParts.join("=");

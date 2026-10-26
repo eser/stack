@@ -23,10 +23,12 @@ to.
   in the tag-free registry (`bridge_registry.go`) from `init()`. A domain that
   works on wasip1 is built with `//go:build !wasip1 || eserajan_wasi` and is in
   the WASM profile; every other domain carries `//go:build !wasip1`. `main.go`
-  holds the cgo exports, `main_wasi_reactor.go` and `reactor_protocol.go` the
-  WASM reactor (decision-45). Every exported bridge function goes through the
-  guards in `panic_guard.go`; goroutines that outlive a call recover on their
-  own.
+  holds the six cgo exports of the dispatcher ABI (`dispatch.go`, TASK-238),
+  `main_wasi_reactor.go` and `reactor_protocol.go` the WASM reactor
+  (decision-45); both dispatch through the registry, and `ffi/bindings.ts` is
+  the TypeScript table that `codebase/ajan-ffi-parity.test.ts` checks against
+  it. Every bridge function runs under the dispatcher's recover
+  (`panic_guard.go`); goroutines that outlive a call recover on their own.
 - Neither Go module is published for `go get`. The root module path has no
   `/v4` suffix, so Go tooling cannot resolve the `v4.x.y` tags for it, and the
   bridge reaches it through `replace github.com/eser/stack => ../../..`. Both
@@ -44,7 +46,7 @@ to.
 
 ## Go Commands
 
-- `make ok` checks only the root module. `pnpm cli ok` also vets, builds,
+- `make ok` checks only the root module. `pnpm ok` also vets, builds,
   lints and tests the bridge module.
 - `make test` runs `go test -race ./...`; `pnpm cli go-test` adds coverage.
 - `pnpm cli go-vuln` (`make vuln`) runs govulncheck on both modules, and
@@ -56,7 +58,7 @@ to.
 
 - Packages live in `pkg/@eserstack/<name>/`; run tests with `pnpm cli test`, or
   one package with `node --test "pkg/@eserstack/<name>/**/*.test.ts"`.
-- `validate-code-conventions` runs in `pnpm cli ok` and fails on a new
+- `validate-code-conventions` runs in `pnpm ok` and fails on a new
   named import or `||` literal default. `.eser/baselines/code-conventions.json`
   holds the current count of older violations per rule and file; the counts
   only go down.

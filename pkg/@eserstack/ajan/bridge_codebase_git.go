@@ -156,8 +156,8 @@ func bridgeCodebaseGenerateChangelog(requestJSON string) string {
 }
 
 func init() {
-	register("codebaseGitCurrentBranch", []string{"requestJSON"}, func(a []string) string { return bridgeCodebaseGitCurrentBranch(a[0]) })
-	register("codebaseGitLatestTag", []string{"requestJSON"}, func(a []string) string { return bridgeCodebaseGitLatestTag(a[0]) })
-	register("codebaseGitLog", []string{"requestJSON"}, func(a []string) string { return bridgeCodebaseGitLog(a[0]) })
-	register("codebaseGenerateChangelog", []string{"requestJSON"}, func(a []string) string { return bridgeCodebaseGenerateChangelog(a[0]) })
+	register("codebaseGitCurrentBranch", bridgeCodebaseGitCurrentBranch)
+	register("codebaseGitLatestTag", bridgeCodebaseGitLatestTag)
+	register("codebaseGitLog", bridgeCodebaseGitLog)
+	register("codebaseGenerateChangelog", bridgeCodebaseGenerateChangelog)
 }

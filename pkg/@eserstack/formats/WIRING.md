@@ -2,21 +2,22 @@
 
 ## 1. Input marshalling
 
-Four FFI functions:
+Four names of the ajan dispatcher ABI (TASK-238), each reached with
+`lib.call(name, request)`. The request is an object, which the library encodes
+as JSON for `EserAjanCall`; the request and answer types are in the ajan
+binding table (`ffi/bindings.ts`).
 
-**Encode single item** (`EserAjanFormatEncode`):
+**Encode single item** (`formatEncode`):
 
 ```ts
-lib.symbols.EserAjanFormatEncode(
-  JSON.stringify({
-    format,
-    data: <jsonValue>,
-    pretty?,
-    indent?,
-    isFirst?,
-    document?,
-  }),
-);
+lib.call("formatEncode", {
+  format,
+  data: <jsonValue>,
+  pretty?,
+  indent?,
+  isFirst?,
+  document?,
+});
 ```
 
 `serialize()` sends a value that is not an array here, with `isFirst: true` and
@@ -25,29 +26,27 @@ bridge passes `document` on as `formatfx.FormatOptions.Document`, so JSON writes
 the value without array separators, YAML writes it as itself instead of a
 one-item sequence, and TOML writes the table without a `+++` line.
 
-**Encode document** (`EserAjanFormatEncodeDocument`):
+**Encode document** (`formatEncodeDocument`):
 
 ```ts
-lib.symbols.EserAjanFormatEncodeDocument(
-  JSON.stringify({ format, items: <jsonArray>, pretty?, indent? }),
-);
+lib.call("formatEncodeDocument", { format, items: <jsonArray>, pretty?, indent? });
 ```
 
-**Decode** (`EserAjanFormatDecode`):
+**Decode** (`formatDecode`):
 
 ```ts
-lib.symbols.EserAjanFormatDecode(
-  JSON.stringify({ format: string, text: string, headers?: string[] }),
-);
+lib.call("formatDecode", { format: string, text: string, headers?: string[] });
 ```
 
-**List formats** (`EserAjanFormatList`):
+**List formats** (`formatList`):
 
 ```ts
-lib.symbols.EserAjanFormatList(); // no arguments
+lib.call("formatList"); // no request
 ```
 
 ## 2. Output marshalling
+
+`lib.call` answers the parsed JSON, error answers included:
 
 - Encode: `{ "result": "<encoded string>", "error"?: "..." }`
 - EncodeDocument: `{ "result": "<encoded string>", "error"?: "..." }`
@@ -73,8 +72,9 @@ Substring matching:
 
 ## 4. Memory ownership
 
-Same as all packages. Go `C.CString`; backend copies and frees. TS never calls
-`EserAjanFree`.
+Same as all packages. Go allocates each answer with `C.CString`; the ajan
+library copies it and frees it with `EserAjanFree` itself. TS never sees a C
+string.
 
 ## 5. Sync vs async
 

@@ -6,24 +6,32 @@ and files they apply to here.
 
 ## Full Gate and Narrower Commands
 
-The full gate is `pnpm cli ok`. It runs the precommit workflow from
-`.eser/manifest.yml`: the codebase validators, `oxfmt --check`, `oxlint`,
-`tsc --noEmit`, the node:test suites with coverage, and the Go checks.
+The full gate is `eser ok`, which `pnpm ok` runs as `go run ./cmd/eser ok`. It
+runs the precommit workflow of `.eser/manifest.yml` on the Go eser
+(`cmd/eser`, the engine in `pkg/ajan/workflowfx`): the codebasefx validators
+under their `validate-*` names, then `oxfmt --check`, `oxlint`, `tsc --noEmit`,
+the node:test suites with coverage and the Go checks as shell steps. `pnpm fix`
+(`eser fix`) runs it with fixes, and `pnpm preflight` (`eser preflight`) runs
+the preflight workflow. The git hooks that `eser codebase install` writes run
+the same Go eser.
 
 ```bash
-pnpm cli workflows run -e precommit --only validate-eof   # one validator step
+go run ./cmd/eser workflows run -e precommit --only validate-eof   # one validator step
+go run ./cmd/eser workflows run -e precommit --only go-lint        # one shell step, by its name
+go run ./cmd/eser codebase validate-licenses [--fix]               # one validator, with its manifest options
 pnpm cli go-ok     # Go only; same as make ok
 make lint          # golangci-lint on the root module
 make test          # go test -race
 pnpm cli test      # node:test with coverage
-pnpm cli preflight # release-only steps; needed before tagging
+pnpm preflight     # release-only steps; needed before tagging
 ```
 
-`--only` matches a step's tool name, so it selects one validator. The shell
-steps (`formatter`, `linter`, `type-check`, `tests` and the Go checks) do not
-match their names; run the command each one lists in `.eser/manifest.yml`.
+On the Go eser, `--only` matches a step's tool name or its `name`, so it
+selects a validator or a shell step, and a filter that matches no step fails
+the run. `pnpm cli ok` runs the same workflow on the TypeScript CLI, whose
+`--only` matches tool names only (TASK-363).
 
-`make ok` covers Go only, so it never replaces `pnpm cli ok` for a change that
+`make ok` covers Go only, so it never replaces `pnpm ok` for a change that
 touches TypeScript.
 
 ## File Ownership

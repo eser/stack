@@ -3,42 +3,83 @@
 package main
 
 import (
-	"errors"
-	"fmt"
+	"encoding/json"
 	"sort"
-	"strings"
-
-	"github.com/eser/stack/pkg/ajan/formatfx"
 )
 
-// errUnknownFunction is the error for a dispatch name the registry does not
-// hold: a typo, or a name whose domain this build leaves out (the WASM
-// profile).
-var errUnknownFunction = errors.New("unknown function")
+// entryKind tells how a host reaches a dispatch name: a call answers once,
+// a stream is opened, read and closed.
+type entryKind string
 
-// bridgeFunc is one entry of the dispatch registry: a bridge function that
-// takes its arguments as strings, in the order params names them, and answers
-// with a string (JSON for most functions).
-type bridgeFunc struct {
-	call   func(args []string) string
-	params []string
+const (
+	kindCall   entryKind = "call"
+	kindStream entryKind = "stream"
+)
+
+// callFunc is a bridge function behind a call name: it takes the request
+// string (JSON for most names, the bare handle for the few that take only a
+// handle, empty for the ones that take nothing) and answers a string, JSON
+// with an "error" field on failure.
+type callFunc func(request string) string
+
+// streamFuncs are the three bridge functions behind a stream name. open
+// answers JSON with a "handle"; read answers the next chunk, or "null" when
+// the stream is done; close releases the handle and answers JSON. read is nil
+// for a stream that is fed by a call instead (parsingTokenizeStream, whose
+// chunks go in through parsingTokenizeStreamPush).
+type streamFuncs struct {
+	open  callFunc
+	read  func(handle string) string
+	close func(handle string) string
+}
+
+// registryEntry is one dispatch name of the registry.
+type registryEntry struct {
+	call         callFunc
+	stream       streamFuncs
+	kind         entryKind
+	handlePrefix string
 }
 
 // registry maps a dispatch name, such as "formatEncode", to its bridge
-// function. Each domain file adds its names from init(), so a build that
-// leaves a domain out, like the WASM profile, has none of that domain's names.
-// The WASM reactor dispatches through it, and the native dispatcher ABI of
-// TASK-238 will too.
-var registry = map[string]bridgeFunc{} //nolint:gochecknoglobals
+// functions. Each domain file adds its names from init(), so a build that
+// leaves a domain out, like the WASM profile, has none of that domain's
+// names. The native exports (main.go) and the WASM reactor
+// (main_wasi_reactor.go) both dispatch through it.
+var registry = map[string]registryEntry{} //nolint:gochecknoglobals
 
-// register adds a dispatch name. A name registered twice is a programming
-// error, caught at startup.
-func register(name string, params []string, call func(args []string) string) {
+// streamPrefixes maps the prefix of a stream's handles, such as "cbwalk" in
+// "cbwalk-12", to its stream name, so a read or close finds its stream from
+// the handle alone.
+var streamPrefixes = map[string]string{} //nolint:gochecknoglobals
+
+// register adds a call name. A name registered twice is a programming error,
+// caught at startup.
+func register(name string, call callFunc) {
 	if _, dup := registry[name]; dup {
 		panic("bridge registry: " + name + " is registered twice")
 	}
 
-	registry[name] = bridgeFunc{call: call, params: params}
+	registry[name] = registryEntry{call: call, kind: kindCall} //nolint:exhaustruct
+}
+
+// registerStream adds a stream name whose handles start with handlePrefix
+// and a dash (newHandle builds them so).
+func registerStream(name string, handlePrefix string, funcs streamFuncs) {
+	if _, dup := registry[name]; dup {
+		panic("bridge registry: " + name + " is registered twice")
+	}
+
+	if owner, dup := streamPrefixes[handlePrefix]; dup {
+		panic("bridge registry: handle prefix " + handlePrefix + " belongs to " + owner)
+	}
+
+	registry[name] = registryEntry{ //nolint:exhaustruct
+		stream:       funcs,
+		kind:         kindStream,
+		handlePrefix: handlePrefix,
+	}
+	streamPrefixes[handlePrefix] = name
 }
 
 // registeredNames returns every dispatch name of this build, sorted.
@@ -53,48 +94,63 @@ func registeredNames() []string {
 	return names
 }
 
-// callRegistered runs the named bridge function. An unknown name, a wrong
-// argument count and a JSON argument nested deeper than
-// formatfx.MaxNestingDepth are errors, so a host cannot crash the bridge with
-// any of them: decoding a deep request overflows the WASM host's stack, which
-// recover cannot catch.
-func callRegistered(name string, args []string) (string, error) {
-	entry, ok := registry[name]
-	if !ok {
-		return "", fmt.Errorf("%w: %s", errUnknownFunction, name)
+// registeredStreams returns the stream names of this build, sorted.
+func registeredStreams() []string {
+	names := make([]string, 0, len(streamPrefixes))
+	for _, name := range streamPrefixes {
+		names = append(names, name)
 	}
 
-	if len(args) != len(entry.params) {
-		return "", fmt.Errorf(
-			"%s takes %d argument(s) (%s), got %d",
-			name, len(entry.params), strings.Join(entry.params, ", "), len(args),
-		)
-	}
+	sort.Strings(names)
 
-	for i, arg := range args {
-		if strings.HasPrefix(arg, "{") || strings.HasPrefix(arg, "[") {
-			if err := formatfx.CheckJSONDepth(arg); err != nil {
-				return "", fmt.Errorf("%s: %s: %w", name, entry.params[i], err)
-			}
+	return names
+}
+
+// handleRequest is the request of a stream close that its bridge function
+// takes as JSON.
+func handleRequest(handle string) string {
+	return marshalResponse(struct {
+		Handle string `json:"handle"`
+	}{Handle: handle})
+}
+
+// modelRequest is the request of the AI calls that run on a model handle:
+// aiGenerateText and the aiTextStream open.
+type modelRequest struct {
+	ModelHandle string          `json:"modelHandle"`
+	Options     json.RawMessage `json:"options"`
+}
+
+// withModel decodes a modelRequest and hands its two parts to fn.
+func withModel(fn func(modelHandle, optionsJSON string) string) callFunc {
+	return func(request string) string {
+		var req modelRequest
+		if err := json.Unmarshal([]byte(request), &req); err != nil {
+			return errorResponse("invalid request JSON: " + err.Error())
 		}
-	}
 
-	return entry.call(args), nil
+		options := string(req.Options)
+		if options == "" || options == "null" {
+			options = "{}"
+		}
+
+		return fn(req.ModelHandle, options)
+	}
 }
 
 func init() {
-	register("version", nil, func(_ []string) string { return bridgeVersion() })
-	register("init", nil, func(_ []string) string {
+	register("version", func(string) string { return handshakeJSON() })
+	register("init", func(string) string {
 		if bridgeInit() != 0 {
 			return marshalError("init failed")
 		}
 
-		return "initialized"
+		return "{}"
 	})
-	register("shutdown", nil, func(_ []string) string {
+	register("shutdown", func(string) string {
 		bridgeShutdown()
 
-		return "shutdown"
+		return "{}"
 	})
-	register("diResolve", []string{"name"}, func(a []string) string { return bridgeDIResolve(a[0]) })
+	register("diResolve", bridgeDIResolve)
 }

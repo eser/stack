@@ -249,9 +249,9 @@ func postToJSON(p *postsfx.Post) *postsPostJSON {
 
 func init() {
 	registerShutdownDrain(drainPostsHandles)
-	register("postsCreateService", []string{"requestJSON"}, func(a []string) string { return bridgePostsCreateService(a[0]) })
-	register("postsCompose", []string{"requestJSON"}, func(a []string) string { return bridgePostsCompose(a[0]) })
-	register("postsGetTimeline", []string{"requestJSON"}, func(a []string) string { return bridgePostsGetTimeline(a[0]) })
-	register("postsSearch", []string{"requestJSON"}, func(a []string) string { return bridgePostsSearch(a[0]) })
-	register("postsClose", []string{"requestJSON"}, func(a []string) string { return bridgePostsClose(a[0]) })
+	register("postsCreateService", bridgePostsCreateService)
+	register("postsCompose", bridgePostsCompose)
+	register("postsGetTimeline", bridgePostsGetTimeline)
+	register("postsSearch", bridgePostsSearch)
+	register("postsClose", bridgePostsClose)
 }

@@ -19,8 +19,9 @@ const reactorTest = (name: string, fn: () => Promise<void>) =>
   nodeTest.test(name, { skip: wasmPath === null }, fn);
 
 /**
- * The 52 names of the wasi profile (TASK-272, logging from TASK-278, HTTP from
- * TASK-277; the noskills names left it with TASK-258).
+ * The 44 names of the wasi profile (TASK-272, logging from TASK-278, HTTP from
+ * TASK-277; the noskills names left it with TASK-258), four of them streams
+ * since the dispatcher ABI (TASK-238).
  */
 const PROFILE_NAMES = [
   "cacheClear",
@@ -37,13 +38,9 @@ const PROFILE_NAMES = [
   "codebaseCheckModExports",
   "codebaseValidateCommitMsg",
   "codebaseValidateFiles",
-  "codebaseValidateFilesStreamClose",
-  "codebaseValidateFilesStreamCreate",
-  "codebaseValidateFilesStreamRead",
+  "codebaseValidateFilesStream",
   "codebaseWalkFiles",
-  "codebaseWalkFilesStreamClose",
-  "codebaseWalkFilesStreamCreate",
-  "codebaseWalkFilesStreamRead",
+  "codebaseWalkFilesStream",
   "collectorGenerateManifest",
   "collectorSpecifierToIdentifier",
   "collectorWalkFiles",
@@ -59,8 +56,6 @@ const PROFILE_NAMES = [
   "httpCreate",
   "httpRequest",
   "httpRequestStream",
-  "httpStreamClose",
-  "httpStreamRead",
   "init",
   "logClose",
   "logConfigure",
@@ -69,22 +64,30 @@ const PROFILE_NAMES = [
   "logWrite",
   "parsingSimpleTokens",
   "parsingTokenize",
-  "parsingTokenizeStreamClose",
-  "parsingTokenizeStreamCreate",
+  "parsingTokenizeStream",
   "parsingTokenizeStreamPush",
   "shutdown",
   "version",
 ];
 
 reactorTest(
-  "the handshake names the ABI, the profile and its 52 names",
+  "the handshake names the ABI, the profile and its 44 names",
   async () => {
     const host = await reactor.createReactorHost(wasmPath!);
 
     assert.assertEquals(host.handshake.abi, reactor.REACTOR_ABI_VERSION);
     assert.assertEquals(host.handshake.profile, "wasi");
     assert.assertEquals([...host.handshake.names], PROFILE_NAMES);
-    assert.assertStringIncludes(host.handshake.version, "eser-ajan version");
+    assert.assertEquals(
+      [...host.handshake.streams],
+      [
+        "codebaseValidateFilesStream",
+        "codebaseWalkFilesStream",
+        "httpRequestStream",
+        "parsingTokenizeStream",
+      ],
+    );
+    assert.assertMatch(host.handshake.version, /\S/);
   },
 );
 
@@ -96,7 +99,18 @@ nodeTest.test(
     );
     assert.assertStringIncludes(
       (error as Error).message,
-      `speaks reactor ABI 99, but this loader speaks ABI ${reactor.REACTOR_ABI_VERSION}`,
+      `speaks dispatcher ABI 99, but this loader speaks ABI ${reactor.REACTOR_ABI_VERSION}`,
+    );
+
+    const fromResult = assert.assertThrows(() =>
+      reactor.checkHandshake(
+        { ok: true, result: JSON.stringify({ abi: 7, names: [] }) },
+        "/m.wasm",
+      ),
+    );
+    assert.assertStringIncludes(
+      (fromResult as Error).message,
+      `speaks dispatcher ABI 7, but this loader speaks ABI ${reactor.REACTOR_ABI_VERSION}`,
     );
   },
 );
@@ -169,7 +183,11 @@ reactorTest(
 reactorTest("a parsing stream lives across calls on one instance", async () => {
   const host = await reactor.createReactorHost(wasmPath!);
 
-  const created = host.callEnvelope("parsingTokenizeStreamCreate", "{}");
+  const created = host.callEnvelope(
+    "stream.open",
+    "parsingTokenizeStream",
+    "{}",
+  );
   assert.assertEquals(created.ok, true, created.error);
   const { handle } = JSON.parse(created.result!) as { handle: string };
 
@@ -179,10 +197,7 @@ reactorTest("a parsing stream lives across calls on one instance", async () => {
   );
   assert.assertEquals(pushed.ok, true, pushed.error);
 
-  const closed = host.callEnvelope(
-    "parsingTokenizeStreamClose",
-    JSON.stringify({ handle }),
-  );
+  const closed = host.callEnvelope("stream.close", handle);
   assert.assertEquals(closed.ok, true, closed.error);
 });
 
@@ -244,17 +259,26 @@ reactorTest(
     const lib = await reactor.loadReactorWasm(wasmPath!);
 
     const error = assert.assertThrows(
-      () => lib.symbols.EserAjanShellExec("{}"),
+      () => lib.call("shellExec", { command: "true" }),
       reactor.UnsupportedInWasmError,
     );
     assert.assertEquals(
       (error as reactor.UnsupportedInWasmError).code,
       "UNSUPPORTED_IN_WASM",
     );
-    assert.assertStringIncludes(
-      lib.symbols.EserAjanVersion(),
-      "eser-ajan version",
-    );
+    assert.assertEquals(lib.call("version").abi, reactor.REACTOR_ABI_VERSION);
+  },
+);
+
+reactorTest(
+  "the module answers UNSUPPORTED_IN_WASM for a name it does not serve",
+  async () => {
+    const host = await reactor.createReactorHost(wasmPath!);
+
+    const envelope = host.callEnvelope("aiGenerateText", "{}");
+    assert.assertEquals(envelope.ok, false);
+    assert.assertEquals(envelope.code, "UNSUPPORTED_IN_WASM");
+    assert.assertEquals(envelope.result, undefined);
   },
 );
 

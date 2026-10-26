@@ -259,11 +259,11 @@ func bridgeCacheClose(requestJSON string) string {
 
 func init() {
 	registerShutdownDrain(drainCacheHandles)
-	register("cacheCreate", []string{"requestJSON"}, func(a []string) string { return bridgeCacheCreate(a[0]) })
-	register("cacheGetDir", []string{"requestJSON"}, func(a []string) string { return bridgeCacheGetDir(a[0]) })
-	register("cacheGetVersionedPath", []string{"requestJSON"}, func(a []string) string { return bridgeCacheGetVersionedPath(a[0]) })
-	register("cacheList", []string{"requestJSON"}, func(a []string) string { return bridgeCacheList(a[0]) })
-	register("cacheRemove", []string{"requestJSON"}, func(a []string) string { return bridgeCacheRemove(a[0]) })
-	register("cacheClear", []string{"requestJSON"}, func(a []string) string { return bridgeCacheClear(a[0]) })
-	register("cacheClose", []string{"requestJSON"}, func(a []string) string { return bridgeCacheClose(a[0]) })
+	register("cacheCreate", bridgeCacheCreate)
+	register("cacheGetDir", bridgeCacheGetDir)
+	register("cacheGetVersionedPath", bridgeCacheGetVersionedPath)
+	register("cacheList", bridgeCacheList)
+	register("cacheRemove", bridgeCacheRemove)
+	register("cacheClear", bridgeCacheClear)
+	register("cacheClose", bridgeCacheClose)
 }

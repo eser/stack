@@ -2,11 +2,39 @@
   "name": "@eserstack/testing",
   "version": "4.5.2",
   "type": "module",
+  "files": [
+    "dist/**/*.js",
+    "dist/**/*.d.ts",
+    "dist/**/*.json"
+  ],
   "exports": {
     ".": "./mod.ts",
     "./fake-server": "./fake-server.ts",
     "./fake-fs": "./fake-fs.ts",
     "./temp-dir": "./temp-dir.ts"
+  },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/mod.d.ts",
+        "import": "./dist/mod.js"
+      },
+      "./fake-server": {
+        "types": "./dist/fake-server.d.ts",
+        "import": "./dist/fake-server.js"
+      },
+      "./fake-fs": {
+        "types": "./dist/fake-fs.d.ts",
+        "import": "./dist/fake-fs.js"
+      },
+      "./temp-dir": {
+        "types": "./dist/temp-dir.d.ts",
+        "import": "./dist/temp-dir.js"
+      }
+    }
+  },
+  "scripts": {
+    "build": "node ../../../etc/scripts/build-library.ts"
   },
   "dependencies": {
     "@eserstack/standards": "workspace:*"

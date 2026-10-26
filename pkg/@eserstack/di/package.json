@@ -2,10 +2,34 @@
   "name": "@eserstack/di",
   "version": "4.5.2",
   "type": "module",
+  "files": [
+    "dist/**/*.js",
+    "dist/**/*.d.ts",
+    "dist/**/*.json"
+  ],
   "exports": {
     ".": "./mod.ts",
     "./container": "./container.ts",
     "./services": "./services.ts"
+  },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/mod.d.ts",
+        "import": "./dist/mod.js"
+      },
+      "./container": {
+        "types": "./dist/container.d.ts",
+        "import": "./dist/container.js"
+      },
+      "./services": {
+        "types": "./dist/services.d.ts",
+        "import": "./dist/services.js"
+      }
+    }
+  },
+  "scripts": {
+    "build": "node ../../../etc/scripts/build-library.ts"
   },
   "dependencies": {
     "@eserstack/primitives": "workspace:*"

@@ -2,6 +2,11 @@
   "name": "@eserstack/functions",
   "version": "4.5.2",
   "type": "module",
+  "files": [
+    "dist/**/*.js",
+    "dist/**/*.d.ts",
+    "dist/**/*.json"
+  ],
   "exports": {
     ".": "./mod.ts",
     "./handler": "./handler.ts",
@@ -9,6 +14,37 @@
     "./resources": "./resources.ts",
     "./task": "./task.ts",
     "./triggers": "./triggers.ts"
+  },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/mod.d.ts",
+        "import": "./dist/mod.js"
+      },
+      "./handler": {
+        "types": "./dist/handler.d.ts",
+        "import": "./dist/handler.js"
+      },
+      "./pipeline": {
+        "types": "./dist/pipeline.d.ts",
+        "import": "./dist/pipeline.js"
+      },
+      "./resources": {
+        "types": "./dist/resources.d.ts",
+        "import": "./dist/resources.js"
+      },
+      "./task": {
+        "types": "./dist/task.d.ts",
+        "import": "./dist/task.js"
+      },
+      "./triggers": {
+        "types": "./dist/triggers.d.ts",
+        "import": "./dist/triggers.js"
+      }
+    }
+  },
+  "scripts": {
+    "build": "node ../../../etc/scripts/build-library.ts"
   },
   "dependencies": {
     "@eserstack/primitives": "workspace:*"

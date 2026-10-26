@@ -2,6 +2,11 @@
   "name": "@eserstack/fp",
   "version": "4.5.2",
   "type": "module",
+  "files": [
+    "dist/**/*.js",
+    "dist/**/*.d.ts",
+    "dist/**/*.json"
+  ],
   "exports": {
     ".": "./mod.ts",
     "./append-to-array": "./append-to-array.ts",
@@ -54,6 +59,217 @@
     "./take-from-object": "./take-from-object.ts",
     "./wth": "./wth.ts",
     "./wthout": "./wthout.ts"
+  },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/mod.d.ts",
+        "import": "./dist/mod.js"
+      },
+      "./append-to-array": {
+        "types": "./dist/append-to-array.d.ts",
+        "import": "./dist/append-to-array.js"
+      },
+      "./append-to-object": {
+        "types": "./dist/append-to-object.d.ts",
+        "import": "./dist/append-to-object.js"
+      },
+      "./associate-array": {
+        "types": "./dist/associate-array.d.ts",
+        "import": "./dist/associate-array.js"
+      },
+      "./associate-object": {
+        "types": "./dist/associate-object.d.ts",
+        "import": "./dist/associate-object.js"
+      },
+      "./chunk": {
+        "types": "./dist/chunk.d.ts",
+        "import": "./dist/chunk.js"
+      },
+      "./compose": {
+        "types": "./dist/compose.d.ts",
+        "import": "./dist/compose.js"
+      },
+      "./curry-right": {
+        "types": "./dist/curry-right.d.ts",
+        "import": "./dist/curry-right.js"
+      },
+      "./curry": {
+        "types": "./dist/curry.d.ts",
+        "import": "./dist/curry.js"
+      },
+      "./decorate": {
+        "types": "./dist/decorate.d.ts",
+        "import": "./dist/decorate.js"
+      },
+      "./deep-copy": {
+        "types": "./dist/deep-copy.d.ts",
+        "import": "./dist/deep-copy.js"
+      },
+      "./deep-merge": {
+        "types": "./dist/deep-merge.d.ts",
+        "import": "./dist/deep-merge.js"
+      },
+      "./dispatcher": {
+        "types": "./dist/dispatcher.d.ts",
+        "import": "./dist/dispatcher.js"
+      },
+      "./distinct-array": {
+        "types": "./dist/distinct-array.d.ts",
+        "import": "./dist/distinct-array.js"
+      },
+      "./distinct-object": {
+        "types": "./dist/distinct-object.d.ts",
+        "import": "./dist/distinct-object.js"
+      },
+      "./drop-from-array": {
+        "types": "./dist/drop-from-array.d.ts",
+        "import": "./dist/drop-from-array.js"
+      },
+      "./drop-from-object": {
+        "types": "./dist/drop-from-object.d.ts",
+        "import": "./dist/drop-from-object.js"
+      },
+      "./emitter": {
+        "types": "./dist/emitter.d.ts",
+        "import": "./dist/emitter.js"
+      },
+      "./filter-array": {
+        "types": "./dist/filter-array.d.ts",
+        "import": "./dist/filter-array.js"
+      },
+      "./filter-object": {
+        "types": "./dist/filter-object.d.ts",
+        "import": "./dist/filter-object.js"
+      },
+      "./flow": {
+        "types": "./dist/flow.d.ts",
+        "import": "./dist/flow.js"
+      },
+      "./get": {
+        "types": "./dist/get.d.ts",
+        "import": "./dist/get.js"
+      },
+      "./group-by": {
+        "types": "./dist/group-by.d.ts",
+        "import": "./dist/group-by.js"
+      },
+      "./iterate": {
+        "types": "./dist/iterate.d.ts",
+        "import": "./dist/iterate.js"
+      },
+      "./key-by": {
+        "types": "./dist/key-by.d.ts",
+        "import": "./dist/key-by.js"
+      },
+      "./map-array": {
+        "types": "./dist/map-array.d.ts",
+        "import": "./dist/map-array.js"
+      },
+      "./map-object": {
+        "types": "./dist/map-object.d.ts",
+        "import": "./dist/map-object.js"
+      },
+      "./match": {
+        "types": "./dist/match.d.ts",
+        "import": "./dist/match.js"
+      },
+      "./memoize": {
+        "types": "./dist/memoize.d.ts",
+        "import": "./dist/memoize.js"
+      },
+      "./merge-arrays": {
+        "types": "./dist/merge-arrays.d.ts",
+        "import": "./dist/merge-arrays.js"
+      },
+      "./merge-objects": {
+        "types": "./dist/merge-objects.d.ts",
+        "import": "./dist/merge-objects.js"
+      },
+      "./mutate": {
+        "types": "./dist/mutate.d.ts",
+        "import": "./dist/mutate.js"
+      },
+      "./pick-from-array": {
+        "types": "./dist/pick-from-array.d.ts",
+        "import": "./dist/pick-from-array.js"
+      },
+      "./pick-from-object": {
+        "types": "./dist/pick-from-object.d.ts",
+        "import": "./dist/pick-from-object.js"
+      },
+      "./pipe": {
+        "types": "./dist/pipe.d.ts",
+        "import": "./dist/pipe.js"
+      },
+      "./prepend-to-array": {
+        "types": "./dist/prepend-to-array.d.ts",
+        "import": "./dist/prepend-to-array.js"
+      },
+      "./prepend-to-object": {
+        "types": "./dist/prepend-to-object.d.ts",
+        "import": "./dist/prepend-to-object.js"
+      },
+      "./remove-first-match-from-array": {
+        "types": "./dist/remove-first-match-from-array.d.ts",
+        "import": "./dist/remove-first-match-from-array.js"
+      },
+      "./remove-first-match-from-object": {
+        "types": "./dist/remove-first-match-from-object.d.ts",
+        "import": "./dist/remove-first-match-from-object.js"
+      },
+      "./remove-index-from-array": {
+        "types": "./dist/remove-index-from-array.d.ts",
+        "import": "./dist/remove-index-from-array.js"
+      },
+      "./remove-key-from-object": {
+        "types": "./dist/remove-key-from-object.d.ts",
+        "import": "./dist/remove-key-from-object.js"
+      },
+      "./remove-value-from-array": {
+        "types": "./dist/remove-value-from-array.d.ts",
+        "import": "./dist/remove-value-from-array.js"
+      },
+      "./remove-value-from-object": {
+        "types": "./dist/remove-value-from-object.d.ts",
+        "import": "./dist/remove-value-from-object.js"
+      },
+      "./reverse-array": {
+        "types": "./dist/reverse-array.d.ts",
+        "import": "./dist/reverse-array.js"
+      },
+      "./reverse-object": {
+        "types": "./dist/reverse-object.d.ts",
+        "import": "./dist/reverse-object.js"
+      },
+      "./split-array": {
+        "types": "./dist/split-array.d.ts",
+        "import": "./dist/split-array.js"
+      },
+      "./split-object": {
+        "types": "./dist/split-object.d.ts",
+        "import": "./dist/split-object.js"
+      },
+      "./take-from-array": {
+        "types": "./dist/take-from-array.d.ts",
+        "import": "./dist/take-from-array.js"
+      },
+      "./take-from-object": {
+        "types": "./dist/take-from-object.d.ts",
+        "import": "./dist/take-from-object.js"
+      },
+      "./wth": {
+        "types": "./dist/wth.d.ts",
+        "import": "./dist/wth.js"
+      },
+      "./wthout": {
+        "types": "./dist/wthout.d.ts",
+        "import": "./dist/wthout.js"
+      }
+    }
+  },
+  "scripts": {
+    "build": "node ../../../etc/scripts/build-library.ts"
   },
   "dependencies": {
     "@eserstack/primitives": "workspace:*"

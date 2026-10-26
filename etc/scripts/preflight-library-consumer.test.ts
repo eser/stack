@@ -6,17 +6,18 @@ import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as consumer from "./preflight-library-consumer.ts";
 
-nodeTest.test("parseOptions: defaults, both forms, and errors", () => {
+nodeTest.test("parseOptions: the default, both forms, and errors", () => {
   assert.assertEquals(consumer.parseOptions([]), {
-    packageName: "@eserstack/primitives",
     packsDir: "etc/temp/npm-packs",
   });
-  assert.assertEquals(
-    consumer.parseOptions(["--package", "@eserstack/fp", "--packs=out/packs"]),
-    { packageName: "@eserstack/fp", packsDir: "out/packs" },
-  );
-  assert.assertThrows(() => consumer.parseOptions(["--package"]));
-  assert.assertThrows(() => consumer.parseOptions(["--verbose"]));
+  assert.assertEquals(consumer.parseOptions(["--packs", "out/packs"]), {
+    packsDir: "out/packs",
+  });
+  assert.assertEquals(consumer.parseOptions(["--packs=out/packs"]), {
+    packsDir: "out/packs",
+  });
+  assert.assertThrows(() => consumer.parseOptions(["--packs"]));
+  assert.assertThrows(() => consumer.parseOptions(["--package", "x"]));
 });
 
 nodeTest.test("tarballName: the name pnpm pack writes", () => {
@@ -26,19 +27,134 @@ nodeTest.test("tarballName: the name pnpm pack writes", () => {
   );
 });
 
-nodeTest.test("exportSpecifiers: one specifier per sub-path", () => {
+nodeTest.test(
+  "exportSpecifiers: one specifier per sub-path, source exports apart",
+  () => {
+    assert.assertEquals(
+      consumer.exportSpecifiers("@eserstack/x", {
+        ".": { types: "./dist/mod.d.ts", import: "./dist/mod.js" },
+        "./results": {
+          types: "./dist/results.d.ts",
+          import: "./dist/results.js",
+        },
+        "./client/bootstrap": "./client/bootstrap/index.ts",
+      }),
+      {
+        importable: ["@eserstack/x", "@eserstack/x/results"],
+        sourceOnly: ["@eserstack/x/client/bootstrap"],
+      },
+    );
+    assert.assertEquals(consumer.exportSpecifiers("@eserstack/x", null), {
+      importable: [],
+      sourceOnly: [],
+    });
+  },
+);
+
+const PACKAGES: consumer.PackedPackage[] = [
+  {
+    name: "@eserstack/standards",
+    tarball: "/packs/eserstack-standards-5.0.0.tgz",
+    library: true,
+    typePackages: { "@types/semver": "^7.8.0" },
+  },
+  {
+    name: "@eserstack/ajan-wasm",
+    tarball: "/packs/eserstack-ajan-wasm-5.0.0.tgz",
+    library: false,
+    typePackages: {},
+  },
+  {
+    name: "@eserstack/laroux-react",
+    tarball: "/packs/eserstack-laroux-react-5.0.0.tgz",
+    library: true,
+    typePackages: { "@types/react": "^19.3.0", "@types/semver": "^7.0.0" },
+  },
+];
+
+nodeTest.test(
+  "consumerManifest: libraries as dependencies, their @types once",
+  () => {
+    assert.assertEquals(consumer.consumerManifest(PACKAGES), {
+      name: "library-consumer",
+      private: true,
+      type: "module",
+      dependencies: {
+        "@eserstack/standards": "file:/packs/eserstack-standards-5.0.0.tgz",
+        "@eserstack/laroux-react":
+          "file:/packs/eserstack-laroux-react-5.0.0.tgz",
+      },
+      devDependencies: {
+        "@types/semver": "^7.8.0",
+        "@types/react": "^19.3.0",
+      },
+    });
+  },
+);
+
+nodeTest.test(
+  "consumerWorkspaceYaml: every package overridden to its tarball",
+  () => {
+    assert.assertEquals(
+      consumer.consumerWorkspaceYaml(PACKAGES),
+      [
+        "strictDepBuilds: false",
+        "overrides:",
+        '  "@eserstack/standards": "file:/packs/eserstack-standards-5.0.0.tgz"',
+        '  "@eserstack/ajan-wasm": "file:/packs/eserstack-ajan-wasm-5.0.0.tgz"',
+        '  "@eserstack/laroux-react": "file:/packs/eserstack-laroux-react-5.0.0.tgz"',
+        "",
+      ].join("\n"),
+    );
+  },
+);
+
+nodeTest.test("consumerNpmrc: the scope on the unreachable registry", () => {
   assert.assertEquals(
-    consumer.exportSpecifiers("@eserstack/x", {
-      ".": "./mod.ts",
-      "./results": "./results.ts",
-    }),
-    ["@eserstack/x", "@eserstack/x/results"],
-  );
-  assert.assertEquals(
-    consumer.exportSpecifiers("@eserstack/cli", "./main.ts"),
-    ["@eserstack/cli"],
+    consumer.consumerNpmrc(),
+    "@eserstack:registry=http://127.0.0.1:9/\n",
   );
 });
+
+nodeTest.test(
+  "registryResolved: only @eserstack entries outside a tarball",
+  () => {
+    const lockfile = [
+      "lockfileVersion: '9.0'",
+      "",
+      "overrides:",
+      "  '@eserstack/fp': file:/packs/eserstack-fp-5.0.0.tgz",
+      "",
+      "importers:",
+      "",
+      "  .:",
+      "    dependencies:",
+      "      '@eserstack/fp':",
+      "        specifier: file:/packs/eserstack-fp-5.0.0.tgz",
+      "        version: file:../packs/eserstack-fp-5.0.0.tgz",
+      "      '@eserstack/cache':",
+      "        specifier: 5.0.0",
+      "        version: 5.0.0",
+      "",
+      "packages:",
+      "",
+      "  '@eserstack/fp@file:../packs/eserstack-fp-5.0.0.tgz':",
+      "    resolution: {integrity: sha512-x, tarball: file:../packs/eserstack-fp-5.0.0.tgz}",
+      "",
+      "  '@eserstack/primitives@5.0.0':",
+      "    resolution: {integrity: sha512-y}",
+      "",
+      "  semver@7.8.5:",
+      "    resolution: {integrity: sha512-z}",
+      "",
+    ].join("\n");
+
+    assert.assertEquals(consumer.registryResolved(lockfile), [
+      "@eserstack/cache@5.0.0",
+      "@eserstack/primitives@5.0.0",
+    ]);
+  },
+);
 
 nodeTest.test("typeCheckSource: imports every specifier as a type", () => {
   assert.assertEquals(

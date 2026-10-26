@@ -2,11 +2,39 @@
   "name": "@eserstack/crypto",
   "version": "4.5.2",
   "type": "module",
+  "files": [
+    "dist/**/*.js",
+    "dist/**/*.d.ts",
+    "dist/**/*.json"
+  ],
   "exports": {
     ".": "./mod.ts",
     "./hash": "./hash.ts",
     "./business": "./business/mod.ts",
     "./adapters/ffi": "./adapters/ffi/mod.ts"
+  },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/mod.d.ts",
+        "import": "./dist/mod.js"
+      },
+      "./hash": {
+        "types": "./dist/hash.d.ts",
+        "import": "./dist/hash.js"
+      },
+      "./business": {
+        "types": "./dist/business/mod.d.ts",
+        "import": "./dist/business/mod.js"
+      },
+      "./adapters/ffi": {
+        "types": "./dist/adapters/ffi/mod.d.ts",
+        "import": "./dist/adapters/ffi/mod.js"
+      }
+    }
+  },
+  "scripts": {
+    "build": "node ../../../etc/scripts/build-library.ts"
   },
   "dependencies": {
     "@eserstack/ajan": "workspace:*"

@@ -2,10 +2,34 @@
   "name": "@eserstack/streams",
   "version": "4.5.2",
   "type": "module",
+  "files": [
+    "dist/**/*.js",
+    "dist/**/*.d.ts",
+    "dist/**/*.json"
+  ],
   "exports": {
     ".": "./mod.ts",
     "./span": "./span.ts",
     "./renderers": "./renderers/mod.ts"
+  },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/mod.d.ts",
+        "import": "./dist/mod.js"
+      },
+      "./span": {
+        "types": "./dist/span.d.ts",
+        "import": "./dist/span.js"
+      },
+      "./renderers": {
+        "types": "./dist/renderers/mod.d.ts",
+        "import": "./dist/renderers/mod.js"
+      }
+    }
+  },
+  "scripts": {
+    "build": "node ../../../etc/scripts/build-library.ts"
   },
   "dependencies": {
     "@eserstack/standards": "workspace:*"

@@ -122,6 +122,57 @@ const describeStep = (step: ResolvedStep): string => {
 };
 
 /**
+ * The name a step answers to besides its tool name: the `name` option, the
+ * display name of a shell step.
+ */
+const stepDisplayName = (step: ResolvedStep): string | undefined => {
+  const displayName = step.options["name"];
+
+  return typeof displayName === "string" && displayName !== ""
+    ? displayName
+    : undefined;
+};
+
+/**
+ * Report whether `--only <name>` selects a step: `name` is its tool name or
+ * its `name` option, so it picks a validator or a single shell step.
+ */
+const stepMatches = (step: ResolvedStep, name: string): boolean =>
+  step.name === name || stepDisplayName(step) === name;
+
+/**
+ * Fail when `options.only` is set and no step of `workflows` matches it, so a
+ * filter that selects nothing never reads as a passing run. Only the declared
+ * steps count; the check runs across every workflow of the run, as one
+ * workflow of an event may hold the step and another not.
+ */
+const checkOnly = (
+  workflows: readonly WorkflowDefinition[],
+  options: RunOptions,
+): WorkflowError | null => {
+  if (options.only === undefined) {
+    return null;
+  }
+
+  const names: string[] = [];
+  for (const workflow of workflows) {
+    for (const stepConfig of workflow.steps) {
+      const resolved = resolveStep(stepConfig);
+      if (stepMatches(resolved, options.only)) {
+        return null;
+      }
+
+      names.push(stepDisplayName(resolved) ?? resolved.name);
+    }
+  }
+
+  return workflowError(
+    `No step matches --only '${options.only}': pass a tool name or a shell ` +
+      `step's name. Steps: ${joinOrNone(names, ", ")}`,
+  );
+};
+
+/**
  * Settle with `promise`, or with {@link TIMED_OUT} once `ms` have passed,
  * whichever comes first. The timer is cleared either way.
  */
@@ -287,7 +338,7 @@ export const runWorkflow = (
       const resolved = resolveStep(stepConfig);
 
       // Filter by --only flag
-      if (options.only !== undefined && resolved.name !== options.only) {
+      if (options.only !== undefined && !stepMatches(resolved, options.only)) {
         continue;
       }
 
@@ -468,6 +519,11 @@ export const runWorkflowWithConfig = (
     }
 
     const resolved = resolveIncludes(workflow, config.workflows);
+    const onlyError = checkOnly([resolved], options);
+    if (onlyError !== null) {
+      return results.fail(onlyError);
+    }
+
     return await task.runTask(runWorkflow(resolved, registry, options));
   });
 
@@ -501,9 +557,16 @@ export const runByEvent = (
       );
     }
 
+    const resolvedWorkflows = matching.map((workflow) =>
+      resolveIncludes(workflow, workflows),
+    );
+    const onlyError = checkOnly(resolvedWorkflows, options);
+    if (onlyError !== null) {
+      return results.fail(onlyError);
+    }
+
     const workflowResults: WorkflowResult[] = [];
-    for (const workflow of matching) {
-      const resolved = resolveIncludes(workflow, workflows);
+    for (const resolved of resolvedWorkflows) {
       // Workflows run one at a time on purpose: in fix mode they change the
       // same files, and the first failing workflow stops the run.
       // oxlint-disable-next-line no-await-in-loop

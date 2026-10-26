@@ -26,10 +26,10 @@ pnpm cli test      # node:test with coverage
 pnpm preflight     # release-only steps; needed before tagging
 ```
 
-On the Go eser, `--only` matches a step's tool name or its `name`, so it
-selects a validator or a shell step, and a filter that matches no step fails
-the run. `pnpm cli ok` runs the same workflow on the TypeScript CLI, whose
-`--only` matches tool names only (TASK-363).
+`--only` matches a step's tool name or its `name`, so it selects a validator
+or a shell step, and a filter that matches no step fails the run and names the
+filter. The Go eser and the TypeScript CLI (`pnpm cli ok` runs the same
+workflow on it) behave the same.
 
 `make ok` covers Go only, so it never replaces `pnpm ok` for a change that
 touches TypeScript.

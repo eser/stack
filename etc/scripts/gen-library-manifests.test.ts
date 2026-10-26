@@ -227,6 +227,49 @@ nodeTest.test(
 );
 
 nodeTest.test(
+  "applyLibraryFields: keeps publishConfig.bin, the bin that npm installs",
+  () => {
+    for (const bin of [{ "eser-posts": "./dist/main.js" }, {}]) {
+      const text = `{
+  "name": "@eserstack/x",
+  "files": [
+    "dist/**/*.js",
+    "dist/**/*.d.ts",
+    "dist/**/*.json"
+  ],
+  "exports": "./mod.ts",
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/mod.d.ts",
+        "import": "./dist/mod.js"
+      }
+    },
+    "bin": ${gen.formatJson(bin, "    ")}
+  },
+  "bin": {
+    "eser-posts": "./main.ts"
+  },
+  "scripts": {
+    "build": "node ../../../etc/scripts/build-library.ts"
+  }
+}
+`;
+      const manifest = JSON.parse(text) as gen.Manifest;
+
+      // The written fields are already in place, so nothing changes.
+      assert.assertEquals(
+        gen.applyLibraryFields(
+          text,
+          gen.libraryFields("pkg/@eserstack/x", manifest),
+        ),
+        text,
+      );
+    }
+  },
+);
+
+nodeTest.test(
   "LIBRARY_OPTIONS: laroux-react ships every bootstrap source the bundler copies",
   async () => {
     const entry = await runtime.fs.readTextFile(

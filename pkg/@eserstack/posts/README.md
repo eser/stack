@@ -47,7 +47,28 @@ const check = posts.validatePostLength("Hello from eserstack", {
 
 ## Command Line
 
-The [`eser` CLI](../cli/README.md) registers this package as `eser posts`.
+The [`eser` CLI](../cli/README.md) runs these commands as `eser posts`. The
+package also installs them as its own `eser-posts` bin, so they run without the
+`eser` CLI: `eser-posts <command>` takes the same commands and flags as
+`eser posts <command>`.
+
+```bash
+# Through the eser CLI
+eser posts status
+
+# The package's own bin, without a global install
+npx -p @eserstack/posts eser-posts status
+
+# Or install the bin once
+npm install -g @eserstack/posts
+eser-posts status
+```
+
+The Go `eser` runs `eser posts` through the `eser-posts` bin: the one on PATH
+or in `ESER_PLUGIN_PATH` when there is one, otherwise
+`npx --yes --package @eserstack/posts@<eser version> eser-posts`. The npm
+package with the bin is published from 5.0.0.
+
 Platform names are `twitter` and `bluesky`. A command that works on one platform
 uses the platform you name with `--platform`; where the flag is optional and you
 leave it out, the command uses the first configured platform: `twitter` when

@@ -35,10 +35,9 @@ node_modules/
 # Go builds
 /bin/
 
-# npm builds
-/pkg/@eserstack/cli/dist/*
-/pkg/@eserstack/laroux-server/dist/*
-/pkg/@eserstack/noskills/dist/*
+# npm builds: the library emit of `pnpm -r build` (tsconfig.build.json) and
+# the eser, noskills and laroux bundles
+/pkg/@eserstack/*/dist/
 
 # Nix
 result

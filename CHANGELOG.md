@@ -602,6 +602,13 @@ in `.eser/concerns/`, which several entries below depend on.
 - `ContentBlock` has a `ThinkingBlock` (`kind: "thinking"`), `StreamEvent` a
   `ThinkingEvent`, and `StopReason` the value `"refusal"`. An exhaustive
   `switch` over them without a `default` no longer compiles. Add the cases, and
+- `--only` (`RunOptions.only`) matches a shell step's `name` as well as a tool
+  name, and a filter that selects no step fails: `runByEvent` and
+  `runWorkflowWithConfig` return
+  `No step matches --only '<filter>': pass a tool name or a shell step's name. Steps: ...`
+  and `eser workflows run` exits 1 instead of printing `All checks passed!`.
+  Pass a tool name or a shell step's name, such as `--only go-lint`.
+
   treat `"refusal"` as a declined request, not an answer:
 
   ```typescript
@@ -1632,6 +1639,11 @@ in `.eser/concerns/`, which several entries below depend on.
 - `Load` returns errors instead of panicking or skipping: a conf-tagged field it
   cannot set (unexported, or behind a nil embedded struct pointer) wraps
   `ErrUnsettableConfigField`; a target that is not a non-nil pointer, or a map
+- workflowfx `RunOptions.Only` matches a shell step's `name` option as well as
+  the tool name, and `RunByEvent` and `RunWorkflowWithConfig` return an error
+  wrapping `ErrNoStepSelected` when it selects no step. Pass a tool name or a
+  shell step's name.
+
   whose struct value embeds a non-struct type, returns `ErrNotStruct`; a field
   type it cannot parse (`complex128`, `[][]int`, interfaces with methods), or a
   map with non-string keys, returns `ErrUnsupportedConfigType`. Export the field

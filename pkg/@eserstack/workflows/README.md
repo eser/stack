@@ -178,7 +178,7 @@ reports what that finds.
 --json                 Output results as JSON (suppresses progress)
 -v, --verbose          Show stats and issues for all steps
 --changed              Only check files changed in git
---only <step>          Run only a specific step
+--only <step>          Run only the steps with this tool or step name; fails when none matches
 --config <path>        Config directory (default: .)
 -h, --help             Show help
 ```

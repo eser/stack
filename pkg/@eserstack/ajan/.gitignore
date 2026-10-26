@@ -1,8 +1,0 @@
-dist/
-*.so
-*.dylib
-*.dll
-*.wasm
-*.h
-/ajan
-/ajan.exe

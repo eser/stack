@@ -1,9 +1,0 @@
-{
-  "test": "env-development",
-  "test2": {
-    "test3": "env!!"
-  },
-  "test5": [
-    "c"
-  ]
-}

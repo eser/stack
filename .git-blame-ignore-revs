@@ -1,5 +1,0 @@
-# Formatting-only commits, skipped by git blame with
-# git config blame.ignoreRevsFile .git-blame-ignore-revs
-
-# style(*): format the repository with oxfmt
-09ab6f7b92d001b48bccd08844823a8528c80606

@@ -1,7 +1,0 @@
-go test fuzz v1
-byte('\x04')
-byte('\n')
-[]byte("0漢\xdbۗ")
-byte('\x01')
-byte('\a')
-uint16(148)

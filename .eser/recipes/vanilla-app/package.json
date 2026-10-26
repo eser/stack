@@ -1,9 +1,0 @@
-{
-  "name": "vanilla-app",
-  "version": "0.0.0",
-  "private": true,
-  "type": "module",
-  "dependencies": {
-    "@eserstack/standards": "^5.0.0"
-  }
-}

@@ -1,7 +1,0 @@
-{
-  "namespace-import": {
-    "pkg/@eserstack/shell/vterm/terminal.ts": 1
-  },
-  "or-default": {},
-  "export-star": {}
-}

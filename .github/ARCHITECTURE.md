@@ -236,6 +236,8 @@ Developer runs:  eser codebase release patch
 ┌─ OTHER ────────────────────────────────┐
 │  pr-labeler.yml (PRs only)             │
 │  codeql.yml (main branch + schedule)   │
+│  ffi-workers.yml (Node, package.json,  │
+│    pkg/ or Go build changes)           │
 └────────────────────────────────────────┘
 ```
 

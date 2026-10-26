@@ -134,14 +134,15 @@ gh workflow run "Integrity Pipeline" --ref main -f tag=your_release_tag -f stage
 
 ## Workflows
 
-| Workflow                  | Trigger                                                    | Purpose                                                                            |
-| ------------------------- | ---------------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| `build.yml`               | push, pull_request, `v*` tags, manual                      | The Integrity Pipeline: validation, preflight on `main`, the full release on a tag |
-| `publish-ajan.yml`        | manual                                                     | Builds, or bootstraps, the `@eserstack/ajan-*` npm packages outside the pipeline   |
-| `codeql.yml`              | push and pull_request to `main`, weekly                    | CodeQL analysis                                                                    |
-| `pr-labeler.yml`          | pull_request                                               | Labels pull requests from `.github/pr-labeler.yml`                                 |
-| `sync-issue-labels.yml`   | push to `main` changing `.github/issue-labels.yml`, manual | Syncs the issue label set                                                          |
-| `update-contributors.yml` | weekly, manual                                             | Refreshes the contributors list                                                    |
+| Workflow                  | Trigger                                                                                          | Purpose                                                                                                       |
+| ------------------------- | ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------- |
+| `build.yml`               | push, pull_request, `v*` tags, manual                                                            | The Integrity Pipeline: validation, preflight on `main`, the full release on a tag                            |
+| `publish-ajan.yml`        | manual                                                                                           | Builds, or bootstraps, the `@eserstack/ajan-*` npm packages outside the pipeline                              |
+| `codeql.yml`              | push and pull_request to `main`, weekly                                                          | CodeQL analysis                                                                                               |
+| `ffi-workers.yml`         | push and pull_request changing `.node-version`, a `package.json`, `pkg/` or the Go build, manual | The `*.ffi.test.ts` suites and the bridge's worker-thread tests on Linux and macOS (decision-14, decision-37) |
+| `pr-labeler.yml`          | pull_request                                                                                     | Labels pull requests from `.github/pr-labeler.yml`                                                            |
+| `sync-issue-labels.yml`   | push to `main` changing `.github/issue-labels.yml`, manual                                       | Syncs the issue label set                                                                                     |
+| `update-contributors.yml` | weekly, manual                                                                                   | Refreshes the contributors list                                                                               |
 
 ## Runners and Permissions
 

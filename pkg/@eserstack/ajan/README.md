@@ -68,10 +68,120 @@ bridge function ran, with the dispatcher's code: `UnknownFunctionError` for
 `UNKNOWN_FUNCTION`, `UnsupportedInWasmError` for `UNSUPPORTED_IN_WASM`, and
 `AjanCallError` for the others. The library stays loaded after either.
 
-The names marked `async` (`httpRequest` and the `httpRequestStream` open and
-reads) answer a promise on every backend, because the WASM fallback waits on
-the host's fetch for them; await them. For tests, `@eserstack/ajan/ffi/fake`
-builds a library whose names are answered by handlers.
+The names marked `async` answer a promise on every backend; await them. They
+are the blocking calls, the opens of `aiTextStream` and `httpRequestStream`,
+and every read of a blocking stream (see [Worker threads](#worker-threads)).
+On the WASM fallback, `httpRequest` and `httpRequestStream` wait on the host's
+fetch. For tests, `@eserstack/ajan/ffi/fake` builds a library whose names are
+answered by handlers.
+
+### Worker threads
+
+`node:ffi` calls are synchronous, so a call that waits on the network, a child
+process or the terminal would hold the event loop for as long as it waits. The
+binding table marks those names `blocking`, and the native library runs them in
+`node:worker_threads` workers that open the library with their own `dlopen`
+and answer by message (decision-37, `ffi/offload.ts`). The main thread stays
+free: with 8 one-second `shellExec` calls in flight, a 10 ms timer ran at most
+11 ms late and a small file read took under 1 ms on macOS arm64 (idle
+machine), against 8.2 s of lateness with the calls on the main thread.
+
+The blocking names:
+
+| Domain    | Calls (in the pool)                                                                                | Streams (one worker each)                                     |
+| --------- | -------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| AI        | `aiGenerateText`, `aiBatchCreate`, `aiBatchGet`, `aiBatchList`, `aiBatchDownload`, `aiBatchCancel` | `aiTextStream`                                                |
+| HTTP      | `httpRequest`                                                                                      | `httpRequestStream`                                           |
+| Shell     | `shellExec`                                                                                        | `shellExecStream`, `shellPtyStream`, `shellTuiKeypressStream` |
+| Kit       | `kitListRecipes`, `kitApplyRecipe`, `kitCloneRecipe`, `kitNewProject`, `kitUpdateRecipe`           |                                                               |
+| Posts     | `postsCompose`, `postsGetTimeline`, `postsSearch`                                                  |                                                               |
+| Workflows | `workflowRun`                                                                                      |                                                               |
+
+- A blocking call runs in a bounded pool of at most 8 workers. A call that
+  finds every worker busy waits in a queue, and a worker idle for 30 s ends.
+  Set the bound with `ESER_AJAN_POOL_SIZE` (it takes precedence) or
+  `loadEserAjan({ poolSize })`, a whole number from 1 to 64; another value
+  throws a `RangeError`. `lib.workers()` reports the bound and the counts.
+- Each open blocking stream gets its own worker for its reads, and for the open
+  of `aiTextStream` and `httpRequestStream`, which wait on the network. The
+  opens of the shell streams are spawns and stay synchronous, so
+  `shellExecStream` and `shellPtyStream` still hand out the pid at once. The
+  worker ends when the stream closes or reads to its end.
+- Every other name runs synchronously on the calling thread: `version`, `init`,
+  the Log calls, `aiCancelRequest`, every `close` and `*Close` call, the PTY
+  write, resize and kill, `shellTuiGetSize` and the in-memory crypto, formats
+  and parsing calls. A Log call never posts a worker message.
+- A worker holds the process open only while it has a job. Under the
+  permission model, starting a worker needs `--allow-worker`; without it the
+  blocking names run on the calling thread, as before.
+
+Pass `{ signal }` as the last argument of a blocking call, a stream open or a
+read. When it fires, the main thread runs the name's cancel entry, which ends
+the blocked Go call, and the promise rejects with the signal's reason (an
+`AbortError` for `controller.abort()`):
+
+| Name                                  | Cancel entry                                     |
+| ------------------------------------- | ------------------------------------------------ |
+| `aiGenerateText`, the five `aiBatch*` | `aiCancelRequest` with the request's `requestId` |
+| `aiTextStream`                        | `aiCancelRequest` with the open's `requestId`    |
+| `httpRequestStream`                   | the stream's close                               |
+| `shellExecStream`                     | the stream's close (it ends the child)           |
+| `shellPtyStream`                      | `shellPtyKill` with `SIGKILL`                    |
+| `shellTuiKeypressStream`              | the stream's close                               |
+
+The library adds a `requestId` to every AI request that has none. A blocking
+call without a cancel entry (`httpRequest`, `shellExec`, the kit and posts
+calls, `workflowRun`) rejects at once, and its worker stays busy until the Go
+call returns, bounded by the call's own timeout.
+
+```typescript
+import * as ajan from "@eserstack/ajan";
+
+const lib = await ajan.loadEserAjan({ wasm: false });
+const pty = lib.stream("shellPtyStream", { command: "sh" });
+
+const controller = new AbortController();
+setTimeout(() => controller.abort(), 5_000);
+try {
+  const chunk = await pty.read({ signal: controller.signal });
+  console.log(chunk);
+} finally {
+  pty.close();
+  lib.close();
+}
+```
+
+`lib.close()` runs the cancel entry of every blocking name still in flight,
+then ends the workers; what was in flight rejects. A process that exits with
+the library open runs those cancel entries too, because Node ends a worker
+only after its native call returns: without them, `process.exit()` with a PTY
+read in flight would wait for the PTY's child. `ffi/teardown.ffi.test.ts` runs
+50 child processes that load the library, run blocking calls and exit, with
+and without closing it first, and each exits with 0 and no signal.
+
+A second `dlopen` in a worker reaches the main thread's Go image, so a handle
+opened on one thread is read on the other. Node closes the library when a
+worker ends, so on macOS the library pins itself with RTLD_NODELETE
+(`pin_image_posix.go`; Linux gets NODELETE from the Go linker). The M0-T2
+spike (TASK-175) saw worker teardown hang without the pin; the teardown test
+closes the main thread's handle first, so the last handle goes away in a
+worker.
+
+### Terminal input under Node
+
+One process cannot share its terminal between Go and Node (TASK-175,
+measurement (d)). When Node first touches `process.stdin` on a TTY it reopens
+the terminal, which silently ends a Go reader of `os.Stdin` (the
+`shellTuiKeypressStream` reader) and, on macOS, blocks Node's main thread
+until Go's pending read returns. SIGWINCH reaches only the side that installed
+its handler last, since Go does not forward the signal. Under Node the
+terminal therefore belongs to Node: `@eserstack/shell/tui` reads keys,
+raw mode and resizes through Node (`readTerminalEvents`, `withRawMode`,
+`terminal.getTerminalSize`), and its PTY test checks that each key reaches
+exactly one reader and that a resize arrives in raw mode.
+`shellTuiKeypressStream`, `shellTuiSetStdinRaw` and `shellTuiGetSize` remain
+for a host where Go alone owns the terminal; there, a close waits up to 2 s for
+a read parked in stdin.
 
 ### Loader order
 
@@ -85,9 +195,8 @@ builds a library whose names are answered by handlers.
    missing library, or `--permission` without `--allow-ffi`.
 
 When both fail, the error names both causes, the flags above and
-`ESER_AJAN_LIB_PATH`. Calls through `node:ffi` are synchronous: a long call such
-as `aiGenerateText` blocks the event loop until it returns. The table marks
-those names `blocking`; M2-T8 (TASK-239) moves them to worker threads.
+`ESER_AJAN_LIB_PATH`. Calls through `node:ffi` are synchronous; the blocking
+names run in worker threads (see [Worker threads](#worker-threads)).
 
 ```bash
 # Run with node:ffi turned off, so the WASM build serves the calls
@@ -390,6 +499,7 @@ or failed. Nothing is printed while it is unset.
 | `ESER_AJAN_LIB_PATH`  | unset: search the locations below | Full path of the native library, e.g. `/opt/eser/libeser_ajan.so` |
 | `ESER_AJAN_WASM_PATH` | unset: search the locations below | Full path of the WASM module, e.g. `/opt/eser/eser-ajan.wasm`     |
 | `ESER_AJAN_DEBUG`     | unset: no diagnostics             | Any value prints loader order diagnostics on stderr, e.g. `1`     |
+| `ESER_AJAN_POOL_SIZE` | `8`                               | Pool workers for the blocking calls, 1 to 64, e.g. `4`            |
 
 None is required. Without an override, the native library is looked up next to
 the module, in `dist/`, in the `@eserstack/ajan-{platform}` package and in
@@ -434,6 +544,13 @@ lists the changes in every package.
   read the version from `lib.handshake.version`.
 - The WASM module speaks ABI 3: a host of ABI 2 refuses it, and the stream
   names go through `stream.open`, `stream.read` and `stream.close`.
+- The blocking names answer promises: `lib.call` of a blocking call, the
+  `aiTextStream` open and every read of a blocking stream. Before:
+  `const reply = lib.call("shellExec", req)`. After:
+  `const reply = await lib.call("shellExec", req)`; likewise
+  `await stream.read()` for `shellExecStream` and `shellPtyStream`.
+  `FFILibrary` has a new member, `workers()`; an object that implements the
+  interface by hand needs it.
 
 - The bridge runs on Node only, through `node:ffi` with the WASM build as the
   fallback; the other runtime backends and their native npm dependency are gone. Run on

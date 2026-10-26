@@ -454,6 +454,29 @@ This lets the same CLI code work for both human users and AI agents without
 branching logic throughout commands. The context also exposes a `stderr` output
 for cases where you need to write diagnostics regardless of mode.
 
+#### Keys and resizes
+
+`readTerminalEvents` yields keypresses and terminal resizes (`name: "resize"`
+with `cols` and `rows`), read by Node. Each key goes to exactly one reader, the
+one opened last. Stdin is read only while a reader waits, so once the readers
+end it does not keep the process alive. Go and Node cannot share a terminal in
+one process (see the `@eserstack/ajan` README, "Terminal input under Node"),
+so the terminal belongs to Node.
+
+```typescript
+import * as shell from "@eserstack/shell";
+
+await shell.tui.withRawMode(async () => {
+  for await (const event of shell.tui.readTerminalEvents()) {
+    if (event.name === "resize") {
+      console.log(`${event.cols}x${event.rows}`);
+    } else if (event.name === "q") {
+      break;
+    }
+  }
+});
+```
+
 ### @eserstack/shell/vterm
 
 A virtual terminal backed by `@xterm/headless`, available as `shell.vterm`. Feed
@@ -698,6 +721,13 @@ lists the changes in every package.
 - A command with captured output and no `timeout()` stops after 10 minutes on
   the runtime path too. Pass a larger `timeout()` for longer commands.
 - `goExec` errors are `CommandRunError`, still an `Error` subclass.
+- `shell.tui.readKeypressFFI`, `setStdinRawFFI`, `getTerminalSizeFFI` and the
+  `KeypressFFIEvent` and `TerminalSize` types are removed: they read the
+  terminal through Go, which Node's own stdin silently stops. Before:
+  `for await (const event of shell.tui.readKeypressFFI(signal))`. After:
+  `for await (const event of shell.tui.readTerminalEvents(signal))`, with
+  `shell.tui.withRawMode` for raw mode and `shell.tui.terminal.getTerminalSize()`
+  for the size.
 
 ---
 

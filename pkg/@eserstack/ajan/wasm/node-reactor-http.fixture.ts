@@ -85,7 +85,8 @@ const main = async (): Promise<void> => {
   try {
     await slow;
   } catch (error) {
-    aborted = errorText(error);
+    // The signal's reason, as fetch rejects on an abort.
+    aborted = error instanceof Error ? error.name : String(error);
   }
   const abortMs = Date.now() - startedAt;
 

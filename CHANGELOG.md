@@ -525,6 +525,12 @@ in `.eser/concerns/`, which several entries below depend on.
   On the WASM fallback the walk sends git's listing to the bridge. Install git
   or put it on `PATH`; a directory outside a git repository is still walked.
 
+- `exitCli()` and `runStandaloneModule()` set the exit code and return
+  (`Promise<void>`) instead of exiting the process (`Promise<never>`); the
+  process exits on its own. Code after them now runs. Before:
+  `await cliSupport.exitCli(result); // never returns`. After: end the entry
+  point with it, or call `runtime.process.exit()` yourself after it.
+
 #### eser CLI (@eserstack/cli)
 
 - Manifest scripts receive each forwarded argument as exactly one word, with
@@ -823,6 +829,24 @@ in `.eser/concerns/`, which several entries below depend on.
 - A command with captured output and no `timeout()` stops after 10 minutes on
   the runtime path too. Pass a larger `timeout()` for longer commands.
 - `goExec` errors are `CommandRunError`, still an `Error` subclass.
+
+- `shell.tui.readKeypressFFI`, `setStdinRawFFI`, `getTerminalSizeFFI` and the
+  `KeypressFFIEvent` and `TerminalSize` types are removed: they read the
+  terminal through Go, which Node's own stdin silently stops. Read keys and
+  resizes through Node:
+
+  ```typescript
+  import * as shell from "@eserstack/shell";
+
+  // Before: for await (const event of shell.tui.readKeypressFFI(signal))
+  await shell.tui.withRawMode(async () => {
+    for await (const event of shell.tui.readTerminalEvents(signal)) {
+      // event.name === "resize" carries event.cols and event.rows
+    }
+  });
+  // Before: await shell.tui.getTerminalSizeFFI()
+  const size = shell.tui.terminal.getTerminalSize();
+  ```
 
 #### @eserstack/standards
 
@@ -1213,6 +1237,10 @@ in `.eser/concerns/`, which several entries below depend on.
   `serverCertificateHashes`, or pass a `fetchFn` that checks the certificate.
 - A request whose body is a `ReadableStream` is not retried. Buffer the body
   yourself if you need retries.
+- With the native library, a request's `signal` rejects it with the signal's
+  reason (an `AbortError`), as fetch does; on the WASM fallback the rejection
+  used to be a `GoHttpError` with the message "request aborted". Check
+  `error.name === "AbortError"` instead of the message.
 
 #### @eserstack/formats
 
@@ -1320,6 +1348,19 @@ in `.eser/concerns/`, which several entries below depend on.
   on `koffi` (see Runtime, toolchain and distribution above).
 - The changes to the native library's exports are listed under Native bridge
   below.
+- The blocking names of the binding table run in worker threads on the native
+  library and answer promises: `lib.call()` of a blocking call (the AI
+  generation and batch calls, `httpRequest`, `shellExec`, the kit and posts
+  network calls, `workflowRun`), the `aiTextStream` open, and every `read()` of
+  `aiTextStream`, `httpRequestStream`, `shellExecStream`, `shellPtyStream` and
+  `shellTuiKeypressStream`. Await them. Before:
+  `const reply = lib.call("shellExec", req)`. After:
+  `const reply = await lib.call("shellExec", req)`.
+- `FFILibrary` has a new member, `workers()`, which reports the worker counts.
+  An object that implements the interface by hand needs it; the fake library
+  of `@eserstack/ajan/ffi/fake` has it.
+- Under the permission model, the workers need `--allow-worker`; without it
+  the blocking names run on the calling thread, as before.
 
 #### Go: pkg/ajan/httpfx
 

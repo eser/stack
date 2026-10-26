@@ -12,9 +12,13 @@
 | Stream a response body | `lib.stream("httpRequestStream", …)` | the same request; `read()` answers `{ chunk?, done }`, `close()` releases |
 | Release the client     | `lib.call("httpClose", handle)`      | the bare handle string                                                    |
 
-`httpRequest` and `httpRequestStream` are async in the binding table: on the
-WASM fallback they wait on the host's fetch, so the client awaits them on
-every backend. An answer with an `error` field becomes a `GoHttpError`.
+`httpRequest` and `httpRequestStream` are blocking and async in the binding
+table: the native library runs `httpRequest` in a pool worker and the stream's
+open and reads in the stream's own worker thread, and the WASM fallback waits
+on the host's fetch, so the client awaits them on every backend. The request's
+`signal` goes to the call, the open and each read: it rejects the promise, and
+for a stream read the table's cancel entry closes the stream, which ends the
+Go read. An answer with an `error` field becomes a `GoHttpError`.
 
 `httpClose` takes the handle itself. Until the dispatcher ABI the client sent
 `{"handle":"…"}`, which matched no client, so client handles were never

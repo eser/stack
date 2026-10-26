@@ -110,7 +110,9 @@ export const buildExecGoRequest = (
 });
 
 /**
- * Runs one request through the bridge and unwraps its reply.
+ * Runs one request through the bridge and unwraps its reply. `shellExec` is a
+ * blocking name: the native library runs it in a pool worker, so the event
+ * loop keeps running while the command does.
  *
  * A non-zero exit code is a normal reply and comes back in `code`. An `error`
  * means the command did not run to an exit code, and is thrown rather than
@@ -120,13 +122,13 @@ export const buildExecGoRequest = (
  *   program or working directory is missing, the request was rejected, or the
  *   command ran past its timeout.
  */
-export const runExecGo = (
+export const runExecGo = async (
   lib: ffiTypes.FFILibrary,
   request: ExecGoRequest,
-): ExecGoReply => {
+): Promise<ExecGoReply> => {
   // The bridge's shellExecResponse: stdout and stderr are omitted when empty,
   // code is always present.
-  const reply = lib.call("shellExec", request) as {
+  const reply = (await lib.call("shellExec", request)) as {
     readonly stdout?: string;
     readonly stderr?: string;
     readonly code: number;

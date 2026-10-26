@@ -104,7 +104,11 @@ export const eraseLine = (out: streams.Output): void => {
 // Keypress parser
 // =============================================================================
 
-const parseBytes = (bytes: Uint8Array): KeypressEvent => {
+/**
+ * Parses the bytes of one key, as the terminal sends them in raw mode, into a
+ * {@link KeypressEvent}.
+ */
+export const parseKeypress = (bytes: Uint8Array): KeypressEvent => {
   const raw = new Uint8Array(bytes); // copy to prevent mutation
 
   // Ctrl+C
@@ -204,7 +208,7 @@ export async function* readKeypress(
       const { done, value } = await reader.read();
       if (done || value === undefined) break;
 
-      yield parseBytes(value);
+      yield parseKeypress(value);
     }
   } finally {
     reader.releaseLock();
@@ -251,7 +255,7 @@ export async function* readInput(
       }
 
       // Regular keypress
-      yield { kind: "key", event: parseBytes(value) };
+      yield { kind: "key", event: parseKeypress(value) };
     }
   } finally {
     reader.releaseLock();

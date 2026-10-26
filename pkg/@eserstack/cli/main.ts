@@ -138,8 +138,7 @@ export const main = async (): Promise<
 };
 
 if (import.meta.main) {
-  // exitCli drains buffered output then hard-exits — see its docs for why the
-  // native FFI teardown makes a natural exit unsafe here.
+  // exitCli prints a failure, drains buffered output and sets the exit code.
   //
   // Entry point: the await runs only when this file is the program, never on
   // import.

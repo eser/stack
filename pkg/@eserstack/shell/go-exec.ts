@@ -3,8 +3,8 @@
 /**
  * Go-backed shell command execution.
  *
- * Delegates to the bridge's `shellExec` call for fast synchronous-style subprocess
- * execution via the native Go library.
+ * Delegates to the bridge's `shellExec` call, which the native Go library runs
+ * in a worker thread, so the event loop keeps running while the command does.
  *
  * @module
  */
@@ -82,5 +82,5 @@ export const goExec = async (
     );
   }
 
-  return execGo.runExecGo(lib, request);
+  return await execGo.runExecGo(lib, request);
 };

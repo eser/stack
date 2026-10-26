@@ -333,54 +333,6 @@ const buildContentBlock = (block: types.ContentBlock): unknown => {
   }
 };
 
-/**
- * Bind an AbortSignal to a bridge request for the duration of a call.
- *
- * Returns the request id to send with the call, and a `release` that must run
- * when the call finishes — otherwise the listener keeps the signal (and through
- * it this model) alive for as long as the caller holds the controller.
- *
- * An already-aborted signal still sends its cancel. Go records it against the
- * id and the request stops the instant it registers, which closes the race that
- * makes abort unreliable exactly when it is easiest to write:
- *
- *     const c = new AbortController();
- *     const p = model.generateText(opts, c.signal);
- *     c.abort();                      // may reach Go before the call registers
- */
-const bindAbort = (
-  lib: ffiTypes.FFILibrary,
-  signal: AbortSignal | undefined,
-): { requestId: string; release: () => void } => {
-  const requestId = crypto.randomUUID();
-
-  if (signal === undefined) {
-    return { requestId, release: () => {} };
-  }
-
-  const cancel = () => {
-    try {
-      lib.call("aiCancelRequest", { requestId });
-    } catch {
-      // The library may already be closed while a signal is still live. A
-      // cancel that cannot be delivered is not worth failing the caller over.
-    }
-  };
-
-  if (signal.aborted) {
-    cancel();
-
-    return { requestId, release: () => {} };
-  }
-
-  signal.addEventListener("abort", cancel, { once: true });
-
-  return {
-    requestId,
-    release: () => signal.removeEventListener("abort", cancel),
-  };
-};
-
 /** Rebuild the typed error a bridge envelope describes. */
 const wireError = (
   provider: string,
@@ -398,9 +350,32 @@ const wireError = (
 const abortError = (provider: string): errors.AiError =>
   new errors.AiError("request aborted", { provider });
 
+/**
+ * Awaits one bridge operation that runs with the caller's signal.
+ *
+ * The AI names are blocking: the library runs them in a worker thread, so the
+ * event loop stays free and the signal can fire. On abort it sends
+ * aiCancelRequest for the request's id, which stops the Go call, and rejects
+ * with the signal's reason; that becomes this provider's abort error.
+ */
+const abortable = async <T>(
+  provider: string,
+  signal: AbortSignal | undefined,
+  pending: Promise<unknown>,
+): Promise<T> => {
+  try {
+    return (await pending) as T;
+  } catch (error) {
+    if (signal?.aborted === true) {
+      throw abortError(provider);
+    }
+
+    throw error;
+  }
+};
+
 const buildOptions = (
   options: generation.GenerateTextOptions,
-  requestId?: string,
 ): Readonly<Record<string, unknown>> => {
   const messages = options.messages.map((m) => ({
     role: m.role,
@@ -411,8 +386,9 @@ const buildOptions = (
   // sent as JSON, which omits `undefined`, so an unset option stays absent and
   // the Go pointer stays nil -- whereas `?? 0` would pin every request to
   // temperature 0, which is a real setting and not the same as "unspecified".
+  // No requestId: the library adds one to every AI request, so the request
+  // can be cancelled while it runs.
   return {
-    requestId,
     messages,
     system: options.system ?? "",
     maxTokens: options.maxTokens ?? 0,
@@ -459,61 +435,71 @@ export class AjanBridgeModel implements model.BatchCapableModel {
     options: generation.GenerateTextOptions,
     signal?: AbortSignal,
   ): Promise<results.Result<generation.GenerateTextResult, errors.AiError>> {
-    const { requestId, release } = bindAbort(this.#lib, signal);
-
+    let resp: BridgeGenerateResp;
     try {
-      const request = {
-        modelHandle: this.#modelHandle,
-        options: buildOptions(options, requestId),
-      };
-
-      // Awaited, so a backend that runs the call off the main thread keeps
-      // the event loop free and the signal above observable. node:ffi calls
-      // block today and freeze the loop for the whole model round-trip, so
-      // nothing can run to fire the signal; the worker threads of decision-37
-      // (M2-T8) move them off the main thread.
-      const resp = (await this.#lib.call(
-        "aiGenerateText",
-        request,
-      )) as BridgeGenerateResp;
-
-      if (resp.error !== undefined) {
-        // A cancelled request surfaces as a Go context error. Report the
-        // caller's own intent rather than the plumbing that carried it out.
-        return results.fail(
-          signal?.aborted === true
-            ? abortError(this.provider)
-            : wireError(this.provider, resp, "generation failed"),
-        );
+      resp = await abortable<BridgeGenerateResp>(
+        this.provider,
+        signal,
+        this.#lib.call(
+          "aiGenerateText",
+          { modelHandle: this.#modelHandle, options: buildOptions(options) },
+          { signal },
+        ),
+      );
+    } catch (error) {
+      if (error instanceof errors.AiError) {
+        return results.fail(error);
       }
 
-      return results.ok({
-        content: mapContent(resp.content),
-        stopReason: mapStopReason(resp.stopReason),
-        usage: mapUsage(resp.usage),
-        modelId: resp.modelId ?? this.modelId,
-      });
-    } finally {
-      release();
+      throw error;
     }
+
+    if (resp.error !== undefined) {
+      // A cancelled request surfaces as a Go context error. Report the
+      // caller's own intent rather than the plumbing that carried it out.
+      return results.fail(
+        signal?.aborted === true
+          ? abortError(this.provider)
+          : wireError(this.provider, resp, "generation failed"),
+      );
+    }
+
+    return results.ok({
+      content: mapContent(resp.content),
+      stopReason: mapStopReason(resp.stopReason),
+      usage: mapUsage(resp.usage),
+      modelId: resp.modelId ?? this.modelId,
+    });
   }
 
   async *streamText(
     options: generation.GenerateTextOptions,
     signal?: AbortSignal,
   ): AsyncIterable<generation.StreamEvent> {
-    const { requestId, release } = bindAbort(this.#lib, signal);
+    // The open and every read run in the stream's own worker thread.
+    let stream: ffiTypes.AjanStream<"aiTextStream">;
+    try {
+      stream = await abortable<typeof stream>(
+        this.provider,
+        signal,
+        this.#lib.stream(
+          "aiTextStream",
+          { modelHandle: this.#modelHandle, options: buildOptions(options) },
+          { signal },
+        ),
+      );
+    } catch (error) {
+      if (error instanceof errors.AiError) {
+        yield { kind: "error", error };
+        return;
+      }
 
-    const stream = this.#lib.stream("aiTextStream", {
-      modelHandle: this.#modelHandle,
-      options: buildOptions(options, requestId),
-    });
+      throw error;
+    }
 
     const streamResp: BridgeHandleResp = stream.opened;
 
     if (streamResp.error !== undefined || streamResp.handle === undefined) {
-      release();
-
       yield {
         kind: "error",
         error:
@@ -538,7 +524,22 @@ export class AjanBridgeModel implements model.BatchCapableModel {
 
         // The bridge hands out one stream event per read, in order, and the
         // abort check above must run before each read.
-        const event = stream.read() as BridgeStreamEvent | null;
+        let event: BridgeStreamEvent | null;
+        try {
+          // oxlint-disable-next-line no-await-in-loop
+          event = await abortable<BridgeStreamEvent | null>(
+            this.provider,
+            signal,
+            stream.read({ signal }),
+          );
+        } catch (error) {
+          if (error instanceof errors.AiError) {
+            yield { kind: "error", error };
+            return;
+          }
+
+          throw error;
+        }
 
         if (event === null) {
           break;
@@ -592,12 +593,9 @@ export class AjanBridgeModel implements model.BatchCapableModel {
         }
       }
     } finally {
-      // Both, in this order. Closing the stream cancels the underlying
-      // context and drops the handle; release detaches the abort listener so
-      // an abandoned stream does not keep the caller's controller tethered to
-      // this model.
+      // Closing the stream cancels the underlying context, drops the handle
+      // and ends the stream's worker.
       stream.close();
-      release();
     }
   }
 
@@ -605,89 +603,90 @@ export class AjanBridgeModel implements model.BatchCapableModel {
     request: batch.BatchRequest,
     signal?: AbortSignal,
   ): Promise<batch.BatchJob> {
-    const { requestId, release } = bindAbort(this.#lib, signal);
+    const items = request.items.map((item) => ({
+      customId: item.customId,
+      options: buildOptions(item.options),
+    }));
 
-    try {
-      const items = request.items.map((item) => ({
-        customId: item.customId,
-        options: buildOptions(item.options),
-      }));
+    const resp = await abortable<BridgeBatchJobResp>(
+      this.provider,
+      signal,
+      this.#lib.call(
+        "aiBatchCreate",
+        {
+          modelHandle: this.#modelHandle,
+          items,
+        },
+        { signal },
+      ),
+    );
 
-      const resp = (await this.#lib.call("aiBatchCreate", {
-        requestId,
-        modelHandle: this.#modelHandle,
-        items,
-      })) as BridgeBatchJobResp;
-
-      if (resp.error !== undefined || resp.job === undefined) {
-        throw signal?.aborted === true
-          ? abortError(this.provider)
-          : wireError(this.provider, resp, "batch create failed");
-      }
-
-      return mapBatchJob(resp.job);
-    } finally {
-      release();
+    if (resp.error !== undefined || resp.job === undefined) {
+      throw signal?.aborted === true
+        ? abortError(this.provider)
+        : wireError(this.provider, resp, "batch create failed");
     }
+
+    return mapBatchJob(resp.job);
   }
 
   async getBatchJob(
     jobId: string,
     signal?: AbortSignal,
   ): Promise<batch.BatchJob> {
-    const { requestId, release } = bindAbort(this.#lib, signal);
+    const resp = await abortable<BridgeBatchJobResp>(
+      this.provider,
+      signal,
+      this.#lib.call(
+        "aiBatchGet",
+        {
+          modelHandle: this.#modelHandle,
+          jobId,
+        },
+        { signal },
+      ),
+    );
 
-    try {
-      const resp = (await this.#lib.call("aiBatchGet", {
-        requestId,
-        modelHandle: this.#modelHandle,
-        jobId,
-      })) as BridgeBatchJobResp;
-
-      if (resp.error !== undefined || resp.job === undefined) {
-        throw signal?.aborted === true
-          ? abortError(this.provider)
-          : wireError(this.provider, resp, "batch get failed");
-      }
-
-      return mapBatchJob(resp.job);
-    } finally {
-      release();
+    if (resp.error !== undefined || resp.job === undefined) {
+      throw signal?.aborted === true
+        ? abortError(this.provider)
+        : wireError(this.provider, resp, "batch get failed");
     }
+
+    return mapBatchJob(resp.job);
   }
 
   async listBatchJobs(
     options?: batch.ListBatchOptions,
     signal?: AbortSignal,
   ): Promise<readonly batch.BatchJob[]> {
-    const { requestId, release } = bindAbort(this.#lib, signal);
+    const resp = await abortable<BridgeBatchListResp>(
+      this.provider,
+      signal,
+      this.#lib.call(
+        "aiBatchList",
+        {
+          modelHandle: this.#modelHandle,
+          limit: options?.limit,
+          after: options?.after,
+        },
+        { signal },
+      ),
+    );
 
-    try {
-      const resp = (await this.#lib.call("aiBatchList", {
-        requestId,
-        modelHandle: this.#modelHandle,
-        limit: options?.limit,
-        after: options?.after,
-      })) as BridgeBatchListResp;
-
-      if (resp.error !== undefined) {
-        throw signal?.aborted === true
-          ? abortError(this.provider)
-          : wireError(this.provider, resp, "batch call failed");
-      }
-
-      return (resp.jobs ?? []).map(mapBatchJob);
-    } finally {
-      release();
+    if (resp.error !== undefined) {
+      throw signal?.aborted === true
+        ? abortError(this.provider)
+        : wireError(this.provider, resp, "batch call failed");
     }
+
+    return (resp.jobs ?? []).map(mapBatchJob);
   }
 
   async downloadBatchResults(
     job: batch.BatchJob,
     signal?: AbortSignal,
   ): Promise<readonly batch.BatchResult[]> {
-    const { requestId, release } = bindAbort(this.#lib, signal);
-
     const bridgeJob: BridgeBatchJob = {
       id: job.id,
       status: job.status,
@@ -700,35 +699,38 @@ export class AjanBridgeModel implements model.BatchCapableModel {
       error: job.error,
     };
 
-    try {
-      const resp = (await this.#lib.call("aiBatchDownload", {
-        requestId,
-        modelHandle: this.#modelHandle,
-        job: bridgeJob,
-      })) as BridgeBatchDownloadResp;
+    const resp = await abortable<BridgeBatchDownloadResp>(
+      this.provider,
+      signal,
+      this.#lib.call(
+        "aiBatchDownload",
+        {
+          modelHandle: this.#modelHandle,
+          job: bridgeJob,
+        },
+        { signal },
+      ),
+    );
 
-      if (resp.error !== undefined) {
-        throw signal?.aborted === true
-          ? abortError(this.provider)
-          : wireError(this.provider, resp, "batch call failed");
-      }
-
-      return (resp.results ?? []).map((item) => ({
-        customId: item.customId,
-        result:
-          item.result !== undefined
-            ? {
-                content: mapContent(item.result.content),
-                stopReason: mapStopReason(item.result.stopReason),
-                usage: mapUsage(item.result.usage),
-                modelId: item.result.modelId ?? this.modelId,
-              }
-            : undefined,
-        error: item.error,
-      }));
-    } finally {
-      release();
+    if (resp.error !== undefined) {
+      throw signal?.aborted === true
+        ? abortError(this.provider)
+        : wireError(this.provider, resp, "batch call failed");
     }
+
+    return (resp.results ?? []).map((item) => ({
+      customId: item.customId,
+      result:
+        item.result !== undefined
+          ? {
+              content: mapContent(item.result.content),
+              stopReason: mapStopReason(item.result.stopReason),
+              usage: mapUsage(item.result.usage),
+              modelId: item.result.modelId ?? this.modelId,
+            }
+          : undefined,
+      error: item.error,
+    }));
   }
 
   /**
@@ -740,22 +742,23 @@ export class AjanBridgeModel implements model.BatchCapableModel {
    * landed.
    */
   async cancelBatchJob(jobId: string, signal?: AbortSignal): Promise<void> {
-    const { requestId, release } = bindAbort(this.#lib, signal);
+    const resp = await abortable<BridgeErrorFields>(
+      this.provider,
+      signal,
+      this.#lib.call(
+        "aiBatchCancel",
+        {
+          modelHandle: this.#modelHandle,
+          jobId,
+        },
+        { signal },
+      ),
+    );
 
-    try {
-      const resp = (await this.#lib.call("aiBatchCancel", {
-        requestId,
-        modelHandle: this.#modelHandle,
-        jobId,
-      })) as BridgeErrorFields;
-
-      if (resp.error !== undefined) {
-        throw signal?.aborted === true
-          ? abortError(this.provider)
-          : wireError(this.provider, resp, "batch call failed");
-      }
-    } finally {
-      release();
+    if (resp.error !== undefined) {
+      throw signal?.aborted === true
+        ? abortError(this.provider)
+        : wireError(this.provider, resp, "batch call failed");
     }
   }
 

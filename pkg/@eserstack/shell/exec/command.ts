@@ -200,15 +200,15 @@ export class CommandBuilder {
       // would run the command a second time, and one the bridge stopped at its
       // timeout would then run with no timeout at all.
       if (lib !== null) {
-        return this.#spawnNative(lib);
+        return await this.#spawnNative(lib);
       }
     }
 
     return await this.#spawnRuntime(attachedToTerminal);
   }
 
-  #spawnNative(lib: ffiTypes.FFILibrary): CommandResult {
-    const reply = execGo.runExecGo(
+  async #spawnNative(lib: ffiTypes.FFILibrary): Promise<CommandResult> {
+    const reply = await execGo.runExecGo(
       lib,
       execGo.buildExecGoRequest(this.#cmd, {
         args: this.#args,

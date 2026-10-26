@@ -8,6 +8,9 @@
  *
  * Both stdout and stderr are separate ReadableStream<Uint8Array>, fed by a shared
  * pull pump that routes chunks tagged { stream: "stdout"|"stderr" } from the FFI.
+ * `shellExecStream` is a blocking stream: the spawn runs here, and each read
+ * runs in the stream's own worker thread, so a child that writes nothing does
+ * not stop the event loop.
  *
  * Two entry points:
  *  - spawnChildGoSync(lib, opts) — synchronous core; takes a pre-loaded FFILibrary.
@@ -131,12 +134,31 @@ export const spawnChildGoSync = (
     stderrCtrl.close();
   };
 
-  // readNext reads one tagged chunk and routes it. JS single-thread guarantees
-  // calls from two stream consumers never interleave.
-  const readNext = (): void => {
+  // How many chunks each stream got, so a pull knows when its own arrived.
+  const routed = { stdout: 0, stderr: 0 };
+
+  const fail = (error: Error): void => {
+    if (streamDone) return;
+    streamDone = true;
+    stdoutCtrl.error(error);
+    stderrCtrl.error(error);
+  };
+
+  // readNext reads one tagged chunk, in the stream's worker thread, and routes
+  // it to its stream.
+  const readNext = async (): Promise<void> => {
     if (streamDone) return;
 
-    const ev = exec.read();
+    let ev: Awaited<ReturnType<typeof exec.read>>;
+    try {
+      ev = await exec.read();
+    } catch (error) {
+      fail(error instanceof Error ? error : new Error(String(error)));
+      return;
+    }
+
+    // kill() may have finished the streams while the read was in flight.
+    if (streamDone) return;
 
     if (ev === null) {
       closeStreams(closeHandle());
@@ -144,21 +166,41 @@ export const spawnChildGoSync = (
     }
 
     if (ev.error !== undefined) {
-      if (streamDone) return;
-      streamDone = true;
-      const err = new Error(ev.error);
-      stdoutCtrl.error(err);
-      stderrCtrl.error(err);
+      fail(new Error(ev.error));
       return;
     }
 
     const bytes = Uint8Array.from(atob(ev.chunk ?? ""), (c) => c.charCodeAt(0));
 
     if (ev.stream === "stderr") {
+      routed.stderr += 1;
       stderrCtrl.enqueue(bytes);
     } else {
+      routed.stdout += 1;
       stdoutCtrl.enqueue(bytes);
     }
+  };
+
+  // Both streams pull from the one handle, so their reads queue up behind
+  // each other. A pull reads until a chunk for its own stream arrives (the
+  // other stream's chunks are queued there) or the child is done: a pull
+  // that answered with nothing would not be called again.
+  let reading: Promise<void> = Promise.resolve();
+  const pullFor = (which: "stdout" | "stderr"): Promise<void> => {
+    const run = async (): Promise<void> => {
+      const before = routed[which];
+      while (!streamDone && routed[which] === before) {
+        // Each read waits for the previous one; chunks arrive in order.
+        // oxlint-disable-next-line no-await-in-loop
+        await readNext();
+      }
+    };
+
+    const next = reading.then(run);
+    // A failed pull errors its stream; the next pull still runs.
+    reading = next.catch(() => {});
+
+    return next;
   };
 
   const stdout = new ReadableStream<Uint8Array>({
@@ -166,7 +208,7 @@ export const spawnChildGoSync = (
       stdoutCtrl = ctrl;
     },
     pull() {
-      readNext();
+      return pullFor("stdout");
     },
   });
 
@@ -175,7 +217,7 @@ export const spawnChildGoSync = (
       stderrCtrl = ctrl;
     },
     pull() {
-      readNext();
+      return pullFor("stderr");
     },
   });
 

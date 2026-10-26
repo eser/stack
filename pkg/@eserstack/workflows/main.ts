@@ -39,8 +39,6 @@ if (import.meta.main) {
     ok: () => 0,
     fail: (error) => {
       if (error.message !== undefined) {
-        // Not a streams Output: an Output buffers its writes, and the hard
-        // exit below would drop whatever it still holds.
         // oxlint-disable-next-line no-console
         console.error(error.message);
       }
@@ -48,11 +46,9 @@ if (import.meta.main) {
     },
   });
 
-  // Hard-exit (not setExitCode + natural exit): the shell tool runs commands
-  // through the native @eserstack/ajan FFI lib, which intermittently SIGSEGVs
-  // the host on teardown and discards the exit code. Workflow commands
-  // (run/list) flush their own output before returning, so nothing is buffered
-  // here. This logic is inlined rather than shared with codebase's exitCli,
-  // because workflows must not depend on codebase (that would be circular).
-  runtime.process.exit(exitCode);
+  // A natural exit: the Go library no longer crashes the host on teardown
+  // under Node (TASK-175, measurement (c)), the shell tool's commands run in
+  // worker threads that end with the process, and nothing here reads stdin.
+  // main-exit.ffi.test.ts checks that the exit code survives the exit.
+  runtime.process.setExitCode(exitCode);
 }

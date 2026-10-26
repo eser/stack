@@ -86,51 +86,55 @@ export const createGoPostService = async (
   const handle = result.handle ?? "";
 
   return {
-    compose(text: string, platform?: GoPlatform): Promise<GoPost> {
+    // The three calls reach the network, so the library runs them in a
+    // worker thread and the event loop keeps running while they wait.
+    async compose(text: string, platform?: GoPlatform): Promise<GoPost> {
       const lib2 = ffiClient.getLib();
       if (lib2 === null) {
-        return Promise.reject(new Error("native library unavailable"));
+        throw new Error("native library unavailable");
       }
 
-      const res = lib2.call("postsCompose", { handle, text, platform }) as {
-        post: GoPost;
-        error?: string;
-      };
-      if (res.error) return Promise.reject(new Error(res.error));
-      return Promise.resolve(res.post);
+      const res = (await lib2.call("postsCompose", {
+        handle,
+        text,
+        platform,
+      })) as { post: GoPost; error?: string };
+      if (res.error) throw new Error(res.error);
+      return res.post;
     },
 
-    getTimeline(
+    async getTimeline(
       options: { platform?: GoPlatform; maxResults?: number } = {},
     ): Promise<GoPost[]> {
       const lib2 = ffiClient.getLib();
       if (lib2 === null) {
-        return Promise.reject(new Error("native library unavailable"));
+        throw new Error("native library unavailable");
       }
 
-      const res = lib2.call("postsGetTimeline", { handle, ...options }) as {
-        posts: GoPost[];
-        error?: string;
-      };
-      if (res.error) return Promise.reject(new Error(res.error));
-      return Promise.resolve(res.posts);
+      const res = (await lib2.call("postsGetTimeline", {
+        handle,
+        ...options,
+      })) as { posts: GoPost[]; error?: string };
+      if (res.error) throw new Error(res.error);
+      return res.posts;
     },
 
-    search(
+    async search(
       query: string,
       options: { platform?: GoPlatform; maxResults?: number } = {},
     ): Promise<GoPost[]> {
       const lib2 = ffiClient.getLib();
       if (lib2 === null) {
-        return Promise.reject(new Error("native library unavailable"));
+        throw new Error("native library unavailable");
       }
 
-      const res = lib2.call("postsSearch", { handle, query, ...options }) as {
-        posts: GoPost[];
-        error?: string;
-      };
-      if (res.error) return Promise.reject(new Error(res.error));
-      return Promise.resolve(res.posts);
+      const res = (await lib2.call("postsSearch", {
+        handle,
+        query,
+        ...options,
+      })) as { posts: GoPost[]; error?: string };
+      if (res.error) throw new Error(res.error);
+      return res.posts;
     },
 
     close(): void {

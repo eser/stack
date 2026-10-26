@@ -2,7 +2,24 @@
   "name": "@eserstack/noskills-web",
   "version": "4.5.2",
   "type": "module",
+  "files": [
+    "dist/**/*.js",
+    "dist/**/*.d.ts",
+    "dist/**/*.json",
+    "dist/static/"
+  ],
   "exports": "./mod.ts",
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/mod.d.ts",
+        "import": "./dist/mod.js"
+      }
+    }
+  },
+  "scripts": {
+    "build": "node ../../../etc/scripts/build-library.ts --copy static"
+  },
   "dependencies": {
     "@eserstack/agents": "workspace:*",
     "@eserstack/logging": "workspace:*",

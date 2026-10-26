@@ -2,6 +2,11 @@
   "name": "@eserstack/noskills",
   "version": "4.5.2",
   "type": "module",
+  "files": [
+    "dist/**/*.js",
+    "dist/**/*.d.ts",
+    "dist/**/*.json"
+  ],
   "exports": {
     ".": "./main.ts",
     "./mod": "./mod.ts",
@@ -10,6 +15,41 @@
     "./persistence": "./state/persistence.ts",
     "./session": "./manager/session-binding.ts",
     "./go-noskills": "./go-noskills.ts"
+  },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/main.d.ts",
+        "import": "./dist/main.js"
+      },
+      "./mod": {
+        "types": "./dist/mod.d.ts",
+        "import": "./dist/mod.js"
+      },
+      "./module": {
+        "types": "./dist/module.d.ts",
+        "import": "./dist/module.js"
+      },
+      "./dashboard": {
+        "types": "./dist/dashboard/mod.d.ts",
+        "import": "./dist/dashboard/mod.js"
+      },
+      "./persistence": {
+        "types": "./dist/state/persistence.d.ts",
+        "import": "./dist/state/persistence.js"
+      },
+      "./session": {
+        "types": "./dist/manager/session-binding.d.ts",
+        "import": "./dist/manager/session-binding.js"
+      },
+      "./go-noskills": {
+        "types": "./dist/go-noskills.d.ts",
+        "import": "./dist/go-noskills.js"
+      }
+    }
+  },
+  "scripts": {
+    "build": "node ../../../etc/scripts/build-library.ts"
   },
   "dependencies": {
     "@eserstack/agents": "workspace:*",

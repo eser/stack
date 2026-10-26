@@ -5,17 +5,9 @@
   "license": "Apache-2.0",
   "type": "module",
   "files": [
-    "main.ts",
-    "options.ts",
-    "module.ts",
-    "cli.ts",
-    "commands/**/*.ts",
-    "domain/**/*.ts",
-    "adapters/**/*.ts",
-    "runtime/**/*.ts",
-    "config/**/*.ts",
-    "proxy/**/*.ts",
-    "README.md"
+    "dist/**/*.js",
+    "dist/**/*.d.ts",
+    "dist/**/*.json"
   ],
   "exports": {
     ".": "./main.ts",
@@ -28,6 +20,53 @@
     "./commands/dev": "./commands/dev.ts",
     "./commands/build": "./commands/build.ts",
     "./commands/serve": "./commands/serve.ts"
+  },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/main.d.ts",
+        "import": "./dist/main.js"
+      },
+      "./config": {
+        "types": "./dist/config/load-config.d.ts",
+        "import": "./dist/config/load-config.js"
+      },
+      "./adapters/react": {
+        "types": "./dist/adapters/react/mod.d.ts",
+        "import": "./dist/adapters/react/mod.js"
+      },
+      "./action-registry": {
+        "types": "./dist/domain/action-registry.d.ts",
+        "import": "./dist/domain/action-registry.js"
+      },
+      "./module": {
+        "types": "./dist/module.d.ts",
+        "import": "./dist/module.js"
+      },
+      "./cli": {
+        "types": "./dist/cli.d.ts",
+        "import": "./dist/cli.js"
+      },
+      "./commands/init": {
+        "types": "./dist/commands/init.d.ts",
+        "import": "./dist/commands/init.js"
+      },
+      "./commands/dev": {
+        "types": "./dist/commands/dev.d.ts",
+        "import": "./dist/commands/dev.js"
+      },
+      "./commands/build": {
+        "types": "./dist/commands/build.d.ts",
+        "import": "./dist/commands/build.js"
+      },
+      "./commands/serve": {
+        "types": "./dist/commands/serve.d.ts",
+        "import": "./dist/commands/serve.js"
+      }
+    }
+  },
+  "scripts": {
+    "build": "node ../../../etc/scripts/build-library.ts"
   },
   "dependencies": {
     "@eserstack/codebase": "workspace:*",

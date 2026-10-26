@@ -2,6 +2,11 @@
   "name": "@eserstack/bundler",
   "version": "4.5.2",
   "type": "module",
+  "files": [
+    "dist/**/*.js",
+    "dist/**/*.d.ts",
+    "dist/**/*.json"
+  ],
   "exports": {
     ".": "./mod.ts",
     "./types": "./types.ts",
@@ -12,6 +17,49 @@
     "./css/lightning": "./css/lightning.ts",
     "./css/modules": "./css/modules.ts",
     "./css/fonts": "./css/fonts.ts"
+  },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/mod.d.ts",
+        "import": "./dist/mod.js"
+      },
+      "./types": {
+        "types": "./dist/types.d.ts",
+        "import": "./dist/types.js"
+      },
+      "./backends": {
+        "types": "./dist/backends/mod.d.ts",
+        "import": "./dist/backends/mod.js"
+      },
+      "./backends/rolldown": {
+        "types": "./dist/backends/rolldown.d.ts",
+        "import": "./dist/backends/rolldown.js"
+      },
+      "./css": {
+        "types": "./dist/css/mod.d.ts",
+        "import": "./dist/css/mod.js"
+      },
+      "./css/tailwind": {
+        "types": "./dist/css/tailwind-plugin.d.ts",
+        "import": "./dist/css/tailwind-plugin.js"
+      },
+      "./css/lightning": {
+        "types": "./dist/css/lightning.d.ts",
+        "import": "./dist/css/lightning.js"
+      },
+      "./css/modules": {
+        "types": "./dist/css/modules.d.ts",
+        "import": "./dist/css/modules.js"
+      },
+      "./css/fonts": {
+        "types": "./dist/css/fonts.d.ts",
+        "import": "./dist/css/fonts.js"
+      }
+    }
+  },
+  "scripts": {
+    "build": "node ../../../etc/scripts/build-library.ts"
   },
   "dependencies": {
     "@eserstack/standards": "workspace:*",

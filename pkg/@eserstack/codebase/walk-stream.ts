@@ -12,6 +12,7 @@
 
 import type * as ffiTypes from "@eserstack/ajan/ffi";
 import * as ffiClient from "./ffi-client.ts";
+import * as gitListing from "./git-listing.ts";
 import type { FileEntry } from "./file-tools-shared.ts";
 
 // =============================================================================
@@ -77,11 +78,12 @@ export const walkFilesStream = async (
     throw new Error("FFI library unavailable — cannot create walk stream");
   }
 
+  const dir = options.dir ?? ".";
   const stream = lib.stream("codebaseWalkFilesStream", {
-    dir: options.dir ?? ".",
+    dir,
     extensions: options.extensions,
     exclude: options.exclude,
-    gitAware: options.gitAware ?? false,
+    ...(await gitListing.bridgeGitOptions(lib, dir, options.gitAware ?? false)),
   });
   const parsed = stream.opened;
 

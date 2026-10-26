@@ -36,6 +36,7 @@ import * as cliSupport from "../cli-support.ts";
 import * as config from "./config.ts";
 import * as registry from "./registry.ts";
 import * as ffiClient from "../ffi-client.ts";
+import * as gitListing from "../git-listing.ts";
 import type {
   SkippedValidator,
   ValidateOptions,
@@ -114,7 +115,11 @@ export const runBuiltinValidators = async (
         options.validators !== undefined ? [...options.validators] : undefined,
       extensions:
         options.extensions !== undefined ? [...options.extensions] : undefined,
-      gitAware: options.gitAware ?? true,
+      ...(await gitListing.bridgeGitOptions(
+        lib,
+        options.dir,
+        options.gitAware ?? true,
+      )),
     }) as {
       results?: ValidatorResult[];
       error?: string;

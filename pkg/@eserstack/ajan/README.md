@@ -464,6 +464,11 @@ lists the changes in every package.
 - `codebaseValidateFiles` and its stream variant fail the request for
   malformed `validatorOptions` of `filenames` or `large-file`, and `large-file`
   applies `maxKb`; it was always 1024 KB.
+- On the WASM fallback, a git-aware `codebaseWalkFiles`,
+  `codebaseValidateFiles` or one of their streams fails unless the request
+  carries `gitFiles`, the host's
+  `git ls-files --cached --others --exclude-standard` listing for `dir`, since
+  the module cannot start git; `@eserstack/codebase` sends it.
 - `noskillsInit` writes `command: npx eser@latest noskills`
   (`noskillsfx.DefaultCommandPrefix`) into a new manifest instead of `noskills`.
   Edit the manifest's `command` to keep a bare `noskills`.

@@ -21,6 +21,7 @@
 import * as standards from "@eserstack/standards";
 import * as cliSupport from "./cli-support.ts";
 import * as ffiClient from "./ffi-client.ts";
+import * as gitListing from "./git-listing.ts";
 import * as fileTool from "./file-tool.ts";
 import type { FileTool, ToolIssue } from "./file-tool.ts";
 
@@ -59,7 +60,7 @@ export const tool: FileTool = fileTool.withGoValidator(
         validatorOptions: {
           [GO_VALIDATOR_NAME]: { allowNames: options["allowNames"] ?? [] },
         },
-        gitAware: true,
+        ...(await gitListing.bridgeGitOptions(lib, options.root)),
       }) as {
         results?: Array<{
           issues?: Array<{ file: string; line?: number; message: string }>;

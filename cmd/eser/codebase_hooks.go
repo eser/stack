@@ -51,6 +51,13 @@ var gitHooks = []gitHook{ //nolint:gochecknoglobals // a fixed table
 	{event: "prepush", name: "pre-push", args: ""},
 }
 
+// clearRepositoryEnv unsets the variables git exports to a hook (GIT_DIR and
+// GIT_INDEX_FILE in a linked worktree, among others). The workflows run from
+// the working tree root, where git finds the repository by itself, and their
+// tests create scratch repositories whose git calls would otherwise act on
+// the repository being committed to.
+const clearRepositoryEnv = "unset $(git rev-parse --local-env-vars)"
+
 // hookScript is the content of a managed hook that runs the event's
 // workflows with command.
 func hookScript(command string, hook gitHook) string {
@@ -59,6 +66,7 @@ func hookScript(command string, hook gitHook) string {
 		hookMarker + ", written by `eser codebase install`.",
 		"# Do not edit; run `eser codebase install` again to update it.",
 		"",
+		clearRepositoryEnv,
 		command + " workflows run -e " + hook.event + hook.args,
 		"",
 	}, "\n")

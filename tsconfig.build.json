@@ -1,0 +1,25 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "allowImportingTsExtensions": false,
+    "rewriteRelativeImportExtensions": true,
+    "declaration": true,
+    "noEmitOnError": true,
+    "rootDir": "${configDir}",
+    "outDir": "${configDir}/dist"
+  },
+  "include": ["${configDir}/**/*.ts", "${configDir}/**/*.tsx"],
+  "exclude": [
+    "${configDir}/dist/",
+    "${configDir}/node_modules/",
+    "${configDir}/scripts/",
+    "${configDir}/examples/",
+    "${configDir}/**/testdata/",
+    "${configDir}/**/fixtures/",
+    "${configDir}/**/*.test.ts",
+    "${configDir}/**/*.test.tsx",
+    "${configDir}/**/*.bench.ts",
+    "${configDir}/**/*.fixture.ts"
+  ]
+}

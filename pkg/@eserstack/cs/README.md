@@ -234,7 +234,7 @@ package. The [changelog](https://github.com/eser/stack/blob/main/CHANGELOG.md)
 lists the changes in every package.
 
 - `sync()` no longer writes a console warning for a key the environment lacks,
-  and no longer goes through the Go `EserAjanCsSync` path. Pass `onMissingKey`
+  and no longer goes through the Go `csSync` path. Pass `onMissingKey`
   to be told:
 
   ```typescript

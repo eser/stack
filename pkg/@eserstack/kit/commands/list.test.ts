@@ -2,13 +2,13 @@
 
 import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
-import * as path from "@std/path";
 import * as results from "@eserstack/primitives/results";
 import { runtime } from "@eserstack/standards/cross-runtime";
 import * as list from "./list.ts";
 
-const REGISTRY_PATH = path.fromFileUrl(
-  new URL("../../../../.eser/recipes.json", import.meta.url),
+const REGISTRY_PATH = runtime.path.join(
+  import.meta.dirname,
+  "../../../../.eser/recipes.json",
 );
 
 nodeTest.test("list — succeeds with local registry", async () => {
@@ -72,4 +72,24 @@ nodeTest.test("list: reports a bad registry file with its cause", async () => {
   } finally {
     await runtime.fs.remove(dir, { recursive: true });
   }
+});
+
+nodeTest.test("list — parseCliArgs reads the filters and --local", () => {
+  const parsed = list.parseCliArgs([
+    "--registry",
+    "registry.json",
+    "--language=go",
+    "--scale",
+    "project",
+    "--tag",
+    "http",
+    "--local",
+  ]);
+
+  assert.assertEquals(parsed.values["registry"], "registry.json");
+  assert.assertEquals(parsed.values["language"], "go");
+  assert.assertEquals(parsed.values["scale"], "project");
+  assert.assertEquals(parsed.values["tag"], "http");
+  assert.assertEquals(parsed.values["local"], true);
+  assert.assertEquals(list.parseCliArgs([]).values["local"], undefined);
 });

@@ -9,7 +9,7 @@
  */
 
 import * as primitives from "@eserstack/primitives";
-import * as cliParseArgs from "@std/cli/parse-args";
+import * as shellFlags from "@eserstack/shell/args/flags";
 import type * as shellArgs from "@eserstack/shell/args";
 import * as span from "@eserstack/streams/span";
 import { runtime } from "@eserstack/standards/cross-runtime";
@@ -76,35 +76,53 @@ export const checkErrorCoverage = async (
   return { violations, checked, passed: violations.length === 0 };
 };
 
+/** The arguments of `eser codebase validate-error-coverage`. */
+export type ErrorCoverageArgs = {
+  /** The `--file` path; empty when not given. */
+  readonly file: string;
+  /** The comma-separated `--error-objects` list. */
+  readonly errorObjects: string[] | undefined;
+  /** The comma-separated `--required-fields` list. */
+  readonly requiredFields: string[] | undefined;
+};
+
+const splitList = (value: unknown): string[] | undefined =>
+  typeof value === "string" ? value.split(",").map((s) => s.trim()) : undefined;
+
+/** Parse the validate-error-coverage arguments: `--file`, `--error-objects`, `--required-fields`. */
+export const parseCliArgs = (
+  cliArgs?: readonly string[],
+): ErrorCoverageArgs => {
+  const { values } = shellFlags.parseArgs(cliArgs ?? [], {
+    options: {
+      file: { type: "string" },
+      "error-objects": { type: "string" },
+      "required-fields": { type: "string" },
+    },
+  });
+  const file = values["file"];
+
+  return {
+    file: typeof file === "string" ? file : "",
+    errorObjects: splitList(values["error-objects"]),
+    requiredFields: splitList(values["required-fields"]),
+  };
+};
+
 export const main = async (
   cliArgs?: readonly string[],
 ): Promise<shellArgs.CliResult<void>> => {
   const { output: out } = cliSupport.getCliContext();
 
-  const parsed = cliParseArgs.parseArgs((cliArgs ?? []) as string[], {
-    string: ["file", "error-objects", "required-fields"],
-    default: {},
-  });
+  const { file, errorObjects, requiredFields } = parseCliArgs(cliArgs);
 
-  const file = parsed["file"] as string | undefined;
-
-  if (!file) {
+  if (file === "") {
     out.writeln(
       span.red("✗"),
       span.text(" validate-error-coverage requires a --file argument"),
     );
     return primitives.results.fail({ exitCode: 1 });
   }
-
-  const errorObjects =
-    parsed["error-objects"] !== undefined
-      ? (parsed["error-objects"] as string).split(",").map((s) => s.trim())
-      : undefined;
-
-  const requiredFields =
-    parsed["required-fields"] !== undefined
-      ? (parsed["required-fields"] as string).split(",").map((s) => s.trim())
-      : undefined;
 
   try {
     const result = await checkErrorCoverage({

@@ -11,7 +11,6 @@
 
 import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
-import * as path from "@std/path";
 import * as crossRuntime from "@eserstack/standards/cross-runtime";
 import * as fileToolsShared from "./file-tools-shared.ts";
 import * as validateLicenses from "./validate-licenses.ts";
@@ -36,7 +35,10 @@ const makeTempDir = async (): Promise<string> => {
 };
 
 const writeFile = async (dir: string, name: string, content: string) => {
-  await crossRuntime.runtime.fs.writeTextFile(path.join(dir, name), content);
+  await crossRuntime.runtime.fs.writeTextFile(
+    crossRuntime.runtime.path.join(dir, name),
+    content,
+  );
 };
 
 // =============================================================================
@@ -76,7 +78,7 @@ nodeTest.test(
       );
       assert.assertEquals(
         result.issues[0]!.path,
-        crossRuntime.toPosix(path.join(dir, "missing.ts")),
+        crossRuntime.toPosix(crossRuntime.runtime.path.join(dir, "missing.ts")),
       );
     } finally {
       await crossRuntime.runtime.fs.remove(dir, { recursive: true });
@@ -145,9 +147,12 @@ nodeTest.test(
 nodeTest.test("validate-licenses: docs/ pattern → file skipped", async () => {
   const dir = await makeTempDir();
   try {
-    await crossRuntime.runtime.fs.mkdir(path.join(dir, "docs"), {
-      recursive: true,
-    });
+    await crossRuntime.runtime.fs.mkdir(
+      crossRuntime.runtime.path.join(dir, "docs"),
+      {
+        recursive: true,
+      },
+    );
     await writeFile(dir, "docs/guide.ts", "export const x = 1;\n");
     const result = await validateLicenses.tool.run({ root: dir });
     assert.assertEquals(result.issues.length, 0);
@@ -219,9 +224,12 @@ nodeTest.test(
   async () => {
     const dir = await makeTempDir();
     try {
-      await crossRuntime.runtime.fs.mkdir(path.join(dir, "generated"), {
-        recursive: true,
-      });
+      await crossRuntime.runtime.fs.mkdir(
+        crossRuntime.runtime.path.join(dir, "generated"),
+        {
+          recursive: true,
+        },
+      );
       await writeFile(dir, "generated/output.ts", "export const x = 1;\n");
       await writeFile(
         dir,

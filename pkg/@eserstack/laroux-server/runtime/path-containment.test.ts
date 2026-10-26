@@ -2,7 +2,6 @@
 
 import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
-import * as path from "@std/path";
 import { runtime } from "@eserstack/standards/cross-runtime";
 import * as config from "@eserstack/laroux/config";
 import * as larouxClient from "@eserstack/laroux-react/client";
@@ -46,7 +45,7 @@ const makeDeps = (root: string): ServerDependencies => ({
   config: {
     ...config.DEFAULT_CONFIG,
     projectRoot: root,
-    distDir: path.join(root, "dist"),
+    distDir: runtime.path.join(root, "dist"),
   } as unknown as ServerDependencies["config"],
   bundler: {} as ServerDependencies["bundler"],
   getApp: () => Promise.reject(new Error("not used")),
@@ -73,8 +72,8 @@ nodeTest.test(
       prefix: "laroux-containment-",
     });
     try {
-      const serverDir = path.join(root, "dist", "server");
-      const outsideDir = path.join(root, "outside");
+      const serverDir = runtime.path.join(root, "dist", "server");
+      const outsideDir = runtime.path.join(root, "outside");
       await runtime.fs.mkdir(serverDir, { recursive: true });
       await runtime.fs.mkdir(outsideDir, { recursive: true });
 
@@ -82,11 +81,11 @@ nodeTest.test(
         .randomUUID()
         .replaceAll("-", "")}`;
       await runtime.fs.writeTextFile(
-        path.join(outsideDir, "evil.js"),
+        runtime.path.join(outsideDir, "evil.js"),
         `globalThis.${marker} = true;\nexport const pwn = () => "pwned";\n`,
       );
       await runtime.fs.writeTextFile(
-        path.join(serverDir, "legit.js"),
+        runtime.path.join(serverDir, "legit.js"),
         `export const hello = (x) => "hello " + x;
 Object.defineProperties(hello, {
   $$typeof: { value: Symbol.for("react.server.reference") },
@@ -97,12 +96,12 @@ Object.defineProperties(hello, {
       // The manifest lists the outside paths too, so this test reaches the
       // containment check behind the manifest check.
       await runtime.fs.writeTextFile(
-        path.join(serverDir, "actions-manifest.json"),
+        runtime.path.join(serverDir, "actions-manifest.json"),
         JSON.stringify({
           actions: [
             "legit.js",
             "../../outside/evil.js",
-            `${path.join(outsideDir, "evil")}.js`,
+            `${runtime.path.join(outsideDir, "evil")}.js`,
           ],
         }),
       );
@@ -134,7 +133,7 @@ Object.defineProperties(hello, {
 
       const absolute = await postAction(
         handler,
-        `${path.join(outsideDir, "evil")}#pwn`,
+        `${runtime.path.join(outsideDir, "evil")}#pwn`,
       );
       assert.assertEquals(absolute.status, 400);
       await absolute.body?.cancel();
@@ -164,17 +163,19 @@ nodeTest.test(
       prefix: "laroux-containment-",
     });
     try {
-      await runtime.fs.mkdir(path.join(root, "dist"), { recursive: true });
-      await runtime.fs.mkdir(path.join(root, "dist-secret"), {
+      await runtime.fs.mkdir(runtime.path.join(root, "dist"), {
+        recursive: true,
+      });
+      await runtime.fs.mkdir(runtime.path.join(root, "dist-secret"), {
         recursive: true,
       });
       await runtime.fs.writeTextFile(
-        path.join(root, "dist-secret", "flag.txt"),
+        runtime.path.join(root, "dist-secret", "flag.txt"),
         "FLAG",
       );
 
       const handler = server.createHandler(makeDeps(root));
-      const target = path.join(root, "dist-secret", "flag.txt");
+      const target = runtime.path.join(root, "dist-secret", "flag.txt");
 
       const res = await handler(new Request(`http://localhost/dist/${target}`));
       const body = await res.text();

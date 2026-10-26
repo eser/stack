@@ -11,7 +11,7 @@
  * @module
  */
 
-import * as globPath from "@std/path/glob-to-regexp";
+import * as nodePath from "node:path";
 import * as patterns from "@eserstack/standards/patterns";
 
 // =============================================================================
@@ -77,30 +77,42 @@ export const isBinaryFile = (filepath: string): boolean =>
 // Ignore-pattern matching
 // =============================================================================
 
+// Node's glob matcher lets `*` and `**` skip a path segment that starts with
+// a dot unless the pattern segment starts with a dot too. Kit's ignore globs,
+// and the Go port in kitfx, match such segments, so a leading dot is replaced
+// with a private-use character in the path and in the pattern alike.
+const DOT_MARK = "\u{E000}";
+
+const markPathDots = (value: string): string =>
+  value.replace(/(^|[\\/])\./g, `$1${DOT_MARK}`);
+
+const markPatternDots = (pattern: string): string =>
+  pattern.replace(/(^|[/{(|,])\./g, `$1${DOT_MARK}`);
+
+const stripTrailingSlashes = (value: string): string =>
+  value.replace(/[\\/]+$/, "");
+
 /**
- * Check if a relative path matches any of the ignore patterns.
- *
- * Uses @std/path/glob-to-regexp so that globstar-at-root patterns work
- * correctly:
+ * Check if a relative path matches any of the ignore patterns, with
+ * `path.matchesGlob` from `node:path`:
  *   `**\/foo`   → matches "foo" at the top level AND "a/b/foo" at any depth
  *   `**\/*.md`  → matches "README.md" at any depth
+ *   `*.md`      → matches "README.md" at the top level only
  *   `src/`      → matches the directory and everything under it
+ * `*` and `**` match names that start with a dot, as in kitfx.
  */
 export const shouldIgnore = (
   relativePath: string,
   ignorePatterns: readonly string[],
 ): boolean => {
+  const markedPath = markPathDots(stripTrailingSlashes(relativePath));
+
   for (const pattern of ignorePatterns) {
-    // Use @std/path/glob-to-regexp for correct globstar-at-root behavior:
-    //   **/foo  →  matches "foo" at top level AND "a/b/foo" at any depth
-    //   *.md    →  matches "README.md" at the top level only (use **/*.md)
-    //   dir/    →  matches the directory and everything under it
-    const regex = globPath.globToRegExp(pattern, {
-      extended: true,
-      globstar: true,
-      caseInsensitive: false,
-    });
-    if (regex.test(relativePath)) {
+    const glob = stripTrailingSlashes(pattern);
+    if (
+      glob !== "" &&
+      nodePath.matchesGlob(markedPath, markPatternDots(glob))
+    ) {
       return true;
     }
     // Also match files under a directory pattern (dir → dir/file)

@@ -10,7 +10,7 @@
  * @module
  */
 
-import * as cliParseArgs from "@std/cli/parse-args";
+import * as shellFlags from "@eserstack/shell/args/flags";
 import * as primitives from "@eserstack/primitives";
 import * as standards from "@eserstack/standards";
 import type * as shellArgs from "@eserstack/shell/args";
@@ -75,16 +75,13 @@ export const validateCommitMsg = (
   const lib = ffiClient.getLib();
   if (lib !== null) {
     try {
-      const raw = lib.symbols.EserAjanCodebaseValidateCommitMsg(
-        JSON.stringify({
-          message,
-          allowAsterisk: options.allowAsterisk,
-          allowMultipleScopes: options.allowMultipleScopes,
-          forceScope: options.forceScope,
-          types: options.types !== undefined ? [...options.types] : undefined,
-        }),
-      );
-      const parsed = JSON.parse(raw) as {
+      const parsed = lib.call("codebaseValidateCommitMsg", {
+        message,
+        allowAsterisk: options.allowAsterisk,
+        allowMultipleScopes: options.allowMultipleScopes,
+        forceScope: options.forceScope,
+        types: options.types !== undefined ? [...options.types] : undefined,
+      }) as {
         valid?: boolean;
         issues?: string[];
         error?: string;
@@ -181,6 +178,32 @@ export const validateCommitMsgLocal = (
 // CLI
 // =============================================================================
 
+/** The arguments of `eser codebase validate-commit-msg`. */
+export type CommitMsgArgs = {
+  readonly help: boolean;
+  /** The `--message` (`-m`) text, or null when not given. */
+  readonly message: string | null;
+  /** The first positional, the commit message file, or null. */
+  readonly file: string | null;
+};
+
+/** Parse the validate-commit-msg arguments: `<file>`, `--message` (`-m`), `--help` (`-h`). */
+export const parseCliArgs = (cliArgs?: readonly string[]): CommitMsgArgs => {
+  const { values, positionals } = shellFlags.parseArgs(cliArgs ?? [], {
+    options: {
+      message: { type: "string", short: "m" },
+      help: { type: "boolean", short: "h" },
+    },
+  });
+  const message = values["message"];
+
+  return {
+    help: values["help"] === true,
+    message: typeof message === "string" ? message : null,
+    file: positionals[0] ?? null,
+  };
+};
+
 /**
  * CLI entry point. Accepts a commit message file path as first argument
  * (for use as git commit-msg hook) or --message flag.
@@ -189,11 +212,7 @@ export const main = async (
   cliArgs?: readonly string[],
 ): Promise<shellArgs.CliResult<void>> => {
   const { output: out } = cliSupport.getCliContext();
-  const parsed = cliParseArgs.parseArgs((cliArgs ?? []) as string[], {
-    string: ["message"],
-    boolean: ["help"],
-    alias: { h: "help", m: "message" },
-  });
+  const parsed = parseCliArgs(cliArgs);
 
   if (parsed.help) {
     out.writeln(
@@ -207,18 +226,18 @@ export const main = async (
 
   let message: string;
 
-  if (parsed.message !== undefined) {
+  if (parsed.message !== null) {
     message = parsed.message;
-  } else if (parsed._.length > 0) {
+  } else if (parsed.file !== null) {
     // Read from file (git commit-msg hook passes the file path)
     try {
       message = await standards.crossRuntime.runtime.fs.readTextFile(
-        String(parsed._[0]),
+        parsed.file,
       );
     } catch {
       out.writeln(
         span.red("✗"),
-        span.text(` cannot read commit message file: ${parsed._[0]}`),
+        span.text(` cannot read commit message file: ${parsed.file}`),
       );
       return primitives.results.fail({ exitCode: 1 });
     }

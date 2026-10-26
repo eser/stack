@@ -5,7 +5,9 @@
   "exports": {
     ".": "./ffi/mod.ts",
     "./ffi": "./ffi/mod.ts",
+    "./ffi/bindings": "./ffi/bindings.ts",
     "./ffi/client": "./ffi/client.ts",
+    "./ffi/fake": "./ffi/fake.ts",
     "./ffi/request-signals": "./ffi/request-signals.ts",
     "./wasm": "./wasm/mod.ts"
   },

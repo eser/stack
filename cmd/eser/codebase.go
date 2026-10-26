@@ -93,15 +93,18 @@ func codebaseCommand(e *env) *clifx.Command {
 	return &clifx.Command{ //nolint:exhaustruct
 		Name:    "codebase",
 		Aliases: []string{"cb"},
-		Short:   "Release and version commands",
-		Subcommands: []*clifx.Command{
+		Short:   "Git hooks, validators, release and version commands",
+		Subcommands: append([]*clifx.Command{
+			hooksInstallCommand(e),
+			hooksUninstallCommand(e),
+			hooksStatusCommand(e),
 			releaseCommand(e),
 			rereleaseCommand(e),
 			unreleaseCommand(e),
 			versionsCommand(e),
 			changelogCommand(e),
 			ghCommand(e),
-		},
+		}, validatorCommands(e)...),
 	}
 }
 

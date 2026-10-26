@@ -22,11 +22,18 @@
  * import * as ffi from "./ffi/mod.ts";
  *
  * const lib = await ffi.loadEserAjan();
- * lib.symbols.EserAjanInit();
- * console.log(lib.symbols.EserAjanVersion());
- * lib.symbols.EserAjanShutdown();
+ * console.log(lib.handshake.version, lib.backend);
+ * const answer = lib.call("formatEncode", { format: "yaml", data: { a: 1 } });
+ * const walk = lib.stream("codebaseWalkFilesStream", { dir: "." });
+ * for (let file = walk.read(); file !== null; file = walk.read()) {
+ *   console.log(file.path);
+ * }
+ * walk.close();
  * lib.close();
  * ```
+ *
+ * Every name, its kind and its request and answer types are in the binding
+ * table (`bindings.ts`).
  *
  * Programmatic control:
  * ```ts
@@ -37,7 +44,57 @@
  * @module
  */
 
-export type { FFILibrary, LibraryExtension } from "./types.ts";
+export type {
+  AjanStream,
+  Backend,
+  Envelope,
+  FFILibrary,
+  Handshake,
+  LibraryExtension,
+} from "./types.ts";
+export {
+  AbiMismatchError,
+  AjanCallError,
+  UnknownFunctionError,
+  UnsupportedInWasmError,
+} from "./errors.ts";
+export { ABI_VERSION } from "./library.ts";
+export { BINDINGS, bindingOf } from "./bindings.ts";
+export type {
+  AiAnswer,
+  BindingName,
+  BindingSpec,
+  Bindings,
+  BridgeAnswer,
+  BridgeRequest,
+  CallBinding,
+  CallName,
+  CallResult,
+  ChunkOf,
+  ClosedOf,
+  EmptyAnswer,
+  ErrorAnswer,
+  ExitAnswer,
+  FileEntryAnswer,
+  HandleAnswer,
+  HandleRequest,
+  HttpRequestRequest,
+  HttpResponseAnswer,
+  MaybeAsync,
+  ModelRequest,
+  OpenedOf,
+  RecipesAnswer,
+  RequestArgs,
+  RequestOf,
+  ResponseOf,
+  SpawnAnswer,
+  StreamBinding,
+  StreamName,
+  Token,
+  TokenDefinition,
+  TokensAnswer,
+  WasmSupport,
+} from "./bindings.ts";
 
 import * as backendNode from "./backend-node.ts";
 import * as resolve from "./resolve.ts";
@@ -354,7 +411,10 @@ export const loadEserAjan = async (
   let released = false;
 
   return {
-    symbols: library.symbols,
+    backend: library.backend,
+    handshake: library.handshake,
+    call: library.call,
+    stream: library.stream,
     close: (): void => {
       if (released) {
         return;

@@ -126,15 +126,12 @@ export const walkSourceFiles = async (
         (e): e is string => typeof e === "string",
       );
 
-      const raw = lib.symbols.EserAjanCodebaseWalkFiles(
-        JSON.stringify({
-          dir: root,
-          extensions: goExtensions,
-          exclude: goExcludes,
-          gitAware: true,
-        }),
-      );
-      const parsed = JSON.parse(raw) as {
+      const parsed = lib.call("codebaseWalkFiles", {
+        dir: root,
+        extensions: goExtensions,
+        exclude: goExcludes,
+        gitAware: true,
+      }) as {
         files?: Array<{
           path: string;
           name: string;

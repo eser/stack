@@ -1,6 +1,5 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import * as hex from "@std/encoding/hex";
 import { runtime } from "@eserstack/standards/cross-runtime";
 
 // Lazy initialization state - computed on first getBuildId() call
@@ -16,7 +15,7 @@ const computeBuildId = async (): Promise<string> => {
     new TextEncoder().encode(deploymentId),
   );
 
-  return hex.encodeHex(buildIdHash);
+  return new Uint8Array(buildIdHash).toHex();
 };
 
 export const getBuildId = (): Promise<string> => {

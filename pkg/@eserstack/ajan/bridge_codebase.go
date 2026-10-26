@@ -862,18 +862,22 @@ func bridgeCodebaseValidateFilesStreamClose(handle string) string {
 
 func init() {
 	registerShutdownDrain(drainCodebaseStreams)
-	register("codebaseValidateCommitMsg", []string{"requestJSON"}, func(a []string) string { return bridgeCodebaseValidateCommitMsg(a[0]) })
-	register("codebaseBumpVersion", []string{"requestJSON"}, func(a []string) string { return bridgeCodebaseBumpVersion(a[0]) })
-	register("codebaseWalkFiles", []string{"requestJSON"}, func(a []string) string { return bridgeCodebaseWalkFiles(a[0]) })
-	register("codebaseValidateFiles", []string{"requestJSON"}, func(a []string) string { return bridgeCodebaseValidateFiles(a[0]) })
-	register("codebaseCheckCircularDeps", []string{"requestJSON"}, func(a []string) string { return bridgeCodebaseCheckCircularDeps(a[0]) })
-	register("codebaseCheckExportNames", []string{"requestJSON"}, func(a []string) string { return bridgeCodebaseCheckExportNames(a[0]) })
-	register("codebaseCheckModExports", []string{"requestJSON"}, func(a []string) string { return bridgeCodebaseCheckModExports(a[0]) })
-	register("codebaseCheckDocs", []string{"requestJSON"}, func(a []string) string { return bridgeCodebaseCheckDocs(a[0]) })
-	register("codebaseWalkFilesStreamCreate", []string{"requestJSON"}, func(a []string) string { return bridgeCodebaseWalkFilesStreamCreate(a[0]) })
-	register("codebaseWalkFilesStreamRead", []string{"handle"}, func(a []string) string { return bridgeCodebaseWalkFilesStreamRead(a[0]) })
-	register("codebaseWalkFilesStreamClose", []string{"handle"}, func(a []string) string { return bridgeCodebaseWalkFilesStreamClose(a[0]) })
-	register("codebaseValidateFilesStreamCreate", []string{"requestJSON"}, func(a []string) string { return bridgeCodebaseValidateFilesStreamCreate(a[0]) })
-	register("codebaseValidateFilesStreamRead", []string{"handle"}, func(a []string) string { return bridgeCodebaseValidateFilesStreamRead(a[0]) })
-	register("codebaseValidateFilesStreamClose", []string{"handle"}, func(a []string) string { return bridgeCodebaseValidateFilesStreamClose(a[0]) })
+	register("codebaseValidateCommitMsg", bridgeCodebaseValidateCommitMsg)
+	register("codebaseBumpVersion", bridgeCodebaseBumpVersion)
+	register("codebaseWalkFiles", bridgeCodebaseWalkFiles)
+	register("codebaseValidateFiles", bridgeCodebaseValidateFiles)
+	register("codebaseCheckCircularDeps", bridgeCodebaseCheckCircularDeps)
+	register("codebaseCheckExportNames", bridgeCodebaseCheckExportNames)
+	register("codebaseCheckModExports", bridgeCodebaseCheckModExports)
+	register("codebaseCheckDocs", bridgeCodebaseCheckDocs)
+	registerStream("codebaseWalkFilesStream", "cbwalk", streamFuncs{
+		open:  bridgeCodebaseWalkFilesStreamCreate,
+		read:  bridgeCodebaseWalkFilesStreamRead,
+		close: bridgeCodebaseWalkFilesStreamClose,
+	})
+	registerStream("codebaseValidateFilesStream", "cbval", streamFuncs{
+		open:  bridgeCodebaseValidateFilesStreamCreate,
+		read:  bridgeCodebaseValidateFilesStreamRead,
+		close: bridgeCodebaseValidateFilesStreamClose,
+	})
 }

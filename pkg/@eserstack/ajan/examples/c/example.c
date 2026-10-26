@@ -2,6 +2,11 @@
 
 // Minimal C example for eser-ajan FFI.
 //
+// The library exports the dispatcher ABI: EserAjanVersion answers the
+// handshake JSON, and EserAjanCall runs a registry name with its request and
+// answers a JSON envelope ({"ok":true,"result":"..."}). Every returned string
+// goes back to EserAjanFree.
+//
 // Compile:
 //   gcc -o example example.c -L. -leser_ajan
 //
@@ -15,22 +20,24 @@
 #include <stdio.h>
 
 int main(void) {
+    // The handshake: version, dispatcher ABI, profile and names
+    char* handshake = EserAjanVersion();
+    printf("Handshake: %s\n", handshake);
+    EserAjanFree(handshake);
+
     // Initialize the Go runtime bridge
-    int rc = EserAjanInit();
-    if (rc != 0) {
-        fprintf(stderr, "EserAjanInit failed with code %d\n", rc);
-        return 1;
-    }
+    char* init = EserAjanCall("init", "");
+    printf("init: %s\n", init);
+    EserAjanFree(init);
 
-    // Get and print the version string
-    char* version = EserAjanVersion();
-    printf("Version: %s\n", version);
-
-    // Free the C string allocated by Go
-    EserAjanFree(version);
+    // One call: hash a text
+    char* hash = EserAjanCall(
+        "cryptoHash", "{\"text\":\"hello\",\"algorithm\":\"SHA-256\"}");
+    printf("cryptoHash: %s\n", hash);
+    EserAjanFree(hash);
 
     // Shut down the Go runtime bridge
-    EserAjanShutdown();
+    EserAjanFree(EserAjanCall("shutdown", ""));
 
     return 0;
 }

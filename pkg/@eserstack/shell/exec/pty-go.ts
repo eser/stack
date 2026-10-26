@@ -2,7 +2,7 @@
 
 /**
  * FFI-backed PTY implementing the {@link PtyProcess} contract via the native
- * EserAjanShellPty* exports (ConPTY on Windows, openpty on Unix, with working
+ * bridge's `shellPtyStream` stream (ConPTY on Windows, openpty on Unix, with working
  * resize). Mirrors child-go.ts: a deferred poll pump reads one merged chunk at a
  * time. node:ffi calls are synchronous, so while an idle PTY waits for output the
  * read parks the event loop; the worker-thread pattern of decision-37 (M2-T8)
@@ -25,7 +25,7 @@ const requireLib = async (): Promise<ffiTypes.FFILibrary> => {
   if (lib === null) {
     throw new Error(
       "@eserstack/ajan native library is not available — " +
-        "EserAjanShellPty* requires the native library (the WASM fallback does not serve shell functions)" +
+        "shellPtyStream requires the native library (the WASM fallback does not serve shell functions)" +
         ffiClient.describeLoadFailure(),
     );
   }
@@ -56,24 +56,21 @@ export const spawnPtyGo = async (opts: PtyOptions): Promise<PtyProcess> => {
     LINES: String(opts.rows ?? 24),
   }).map(([k, v]) => `${k}=${v}`);
 
-  const spawnResult = JSON.parse(
-    lib.symbols.EserAjanShellPtySpawn(
-      JSON.stringify({
-        command: opts.command,
-        args: opts.args ?? [],
-        cwd: opts.cwd ?? "",
-        env,
-        cols: opts.cols ?? 80,
-        rows: opts.rows ?? 24,
-      }),
-    ),
-  ) as { handle?: string; pid?: number; error?: string };
+  const pty = lib.stream("shellPtyStream", {
+    command: opts.command,
+    args: opts.args ?? [],
+    cwd: opts.cwd ?? "",
+    env,
+    cols: opts.cols ?? 80,
+    rows: opts.rows ?? 24,
+  });
+  const spawnResult = pty.opened;
 
   if (spawnResult.error !== undefined) {
     throw new Error(spawnResult.error);
   }
 
-  const handle = spawnResult.handle!;
+  const handle = pty.handle;
   const pid = spawnResult.pid ?? -1;
 
   const decoder = new TextDecoder();
@@ -99,10 +96,7 @@ export const spawnPtyGo = async (opts: PtyOptions): Promise<PtyProcess> => {
 
     let code = -1;
     try {
-      const r = JSON.parse(lib.symbols.EserAjanShellPtyClose(handle)) as {
-        code?: number;
-      };
-      code = r.code ?? -1;
+      code = pty.close().code ?? -1;
     } catch {
       // handle already gone
     }
@@ -115,18 +109,18 @@ export const spawnPtyGo = async (opts: PtyOptions): Promise<PtyProcess> => {
   const pump = async (): Promise<void> => {
     try {
       while (true) {
-        // Each read returns the next PTY chunk, so reads run one at a time.
+        // Yield to the event loop before each read; reads run one at a time.
         // oxlint-disable-next-line no-await-in-loop
-        const raw = await lib.symbols.EserAjanShellPtyRead(handle);
+        await Promise.resolve();
 
-        if (raw === "null") break;
-
-        let ev: { chunk?: string; error?: string };
+        let ev: { chunk?: string; error?: string } | null;
         try {
-          ev = JSON.parse(raw) as { chunk?: string; error?: string };
+          ev = pty.read();
         } catch {
           break;
         }
+
+        if (ev === null) break;
 
         if (ev.error !== undefined) break;
 
@@ -155,9 +149,10 @@ export const spawnPtyGo = async (opts: PtyOptions): Promise<PtyProcess> => {
 
     write(data: string): void {
       try {
-        lib.symbols.EserAjanShellPtyWrite(
-          JSON.stringify({ handle, data: toBase64(encoder.encode(data)) }),
-        );
+        lib.call("shellPtyWrite", {
+          handle,
+          data: toBase64(encoder.encode(data)),
+        });
       } catch {
         // PTY may have closed
       }
@@ -165,9 +160,7 @@ export const spawnPtyGo = async (opts: PtyOptions): Promise<PtyProcess> => {
 
     resize(cols: number, rows: number): void {
       try {
-        lib.symbols.EserAjanShellPtyResize(
-          JSON.stringify({ handle, cols, rows }),
-        );
+        lib.call("shellPtyResize", { handle, cols, rows });
       } catch {
         // PTY may have closed
       }
@@ -175,9 +168,7 @@ export const spawnPtyGo = async (opts: PtyOptions): Promise<PtyProcess> => {
 
     kill(signal?: string): void {
       try {
-        lib.symbols.EserAjanShellPtyKill(
-          JSON.stringify({ handle, signal: signal ?? "SIGTERM" }),
-        );
+        lib.call("shellPtyKill", { handle, signal: signal ?? "SIGTERM" });
       } catch {
         // PTY may have already exited
       }

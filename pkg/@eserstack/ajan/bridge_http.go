@@ -493,10 +493,12 @@ func bridgeHttpStreamClose(handle string) string {
 
 func init() {
 	registerShutdownDrain(drainHTTPHandles)
-	register("httpCreate", []string{"configJSON"}, func(a []string) string { return bridgeHttpCreate(a[0]) })
-	register("httpRequest", []string{"requestJSON"}, func(a []string) string { return bridgeHttpRequest(a[0]) })
-	register("httpClose", []string{"handle"}, func(a []string) string { return bridgeHttpClose(a[0]) })
-	register("httpRequestStream", []string{"requestJSON"}, func(a []string) string { return bridgeHttpRequestStream(a[0]) })
-	register("httpStreamRead", []string{"handle"}, func(a []string) string { return bridgeHttpStreamRead(a[0]) })
-	register("httpStreamClose", []string{"handle"}, func(a []string) string { return bridgeHttpStreamClose(a[0]) })
+	register("httpCreate", bridgeHttpCreate)
+	register("httpRequest", bridgeHttpRequest)
+	register("httpClose", bridgeHttpClose)
+	registerStream("httpRequestStream", "httpstream", streamFuncs{
+		open:  bridgeHttpRequestStream,
+		read:  bridgeHttpStreamRead,
+		close: bridgeHttpStreamClose,
+	})
 }

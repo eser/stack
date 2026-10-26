@@ -20,6 +20,9 @@ var (
 	ErrCircularIncludes = errors.New("circular workflow includes detected")
 	ErrWorkflowNotFound = errors.New("workflow not found")
 	ErrNoMatchingEvent  = errors.New("no workflows match the given event")
+	// ErrNoStepSelected is returned when RunOptions.Only names no step of the
+	// workflows that would run, so an empty run never reads as a pass.
+	ErrNoStepSelected = errors.New("no step matches the --only filter")
 )
 
 // WorkflowError wraps a workflow execution failure.
@@ -124,7 +127,10 @@ type RunOptions struct {
 	// passed as options["dryRun"] (the shell tool then never runs a
 	// fixCommand), and OnMutations is not called.
 	DryRun bool
-	// Only runs only the named step; empty string means run all steps.
+	// Only runs only the steps it names: a step matches by its tool name or
+	// by its name option (the display name of a shell step). Empty runs every
+	// step; a filter that matches no step makes RunByEvent and
+	// RunWorkflowWithConfig return ErrNoStepSelected.
 	Only string
 	// Args are extra CLI arguments passed as options["_args"].
 	Args []string

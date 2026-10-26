@@ -24,7 +24,6 @@
  * @module
  */
 
-import * as cliParseArgs from "@std/cli/parse-args";
 import * as primitives from "@eserstack/primitives";
 import type * as functions from "@eserstack/functions";
 import type * as shellArgs from "@eserstack/shell/args";
@@ -334,16 +333,15 @@ export const createFileTool = (config: FileToolConfig): FileTool => {
   const main = async (
     cliArgs?: readonly string[],
   ): Promise<shellArgs.CliResult<void>> => {
-    const flags = config.canFix ? ["fix"] : [];
-    const parsed = cliParseArgs.parseArgs([...(cliArgs ?? [])], {
-      boolean: [...flags, "help"],
-      string: ["root", "exclude"],
+    const event = cliSupport.parseCliEvent(config.name, cliArgs, {
+      ...(config.canFix ? { fix: { type: "boolean" } } : {}),
+      help: { type: "boolean", short: "h" },
+      root: { type: "string" },
       // Each --exclude adds a pattern, the way the manifest lists several.
-      collect: ["exclude"],
-      alias: { h: "help" },
+      exclude: { type: "string", multiple: true, default: [] },
     });
 
-    if (parsed["help"]) {
+    if (event.flags["help"] === true) {
       const { output: out } = cliSupport.getCliContext();
       out.writeln(`eser codebase ${config.name} — ${config.description}\n`);
       out.writeln(`Usage: eser codebase ${config.name} [options]\n`);
@@ -361,7 +359,6 @@ export const createFileTool = (config: FileToolConfig): FileTool => {
       return primitives.results.ok(undefined);
     }
 
-    const event = cliSupport.toCliEvent(config.name, parsed);
     return await handleCli(event);
   };
 
@@ -413,19 +410,16 @@ export const withGoValidator = (
         ? rawExclude.filter((e): e is string => typeof e === "string")
         : [];
 
-      const raw = lib.symbols.EserAjanCodebaseValidateFiles(
-        JSON.stringify({
-          dir: options.root,
-          validators: [goValidatorName],
-          extensions: goExtensions,
-          exclude: goExcludes,
-          validatorOptions: {
-            [goValidatorName]: { root: options.root, ...configOptions },
-          },
-          gitAware: true,
-        }),
-      );
-      const parsed = JSON.parse(raw) as {
+      const parsed = lib.call("codebaseValidateFiles", {
+        dir: options.root,
+        validators: [goValidatorName],
+        extensions: goExtensions,
+        exclude: goExcludes,
+        validatorOptions: {
+          [goValidatorName]: { root: options.root, ...configOptions },
+        },
+        gitAware: true,
+      }) as {
         results?: ValidatorResult[];
         error?: string;
       };

@@ -4,9 +4,9 @@ package main
 
 import (
 	"encoding/binary"
+	"encoding/json"
 	"errors"
 	"slices"
-	"strings"
 	"testing"
 )
 
@@ -50,87 +50,55 @@ func TestDecodeArgs(t *testing.T) {
 	}
 }
 
-func TestRunCallUnknownNameAndArity(t *testing.T) {
+func TestRunReactorCallRoutesTheFourOperations(t *testing.T) {
 	t.Parallel()
 
-	unknown := runCall("noSuchFunction", nil)
-	if unknown.OK || !strings.Contains(unknown.Error, "unknown function: noSuchFunction") || unknown.Result != nil {
-		t.Errorf("unknown name: %+v", unknown)
+	call := runReactorCall("formatList", nil)
+	if !call.OK || call.Result == nil {
+		t.Fatalf("formatList with no argument: %+v", call)
 	}
 
-	arity := runCall("formatEncode", nil)
-	if arity.OK || !strings.Contains(arity.Error, "formatEncode takes 1 argument(s) (requestJSON), got 0") {
-		t.Errorf("wrong arity: %+v", arity)
+	opened := runReactorCall(reactorStreamOpen, []string{"parsingTokenizeStream", "{}"})
+	if !opened.OK || opened.Result == nil {
+		t.Fatalf("stream.open: %+v", opened)
+	}
+
+	var created struct {
+		Handle string `json:"handle"`
+	}
+	if err := json.Unmarshal([]byte(*opened.Result), &created); err != nil || created.Handle == "" {
+		t.Fatalf("stream.open answer %q: %v", *opened.Result, err)
+	}
+
+	pushed := runReactorCall("parsingTokenizeStreamPush", []string{`{"handle":"` + created.Handle + `","chunk":"a + b"}`})
+	if !pushed.OK {
+		t.Errorf("push: %+v", pushed)
+	}
+
+	if read := runReactorCall(reactorStreamRead, []string{created.Handle}); read.OK || read.Code != codeKindMismatch {
+		t.Errorf("a push-fed stream has no read: %+v", read)
+	}
+
+	if closed := runReactorCall(reactorStreamClose, []string{created.Handle}); !closed.OK {
+		t.Errorf("stream.close: %+v", closed)
 	}
 }
 
-func TestRunCallErrorAnswerFailsTheEnvelope(t *testing.T) {
+func TestRunReactorCallRefusesWrongArgumentCounts(t *testing.T) {
 	t.Parallel()
 
-	env := runCall("formatEncode", []string{`not json`})
-	if env.OK || env.Error == "" || env.Result == nil || !strings.Contains(*env.Result, `"error"`) {
-		t.Errorf("an answer with an error field must fail the envelope and keep the answer: %+v", env)
-	}
-
-	ok := runCall("formatList", nil)
-	if !ok.OK || ok.Result == nil || ok.Error != "" {
-		t.Errorf("formatList: %+v", ok)
-	}
-}
-
-func TestRunCallRecoversAPanicAndKeepsServing(t *testing.T) {
-	// Not parallel: it adds a name to the shared registry.
-	register("testPanicsOnPurpose", nil, func(_ []string) string { panic("on purpose") })
-	t.Cleanup(func() { delete(registry, "testPanicsOnPurpose") })
-
-	panicked := runCall("testPanicsOnPurpose", nil)
-	if panicked.OK || !strings.Contains(panicked.Error, "panic: on purpose") {
-		t.Errorf("a panic must become a failed envelope: %+v", panicked)
-	}
-
-	after := runCall("formatList", nil)
-	if !after.OK {
-		t.Errorf("a call after the panic must succeed: %+v", after)
-	}
-}
-
-func TestRunCallVersionCarriesTheHandshake(t *testing.T) {
-	t.Parallel()
-
-	env := runCall("version", nil)
-	if !env.OK || env.ABI != reactorABIVersion || env.Profile != reactorProfile {
-		t.Fatalf("version envelope: %+v", env)
-	}
-
-	if !slices.Contains(env.Names, "formatEncode") || !slices.IsSorted(env.Names) {
-		t.Errorf("handshake names: %v", env.Names)
-	}
-
-	if other := runCall("formatList", nil); other.ABI != 0 || other.Names != nil {
-		t.Errorf("only version carries the handshake: %+v", other)
-	}
-}
-
-func TestRegisteredNamesCoverEveryFunction(t *testing.T) {
-	t.Parallel()
-
-	// The native build registers every domain: the 98 dispatch names.
-	if got := len(registeredNames()); got != 98 {
-		t.Errorf("expected 98 registered names, got %d", got)
-	}
-}
-
-func TestRunCallRefusesADeeplyNestedRequest(t *testing.T) {
-	t.Parallel()
-
-	deep := `{"format":"json","data":` + strings.Repeat("[", 10_000) + strings.Repeat("]", 10_000) + `}`
-
-	env := runCall("formatEncode", []string{deep})
-	if env.OK || !strings.Contains(env.Error, "more than 1000 levels") {
-		t.Errorf("a request nested 10,000 levels deep must be refused: %+v", env)
-	}
-
-	if after := runCall("formatList", nil); !after.OK {
-		t.Errorf("a call after the refusal must succeed: %+v", after)
+	for _, tc := range []struct {
+		name string
+		args []string
+	}{
+		{name: "formatEncode", args: []string{"{}", "{}"}},
+		{name: reactorStreamOpen, args: []string{"parsingTokenizeStream"}},
+		{name: reactorStreamRead, args: nil},
+		{name: reactorStreamClose, args: []string{"a", "b"}},
+	} {
+		env := runReactorCall(tc.name, tc.args)
+		if env.OK || env.Code != codeBadRequest || env.Result != nil {
+			t.Errorf("%s with %d argument(s): %+v", tc.name, len(tc.args), env)
+		}
 	}
 }

@@ -14,48 +14,41 @@ import * as ffi from "../ffi/mod.ts";
 
 const main = async (): Promise<void> => {
   const lib = await ffi.loadEserAjan();
-  const symbols = lib.symbols as unknown as Record<
-    string,
-    (...args: string[]) => string
-  >;
+  const text = (answer: unknown): string => JSON.stringify(answer);
 
-  const created = JSON.parse(
-    symbols["EserAjanLogCreate"]!(
-      JSON.stringify({ scopeName: "node-wasm", level: "INFO" }),
-    ),
-  ) as { handle: string };
+  const created = lib.call("logCreate", {
+    scopeName: "node-wasm",
+    level: "INFO",
+  });
+  const handle = created.handle ?? "";
 
   const writes = [1, 2, 3].map((n) =>
-    symbols["EserAjanLogWrite"]!(
-      JSON.stringify({
-        handle: created.handle,
-        level: "INFO",
-        message: `write ${n}`,
-      }),
+    text(
+      lib.call("logWrite", { handle, level: "INFO", message: `write ${n}` }),
     ),
   );
-  const filtered = symbols["EserAjanLogWrite"]!(
-    JSON.stringify({ handle: created.handle, level: "DEBUG", message: "drop" }),
+  const filtered = text(
+    lib.call("logWrite", { handle, level: "DEBUG", message: "drop" }),
   );
-  const closed = symbols["EserAjanLogClose"]!(created.handle);
+  const closed = text(lib.call("logClose", handle));
 
   // A name outside the profile throws UnsupportedInWasmError only on the
   // reactor, so this tells which build answered.
   let reactor = false;
   try {
-    symbols["EserAjanShellExec"]!("{}");
+    lib.call("shellExec", { command: "true" });
   } catch (error) {
     reactor = (error as { code?: string }).code === "UNSUPPORTED_IN_WASM";
   }
-  const afterClose = symbols["EserAjanLogWrite"]!(
-    JSON.stringify({ handle: created.handle, level: "INFO", message: "late" }),
+  const afterClose = text(
+    lib.call("logWrite", { handle, level: "INFO", message: "late" }),
   );
 
   // oxlint-disable-next-line no-console
   console.log(
     JSON.stringify({
       reactor,
-      handle: created.handle,
+      handle,
       writes,
       filtered,
       closed,

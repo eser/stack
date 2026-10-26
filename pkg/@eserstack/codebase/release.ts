@@ -34,7 +34,6 @@
  * @module
  */
 
-import * as cliParseArgs from "@std/cli/parse-args";
 import * as primitives from "@eserstack/primitives";
 import * as standards from "@eserstack/standards";
 import * as functions from "@eserstack/functions";
@@ -739,19 +738,49 @@ export const handleUnreleaseCli: (
 // CLI Entry Points
 // =============================================================================
 
+const DRY_RUN_AND_YES = {
+  "dry-run": { type: "boolean", short: "n" },
+  yes: { type: "boolean", short: "y" },
+} as const;
+
+/** Parse the release arguments: the bump type, `--dry-run` (`-n`), `--yes` (`-y`). */
+export const parseReleaseArgs = (
+  cliArgs?: readonly string[],
+): functions.triggers.CliEvent =>
+  cliSupport.parseCliEvent("release", cliArgs, DRY_RUN_AND_YES);
+
+/** Parse the rerelease arguments: `--dry-run` (`-n`), `--yes` (`-y`). */
+export const parseRereleaseArgs = (
+  cliArgs?: readonly string[],
+): functions.triggers.CliEvent =>
+  cliSupport.parseCliEvent("rerelease", cliArgs, DRY_RUN_AND_YES);
+
+/** Parse the unrelease arguments: `--yes` (`-y`). */
+export const parseUnreleaseArgs = (
+  cliArgs?: readonly string[],
+): functions.triggers.CliEvent =>
+  cliSupport.parseCliEvent("unrelease", cliArgs, {
+    yes: { type: "boolean", short: "y" },
+  });
+
+/** The event with `--yes` set, after the user confirmed at the prompt. */
+const confirmed = (
+  event: functions.triggers.CliEvent,
+): functions.triggers.CliEvent => ({
+  ...event,
+  flags: { ...event.flags, yes: true },
+});
+
 /** CLI entry point for release (default export via main). */
 export const main = async (
   cliArgs?: readonly string[],
 ): Promise<shellArgs.CliResult<void>> => {
-  const parsed = cliParseArgs.parseArgs((cliArgs ?? []) as string[], {
-    boolean: ["dry-run", "yes"],
-    alias: { n: "dry-run", y: "yes" },
-  });
+  const event = parseReleaseArgs(cliArgs);
 
   // Interactive confirmation for release (when not --yes and not --dry-run)
-  const typeArg = parsed._[0] as string | undefined;
-  const dryRun = parsed["dry-run"] === true;
-  const yes = parsed["yes"] === true;
+  const typeArg = event.args[0];
+  const dryRun = event.flags["dry-run"] === true;
+  const yes = event.flags["yes"] === true;
 
   if (
     typeArg !== undefined &&
@@ -802,10 +831,9 @@ export const main = async (
     }
 
     // User confirmed — add --yes so the handler doesn't throw on unpushed commits prompt
-    parsed["yes"] = true;
+    return await handleReleaseCli(confirmed(event));
   }
 
-  const event = cliSupport.toCliEvent("release", parsed);
   return await handleReleaseCli(event);
 };
 
@@ -813,13 +841,10 @@ export const main = async (
 export const rereleaseMain = async (
   cliArgs?: readonly string[],
 ): Promise<shellArgs.CliResult<void>> => {
-  const parsed = cliParseArgs.parseArgs((cliArgs ?? []) as string[], {
-    boolean: ["dry-run", "yes"],
-    alias: { n: "dry-run", y: "yes" },
-  });
+  const event = parseRereleaseArgs(cliArgs);
 
-  const dryRun = parsed["dry-run"] === true;
-  const yes = parsed["yes"] === true;
+  const dryRun = event.flags["dry-run"] === true;
+  const yes = event.flags["yes"] === true;
 
   if (!dryRun && !yes) {
     const version = (await versions.readVersionFile()) ?? "0.0.0";
@@ -832,10 +857,9 @@ export const rereleaseMain = async (
       return primitives.results.ok(undefined);
     }
 
-    parsed["yes"] = true;
+    return await handleRereleaseCli(confirmed(event));
   }
 
-  const event = cliSupport.toCliEvent("rerelease", parsed);
   return await handleRereleaseCli(event);
 };
 
@@ -843,12 +867,9 @@ export const rereleaseMain = async (
 export const unreleaseMain = async (
   cliArgs?: readonly string[],
 ): Promise<shellArgs.CliResult<void>> => {
-  const parsed = cliParseArgs.parseArgs((cliArgs ?? []) as string[], {
-    boolean: ["yes"],
-    alias: { y: "yes" },
-  });
+  const event = parseUnreleaseArgs(cliArgs);
 
-  if (parsed["yes"] !== true) {
+  if (event.flags["yes"] !== true) {
     const version = (await versions.readVersionFile()) ?? "0.0.0";
 
     const proceed = await confirmPrompt(
@@ -861,10 +882,9 @@ export const unreleaseMain = async (
 
     // unrelease() still throws without this; the prompt is the interactive
     // path, the throw stays as the backstop for non-interactive callers.
-    parsed["yes"] = true;
+    return await handleUnreleaseCli(confirmed(event));
   }
 
-  const event = cliSupport.toCliEvent("unrelease", parsed);
   return await handleUnreleaseCli(event);
 };
 

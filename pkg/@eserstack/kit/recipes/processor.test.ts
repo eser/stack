@@ -101,6 +101,53 @@ bdd.describe("shouldIgnore", () => {
   bdd.it("does not match sibling file to a directory pattern", () => {
     assert.assertEquals(processor.shouldIgnore("srcfile.ts", ["src/"]), false);
   });
+
+  bdd.it("matches names that start with a dot through * and **", () => {
+    assert.assertEquals(processor.shouldIgnore(".env", ["*"]), true);
+    assert.assertEquals(
+      processor.shouldIgnore(".github/workflows/ci.yml", ["**/*.yml"]),
+      true,
+    );
+    assert.assertEquals(
+      processor.shouldIgnore("a/.git/HEAD", ["**/HEAD"]),
+      true,
+    );
+    assert.assertEquals(processor.shouldIgnore(".git/HEAD", [".git/**"]), true);
+  });
+
+  bdd.it("matches a dot name written in the pattern", () => {
+    assert.assertEquals(
+      processor.shouldIgnore("x/.DS_Store", ["**/.DS_Store"]),
+      true,
+    );
+    assert.assertEquals(processor.shouldIgnore(".env", ["{.env,.git}"]), true);
+    assert.assertEquals(processor.shouldIgnore("env", [".*"]), false);
+  });
+
+  bdd.it("matches braces, classes and extglobs", () => {
+    assert.assertEquals(processor.shouldIgnore("a.js", ["*.{ts,js}"]), true);
+    assert.assertEquals(processor.shouldIgnore("a1.ts", ["a[0-9].ts"]), true);
+    assert.assertEquals(processor.shouldIgnore("a.ts", ["!(*.js)"]), true);
+    assert.assertEquals(processor.shouldIgnore("a.js", ["!(*.js)"]), false);
+  });
+
+  bdd.it("does not let * cross a directory separator", () => {
+    assert.assertEquals(
+      processor.shouldIgnore("lib/sub/a.ts", ["lib/*.ts"]),
+      false,
+    );
+  });
+
+  bdd.it(
+    "matches a directory path against a pattern with a trailing slash",
+    () => {
+      assert.assertEquals(processor.shouldIgnore("src", ["src/"]), true);
+    },
+  );
+
+  bdd.it("matches nothing with an empty pattern", () => {
+    assert.assertEquals(processor.shouldIgnore("a.ts", [""]), false);
+  });
 });
 
 // =============================================================================

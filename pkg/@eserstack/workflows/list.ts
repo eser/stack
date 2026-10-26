@@ -8,7 +8,7 @@
  * @module
  */
 
-import * as cliParseArgs from "@std/cli/parse-args";
+import * as shellFlags from "@eserstack/shell/args/flags";
 import * as span from "@eserstack/streams/span";
 import * as streams from "@eserstack/streams";
 import * as results from "@eserstack/primitives/results";
@@ -81,6 +81,24 @@ const writeListing = async (
   }
 };
 
+/** Parse the `eser workflows list` arguments: `--config`, `--help` (`-h`). */
+export const parseCliArgs = (
+  cliArgs?: readonly string[],
+): { readonly help: boolean; readonly config: string | undefined } => {
+  const { values } = shellFlags.parseArgs(cliArgs ?? [], {
+    options: {
+      config: { type: "string" },
+      help: { type: "boolean", short: "h" },
+    },
+  });
+  const config = values["config"];
+
+  return {
+    help: values["help"] === true,
+    config: typeof config === "string" ? config : undefined,
+  };
+};
+
 /**
  * CLI main function.
  *
@@ -91,11 +109,7 @@ export const main = async (
   cliArgs?: readonly string[],
   cliOptions?: ListCliOptions,
 ): Promise<shellArgs.CliResult<void>> => {
-  const parsed = cliParseArgs.parseArgs((cliArgs ?? []) as string[], {
-    string: ["config"],
-    boolean: ["help"],
-    alias: { h: "help" },
-  });
+  const parsed = parseCliArgs(cliArgs);
 
   const out = streams.output({
     renderer: streams.renderers.ansi(),
@@ -108,7 +122,7 @@ export const main = async (
       return results.ok(undefined);
     }
 
-    await writeListing(out, parsed.config as string | undefined, cliOptions);
+    await writeListing(out, parsed.config, cliOptions);
     return results.ok(undefined);
   } finally {
     await out.close();

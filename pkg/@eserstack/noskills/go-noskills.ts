@@ -3,7 +3,8 @@
 /**
  * Go-backed noskills orchestrator client.
  *
- * Calls EserAjanNoskills* of the native Go library
+ * Calls the noskills names of the native Go library (noskillsInit,
+ * noskillsSpecNew, noskillsNext)
  * (pkg/@eserstack/ajan/bridge_noskills.go) on a project directory:
  *   1. `initNoskills({ root })` sets the project up once.
  *   2. `newNoskillsSpec({ root, description })` creates a spec.
@@ -95,8 +96,11 @@ export const initNoskills = async (
     throw new Error("native library not available for initNoskills");
   }
 
-  const raw = lib.symbols.EserAjanNoskillsInit(JSON.stringify(options));
-  const result = JSON.parse(raw) as NoskillsInitResult & { error?: string };
+  const result = lib.call("noskillsInit", {
+    ...options,
+  }) as NoskillsInitResult & {
+    error?: string;
+  };
 
   if (result.error !== undefined && result.error !== "") {
     throw new Error(result.error);
@@ -133,8 +137,11 @@ export const newNoskillsSpec = async (
     throw new Error("native library not available for newNoskillsSpec");
   }
 
-  const raw = lib.symbols.EserAjanNoskillsSpecNew(JSON.stringify(options));
-  const result = JSON.parse(raw) as NoskillsSpecNewResult & { error?: string };
+  const result = lib.call("noskillsSpecNew", {
+    ...options,
+  }) as NoskillsSpecNewResult & {
+    error?: string;
+  };
 
   if (result.error !== undefined && result.error !== "") {
     throw new Error(result.error);
@@ -178,8 +185,11 @@ export const nextNoskillsStep = async (
     throw new Error("native library not available for nextNoskillsStep");
   }
 
-  const raw = lib.symbols.EserAjanNoskillsNext(JSON.stringify(options));
-  const result = JSON.parse(raw) as NoskillsNextResult & { error?: string };
+  const result = lib.call("noskillsNext", {
+    ...options,
+  }) as NoskillsNextResult & {
+    error?: string;
+  };
 
   if (result.error !== undefined && result.error !== "") {
     throw new Error(result.error);

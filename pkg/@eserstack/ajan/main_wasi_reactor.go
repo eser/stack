@@ -11,30 +11,42 @@ package main
 //
 // Calling protocol:
 //  1. ptr := eser_ajan_alloc(n) hands out n bytes of a Go-owned input arena.
-//  2. The host writes the function name into it, then the arguments. Each
-//     argument is a little-endian uint32 byte count followed by that many
-//     bytes; most functions take one, their request JSON.
-//  3. n := eser_ajan_call(namePtr, nameLen, argsPtr, argsLen) runs the named
-//     function from the dispatch registry and stores a JSON envelope:
-//     {"ok":true,"result":"..."} or {"ok":false,"error":"...","result":"..."}.
-//     A function whose answer is a JSON object with an "error" string fails
-//     the envelope, with the full answer kept in "result".
+//  2. The host writes the name into it, then the arguments. Each argument is
+//     a little-endian uint32 byte count followed by that many bytes. A
+//     registry name is a call and takes one argument, its request; the
+//     reserved names stream.open (stream name, request), stream.read (handle)
+//     and stream.close (handle) are the stream operations
+//     (reactor_protocol.go).
+//  3. n := eser_ajan_call(namePtr, nameLen, argsPtr, argsLen) runs the
+//     operation and stores the dispatcher's JSON envelope (dispatch.go), the
+//     same envelope the native EserAjanCall answers.
 //  4. eser_ajan_result_ptr() points at the n envelope bytes. The pointer is
 //     valid until the next call.
 //
-// The envelope of "version" also carries the handshake the host checks at
-// load: "abi", "profile" and "names", the sorted names this build serves.
+// The "version" call answers the handshake the host checks at load: the
+// version, "abi", "profile" and "names", the sorted names this build serves,
+// with the stream names again in "streams". A name outside the profile
+// answers the code UNSUPPORTED_IN_WASM.
 //
-// ABI 2 (TASK-277) adds network: the module imports eser_host (http_fetch,
-// http_read, http_release, http_take, sleep) and exports
-// eser_ajan_call_async and eser_ajan_async_result_ptr, the same protocol
-// with its own result buffer, for the calls that wait on the host
-// (host_fetch_wasi.go).
+// The module imports eser_host (http_fetch, http_read, http_release,
+// http_take, sleep) and exports eser_ajan_call_async and
+// eser_ajan_async_result_ptr, the same protocol with its own result buffer,
+// for the calls that wait on the host (host_fetch_wasi.go, TASK-277).
 
 import (
-	"encoding/json"
 	"unsafe"
 )
+
+// buildProfile names the set of names this build serves.
+const buildProfile = "wasi"
+
+// codeUnsupportedInWasm is the code of a name outside the profile.
+const codeUnsupportedInWasm = "UNSUPPORTED_IN_WASM"
+
+// unknownNameCode is the code of a name this build does not serve: the
+// profile leaves out the domains that cannot run on wasip1, so a name it does
+// not know is one only the native library serves.
+const unknownNameCode = codeUnsupportedInWasm
 
 var (
 	// inputArena is where the host writes a call's name and arguments.
@@ -64,15 +76,15 @@ func eserAjanCall(namePtr unsafe.Pointer, nameLen int32, argsPtr unsafe.Pointer,
 	rawArgs, argsOK := arenaBytes(argsPtr, argsLen)
 
 	if !nameOK || !argsOK {
-		return storeEnvelope(envelope{Error: "the name or the arguments lie outside the input arena"}) //nolint:exhaustruct
+		return storeEnvelope(failed(codeBadRequest, "the name or the arguments lie outside the input arena"))
 	}
 
 	args, err := decodeArgs(rawArgs)
 	if err != nil {
-		return storeEnvelope(envelope{Error: err.Error()}) //nolint:exhaustruct
+		return storeEnvelope(failed(codeBadRequest, "%s", err.Error()))
 	}
 
-	return storeEnvelope(runCall(string(name), args))
+	return storeEnvelope(runReactorCall(string(name), args))
 }
 
 //go:wasmexport eser_ajan_result_ptr
@@ -116,12 +128,7 @@ func arenaBytes(ptr unsafe.Pointer, n int32) ([]byte, bool) {
 
 // storeEnvelope keeps the envelope for the host and returns its length.
 func storeEnvelope(env envelope) int32 {
-	data, err := json.Marshal(env)
-	if err != nil {
-		data = []byte(`{"ok":false,"error":"internal marshal error"}`)
-	}
-
-	resultBuf = data
+	resultBuf = []byte(marshalEnvelope(env))
 
 	return int32(len(resultBuf)) //nolint:gosec // an envelope is far below 2 GiB
 }

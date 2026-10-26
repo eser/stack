@@ -61,9 +61,7 @@
     "@eserstack/standards": "workspace:*",
     "@eserstack/streams": "workspace:*",
     "@eserstack/workflows": "workspace:*",
-    "@std/cli": "npm:@jsr/std__cli@^1.0.32",
     "@std/jsonc": "npm:@jsr/std__jsonc@^1.0.2",
-    "@std/path": "npm:@jsr/std__path@^1.1.6",
     "@std/semver": "npm:@jsr/std__semver@^1.0.8",
     "@std/toml": "npm:@jsr/std__toml@^1.0.11"
   },

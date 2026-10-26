@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
+	"slices"
 
 	"github.com/eser/stack/pkg/ajan/codebasefx"
 	"github.com/eser/stack/pkg/ajan/workflowfx"
@@ -30,6 +31,15 @@ type validatorTool struct {
 	name    string
 	desc    string
 	factory validatorFactory
+	// fixer, when set, rewrites files in fix mode (options["fix"]).
+	fixer codebasefx.FixerFunc
+	// extensions are walked when the options name none; nil walks every file.
+	extensions []string
+	// excludes are skipped in addition to the exclude option.
+	excludes []string
+	// precheck reports problems the per-file validator cannot see, such as a
+	// configured file that does not exist.
+	precheck func(root string, opts map[string]any) []codebasefx.ValidatorIssue
 }
 
 func (t *validatorTool) Name() string        { return t.name }
@@ -56,12 +66,20 @@ func (t *validatorTool) Run(ctx context.Context, opts map[string]any) (*workflow
 		return nil, fmt.Errorf("%s: exclude: %w", t.name, err)
 	}
 
+	if len(exts) == 0 {
+		exts = t.extensions
+	}
+
 	walkOpts.Extensions = exts
-	walkOpts.Exclude = excl
+	walkOpts.Exclude = slices.Concat(excl, t.excludes)
 
 	files, err := codebasefx.WalkSourceFiles(ctx, walkOpts)
 	if err != nil {
 		return nil, fmt.Errorf("%s: walk: %w", t.name, err)
+	}
+
+	if changed, ok := opts["_changedFiles"].([]string); ok && len(changed) > 0 {
+		files = onlyChanged(root, files, changed)
 	}
 
 	results := codebasefx.RunValidators(files, []codebasefx.ValidatorFunc{vf})
@@ -72,6 +90,21 @@ func (t *validatorTool) Run(ctx context.Context, opts map[string]any) (*workflow
 	}
 
 	r.Name = t.name
+
+	if t.precheck != nil {
+		if issues := t.precheck(root, opts); len(issues) > 0 {
+			r.Issues = append(issues, r.Issues...)
+			r.Passed = false
+		}
+	}
+
+	var mutations []workflowfx.WorkflowFileMutation
+
+	if fix, _ := opts["fix"].(bool); fix && t.fixer != nil {
+		dryRun, _ := opts["dryRun"].(bool)
+		mutations, r.Issues = applyFixer(files, vf, t.fixer, r.Issues, dryRun)
+		r.Passed = len(r.Issues) == 0
+	}
 
 	wfIssues := make([]workflowfx.WorkflowIssue, 0, len(r.Issues))
 
@@ -90,10 +123,11 @@ func (t *validatorTool) Run(ctx context.Context, opts map[string]any) (*workflow
 		wfIssues = append(wfIssues, workflowfx.WorkflowIssue{Message: msg})
 	}
 
-	return &workflowfx.WorkflowToolResult{
-		Name:   t.name,
-		Passed: r.Passed,
-		Issues: wfIssues,
+	return &workflowfx.WorkflowToolResult{ //nolint:exhaustruct
+		Name:      t.name,
+		Passed:    r.Passed,
+		Issues:    wfIssues,
+		Mutations: mutations,
 		Stats: map[string]any{
 			"filesChecked": r.FilesChecked,
 			"issueCount":   len(r.Issues),
@@ -111,21 +145,25 @@ func RegisterAllValidators(r *workflowfx.Registry) {
 			name:    "codebase-eof",
 			desc:    "check files end with exactly one newline",
 			factory: staticFactory(codebasefx.ValidateEOF),
+			fixer:   codebasefx.FixEOF,
 		},
 		{
 			name:    "codebase-bom",
 			desc:    "detect UTF-8 BOM",
 			factory: staticFactory(codebasefx.ValidateBOM),
+			fixer:   codebasefx.FixBOM,
 		},
 		{
 			name:    "codebase-trailing",
 			desc:    "detect trailing whitespace",
 			factory: staticFactory(codebasefx.ValidateTrailingWhitespace),
+			fixer:   codebasefx.FixTrailingWhitespace,
 		},
 		{
 			name:    "codebase-line-endings",
 			desc:    "detect mixed CRLF/LF line endings",
 			factory: staticFactory(codebasefx.ValidateLineEndings),
+			fixer:   codebasefx.FixLineEndings,
 		},
 		{
 			name:    "codebase-merge-conflicts",
@@ -167,6 +205,7 @@ func RegisterAllValidators(r *workflowfx.Registry) {
 			name:    "codebase-license",
 			desc:    "check copyright license header in JS/TS files",
 			factory: staticFactory(codebasefx.ValidateLicenseHeader),
+			fixer:   codebasefx.FixLicenseHeader,
 		},
 		{
 			name:    "codebase-case-conflict",

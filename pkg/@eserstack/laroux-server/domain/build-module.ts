@@ -12,7 +12,7 @@
  */
 
 import { runtime } from "@eserstack/standards/cross-runtime";
-import * as toFileUrl from "@std/path/to-file-url";
+import * as nodeUrl from "node:url";
 
 /**
  * The URL to import a module of one build by: its file URL with the build id
@@ -23,7 +23,7 @@ import * as toFileUrl from "@std/path/to-file-url";
  * @returns The file URL with `?v=<buildId>`
  */
 export function toBuildModuleUrl(filePath: string, buildId: string): string {
-  const url = toFileUrl.toFileUrl(filePath);
+  const url = nodeUrl.pathToFileURL(filePath);
   url.searchParams.set("v", buildId);
   return url.href;
 }

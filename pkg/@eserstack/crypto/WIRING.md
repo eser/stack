@@ -2,12 +2,11 @@
 
 ## 1. Input marshalling
 
-Single JSON string to `EserAjanCryptoHash`:
+One request object to the `cryptoHash` name of the ajan dispatcher ABI
+(TASK-238); the library encodes it as JSON for `EserAjanCall`:
 
 ```ts
-lib.symbols.EserAjanCryptoHash(
-  JSON.stringify({ text, data, algorithm, length }),
-);
+lib.call("cryptoHash", { text, data, algorithm, length });
 ```
 
 Go `cryptoHashRequest`:
@@ -28,7 +27,7 @@ Go `cryptoHashRequest`:
 ## 2. Output marshalling
 
 ```ts
-const result = JSON.parse(raw) as { hash?: string; error?: string };
+const result = lib.call("cryptoHash", request); // { hash?, error? }
 ```
 
 Success: `{ "hash": "2cf24dba..." }` Error:
@@ -55,8 +54,9 @@ Error substrings → TS codes:
 
 ## 4. Memory ownership
 
-Same as config pilot. Go allocates with `C.CString`; backend copies to JS string
-and calls `EserAjanFree`. TS never calls `EserAjanFree` directly.
+Same as config pilot. Go allocates each answer with `C.CString`; the ajan
+library copies it to a JS string and frees it with `EserAjanFree` itself. TS
+never sees a C string.
 
 ## 5. Sync vs async
 

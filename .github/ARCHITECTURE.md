@@ -194,8 +194,8 @@ Developer runs:  eser codebase release patch
 
 ┌─ PUSH TO BRANCH ────────────────────────────────────────────┐
 │  build.yml (Integrity Pipeline) — every ordinary push       │
-│  ├─ validate            pnpm cli ok (Node + Go)             │
-│  ├─ preflight           pnpm cli preflight, on main only    │
+│  ├─ validate            pnpm ok, the Go eser (Node + Go)    │
+│  ├─ preflight           pnpm preflight, on main only        │
 │  ├─ mux-no-js-runtime   mux sessions with no Node on PATH   │
 │  ├─ cross-runtime-test  node × linux / macos                │
 │  ├─ node-ffi-cli        the CLI on node:ffi × linux / macos │

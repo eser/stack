@@ -43,5 +43,5 @@ func bridgeCsSync(requestJSON string) string {
 }
 
 func init() {
-	register("csSync", []string{"requestJSON"}, func(a []string) string { return bridgeCsSync(a[0]) })
+	register("csSync", bridgeCsSync)
 }

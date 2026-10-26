@@ -2,13 +2,13 @@
 
 import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
-import * as path from "@std/path";
 import * as results from "@eserstack/primitives/results";
 import { runtime } from "@eserstack/standards/cross-runtime";
 import * as add from "./add.ts";
 
-const REGISTRY_PATH = path.fromFileUrl(
-  new URL("../../../../.eser/recipes.json", import.meta.url),
+const REGISTRY_PATH = runtime.path.join(
+  import.meta.dirname,
+  "../../../../.eser/recipes.json",
 );
 
 nodeTest.test("add — succeeds with no recipe (shows usage)", async () => {
@@ -51,4 +51,46 @@ nodeTest.test("add — dry-run succeeds without writing files", async () => {
   } finally {
     await runtime.fs.remove(tmpDir, { recursive: true });
   }
+});
+
+nodeTest.test("add — parseCliArgs reads every flag and repeats --var", () => {
+  const parsed = add.parseCliArgs([
+    "fp-pipe",
+    "--registry",
+    "registry.json",
+    "--cwd=/work",
+    "--var",
+    "name=demo",
+    "--var",
+    "scope=@x",
+    "--dry-run",
+    "--force",
+    "--skip-existing",
+    "--verbose",
+    "--local",
+    "--no-install",
+  ]);
+
+  assert.assertEquals(parsed.positionals, ["fp-pipe"]);
+  assert.assertEquals(parsed.values["registry"], "registry.json");
+  assert.assertEquals(parsed.values["cwd"], "/work");
+  assert.assertEquals(parsed.values["var"], ["name=demo", "scope=@x"]);
+  for (const flag of [
+    "dry-run",
+    "force",
+    "skip-existing",
+    "verbose",
+    "local",
+    "no-install",
+  ]) {
+    assert.assertEquals(parsed.values[flag], true, flag);
+  }
+});
+
+nodeTest.test("add — parseCliArgs defaults --var to an empty list", () => {
+  const parsed = add.parseCliArgs([]);
+
+  assert.assertEquals(parsed.values["var"], []);
+  assert.assertEquals(parsed.values["dry-run"], undefined);
+  assert.assertEquals(parsed.positionals, []);
 });

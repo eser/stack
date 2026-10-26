@@ -48,10 +48,11 @@ export const computeHash = async (
     throw new Error("native library unavailable");
   }
 
-  const raw = lib.symbols.EserAjanCryptoHash(
-    JSON.stringify({ data: toBase64(content), algorithm, length }),
-  );
-  const result = JSON.parse(raw) as { hash: string; error?: string };
+  const result = lib.call("cryptoHash", {
+    data: toBase64(content),
+    algorithm,
+    length,
+  }) as { hash: string; error?: string };
   if (result.error) {
     throw new Error(result.error);
   }
@@ -83,10 +84,11 @@ export const computeStringHash = async (
     throw new Error("native library unavailable");
   }
 
-  const raw = lib.symbols.EserAjanCryptoHash(
-    JSON.stringify({ text: content, algorithm, length }),
-  );
-  const result = JSON.parse(raw) as { hash: string; error?: string };
+  const result = lib.call("cryptoHash", {
+    text: content,
+    algorithm,
+    length,
+  }) as { hash: string; error?: string };
   if (result.error) {
     throw new Error(result.error);
   }

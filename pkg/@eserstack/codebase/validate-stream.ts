@@ -3,12 +3,14 @@
 /**
  * Streaming validator run via the Go FFI bridge.
  *
- * Returns an `AsyncIterable<ValidatorResult>` backed by `EserAjanCodebaseValidateFilesStream*`.
+ * Returns an `AsyncIterable<ValidatorResult>` backed by the bridge's
+ * `codebaseValidateFilesStream` stream.
  * Each yielded item is one validator's result. Supports `await using` / `Symbol.asyncDispose`.
  *
  * @module
  */
 
+import type * as ffiTypes from "@eserstack/ajan/ffi";
 import * as ffiClient from "./ffi-client.ts";
 import type { ValidatorResult } from "./validation/types.ts";
 
@@ -31,30 +33,21 @@ export type ValidateStreamOptions = {
 export class ValidateStream
   implements AsyncIterable<ValidatorResult>, AsyncDisposable
 {
-  readonly #handle: string;
+  readonly #stream: ffiTypes.AjanStream<"codebaseValidateFilesStream">;
 
-  constructor(handle: string) {
-    this.#handle = handle;
+  constructor(stream: ffiTypes.AjanStream<"codebaseValidateFilesStream">) {
+    this.#stream = stream;
   }
 
   async *[Symbol.asyncIterator](): AsyncGenerator<ValidatorResult> {
-    const lib = ffiClient.getLib();
-    if (lib === null) {
-      throw new Error(
-        "FFI library unavailable — cannot iterate validate stream",
-      );
-    }
-
     while (true) {
-      const raw = lib.symbols.EserAjanCodebaseValidateFilesStreamRead(
-        this.#handle,
-      );
+      const chunk = this.#stream.read();
 
-      if (raw === "null") {
+      if (chunk === null) {
         break;
       }
 
-      const parsed = JSON.parse(raw) as {
+      const parsed = chunk as {
         name?: string;
         passed?: boolean;
         issues?: Array<{
@@ -86,10 +79,7 @@ export class ValidateStream
   }
 
   [Symbol.asyncDispose](): Promise<void> {
-    const lib = ffiClient.getLib();
-    if (lib !== null) {
-      lib.symbols.EserAjanCodebaseValidateFilesStreamClose(this.#handle);
-    }
+    this.#stream.close();
     return Promise.resolve();
   }
 }
@@ -108,17 +98,14 @@ export const validateFilesStream = async (
     throw new Error("FFI library unavailable — cannot create validate stream");
   }
 
-  const raw = lib.symbols.EserAjanCodebaseValidateFilesStreamCreate(
-    JSON.stringify({
-      dir: options.dir ?? ".",
-      validators: options.validators,
-      extensions: options.extensions,
-      validatorOptions: options.validatorOptions,
-      gitAware: options.gitAware ?? false,
-    }),
-  );
-
-  const parsed = JSON.parse(raw) as { handle?: string; error?: string };
+  const stream = lib.stream("codebaseValidateFilesStream", {
+    dir: options.dir ?? ".",
+    validators: options.validators,
+    extensions: options.extensions,
+    validatorOptions: options.validatorOptions,
+    gitAware: options.gitAware ?? false,
+  });
+  const parsed = stream.opened;
 
   if (parsed.error !== undefined || parsed.handle === undefined) {
     throw new Error(
@@ -126,5 +113,5 @@ export const validateFilesStream = async (
     );
   }
 
-  return new ValidateStream(parsed.handle);
+  return new ValidateStream(stream);
 };

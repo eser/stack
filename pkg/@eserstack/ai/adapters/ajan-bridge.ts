@@ -124,10 +124,6 @@ type BridgeBatchDownloadResp = BridgeErrorFields & {
 // Helpers
 // =============================================================================
 
-const parseJson = <T>(raw: string): T => {
-  return JSON.parse(raw) as T;
-};
-
 /**
  * Base64-encode binary content for the wire.
  *
@@ -364,7 +360,7 @@ const bindAbort = (
 
   const cancel = () => {
     try {
-      lib.symbols.EserAjanAiCancelRequest(JSON.stringify({ requestId }));
+      lib.call("aiCancelRequest", { requestId });
     } catch {
       // The library may already be closed while a signal is still live. A
       // cancel that cannot be delivered is not worth failing the caller over.
@@ -402,20 +398,20 @@ const wireError = (
 const abortError = (provider: string): errors.AiError =>
   new errors.AiError("request aborted", { provider });
 
-const buildOptionsJSON = (
+const buildOptions = (
   options: generation.GenerateTextOptions,
   requestId?: string,
-): string => {
+): Readonly<Record<string, unknown>> => {
   const messages = options.messages.map((m) => ({
     role: m.role,
     content: m.content.map(buildContentBlock),
   }));
 
-  // Optionals are passed through as-is rather than defaulted. JSON.stringify
-  // omits `undefined`, so an unset option stays absent and the Go pointer stays
-  // nil -- whereas `?? 0` would pin every request to temperature 0, which is a
-  // real setting and not the same as "unspecified".
-  return JSON.stringify({
+  // Optionals are passed through as-is rather than defaulted. The request is
+  // sent as JSON, which omits `undefined`, so an unset option stays absent and
+  // the Go pointer stays nil -- whereas `?? 0` would pin every request to
+  // temperature 0, which is a real setting and not the same as "unspecified".
+  return {
     requestId,
     messages,
     system: options.system ?? "",
@@ -430,7 +426,7 @@ const buildOptionsJSON = (
     effort: options.effort,
     safetySettings: options.safetySettings,
     extensions: options.extensions,
-  });
+  };
 };
 
 // =============================================================================
@@ -466,19 +462,20 @@ export class AjanBridgeModel implements model.BatchCapableModel {
     const { requestId, release } = bindAbort(this.#lib, signal);
 
     try {
-      const optionsJSON = buildOptionsJSON(options, requestId);
+      const request = {
+        modelHandle: this.#modelHandle,
+        options: buildOptions(options, requestId),
+      };
 
       // Awaited, so a backend that runs the call off the main thread keeps
       // the event loop free and the signal above observable. node:ffi calls
       // block today and freeze the loop for the whole model round-trip, so
       // nothing can run to fire the signal; the worker threads of decision-37
       // (M2-T8) move them off the main thread.
-      const raw = await this.#lib.symbols.EserAjanAiGenerateText(
-        this.#modelHandle,
-        optionsJSON,
-      );
-
-      const resp = parseJson<BridgeGenerateResp>(raw);
+      const resp = (await this.#lib.call(
+        "aiGenerateText",
+        request,
+      )) as BridgeGenerateResp;
 
       if (resp.error !== undefined) {
         // A cancelled request surfaces as a Go context error. Report the
@@ -507,14 +504,12 @@ export class AjanBridgeModel implements model.BatchCapableModel {
   ): AsyncIterable<generation.StreamEvent> {
     const { requestId, release } = bindAbort(this.#lib, signal);
 
-    const optionsJSON = buildOptionsJSON(options, requestId);
+    const stream = this.#lib.stream("aiTextStream", {
+      modelHandle: this.#modelHandle,
+      options: buildOptions(options, requestId),
+    });
 
-    const streamRaw = await this.#lib.symbols.EserAjanAiStreamText(
-      this.#modelHandle,
-      optionsJSON,
-    );
-
-    const streamResp = parseJson<BridgeHandleResp>(streamRaw);
+    const streamResp: BridgeHandleResp = stream.opened;
 
     if (streamResp.error !== undefined || streamResp.handle === undefined) {
       release();
@@ -530,8 +525,6 @@ export class AjanBridgeModel implements model.BatchCapableModel {
       return;
     }
 
-    const streamHandle = streamResp.handle;
-
     try {
       while (true) {
         // Stop before asking for another event rather than after receiving one:
@@ -545,15 +538,11 @@ export class AjanBridgeModel implements model.BatchCapableModel {
 
         // The bridge hands out one stream event per read, in order, and the
         // abort check above must run before each read.
-        const eventRaw =
-          // oxlint-disable-next-line no-await-in-loop
-          await this.#lib.symbols.EserAjanAiStreamRead(streamHandle);
+        const event = stream.read() as BridgeStreamEvent | null;
 
-        if (eventRaw === "null" || eventRaw === "") {
+        if (event === null) {
           break;
         }
-
-        const event = parseJson<BridgeStreamEvent>(eventRaw);
 
         switch (event.type) {
           case "content_delta":
@@ -603,10 +592,11 @@ export class AjanBridgeModel implements model.BatchCapableModel {
         }
       }
     } finally {
-      // Both, in this order. FreeStream cancels the underlying context and
-      // drops the handle; release detaches the abort listener so an abandoned
-      // stream does not keep the caller's controller tethered to this model.
-      this.#lib.symbols.EserAjanAiFreeStream(streamHandle);
+      // Both, in this order. Closing the stream cancels the underlying
+      // context and drops the handle; release detaches the abort listener so
+      // an abandoned stream does not keep the caller's controller tethered to
+      // this model.
+      stream.close();
       release();
     }
   }
@@ -620,14 +610,14 @@ export class AjanBridgeModel implements model.BatchCapableModel {
     try {
       const items = request.items.map((item) => ({
         customId: item.customId,
-        options: JSON.parse(buildOptionsJSON(item.options)) as unknown,
+        options: buildOptions(item.options),
       }));
 
-      const raw = await this.#lib.symbols.EserAjanAiBatchCreate(
-        JSON.stringify({ requestId, modelHandle: this.#modelHandle, items }),
-      );
-
-      const resp = parseJson<BridgeBatchJobResp>(raw);
+      const resp = (await this.#lib.call("aiBatchCreate", {
+        requestId,
+        modelHandle: this.#modelHandle,
+        items,
+      })) as BridgeBatchJobResp;
 
       if (resp.error !== undefined || resp.job === undefined) {
         throw signal?.aborted === true
@@ -648,11 +638,11 @@ export class AjanBridgeModel implements model.BatchCapableModel {
     const { requestId, release } = bindAbort(this.#lib, signal);
 
     try {
-      const raw = await this.#lib.symbols.EserAjanAiBatchGet(
-        JSON.stringify({ requestId, modelHandle: this.#modelHandle, jobId }),
-      );
-
-      const resp = parseJson<BridgeBatchJobResp>(raw);
+      const resp = (await this.#lib.call("aiBatchGet", {
+        requestId,
+        modelHandle: this.#modelHandle,
+        jobId,
+      })) as BridgeBatchJobResp;
 
       if (resp.error !== undefined || resp.job === undefined) {
         throw signal?.aborted === true
@@ -673,16 +663,12 @@ export class AjanBridgeModel implements model.BatchCapableModel {
     const { requestId, release } = bindAbort(this.#lib, signal);
 
     try {
-      const raw = await this.#lib.symbols.EserAjanAiBatchList(
-        JSON.stringify({
-          requestId,
-          modelHandle: this.#modelHandle,
-          limit: options?.limit,
-          after: options?.after,
-        }),
-      );
-
-      const resp = parseJson<BridgeBatchListResp>(raw);
+      const resp = (await this.#lib.call("aiBatchList", {
+        requestId,
+        modelHandle: this.#modelHandle,
+        limit: options?.limit,
+        after: options?.after,
+      })) as BridgeBatchListResp;
 
       if (resp.error !== undefined) {
         throw signal?.aborted === true
@@ -715,15 +701,11 @@ export class AjanBridgeModel implements model.BatchCapableModel {
     };
 
     try {
-      const raw = await this.#lib.symbols.EserAjanAiBatchDownload(
-        JSON.stringify({
-          requestId,
-          modelHandle: this.#modelHandle,
-          job: bridgeJob,
-        }),
-      );
-
-      const resp = parseJson<BridgeBatchDownloadResp>(raw);
+      const resp = (await this.#lib.call("aiBatchDownload", {
+        requestId,
+        modelHandle: this.#modelHandle,
+        job: bridgeJob,
+      })) as BridgeBatchDownloadResp;
 
       if (resp.error !== undefined) {
         throw signal?.aborted === true
@@ -761,11 +743,11 @@ export class AjanBridgeModel implements model.BatchCapableModel {
     const { requestId, release } = bindAbort(this.#lib, signal);
 
     try {
-      const raw = await this.#lib.symbols.EserAjanAiBatchCancel(
-        JSON.stringify({ requestId, modelHandle: this.#modelHandle, jobId }),
-      );
-
-      const resp = parseJson<{ error?: string }>(raw);
+      const resp = (await this.#lib.call("aiBatchCancel", {
+        requestId,
+        modelHandle: this.#modelHandle,
+        jobId,
+      })) as BridgeErrorFields;
 
       if (resp.error !== undefined) {
         throw signal?.aborted === true
@@ -778,7 +760,7 @@ export class AjanBridgeModel implements model.BatchCapableModel {
   }
 
   close(): Promise<void> {
-    this.#lib.symbols.EserAjanAiCloseModel(this.#modelHandle);
+    this.#lib.call("aiCloseModel", this.#modelHandle);
     return Promise.resolve();
   }
 
@@ -787,7 +769,7 @@ export class AjanBridgeModel implements model.BatchCapableModel {
   }
 
   [Symbol.dispose](): void {
-    this.#lib.symbols.EserAjanAiCloseModel(this.#modelHandle);
+    this.#lib.call("aiCloseModel", this.#modelHandle);
   }
 
   getRawClient(): unknown {
@@ -816,7 +798,7 @@ export class AjanBridgeModelFactory implements model.ProviderFactory {
   }
 
   createModel(cfg: config.ResolvedConfigTarget): Promise<model.LanguageModel> {
-    const configJSON = JSON.stringify({
+    const resp = this.#lib.call("aiCreateModel", {
       provider: cfg.provider,
       apiKey: cfg.apiKey ?? "",
       model: cfg.model,
@@ -827,10 +809,7 @@ export class AjanBridgeModelFactory implements model.ProviderFactory {
       temperature: cfg.temperature,
       requestTimeoutMs: cfg.requestTimeoutMs,
       properties: cfg.properties ?? {},
-    });
-
-    const raw = this.#lib.symbols.EserAjanAiCreateModel(configJSON);
-    const resp = parseJson<BridgeHandleResp>(raw);
+    }) as BridgeHandleResp;
 
     if (resp.error !== undefined || resp.handle === undefined) {
       return Promise.reject(
@@ -856,7 +835,7 @@ export class AjanBridgeModelFactory implements model.ProviderFactory {
 
 /** Providers supported by the Go bridge and their default capabilities. */
 // `vision` is declared only because image payloads genuinely cross the wire
-// now. It was removed for a while: buildOptionsJSON used to reduce an image
+// now. It was removed for a while: buildOptions used to reduce an image
 // block to `{ type: "image" }` with no payload and Go had no field to receive
 // one, so a caller who attached an image got a confident answer about nothing
 // while the capability said that should work. The declaration follows the
@@ -982,7 +961,7 @@ export const tryLoadBridgeFactories = async (): Promise<
     // provider, which is the whole point of the per-provider merge.
     const lib = await ffiMod.loadEserAjan({ wasm: false });
 
-    lib.symbols.EserAjanInit();
+    lib.call("init");
 
     // No availability probe. claude-code/opencode/kiro are Go code linked into
     // the library that just loaded, so if the library is here the backends are

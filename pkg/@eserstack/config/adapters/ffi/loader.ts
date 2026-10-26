@@ -32,10 +32,7 @@ export const ffiLoader: Loader = {
     opts?: ConfigOptions,
   ): Promise<ConfigValues> => {
     const result = await client.callJson<{ values?: Record<string, unknown> }>(
-      (lib) =>
-        lib.symbols.EserAjanConfigLoad(
-          JSON.stringify({ sources, ...(opts ?? {}) }),
-        ),
+      (lib) => lib.call("configLoad", { sources, ...(opts ?? {}) }),
       {
         onUnavailable: () =>
           new errors.ConfigError(

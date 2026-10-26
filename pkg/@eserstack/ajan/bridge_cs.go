@@ -78,5 +78,5 @@ func bridgeCsGenerate(requestJSON string) string {
 }
 
 func init() {
-	register("csGenerate", []string{"requestJSON"}, func(a []string) string { return bridgeCsGenerate(a[0]) })
+	register("csGenerate", bridgeCsGenerate)
 }

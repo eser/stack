@@ -100,6 +100,7 @@ func builtinCommands(e *env) []*clifx.Command {
 		uninstallCommand(e),
 		doctorCommand(e),
 		codebaseCommand(e),
+		workflowsCommand(e),
 		kitCommand(e),
 		csCommand(e),
 		aiCommand(e),

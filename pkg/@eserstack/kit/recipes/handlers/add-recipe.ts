@@ -107,21 +107,18 @@ export const addRecipe = (
         const lib = ffiClient.getLib();
 
         if (lib !== null) {
-          const raw = lib.symbols.EserAjanKitApplyRecipe(
-            JSON.stringify({
-              recipeName: input.recipeName,
-              registryUrl: input.registrySource,
-              cwd: input.cwd,
-              force: input.force,
-              skipExisting: input.skipExisting,
-              dryRun: input.dryRun,
-              verbose: input.verbose,
-              variables: input.variables,
-            }),
-          );
           // The bridge sends each recipe flat (bridge_kit.go
           // kitApplyRecipeResult) and leaves empty lists out.
-          const goResult = JSON.parse(raw) as {
+          const goResult = lib.call("kitApplyRecipe", {
+            recipeName: input.recipeName,
+            registryUrl: input.registrySource,
+            cwd: input.cwd,
+            force: input.force,
+            skipExisting: input.skipExisting,
+            dryRun: input.dryRun,
+            verbose: input.verbose,
+            variables: input.variables,
+          }) as {
             recipes?: Array<{
               name: string;
               written?: string[];

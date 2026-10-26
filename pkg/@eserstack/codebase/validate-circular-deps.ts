@@ -36,10 +36,9 @@ export const checkCircularDeps = async (
     throw new Error("native library not available for checkCircularDeps");
   }
 
-  const raw = lib.symbols.EserAjanCodebaseCheckCircularDeps(
-    JSON.stringify({ dir: root }),
-  );
-  const result = JSON.parse(raw) as CheckCircularDepsResult & {
+  const result = lib.call("codebaseCheckCircularDeps", {
+    dir: root,
+  }) as CheckCircularDepsResult & {
     error?: string;
   };
 

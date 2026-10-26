@@ -7,7 +7,7 @@
  * @module
  */
 
-import * as cliParseArgs from "@std/cli/parse-args";
+import * as shellFlags from "@eserstack/shell/args/flags";
 import * as span from "@eserstack/streams/span";
 import * as streams from "@eserstack/streams";
 import * as primitives from "@eserstack/primitives";
@@ -129,6 +129,41 @@ const renderer = streams.renderers.ansi();
 // Install
 // =============================================================================
 
+/** The flags of `eser codebase install`. */
+export type InstallArgs = {
+  readonly help: boolean;
+  readonly force: boolean;
+  readonly dryRun: boolean;
+};
+
+/** Parse the install arguments: `--force` (`-f`), `--dry-run` (`-n`), `--help` (`-h`). */
+export const parseInstallArgs = (cliArgs?: readonly string[]): InstallArgs => {
+  const { values } = shellFlags.parseArgs(cliArgs ?? [], {
+    options: {
+      force: { type: "boolean", short: "f" },
+      "dry-run": { type: "boolean", short: "n" },
+      help: { type: "boolean", short: "h" },
+    },
+  });
+
+  return {
+    help: values["help"] === true,
+    force: values["force"] === true,
+    dryRun: values["dry-run"] === true,
+  };
+};
+
+/** Parse the arguments of `uninstall` and `status`, which only know `--help` (`-h`). */
+export const parseHelpArgs = (
+  cliArgs?: readonly string[],
+): { readonly help: boolean } => {
+  const { values } = shellFlags.parseArgs(cliArgs ?? [], {
+    options: { help: { type: "boolean", short: "h" } },
+  });
+
+  return { help: values["help"] === true };
+};
+
 /**
  * Install managed git hooks based on `.eser/manifest.yml` workflow events.
  *
@@ -140,10 +175,7 @@ const renderer = streams.renderers.ansi();
 export const main = async (
   cliArgs?: readonly string[],
 ): Promise<shellArgs.CliResult<void>> => {
-  const parsed = cliParseArgs.parseArgs((cliArgs ?? []) as string[], {
-    boolean: ["force", "dry-run", "help"],
-    alias: { h: "help", f: "force", n: "dry-run" },
-  });
+  const parsed = parseInstallArgs(cliArgs);
 
   const out = streams.output({
     renderer,
@@ -163,8 +195,7 @@ export const main = async (
     return primitives.results.ok(undefined);
   }
 
-  const force = parsed.force as boolean;
-  const dryRun = parsed["dry-run"] as boolean;
+  const { force, dryRun } = parsed;
 
   // 1. Find .git directory
   const gitDir = await findGitDir();
@@ -314,10 +345,7 @@ export const main = async (
 export const uninstallMain = async (
   cliArgs?: readonly string[],
 ): Promise<shellArgs.CliResult<void>> => {
-  const parsed = cliParseArgs.parseArgs((cliArgs ?? []) as string[], {
-    boolean: ["help"],
-    alias: { h: "help" },
-  });
+  const parsed = parseHelpArgs(cliArgs);
 
   const out = streams.output({
     renderer,
@@ -393,10 +421,7 @@ export const uninstallMain = async (
 export const statusMain = async (
   cliArgs?: readonly string[],
 ): Promise<shellArgs.CliResult<void>> => {
-  const parsed = cliParseArgs.parseArgs((cliArgs ?? []) as string[], {
-    boolean: ["help"],
-    alias: { h: "help" },
-  });
+  const parsed = parseHelpArgs(cliArgs);
 
   const out = streams.output({
     renderer,

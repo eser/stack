@@ -63,15 +63,13 @@ export const generate = async (options: GenerateOptions): Promise<string> => {
     try {
       // Go reads the same layered .env files as the TypeScript loader below:
       // .env, .env.<env>, .env.local and .env.<env>.local.
-      const requestJSON = JSON.stringify({
+      const parsed = lib.call("csGenerate", {
         resource: options.resource,
         env: options.env ?? "",
         cwd: options.cwd ?? runtime.process.cwd(),
         format: options.format,
         namespace: options.namespace ?? "",
       });
-      const raw = lib.symbols.EserAjanCsGenerate(requestJSON);
-      const parsed = JSON.parse(raw) as { result?: string; error?: string };
       if (!parsed.error) {
         return parsed.result ?? "";
       }

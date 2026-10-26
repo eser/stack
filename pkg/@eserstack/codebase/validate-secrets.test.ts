@@ -12,7 +12,6 @@
 
 import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
-import * as path from "@std/path";
 import { runtime } from "@eserstack/standards/cross-runtime";
 import * as ffiClient from "./ffi-client.ts";
 import * as validateSecrets from "./validate-secrets.ts";
@@ -45,7 +44,9 @@ const findings = (
   issues
     .map((i) => {
       const p = (i.path ?? i.file ?? "").replace(/^\.\//, "");
-      const rel = path.isAbsolute(p) ? path.relative(root, p) : p;
+      const rel = runtime.path.isAbsolute(p)
+        ? runtime.path.relative(root, p)
+        : p;
 
       return `${rel.replaceAll("\\", "/")}:${i.line ?? 0}`;
     })
@@ -58,8 +59,8 @@ const makeFixture = async (): Promise<string> => {
 
   await Promise.all(
     Object.entries(FIXTURE).map(async ([rel, body]) => {
-      const full = path.join(root, rel);
-      await runtime.fs.mkdir(path.dirname(full), { recursive: true });
+      const full = runtime.path.join(root, rel);
+      await runtime.fs.mkdir(runtime.path.dirname(full), { recursive: true });
       await runtime.fs.writeTextFile(full, body);
     }),
   );

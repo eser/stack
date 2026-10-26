@@ -3,7 +3,7 @@
 /**
  * Go-backed shell command execution.
  *
- * Delegates to EserAjanShellExec for fast synchronous-style subprocess
+ * Delegates to the bridge's `shellExec` call for fast synchronous-style subprocess
  * execution via the native Go library.
  *
  * @module

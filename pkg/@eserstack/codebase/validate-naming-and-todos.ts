@@ -52,18 +52,15 @@ export const tool: FileTool = fileTool.withGoValidator(
       const excludes = Array.isArray(options["exclude"])
         ? options["exclude"].filter((e): e is string => typeof e === "string")
         : [];
-      const raw = lib.symbols.EserAjanCodebaseValidateFiles(
-        JSON.stringify({
-          dir: options.root,
-          validators: [GO_VALIDATOR_NAME],
-          exclude: excludes,
-          validatorOptions: {
-            [GO_VALIDATOR_NAME]: { allowNames: options["allowNames"] ?? [] },
-          },
-          gitAware: true,
-        }),
-      );
-      const parsed = JSON.parse(raw) as {
+      const parsed = lib.call("codebaseValidateFiles", {
+        dir: options.root,
+        validators: [GO_VALIDATOR_NAME],
+        exclude: excludes,
+        validatorOptions: {
+          [GO_VALIDATOR_NAME]: { allowNames: options["allowNames"] ?? [] },
+        },
+        gitAware: true,
+      }) as {
         results?: Array<{
           issues?: Array<{ file: string; line?: number; message: string }>;
         }>;

@@ -196,6 +196,23 @@ await app.parse();
 | `help()`                              | Generate help text                              |
 | `completions(shell)`                  | Generate completion script                      |
 
+A module's `main(args)` reads its flags without a `Command` through
+`shell.args.parseFlags(args, flagDefs)`, or `shell.args.parseArgs(args, { options })`
+for a plain `{ values, positionals }` result. Both run `parseArgs` from
+`node:util` in its lenient mode: an unknown flag is kept instead of failing, a
+string flag given without a value reads as `""`, and `--flag=false` turns a
+boolean flag off. `@eserstack/shell/args/flags` publishes them without the
+rest of the framework.
+
+```typescript
+import * as shell from "@eserstack/shell";
+
+const { values, positionals } = shell.args.parseArgs(["-n", "patch"], {
+  options: { "dry-run": { type: "boolean", short: "n" } },
+});
+// values["dry-run"] is true, positionals is ["patch"]
+```
+
 ### @eserstack/shell/module
 
 A command module that loads each of its commands only when that command runs,

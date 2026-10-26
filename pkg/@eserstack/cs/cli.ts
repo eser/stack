@@ -5,7 +5,7 @@
 // eval, and its errors and warnings on stderr, so it writes through console.
 /* oxlint-disable no-console */
 
-import * as cli from "@std/cli/parse-args";
+import * as shellFlags from "@eserstack/shell/args/flags";
 import * as results from "@eserstack/primitives/results";
 import { runtime } from "@eserstack/standards/cross-runtime";
 import type * as shellArgs from "@eserstack/shell/args";
@@ -15,7 +15,8 @@ import type { KubectlResourceReference, SyncOptions } from "./types.ts";
 
 const VERSION = "0.1.0";
 
-interface CliOptions {
+/** The options of the cs CLI. */
+export interface CliOptions {
   namespace?: string;
   env?: string;
   output?: "yaml" | "json";
@@ -99,40 +100,49 @@ function parseKubectlResource(
   return { type, name };
 }
 
-function parseCliArgs(): {
+const stringValue = (value: unknown): string | undefined =>
+  typeof value === "string" ? value : undefined;
+
+/**
+ * Parse the cs arguments: the command, its resource, `--namespace` (`-n`),
+ * `--env` (`-e`), `--output` (`-o`), `--string-only` (`-s`), `--help` (`-h`)
+ * and `--version` (`-v`).
+ */
+export function parseCliArgs(cliArgs: readonly string[]): {
   command: string | undefined;
   options: CliOptions;
   kubectlResource?: KubectlResourceReference;
 } {
-  const args = cli.parseArgs([...runtime.process.args], {
-    string: ["namespace", "env", "output"],
-    boolean: ["help", "version", "string-only"],
-    alias: {
-      n: "namespace",
-      e: "env",
-      o: "output",
-      s: "string-only",
-      h: "help",
-      v: "version",
+  const { values, positionals } = shellFlags.parseArgs(cliArgs, {
+    options: {
+      namespace: { type: "string", short: "n" },
+      env: { type: "string", short: "e" },
+      output: { type: "string", short: "o" },
+      help: { type: "boolean", short: "h" },
+      version: { type: "boolean", short: "v" },
+      "string-only": { type: "boolean", short: "s" },
     },
   });
 
-  const command = args._.length > 0 ? String(args._[0]) : undefined;
+  const command = positionals[0];
   let kubectlResource: KubectlResourceReference | undefined;
 
   // For sync and generate commands, parse the second argument as resource reference
-  if ((command === "sync" || command === "generate") && args._.length > 1) {
-    const resourceArg = String(args._[1]);
+  const resourceArg = positionals[1];
+  if (
+    (command === "sync" || command === "generate") &&
+    resourceArg !== undefined
+  ) {
     kubectlResource = parseKubectlResource(resourceArg) ?? undefined;
   }
 
   const options: CliOptions = {
-    namespace: args.namespace,
-    env: args.env,
-    output: args.output as "yaml" | "json" | undefined,
-    stringOnly: args["string-only"],
-    help: args.help,
-    version: args.version,
+    namespace: stringValue(values["namespace"]),
+    env: stringValue(values["env"]),
+    output: stringValue(values["output"]) as "yaml" | "json" | undefined,
+    stringOnly: values["string-only"] === true,
+    help: values["help"] === true,
+    version: values["version"] === true,
   };
 
   return { command, options, kubectlResource };
@@ -226,7 +236,9 @@ async function handleSync(
 }
 
 async function main(): Promise<shellArgs.CliResult<void>> {
-  const { command, options, kubectlResource } = parseCliArgs();
+  const { command, options, kubectlResource } = parseCliArgs(
+    runtime.process.args,
+  );
 
   // Handle help and version flags
   if (options.version === true) {

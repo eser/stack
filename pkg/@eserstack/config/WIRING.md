@@ -2,13 +2,14 @@
 
 ## 1. Input marshalling
 
-TS arguments are serialized to a single JSON string passed as `*C.char`:
+The call goes through the `configLoad` name of the ajan dispatcher ABI
+(TASK-238). The request is an object, which the library encodes as one JSON
+string for `EserAjanCall`; the request and answer types are in the ajan
+binding table (`ffi/bindings.ts`):
 
 ```ts
 // TS call site
-lib.symbols.EserAjanConfigLoad(
-  JSON.stringify({ sources, caseInsensitive: opts?.caseInsensitive ?? false }),
-);
+lib.call("configLoad", { sources, ...(opts ?? {}) });
 ```
 
 Go `configLoadRequest`:
@@ -28,15 +29,12 @@ Valid source specifiers:
 
 ## 2. Output marshalling
 
-Go returns a JSON string (`*C.char`). Backends copy it to a JS `string` before
-returning. TS parses with `JSON.parse`:
+Go answers a JSON string inside the dispatcher's envelope. The library copies
+it to a JS string and `lib.call` returns it parsed, error answers included:
 
 ```ts
-const raw: string = lib.symbols.EserAjanConfigLoad(reqJson);
-const result = JSON.parse(raw) as {
-  values?: Record<string, unknown>;
-  error?: string;
-};
+const result = lib.call("configLoad", request);
+// { values?: Record<string, unknown>; error?: string }
 ```
 
 Success payload: `{ "values": { "KEY": "value", ... } }` Error payload:
@@ -67,14 +65,14 @@ No structured error codes from Go. TS maps substrings to codes:
 
 Go allocates the return string with `C.CString` (heap). The FFI backend
 (`node:ffi` on Node.js) copies the C string to a JS string and then calls
-`EserAjanFree` internally. **TS calling code never calls `EserAjanFree` directly.** The
-`FFILibrary` wrapper handles this.
+`EserAjanFree` itself; TS calling code never sees a C string.
 
 Call sequence:
 
-1. TS: `lib.symbols.EserAjanConfigLoad(json)` → backend calls C func, copies
-   result to JS string, calls `EserAjanFree` on C ptr
-2. TS: receives plain JS `string`, no manual cleanup needed
+1. TS: `lib.call("configLoad", request)` → the backend calls `EserAjanCall`,
+   copies the envelope to a JS string and frees the C pointer with
+   `EserAjanFree`
+2. TS: receives the parsed answer, no manual cleanup needed
 3. WASM mode: identical contract; WASM memory is managed by the instance
 
 ## 5. Sync vs async

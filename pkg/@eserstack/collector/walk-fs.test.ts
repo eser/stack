@@ -51,13 +51,28 @@ const withFixture = async (
 };
 
 const goWalk = (dir: string, ignore: RegExp): string[] => {
-  const raw = ffiLib!.symbols.EserAjanCollectorWalkFiles(
-    JSON.stringify({ dir, ignoreFilePattern: ignore.source }),
-  );
-  const result = JSON.parse(raw) as {
-    files?: Array<{ relPath: string }> | null;
-  };
+  const result = ffiLib!.call("collectorWalkFiles", {
+    dir,
+    ignoreFilePattern: ignore.source,
+  });
   return (result.files ?? []).map((file) => file.relPath);
+};
+
+/**
+ * Answers the shared library's collectorWalkFiles calls with `answer` until
+ * the returned function restores it; every other name goes through.
+ */
+const interceptWalk = (answer: (request: unknown) => unknown): (() => void) => {
+  const lib = ffiLib as unknown as {
+    call: (name: string, request?: unknown) => unknown;
+  };
+  const original = lib.call;
+  lib.call = (name, request) =>
+    name === "collectorWalkFiles" ? answer(request) : original(name, request);
+
+  return () => {
+    lib.call = original;
+  };
 };
 
 nodeTest.test(
@@ -122,14 +137,11 @@ nodeTest.test(
   "walkFiles calls the Go collector when the bridge is loaded",
   { skip: ffiLib === null },
   async () => {
-    const original = ffiLib!.symbols.EserAjanCollectorWalkFiles;
-    const requests: string[] = [];
-    ffiLib!.symbols.EserAjanCollectorWalkFiles = (request: string) => {
+    const requests: unknown[] = [];
+    const restore = interceptWalk((request) => {
       requests.push(request);
-      return JSON.stringify({
-        files: [{ relPath: "from-go.ts", absPath: "/x/from-go.ts" }],
-      });
-    };
+      return { files: [{ relPath: "from-go.ts", absPath: "/x/from-go.ts" }] };
+    });
     try {
       const files = await Array.fromAsync(
         collector.walkFiles("/x", undefined, /^$/),
@@ -137,7 +149,7 @@ nodeTest.test(
       assert.assertEquals(files, ["from-go.ts"]);
       assert.assertEquals(requests.length, 1);
     } finally {
-      ffiLib!.symbols.EserAjanCollectorWalkFiles = original;
+      restore();
     }
   },
 );
@@ -146,9 +158,9 @@ nodeTest.test(
   "walkFiles walks in TypeScript when the Go walk reports an error",
   { skip: ffiLib === null },
   async () => {
-    const original = ffiLib!.symbols.EserAjanCollectorWalkFiles;
-    ffiLib!.symbols.EserAjanCollectorWalkFiles = () =>
-      JSON.stringify({ error: "walk root cannot be read" });
+    const restore = interceptWalk(() => ({
+      error: "walk root cannot be read",
+    }));
     try {
       await withFixture(async (dir) => {
         assert.assertEquals(
@@ -159,7 +171,7 @@ nodeTest.test(
         );
       });
     } finally {
-      ffiLib!.symbols.EserAjanCollectorWalkFiles = original;
+      restore();
     }
   },
 );

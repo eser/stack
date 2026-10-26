@@ -76,15 +76,21 @@ eser/stack facts they refer to. Read the one for the area you work in.
 ## Essential Commands
 
 ```bash
-pnpm cli ok        # Full gate: validators, oxfmt, oxlint, tsc, node:test, Go (run before committing)
-pnpm cli fix       # The same workflow with fixes applied
+pnpm ok            # Full gate, `eser ok`: validators, oxfmt, oxlint, tsc, node:test, Go (run before committing)
+pnpm fix           # `eser fix`: the same workflow with fixes applied
+pnpm preflight     # `eser preflight`: release-only steps (npm builds, consumer installs, wasm, Go compile); run before tagging
 pnpm cli test      # node:test with coverage to etc/coverage.lcov
-pnpm cli preflight # Release-only steps (npm builds, consumer installs, wasm, Go compile); run before tagging
 pnpm cli go-ok     # Go only: make ok (check, lint, test)
 pnpm cli go-vuln   # govulncheck for both Go modules (network; CI runs it)
-pnpm cli codebase <validator-name> [--fix]   # One validator, e.g. validate-circular-deps
+go run ./cmd/eser codebase <validator-name> [--fix]   # One validator with its manifest options, e.g. validate-circular-deps
 pnpm cli --help    # Every command; the scripts are listed in .eser/manifest.yml
 ```
+
+`eser ok`, `eser fix` and `eser preflight` run on the Go eser of `cmd/eser`,
+which runs the workflows of `.eser/manifest.yml` on `pkg/ajan/workflowfx`;
+`pnpm ok`, `pnpm fix` and `pnpm preflight` call it through `go run ./cmd/eser`,
+so no install is needed. `eser codebase install` writes git hooks that run it.
+`pnpm cli ok` still runs the same workflow on the TypeScript CLI.
 
 The Makefile holds Go targets only (`ok`, `check`, `lint`, `fix`, `test`,
 `test-coverage`, `build`, `tools`, `vuln`) and lints the root module only. The
@@ -103,8 +109,8 @@ never raise a count to let a new violation pass.
 
 ## Absolute Rules
 
-- Run `pnpm cli ok` before committing (runs
-  `pnpm cli workflows run -e precommit`)
+- Run `pnpm ok` (`eser ok`) before committing (runs
+  `eser workflows run -e precommit` on the Go eser)
 - One package per task — load `workflow-practices` for cross-package protocol
 - TS packages share one version — load `release-and-ci` for bumping
 - The Go modules are internal: they build from the shared release tag and get no

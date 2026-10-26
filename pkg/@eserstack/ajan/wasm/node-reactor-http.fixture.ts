@@ -26,16 +26,12 @@ const errorText = (error: unknown): string =>
 const main = async (): Promise<void> => {
   const base = nodeProcess.argv[2]!;
   const lib = await ffi.loadEserAjan();
-  const symbols = lib.symbols as unknown as Record<
-    string,
-    (...args: string[]) => string
-  >;
 
   // A name outside the profile throws UnsupportedInWasmError only on the
   // reactor, so this tells which build answered.
   let reactor = false;
   try {
-    symbols["EserAjanShellExec"]!("{}");
+    lib.call("shellExec", { command: "true" });
   } catch (error) {
     reactor = (error as { code?: string }).code === "UNSUPPORTED_IN_WASM";
   }
@@ -82,9 +78,7 @@ const main = async (): Promise<void> => {
     url: "/slow",
     signal: controller.signal,
   });
-  const formatsDuringWait = JSON.parse(symbols["EserAjanFormatList"]!()) as {
-    error?: string;
-  };
+  const formatsDuringWait = lib.call("formatList");
   setTimeout(() => controller.abort(), 100);
   let aborted = "";
   const startedAt = Date.now();
@@ -98,25 +92,17 @@ const main = async (): Promise<void> => {
   const afterAbort = await client.request({ method: "GET", url: "/hello" });
   client.close();
 
-  const asyncSymbols = lib.symbols as unknown as Record<
-    string,
-    (...args: string[]) => string | Promise<string>
-  >;
-  const retrying = JSON.parse(
-    await asyncSymbols["EserAjanHttpCreate"]!(
-      JSON.stringify({
-        baseUrl: base,
-        retryEnabled: true,
-        maxAttempts: 3,
-        initialIntervalMs: 10,
-      }),
-    ),
-  ) as { handle: string };
-  const retried = JSON.parse(
-    await asyncSymbols["EserAjanHttpRequest"]!(
-      JSON.stringify({ handle: retrying.handle, method: "GET", url: "/flaky" }),
-    ),
-  ) as { status: number; body: string; retries: number };
+  const retrying = lib.call("httpCreate", {
+    baseUrl: base,
+    retryEnabled: true,
+    maxAttempts: 3,
+    initialIntervalMs: 10,
+  });
+  const retried = await lib.call("httpRequest", {
+    handle: retrying.handle ?? "",
+    method: "GET",
+    url: "/flaky",
+  });
 
   // oxlint-disable-next-line no-console
   console.log(

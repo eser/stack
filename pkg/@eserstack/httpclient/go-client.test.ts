@@ -3,6 +3,7 @@
 import * as assert from "@eserstack/test-kit/assert";
 import * as bdd from "node:test";
 import * as net from "node:net";
+import * as fake from "@eserstack/ajan/ffi/fake";
 import * as goClientModule from "./go-client.ts";
 import * as ffiClient from "./ffi-client.ts";
 
@@ -128,4 +129,81 @@ bdd.describe("createGoHttpClient options", () => {
       }
     },
   );
+});
+
+bdd.describe("createGoHttpClientFor", () => {
+  bdd.it("releases its client handle with the bare handle", () => {
+    const closed: unknown[] = [];
+    const lib = fake.createFakeLibrary({
+      calls: {
+        httpCreate: () => ({ handle: "http-7" }),
+        httpClose: (handle) => {
+          closed.push(handle);
+          return {};
+        },
+      },
+    });
+
+    const client = goClientModule.createGoHttpClientFor(lib, {});
+    client.close();
+
+    // Go's httpClose takes the handle itself; a JSON-wrapped handle matched
+    // no client, so the client was never released.
+    assert.assertEquals(closed, ["http-7"]);
+  });
+
+  bdd.it("maps an error answer to a GoHttpError", async () => {
+    const lib = fake.createFakeLibrary({
+      calls: {
+        httpCreate: () => ({ handle: "http-8" }),
+        httpRequest: () => ({
+          error: "HTTP 404 Not Found",
+          status: 404,
+          statusText: "Not Found",
+          body: "nope",
+        }),
+      },
+    });
+
+    const client = goClientModule.createGoHttpClientFor(lib, {});
+    const error = await assert.assertRejects(
+      () => client.request({ method: "GET", url: "/missing" }),
+      goClientModule.GoHttpError,
+    );
+    assert.assertEquals(error.status, 404);
+    assert.assertEquals(error.body, "nope");
+  });
+
+  bdd.it("streams a body and closes the stream on cancel", async () => {
+    const closed: string[] = [];
+    const chunks = [btoa("one "), btoa("two")];
+    const lib = fake.createFakeLibrary({
+      calls: { httpCreate: () => ({ handle: "http-9" }) },
+      streams: {
+        httpRequestStream: {
+          open: () => ({ handle: "httpstream-1", status: 200, headers: {} }),
+          read: () => {
+            const chunk = chunks.shift();
+            return chunk === undefined
+              ? { done: true }
+              : { chunk, done: false };
+          },
+          close: (handle) => {
+            closed.push(handle);
+            return {};
+          },
+        },
+      },
+    });
+
+    const client = goClientModule.createGoHttpClientFor(lib, {});
+    const streamed = await client.requestStream({ method: "GET", url: "/s" });
+    assert.assertEquals(await new Response(streamed.body).text(), "one two");
+    // A stream read to its end releases its Go handle.
+    assert.assertEquals(closed, ["httpstream-1"]);
+
+    const again = await client.requestStream({ method: "GET", url: "/s" });
+    await again.body.cancel();
+    assert.assertEquals(closed, ["httpstream-1", "httpstream-1"]);
+  });
 });

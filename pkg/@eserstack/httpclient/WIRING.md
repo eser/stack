@@ -1,5 +1,27 @@
 # @eserstack/httpclient — FFI wiring notes
 
+## Bridge calls
+
+`go-client.ts` reaches the Go client through the dispatcher ABI of
+`@eserstack/ajan` (names and types in `ajan/ffi/bindings.ts`):
+
+| Operation              | Bridge name                          | Request                                                                   |
+| ---------------------- | ------------------------------------ | ------------------------------------------------------------------------- |
+| Create a client        | `lib.call("httpCreate", …)`          | the client options plus `timeoutMs`                                       |
+| Send a request         | `lib.call("httpRequest", …)`         | `{ handle, method, url, headers?, body?, maxResponseBytes?, requestId? }` |
+| Stream a response body | `lib.stream("httpRequestStream", …)` | the same request; `read()` answers `{ chunk?, done }`, `close()` releases |
+| Release the client     | `lib.call("httpClose", handle)`      | the bare handle string                                                    |
+
+`httpRequest` and `httpRequestStream` are async in the binding table: on the
+WASM fallback they wait on the host's fetch, so the client awaits them on
+every backend. An answer with an `error` field becomes a `GoHttpError`.
+
+`httpClose` takes the handle itself. Until the dispatcher ABI the client sent
+`{"handle":"…"}`, which matched no client, so client handles were never
+released; `go-client.test.ts` covers the bare handle. The body stream closes
+its Go handle once, at the end of the body, on a read error or on cancel, so
+a body read to its end no longer leaves its handle behind.
+
 ## Behavioral divergences
 
 ### httpclient.bridgeHttpCreate — ServerErrorThreshold lost via WithConfig

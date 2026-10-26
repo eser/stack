@@ -8,22 +8,32 @@
 
 import { runtime } from "@eserstack/standards/cross-runtime";
 import * as results from "@eserstack/primitives/results";
-import * as cliParseArgs from "@std/cli/parse-args";
+import * as shellFlags from "@eserstack/shell/args/flags";
 import * as task from "@eserstack/functions/task";
 import * as streams from "@eserstack/streams";
 import * as span from "@eserstack/streams/span";
 import * as updateRecipeHandler from "../recipes/handlers/update-recipe.ts";
 import type * as shellArgs from "@eserstack/shell/args";
 
+/** Parse the `eser kit update` arguments. */
+export const parseCliArgs = (
+  cliArgs?: readonly string[],
+): shellFlags.ParsedArgs =>
+  shellFlags.parseArgs(cliArgs ?? [], {
+    options: {
+      registry: { type: "string" },
+      "dry-run": { type: "boolean" },
+      verbose: { type: "boolean" },
+      local: { type: "boolean" },
+    },
+  });
+
 export const main = async (
   cliArgs?: readonly string[],
 ): Promise<shellArgs.CliResult<void>> => {
-  const parsed = cliParseArgs.parseArgs((cliArgs as string[]) ?? [], {
-    string: ["registry"],
-    boolean: ["dry-run", "verbose", "local"],
-  });
+  const parsed = parseCliArgs(cliArgs);
 
-  const recipeName = parsed._[0] as string | undefined;
+  const recipeName = parsed.positionals[0];
   const out = streams.output({
     renderer: streams.renderers.ansi(),
     sink: streams.sinks.stdout(),
@@ -41,7 +51,7 @@ export const main = async (
     return results.ok(undefined);
   }
 
-  const dryRun = parsed["dry-run"] === true;
+  const dryRun = parsed.values["dry-run"] === true;
 
   if (dryRun) {
     out.writeln(span.cyan(`\nDry run: updating ${recipeName}\n`));
@@ -53,10 +63,10 @@ export const main = async (
     updateRecipeHandler.updateRecipe({
       recipeName,
       cwd: runtime.process.cwd(),
-      registrySource: parsed["registry"] as string | undefined,
-      local: parsed["local"] === true,
+      registrySource: parsed.values["registry"] as string | undefined,
+      local: parsed.values["local"] === true,
       dryRun,
-      verbose: parsed["verbose"] === true,
+      verbose: parsed.values["verbose"] === true,
     }),
     { out },
   );

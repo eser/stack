@@ -24,8 +24,12 @@ const versionHandler = async (
     const lib = await ffi.loadEserAjan();
 
     try {
-      const version = lib.symbols.EserAjanVersion();
-      out.writeln(span.text(version));
+      const { version, abi } = lib.handshake;
+      out.writeln(
+        span.text(
+          `eser-ajan version ${version} (dispatcher ABI ${abi}, ${lib.backend})`,
+        ),
+      );
     } finally {
       lib.close();
     }

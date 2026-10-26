@@ -17,8 +17,7 @@
     "@eserstack/primitives": "workspace:*",
     "@eserstack/shell": "workspace:*",
     "@eserstack/standards": "workspace:*",
-    "@eserstack/streams": "workspace:*",
-    "@std/cli": "npm:@jsr/std__cli@^1.0.32"
+    "@eserstack/streams": "workspace:*"
   },
   "devDependencies": {
     "@eserstack/test-kit": "workspace:*"

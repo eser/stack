@@ -23,8 +23,6 @@
  * @module
  */
 
-import * as cliParseArgs from "@std/cli/parse-args";
-import * as stdPath from "@std/path";
 import * as primitives from "@eserstack/primitives";
 import * as standards from "@eserstack/standards";
 import * as functions from "@eserstack/functions";
@@ -189,7 +187,7 @@ export const updateContributors = async (
     commit: shouldCommit = false,
   } = options;
 
-  const resolvedPath = stdPath.resolve(readmePath);
+  const resolvedPath = standards.crossRuntime.runtime.path.resolve(readmePath);
 
   // Get repo info
   const repoInfo = await getRepoInfo();
@@ -312,17 +310,24 @@ export const handleCli: (
   adaptOutput: cliResponseMapper,
 });
 
+/** Parse the gh contributors arguments: `--columns`, `--readme`, `--commit`, `--help`. */
+export const parseCliArgs = (
+  cliArgs?: readonly string[],
+): functions.triggers.CliEvent =>
+  cliSupport.parseCliEvent("gh-contributors", cliArgs, {
+    columns: { type: "string" },
+    readme: { type: "string" },
+    commit: { type: "boolean" },
+    help: { type: "boolean", short: "h" },
+  });
+
 /** CLI entry point for dispatcher compatibility. */
 export const main = async (
   cliArgs?: readonly string[],
 ): Promise<shellArgs.CliResult<void>> => {
-  const parsed = cliParseArgs.parseArgs((cliArgs ?? []) as string[], {
-    string: ["columns", "readme"],
-    boolean: ["commit"],
-    alias: { h: "help" },
-  });
+  const event = parseCliArgs(cliArgs);
 
-  if (parsed["help"]) {
+  if (event.flags["help"] === true) {
     const { output: out } = cliSupport.getCliContext();
     out.writeln("eser codebase gh contributors — Update contributor list\n");
     out.writeln("Options:");
@@ -333,7 +338,6 @@ export const main = async (
     return primitives.results.ok(undefined);
   }
 
-  const event = cliSupport.toCliEvent("gh-contributors", parsed);
   return await handleCli(event);
 };
 

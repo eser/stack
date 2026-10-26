@@ -92,16 +92,13 @@ export const updateRecipe = (
         const lib = ffiClient.getLib();
 
         if (lib !== null) {
-          const raw = lib.symbols.EserAjanKitUpdateRecipe(
-            JSON.stringify({
-              recipeName: input.recipeName,
-              cwd: input.cwd,
-              registrySource: input.registrySource,
-              dryRun: input.dryRun,
-              verbose: input.verbose,
-            }),
-          );
-          const goResult = JSON.parse(raw) as {
+          const goResult = lib.call("kitUpdateRecipe", {
+            recipeName: input.recipeName,
+            cwd: input.cwd,
+            registrySource: input.registrySource,
+            dryRun: input.dryRun,
+            verbose: input.verbose,
+          }) as {
             recipes?: Array<{
               name: string;
               written?: string[];

@@ -30,8 +30,6 @@
  * @module
  */
 
-import * as cliParseArgs from "@std/cli/parse-args";
-import * as stdPath from "@std/path";
 import * as stdSemver from "@std/semver";
 import * as primitives from "@eserstack/primitives";
 import * as standards from "@eserstack/standards";
@@ -173,7 +171,10 @@ export const readVersionFile = async (
   options: VersionOptions = {},
 ): Promise<string | undefined> => {
   const { root = "." } = options;
-  const versionFilePath = stdPath.join(root, "VERSION");
+  const versionFilePath = standards.crossRuntime.runtime.path.join(
+    root,
+    "VERSION",
+  );
   try {
     const content =
       await standards.crossRuntime.runtime.fs.readTextFile(versionFilePath);
@@ -198,10 +199,11 @@ export const bumpVersion = async (
   explicit?: string,
 ): Promise<string> => {
   const lib = await ffiClient.requireLib();
-  const raw = lib.symbols.EserAjanCodebaseBumpVersion(
-    JSON.stringify({ current, command, explicit }),
-  );
-  const parsed = JSON.parse(raw) as { version?: string; error?: string };
+  const parsed = lib.call("codebaseBumpVersion", {
+    current,
+    command,
+    explicit,
+  }) as { version?: string; error?: string };
   if (parsed.error !== undefined) {
     throw new Error(parsed.error);
   }
@@ -218,7 +220,10 @@ const writeVersionFile = async (
   root: string,
   version: string,
 ): Promise<void> => {
-  const versionFilePath = stdPath.join(root, "VERSION");
+  const versionFilePath = standards.crossRuntime.runtime.path.join(
+    root,
+    "VERSION",
+  );
   await standards.crossRuntime.runtime.fs.writeTextFile(
     versionFilePath,
     version + "\n",
@@ -557,16 +562,18 @@ export const handleCli: (
   adaptOutput: cliResponseMapper,
 });
 
+/** Parse the versions arguments: the command and `--dry-run`. */
+export const parseCliArgs = (
+  cliArgs?: readonly string[],
+): functions.triggers.CliEvent =>
+  cliSupport.parseCliEvent("versions", cliArgs, {
+    "dry-run": { type: "boolean" },
+  });
+
 /** CLI entry point for dispatcher compatibility. */
 export const main = async (
   cliArgs?: readonly string[],
-): Promise<shellArgs.CliResult<void>> => {
-  const parsed = cliParseArgs.parseArgs((cliArgs ?? []) as string[], {
-    boolean: ["dry-run"],
-  });
-  const event = cliSupport.toCliEvent("versions", parsed);
-  return await handleCli(event);
-};
+): Promise<shellArgs.CliResult<void>> => await handleCli(parseCliArgs(cliArgs));
 
 if (import.meta.main) {
   // Entry point: the await only runs when this file is executed directly.

@@ -146,10 +146,10 @@ export const listRecipes = (
             ? await registryFetcher.detectLocalRegistry()
             : undefined) ??
           registryFetcher.DEFAULT_REGISTRY_URL;
-        const raw = lib.symbols.EserAjanKitListRecipes(
-          JSON.stringify({ registryUrl, cwd: runtime.process.cwd() }),
-        );
-        const goResult = JSON.parse(raw) as {
+        const goResult = lib.call("kitListRecipes", {
+          registryUrl,
+          cwd: runtime.process.cwd(),
+        }) as {
           manifest?: {
             name: string;
             description: string;

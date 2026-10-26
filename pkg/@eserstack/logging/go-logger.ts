@@ -4,12 +4,13 @@
  * Go-backed structured logger.
  *
  * Provides a simple logger handle that delegates to the native Go library
- * via EserAjanLogCreate / EserAjanLogWrite / EserAjanLogClose. Falls back
+ * via the bridge's logCreate, logWrite and logClose calls. Falls back
  * silently when the native library is unavailable.
  *
  * @module
  */
 
+import type * as ffiTypes from "@eserstack/ajan/ffi";
 import * as ffiClient from "./ffi-client.ts";
 import * as serialize from "./serialize.ts";
 
@@ -71,10 +72,12 @@ export const createGoLogger = async (
     };
   }
 
-  const raw = lib.symbols.EserAjanLogCreate(JSON.stringify(options));
-  const result = JSON.parse(raw) as { handle: string; error?: string };
+  const result = lib.call("logCreate", { ...options });
 
-  if (result.error !== undefined && result.error !== "") {
+  if (
+    (result.error !== undefined && result.error !== "") ||
+    result.handle === undefined
+  ) {
     return { write: () => {}, close: () => {} };
   }
 
@@ -88,18 +91,23 @@ export const createGoLogger = async (
     ): void {
       const lib2 = ffiClient.getLib();
       if (lib2 === null) return;
-      lib2.symbols.EserAjanLogWrite(
-        JSON.stringify(
-          { handle, level, message, attrs },
-          serialize.jsonReplacer,
-        ),
+      // Encoded here for the attribute replacer; the library sends a string
+      // request as it is.
+      const request = JSON.stringify(
+        { handle, level, message, attrs },
+        serialize.jsonReplacer,
+      );
+      lib2.call(
+        "logWrite",
+        request as unknown as ffiTypes.RequestOf<"logWrite">,
       );
     },
 
     close(): void {
       const lib2 = ffiClient.getLib();
       if (lib2 === null) return;
-      lib2.symbols.EserAjanLogClose(JSON.stringify({ handle }));
+      // logClose takes the bare handle.
+      lib2.call("logClose", handle);
     },
   };
 };

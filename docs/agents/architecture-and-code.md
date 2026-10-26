@@ -35,7 +35,7 @@ architecture-guidelines: Architectural Decision Records lists; a new one does.
   `@std/testing/mock` until M2-T4 moves it to `node:assert`.
 - `pnpm cli test` runs `node --test` over `pkg/**/*.test.ts` and
   `etc/scripts/*.test.ts`, one process per file, with coverage written as LCOV
-  to `etc/coverage.lcov`. `pnpm cli ok` runs the same command as part of the
+  to `etc/coverage.lcov`. `pnpm ok` runs the same command as part of the
   precommit workflow, and the Build workflow uploads that file to Codecov.
 
 ## Validators

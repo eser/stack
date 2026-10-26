@@ -107,3 +107,35 @@ nodeTest.test("createFileTool main: rejects an --exclude with no pattern", () =>
     assert.assertEquals(checked, []);
   }),
 );
+
+nodeTest.test("createFileTool main: -h prints help and checks nothing", () =>
+  withFixtureRoot(async (root) => {
+    const checked: string[] = [];
+    const result = await recordingTool(checked).main(["--root", root, "-h"]);
+
+    assert.assert(primitives.results.isOk(result));
+    assert.assertEquals(checked, []);
+  }),
+);
+
+nodeTest.test("createFileTool main: --fix reaches a tool that can fix", () =>
+  withFixtureRoot(async (root) => {
+    const fixFlags: boolean[] = [];
+    const tool = fileTool.createFileTool({
+      name: "record-fix",
+      description: "Records the fix flag",
+      canFix: true,
+      stacks: [],
+      defaults: {},
+      checkFile: (_file, _content, options) => {
+        fixFlags.push(options.fix);
+        return [];
+      },
+    });
+
+    await tool.main(["--root", root]);
+    await tool.main(["--root", root, "--fix"]);
+
+    assert.assertEquals(fixFlags, [false, false, false, true, true, true]);
+  }),
+);

@@ -5,6 +5,7 @@ import type { Category, Filter, Sink } from "./types.ts";
 import * as category from "./category.ts";
 import * as config from "./config.ts";
 import * as context from "./context.ts";
+import type * as ffiTypes from "@eserstack/ajan/ffi";
 import * as ffiClient from "./ffi-client.ts";
 import * as serialize from "./serialize.ts";
 
@@ -22,13 +23,6 @@ const severityToGoLevel = (s: logging.Severity): string => {
 
   return "PANIC";
 };
-
-/**
- * Substring probed on every EserAjanLogWrite response. Go answers "{}" on
- * success and {"error":"..."} on failure, and never echoes the submitted
- * record, so nothing a caller logs can put this marker into a response.
- */
-const ERROR_FIELD_MARKER = '"error"';
 
 const describeCause = (error: unknown): string =>
   error instanceof Error ? error.message : String(error);
@@ -177,16 +171,15 @@ export class Logger implements logging.Logger {
 
       const lib = ffiClient.requireLib();
       const effectiveConfig = this.#getEffectiveConfig();
-      const raw = lib.symbols.EserAjanLogCreate(
-        JSON.stringify({
-          scopeName: category.categoryToString(this.category),
-          level: severityToGoLevel(effectiveConfig.lowestLevel),
-        }),
-      );
-      const result = JSON.parse(raw) as { handle?: string; error?: string };
+      const result = lib.call("logCreate", {
+        scopeName: category.categoryToString(this.category),
+        level: severityToGoLevel(effectiveConfig.lowestLevel),
+      });
 
       if (result.handle === undefined || result.handle === "") {
-        this.#degrade(result.error ?? `EserAjanLogCreate returned ${raw}`);
+        this.#degrade(
+          result.error ?? `logCreate returned ${JSON.stringify(result)}`,
+        );
 
         return null;
       }
@@ -226,16 +219,11 @@ export class Logger implements logging.Logger {
     }
 
     try {
-      const raw = ffiClient.requireLib().symbols.EserAjanLogWrite(request);
-
-      // Hot path trade-off: a successful write answers "{}", so the response is
-      // only parsed once it mentions an error field. Since Go never echoes the
-      // record back, no failure response can lack the marker and slip through.
-      if (!raw.includes(ERROR_FIELD_MARKER)) {
-        return true;
-      }
-
-      const result = JSON.parse(raw) as { error?: string };
+      // The request is already JSON, encoded with the attribute replacer, and
+      // the library sends a string request as it is.
+      const result = ffiClient
+        .requireLib()
+        .call("logWrite", request as unknown as ffiTypes.RequestOf<"logWrite">);
 
       if (result.error === undefined || result.error === "") {
         return true;
@@ -793,12 +781,10 @@ config.registerConfigureHook(async (loggerConfigs) => {
     const handle = goHandles.get(key);
 
     if (handle !== undefined) {
-      lib.symbols.EserAjanLogConfigure(
-        JSON.stringify({
-          handle,
-          level: severityToGoLevel(loggerConfig.lowestLevel),
-        }),
-      );
+      lib.call("logConfigure", {
+        handle,
+        level: severityToGoLevel(loggerConfig.lowestLevel),
+      });
     }
   }
 });

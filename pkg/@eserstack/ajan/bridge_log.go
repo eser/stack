@@ -355,9 +355,9 @@ func bridgeLogConfigure(requestJSON string) string {
 
 func init() {
 	registerShutdownDrain(drainLogHandles)
-	register("logCreate", []string{"configJSON"}, func(a []string) string { return bridgeLogCreate(a[0]) })
-	register("logWrite", []string{"requestJSON"}, func(a []string) string { return bridgeLogWrite(a[0]) })
-	register("logClose", []string{"handle"}, func(a []string) string { return bridgeLogClose(a[0]) })
-	register("logShouldLog", []string{"requestJSON"}, func(a []string) string { return bridgeLogShouldLog(a[0]) })
-	register("logConfigure", []string{"requestJSON"}, func(a []string) string { return bridgeLogConfigure(a[0]) })
+	register("logCreate", bridgeLogCreate)
+	register("logWrite", bridgeLogWrite)
+	register("logClose", bridgeLogClose)
+	register("logShouldLog", bridgeLogShouldLog)
+	register("logConfigure", bridgeLogConfigure)
 }

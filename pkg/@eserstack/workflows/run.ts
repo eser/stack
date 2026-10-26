@@ -10,7 +10,7 @@
  * @module
  */
 
-import * as cliParseArgs from "@std/cli/parse-args";
+import * as shellFlags from "@eserstack/shell/args/flags";
 import * as span from "@eserstack/streams/span";
 import * as streams from "@eserstack/streams";
 import * as results from "@eserstack/primitives/results";
@@ -223,7 +223,8 @@ const failRun = (
   return results.fail({ exitCode: 1 });
 };
 
-type RunFlags = {
+/** The flags of `eser workflows run`. */
+export type RunFlags = {
   readonly event: string | undefined;
   readonly workflow: string | undefined;
   readonly config: string;
@@ -356,6 +357,50 @@ export type RunCliOptions = {
   readonly tools?: readonly WorkflowTool[];
 };
 
+const stringValue = (value: unknown): string | undefined =>
+  typeof value === "string" ? value : undefined;
+
+/**
+ * Parse the `eser workflows run` arguments: `--event` (`-e`), `--workflow`
+ * (`-w`), `--only`, `--config`, `--fix`, `--dry-run`, `--verbose` (`-v`),
+ * `--json`, `--changed`, `--help` (`-h`). Positionals are passed on to the
+ * tools.
+ */
+export const parseCliArgs = (
+  cliArgs?: readonly string[],
+): { readonly help: boolean; readonly flags: RunFlags } => {
+  const { values, positionals } = shellFlags.parseArgs(cliArgs ?? [], {
+    options: {
+      event: { type: "string", short: "e" },
+      workflow: { type: "string", short: "w" },
+      only: { type: "string" },
+      config: { type: "string" },
+      fix: { type: "boolean" },
+      "dry-run": { type: "boolean" },
+      help: { type: "boolean", short: "h" },
+      verbose: { type: "boolean", short: "v" },
+      json: { type: "boolean" },
+      changed: { type: "boolean" },
+    },
+  });
+
+  return {
+    help: values["help"] === true,
+    flags: {
+      event: stringValue(values["event"]),
+      workflow: stringValue(values["workflow"]),
+      config: stringValue(values["config"]) ?? ".",
+      fix: values["fix"] === true,
+      dryRun: values["dry-run"] === true,
+      only: stringValue(values["only"]),
+      args: positionals,
+      verbose: values["verbose"] === true,
+      json: values["json"] === true,
+      changed: values["changed"] === true,
+    },
+  };
+};
+
 /**
  * CLI main function.
  *
@@ -369,31 +414,14 @@ export const main = async (
   cliArgs?: readonly string[],
   cliOptions?: RunCliOptions,
 ): Promise<shellArgs.CliResult<void>> => {
-  const parsed = cliParseArgs.parseArgs((cliArgs ?? []) as string[], {
-    string: ["event", "workflow", "only", "config"],
-    boolean: ["fix", "dry-run", "help", "verbose", "json", "changed"],
-    alias: { e: "event", w: "workflow", h: "help", v: "verbose" },
-  });
+  const { help, flags } = parseCliArgs(cliArgs);
 
   const out = createLineWriter();
 
-  if (parsed.help) {
+  if (help) {
     writeHelp(out);
     return results.ok(undefined);
   }
-
-  const flags: RunFlags = {
-    event: parsed.event as string | undefined,
-    workflow: parsed.workflow as string | undefined,
-    config: (parsed.config as string | undefined) ?? ".",
-    fix: (parsed.fix as boolean | undefined) ?? false,
-    dryRun: (parsed["dry-run"] as boolean | undefined) ?? false,
-    only: parsed.only as string | undefined,
-    args: parsed._ as string[],
-    verbose: (parsed.verbose as boolean | undefined) ?? false,
-    json: (parsed.json as boolean | undefined) ?? false,
-    changed: (parsed.changed as boolean | undefined) ?? false,
-  };
 
   return await runCommand(out, flags, cliOptions);
 };

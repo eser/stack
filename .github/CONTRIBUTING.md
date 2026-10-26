@@ -16,13 +16,13 @@ this. You can also run `noskills-server feedback` to open a pre-filled URL.
 You need Node 26.9 or later (`.node-version` pins the version CI uses), pnpm
 11.18.0 and Go. Run `pnpm install` once after cloning, then `pnpm cli init`,
 which installs the dependencies again and sets up the git hooks
-(`eser codebase install`). The full check is `pnpm cli ok`; it must pass before
-every commit.
+(`eser codebase install`). The full check is `pnpm ok` (`eser ok`); it must
+pass before every commit.
 
 ```bash
 # Go toolchain
 go mod download
-pnpm cli ok        # full validation (Node + Go), must pass before every commit
+pnpm ok            # full validation (Node + Go), must pass before every commit
 
 # Build binaries
 go build ./cmd/noskills-server

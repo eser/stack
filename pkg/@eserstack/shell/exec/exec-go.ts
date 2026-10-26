@@ -1,7 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 /**
- * One-shot command execution through the Go bridge's `EserAjanShellExec`.
+ * One-shot command execution through the Go bridge's `shellExec` call.
  *
  * `CommandBuilder.spawn()` and `goExec()` both build their request here, so the
  * two cannot drift apart again. the bridge's `shellExecRequest` reads `env` as
@@ -73,7 +73,7 @@ export type ExecGoOptions = {
   readonly timeout?: number;
 };
 
-/** The JSON body of an `EserAjanShellExec` call: the bridge's `shellExecRequest`. */
+/** The JSON body of a `shellExec` call: the bridge's `shellExecRequest`. */
 export type ExecGoRequest = {
   readonly command: string;
   readonly args?: readonly string[];
@@ -84,7 +84,7 @@ export type ExecGoRequest = {
   readonly timeout: string;
 };
 
-/** A successful `EserAjanShellExec` reply. */
+/** A successful `shellExec` reply. */
 export type ExecGoReply = {
   readonly stdout: string;
   readonly stderr: string;
@@ -124,10 +124,9 @@ export const runExecGo = (
   lib: ffiTypes.FFILibrary,
   request: ExecGoRequest,
 ): ExecGoReply => {
-  const raw = lib.symbols.EserAjanShellExec(JSON.stringify(request));
   // The bridge's shellExecResponse: stdout and stderr are omitted when empty,
   // code is always present.
-  const reply = JSON.parse(raw) as {
+  const reply = lib.call("shellExec", request) as {
     readonly stdout?: string;
     readonly stderr?: string;
     readonly code: number;

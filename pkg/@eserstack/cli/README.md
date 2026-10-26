@@ -437,7 +437,7 @@ The CLI follows a hexagonal (ports & adapters) architecture where:
 User types:  eser kit list --language go
 
 CLI adapter (commands/list.ts):
-  ├── Parse args with @std/cli/parse-args
+  ├── Parse args with parseArgs from @eserstack/shell/args/flags
   ├── Create Output with ANSI renderer + stdout sink
   ├── Run handler via task.runTask(listRecipes(input), { out })
   └── Return ok/fail result

@@ -3,6 +3,11 @@
 """
 Minimal Python example for eser-ajan FFI using ctypes.
 
+The library exports the dispatcher ABI: EserAjanVersion answers the handshake
+JSON, and EserAjanCall runs a registry name with its request and answers a
+JSON envelope ({"ok": true, "result": "..."}). Every returned string goes
+back to EserAjanFree.
+
 Usage:
   # Linux
   LD_LIBRARY_PATH=. python example.py
@@ -15,6 +20,7 @@ Usage:
 """
 
 import ctypes
+import json
 import os
 import sys
 
@@ -40,33 +46,35 @@ def _load_library() -> ctypes.CDLL:
 def main() -> None:
     lib = _load_library()
 
-    # Declare function signatures
-    lib.EserAjanInit.restype = ctypes.c_int
-    lib.EserAjanInit.argtypes = []
-
-    lib.EserAjanVersion.restype = ctypes.c_char_p
+    # Declare the signatures. The answers are read as raw pointers so they can
+    # be handed back to EserAjanFree.
+    lib.EserAjanVersion.restype = ctypes.c_void_p
     lib.EserAjanVersion.argtypes = []
 
+    lib.EserAjanCall.restype = ctypes.c_void_p
+    lib.EserAjanCall.argtypes = [ctypes.c_char_p, ctypes.c_char_p]
+
     lib.EserAjanFree.restype = None
-    lib.EserAjanFree.argtypes = [ctypes.c_char_p]
+    lib.EserAjanFree.argtypes = [ctypes.c_void_p]
 
-    lib.EserAjanShutdown.restype = None
-    lib.EserAjanShutdown.argtypes = []
+    def take(ptr: int) -> str:
+        try:
+            return ctypes.string_at(ptr).decode("utf-8")
+        finally:
+            lib.EserAjanFree(ptr)
 
-    # Initialize the Go runtime bridge
-    rc = lib.EserAjanInit()
-    if rc != 0:
-        raise RuntimeError(f"EserAjanInit failed with code {rc}")
+    def call(name: str, request: str = "") -> dict:
+        return json.loads(take(lib.EserAjanCall(name.encode(), request.encode())))
 
-    # Get and print the version string
-    version = lib.EserAjanVersion()
-    print(f"Version: {version.decode('utf-8')}")
+    # The handshake: version, dispatcher ABI, profile and names
+    handshake = json.loads(take(lib.EserAjanVersion()))
+    print(f"Version: {handshake['version']}, ABI {handshake['abi']}")
 
-    # Free the C string allocated by Go
-    lib.EserAjanFree(version)
-
-    # Shut down the Go runtime bridge
-    lib.EserAjanShutdown()
+    # Initialize the Go runtime bridge, hash a text, shut down
+    call("init")
+    envelope = call("cryptoHash", json.dumps({"text": "hello", "algorithm": "SHA-256"}))
+    print(f"cryptoHash: {json.loads(envelope['result'])}")
+    call("shutdown")
 
 
 if __name__ == "__main__":

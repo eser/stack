@@ -86,5 +86,5 @@ func bridgeConfigLoad(optionsJSON string) string {
 }
 
 func init() {
-	register("configLoad", []string{"optionsJSON"}, func(a []string) string { return bridgeConfigLoad(a[0]) })
+	register("configLoad", bridgeConfigLoad)
 }

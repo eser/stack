@@ -6,6 +6,7 @@ import * as assert from "@eserstack/test-kit/assert";
 import * as results from "@eserstack/primitives/results";
 
 import * as command from "./command.ts";
+import type { CommandContext } from "./types.ts";
 
 /**
  * Builds a parent command with one lazily-loaded child that carries an alias.
@@ -152,3 +153,141 @@ nodeTest.test(
     assert.assertEquals(received(), null);
   },
 );
+
+/**
+ * Builds a root command with persistent and own flags and one child, and
+ * records the context each handler ran with.
+ */
+const withFlags = (): {
+  root: command.Command;
+  seen: () => { path: string; ctx: CommandContext } | null;
+} => {
+  let last: { path: string; ctx: CommandContext } | null = null;
+
+  const child = new command.Command("build")
+    .flag({ name: "out", short: "o", type: "string", description: "Output" })
+    .flag({ name: "tag", type: "string[]", description: "Tags" })
+    .run((ctx) => {
+      last = { path: ctx.commandPath.join(" "), ctx };
+      return results.ok(undefined);
+    });
+
+  const root = new command.Command("app")
+    .persistentFlag({
+      name: "verbose",
+      short: "v",
+      type: "boolean",
+      description: "Verbose",
+    })
+    .flag({
+      name: "port",
+      type: "number",
+      default: 8000,
+      description: "Port",
+    })
+    .command(child);
+
+  return { root, seen: () => last };
+};
+
+nodeTest.test("a subcommand reads its own and persistent flags", async () => {
+  const { root, seen } = withFlags();
+
+  const result = await root.parse([
+    "build",
+    "-v",
+    "--out",
+    "dist",
+    "--tag",
+    "a",
+    "--tag=b",
+    "src",
+  ]);
+
+  assert.assert(results.isOk(result));
+  assert.assertEquals(seen()?.path, "app build");
+  assert.assertEquals(seen()?.ctx.flags["verbose"], true);
+  assert.assertEquals(seen()?.ctx.flags["out"], "dist");
+  assert.assertEquals(seen()?.ctx.flags["tag"], ["a", "b"]);
+  assert.assertEquals(seen()?.ctx.args, ["src"]);
+});
+
+nodeTest.test(
+  "an absent boolean flag reaches the handler as false",
+  async () => {
+    const { root, seen } = withFlags();
+
+    await root.parse(["build"]);
+
+    assert.assertEquals(seen()?.ctx.flags["verbose"], false);
+    assert.assertEquals(seen()?.ctx.flags["out"], undefined);
+  },
+);
+
+nodeTest.test(
+  "flags after the subcommand name go to the subcommand",
+  async () => {
+    const { root, seen } = withFlags();
+
+    // --out is not a root flag; the root stops at "build" and leaves it alone.
+    // The root drops the first "--", so a fallback that forwards its arguments
+    // to a script does not pass the separator on.
+    await root.parse(["build", "--out=lib", "--", "src"]);
+
+    assert.assertEquals(seen()?.ctx.flags["out"], "lib");
+    assert.assertEquals(seen()?.ctx.args, ["src"]);
+  },
+);
+
+nodeTest.test("an unknown flag is ignored, not an error", async () => {
+  const { root, seen } = withFlags();
+
+  const result = await root.parse(["build", "--unknown", "src"]);
+
+  assert.assert(results.isOk(result));
+  assert.assertEquals(seen()?.ctx.flags["unknown"], undefined);
+  assert.assertEquals(seen()?.ctx.args, ["src"]);
+});
+
+nodeTest.test(
+  "a required flag that is missing fails with exit code 1",
+  async () => {
+    let ran = false;
+    const cmd = new command.Command("deploy")
+      .flag({
+        name: "target",
+        type: "string",
+        required: true,
+        description: "Target",
+      })
+      .run(() => {
+        ran = true;
+        return results.ok(undefined);
+      });
+
+    const missing = await cmd.parse([]);
+    assert.assert(results.isFail(missing));
+    assert.assertEquals(missing.error.exitCode, 1);
+    assert.assertEquals(ran, false);
+
+    const given = await cmd.parse(["--target", "prod"]);
+    assert.assert(results.isOk(given));
+    assert.assertEquals(ran, true);
+  },
+);
+
+nodeTest.test("a number flag is converted and defaults apply", async () => {
+  let port: unknown = null;
+  const cmd = new command.Command("serve")
+    .flag({ name: "port", type: "number", default: 8000, description: "" })
+    .run((ctx) => {
+      port = ctx.flags["port"];
+      return results.ok(undefined);
+    });
+
+  await cmd.parse([]);
+  assert.assertEquals(port, 8000);
+
+  await cmd.parse(["--port", "3000"]);
+  assert.assertEquals(port, 3000);
+});

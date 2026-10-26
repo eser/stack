@@ -4,16 +4,21 @@ Verified: 2026-04-17 (Wave 2 + Track C)
 
 ## 1. Input marshalling
 
-**EserAjanCsGenerate** — generates a Kubernetes ConfigMap or Secret manifest
+Both names belong to the ajan dispatcher ABI (TASK-238) and are reached with
+`lib.call(name, request)`. The request is an object, which the library encodes
+as JSON for `EserAjanCall`; the request and answer types are in the ajan
+binding table (`ffi/bindings.ts`).
+
+**csGenerate** generates a Kubernetes ConfigMap or Secret manifest
 from a `.env` file:
 
 ```ts
-lib.symbols.EserAjanCsGenerate(JSON.stringify({
+lib.call("csGenerate", {
   resource: { type: "configmap" | "secret", name: string, namespace?: string },
   envFile: absoluteFilePath,   // ← env NAME resolved to path before sending to Go
   format: "yaml" | "json",
   namespace: string,           // top-level fallback (empty string if undefined)
-}));
+});
 ```
 
 > **Key**: TS receives `env` as a name suffix (e.g. `"test"` → `.env.test`). Go
@@ -23,31 +28,30 @@ lib.symbols.EserAjanCsGenerate(JSON.stringify({
 > When `env` is `undefined`, TS sends `envFile: ""` and `cwd`, and the bridge
 > reads `.env` and `.env.local` from that directory.
 
-**EserAjanCsSync** generates a `kubectl patch` command to sync env values into
+**csSync** generates a `kubectl patch` command to sync env values into
 an existing resource. `sync.ts` does not call it; see D2 below.
 
 ```ts
-lib.symbols.EserAjanCsSync(
-  JSON.stringify({
-    resource: { type, name, namespace },
-    envFile: absoluteFilePath,
-    format: "json" | "yaml",
-    stringOnly: boolean,
-  }),
-);
+lib.call("csSync", {
+  resource: { type, name, namespace },
+  envFile: absoluteFilePath,
+  format: "json" | "yaml",
+  stringOnly: boolean,
+});
 ```
 
 ## 2. Output marshalling
 
-Both symbols return `{ result: string } | { error: string }`:
+Both names answer `{ result: string } | { error: string }`, which `lib.call`
+returns parsed, error answers included:
 
 ```ts
-const parsed = JSON.parse(raw) as { result?: string; error?: string };
+const parsed = lib.call("csGenerate", request); // { result?, error? }
 if (!parsed.error) return parsed.result ?? "";
 // else: fall through to TS fallback
 ```
 
-`result` for **EserAjanCsGenerate** is the manifest string. For JSON format, Go
+`result` for **csGenerate** is the manifest string. For JSON format, Go
 uses `WriteStart + WriteItem(IsFirst:true) + WriteEnd` (Track C fix), so the
 output is a JSON array:
 
@@ -91,21 +95,22 @@ fallback.
 
 ## 4. Memory ownership
 
-Go allocates return strings with `C.CString` (heap). FFI backends copy to JS
-string and call `EserAjanFree` internally. **TS calling code never calls
-`EserAjanFree` directly.**
+Go allocates every answer with `C.CString` (heap). The ajan library copies it
+to a JS string and frees it with `EserAjanFree` itself; TS calling code never
+sees a C string.
 
 ## 5. Handle lifecycle
 
 N/A — `@eserstack/cs` is stateless. No handles are created or maintained. Both
-`EserAjanCsGenerate` and `EserAjanCsSync` are single-call request/response.
+`csGenerate` and `csSync` are single-call request/response.
 
 ## 6. Known limitations / WASM
 
-- `EserAjanCsGenerate` reads from a `.env` file on disk — WASM's `wasip1` has no
-  `open()`, so FFI will fail. TS fallback handles file reading via
+- `csGenerate` reads `.env` files from disk (`wasm: "fs"` in the binding table):
+  on the WASM fallback it works through the node:wasi preopen of the working
+  directory; without one it fails and the TS fallback reads the files via
   `@eserstack/config/dotenv`.
-- `EserAjanCsSync` runs `kubectl` as a subprocess, which WASM cannot do.
+- `csSync` runs `kubectl` as a subprocess, which WASM cannot do (`wasm: "no"`).
   `sync()` runs in TypeScript in every runtime (D2).
 
 ## Behavioral divergences
@@ -137,7 +142,7 @@ the process environment. Go also cannot call `onMissingKey`, which the CLI uses
 for its warnings, or an injected `getResourceKeys`. Go's YAML patch is a
 sequence (`- data:`), which is not a valid merge patch.
 
-**Resolution**: `sync()` no longer calls `EserAjanCsSync`. It runs in
+**Resolution**: `sync()` no longer calls `csSync`. It runs in
 TypeScript, and its YAML patch is a single mapping (`data:`). Delegating again
 needs a request with the environment name and directory, layered files and
 process environment in Go, the missing keys in the response, and a mapping for

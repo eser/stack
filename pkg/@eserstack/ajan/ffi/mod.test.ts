@@ -90,6 +90,8 @@ interface Attempt {
   readonly version?: string;
   readonly formats?: unknown;
   readonly outsideProfile?: string;
+  readonly outsideProfileCode?: string;
+  readonly backend?: string;
   readonly message?: string;
   readonly cause?: string | null;
 }
@@ -171,15 +173,17 @@ const attemptScript = (optionsList: readonly string[]): string =>
     `    return { message: error.message, cause: error.cause?.message ?? null };`,
     `  }`,
     `  try {`,
-    `    const version = lib.symbols.EserAjanVersion();`,
-    `    const formats = JSON.parse(lib.symbols.EserAjanFormatList());`,
+    `    const version = lib.handshake.version;`,
+    `    const formats = lib.call("formatList");`,
     `    let outsideProfile = "served";`,
+    `    let outsideProfileCode;`,
     `    try {`,
-    `      lib.symbols.EserAjanShellExec("{}");`,
+    `      lib.call("shellExec", { command: "true" });`,
     `    } catch (error) {`,
     `      outsideProfile = error.name;`,
+    `      outsideProfileCode = error.code;`,
     `    }`,
-    `    return { loaded: true, version, formats, outsideProfile };`,
+    `    return { loaded: true, backend: lib.backend, version, formats, outsideProfile, outsideProfileCode };`,
     `  } finally {`,
     `    lib.close();`,
     `  }`,
@@ -211,14 +215,18 @@ nodeTest.test(
     const [attempt] = attempts;
 
     assert.assertEquals(attempt?.loaded, true, JSON.stringify(attempt));
+    assert.assertEquals(attempt?.backend, "wasm");
     assert.assertMatch(attempt?.version ?? "", /\S/);
+    // A successful call through the binding table.
+    const formats = attempt?.formats as { formats?: unknown[] } | undefined;
     assert.assert(
-      attempt?.formats !== null && typeof attempt?.formats === "object",
-      `formatList did not answer JSON: ${JSON.stringify(attempt)}`,
+      Array.isArray(formats?.formats) && formats.formats.length > 0,
+      `formatList did not answer its formats: ${JSON.stringify(attempt)}`,
     );
     // Only the reactor refuses a name outside the wasi profile this way; the
     // native library would have served the call.
     assert.assertEquals(attempt?.outsideProfile, "UnsupportedInWasmError");
+    assert.assertEquals(attempt?.outsideProfileCode, "UNSUPPORTED_IN_WASM");
     assert.assertMatch(stderr, /native FFI failed: node:ffi is not available/);
   },
 );

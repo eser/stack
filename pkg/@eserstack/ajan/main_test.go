@@ -4,28 +4,8 @@ package main
 
 import (
 	"encoding/json"
-	"strings"
 	"testing"
 )
-
-func TestBridgeVersion(t *testing.T) {
-	t.Run("returns version string", func(t *testing.T) {
-		got := bridgeVersion()
-		want := "eser-ajan version " + Version
-
-		if got != want {
-			t.Errorf("bridgeVersion() = %q, want %q", got, want)
-		}
-	})
-
-	t.Run("contains version constant", func(t *testing.T) {
-		got := bridgeVersion()
-
-		if !strings.Contains(got, Version) {
-			t.Errorf("bridgeVersion() = %q, does not contain Version %q", got, Version)
-		}
-	})
-}
 
 func TestBridgeInit(t *testing.T) {
 	t.Run("returns zero on success", func(t *testing.T) {

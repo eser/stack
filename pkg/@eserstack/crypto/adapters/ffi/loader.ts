@@ -34,7 +34,7 @@ export const ffiLoader: Loader = {
     }
 
     const result = await client.callJson<{ hash?: string }>(
-      (lib) => lib.symbols.EserAjanCryptoHash(JSON.stringify(req)),
+      (lib) => lib.call("cryptoHash", req),
       {
         onUnavailable: () =>
           new errors.CryptoError(

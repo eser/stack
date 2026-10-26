@@ -8,7 +8,7 @@
 
 import { runtime } from "@eserstack/standards/cross-runtime";
 import * as results from "@eserstack/primitives/results";
-import * as cliParseArgs from "@std/cli/parse-args";
+import * as shellFlags from "@eserstack/shell/args/flags";
 import * as task from "@eserstack/functions/task";
 import * as streams from "@eserstack/streams";
 import * as span from "@eserstack/streams/span";
@@ -134,26 +134,34 @@ const failureMessage = (error: cloneRecipeHandler.CloneRecipeError): string => {
 // Command
 // =============================================================================
 
+/** Parse the `eser kit clone` arguments. */
+export const parseCliArgs = (
+  cliArgs?: readonly string[],
+): shellFlags.ParsedArgs =>
+  shellFlags.parseArgs(cliArgs ?? [], {
+    options: {
+      recipe: { type: "string" },
+      name: { type: "string", short: "p" },
+      var: { type: "string", multiple: true, default: [] },
+      "max-bytes": { type: "string" },
+      "max-entries": { type: "string" },
+      force: { type: "boolean" },
+      "dry-run": { type: "boolean" },
+      "skip-existing": { type: "boolean" },
+      verbose: { type: "boolean" },
+      interactive: { type: "boolean", short: "i" },
+      "no-interactive": { type: "boolean" },
+      "no-post-install": { type: "boolean" },
+    },
+  });
+
 export const main = async (
   cliArgs?: readonly string[],
 ): Promise<shellArgs.CliResult<void>> => {
-  const parsed = cliParseArgs.parseArgs((cliArgs as string[]) ?? [], {
-    string: ["recipe", "name", "var", "max-bytes", "max-entries"],
-    boolean: [
-      "force",
-      "dry-run",
-      "skip-existing",
-      "verbose",
-      "interactive",
-      "no-interactive",
-      "no-post-install",
-    ],
-    collect: ["var"],
-    alias: { p: "name", i: "interactive" },
-  });
+  const parsed = parseCliArgs(cliArgs);
 
-  const specifierRaw = parsed._[0] as string | undefined;
-  const targetDirArg = parsed._[1] as string | undefined;
+  const specifierRaw = parsed.positionals[0];
+  const targetDirArg = parsed.positionals[1];
   const out = streams.output({
     renderer: streams.renderers.ansi(),
     sink: streams.sinks.stdout(),
@@ -213,8 +221,8 @@ export const main = async (
 
   const limits = resolveExtractLimits(
     {
-      maxBytes: parsed["max-bytes"] as string | undefined,
-      maxEntries: parsed["max-entries"] as string | undefined,
+      maxBytes: parsed.values["max-bytes"] as string | undefined,
+      maxEntries: parsed.values["max-entries"] as string | undefined,
     },
     (name) => runtime.env.get(name),
   );
@@ -226,7 +234,7 @@ export const main = async (
 
   // Parse --var flags
   const variables: Record<string, string> = {};
-  for (const v of parsed["var"] as string[]) {
+  for (const v of parsed.values["var"] as string[]) {
     const [key, ...valueParts] = String(v).split("=");
     if (key !== undefined && key !== "") {
       variables[key] = valueParts.join("=");
@@ -234,11 +242,12 @@ export const main = async (
   }
 
   // Positional target dir overrides --name when both absent; --name wins when present
-  const projectName = (parsed["name"] as string | undefined) ?? targetDirArg;
+  const projectName =
+    (parsed.values["name"] as string | undefined) ?? targetDirArg;
 
   // Interactive mode: explicit flag OR auto-detect when stdin is a TTY (unless suppressed)
-  const explicitInteractive = parsed["interactive"] === true;
-  const noInteractive = parsed["no-interactive"] === true;
+  const explicitInteractive = parsed.values["interactive"] === true;
+  const noInteractive = parsed.values["no-interactive"] === true;
   const isTty = runtime.process.isTerminal("stdin");
   const interactive = !noInteractive && (explicitInteractive || isTty);
 
@@ -250,7 +259,7 @@ export const main = async (
     );
   }
 
-  const skipPostInstall = parsed["no-post-install"] === true;
+  const skipPostInstall = parsed.values["no-post-install"] === true;
 
   out.writeln(
     span.cyan(
@@ -261,13 +270,13 @@ export const main = async (
   const handlerResult = await task.runTask(
     cloneRecipeHandler.cloneRecipe({
       specifier,
-      recipePath: parsed["recipe"] as string | undefined,
+      recipePath: parsed.values["recipe"] as string | undefined,
       cwd: runtime.process.cwd(),
       projectName,
-      dryRun: parsed["dry-run"] === true,
-      force: parsed["force"] === true,
-      skipExisting: parsed["skip-existing"] === true,
-      verbose: parsed["verbose"] === true,
+      dryRun: parsed.values["dry-run"] === true,
+      force: parsed.values["force"] === true,
+      skipExisting: parsed.values["skip-existing"] === true,
+      verbose: parsed.values["verbose"] === true,
       variables,
       interactive,
       skipPostInstall,

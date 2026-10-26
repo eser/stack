@@ -25,8 +25,6 @@
     "@eserstack/shell": "workspace:*",
     "@eserstack/standards": "workspace:*",
     "@eserstack/streams": "workspace:*",
-    "@std/cli": "npm:@jsr/std__cli@^1.0.32",
-    "@std/path": "npm:@jsr/std__path@^1.1.6",
     "@std/tar": "npm:@jsr/std__tar@^0.1.10"
   },
   "devDependencies": {

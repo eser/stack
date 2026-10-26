@@ -40,11 +40,11 @@ export const specifierToIdentifier = (
   const lib = ffiClient.getLib();
 
   if (lib !== null) {
-    const raw = lib.symbols.EserAjanCollectorSpecifierToIdentifier(
-      JSON.stringify({ specifier, used: [...used] }),
-    );
-    const result = JSON.parse(raw) as { identifier: string; error?: string };
-    if (!result.error) {
+    const result = lib.call("collectorSpecifierToIdentifier", {
+      specifier,
+      used: [...used],
+    });
+    if (!result.error && result.identifier !== undefined) {
       used.add(result.identifier);
       return result.identifier;
     }
@@ -107,11 +107,8 @@ export const writeManifestToString = async (
       relPath,
       exports: exports.map(([name]) => name),
     }));
-    const raw = lib.symbols.EserAjanCollectorGenerateManifest(
-      JSON.stringify({ entries }),
-    );
-    const result = JSON.parse(raw) as { source: string; error?: string };
-    if (!result.error) {
+    const result = lib.call("collectorGenerateManifest", { entries });
+    if (!result.error && result.source !== undefined) {
       return result.source;
     }
   }

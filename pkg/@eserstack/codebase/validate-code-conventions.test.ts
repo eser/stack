@@ -2,7 +2,6 @@
 
 import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
-import * as path from "@std/path";
 import { runtime } from "@eserstack/standards/cross-runtime";
 import * as conventions from "./validate-code-conventions.ts";
 
@@ -13,7 +12,7 @@ nodeTest.test(
   "validate-code-conventions: accepts namespace, runtime and type imports",
   () => {
     const source = [
-      'import * as path from "@std/path";',
+      'import * as path from "node:path";',
       'import { runtime } from "@eserstack/standards/cross-runtime";',
       'import type { Options } from "./options.ts";',
       'import { type A, type B } from "./types.ts";',
@@ -32,7 +31,7 @@ nodeTest.test(
   "validate-code-conventions: flags named, default and multi-line imports",
   () => {
     const source = [
-      'import { join } from "@std/path";',
+      'import { join } from "node:path";',
       'import React from "react";',
       'import { card } from "./card.module.css";',
       "import {",
@@ -112,14 +111,14 @@ nodeTest.test(
 
 nodeTest.test("validate-code-conventions: ignores comments and strings", () => {
   const source = [
-    '// import { join } from "@std/path";',
+    '// import { join } from "node:path";',
     "/**",
-    ' * import { join } from "@std/path";',
+    ' * import { join } from "node:path";',
     " * const x = y || [];",
     " */",
     'const text = "a || []";',
     "const fixture = `",
-    'import { join } from "@std/path";',
+    'import { join } from "node:path";',
     "`;",
   ].join("\n");
 
@@ -134,8 +133,8 @@ nodeTest.test(
     });
     try {
       await runtime.fs.writeTextFile(
-        path.join(root, "old.ts"),
-        'import { join } from "@std/path";\n',
+        runtime.path.join(root, "old.ts"),
+        'import { join } from "node:path";\n',
       );
       await conventions.writeBaseline(root);
 
@@ -143,21 +142,21 @@ nodeTest.test(
       assert.assertEquals(clean.issues.length, 0);
 
       await runtime.fs.writeTextFile(
-        path.join(root, "old.ts"),
-        'import { join } from "@std/path";\nimport { basename } from "@std/path";\n',
+        runtime.path.join(root, "old.ts"),
+        'import { join } from "node:path";\nimport { basename } from "node:path";\n',
       );
       await runtime.fs.writeTextFile(
-        path.join(root, "new.ts"),
+        runtime.path.join(root, "new.ts"),
         "const items = list || [];\n",
       );
       await runtime.fs.writeTextFile(
-        path.join(root, "mod.ts"),
+        runtime.path.join(root, "mod.ts"),
         'export * from "./old.ts";\n',
       );
 
       const result = await conventions.run({ root });
       const found = result.issues
-        .map((i) => `${path.basename(i.path)}:${i.line}`)
+        .map((i) => `${runtime.path.basename(i.path)}:${i.line}`)
         .sort();
       assert.assertEquals(found, [
         "mod.ts:1",

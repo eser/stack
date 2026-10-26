@@ -2,6 +2,11 @@
   "name": "@eserstack/workflows",
   "version": "4.5.2",
   "type": "module",
+  "files": [
+    "dist/**/*.js",
+    "dist/**/*.d.ts",
+    "dist/**/*.json"
+  ],
   "exports": {
     ".": "./main.ts",
     "./mod": "./mod.ts",
@@ -9,6 +14,37 @@
     "./loader": "./loader.ts",
     "./run": "./run.ts",
     "./list": "./list.ts"
+  },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/main.d.ts",
+        "import": "./dist/main.js"
+      },
+      "./mod": {
+        "types": "./dist/mod.d.ts",
+        "import": "./dist/mod.js"
+      },
+      "./module": {
+        "types": "./dist/module.d.ts",
+        "import": "./dist/module.js"
+      },
+      "./loader": {
+        "types": "./dist/loader.d.ts",
+        "import": "./dist/loader.js"
+      },
+      "./run": {
+        "types": "./dist/run.d.ts",
+        "import": "./dist/run.js"
+      },
+      "./list": {
+        "types": "./dist/list.d.ts",
+        "import": "./dist/list.js"
+      }
+    }
+  },
+  "scripts": {
+    "build": "node ../../../etc/scripts/build-library.ts"
   },
   "dependencies": {
     "@eserstack/config": "workspace:*",

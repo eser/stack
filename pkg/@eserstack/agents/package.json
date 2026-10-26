@@ -2,11 +2,39 @@
   "name": "@eserstack/agents",
   "version": "4.5.2",
   "type": "module",
+  "files": [
+    "dist/**/*.js",
+    "dist/**/*.d.ts",
+    "dist/**/*.json"
+  ],
   "exports": {
     ".": "./mod.ts",
     "./adapter": "./adapter.ts",
     "./registry": "./registry.ts",
     "./guards": "./guards/git.ts"
+  },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/mod.d.ts",
+        "import": "./dist/mod.js"
+      },
+      "./adapter": {
+        "types": "./dist/adapter.d.ts",
+        "import": "./dist/adapter.js"
+      },
+      "./registry": {
+        "types": "./dist/registry.d.ts",
+        "import": "./dist/registry.js"
+      },
+      "./guards": {
+        "types": "./dist/guards/git.d.ts",
+        "import": "./dist/guards/git.js"
+      }
+    }
+  },
+  "scripts": {
+    "build": "node ../../../etc/scripts/build-library.ts"
   },
   "dependencies": {
     "@eserstack/shell": "workspace:*",

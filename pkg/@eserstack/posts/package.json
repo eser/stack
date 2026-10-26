@@ -2,6 +2,11 @@
   "name": "@eserstack/posts",
   "version": "4.5.2",
   "type": "module",
+  "files": [
+    "dist/**/*.js",
+    "dist/**/*.d.ts",
+    "dist/**/*.json"
+  ],
   "exports": {
     ".": "./mod.ts",
     "./domain": "./domain/mod.ts",
@@ -10,10 +15,39 @@
     "./module": "./module.ts",
     "./go-posts": "./go-posts.ts"
   },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/mod.d.ts",
+        "import": "./dist/mod.js"
+      },
+      "./domain": {
+        "types": "./dist/domain/mod.d.ts",
+        "import": "./dist/domain/mod.js"
+      },
+      "./application": {
+        "types": "./dist/application/mod.d.ts",
+        "import": "./dist/application/mod.js"
+      },
+      "./testing": {
+        "types": "./dist/application/testing.d.ts",
+        "import": "./dist/application/testing.js"
+      },
+      "./module": {
+        "types": "./dist/module.d.ts",
+        "import": "./dist/module.js"
+      },
+      "./go-posts": {
+        "types": "./dist/go-posts.d.ts",
+        "import": "./dist/go-posts.js"
+      }
+    }
+  },
   "scripts": {
     "tui": "node adapters/tui/app.ts",
     "test": "node --test \"**/*.test.ts\"",
-    "test:coverage": "node --test --experimental-test-coverage \"**/*.test.ts\""
+    "test:coverage": "node --test --experimental-test-coverage \"**/*.test.ts\"",
+    "build": "node ../../../etc/scripts/build-library.ts"
   },
   "dependencies": {
     "@eserstack/ai": "workspace:*",

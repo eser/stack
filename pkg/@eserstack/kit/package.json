@@ -2,6 +2,11 @@
   "name": "@eserstack/kit",
   "version": "4.5.2",
   "type": "module",
+  "files": [
+    "dist/**/*.js",
+    "dist/**/*.d.ts",
+    "dist/**/*.json"
+  ],
   "exports": {
     ".": "./main.ts",
     "./mod": "./mod.ts",
@@ -17,6 +22,69 @@
     "./recipes/handlers/new-project": "./recipes/handlers/new-project.ts",
     "./recipes/handlers/clone-recipe": "./recipes/handlers/clone-recipe.ts",
     "./recipes/handlers/update-recipe": "./recipes/handlers/update-recipe.ts"
+  },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/main.d.ts",
+        "import": "./dist/main.js"
+      },
+      "./mod": {
+        "types": "./dist/mod.d.ts",
+        "import": "./dist/mod.js"
+      },
+      "./module": {
+        "types": "./dist/module.d.ts",
+        "import": "./dist/module.js"
+      },
+      "./recipes": {
+        "types": "./dist/recipes/mod.d.ts",
+        "import": "./dist/recipes/mod.js"
+      },
+      "./recipes/schema": {
+        "types": "./dist/recipes/registry-schema.d.ts",
+        "import": "./dist/recipes/registry-schema.js"
+      },
+      "./recipes/fetcher": {
+        "types": "./dist/recipes/registry-fetcher.d.ts",
+        "import": "./dist/recipes/registry-fetcher.js"
+      },
+      "./recipes/applier": {
+        "types": "./dist/recipes/recipe-applier.d.ts",
+        "import": "./dist/recipes/recipe-applier.js"
+      },
+      "./recipes/resolver": {
+        "types": "./dist/recipes/dependency-resolver.d.ts",
+        "import": "./dist/recipes/dependency-resolver.js"
+      },
+      "./recipes/handlers": {
+        "types": "./dist/recipes/handlers/mod.d.ts",
+        "import": "./dist/recipes/handlers/mod.js"
+      },
+      "./recipes/handlers/list-recipes": {
+        "types": "./dist/recipes/handlers/list-recipes.d.ts",
+        "import": "./dist/recipes/handlers/list-recipes.js"
+      },
+      "./recipes/handlers/add-recipe": {
+        "types": "./dist/recipes/handlers/add-recipe.d.ts",
+        "import": "./dist/recipes/handlers/add-recipe.js"
+      },
+      "./recipes/handlers/new-project": {
+        "types": "./dist/recipes/handlers/new-project.d.ts",
+        "import": "./dist/recipes/handlers/new-project.js"
+      },
+      "./recipes/handlers/clone-recipe": {
+        "types": "./dist/recipes/handlers/clone-recipe.d.ts",
+        "import": "./dist/recipes/handlers/clone-recipe.js"
+      },
+      "./recipes/handlers/update-recipe": {
+        "types": "./dist/recipes/handlers/update-recipe.d.ts",
+        "import": "./dist/recipes/handlers/update-recipe.js"
+      }
+    }
+  },
+  "scripts": {
+    "build": "node ../../../etc/scripts/build-library.ts"
   },
   "dependencies": {
     "@eserstack/ajan": "workspace:*",

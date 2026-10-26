@@ -103,13 +103,13 @@ export const newProject = (
         const lib = canUseFfi ? ffiClient.getLib() : null;
 
         if (lib !== null) {
-          const goResult = lib.call("kitNewProject", {
+          const goResult = (await lib.call("kitNewProject", {
             templateName: input.templateName,
             projectName: input.projectName,
             targetDir: input.targetDir,
             registrySource: input.registrySource,
             variables: input.variables,
-          }) as {
+          })) as {
             recipes?: Array<{
               name: string;
               written?: string[];

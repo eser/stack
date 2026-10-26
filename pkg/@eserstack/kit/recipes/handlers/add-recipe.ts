@@ -109,7 +109,7 @@ export const addRecipe = (
         if (lib !== null) {
           // The bridge sends each recipe flat (bridge_kit.go
           // kitApplyRecipeResult) and leaves empty lists out.
-          const goResult = lib.call("kitApplyRecipe", {
+          const goResult = (await lib.call("kitApplyRecipe", {
             recipeName: input.recipeName,
             registryUrl: input.registrySource,
             cwd: input.cwd,
@@ -118,7 +118,7 @@ export const addRecipe = (
             dryRun: input.dryRun,
             verbose: input.verbose,
             variables: input.variables,
-          }) as {
+          })) as {
             recipes?: Array<{
               name: string;
               written?: string[];

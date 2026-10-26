@@ -38,7 +38,6 @@
     "@eserstack/laroux-react": "workspace:*",
     "@eserstack/logging": "workspace:*",
     "@eserstack/standards": "workspace:*",
-    "@std/ulid": "npm:@jsr/std__ulid@^1.0.0",
     "lightningcss": "^1.33.0",
     "tailwindcss": "^4.3.3",
     "@tailwindcss/oxide": "^4.3.3",

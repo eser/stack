@@ -19,7 +19,7 @@
  * @module
  */
 
-import * as yaml from "@eemeli/yaml";
+import * as yaml from "yaml";
 import * as crossRuntime from "@eserstack/standards/cross-runtime";
 import * as persistence from "./persistence.ts";
 

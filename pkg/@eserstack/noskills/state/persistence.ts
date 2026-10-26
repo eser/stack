@@ -17,7 +17,7 @@
  * @module
  */
 
-import * as yaml from "@eemeli/yaml";
+import * as yaml from "yaml";
 import * as schema from "./schema.ts";
 import * as concernScope from "./concern-scope.ts";
 import * as crossRuntime from "@eserstack/standards/cross-runtime";

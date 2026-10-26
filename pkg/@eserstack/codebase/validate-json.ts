@@ -6,11 +6,37 @@
  * @module
  */
 
-import * as jsonc from "@std/jsonc";
+import * as jsonc from "jsonc-parser";
 import * as standards from "@eserstack/standards";
 import * as cliSupport from "./cli-support.ts";
 import * as fileTool from "./file-tool.ts";
 import type { FileTool } from "./file-tool.ts";
+
+/**
+ * Parses JSON with comments and trailing commas. jsonc-parser recovers from
+ * errors and reports them in a list instead of throwing, so the first one is
+ * raised here as a SyntaxError, the way JSON.parse fails.
+ */
+const parseJsonc = (text: string): unknown => {
+  const errors: jsonc.ParseError[] = [];
+  const value: unknown = jsonc.parse(text, errors, {
+    allowTrailingComma: true,
+    disallowComments: false,
+    allowEmptyContent: false,
+  });
+
+  const first = errors[0];
+  if (first !== undefined) {
+    const before = text.slice(0, first.offset).split("\n");
+    const line = before.length;
+    const column = (before.at(-1)?.length ?? 0) + 1;
+    throw new SyntaxError(
+      `Cannot parse JSONC: ${jsonc.printParseErrorCode(first.error)} at line ${line}, column ${column}`,
+    );
+  }
+
+  return value;
+};
 
 export const tool: FileTool = fileTool.withGoValidator(
   fileTool.createFileTool({
@@ -34,7 +60,7 @@ export const tool: FileTool = fileTool.withGoValidator(
 
       try {
         if (file.name.endsWith(".jsonc")) {
-          jsonc.parse(content);
+          parseJsonc(content);
         } else {
           JSON.parse(content);
         }

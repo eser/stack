@@ -7,7 +7,7 @@
  * @module
  */
 
-import * as yaml from "@eemeli/yaml";
+import * as yaml from "yaml";
 import * as crossRuntime from "@eserstack/standards/cross-runtime";
 
 /** Manifest filenames to search for (in order of priority). */

@@ -9,7 +9,7 @@
 
 import * as bdd from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
-import * as yaml from "@eemeli/yaml";
+import * as yaml from "yaml";
 import * as results from "@eserstack/primitives/results";
 import { runtime } from "@eserstack/standards/cross-runtime";
 import * as persistence from "../state/persistence.ts";

@@ -22,9 +22,10 @@
     "./versions": "./versions.ts"
   },
   "dependencies": {
-    "@std/semver": "npm:@jsr/std__semver@^1.0.8"
+    "semver": "^7.8.5"
   },
   "devDependencies": {
-    "@eserstack/test-kit": "workspace:*"
+    "@eserstack/test-kit": "workspace:*",
+    "@types/semver": "^7.8.0"
   }
 }

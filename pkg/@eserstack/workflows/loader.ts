@@ -23,7 +23,7 @@
  * @module
  */
 
-import * as yaml from "@eemeli/yaml";
+import * as yaml from "yaml";
 import * as configManifest from "@eserstack/config/manifest";
 import type { WorkflowsConfig } from "./types.ts";
 

@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-// The TypeScript CLI writes YAML with @eemeli/yaml: the spec frontmatter
+// The TypeScript CLI writes YAML with the yaml package: the spec frontmatter
 // (`yaml.stringify(metadata, { lineWidth: 0 })`) and the manifest's noskills
 // section (`doc.createNode`, then `doc.toString()` at its default width of
 // 80). This emitter writes the block style that library gives plain data:

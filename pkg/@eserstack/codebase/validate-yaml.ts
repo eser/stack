@@ -6,7 +6,7 @@
  * @module
  */
 
-import * as yaml from "@eemeli/yaml";
+import * as yaml from "yaml";
 import * as standards from "@eserstack/standards";
 import * as cliSupport from "./cli-support.ts";
 import * as fileTool from "./file-tool.ts";

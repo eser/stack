@@ -8,7 +8,7 @@ import (
 )
 
 // The expected texts are what `yaml.stringify({ k: value }, { lineWidth: 0 })`
-// of @eemeli/yaml 2.9.1 prints.
+// of the yaml package 2.9.1 prints.
 func TestYAMLStringifyQuotesAsTheLibraryDoes(t *testing.T) {
 	t.Parallel()
 
@@ -96,7 +96,7 @@ func TestYAMLStringifyNestsBlocks(t *testing.T) {
 }
 
 // The manifest is written at the library's default width of 80: long
-// plain and quoted values fold at spaces, as @eemeli/yaml folds them.
+// plain and quoted values fold at spaces, as the yaml package folds them.
 func TestYAMLFoldsLongValuesAtTheDefaultWidth(t *testing.T) {
 	t.Parallel()
 

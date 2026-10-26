@@ -56,7 +56,7 @@ func TestEntryIDs(t *testing.T) {
 }
 
 // The manifest's noskills section moves as text; the results match what
-// @eemeli/yaml prints for the same files (checked against the library).
+// the yaml package prints for the same files (checked against the library).
 func TestManifestSectionText(t *testing.T) {
 	t.Parallel()
 

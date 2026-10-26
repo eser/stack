@@ -153,7 +153,7 @@ can call it directly.
 take only a handle, empty for the ones that take nothing. Writes, resizes,
 kills, pushes and cancels on an open stream are calls that take the handle in
 their request (`shellExecWrite`, `shellPtyResize`, `parsingTokenizeStreamPush`,
-`aiCancelRequest`).
+`kitExtractTarballStreamPush`, `aiCancelRequest`).
 
 Every operation answers an envelope:
 

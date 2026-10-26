@@ -16,7 +16,7 @@
  * @module
  */
 
-import * as yaml from "@eemeli/yaml";
+import * as yaml from "yaml";
 import * as gitGuard from "@eserstack/agents/guards";
 import type * as schema from "../state/schema.ts";
 import * as persistence from "../state/persistence.ts";

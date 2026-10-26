@@ -24,8 +24,7 @@
     "@eserstack/primitives": "workspace:*",
     "@eserstack/shell": "workspace:*",
     "@eserstack/standards": "workspace:*",
-    "@eserstack/streams": "workspace:*",
-    "@std/tar": "npm:@jsr/std__tar@^0.1.10"
+    "@eserstack/streams": "workspace:*"
   },
   "devDependencies": {
     "@eserstack/test-kit": "workspace:*"

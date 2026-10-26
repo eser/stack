@@ -2,7 +2,6 @@
 
 import * as assert from "@eserstack/test-kit/assert";
 import * as bdd from "node:test";
-import * as tarStream from "@std/tar/tar-stream";
 import { runtime } from "@eserstack/standards/cross-runtime";
 import * as tarModule from "./tar.ts";
 import * as testing from "./testing.ts";
@@ -11,106 +10,20 @@ import * as testing from "./testing.ts";
 // Helpers
 // ---------------------------------------------------------------------------
 
-type ArchiveEntry =
-  | { readonly type: "file"; readonly path: string; readonly content: string }
-  | {
-      readonly type: "symlink";
-      readonly path: string;
-      readonly linkname: string;
-    };
-
-const encoder = new TextEncoder();
+type ArchiveEntry = testing.TarFixtureEntry;
 
 /** Builds an uncompressed tar archive from `entries`. */
-const tarball = (
-  entries: readonly ArchiveEntry[],
-): ReadableStream<Uint8Array> => {
-  const inputs = entries.map((entry): tarStream.TarStreamInput => {
-    if (entry.type === "symlink") {
-      return { type: "symlink", path: entry.path, linkname: entry.linkname };
-    }
+const tarball = (entries: readonly ArchiveEntry[]): Uint8Array =>
+  testing.tarArchive(entries);
 
-    const bytes = encoder.encode(entry.content);
-    return {
-      type: "file",
-      path: entry.path,
-      size: bytes.length,
-      readable: testing.readableStreamFrom([bytes]),
-    };
-  });
-
-  return testing
-    .readableStreamFrom(inputs)
-    .pipeThrough(new tarStream.TarStream());
-};
-
-/** Gzips the given byte streams, one after another, into one stream. */
-const gzip = (
-  ...parts: readonly ReadableStream<Uint8Array>[]
-): ReadableStream<Uint8Array> => {
-  async function* concat(): AsyncGenerator<Uint8Array> {
-    for (const part of parts) {
-      yield* part;
-    }
-  }
-
-  return testing
-    .readableStreamFrom(concat())
-    .pipeThrough(
-      new CompressionStream("gzip") as unknown as TransformStream<
-        Uint8Array,
-        Uint8Array
-      >,
-    );
-};
+/** Gzips the given byte arrays, one after another, into one stream. */
+const gzip = testing.gzipStream;
 
 /**
  * Builds a gzipped tarball in memory, in the shape the GitHub provider
  * streams, so each test states its archive layout next to its assertions.
  */
-const gzippedTarball = (
-  entries: readonly ArchiveEntry[],
-): ReadableStream<Uint8Array> => gzip(tarball(entries));
-
-/** Reads a whole byte stream into one array. */
-const collect = async (
-  stream: ReadableStream<Uint8Array>,
-): Promise<Uint8Array> => {
-  return new Uint8Array(await new Response(stream).arrayBuffer());
-};
-
-/**
- * Builds one raw ustar entry (header block plus padded content) with any
- * typeflag. TarStream writes files, directories and symlinks only, and the
- * pax metadata that GitHub tarballs start with needs typeflag "g".
- */
-const rawTarEntry = (
-  path: string,
-  typeflag: string,
-  content: string,
-): Uint8Array => {
-  const body = encoder.encode(content);
-  const entry = new Uint8Array(512 * (1 + Math.ceil(body.length / 512)));
-  const header = entry.subarray(0, 512);
-  const write = (offset: number, value: string): void => {
-    header.set(encoder.encode(value), offset);
-  };
-
-  write(0, path);
-  write(100, "0000644\0");
-  write(108, "0000000\0");
-  write(116, "0000000\0");
-  write(124, `${body.length.toString(8).padStart(11, "0")}\0`);
-  write(136, "00000000000\0");
-  write(148, "        "); // checksum field counts as spaces while summing
-  write(156, typeflag);
-  write(257, "ustar\u000000");
-  const checksum = header.reduce((sum, byte) => sum + byte, 0);
-  write(148, `${checksum.toString(8).padStart(6, "0")}\0 `);
-  entry.set(body, 512);
-
-  return entry;
-};
+const gzippedTarball = testing.gzippedTarball;
 
 /**
  * Serves the bytes of `source` and then stays open, like a download that is
@@ -294,16 +207,52 @@ bdd.describe("extractTarball", () => {
 
   bdd.it("skips pax metadata entries instead of writing them", async () => {
     await withTempDir(async (dir) => {
+      // A pax record starts with its own length in bytes, which the Go tar
+      // reader checks; GitHub writes "52 comment=<commit sha>\n".
       const archive = gzip(
-        testing.readableStreamFrom([
-          rawTarEntry("pax_global_header", "g", "52 comment=0123abcd\n"),
+        tarball([
+          {
+            type: "raw",
+            path: "pax_global_header",
+            typeflag: "g",
+            content: "20 comment=0123abcd\n",
+          },
+          { type: "file", path: "real.txt", content: "real\n" },
         ]),
-        tarball([{ type: "file", path: "real.txt", content: "real\n" }]),
       );
 
       await tarModule.extractTarball(archive, dir);
 
       assert.assertEquals(await listFiles(dir), ["real.txt"]);
+    });
+  });
+
+  bdd.it("rejects a stream that is not gzip", async () => {
+    await withTempDir(async (dir) => {
+      await assert.assertRejects(
+        () =>
+          tarModule.extractTarball(
+            testing.readableStreamFrom([new TextEncoder().encode("not gzip")]),
+            dir,
+          ),
+        Error,
+        "extract tarball: decompress",
+      );
+    });
+  });
+
+  bdd.it("rejects an archive cut off inside an entry", async () => {
+    await withTempDir(async (dir) => {
+      const tarBytes = tarball([
+        { type: "file", path: "a.txt", content: "a".repeat(2048) },
+      ]);
+
+      await assert.assertRejects(
+        () => tarModule.extractTarball(gzip(tarBytes.subarray(0, 1024)), dir),
+        Error,
+        "extract tarball",
+      );
+      assert.assertEquals(await listFiles(dir), []);
     });
   });
 
@@ -336,8 +285,8 @@ bdd.describe("extractTarball", () => {
 
     bdd.it("extracts an archive of exactly maxBytes", async () => {
       await withTempDir(async (dir) => {
-        const tarBytes = await collect(tarball(threeFiles));
-        const archive = gzip(testing.readableStreamFrom([tarBytes]));
+        const tarBytes = tarball(threeFiles);
+        const archive = gzip(tarBytes);
 
         await tarModule.extractTarball(archive, dir, {
           maxBytes: tarBytes.length,
@@ -349,8 +298,8 @@ bdd.describe("extractTarball", () => {
 
     bdd.it("fails one byte under the archive size", async () => {
       await withTempDir(async (dir) => {
-        const tarBytes = await collect(tarball(threeFiles));
-        const archive = gzip(testing.readableStreamFrom([tarBytes]));
+        const tarBytes = tarball(threeFiles);
+        const archive = gzip(tarBytes);
 
         await assert.assertRejects(
           () =>

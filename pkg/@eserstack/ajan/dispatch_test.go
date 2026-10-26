@@ -201,9 +201,9 @@ func TestEserAjanVersionIsTheHandshake(t *testing.T) {
 func TestRegistryServesEveryDomain(t *testing.T) {
 	t.Parallel()
 
-	// The native build registers every domain: 75 calls and 8 streams.
-	if got := len(registeredNames()); got != 83 {
-		t.Errorf("expected 83 registered names, got %d: %v", got, registeredNames())
+	// The native build registers every domain: 76 calls and 9 streams.
+	if got := len(registeredNames()); got != 85 {
+		t.Errorf("expected 85 registered names, got %d: %v", got, registeredNames())
 	}
 
 	want := []string{
@@ -211,6 +211,7 @@ func TestRegistryServesEveryDomain(t *testing.T) {
 		"codebaseValidateFilesStream",
 		"codebaseWalkFilesStream",
 		"httpRequestStream",
+		"kitExtractTarballStream",
 		"parsingTokenizeStream",
 		"shellExecStream",
 		"shellPtyStream",

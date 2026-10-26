@@ -1,6 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import * as yaml from "@eemeli/yaml";
+import * as yaml from "yaml";
 import type { Format, FormatOptions, FormatReader } from "../types.ts";
 import * as types from "../types.ts";
 

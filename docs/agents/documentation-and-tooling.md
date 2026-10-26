@@ -77,10 +77,16 @@ and the `eser` npm package list the `ajan-*` packages as
 Dependencies follow tooling-standards: Registry Preference. The decisions for
 packages that exist on both registries:
 
-- `yaml` comes from JSR as `@eemeli/yaml`, declared as
-  `"@eemeli/yaml": "npm:@jsr/eemeli__yaml@^2.9.1"` in `codebase`, `config`,
-  `formats`, `noskills` and `workflows`, and imported as `"@eemeli/yaml"`. Its
-  author publishes stable releases to both registries.
+- `yaml` comes from npm as `yaml`, declared as `"yaml": "^2.9.1"` in
+  `codebase`, `config`, `formats`, `noskills` and `workflows`, and imported as
+  `"yaml"`. Its author publishes the same releases to both registries; the
+  JSR alias `@eemeli/yaml` was dropped in TASK-234 (decision-30).
+- The other parsers that came from JSR as `@std/*` are npm packages too since
+  TASK-234: `jsonc-parser` (`codebase`, `config`), `smol-toml` (`codebase`,
+  `config`, `formats`) and `semver` (`codebase`, `standards`). CSV is the
+  in-house RFC 4180 codec of `formats`, tar extraction runs on the Go
+  extractor of `kitfx` through the ajan bridge, and the laroux build id is a
+  `crypto.randomUUID()`.
 - `openai` stays on npm in `ai`. OpenAI stopped publishing `@openai/openai` to
   JSR on 2026-07-30 (openai/openai-node#2037), so the JSR package ends at 7.2.0
   while npm keeps releasing (7.28.0 as of 2026-10-04). The JSR build also

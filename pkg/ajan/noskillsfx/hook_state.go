@@ -14,7 +14,7 @@ import (
 
 // The hooks read the project's files the way the TypeScript CLI reads them
 // (state/persistence.ts): state as unchecked JSON with its fields and key
-// order kept, the manifest's noskills section as @eemeli/yaml parses it, and
+// order kept, the manifest's noskills section as the yaml package parses it, and
 // a file that is missing or corrupt as the documented default. The typed
 // readers in persistence.go serve noskills-server and differ on purpose in
 // places (IsInitialized, the legacy top-level manifest); these do not.

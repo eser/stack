@@ -3,16 +3,18 @@
 /**
  * Tarball extraction utility for kit recipes
  *
- * Uses @std/tar for cross-platform extraction without external dependencies.
- * Archives come from untrusted repositories, so extraction writes regular
- * files only, keeps every path inside the target directory, and stops at a
- * byte and an entry limit.
+ * Extraction runs on the Go extractor of kitfx (pkg/ajan/kitfx/tar.go)
+ * through the eser-ajan native library: the gzipped stream is pushed to it
+ * chunk by chunk, so a download is extracted while it arrives. Archives come
+ * from untrusted repositories, so extraction writes regular files only, keeps
+ * every path inside the target directory, and stops at a byte and an entry
+ * limit.
  *
  * @module
  */
 
-import * as tar from "@std/tar/untar-stream";
 import { runtime } from "@eserstack/standards/cross-runtime";
+import * as ffiClient from "../ffi-client.ts";
 
 /**
  * Default upper bound on the decompressed archive size: 256 MiB. For scale,
@@ -27,14 +29,6 @@ export const DEFAULT_MAX_BYTES: number = 256 * 1024 * 1024;
  */
 export const DEFAULT_MAX_ENTRIES = 20_000;
 
-/**
- * Tar typeflags of regular files: "0" (UntarStream also maps NUL to it) and
- * "7" (contiguous file). Every other entry (directories, links, devices,
- * FIFOs, pax and GNU metadata) is skipped, and directories are created on
- * demand for the files inside them.
- */
-const REGULAR_FILE_TYPEFLAGS: ReadonlySet<string> = new Set(["0", "7"]);
-
 export type ExtractOptions = {
   /** Number of leading path components to strip (like tar --strip-components) */
   readonly stripComponents?: number;
@@ -48,8 +42,9 @@ export type ExtractOptions = {
   readonly maxBytes?: number;
   /**
    * Maximum number of entries read from the archive, including directories,
-   * links, metadata and entries that `subpath` filters out. Defaults to
-   * {@link DEFAULT_MAX_ENTRIES}.
+   * links, pax global headers and entries that `subpath` filters out. pax and
+   * GNU long-name records count as part of the entry they describe. Defaults
+   * to {@link DEFAULT_MAX_ENTRIES}.
    */
   readonly maxEntries?: number;
 };
@@ -92,98 +87,58 @@ const assertLimit = (name: TarballLimit, value: number): void => {
   }
 };
 
-/**
- * Passes bytes through until more than `maxBytes` have arrived, then errors
- * the stream with a TarballLimitError (io.LimitReader in Go).
- */
-const limitBytes = (
-  maxBytes: number,
-): TransformStream<Uint8Array, Uint8Array> => {
-  let total = 0;
-
-  return new TransformStream({
-    transform(chunk, controller) {
-      total += chunk.byteLength;
-      if (total > maxBytes) {
-        controller.error(new TarballLimitError("maxBytes", maxBytes));
-        return;
-      }
-
-      controller.enqueue(chunk);
-    },
-  });
+type ExtractAnswer = {
+  readonly error?: string;
+  readonly limit?: TarballLimit;
+  readonly max?: number;
+  readonly done?: boolean;
 };
 
-/** Reads an entry's content into memory; its size is bounded by maxBytes. */
-const readContent = async (
-  readable: ReadableStream<Uint8Array>,
-): Promise<Uint8Array> => {
-  // Iterating the stream directly, instead of `new Response(readable)`, keeps
-  // a TarballLimitError raised mid-entry as the error the caller receives.
-  const chunks: Uint8Array[] = [];
-  let length = 0;
-  for await (const chunk of readable) {
-    chunks.push(chunk);
-    length += chunk.byteLength;
-  }
-
-  const content = new Uint8Array(length);
-  let offset = 0;
-  for (const chunk of chunks) {
-    content.set(chunk, offset);
-    offset += chunk.byteLength;
-  }
-
-  return content;
-};
-
-/**
- * Maps an archive path to its path relative to the target directory, or
- * returns null when the entry is not extracted: it escapes the target, sits
- * at or above the strip level, or lies outside the subpath.
- */
-const resolveEntryPath = (
-  archivePath: string,
-  stripComponents: number,
-  subpath: string | undefined,
-): string | null => {
-  const entryPath = runtime.path.normalize(archivePath);
-
-  // Security: Prevent path traversal attacks
-  if (entryPath.startsWith("..") || runtime.path.isAbsolute(entryPath)) {
+/** The error an answer of the Go extractor carries, or null. */
+const answerError = (answer: ExtractAnswer | null): Error | null => {
+  if (answer === null || answer.error === undefined || answer.error === "") {
     return null;
   }
 
-  const strippedParts = entryPath
-    .split(runtime.path.sep)
-    .slice(stripComponents);
-  if (strippedParts.length === 0) {
-    return null;
+  if (answer.limit !== undefined && answer.max !== undefined) {
+    return new TarballLimitError(answer.limit, answer.max);
   }
 
-  const strippedPath = strippedParts.join(runtime.path.sep);
-  if (subpath === undefined) {
-    return strippedPath;
-  }
-
-  // Match on a segment boundary, so subpath "include" does not also take
-  // "include-extra/".
-  const prefix = `${subpath}${runtime.path.sep}`;
-  if (!strippedPath.startsWith(prefix)) {
-    return null;
-  }
-
-  const relativePath = strippedPath.slice(prefix.length);
-
-  return relativePath === "" ? null : relativePath;
+  return new Error(answer.error);
 };
+
+/** Encodes a chunk for the bridge, whose requests are JSON. */
+const toBase64 = (bytes: Uint8Array): string => {
+  let binary = "";
+  for (let offset = 0; offset < bytes.length; offset += 0x8000) {
+    binary += String.fromCharCode(...bytes.subarray(offset, offset + 0x8000));
+  }
+
+  return btoa(binary);
+};
+
+type Library = NonNullable<ReturnType<typeof ffiClient.getLib>>;
+
+/** Opens the push-fed extraction stream of the Go extractor. */
+const openExtraction = (
+  lib: Library,
+  request: {
+    readonly dir: string;
+    readonly stripComponents: number;
+    readonly subpath: string | undefined;
+    readonly maxBytes: number;
+    readonly maxEntries: number;
+  },
+) => lib.stream("kitExtractTarballStream", request);
 
 /**
  * Extract a gzipped tarball stream to a target directory.
  *
  * Only regular files are written. Symlinks, hardlinks, devices, FIFOs and
  * metadata entries are skipped, and entries whose path escapes the target
- * directory are dropped.
+ * directory are dropped. Directories are created on demand for the files
+ * inside them. pax and GNU long-name records are read as part of the entry
+ * they describe; a malformed one fails the extraction.
  *
  * @param stream - ReadableStream of gzipped tarball data
  * @param targetDir - Directory to extract files into
@@ -192,6 +147,8 @@ const resolveEntryPath = (
  *   maxEntries; the source stream is cancelled.
  * @throws {RangeError} When maxBytes or maxEntries is not a positive integer;
  *   the source stream is cancelled.
+ * @throws {Error} When the eser-ajan native library is unavailable or the
+ *   archive is not a valid gzipped tarball; the source stream is cancelled.
  */
 export const extractTarball = async (
   stream: ReadableStream<Uint8Array>,
@@ -215,64 +172,75 @@ export const extractTarball = async (
     throw error;
   }
 
-  // Normalize the subpath for matching, without leading or trailing separators.
-  // A subpath that names the archive root ("", "/", ".", from a specifier
-  // such as gh:owner/repo/) extracts everything, as no subpath does.
-  const trimmedSubpath =
-    subpath !== undefined
-      ? runtime.path.normalize(subpath).replace(/^[/\\]+|[/\\]+$/g, "")
-      : "";
-  const normalizedSubpath =
-    trimmedSubpath !== "" && trimmedSubpath !== "."
-      ? trimmedSubpath
-      : undefined;
+  await ffiClient.ensureLib();
+  const lib = ffiClient.getLib();
+  if (lib === null) {
+    await stream.cancel();
+    const cause = ffiClient.getLoadError();
+    throw new Error(
+      `extract tarball: the eser-ajan native library is unavailable${
+        cause !== null ? `: ${cause.message}` : ""
+      }`,
+      { cause },
+    );
+  }
 
-  // Aborted when extraction stops: cancels the source stream (and with it the
-  // download) when the loop exits early, and is a no-op after a full read.
-  const pipeline = new AbortController();
+  // The Go extractor resolves the subpath ("", "/" and "." name the archive
+  // root). The WASM fallback does not serve it, and opening it there throws.
+  let extraction: ReturnType<typeof openExtraction>;
+  try {
+    extraction = openExtraction(lib, {
+      dir: runtime.path.resolve(targetDir),
+      stripComponents,
+      subpath,
+      maxBytes,
+      maxEntries,
+    });
+  } catch (error) {
+    await stream.cancel();
+    throw error;
+  }
 
-  // Type assertion needed due to DecompressionStream type mismatch in TypeScript
-  const entries = stream
-    .pipeThrough(
-      new DecompressionStream("gzip") as unknown as TransformStream<
-        Uint8Array,
-        Uint8Array
-      >,
-      { signal: pipeline.signal },
-    )
-    .pipeThrough(limitBytes(maxBytes))
-    .pipeThrough(new tar.UntarStream());
+  const openError = answerError(extraction.opened);
+  if (openError !== null || extraction.handle === "") {
+    await stream.cancel();
+    throw (
+      openError ?? new Error("extract tarball: the extractor did not start")
+    );
+  }
 
-  let entryCount = 0;
+  /** Pushes one chunk, or the end; reports whether the extraction is done. */
+  const push = (chunk: Uint8Array | undefined): boolean => {
+    const answer = lib.call("kitExtractTarballStreamPush", {
+      handle: extraction.handle,
+      chunk: chunk !== undefined ? toBase64(chunk) : undefined,
+      end: chunk === undefined,
+    });
+
+    const pushError = answerError(answer);
+    if (pushError !== null) {
+      throw pushError;
+    }
+
+    return answer?.done === true;
+  };
 
   try {
-    for await (const entry of entries) {
-      entryCount += 1;
-      if (entryCount > maxEntries) {
-        throw new TarballLimitError("maxEntries", maxEntries);
+    // Leaving this loop early, on an error or at the archive's end blocks
+    // (which may come before the end of the stream), cancels the source and
+    // with it the download.
+    for await (const chunk of stream) {
+      if (push(chunk)) {
+        return;
       }
+    }
 
-      const relativePath = REGULAR_FILE_TYPEFLAGS.has(entry.header.typeflag)
-        ? resolveEntryPath(entry.path, stripComponents, normalizedSubpath)
-        : null;
-
-      if (relativePath === null) {
-        // UntarStream yields the next entry only after this one's content is
-        // consumed or cancelled.
-        await entry.readable?.cancel();
-        continue;
-      }
-
-      const outputPath = runtime.path.join(targetDir, relativePath);
-      await runtime.fs.ensureDir(runtime.path.dirname(outputPath));
-
-      const content =
-        entry.readable !== undefined
-          ? await readContent(entry.readable)
-          : new Uint8Array(0);
-      await runtime.fs.writeFile(outputPath, content);
+    if (!push(undefined)) {
+      throw new Error("extract tarball: the archive ended early");
     }
   } finally {
-    pipeline.abort();
+    // Stops an extraction that has not ended, so nothing is written after
+    // this returns, and releases the handle.
+    extraction.close();
   }
 };

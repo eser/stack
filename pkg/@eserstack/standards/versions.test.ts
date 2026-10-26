@@ -2,7 +2,7 @@
 
 import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
-import * as semver from "@std/semver";
+import * as semver from "semver";
 import * as versions from "./versions.ts";
 
 // =============================================================================
@@ -10,8 +10,8 @@ import * as versions from "./versions.ts";
 // =============================================================================
 
 nodeTest.test("compareSemanticVersions — target > current returns true", () => {
-  const current = semver.parse("4.1.22");
-  const target = semver.parse("4.1.23");
+  const current = new semver.SemVer("4.1.22");
+  const target = new semver.SemVer("4.1.23");
 
   assert.assertEquals(versions.compareSemanticVersions(current, target), true);
 });
@@ -19,8 +19,8 @@ nodeTest.test("compareSemanticVersions — target > current returns true", () =>
 nodeTest.test(
   "compareSemanticVersions — target < current returns false",
   () => {
-    const current = semver.parse("4.1.23");
-    const target = semver.parse("4.1.22");
+    const current = new semver.SemVer("4.1.23");
+    const target = new semver.SemVer("4.1.22");
 
     assert.assertEquals(
       versions.compareSemanticVersions(current, target),
@@ -32,8 +32,8 @@ nodeTest.test(
 nodeTest.test(
   "compareSemanticVersions — target == current returns false",
   () => {
-    const current = semver.parse("4.1.22");
-    const target = semver.parse("4.1.22");
+    const current = new semver.SemVer("4.1.22");
+    const target = new semver.SemVer("4.1.22");
 
     assert.assertEquals(
       versions.compareSemanticVersions(current, target),
@@ -43,8 +43,8 @@ nodeTest.test(
 );
 
 nodeTest.test("compareSemanticVersions — range satisfied returns true", () => {
-  const current = semver.parse("4.1.22");
-  const target = semver.parseRange("^4.1.0");
+  const current = new semver.SemVer("4.1.22");
+  const target = new semver.Range("^4.1.0");
 
   assert.assertEquals(versions.compareSemanticVersions(current, target), true);
 });
@@ -52,8 +52,8 @@ nodeTest.test("compareSemanticVersions — range satisfied returns true", () => 
 nodeTest.test(
   "compareSemanticVersions — range not satisfied returns false",
   () => {
-    const current = semver.parse("3.9.0");
-    const target = semver.parseRange("^4.1.0");
+    const current = new semver.SemVer("3.9.0");
+    const target = new semver.Range("^4.1.0");
 
     assert.assertEquals(
       versions.compareSemanticVersions(current, target),
@@ -63,15 +63,15 @@ nodeTest.test(
 );
 
 nodeTest.test("compareSemanticVersions — major bump returns true", () => {
-  const current = semver.parse("4.9.9");
-  const target = semver.parse("5.0.0");
+  const current = new semver.SemVer("4.9.9");
+  const target = new semver.SemVer("5.0.0");
 
   assert.assertEquals(versions.compareSemanticVersions(current, target), true);
 });
 
 nodeTest.test("compareSemanticVersions — minor bump returns true", () => {
-  const current = semver.parse("4.1.99");
-  const target = semver.parse("4.2.0");
+  const current = new semver.SemVer("4.1.99");
+  const target = new semver.SemVer("4.2.0");
 
   assert.assertEquals(versions.compareSemanticVersions(current, target), true);
 });

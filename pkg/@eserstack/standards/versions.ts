@@ -6,11 +6,11 @@
  * @module
  */
 
-import * as semver from "@std/semver";
+import * as semver from "semver";
 
 /**
  * The bump kinds `maxVersion` compares: `major`, `minor`, `patch` and the
- * prerelease variants of @std/semver.
+ * prerelease variants of the semver package.
  */
 export type ReleaseType = semver.ReleaseType;
 
@@ -26,11 +26,11 @@ export const compareSemanticVersions = (
   currentVersion: semver.SemVer,
   targetVersion: semver.Range | semver.SemVer,
 ): boolean => {
-  if (semver.isRange(targetVersion)) {
+  if (targetVersion instanceof semver.Range) {
     return semver.satisfies(currentVersion, targetVersion);
   }
 
-  return !semver.greaterOrEqual(currentVersion, targetVersion);
+  return semver.lt(currentVersion, targetVersion);
 };
 
 /**
@@ -49,17 +49,21 @@ export const compareTextVersions = (
   currentVersion: string,
   targetVersion: string,
 ): boolean => {
-  const currentSemanticVersion = semver.parse(currentVersion);
+  // The constructors throw a TypeError on text that is not a version or a
+  // range.
+  const currentSemanticVersion = new semver.SemVer(currentVersion);
 
-  // Try parsing as a plain version first (e.g., "4.1.23"),
-  // fall back to range parsing (e.g., "^4.1.0", ">=4.0.0")
-  try {
-    const targetAsSemVer = semver.parse(targetVersion);
+  // A plain version first (e.g., "4.1.23"), then a range (e.g., "^4.1.0",
+  // ">=4.0.0").
+  const targetAsSemVer = semver.parse(targetVersion);
+  if (targetAsSemVer !== null) {
     return compareSemanticVersions(currentSemanticVersion, targetAsSemVer);
-  } catch {
-    const targetAsRange = semver.parseRange(targetVersion);
-    return compareSemanticVersions(currentSemanticVersion, targetAsRange);
   }
+
+  return compareSemanticVersions(
+    currentSemanticVersion,
+    new semver.Range(targetVersion),
+  );
 };
 
 /**

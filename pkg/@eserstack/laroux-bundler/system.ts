@@ -16,7 +16,6 @@ import * as serverActionTransform from "./domain/server-action-transform.ts";
 import * as clientActionStub from "./domain/client-action-stub.ts";
 import * as buildValidator from "./domain/build-validator.ts";
 import * as copyPath from "./domain/copy-path.ts";
-import * as ulid from "@std/ulid";
 import type {
   ClientComponent,
   FrameworkPlugin,
@@ -225,8 +224,9 @@ export async function build(
   const { srcDir, distDir, projectRoot } = context;
   const startTime = performance.now();
 
-  // Generate unique build ID
-  const buildId = ulid.ulid();
+  // A unique id per build. It busts caches and tells builds apart and is
+  // only ever compared for equality, so it needs no time order.
+  const buildId = crypto.randomUUID();
 
   buildLogger.info(`🚀 Starting RSC build...`);
   buildLogger.debug(`🆔 Build ID: ${buildId}`);

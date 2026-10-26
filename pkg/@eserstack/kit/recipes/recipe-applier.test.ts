@@ -4,7 +4,6 @@ import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as bdd from "node:test";
 import * as mock from "@eserstack/test-kit/mock";
-import * as tarStream from "@std/tar/tar-stream";
 import { runtime } from "@eserstack/standards/cross-runtime";
 import * as errorChain from "./error-chain.ts";
 import * as recipeApplier from "./recipe-applier.ts";
@@ -15,8 +14,6 @@ import * as testing from "./testing.ts";
 // =============================================================================
 // Helpers
 // =============================================================================
-
-const encoder = new TextEncoder();
 
 /**
  * Stands in for globalThis.fetch: answers each URL in `routes` and rejects
@@ -41,31 +38,7 @@ type ArchiveEntry =
 /** Builds a gzipped tarball in the shape codeload.github.com serves. */
 const gzippedTarball = (
   entries: readonly ArchiveEntry[],
-): ReadableStream<Uint8Array> => {
-  const inputs = entries.map((entry): tarStream.TarStreamInput => {
-    if (entry.type === "directory") {
-      return entry;
-    }
-
-    const bytes = encoder.encode(entry.content);
-    return {
-      type: "file",
-      path: entry.path,
-      size: bytes.length,
-      readable: testing.readableStreamFrom([bytes]),
-    };
-  });
-
-  return testing
-    .readableStreamFrom(inputs)
-    .pipeThrough(new tarStream.TarStream())
-    .pipeThrough(
-      new CompressionStream("gzip") as unknown as TransformStream<
-        Uint8Array,
-        Uint8Array
-      >,
-    );
-};
+): ReadableStream<Uint8Array> => testing.gzippedTarball(entries);
 
 const withTempDir = async (
   fn: (dir: string) => Promise<void>,

@@ -323,6 +323,13 @@ workflows:
           name: noskills-launcher-install
           command: node ./etc/scripts/preflight-noskills-launcher.ts
           timeout: 300
+      # The laroux and noskills bundles and this host's noskills platform
+      # package, packed into etc/temp/plugin-packs while the bundles are still
+      # in dist/; the plugin-bins step installs them (TASK-252).
+      - shell:
+          name: plugin-bundles-pack
+          command: node ./etc/scripts/preflight-plugin-bins.ts --save-bundles
+          timeout: 180
       # Installed v4.5.x laroux and noskills binaries update with the old
       # TypeScript updater: it must find, verify and install the laroux
       # forwarding stub, which must run the npm package (decision-9), and the
@@ -355,6 +362,14 @@ workflows:
           name: library-consumer
           command: node ./etc/scripts/preflight-library-consumer.ts
           timeout: 300
+      # The packed posts library and its @eserstack dependencies, with the
+      # saved bundles, installed into a scratch project outside the repo:
+      # `eser-posts --help` must run, and the Go eser forwarding test must
+      # resolve and run eser-posts, laroux and noskills from it (TASK-252).
+      - shell:
+          name: plugin-bins
+          command: node ./etc/scripts/preflight-plugin-bins.ts
+          timeout: 600
 
   - id: commit-validation
     on: [commitmsg]

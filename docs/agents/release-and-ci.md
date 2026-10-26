@@ -30,7 +30,12 @@ release-and-ci skill refers to.
   (`pnpm -r build`), packs every workspace package into `etc/temp/npm-packs`
   and installs the packed `@eserstack/primitives` into a scratch consumer that
   imports it with `node --no-strip-types`
-  (`etc/scripts/preflight-library-consumer.ts`).
+  (`etc/scripts/preflight-library-consumer.ts`). Then
+  `etc/scripts/preflight-plugin-bins.ts` installs the packed posts library and
+  its `@eserstack` dependencies, with the laroux and noskills bundles and the
+  host's noskills platform package that its `--save-bundles` step packed while
+  the bundles were still in dist/, outside the repo; it runs `eser-posts --help`
+  and `TestForwardReachesThePackedCLIs` of `cmd/eser` on the installed bins.
 - The install dry runs are Go tests in `cmd/noskills/install_dry_run_test.go`.
   `TestInstallShInstallsTheGoNoskills` and `TestInstallShDecidesFromTheRelease`
   run in `go test ./...`: install.sh installs the Go noskills from a local

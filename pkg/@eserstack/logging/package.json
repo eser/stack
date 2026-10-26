@@ -2,11 +2,39 @@
   "name": "@eserstack/logging",
   "version": "4.5.2",
   "type": "module",
+  "files": [
+    "dist/**/*.js",
+    "dist/**/*.d.ts",
+    "dist/**/*.json"
+  ],
   "exports": {
     ".": "./mod.ts",
     "./logger": "./logger.ts",
     "./tracer": "./tracer.ts",
     "./go-logger": "./go-logger.ts"
+  },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/mod.d.ts",
+        "import": "./dist/mod.js"
+      },
+      "./logger": {
+        "types": "./dist/logger.d.ts",
+        "import": "./dist/logger.js"
+      },
+      "./tracer": {
+        "types": "./dist/tracer.d.ts",
+        "import": "./dist/tracer.js"
+      },
+      "./go-logger": {
+        "types": "./dist/go-logger.d.ts",
+        "import": "./dist/go-logger.js"
+      }
+    }
+  },
+  "scripts": {
+    "build": "node ../../../etc/scripts/build-library.ts"
   },
   "dependencies": {
     "@eserstack/ajan": "workspace:*",

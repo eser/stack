@@ -2,6 +2,11 @@
   "name": "@eserstack/mux",
   "version": "4.5.2",
   "type": "module",
+  "files": [
+    "dist/**/*.js",
+    "dist/**/*.d.ts",
+    "dist/**/*.json"
+  ],
   "exports": {
     ".": "./mod.ts",
     "./engine": "./engine/mod.ts",
@@ -9,6 +14,37 @@
     "./scene": "./scene/mod.ts",
     "./server": "./server/server.ts",
     "./runner": "./runner/inprocess.ts"
+  },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/mod.d.ts",
+        "import": "./dist/mod.js"
+      },
+      "./engine": {
+        "types": "./dist/engine/mod.d.ts",
+        "import": "./dist/engine/mod.js"
+      },
+      "./keybindings": {
+        "types": "./dist/keybindings/mod.d.ts",
+        "import": "./dist/keybindings/mod.js"
+      },
+      "./scene": {
+        "types": "./dist/scene/mod.d.ts",
+        "import": "./dist/scene/mod.js"
+      },
+      "./server": {
+        "types": "./dist/server/server.d.ts",
+        "import": "./dist/server/server.js"
+      },
+      "./runner": {
+        "types": "./dist/runner/inprocess.d.ts",
+        "import": "./dist/runner/inprocess.js"
+      }
+    }
+  },
+  "scripts": {
+    "build": "node ../../../etc/scripts/build-library.ts"
   },
   "dependencies": {
     "@eserstack/shell": "workspace:*",

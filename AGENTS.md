@@ -42,7 +42,7 @@ the toolchain is Node `>=26.9` (`.node-version` pins the exact version), pnpm
   test seam `@eserstack/test-kit`, six `ajan-*` platform packages and five
   `noskills-*` binary packages), all on the shared version in `VERSION`, plus
   `directives/`, which holds documents only. Tests import assertions and mocks
-  from `@eserstack/test-kit`, never from `@std/assert` or `@std/testing/mock`
+  from `@eserstack/test-kit`, never from `node:assert` or the `node:test` mock
   directly. Publishing is npm only and JSR stays frozen at 4.5.x (decision-5):
   `eser`, `noskills` and `laroux` go to npm as bundles, the `ajan-*` and
   `noskills-*` packages as platform packages, and the libraries from 5.0.0

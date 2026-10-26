@@ -8,9 +8,5 @@
     "./capture": "./capture.ts",
     "./leaks": "./leaks.ts",
     "./mock": "./mock.ts"
-  },
-  "dependencies": {
-    "@std/assert": "npm:@jsr/std__assert@^1.0.19",
-    "@std/testing": "npm:@jsr/std__testing@^1.0.20"
   }
 }

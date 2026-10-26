@@ -111,7 +111,7 @@ export const checkLeaks = (): void => {
     const leaked = diffResources(before, process.getActiveResourcesInfo());
 
     if (leaked.length > 0) {
-      throw new assert.AssertionError(formatLeaks(leaked));
+      throw new assert.AssertionError({ message: formatLeaks(leaked) });
     }
   });
 };

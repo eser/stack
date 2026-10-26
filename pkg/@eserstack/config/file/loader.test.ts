@@ -61,10 +61,14 @@ bdd.describe("parse", () => {
       'name = "app"\n\n[server]\nport = 8080\n',
     );
 
-    assert.assertEquals(result.content, {
-      name: "app",
-      server: { port: 8080 },
-    });
+    // smol-toml builds every table as a null-prototype object.
+    const table = (entries: Record<string, unknown>): Record<string, unknown> =>
+      Object.assign(Object.create(null) as Record<string, unknown>, entries);
+
+    assert.assertEquals(
+      result.content,
+      table({ name: "app", server: table({ port: 8080 }) }),
+    );
   });
 
   bdd.it("wraps a TOML syntax error", async () => {

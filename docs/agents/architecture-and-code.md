@@ -31,8 +31,9 @@ architecture-guidelines: Architectural Decision Records lists; a new one does.
 - Tests run on `node:test`. Most files import it as `nodeTest`; the files
   converted from `@std/testing/bdd` import it as `bdd`. Assertions,
   mocks, error capture and the opt-in leak check come from the private
-  `@eserstack/test-kit` package, which re-exports `@std/assert` and
-  `@std/testing/mock` until M2-T4 moves it to `node:assert`.
+  `@eserstack/test-kit` package, which implements the names the tests took
+  from `@std/assert` and `@std/testing/mock` on `node:assert/strict` and the
+  `node:test` mock. `assertEquals` is `deepStrictEqual`, so prototypes count.
 - `pnpm cli test` runs `node --test` over `pkg/**/*.test.ts` and
   `etc/scripts/*.test.ts`, one process per file, with coverage written as LCOV
   to `etc/coverage.lcov`. `pnpm ok` runs the same command as part of the

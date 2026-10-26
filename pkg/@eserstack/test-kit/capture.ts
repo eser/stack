@@ -2,10 +2,9 @@
 
 /**
  * Helpers that return what a function throws, for tests that go on to check
- * the error. `assertThrows` and `assertRejects` from `@std/assert` return the
- * error too, but `node:assert`'s `throws` and `rejects` do not, so tests that
- * read the error use these and keep working when M2-T4 moves the assertions
- * to node:assert.
+ * the error without asserting its class. `assertThrows` and `assertRejects`
+ * from `./assert` return the error too; these accept any thrown value and
+ * check nothing about it.
  *
  * @example
  * ```typescript
@@ -19,7 +18,7 @@
  * @module
  */
 
-import * as stdAssert from "@std/assert";
+import * as nodeAssert from "node:assert/strict";
 
 /**
  * Calls `fn` and returns what it throws. Fails the test with an
@@ -35,7 +34,9 @@ export const captureThrow = (fn: () => unknown): unknown => {
     return error;
   }
 
-  throw new stdAssert.AssertionError("expected the function to throw");
+  throw new nodeAssert.AssertionError({
+    message: "expected the function to throw",
+  });
 };
 
 /**
@@ -54,5 +55,7 @@ export const captureRejection = async (
     return error;
   }
 
-  throw new stdAssert.AssertionError("expected the promise to reject");
+  throw new nodeAssert.AssertionError({
+    message: "expected the promise to reject",
+  });
 };

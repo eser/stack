@@ -1,16 +1,1 @@
-noskills:
-  # noskills orchestrator — inline comments in this section won't be preserved on next write
-  concerns: []
-  tools:
-    - claude-code
-  providers: []
-  project:
-    languages: []
-    frameworks: []
-    ci: []
-    testRunner: null
-  maxIterationsBeforeRestart: 15
-  verifyCommand: null
-  allowGit: false
-  command: "'/Users/eser/.nvm/versions/node/v26.12.1/bin/node'
-    '/Users/eser/projects/eser/stack-fixes/pkg/@eserstack/noskills/main.ts'"
+scripts: {}

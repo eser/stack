@@ -1,0 +1,5 @@
+{
+  "name": "root",
+  "version": "4.5.2",
+  "workspaces": ["pkg/*"]
+}

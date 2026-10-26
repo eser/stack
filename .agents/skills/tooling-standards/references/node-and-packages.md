@@ -171,9 +171,9 @@ Scope: Choosing where a dependency comes from
 
 Rule: Prefer a Node built-in, then a package from the npm registry, declared
 with plain semver. Libraries publish to npm only. Do not add an `npm:` alias
-that points at another registry's mirror. The `@std/*` aliases still in the code
-are being replaced with built-ins and vetted npm packages; they are not a
-precedent.
+that points at another registry's mirror. The `@std/*` aliases the code once
+took from JSR were replaced with built-ins and vetted npm packages; they are
+not a precedent.
 
 **Why:** a library published to npm installs with plain npm or pnpm only when
 every dependency it declares comes from the npm registry, and one registry

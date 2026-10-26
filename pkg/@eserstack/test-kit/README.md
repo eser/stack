@@ -4,10 +4,10 @@
 assertions and test doubles from (decision-3). It is private: it is never
 published, and it depends on no `@eserstack/*` package, so every package,
 `@eserstack/standards` and `@eserstack/primitives` included, can list it as a
-devDependency without a cycle.
-
-Today each module re-exports the `@std/assert` and `@std/testing/mock` functions
-the tests use. M2-T4 moves them to `node:assert` in this package only.
+devDependency without a cycle. It has no dependencies at all: the assertions
+run on `node:assert/strict` and the test doubles on the `node:test` mock, under
+the names and signatures the tests took from `@std/assert` and
+`@std/testing/mock` before.
 
 ## Assertions
 
@@ -16,7 +16,20 @@ import * as assert from "@eserstack/test-kit/assert";
 
 assert.assertEquals({ a: 1 }, { a: 1 });
 assert.assertStringIncludes("hello world", "world");
+
+const error = assert.assertThrows(() => JSON.parse("{"), SyntaxError, "JSON");
 ```
+
+`assertEquals` and `assertNotEquals` use Node's strict deep equality
+(`deepStrictEqual`). It compares prototypes, so a null-prototype object, such
+as a table that `smol-toml` parses, does not equal a `{}` literal; build the
+expected value with `Object.create(null)` instead. It also tells `-0` from `0`.
+
+`assertThrows` and `assertRejects` return the error. Given a class, they check
+that the error is an instance of it and that its message includes the optional
+text, and the result is typed as that class. `assertExists`,
+`assertInstanceOf`, `assertStrictEquals` and `assertFalse` narrow the checked
+value. Every failure is a `node:assert` `AssertionError`.
 
 ## Test doubles
 
@@ -26,7 +39,19 @@ import * as mock from "@eserstack/test-kit/mock";
 const onSave = mock.spy((value: number) => value * 2);
 onSave(21);
 mock.assertSpyCalls(onSave, 1);
+
+const target = { greet: (name: string): string => `hello ${name}` };
+{
+  using greet = mock.stub(target, "greet", (name) => `hi ${name}`);
+  target.greet("Ada");
+  mock.assertSpyCalls(greet, 1);
+}
 ```
+
+`spy` records calls through `mock.fn` and `stub` replaces a method through
+`mock.method`. Each call is in `calls` as `{ args, returned, error, self }`. A
+stub puts the method back on `restore()` or at the end of a `using` block. A
+stub can only replace a property that holds a function.
 
 ## Capturing errors
 

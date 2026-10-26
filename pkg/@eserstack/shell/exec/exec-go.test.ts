@@ -95,41 +95,47 @@ for (const { name, input } of invalidTimeouts) {
   });
 }
 
-nodeTest.test("runExecGo returns a non-zero exit as a normal reply", () => {
-  const { lib, requests } = fakeLib(
-    JSON.stringify({ stdout: "out", stderr: "err", code: 3 }),
-  );
-  const request = execGo.buildExecGoRequest("sh", {
-    args: ["-c", "exit 3"],
-    timeout: 5_000,
-  });
-
-  const reply = execGo.runExecGo(lib, request);
-
-  assert.assertEquals(reply, { stdout: "out", stderr: "err", code: 3 });
-  assert.assertEquals(requests, [
-    {
-      command: "sh",
+nodeTest.test(
+  "runExecGo returns a non-zero exit as a normal reply",
+  async () => {
+    const { lib, requests } = fakeLib(
+      JSON.stringify({ stdout: "out", stderr: "err", code: 3 }),
+    );
+    const request = execGo.buildExecGoRequest("sh", {
       args: ["-c", "exit 3"],
-      timeout: "5000ms",
-    },
-  ]);
-});
+      timeout: 5_000,
+    });
+
+    const reply = await execGo.runExecGo(lib, request);
+
+    assert.assertEquals(reply, { stdout: "out", stderr: "err", code: 3 });
+    assert.assertEquals(requests, [
+      {
+        command: "sh",
+        args: ["-c", "exit 3"],
+        timeout: "5000ms",
+      },
+    ]);
+  },
+);
 
 nodeTest.test(
   "runExecGo fills in the output the bridge omits when empty",
-  () => {
+  async () => {
     const { lib } = fakeLib(JSON.stringify({ code: 0 }));
 
-    const reply = execGo.runExecGo(lib, execGo.buildExecGoRequest("true", {}));
+    const reply = await execGo.runExecGo(
+      lib,
+      execGo.buildExecGoRequest("true", {}),
+    );
 
     assert.assertEquals(reply, { stdout: "", stderr: "", code: 0 });
   },
 );
 
 nodeTest.test(
-  "runExecGo throws the bridge's error as a CommandRunError",
-  () => {
+  "runExecGo rejects with the bridge's error as a CommandRunError",
+  async () => {
     const { lib } = fakeLib(
       JSON.stringify({
         code: 0,
@@ -139,7 +145,7 @@ nodeTest.test(
       }),
     );
 
-    const error = assert.assertThrows(
+    const error = await assert.assertRejects(
       () =>
         execGo.runExecGo(
           lib,

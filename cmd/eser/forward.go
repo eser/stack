@@ -19,14 +19,14 @@ const pluginPrefix = "eser-"
 // knownPlugin is a command shipped as its own program.
 type knownPlugin struct {
 	bin        string // the executable name
-	npmPackage string // the npm package that provides it; "" when none
+	npmPackage string // the npm package that provides it
 }
 
 // knownPlugins is the fixed table of the second resolution step (decision-10).
 var knownPlugins = map[string]knownPlugin{ //nolint:gochecknoglobals
 	"laroux":   {bin: "laroux", npmPackage: "laroux"},
 	"noskills": {bin: "noskills", npmPackage: "noskills"},
-	"posts":    {bin: "eser-posts", npmPackage: ""},
+	"posts":    {bin: "eser-posts", npmPackage: "@eserstack/posts"},
 }
 
 var semverPattern = regexp.MustCompile(`^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$`) //nolint:gochecknoglobals
@@ -42,7 +42,8 @@ type resolution struct {
 // resolvePlugin finds what runs `eser <name>`, in order: `eser-<name>` on
 // PATH; the known bin on PATH, then in each directory of ESER_PLUGIN_PATH
 // (which the npm launcher sets); then `npx --yes <package>@<eser version>`
-// when npx exists; otherwise a message naming the npm install command.
+// when npx exists, with `--package` and the bin name when the bin is not
+// named after the package; otherwise a message naming the npm install command.
 func resolvePlugin(e *env, name string) resolution {
 	if name == "" || strings.ContainsAny(name, `/\`) || strings.Contains(name, "..") {
 		return resolution{message: fmt.Sprintf("%q is not a command name", name)} //nolint:exhaustruct
@@ -76,19 +77,18 @@ func resolvePlugin(e *env, name string) resolution {
 		}
 	}
 
-	if known.npmPackage == "" {
-		return resolution{ //nolint:exhaustruct
-			message: fmt.Sprintf("%q is not installed: put %q on PATH or in ESER_PLUGIN_PATH.", name, known.bin),
-		}
-	}
-
 	spec := known.npmPackage
 	if semverPattern.MatchString(e.version) {
 		spec += "@" + e.version
 	}
 
 	if npx, err := e.lookPath("npx"); err == nil {
-		return resolution{program: npx, args: []string{"--yes", spec}} //nolint:exhaustruct
+		args := []string{"--yes", spec}
+		if known.bin != known.npmPackage {
+			args = []string{"--yes", "--package", spec, known.bin}
+		}
+
+		return resolution{program: npx, args: args} //nolint:exhaustruct
 	}
 
 	return resolution{ //nolint:exhaustruct

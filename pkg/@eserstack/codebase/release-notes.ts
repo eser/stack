@@ -1,0 +1,347 @@
+// Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
+
+/**
+ * Changelog parsing and GitHub Release synchronization.
+ *
+ * Can be used as a library or as a standalone script.
+ *
+ * Library usage:
+ * ```typescript
+ * import * as releaseNotes from "@eserstack/codebase/release-notes";
+ *
+ * // Parse changelog
+ * const { entries } = await releaseNotes.parseChangelog({ root: "." });
+ * console.log(entries[0].version, entries[0].notes);
+ *
+ * // Sync to GitHub Release
+ * const result = await releaseNotes.syncReleaseNotes({
+ *   repo: "owner/repo",
+ *   tag: "v4.0.43",
+ *   createIfMissing: true,
+ * });
+ * console.log(result.action); // "created" | "updated" | "skipped"
+ * ```
+ *
+ * CLI usage:
+ *   node ./release-notes.ts --repo owner/repo [--tag v1.0.0] [--create-if-missing]
+ *
+ * @module
+ */
+
+import * as primitives from "@eserstack/primitives";
+import * as standards from "@eserstack/standards";
+import * as functions from "@eserstack/functions";
+import type * as shellArgs from "@eserstack/shell/args";
+import * as shell from "@eserstack/shell";
+import * as tui from "@eserstack/shell/tui";
+import * as cliSupport from "./cli-support.ts";
+import * as changelogText from "./changelog-text.ts";
+import type { ChangelogEntry } from "./changelog-text.ts";
+
+export {
+  type ChangelogEntry,
+  normalizeTag,
+  parseChangelogText,
+} from "./changelog-text.ts";
+
+/**
+ * Options for parsing a changelog file.
+ */
+export type ParseChangelogOptions = {
+  /** Path to CHANGELOG.md relative to root (default: "CHANGELOG.md") */
+  readonly changelogPath?: string;
+  /** Root directory (default: ".") */
+  readonly root?: string;
+};
+
+/**
+ * Result of parsing a changelog file.
+ */
+export type ParseChangelogResult = {
+  /** All changelog entries, most recent first */
+  readonly entries: ReadonlyArray<ChangelogEntry>;
+};
+
+/**
+ * Options for syncing release notes to GitHub.
+ */
+export type SyncReleaseNotesOptions = {
+  /** GitHub repository slug (e.g., "owner/repo") */
+  readonly repo: string;
+  /** Target tag (e.g., "v4.0.43"). If omitted, uses latest changelog entry */
+  readonly tag?: string;
+  /** Create release if it doesn't exist (default: false) */
+  readonly createIfMissing?: boolean;
+  /** Path to CHANGELOG.md relative to root (default: "CHANGELOG.md") */
+  readonly changelogPath?: string;
+  /** Root directory (default: ".") */
+  readonly root?: string;
+  /** Release title template. Use {tag} placeholder. (default: "eserstack {tag}") */
+  readonly releaseTitle?: string;
+};
+
+/**
+ * Result of syncing release notes.
+ */
+export type SyncReleaseNotesResult = {
+  /** The tag that was synced */
+  readonly tag: string;
+  /** The changelog entry that was used */
+  readonly entry: ChangelogEntry;
+  /** Action taken */
+  readonly action: "created" | "updated" | "skipped";
+};
+
+/**
+ * Reads and parses a CHANGELOG.md file into structured entries.
+ *
+ * @param options - Options for the operation
+ * @returns Result with changelog entries
+ */
+export const parseChangelog = async (
+  options: ParseChangelogOptions = {},
+): Promise<ParseChangelogResult> => {
+  const { changelogPath = "CHANGELOG.md", root = "." } = options;
+  const fullPath = standards.crossRuntime.runtime.path.resolve(
+    root,
+    changelogPath,
+  );
+  const text = await standards.crossRuntime.runtime.fs.readTextFile(fullPath);
+  const entries = changelogText.parseChangelogText(text);
+
+  return { entries };
+};
+
+/**
+ * Checks whether a GitHub Release exists for a given tag.
+ *
+ * @param tag - The tag to check (e.g., "v4.0.43")
+ * @param repo - The repository slug (e.g., "owner/repo")
+ * @returns true if the release exists
+ */
+export const hasGitHubRelease = async (
+  tag: string,
+  repo: string,
+): Promise<boolean> => {
+  try {
+    await shell.exec.exec`gh release view ${tag} --repo ${repo}`.quiet().text();
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * Syncs a changelog entry to a GitHub Release.
+ *
+ * Finds the changelog entry matching the target tag, then creates or updates
+ * the corresponding GitHub Release with the entry's notes.
+ *
+ * @param options - Options for the operation
+ * @returns Result describing what action was taken
+ */
+export const syncReleaseNotes = async (
+  options: SyncReleaseNotesOptions,
+): Promise<SyncReleaseNotesResult> => {
+  const {
+    repo,
+    createIfMissing = false,
+    changelogPath = "CHANGELOG.md",
+    root = ".",
+    releaseTitle = "eserstack {tag}",
+  } = options;
+
+  const { entries } = await parseChangelog({ changelogPath, root });
+
+  if (entries.length === 0) {
+    throw new Error("No release headings found in CHANGELOG.md.");
+  }
+
+  const targetTag =
+    options.tag !== undefined
+      ? changelogText.normalizeTag(options.tag)
+      : entries[0]!.tag;
+
+  const entry = entries.find((e) => e.tag === targetTag);
+  if (entry === undefined) {
+    throw new Error(`No matching changelog section found for ${targetTag}.`);
+  }
+
+  // Write notes to a temp file for gh CLI
+  const tempDir = await standards.crossRuntime.runtime.fs.makeTempDir({
+    prefix: "eserstack-release-",
+  });
+  const notesPath = standards.crossRuntime.runtime.path.join(
+    tempDir,
+    `${targetTag}-notes.md`,
+  );
+  await standards.crossRuntime.runtime.fs.writeTextFile(notesPath, entry.notes);
+
+  try {
+    const exists = await hasGitHubRelease(targetTag, repo);
+
+    if (exists) {
+      try {
+        await shell.exec
+          .exec`gh release edit ${targetTag} --repo ${repo} --notes-file ${notesPath}`.spawn();
+      } catch (editErr) {
+        throw new Error(
+          `gh release edit ${targetTag} failed.${cliSupport.commandFailureDetail(
+            editErr,
+          )}`,
+          { cause: editErr },
+        );
+      }
+      return { tag: targetTag, entry, action: "updated" };
+    }
+
+    if (!createIfMissing) {
+      return { tag: targetTag, entry, action: "skipped" };
+    }
+
+    const title = releaseTitle.replace("{tag}", targetTag);
+
+    try {
+      await shell.exec
+        .exec`gh release create ${targetTag} --repo ${repo} --title ${title} --notes-file ${notesPath}`.spawn();
+      return { tag: targetTag, entry, action: "created" };
+    } catch (createErr) {
+      // Falling back to `edit` is only right when someone else created the
+      // release between the check and the create. For any other failure the
+      // edit fails too ("release not found"), and reporting THAT error hides
+      // the one that matters. Re-check before choosing, and carry gh's own
+      // stderr — it is the only place the real reason lives.
+      if (!(await hasGitHubRelease(targetTag, repo))) {
+        throw new Error(
+          `gh release create ${targetTag} failed.${cliSupport.commandFailureDetail(
+            createErr,
+          )}`,
+          { cause: createErr },
+        );
+      }
+
+      await shell.exec
+        .exec`gh release edit ${targetTag} --repo ${repo} --notes-file ${notesPath}`.spawn();
+      return { tag: targetTag, entry, action: "updated" };
+    }
+  } finally {
+    await standards.crossRuntime.runtime.fs.remove(tempDir, {
+      recursive: true,
+    });
+  }
+};
+
+// --- Handler ---
+
+/** Handler: wraps syncReleaseNotes as a Task via fromPromise. */
+export const syncReleaseNotesHandler: functions.handler.Handler<
+  SyncReleaseNotesOptions,
+  SyncReleaseNotesResult,
+  Error
+> = (input) => functions.task.fromPromise(() => syncReleaseNotes(input));
+
+// --- CLI Adapter ---
+
+/** Adapter: functions.triggers.CliEvent → SyncReleaseNotesOptions (extracts --repo, --tag, --create-if-missing flags). */
+const cliAdapter: functions.handler.Adapter<
+  functions.triggers.CliEvent,
+  SyncReleaseNotesOptions
+> = (event) => {
+  const repo =
+    (event.flags["repo"] as string | undefined) ??
+    standards.crossRuntime.runtime.env.get("GITHUB_REPOSITORY") ??
+    "";
+
+  if (repo === "") {
+    return primitives.results.fail(
+      functions.handler.adaptError(
+        "Missing repository. Pass --repo or set GITHUB_REPOSITORY.",
+      ),
+    );
+  }
+
+  return primitives.results.ok({
+    repo,
+    tag: (event.flags["tag"] as string | undefined) ?? undefined,
+    createIfMissing: event.flags["create-if-missing"] === true,
+  });
+};
+
+// --- CLI ResponseMapper ---
+
+/** ResponseMapper: formats SyncReleaseNotesResult for CLI output. */
+const cliResponseMapper: functions.handler.ResponseMapper<
+  SyncReleaseNotesResult,
+  Error | functions.handler.AdaptError,
+  shellArgs.CliResult<void>
+> = (result) => {
+  const { ctx } = cliSupport.getCliContext();
+
+  if (primitives.results.isFail(result)) {
+    const err = result.error;
+    const message =
+      err instanceof Error
+        ? err.message
+        : ((err as functions.handler.AdaptError).message ?? String(err));
+    tui.log.error(ctx, message);
+    return primitives.results.fail({ exitCode: 1 });
+  }
+
+  const { value } = result;
+
+  switch (value.action) {
+    case "created":
+      tui.log.success(
+        ctx,
+        `Created release ${value.tag} with changelog notes.`,
+      );
+      break;
+    case "updated":
+      tui.log.success(ctx, `Updated release notes for ${value.tag}.`);
+      break;
+    case "skipped":
+      tui.log.warn(
+        ctx,
+        `Release ${value.tag} not found. Skipping (pass --create-if-missing to create).`,
+      );
+      break;
+  }
+
+  return primitives.results.ok(undefined);
+};
+
+// --- CLI Trigger ---
+
+/** Runnable CLI trigger for release-notes. */
+export const handleCli: (
+  event: functions.triggers.CliEvent,
+) => Promise<shellArgs.CliResult<void>> = functions.handler.createTrigger({
+  handler: syncReleaseNotesHandler,
+  adaptInput: cliAdapter,
+  adaptOutput: cliResponseMapper,
+});
+
+/** Parse the release-notes arguments: `--repo`, `--tag`, `--create-if-missing`. */
+export const parseCliArgs = (
+  cliArgs?: readonly string[],
+): functions.triggers.CliEvent =>
+  cliSupport.parseCliEvent("release-notes", cliArgs, {
+    repo: { type: "string" },
+    tag: { type: "string" },
+    "create-if-missing": { type: "boolean" },
+    help: { type: "boolean", short: "h" },
+  });
+
+/** CLI entry point for dispatcher compatibility. */
+export const main = async (
+  cliArgs?: readonly string[],
+): Promise<shellArgs.CliResult<void>> => await handleCli(parseCliArgs(cliArgs));
+
+if (import.meta.main) {
+  // Entry point: the await only runs when this file is executed directly.
+  // oxlint-disable-next-line node/no-top-level-await
+  const result = await main(
+    standards.crossRuntime.runtime.process.args as string[],
+  );
+  cliSupport.runCliMain(result, cliSupport.getCliContext().output);
+}

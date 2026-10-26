@@ -1,1 +1,418 @@
-scripts: {}
+stack:
+  - javascript
+  - golang
+
+workflows:
+  - id: default
+    on: [precommit, prepush]
+    steps:
+      # Internal tools
+      # third-party/ holds in-tree forks that keep upstream's bytes as they are
+      # (third-party/jsonschema/FORK.md).
+      - validate-eof:
+          exclude: ["third-party/"]
+      - validate-trailing-whitespace:
+          exclude: ["third-party/"]
+      - validate-bom:
+          exclude: ["third-party/"]
+      - validate-line-endings:
+          exclude: ["third-party/"]
+      - validate-large-files:
+          maxKb: 1024
+      - validate-case-conflict
+      - validate-merge-conflict
+      - validate-json:
+          exclude:
+            - ".eser/recipes/"
+            - "tsconfig.json"
+      - validate-toml
+      - validate-yaml:
+          allowMultipleDocuments: true
+      - validate-symlinks
+      - validate-shebangs
+      - validate-secrets:
+          allowMissingCredentials: true
+          exclude:
+            # Agent skill definitions whose security rules teach by
+            # counter-example -- the "secrets" they contain are the hardcoded
+            # credentials the docs tell you never to write. .claude is a
+            # symlink to .agents (see AGENTS.md).
+            - ".claude/skills/"
+            - ".agents/skills/"
+      - validate-filenames:
+          rules:
+            - directory: "cmd/"
+              convention: "snake_case"
+              exclude:
+                - "Makefile"
+                - "README.md"
+            - directory: "pkg/ajan/"
+              convention: "snake_case"
+              exclude:
+                - "Makefile"
+                - "README.md"
+            - directory: "pkg/@eserstack/ajan/"
+              convention: "snake_case"
+              exclude:
+                - "Dockerfile"
+                - "Makefile"
+                - "README.md"
+            - directory: "*"
+              convention: "kebab-case"
+              exclude:
+                # SKILL.md is a fixed filename required by the agent-skills
+                # convention, so the tree cannot satisfy kebab-case (.claude is
+                # a symlink to .agents).
+                - ".claude/"
+                - ".agents/"
+                # Backlog.md names task files "task-1 - Title.md" by design.
+                - "backlog/"
+                - ".github/"
+                - ".git/COMMIT_EDITMSG"
+                - "AGENTS.md"
+                - "CHANGELOG.md"
+                - "Makefile"
+                - "PHILOSOPHY.md"
+                - "VERSION"
+                - "cmd/"
+                - "pkg/ajan/"
+                - "pkg/@eserstack/ajan/"
+                - "docs/"
+                - "etc/coverage/"
+                - "etc/temp/"
+                - ".eser/recipes/"
+                - "Dockerfile"
+                - "LICENSE"
+                - "README.md"
+                - "TODOS.md"
+                - "WIRING.md"
+                - "pkg/@eserstack/noskills/README-HOW.md"
+                # In-tree fork that keeps upstream's file names
+                # (third-party/jsonschema/FORK.md).
+                - "third-party/"
+      - validate-submodules
+      - validate-licenses:
+          exclude:
+            - ".eser/recipes/"
+            # Upstream's own Apache-2.0 headers stay as they are.
+            - "third-party/"
+      - validate-runtime-js-apis:
+          exclude:
+            - "pkg/@eserstack/standards/cross-runtime/"
+            # Release tooling: runs from a fresh checkout after publish and must
+            # not depend on the workspace it just released.
+            - "etc/scripts/preflight-npm-consumer.ts"
+            - "etc/scripts/preflight-noskills-launcher.ts"
+            # Run on a bare node with built-ins only, so they cannot import the
+            # cross-runtime layer: a Claude Code hook, the skill validator and
+            # the release-notes CI step.
+            - ".agents/hooks/decision-nudge.js"
+            - ".agents/skills/eser-rules-manager/scripts/validate-skills.ts"
+            - "etc/scripts/release-notes-from-changelog.ts"
+            # The opt-in leak check of the test seam diffs
+            # process.getActiveResourcesInfo(), which only Node has and the
+            # cross-runtime layer does not wrap; it is loaded by tests only.
+            - "pkg/@eserstack/test-kit/leaks.ts"
+            # Its test starts a nested node --test with process.execPath and
+            # process.env; test-kit cannot import the cross-runtime layer,
+            # whose own tests import test-kit.
+            - "pkg/@eserstack/test-kit/leaks.test.ts"
+            # The library resolvers (ffi/resolve.ts, wasm/resolve.ts) read
+            # Node's process (cwd, env, platform, arch) without the
+            # cross-runtime layer, so their tests stub and read that object.
+            - "pkg/@eserstack/ajan/ffi/resolve.test.ts"
+            - "pkg/@eserstack/ajan/wasm/resolve.test.ts"
+      - validate-self-imports:
+          exclude:
+            # Tests are not part of the published module graph.
+            - ".test.ts"
+      # Namespace imports, `??` defaults and no `export *` re-exports
+      # (javascript-practices). Existing
+      # violations are listed in .eser/baselines/code-conventions.json; only
+      # new ones fail. Shrink the baseline after migrating files with
+      # `node ./pkg/@eserstack/codebase/validate-code-conventions.ts --write-baseline`.
+      - validate-code-conventions
+      # camelCase declared names and TODO(TASK-<number>) comments, which oxlint
+      # does not check (decision-21, decision-34).
+      - validate-naming-and-todos:
+          exclude:
+            - ".eser/recipes/"
+      - validate-server-loc:
+          directory: "pkg/ajan/noskillsserverfx"
+      - validate-error-coverage:
+          file: "pkg/ajan/noskillsserverfx/errors.go"
+          errorObjects:
+            - NSError
+
+      # Build the native FFI library before any step that loads it.
+      #
+      # ~20 TS packages reach Go through pkg/@eserstack/ajan's c-shared library.
+      # Without this step the *.ffi.test.ts suites fail with "native library
+      # unavailable" on a clean checkout, and CI otherwise type-checks and tests
+      # the whole TS half against whatever binary was last *published* -- so an
+      # ABI change cannot fail the build that introduces it.
+      #
+      # GOWORK=off: the artifact must resolve from pkg/@eserstack/ajan/go.mod
+      # alone, not the repo-root workspace (see go.work).
+      - shell:
+          name: build-native-lib
+          # The WASM profile too: the WASM loader tests load it, and the check
+          # fails a profile over its size limits or with a forbidden package.
+          command: make ajan-lib ajan-wasm-check
+          timeout: 300
+
+      # Workspace checks. They read the members from the root package.json
+      # `workspaces` and fail when it lists none, so they run after the native
+      # library they call is rebuilt.
+      # No dependency cycles between packages:
+      - validate-circular-deps
+      # Export sub-paths are kebab-case:
+      - validate-export-names
+
+      # TypeScript checks, on the tools pinned in the root package.json.
+      - shell:
+          name: formatter
+          command: pnpm exec oxfmt --check
+          fixCommand: pnpm exec oxfmt
+          timeout: 120
+      - shell:
+          name: linter
+          command: pnpm exec oxlint
+          fixCommand: pnpm exec oxlint --fix
+          timeout: 120
+      # tsconfig.json sets noEmit; the flag keeps the step a check even if
+      # that changes.
+      - shell:
+          name: type-check
+          command: pnpm exec tsc --noEmit
+          timeout: 300
+      # Spec output goes to the console and LCOV to etc/coverage.lcov, which
+      # the Build workflow uploads. --test-timeout fails a single test that
+      # runs too long. A file that keeps the event loop alive after its last
+      # test (a leaked timer or socket) hangs until the step timeout stops the
+      # run. Never add --test-force-exit: it hides exactly those leaks.
+      - shell:
+          name: tests
+          command: node --test --experimental-test-coverage
+            --test-timeout=120000
+            --test-reporter=spec --test-reporter-destination=stdout
+            --test-reporter=lcov --test-reporter-destination=etc/coverage.lcov
+            "pkg/**/*.test.ts" "etc/scripts/*.test.ts"
+          timeout: 900
+
+      # Go checks.
+      #
+      # This repo is TWO Go modules: github.com/eser/stack (root) and
+      # github.com/eser/ajan (pkg/@eserstack/ajan, the cgo/WASI FFI bridge).
+      # `./...` never crosses a module boundary, so each module is checked in
+      # its own directory -- otherwise the bridge (bridge.go + main*.go, ~5.9k
+      # LOC) and its tests go completely unchecked, which was the case until
+      # 2026-08.
+      #
+      # There is deliberately NO go.work. A workspace would let one command
+      # cover both modules, but it also merges golangci-lint's dependency graph
+      # into the bridge's, which produced an "ambiguous import" on
+      # cloud.google.com/go/compute that needed a `replace` to paper over, and
+      # forced GOWORK=off on release builds so shipped artifacts still resolved
+      # from the bridge's own go.mod. Two `cd`s are cheaper than that.
+      - shell:
+          name: go-check
+          command: "go vet ./... && go build ./... &&
+            cd pkg/@eserstack/ajan && go vet ./... && go build ./..."
+          timeout: 180
+      # golangci-lint is declared in the ROOT module's `tool` block, so
+      # `go tool golangci-lint` cannot resolve it from inside the bridge
+      # module. Build it once from root, then run that binary in both.
+      - shell:
+          name: go-lint
+          command: "go build -o etc/temp/golangci-lint
+            github.com/golangci/golangci-lint/v2/cmd/golangci-lint &&
+            ./etc/temp/golangci-lint run ./... &&
+            cd pkg/@eserstack/ajan && ../../../etc/temp/golangci-lint run ./..."
+          fixCommand: "gofmt -w . && go build -o etc/temp/golangci-lint
+            github.com/golangci/golangci-lint/v2/cmd/golangci-lint &&
+            ./etc/temp/golangci-lint run --fix ./... &&
+            cd pkg/@eserstack/ajan && ../../../etc/temp/golangci-lint run --fix
+            ./..."
+          timeout: 300
+      - shell:
+          name: go-tests
+          command: "go test -race ./... &&
+            cd pkg/@eserstack/ajan && go test -race ./..."
+          timeout: 420
+      # flake.nix builds noskills with buildGoModule, whose vendorHash is the
+      # hash of `go mod vendor` and changes with go.sum (TASK-261). The fix
+      # command writes the new value.
+      - shell:
+          name: nix-vendor-hash
+          command: go run ./cmd/eser dev nix-vendor-hash --check
+          fixCommand: go run ./cmd/eser dev nix-vendor-hash
+          timeout: 300
+
+  # Release preflight: every release-only step, run on main BEFORE a tag exists.
+  #
+  # Each entry here is a step that used to run only after the tag was pushed
+  # and that failed at least one release in 2026 (wasip1 build, npm bundle
+  # externals, release tooling). A tag
+  # is pushed onto a commit that already passed this, so the release run never
+  # learns anything new. Kept under ten minutes on CI; heavier checks belong in
+  # precommit or in the release run itself.
+  - id: preflight
+    on: [preflight]
+    steps:
+      - shell:
+          name: npm-build-cli
+          command: node ./pkg/@eserstack/cli/scripts/npm-build.ts
+          timeout: 180
+      - shell:
+          name: npm-build-noskills
+          command: node ./pkg/@eserstack/noskills/scripts/npm-build.ts
+          timeout: 180
+      - shell:
+          name: npm-build-laroux
+          command: node ./pkg/@eserstack/laroux-server/scripts/npm-build.ts
+          timeout: 180
+      # Installs the packed CLI OUTSIDE the repo and runs its smoke commands;
+      # inside the monorepo, Node would resolve undeclared dependencies from
+      # the workspace and hide them.
+      - shell:
+          name: npm-consumer-install
+          command: node ./etc/scripts/preflight-npm-consumer.ts
+          timeout: 300
+      # Native (this platform) plus both WASM modules; the c-shared build is
+      # what compile-binaries ships, the wasip1 build is what broke v4.5.0.
+      - shell:
+          name: ajan-native-build
+          command: make ajan-lib
+          timeout: 300
+      - shell:
+          name: ajan-wasm-build
+          command: make ajan-wasm-check
+          timeout: 300
+      - shell:
+          name: homebrew-dry-run
+          command: go run ./cmd/eser dev homebrew --dry-run
+          timeout: 120
+      - shell:
+          name: nix-dry-run
+          command: go run ./cmd/eser dev nix-hashes --dry-run
+          timeout: 120
+      # The release run's Go compile, for this host only, so a build that
+      # fails stops here and not after publish; npm-binaries-current stages
+      # the noskills binary from its archive.
+      - shell:
+          name: compile-current
+          command: go run ./cmd/eser dev compile --current-only
+          timeout: 600
+      # The npm noskills launcher from a scratch install outside the repo:
+      # `npx noskills` must run this host's Go binary, staged into its
+      # platform package, and reach the TypeScript CLI it carries (TASK-261).
+      - shell:
+          name: npm-binaries-current
+          command: go run ./cmd/eser dev npm-binaries
+          timeout: 120
+      - shell:
+          name: noskills-launcher-install
+          command: node ./etc/scripts/preflight-noskills-launcher.ts
+          timeout: 300
+      # Installed v4.5.x laroux and noskills binaries update with the old
+      # TypeScript updater: it must find, verify and install the laroux
+      # forwarding stub, which must run the npm package (decision-9), and the
+      # Go noskills (TASK-261). Local release and fake npx, no network;
+      # ESER_PREFLIGHT fails it when the updater cannot run.
+      - shell:
+          name: legacy-binary-update
+          command: ESER_PREFLIGHT=1 go test -count=1 -run
+            TestLegacyBinariesSelfUpdate ./cmd/legacy-forwarder
+          timeout: 300
+
+  - id: commit-validation
+    on: [commitmsg]
+    steps:
+      - validate-commit-msg:
+          forceScope: true
+          strict: true
+          types:
+            - ci
+            - chore
+            - docs
+            - feat
+            - fix
+            - perf
+            - refactor
+            - revert
+            - test
+
+scripts:
+  # Validation
+  ok: eser workflows run -e precommit
+  fix: eser workflows run -e precommit --fix
+  # Everything the release run does that precommit does not; run before tagging.
+  preflight: eser workflows run -e preflight
+
+  # Setup
+  init: pnpm install && eser codebase install
+
+  # Testing
+  # The same run as the precommit tests step: spec output, LCOV coverage in
+  # etc/coverage.lcov, a per-test timeout and never --test-force-exit.
+  test:
+    command: node --test --experimental-test-coverage --test-timeout=120000
+      --test-reporter=spec --test-reporter-destination=stdout
+      --test-reporter=lcov --test-reporter-destination=etc/coverage.lcov
+      "pkg/**/*.test.ts" "etc/scripts/*.test.ts"
+    description: Run tests with coverage
+  test-watch:
+    command: node --test --watch "pkg/**/*.test.ts" "etc/scripts/*.test.ts"
+    description: Run tests in watch mode
+  bench:
+    command:
+      find pkg/@eserstack -name '*.bench.ts' -not -path '*/node_modules/*'
+      -print0 | xargs -0 -n 1 node
+    description: Run every mitata bench under pkg/@eserstack
+
+  # Code quality
+  lint: pnpm exec oxlint
+  fmt: pnpm exec oxfmt
+  check: pnpm exec tsc --noEmit
+
+  # Build
+  build: node ./pkg/@eserstack/cli/scripts/npm-build.ts
+  compile: go run ./cmd/eser dev compile
+
+  # Documentation
+  # JSDoc presence on exported symbols, checked by the Go validator in
+  # pkg/ajan/codebasefx (decision-43: no generated HTML reference).
+  docs-lint: eser codebase validate-docs
+
+  # Maintenance
+  clean: rm -rf ./etc/coverage/ ./etc/coverage.lcov
+
+  # Coverage
+  # Prints the per-file coverage table without writing etc/coverage.lcov.
+  coverage:
+    command: node --test --experimental-test-coverage --test-timeout=120000
+      "pkg/**/*.test.ts" "etc/scripts/*.test.ts"
+    description: Run tests and print the coverage table
+
+  # Release
+  # `release <patch|minor|major|same>` bumps, changelogs, commits, pushes, then
+  # pushes the v<version> tag. The TAG PUSH is what triggers build.yml's release
+  # run — CI never creates tags, because a tag pushed by its own GITHUB_TOKEN
+  # dispatches nothing.
+  release: eser codebase release
+  rerelease: eser codebase rerelease
+  unrelease: eser codebase unrelease
+  version-bump: eser codebase versions
+  # Escape hatch: tag by hand when a release commit already landed without one.
+  tag: eser codebase gh release-tag
+  release-notes: eser codebase gh release-notes
+  changelog: eser codebase changelog-gen
+
+  # Go shortcuts
+  go-ok: make ok
+  go-vuln: make vuln
+  go-test: make test-coverage
+  go-lint: make lint
+  go-fmt: make fix
+  go-build: make build

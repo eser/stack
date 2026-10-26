@@ -1,0 +1,62 @@
+{
+  "provider": "openai",
+  "scenario": "stream_error_status",
+  "exchanges": [
+    {
+      "request": {
+        "headers": {
+          "accept": "application/json",
+          "accept-encoding": "gzip",
+          "authorization": "Bearer test-openai-key",
+          "content-length": "152",
+          "content-type": "application/json",
+          "user-agent": "OpenAI/Go 1.12.0",
+          "x-stainless-arch": "arm64",
+          "x-stainless-lang": "go",
+          "x-stainless-os": "MacOS",
+          "x-stainless-package-version": "1.12.0",
+          "x-stainless-retry-count": "0",
+          "x-stainless-runtime": "go",
+          "x-stainless-runtime-version": "go1.26.6",
+          "x-stainless-timeout": "10"
+        },
+        "method": "POST",
+        "path": "/chat/completions",
+        "body": {
+          "messages": [
+            {
+              "content": "Be brief.",
+              "role": "developer"
+            },
+            {
+              "content": "Hello",
+              "role": "user"
+            }
+          ],
+          "model": "gpt-test",
+          "max_completion_tokens": 256,
+          "stream": true
+        }
+      },
+      "response": {
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{\"error\":{\"message\":\"Incorrect API key provided\",\"type\":\"invalid_request_error\",\"param\":null,\"code\":\"invalid_api_key\"}}",
+        "status": 401
+      }
+    }
+  ],
+  "outcome": {
+    "error": {
+      "kind": "auth_failed",
+      "message": "openai stream failed: authentication failed: POST \"{{server}}/chat/completions\": 401 Unauthorized {\"message\":\"Incorrect API key provided\",\"type\":\"invalid_request_error\",\"param\":null,\"code\":\"invalid_api_key\"}",
+      "sentinels": [
+        "ErrOpenAIStreamFailed",
+        "ErrAuthFailed"
+      ],
+      "status": 401
+    },
+    "events": []
+  }
+}

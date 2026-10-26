@@ -1,0 +1,4477 @@
+{
+  "commands": [
+    { "input": "", "gitArgs": [true, false, "read", -1] },
+    { "input": "\n", "gitArgs": [true, false, "read", -1] },
+    { "input": " ", "gitArgs": [true, false, "read", -1] },
+    { "input": "   ", "gitArgs": [true, false, "read", -1] },
+    {
+      "input": "  git push",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["git push"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "  git stash list",
+      "extractGitInvocations": ["git stash list"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": " call is the text of the program the child ",
+      "gitArgs": [false, false, "write", 0]
+    },
+    { "input": " first.", "gitArgs": [false, false, "write", 0] },
+    { "input": " for the spec ", "gitArgs": [false, false, "write", 0] },
+    {
+      "input": "\"git\" push",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["\"git\" push"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "\"git\" push origin main",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["\"git\" push origin main"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "\"npx eser@latest noskills\"",
+      "isNoskillsCommand": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    { "input": "\"phase\":\"IDLE\"", "gitArgs": [false, false, "write", 0] },
+    { "input": "# Naming\n", "gitArgs": [false, false, "write", 0] },
+    {
+      "input": "#!/bin/sh\nexec /usr/bin/git \"$@\"\n",
+      "extractGitInvocations": ["git"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    { "input": "$&$&", "gitArgs": [false, false, "write", 0] },
+    {
+      "input": "$(git add .)",
+      "extractGitInvocations": ["git add ."],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "$(git push)",
+      "extractGitInvocations": ["git push"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "$GIT push",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["$GIT push", "GIT push"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "$PATH",
+      "extractGitInvocations": ["$PATH"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "$PWD/.eser",
+      "bashProtectedFile": "git-wrapper",
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "${G} push",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["${G} push"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "${G} push origin main",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["${G} push origin main"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "${filePath}",
+      "extractGitInvocations": ["${filePath}"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "'git' push origin main",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["'git' push origin main"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    { "input": "(empty)", "gitArgs": [false, false, "write", 0] },
+    {
+      "input": "*** Update File:  spaced.ts  ",
+      "patchPaths": ["spaced.ts"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "*** Update File: src/a.ts\n*** Add File: b.ts\r*** Delete File: c.ts *** Move to: d.ts",
+      "patchPaths": ["src/a.ts", "b.ts", "c.ts", "d.ts"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": ",\n    },\n    {\n      name: \"in BLOCKED\",\n      state: state(\"BLOCKED\"),\n      names: ",
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": ",\n    },\n    {\n      name: \"in DISCOVERY with no spec, as a session state\",\n      state: state(\"DISCOVERY\", null),\n      names: ",
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": ",\n    },\n    {\n      name: \"in DISCOVERY\",\n      state: state(\"DISCOVERY\"),\n      names: ",
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": ",\n    },\n    {\n      name: \"in SPEC_APPROVED\",\n      state: state(\"SPEC_APPROVED\"),\n      names: ",
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": ",\n    },\n    {\n      name: \"in SPEC_PROPOSAL\",\n      state: state(\"SPEC_PROPOSAL\"),\n      names: ",
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": ",\n    },\n    {\n      name: \"in the review gate\",\n      state: state(\"EXECUTING\", \"upload\", \"review-gate\"),\n      names: ",
+      "gitArgs": [false, false, "write", 0]
+    },
+    { "input": ", ", "gitArgs": [false, false, "write", 0] },
+    { "input": ", pipes and ", "gitArgs": [false, false, "write", 0] },
+    { "input": "--attr-source", "gitArgs": [true, false, "read", -1] },
+    { "input": "--attr-source=HEAD", "gitArgs": [true, false, "read", -1] },
+    { "input": "--exec-path", "gitArgs": [true, false, "read", 0] },
+    { "input": "--exec-path=/tmp/x", "gitArgs": [true, false, "read", -1] },
+    { "input": "--get", "gitArgs": [false, false, "write", 0] },
+    { "input": "--git-dir=/g", "gitArgs": [true, false, "read", -1] },
+    { "input": "--git-dir=/repo/.git", "gitArgs": [true, false, "read", -1] },
+    { "input": "--help", "gitArgs": [true, false, "read", 0] },
+    { "input": "--list", "gitArgs": [false, false, "write", 0] },
+    { "input": "--no-advice", "gitArgs": [true, false, "read", -1] },
+    { "input": "--no-lazy-fetch", "gitArgs": [true, false, "read", -1] },
+    { "input": "--no-pager", "gitArgs": [true, false, "read", -1] },
+    { "input": "--oneline", "gitArgs": [false, false, "write", 0] },
+    { "input": "--show-current", "gitArgs": [false, false, "write", 0] },
+    {
+      "input": "--tool=copilot-cli",
+      "stripFlagValues": "",
+      "gitArgs": [false, false, "write", 0]
+    },
+    { "input": "--version", "gitArgs": [true, false, "read", 0] },
+    { "input": "--version reads", "gitArgs": [true, false, "read", 0] },
+    { "input": "-C", "gitArgs": [true, false, "read", -1] },
+    { "input": "-D", "gitArgs": [false, false, "write", 0] },
+    { "input": "-P", "gitArgs": [true, false, "read", -1] },
+    { "input": "-c", "gitArgs": [true, false, "read", -1] },
+    { "input": "-m", "gitArgs": [false, false, "write", 0] },
+    { "input": "-p", "gitArgs": [true, false, "read", -1] },
+    { "input": "-v", "gitArgs": [true, false, "read", 0] },
+    {
+      "input": ". ./x.sh",
+      "shellScriptTargets": ["./x.sh"],
+      "writesTargets": [false],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "../commands/git-wrapper.ts",
+      "extractGitInvocations": ["git-wrapper.ts"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "../context/questions.ts",
+      "gitArgs": [false, false, "write", 0]
+    },
+    { "input": "../output/cmd.ts", "gitArgs": [false, false, "write", 0] },
+    { "input": "../state/machine.ts", "gitArgs": [false, false, "write", 0] },
+    {
+      "input": "../state/persistence.ts",
+      "gitArgs": [false, false, "write", 0]
+    },
+    { "input": "../state/schema.ts", "gitArgs": [false, false, "write", 0] },
+    {
+      "input": "./git commit -m x",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["git commit -m x"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "./git push",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["git push"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "./git-wrapper-install.ts",
+      "extractGitInvocations": ["git-wrapper-install.ts"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "./git-wrapper.ts",
+      "extractGitInvocations": ["git-wrapper.ts"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "./git.ts",
+      "extractGitInvocations": ["git.ts"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    { "input": "./hook-commands.ts", "gitArgs": [false, false, "write", 0] },
+    { "input": "./hook-decisions.ts", "gitArgs": [false, false, "write", 0] },
+    { "input": "./invoke-hook.ts", "gitArgs": [false, false, "write", 0] },
+    { "input": "./next.ts", "gitArgs": [false, false, "write", 0] },
+    { "input": "./policy.sh", "gitArgs": [false, false, "write", 0] },
+    { "input": "./run.ts", "gitArgs": [false, false, "write", 0] },
+    { "input": "./x.sh", "gitArgs": [false, false, "write", 0] },
+    {
+      "input": ".eser/.state/bin/git",
+      "extractGitInvocations": ["git"],
+      "isToolConfigPath": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": ".eser/manifest.yml",
+      "bashProtectedFile": "manifest",
+      "isToolConfigPath": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": ".eser/rules/naming.md",
+      "isToolConfigPath": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "/bin/bash -c \"git add .\"",
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    { "input": "/p q/it", "gitArgs": [false, false, "write", 0] },
+    {
+      "input": "/p/.ESER/Manifest.yml",
+      "bashProtectedFile": "manifest",
+      "protectedFileAt": "manifest",
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "/p/.eser/.state/bin",
+      "bashProtectedFile": "git-wrapper",
+      "protectedFileAt": "git-wrapper",
+      "isToolConfigPath": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "/p/.eser/.state/bin/git",
+      "extractGitInvocations": ["git"],
+      "protectedFileAt": "git-wrapper",
+      "isToolConfigPath": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "/p/.eser/.state/binary/x",
+      "bashProtectedFile": "git-wrapper",
+      "isToolConfigPath": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "/p/.eser/manifest.yml",
+      "bashProtectedFile": "manifest",
+      "protectedFileAt": "manifest",
+      "isToolConfigPath": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "/p/.eser/rules/x.md",
+      "isToolConfigPath": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    { "input": "/p/k8s/manifest.yml", "gitArgs": [false, false, "write", 0] },
+    { "input": "/repo", "gitArgs": [false, false, "write", 0] },
+    {
+      "input": "/usr/bin/git",
+      "extractGitInvocations": ["git"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "/usr/bin/git push",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["git push"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    { "input": "/w", "gitArgs": [false, false, "write", 0] },
+    { "input": "/x", "gitArgs": [false, false, "write", 0] },
+    { "input": "30 seconds", "gitArgs": [false, false, "write", 0] },
+    { "input": "8", "gitArgs": [false, false, "write", 0] },
+    {
+      "input": "@eserstack/standards/cross-runtime",
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "@eserstack/test-kit/assert",
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "A=1 B=2 npx eser",
+      "networkRunnerOf": "npx",
+      "gitArgs": [false, false, "write", 0]
+    },
+    { "input": "Add photo upload", "gitArgs": [false, false, "write", 0] },
+    {
+      "input": "Add, defer or skip the offline mode?",
+      "gitArgs": [false, false, "write", 0]
+    },
+    { "input": "Anything?", "gitArgs": [false, false, "write", 0] },
+    { "input": "Approve?", "gitArgs": [false, false, "write", 0] },
+    { "input": "BLOCKED", "gitArgs": [false, false, "write", 0] },
+    {
+      "input": "BRANCH=$(git branch --show-current) && echo $BRANCH",
+      "extractGitInvocations": ["git branch --show-current"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    { "input": "Bash", "gitArgs": [false, false, "write", 0] },
+    {
+      "input": "C:\\p\\.eser\\manifest.yml",
+      "bashProtectedFile": "manifest",
+      "protectedFileAt": "manifest",
+      "gitArgs": [false, false, "write", 0]
+    },
+    { "input": "DISCOVERY", "gitArgs": [false, false, "write", 0] },
+    { "input": "DISCOVERY_REFINEMENT", "gitArgs": [false, false, "write", 0] },
+    {
+      "input": "Do you agree that users need uploads?",
+      "gitArgs": [false, false, "write", 0]
+    },
+    { "input": "EXECUTING", "gitArgs": [false, false, "write", 0] },
+    { "input": "Edit", "gitArgs": [false, false, "write", 0] },
+    { "input": "Execution blocked", "gitArgs": [false, false, "write", 0] },
+    {
+      "input": "FOO=1 git commit -m x",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["git commit -m x"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "GIT commit -m x",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["GIT commit -m x"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "GIT push origin main",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["GIT push origin main"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "GIT=$(which g?t); $GIT push",
+      "extractGitInvocations": ["GIT=", "$GIT push", "GIT push"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "GIT_PAGER=cat git log --oneline",
+      "extractGitInvocations": ["git log --oneline"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "Git commit -m x",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["Git commit -m x"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    { "input": "HEAD", "gitArgs": [false, false, "write", 0] },
+    { "input": "HOOK_TIMEOUT_SECONDS", "gitArgs": [false, false, "write", 0] },
+    {
+      "input": "How will you know it works?",
+      "gitArgs": [false, false, "write", 0]
+    },
+    { "input": "IDLE", "gitArgs": [false, false, "write", 0] },
+    {
+      "input": "Is there an irreversible decision?",
+      "gitArgs": [false, false, "write", 0]
+    },
+    { "input": "MultiEdit", "gitArgs": [false, false, "write", 0] },
+    { "input": "NOSKILLS_SESSION", "gitArgs": [false, false, "write", 0] },
+    { "input": "NotebookEdit", "gitArgs": [false, false, "write", 0] },
+    { "input": "PreToolUse", "gitArgs": [false, false, "write", 0] },
+    { "input": "Read", "gitArgs": [false, false, "write", 0] },
+    { "input": "SOMETHING_NEW", "gitArgs": [false, false, "write", 0] },
+    { "input": "SPEC_PROPOSAL", "gitArgs": [false, false, "write", 0] },
+    { "input": "SessionStart", "gitArgs": [false, false, "write", 0] },
+    {
+      "input": "What does the user do today without this feature?",
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "What is the rollback plan?",
+      "gitArgs": [false, false, "write", 0]
+    },
+    { "input": "Where does it stop?", "gitArgs": [false, false, "write", 0] },
+    {
+      "input": "Which upload tool do your customers use now?",
+      "gitArgs": [false, false, "write", 0]
+    },
+    { "input": "Write", "gitArgs": [false, false, "write", 0] },
+    { "input": "[fmt, lint]", "gitArgs": [false, false, "write", 0] },
+    { "input": "[fmt]", "gitArgs": [false, false, "write", 0] },
+    {
+      "input": "[noskills] Rules for this file:\n- use namespace imports",
+      "isNoskillsCommand": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "\\git push",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["\\git push", "git push"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "\\git push origin main",
+      "isGitAllowed": false,
+      "extractGitInvocations": [
+        "\\git push origin main",
+        "git push origin main"
+      ],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "_B=$(git branch --show-current)",
+      "extractGitInvocations": ["git branch --show-current"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "_BRANCH=$(git branch --show-current 2>/dev/null || echo 'unknown')",
+      "extractGitInvocations": ["git branch --show-current 2>/dev/null"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "a Bash command that reads the manifest",
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "a Bash command that rewrites allowGit",
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "a MultiEdit that changes the wrapper's command",
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "a MultiEdit without edits",
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "a Write that replaces the manifest with allowGit on",
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "a Write to a rule under .eser",
+      "bashProtectedFile": "git-wrapper",
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "a Write to project code",
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "a Write to the wrapper path",
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "a nos b",
+      "isNoskillsCommand": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "a tool it does not know",
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "a value of -c is not the subcommand",
+      "gitArgs": [false, false, "write", 0]
+    },
+    { "input": "a.b", "gitArgs": [false, false, "write", 0] },
+    { "input": "a: false\nb: false\n", "gitArgs": [false, false, "write", 0] },
+    { "input": "a: true\nb: false\n", "gitArgs": [false, false, "write", 0] },
+    { "input": "a: true\nb: true\n", "gitArgs": [false, false, "write", 0] },
+    { "input": "additionalContext", "gitArgs": [false, false, "write", 0] },
+    {
+      "input": "adds the second call to the steps the first recorded",
+      "gitArgs": [false, false, "write", 0]
+    },
+    { "input": "allow-with-context", "gitArgs": [false, false, "write", 0] },
+    { "input": "allowGit: false", "gitArgs": [false, false, "write", 0] },
+    { "input": "allowGit: true", "gitArgs": [false, false, "write", 0] },
+    { "input": "allowGit: x", "gitArgs": [false, false, "write", 0] },
+    { "input": "allows", "gitArgs": [false, false, "write", 0] },
+    {
+      "input": "allows BRANCH=$(git branch --show-current) && echo $BRANCH",
+      "extractGitInvocations": ["git branch --show-current"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "allows _B=$(git branch --show-current) (regression — was blocked)",
+      "extractGitInvocations": ["git branch --show-current"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "allows bash -c git diff",
+      "extractGitInvocations": ["git diff"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "allows bash -c git log",
+      "extractGitInvocations": ["git log"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "allows git blame file.ts",
+      "extractGitInvocations": ["git blame file.ts"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "allows git branch (bare list)",
+      "extractGitInvocations": ["git branch (bare list"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "allows git branch --all",
+      "extractGitInvocations": ["git branch --all"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "allows git branch --show-current (regression — was missing from allowlist)",
+      "extractGitInvocations": [
+        "git branch --show-current (regression — was missing from allowlist"
+      ],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "allows git branch -a",
+      "extractGitInvocations": ["git branch -a"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "allows git branch -r",
+      "extractGitInvocations": ["git branch -r"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "allows git branch -v",
+      "extractGitInvocations": ["git branch -v"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "allows git describe",
+      "extractGitInvocations": ["git describe"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "allows git diff",
+      "extractGitInvocations": ["git diff"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "allows git diff with path",
+      "extractGitInvocations": ["git diff with path"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "allows git help",
+      "extractGitInvocations": ["git help"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "allows git log",
+      "extractGitInvocations": ["git log"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "allows git log with args",
+      "extractGitInvocations": ["git log with args"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "allows git ls-files",
+      "extractGitInvocations": ["git ls-files"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "allows git remote (bare list)",
+      "extractGitInvocations": ["git remote (bare list"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "allows git remote -v",
+      "extractGitInvocations": ["git remote -v"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "allows git remote show origin",
+      "extractGitInvocations": ["git remote show origin"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "allows git rev-parse",
+      "extractGitInvocations": ["git rev-parse"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "allows git shortlog",
+      "extractGitInvocations": ["git shortlog"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "allows git show HEAD",
+      "extractGitInvocations": ["git show HEAD"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "allows git stash list",
+      "extractGitInvocations": ["git stash list"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "allows git stash show",
+      "extractGitInvocations": ["git stash show"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "allows git status",
+      "extractGitInvocations": ["git status"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "allows git tag (bare list)",
+      "extractGitInvocations": ["git tag (bare list"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "allows git tag --list",
+      "extractGitInvocations": ["git tag --list"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "allows git tag -l",
+      "extractGitInvocations": ["git tag -l"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "allows git version",
+      "extractGitInvocations": ["git version"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "allows pipe to git log",
+      "extractGitInvocations": ["git log"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    { "input": "ambition", "gitArgs": [false, false, "write", 0] },
+    {
+      "input": "an Edit that reaches the manifest through ..",
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "an Edit that sets allowGit",
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "an Edit to another section of the manifest",
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "an Edit whose text is not in the file",
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "an Edit without new_string",
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "applies MultiEdit replacements in order",
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "applies an Edit to the first match",
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "applies an Edit with replace_all to every match",
+      "gitArgs": [false, false, "write", 0]
+    },
+    { "input": "apply_patch", "gitArgs": [false, false, "write", 0] },
+    { "input": "approval", "gitArgs": [false, false, "write", 0] },
+    { "input": "approve", "gitArgs": [false, false, "write", 0] },
+    { "input": "askMatch", "gitArgs": [false, false, "write", 0] },
+    {
+      "input": "bash -c \"echo hello && git commit -m x\"",
+      "extractGitInvocations": ["git commit -m x"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "bash -c \"git commit -m test\"",
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "bash -c \"git diff --stat\"",
+      "gitArgs": [false, false, "write", 0]
+    },
+    { "input": "bash -c \"git log\"", "gitArgs": [false, false, "write", 0] },
+    {
+      "input": "bash -c \"git push\"",
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "bash -c \"git status\"",
+      "gitArgs": [false, false, "write", 0]
+    },
+    { "input": "bash -c \"ls -la\"", "gitArgs": [false, false, "write", 0] },
+    {
+      "input": "bash -e x.sh",
+      "shellScriptTargets": ["x.sh"],
+      "writesTargets": [false],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "bash -lc \"git push\"",
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "bash -lc 'git commit -am x'",
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "bash << EOF\ngit push origin main\nEOF",
+      "extractGitInvocations": ["git push origin main"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "feedsShellFromStdin": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "blocks bare git stash (push implied)",
+      "extractGitInvocations": ["git stash (push implied"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "blocks git add",
+      "extractGitInvocations": ["git add"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "blocks git am",
+      "extractGitInvocations": ["git am"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "blocks git branch -D main",
+      "extractGitInvocations": ["git branch -D main"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "blocks git branch -d feature",
+      "extractGitInvocations": ["git branch -d feature"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "blocks git branch -m old new",
+      "extractGitInvocations": ["git branch -m old new"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "blocks git branch new-branch-name",
+      "extractGitInvocations": ["git branch new-branch-name"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "blocks git checkout",
+      "extractGitInvocations": ["git checkout"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "blocks git cherry-pick",
+      "extractGitInvocations": ["git cherry-pick"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "blocks git commit",
+      "extractGitInvocations": ["git commit"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "blocks git merge",
+      "extractGitInvocations": ["git merge"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "blocks git mv",
+      "extractGitInvocations": ["git mv"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "blocks git push",
+      "extractGitInvocations": ["git push"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "blocks git push origin main",
+      "extractGitInvocations": ["git push origin main"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "blocks git rebase",
+      "extractGitInvocations": ["git rebase"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "blocks git remote add",
+      "extractGitInvocations": ["git remote add"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "blocks git remote remove",
+      "extractGitInvocations": ["git remote remove"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "blocks git reset",
+      "extractGitInvocations": ["git reset"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "blocks git revert",
+      "extractGitInvocations": ["git revert"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "blocks git rm",
+      "extractGitInvocations": ["git rm"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "blocks git stash drop",
+      "extractGitInvocations": ["git stash drop"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "blocks git stash pop",
+      "extractGitInvocations": ["git stash pop"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "blocks git stash push",
+      "extractGitInvocations": ["git stash push"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "blocks git tag -a v1.0 (annotated create)",
+      "extractGitInvocations": ["git tag -a v1.0 (annotated create"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "blocks git tag -d v1.0 (delete)",
+      "extractGitInvocations": ["git tag -d v1.0 (delete"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "blocks git tag v1.0 (create)",
+      "extractGitInvocations": ["git tag v1.0 (create"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    { "input": "branch", "gitArgs": [true, false, "read", 0] },
+    { "input": "branch delete writes", "gitArgs": [false, false, "write", 0] },
+    { "input": "branch listing reads", "gitArgs": [false, false, "write", 0] },
+    {
+      "input": "bunx noskills",
+      "isNoskillsCommand": true,
+      "networkRunnerOf": "bunx",
+      "gitArgs": [false, false, "write", 0]
+    },
+    { "input": "c", "gitArgs": [false, false, "write", 0] },
+    {
+      "input": "cat $(echo .eser/manifest.yml)",
+      "bashProtectedFile": "manifest",
+      "isToolConfigPath": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "cat .eser/.state/bin/git",
+      "extractGitInvocations": ["git"],
+      "isToolConfigPath": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "cat .eser/manifest.yml",
+      "isToolConfigPath": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "cat .eser/manifest.yml 2>&1",
+      "isToolConfigPath": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "cat README.md | sh",
+      "feedsShellFromStdin": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "cat x | bash",
+      "feedsShellFromStdin": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "cd .eser && rm -rf .state",
+      "bashProtectedFile": "git-wrapper",
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "cd .eser/.state && rm -rf bin",
+      "bashProtectedFile": "git-wrapper",
+      "isToolConfigPath": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    { "input": "checkProtectedFiles", "gitArgs": [false, false, "write", 0] },
+    { "input": "clone", "gitArgs": [false, false, "clone", 0] },
+    {
+      "input": "clone creates a repository",
+      "gitArgs": [false, false, "clone", 0]
+    },
+    { "input": "command", "gitArgs": [false, false, "write", 0] },
+    { "input": "commit", "gitArgs": [false, false, "write", 0] },
+    { "input": "commit writes", "gitArgs": [false, false, "write", 0] },
+    { "input": "config", "gitArgs": [false, false, "write", 0] },
+    { "input": "config --get reads", "gitArgs": [true, false, "read", 0] },
+    { "input": "config set writes", "gitArgs": [false, false, "write", 0] },
+    { "input": "consumeAskToken", "gitArgs": [false, false, "write", 0] },
+    {
+      "input": "containsGitWriteBypass",
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "containsGitWriteBypass catches subshell/pipe smuggling",
+      "gitArgs": [false, false, "write", 0]
+    },
+    { "input": "contentAfterEdit", "gitArgs": [false, false, "write", 0] },
+    {
+      "input": "cp /usr/bin/git .eser/.state/bin/git",
+      "extractGitInvocations": ["git .eser/.state/bin/git", "git"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "bashProtectedFile": "git-wrapper",
+      "isToolConfigPath": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    { "input": "create", "gitArgs": [false, false, "write", 0] },
+    { "input": "decidePreToolUse", "gitArgs": [false, false, "write", 0] },
+    {
+      "input": "defaults to 15 without a manifest or the setting",
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "deno run -A jsr:@eserstack/cli noskills",
+      "isNoskillsCommand": true,
+      "networkRunnerOf": "deno run jsr:@eserstack/cli",
+      "gitArgs": [false, false, "write", 0]
+    },
+    { "input": "deno run ./local.ts", "gitArgs": [false, false, "write", 0] },
+    {
+      "input": "deno x npm:noskills",
+      "isNoskillsCommand": true,
+      "networkRunnerOf": "deno x npm:noskills",
+      "gitArgs": [false, false, "write", 0]
+    },
+    { "input": "deny", "gitArgs": [false, false, "write", 0] },
+    {
+      "input": "detects ' nos ' in command",
+      "isNoskillsCommand": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "detects 'nos' at end of command",
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "detects 'nos' at start of command",
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "detects 'noskills' in command",
+      "isNoskillsCommand": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "detects /bin/bash -c git add",
+      "extractGitInvocations": ["git add"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "detects bash -c git commit",
+      "extractGitInvocations": ["git commit"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "detects eval git commit",
+      "extractGitInvocations": ["git commit"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "detects git add in matchAll fallback",
+      "extractGitInvocations": ["git add in matchAll fallback"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "detects pipe to git commit",
+      "extractGitInvocations": ["git commit"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "detects sh -c git push",
+      "extractGitInvocations": ["git push"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    { "input": "diff", "gitArgs": [true, false, "read", 0] },
+    { "input": "digital", "gitArgs": [false, false, "write", 0] },
+    { "input": "discovery", "gitArgs": [false, false, "write", 0] },
+    {
+      "input": "does not extract git from double-quoted string content",
+      "extractGitInvocations": ["git from double-quoted string content"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "drops noskills' handlers and the groups they leave empty",
+      "isNoskillsCommand": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "echo \"BRANCH: $_BRANCH\"",
+      "gitArgs": [false, false, "write", 0]
+    },
+    { "input": "echo \"git is great\"", "gitArgs": [false, false, "write", 0] },
+    { "input": "echo \"git push\"", "gitArgs": [false, false, "write", 0] },
+    {
+      "input": "echo $(cat .eser/manifest.yml)",
+      "bashProtectedFile": "manifest",
+      "isToolConfigPath": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    { "input": "echo $HOME", "gitArgs": [false, false, "write", 0] },
+    {
+      "input": "echo 'git push origin main' | sh",
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "feedsShellFromStdin": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "echo 'git push' > x.sh && sh x.sh",
+      "shellScriptTargets": ["x.sh"],
+      "writesTargets": [true],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "echo .eser/manifest.yml.bak",
+      "isToolConfigPath": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "echo done && git push",
+      "extractGitInvocations": ["git push"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    { "input": "echo hello", "gitArgs": [false, false, "write", 0] },
+    { "input": "echo hello world", "gitArgs": [false, false, "write", 0] },
+    {
+      "input": "echo msg | git commit --file=-",
+      "extractGitInvocations": ["git commit --file=-"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "stripFlagValues": "echo msg | git commit ",
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "echo nos",
+      "isNoskillsCommand": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "echo ok git push",
+      "extractGitInvocations": ["git push"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "echo test | git log",
+      "extractGitInvocations": ["git log"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "echo x > .eser/manifest.yml",
+      "bashProtectedFile": "manifest",
+      "isToolConfigPath": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "echo x >/dev/null; cat .eser/manifest.yml",
+      "isToolConfigPath": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "echo x | /usr/bin/git push",
+      "extractGitInvocations": ["git push"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "echo x | git commit -F -",
+      "extractGitInvocations": ["git commit -F -"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "echo x | sh",
+      "feedsShellFromStdin": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "edit .eser/manifest.yml",
+      "bashProtectedFile": "manifest",
+      "isToolConfigPath": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    { "input": "ended-session", "gitArgs": [false, false, "write", 0] },
+    {
+      "input": "env -i git push",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["git push"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "env FOO=1 git push",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["git push"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "env NO_COLOR=1 git diff",
+      "extractGitInvocations": ["git diff"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    { "input": "env.sh", "gitArgs": [false, false, "write", 0] },
+    {
+      "input": "eser noskills",
+      "isNoskillsCommand": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "eser noskills init",
+      "isNoskillsCommand": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "eser noskills invoke-hook session-start --tool=copilot-cli",
+      "stripFlagValues": "eser noskills invoke-hook session-start ",
+      "isNoskillsCommand": true,
+      "isNoskillsHookCommand": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "eval \"git commit\"",
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "eval 'git reset --hard'",
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    { "input": "exact", "gitArgs": [false, false, "write", 0] },
+    {
+      "input": "exotic subshell forms are detected",
+      "gitArgs": [false, false, "write", 0]
+    },
+    { "input": "explicitRealGit", "gitArgs": [false, false, "write", 0] },
+    { "input": "export {};\n", "gitArgs": [false, false, "write", 0] },
+    { "input": "extractGitInvocations", "gitArgs": [false, false, "write", 0] },
+    {
+      "input": "extracts both reads from && chain",
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "extracts read from BRANCH=$(git branch --show-current) && echo",
+      "extractGitInvocations": ["git branch --show-current"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "extracts read from variable assignment $(git branch --show-current)",
+      "extractGitInvocations": ["git branch --show-current"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "extracts read from || chain",
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "extracts reads from ; chain",
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "extracts reads from multi-line script with only reads",
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "extracts single git read command",
+      "extractGitInvocations": ["git read command"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "extracts single git write command",
+      "extractGitInvocations": ["git write command"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "extracts write from mixed && chain (read then write)",
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "extracts write from multi-line script containing one write",
+      "gitArgs": [false, false, "write", 0]
+    },
+    { "input": "false", "gitArgs": [false, false, "write", 0] },
+    { "input": "feature", "gitArgs": [false, false, "write", 0] },
+    { "input": "finds the manifest", "gitArgs": [false, false, "write", 0] },
+    {
+      "input": "finds the manifest in a Windows path",
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "finds the manifest in another case",
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "finds the wrapper directory itself",
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "finds the wrapper script",
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "foo && $(git reset --hard)",
+      "extractGitInvocations": ["git reset --hard"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    { "input": "free", "gitArgs": [false, false, "write", 0] },
+    { "input": "free-3", "gitArgs": [false, false, "write", 0] },
+    { "input": "fs_write", "gitArgs": [false, false, "write", 0] },
+    { "input": "full", "gitArgs": [false, false, "write", 0] },
+    { "input": "g", "gitArgs": [false, false, "write", 0] },
+    {
+      "input": "g\"\"it push origin main",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["g\"\"it push origin main"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "g''it push",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["g''it push"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "g''it push origin main",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["g''it push origin main"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "gIt PuSh",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["gIt PuSh"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "gates a code edit by the project state when the session is gone",
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "gates by the most restrictive session phase and warns the user",
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git",
+      "extractGitInvocations": ["git"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git --bare branch",
+      "extractGitInvocations": ["git --bare branch"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git --bare branch -> conditional (bare branch = allowed)",
+      "isGitAllowed": false,
+      "extractGitInvocations": [
+        "git --bare branch -> conditional (bare branch = allowed"
+      ],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git --bogus commit",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["git --bogus commit"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git --exec-path",
+      "extractGitInvocations": ["git --exec-path"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git --exec-path=/x commit",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["git --exec-path=/x commit"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git --git-dir=.git commit",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["git --git-dir=.git commit"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git --git-dir=/path log",
+      "extractGitInvocations": ["git --git-dir=/path log"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git --git-dir=/path log -> allowed",
+      "extractGitInvocations": ["git --git-dir=/path log -> allowed"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git --no-pager log",
+      "extractGitInvocations": ["git --no-pager log"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git --no-pager log -> allowed",
+      "extractGitInvocations": ["git --no-pager log -> allowed"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git --version",
+      "extractGitInvocations": ["git --version"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git --work-tree=/tmp status",
+      "extractGitInvocations": ["git --work-tree=/tmp status"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git --work-tree=/tmp status -> allowed",
+      "extractGitInvocations": ["git --work-tree=/tmp status -> allowed"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git -C /path -c x=y diff",
+      "extractGitInvocations": ["git -C /path -c x=y diff"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git -C /path -c x=y diff -> allowed (multiple global flags)",
+      "extractGitInvocations": [
+        "git -C /path -c x=y diff -> allowed (multiple global flags"
+      ],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git -C /path branch -D main",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["git -C /path branch -D main"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git -C /path branch -D main -> blocked",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["git -C /path branch -D main -> blocked"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git -C /path commit -> blocked",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["git -C /path commit -> blocked"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git -C /path commit -m test",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["git -C /path commit -m test"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git -C /path log --oneline",
+      "extractGitInvocations": ["git -C /path log --oneline"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git -C /path log -> allowed",
+      "extractGitInvocations": ["git -C /path log -> allowed"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git -C /path push",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["git -C /path push"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git -C /path push -> blocked",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["git -C /path push -> blocked"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git -C /repo diff",
+      "extractGitInvocations": ["git -C /repo diff"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git -C /tmp commit",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["git -C /tmp commit"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git -C/path log",
+      "extractGitInvocations": ["git -C/path log"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git -C/path log -> allowed (no space after -C)",
+      "extractGitInvocations": [
+        "git -C/path log -> allowed (no space after -C"
+      ],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git -P log",
+      "extractGitInvocations": ["git -P log"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git -c core.autocrlf=true status",
+      "extractGitInvocations": ["git -c core.autocrlf=true status"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git -c core.autocrlf=true status -> allowed",
+      "extractGitInvocations": ["git -c core.autocrlf=true status -> allowed"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git -c user.name=x commit",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["git -c user.name=x commit"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git -p log",
+      "extractGitInvocations": ["git -p log"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git add .",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["git add ."],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git am patch.diff",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["git am patch.diff"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git blame file.ts",
+      "extractGitInvocations": ["git blame file.ts"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git branch",
+      "extractGitInvocations": ["git branch"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git branch --all",
+      "extractGitInvocations": ["git branch --all"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git branch --show-current",
+      "extractGitInvocations": ["git branch --show-current"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git branch -D feature",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["git branch -D feature"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git branch -D main",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["git branch -D main"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git branch -a",
+      "extractGitInvocations": ["git branch -a"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git branch -d feature",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["git branch -d feature"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git branch -m old new",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["git branch -m old new"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git branch -r",
+      "extractGitInvocations": ["git branch -r"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git branch -v",
+      "extractGitInvocations": ["git branch -v"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git branch new-branch",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["git branch new-branch"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git branch new-branch-name",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["git branch new-branch-name"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git branching",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["git branching"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git checkout -- .eser/manifest.yml",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["git checkout -- .eser/manifest.yml"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "bashProtectedFile": "manifest",
+      "isToolConfigPath": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git checkout branch",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["git checkout branch"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git cherry-pick abc",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["git cherry-pick abc"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git cherry-pick abc123",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["git cherry-pick abc123"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git clean -fd",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["git clean -fd"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git clone https://x",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["git clone https://x"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git commit",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["git commit"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git commit -> blocked (unchanged)",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["git commit -> blocked (unchanged"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git commit -m \"test\"",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["git commit -m"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git commit -m test",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["git commit -m test"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git commit -m x",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["git commit -m x"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git commit -m x && git push",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["git commit -m x", "git push"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git config --file .gitmodules --get submodule.x.url",
+      "extractGitInvocations": [
+        "git config --file .gitmodules --get submodule.x.url"
+      ],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git config --get user.name",
+      "extractGitInvocations": ["git config --get user.name"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git config --global",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["git config --global"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git config --global --add alias.x '!sh'",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["git config --global --add alias.x"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git config --global --edit",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["git config --global --edit"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git config --global --get user.email",
+      "extractGitInvocations": ["git config --global --get user.email"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git config --global --list --show-origin",
+      "extractGitInvocations": ["git config --global --list --show-origin"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git config --global --unset-all user.name",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["git config --global --unset-all user.name"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git config --global user.name",
+      "extractGitInvocations": ["git config --global user.name"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git config --global user.name attacker",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["git config --global user.name attacker"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git config --global user.name x",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["git config --global user.name x"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git config --list",
+      "extractGitInvocations": ["git config --list"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git config --local --get-regexp ^remote",
+      "extractGitInvocations": ["git config --local --get-regexp ^remote"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git config --local --unset user.name",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["git config --local --unset user.name"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git config --local core.hooksPath /tmp/evil",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["git config --local core.hooksPath /tmp/evil"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git config --remove-section a",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["git config --remove-section a"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git config --rename-section a b",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["git config --rename-section a b"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git config --replace-all user.name x",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["git config --replace-all user.name x"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git config --system core.sshCommand evil",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["git config --system core.sshCommand evil"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git config --type=bool --get core.bare",
+      "extractGitInvocations": ["git config --type=bool --get core.bare"],
+      "stripFlagValues": "git config  --get core.bare",
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git config -e",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["git config -e"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git config -l",
+      "extractGitInvocations": ["git config -l"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git config get user.name",
+      "extractGitInvocations": ["git config get user.name"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git config list --global",
+      "extractGitInvocations": ["git config list --global"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git config reads are allowed",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["git config reads are allowed"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git config set user.name x",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["git config set user.name x"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git config unset user.name",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["git config unset user.name"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git config user.email x@y",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["git config user.email x@y"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git config user.name",
+      "extractGitInvocations": ["git config user.name"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git config writes are denied even with a scope flag",
+      "isGitAllowed": false,
+      "extractGitInvocations": [
+        "git config writes are denied even with a scope flag"
+      ],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git describe --tags",
+      "extractGitInvocations": ["git describe --tags"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git diff",
+      "extractGitInvocations": ["git diff"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git diff HEAD -- file.ts",
+      "extractGitInvocations": ["git diff HEAD -- file.ts"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git diff; git status",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["git diff", "git status"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git guard with global flags",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["git guard with global flags"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git help",
+      "extractGitInvocations": ["git help"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git issue",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["git issue"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git log",
+      "extractGitInvocations": ["git log"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git log && git diff",
+      "extractGitInvocations": ["git log", "git diff"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git log --oneline",
+      "extractGitInvocations": ["git log --oneline"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git log --oneline\ngit status\ngit diff",
+      "extractGitInvocations": ["git log --oneline", "git status", "git diff"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git log --oneline\ngit status\ngit push origin main",
+      "extractGitInvocations": [
+        "git log --oneline",
+        "git status",
+        "git push origin main"
+      ],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git log --oneline -10",
+      "extractGitInvocations": ["git log --oneline -10"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git log --oneline -5",
+      "extractGitInvocations": ["git log --oneline -5"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git log -> allowed (unchanged)",
+      "extractGitInvocations": ["git log -> allowed (unchanged"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git log | head -5",
+      "extractGitInvocations": ["git log"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git ls-files",
+      "extractGitInvocations": ["git ls-files"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git merge feature",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["git merge feature"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git merge main",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["git merge main"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git mv a.ts b.ts",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["git mv a.ts b.ts"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git push",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["git push"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git push\r\nls",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["git push"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git push origin main",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["git push origin main"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git rebase main",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["git rebase main"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git reflog expire",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["git reflog expire"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git remote",
+      "extractGitInvocations": ["git remote"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git remote -v",
+      "extractGitInvocations": ["git remote -v"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git remote add o x",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["git remote add o x"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git remote add origin url",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["git remote add origin url"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git remote remove origin",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["git remote remove origin"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git remote show origin",
+      "extractGitInvocations": ["git remote show origin"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git reset --hard",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["git reset --hard"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git rev-parse HEAD",
+      "extractGitInvocations": ["git rev-parse HEAD"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git revert HEAD",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["git revert HEAD"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git rm file.ts",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["git rm file.ts"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git send-pack x",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["git send-pack x"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git shortlog -sn",
+      "extractGitInvocations": ["git shortlog -sn"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git show HEAD",
+      "extractGitInvocations": ["git show HEAD"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git stash",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["git stash"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git stash drop",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["git stash drop"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git stash list",
+      "extractGitInvocations": ["git stash list"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git stash pop",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["git stash pop"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git stash push",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["git stash push"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git stash show",
+      "extractGitInvocations": ["git stash show"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git status",
+      "extractGitInvocations": ["git status"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git status && git commit -m test",
+      "extractGitInvocations": ["git status", "git commit -m test"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git status && git log --oneline",
+      "extractGitInvocations": ["git status", "git log --oneline"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git status && git push || git log; git diff\ngit commit",
+      "extractGitInvocations": [
+        "git status",
+        "git push",
+        "git log",
+        "git diff",
+        "git commit"
+      ],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git status 2>/dev/null || true",
+      "extractGitInvocations": ["git status 2>/dev/null"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git tag",
+      "extractGitInvocations": ["git tag"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git tag --list",
+      "extractGitInvocations": ["git tag --list"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git tag -a v1.0",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["git tag -a v1.0"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git tag -d v1.0",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["git tag -d v1.0"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git tag -l",
+      "extractGitInvocations": ["git tag -l"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git tag v1",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["git tag v1"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git tag v1.0",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["git tag v1.0"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git version",
+      "extractGitInvocations": ["git version"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git-migration",
+      "extractGitInvocations": ["git-migration"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git-wrapper",
+      "extractGitInvocations": ["git-wrapper"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git.exe push",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["git.exe push"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git push origin",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["git push origin"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "git push",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["git push"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "gives Copilot CLI a top-level additionalContext with --tool=copilot-cli",
+      "stripFlagValues": "gives Copilot CLI a top-level additionalContext with ",
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "gives PreToolUse as long as the git wrapper's check",
+      "extractGitInvocations": ["git wrapper"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "gives nothing for a value that is not an object",
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "gstack preamble multi-line script — all reads, no writes",
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "handlePostAskUserQuestion",
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "handles leading whitespace",
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "handles leading whitespace on blocked",
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "hasGitWrite combines direct + bypass + flag stripping",
+      "gitArgs": [false, false, "write", 0]
+    },
+    { "input": "head", "gitArgs": [false, false, "write", 0] },
+    {
+      "input": "hook guard allows git reads and refuses git writes",
+      "extractGitInvocations": [
+        "git reads and refuses git writes",
+        "git writes"
+      ],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "hook guard denies shapes that skipped the old substring pre-check",
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "hook guard inspects shell scripts it runs",
+      "gitArgs": [false, false, "write", 0]
+    },
+    { "input": "hookCommand", "gitArgs": [false, false, "write", 0] },
+    {
+      "input": "ignores a value that is not a positive whole number",
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "in DISCOVERY_REFINEMENT",
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "in a phase it does not know",
+      "gitArgs": [false, false, "write", 0]
+    },
+    { "input": "inherit", "gitArgs": [false, false, "write", 0] },
+    {
+      "input": "inserts replacement text with $ patterns as written",
+      "gitArgs": [false, false, "write", 0]
+    },
+    { "input": "invoke-hook", "gitArgs": [false, false, "write", 0] },
+    {
+      "input": "invoke-hook pre-tool-user",
+      "gitArgs": [false, false, "write", 0]
+    },
+    { "input": "invoke-hook stopped", "gitArgs": [false, false, "write", 0] },
+    {
+      "input": "is exact when the agent asked the question as written",
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "is modified when the agent rephrased it",
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "is modified when the step has no expected question",
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "is null below the threshold",
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "is the same function as isGitAllowed",
+      "gitArgs": [false, false, "write", 0]
+    },
+    { "input": "isGitAllowed", "gitArgs": [false, false, "write", 0] },
+    {
+      "input": "isGitAllowed blocks writes",
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "isGitAllowed permits read-only git",
+      "extractGitInvocations": ["git"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "isGitAllowed reads informational options and pager flags",
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "isGitArgsAllowed decides on the argument vector git receives",
+      "extractGitInvocations": ["git receives"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    { "input": "isGitReadOnly", "gitArgs": [false, false, "write", 0] },
+    {
+      "input": "isGitRemoteWrite flags push however it is introduced",
+      "gitArgs": [false, false, "write", 0]
+    },
+    { "input": "isNoskillsCommand", "gitArgs": [false, false, "write", 0] },
+    { "input": "isNoskillsHookCommand", "gitArgs": [false, false, "write", 0] },
+    { "input": "it", "gitArgs": [false, false, "write", 0] },
+    {
+      "input": "joins the prefix, invoke-hook, the event and its arguments",
+      "gitArgs": [false, false, "write", 0]
+    },
+    { "input": "keeps a path", "gitArgs": [false, false, "write", 0] },
+    {
+      "input": "keeps the token when the call asks no open base question",
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "leaves a directory that only starts with bin",
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "leaves a manifest outside .eser",
+      "bashProtectedFile": "git-wrapper",
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "leaves rules under .eser",
+      "bashProtectedFile": "git-wrapper",
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "leaves tools other than Bash and the file tools alone",
+      "gitArgs": [false, false, "write", 0]
+    },
+    { "input": "legitimate", "gitArgs": [false, false, "write", 0] },
+    {
+      "input": "lets a Codex patch through in EXECUTING",
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "lets a code edit through in EXECUTING with the executor reminder",
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "lets a code edit through in a free-mode session",
+      "gitArgs": [false, false, "write", 0]
+    },
+    { "input": "log", "gitArgs": [true, false, "read", 0] },
+    { "input": "log after -C reads", "gitArgs": [true, false, "read", 0] },
+    { "input": "logs", "gitArgs": [false, false, "write", 0] },
+    { "input": "ls -la", "gitArgs": [false, false, "write", 0] },
+    {
+      "input": "ls .eser/.state/bin",
+      "isToolConfigPath": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "ls | grep git",
+      "extractGitInvocations": ["git"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "ls | sh\r",
+      "feedsShellFromStdin": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    { "input": "main", "gitArgs": [false, false, "write", 0] },
+    { "input": "manifest", "gitArgs": [false, false, "write", 0] },
+    { "input": "matches", "gitArgs": [false, false, "write", 0] },
+    { "input": "missing", "gitArgs": [false, false, "write", 0] },
+    { "input": "modified", "gitArgs": [false, false, "write", 0] },
+    {
+      "input": "mv .eser /tmp/old-eser",
+      "bashProtectedFile": "git-wrapper",
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "mv .eser/.state/bin x",
+      "bashProtectedFile": "git-wrapper",
+      "isToolConfigPath": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "names the command, the timeout and the installed command",
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "names the iteration at the threshold",
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "names the iteration past the threshold",
+      "gitArgs": [false, false, "write", 0]
+    },
+    { "input": "networkCommandWarning", "gitArgs": [false, false, "write", 0] },
+    { "input": "next.test.ts", "gitArgs": [false, false, "write", 0] },
+    { "input": "node -e", "gitArgs": [false, false, "write", 0] },
+    { "input": "node:child_process", "gitArgs": [false, false, "write", 0] },
+    { "input": "node:test", "gitArgs": [false, false, "write", 0] },
+    { "input": "none", "gitArgs": [false, false, "write", 0] },
+    {
+      "input": "nos next",
+      "isNoskillsCommand": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "noskills block --reason=\"git issue\" --spec=\"git-migration\"",
+      "stripFlagValues": "noskills block  ",
+      "isNoskillsCommand": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "noskills invoke-hook git-exec",
+      "extractGitInvocations": ["git-exec"],
+      "isNoskillsCommand": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "noskills invoke-hook pre-tool-use",
+      "isNoskillsCommand": true,
+      "isNoskillsHookCommand": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "noskills next",
+      "isNoskillsCommand": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "noskills next --answer=\"test\" && git push",
+      "extractGitInvocations": ["git push"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "stripFlagValues": "noskills next  && git push",
+      "isNoskillsCommand": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "noskills next --answer=\"use git branching strategy\"",
+      "extractGitInvocations": ["git branching strategy"],
+      "containsGitWriteBypass": true,
+      "stripFlagValues": "noskills next ",
+      "isNoskillsCommand": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "noskills next --answer=\"use git push workflow\"",
+      "extractGitInvocations": ["git push workflow"],
+      "containsGitWriteBypass": true,
+      "stripFlagValues": "noskills next ",
+      "isNoskillsCommand": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "noskills next --answer=\"use git push\"",
+      "extractGitInvocations": ["git push"],
+      "containsGitWriteBypass": true,
+      "stripFlagValues": "noskills next ",
+      "isNoskillsCommand": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "noskills next --answer='digital transformation'",
+      "stripFlagValues": "noskills next ",
+      "isNoskillsCommand": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "noskills next --answer=legitimate",
+      "stripFlagValues": "noskills next ",
+      "isNoskillsCommand": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "noskills:\n  allowGit: $&$&\n",
+      "isNoskillsCommand": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "noskills:\n  allowGit: false\n",
+      "isNoskillsCommand": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "noskills:\n  allowGit: true\n",
+      "isNoskillsCommand": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "noskills: iteration 15 reached threshold (15). Consider starting a fresh conversation.\n",
+      "isNoskillsCommand": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "noskills: iteration 31 reached threshold (15). Consider starting a fresh conversation.\n",
+      "isNoskillsCommand": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    { "input": "not a list", "gitArgs": [false, false, "write", 0] },
+    { "input": "not set", "gitArgs": [false, false, "write", 0] },
+    {
+      "input": "npm exec noskills",
+      "isNoskillsCommand": true,
+      "networkRunnerOf": "npm exec",
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "npm x noskills",
+      "isNoskillsCommand": true,
+      "networkRunnerOf": "npm x",
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "npx eser@latest noskills",
+      "isNoskillsCommand": true,
+      "networkRunnerOf": "npx",
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "npx eser@latest noskills invoke-hook pre-tool-use",
+      "isNoskillsCommand": true,
+      "networkRunnerOf": "npx",
+      "isNoskillsHookCommand": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "npx eser@latest noskills next --answer='git commit'",
+      "stripFlagValues": "npx eser@latest noskills next ",
+      "isNoskillsCommand": true,
+      "networkRunnerOf": "npx",
+      "gitArgs": [false, false, "write", 0]
+    },
+    { "input": "null", "gitArgs": [false, false, "write", 0] },
+    { "input": "o", "gitArgs": [false, false, "write", 0] },
+    {
+      "input": "old-cli invoke-hook stop",
+      "isNoskillsHookCommand": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "open('.eser/manifest.yml', 'a').write('x')",
+      "bashProtectedFile": "manifest",
+      "isToolConfigPath": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    { "input": "origin", "gitArgs": [false, false, "write", 0] },
+    { "input": "passes", "gitArgs": [false, false, "write", 0] },
+    {
+      "input": "path-prefixed git is detected as a write (no bypass)",
+      "extractGitInvocations": ["git is detected as a write (no bypass"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    { "input": "persistence.readState", "gitArgs": [false, false, "write", 0] },
+    { "input": "piped", "gitArgs": [false, false, "write", 0] },
+    {
+      "input": "pnpm cli nos next",
+      "isNoskillsCommand": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "pnpm cli noskills next",
+      "isNoskillsCommand": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "pnpm dlx noskills",
+      "isNoskillsCommand": true,
+      "networkRunnerOf": "pnpm dlx",
+      "gitArgs": [false, false, "write", 0]
+    },
+    { "input": "pnpm test", "gitArgs": [false, false, "write", 0] },
+    {
+      "input": "pnpx noskills",
+      "isNoskillsCommand": true,
+      "networkRunnerOf": "pnpx",
+      "gitArgs": [false, false, "write", 0]
+    },
+    { "input": "pre-tool-use", "gitArgs": [false, false, "write", 0] },
+    { "input": "preToolUse", "gitArgs": [false, false, "write", 0] },
+    {
+      "input": "preserves actual commands after stripping",
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "printf \"git push\" | bash -s",
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "feedsShellFromStdin": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "printf '#!/bin/sh\\nexec /usr/bin/git \"$@\"\\n' > .eser/.state/bin/git",
+      "extractGitInvocations": ["git", "git"],
+      "bashProtectedFile": "git-wrapper",
+      "isToolConfigPath": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "printf 'g%sit push' '' > r.sh; sh r.sh",
+      "shellScriptTargets": ["r.sh"],
+      "writesTargets": [true],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "printf x > r.sh; sh r.sh && bash -e run.sh; source env.sh; . ./x.sh; sh -c 'y'",
+      "shellScriptTargets": ["r.sh", "run.sh", "env.sh", "./x.sh"],
+      "writesTargets": [true, false, false, false],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "processAskUserQuestionHook",
+      "gitArgs": [false, false, "write", 0]
+    },
+    { "input": "protectedFileAt", "gitArgs": [false, false, "write", 0] },
+    { "input": "push", "gitArgs": [false, true, "push", 0] },
+    {
+      "input": "puts noskills' groups after the user's in each event",
+      "isNoskillsCommand": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "puts the compiled instruction in additionalContext, naming the manifest's command",
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "python -c \"subprocess.run(['g'+'it','push'])\"",
+      "gitArgs": [false, false, "write", 0]
+    },
+    { "input": "python3 policy.py", "gitArgs": [false, false, "write", 0] },
+    { "input": "r", "gitArgs": [false, false, "write", 0] },
+    { "input": "r.sh", "gitArgs": [false, false, "write", 0] },
+    { "input": "read", "gitArgs": [false, false, "write", 0] },
+    {
+      "input": "read-only and non-git commands stay allowed",
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "records a follow-up under the discovery step",
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "records a premise question under the discovery step",
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "records the first call of a set of base questions",
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "records the review steps outside DISCOVERY",
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "records the unknown step without a readable state",
+      "gitArgs": [false, false, "write", 0]
+    },
+    { "input": "refuses", "gitArgs": [false, false, "write", 0] },
+    {
+      "input": "refuses Kiro, Copilot CLI and OpenCode code edits in DISCOVERY",
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "refuses a patch in DISCOVERY when any of its files is gated",
+      "gitArgs": [false, false, "write", 0]
+    },
+    { "input": "rejects empty command", "gitArgs": [false, false, "write", 0] },
+    {
+      "input": "rejects non-noskills commands",
+      "isNoskillsCommand": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "reported bypass shapes are git writes",
+      "extractGitInvocations": ["git writes"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    { "input": "resolution", "gitArgs": [false, false, "write", 0] },
+    { "input": "restartNotice", "gitArgs": [false, false, "write", 0] },
+    { "input": "restartThreshold", "gitArgs": [false, false, "write", 0] },
+    {
+      "input": "returns command unchanged when no flags",
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "returns empty array for non-git command",
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "returns false for no git mentions",
+      "extractGitInvocations": ["git mentions"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "returns the content a Write gives",
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "returns true for bare git",
+      "extractGitInvocations": ["git"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "returns true for non-git command",
+      "gitArgs": [false, false, "write", 0]
+    },
+    { "input": "reversibility", "gitArgs": [false, false, "write", 0] },
+    { "input": "rg \"git push\" src/", "gitArgs": [false, false, "write", 0] },
+    {
+      "input": "rm -rf ./.eser/.state",
+      "bashProtectedFile": "git-wrapper",
+      "isToolConfigPath": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "rm -rf .ESER/.State/Bin",
+      "bashProtectedFile": "git-wrapper",
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "rm -rf .eser",
+      "bashProtectedFile": "git-wrapper",
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "rm -rf .eser/",
+      "bashProtectedFile": "git-wrapper",
+      "isToolConfigPath": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "rm -rf .eser/*",
+      "bashProtectedFile": "git-wrapper",
+      "isToolConfigPath": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "rm -rf .eser/.state",
+      "bashProtectedFile": "git-wrapper",
+      "isToolConfigPath": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "rm -rf .eser/.state/*",
+      "bashProtectedFile": "git-wrapper",
+      "isToolConfigPath": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    { "input": "rm -rf /", "gitArgs": [false, false, "write", 0] },
+    {
+      "input": "rm İ.eser/.state",
+      "bashProtectedFile": "git-wrapper",
+      "isToolConfigPath": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    { "input": "run.sh", "gitArgs": [false, false, "write", 0] },
+    {
+      "input": "says nothing for an installed command",
+      "gitArgs": [false, false, "write", 0]
+    },
+    { "input": "scope_boundary", "gitArgs": [false, false, "write", 0] },
+    {
+      "input": "sed -i '' 's/allowGit: false/allowGit: true/' .eser/manifest.yml",
+      "bashProtectedFile": "manifest",
+      "isToolConfigPath": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "sed -i s/a/b/ .eser/manifest.yml",
+      "bashProtectedFile": "manifest",
+      "isToolConfigPath": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "sed s/a/b/ .eser/manifest.yml",
+      "isToolConfigPath": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    { "input": "send-pack", "gitArgs": [false, true, "push", 0] },
+    { "input": "send-pack pushes", "gitArgs": [false, true, "push", 0] },
+    { "input": "session-start", "gitArgs": [false, false, "write", 0] },
+    { "input": "session-start hook", "gitArgs": [false, false, "write", 0] },
+    {
+      "input": "sh -c \"git push\"",
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "sh -c 'git push'",
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    { "input": "sh < x.sh", "gitArgs": [false, false, "write", 0] },
+    {
+      "input": "sh <<< 'git push origin main'",
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "feedsShellFromStdin": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "sh <<< 'x'",
+      "feedsShellFromStdin": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "sh <<EOF\ngit push\nEOF",
+      "extractGitInvocations": ["git push"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "feedsShellFromStdin": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "sh r.sh",
+      "shellScriptTargets": ["r.sh"],
+      "writesTargets": [false],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "sh run.sh",
+      "shellScriptTargets": ["run.sh"],
+      "writesTargets": [false],
+      "gitArgs": [false, false, "write", 0]
+    },
+    { "input": "show", "gitArgs": [true, false, "read", 0] },
+    { "input": "skips", "gitArgs": [false, false, "write", 0] },
+    {
+      "input": "skips the questions already answered",
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "source x.sh",
+      "shellScriptTargets": ["x.sh"],
+      "writesTargets": [false],
+      "gitArgs": [false, false, "write", 0]
+    },
+    { "input": "spec", "gitArgs": [false, false, "write", 0] },
+    { "input": "spec-1", "gitArgs": [false, false, "write", 0] },
+    { "input": "spec-2", "gitArgs": [false, false, "write", 0] },
+    {
+      "input": "splitGitArgs separates global options from the subcommand",
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "src/../.eser/manifest.yml",
+      "bashProtectedFile": "manifest",
+      "protectedFileAt": "manifest",
+      "isToolConfigPath": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    { "input": "src/main.ts", "gitArgs": [false, false, "write", 0] },
+    { "input": "src/upload.ts", "gitArgs": [false, false, "write", 0] },
+    { "input": "start", "gitArgs": [false, false, "write", 0] },
+    { "input": "status", "gitArgs": [true, false, "read", 0] },
+    { "input": "status reads", "gitArgs": [true, false, "read", 0] },
+    { "input": "status_quo", "gitArgs": [false, false, "write", 0] },
+    {
+      "input": "stdin-fed shells and script files are recognised",
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "stops fragment at pipe — git log before | head",
+      "extractGitInvocations": ["git log before"],
+      "gitArgs": [false, false, "write", 0]
+    },
+    { "input": "stripFlagValues", "gitArgs": [false, false, "write", 0] },
+    {
+      "input": "strips double-quoted flag values",
+      "gitArgs": [false, false, "write", 0]
+    },
+    { "input": "strips multiple flags", "gitArgs": [false, false, "write", 0] },
+    {
+      "input": "strips single-quoted flag values",
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "strips unquoted flag values",
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "sudo -E git push",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["git push"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "sudo -u x git push",
+      "extractGitInvocations": ["git push"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    { "input": "takeExecutorReminder", "gitArgs": [false, false, "write", 0] },
+    {
+      "input": "takes a positive whole number from the manifest",
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "tee x.sh < y && bash x.sh",
+      "shellScriptTargets": ["x.sh"],
+      "writesTargets": [true],
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "treats an unset or empty variable as not given",
+      "gitArgs": [false, false, "write", 0]
+    },
+    { "input": "true", "gitArgs": [false, false, "write", 0] },
+    { "input": "u", "gitArgs": [false, false, "write", 0] },
+    { "input": "unknown", "gitArgs": [false, false, "write", 0] },
+    { "input": "user.name", "gitArgs": [false, false, "write", 0] },
+    {
+      "input": "userHookGroups and mergeHookGroups",
+      "gitArgs": [false, false, "write", 0]
+    },
+    { "input": "user_impact", "gitArgs": [false, false, "write", 0] },
+    { "input": "write", "gitArgs": [false, false, "write", 0] },
+    { "input": "x", "gitArgs": [false, false, "write", 0] },
+    {
+      "input": "x invoke-hook stop --flag",
+      "isNoskillsHookCommand": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "x noskills invoke-hook pre-tool-use",
+      "isNoskillsCommand": true,
+      "isNoskillsHookCommand": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "x noskills invoke-hook stop",
+      "isNoskillsCommand": true,
+      "isNoskillsHookCommand": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    { "input": "x: 1\n", "gitArgs": [false, false, "write", 0] },
+    {
+      "input": "x=1 rm .eser/.state/bin/git",
+      "extractGitInvocations": ["git"],
+      "bashProtectedFile": "git-wrapper",
+      "isToolConfigPath": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    { "input": "y", "gitArgs": [false, false, "write", 0] },
+    {
+      "input": "yarn dlx noskills",
+      "isNoskillsCommand": true,
+      "networkRunnerOf": "yarn dlx",
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "yq -i .a=1 .eser/manifest.yml",
+      "bashProtectedFile": "manifest",
+      "isToolConfigPath": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "zsh -c \"git push\"",
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "{\"path\":\"src/upload.ts\",\"file_text\":\"export {};\"}",
+      "parseHookInput": { "path": "src/upload.ts", "file_text": "export {};" },
+      "gitArgs": [false, false, "write", 0]
+    },
+    {
+      "input": "　git push",
+      "isGitAllowed": false,
+      "extractGitInvocations": ["git push"],
+      "containsGitWriteBypass": true,
+      "hasGitWrite": true,
+      "gitArgs": [false, false, "write", 0]
+    }
+  ],
+  "cases": [
+    {
+      "fn": "toolCallOf",
+      "args": ["Bash", { "command": "git push" }],
+      "result": { "kind": "shell", "command": "git push" }
+    },
+    {
+      "fn": "toolCallOf",
+      "args": ["Write", { "file_path": "a.ts", "content": "x" }],
+      "result": {
+        "kind": "file",
+        "changes": [
+          {
+            "path": "a.ts",
+            "edit": { "tool": "Write", "input": { "content": "x" } }
+          }
+        ]
+      }
+    },
+    {
+      "fn": "toolCallOf",
+      "args": [
+        "Edit",
+        {
+          "file_path": "a.ts",
+          "old_string": "a",
+          "new_string": "b",
+          "replace_all": true
+        }
+      ],
+      "result": {
+        "kind": "file",
+        "changes": [
+          {
+            "path": "a.ts",
+            "edit": {
+              "tool": "Edit",
+              "input": {
+                "old_string": "a",
+                "new_string": "b",
+                "replace_all": true
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "fn": "toolCallOf",
+      "args": [
+        "MultiEdit",
+        {
+          "file_path": "a.ts",
+          "edits": [
+            { "old_string": "a", "new_string": "b" },
+            { "oldString": "c", "newString": "d", "replaceAll": true }
+          ]
+        }
+      ],
+      "result": {
+        "kind": "file",
+        "changes": [
+          {
+            "path": "a.ts",
+            "edit": {
+              "tool": "MultiEdit",
+              "input": {
+                "edits": [
+                  {
+                    "old_string": "a",
+                    "new_string": "b",
+                    "replace_all": false
+                  },
+                  { "old_string": "c", "new_string": "d", "replace_all": true }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "fn": "toolCallOf",
+      "args": [
+        "MultiEdit",
+        { "file_path": "a.ts", "edits": [{ "old_string": "a" }] }
+      ],
+      "result": {
+        "kind": "file",
+        "changes": [{ "path": "a.ts", "edit": null }]
+      }
+    },
+    {
+      "fn": "toolCallOf",
+      "args": [
+        "edit",
+        { "filePath": "a.ts", "oldString": "a", "newString": "b" }
+      ],
+      "result": {
+        "kind": "file",
+        "changes": [
+          {
+            "path": "a.ts",
+            "edit": {
+              "tool": "Edit",
+              "input": {
+                "old_string": "a",
+                "new_string": "b",
+                "replace_all": false
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "fn": "toolCallOf",
+      "args": ["create", { "path": "a.ts", "file_text": "x" }],
+      "result": {
+        "kind": "file",
+        "changes": [
+          {
+            "path": "a.ts",
+            "edit": { "tool": "Write", "input": { "content": "x" } }
+          }
+        ]
+      }
+    },
+    {
+      "fn": "toolCallOf",
+      "args": [
+        "str_replace_editor",
+        { "path": "a.ts", "old_str": "a", "new_str": "b" }
+      ],
+      "result": {
+        "kind": "file",
+        "changes": [
+          {
+            "path": "a.ts",
+            "edit": {
+              "tool": "Edit",
+              "input": {
+                "old_string": "a",
+                "new_string": "b",
+                "replace_all": false
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "fn": "toolCallOf",
+      "args": [
+        "fs_write",
+        { "path": "a.ts", "command": "append", "file_text": "x" }
+      ],
+      "result": {
+        "kind": "file",
+        "changes": [{ "path": "a.ts", "edit": null }]
+      }
+    },
+    {
+      "fn": "toolCallOf",
+      "args": ["fs_append", { "path": "a.ts", "content": "x" }],
+      "result": {
+        "kind": "file",
+        "changes": [{ "path": "a.ts", "edit": null }]
+      }
+    },
+    {
+      "fn": "toolCallOf",
+      "args": ["delete_file", { "path": "a.ts" }],
+      "result": {
+        "kind": "file",
+        "changes": [{ "path": "a.ts", "edit": null }]
+      }
+    },
+    {
+      "fn": "toolCallOf",
+      "args": [
+        "apply_patch",
+        {
+          "command": "*** Begin Patch\n*** Update File: a.ts\n*** Update File: a.ts\n*** Add File: b.ts\n*** End Patch"
+        }
+      ],
+      "result": {
+        "kind": "file",
+        "changes": [
+          { "path": "a.ts", "edit": null },
+          { "path": "b.ts", "edit": null }
+        ]
+      }
+    },
+    {
+      "fn": "toolCallOf",
+      "args": ["apply_patch", { "patchText": "*** Delete File: c.ts" }],
+      "result": {
+        "kind": "file",
+        "changes": [{ "path": "c.ts", "edit": null }]
+      }
+    },
+    {
+      "fn": "toolCallOf",
+      "args": ["Write", { "content": "x" }],
+      "result": { "kind": "file", "changes": [] }
+    },
+    {
+      "fn": "toolCallOf",
+      "args": ["Read", { "file_path": "a.ts" }],
+      "result": { "kind": "other" }
+    },
+    {
+      "fn": "toolCallOf",
+      "args": ["powershell", { "command": "git push" }],
+      "result": { "kind": "shell", "command": "git push" }
+    },
+    {
+      "fn": "toolCallOf",
+      "args": ["execute_bash", {}],
+      "result": { "kind": "shell", "command": "" }
+    },
+    {
+      "fn": "hookDialectOf",
+      "args": [{ "toolName": "bash" }],
+      "result": "copilot"
+    },
+    {
+      "fn": "hookDialectOf",
+      "args": [{ "tool_name": "Bash", "toolName": "bash" }],
+      "result": "claude"
+    },
+    {
+      "fn": "hookDialectOf",
+      "args": [{ "hook_event_name": "preToolUse", "tool_name": "fs_write" }],
+      "result": "kiro"
+    },
+    {
+      "fn": "hookDialectOf",
+      "args": [{ "hook_event_name": "PreToolUse", "tool_name": "Bash" }],
+      "result": "claude"
+    },
+    {
+      "fn": "hookDialectOf",
+      "args": [{ "toolName": null }],
+      "result": "copilot"
+    },
+    {
+      "fn": "toolInputOf",
+      "args": [{ "tool_input": "{\"command\":\"ls\"}" }],
+      "result": { "command": "ls" }
+    },
+    {
+      "fn": "toolInputOf",
+      "args": [{ "tool_input": "*** Update File: a" }],
+      "result": { "input": "*** Update File: a" }
+    },
+    {
+      "fn": "toolInputOf",
+      "args": [{ "tool_input": null, "toolArgs": { "path": "x" } }],
+      "result": { "path": "x" }
+    },
+    {
+      "fn": "toolInputOf",
+      "args": [{ "toolArgs": "[1,2]" }],
+      "result": { "input": "[1,2]" }
+    },
+    {
+      "fn": "toolNameOf",
+      "args": [{ "tool_name": "", "toolName": "bash" }],
+      "result": "bash"
+    },
+    {
+      "fn": "hookRoot",
+      "args": [{ "cwd": "/p" }, "/env", "/cwd"],
+      "result": "/p"
+    },
+    { "fn": "hookRoot", "args": [{ "cwd": "" }, "", "/cwd"], "result": "/cwd" },
+    { "fn": "hookRoot", "args": [{}, "/env", "/cwd"], "result": "/env" },
+    {
+      "fn": "contentAfterEdit",
+      "args": ["Write", { "content": "new" }, null],
+      "result": "new"
+    },
+    {
+      "fn": "contentAfterEdit",
+      "args": ["Edit", { "old_string": "a", "new_string": "$&b" }, "aaa"],
+      "result": "$&baa"
+    },
+    {
+      "fn": "contentAfterEdit",
+      "args": [
+        "Edit",
+        { "old_string": "a", "new_string": "b", "replace_all": true },
+        "aaa"
+      ],
+      "result": "bbb"
+    },
+    {
+      "fn": "contentAfterEdit",
+      "args": ["Edit", { "old_string": "z", "new_string": "b" }, "aaa"],
+      "result": null
+    },
+    {
+      "fn": "contentAfterEdit",
+      "args": ["Edit", { "old_string": "", "new_string": "b" }, null],
+      "result": "b"
+    },
+    {
+      "fn": "contentAfterEdit",
+      "args": ["Edit", { "old_string": "", "new_string": "b" }, "x"],
+      "result": null
+    },
+    {
+      "fn": "contentAfterEdit",
+      "args": [
+        "MultiEdit",
+        {
+          "edits": [
+            { "old_string": "", "new_string": "ab" },
+            { "old_string": "b", "new_string": "c" }
+          ]
+        },
+        null
+      ],
+      "result": "ac"
+    },
+    {
+      "fn": "contentAfterEdit",
+      "args": ["MultiEdit", { "edits": [] }, "x"],
+      "result": null
+    },
+    { "fn": "contentAfterEdit", "args": ["Read", {}, "x"], "result": null },
+    {
+      "fn": "changesNoskillsSection",
+      "args": [
+        "noskills:\n  allowGit: false\n",
+        "noskills:\n  allowGit: true\n"
+      ],
+      "result": true
+    },
+    {
+      "fn": "changesNoskillsSection",
+      "args": [
+        "# c\nnoskills:\n  allowGit: false\n  command: x\n",
+        "noskills:\n  command: x\n  allowGit: false\nother: 1\n"
+      ],
+      "result": false
+    },
+    {
+      "fn": "changesNoskillsSection",
+      "args": [null, "noskills:\n  allowGit: false\n"],
+      "result": true
+    },
+    {
+      "fn": "changesNoskillsSection",
+      "args": [null, "other: 1\n"],
+      "result": false
+    },
+    {
+      "fn": "changesNoskillsSection",
+      "args": ["other: 1\n", "other: 2\n"],
+      "result": false
+    },
+    {
+      "fn": "changesNoskillsSection",
+      "args": ["noskills:\n  a: 1\n", "noskills: [unclosed\n"],
+      "result": true
+    },
+    {
+      "fn": "changesNoskillsSection",
+      "args": [
+        "noskills:\n  a: 1\n",
+        "noskills:\n  a: 1\n---\nnoskills:\n  a: 2\n"
+      ],
+      "result": true
+    },
+    {
+      "fn": "changesNoskillsSection",
+      "args": ["noskills:\n  a: 1\n", "noskills:\n  a: 1\n  a: 2\n"],
+      "result": true
+    },
+    {
+      "fn": "changesNoskillsSection",
+      "args": ["noskills:\n  n: 012\n", "noskills:\n  n: 12\n"],
+      "result": false
+    },
+    {
+      "fn": "changesNoskillsSection",
+      "args": ["noskills:\n  n: 0x10\n", "noskills:\n  n: 16\n"],
+      "result": false
+    },
+    {
+      "fn": "changesNoskillsSection",
+      "args": ["noskills:\n  b: yes\n", "noskills:\n  b: \"yes\"\n"],
+      "result": false
+    },
+    {
+      "fn": "changesNoskillsSection",
+      "args": ["noskills:\n  b: true\n", "noskills:\n  b: True\n"],
+      "result": false
+    },
+    {
+      "fn": "changesNoskillsSection",
+      "args": ["noskills:\n  v: ~\n", "noskills:\n  v: null\n"],
+      "result": false
+    },
+    {
+      "fn": "changesNoskillsSection",
+      "args": ["noskills:\n  v: .nan\n", "noskills:\n  v: .inf\n"],
+      "result": false
+    },
+    {
+      "fn": "changesNoskillsSection",
+      "args": [
+        "base: &b\n  allowGit: false\nnoskills: *b\n",
+        "base: &b\n  allowGit: false\nnoskills:\n  allowGit: false\n"
+      ],
+      "result": false
+    },
+    {
+      "fn": "changesNoskillsSection",
+      "args": ["noskills:\n  <<: {a: 1}\n", "noskills:\n  a: 1\n"],
+      "result": true
+    },
+    {
+      "fn": "changesNoskillsSection",
+      "args": ["noskills:\n", "noskills: null\n"],
+      "result": false
+    },
+    {
+      "fn": "changesNoskillsSection",
+      "args": ["noskills:\n  list: [b, a]\n", "noskills:\n  list: [a, b]\n"],
+      "result": true
+    },
+    {
+      "fn": "changesNoskillsSection",
+      "args": [
+        "noskills:\n  t: 2026-01-01\n",
+        "noskills:\n  t: \"2026-01-01\"\n"
+      ],
+      "result": false
+    },
+    {
+      "fn": "changesNoskillsSection",
+      "args": ["noskills:\n  1: a\n", "noskills:\n  \"1\": a\n"],
+      "result": false
+    },
+    {
+      "fn": "changesNoskillsSection",
+      "args": ["", "noskills: {}\n"],
+      "result": true
+    },
+    {
+      "fn": "fileEditVerdict",
+      "args": [
+        "src/a.ts",
+        { "phase": null, "spec": null, "criteriaScope": null },
+        "npx eser@latest noskills"
+      ],
+      "result": {
+        "kind": "deny",
+        "reason": "Phase unknown, so the file edit is blocked. Run `npx eser@latest noskills status` to check state."
+      }
+    },
+    {
+      "fn": "fileEditVerdict",
+      "args": [
+        "src/a.ts",
+        { "phase": "IDLE", "spec": null, "criteriaScope": null },
+        "noskills"
+      ],
+      "result": { "kind": "allow" }
+    },
+    {
+      "fn": "fileEditVerdict",
+      "args": [
+        "src/a.ts",
+        { "phase": "COMPLETED", "spec": "x", "criteriaScope": null },
+        "noskills"
+      ],
+      "result": { "kind": "allow" }
+    },
+    {
+      "fn": "fileEditVerdict",
+      "args": [
+        "src/a.ts",
+        { "phase": "EXECUTING", "spec": "x", "criteriaScope": null },
+        "noskills"
+      ],
+      "result": { "kind": "execute" }
+    },
+    {
+      "fn": "fileEditVerdict",
+      "args": [
+        "src/a.ts",
+        { "phase": "EXECUTING", "spec": "x", "criteriaScope": "review-gate" },
+        "noskills"
+      ],
+      "result": {
+        "kind": "deny",
+        "reason": "Review gate active: file edits are blocked. Evaluate concern dimensions against the existing implementation and submit findings via `noskills spec x next --answer='{\"completed\":[...],\"remaining\":[]}'`."
+      }
+    },
+    {
+      "fn": "fileEditVerdict",
+      "args": [
+        "src/a.ts",
+        { "phase": "DISCOVERY", "spec": "x", "criteriaScope": null },
+        "noskills"
+      ],
+      "result": {
+        "kind": "deny",
+        "reason": "You are in DISCOVERY: this is a thinking phase, not an implementation phase. Read and discuss only. To write code, complete discovery and get the spec approved first. Run `noskills spec x next` to continue.\n  modeDirective: Ensure you are in plan mode. Read-only. Analyze, research, ask."
+      }
+    },
+    {
+      "fn": "fileEditVerdict",
+      "args": [
+        "src/a.ts",
+        {
+          "phase": "DISCOVERY_REFINEMENT",
+          "spec": null,
+          "criteriaScope": null
+        },
+        "noskills"
+      ],
+      "result": {
+        "kind": "deny",
+        "reason": "You are in DISCOVERY_REFINEMENT: this is a thinking phase, not an implementation phase. Read and discuss only. To write code, complete discovery and get the spec approved first. Run `noskills next --answer=\"approve\"` or revise answers.\n  modeDirective: Ensure you are in plan mode. Read-only. Review answers, resolve placeholders."
+      }
+    },
+    {
+      "fn": "fileEditVerdict",
+      "args": [
+        "src/a.ts",
+        { "phase": "SPEC_PROPOSAL", "spec": "x", "criteriaScope": null },
+        "noskills"
+      ],
+      "result": {
+        "kind": "deny",
+        "reason": "You are in SPEC_PROPOSAL: this is a thinking phase, not an implementation phase. Read and discuss only. To write code, approve the spec first. Run `noskills spec x approve`\n  modeDirective: Ensure you are in plan mode. Use ultraplan if available. Generate implementation map with file dependencies and execution order."
+      }
+    },
+    {
+      "fn": "fileEditVerdict",
+      "args": [
+        "src/a.ts",
+        { "phase": "SPEC_APPROVED", "spec": "x", "criteriaScope": null },
+        "noskills"
+      ],
+      "result": {
+        "kind": "deny",
+        "reason": "You are in SPEC_APPROVED. Start execution first: `noskills spec x next --answer=\"start\"`"
+      }
+    },
+    {
+      "fn": "fileEditVerdict",
+      "args": [
+        "src/a.ts",
+        { "phase": "BLOCKED", "spec": "x", "criteriaScope": null },
+        "noskills"
+      ],
+      "result": {
+        "kind": "deny",
+        "reason": "Execution blocked. Resolve with `noskills spec x next --answer=\"resolution\"`\n  modeDirective: Enter plan mode. Analyze the blocker. Present options to user."
+      }
+    },
+    {
+      "fn": "fileEditVerdict",
+      "args": [
+        "src/a.ts",
+        { "phase": "UNINITIALIZED", "spec": "x", "criteriaScope": null },
+        "noskills"
+      ],
+      "result": {
+        "kind": "deny",
+        "reason": "Run `noskills spec x next` first."
+      }
+    },
+    {
+      "fn": "fileEditVerdict",
+      "args": [
+        ".claude/x",
+        { "phase": "DISCOVERY", "spec": "x", "criteriaScope": null },
+        "noskills"
+      ],
+      "result": { "kind": "allow" }
+    },
+    {
+      "fn": "gateStateOf",
+      "args": [
+        {
+          "phase": "EXECUTING",
+          "spec": "x",
+          "execution": { "criteriaScope": "review-gate" }
+        }
+      ],
+      "result": {
+        "phase": "EXECUTING",
+        "spec": "x",
+        "criteriaScope": "review-gate"
+      }
+    },
+    {
+      "fn": "gateStateOf",
+      "args": [{ "phase": "", "spec": 5, "execution": [1] }],
+      "result": { "phase": null, "spec": null, "criteriaScope": null }
+    },
+    {
+      "fn": "mostRestrictivePhase",
+      "args": [["IDLE", null, "EXECUTING", "SPEC_APPROVED"]],
+      "result": "SPEC_APPROVED"
+    },
+    {
+      "fn": "mostRestrictivePhase",
+      "args": [["BLOCKED", "SPEC_APPROVED"]],
+      "result": "BLOCKED"
+    },
+    { "fn": "mostRestrictivePhase", "args": [[]], "result": "IDLE" },
+    { "fn": "preToolUseContext", "args": [null, []], "result": null },
+    {
+      "fn": "preToolUseContext",
+      "args": ["R", ["a", "b"]],
+      "result": "R\n\n[noskills] Rules for this file:\n- a\n- b"
+    },
+    {
+      "fn": "preToolUseContext",
+      "args": [null, ["only"]],
+      "result": "[noskills] Rules for this file:\n- only"
+    },
+    {
+      "fn": "preToolUseAnswer",
+      "args": [{ "kind": "deny", "reason": "no" }, "claude"],
+      "result": {
+        "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"noskills: no\"}}",
+        "stderr": "noskills: no\n",
+        "exitCode": 2
+      }
+    },
+    {
+      "fn": "preToolUseAnswer",
+      "args": [{ "kind": "deny", "reason": "no" }, "copilot"],
+      "result": {
+        "stdout": "{\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"noskills: no\"}",
+        "stderr": "noskills: no\n",
+        "exitCode": 2
+      }
+    },
+    {
+      "fn": "preToolUseAnswer",
+      "args": [{ "kind": "deny", "reason": "no" }, "kiro"],
+      "result": { "stdout": "", "stderr": "noskills: no\n", "exitCode": 2 }
+    },
+    {
+      "fn": "preToolUseAnswer",
+      "args": [{ "kind": "allow-with-context", "context": "c" }, "claude"],
+      "result": {
+        "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"allow\",\"additionalContext\":\"c\"}}",
+        "stderr": "",
+        "exitCode": 0
+      }
+    },
+    {
+      "fn": "preToolUseAnswer",
+      "args": [{ "kind": "allow-with-context", "context": "c" }, "copilot"],
+      "result": { "stdout": "", "stderr": "", "exitCode": 0 }
+    },
+    {
+      "fn": "preToolUseAnswer",
+      "args": [{ "kind": "allow-with-context", "context": "c" }, "kiro"],
+      "result": { "stdout": "c", "stderr": "", "exitCode": 0 }
+    },
+    {
+      "fn": "preToolUseAnswer",
+      "args": [{ "kind": "none" }, "claude"],
+      "result": { "stdout": "", "stderr": "", "exitCode": 0 }
+    },
+    {
+      "fn": "sessionStartOutput",
+      "args": [{ "phase": "IDLE", "a": [1, " <>&"] }, "claude"],
+      "result": {
+        "hookSpecificOutput": {
+          "hookEventName": "SessionStart",
+          "additionalContext": "[noskills] The current noskills state and instruction for this project:\n{\"phase\":\"IDLE\",\"a\":[1,\" <>&\"]}"
+        }
+      }
+    },
+    {
+      "fn": "sessionStartOutput",
+      "args": [{ "phase": "IDLE" }, "copilot"],
+      "result": {
+        "additionalContext": "[noskills] The current noskills state and instruction for this project:\n{\"phase\":\"IDLE\"}"
+      }
+    },
+    {
+      "fn": "askedQuestionsOf",
+      "args": [
+        {
+          "questions": [
+            { "question": "a" },
+            { "header": "x" },
+            "s",
+            { "question": "b" }
+          ]
+        }
+      ],
+      "result": ["a", "b"]
+    },
+    {
+      "fn": "askedQuestionsOf",
+      "args": [{ "questions": [], "question": "single" }],
+      "result": ["single"]
+    },
+    { "fn": "askedQuestionsOf", "args": [{}], "result": [] },
+    {
+      "fn": "askTokenStepsAfter",
+      "args": [
+        {
+          "phase": "DISCOVERY",
+          "spec": "s",
+          "specDescription": "d",
+          "discovery": {
+            "answers": [{ "questionId": "status_quo" }],
+            "mode": "full",
+            "premisesCompleted": true,
+            "planPath": null
+          }
+        },
+        [],
+        ["What does the user do today?", "How do you verify this works?"]
+      ],
+      "result": [
+        {
+          "stepId": "ambition",
+          "match": "modified",
+          "originalQuestion": "Describe the 1-star and 10-star versions.",
+          "askedQuestion": "What does the user do today?"
+        },
+        {
+          "stepId": "verification",
+          "match": "exact",
+          "originalQuestion": "How do you verify this works correctly?",
+          "askedQuestion": "How do you verify this works?"
+        }
+      ]
+    },
+    {
+      "fn": "askTokenStepsAfter",
+      "args": [
+        {
+          "phase": "DISCOVERY",
+          "spec": "s",
+          "specDescription": "d",
+          "discovery": {
+            "answers": [],
+            "mode": "full",
+            "premisesCompleted": true,
+            "planPath": null
+          }
+        },
+        [{ "stepId": "ambition", "match": "exact" }],
+        ["Totally unrelated words here"]
+      ],
+      "result": [
+        { "stepId": "ambition", "match": "exact" },
+        {
+          "stepId": "status_quo",
+          "match": "modified",
+          "originalQuestion": "What does the user do today without this feature?",
+          "askedQuestion": "Totally unrelated words here"
+        }
+      ]
+    },
+    {
+      "fn": "askTokenStepsAfter",
+      "args": [
+        {
+          "phase": "DISCOVERY",
+          "spec": "s",
+          "specDescription": "d",
+          "discovery": {
+            "answers": [
+              { "questionId": "status_quo" },
+              { "questionId": "ambition" },
+              { "questionId": "reversibility" },
+              { "questionId": "user_impact" },
+              { "questionId": "verification" },
+              { "questionId": "scope_boundary" }
+            ],
+            "mode": "full",
+            "planPath": null
+          }
+        },
+        [{ "stepId": "x", "match": "exact" }],
+        ["q"]
+      ],
+      "result": null
+    },
+    {
+      "fn": "askTokenStepsAfter",
+      "args": [
+        {
+          "phase": "DISCOVERY",
+          "spec": "s",
+          "specDescription": "d",
+          "discovery": { "answers": [], "planPath": null }
+        },
+        [],
+        ["Tell me about it"]
+      ],
+      "result": [
+        {
+          "stepId": "discovery",
+          "match": "modified",
+          "originalQuestion": "",
+          "askedQuestion": "Tell me about it"
+        }
+      ]
+    },
+    {
+      "fn": "askTokenStepsAfter",
+      "args": [
+        {
+          "phase": "DISCOVERY",
+          "spec": "s",
+          "specDescription": "d",
+          "discovery": {
+            "answers": [],
+            "planPath": null,
+            "userContext": ["ctx"]
+          }
+        },
+        [],
+        ["Which mode?"]
+      ],
+      "result": [
+        {
+          "stepId": "discovery",
+          "match": "modified",
+          "originalQuestion": "",
+          "askedQuestion": "Which mode?"
+        }
+      ]
+    },
+    {
+      "fn": "askTokenStepsAfter",
+      "args": [
+        {
+          "phase": "DISCOVERY",
+          "spec": "s",
+          "specDescription": "d",
+          "discovery": { "answers": [], "mode": "full", "planPath": null }
+        },
+        [],
+        ["Premise?"]
+      ],
+      "result": [
+        {
+          "stepId": "discovery",
+          "match": "modified",
+          "originalQuestion": "",
+          "askedQuestion": "Premise?"
+        }
+      ]
+    },
+    {
+      "fn": "askTokenStepsAfter",
+      "args": [
+        {
+          "phase": "DISCOVERY_REFINEMENT",
+          "spec": "s",
+          "specDescription": "d",
+          "discovery": { "answers": [] }
+        },
+        [],
+        ["Approve?"]
+      ],
+      "result": [
+        {
+          "stepId": "refinement",
+          "match": "modified",
+          "originalQuestion": "",
+          "askedQuestion": "Approve?"
+        }
+      ]
+    },
+    {
+      "fn": "askTokenStepsAfter",
+      "args": [
+        {
+          "phase": "SPEC_PROPOSAL",
+          "spec": "s",
+          "discovery": { "answers": [] }
+        },
+        [],
+        ["Ok?"]
+      ],
+      "result": [
+        {
+          "stepId": "approval",
+          "match": "modified",
+          "originalQuestion": "",
+          "askedQuestion": "Ok?"
+        }
+      ]
+    },
+    {
+      "fn": "askTokenStepsAfter",
+      "args": [null, [], ["Anything?"]],
+      "result": [
+        {
+          "stepId": "unknown",
+          "match": "modified",
+          "originalQuestion": "",
+          "askedQuestion": "Anything?"
+        }
+      ]
+    },
+    {
+      "fn": "compareQuestions",
+      "args": [
+        "What does the user do today without this feature?",
+        "What does the user do today?"
+      ],
+      "result": 0.625
+    },
+    {
+      "fn": "compareQuestions",
+      "args": [
+        "Describe the 1-star and 10-star versions.",
+        "describe 1-star 10-star versions"
+      ],
+      "result": 0.6
+    },
+    { "fn": "compareQuestions", "args": ["", ""], "result": 0 },
+    {
+      "fn": "compareQuestions",
+      "args": ["İstanbul İzmir", "istanbul izmir"],
+      "result": 0
+    },
+    {
+      "fn": "compareQuestions",
+      "args": ["Ünïcödé wörds hère", "ünïcödé words here"],
+      "result": 0.2
+    },
+    {
+      "fn": "compareQuestions",
+      "args": ["日本語の質問です", "日本語の質問です"],
+      "result": 1
+    },
+    {
+      "fn": "compareQuestions",
+      "args": ["a ab abc abcd", "abc abcd abcde"],
+      "result": 0.6666666666666666
+    },
+    { "fn": "compareQuestions", "args": ["𝒜𝒷 xy", "𝒜𝒷 xy"], "result": 1 },
+    { "fn": "compareQuestions", "args": ["ΣΑΣ ΟΔΟΣ", "σας οδος"], "result": 1 },
+    {
+      "fn": "restartNotice",
+      "args": [15, 15],
+      "result": "noskills: iteration 15 reached threshold (15). Consider starting a fresh conversation.\n"
+    },
+    { "fn": "restartNotice", "args": [14, 15], "result": null },
+    {
+      "fn": "restartNotice",
+      "args": [3.5, 2],
+      "result": "noskills: iteration 3.5 reached threshold (2). Consider starting a fresh conversation.\n"
+    },
+    {
+      "fn": "stopRecordsIteration",
+      "args": [{ "stop_hook_active": true }, "EXECUTING"],
+      "result": false
+    },
+    {
+      "fn": "stopRecordsIteration",
+      "args": [{ "stop_hook_active": "true" }, "EXECUTING"],
+      "result": true
+    },
+    { "fn": "stopRecordsIteration", "args": [{}, "IDLE"], "result": false },
+    { "fn": "isLoggedFileWrite", "args": [""], "result": false },
+    { "fn": "isLoggedFileWrite", "args": ["src/.eser/x"], "result": false },
+    {
+      "fn": "userHookGroups",
+      "args": [
+        {
+          "1": [],
+          "2": [{ "hooks": [{ "command": "u" }] }],
+          "PreToolUse": [
+            {
+              "matcher": "Bash",
+              "hooks": [
+                {
+                  "type": "command",
+                  "command": "npx eser@latest noskills invoke-hook pre-tool-use"
+                },
+                { "type": "command", "command": "mine" }
+              ]
+            },
+            { "hooks": [{ "command": "noskills invoke-hook stop" }] },
+            "odd",
+            { "matcher": "x" }
+          ],
+          "Stop": "not a list"
+        }
+      ],
+      "result": {
+        "2": [{ "hooks": [{ "command": "u" }] }],
+        "PreToolUse": [
+          {
+            "matcher": "Bash",
+            "hooks": [{ "type": "command", "command": "mine" }]
+          },
+          "odd",
+          { "matcher": "x" }
+        ]
+      }
+    },
+    { "fn": "userHookGroups", "args": ["nope"], "result": {} },
+    {
+      "fn": "mergeHookGroups",
+      "args": [
+        { "Stop": [{ "u": 1 }], "B": [] },
+        { "Stop": [{ "n": 1 }], "A": [{ "n": 2 }] }
+      ],
+      "result": { "Stop": [{ "u": 1 }, { "n": 1 }], "B": [], "A": [{ "n": 2 }] }
+    },
+    {
+      "fn": "hookCommand",
+      "args": ["noskills", "session-start", ["--tool=copilot-cli"]],
+      "result": "noskills invoke-hook session-start --tool=copilot-cli"
+    },
+    {
+      "fn": "hookCommand",
+      "args": ["npx eser@latest noskills", "pre-tool-use", []],
+      "result": "npx eser@latest noskills invoke-hook pre-tool-use"
+    },
+    {
+      "fn": "networkCommandWarning",
+      "args": ["npx eser@latest noskills"],
+      "result": "The hooks run noskills as \"npx eser@latest noskills\", and npx can wait on the network before noskills starts. Claude Code, Codex, Copilot CLI and Kiro let a tool call go ahead when its PreToolUse hook does not answer within 30 seconds, so the git guard and the protected-file check would not apply to that call. Install the eser CLI (npm install -g eser) and run \"eser noskills init\" so the hooks call the installed command."
+    },
+    { "fn": "networkCommandWarning", "args": ["noskills"], "result": null },
+    {
+      "fn": "buildWrapperScript",
+      "args": [
+        {
+          "realGit": "/usr/bin/git",
+          "projectGitDir": "/p/.git",
+          "projectRoot": "/p's dir",
+          "commandPrefix": "npx eser@latest noskills"
+        }
+      ],
+      "result": "#!/bin/sh\n# Generated by noskills when an agent session starts; edits are overwritten.\n#\n# Agent sessions find this file first on PATH, so every git process they start\n# runs through it. Reads, clones and commands on other repositories run\n# directly. Everything else is checked by noskills, which refuses git writes to\n# the project's repository, and pushes from anywhere, while allowGit is false.\n\nreal_git='/usr/bin/git'\nproject_git_dir='/p/.git'\n\n# Find the subcommand and its first argument after git's own options.\nsubcommand=''\nfirst_arg=''\nfound=0\ntakes_value=0\nfor arg in \"$@\"; do\n  if [ \"$found\" = 1 ]; then\n    first_arg=$arg\n    break\n  fi\n  if [ \"$takes_value\" = 1 ]; then\n    takes_value=0\n    continue\n  fi\n  case $arg in\n    -C|-c|--git-dir|--work-tree|--namespace|--super-prefix|--config-env|--attr-source) takes_value=1 ;;\n    -C?*|-c?*|--git-dir=*|--work-tree=*|--namespace=*|--super-prefix=*|--config-env=*|--attr-source=*|--exec-path=*) ;;\n    --no-replace-objects|--no-lazy-fetch|--no-advice|--bare|--no-optional-locks|--literal-pathspecs|--glob-pathspecs|--noglob-pathspecs|--icase-pathspecs|--no-pager|-P|--paginate|-p) ;;\n    *)\n      subcommand=$arg\n      found=1\n      ;;\n  esac\ndone\n\ncase $subcommand in\n  ''|log|diff|status|show|blame|rev-parse|ls-files|ls-tree|cat-file|describe|shortlog|name-rev|for-each-ref|rev-list|help|version|--version|-v|--help|-h|--exec-path|--html-path|--man-path|--info-path|clone) exec \"$real_git\" \"$@\" ;;\n  branch)\n    case $first_arg in\n      ''|--list|-l|-a|--all|-r|--remotes|-v|--verbose|--contains|--no-contains|--merged|--no-merged|--show-current) exec \"$real_git\" \"$@\" ;;\n    esac\n    ;;\n  tag)\n    case $first_arg in\n      ''|-l|--list|-v|--verify|-n) exec \"$real_git\" \"$@\" ;;\n    esac\n    ;;\n  stash)\n    case $first_arg in\n      list|show) exec \"$real_git\" \"$@\" ;;\n    esac\n    ;;\n  remote)\n    case $first_arg in\n      ''|-v|--verbose|show|get-url) exec \"$real_git\" \"$@\" ;;\n    esac\n    ;;\n  reflog)\n    case $first_arg in\n      ''|show) exec \"$real_git\" \"$@\" ;;\n    esac\n    ;;\nesac\n\n# A write with no option before the subcommand acts on the repository that the\n# working directory (or GIT_DIR) selects. Outside the project it runs directly.\n# An option this script does not know stands where the subcommand would be;\n# the options after it may name any repository, so noskills decides.\ncase $subcommand in\n  push|send-pack|-*) ;;\n  *)\n    if [ \"$1\" = \"$subcommand\" ]; then\n      target_git_dir=$(\"$real_git\" rev-parse --path-format=absolute --git-common-dir 2>/dev/null) || target_git_dir=''\n      if [ \"$target_git_dir\" != \"$project_git_dir\" ]; then\n        exec \"$real_git\" \"$@\"\n      fi\n    fi\n    ;;\nesac\n\n# The command may change directory before noskills starts (pnpm run does), so\n# the working directory git would run in travels as NOSKILLS_GIT_CWD.\ngit_cwd=$(pwd -P)\n\n# The check may never answer (npx can wait on the registry), so a watcher stops\n# it after 30 seconds: SIGTERM, then SIGKILL 2 seconds later.\n# The check writes to a file rather than to this script's stderr, so a process\n# it leaves behind cannot keep the caller's pipe open.\ncheck_log=$(mktemp \"${TMPDIR:-/tmp}/noskills-git-check.XXXXXX\") || {\n  printf '%s\\n' \"noskills: could not create a temporary file to check \\\"git $subcommand\\\", so it did not run.\" >&2\n  exit 1\n}\nNOSKILLS_REAL_GIT=$real_git NOSKILLS_GIT_CWD=$git_cwd NOSKILLS_PROJECT_ROOT='/p'\\''s dir' npx eser@latest noskills invoke-hook git-exec \"$@\" </dev/null >\"$check_log\" 2>&1 &\ncheck_pid=$!\n(\n  watch_status=0\n  trap 'kill \"$nap_pid\" 2>/dev/null; exit \"$watch_status\"' TERM\n  sleep 30 &\n  nap_pid=$!\n  wait \"$nap_pid\"\n  watch_status=124\n  kill -TERM \"$check_pid\" 2>/dev/null\n  sleep 2 &\n  nap_pid=$!\n  wait \"$nap_pid\"\n  kill -KILL \"$check_pid\" 2>/dev/null\n  exit 124\n) </dev/null >/dev/null 2>&1 &\nwatch_pid=$!\ntrap 'kill \"$check_pid\" \"$watch_pid\" 2>/dev/null; rm -f \"$check_log\"; exit 1' HUP INT TERM\n# The shell's notice for a stopped job would reach the agent; the message below\n# says what happened instead.\nwait \"$check_pid\" 2>/dev/null\nstatus=$?\nkill \"$watch_pid\" 2>/dev/null\nwait \"$watch_pid\" 2>/dev/null\nwatch_status=$?\ntrap - HUP INT TERM\ncat \"$check_log\" >&2\nrm -f \"$check_log\"\n\nif [ \"$status\" -ne 0 ]; then\n  if [ \"$watch_status\" -eq 124 ]; then\n    printf '%s\\n' \"noskills: the check for \\\"git $subcommand\\\" did not answer within 30 seconds, so it did not run. When command in .eser/manifest.yml starts noskills through npx, install noskills and set command to the installed one, so the check does not wait on the network.\" >&2\n  elif [ \"$status\" -ne 3 ]; then\n    printf '%s\\n' \"noskills: could not check \\\"git $subcommand\\\" (exit status $status), so it did not run.\" >&2\n  fi\n  exit 1\nfi\nexec \"$real_git\" \"$@\"\n"
+    },
+    {
+      "fn": "buildWrapperScript",
+      "args": [
+        {
+          "realGit": "/g",
+          "projectGitDir": "/p/.git",
+          "projectRoot": "/p",
+          "commandPrefix": "noskills",
+          "checkTimeoutSeconds": 7
+        }
+      ],
+      "result": "#!/bin/sh\n# Generated by noskills when an agent session starts; edits are overwritten.\n#\n# Agent sessions find this file first on PATH, so every git process they start\n# runs through it. Reads, clones and commands on other repositories run\n# directly. Everything else is checked by noskills, which refuses git writes to\n# the project's repository, and pushes from anywhere, while allowGit is false.\n\nreal_git='/g'\nproject_git_dir='/p/.git'\n\n# Find the subcommand and its first argument after git's own options.\nsubcommand=''\nfirst_arg=''\nfound=0\ntakes_value=0\nfor arg in \"$@\"; do\n  if [ \"$found\" = 1 ]; then\n    first_arg=$arg\n    break\n  fi\n  if [ \"$takes_value\" = 1 ]; then\n    takes_value=0\n    continue\n  fi\n  case $arg in\n    -C|-c|--git-dir|--work-tree|--namespace|--super-prefix|--config-env|--attr-source) takes_value=1 ;;\n    -C?*|-c?*|--git-dir=*|--work-tree=*|--namespace=*|--super-prefix=*|--config-env=*|--attr-source=*|--exec-path=*) ;;\n    --no-replace-objects|--no-lazy-fetch|--no-advice|--bare|--no-optional-locks|--literal-pathspecs|--glob-pathspecs|--noglob-pathspecs|--icase-pathspecs|--no-pager|-P|--paginate|-p) ;;\n    *)\n      subcommand=$arg\n      found=1\n      ;;\n  esac\ndone\n\ncase $subcommand in\n  ''|log|diff|status|show|blame|rev-parse|ls-files|ls-tree|cat-file|describe|shortlog|name-rev|for-each-ref|rev-list|help|version|--version|-v|--help|-h|--exec-path|--html-path|--man-path|--info-path|clone) exec \"$real_git\" \"$@\" ;;\n  branch)\n    case $first_arg in\n      ''|--list|-l|-a|--all|-r|--remotes|-v|--verbose|--contains|--no-contains|--merged|--no-merged|--show-current) exec \"$real_git\" \"$@\" ;;\n    esac\n    ;;\n  tag)\n    case $first_arg in\n      ''|-l|--list|-v|--verify|-n) exec \"$real_git\" \"$@\" ;;\n    esac\n    ;;\n  stash)\n    case $first_arg in\n      list|show) exec \"$real_git\" \"$@\" ;;\n    esac\n    ;;\n  remote)\n    case $first_arg in\n      ''|-v|--verbose|show|get-url) exec \"$real_git\" \"$@\" ;;\n    esac\n    ;;\n  reflog)\n    case $first_arg in\n      ''|show) exec \"$real_git\" \"$@\" ;;\n    esac\n    ;;\nesac\n\n# A write with no option before the subcommand acts on the repository that the\n# working directory (or GIT_DIR) selects. Outside the project it runs directly.\n# An option this script does not know stands where the subcommand would be;\n# the options after it may name any repository, so noskills decides.\ncase $subcommand in\n  push|send-pack|-*) ;;\n  *)\n    if [ \"$1\" = \"$subcommand\" ]; then\n      target_git_dir=$(\"$real_git\" rev-parse --path-format=absolute --git-common-dir 2>/dev/null) || target_git_dir=''\n      if [ \"$target_git_dir\" != \"$project_git_dir\" ]; then\n        exec \"$real_git\" \"$@\"\n      fi\n    fi\n    ;;\nesac\n\n# The command may change directory before noskills starts (pnpm run does), so\n# the working directory git would run in travels as NOSKILLS_GIT_CWD.\ngit_cwd=$(pwd -P)\n\n# The check may never answer (npx can wait on the registry), so a watcher stops\n# it after 7 seconds: SIGTERM, then SIGKILL 2 seconds later.\n# The check writes to a file rather than to this script's stderr, so a process\n# it leaves behind cannot keep the caller's pipe open.\ncheck_log=$(mktemp \"${TMPDIR:-/tmp}/noskills-git-check.XXXXXX\") || {\n  printf '%s\\n' \"noskills: could not create a temporary file to check \\\"git $subcommand\\\", so it did not run.\" >&2\n  exit 1\n}\nNOSKILLS_REAL_GIT=$real_git NOSKILLS_GIT_CWD=$git_cwd NOSKILLS_PROJECT_ROOT='/p' noskills invoke-hook git-exec \"$@\" </dev/null >\"$check_log\" 2>&1 &\ncheck_pid=$!\n(\n  watch_status=0\n  trap 'kill \"$nap_pid\" 2>/dev/null; exit \"$watch_status\"' TERM\n  sleep 7 &\n  nap_pid=$!\n  wait \"$nap_pid\"\n  watch_status=124\n  kill -TERM \"$check_pid\" 2>/dev/null\n  sleep 2 &\n  nap_pid=$!\n  wait \"$nap_pid\"\n  kill -KILL \"$check_pid\" 2>/dev/null\n  exit 124\n) </dev/null >/dev/null 2>&1 &\nwatch_pid=$!\ntrap 'kill \"$check_pid\" \"$watch_pid\" 2>/dev/null; rm -f \"$check_log\"; exit 1' HUP INT TERM\n# The shell's notice for a stopped job would reach the agent; the message below\n# says what happened instead.\nwait \"$check_pid\" 2>/dev/null\nstatus=$?\nkill \"$watch_pid\" 2>/dev/null\nwait \"$watch_pid\" 2>/dev/null\nwatch_status=$?\ntrap - HUP INT TERM\ncat \"$check_log\" >&2\nrm -f \"$check_log\"\n\nif [ \"$status\" -ne 0 ]; then\n  if [ \"$watch_status\" -eq 124 ]; then\n    printf '%s\\n' \"noskills: the check for \\\"git $subcommand\\\" did not answer within 7 seconds, so it did not run. When command in .eser/manifest.yml starts noskills through npx, install noskills and set command to the installed one, so the check does not wait on the network.\" >&2\n  elif [ \"$status\" -ne 3 ]; then\n    printf '%s\\n' \"noskills: could not check \\\"git $subcommand\\\" (exit status $status), so it did not run.\" >&2\n  fi\n  exit 1\nfi\nexec \"$real_git\" \"$@\"\n"
+    },
+    {
+      "fn": "prependToPath",
+      "args": ["/a:/b::/c:/b", "/b"],
+      "result": "/b:/a:/c"
+    },
+    {
+      "fn": "removeFromPath",
+      "args": ["/a:/b::/c:/b", "/b"],
+      "result": "/a:/c"
+    },
+    { "fn": "shellQuote", "args": ["it's"], "result": "'it'\\''s'" },
+    {
+      "fn": "envFileExport",
+      "args": ["/p/.eser/.state/bin"],
+      "result": "export PATH='/p/.eser/.state/bin':\"$PATH\"\n"
+    },
+    {
+      "fn": "protectedFileDenial",
+      "args": ["manifest", "edit"],
+      "result": "This edit changes the noskills section of .eser/manifest.yml, and that section is not the agent's to change: it holds allowGit and the command the git wrapper runs. Ask the user to change it. The file's other sections may be changed with a text replacement or a full write that leaves the noskills section as it is."
+    },
+    {
+      "fn": "protectedFileDenial",
+      "args": ["manifest", "unknown-edit"],
+      "result": "This change to .eser/manifest.yml does not show what the file holds afterwards, so it may change the noskills section, and that section is not the agent's to change: it holds allowGit and the command the git wrapper runs. Ask the user to change it. The file's other sections may be changed with a text replacement or a full write that leaves the noskills section as it is."
+    },
+    {
+      "fn": "protectedFileDenial",
+      "args": ["manifest", "command"],
+      "result": "This command may change .eser/manifest.yml, and that section is not the agent's to change: it holds allowGit and the command the git wrapper runs. Ask the user to change it. The file's other sections may be changed with a text replacement or a full write that leaves the noskills section as it is."
+    },
+    {
+      "fn": "protectedFileDenial",
+      "args": ["git-wrapper", "edit"],
+      "result": ".eser/.state/bin/ holds the git wrapper that noskills writes when a session starts; the agent may not change it. Ask the user if git has to work differently."
+    },
+    {
+      "fn": "protectedFileDenial",
+      "args": ["git-wrapper", "command"],
+      "result": "This command may change .eser/.state/bin/ or a directory that holds it. That directory holds the git wrapper that noskills writes when a session starts; the agent may not change it. Ask the user if git has to work differently."
+    },
+    {
+      "fn": "gitExecDenial",
+      "args": [["-C", "x", "push"]],
+      "result": "noskills: refused \"git push\". This agent session may only read git while allowGit is false in .eser/manifest.yml. The user controls git, the agent controls files."
+    },
+    {
+      "fn": "gitExecDenial",
+      "args": [[]],
+      "result": "noskills: refused \"git \". This agent session may only read git while allowGit is false in .eser/manifest.yml. The user controls git, the agent controls files."
+    },
+    {
+      "fn": "validStepsOf",
+      "args": [
+        "{\"token\":\"t\",\"spec\":\"s\",\"steps\":[{\"stepId\":\"a\",\"match\":\"modified\",\"askedQuestion\":\"q\"},{\"stepId\":1},{\"stepId\":\"b\",\"match\":\"x\",\"originalQuestion\":5}],\"createdAt\":\"2026-01-01T00:00:00.000Z\"}",
+        "s",
+        1767225660000
+      ],
+      "result": [
+        { "stepId": "a", "match": "modified", "askedQuestion": "q" },
+        { "stepId": "b", "match": "exact" }
+      ]
+    },
+    {
+      "fn": "validStepsOf",
+      "args": [
+        "{\"spec\":null,\"stepId\":\"legacy\",\"match\":\"exact\",\"createdAt\":\"2026-01-01T00:00:00.000Z\"}",
+        null,
+        1767225660000
+      ],
+      "result": [{ "stepId": "legacy", "match": "exact" }]
+    },
+    {
+      "fn": "validStepsOf",
+      "args": [
+        "{\"spec\":\"s\",\"steps\":[],\"createdAt\":\"2026-01-01T00:00:00.000Z\"}",
+        "other",
+        1767225660000
+      ],
+      "result": null
+    },
+    {
+      "fn": "validStepsOf",
+      "args": [
+        "{\"spec\":\"s\",\"steps\":[],\"createdAt\":\"2026-01-01T00:00:00.000Z\"}",
+        "s",
+        1767229200001
+      ],
+      "result": null
+    },
+    {
+      "fn": "validStepsOf",
+      "args": [
+        "{\"spec\":\"s\",\"steps\":[],\"createdAt\":\"2026-01-01T00:00:00.000Z\"}",
+        "s",
+        1767225599000
+      ],
+      "result": null
+    },
+    {
+      "fn": "validStepsOf",
+      "args": ["not json", "s", 1767225660000],
+      "result": null
+    },
+    {
+      "fn": "validStepsOf",
+      "args": [
+        "{\"spec\":\"s\",\"steps\":[],\"createdAt\":\"soon\"}",
+        "s",
+        1767225660000
+      ],
+      "result": null
+    },
+    {
+      "fn": "writesFile",
+      "args": ["cat a >> run.sh; sh run.sh", "run.sh"],
+      "result": true
+    },
+    {
+      "fn": "writesFile",
+      "args": ["tee -a 'run.sh' < x", "run.sh"],
+      "result": true
+    },
+    {
+      "fn": "writesFile",
+      "args": ["cat run.sh.bak", "run.sh"],
+      "result": false
+    },
+    { "fn": "writesFile", "args": ["echo > a.b.sh", "a+b.sh"], "result": false }
+  ]
+}

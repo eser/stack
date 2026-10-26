@@ -1,0 +1,16 @@
+{
+  "name": "@eserstack/di",
+  "version": "4.5.2",
+  "type": "module",
+  "exports": {
+    ".": "./mod.ts",
+    "./container": "./container.ts",
+    "./services": "./services.ts"
+  },
+  "dependencies": {
+    "@eserstack/primitives": "workspace:*"
+  },
+  "devDependencies": {
+    "@eserstack/test-kit": "workspace:*"
+  }
+}

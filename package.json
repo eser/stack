@@ -1,5 +1,35 @@
 {
-  "name": "root",
+  "name": "@eserstack/stack",
   "version": "4.5.2",
-  "workspaces": ["pkg/*"]
+  "private": true,
+  "packageManager": "pnpm@11.18.0",
+  "engines": {
+    "node": ">=26.9"
+  },
+  "type": "module",
+  "workspaces": [
+    "pkg/@eserstack/*"
+  ],
+  "scripts": {
+    "ok": "go run ./cmd/eser ok",
+    "fix": "go run ./cmd/eser fix",
+    "preflight": "go run ./cmd/eser preflight",
+    "check": "tsc --noEmit",
+    "lint": "oxlint",
+    "fmt": "oxfmt",
+    "test": "node --test --experimental-test-coverage --test-timeout=120000 --test-reporter=spec --test-reporter-destination=stdout --test-reporter=lcov --test-reporter-destination=etc/coverage.lcov \"pkg/**/*.test.ts\" \"etc/scripts/*.test.ts\"",
+    "bench": "find pkg/@eserstack -name '*.bench.ts' -not -path '*/node_modules/*' -print0 | xargs -0 -n 1 node",
+    "cli": "node ./pkg/@eserstack/cli/main.ts",
+    "laroux-cli": "node ./pkg/@eserstack/laroux-server/cli.ts",
+    "noskills-cli": "node ./pkg/@eserstack/noskills/main.ts"
+  },
+  "devDependencies": {
+    "@eserstack/test-kit": "workspace:*",
+    "@types/node": "^26.6.1",
+    "mitata": "1.0.34",
+    "oxfmt": "0.73.0",
+    "oxlint": "1.89.0",
+    "oxlint-tsgolint": "7.0.2004",
+    "typescript": "7.0.2"
+  }
 }

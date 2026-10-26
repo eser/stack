@@ -1,0 +1,145 @@
+// Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
+
+/**
+ * FFI-backed TUI event source (Phase B: event source moved to Go).
+ *
+ * Wraps the bridge's `shellTuiKeypressStream` stream and its
+ * `shellTuiSetStdinRaw` and `shellTuiGetSize` calls.
+ *
+ * Option B: throws if the native library is not available (no TS fallback).
+ *
+ * @module
+ */
+
+import * as ffiClient from "../ffi-client.ts";
+import type { KeypressEvent } from "./keypress.ts";
+
+// ---------------------------------------------------------------------------
+// Internal helper
+// ---------------------------------------------------------------------------
+
+const requireLib = async () => {
+  await ffiClient.ensureLib();
+  const lib = ffiClient.getLib();
+
+  if (lib === null) {
+    throw new Error(
+      "@eserstack/ajan native library is not available — " +
+        "the shellTui names require the native library (the WASM fallback does not serve shell functions)" +
+        ffiClient.describeLoadFailure(),
+    );
+  }
+
+  return lib;
+};
+
+// ---------------------------------------------------------------------------
+// readKeypressFFI
+// ---------------------------------------------------------------------------
+
+/** A keypress read through the Go bridge, which also reports resizes. */
+export type KeypressFFIEvent = KeypressEvent & {
+  /** The new width in columns, on "resize" events only. */
+  readonly cols?: number;
+  /** The new height in rows, on "resize" events only. */
+  readonly rows?: number;
+};
+
+/**
+ * Async generator that yields keypress events read from os.Stdin via Go FFI.
+ * Implements `Symbol.asyncDispose` for use with `await using`.
+ *
+ * Throws if the native library is not available (Option B — no fallback).
+ */
+export const readKeypressFFI = async function* (
+  signal?: AbortSignal,
+): AsyncGenerator<KeypressFFIEvent, void, unknown> {
+  const lib = await requireLib();
+
+  const keypress = lib.stream("shellTuiKeypressStream", {});
+  const createResult = keypress.opened;
+
+  if (createResult.error !== undefined) {
+    throw new Error(createResult.error);
+  }
+
+  try {
+    while (true) {
+      if (signal?.aborted) break;
+
+      const ev = keypress.read() as {
+        name: string;
+        char?: string;
+        ctrl: boolean;
+        meta: boolean;
+        shift: boolean;
+        raw?: string;
+        cols?: number;
+        rows?: number;
+        error?: string;
+      } | null;
+
+      if (ev === null) break;
+
+      if (ev.error !== undefined) throw new Error(ev.error);
+
+      const rawBytes =
+        ev.raw !== undefined
+          ? Uint8Array.from(atob(ev.raw), (c) => c.charCodeAt(0))
+          : new Uint8Array(0);
+
+      yield {
+        name: ev.name,
+        char: ev.char,
+        ctrl: ev.ctrl,
+        meta: ev.meta,
+        shift: ev.shift,
+        raw: rawBytes,
+        cols: ev.cols,
+        rows: ev.rows,
+      };
+    }
+  } finally {
+    keypress.close();
+  }
+};
+
+// ---------------------------------------------------------------------------
+// setStdinRaw
+// ---------------------------------------------------------------------------
+
+/**
+ * Enables or disables raw mode on os.Stdin via Go FFI.
+ * Throws if the native library is not available (Option B).
+ */
+export const setStdinRawFFI = async (enable: boolean): Promise<void> => {
+  const lib = await requireLib();
+  const result = lib.call("shellTuiSetStdinRaw", { enable });
+
+  if (result.error !== undefined) throw new Error(result.error);
+};
+
+// ---------------------------------------------------------------------------
+// getTerminalSize
+// ---------------------------------------------------------------------------
+
+/** Terminal dimensions. */
+export type TerminalSize = {
+  /** Width in columns. */
+  readonly cols: number;
+  /** Height in rows. */
+  readonly rows: number;
+};
+
+/**
+ * Returns the current terminal dimensions via Go FFI.
+ * Throws if the native library is not available (Option B).
+ */
+export const getTerminalSizeFFI = async (): Promise<TerminalSize> => {
+  const lib = await requireLib();
+  const result = lib.call("shellTuiGetSize", {});
+
+  if (result.error !== undefined) throw new Error(result.error);
+
+  return { cols: result.cols!, rows: result.rows! };
+};

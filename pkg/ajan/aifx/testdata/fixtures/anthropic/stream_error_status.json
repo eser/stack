@@ -1,0 +1,71 @@
+{
+  "provider": "anthropic",
+  "scenario": "stream_error_status",
+  "exchanges": [
+    {
+      "request": {
+        "headers": {
+          "accept": "application/json",
+          "accept-encoding": "gzip",
+          "anthropic-version": "2023-06-01",
+          "content-length": "172",
+          "content-type": "application/json",
+          "user-agent": "Anthropic/Go 1.73.0",
+          "x-api-key": "test-anthropic-key",
+          "x-stainless-arch": "arm64",
+          "x-stainless-lang": "go",
+          "x-stainless-os": "MacOS",
+          "x-stainless-package-version": "1.73.0",
+          "x-stainless-retry-count": "0",
+          "x-stainless-runtime": "go",
+          "x-stainless-runtime-version": "go1.26.6",
+          "x-stainless-timeout": "10"
+        },
+        "method": "POST",
+        "path": "/v1/messages",
+        "body": {
+          "max_tokens": 256,
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "Hello",
+                  "type": "text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "claude-test",
+          "system": [
+            {
+              "text": "Be brief.",
+              "type": "text"
+            }
+          ],
+          "stream": true
+        }
+      },
+      "response": {
+        "headers": {
+          "Content-Type": "application/json",
+          "request-id": "req_401"
+        },
+        "body": "{\"type\":\"error\",\"error\":{\"type\":\"authentication_error\",\"message\":\"invalid x-api-key\"},\"request_id\":\"req_fixture\"}",
+        "status": 401
+      }
+    }
+  ],
+  "outcome": {
+    "error": {
+      "kind": "auth_failed",
+      "message": "anthropic stream failed: authentication failed: POST \"{{server}}/v1/messages\": 401 Unauthorized (Request-ID: req_401) {\"type\":\"error\",\"error\":{\"type\":\"authentication_error\",\"message\":\"invalid x-api-key\"},\"request_id\":\"req_fixture\"}",
+      "sentinels": [
+        "ErrAnthropicStreamFailed",
+        "ErrAuthFailed"
+      ],
+      "status": 401
+    },
+    "events": []
+  }
+}

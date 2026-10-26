@@ -1,0 +1,190 @@
+// Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
+
+/**
+ * FFI-backed PTY implementing the {@link PtyProcess} contract via the native
+ * bridge's `shellPtyStream` stream (ConPTY on Windows, openpty on Unix, with working
+ * resize). Mirrors child-go.ts: a deferred poll pump reads one merged chunk at a
+ * time. node:ffi calls are synchronous, so while an idle PTY waits for output the
+ * read parks the event loop; the worker-thread pattern of decision-37 (M2-T8)
+ * moves it off the main thread.
+ *
+ * Spawn errors propagate to the caller so {@link spawnPty} can fall back to the
+ * script-based implementation when the native library is unavailable.
+ *
+ * @module
+ */
+
+import type * as ffiTypes from "@eserstack/ajan/ffi";
+import * as ffiClient from "../ffi-client.ts";
+import type { PtyOptions, PtyProcess } from "./pty.ts";
+
+const requireLib = async (): Promise<ffiTypes.FFILibrary> => {
+  await ffiClient.ensureLib();
+  const lib = ffiClient.getLib();
+
+  if (lib === null) {
+    throw new Error(
+      "@eserstack/ajan native library is not available — " +
+        "shellPtyStream requires the native library (the WASM fallback does not serve shell functions)" +
+        ffiClient.describeLoadFailure(),
+    );
+  }
+
+  return lib;
+};
+
+/** Base64-encode bytes without the spread operator (safe for large writes). */
+const toBase64 = (bytes: Uint8Array): string => {
+  let bin = "";
+  for (const b of bytes) {
+    bin += String.fromCharCode(b);
+  }
+
+  return btoa(bin);
+};
+
+const fromBase64 = (b64: string): Uint8Array =>
+  Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+
+export const spawnPtyGo = async (opts: PtyOptions): Promise<PtyProcess> => {
+  const lib = await requireLib();
+
+  const env: string[] = Object.entries({
+    ...opts.env,
+    TERM: "xterm-256color",
+    COLUMNS: String(opts.cols ?? 80),
+    LINES: String(opts.rows ?? 24),
+  }).map(([k, v]) => `${k}=${v}`);
+
+  const pty = lib.stream("shellPtyStream", {
+    command: opts.command,
+    args: opts.args ?? [],
+    cwd: opts.cwd ?? "",
+    env,
+    cols: opts.cols ?? 80,
+    rows: opts.rows ?? 24,
+  });
+  const spawnResult = pty.opened;
+
+  if (spawnResult.error !== undefined) {
+    throw new Error(spawnResult.error);
+  }
+
+  const handle = pty.handle;
+  const pid = spawnResult.pid ?? -1;
+
+  const decoder = new TextDecoder();
+  const encoder = new TextEncoder();
+  const callbacks: ((data: string) => void)[] = [];
+
+  let exited = false;
+  let resolveExit!: (code: number) => void;
+  const exitPromise = new Promise<number>((resolve) => {
+    resolveExit = resolve;
+  });
+
+  const finish = (): void => {
+    if (exited) return;
+    exited = true;
+
+    // Flush any partial multibyte sequence left in the streaming decoder so a
+    // final character split across the last chunk boundary isn't dropped.
+    const tail = decoder.decode();
+    if (tail.length > 0) {
+      for (const cb of callbacks) cb(tail);
+    }
+
+    let code = -1;
+    try {
+      code = pty.close().code ?? -1;
+    } catch {
+      // handle already gone
+    }
+
+    resolveExit(code);
+  };
+
+  // Poll pump: each resolved read yields back to the event loop before the next
+  // one, so other panes and input get a turn between chunks.
+  const pump = async (): Promise<void> => {
+    try {
+      while (true) {
+        // Yield to the event loop before each read; reads run one at a time.
+        // oxlint-disable-next-line no-await-in-loop
+        await Promise.resolve();
+
+        let ev: { chunk?: string; error?: string } | null;
+        try {
+          ev = pty.read();
+        } catch {
+          break;
+        }
+
+        if (ev === null) break;
+
+        if (ev.error !== undefined) break;
+
+        if (ev.chunk !== undefined && ev.chunk.length > 0) {
+          const text = decoder.decode(fromBase64(ev.chunk), { stream: true });
+          for (const cb of callbacks) cb(text);
+        }
+      }
+    } finally {
+      finish();
+    }
+  };
+
+  let started = false;
+  const ensureStarted = (): void => {
+    if (started) return;
+    started = true;
+    void pump();
+  };
+
+  return {
+    onData(callback: (data: string) => void): void {
+      callbacks.push(callback);
+      ensureStarted();
+    },
+
+    write(data: string): void {
+      try {
+        lib.call("shellPtyWrite", {
+          handle,
+          data: toBase64(encoder.encode(data)),
+        });
+      } catch {
+        // PTY may have closed
+      }
+    },
+
+    resize(cols: number, rows: number): void {
+      try {
+        lib.call("shellPtyResize", { handle, cols, rows });
+      } catch {
+        // PTY may have closed
+      }
+    },
+
+    kill(signal?: string): void {
+      try {
+        lib.call("shellPtyKill", { handle, signal: signal ?? "SIGTERM" });
+      } catch {
+        // PTY may have already exited
+      }
+      // Ensure teardown even if no consumer ever registered onData: starting the
+      // pump lets it observe EOF and run finish(), which closes the native handle
+      // and resolves exitCode. Without this, a kill() before any onData() would
+      // leak the handle/child and leave exitCode pending forever.
+      ensureStarted();
+    },
+
+    get pid(): number {
+      return pid;
+    },
+
+    get exitCode(): Promise<number> {
+      return exitPromise;
+    },
+  };
+};

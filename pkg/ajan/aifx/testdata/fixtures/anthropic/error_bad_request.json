@@ -1,0 +1,69 @@
+{
+  "provider": "anthropic",
+  "scenario": "error_bad_request",
+  "exchanges": [
+    {
+      "request": {
+        "headers": {
+          "accept": "application/json",
+          "accept-encoding": "gzip",
+          "anthropic-version": "2023-06-01",
+          "content-length": "158",
+          "content-type": "application/json",
+          "user-agent": "Anthropic/Go 1.73.0",
+          "x-api-key": "test-anthropic-key",
+          "x-stainless-arch": "arm64",
+          "x-stainless-lang": "go",
+          "x-stainless-os": "MacOS",
+          "x-stainless-package-version": "1.73.0",
+          "x-stainless-retry-count": "0",
+          "x-stainless-runtime": "go",
+          "x-stainless-runtime-version": "go1.26.6",
+          "x-stainless-timeout": "10"
+        },
+        "method": "POST",
+        "path": "/v1/messages",
+        "body": {
+          "max_tokens": 256,
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "Hello",
+                  "type": "text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "claude-test",
+          "system": [
+            {
+              "text": "Be brief.",
+              "type": "text"
+            }
+          ]
+        }
+      },
+      "response": {
+        "headers": {
+          "Content-Type": "application/json",
+          "request-id": "req_400"
+        },
+        "body": "{\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"max_tokens: field required\"},\"request_id\":\"req_fixture\"}",
+        "status": 400
+      }
+    }
+  ],
+  "outcome": {
+    "error": {
+      "kind": "bad_request",
+      "message": "anthropic generation failed: bad request: POST \"{{server}}/v1/messages\": 400 Bad Request (Request-ID: req_400) {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"max_tokens: field required\"},\"request_id\":\"req_fixture\"}",
+      "sentinels": [
+        "ErrAnthropicGenerationFailed",
+        "ErrBadRequest"
+      ],
+      "status": 400
+    }
+  }
+}

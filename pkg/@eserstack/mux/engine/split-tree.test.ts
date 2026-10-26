@@ -1,0 +1,123 @@
+// Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
+
+import * as nodeTest from "node:test";
+import * as assert from "@eserstack/test-kit/assert";
+import * as tree from "./split-tree.ts";
+import type { SplitNode } from "./types.ts";
+
+nodeTest.test("collectLeaves returns panes in order", () => {
+  const root: SplitNode = {
+    kind: "branch",
+    direction: "vertical",
+    ratio: 0.5,
+    first: tree.leaf("a"),
+    second: {
+      kind: "branch",
+      direction: "horizontal",
+      ratio: 0.5,
+      first: tree.leaf("b"),
+      second: tree.leaf("c"),
+    },
+  };
+
+  assert.assertEquals(tree.collectLeaves(root), ["a", "b", "c"]);
+});
+
+nodeTest.test("splitLeaf replaces the target with a branch", () => {
+  const root = tree.leaf("a");
+  const next = tree.splitLeaf(root, "a", "vertical", "b");
+
+  assert.assertEquals(next, {
+    kind: "branch",
+    direction: "vertical",
+    first: { kind: "leaf", pane: "a" },
+    second: { kind: "leaf", pane: "b" },
+    ratio: 0.5,
+  });
+});
+
+nodeTest.test("splitLeaf on a missing target is a no-op", () => {
+  const root = tree.leaf("a");
+  assert.assertEquals(tree.splitLeaf(root, "z", "vertical", "b"), root);
+});
+
+nodeTest.test("splitLeaf descends into nested branches", () => {
+  const root = tree.splitLeaf(tree.leaf("a"), "a", "vertical", "b");
+  const next = tree.splitLeaf(root, "b", "horizontal", "c");
+  assert.assertEquals(tree.collectLeaves(next), ["a", "b", "c"]);
+});
+
+nodeTest.test("removeLeaf collapses the branch to its sibling", () => {
+  const root = tree.splitLeaf(tree.leaf("a"), "a", "vertical", "b");
+  const { root: next, promoted } = tree.removeLeaf(root, "b");
+
+  assert.assertEquals(next, tree.leaf("a"));
+  assert.assertEquals(promoted, "a");
+});
+
+nodeTest.test(
+  "removeLeaf of a nested leaf promotes the sibling subtree",
+  () => {
+    let root = tree.splitLeaf(tree.leaf("a"), "a", "vertical", "b");
+    root = tree.splitLeaf(root, "b", "horizontal", "c"); // a | (b / c)
+    const { root: next, promoted } = tree.removeLeaf(root, "b");
+
+    assert.assertEquals(next === null ? [] : tree.collectLeaves(next), [
+      "a",
+      "c",
+    ]);
+    assert.assertEquals(promoted, "c");
+  },
+);
+
+nodeTest.test("removeLeaf of the only pane empties the tree", () => {
+  assert.assertEquals(tree.removeLeaf(tree.leaf("a"), "a"), {
+    root: null,
+    promoted: null,
+  });
+});
+
+nodeTest.test(
+  "resizeFocused grows the focused pane in a matching branch",
+  () => {
+    const root: SplitNode = {
+      kind: "branch",
+      direction: "vertical",
+      ratio: 0.5,
+      first: tree.leaf("a"),
+      second: tree.leaf("b"),
+    };
+
+    const grown = tree.resizeFocused(root, "a", "right", 0.1);
+    assert.assertEquals(grown.kind === "branch" ? grown.ratio : -1, 0.6);
+
+    const shrunk = tree.resizeFocused(root, "a", "left", 0.1);
+    assert.assertEquals(shrunk.kind === "branch" ? shrunk.ratio : -1, 0.4);
+  },
+);
+
+nodeTest.test("resizeFocused ignores a perpendicular direction", () => {
+  const root: SplitNode = {
+    kind: "branch",
+    direction: "vertical",
+    ratio: 0.5,
+    first: tree.leaf("a"),
+    second: tree.leaf("b"),
+  };
+
+  // up/down don't match a vertical (row) branch
+  assert.assertEquals(tree.resizeFocused(root, "a", "up", 0.1), root);
+});
+
+nodeTest.test("resizeFocused clamps to the usable range", () => {
+  const root: SplitNode = {
+    kind: "branch",
+    direction: "vertical",
+    ratio: 0.88,
+    first: tree.leaf("a"),
+    second: tree.leaf("b"),
+  };
+
+  const grown = tree.resizeFocused(root, "a", "right", 0.1);
+  assert.assertEquals(grown.kind === "branch" ? grown.ratio : -1, 0.9);
+});

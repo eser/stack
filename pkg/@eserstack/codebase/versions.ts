@@ -1,0 +1,584 @@
+// Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
+
+/**
+ * Workspace version management tool. It syncs the VERSION file and every
+ * package.json in the workspace.
+ *
+ * Can be used as a library or as a standalone script.
+ *
+ * Library usage:
+ * ```typescript
+ * import * as versions from "@eserstack/codebase/versions";
+ *
+ * // Show versions
+ * const result = await versions.showVersions();
+ * console.log(result.packages);
+ *
+ * // Sync versions
+ * const syncResult = await versions.versions("sync", { dryRun: true });
+ * console.log(syncResult.updates);
+ * ```
+ *
+ * CLI usage:
+ *   node ./versions.ts              # Show versions table
+ *   node ./versions.ts sync         # Sync all to highest version
+ *   node ./versions.ts patch        # Bump patch, sync all
+ *   node ./versions.ts minor        # Bump minor, sync all
+ *   node ./versions.ts major        # Bump major, sync all
+ *   node ./versions.ts --dry-run    # Preview without changes
+ *
+ * @module
+ */
+
+import * as semver from "semver";
+import * as primitives from "@eserstack/primitives";
+import * as standards from "@eserstack/standards";
+import * as functions from "@eserstack/functions";
+import type * as shellArgs from "@eserstack/shell/args";
+import * as tui from "@eserstack/shell/tui";
+import * as span from "@eserstack/streams/span";
+import * as cliSupport from "./cli-support.ts";
+import * as pkg from "./package/mod.ts";
+import * as ffiClient from "./ffi-client.ts";
+
+/**
+ * Valid version commands.
+ */
+export type VersionCommand = "sync" | "patch" | "minor" | "major" | "explicit";
+
+/**
+ * Options for version operations.
+ */
+export type VersionOptions = {
+  /** Root directory (default: ".") */
+  readonly root?: string;
+  /** Preview changes without applying */
+  readonly dryRun?: boolean;
+  /** Update the VERSION file in root (default: true) */
+  readonly updateVersionFile?: boolean;
+  /** Explicit version string (used when command is "explicit") */
+  readonly explicitVersion?: string;
+};
+
+/**
+ * Information about a package version.
+ */
+export type PackageVersion = {
+  /** Package name */
+  readonly name: string;
+  /** Package version */
+  readonly version: string;
+};
+
+/**
+ * Update information for a single package.
+ */
+export type VersionUpdate = {
+  /** Package name */
+  readonly name: string;
+  /** Version before update */
+  readonly from: string;
+  /** Version after update */
+  readonly to: string;
+  /** Whether the package was updated */
+  readonly changed: boolean;
+};
+
+/**
+ * Result of showing versions.
+ */
+export type ShowVersionsResult = {
+  /** All packages with their versions */
+  readonly packages: PackageVersion[];
+};
+
+/**
+ * Update information for a standalone file (e.g., VERSION).
+ */
+export type FileUpdate = {
+  /** File path relative to root */
+  readonly path: string;
+  /** Version before update */
+  readonly from: string;
+  /** Version after update */
+  readonly to: string;
+  /** Whether the file was updated */
+  readonly changed: boolean;
+};
+
+/**
+ * Result of a version operation.
+ */
+export type VersionsResult = {
+  /** Command that was executed */
+  readonly command: VersionCommand;
+  /** Target version */
+  readonly targetVersion: string;
+  /** All package updates */
+  readonly updates: VersionUpdate[];
+  /** Standalone file updates (e.g., VERSION file) */
+  readonly fileUpdates: FileUpdate[];
+  /** Number of packages that changed */
+  readonly changedCount: number;
+  /** Whether this was a dry run */
+  readonly dryRun: boolean;
+};
+
+/**
+ * A package config file that a version bump could not write.
+ */
+export type VersionWriteFailure = {
+  /** Path of the file that was not written */
+  readonly filepath: string;
+  /** Why the write failed */
+  readonly reason: string;
+};
+
+/**
+ * Thrown by {@link versions} when one or more package config files could not
+ * be written.
+ *
+ * Every package is still attempted, so `failures` lists all of them. The
+ * VERSION file is left unchanged, so it still names the previous version.
+ */
+export class VersionWriteError extends Error {
+  /** The version the bump was writing */
+  readonly targetVersion: string;
+  /** Every file that was not written, with the reason */
+  readonly failures: readonly VersionWriteFailure[];
+
+  constructor(targetVersion: string, failures: readonly VersionWriteFailure[]) {
+    const message = [
+      `bump versions to ${targetVersion}: could not write ${failures.length} package file(s):`,
+      ...failures.map((failure) => `  ${failure.filepath}: ${failure.reason}`),
+      `Every other file was written and VERSION was left unchanged. Fix the files above, then run "eser codebase versions ${targetVersion}" to finish the bump.`,
+    ].join("\n");
+
+    super(message);
+    this.name = "VersionWriteError";
+    this.targetVersion = targetVersion;
+    this.failures = failures;
+  }
+}
+
+/**
+ * Reads the current version from the VERSION file.
+ *
+ * @param options - Options with root directory
+ * @returns The version string, or undefined if the file doesn't exist
+ */
+export const readVersionFile = async (
+  options: VersionOptions = {},
+): Promise<string | undefined> => {
+  const { root = "." } = options;
+  const versionFilePath = standards.crossRuntime.runtime.path.join(
+    root,
+    "VERSION",
+  );
+  try {
+    const content =
+      await standards.crossRuntime.runtime.fs.readTextFile(versionFilePath);
+    return content.trim();
+  } catch {
+    return undefined;
+  }
+};
+
+/**
+ * Purely calculates the next version from a current version and a command.
+ * Runs on the Go FFI.
+ *
+ * @param current - The current semver version string
+ * @param command - The bump command: "patch" | "minor" | "major" | "explicit" | "sync"
+ * @param explicit - Required when command is "explicit"
+ * @returns The resulting version string
+ */
+export const bumpVersion = async (
+  current: string,
+  command: VersionCommand,
+  explicit?: string,
+): Promise<string> => {
+  const lib = await ffiClient.requireLib();
+  const parsed = lib.call("codebaseBumpVersion", {
+    current,
+    command,
+    explicit,
+  }) as { version?: string; error?: string };
+  if (parsed.error !== undefined) {
+    throw new Error(parsed.error);
+  }
+  if (parsed.version === undefined) {
+    throw new Error("bumpVersion: FFI returned no version");
+  }
+  return parsed.version;
+};
+
+/**
+ * Writes a version string to the VERSION file.
+ */
+const writeVersionFile = async (
+  root: string,
+  version: string,
+): Promise<void> => {
+  const versionFilePath = standards.crossRuntime.runtime.path.join(
+    root,
+    "VERSION",
+  );
+  await standards.crossRuntime.runtime.fs.writeTextFile(
+    versionFilePath,
+    version + "\n",
+  );
+};
+
+/**
+ * Finds the highest version from an array of version strings.
+ */
+const findHighestVersion = (versions: string[]): string => {
+  let highest = new semver.SemVer("0.0.0");
+  for (const version of versions) {
+    const v = new semver.SemVer(version);
+    if (semver.compare(v, highest) > 0) {
+      highest = v;
+    }
+  }
+  return highest.format();
+};
+
+/**
+ * Shows all package versions in the workspace.
+ *
+ * @param options - Options for the operation
+ * @returns Result with package versions
+ */
+export const showVersions = async (
+  options: VersionOptions = {},
+): Promise<ShowVersionsResult> => {
+  const { root = "." } = options;
+
+  const [rootConfig, modules] = await pkg.getWorkspaceModules(root);
+
+  const rootVersion = rootConfig.version?.value ?? "0.0.0";
+  const rootName = rootConfig.name?.value ?? "(root)";
+
+  const packages: PackageVersion[] = [
+    { name: rootName, version: rootVersion },
+    ...modules.map((m) => ({ name: m.name, version: m.version })),
+  ];
+
+  return { packages };
+};
+
+/**
+ * Executes a version command (sync, patch, minor, major).
+ *
+ * @param command - The command to execute
+ * @param options - Options for the operation
+ * @returns Result of the operation
+ * @throws {VersionWriteError} When a package config file could not be written
+ */
+export const versions = async (
+  command: VersionCommand,
+  options: VersionOptions = {},
+): Promise<VersionsResult> => {
+  const {
+    root = ".",
+    dryRun = false,
+    updateVersionFile: shouldUpdateVersionFile = true,
+  } = options;
+
+  const [rootConfig, modules] = await pkg.getWorkspaceModules(root);
+
+  const rootVersion = rootConfig.version?.value ?? "0.0.0";
+  const rootName = rootConfig.name?.value ?? "(root)";
+
+  // Calculate target version
+  const allVersions = [rootVersion, ...modules.map((m) => m.version)];
+  const highestVersion = findHighestVersion(allVersions);
+  let targetVersion: string;
+
+  if (command === "explicit") {
+    if (options.explicitVersion === undefined) {
+      throw new Error(
+        'explicitVersion is required when command is "explicit".',
+      );
+    }
+    if (semver.valid(options.explicitVersion) === null) {
+      throw new TypeError(`Cannot parse version: ${options.explicitVersion}`);
+    }
+    targetVersion = options.explicitVersion;
+  } else if (command === "sync") {
+    targetVersion = highestVersion;
+  } else {
+    targetVersion = new semver.SemVer(highestVersion)
+      .inc(command as semver.ReleaseType)
+      .format();
+  }
+
+  // Apply package updates (including root)
+  const updates: VersionUpdate[] = [];
+  const failures: VersionWriteFailure[] = [];
+
+  // Update root config
+  const rootNeedsUpdate = rootVersion !== targetVersion;
+  if (!dryRun) {
+    const rootResult = await pkg.updateVersion(rootConfig, targetVersion);
+    failures.push(...rootResult.failed);
+  }
+  updates.push({
+    name: rootName,
+    from: rootVersion,
+    to: targetVersion,
+    changed: rootNeedsUpdate,
+  });
+
+  // Update workspace modules
+  for (const module of modules) {
+    const needsUpdate = module.version !== targetVersion;
+
+    if (!dryRun) {
+      // Packages are bumped one at a time to bound open file handles in a
+      // large workspace.
+      // oxlint-disable-next-line no-await-in-loop
+      const moduleResult = await pkg.updateVersion(
+        module.config,
+        targetVersion,
+      );
+      failures.push(...moduleResult.failed);
+    }
+
+    updates.push({
+      name: module.name,
+      from: module.version,
+      to: targetVersion,
+      changed: needsUpdate,
+    });
+  }
+
+  // The @eserstack/ajan-* platform packages are workspace members since
+  // TASK-8, so the loop above already stamped them; cli and ajan reference
+  // them with workspace:*, which needs no rewriting.
+
+  // A partial bump must not look complete. VERSION is written last, so it
+  // keeps the previous version until every package file has the new one.
+  if (failures.length > 0) {
+    throw new VersionWriteError(targetVersion, failures);
+  }
+
+  // Update VERSION file
+  const fileUpdates: FileUpdate[] = [];
+
+  if (shouldUpdateVersionFile) {
+    const currentFileVersion = await readVersionFile({ root });
+    const fileChanged = currentFileVersion !== targetVersion;
+
+    if (!dryRun && fileChanged) {
+      await writeVersionFile(root, targetVersion);
+    }
+
+    fileUpdates.push({
+      path: "VERSION",
+      from: currentFileVersion ?? "",
+      to: targetVersion,
+      changed: fileChanged,
+    });
+  }
+
+  const changedCount = updates.filter((u) => u.changed).length;
+
+  return {
+    command,
+    targetVersion,
+    updates,
+    fileUpdates,
+    changedCount,
+    dryRun,
+  };
+};
+
+// --- Handler / Adapter / ResponseMapper (CLI layer) ---
+
+/**
+ * Discriminated input for the versions functions.handler.
+ */
+export type VersionsInput =
+  | { readonly mode: "show" }
+  | {
+      readonly mode: "update";
+      readonly command: VersionCommand;
+      readonly options: VersionOptions;
+    };
+
+/**
+ * Discriminated output from the versions functions.handler.
+ */
+export type VersionsOutput =
+  | { readonly mode: "show"; readonly result: ShowVersionsResult }
+  | { readonly mode: "update"; readonly result: VersionsResult };
+
+/**
+ * Core handler — wraps existing library functions using `fromPromise`.
+ */
+export const versionsHandler: functions.handler.Handler<
+  VersionsInput,
+  VersionsOutput,
+  Error
+> = (input) => {
+  if (input.mode === "show") {
+    return functions.task.fromPromise(async () => {
+      const result = await showVersions();
+      return { mode: "show" as const, result };
+    });
+  }
+
+  return functions.task.fromPromise(async () => {
+    const result = await versions(input.command, input.options);
+    return { mode: "update" as const, result };
+  });
+};
+
+/**
+ * CLI Adapter — converts a `functions.triggers.CliEvent` into `VersionsInput`.
+ */
+const cliAdapter: functions.handler.Adapter<
+  functions.triggers.CliEvent,
+  VersionsInput
+> = (event) => {
+  const arg = event.args[0] as string | undefined;
+
+  // No args → show mode
+  if (arg === undefined) {
+    return primitives.results.ok({ mode: "show" as const });
+  }
+
+  // Has arg → update mode
+  const validCommands = ["sync", "patch", "minor", "major"];
+  let command: VersionCommand;
+  let explicitVersion: string | undefined;
+
+  if (validCommands.includes(arg)) {
+    command = arg as VersionCommand;
+  } else {
+    command = "explicit";
+    explicitVersion = arg;
+  }
+
+  const dryRun = event.flags["dry-run"] === true;
+
+  return primitives.results.ok({
+    mode: "update" as const,
+    command,
+    options: { dryRun, explicitVersion },
+  });
+};
+
+/**
+ * CLI ResponseMapper — formats handler output for terminal display.
+ */
+const cliResponseMapper: functions.handler.ResponseMapper<
+  VersionsOutput,
+  Error | functions.handler.AdaptError,
+  shellArgs.CliResult<void>
+> = (result) => {
+  if (primitives.results.isFail(result)) {
+    return primitives.results.fail({
+      exitCode: 1,
+      message: String(result.error),
+    });
+  }
+
+  const { ctx, output: out } = cliSupport.getCliContext();
+  const handlerOutput = result.value;
+
+  if (handlerOutput.mode === "show") {
+    out.writeln(
+      span.table(
+        ["name", "version"],
+        handlerOutput.result.packages.map((p) => [p.name, p.version]),
+      ),
+    );
+    return primitives.results.ok(undefined);
+  }
+
+  // Update mode
+  const { result: updateResult } = handlerOutput;
+
+  if (updateResult.command === "sync") {
+    tui.log.info(ctx, "Syncing all versions...");
+  } else if (updateResult.command === "explicit") {
+    tui.log.info(
+      ctx,
+      `Setting all versions to ${updateResult.targetVersion}...`,
+    );
+  } else {
+    tui.log.info(ctx, `Bumping all versions (${updateResult.command})...`);
+  }
+
+  tui.log.info(ctx, `Target version: ${updateResult.targetVersion}`);
+  out.writeln(
+    span.table(
+      ["name", "from", "to", "changed"],
+      updateResult.updates.map((u) => [
+        u.name,
+        u.from,
+        u.to,
+        String(u.changed),
+      ]),
+    ),
+  );
+
+  for (const fileUpdate of updateResult.fileUpdates) {
+    if (fileUpdate.changed) {
+      tui.log.info(
+        ctx,
+        `${fileUpdate.path} (${fileUpdate.from} → ${fileUpdate.to})`,
+      );
+    }
+  }
+
+  if (updateResult.dryRun) {
+    tui.log.info(
+      ctx,
+      `Dry run - ${updateResult.changedCount} packages would be modified.`,
+    );
+  } else {
+    tui.log.success(
+      ctx,
+      `Done. Updated ${updateResult.changedCount} packages.`,
+    );
+  }
+
+  return primitives.results.ok(undefined);
+};
+
+/**
+ * CLI trigger — wired handler for command-line invocation.
+ */
+export const handleCli: (
+  event: functions.triggers.CliEvent,
+) => Promise<shellArgs.CliResult<void>> = functions.handler.createTrigger({
+  handler: versionsHandler,
+  adaptInput: cliAdapter,
+  adaptOutput: cliResponseMapper,
+});
+
+/** Parse the versions arguments: the command and `--dry-run`. */
+export const parseCliArgs = (
+  cliArgs?: readonly string[],
+): functions.triggers.CliEvent =>
+  cliSupport.parseCliEvent("versions", cliArgs, {
+    "dry-run": { type: "boolean" },
+  });
+
+/** CLI entry point for dispatcher compatibility. */
+export const main = async (
+  cliArgs?: readonly string[],
+): Promise<shellArgs.CliResult<void>> => await handleCli(parseCliArgs(cliArgs));
+
+if (import.meta.main) {
+  // Entry point: the await only runs when this file is executed directly.
+  // oxlint-disable-next-line node/no-top-level-await
+  const result = await main(
+    standards.crossRuntime.runtime.process.args as string[],
+  );
+  cliSupport.runCliMain(result, cliSupport.getCliContext().output);
+}

@@ -1,0 +1,43 @@
+{
+  "name": "@eserstack/noskills",
+  "version": "4.5.2",
+  "type": "module",
+  "exports": {
+    ".": "./main.ts",
+    "./mod": "./mod.ts",
+    "./module": "./module.ts",
+    "./dashboard": "./dashboard/mod.ts",
+    "./persistence": "./state/persistence.ts",
+    "./session": "./manager/session-binding.ts",
+    "./go-noskills": "./go-noskills.ts"
+  },
+  "dependencies": {
+    "@eserstack/agents": "workspace:*",
+    "@eserstack/ai": "workspace:*",
+    "@eserstack/ajan": "workspace:*",
+    "@eserstack/codebase": "workspace:*",
+    "@eserstack/mux": "workspace:*",
+    "@eserstack/primitives": "workspace:*",
+    "@eserstack/shell": "workspace:*",
+    "@eserstack/standards": "workspace:*",
+    "@eserstack/streams": "workspace:*",
+    "yaml": "^2.9.1"
+  },
+  "devDependencies": {
+    "@eserstack/test-kit": "workspace:*",
+    "esbuild": "^0.28.2"
+  },
+  "optionalDependencies": {
+    "@eserstack/ajan-darwin-arm64": "workspace:*",
+    "@eserstack/ajan-darwin-x64": "workspace:*",
+    "@eserstack/ajan-linux-arm64": "workspace:*",
+    "@eserstack/ajan-linux-x64": "workspace:*",
+    "@eserstack/ajan-win32-x64": "workspace:*",
+    "@eserstack/ajan-wasm": "workspace:*",
+    "@eserstack/noskills-darwin-arm64": "workspace:*",
+    "@eserstack/noskills-darwin-x64": "workspace:*",
+    "@eserstack/noskills-linux-arm64": "workspace:*",
+    "@eserstack/noskills-linux-x64": "workspace:*",
+    "@eserstack/noskills-win32-x64": "workspace:*"
+  }
+}

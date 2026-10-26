@@ -1,0 +1,76 @@
+{
+  "provider": "openai",
+  "scenario": "batch_results",
+  "exchanges": [
+    {
+      "request": {
+        "headers": {
+          "accept": "application/binary",
+          "accept-encoding": "gzip",
+          "authorization": "Bearer test-openai-key",
+          "user-agent": "OpenAI/Go 1.12.0",
+          "x-stainless-arch": "arm64",
+          "x-stainless-lang": "go",
+          "x-stainless-os": "MacOS",
+          "x-stainless-package-version": "1.12.0",
+          "x-stainless-retry-count": "0",
+          "x-stainless-runtime": "go",
+          "x-stainless-runtime-version": "go1.26.6",
+          "x-stainless-timeout": "10"
+        },
+        "method": "GET",
+        "path": "/files/file-out/content"
+      },
+      "response": {
+        "headers": {
+          "Content-Type": "application/octet-stream"
+        },
+        "body": "{\"id\":\"batch_req_1\",\"custom_id\":\"req-1\",\"response\":{\"status_code\":200,\"request_id\":\"r1\",\"body\":{\"id\":\"chatcmpl-1\",\"object\":\"chat.completion\",\"created\":1761300000,\"model\":\"gpt-test-2026\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"Hi there.\",\"refusal\":null},\"logprobs\":null,\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":12,\"completion_tokens\":4,\"total_tokens\":16}}},\"error\":null}\n{\"id\":\"batch_req_2\",\"custom_id\":\"req-2\",\"response\":null,\"error\":{\"code\":\"rate_limit_exceeded\",\"message\":\"too many requests\"}}\n{\"id\":\"batch_req_3\",\"custom_id\":\"req-3\",\"response\":{\"status_code\":200,\"body\":\"not a completion\"},\"error\":null}\n",
+        "status": 200
+      }
+    }
+  ],
+  "outcome": {
+    "results": [
+      {
+        "customID": "req-1",
+        "error": "",
+        "result": {
+          "content": [
+            {
+              "text": "Hi there.",
+              "type": "text"
+            }
+          ],
+          "modelID": "gpt-test-2026",
+          "stopReason": "end_turn",
+          "usage": {
+            "InputTokens": 12,
+            "OutputTokens": 4,
+            "TotalTokens": 16,
+            "ThinkingTokens": 0
+          }
+        }
+      },
+      {
+        "customID": "req-2",
+        "error": "too many requests"
+      },
+      {
+        "customID": "req-3",
+        "error": "",
+        "result": {
+          "content": [],
+          "modelID": "",
+          "stopReason": "",
+          "usage": {
+            "InputTokens": 0,
+            "OutputTokens": 0,
+            "TotalTokens": 0,
+            "ThinkingTokens": 0
+          }
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,216 @@
+// Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
+
+/**
+ * Install command handler — installs eser CLI globally.
+ *
+ * For compiled binaries: copies self to ~/.local/bin or /usr/local/bin + sets up completions.
+ * For Node installs: runs `npm install -g`.
+ *
+ * @module
+ */
+
+import * as span from "@eserstack/streams/span";
+import * as streams from "@eserstack/streams";
+import * as standardsCrossRuntime from "@eserstack/standards/cross-runtime";
+import type { CliApp } from "../app.ts";
+import * as appOpts from "../app-opts.ts";
+import * as results from "@eserstack/primitives/results";
+import type * as shellArgs from "@eserstack/shell/args";
+import * as shellExec from "@eserstack/shell/exec";
+import * as shellEnv from "@eserstack/shell/env";
+import * as completionsSetup from "./completions-setup.ts";
+
+const runtime = standardsCrossRuntime.runtime;
+
+type InstallConfig = {
+  readonly cmd: string;
+  readonly args: readonly string[];
+};
+
+// A function of the app, not a constant. The same command installs eser,
+// noskills or laroux; only the npm package differs.
+const installConfig = (app: CliApp): InstallConfig => ({
+  cmd: "npm",
+  args: ["install", "-g", "-f", app.npmPackage ?? app.command],
+});
+
+/**
+ * Determines the best install directory for a compiled binary.
+ * Prefers ~/.local/bin if it exists; falls back to /usr/local/bin.
+ */
+const getInstallDir = async (): Promise<string> => {
+  const home = standardsCrossRuntime.getHomedir();
+  const localBin = runtime.path.join(home, ".local", "bin");
+
+  try {
+    await runtime.fs.stat(localBin);
+    return localBin;
+  } catch {
+    // Fall through to /usr/local/bin
+  }
+
+  return "/usr/local/bin";
+};
+
+/**
+ * Whether a file operation was refused for lack of permission: the runtime's
+ * PermissionDeniedError, or a raw EACCES or EPERM from node:fs.
+ */
+export const isPermissionDenied = (error: unknown): boolean => {
+  if (error instanceof standardsCrossRuntime.PermissionDeniedError) {
+    return true;
+  }
+
+  if (error instanceof Error && "code" in error) {
+    const code = (error as NodeJS.ErrnoException).code;
+
+    return code === "EACCES" || code === "EPERM";
+  }
+
+  return false;
+};
+
+/**
+ * Installs a compiled binary by copying itself to the install directory.
+ */
+const installCompiledBinary = async (
+  app: CliApp,
+): Promise<shellArgs.CliResult<void>> => {
+  const currentPath = runtime.process.execPath();
+  const installDir = await getInstallDir();
+  const targetPath = runtime.path.join(installDir, app.command);
+
+  const out = streams.output({
+    renderer: streams.renderers.ansi(),
+    sink: streams.sinks.stdout(),
+  });
+
+  out.writeln(span.text("Install method: "), span.cyan("compiled binary"));
+  out.writeln(span.dim(`Copying to ${targetPath}...`));
+
+  try {
+    await runtime.fs.copyFile(currentPath, targetPath);
+    await runtime.fs.chmod(targetPath, 0o755);
+  } catch (error) {
+    if (isPermissionDenied(error)) {
+      out.writeln(
+        span.red(
+          `\nPermission denied writing to ${installDir}.\nTry: sudo ${app.command} install`,
+        ),
+      );
+      await out.close();
+      return results.fail({ exitCode: 1 });
+    }
+    await out.close();
+    throw error;
+  }
+
+  out.writeln(span.green("\nInstallation complete!"));
+  out.writeln(
+    span.text("You can now use "),
+    span.cyan(app.command),
+    span.text(" from anywhere in your terminal."),
+  );
+
+  // Setup shell completions
+  const shell = completionsSetup.detectShell();
+  const alreadyHasCompletions = await completionsSetup.hasCompletions(
+    shell,
+    app.command,
+  );
+
+  if (!alreadyHasCompletions) {
+    out.writeln(
+      span.text("\nSetting up "),
+      span.cyan(shell),
+      span.text(" completions..."),
+    );
+    await completionsSetup.addCompletions(shell, app.command);
+
+    const shellConfig = shellEnv.getShellConfig(shell);
+    if (shellConfig.completionType === "eval") {
+      out.writeln(
+        span.dim(
+          `  Restart your shell or run 'source ${shellConfig.rcFile}' to enable completions.`,
+        ),
+      );
+    }
+  }
+
+  await out.close();
+  return results.ok(undefined);
+};
+
+export const installHandler = async (
+  _ctx: shellArgs.CommandContext,
+  app: CliApp,
+): Promise<shellArgs.CliResult<void>> => {
+  const execContext = await standardsCrossRuntime.detectExecutionContext(
+    appOpts.appOpts(app),
+  );
+
+  // Compiled binary: copy self to install directory
+  if (execContext.invoker === "binary") {
+    return await installCompiledBinary(app);
+  }
+
+  const out = streams.output({
+    renderer: streams.renderers.ansi(),
+    sink: streams.sinks.stdout(),
+  });
+
+  // Node install: use npm
+  out.writeln(span.text("Detected runtime: "), span.cyan(execContext.runtime));
+
+  const { cmd, args } = installConfig(app);
+
+  out.writeln(span.dim(`Running: ${cmd} ${args.join(" ")}`));
+  out.writeln();
+
+  const result = await shellExec.exec`${cmd} ${args}`
+    .stdout("inherit")
+    .stderr("inherit")
+    .noThrow()
+    .spawn();
+
+  if (!result.success) {
+    out.writeln(span.red("\nInstallation failed."));
+    await out.close();
+    return results.fail({ exitCode: result.code });
+  }
+
+  out.writeln(span.green("\nInstallation complete!"));
+  out.writeln(
+    span.text("You can now use "),
+    span.cyan(app.command),
+    span.text(" from anywhere in your terminal."),
+  );
+
+  // Setup shell completions
+  const shell = completionsSetup.detectShell();
+  const alreadyHasCompletions = await completionsSetup.hasCompletions(
+    shell,
+    app.command,
+  );
+
+  if (!alreadyHasCompletions) {
+    out.writeln(
+      span.text("\nSetting up "),
+      span.cyan(shell),
+      span.text(" completions..."),
+    );
+    await completionsSetup.addCompletions(shell, app.command);
+
+    const shellConfig = shellEnv.getShellConfig(shell);
+    if (shellConfig.completionType === "eval") {
+      out.writeln(
+        span.dim(
+          `  Restart your shell or run 'source ${shellConfig.rcFile}' to enable completions.`,
+        ),
+      );
+    }
+  }
+
+  await out.close();
+  return results.ok(undefined);
+};

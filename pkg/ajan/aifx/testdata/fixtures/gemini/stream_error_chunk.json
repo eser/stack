@@ -1,0 +1,73 @@
+{
+  "provider": "gemini",
+  "scenario": "stream_error_chunk",
+  "exchanges": [
+    {
+      "request": {
+        "query": {
+          "alt": [
+            "sse"
+          ]
+        },
+        "headers": {
+          "accept-encoding": "gzip",
+          "content-length": "168",
+          "content-type": "application/json",
+          "user-agent": "google-genai-sdk/1.71.0 gl-go/go1.26.6",
+          "x-goog-api-client": "google-genai-sdk/1.71.0 gl-go/go1.26.6",
+          "x-goog-api-key": "test-gemini-key",
+          "x-server-timeout": "30"
+        },
+        "method": "POST",
+        "path": "/v1beta/models/gemini-test:streamGenerateContent",
+        "body": {
+          "contents": [
+            {
+              "parts": [
+                {
+                  "text": "Hello"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "generationConfig": {
+            "maxOutputTokens": 256
+          },
+          "systemInstruction": {
+            "parts": [
+              {
+                "text": "Be brief."
+              }
+            ],
+            "role": "user"
+          }
+        }
+      },
+      "response": {
+        "headers": {
+          "Content-Type": "text/event-stream"
+        },
+        "body": "data: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"Partial\"}]}}]}\n\n{\"error\": {\"code\": 500, \"message\": \"Internal error encountered.\", \"status\": \"INTERNAL\"}}\n\n",
+        "status": 200
+      }
+    }
+  ],
+  "outcome": {
+    "error": {
+      "kind": "service_unavailable",
+      "message": "gemini stream failed: service unavailable: Error 500, Message: Internal error encountered., Status: INTERNAL, Details: []",
+      "sentinels": [
+        "ErrGeminiStreamFailed",
+        "ErrServiceUnavailable"
+      ],
+      "status": 500
+    },
+    "events": [
+      {
+        "text": "Partial",
+        "type": "content_delta"
+      }
+    ]
+  }
+}

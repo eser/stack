@@ -1,0 +1,15 @@
+[Unit]
+Description=noskills-server — persistent Claude Code session daemon
+Documentation=https://github.com/eser/stack
+After=network.target
+
+[Service]
+ExecStart={{BIN}} start
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=noskills-server
+
+[Install]
+WantedBy=default.target

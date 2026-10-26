@@ -1,0 +1,37 @@
+{
+  "provider": "openai",
+  "scenario": "batch_cancel",
+  "exchanges": [
+    {
+      "request": {
+        "headers": {
+          "accept": "application/json",
+          "accept-encoding": "gzip",
+          "authorization": "Bearer test-openai-key",
+          "content-length": "0",
+          "user-agent": "OpenAI/Go 1.12.0",
+          "x-stainless-arch": "arm64",
+          "x-stainless-lang": "go",
+          "x-stainless-os": "MacOS",
+          "x-stainless-package-version": "1.12.0",
+          "x-stainless-retry-count": "0",
+          "x-stainless-runtime": "go",
+          "x-stainless-runtime-version": "go1.26.6",
+          "x-stainless-timeout": "10"
+        },
+        "method": "POST",
+        "path": "/batches/batch_123/cancel"
+      },
+      "response": {
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{\"id\":\"batch_123\",\"object\":\"batch\",\"endpoint\":\"/v1/chat/completions\",\"errors\":null,\"input_file_id\":\"file-in\",\"completion_window\":\"24h\",\"status\":\"cancelling\",\"created_at\":1761300000,\"request_counts\":{\"total\":4,\"completed\":2,\"failed\":1}}",
+        "status": 200
+      }
+    }
+  ],
+  "outcome": {
+    "cancelled": true
+  }
+}

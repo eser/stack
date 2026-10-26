@@ -1,0 +1,20 @@
+{
+  "name": "@eserstack/cs",
+  "version": "4.5.2",
+  "type": "module",
+  "exports": {
+    ".": "./mod.ts",
+    "./cli": "./cli.ts"
+  },
+  "dependencies": {
+    "@eserstack/ajan": "workspace:*",
+    "@eserstack/config": "workspace:*",
+    "@eserstack/formats": "workspace:*",
+    "@eserstack/primitives": "workspace:*",
+    "@eserstack/shell": "workspace:*",
+    "@eserstack/standards": "workspace:*"
+  },
+  "devDependencies": {
+    "@eserstack/test-kit": "workspace:*"
+  }
+}

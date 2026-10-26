@@ -1,0 +1,62 @@
+{
+  "provider": "gemini",
+  "scenario": "error_rate_limited",
+  "exchanges": [
+    {
+      "request": {
+        "headers": {
+          "accept-encoding": "gzip",
+          "content-length": "168",
+          "content-type": "application/json",
+          "user-agent": "google-genai-sdk/1.71.0 gl-go/go1.26.6",
+          "x-goog-api-client": "google-genai-sdk/1.71.0 gl-go/go1.26.6",
+          "x-goog-api-key": "test-gemini-key",
+          "x-server-timeout": "30"
+        },
+        "method": "POST",
+        "path": "/v1beta/models/gemini-test:generateContent",
+        "body": {
+          "contents": [
+            {
+              "parts": [
+                {
+                  "text": "Hello"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "generationConfig": {
+            "maxOutputTokens": 256
+          },
+          "systemInstruction": {
+            "parts": [
+              {
+                "text": "Be brief."
+              }
+            ],
+            "role": "user"
+          }
+        }
+      },
+      "response": {
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{\"error\":{\"code\":429,\"message\":\"Resource has been exhausted\",\"status\":\"RESOURCE_EXHAUSTED\"}}",
+        "status": 429
+      }
+    }
+  ],
+  "outcome": {
+    "error": {
+      "kind": "rate_limited",
+      "message": "gemini generation failed: rate limited: Error 429, Message: Resource has been exhausted, Status: RESOURCE_EXHAUSTED, Details: []",
+      "sentinels": [
+        "ErrGeminiGenerationFailed",
+        "ErrRateLimited"
+      ],
+      "status": 429
+    }
+  }
+}

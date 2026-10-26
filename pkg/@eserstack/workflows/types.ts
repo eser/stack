@@ -1,0 +1,175 @@
+// Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
+
+/**
+ * Core types for the workflow engine.
+ *
+ * @module
+ */
+
+// =============================================================================
+// Config types
+// =============================================================================
+
+/** A step in a workflow — either a tool name string or a name→options record. */
+export type WorkflowStepConfig =
+  | string
+  | Record<string, Record<string, unknown>>;
+
+/**
+ * A parsed step with resolved name, tool options, and engine directives.
+ *
+ * Engine directives (`continueOnError`, `timeout`, `bypass`, `inputSchema`) are
+ * extracted from the step config and consumed by the engine, not passed to the tool.
+ */
+export type ResolvedStep = {
+  readonly name: string;
+  readonly options: Record<string, unknown>;
+  /** If true, tool errors are caught and reported as a failed step instead of crashing the workflow. Default: false. */
+  readonly continueOnError: boolean;
+  /** Per-step timeout in milliseconds. Overrides RunOptions.defaultTimeout. */
+  readonly timeout?: number;
+  /** If true, skip tool execution; step output = previous step's stats. Default: false. */
+  readonly bypass?: boolean;
+  /** JSON Schema (draft-2020-12) to validate merged options before tool.run(). Nil = no validation. */
+  readonly inputSchema?: Record<string, unknown>;
+};
+
+/** A workflow definition with an id, triggering events, and ordered steps. */
+export type WorkflowDefinition = {
+  readonly id: string;
+  readonly on: readonly string[];
+  readonly steps: readonly WorkflowStepConfig[];
+  /** Workflow ids to include (their steps are prepended before this workflow's steps). */
+  readonly includes?: readonly string[];
+};
+
+/** A script definition — either a command string or a config object. */
+export type ScriptConfig =
+  | string
+  | {
+      readonly command: string;
+      readonly description?: string;
+      readonly workingDirectory?: string;
+      readonly depends?: readonly string[];
+    };
+
+/** Top-level configuration (can be loaded from .eser/manifest.yml or built programmatically). */
+export type WorkflowsConfig = {
+  readonly stack?: readonly string[];
+  readonly workflows: readonly WorkflowDefinition[];
+  readonly scripts?: Readonly<Record<string, ScriptConfig>>;
+};
+
+// =============================================================================
+// Tool types
+// =============================================================================
+
+/** A single issue found by a workflow tool. */
+export type WorkflowIssue = {
+  readonly path?: string;
+  readonly line?: number;
+  readonly message: string;
+  readonly fixed?: boolean;
+};
+
+/** A file mutation produced by a fixer tool. */
+export type WorkflowFileMutation = {
+  readonly path: string;
+  readonly oldContent: string;
+  readonly newContent: string;
+};
+
+/**
+ * What the engine passes to a tool, next to its options, for one step.
+ */
+export type WorkflowToolContext = {
+  /**
+   * How long the step may run, in milliseconds: the step's `timeout`, or
+   * `RunOptions.defaultTimeout`. A tool that starts a subprocess or a request
+   * gives it this limit, so the work stops when the step times out.
+   */
+  readonly timeoutMs: number;
+  /**
+   * Aborted when the step ends: when it runs past `timeoutMs`, or when the
+   * tool has returned. Work the tool started and still runs should stop then.
+   */
+  readonly signal: AbortSignal;
+};
+
+/** A tool that can be registered and run within a workflow. */
+export type WorkflowTool = {
+  readonly name: string;
+  readonly description: string;
+  /**
+   * Run the tool for one step.
+   *
+   * @param options - The step's options, plus `root`, `fix`, `dryRun`, `_args`
+   *   and, in incremental mode, `_changedFiles` from the run
+   * @param context - The step's time limit and the signal that ends it
+   */
+  readonly run: (
+    options: Record<string, unknown>,
+    context: WorkflowToolContext,
+  ) => Promise<WorkflowToolResult>;
+};
+
+/** Result from running a single workflow tool. */
+export type WorkflowToolResult = {
+  readonly name: string;
+  readonly passed: boolean;
+  readonly issues: readonly WorkflowIssue[];
+  readonly mutations: readonly WorkflowFileMutation[];
+  readonly stats: Record<string, number>;
+};
+
+// =============================================================================
+// Execution types
+// =============================================================================
+
+/** Result from a single step execution (includes timing). */
+export type StepResult = WorkflowToolResult & {
+  readonly durationMs: number;
+};
+
+/** Aggregate result from running a full workflow. */
+export type WorkflowResult = {
+  readonly workflowId: string;
+  readonly passed: boolean;
+  readonly steps: readonly StepResult[];
+  readonly totalDurationMs: number;
+};
+
+/** Error type for workflow engine failures. */
+export type WorkflowError = {
+  readonly _tag: "WorkflowError";
+  readonly message: string;
+};
+
+/** Options for running a workflow. */
+export type RunOptions = {
+  readonly root?: string;
+  readonly fix?: boolean;
+  /**
+   * Preview fixes without writing files. Tools receive it as the `dryRun`
+   * option; the shell tool runs `command` instead of `fixCommand`.
+   */
+  readonly dryRun?: boolean;
+  readonly only?: string;
+  /**
+   * Timeout for steps that set none, in milliseconds: above 0 and at most
+   * 2147483647. Default: 60000 (60s).
+   */
+  readonly defaultTimeout?: number;
+  /** Positional args passed through to tools (e.g., commit message file path). */
+  readonly args?: readonly string[];
+  /** Changed file paths for incremental mode (only run tools on these files). */
+  readonly changedFiles?: readonly string[];
+  /** Called when a step starts. */
+  readonly onStepStart?: (name: string) => void;
+  /** Called when a step finishes. */
+  readonly onStepEnd?: (result: StepResult) => void;
+  /** Called when a step produces mutations — allows the caller to write them to disk between steps. */
+  readonly onMutations?: (
+    mutations: readonly WorkflowFileMutation[],
+  ) => Promise<void>;
+};

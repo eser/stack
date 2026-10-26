@@ -1,0 +1,16 @@
+{
+  "name": "@eserstack/noskills-web",
+  "version": "4.5.2",
+  "type": "module",
+  "exports": "./mod.ts",
+  "dependencies": {
+    "@eserstack/agents": "workspace:*",
+    "@eserstack/logging": "workspace:*",
+    "@eserstack/mux": "workspace:*",
+    "@eserstack/noskills": "workspace:*",
+    "@eserstack/standards": "workspace:*"
+  },
+  "devDependencies": {
+    "@eserstack/test-kit": "workspace:*"
+  }
+}

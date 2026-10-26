@@ -1,0 +1,94 @@
+[
+  {
+    "query": "add zod as a dependency to @eserstack/config",
+    "should_trigger": true
+  },
+  {
+    "query": "where do I put a new project command like `docs-lint`",
+    "should_trigger": true
+  },
+  {
+    "query": "should this parser come from npm or can a Node built-in do it",
+    "should_trigger": true
+  },
+  {
+    "query": "I changed the exports in package.json, is there another manifest to update",
+    "should_trigger": true
+  },
+  {
+    "query": "set up VS Code settings for the repo",
+    "should_trigger": true
+  },
+  {
+    "query": "should this script live in package.json or the manifest",
+    "should_trigger": true
+  },
+  {
+    "query": "yeni bir kütüphane eklemek istiyorum, nasıl değerlendiririz",
+    "should_trigger": true
+  },
+  {
+    "query": "which tool formats the code here, prettier or something else",
+    "should_trigger": true
+  },
+  {
+    "query": "add a new package pkg/@eserstack/queue",
+    "should_trigger": true
+  },
+  {
+    "query": "what's the kebab-case rule for file names here",
+    "should_trigger": true
+  },
+  {
+    "query": "run the web app's tests and rebuild its assets",
+    "should_trigger": true
+  },
+  {
+    "query": "the README says npm install && npm run dev, set the dashboard up locally",
+    "should_trigger": true
+  },
+  {
+    "query": "add playwright to the root package.json so the browser tests can run",
+    "should_trigger": true
+  },
+  {
+    "query": "pnpm exec rewrote pnpm-lock.yaml in my worktree, what now",
+    "should_trigger": true
+  },
+  {
+    "query": "publish to npm",
+    "should_trigger": false
+  },
+  {
+    "query": "write Go lint rules",
+    "should_trigger": false
+  },
+  {
+    "query": "fix the CI cache",
+    "should_trigger": false
+  },
+  {
+    "query": "write a unit test",
+    "should_trigger": false
+  },
+  {
+    "query": "the import uses a named import",
+    "should_trigger": false
+  },
+  {
+    "query": "tag v4.6.0",
+    "should_trigger": false
+  },
+  {
+    "query": "make the logger structured",
+    "should_trigger": false
+  },
+  {
+    "query": "write node:test cases for the slug parser",
+    "should_trigger": false
+  },
+  {
+    "query": "can I use an enum for these status codes",
+    "should_trigger": false
+  }
+]

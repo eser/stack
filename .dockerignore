@@ -1,0 +1,14 @@
+.eser/.state/
+.github/
+.vscode/
+etc/coverage/
+etc/coverage.lcov
+etc/temp/
+.dockerignore
+.editorconfig
+.gitattributes
+.gitignore
+.tool-versions
+Dockerfile
+LICENSE
+README.md

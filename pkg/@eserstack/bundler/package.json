@@ -1,0 +1,27 @@
+{
+  "name": "@eserstack/bundler",
+  "version": "4.5.2",
+  "type": "module",
+  "exports": {
+    ".": "./mod.ts",
+    "./types": "./types.ts",
+    "./backends": "./backends/mod.ts",
+    "./backends/rolldown": "./backends/rolldown.ts",
+    "./css": "./css/mod.ts",
+    "./css/tailwind": "./css/tailwind-plugin.ts",
+    "./css/lightning": "./css/lightning.ts",
+    "./css/modules": "./css/modules.ts",
+    "./css/fonts": "./css/fonts.ts"
+  },
+  "dependencies": {
+    "@eserstack/standards": "workspace:*",
+    "@eserstack/streams": "workspace:*",
+    "@tailwindcss/node": "^4.3.3",
+    "@tailwindcss/oxide": "^4.3.3",
+    "lightningcss": "^1.33.0",
+    "rolldown": "^1.2.9"
+  },
+  "devDependencies": {
+    "@eserstack/test-kit": "workspace:*"
+  }
+}

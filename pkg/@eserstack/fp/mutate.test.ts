@@ -1,0 +1,66 @@
+// Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
+
+import * as nodeTest from "node:test";
+import * as assert from "@eserstack/test-kit/assert";
+import * as mutate from "./mutate.ts";
+
+nodeTest.test("basic", () => {
+  const obj1 = {
+    firstName: "Eser",
+    lastName: "Ozvataf",
+    aliases: [],
+  };
+
+  const result = mutate.mutate(obj1, (x) => (x.firstName = "Helo"));
+
+  assert.assertNotStrictEquals(result, obj1);
+  assert.assertEquals(Object.keys(result).length, 3);
+  assert.assertEquals(result, {
+    firstName: "Helo",
+    lastName: "Ozvataf",
+    aliases: [],
+  });
+});
+
+nodeTest.test("array-push", () => {
+  const obj1 = {
+    firstName: "Eser",
+    lastName: "Ozvataf",
+    aliases: [] as Array<string>,
+  };
+
+  const result = mutate.mutate(obj1, (x) => {
+    x.firstName = "Helo";
+
+    x.aliases.push("laroux");
+  });
+
+  assert.assertNotStrictEquals(result, obj1);
+  assert.assertEquals(Object.keys(result).length, 3);
+  assert.assertEquals(result, {
+    firstName: "Helo",
+    lastName: "Ozvataf",
+    aliases: ["laroux"],
+  });
+});
+
+nodeTest.test("with-class", () => {
+  class Dummy {
+    items: Array<string>;
+
+    constructor() {
+      this.items = [];
+    }
+  }
+
+  const obj1 = new Dummy();
+
+  const result = mutate.mutate(obj1, (x) => {
+    x.items.push("laroux");
+  });
+
+  assert.assertNotStrictEquals(result, obj1);
+  assert.assertEquals(result.constructor, Dummy);
+  assert.assertEquals(Object.keys(result), ["items"]);
+  assert.assertEquals(result.items, ["laroux"]);
+});

@@ -1,0 +1,66 @@
+[
+  {
+    "query": "this function reads the clock three times, is that a problem",
+    "should_trigger": true
+  },
+  {
+    "query": "make this config object immutable",
+    "should_trigger": true
+  },
+  {
+    "query": "should this module have side effects at import",
+    "should_trigger": true
+  },
+  {
+    "query": "split this function so the logic is testable without the filesystem",
+    "should_trigger": true
+  },
+  {
+    "query": "how should cancellation be passed to this long-running task in TS",
+    "should_trigger": true
+  },
+  {
+    "query": "which data structure for looking up sessions by id",
+    "should_trigger": true
+  },
+  {
+    "query": "bu interface çok büyük, nasıl küçültürüz",
+    "should_trigger": true
+  },
+  {
+    "query": "replace this class with getters and setters by something simpler",
+    "should_trigger": true
+  },
+  {
+    "query": "add a GitHub Actions job",
+    "should_trigger": false
+  },
+  {
+    "query": "fix the failing release run",
+    "should_trigger": false
+  },
+  {
+    "query": "which package registry do we prefer",
+    "should_trigger": false
+  },
+  {
+    "query": "write the ADR",
+    "should_trigger": false
+  },
+  {
+    "query": "check if CONTRIBUTING.md is up to date",
+    "should_trigger": false
+  },
+  {
+    "query": "add a new package to the monorepo",
+    "should_trigger": false
+  },
+  {
+    "query": "the JWT secret is hardcoded",
+    "should_trigger": false
+  },
+  {
+    "query": "ask me what you need before you start",
+    "should_trigger": false
+  }
+]

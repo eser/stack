@@ -1,0 +1,36 @@
+// Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
+
+import * as nodeTest from "node:test";
+import * as assert from "@eserstack/test-kit/assert";
+import * as mapObject from "./map-object.ts";
+
+nodeTest.test("basic", () => {
+  const obj1 = { a: 1, b: 2, c: 3, d: 4, e: 5 };
+  const func1 = (value: number, key: string | number | symbol) => ({
+    [key]: value - 1,
+  });
+
+  const result = mapObject.mapObject(obj1, func1);
+
+  assert.assertNotStrictEquals(result, obj1);
+  assert.assertEquals(Object.keys(result).length, 5);
+  assert.assertEquals(result, { a: 0, b: 1, c: 2, d: 3, e: 4 });
+});
+
+nodeTest.test("with-value-skipping", () => {
+  const obj1 = { a: 1, b: 2, c: null };
+  const func1 = (value: number | null, key: string | number | symbol) => {
+    if (value === null) {
+      return null;
+    }
+
+    return { [key]: value - 1 };
+  };
+
+  const result = mapObject.mapObject(obj1, func1);
+
+  // oxlint-disable-next-line typescript/no-explicit-any
+  assert.assertNotStrictEquals(result as any, obj1 as any);
+  assert.assertEquals(Object.keys(result).length, 2);
+  assert.assertEquals(result, { a: 0, b: 1 });
+});

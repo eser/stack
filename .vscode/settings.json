@@ -1,0 +1,18 @@
+{
+  "coverage-gutters.coverageBaseDir": "./etc",
+  "coverage-gutters.coverageFileNames": ["coverage.lcov"],
+  "coverage-gutters.showGutterCoverage": true,
+  "coverage-gutters.showLineCoverage": true,
+  "coverage-gutters.showRulerCoverage": true,
+  "editor.defaultFormatter": "oxc.oxc-vscode",
+  "yaml.schemas": {
+    "https://json.schemastore.org/github-workflow.json": "./.github/workflows/*.yml"
+  },
+  "[typescript][typescriptreact][javascript][javascriptreact][json][jsonc][markdown]": {
+    "editor.defaultFormatter": "oxc.oxc-vscode"
+  },
+  "files.associations": {
+    "*.mdoc": "markdown",
+    "*.mdx": "markdown"
+  }
+}

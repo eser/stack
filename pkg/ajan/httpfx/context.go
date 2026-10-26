@@ -1,0 +1,121 @@
+package httpfx
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"net/http"
+)
+
+var (
+	ErrRequestBodyNil    = errors.New("request body is nil")
+	ErrFailedToParseJSON = errors.New("failed to parse JSON body")
+	ErrAlreadyWritten    = errors.New("response already written")
+)
+
+type ContextKey string
+
+type Context struct {
+	Request        *http.Request
+	ResponseWriter http.ResponseWriter
+
+	Results Results
+
+	//nolint:dupword
+	// Params  Params
+	// Errors  errorMsgs |or|
+
+	routeDef *Route
+	handlers HandlerChain
+	index    int
+	// isAborted bool
+
+	// IsRaw is true for routes registered via RouteRaw (WebTransport, raw
+	// streaming). There the raw handler writes the response itself and Next
+	// returns a placeholder 204, so a middleware that reads the status or body
+	// of the Result it gets from Next skips that work when this flag is set.
+	IsRaw bool
+
+	// EarlyWritten is set by WriteEarly. When true, the raw handler and all
+	// downstream middleware steps must abort without writing a second response.
+	EarlyWritten bool
+
+	// rawStarted and rawReturned record the raw handler of a RouteRaw chain:
+	// RouteRaw writes the chain's Result only when the handler never started,
+	// and aborts the response when it started but did not return.
+	rawStarted  bool
+	rawReturned bool
+}
+
+// WriteEarly writes status and body directly to the ResponseWriter and marks
+// the context as EarlyWritten, for a middleware that must write a response
+// itself rather than return a Result. A middleware that only rejects returns
+// a Result instead, which Route and RouteRaw both write. Subsequent middleware
+// steps must check EarlyWritten and return without writing; RouteRaw skips the
+// raw handler and writes nothing more.
+func (c *Context) WriteEarly(status int, body []byte) error {
+	if c.EarlyWritten {
+		return ErrAlreadyWritten
+	}
+
+	c.ResponseWriter.WriteHeader(status)
+
+	_, err := c.ResponseWriter.Write(body)
+	if err != nil {
+		return fmt.Errorf("WriteEarly write: %w", err)
+	}
+
+	c.EarlyWritten = true
+
+	return nil
+}
+
+func (c *Context) Next() Result {
+	c.index++
+
+	for c.index < len(c.handlers) {
+		if c.handlers[c.index] == nil {
+			c.index++
+
+			continue
+		}
+
+		return c.handlers[c.index](c)
+	}
+
+	return c.Results.Ok()
+}
+
+func (c *Context) UpdateContext(ctx context.Context) {
+	c.Request = c.Request.WithContext(ctx)
+}
+
+func (c *Context) ParseJSONBody(target any) error {
+	if c.Request.Body == nil {
+		return ErrRequestBodyNil
+	}
+
+	defer func() { _ = c.Request.Body.Close() }()
+
+	// A floor, not a policy. RequestSizeLimitMiddleware exists but is wired into
+	// no server, and MaxRequestSizeMB was declared and never read, so this
+	// decoded an unbounded body -- reachable before authentication, since
+	// /auth/login parses its request the same way. Bounding it here means the
+	// limit holds for every caller regardless of which middlewares a server
+	// happens to install.
+	body := http.MaxBytesReader(
+		c.ResponseWriter,
+		c.Request.Body,
+		maxRequestBodyBytes(),
+	)
+
+	decoder := json.NewDecoder(body)
+
+	err := decoder.Decode(target)
+	if err != nil {
+		return fmt.Errorf("%w: %w", ErrFailedToParseJSON, err)
+	}
+
+	return nil
+}

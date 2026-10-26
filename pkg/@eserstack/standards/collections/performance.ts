@@ -1,0 +1,354 @@
+// Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
+
+// =============================================================================
+// Bitmap-Based Matching (Generic)
+// =============================================================================
+
+/**
+ * A bitmap representing a set of flags for O(1) matching.
+ * Maximum 32 flags supported (JavaScript bitwise limit).
+ */
+export type Bitmap = number;
+
+/**
+ * Bitmap matcher interface returned by createBitmapMatcher.
+ */
+export type BitmapMatcher<K extends string> = {
+  /** Convert an array of keys to a bitmap for O(1) matching. */
+  readonly toBitmap: (keys: readonly string[]) => Bitmap;
+  /** Check if any required bit is present in available (OR match). */
+  readonly match: (required: Bitmap, available: Bitmap) => boolean;
+  /** Check if all required bits are present in available (AND match). */
+  readonly matchAll: (required: Bitmap, available: Bitmap) => boolean;
+  /** The mapping used to create this matcher. */
+  readonly mapping: Readonly<Record<K, number>>;
+};
+
+/**
+ * Create a bitmap matcher for any set of string keys.
+ *
+ * The CONSUMER defines their own mapping - library knows nothing about domain.
+ * This follows the "provide mechanisms, not policies" principle.
+ *
+ * @example
+ * ```typescript
+ * import * as standards from "@eserstack/standards";
+ *
+ * // Consumer defines their own domain-specific mapping
+ * const StackBits = {
+ *   javascript: 1 << 0,
+ *   typescript: 1 << 1,
+ *   golang: 1 << 2,
+ * } as const;
+ *
+ * const matcher = standards.collections.createBitmapMatcher(StackBits);
+ * const bitmap = matcher.toBitmap(["javascript", "typescript"]);
+ * // bitmap = 0b11 (bits 0 and 1 set)
+ *
+ * matcher.match(0b01, 0b11);    // true (any match)
+ * matcher.matchAll(0b11, 0b11); // true (all match)
+ * ```
+ */
+export const createBitmapMatcher = <K extends string>(
+  mapping: Readonly<Record<K, number>>,
+): BitmapMatcher<K> => {
+  const toBitmap = (keys: readonly string[]): Bitmap => {
+    let bitmap = 0;
+
+    for (const key of keys) {
+      const bit = mapping[key as K];
+
+      if (bit !== undefined) {
+        bitmap |= bit;
+      }
+    }
+
+    return bitmap;
+  };
+
+  const match = (required: Bitmap, available: Bitmap): boolean => {
+    // No requirements = matches all
+    // No available = match all (legacy behavior for optional filtering)
+    if (required === 0 || available === 0) {
+      return true;
+    }
+
+    // Check intersection (any bit matches)
+    return (required & available) !== 0;
+  };
+
+  const matchAll = (required: Bitmap, available: Bitmap): boolean => {
+    if (required === 0 || available === 0) {
+      return true;
+    }
+
+    // Check all required bits are present
+    return (required & available) === required;
+  };
+
+  return { toBitmap, match, matchAll, mapping } as const;
+};
+
+// =============================================================================
+// Function Parameter Caching
+// =============================================================================
+
+/**
+ * Cache for parsed function parameters.
+ * Uses WeakMap to avoid memory leaks when functions are garbage collected.
+ */
+// Function accepts any callable whatever its signature; only its source text
+// is read.
+// oxlint-disable-next-line typescript/ban-types
+const parameterCache = new WeakMap<Function, readonly string[]>();
+
+/**
+ * Extract function parameters without regex to prevent ReDoS.
+ * Finds the first balanced parentheses in the function string.
+ */
+const extractParamString = (fnString: string): string | null => {
+  const limited = fnString.slice(0, 10000);
+  const openIdx = limited.indexOf("(");
+  if (openIdx === -1) return null;
+  const closeIdx = limited.indexOf(")", openIdx);
+  if (closeIdx === -1) return null;
+  return limited.slice(openIdx + 1, closeIdx);
+};
+
+/**
+ * Get function parameter names with caching.
+ *
+ * First call parses the function string, subsequent calls return cached result.
+ * Uses WeakMap so cache entries are garbage collected with the function.
+ *
+ * @example
+ * ```typescript
+ * import * as standards from "@eserstack/standards";
+ *
+ * const fn = (logger: string, database: string, config: string) =>
+ *   [logger, database, config].join(" ");
+ * const params = standards.collections.getFunctionParameters(fn);
+ * // params = ["logger", "database", "config"]
+ * standards.collections.getFunctionParameters(fn); // Returns cached result
+ * ```
+ */
+// Function accepts any callable whatever its signature; only its source text
+// is read.
+// oxlint-disable-next-line typescript/ban-types
+export const getFunctionParameters = (fn: Function): readonly string[] => {
+  const cached = parameterCache.get(fn);
+  if (cached !== undefined) {
+    return cached;
+  }
+
+  const fnString = fn.toString();
+  const paramString = extractParamString(fnString);
+
+  if (paramString === null || paramString.trim() === "") {
+    const empty = Object.freeze([]) as readonly string[];
+    parameterCache.set(fn, empty);
+
+    return empty;
+  }
+
+  const params: readonly string[] = Object.freeze(
+    paramString.split(",").reduce<string[]>((acc, p) => {
+      let param = p.trim();
+
+      // Remove default value
+      const eqIdx = param.indexOf("=");
+      if (eqIdx !== -1) {
+        param = param.slice(0, eqIdx).trim();
+      }
+
+      // Skip destructuring patterns
+      if (
+        (param.startsWith("{") && param.endsWith("}")) ||
+        (param.startsWith("[") && param.endsWith("]"))
+      ) {
+        return acc;
+      }
+
+      // Skip empty and rest params
+      if (param.length > 0 && !param.startsWith("...")) {
+        acc.push(param);
+      }
+
+      return acc;
+    }, []),
+  );
+
+  parameterCache.set(fn, params);
+  return params;
+};
+
+/**
+ * Clear the parameter cache for a specific function.
+ * Useful for testing or when function behavior changes.
+ */
+// Function accepts any callable whatever its signature, as the cache does.
+// oxlint-disable-next-line typescript/ban-types
+export const clearParameterCache = (fn: Function): void => {
+  parameterCache.delete(fn);
+};
+
+// =============================================================================
+// Parallel Initialization Helpers
+// =============================================================================
+
+/**
+ * Load multiple modules in parallel and extract specified exports.
+ *
+ * @example
+ * ```typescript
+ * import * as standards from "@eserstack/standards";
+ *
+ * // import() runs inside @eserstack/standards, so pass absolute URLs: a
+ * // relative path would resolve against that package, not your module.
+ * const circularDeps = import.meta.resolve("./validators/circular-deps.ts");
+ * const modExports = import.meta.resolve("./validators/mod-exports.ts");
+ *
+ * const validators = await standards.collections.parallelImport([
+ *   [circularDeps, "circularDepsValidator"],
+ *   [modExports, "modExportsValidator"],
+ * ]);
+ * // validators = [circularDepsValidator, modExportsValidator]
+ * ```
+ */
+export const parallelImport = async <T>(
+  imports: ReadonlyArray<readonly [path: string, exportName: string]>,
+): Promise<T[]> => {
+  const modules = await Promise.all(imports.map(([path]) => import(path)));
+
+  return imports.map(([, exportName], index) => {
+    const module = modules[index];
+
+    if (!(exportName in module)) {
+      throw new Error(`Export "${exportName}" not found in module`);
+    }
+
+    return module[exportName] as T;
+  });
+};
+
+/**
+ * Load multiple modules in parallel and return all as an array.
+ *
+ * @example
+ * ```typescript
+ * import * as standards from "@eserstack/standards";
+ *
+ * // Absolute URLs, for the same reason as in parallelImport
+ * const [mod1, mod2, mod3] = await standards.collections.parallelImportModules([
+ *   import.meta.resolve("./validators/circular-deps.ts"),
+ *   import.meta.resolve("./validators/mod-exports.ts"),
+ *   import.meta.resolve("./validators/docs.ts"),
+ * ]);
+ * ```
+ */
+export const parallelImportModules = async <T extends Record<string, unknown>>(
+  paths: ReadonlyArray<string>,
+): Promise<T[]> => {
+  return (await Promise.all(paths.map((path) => import(path)))) as T[];
+};
+
+// =============================================================================
+// Frozen Array Utilities
+// =============================================================================
+
+/**
+ * Create a frozen copy of an array.
+ * Returns the same reference if already frozen.
+ */
+export const freezeArray = <T>(arr: readonly T[]): readonly T[] => {
+  if (Object.isFrozen(arr)) {
+    return arr;
+  }
+
+  return Object.freeze([...arr]);
+};
+
+/**
+ * Memoize a function that returns an array.
+ * Caches the frozen result for subsequent calls.
+ */
+export const memoizeArray = <T, A extends unknown[]>(
+  fn: (...args: A) => readonly T[],
+): ((...args: A) => readonly T[]) => {
+  let cached: readonly T[] | null = null;
+  let lastArgs: A | null = null;
+
+  return (...args: A): readonly T[] => {
+    // Check if args are the same (shallow comparison)
+    if (
+      lastArgs !== null &&
+      args.length === lastArgs.length &&
+      args.every((arg, i) => arg === lastArgs![i])
+    ) {
+      return cached!;
+    }
+
+    const result = fn(...args);
+    cached = freezeArray(result);
+    lastArgs = args;
+
+    return cached;
+  };
+};
+
+// =============================================================================
+// Lazy Initialization Pattern
+// =============================================================================
+
+/**
+ * Create a lazy value that is computed once on first access.
+ *
+ * @example
+ * ```typescript
+ * import * as standards from "@eserstack/standards";
+ *
+ * const computeExpensiveValue = (): number[] =>
+ *   Array.from({ length: 1_000 }, (_, i) => i * i);
+ *
+ * const expensiveValue = standards.collections.lazy(computeExpensiveValue);
+ * // Later...
+ * const value = expensiveValue(); // Computed on first call
+ * const same = expensiveValue();  // Returns cached value
+ * ```
+ */
+export const lazy = <T>(factory: () => T): (() => T) => {
+  let cached: T | undefined;
+  let computed = false;
+
+  return (): T => {
+    if (!computed) {
+      cached = factory();
+      computed = true;
+    }
+
+    return cached as T;
+  };
+};
+
+/**
+ * Create an async lazy value that is computed once on first access.
+ */
+export const lazyAsync = <T>(factory: () => Promise<T>): (() => Promise<T>) => {
+  let cached: T | undefined;
+  let promise: Promise<T> | null = null;
+
+  return (): Promise<T> => {
+    if (cached !== undefined) {
+      return Promise.resolve(cached);
+    }
+
+    if (promise === null) {
+      promise = factory().then((value) => {
+        cached = value;
+        return value;
+      });
+    }
+
+    return promise;
+  };
+};

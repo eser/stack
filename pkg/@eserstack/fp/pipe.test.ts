@@ -1,0 +1,76 @@
+// Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
+
+import * as nodeTest from "node:test";
+import * as assert from "@eserstack/test-kit/assert";
+import * as pipe from "./pipe.ts";
+
+nodeTest.test("pipe with single value returns it unchanged", () => {
+  const result = pipe.pipe(42);
+  assert.assertEquals(result, 42);
+});
+
+nodeTest.test("pipe threads value through one function", () => {
+  const result = pipe.pipe("hello", (x: string) => x.toUpperCase());
+  assert.assertEquals(result, "HELLO");
+});
+
+nodeTest.test("pipe threads value through multiple functions", () => {
+  const result = pipe.pipe(
+    "Hello World!",
+    (x: string) => x.toLowerCase(),
+    (x: string) => x.replace(/[^\w \\-]+/g, ""),
+    (x: string) => x.split(" "),
+    (x: Array<string>) => x.join("-"),
+  );
+  assert.assertEquals(result, "hello-world");
+});
+
+nodeTest.test("pipe preserves types through the chain", () => {
+  const result = pipe.pipe(
+    10,
+    (x: number) => x * 2,
+    (x: number) => String(x),
+    (x: string) => x.length,
+  );
+  assert.assertEquals(result, 2);
+});
+
+nodeTest.test("pipe works with array operations", () => {
+  const result = pipe.pipe(
+    [3, 1, 4, 1, 5],
+    (xs: number[]) => xs.filter((x) => x > 2),
+    (xs: number[]) => xs.map((x) => x * 10),
+    (xs: number[]) => xs.reduce((a, b) => a + b, 0),
+  );
+  assert.assertEquals(result, 120);
+});
+
+nodeTest.test("pipe with boolean result", () => {
+  const result = pipe.pipe(
+    "hello",
+    (s: string) => s.length,
+    (n: number) => n > 3,
+  );
+  assert.assertEquals(result, true);
+});
+
+nodeTest.test("pipe with object transformations", () => {
+  const result = pipe.pipe(
+    { name: "test", value: 42 },
+    (o: { name: string; value: number }) => o.value,
+    (n: number) => n * 2,
+  );
+  assert.assertEquals(result, 84);
+});
+
+nodeTest.test("pipe with many steps", () => {
+  const result = pipe.pipe(
+    1,
+    (x: number) => x + 1,
+    (x: number) => x + 1,
+    (x: number) => x + 1,
+    (x: number) => x + 1,
+    (x: number) => x + 1,
+  );
+  assert.assertEquals(result, 6);
+});

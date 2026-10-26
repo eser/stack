@@ -1,0 +1,78 @@
+// Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
+
+/**
+ * CLI framework
+ *
+ * Provides a Command class for building CLI applications with:
+ * - Hierarchical command trees (commands and subcommands)
+ * - Flag definitions with types and validation
+ * - Automatic help generation
+ * - Shell completion script generation
+ *
+ * @example
+ * ```ts
+ * import * as primitives from "@eserstack/primitives";
+ * import * as shell from "@eserstack/shell";
+ *
+ * const app = new shell.args.Command("myapp")
+ *   .description("My CLI application")
+ *   .version("1.0.0")
+ *   .persistentFlag({ name: "verbose", short: "v", type: "boolean", description: "Verbose output" })
+ *   .command(
+ *     new shell.args.Command("init")
+ *       .description("Initialize a new project")
+ *       .flag({ name: "template", short: "t", type: "string", description: "Template name" })
+ *       .run((ctx) => {
+ *         console.log("Initializing with template:", ctx.flags["template"]);
+ *         return primitives.results.ok(undefined);
+ *       })
+ *   )
+ *   .command(
+ *     new shell.args.Command("build")
+ *       .description("Build the project")
+ *       .run(() => {
+ *         console.log("Building...");
+ *         return primitives.results.ok(undefined);
+ *       })
+ *   );
+ *
+ * await app.parse();
+ * ```
+ *
+ * @module
+ */
+
+export {
+  type ArgsConfig,
+  type ArgsValidation,
+  type CliError,
+  type CliResult,
+  type CommandContext,
+  type CommandHandler,
+  type CommandLike,
+  type DispatchableModule,
+  type FallbackHandler,
+  type FlagDef,
+  type FlagType,
+  type GroupOptions,
+  type LazyCommandOptions,
+  type ModuleEntry,
+} from "./types.ts";
+export { Command } from "./command.ts";
+export {
+  type ArgOption,
+  type ArgValue,
+  buildParseOptions,
+  coerceValue,
+  extractFlags,
+  parseArgs,
+  type ParseArgsOptions,
+  type ParsedArgs,
+  parseFlags,
+  validateRequiredFlags,
+} from "./flags.ts";
+export {
+  generateHelp,
+  type HelpCommandMeta,
+  type HelpShortcutMeta,
+} from "./help.ts";

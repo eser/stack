@@ -1,0 +1,18 @@
+{
+  "name": "@eserstack/agents",
+  "version": "4.5.2",
+  "type": "module",
+  "exports": {
+    ".": "./mod.ts",
+    "./adapter": "./adapter.ts",
+    "./registry": "./registry.ts",
+    "./guards": "./guards/git.ts"
+  },
+  "dependencies": {
+    "@eserstack/shell": "workspace:*",
+    "@eserstack/standards": "workspace:*"
+  },
+  "devDependencies": {
+    "@eserstack/test-kit": "workspace:*"
+  }
+}

@@ -1,0 +1,28 @@
+# mise (formerly rtx) configuration for local development
+# For Nix users: flake.nix already provides go, node and git via devShell.
+# This file is for contributors who prefer mise over Nix.
+
+[tools]
+node = "26"
+pnpm = "11.18.0"
+go = "1.25"
+
+[env]
+# Optional: ensure Go shared library is found during development
+# ESER_AJAN_LIB_PATH is auto-resolved by the FFI module
+
+[tasks.build-go]
+run = "make ajan-lib"
+description = "Build Go shared library for current platform"
+
+[tasks.build-go-all]
+run = "make ajan-all"
+description = "Build Go shared library for all platforms"
+
+[tasks.build-wasm]
+run = "make ajan-wasm"
+description = "Build Go WASM modules"
+
+[tasks.test-ffi]
+run = "node ./pkg/@eserstack/cli/main.ts ajan version"
+description = "Verify FFI bridge works"

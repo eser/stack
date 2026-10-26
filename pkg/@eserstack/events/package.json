@@ -1,0 +1,13 @@
+{
+  "name": "@eserstack/events",
+  "version": "4.5.2",
+  "type": "module",
+  "exports": {
+    ".": "./mod.ts",
+    "./container": "./container.ts",
+    "./events": "./events.ts"
+  },
+  "devDependencies": {
+    "@eserstack/test-kit": "workspace:*"
+  }
+}

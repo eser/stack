@@ -1,0 +1,66 @@
+[
+  {
+    "query": "this catch block swallows the error, fix it",
+    "should_trigger": true
+  },
+  {
+    "query": "improve the error message when the config file is missing",
+    "should_trigger": true
+  },
+  {
+    "query": "add logging to the sync job",
+    "should_trigger": true
+  },
+  {
+    "query": "the external API call has no timeout",
+    "should_trigger": true
+  },
+  {
+    "query": "config should come from env, then file, then default",
+    "should_trigger": true
+  },
+  {
+    "query": "this queue grows forever under load",
+    "should_trigger": true
+  },
+  {
+    "query": "hata mesajları kullanıcıya ne yapacağını söylemiyor",
+    "should_trigger": true
+  },
+  {
+    "query": "clean up these magic numbers and the nested ifs",
+    "should_trigger": true
+  },
+  {
+    "query": "how do I use errors.AsType in Go 1.26",
+    "should_trigger": false
+  },
+  {
+    "query": "which import style for @std/path",
+    "should_trigger": false
+  },
+  {
+    "query": "tag the release",
+    "should_trigger": false
+  },
+  {
+    "query": "add a Kubernetes deployment",
+    "should_trigger": false
+  },
+  {
+    "query": "write the README usage example",
+    "should_trigger": false
+  },
+  {
+    "query": "validate the webhook URL against SSRF",
+    "should_trigger": false
+  },
+  {
+    "query": "what's our branching strategy",
+    "should_trigger": false
+  },
+  {
+    "query": "create a new skill for UI rules",
+    "should_trigger": false
+  }
+]

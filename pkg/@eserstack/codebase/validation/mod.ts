@@ -1,0 +1,638 @@
+// Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
+
+/**
+ * Validation system for codebase checks
+ *
+ * Provides a unified `validate()` function that runs all applicable validators
+ * based on the project's stack configuration in `.eser/manifest.yml`.
+ *
+ * @example
+ * ```typescript
+ * import * as validation from "@eserstack/codebase/validation";
+ *
+ * // Run all validators (defaults to all when no .eser/manifest.yml)
+ * const result = await validation.validate();
+ *
+ * if (!result.passed) {
+ *   console.log("Validation failed:", result.results);
+ * }
+ *
+ * // Check skipped validators
+ * for (const skipped of result.skipped) {
+ *   console.log(`Skipped ${skipped.name}: ${skipped.reason}`);
+ * }
+ * ```
+ *
+ * @module
+ */
+
+import * as shellFlags from "@eserstack/shell/args/flags";
+import * as results from "@eserstack/primitives/results";
+import type * as shellArgs from "@eserstack/shell/args";
+import * as tui from "@eserstack/shell/tui";
+import { runtime } from "@eserstack/standards/cross-runtime";
+import * as streams from "@eserstack/streams";
+import * as cliSupport from "../cli-support.ts";
+import * as config from "./config.ts";
+import * as registry from "./registry.ts";
+import * as ffiClient from "../ffi-client.ts";
+import type {
+  SkippedValidator,
+  ValidateOptions,
+  ValidateResult,
+  ValidatorResult,
+} from "./types.ts";
+
+/** Maximum number of validators to run concurrently in read-only (non-fix) mode. */
+const CONCURRENCY_LIMIT = 8;
+
+// Re-export types
+export type {
+  ProjectConfig,
+  SkippedValidator,
+  StackId,
+  ValidateOptions,
+  ValidateResult,
+  Validator,
+  ValidatorIssue,
+  ValidatorOptions,
+  ValidatorResult,
+} from "./types.ts";
+
+// Re-export config functions
+export { getProjectConfigPath, loadProjectConfig } from "./config.ts";
+
+// Re-export registry functions
+export type { WorkflowCompatibleTool } from "./registry.ts";
+export {
+  getValidator,
+  getValidatorNames,
+  getValidators,
+  getWorkflowTools,
+  registerValidator,
+} from "./registry.ts";
+
+/**
+ * Options for running Go's built-in file validators.
+ */
+export type BuiltinValidatorOptions = {
+  /** Root directory to scan (default: ".") */
+  readonly dir?: string;
+  /** Validator names to run (default: all built-ins: eof, bom, trailing-whitespace, line-endings, merge-conflicts, secrets, large-file) */
+  readonly validators?: readonly string[];
+  /** File extensions to include (default: all) */
+  readonly extensions?: readonly string[];
+  /** Use git ls-files for file enumeration (default: true) */
+  readonly gitAware?: boolean;
+};
+
+/**
+ * Run Go's built-in language-agnostic file validators.
+ *
+ * Covers: EOF newline, BOM markers, trailing whitespace, line endings,
+ * merge conflict markers, secret patterns, large file detection.
+ *
+ * Falls back to an empty result when the native library is unavailable.
+ * For the full TS validation registry (including JS/TS-specific checks),
+ * use `validate()` instead.
+ *
+ * @param options - Validator options
+ * @returns Array of validator results, one per built-in validator
+ */
+export const runBuiltinValidators = async (
+  options: BuiltinValidatorOptions = {},
+): Promise<ValidatorResult[]> => {
+  await ffiClient.ensureLib();
+  const lib = ffiClient.getLib();
+  if (lib === null) {
+    return [];
+  }
+  try {
+    const parsed = lib.call("codebaseValidateFiles", {
+      dir: options.dir,
+      validators:
+        options.validators !== undefined ? [...options.validators] : undefined,
+      extensions:
+        options.extensions !== undefined ? [...options.extensions] : undefined,
+      gitAware: options.gitAware ?? true,
+    }) as {
+      results?: ValidatorResult[];
+      error?: string;
+    };
+    if (!parsed.error && parsed.results !== undefined) {
+      return parsed.results;
+    }
+  } catch {
+    /* library loaded but call failed — return empty */
+  }
+  return [];
+};
+
+/**
+ * Run all applicable validators
+ *
+ * Loads project configuration from `.eser/manifest.yml`, determines which validators
+ * to run based on the stack configuration, and returns aggregated results.
+ *
+ * When no `.eser/manifest.yml` exists, all validators are run by default.
+ *
+ * @param options - Validation options
+ * @returns Validation result with all validator outputs
+ */
+export const validate = async (
+  options: ValidateOptions = {},
+): Promise<ValidateResult> => {
+  const root = options.root ?? runtime.process.cwd();
+
+  // Load project config
+  const projectConfig = await config.loadProjectConfig(root);
+  const projectStack = projectConfig?.stack ?? [];
+  const skipList = [...(options.skip ?? [])];
+  const onlyList = options.only ?? [];
+
+  // Get all validators
+  const validators = registry.getValidators();
+  const results: ValidatorResult[] = [];
+  const skipped: SkippedValidator[] = [];
+  const disabled: string[] = [];
+
+  for (const validator of validators) {
+    // Check if only specific validators should run
+    if (onlyList.length > 0 && !onlyList.includes(validator.name)) {
+      continue;
+    }
+
+    // Check if explicitly skipped
+    if (skipList.includes(validator.name)) {
+      disabled.push(validator.name);
+      continue;
+    }
+
+    // Check if required stack is present
+    // When projectStack is empty (no .eser/manifest.yml), run all validators
+    if (validator.requiredStacks.length > 0 && projectStack.length > 0) {
+      const hasStack = validator.requiredStacks.some((s) =>
+        projectStack.includes(s),
+      );
+      if (!hasStack) {
+        skipped.push({
+          name: validator.name,
+          reason: `Requires '${validator.requiredStacks.join("' or '")}' stack`,
+        });
+        continue;
+      }
+    }
+
+    // Run validator
+    const mergedOptions = {
+      ...(options.fix !== undefined ? { fix: options.fix } : {}),
+    };
+
+    // Validators run one at a time: with fix on, each one writes files that
+    // the next one reads.
+    // oxlint-disable-next-line no-await-in-loop
+    const result = await validator.validate({
+      root,
+      options: mergedOptions,
+    });
+    results.push(result);
+  }
+
+  return {
+    passed: results.every((r) => r.passed),
+    results,
+    skipped,
+    disabled,
+  };
+};
+
+/** The arguments of the standalone validation CLI. */
+export type ValidationCliArgs = {
+  readonly help: boolean;
+  readonly json: boolean;
+  readonly yes: boolean;
+  readonly fix: boolean;
+  /** The `--root` directory, or undefined for the working directory. */
+  readonly root: string | undefined;
+  /** The comma-separated `--only` validators. */
+  readonly onlyList: string[];
+  /** The comma-separated `--skip` validators. */
+  readonly skipList: string[];
+};
+
+const splitList = (value: unknown): string[] =>
+  typeof value === "string" ? value.split(",").map((s) => s.trim()) : [];
+
+/**
+ * Parse the validation CLI arguments: `--root`, `--only`, `--skip`, `--fix`,
+ * `--json`, `--yes` (`-y`), `--help` (`-h`).
+ */
+export const parseCliArgs = (cliArgs: readonly string[]): ValidationCliArgs => {
+  const { values } = shellFlags.parseArgs(cliArgs, {
+    options: {
+      root: { type: "string" },
+      only: { type: "string" },
+      skip: { type: "string" },
+      fix: { type: "boolean" },
+      help: { type: "boolean", short: "h" },
+      json: { type: "boolean" },
+      yes: { type: "boolean", short: "y" },
+    },
+  });
+  const root = values["root"];
+
+  return {
+    help: values["help"] === true,
+    json: values["json"] === true,
+    yes: values["yes"] === true,
+    fix: values["fix"] === true,
+    root: typeof root === "string" ? root : undefined,
+    onlyList: splitList(values["only"]),
+    skipList: splitList(values["skip"]),
+  };
+};
+
+/**
+ * CLI main function for standalone usage.
+ *
+ * Displays a spinner while loading config, a progress bar while running
+ * validators, and streams per-validator results in real-time using TUI
+ * components from `@eserstack/shell/tui`.
+ */
+export const main = async (
+  cliArgs?: readonly string[],
+): Promise<shellArgs.CliResult<void>> => {
+  const args = parseCliArgs(cliArgs ?? runtime.process.args);
+
+  if (args.help) {
+    const { output: out } = cliSupport.createCliContext();
+    out.writeln("Usage: node ./validation/mod.ts [options]");
+    out.writeln();
+    out.writeln("Options:");
+    out.writeln("  --root <dir>           Root directory (default: cwd)");
+    out.writeln(
+      "  --only <validators>    Run only specific validators (comma-separated)",
+    );
+    out.writeln(
+      "  --skip <validators>    Skip specific validators (comma-separated)",
+    );
+    out.writeln("  --fix                  Auto-fix issues where supported");
+    out.writeln(
+      "  -y, --yes              Auto-confirm all fix prompts (no interactive prompts)",
+    );
+    out.writeln(
+      "  --json                 Output results as JSON (suppresses TUI output)",
+    );
+    out.writeln("  -h, --help             Show this help message");
+    await out.flush();
+    return results.ok(undefined);
+  }
+
+  const { json: jsonMode, yes: autoYes, root, fix, onlyList, skipList } = args;
+
+  // --- JSON mode: force non-interactive, suppress all TUI output ---
+  const { ctx } = jsonMode
+    ? {
+        ctx: tui.createTuiContext({ interaction: "non-interactive" }),
+      }
+    : cliSupport.createCliContext();
+
+  const isInteractive = ctx.interaction === "interactive";
+
+  // --- Shared: load config and filter validators ---
+  const resolvedRoot = root ?? runtime.process.cwd();
+
+  if (!jsonMode) {
+    tui.intro(ctx, "Validating codebase...");
+  }
+
+  // --- Load project config with spinner ---
+  const spinner = jsonMode
+    ? undefined
+    : tui.createSpinner(ctx, "Loading config...");
+  spinner?.start();
+
+  const projectConfig = await config.loadProjectConfig(resolvedRoot);
+  const projectStack = projectConfig?.stack ?? [];
+  const stackInfo =
+    projectStack.length > 0
+      ? projectStack.join(", ")
+      : "all (no .eser/manifest.yml)";
+
+  spinner?.succeed("Config loaded");
+
+  if (!jsonMode) {
+    tui.log.info(ctx, `Stack: ${stackInfo}`);
+  }
+
+  // --- Filter validators (mirrors validate() logic) ---
+  const allValidators = registry.getValidators();
+  const validatorsToRun: (typeof allValidators)[number][] = [];
+  const skippedValidators: SkippedValidator[] = [];
+  const disabledNames: string[] = [];
+
+  for (const validator of allValidators) {
+    // Check --only filter
+    if (onlyList.length > 0 && !onlyList.includes(validator.name)) {
+      continue;
+    }
+
+    // Check --skip filter
+    if (skipList.includes(validator.name)) {
+      disabledNames.push(validator.name);
+      continue;
+    }
+
+    // Check stack compatibility
+    if (validator.requiredStacks.length > 0 && projectStack.length > 0) {
+      const hasStack = validator.requiredStacks.some((s) =>
+        projectStack.includes(s),
+      );
+      if (!hasStack) {
+        skippedValidators.push({
+          name: validator.name,
+          reason: `Requires '${validator.requiredStacks.join("' or '")}' stack`,
+        });
+        continue;
+      }
+    }
+
+    validatorsToRun.push(validator);
+  }
+
+  // --- Run validators with progress bar ---
+  const validatorResults: ValidatorResult[] = [];
+  const progress = jsonMode
+    ? undefined
+    : tui.createProgress(ctx, {
+        total: validatorsToRun.length,
+        label: "Validating...",
+      });
+  progress?.start();
+
+  // Stream a single validator result to the TUI and advance the progress bar.
+  const streamResult = (result: ValidatorResult) => {
+    validatorResults.push(result);
+
+    if (!jsonMode) {
+      const stats = Object.entries(result.stats)
+        .map(([key, value]) => `${value} ${key}`)
+        .join(", ");
+      const label = `${result.name.padEnd(18)} (${stats})`;
+
+      if (result.passed) {
+        tui.log.success(ctx, `PASS  ${label}`);
+      } else {
+        tui.log.error(ctx, `FAIL  ${label}`);
+      }
+    }
+
+    progress?.advance(1);
+  };
+
+  if (fix) {
+    // --- Sequential execution (fix mode) ---
+    // Fixes may depend on execution order and require interactive confirm prompts,
+    // so we must run validators one at a time.
+    for (const validator of validatorsToRun) {
+      // First pass: always run in check-only mode. Sequential, as above.
+      // oxlint-disable-next-line no-await-in-loop
+      const checkResult = await validator.validate({
+        root: resolvedRoot,
+        options: {},
+      });
+
+      let finalResult = checkResult;
+
+      // If fix is requested and issues were found, handle fix logic
+      if (!checkResult.passed) {
+        let shouldFix = true;
+
+        // In interactive mode without --yes, prompt for confirmation
+        if (isInteractive && !autoYes && !jsonMode) {
+          const issueCount = checkResult.issues.length;
+          // One prompt at a time, as above.
+          // oxlint-disable-next-line no-await-in-loop
+          const confirmed = await tui.confirm(ctx, {
+            message: `Fix ${issueCount} issue(s) found by ${validator.name}?`,
+            initialValue: true,
+          });
+
+          if (tui.isCancel(confirmed) || !confirmed) {
+            shouldFix = false;
+          }
+        }
+
+        if (shouldFix) {
+          // Re-run with fix enabled. Sequential, as above.
+          // oxlint-disable-next-line no-await-in-loop
+          finalResult = await validator.validate({
+            root: resolvedRoot,
+            options: { fix: true },
+          });
+        }
+      }
+
+      streamResult(finalResult);
+    }
+  } else {
+    // --- Parallel execution (read-only mode) ---
+    // Bounded concurrency: up to CONCURRENCY_LIMIT validators run at once.
+    // Results stream in completion order; Promise.allSettled ensures one
+    // failure does not abort the rest.
+    let index = 0;
+
+    const executeWorker = async (): Promise<void> => {
+      while (index < validatorsToRun.length) {
+        const currentIndex = index++;
+        const validator = validatorsToRun[currentIndex];
+
+        if (validator === undefined) {
+          break;
+        }
+
+        try {
+          // A worker runs one validator at a time; the worker count is what
+          // bounds the concurrency.
+          // oxlint-disable-next-line no-await-in-loop
+          const result = await validator.validate({
+            root: resolvedRoot,
+            options: {},
+          });
+          streamResult(result);
+        } catch (error) {
+          // Validator threw — synthesise a failed result so the run continues.
+          const failedResult: ValidatorResult = {
+            name: validator.name,
+            passed: false,
+            issues: [
+              {
+                severity: "error",
+                message: String(error),
+              },
+            ],
+            stats: { filesChecked: 0, issuesFound: 1, fixedCount: 0 },
+          };
+          streamResult(failedResult);
+        }
+      }
+    };
+
+    const workerCount = Math.min(CONCURRENCY_LIMIT, validatorsToRun.length);
+    const workers = Array.from({ length: workerCount }, () => executeWorker());
+    await Promise.allSettled(workers);
+  }
+
+  progress?.stop("Validation complete");
+
+  // --- Print skipped validators ---
+  if (!jsonMode && skippedValidators.length > 0) {
+    tui.log.step(ctx, "Skipped (stack not configured):");
+    for (const skippedItem of skippedValidators) {
+      tui.log.step(ctx, `  - ${skippedItem.name}: ${skippedItem.reason}`);
+    }
+  }
+
+  // --- Print disabled validators ---
+  if (!jsonMode && disabledNames.length > 0) {
+    tui.log.step(ctx, "Disabled:");
+    for (const disabledItem of disabledNames) {
+      tui.log.step(ctx, `  - ${disabledItem}`);
+    }
+  }
+
+  // --- Print issues grouped by location ---
+  const allIssues = validatorResults.flatMap((r) =>
+    r.issues.map((i) => ({ validator: r.name, ...i })),
+  );
+
+  if (!jsonMode && allIssues.length > 0) {
+    tui.log.warn(ctx, `Issues (${allIssues.length}):`);
+
+    // Group issues by location (file path or validator name)
+    const grouped = new Map<string, typeof allIssues>();
+    for (const issue of allIssues) {
+      const location = issue.file ?? issue.validator;
+      const existing = grouped.get(location) ?? [];
+      existing.push(issue);
+      grouped.set(location, existing);
+    }
+
+    for (const [location, issues] of grouped) {
+      tui.log.step(ctx, `  ${location}`);
+      for (const issue of issues) {
+        const severityTag = issue.severity === "error" ? "error" : "warning";
+        const lineInfo = issue.line !== undefined ? `:${issue.line}` : "";
+        if (issue.severity === "error") {
+          tui.log.error(ctx, `    ${severityTag}${lineInfo}: ${issue.message}`);
+        } else {
+          tui.log.warn(ctx, `    ${severityTag}${lineInfo}: ${issue.message}`);
+        }
+      }
+    }
+  }
+
+  // --- Interactive error drill-down ---
+  const failedResults = validatorResults.filter((r) => !r.passed);
+
+  if (!jsonMode && isInteractive && failedResults.length > 0) {
+    while (true) {
+      const selectOptions = [
+        ...failedResults.map((r) => ({
+          value: r.name,
+          label: `${r.name} (${r.issues.length} issue(s))`,
+        })),
+        { value: "__done__", label: "Done" },
+      ];
+
+      // Interactive loop: each prompt waits for the previous answer.
+      // oxlint-disable-next-line no-await-in-loop
+      const selected = await tui.select<string>(ctx, {
+        message: "View details for which validator?",
+        options: selectOptions,
+      });
+
+      if (tui.isCancel(selected) || selected === "__done__") {
+        break;
+      }
+
+      // Show detailed issues for the selected validator
+      const selectedResult = failedResults.find((r) => r.name === selected);
+      if (selectedResult !== undefined) {
+        tui.log.info(
+          ctx,
+          `Details for ${selectedResult.name} (${selectedResult.issues.length} issue(s)):`,
+        );
+        for (const issue of selectedResult.issues) {
+          const severityTag = issue.severity === "error" ? "error" : "warning";
+          const fileInfo = issue.file ?? selectedResult.name;
+          const lineInfo = issue.line !== undefined ? `:${issue.line}` : "";
+          if (issue.severity === "error") {
+            tui.log.error(
+              ctx,
+              `  ${fileInfo}${lineInfo} [${severityTag}]: ${issue.message}`,
+            );
+          } else {
+            tui.log.warn(
+              ctx,
+              `  ${fileInfo}${lineInfo} [${severityTag}]: ${issue.message}`,
+            );
+          }
+        }
+      }
+    }
+  }
+
+  // --- JSON mode: output structured JSON and exit ---
+  if (jsonMode) {
+    const passed = validatorResults.every((r) => r.passed);
+    const jsonOutput = JSON.stringify(
+      {
+        passed,
+        results: validatorResults,
+        skipped: skippedValidators,
+        disabled: disabledNames,
+      },
+      null,
+      2,
+    );
+    // The JSON goes to stdout; the non-interactive context above writes to
+    // stderr. Closing the output flushes it before exitCli's hard exit.
+    const jsonOut = streams.output({
+      renderer: streams.renderers.plain(),
+      sink: streams.sinks.stdout(),
+    });
+    jsonOut.writeln(jsonOutput);
+    await jsonOut.close();
+
+    if (!passed) {
+      return results.fail({
+        message: "",
+        exitCode: 1,
+      });
+    }
+    return results.ok(undefined);
+  }
+
+  // --- Summary ---
+  const failedCount = failedResults.length;
+  if (failedCount > 0) {
+    tui.outro(
+      ctx,
+      `${failedCount} check(s) failed with ${allIssues.length} issue(s)`,
+    );
+    return results.fail({
+      message: `${failedCount} check(s) failed with ${allIssues.length} issue(s)`,
+      exitCode: 1,
+    });
+  }
+
+  tui.outro(ctx, "All checks passed!");
+  return results.ok(undefined);
+};
+
+if (import.meta.main) {
+  // Entry point: the await only runs when this file is executed directly.
+  // oxlint-disable-next-line node/no-top-level-await
+  await cliSupport.exitCli(await main());
+}

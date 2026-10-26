@@ -1,0 +1,66 @@
+[
+  {
+    "query": "add a Go service for notifications under pkg/ajan",
+    "should_trigger": true
+  },
+  {
+    "query": "golangci-lint says hugeParam on this function",
+    "should_trigger": true
+  },
+  {
+    "query": "this goroutine leaks when the request is cancelled",
+    "should_trigger": true
+  },
+  {
+    "query": "write table-driven tests for the parser in formatfx",
+    "should_trigger": true
+  },
+  {
+    "query": "should I use errors.As or errors.AsType here",
+    "should_trigger": true
+  },
+  {
+    "query": "the FFI bridge in pkg/@eserstack/ajan needs a new export",
+    "should_trigger": true
+  },
+  {
+    "query": "bu Go kodunda context'i doğru mu geçiriyorum",
+    "should_trigger": true
+  },
+  {
+    "query": "profile the httpfx handler and reduce allocations",
+    "should_trigger": true
+  },
+  {
+    "query": "bump the Go module tag for ajan",
+    "should_trigger": false
+  },
+  {
+    "query": "write a TS function",
+    "should_trigger": false
+  },
+  {
+    "query": "the CI Go job times out",
+    "should_trigger": false
+  },
+  {
+    "query": "add a new npm package",
+    "should_trigger": false
+  },
+  {
+    "query": "where do Go files go in the repo layout overview",
+    "should_trigger": false
+  },
+  {
+    "query": "write the release notes",
+    "should_trigger": false
+  },
+  {
+    "query": "ask before designing the notification feature",
+    "should_trigger": false
+  },
+  {
+    "query": "our README for ajan is outdated",
+    "should_trigger": false
+  }
+]

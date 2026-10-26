@@ -1,0 +1,55 @@
+# Codebase Conventions
+
+File naming, license headers and new workspace packages in this codebase, as the
+`eser` validators enforce them.
+
+---
+
+## File Naming
+
+Scope: Every file in this codebase
+
+Rule: Files are kebab-case (`http-client.test.ts`, `parse-args.bench.ts`,
+`user-profile.tsx`); components are kebab-case too, never PascalCase. Go code is
+snake_case (`session_store.go`) in the directories this codebase lists as Go
+paths. The `validate-filenames` step in `.eser/manifest.yml` enforces both, and
+its config is where the Go paths are listed. `.agents/` is excluded because
+`SKILL.md` is a fixed name.
+
+**Why:** one casing rule avoids case-only renames that break on case-insensitive
+file systems, which `validate-case-conflict` also guards.
+
+---
+
+## License Headers
+
+Scope: Every `.ts`, `.tsx` and `.go` source file
+
+Rule: The first line is this codebase's license header: one comment line with
+the copyright holder and the license. Copy it from an existing file; never
+retype it. `validate-licenses` checks it, and `--fix` inserts missing headers.
+
+---
+
+## Adding a Workspace Package
+
+Scope: Creating a new package in the workspace
+
+Rule:
+
+1. Start from the library recipe in `.eser/recipes/` (this codebase's
+   `AGENTS.md` names it).
+2. Set the name, exports and dependencies in the recipe's `package.json`, which
+   already has `type: module`, declares internal dependencies as `workspace:*`
+   and lists `@eserstack/test-kit` as a devDependency. It is the package's only
+   manifest.
+3. Give every source file the license header. `mod.ts` is the entry point and
+   re-exports submodules as namespaces
+   (`export * as results from
+   "./results.ts"`); a CLI's entry point is
+   `main.ts`; there is no `index.ts`.
+4. Add `mod.test.ts` and a README (documentation-conventions: Package README
+   Structure).
+5. Run `pnpm install` at the root to link it, or ask the integration agent when
+   there is one (node-and-packages.md: Lockfile and Root Manifest Owner), then
+   the full gate named in AGENTS.md, which validates everything.

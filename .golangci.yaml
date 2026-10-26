@@ -1,0 +1,54 @@
+version: "2"
+
+run:
+  go: "1.26"
+  timeout: 5m
+
+linters:
+  enable:
+    - errcheck
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - gocritic
+    - misspell
+    - unconvert
+    - unparam
+    - nakedret
+    - prealloc
+    - errorlint
+    - gosec
+
+  settings:
+    gocritic:
+      # Flags parameters of 80+ bytes passed by value; see go-practices:
+      # Value vs Pointer Parameters. 80 is gocritic's default threshold.
+      enabled-checks:
+        - hugeParam
+    gosec:
+      excludes:
+        - G115
+        - G101 # Example/test credentials — not real secrets
+        - G204 # exec.Command("git", ...) is intentional throughout; production sites have //nolint:gosec
+        - G301 # 0o755 is appropriate for project/test dirs; production sites have //nolint:gosec
+        - G306 # 0o644 is appropriate for text files; production sites have //nolint:gosec
+
+  exclusions:
+    paths:
+      # In-tree fork in upstream's style, kept close to upstream for rebasing
+      # (third-party/jsonschema/FORK.md). It is its own module, so ./... does
+      # not reach it either.
+      - third-party/
+
+issues:
+  max-issues-per-linter: 50
+  max-same-issues: 10
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  exclusions:
+    paths:
+      - third-party/

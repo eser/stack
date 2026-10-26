@@ -1,0 +1,7116 @@
+{
+  "source": "@xterm/headless 6.0.0 with @xterm/addon-unicode-graphemes 0.4.0 (15-graphemes), scrollback 0 unless a case names its own",
+  "recorder": "etc/temp/muxfx-vt/record-vt-snapshots.mjs",
+  "cases": [
+    {
+      "name": "text-plain",
+      "cols": 20,
+      "rows": 5,
+      "steps": [
+        {
+          "write": "hello world",
+          "expect": {
+            "cursor": {
+              "x": 11,
+              "y": 0
+            },
+            "alt": false,
+            "lines": [
+              "hello world         ",
+              "                    ",
+              "                    ",
+              "                    ",
+              "                    "
+            ],
+            "wrapped": [],
+            "styles": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "text-crlf",
+      "cols": 20,
+      "rows": 5,
+      "steps": [
+        {
+          "write": "line1\r\nline2\r\nline3",
+          "expect": {
+            "cursor": {
+              "x": 5,
+              "y": 2
+            },
+            "alt": false,
+            "lines": [
+              "line1               ",
+              "line2               ",
+              "line3               ",
+              "                    ",
+              "                    "
+            ],
+            "wrapped": [],
+            "styles": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "text-lf-only",
+      "cols": 20,
+      "rows": 5,
+      "steps": [
+        {
+          "write": "ab\ncd\nef",
+          "expect": {
+            "cursor": {
+              "x": 6,
+              "y": 2
+            },
+            "alt": false,
+            "lines": [
+              "ab                  ",
+              "  cd                ",
+              "    ef              ",
+              "                    ",
+              "                    "
+            ],
+            "wrapped": [],
+            "styles": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "text-cr-overwrite",
+      "cols": 20,
+      "rows": 3,
+      "steps": [
+        {
+          "write": "abcdef\rXY",
+          "expect": {
+            "cursor": {
+              "x": 2,
+              "y": 0
+            },
+            "alt": false,
+            "lines": [
+              "XYcdef              ",
+              "                    ",
+              "                    "
+            ],
+            "wrapped": [],
+            "styles": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "text-backspace",
+      "cols": 20,
+      "rows": 3,
+      "steps": [
+        {
+          "write": "abc\b\bZ\b\b\b\bQ",
+          "expect": {
+            "cursor": {
+              "x": 1,
+              "y": 0
+            },
+            "alt": false,
+            "lines": [
+              "QZc                 ",
+              "                    ",
+              "                    "
+            ],
+            "wrapped": [],
+            "styles": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "text-bel-ignored",
+      "cols": 20,
+      "rows": 3,
+      "steps": [
+        {
+          "write": "a\u0007b\u0000c",
+          "expect": {
+            "cursor": {
+              "x": 3,
+              "y": 0
+            },
+            "alt": false,
+            "lines": [
+              "abc                 ",
+              "                    ",
+              "                    "
+            ],
+            "wrapped": [],
+            "styles": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "wrap-exact-width",
+      "cols": 10,
+      "rows": 4,
+      "steps": [
+        {
+          "write": "0123456789",
+          "expect": {
+            "cursor": {
+              "x": 10,
+              "y": 0
+            },
+            "alt": false,
+            "lines": [
+              "0123456789",
+              "          ",
+              "          ",
+              "          "
+            ],
+            "wrapped": [],
+            "styles": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "wrap-pending-then-crlf",
+      "cols": 10,
+      "rows": 4,
+      "steps": [
+        {
+          "write": "0123456789\r\nnext",
+          "expect": {
+            "cursor": {
+              "x": 4,
+              "y": 1
+            },
+            "alt": false,
+            "lines": [
+              "0123456789",
+              "next      ",
+              "          ",
+              "          "
+            ],
+            "wrapped": [],
+            "styles": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "wrap-overflow",
+      "cols": 10,
+      "rows": 4,
+      "steps": [
+        {
+          "write": "0123456789abcdefghijKLMNO",
+          "expect": {
+            "cursor": {
+              "x": 5,
+              "y": 2
+            },
+            "alt": false,
+            "lines": [
+              "0123456789",
+              "abcdefghij",
+              "KLMNO     ",
+              "          "
+            ],
+            "wrapped": [
+              1,
+              2
+            ],
+            "styles": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "wrap-pending-then-cup",
+      "cols": 10,
+      "rows": 4,
+      "steps": [
+        {
+          "write": "0123456789\u001b[2;3HX",
+          "expect": {
+            "cursor": {
+              "x": 3,
+              "y": 1
+            },
+            "alt": false,
+            "lines": [
+              "0123456789",
+              "  X       ",
+              "          ",
+              "          "
+            ],
+            "wrapped": [],
+            "styles": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "wrap-pending-then-bs",
+      "cols": 10,
+      "rows": 4,
+      "steps": [
+        {
+          "write": "0123456789\bX",
+          "expect": {
+            "cursor": {
+              "x": 9,
+              "y": 0
+            },
+            "alt": false,
+            "lines": [
+              "01234567X9",
+              "          ",
+              "          ",
+              "          "
+            ],
+            "wrapped": [],
+            "styles": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "wrap-disabled",
+      "cols": 10,
+      "rows": 4,
+      "steps": [
+        {
+          "write": "\u001b[?7l0123456789abc\u001b[?7h",
+          "expect": {
+            "cursor": {
+              "x": 10,
+              "y": 0
+            },
+            "alt": false,
+            "lines": [
+              "012345678c",
+              "          ",
+              "          ",
+              "          "
+            ],
+            "wrapped": [],
+            "styles": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "scroll-past-bottom",
+      "cols": 10,
+      "rows": 3,
+      "steps": [
+        {
+          "write": "1\r\n2\r\n3\r\n4\r\n5",
+          "expect": {
+            "cursor": {
+              "x": 1,
+              "y": 2
+            },
+            "alt": false,
+            "lines": [
+              "3         ",
+              "4         ",
+              "5         "
+            ],
+            "wrapped": [],
+            "styles": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "scroll-by-wrap",
+      "cols": 5,
+      "rows": 2,
+      "steps": [
+        {
+          "write": "abcdefghijklmnop",
+          "expect": {
+            "cursor": {
+              "x": 1,
+              "y": 1
+            },
+            "alt": false,
+            "lines": [
+              "klmno",
+              "p    "
+            ],
+            "wrapped": [
+              0,
+              1
+            ],
+            "styles": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "cursor-cup",
+      "cols": 20,
+      "rows": 6,
+      "steps": [
+        {
+          "write": "\u001b[3;5HA\u001b[HB\u001b[6;20HC\u001b[99;99HD",
+          "expect": {
+            "cursor": {
+              "x": 20,
+              "y": 5
+            },
+            "alt": false,
+            "lines": [
+              "B                   ",
+              "                    ",
+              "    A               ",
+              "                    ",
+              "                    ",
+              "                   D"
+            ],
+            "wrapped": [],
+            "styles": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "cursor-hvp",
+      "cols": 20,
+      "rows": 6,
+      "steps": [
+        {
+          "write": "\u001b[2;4fX\u001b[;fY",
+          "expect": {
+            "cursor": {
+              "x": 1,
+              "y": 0
+            },
+            "alt": false,
+            "lines": [
+              "Y                   ",
+              "   X                ",
+              "                    ",
+              "                    ",
+              "                    ",
+              "                    "
+            ],
+            "wrapped": [],
+            "styles": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "cursor-relative",
+      "cols": 20,
+      "rows": 6,
+      "steps": [
+        {
+          "write": "\u001b[3;10H\u001b[2AU\u001b[4BD\u001b[3CF\u001b[6DB\u001b[AX\u001b[CY\u001b[99DZ\u001b[99AW",
+          "expect": {
+            "cursor": {
+              "x": 2,
+              "y": 0
+            },
+            "alt": false,
+            "lines": [
+              " W       U          ",
+              "                    ",
+              "                    ",
+              "Z         X Y       ",
+              "         BD   F     ",
+              "                    "
+            ],
+            "wrapped": [],
+            "styles": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "cursor-cha-vpa",
+      "cols": 20,
+      "rows": 6,
+      "steps": [
+        {
+          "write": "abc\u001b[10GX\u001b[4dY\u001b[GZ",
+          "expect": {
+            "cursor": {
+              "x": 1,
+              "y": 3
+            },
+            "alt": false,
+            "lines": [
+              "abc      X          ",
+              "                    ",
+              "                    ",
+              "Z         Y         ",
+              "                    ",
+              "                    "
+            ],
+            "wrapped": [],
+            "styles": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "cursor-cnl-cpl",
+      "cols": 20,
+      "rows": 6,
+      "steps": [
+        {
+          "write": "\u001b[3;5Ha\u001b[2Eb\u001b[3Fc",
+          "expect": {
+            "cursor": {
+              "x": 1,
+              "y": 1
+            },
+            "alt": false,
+            "lines": [
+              "                    ",
+              "c                   ",
+              "    a               ",
+              "                    ",
+              "b                   ",
+              "                    "
+            ],
+            "wrapped": [],
+            "styles": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "cursor-save-restore-esc",
+      "cols": 20,
+      "rows": 6,
+      "steps": [
+        {
+          "write": "\u001b[2;3H\u001b[31m\u001b7\u001b[5;10H\u001b[0mX\u001b8Y",
+          "expect": {
+            "cursor": {
+              "x": 3,
+              "y": 1
+            },
+            "alt": false,
+            "lines": [
+              "                    ",
+              "  Y                 ",
+              "                    ",
+              "                    ",
+              "         X          ",
+              "                    "
+            ],
+            "wrapped": [],
+            "styles": [
+              {
+                "row": 1,
+                "col": 2,
+                "len": 1,
+                "style": "fg=16:1"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "cursor-save-restore-csi",
+      "cols": 20,
+      "rows": 6,
+      "steps": [
+        {
+          "write": "\u001b[4;6H\u001b[s\u001b[HX\u001b[uY",
+          "expect": {
+            "cursor": {
+              "x": 6,
+              "y": 3
+            },
+            "alt": false,
+            "lines": [
+              "X                   ",
+              "                    ",
+              "                    ",
+              "     Y              ",
+              "                    ",
+              "                    "
+            ],
+            "wrapped": [],
+            "styles": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "cursor-index-reverse",
+      "cols": 10,
+      "rows": 4,
+      "steps": [
+        {
+          "write": "a\u001bDb\u001bEc\u001b[H\u001bMd",
+          "expect": {
+            "cursor": {
+              "x": 1,
+              "y": 0
+            },
+            "alt": false,
+            "lines": [
+              "d         ",
+              "a         ",
+              " b        ",
+              "c         "
+            ],
+            "wrapped": [],
+            "styles": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "erase-display-below",
+      "cols": 10,
+      "rows": 4,
+      "steps": [
+        {
+          "write": "aaaaaaaaaa\r\nbbbbbbbbbb\r\ncccccccccc\r\ndddddddd\u001b[2;5H\u001b[J",
+          "expect": {
+            "cursor": {
+              "x": 4,
+              "y": 1
+            },
+            "alt": false,
+            "lines": [
+              "aaaaaaaaaa",
+              "bbbb      ",
+              "          ",
+              "          "
+            ],
+            "wrapped": [],
+            "styles": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "erase-display-above",
+      "cols": 10,
+      "rows": 4,
+      "steps": [
+        {
+          "write": "aaaaaaaaaa\r\nbbbbbbbbbb\r\ncccccccccc\r\ndddddddd\u001b[3;5H\u001b[1J",
+          "expect": {
+            "cursor": {
+              "x": 4,
+              "y": 2
+            },
+            "alt": false,
+            "lines": [
+              "          ",
+              "          ",
+              "     ccccc",
+              "dddddddd  "
+            ],
+            "wrapped": [],
+            "styles": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "erase-display-all",
+      "cols": 10,
+      "rows": 4,
+      "steps": [
+        {
+          "write": "aaaaaaaaaa\r\nbbbbbbbbbb\r\ncccc\u001b[2J",
+          "expect": {
+            "cursor": {
+              "x": 4,
+              "y": 2
+            },
+            "alt": false,
+            "lines": [
+              "          ",
+              "          ",
+              "          ",
+              "          "
+            ],
+            "wrapped": [],
+            "styles": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "erase-line-right",
+      "cols": 10,
+      "rows": 3,
+      "steps": [
+        {
+          "write": "0123456789\r\nabcdefghij\u001b[2;4H\u001b[K",
+          "expect": {
+            "cursor": {
+              "x": 3,
+              "y": 1
+            },
+            "alt": false,
+            "lines": [
+              "0123456789",
+              "abc       ",
+              "          "
+            ],
+            "wrapped": [],
+            "styles": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "erase-line-left",
+      "cols": 10,
+      "rows": 3,
+      "steps": [
+        {
+          "write": "0123456789\r\nabcdefghij\u001b[2;4H\u001b[1K",
+          "expect": {
+            "cursor": {
+              "x": 3,
+              "y": 1
+            },
+            "alt": false,
+            "lines": [
+              "0123456789",
+              "    efghij",
+              "          "
+            ],
+            "wrapped": [],
+            "styles": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "erase-line-all",
+      "cols": 10,
+      "rows": 3,
+      "steps": [
+        {
+          "write": "0123456789\r\nabcdefghij\u001b[2;4H\u001b[2K",
+          "expect": {
+            "cursor": {
+              "x": 3,
+              "y": 1
+            },
+            "alt": false,
+            "lines": [
+              "0123456789",
+              "          ",
+              "          "
+            ],
+            "wrapped": [],
+            "styles": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "erase-chars",
+      "cols": 10,
+      "rows": 3,
+      "steps": [
+        {
+          "write": "0123456789\u001b[1;3H\u001b[4X",
+          "expect": {
+            "cursor": {
+              "x": 2,
+              "y": 0
+            },
+            "alt": false,
+            "lines": [
+              "01    6789",
+              "          ",
+              "          "
+            ],
+            "wrapped": [],
+            "styles": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "erase-with-background",
+      "cols": 10,
+      "rows": 3,
+      "steps": [
+        {
+          "write": "abc\u001b[44m\u001b[K\u001b[0m\r\n\u001b[41m\u001b[2Kx",
+          "expect": {
+            "cursor": {
+              "x": 1,
+              "y": 1
+            },
+            "alt": false,
+            "lines": [
+              "abc       ",
+              "x         ",
+              "          "
+            ],
+            "wrapped": [],
+            "styles": [
+              {
+                "row": 0,
+                "col": 3,
+                "len": 7,
+                "style": "bg=16:4"
+              },
+              {
+                "row": 1,
+                "col": 0,
+                "len": 10,
+                "style": "bg=16:1"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "insert-delete-chars",
+      "cols": 10,
+      "rows": 3,
+      "steps": [
+        {
+          "write": "0123456789\u001b[1;3H\u001b[2@\u001b[2;1Habcdefghij\u001b[2;3H\u001b[3P",
+          "expect": {
+            "cursor": {
+              "x": 2,
+              "y": 1
+            },
+            "alt": false,
+            "lines": [
+              "01  234567",
+              "abfghij   ",
+              "          "
+            ],
+            "wrapped": [],
+            "styles": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "insert-delete-lines",
+      "cols": 6,
+      "rows": 5,
+      "steps": [
+        {
+          "write": "1\r\n2\r\n3\r\n4\r\n5\u001b[2;1H\u001b[2L\u001b[5;1H\u001b[1Mx",
+          "expect": {
+            "cursor": {
+              "x": 1,
+              "y": 4
+            },
+            "alt": false,
+            "lines": [
+              "1     ",
+              "      ",
+              "      ",
+              "2     ",
+              "x     "
+            ],
+            "wrapped": [],
+            "styles": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "sgr-16-colors",
+      "cols": 20,
+      "rows": 3,
+      "steps": [
+        {
+          "write": "\u001b[31mR\u001b[32mG\u001b[34mB\u001b[91mr\u001b[97mw\u001b[39md",
+          "expect": {
+            "cursor": {
+              "x": 6,
+              "y": 0
+            },
+            "alt": false,
+            "lines": [
+              "RGBrwd              ",
+              "                    ",
+              "                    "
+            ],
+            "wrapped": [],
+            "styles": [
+              {
+                "row": 0,
+                "col": 0,
+                "len": 1,
+                "style": "fg=16:1"
+              },
+              {
+                "row": 0,
+                "col": 1,
+                "len": 1,
+                "style": "fg=16:2"
+              },
+              {
+                "row": 0,
+                "col": 2,
+                "len": 1,
+                "style": "fg=16:4"
+              },
+              {
+                "row": 0,
+                "col": 3,
+                "len": 1,
+                "style": "fg=16:9"
+              },
+              {
+                "row": 0,
+                "col": 4,
+                "len": 1,
+                "style": "fg=16:15"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "sgr-background",
+      "cols": 20,
+      "rows": 3,
+      "steps": [
+        {
+          "write": "\u001b[41mR\u001b[102mg\u001b[49md\u001b[48;5;17mi\u001b[48;2;1;2;3mt",
+          "expect": {
+            "cursor": {
+              "x": 5,
+              "y": 0
+            },
+            "alt": false,
+            "lines": [
+              "Rgdit               ",
+              "                    ",
+              "                    "
+            ],
+            "wrapped": [],
+            "styles": [
+              {
+                "row": 0,
+                "col": 0,
+                "len": 1,
+                "style": "bg=16:1"
+              },
+              {
+                "row": 0,
+                "col": 1,
+                "len": 1,
+                "style": "bg=16:10"
+              },
+              {
+                "row": 0,
+                "col": 3,
+                "len": 1,
+                "style": "bg=256:17"
+              },
+              {
+                "row": 0,
+                "col": 4,
+                "len": 1,
+                "style": "bg=rgb:010203"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "sgr-256",
+      "cols": 20,
+      "rows": 3,
+      "steps": [
+        {
+          "write": "\u001b[38;5;208mX\u001b[38;5;3mY\u001b[38;5;15mZ",
+          "expect": {
+            "cursor": {
+              "x": 3,
+              "y": 0
+            },
+            "alt": false,
+            "lines": [
+              "XYZ                 ",
+              "                    ",
+              "                    "
+            ],
+            "wrapped": [],
+            "styles": [
+              {
+                "row": 0,
+                "col": 0,
+                "len": 1,
+                "style": "fg=256:208"
+              },
+              {
+                "row": 0,
+                "col": 1,
+                "len": 1,
+                "style": "fg=256:3"
+              },
+              {
+                "row": 0,
+                "col": 2,
+                "len": 1,
+                "style": "fg=256:15"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "sgr-rgb",
+      "cols": 20,
+      "rows": 3,
+      "steps": [
+        {
+          "write": "\u001b[38;2;100;200;50mX\u001b[38:2::10:20:30mY",
+          "expect": {
+            "cursor": {
+              "x": 2,
+              "y": 0
+            },
+            "alt": false,
+            "lines": [
+              "XY                  ",
+              "                    ",
+              "                    "
+            ],
+            "wrapped": [],
+            "styles": [
+              {
+                "row": 0,
+                "col": 0,
+                "len": 1,
+                "style": "fg=rgb:64c832"
+              },
+              {
+                "row": 0,
+                "col": 1,
+                "len": 1,
+                "style": "fg=rgb:0a141e"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "sgr-attributes",
+      "cols": 30,
+      "rows": 3,
+      "steps": [
+        {
+          "write": "\u001b[1mb\u001b[2md\u001b[22m\u001b[3mi\u001b[4mu\u001b[5mk\u001b[7mv\u001b[8mh\u001b[9ms\u001b[0mn",
+          "expect": {
+            "cursor": {
+              "x": 9,
+              "y": 0
+            },
+            "alt": false,
+            "lines": [
+              "bdiukvhsn                     ",
+              "                              ",
+              "                              "
+            ],
+            "wrapped": [],
+            "styles": [
+              {
+                "row": 0,
+                "col": 0,
+                "len": 1,
+                "style": "bold"
+              },
+              {
+                "row": 0,
+                "col": 1,
+                "len": 1,
+                "style": "bold dim"
+              },
+              {
+                "row": 0,
+                "col": 2,
+                "len": 1,
+                "style": "italic"
+              },
+              {
+                "row": 0,
+                "col": 3,
+                "len": 1,
+                "style": "italic underline"
+              },
+              {
+                "row": 0,
+                "col": 4,
+                "len": 1,
+                "style": "italic underline blink"
+              },
+              {
+                "row": 0,
+                "col": 5,
+                "len": 1,
+                "style": "italic underline blink inverse"
+              },
+              {
+                "row": 0,
+                "col": 6,
+                "len": 1,
+                "style": "italic underline blink inverse invisible"
+              },
+              {
+                "row": 0,
+                "col": 7,
+                "len": 1,
+                "style": "italic underline blink inverse invisible strikethrough"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "sgr-partial-resets",
+      "cols": 30,
+      "rows": 3,
+      "steps": [
+        {
+          "write": "\u001b[1;3;4;7;31;42mA\u001b[22mB\u001b[23mC\u001b[24mD\u001b[27mE\u001b[39mF\u001b[49mG\u001b[mH",
+          "expect": {
+            "cursor": {
+              "x": 8,
+              "y": 0
+            },
+            "alt": false,
+            "lines": [
+              "ABCDEFGH                      ",
+              "                              ",
+              "                              "
+            ],
+            "wrapped": [],
+            "styles": [
+              {
+                "row": 0,
+                "col": 0,
+                "len": 1,
+                "style": "fg=16:1 bg=16:2 bold italic underline inverse"
+              },
+              {
+                "row": 0,
+                "col": 1,
+                "len": 1,
+                "style": "fg=16:1 bg=16:2 italic underline inverse"
+              },
+              {
+                "row": 0,
+                "col": 2,
+                "len": 1,
+                "style": "fg=16:1 bg=16:2 underline inverse"
+              },
+              {
+                "row": 0,
+                "col": 3,
+                "len": 1,
+                "style": "fg=16:1 bg=16:2 inverse"
+              },
+              {
+                "row": 0,
+                "col": 4,
+                "len": 1,
+                "style": "fg=16:1 bg=16:2"
+              },
+              {
+                "row": 0,
+                "col": 5,
+                "len": 1,
+                "style": "bg=16:2"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "sgr-combined-reset",
+      "cols": 20,
+      "rows": 3,
+      "steps": [
+        {
+          "write": "\u001b[1;31mX\u001b[0mN\u001b[1;32mY\u001b[mN",
+          "expect": {
+            "cursor": {
+              "x": 4,
+              "y": 0
+            },
+            "alt": false,
+            "lines": [
+              "XNYN                ",
+              "                    ",
+              "                    "
+            ],
+            "wrapped": [],
+            "styles": [
+              {
+                "row": 0,
+                "col": 0,
+                "len": 1,
+                "style": "fg=16:1 bold"
+              },
+              {
+                "row": 0,
+                "col": 2,
+                "len": 1,
+                "style": "fg=16:2 bold"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "scroll-region-lf",
+      "cols": 8,
+      "rows": 6,
+      "steps": [
+        {
+          "write": "r1\r\nr2\r\nr3\r\nr4\r\nr5\r\nr6\u001b[2;4r\u001b[4;1Hx\r\ny\r\nz",
+          "expect": {
+            "cursor": {
+              "x": 1,
+              "y": 3
+            },
+            "alt": false,
+            "lines": [
+              "r1      ",
+              "x4      ",
+              "y       ",
+              "z       ",
+              "r5      ",
+              "r6      "
+            ],
+            "wrapped": [],
+            "styles": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "scroll-region-reverse-index",
+      "cols": 8,
+      "rows": 6,
+      "steps": [
+        {
+          "write": "r1\r\nr2\r\nr3\r\nr4\r\nr5\r\nr6\u001b[2;5r\u001b[2;1H\u001bM\u001bMq",
+          "expect": {
+            "cursor": {
+              "x": 1,
+              "y": 1
+            },
+            "alt": false,
+            "lines": [
+              "r1      ",
+              "q       ",
+              "        ",
+              "r2      ",
+              "r3      ",
+              "r6      "
+            ],
+            "wrapped": [],
+            "styles": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "scroll-region-su-sd",
+      "cols": 8,
+      "rows": 6,
+      "steps": [
+        {
+          "write": "r1\r\nr2\r\nr3\r\nr4\r\nr5\r\nr6\u001b[2;5r\u001b[2S",
+          "expect": {
+            "cursor": {
+              "x": 0,
+              "y": 0
+            },
+            "alt": false,
+            "lines": [
+              "r1      ",
+              "r4      ",
+              "r5      ",
+              "        ",
+              "        ",
+              "r6      "
+            ],
+            "wrapped": [],
+            "styles": []
+          }
+        },
+        {
+          "write": "\u001b[3T",
+          "expect": {
+            "cursor": {
+              "x": 0,
+              "y": 0
+            },
+            "alt": false,
+            "lines": [
+              "r1      ",
+              "        ",
+              "        ",
+              "        ",
+              "r4      ",
+              "r6      "
+            ],
+            "wrapped": [],
+            "styles": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "scroll-region-cursor-home",
+      "cols": 8,
+      "rows": 6,
+      "steps": [
+        {
+          "write": "abc\u001b[3;5rX",
+          "expect": {
+            "cursor": {
+              "x": 1,
+              "y": 0
+            },
+            "alt": false,
+            "lines": [
+              "Xbc     ",
+              "        ",
+              "        ",
+              "        ",
+              "        ",
+              "        "
+            ],
+            "wrapped": [],
+            "styles": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "scroll-region-reset",
+      "cols": 8,
+      "rows": 4,
+      "steps": [
+        {
+          "write": "\u001b[2;3r\u001b[r\u001b[4;1H1\r\n2\r\n3",
+          "expect": {
+            "cursor": {
+              "x": 1,
+              "y": 3
+            },
+            "alt": false,
+            "lines": [
+              "        ",
+              "1       ",
+              "2       ",
+              "3       "
+            ],
+            "wrapped": [],
+            "styles": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "scroll-region-il-dl",
+      "cols": 6,
+      "rows": 6,
+      "steps": [
+        {
+          "write": "1\r\n2\r\n3\r\n4\r\n5\r\n6\u001b[2;5r\u001b[3;1H\u001b[L\u001b[5;1H\u001b[2M",
+          "expect": {
+            "cursor": {
+              "x": 0,
+              "y": 4
+            },
+            "alt": false,
+            "lines": [
+              "1     ",
+              "2     ",
+              "      ",
+              "3     ",
+              "      ",
+              "6     "
+            ],
+            "wrapped": [],
+            "styles": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "alt-screen-1049",
+      "cols": 20,
+      "rows": 4,
+      "steps": [
+        {
+          "write": "main screen\r\nsecond\u001b[1;3H",
+          "expect": {
+            "cursor": {
+              "x": 2,
+              "y": 0
+            },
+            "alt": false,
+            "lines": [
+              "main screen         ",
+              "second              ",
+              "                    ",
+              "                    "
+            ],
+            "wrapped": [],
+            "styles": []
+          }
+        },
+        {
+          "write": "\u001b[?1049h",
+          "expect": {
+            "cursor": {
+              "x": 2,
+              "y": 0
+            },
+            "alt": true,
+            "lines": [
+              "                    ",
+              "                    ",
+              "                    ",
+              "                    "
+            ],
+            "wrapped": [],
+            "styles": []
+          }
+        },
+        {
+          "write": "alt content\u001b[3;3Hzz",
+          "expect": {
+            "cursor": {
+              "x": 4,
+              "y": 2
+            },
+            "alt": true,
+            "lines": [
+              "  alt content       ",
+              "                    ",
+              "  zz                ",
+              "                    "
+            ],
+            "wrapped": [],
+            "styles": []
+          }
+        },
+        {
+          "write": "\u001b[?1049l",
+          "expect": {
+            "cursor": {
+              "x": 2,
+              "y": 0
+            },
+            "alt": false,
+            "lines": [
+              "main screen         ",
+              "second              ",
+              "                    ",
+              "                    "
+            ],
+            "wrapped": [],
+            "styles": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "alt-screen-47-and-1047",
+      "cols": 20,
+      "rows": 4,
+      "steps": [
+        {
+          "write": "main\u001b[?47halt47",
+          "expect": {
+            "cursor": {
+              "x": 9,
+              "y": 0
+            },
+            "alt": true,
+            "lines": [
+              "    alt47           ",
+              "                    ",
+              "                    ",
+              "                    "
+            ],
+            "wrapped": [],
+            "styles": []
+          }
+        },
+        {
+          "write": "\u001b[?47l\u001b[?1047hB\u001b[?1047l",
+          "expect": {
+            "cursor": {
+              "x": 10,
+              "y": 0
+            },
+            "alt": false,
+            "lines": [
+              "main                ",
+              "                    ",
+              "                    ",
+              "                    "
+            ],
+            "wrapped": [],
+            "styles": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "alt-screen-clears-on-enter",
+      "cols": 20,
+      "rows": 3,
+      "steps": [
+        {
+          "write": "\u001b[?1049hfirst\u001b[?1049l\u001b[?1049h",
+          "expect": {
+            "cursor": {
+              "x": 0,
+              "y": 0
+            },
+            "alt": true,
+            "lines": [
+              "                    ",
+              "                    ",
+              "                    "
+            ],
+            "wrapped": [],
+            "styles": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "tabs-default",
+      "cols": 30,
+      "rows": 3,
+      "steps": [
+        {
+          "write": "a\tb\tc\r\n\t\t\tX\t\t\t\tY",
+          "expect": {
+            "cursor": {
+              "x": 30,
+              "y": 1
+            },
+            "alt": false,
+            "lines": [
+              "a       b       c             ",
+              "                        X    Y",
+              "                              "
+            ],
+            "wrapped": [],
+            "styles": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "tabs-set-clear",
+      "cols": 30,
+      "rows": 3,
+      "steps": [
+        {
+          "write": "\u001b[3g\u001b[1;5H\u001bH\u001b[1;12H\u001bH\ra\tb\tc\td",
+          "expect": {
+            "cursor": {
+              "x": 30,
+              "y": 0
+            },
+            "alt": false,
+            "lines": [
+              "a   b      c                 d",
+              "                              ",
+              "                              "
+            ],
+            "wrapped": [],
+            "styles": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "tabs-cht-cbt",
+      "cols": 30,
+      "rows": 3,
+      "steps": [
+        {
+          "write": "\u001b[2Ia\u001b[Zb\u001b[2Zc",
+          "expect": {
+            "cursor": {
+              "x": 9,
+              "y": 0
+            },
+            "alt": false,
+            "lines": [
+              "        c       b             ",
+              "                              ",
+              "                              "
+            ],
+            "wrapped": [],
+            "styles": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "utf8-multibyte",
+      "cols": 20,
+      "rows": 3,
+      "steps": [
+        {
+          "write": "çğış ÇĞİŞ é ñ ü",
+          "expect": {
+            "cursor": {
+              "x": 15,
+              "y": 0
+            },
+            "alt": false,
+            "lines": [
+              "çğış ÇĞİŞ é ñ ü     ",
+              "                    ",
+              "                    "
+            ],
+            "wrapped": [],
+            "styles": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "utf8-wide",
+      "cols": 10,
+      "rows": 3,
+      "steps": [
+        {
+          "write": "漢字abc\r\n日本語テキスト",
+          "expect": {
+            "cursor": {
+              "x": 4,
+              "y": 2
+            },
+            "alt": false,
+            "lines": [
+              "漢字abc   ",
+              "日本語テキ",
+              "スト      "
+            ],
+            "wrapped": [
+              2
+            ],
+            "styles": [],
+            "widths": [
+              [
+                0,
+                0,
+                2
+              ],
+              [
+                0,
+                1,
+                0
+              ],
+              [
+                0,
+                2,
+                2
+              ],
+              [
+                0,
+                3,
+                0
+              ],
+              [
+                1,
+                0,
+                2
+              ],
+              [
+                1,
+                1,
+                0
+              ],
+              [
+                1,
+                2,
+                2
+              ],
+              [
+                1,
+                3,
+                0
+              ],
+              [
+                1,
+                4,
+                2
+              ],
+              [
+                1,
+                5,
+                0
+              ],
+              [
+                1,
+                6,
+                2
+              ],
+              [
+                1,
+                7,
+                0
+              ],
+              [
+                1,
+                8,
+                2
+              ],
+              [
+                1,
+                9,
+                0
+              ],
+              [
+                2,
+                0,
+                2
+              ],
+              [
+                2,
+                1,
+                0
+              ],
+              [
+                2,
+                2,
+                2
+              ],
+              [
+                2,
+                3,
+                0
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "utf8-wide-at-edge",
+      "cols": 5,
+      "rows": 3,
+      "steps": [
+        {
+          "write": "abcd漢x",
+          "expect": {
+            "cursor": {
+              "x": 3,
+              "y": 1
+            },
+            "alt": false,
+            "lines": [
+              "abcd ",
+              "漢x  ",
+              "     "
+            ],
+            "wrapped": [
+              1
+            ],
+            "styles": [],
+            "widths": [
+              [
+                1,
+                0,
+                2
+              ],
+              [
+                1,
+                1,
+                0
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "utf8-wide-overwrite",
+      "cols": 10,
+      "rows": 3,
+      "steps": [
+        {
+          "write": "漢字\u001b[1;2HX\u001b[1;3HY",
+          "expect": {
+            "cursor": {
+              "x": 3,
+              "y": 0
+            },
+            "alt": false,
+            "lines": [
+              " XY       ",
+              "          ",
+              "          "
+            ],
+            "wrapped": [],
+            "styles": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "utf8-combining",
+      "cols": 10,
+      "rows": 3,
+      "steps": [
+        {
+          "write": "éäx",
+          "expect": {
+            "cursor": {
+              "x": 3,
+              "y": 0
+            },
+            "alt": false,
+            "lines": [
+              "éäx       ",
+              "          ",
+              "          "
+            ],
+            "wrapped": [],
+            "styles": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "utf8-emoji",
+      "cols": 10,
+      "rows": 3,
+      "steps": [
+        {
+          "write": "ok 🙂 ✓",
+          "expect": {
+            "cursor": {
+              "x": 7,
+              "y": 0
+            },
+            "alt": false,
+            "lines": [
+              "ok 🙂 ✓   ",
+              "          ",
+              "          "
+            ],
+            "wrapped": [],
+            "styles": [],
+            "widths": [
+              [
+                0,
+                3,
+                2
+              ],
+              [
+                0,
+                4,
+                0
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "utf8-split-across-writes",
+      "cols": 10,
+      "rows": 3,
+      "steps": [
+        {
+          "writeBase64": "ww=="
+        },
+        {
+          "writeBase64": "p+a8"
+        },
+        {
+          "writeBase64": "omE=",
+          "expect": {
+            "cursor": {
+              "x": 4,
+              "y": 0
+            },
+            "alt": false,
+            "lines": [
+              "ç漢a      ",
+              "          ",
+              "          "
+            ],
+            "wrapped": [],
+            "styles": [],
+            "widths": [
+              [
+                0,
+                1,
+                2
+              ],
+              [
+                0,
+                2,
+                0
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "escape-split-across-writes",
+      "cols": 10,
+      "rows": 3,
+      "steps": [
+        {
+          "write": "\u001b"
+        },
+        {
+          "write": "["
+        },
+        {
+          "write": "3"
+        },
+        {
+          "write": "1"
+        },
+        {
+          "write": "mR"
+        },
+        {
+          "write": "\u001b[2;"
+        },
+        {
+          "write": "5HX",
+          "expect": {
+            "cursor": {
+              "x": 5,
+              "y": 1
+            },
+            "alt": false,
+            "lines": [
+              "R         ",
+              "    X     ",
+              "          "
+            ],
+            "wrapped": [],
+            "styles": [
+              {
+                "row": 0,
+                "col": 0,
+                "len": 1,
+                "style": "fg=16:1"
+              },
+              {
+                "row": 1,
+                "col": 4,
+                "len": 1,
+                "style": "fg=16:1"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "ignored-sequences",
+      "cols": 20,
+      "rows": 3,
+      "steps": [
+        {
+          "write": "\u001b]0;title\u0007a\u001b]2;t2\u001b\\b\u001bPq#0;1\u001b\\c\u001b[>c\u001b[6nd\u001b[?2004he\u001b[>4;2mf\u001b[?1h\u001b=g",
+          "expect": {
+            "cursor": {
+              "x": 7,
+              "y": 0
+            },
+            "alt": false,
+            "lines": [
+              "abcdefg             ",
+              "                    ",
+              "                    "
+            ],
+            "wrapped": [],
+            "styles": [],
+            "modes": [
+              "applicationCursorKeys",
+              "applicationKeypad",
+              "bracketedPaste"
+            ],
+            "title": "t2"
+          }
+        }
+      ]
+    },
+    {
+      "name": "charset-dec-graphics",
+      "cols": 20,
+      "rows": 3,
+      "steps": [
+        {
+          "write": "\u001b(0lqqk\r\nx  x\r\nmqqj\u001b(B ok",
+          "expect": {
+            "cursor": {
+              "x": 7,
+              "y": 2
+            },
+            "alt": false,
+            "lines": [
+              "┌──┐                ",
+              "│  │                ",
+              "└──┘ ok             "
+            ],
+            "wrapped": [],
+            "styles": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "ris-reset",
+      "cols": 10,
+      "rows": 3,
+      "steps": [
+        {
+          "write": "\u001b[31mabc\r\ndef\u001bcX",
+          "expect": {
+            "cursor": {
+              "x": 1,
+              "y": 0
+            },
+            "alt": false,
+            "lines": [
+              "X         ",
+              "          ",
+              "          "
+            ],
+            "wrapped": [],
+            "styles": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "decaln-like-fill",
+      "cols": 6,
+      "rows": 3,
+      "steps": [
+        {
+          "write": "\u001b#8",
+          "expect": {
+            "cursor": {
+              "x": 0,
+              "y": 0
+            },
+            "alt": false,
+            "lines": [
+              "EEEEEE",
+              "EEEEEE",
+              "EEEEEE"
+            ],
+            "wrapped": [],
+            "styles": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "rep-repeat",
+      "cols": 10,
+      "rows": 3,
+      "steps": [
+        {
+          "write": "a\u001b[4bc",
+          "expect": {
+            "cursor": {
+              "x": 6,
+              "y": 0
+            },
+            "alt": false,
+            "lines": [
+              "aaaaac    ",
+              "          ",
+              "          "
+            ],
+            "wrapped": [],
+            "styles": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "origin-mode",
+      "cols": 10,
+      "rows": 6,
+      "steps": [
+        {
+          "write": "\u001b[3;5r\u001b[?6h\u001b[1;1HO\u001b[9;1HP\u001b[?6lQ",
+          "expect": {
+            "cursor": {
+              "x": 1,
+              "y": 0
+            },
+            "alt": false,
+            "lines": [
+              "Q         ",
+              "          ",
+              "O         ",
+              "          ",
+              "P         ",
+              "          "
+            ],
+            "wrapped": [],
+            "styles": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "insert-mode",
+      "cols": 10,
+      "rows": 3,
+      "steps": [
+        {
+          "write": "abcdef\u001b[1;2H\u001b[4hXY\u001b[4lZ",
+          "expect": {
+            "cursor": {
+              "x": 4,
+              "y": 0
+            },
+            "alt": false,
+            "lines": [
+              "aXYZcdef  ",
+              "          ",
+              "          "
+            ],
+            "wrapped": [],
+            "styles": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "resize-grow",
+      "cols": 10,
+      "rows": 3,
+      "steps": [
+        {
+          "write": "abc\r\ndef\r\nghi"
+        },
+        {
+          "resize": [
+            15,
+            5
+          ],
+          "expect": {
+            "cursor": {
+              "x": 3,
+              "y": 2
+            },
+            "alt": false,
+            "lines": [
+              "abc            ",
+              "def            ",
+              "ghi            ",
+              "               ",
+              "               "
+            ],
+            "wrapped": [],
+            "styles": []
+          }
+        },
+        {
+          "write": "X",
+          "expect": {
+            "cursor": {
+              "x": 4,
+              "y": 2
+            },
+            "alt": false,
+            "lines": [
+              "abc            ",
+              "def            ",
+              "ghiX           ",
+              "               ",
+              "               "
+            ],
+            "wrapped": [],
+            "styles": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "resize-shrink-rows-cursor-bottom",
+      "cols": 10,
+      "rows": 5,
+      "steps": [
+        {
+          "write": "1\r\n2\r\n3\r\n4\r\n5"
+        },
+        {
+          "resize": [
+            10,
+            3
+          ],
+          "expect": {
+            "cursor": {
+              "x": 1,
+              "y": 2
+            },
+            "alt": false,
+            "lines": [
+              "3         ",
+              "4         ",
+              "5         "
+            ],
+            "wrapped": [],
+            "styles": []
+          }
+        },
+        {
+          "write": "X",
+          "expect": {
+            "cursor": {
+              "x": 2,
+              "y": 2
+            },
+            "alt": false,
+            "lines": [
+              "3         ",
+              "4         ",
+              "5X        "
+            ],
+            "wrapped": [],
+            "styles": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "resize-shrink-rows-cursor-top",
+      "cols": 10,
+      "rows": 5,
+      "steps": [
+        {
+          "write": "1\r\n2\u001b[1;1H"
+        },
+        {
+          "resize": [
+            10,
+            3
+          ],
+          "expect": {
+            "cursor": {
+              "x": 0,
+              "y": 0
+            },
+            "alt": false,
+            "lines": [
+              "1         ",
+              "2         ",
+              "          "
+            ],
+            "wrapped": [],
+            "styles": []
+          }
+        },
+        {
+          "write": "X",
+          "expect": {
+            "cursor": {
+              "x": 1,
+              "y": 0
+            },
+            "alt": false,
+            "lines": [
+              "X         ",
+              "2         ",
+              "          "
+            ],
+            "wrapped": [],
+            "styles": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "resize-shrink-cols",
+      "cols": 10,
+      "rows": 4,
+      "steps": [
+        {
+          "write": "0123456789\r\nab"
+        },
+        {
+          "resize": [
+            5,
+            4
+          ],
+          "expect": {
+            "cursor": {
+              "x": 2,
+              "y": 2
+            },
+            "alt": false,
+            "lines": [
+              "01234",
+              "56789",
+              "ab   ",
+              "     "
+            ],
+            "wrapped": [
+              1
+            ],
+            "styles": []
+          }
+        },
+        {
+          "write": "Z",
+          "expect": {
+            "cursor": {
+              "x": 3,
+              "y": 2
+            },
+            "alt": false,
+            "lines": [
+              "01234",
+              "56789",
+              "abZ  ",
+              "     "
+            ],
+            "wrapped": [
+              1
+            ],
+            "styles": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "resize-reflow-grow-cols",
+      "cols": 5,
+      "rows": 4,
+      "steps": [
+        {
+          "write": "abcdefgh\r\nxy"
+        },
+        {
+          "resize": [
+            10,
+            4
+          ],
+          "expect": {
+            "cursor": {
+              "x": 2,
+              "y": 1
+            },
+            "alt": false,
+            "lines": [
+              "abcdefgh  ",
+              "xy        ",
+              "          ",
+              "          "
+            ],
+            "wrapped": [],
+            "styles": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "resize-reflow-wide-chars",
+      "cols": 8,
+      "rows": 4,
+      "steps": [
+        {
+          "write": "ab漢字かなカナxy\r\n"
+        },
+        {
+          "resize": [
+            5,
+            4
+          ],
+          "expect": {
+            "cursor": {
+              "x": 0,
+              "y": 3
+            },
+            "alt": false,
+            "lines": [
+              "なカ ",
+              "ナxy ",
+              "     ",
+              "字か "
+            ],
+            "wrapped": [
+              0,
+              1,
+              3
+            ],
+            "styles": [],
+            "widths": [
+              [
+                0,
+                0,
+                2
+              ],
+              [
+                0,
+                1,
+                0
+              ],
+              [
+                0,
+                2,
+                2
+              ],
+              [
+                0,
+                3,
+                0
+              ],
+              [
+                1,
+                0,
+                2
+              ],
+              [
+                1,
+                1,
+                0
+              ],
+              [
+                3,
+                0,
+                2
+              ],
+              [
+                3,
+                1,
+                0
+              ],
+              [
+                3,
+                2,
+                2
+              ],
+              [
+                3,
+                3,
+                0
+              ]
+            ],
+            "staleRows": true
+          }
+        },
+        {
+          "resize": [
+            9,
+            4
+          ],
+          "expect": {
+            "cursor": {
+              "x": 0,
+              "y": 3
+            },
+            "alt": false,
+            "lines": [
+              "字かなカ ",
+              "ナxy     ",
+              "         ",
+              "         "
+            ],
+            "wrapped": [
+              0,
+              1
+            ],
+            "styles": [],
+            "widths": [
+              [
+                0,
+                0,
+                2
+              ],
+              [
+                0,
+                1,
+                0
+              ],
+              [
+                0,
+                2,
+                2
+              ],
+              [
+                0,
+                3,
+                0
+              ],
+              [
+                0,
+                4,
+                2
+              ],
+              [
+                0,
+                5,
+                0
+              ],
+              [
+                0,
+                6,
+                2
+              ],
+              [
+                0,
+                7,
+                0
+              ],
+              [
+                1,
+                0,
+                2
+              ],
+              [
+                1,
+                1,
+                0
+              ]
+            ],
+            "staleRows": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "resize-reflow-cursor-line-kept",
+      "cols": 6,
+      "rows": 4,
+      "steps": [
+        {
+          "write": "abcdefghij"
+        },
+        {
+          "resize": [
+            12,
+            4
+          ],
+          "expect": {
+            "cursor": {
+              "x": 4,
+              "y": 1
+            },
+            "alt": false,
+            "lines": [
+              "abcdef      ",
+              "ghij        ",
+              "            ",
+              "            "
+            ],
+            "wrapped": [
+              1
+            ],
+            "styles": []
+          }
+        },
+        {
+          "resize": [
+            4,
+            4
+          ],
+          "expect": {
+            "cursor": {
+              "x": 3,
+              "y": 1
+            },
+            "alt": false,
+            "lines": [
+              "abcd",
+              "ghij",
+              "    ",
+              "    "
+            ],
+            "wrapped": [
+              1
+            ],
+            "styles": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "resize-reflow-many-groups",
+      "cols": 6,
+      "rows": 6,
+      "steps": [
+        {
+          "write": "aaaaaabb\r\ncccccccdd\r\ne\r\n"
+        },
+        {
+          "resize": [
+            3,
+            6
+          ],
+          "expect": {
+            "cursor": {
+              "x": 0,
+              "y": 5
+            },
+            "alt": false,
+            "lines": [
+              "bb ",
+              "ccc",
+              "ccc",
+              "cdd",
+              "e  ",
+              "   "
+            ],
+            "wrapped": [
+              0,
+              2,
+              3
+            ],
+            "styles": []
+          }
+        },
+        {
+          "resize": [
+            10,
+            6
+          ],
+          "expect": {
+            "cursor": {
+              "x": 0,
+              "y": 3
+            },
+            "alt": false,
+            "lines": [
+              "bb        ",
+              "cccccccdd ",
+              "e         ",
+              "          ",
+              "          ",
+              "          "
+            ],
+            "wrapped": [
+              0
+            ],
+            "styles": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "resize-shrink-rows-and-cols",
+      "cols": 10,
+      "rows": 5,
+      "steps": [
+        {
+          "write": "one\r\ntwo two two\r\nthree\r\nfour"
+        },
+        {
+          "resize": [
+            6,
+            3
+          ],
+          "expect": {
+            "cursor": {
+              "x": 4,
+              "y": 2
+            },
+            "alt": false,
+            "lines": [
+              "o     ",
+              "three ",
+              "four  "
+            ],
+            "wrapped": [
+              0
+            ],
+            "styles": []
+          }
+        },
+        {
+          "write": "!",
+          "expect": {
+            "cursor": {
+              "x": 5,
+              "y": 2
+            },
+            "alt": false,
+            "lines": [
+              "o     ",
+              "three ",
+              "four! "
+            ],
+            "wrapped": [
+              0
+            ],
+            "styles": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "sgr-colon-forms",
+      "cols": 20,
+      "rows": 3,
+      "steps": [
+        {
+          "write": "\u001b[38:5:208mA\u001b[4:3mB\u001b[4:0mC\u001b[21mD\u001b[24;48:2::1:2:3mE\u001b[0m",
+          "expect": {
+            "cursor": {
+              "x": 5,
+              "y": 0
+            },
+            "alt": false,
+            "lines": [
+              "ABCDE               ",
+              "                    ",
+              "                    "
+            ],
+            "wrapped": [],
+            "styles": [
+              {
+                "row": 0,
+                "col": 0,
+                "len": 1,
+                "style": "fg=256:208"
+              },
+              {
+                "row": 0,
+                "col": 1,
+                "len": 1,
+                "style": "fg=256:208 underline underline-style=3"
+              },
+              {
+                "row": 0,
+                "col": 2,
+                "len": 1,
+                "style": "fg=256:208"
+              },
+              {
+                "row": 0,
+                "col": 3,
+                "len": 1,
+                "style": "fg=256:208 underline underline-style=2"
+              },
+              {
+                "row": 0,
+                "col": 4,
+                "len": 1,
+                "style": "fg=256:208 bg=rgb:010203"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "c1-controls-utf8",
+      "cols": 10,
+      "rows": 4,
+      "steps": [
+        {
+          "write": "abc2;5Hd",
+          "expect": {
+            "cursor": {
+              "x": 5,
+              "y": 1
+            },
+            "alt": false,
+            "lines": [
+              "a         ",
+              " b  d     ",
+              "c         ",
+              "          "
+            ],
+            "wrapped": [],
+            "styles": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "resize-alt-screen",
+      "cols": 10,
+      "rows": 4,
+      "steps": [
+        {
+          "write": "main\u001b[?1049halt"
+        },
+        {
+          "resize": [
+            8,
+            3
+          ],
+          "expect": {
+            "cursor": {
+              "x": 7,
+              "y": 0
+            },
+            "alt": true,
+            "lines": [
+              "    alt ",
+              "        ",
+              "        "
+            ],
+            "wrapped": [],
+            "styles": []
+          }
+        },
+        {
+          "write": "\u001b[?1049l",
+          "expect": {
+            "cursor": {
+              "x": 4,
+              "y": 0
+            },
+            "alt": false,
+            "lines": [
+              "main    ",
+              "        ",
+              "        "
+            ],
+            "wrapped": [],
+            "styles": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "resize-same-size-keeps-pending-wrap",
+      "cols": 5,
+      "rows": 2,
+      "steps": [
+        {
+          "write": "abcde"
+        },
+        {
+          "resize": [
+            5,
+            2
+          ],
+          "expect": {
+            "cursor": {
+              "x": 5,
+              "y": 0
+            },
+            "alt": false,
+            "lines": [
+              "abcde",
+              "     "
+            ],
+            "wrapped": [],
+            "styles": []
+          }
+        },
+        {
+          "write": "X",
+          "expect": {
+            "cursor": {
+              "x": 1,
+              "y": 1
+            },
+            "alt": false,
+            "lines": [
+              "abcde",
+              "X    "
+            ],
+            "wrapped": [
+              1
+            ],
+            "styles": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "alt-screen-after-shrink-scrolls",
+      "cols": 5,
+      "rows": 4,
+      "steps": [
+        {
+          "resize": [
+            5,
+            3
+          ]
+        },
+        {
+          "write": "\u001b[?1049h\u001b[3;5H!XYZ",
+          "expect": {
+            "cursor": {
+              "x": 3,
+              "y": 2
+            },
+            "alt": true,
+            "lines": [
+              "     ",
+              "    !",
+              "XYZ  "
+            ],
+            "wrapped": [
+              2
+            ],
+            "styles": []
+          }
+        },
+        {
+          "resize": [
+            5,
+            4
+          ],
+          "expect": {
+            "cursor": {
+              "x": 3,
+              "y": 3
+            },
+            "alt": true,
+            "lines": [
+              "     ",
+              "     ",
+              "    !",
+              "XYZ  "
+            ],
+            "wrapped": [
+              3
+            ],
+            "styles": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "alt-screen-after-resize-fills-erase-colour",
+      "cols": 6,
+      "rows": 3,
+      "steps": [
+        {
+          "resize": [
+            8,
+            3
+          ]
+        },
+        {
+          "write": "\u001b[44m\u001b[?1049h",
+          "expect": {
+            "cursor": {
+              "x": 0,
+              "y": 0
+            },
+            "alt": true,
+            "lines": [
+              "        ",
+              "        ",
+              "        "
+            ],
+            "wrapped": [],
+            "styles": [
+              {
+                "row": 0,
+                "col": 0,
+                "len": 8,
+                "style": "bg=16:4"
+              },
+              {
+                "row": 1,
+                "col": 0,
+                "len": 8,
+                "style": "bg=16:4"
+              },
+              {
+                "row": 2,
+                "col": 0,
+                "len": 8,
+                "style": "bg=16:4"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "ris-keeps-title",
+      "cols": 10,
+      "rows": 2,
+      "steps": [
+        {
+          "write": "\u001b]0;kept\u0007\u001bc",
+          "expect": {
+            "cursor": {
+              "x": 0,
+              "y": 0
+            },
+            "alt": false,
+            "lines": [
+              "          ",
+              "          "
+            ],
+            "wrapped": [],
+            "styles": [],
+            "title": "kept"
+          }
+        }
+      ]
+    },
+    {
+      "name": "sgr-underline-colour",
+      "cols": 10,
+      "rows": 2,
+      "steps": [
+        {
+          "write": "\u001b[4;58;5;196mA\u001b[24mB\u001b[4mC\u001b[58:2::1:2:3mD\u001b[0mE\u001b[58;5;3mF\u001b[4mG",
+          "expect": {
+            "cursor": {
+              "x": 7,
+              "y": 0
+            },
+            "alt": false,
+            "lines": [
+              "ABCDEFG   ",
+              "          "
+            ],
+            "wrapped": [],
+            "styles": [
+              {
+                "row": 0,
+                "col": 0,
+                "len": 1,
+                "style": "underline underline-color=256:196"
+              },
+              {
+                "row": 0,
+                "col": 2,
+                "len": 1,
+                "style": "underline underline-color=256:196"
+              },
+              {
+                "row": 0,
+                "col": 3,
+                "len": 1,
+                "style": "underline underline-color=rgb:010203"
+              },
+              {
+                "row": 0,
+                "col": 6,
+                "len": 1,
+                "style": "underline underline-color=256:3"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "sgr-underline-colour-kept-by-restore",
+      "cols": 10,
+      "rows": 2,
+      "steps": [
+        {
+          "write": "\u001b[4m\u001b7\u001b[58;5;9mA\u001b8B\u001b[24m\u001b8C",
+          "expect": {
+            "cursor": {
+              "x": 1,
+              "y": 0
+            },
+            "alt": false,
+            "lines": [
+              "C         ",
+              "          "
+            ],
+            "wrapped": [],
+            "styles": [
+              {
+                "row": 0,
+                "col": 0,
+                "len": 1,
+                "style": "underline underline-style=0 underline-color=256:9"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "rep-after-resize-lone-combining",
+      "cols": 3,
+      "rows": 2,
+      "steps": [
+        {
+          "write": "\ŕxy"
+        },
+        {
+          "resize": [
+            2,
+            2
+          ]
+        },
+        {
+          "write": "\u001b[b",
+          "expect": {
+            "cursor": {
+              "x": 1,
+              "y": 0
+            },
+            "alt": false,
+            "lines": [
+              "́́x",
+              "  "
+            ],
+            "wrapped": [],
+            "styles": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "resize-reflow-cut-wide-char",
+      "cols": 6,
+      "rows": 3,
+      "steps": [
+        {
+          "write": "ab字か"
+        },
+        {
+          "resize": [
+            5,
+            3
+          ],
+          "expect": {
+            "cursor": {
+              "x": 4,
+              "y": 0
+            },
+            "alt": false,
+            "lines": [
+              "ab字か",
+              "     ",
+              "     "
+            ],
+            "wrapped": [],
+            "styles": [],
+            "widths": [
+              [
+                0,
+                2,
+                2
+              ],
+              [
+                0,
+                3,
+                0
+              ],
+              [
+                0,
+                4,
+                2
+              ]
+            ]
+          }
+        },
+        {
+          "write": "\r\n\r\n"
+        },
+        {
+          "resize": [
+            4,
+            3
+          ],
+          "expect": {
+            "cursor": {
+              "x": 0,
+              "y": 2
+            },
+            "alt": false,
+            "lines": [
+              "か  ",
+              "    ",
+              "    "
+            ],
+            "wrapped": [
+              0
+            ],
+            "styles": [],
+            "widths": [
+              [
+                0,
+                0,
+                2
+              ],
+              [
+                0,
+                1,
+                0
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "rep-count-past-the-screen",
+      "cols": 5,
+      "rows": 4,
+      "steps": [
+        {
+          "write": "a\u001b[1003b",
+          "expect": {
+            "cursor": {
+              "x": 4,
+              "y": 3
+            },
+            "alt": false,
+            "lines": [
+              "aaaaa",
+              "aaaaa",
+              "aaaaa",
+              "aaaa "
+            ],
+            "wrapped": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "styles": []
+          }
+        },
+        {
+          "write": "\u001b[H漢\u001b[1001b",
+          "expect": {
+            "cursor": {
+              "x": 4,
+              "y": 3
+            },
+            "alt": false,
+            "lines": [
+              "漢漢 ",
+              "漢漢 ",
+              "漢漢 ",
+              "漢漢 "
+            ],
+            "wrapped": [
+              0,
+              1,
+              2,
+              3
+            ],
+            "styles": [],
+            "widths": [
+              [
+                0,
+                0,
+                2
+              ],
+              [
+                0,
+                1,
+                0
+              ],
+              [
+                0,
+                2,
+                2
+              ],
+              [
+                0,
+                3,
+                0
+              ],
+              [
+                1,
+                0,
+                2
+              ],
+              [
+                1,
+                1,
+                0
+              ],
+              [
+                1,
+                2,
+                2
+              ],
+              [
+                1,
+                3,
+                0
+              ],
+              [
+                2,
+                0,
+                2
+              ],
+              [
+                2,
+                1,
+                0
+              ],
+              [
+                2,
+                2,
+                2
+              ],
+              [
+                2,
+                3,
+                0
+              ],
+              [
+                3,
+                0,
+                2
+              ],
+              [
+                3,
+                1,
+                0
+              ],
+              [
+                3,
+                2,
+                2
+              ],
+              [
+                3,
+                3,
+                0
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "line-counts-past-the-region",
+      "cols": 5,
+      "rows": 5,
+      "steps": [
+        {
+          "write": "1\r\n2\r\n3\r\n4\r\n5\u001b[2;4r\u001b[3;1H\u001b[99999L",
+          "expect": {
+            "cursor": {
+              "x": 0,
+              "y": 2
+            },
+            "alt": false,
+            "lines": [
+              "1    ",
+              "2    ",
+              "     ",
+              "     ",
+              "5    "
+            ],
+            "wrapped": [],
+            "styles": []
+          }
+        },
+        {
+          "write": "1\r\n2\r\n3\u001b[2;1H\u001b[99999M",
+          "expect": {
+            "cursor": {
+              "x": 0,
+              "y": 1
+            },
+            "alt": false,
+            "lines": [
+              "1    ",
+              "     ",
+              "     ",
+              "     ",
+              "5    "
+            ],
+            "wrapped": [],
+            "styles": []
+          }
+        },
+        {
+          "write": "\u001b[r\u001b[H1\r\n2\r\n3\u001b[2;3r\u001b[99999S",
+          "expect": {
+            "cursor": {
+              "x": 0,
+              "y": 0
+            },
+            "alt": false,
+            "lines": [
+              "1    ",
+              "     ",
+              "     ",
+              "     ",
+              "5    "
+            ],
+            "wrapped": [],
+            "styles": []
+          }
+        },
+        {
+          "write": "\u001b[r\u001b[H1\r\n2\r\n3\u001b[2;3r\u001b[99999T",
+          "expect": {
+            "cursor": {
+              "x": 0,
+              "y": 0
+            },
+            "alt": false,
+            "lines": [
+              "1    ",
+              "     ",
+              "     ",
+              "     ",
+              "5    "
+            ],
+            "wrapped": [],
+            "styles": []
+          }
+        },
+        {
+          "write": "\u001b[r\u001b[Hab\u001b[99999I!\u001b[99999Z?",
+          "expect": {
+            "cursor": {
+              "x": 1,
+              "y": 1
+            },
+            "alt": false,
+            "lines": [
+              "ab  !",
+              "?    ",
+              "     ",
+              "     ",
+              "5    "
+            ],
+            "wrapped": [
+              1
+            ],
+            "styles": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "history-scroll-into",
+      "cols": 10,
+      "rows": 3,
+      "scrollback": 10,
+      "steps": [
+        {
+          "write": "\u001b[31m1 red\u001b[m\r\n2 plain\r\n\u001b[1;44m3 bold\u001b[m\r\n4\r\n5\r\n6",
+          "expect": {
+            "cursor": {
+              "x": 1,
+              "y": 2
+            },
+            "alt": false,
+            "lines": [
+              "4         ",
+              "5         ",
+              "6         "
+            ],
+            "wrapped": [],
+            "styles": [],
+            "history": {
+              "lines": [
+                "1 red     ",
+                "2 plain   ",
+                "3 bold    "
+              ],
+              "wrapped": [],
+              "styles": [
+                {
+                  "row": 0,
+                  "col": 0,
+                  "len": 5,
+                  "style": "fg=16:1"
+                },
+                {
+                  "row": 2,
+                  "col": 0,
+                  "len": 6,
+                  "style": "bg=16:4 bold"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "history-full-drops-oldest",
+      "cols": 8,
+      "rows": 3,
+      "scrollback": 3,
+      "steps": [
+        {
+          "write": "1\r\n2\r\n3\r\n4\r\n5",
+          "expect": {
+            "cursor": {
+              "x": 1,
+              "y": 2
+            },
+            "alt": false,
+            "lines": [
+              "3       ",
+              "4       ",
+              "5       "
+            ],
+            "wrapped": [],
+            "styles": [],
+            "history": {
+              "lines": [
+                "1       ",
+                "2       "
+              ],
+              "wrapped": [],
+              "styles": []
+            }
+          }
+        },
+        {
+          "write": "\r\n6\r\n7\r\n8\r\n9\r\n10",
+          "expect": {
+            "cursor": {
+              "x": 2,
+              "y": 2
+            },
+            "alt": false,
+            "lines": [
+              "8       ",
+              "9       ",
+              "10      "
+            ],
+            "wrapped": [],
+            "styles": [],
+            "history": {
+              "lines": [
+                "5       ",
+                "6       ",
+                "7       "
+              ],
+              "wrapped": [],
+              "styles": []
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "history-saved-cursor-moves-up",
+      "cols": 8,
+      "rows": 4,
+      "scrollback": 10,
+      "steps": [
+        {
+          "write": "a\r\nb\u001b7\r\nc\r\nd\r\ne\r\nf\u001b8X",
+          "expect": {
+            "cursor": {
+              "x": 2,
+              "y": 0
+            },
+            "alt": false,
+            "lines": [
+              "cX      ",
+              "d       ",
+              "e       ",
+              "f       "
+            ],
+            "wrapped": [],
+            "styles": [],
+            "history": {
+              "lines": [
+                "a       ",
+                "b       "
+              ],
+              "wrapped": [],
+              "styles": []
+            }
+          }
+        },
+        {
+          "write": "\u001b[4;1H\r\n\r\n\r\n\r\n\r\n\u001b8Y",
+          "expect": {
+            "cursor": {
+              "x": 2,
+              "y": 0
+            },
+            "alt": false,
+            "lines": [
+              " Y      ",
+              "        ",
+              "        ",
+              "        "
+            ],
+            "wrapped": [],
+            "styles": [],
+            "history": {
+              "lines": [
+                "a       ",
+                "b       ",
+                "cX      ",
+                "d       ",
+                "e       ",
+                "f       ",
+                "        "
+              ],
+              "wrapped": [],
+              "styles": []
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "history-saved-cursor-when-full",
+      "cols": 8,
+      "rows": 4,
+      "scrollback": 2,
+      "steps": [
+        {
+          "write": "a\r\nb\r\nc\r\nd\r\ne\r\nf\u001b[2;3H\u001b7\u001b[4;1H\r\n\r\n\u001b8X",
+          "expect": {
+            "cursor": {
+              "x": 3,
+              "y": 1
+            },
+            "alt": false,
+            "lines": [
+              "e       ",
+              "f X     ",
+              "        ",
+              "        "
+            ],
+            "wrapped": [],
+            "styles": [],
+            "history": {
+              "lines": [
+                "c       ",
+                "d       "
+              ],
+              "wrapped": [],
+              "styles": []
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "history-wide-styles-erase",
+      "cols": 8,
+      "rows": 3,
+      "scrollback": 10,
+      "steps": [
+        {
+          "write": "漢字ab\r\néx\u001b[4:3m!\u001b[m\r\n\u001b[42m\u001b[K\u001b[m\r\n♥️🙂\r\n\u001b[7mrev\u001b[m\r\n\r\n",
+          "expect": {
+            "cursor": {
+              "x": 0,
+              "y": 2
+            },
+            "alt": false,
+            "lines": [
+              "rev     ",
+              "        ",
+              "        "
+            ],
+            "wrapped": [],
+            "styles": [
+              {
+                "row": 0,
+                "col": 0,
+                "len": 3,
+                "style": "inverse"
+              }
+            ],
+            "history": {
+              "lines": [
+                "漢字ab  ",
+                "éx!     ",
+                "        ",
+                "♥️🙂    "
+              ],
+              "wrapped": [],
+              "styles": [
+                {
+                  "row": 1,
+                  "col": 2,
+                  "len": 1,
+                  "style": "underline underline-style=3"
+                },
+                {
+                  "row": 2,
+                  "col": 0,
+                  "len": 8,
+                  "style": "bg=16:2"
+                }
+              ],
+              "widths": [
+                [
+                  0,
+                  0,
+                  2
+                ],
+                [
+                  0,
+                  1,
+                  0
+                ],
+                [
+                  0,
+                  2,
+                  2
+                ],
+                [
+                  0,
+                  3,
+                  0
+                ],
+                [
+                  3,
+                  0,
+                  2
+                ],
+                [
+                  3,
+                  1,
+                  0
+                ],
+                [
+                  3,
+                  2,
+                  2
+                ],
+                [
+                  3,
+                  3,
+                  0
+                ]
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "history-reflow-narrow-wide",
+      "cols": 10,
+      "rows": 3,
+      "scrollback": 20,
+      "steps": [
+        {
+          "write": "0123456789abcdefghij\r\nab漢字かなカナxy\r\nshort\r\nwrapped line that is long\r\n\r\n\r\n",
+          "expect": {
+            "cursor": {
+              "x": 0,
+              "y": 2
+            },
+            "alt": false,
+            "lines": [
+              "          ",
+              "          ",
+              "          "
+            ],
+            "wrapped": [],
+            "styles": [],
+            "history": {
+              "lines": [
+                "0123456789",
+                "abcdefghij",
+                "ab漢字かな",
+                "カナxy    ",
+                "short     ",
+                "wrapped li",
+                "ne that is",
+                " long     "
+              ],
+              "wrapped": [
+                1,
+                3,
+                6,
+                7
+              ],
+              "styles": [],
+              "widths": [
+                [
+                  2,
+                  2,
+                  2
+                ],
+                [
+                  2,
+                  3,
+                  0
+                ],
+                [
+                  2,
+                  4,
+                  2
+                ],
+                [
+                  2,
+                  5,
+                  0
+                ],
+                [
+                  2,
+                  6,
+                  2
+                ],
+                [
+                  2,
+                  7,
+                  0
+                ],
+                [
+                  2,
+                  8,
+                  2
+                ],
+                [
+                  2,
+                  9,
+                  0
+                ],
+                [
+                  3,
+                  0,
+                  2
+                ],
+                [
+                  3,
+                  1,
+                  0
+                ],
+                [
+                  3,
+                  2,
+                  2
+                ],
+                [
+                  3,
+                  3,
+                  0
+                ]
+              ]
+            }
+          }
+        },
+        {
+          "resize": [
+            7,
+            3
+          ],
+          "expect": {
+            "cursor": {
+              "x": 0,
+              "y": 2
+            },
+            "alt": false,
+            "lines": [
+              "       ",
+              "       ",
+              "       "
+            ],
+            "wrapped": [],
+            "styles": [],
+            "history": {
+              "lines": [
+                "0123456",
+                "789abcd",
+                "efghij ",
+                "ab漢字 ",
+                "かなカ ",
+                "ナxy   ",
+                "short  ",
+                "wrapped",
+                " line t",
+                "hat is ",
+                "long   "
+              ],
+              "wrapped": [
+                1,
+                2,
+                4,
+                5,
+                8,
+                9,
+                10
+              ],
+              "styles": [],
+              "widths": [
+                [
+                  3,
+                  2,
+                  2
+                ],
+                [
+                  3,
+                  3,
+                  0
+                ],
+                [
+                  3,
+                  4,
+                  2
+                ],
+                [
+                  3,
+                  5,
+                  0
+                ],
+                [
+                  4,
+                  0,
+                  2
+                ],
+                [
+                  4,
+                  1,
+                  0
+                ],
+                [
+                  4,
+                  2,
+                  2
+                ],
+                [
+                  4,
+                  3,
+                  0
+                ],
+                [
+                  4,
+                  4,
+                  2
+                ],
+                [
+                  4,
+                  5,
+                  0
+                ],
+                [
+                  5,
+                  0,
+                  2
+                ],
+                [
+                  5,
+                  1,
+                  0
+                ]
+              ]
+            }
+          }
+        },
+        {
+          "resize": [
+            4,
+            3
+          ],
+          "expect": {
+            "cursor": {
+              "x": 0,
+              "y": 2
+            },
+            "alt": false,
+            "lines": [
+              "    ",
+              "    ",
+              "    "
+            ],
+            "wrapped": [],
+            "styles": [],
+            "history": {
+              "lines": [
+                "0123",
+                "4567",
+                "89ab",
+                "cdef",
+                "ghij",
+                "ab漢",
+                "字か",
+                "なカ",
+                "ナxy",
+                "shor",
+                "t   ",
+                "wrap",
+                "ped ",
+                "line",
+                " tha",
+                "t is",
+                " lon",
+                "g   "
+              ],
+              "wrapped": [
+                1,
+                2,
+                3,
+                4,
+                6,
+                7,
+                8,
+                10,
+                12,
+                13,
+                14,
+                15,
+                16,
+                17
+              ],
+              "styles": [],
+              "widths": [
+                [
+                  5,
+                  2,
+                  2
+                ],
+                [
+                  5,
+                  3,
+                  0
+                ],
+                [
+                  6,
+                  0,
+                  2
+                ],
+                [
+                  6,
+                  1,
+                  0
+                ],
+                [
+                  6,
+                  2,
+                  2
+                ],
+                [
+                  6,
+                  3,
+                  0
+                ],
+                [
+                  7,
+                  0,
+                  2
+                ],
+                [
+                  7,
+                  1,
+                  0
+                ],
+                [
+                  7,
+                  2,
+                  2
+                ],
+                [
+                  7,
+                  3,
+                  0
+                ],
+                [
+                  8,
+                  0,
+                  2
+                ],
+                [
+                  8,
+                  1,
+                  0
+                ]
+              ]
+            }
+          }
+        },
+        {
+          "resize": [
+            13,
+            3
+          ],
+          "expect": {
+            "cursor": {
+              "x": 0,
+              "y": 2
+            },
+            "alt": false,
+            "lines": [
+              "             ",
+              "             ",
+              "             "
+            ],
+            "wrapped": [],
+            "styles": [],
+            "history": {
+              "lines": [
+                "0123456789abc",
+                "defghij      ",
+                "ab漢字かなカ ",
+                "ナxy         ",
+                "short        ",
+                "wrapped line ",
+                "that is long "
+              ],
+              "wrapped": [
+                1,
+                3,
+                6
+              ],
+              "styles": [],
+              "widths": [
+                [
+                  2,
+                  2,
+                  2
+                ],
+                [
+                  2,
+                  3,
+                  0
+                ],
+                [
+                  2,
+                  4,
+                  2
+                ],
+                [
+                  2,
+                  5,
+                  0
+                ],
+                [
+                  2,
+                  6,
+                  2
+                ],
+                [
+                  2,
+                  7,
+                  0
+                ],
+                [
+                  2,
+                  8,
+                  2
+                ],
+                [
+                  2,
+                  9,
+                  0
+                ],
+                [
+                  2,
+                  10,
+                  2
+                ],
+                [
+                  2,
+                  11,
+                  0
+                ],
+                [
+                  3,
+                  0,
+                  2
+                ],
+                [
+                  3,
+                  1,
+                  0
+                ]
+              ]
+            }
+          }
+        },
+        {
+          "resize": [
+            10,
+            5
+          ],
+          "expect": {
+            "cursor": {
+              "x": 0,
+              "y": 4
+            },
+            "alt": false,
+            "lines": [
+              "ne that is",
+              " long     ",
+              "          ",
+              "          ",
+              "          "
+            ],
+            "wrapped": [
+              0,
+              1
+            ],
+            "styles": [],
+            "history": {
+              "lines": [
+                "0123456789",
+                "abcdefghij",
+                "ab漢字かな",
+                "カナxy    ",
+                "short     ",
+                "wrapped li"
+              ],
+              "wrapped": [
+                1,
+                3
+              ],
+              "styles": [],
+              "widths": [
+                [
+                  2,
+                  2,
+                  2
+                ],
+                [
+                  2,
+                  3,
+                  0
+                ],
+                [
+                  2,
+                  4,
+                  2
+                ],
+                [
+                  2,
+                  5,
+                  0
+                ],
+                [
+                  2,
+                  6,
+                  2
+                ],
+                [
+                  2,
+                  7,
+                  0
+                ],
+                [
+                  2,
+                  8,
+                  2
+                ],
+                [
+                  2,
+                  9,
+                  0
+                ],
+                [
+                  3,
+                  0,
+                  2
+                ],
+                [
+                  3,
+                  1,
+                  0
+                ],
+                [
+                  3,
+                  2,
+                  2
+                ],
+                [
+                  3,
+                  3,
+                  0
+                ]
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "history-reflow-cursor-group",
+      "cols": 5,
+      "rows": 2,
+      "scrollback": 10,
+      "steps": [
+        {
+          "write": "abcdefghijklmnopq",
+          "expect": {
+            "cursor": {
+              "x": 2,
+              "y": 1
+            },
+            "alt": false,
+            "lines": [
+              "klmno",
+              "pq   "
+            ],
+            "wrapped": [
+              0,
+              1
+            ],
+            "styles": [],
+            "history": {
+              "lines": [
+                "abcde",
+                "fghij"
+              ],
+              "wrapped": [
+                1
+              ],
+              "styles": []
+            }
+          }
+        },
+        {
+          "resize": [
+            8,
+            2
+          ],
+          "expect": {
+            "cursor": {
+              "x": 2,
+              "y": 1
+            },
+            "alt": false,
+            "lines": [
+              "klmno   ",
+              "pq      "
+            ],
+            "wrapped": [
+              0,
+              1
+            ],
+            "styles": [],
+            "history": {
+              "lines": [
+                "abcde   ",
+                "fghij   "
+              ],
+              "wrapped": [
+                1
+              ],
+              "styles": []
+            }
+          }
+        },
+        {
+          "resize": [
+            3,
+            2
+          ],
+          "expect": {
+            "cursor": {
+              "x": 2,
+              "y": 1
+            },
+            "alt": false,
+            "lines": [
+              "klm",
+              "pq "
+            ],
+            "wrapped": [
+              0,
+              1
+            ],
+            "styles": [],
+            "history": {
+              "lines": [
+                "abc",
+                "fgh"
+              ],
+              "wrapped": [
+                1
+              ],
+              "styles": []
+            }
+          }
+        },
+        {
+          "resize": [
+            5,
+            3
+          ],
+          "expect": {
+            "cursor": {
+              "x": 2,
+              "y": 2
+            },
+            "alt": false,
+            "lines": [
+              "fgh  ",
+              "klm  ",
+              "pq   "
+            ],
+            "wrapped": [
+              0,
+              1,
+              2
+            ],
+            "styles": [],
+            "history": {
+              "lines": [
+                "abc  "
+              ],
+              "wrapped": [],
+              "styles": []
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "history-reflow-past-the-limit",
+      "cols": 6,
+      "rows": 2,
+      "scrollback": 3,
+      "steps": [
+        {
+          "write": "aaaaaaaaaa\r\nbbbbbbbbbb\r\ncc\r\n",
+          "expect": {
+            "cursor": {
+              "x": 0,
+              "y": 1
+            },
+            "alt": false,
+            "lines": [
+              "cc    ",
+              "      "
+            ],
+            "wrapped": [],
+            "styles": [],
+            "history": {
+              "lines": [
+                "aaaa  ",
+                "bbbbbb",
+                "bbbb  "
+              ],
+              "wrapped": [
+                0,
+                2
+              ],
+              "styles": []
+            }
+          }
+        },
+        {
+          "resize": [
+            3,
+            2
+          ],
+          "expect": {
+            "cursor": {
+              "x": 0,
+              "y": 1
+            },
+            "alt": false,
+            "lines": [
+              "cc ",
+              "   "
+            ],
+            "wrapped": [],
+            "styles": [],
+            "history": {
+              "lines": [
+                "bbb",
+                "bbb",
+                "b  "
+              ],
+              "wrapped": [
+                0,
+                1,
+                2
+              ],
+              "styles": []
+            }
+          }
+        },
+        {
+          "resize": [
+            12,
+            2
+          ],
+          "expect": {
+            "cursor": {
+              "x": 0,
+              "y": 1
+            },
+            "alt": false,
+            "lines": [
+              "cc          ",
+              "            "
+            ],
+            "wrapped": [],
+            "styles": [],
+            "history": {
+              "lines": [
+                "bbbbbbb     "
+              ],
+              "wrapped": [
+                0
+              ],
+              "styles": []
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "history-rows-grow-and-shrink",
+      "cols": 8,
+      "rows": 3,
+      "scrollback": 10,
+      "steps": [
+        {
+          "write": "1\r\n2\r\n3\r\n4\r\n5\r\n6"
+        },
+        {
+          "resize": [
+            8,
+            6
+          ],
+          "expect": {
+            "cursor": {
+              "x": 1,
+              "y": 5
+            },
+            "alt": false,
+            "lines": [
+              "1       ",
+              "2       ",
+              "3       ",
+              "4       ",
+              "5       ",
+              "6       "
+            ],
+            "wrapped": [],
+            "styles": []
+          }
+        },
+        {
+          "write": "X",
+          "expect": {
+            "cursor": {
+              "x": 2,
+              "y": 5
+            },
+            "alt": false,
+            "lines": [
+              "1       ",
+              "2       ",
+              "3       ",
+              "4       ",
+              "5       ",
+              "6X      "
+            ],
+            "wrapped": [],
+            "styles": []
+          }
+        },
+        {
+          "resize": [
+            8,
+            2
+          ],
+          "expect": {
+            "cursor": {
+              "x": 2,
+              "y": 1
+            },
+            "alt": false,
+            "lines": [
+              "5       ",
+              "6X      "
+            ],
+            "wrapped": [],
+            "styles": [],
+            "history": {
+              "lines": [
+                "1       ",
+                "2       ",
+                "3       ",
+                "4       "
+              ],
+              "wrapped": [],
+              "styles": []
+            }
+          }
+        },
+        {
+          "write": "\r\nY",
+          "expect": {
+            "cursor": {
+              "x": 1,
+              "y": 1
+            },
+            "alt": false,
+            "lines": [
+              "6X      ",
+              "Y       "
+            ],
+            "wrapped": [],
+            "styles": [],
+            "history": {
+              "lines": [
+                "1       ",
+                "2       ",
+                "3       ",
+                "4       ",
+                "5       "
+              ],
+              "wrapped": [],
+              "styles": []
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "history-ed3-clears",
+      "cols": 8,
+      "rows": 3,
+      "scrollback": 10,
+      "steps": [
+        {
+          "write": "1\r\n2\r\n3\r\n4\r\n5",
+          "expect": {
+            "cursor": {
+              "x": 1,
+              "y": 2
+            },
+            "alt": false,
+            "lines": [
+              "3       ",
+              "4       ",
+              "5       "
+            ],
+            "wrapped": [],
+            "styles": [],
+            "history": {
+              "lines": [
+                "1       ",
+                "2       "
+              ],
+              "wrapped": [],
+              "styles": []
+            }
+          }
+        },
+        {
+          "write": "\u001b[3J",
+          "expect": {
+            "cursor": {
+              "x": 1,
+              "y": 2
+            },
+            "alt": false,
+            "lines": [
+              "3       ",
+              "4       ",
+              "5       "
+            ],
+            "wrapped": [],
+            "styles": []
+          }
+        },
+        {
+          "write": "\r\n6\r\n7",
+          "expect": {
+            "cursor": {
+              "x": 1,
+              "y": 2
+            },
+            "alt": false,
+            "lines": [
+              "5       ",
+              "6       ",
+              "7       "
+            ],
+            "wrapped": [],
+            "styles": [],
+            "history": {
+              "lines": [
+                "3       ",
+                "4       "
+              ],
+              "wrapped": [],
+              "styles": []
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "history-alt-screen-keeps-none",
+      "cols": 8,
+      "rows": 3,
+      "scrollback": 10,
+      "steps": [
+        {
+          "write": "1\r\n2\r\n3\r\n4",
+          "expect": {
+            "cursor": {
+              "x": 1,
+              "y": 2
+            },
+            "alt": false,
+            "lines": [
+              "2       ",
+              "3       ",
+              "4       "
+            ],
+            "wrapped": [],
+            "styles": [],
+            "history": {
+              "lines": [
+                "1       "
+              ],
+              "wrapped": [],
+              "styles": []
+            }
+          }
+        },
+        {
+          "write": "\u001b[?1049ha\r\nb\r\nc\r\nd\r\ne\r\nf",
+          "expect": {
+            "cursor": {
+              "x": 1,
+              "y": 2
+            },
+            "alt": true,
+            "lines": [
+              "d       ",
+              "e       ",
+              "f       "
+            ],
+            "wrapped": [],
+            "styles": [],
+            "history": {
+              "lines": [
+                "1       "
+              ],
+              "wrapped": [],
+              "styles": []
+            }
+          }
+        },
+        {
+          "write": "\u001b[3J",
+          "expect": {
+            "cursor": {
+              "x": 1,
+              "y": 2
+            },
+            "alt": true,
+            "lines": [
+              "d       ",
+              "e       ",
+              "f       "
+            ],
+            "wrapped": [],
+            "styles": [],
+            "history": {
+              "lines": [
+                "1       "
+              ],
+              "wrapped": [],
+              "styles": []
+            }
+          }
+        },
+        {
+          "write": "\u001b[?1049l\r\n5",
+          "expect": {
+            "cursor": {
+              "x": 1,
+              "y": 2
+            },
+            "alt": false,
+            "lines": [
+              "3       ",
+              "4       ",
+              "5       "
+            ],
+            "wrapped": [],
+            "styles": [],
+            "history": {
+              "lines": [
+                "1       ",
+                "2       "
+              ],
+              "wrapped": [],
+              "styles": []
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "history-scroll-regions",
+      "cols": 8,
+      "rows": 5,
+      "scrollback": 10,
+      "steps": [
+        {
+          "write": "r1\r\nr2\r\nr3\r\nr4\r\nr5\u001b[1;3r\u001b[3;1H\r\nA\r\nB",
+          "expect": {
+            "cursor": {
+              "x": 1,
+              "y": 2
+            },
+            "alt": false,
+            "lines": [
+              "r3      ",
+              "A       ",
+              "B       ",
+              "r4      ",
+              "r5      "
+            ],
+            "wrapped": [],
+            "styles": [],
+            "history": {
+              "lines": [
+                "r1      ",
+                "r2      "
+              ],
+              "wrapped": [],
+              "styles": []
+            }
+          }
+        },
+        {
+          "write": "\u001b[2;4r\u001b[4;1H\r\nC\r\nD",
+          "expect": {
+            "cursor": {
+              "x": 1,
+              "y": 3
+            },
+            "alt": false,
+            "lines": [
+              "r3      ",
+              "r4      ",
+              "C       ",
+              "D       ",
+              "r5      "
+            ],
+            "wrapped": [],
+            "styles": [],
+            "history": {
+              "lines": [
+                "r1      ",
+                "r2      "
+              ],
+              "wrapped": [],
+              "styles": []
+            }
+          }
+        },
+        {
+          "write": "\u001b[r\u001b[2S\u001b[5;1H\r\nE",
+          "expect": {
+            "cursor": {
+              "x": 1,
+              "y": 4
+            },
+            "alt": false,
+            "lines": [
+              "D       ",
+              "r5      ",
+              "        ",
+              "        ",
+              "E       "
+            ],
+            "wrapped": [],
+            "styles": [],
+            "history": {
+              "lines": [
+                "r1      ",
+                "r2      ",
+                "C       "
+              ],
+              "wrapped": [],
+              "styles": []
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "history-ris-and-decstr",
+      "cols": 8,
+      "rows": 3,
+      "scrollback": 10,
+      "steps": [
+        {
+          "write": "1\r\n2\r\n3\r\n4\u001b[!p\r\n5\r\n6\u001b8Z",
+          "expect": {
+            "cursor": {
+              "x": 1,
+              "y": 0
+            },
+            "alt": false,
+            "lines": [
+              "Z       ",
+              "5       ",
+              "6       "
+            ],
+            "wrapped": [],
+            "styles": [],
+            "history": {
+              "lines": [
+                "1       ",
+                "2       ",
+                "3       "
+              ],
+              "wrapped": [],
+              "styles": []
+            }
+          }
+        },
+        {
+          "write": "\u001bc7\r\n8\r\n9\r\n10",
+          "expect": {
+            "cursor": {
+              "x": 2,
+              "y": 2
+            },
+            "alt": false,
+            "lines": [
+              "8       ",
+              "9       ",
+              "10      "
+            ],
+            "wrapped": [],
+            "styles": [],
+            "history": {
+              "lines": [
+                "7       "
+              ],
+              "wrapped": [],
+              "styles": []
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "history-one-row-autowrap",
+      "cols": 4,
+      "rows": 1,
+      "scrollback": 5,
+      "steps": [
+        {
+          "write": "\u001b[31mabc漢\u001b[32mdefgh",
+          "expect": {
+            "cursor": {
+              "x": 3,
+              "y": 0
+            },
+            "alt": false,
+            "lines": [
+              "fgh "
+            ],
+            "wrapped": [
+              0
+            ],
+            "styles": [
+              {
+                "row": 0,
+                "col": 0,
+                "len": 3,
+                "style": "fg=16:2"
+              }
+            ],
+            "history": {
+              "lines": [
+                "abc ",
+                "漢de"
+              ],
+              "wrapped": [
+                1
+              ],
+              "styles": [
+                {
+                  "row": 0,
+                  "col": 0,
+                  "len": 4,
+                  "style": "fg=16:1"
+                },
+                {
+                  "row": 1,
+                  "col": 0,
+                  "len": 2,
+                  "style": "fg=16:1"
+                },
+                {
+                  "row": 1,
+                  "col": 2,
+                  "len": 2,
+                  "style": "fg=16:2"
+                }
+              ],
+              "widths": [
+                [
+                  1,
+                  0,
+                  2
+                ],
+                [
+                  1,
+                  1,
+                  0
+                ]
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "history-combining-widens-at-wrap",
+      "cols": 4,
+      "rows": 2,
+      "scrollback": 5,
+      "steps": [
+        {
+          "write": "\r\nabc♥️d\r\nxyz❤️",
+          "expect": {
+            "cursor": {
+              "x": 2,
+              "y": 1
+            },
+            "alt": false,
+            "lines": [
+              "xyz ",
+              "❤️  "
+            ],
+            "wrapped": [
+              1
+            ],
+            "styles": [],
+            "widths": [
+              [
+                1,
+                0,
+                2
+              ],
+              [
+                1,
+                1,
+                0
+              ]
+            ],
+            "history": {
+              "lines": [
+                "    ",
+                "abc ",
+                "♥️d "
+              ],
+              "wrapped": [
+                2
+              ],
+              "styles": [],
+              "widths": [
+                [
+                  2,
+                  0,
+                  2
+                ],
+                [
+                  2,
+                  1,
+                  0
+                ]
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "resize-reflow-wide-chars-scrollback",
+      "cols": 8,
+      "rows": 4,
+      "scrollback": 10,
+      "steps": [
+        {
+          "write": "ab漢字かなカナxy\r\n"
+        },
+        {
+          "resize": [
+            5,
+            4
+          ],
+          "expect": {
+            "cursor": {
+              "x": 0,
+              "y": 3
+            },
+            "alt": false,
+            "lines": [
+              "字か ",
+              "なカ ",
+              "ナxy ",
+              "     "
+            ],
+            "wrapped": [
+              0,
+              1,
+              2
+            ],
+            "styles": [],
+            "widths": [
+              [
+                0,
+                0,
+                2
+              ],
+              [
+                0,
+                1,
+                0
+              ],
+              [
+                0,
+                2,
+                2
+              ],
+              [
+                0,
+                3,
+                0
+              ],
+              [
+                1,
+                0,
+                2
+              ],
+              [
+                1,
+                1,
+                0
+              ],
+              [
+                1,
+                2,
+                2
+              ],
+              [
+                1,
+                3,
+                0
+              ],
+              [
+                2,
+                0,
+                2
+              ],
+              [
+                2,
+                1,
+                0
+              ]
+            ],
+            "history": {
+              "lines": [
+                "ab漢 "
+              ],
+              "wrapped": [],
+              "styles": [],
+              "widths": [
+                [
+                  0,
+                  2,
+                  2
+                ],
+                [
+                  0,
+                  3,
+                  0
+                ]
+              ]
+            }
+          }
+        },
+        {
+          "resize": [
+            9,
+            4
+          ],
+          "expect": {
+            "cursor": {
+              "x": 0,
+              "y": 2
+            },
+            "alt": false,
+            "lines": [
+              "ab漢字か ",
+              "なカナxy ",
+              "         ",
+              "         "
+            ],
+            "wrapped": [
+              1
+            ],
+            "styles": [],
+            "widths": [
+              [
+                0,
+                2,
+                2
+              ],
+              [
+                0,
+                3,
+                0
+              ],
+              [
+                0,
+                4,
+                2
+              ],
+              [
+                0,
+                5,
+                0
+              ],
+              [
+                0,
+                6,
+                2
+              ],
+              [
+                0,
+                7,
+                0
+              ],
+              [
+                1,
+                0,
+                2
+              ],
+              [
+                1,
+                1,
+                0
+              ],
+              [
+                1,
+                2,
+                2
+              ],
+              [
+                1,
+                3,
+                0
+              ],
+              [
+                1,
+                4,
+                2
+              ],
+              [
+                1,
+                5,
+                0
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "unicode-zwj-sequences",
+      "cols": 12,
+      "rows": 2,
+      "steps": [
+        {
+          "write": "👨‍👩‍👧x🏳️‍🌈y👩🏽‍💻",
+          "expect": {
+            "cursor": {
+              "x": 8,
+              "y": 0
+            },
+            "alt": false,
+            "lines": [
+              "👨‍👩‍👧x🏳️‍🌈y👩🏽‍💻    ",
+              "            "
+            ],
+            "wrapped": [],
+            "styles": [],
+            "widths": [
+              [
+                0,
+                0,
+                2
+              ],
+              [
+                0,
+                1,
+                0
+              ],
+              [
+                0,
+                3,
+                2
+              ],
+              [
+                0,
+                4,
+                0
+              ],
+              [
+                0,
+                6,
+                2
+              ],
+              [
+                0,
+                7,
+                0
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "unicode-flags",
+      "cols": 12,
+      "rows": 2,
+      "steps": [
+        {
+          "write": "🇹🇷🇺🇸🇩🇪|🏴󠁧󠁢󠁥󠁮󠁧󠁿",
+          "expect": {
+            "cursor": {
+              "x": 9,
+              "y": 0
+            },
+            "alt": false,
+            "lines": [
+              "🇹🇷🇺🇸🇩🇪|🏴󠁧󠁢󠁥󠁮󠁧󠁿   ",
+              "            "
+            ],
+            "wrapped": [],
+            "styles": [],
+            "widths": [
+              [
+                0,
+                0,
+                2
+              ],
+              [
+                0,
+                1,
+                0
+              ],
+              [
+                0,
+                2,
+                2
+              ],
+              [
+                0,
+                3,
+                0
+              ],
+              [
+                0,
+                4,
+                2
+              ],
+              [
+                0,
+                5,
+                0
+              ],
+              [
+                0,
+                7,
+                2
+              ],
+              [
+                0,
+                8,
+                0
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "unicode-skin-tones",
+      "cols": 12,
+      "rows": 2,
+      "steps": [
+        {
+          "write": "👍🏽👋🏿 🏽x",
+          "expect": {
+            "cursor": {
+              "x": 7,
+              "y": 0
+            },
+            "alt": false,
+            "lines": [
+              "👍🏽👋🏿 🏽x     ",
+              "            "
+            ],
+            "wrapped": [],
+            "styles": [],
+            "widths": [
+              [
+                0,
+                0,
+                2
+              ],
+              [
+                0,
+                1,
+                0
+              ],
+              [
+                0,
+                2,
+                2
+              ],
+              [
+                0,
+                3,
+                0
+              ],
+              [
+                0,
+                4,
+                2
+              ],
+              [
+                0,
+                5,
+                0
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "unicode-emoji-selector",
+      "cols": 12,
+      "rows": 2,
+      "steps": [
+        {
+          "write": "♥️☀️✔️#️⃣1️⃣",
+          "expect": {
+            "cursor": {
+              "x": 10,
+              "y": 0
+            },
+            "alt": false,
+            "lines": [
+              "♥️☀️✔️#️⃣1️⃣  ",
+              "            "
+            ],
+            "wrapped": [],
+            "styles": [],
+            "widths": [
+              [
+                0,
+                0,
+                2
+              ],
+              [
+                0,
+                1,
+                0
+              ],
+              [
+                0,
+                2,
+                2
+              ],
+              [
+                0,
+                3,
+                0
+              ],
+              [
+                0,
+                4,
+                2
+              ],
+              [
+                0,
+                5,
+                0
+              ],
+              [
+                0,
+                6,
+                2
+              ],
+              [
+                0,
+                7,
+                0
+              ],
+              [
+                0,
+                8,
+                2
+              ],
+              [
+                0,
+                9,
+                0
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "unicode-combining-marks",
+      "cols": 12,
+      "rows": 2,
+      "steps": [
+        {
+          "write": "é̂ äx 각 कि",
+          "expect": {
+            "cursor": {
+              "x": 9,
+              "y": 0
+            },
+            "alt": false,
+            "lines": [
+              "é̂ äx 각 कि   ",
+              "            "
+            ],
+            "wrapped": [],
+            "styles": [],
+            "widths": [
+              [
+                0,
+                5,
+                2
+              ],
+              [
+                0,
+                6,
+                0
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "unicode-wide-ranges",
+      "cols": 12,
+      "rows": 2,
+      "steps": [
+        {
+          "write": "𠀀㐀가😀⌚⭐",
+          "expect": {
+            "cursor": {
+              "x": 12,
+              "y": 0
+            },
+            "alt": false,
+            "lines": [
+              "𠀀㐀가😀⌚⭐",
+              "            "
+            ],
+            "wrapped": [],
+            "styles": [],
+            "widths": [
+              [
+                0,
+                0,
+                2
+              ],
+              [
+                0,
+                1,
+                0
+              ],
+              [
+                0,
+                2,
+                2
+              ],
+              [
+                0,
+                3,
+                0
+              ],
+              [
+                0,
+                4,
+                2
+              ],
+              [
+                0,
+                5,
+                0
+              ],
+              [
+                0,
+                6,
+                2
+              ],
+              [
+                0,
+                7,
+                0
+              ],
+              [
+                0,
+                8,
+                2
+              ],
+              [
+                0,
+                9,
+                0
+              ],
+              [
+                0,
+                10,
+                2
+              ],
+              [
+                0,
+                11,
+                0
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "unicode-cluster-wraps-at-edge",
+      "cols": 5,
+      "rows": 3,
+      "steps": [
+        {
+          "write": "abcd👨‍👩‍👧\r\nabcd♥️z\r\nabc👍🏽!",
+          "expect": {
+            "cursor": {
+              "x": 1,
+              "y": 2
+            },
+            "alt": false,
+            "lines": [
+              "♥️z  ",
+              "abc👍🏽",
+              "!    "
+            ],
+            "wrapped": [
+              0,
+              2
+            ],
+            "styles": [],
+            "widths": [
+              [
+                0,
+                0,
+                2
+              ],
+              [
+                0,
+                1,
+                0
+              ],
+              [
+                1,
+                3,
+                2
+              ],
+              [
+                1,
+                4,
+                0
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "unicode-cluster-rep",
+      "cols": 10,
+      "rows": 2,
+      "steps": [
+        {
+          "write": "👍🏽\u001b[2b\r\n🇹🇷\u001b[3b",
+          "expect": {
+            "cursor": {
+              "x": 8,
+              "y": 1
+            },
+            "alt": false,
+            "lines": [
+              "👍🏽👍🏽👍🏽    ",
+              "🇹🇷🇹🇷🇹🇷🇹🇷  "
+            ],
+            "wrapped": [],
+            "styles": [],
+            "widths": [
+              [
+                0,
+                0,
+                2
+              ],
+              [
+                0,
+                1,
+                0
+              ],
+              [
+                0,
+                2,
+                2
+              ],
+              [
+                0,
+                3,
+                0
+              ],
+              [
+                0,
+                4,
+                2
+              ],
+              [
+                0,
+                5,
+                0
+              ],
+              [
+                1,
+                0,
+                2
+              ],
+              [
+                1,
+                1,
+                0
+              ],
+              [
+                1,
+                2,
+                2
+              ],
+              [
+                1,
+                3,
+                0
+              ],
+              [
+                1,
+                4,
+                2
+              ],
+              [
+                1,
+                5,
+                0
+              ],
+              [
+                1,
+                6,
+                2
+              ],
+              [
+                1,
+                7,
+                0
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "unicode-clusters-reflow",
+      "cols": 6,
+      "rows": 3,
+      "scrollback": 10,
+      "steps": [
+        {
+          "write": "a👨‍👩‍👧🇹🇷é♥️漢\r\n"
+        },
+        {
+          "resize": [
+            4,
+            3
+          ],
+          "expect": {
+            "cursor": {
+              "x": 0,
+              "y": 2
+            },
+            "alt": false,
+            "lines": [
+              "🇹🇷é ",
+              "♥️漢",
+              "    "
+            ],
+            "wrapped": [
+              0,
+              1
+            ],
+            "styles": [],
+            "widths": [
+              [
+                0,
+                0,
+                2
+              ],
+              [
+                0,
+                1,
+                0
+              ],
+              [
+                1,
+                0,
+                2
+              ],
+              [
+                1,
+                1,
+                0
+              ],
+              [
+                1,
+                2,
+                2
+              ],
+              [
+                1,
+                3,
+                0
+              ]
+            ],
+            "history": {
+              "lines": [
+                "a👨‍👩‍👧 "
+              ],
+              "wrapped": [],
+              "styles": [],
+              "widths": [
+                [
+                  0,
+                  1,
+                  2
+                ],
+                [
+                  0,
+                  2,
+                  0
+                ]
+              ]
+            }
+          }
+        },
+        {
+          "resize": [
+            9,
+            3
+          ],
+          "expect": {
+            "cursor": {
+              "x": 0,
+              "y": 2
+            },
+            "alt": false,
+            "lines": [
+              "a👨‍👩‍👧🇹🇷é♥️ ",
+              "漢       ",
+              "         "
+            ],
+            "wrapped": [
+              1
+            ],
+            "styles": [],
+            "widths": [
+              [
+                0,
+                1,
+                2
+              ],
+              [
+                0,
+                2,
+                0
+              ],
+              [
+                0,
+                3,
+                2
+              ],
+              [
+                0,
+                4,
+                0
+              ],
+              [
+                0,
+                6,
+                2
+              ],
+              [
+                0,
+                7,
+                0
+              ],
+              [
+                1,
+                0,
+                2
+              ],
+              [
+                1,
+                1,
+                0
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "unicode-cluster-split-across-writes",
+      "cols": 10,
+      "rows": 2,
+      "steps": [
+        {
+          "write": "x👍"
+        },
+        {
+          "write": "🏽♥"
+        },
+        {
+          "write": "️y",
+          "expect": {
+            "cursor": {
+              "x": 6,
+              "y": 0
+            },
+            "alt": false,
+            "lines": [
+              "x👍🏽♥️y    ",
+              "          "
+            ],
+            "wrapped": [],
+            "styles": [],
+            "widths": [
+              [
+                0,
+                1,
+                2
+              ],
+              [
+                0,
+                2,
+                0
+              ],
+              [
+                0,
+                3,
+                2
+              ],
+              [
+                0,
+                4,
+                0
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "osc8-link-wraps-past-its-first-line",
+      "cols": 4,
+      "rows": 2,
+      "steps": [
+        {
+          "write": "\u001b]8;;http://x\u001b\\abcdefgh\u001b]8;;\u001b\\\r\n",
+          "expect": {
+            "cursor": {
+              "x": 0,
+              "y": 1
+            },
+            "alt": false,
+            "lines": [
+              "efgh",
+              "    "
+            ],
+            "wrapped": [
+              0
+            ],
+            "styles": [
+              {
+                "row": 0,
+                "col": 0,
+                "len": 4,
+                "style": "link=;http://x"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "unicode-cluster-across-sgr",
+      "cols": 10,
+      "rows": 2,
+      "steps": [
+        {
+          "write": "x👍\u001b[m🏽\u001b[31m漢",
+          "expect": {
+            "cursor": {
+              "x": 7,
+              "y": 0
+            },
+            "alt": false,
+            "lines": [
+              "x👍🏽漢   ",
+              "          "
+            ],
+            "wrapped": [],
+            "styles": [
+              {
+                "row": 0,
+                "col": 5,
+                "len": 2,
+                "style": "fg=16:1"
+              }
+            ],
+            "widths": [
+              [
+                0,
+                1,
+                2
+              ],
+              [
+                0,
+                2,
+                0
+              ],
+              [
+                0,
+                3,
+                2
+              ],
+              [
+                0,
+                4,
+                0
+              ],
+              [
+                0,
+                5,
+                2
+              ],
+              [
+                0,
+                6,
+                0
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "osc8-links",
+      "cols": 20,
+      "rows": 3,
+      "steps": [
+        {
+          "write": "a\u001b]8;;https://example.com/\u001b\\link\u001b]8;;\u001b\\b\u001b]8;id=7;https://e.com/a;b?c=1\u0007x\u001b[0my\u001b]8;;\u0007z",
+          "expect": {
+            "cursor": {
+              "x": 9,
+              "y": 0
+            },
+            "alt": false,
+            "lines": [
+              "alinkbxyz           ",
+              "                    ",
+              "                    "
+            ],
+            "wrapped": [],
+            "styles": [
+              {
+                "row": 0,
+                "col": 1,
+                "len": 4,
+                "style": "link=;https://example.com/"
+              },
+              {
+                "row": 0,
+                "col": 6,
+                "len": 2,
+                "style": "link=7;https://e.com/a;b?c=1"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "osc8-id-shared",
+      "cols": 20,
+      "rows": 3,
+      "steps": [
+        {
+          "write": "\u001b]8;id=a;http://one\u001b\\11\u001b]8;;\u001b\\ \u001b]8;id=a;http://one\u001b\\11\u001b]8;id=b;http://one\u001b\\22\u001b]8;;\u001b\\",
+          "expect": {
+            "cursor": {
+              "x": 7,
+              "y": 0
+            },
+            "alt": false,
+            "lines": [
+              "11 1122             ",
+              "                    ",
+              "                    "
+            ],
+            "wrapped": [],
+            "styles": [
+              {
+                "row": 0,
+                "col": 0,
+                "len": 2,
+                "style": "link=a;http://one"
+              },
+              {
+                "row": 0,
+                "col": 3,
+                "len": 2,
+                "style": "link=a;http://one"
+              },
+              {
+                "row": 0,
+                "col": 5,
+                "len": 2,
+                "style": "link=b;http://one"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "osc8-wrap-erase-wide",
+      "cols": 6,
+      "rows": 3,
+      "steps": [
+        {
+          "write": "\u001b]8;;file:///tmp/x\u001b\\漢👍🏽abcdef\u001b]8;;\u001b\\\u001b[1;3H\u001b[K\u001b[2;2H\u001b[2X\u001b[3;1H\u001b]8;;mailto:a@b\u001b\\q\u001b[2b\u001b[4@",
+          "expect": {
+            "cursor": {
+              "x": 3,
+              "y": 2
+            },
+            "alt": false,
+            "lines": [
+              "漢    ",
+              "c  f  ",
+              "qqq   "
+            ],
+            "wrapped": [
+              1
+            ],
+            "styles": [
+              {
+                "row": 0,
+                "col": 0,
+                "len": 2,
+                "style": "link=;file:///tmp/x"
+              },
+              {
+                "row": 1,
+                "col": 0,
+                "len": 1,
+                "style": "link=;file:///tmp/x"
+              },
+              {
+                "row": 1,
+                "col": 3,
+                "len": 1,
+                "style": "link=;file:///tmp/x"
+              },
+              {
+                "row": 2,
+                "col": 0,
+                "len": 3,
+                "style": "link=;mailto:a@b"
+              }
+            ],
+            "widths": [
+              [
+                0,
+                0,
+                2
+              ],
+              [
+                0,
+                1,
+                0
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "osc8-reset-and-history",
+      "cols": 8,
+      "rows": 2,
+      "scrollback": 10,
+      "steps": [
+        {
+          "write": "\u001b]8;;http://h\u001b\\1\r\n2\r\n\u001b[!p3\r\n\u001b]8;;http://k\u001b\\4\u001bc5",
+          "expect": {
+            "cursor": {
+              "x": 1,
+              "y": 0
+            },
+            "alt": false,
+            "lines": [
+              "5       ",
+              "        "
+            ],
+            "wrapped": [],
+            "styles": []
+          }
+        },
+        {
+          "write": "\u001b]8;;http://w\u001b\\wrapped line here\r\n"
+        },
+        {
+          "resize": [
+            5,
+            2
+          ],
+          "expect": {
+            "cursor": {
+              "x": 0,
+              "y": 1
+            },
+            "alt": false,
+            "lines": [
+              "ere  ",
+              "     "
+            ],
+            "wrapped": [
+              0
+            ],
+            "styles": [
+              {
+                "row": 0,
+                "col": 0,
+                "len": 3,
+                "style": "link=;http://w"
+              }
+            ],
+            "history": {
+              "lines": [
+                "5wrap",
+                "ped l",
+                "ine h"
+              ],
+              "wrapped": [
+                1,
+                2
+              ],
+              "styles": [
+                {
+                  "row": 0,
+                  "col": 1,
+                  "len": 4,
+                  "style": "link=;http://w"
+                },
+                {
+                  "row": 1,
+                  "col": 0,
+                  "len": 5,
+                  "style": "link=;http://w"
+                },
+                {
+                  "row": 2,
+                  "col": 0,
+                  "len": 5,
+                  "style": "link=;http://w"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "resize": [
+            10,
+            3
+          ],
+          "expect": {
+            "cursor": {
+              "x": 0,
+              "y": 2
+            },
+            "alt": false,
+            "lines": [
+              "5wrapped l",
+              "ine here  ",
+              "          "
+            ],
+            "wrapped": [
+              1
+            ],
+            "styles": [
+              {
+                "row": 0,
+                "col": 1,
+                "len": 9,
+                "style": "link=;http://w"
+              },
+              {
+                "row": 1,
+                "col": 0,
+                "len": 8,
+                "style": "link=;http://w"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "cursor-style-shapes",
+      "cols": 10,
+      "rows": 2,
+      "steps": [
+        {
+          "write": "\u001b[1 q",
+          "expect": {
+            "cursor": {
+              "x": 0,
+              "y": 0
+            },
+            "alt": false,
+            "lines": [
+              "          ",
+              "          "
+            ],
+            "wrapped": [],
+            "styles": [],
+            "cursorStyle": "block blink"
+          }
+        },
+        {
+          "write": "\u001b[2 q",
+          "expect": {
+            "cursor": {
+              "x": 0,
+              "y": 0
+            },
+            "alt": false,
+            "lines": [
+              "          ",
+              "          "
+            ],
+            "wrapped": [],
+            "styles": [],
+            "cursorStyle": "block steady"
+          }
+        },
+        {
+          "write": "\u001b[3 q",
+          "expect": {
+            "cursor": {
+              "x": 0,
+              "y": 0
+            },
+            "alt": false,
+            "lines": [
+              "          ",
+              "          "
+            ],
+            "wrapped": [],
+            "styles": [],
+            "cursorStyle": "underline blink"
+          }
+        },
+        {
+          "write": "\u001b[4 q",
+          "expect": {
+            "cursor": {
+              "x": 0,
+              "y": 0
+            },
+            "alt": false,
+            "lines": [
+              "          ",
+              "          "
+            ],
+            "wrapped": [],
+            "styles": [],
+            "cursorStyle": "underline steady"
+          }
+        },
+        {
+          "write": "\u001b[5 q",
+          "expect": {
+            "cursor": {
+              "x": 0,
+              "y": 0
+            },
+            "alt": false,
+            "lines": [
+              "          ",
+              "          "
+            ],
+            "wrapped": [],
+            "styles": [],
+            "cursorStyle": "bar blink"
+          }
+        },
+        {
+          "write": "\u001b[6 q",
+          "expect": {
+            "cursor": {
+              "x": 0,
+              "y": 0
+            },
+            "alt": false,
+            "lines": [
+              "          ",
+              "          "
+            ],
+            "wrapped": [],
+            "styles": [],
+            "cursorStyle": "bar steady"
+          }
+        }
+      ]
+    },
+    {
+      "name": "cursor-style-defaults",
+      "cols": 10,
+      "rows": 2,
+      "steps": [
+        {
+          "write": "\u001b[6 q\u001b[0 q",
+          "expect": {
+            "cursor": {
+              "x": 0,
+              "y": 0
+            },
+            "alt": false,
+            "lines": [
+              "          ",
+              "          "
+            ],
+            "wrapped": [],
+            "styles": []
+          }
+        },
+        {
+          "write": "\u001b[5 q\u001b[ q",
+          "expect": {
+            "cursor": {
+              "x": 0,
+              "y": 0
+            },
+            "alt": false,
+            "lines": [
+              "          ",
+              "          "
+            ],
+            "wrapped": [],
+            "styles": []
+          }
+        },
+        {
+          "write": "\u001b[8 q",
+          "expect": {
+            "cursor": {
+              "x": 0,
+              "y": 0
+            },
+            "alt": false,
+            "lines": [
+              "          ",
+              "          "
+            ],
+            "wrapped": [],
+            "styles": [],
+            "cursorStyle": "default steady"
+          }
+        },
+        {
+          "write": "\u001b[4 q\u001b[7 q",
+          "expect": {
+            "cursor": {
+              "x": 0,
+              "y": 0
+            },
+            "alt": false,
+            "lines": [
+              "          ",
+              "          "
+            ],
+            "wrapped": [],
+            "styles": [],
+            "cursorStyle": "underline blink"
+          }
+        }
+      ]
+    },
+    {
+      "name": "cursor-style-resets",
+      "cols": 10,
+      "rows": 2,
+      "steps": [
+        {
+          "write": "\u001b[5 q\u001b[!p",
+          "expect": {
+            "cursor": {
+              "x": 0,
+              "y": 0
+            },
+            "alt": false,
+            "lines": [
+              "          ",
+              "          "
+            ],
+            "wrapped": [],
+            "styles": []
+          }
+        },
+        {
+          "write": "\u001b[3 q\u001bc",
+          "expect": {
+            "cursor": {
+              "x": 0,
+              "y": 0
+            },
+            "alt": false,
+            "lines": [
+              "          ",
+              "          "
+            ],
+            "wrapped": [],
+            "styles": []
+          }
+        },
+        {
+          "write": "\u001b[4 q\u001b[?1049h",
+          "expect": {
+            "cursor": {
+              "x": 0,
+              "y": 0
+            },
+            "alt": true,
+            "lines": [
+              "          ",
+              "          "
+            ],
+            "wrapped": [],
+            "styles": [],
+            "cursorStyle": "underline steady"
+          }
+        },
+        {
+          "write": "\u001b[?1049l\u001b7\u001b[6 q\u001b8",
+          "expect": {
+            "cursor": {
+              "x": 0,
+              "y": 0
+            },
+            "alt": false,
+            "lines": [
+              "          ",
+              "          "
+            ],
+            "wrapped": [],
+            "styles": [],
+            "cursorStyle": "bar steady"
+          }
+        },
+        {
+          "write": "\u001b[2q",
+          "expect": {
+            "cursor": {
+              "x": 0,
+              "y": 0
+            },
+            "alt": false,
+            "lines": [
+              "          ",
+              "          "
+            ],
+            "wrapped": [],
+            "styles": [],
+            "cursorStyle": "bar steady"
+          }
+        }
+      ]
+    },
+    {
+      "name": "zero-width-in-pending-wrap",
+      "cols": 5,
+      "rows": 2,
+      "steps": [
+        {
+          "write": "abcde\u001b[m​​X",
+          "expect": {
+            "cursor": {
+              "x": 3,
+              "y": 1
+            },
+            "alt": false,
+            "lines": [
+              "abcde",
+              "​​X  "
+            ],
+            "wrapped": [
+              1
+            ],
+            "styles": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "sgr-59-white-underline",
+      "cols": 10,
+      "rows": 2,
+      "steps": [
+        {
+          "write": "\u001b[4;58;5;196mA\u001b[59mB",
+          "expect": {
+            "cursor": {
+              "x": 2,
+              "y": 0
+            },
+            "alt": false,
+            "lines": [
+              "AB        ",
+              "          "
+            ],
+            "wrapped": [],
+            "styles": [
+              {
+                "row": 0,
+                "col": 0,
+                "len": 1,
+                "style": "underline underline-color=256:196"
+              },
+              {
+                "row": 0,
+                "col": 1,
+                "len": 1,
+                "style": "underline underline-color=rgb:ffffff"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "decaln-drops-underline-style",
+      "cols": 4,
+      "rows": 2,
+      "steps": [
+        {
+          "write": "\u001b[4:3m\u001b#8",
+          "expect": {
+            "cursor": {
+              "x": 0,
+              "y": 0
+            },
+            "alt": false,
+            "lines": [
+              "EEEE",
+              "EEEE"
+            ],
+            "wrapped": [],
+            "styles": [
+              {
+                "row": 0,
+                "col": 0,
+                "len": 4,
+                "style": "underline underline-style=0"
+              },
+              {
+                "row": 1,
+                "col": 0,
+                "len": 4,
+                "style": "underline underline-style=0"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "ris-keeps-cursor-hidden",
+      "cols": 10,
+      "rows": 2,
+      "steps": [
+        {
+          "write": "\u001b[?25l\u001bc",
+          "expect": {
+            "cursor": {
+              "x": 0,
+              "y": 0
+            },
+            "alt": false,
+            "lines": [
+              "          ",
+              "          "
+            ],
+            "wrapped": [],
+            "styles": [],
+            "cursorHidden": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "one-row-autowrap-recycles-row",
+      "cols": 4,
+      "rows": 1,
+      "steps": [
+        {
+          "write": "\u001b[31mabc漢",
+          "expect": {
+            "cursor": {
+              "x": 2,
+              "y": 0
+            },
+            "alt": false,
+            "lines": [
+              "漢  "
+            ],
+            "wrapped": [
+              0
+            ],
+            "styles": [
+              {
+                "row": 0,
+                "col": 0,
+                "len": 2,
+                "style": "fg=16:1"
+              },
+              {
+                "row": 0,
+                "col": 3,
+                "len": 1,
+                "style": "fg=16:1"
+              }
+            ],
+            "widths": [
+              [
+                0,
+                0,
+                2
+              ],
+              [
+                0,
+                1,
+                0
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "ed1-unwraps-a-history-line",
+      "cols": 4,
+      "rows": 2,
+      "scrollback": 10,
+      "steps": [
+        {
+          "write": "abcdefgh\r\n12\r\n\u001b[1;4H\u001b[1J",
+          "expect": {
+            "cursor": {
+              "x": 3,
+              "y": 0
+            },
+            "alt": false,
+            "lines": [
+              "    ",
+              "    "
+            ],
+            "wrapped": [],
+            "styles": [],
+            "history": {
+              "lines": [
+                "abcd",
+                "efgh"
+              ],
+              "wrapped": [],
+              "styles": []
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "reflow-moves-combined-chars",
+      "cols": 4,
+      "rows": 3,
+      "steps": [
+        {
+          "write": "bäécäé\r\n"
+        },
+        {
+          "resize": [
+            3,
+            3
+          ],
+          "expect": {
+            "cursor": {
+              "x": 0,
+              "y": 2
+            },
+            "alt": false,
+            "lines": [
+              "bäé",
+              "cää",
+              "   "
+            ],
+            "wrapped": [
+              1
+            ],
+            "styles": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "unicode-text-selector-narrows",
+      "cols": 10,
+      "rows": 2,
+      "steps": [
+        {
+          "write": "⌚︎x☀︎y",
+          "expect": {
+            "cursor": {
+              "x": 5,
+              "y": 0
+            },
+            "alt": false,
+            "lines": [
+              "⌚︎x☀︎y     ",
+              "          "
+            ],
+            "wrapped": [],
+            "styles": [],
+            "widths": [
+              [
+                0,
+                0,
+                2
+              ],
+              [
+                0,
+                1,
+                0
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "unicode-emoji-selector-needs-a-base",
+      "cols": 10,
+      "rows": 2,
+      "steps": [
+        {
+          "write": "a️b",
+          "expect": {
+            "cursor": {
+              "x": 3,
+              "y": 0
+            },
+            "alt": false,
+            "lines": [
+              "a️b       ",
+              "          "
+            ],
+            "wrapped": [],
+            "styles": [],
+            "widths": [
+              [
+                0,
+                0,
+                2
+              ],
+              [
+                0,
+                1,
+                0
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "unicode-zwj-needs-a-pictograph",
+      "cols": 10,
+      "rows": 2,
+      "steps": [
+        {
+          "write": "a‍🙂b",
+          "expect": {
+            "cursor": {
+              "x": 3,
+              "y": 0
+            },
+            "alt": false,
+            "lines": [
+              "a‍🙂b       ",
+              "          "
+            ],
+            "wrapped": [],
+            "styles": [],
+            "widths": [
+              [
+                0,
+                0,
+                2
+              ],
+              [
+                0,
+                1,
+                0
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "unicode-indic-conjunct",
+      "cols": 10,
+      "rows": 2,
+      "steps": [
+        {
+          "write": "क्षx",
+          "expect": {
+            "cursor": {
+              "x": 3,
+              "y": 0
+            },
+            "alt": false,
+            "lines": [
+              "क्षx       ",
+              "          "
+            ],
+            "wrapped": [],
+            "styles": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "unicode-zero-width-takes-no-cell",
+      "cols": 10,
+      "rows": 2,
+      "steps": [
+        {
+          "write": "a​b‎c⁠d\u001b[ḿe",
+          "expect": {
+            "cursor": {
+              "x": 9,
+              "y": 0
+            },
+            "alt": false,
+            "lines": [
+              "a​b‎c⁠d́e ",
+              "          "
+            ],
+            "wrapped": [],
+            "styles": []
+          }
+        }
+      ]
+    },
+    {
+      "name": "unicode-lone-regional-indicator",
+      "cols": 10,
+      "rows": 2,
+      "steps": [
+        {
+          "write": "🇹🇷🇺|",
+          "expect": {
+            "cursor": {
+              "x": 4,
+              "y": 0
+            },
+            "alt": false,
+            "lines": [
+              "🇹🇷🇺|      ",
+              "          "
+            ],
+            "wrapped": [],
+            "styles": [],
+            "widths": [
+              [
+                0,
+                0,
+                2
+              ],
+              [
+                0,
+                1,
+                0
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "osc8-survives-cursor-restore",
+      "cols": 10,
+      "rows": 2,
+      "steps": [
+        {
+          "write": "\u001b7\u001b]8;;http://a\u001b\\a\u001b8b\u001b[1mc",
+          "expect": {
+            "cursor": {
+              "x": 2,
+              "y": 0
+            },
+            "alt": false,
+            "lines": [
+              "bc        ",
+              "          "
+            ],
+            "wrapped": [],
+            "styles": [
+              {
+                "row": 0,
+                "col": 1,
+                "len": 1,
+                "style": "bold"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "osc8-close-with-params",
+      "cols": 10,
+      "rows": 2,
+      "steps": [
+        {
+          "write": "\u001b]8;;http://a\u001b\\a\u001b]8;id=x;\u001b\\b",
+          "expect": {
+            "cursor": {
+              "x": 2,
+              "y": 0
+            },
+            "alt": false,
+            "lines": [
+              "ab        ",
+              "          "
+            ],
+            "wrapped": [],
+            "styles": [
+              {
+                "row": 0,
+                "col": 0,
+                "len": 2,
+                "style": "link=;http://a"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "osc8-uri-too-long",
+      "cols": 10,
+      "rows": 2,
+      "steps": [
+        {
+          "write": "\u001b]8;;http://a\u001b\\a\u001b]8;;http://xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\u001b\\b",
+          "expect": {
+            "cursor": {
+              "x": 2,
+              "y": 0
+            },
+            "alt": false,
+            "lines": [
+              "ab        ",
+              "          "
+            ],
+            "wrapped": [],
+            "styles": [
+              {
+                "row": 0,
+                "col": 0,
+                "len": 1,
+                "style": "link=;http://a"
+              },
+              {
+                "row": 0,
+                "col": 1,
+                "len": 1,
+                "style": "link=;http://xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,108 @@
+{
+  "provider": "anthropic",
+  "scenario": "generate_tool_choice_none",
+  "exchanges": [
+    {
+      "request": {
+        "headers": {
+          "accept": "application/json",
+          "accept-encoding": "gzip",
+          "anthropic-version": "2023-06-01",
+          "content-length": "511",
+          "content-type": "application/json",
+          "user-agent": "Anthropic/Go 1.73.0",
+          "x-api-key": "test-anthropic-key",
+          "x-stainless-arch": "arm64",
+          "x-stainless-lang": "go",
+          "x-stainless-os": "MacOS",
+          "x-stainless-package-version": "1.73.0",
+          "x-stainless-retry-count": "0",
+          "x-stainless-runtime": "go",
+          "x-stainless-runtime-version": "go1.26.6",
+          "x-stainless-timeout": "10"
+        },
+        "method": "POST",
+        "path": "/v1/messages",
+        "body": {
+          "max_tokens": 1024,
+          "messages": [
+            {
+              "content": [
+                {
+                  "text": "Just talk.",
+                  "type": "text"
+                }
+              ],
+              "role": "user"
+            }
+          ],
+          "model": "claude-test",
+          "output_config": {
+            "effort": "low"
+          },
+          "thinking": {
+            "type": "adaptive"
+          },
+          "tool_choice": {
+            "type": "none"
+          },
+          "tools": [
+            {
+              "input_schema": {
+                "properties": {
+                  "city": {
+                    "type": "string"
+                  },
+                  "unit": {
+                    "$ref": "#/$defs/unit"
+                  }
+                },
+                "required": [
+                  "city"
+                ],
+                "type": "object",
+                "description": "weather arguments",
+                "additionalProperties": false,
+                "$defs": {
+                  "unit": {
+                    "enum": [
+                      "c",
+                      "f"
+                    ]
+                  }
+                }
+              },
+              "name": "get_weather",
+              "description": "Current weather for a city"
+            }
+          ]
+        }
+      },
+      "response": {
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{\"id\":\"msg_03\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"claude-test\",\"content\":[{\"type\":\"text\",\"text\":\"Cut\"}],\"stop_reason\":\"model_context_window_exceeded\",\"stop_sequence\":null,\"usage\":{\"input_tokens\":5,\"output_tokens\":1}}",
+        "status": 200
+      }
+    }
+  ],
+  "outcome": {
+    "result": {
+      "content": [
+        {
+          "text": "Cut",
+          "type": "text"
+        }
+      ],
+      "modelID": "claude-test",
+      "stopReason": "max_tokens",
+      "usage": {
+        "InputTokens": 5,
+        "OutputTokens": 1,
+        "TotalTokens": 6,
+        "ThinkingTokens": 0
+      }
+    }
+  }
+}

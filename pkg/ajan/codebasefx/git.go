@@ -7,6 +7,7 @@ package codebasefx
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"os/exec"
 	"strings"
@@ -29,6 +30,10 @@ func runGit(ctx context.Context, dir string, args ...string) (string, error) {
 	cmd.Stderr = &stderr
 
 	if err := cmd.Run(); err != nil {
+		if errors.Is(err, exec.ErrNotFound) {
+			return "", fmt.Errorf("runGit: %w: %w", ErrGitUnavailable, ErrGitNotFound)
+		}
+
 		msg := strings.TrimSpace(stderr.String())
 		if strings.Contains(msg, "not a git repository") {
 			return "", fmt.Errorf("runGit: %w", ErrNotAGitRepo)

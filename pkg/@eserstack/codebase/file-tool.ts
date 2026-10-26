@@ -41,6 +41,7 @@ import type {
 } from "./file-tools-shared.ts";
 import * as cliSupport from "./cli-support.ts";
 import * as ffiClient from "./ffi-client.ts";
+import * as gitListing from "./git-listing.ts";
 
 // =============================================================================
 // Types
@@ -418,7 +419,7 @@ export const withGoValidator = (
         validatorOptions: {
           [goValidatorName]: { root: options.root, ...configOptions },
         },
-        gitAware: true,
+        ...(await gitListing.bridgeGitOptions(lib, options.root)),
       }) as {
         results?: ValidatorResult[];
         error?: string;

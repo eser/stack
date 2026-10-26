@@ -136,7 +136,9 @@ const writeHelp = (out: LineWriter): void => {
   out.writeln("  -w, --workflow <id>    Workflow id to run");
   out.writeln("  --fix                  Auto-fix issues where supported");
   out.writeln("  --dry-run              Preview mutations without writing");
-  out.writeln("  --only <step>          Run only a specific step");
+  out.writeln(
+    "  --only <step>          Run only the steps with this tool or step name",
+  );
   out.writeln("  --config <path>        Config directory (default: .)");
   out.writeln("  -v, --verbose          Show stats and issues for all steps");
   out.writeln("  --json                 Output results as JSON");

@@ -123,6 +123,43 @@ func TestInstallHooksKeepsUserHooks(t *testing.T) {
 	}
 }
 
+// TestHookScriptClearsTheRepositoryEnv runs a hook script with the variables
+// git exports to hooks in a linked worktree. The workflows the hook runs
+// include tests that create scratch repositories; with GIT_DIR or
+// GIT_INDEX_FILE inherited, their git calls wrote commits, tags and config
+// into the repository being committed to.
+func TestHookScriptClearsTheRepositoryEnv(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	script := filepath.Join(dir, "pre-commit")
+	probe := `for v in GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_PREFIX; do eval "echo $v=\${$v-unset}"; done #`
+
+	if err := os.WriteFile(script, []byte(hookScript(probe, gitHooks[0])), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	cmd := exec.Command("sh", script) //nolint:noctx // a short script in a test
+	cmd.Dir = dir
+	cmd.Env = append(os.Environ(),
+		"GIT_DIR="+filepath.Join(dir, "repo", ".git", "worktrees", "wt"),
+		"GIT_WORK_TREE="+dir,
+		"GIT_INDEX_FILE="+filepath.Join(dir, "index"),
+		"GIT_COMMON_DIR="+filepath.Join(dir, "repo", ".git"),
+		"GIT_PREFIX=sub/",
+	)
+
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("hook: %v\n%s", err, out)
+	}
+
+	want := "GIT_DIR=unset\nGIT_WORK_TREE=unset\nGIT_INDEX_FILE=unset\nGIT_COMMON_DIR=unset\nGIT_PREFIX=unset\n"
+	if string(out) != want {
+		t.Errorf("the hook should clear the repository variables before it runs the workflows, got:\n%s", out)
+	}
+}
+
 func TestHookCommand(t *testing.T) {
 	t.Parallel()
 

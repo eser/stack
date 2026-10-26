@@ -520,6 +520,11 @@ in `.eser/concerns/`, which several entries below depend on.
   of PowerShell `Expand-Archive`, which needs Windows 10 1803 or Windows Server
   2019 or later.
 
+- The git-aware file walk (`walkSourceFiles`, the validators) throws when git
+  cannot run instead of walking the directory, which listed gitignored files.
+  On the WASM fallback the walk sends git's listing to the bridge. Install git
+  or put it on `PATH`; a directory outside a git repository is still walked.
+
 #### eser CLI (@eserstack/cli)
 
 - Manifest scripts receive each forwarded argument as exactly one word, with
@@ -596,6 +601,13 @@ in `.eser/concerns/`, which several entries below depend on.
 - The shell tool's `workingDirectory` is resolved against the run root (the
   `--config` directory) instead of the process working directory. Write it
   relative to the project root, or as an absolute path.
+
+- `--only` (`RunOptions.only`) matches a shell step's `name` as well as a tool
+  name, and a filter that selects no step fails: `runByEvent` and
+  `runWorkflowWithConfig` return
+  `No step matches --only '<filter>': pass a tool name or a shell step's name. Steps: ...`
+  and `eser workflows run` exits 1 instead of printing `All checks passed!`.
+  Pass a tool name or a shell step's name, such as `--only go-lint`.
 
 #### @eserstack/ai
 
@@ -1627,6 +1639,11 @@ in `.eser/concerns/`, which several entries below depend on.
   download large files with the shell tool. The postsfx X and Bluesky clients
   fail on an API response over 8 MiB.
 
+- workflowfx `RunOptions.Only` matches a shell step's `name` option as well as
+  the tool name, and `RunByEvent` and `RunWorkflowWithConfig` return an error
+  wrapping `ErrNoStepSelected` when it selects no step. Pass a tool name or a
+  shell step's name.
+
 #### Go: pkg/ajan/configfx
 
 - `Load` returns errors instead of panicking or skipping: a conf-tagged field it
@@ -1747,6 +1764,17 @@ in `.eser/concerns/`, which several entries below depend on.
   instead of using defaults. Make the file readable or exclude it, and fix the
   option.
 
+- `WalkSourceFiles` with `GitAware` returns an error wrapping
+  `ErrGitUnavailable` when git cannot run (not on `PATH`, or the wasip1 build)
+  instead of walking the filesystem, which listed gitignored files. Outside a
+  git repository it still walks the filesystem. A caller that cannot run git
+  lists the files itself and calls the new `WalkListedFiles`:
+
+  ```go
+  // paths: `git ls-files --cached --others --exclude-standard` run in root
+  files, err := codebasefx.WalkListedFiles(codebasefx.WalkOptions{Root: root, GitAware: true}, paths)
+  ```
+
 #### Native bridge (github.com/eser/ajan, @eserstack/ajan)
 
 - `EserAjanShellExec` (and command-mode WASM `shellExec`) stops a command after
@@ -1766,6 +1794,13 @@ in `.eser/concerns/`, which several entries below depend on.
 - `EserAjanNoskillsInit` writes `command: npx eser@latest noskills`
   (`noskillsfx.DefaultCommandPrefix`) into a new manifest instead of `noskills`.
   Edit the manifest's `command` to keep a bare `noskills`.
+
+- On the WASM fallback, a git-aware `EserAjanCodebaseWalkFiles`,
+  `EserAjanCodebaseValidateFiles` or one of their streams fails unless the
+  request carries `gitFiles`, the host's
+  `git ls-files --cached --others --exclude-standard` listing for `dir`;
+  `@eserstack/codebase` sends it. The WASM build cannot start git, and the walk
+  used to list gitignored files instead.
 
 #### Recipes
 

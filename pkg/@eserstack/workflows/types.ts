@@ -154,6 +154,11 @@ export type RunOptions = {
    * option; the shell tool runs `command` instead of `fixCommand`.
    */
   readonly dryRun?: boolean;
+  /**
+   * Run only the steps this names: a step matches by its tool name or by its
+   * `name` option, the name of a shell step. When no declared step matches,
+   * `runByEvent` and `runWorkflowWithConfig` fail and name the filter.
+   */
   readonly only?: string;
   /**
    * Timeout for steps that set none, in milliseconds: above 0 and at most

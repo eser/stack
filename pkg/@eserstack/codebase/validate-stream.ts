@@ -12,6 +12,7 @@
 
 import type * as ffiTypes from "@eserstack/ajan/ffi";
 import * as ffiClient from "./ffi-client.ts";
+import * as gitListing from "./git-listing.ts";
 import type { ValidatorResult } from "./validation/types.ts";
 
 // =============================================================================
@@ -98,12 +99,13 @@ export const validateFilesStream = async (
     throw new Error("FFI library unavailable — cannot create validate stream");
   }
 
+  const dir = options.dir ?? ".";
   const stream = lib.stream("codebaseValidateFilesStream", {
-    dir: options.dir ?? ".",
+    dir,
     validators: options.validators,
     extensions: options.extensions,
     validatorOptions: options.validatorOptions,
-    gitAware: options.gitAware ?? false,
+    ...(await gitListing.bridgeGitOptions(lib, dir, options.gitAware ?? false)),
   });
   const parsed = stream.opened;
 

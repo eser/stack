@@ -6,7 +6,10 @@ import "errors"
 
 // Sentinel errors for the codebasefx package.
 var (
-	ErrGitNotFound       = errors.New("git binary not found in PATH")
+	ErrGitNotFound = errors.New("git binary not found in PATH")
+	// ErrGitUnavailable means git cannot run here: it is not installed, or the
+	// build cannot start a process (wasip1).
+	ErrGitUnavailable    = errors.New("git cannot run")
 	ErrNotAGitRepo       = errors.New("not a git repository")
 	ErrNoTags            = errors.New("no tags found in repository")
 	ErrInvalidVersion    = errors.New("invalid semver version")

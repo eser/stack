@@ -888,14 +888,7 @@ importers:
         specifier: workspace:*
         version: link:../test-kit
 
-  pkg/@eserstack/test-kit:
-    dependencies:
-      '@std/assert':
-        specifier: npm:@jsr/std__assert@^1.0.19
-        version: '@jsr/std__assert@1.0.19'
-      '@std/testing':
-        specifier: npm:@jsr/std__testing@^1.0.20
-        version: '@jsr/std__testing@1.0.20'
+  pkg/@eserstack/test-kit: {}
 
   pkg/@eserstack/testing:
     dependencies:
@@ -1307,27 +1300,6 @@ packages:
 
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
-
-  '@jsr/std__assert@1.0.19':
-    resolution: {integrity: sha512-pEj6RPkGbqlgRmyKwATp4cUs6+ijxtdrv3bq8v1d2I2CEcMEyPaO8cVKro61wGRDH4cNg8Zx6haztvK/9m7gkA==, tarball: https://npm.jsr.io/~/11/@jsr/std__assert/1.0.19.tgz}
-
-  '@jsr/std__async@1.5.0':
-    resolution: {integrity: sha512-I2Qekl1oQYM+dpI2RQUCKi1TBuaA7Od3LNzxcqls9s1e2ytiZyREL4403qHJ6UbLNAwbqO2ZhdWAWDUQAajyiA==, tarball: https://npm.jsr.io/~/11/@jsr/std__async/1.5.0.tgz}
-
-  '@jsr/std__data-structures@1.1.2':
-    resolution: {integrity: sha512-YaNAaUYGr3qBnq8LJ0/FSW6tsnDBMX7hcPuGU7Zi/+aWlAJsZ4OroBNSpRIflizbOvCJCycAnXe9yLjIwDF2KA==, tarball: https://npm.jsr.io/~/11/@jsr/std__data-structures/1.1.2.tgz}
-
-  '@jsr/std__fs@1.0.24':
-    resolution: {integrity: sha512-UunW2Rg++9sA74NJnYMGTsMVQgoFRAwPP02wRRohL0PQBNorbyxHiyCMRaxYQCtLepTLkC4nUyMtcwrGKqTR6g==, tarball: https://npm.jsr.io/~/11/@jsr/std__fs/1.0.24.tgz}
-
-  '@jsr/std__internal@1.0.14':
-    resolution: {integrity: sha512-JT8b/t40WcR9q0GDwRZUooY7aXeXnFal8iidE/5TckdAFtvpVAsaJ71/Xgf1SfoChs41s6CZkuCYM8toaNgdvA==, tarball: https://npm.jsr.io/~/11/@jsr/std__internal/1.0.14.tgz}
-
-  '@jsr/std__path@1.1.6':
-    resolution: {integrity: sha512-H1Cmg6z8jFyIsQbVV+vZB4eOx4k6Qg8lyUM6l7nZysj5MZumg89kb0M1bsPBTGQis3fw6mJFkJELo5+AK6oCFA==, tarball: https://npm.jsr.io/~/11/@jsr/std__path/1.1.6.tgz}
-
-  '@jsr/std__testing@1.0.20':
-    resolution: {integrity: sha512-DRCuU1u4OXD/AXBJ2q9IvMHthMSti1V1604b2+xa5WaAcm6Ghazk0ac1AsMwiAOXEpK0nfIXd1MD3ttT8LQ5Rw==, tarball: https://npm.jsr.io/~/11/@jsr/std__testing/1.0.20.tgz}
 
   '@modelcontextprotocol/sdk@1.30.0':
     resolution: {integrity: sha512-xKd8OIzlqNzcqcNumGAa6g+PW2kjD5vrpcKOnfldAUPP3j7lnqMPwlTXQm8gF+UwH72z0lqaRbjr9hqGz0eITA==}
@@ -3007,38 +2979,6 @@ snapshots:
     dependencies:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.6.0
-
-  '@jsr/std__assert@1.0.19':
-    dependencies:
-      '@jsr/std__internal': 1.0.14
-
-  '@jsr/std__async@1.5.0':
-    dependencies:
-      '@jsr/std__data-structures': 1.1.2
-
-  '@jsr/std__data-structures@1.1.2':
-    dependencies:
-      '@jsr/std__assert': 1.0.19
-
-  '@jsr/std__fs@1.0.24':
-    dependencies:
-      '@jsr/std__internal': 1.0.14
-      '@jsr/std__path': 1.1.6
-
-  '@jsr/std__internal@1.0.14': {}
-
-  '@jsr/std__path@1.1.6':
-    dependencies:
-      '@jsr/std__internal': 1.0.14
-
-  '@jsr/std__testing@1.0.20':
-    dependencies:
-      '@jsr/std__assert': 1.0.19
-      '@jsr/std__async': 1.5.0
-      '@jsr/std__data-structures': 1.1.2
-      '@jsr/std__fs': 1.0.24
-      '@jsr/std__internal': 1.0.14
-      '@jsr/std__path': 1.1.6
 
   '@modelcontextprotocol/sdk@1.30.0(zod@4.4.3)':
     dependencies:

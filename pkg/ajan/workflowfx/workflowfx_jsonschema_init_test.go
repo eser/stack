@@ -12,12 +12,18 @@ import (
 )
 
 // initLine matches the inittrace line of the jsonschema package, for example
-// "init github.com/santhosh-tekuri/jsonschema/v6 @1.2 ms, 0.004 ms clock, ...".
-var initLine = regexp.MustCompile(`init github\.com/santhosh-tekuri/jsonschema/v6 @[0-9.]+ ms, ([0-9.]+) ms clock`)
+// "init github.com/santhosh-tekuri/jsonschema/v6 @1.2 ms, 0.004 ms clock,
+// 9576 bytes, 161 allocs".
+var initLine = regexp.MustCompile(`init github\.com/santhosh-tekuri/jsonschema/v6 @[0-9.]+ ms, [0-9.]+ ms clock, ([0-9]+) bytes`)
+
+// maxInitBytes bounds what the package's init may allocate. The fork
+// allocates 9,576 bytes; upstream v6.0.3 compiles the metaschemas in init()
+// and allocates about 1.7 MB (1.7 ms). Bytes are counted rather than the
+// clock time, which went past a 0.1 ms bound on a loaded machine.
+const maxInitBytes = 100_000
 
 // TestJsonschemaInitIsLazy checks the in-tree fork (third-party/jsonschema,
-// decision-56): linking the package must not compile the metaschemas, which
-// upstream does in init() for about 1.3 ms natively.
+// decision-56): linking the package must not compile the metaschemas.
 func TestJsonschemaInitIsLazy(t *testing.T) {
 	t.Parallel()
 
@@ -46,12 +52,12 @@ func TestJsonschemaInitIsLazy(t *testing.T) {
 		return
 	}
 
-	clockMs, err := strconv.ParseFloat(string(match[1]), 64)
+	initBytes, err := strconv.Atoi(string(match[1]))
 	if err != nil {
 		t.Fatalf("parse %q: %v", match[1], err)
 	}
 
-	if clockMs >= 0.1 {
-		t.Errorf("jsonschema init took %.3f ms, want under 0.1 ms; is the replace to third-party/jsonschema in go.mod?", clockMs)
+	if initBytes >= maxInitBytes {
+		t.Errorf("jsonschema init allocated %d bytes, want under %d; is the replace to third-party/jsonschema in go.mod?", initBytes, maxInitBytes)
 	}
 }

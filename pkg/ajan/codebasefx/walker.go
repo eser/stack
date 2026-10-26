@@ -4,6 +4,7 @@ package codebasefx
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -23,16 +24,14 @@ var defaultExcludeSubstrings = []string{
 }
 
 // WalkSourceFiles discovers files under opts.Root.
-// When opts.GitAware is true and git is available, it uses git ls-files
-// to enumerate only tracked (and untracked-but-not-ignored) files.
-// Falls back to a standard fs.WalkDir if git is unavailable.
+// When opts.GitAware is true, it uses git ls-files to enumerate only tracked
+// and untracked-but-not-ignored files; outside a git repository it walks the
+// filesystem. When git cannot run (not installed, or the wasip1 build), it
+// returns ErrGitUnavailable instead of walking the filesystem, which would
+// list the gitignored files too; such a caller lists the files with git
+// itself and walks them with WalkListedFiles.
 func WalkSourceFiles(ctx context.Context, opts WalkOptions) ([]FileEntry, error) {
-	root := opts.Root
-	if root == "" {
-		root = "."
-	}
-
-	root, err := filepath.Abs(root)
+	root, err := walkRoot(opts.Root)
 	if err != nil {
 		return nil, err
 	}
@@ -42,10 +41,47 @@ func WalkSourceFiles(ctx context.Context, opts WalkOptions) ([]FileEntry, error)
 		if err == nil {
 			return entries, nil
 		}
-		// fall through to fs walk if git fails
+
+		if errors.Is(err, ErrGitUnavailable) {
+			return nil, fmt.Errorf(
+				"walk %s honouring .gitignore: %w; list the files with "+
+					"`git ls-files --cached --others --exclude-standard` and walk them with WalkListedFiles "+
+					"(gitFiles on the bridge), or walk without GitAware",
+				root, err,
+			)
+		}
+		// Not a git repository, or git failed: walk the filesystem.
 	}
 
 	return walkViaFS(root, opts)
+}
+
+// WalkListedFiles is the git-aware walk of WalkSourceFiles over a listing the
+// caller made: paths is the output of `git ls-files --cached --others
+// --exclude-standard` run in opts.Root, relative to it. The WASM build cannot
+// start git, so its host lists the files and the walk applies opts.Extensions
+// and opts.Exclude to them. A listed path that is no longer on disk is skipped.
+func WalkListedFiles(opts WalkOptions, paths []string) ([]FileEntry, error) {
+	root, err := walkRoot(opts.Root)
+	if err != nil {
+		return nil, err
+	}
+
+	return listedEntries(root, paths, opts), nil
+}
+
+// walkRoot resolves a walk's root, "." when empty, to an absolute path.
+func walkRoot(root string) (string, error) {
+	if root == "" {
+		root = "."
+	}
+
+	abs, err := filepath.Abs(root)
+	if err != nil {
+		return "", fmt.Errorf("resolve walk root %q: %w", root, err)
+	}
+
+	return abs, nil
 }
 
 // walkViaGit uses git ls-files to enumerate source files.
@@ -66,7 +102,12 @@ func walkViaGit(ctx context.Context, root string, opts WalkOptions) ([]FileEntry
 		return nil, err
 	}
 
-	paths := strings.Split(out, "\x00")
+	return listedEntries(root, strings.Split(out, "\x00"), opts), nil
+}
+
+// listedEntries turns git's listing, relative to root, into the entries that
+// pass opts.Extensions and opts.Exclude and still exist.
+func listedEntries(root string, paths []string, opts WalkOptions) []FileEntry {
 	var entries []FileEntry
 
 	for _, rel := range paths {
@@ -101,7 +142,7 @@ func walkViaGit(ctx context.Context, root string, opts WalkOptions) ([]FileEntry
 		})
 	}
 
-	return entries, nil
+	return entries
 }
 
 // walkViaFS falls back to a standard recursive directory walk.

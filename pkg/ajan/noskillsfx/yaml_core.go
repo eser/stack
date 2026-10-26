@@ -18,7 +18,7 @@ import (
 
 // The manifest guard compares the noskills section before and after an edit
 // as the TypeScript CLI reads it, which parses YAML with the YAML 1.2 core
-// schema of @eemeli/yaml: plain scalars are null, a boolean, a number or a
+// schema of the yaml package: plain scalars are null, a boolean, a number or a
 // string by the core schema's patterns, merge keys are ordinary keys, and a
 // file with several documents or a repeated key does not parse. yaml.v3
 // builds the node tree; the scalars are resolved here, because yaml.v3's own
@@ -42,7 +42,7 @@ var (
 )
 
 // parseYAMLCore parses one YAML document into JavaScript-like values (see
-// js_json.go): what `yaml.parse` from @eemeli/yaml returns. An empty text is
+// js_json.go): what `yaml.parse` from the yaml package returns. An empty text is
 // null.
 func parseYAMLCore(text string) (any, error) {
 	dec := yaml.NewDecoder(strings.NewReader(text))

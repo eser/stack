@@ -3,7 +3,6 @@
 import * as assert from "@eserstack/test-kit/assert";
 import * as bdd from "node:test";
 import * as mock from "@eserstack/test-kit/mock";
-import * as tarStream from "@std/tar/tar-stream";
 import * as task from "@eserstack/functions/task";
 import * as results from "@eserstack/primitives/results";
 import * as streams from "@eserstack/streams";
@@ -35,25 +34,10 @@ const fakeFetch =
   };
 
 /** A gzipped tarball with one 1 KiB file, as codeload.github.com serves it. */
-const oneFileTarball = (): ReadableStream<Uint8Array> => {
-  const bytes = new TextEncoder().encode("x".repeat(1024));
-  const input: tarStream.TarStreamInput = {
-    type: "file",
-    path: "repo-main/data.txt",
-    size: bytes.length,
-    readable: testing.readableStreamFrom([bytes]),
-  };
-
-  return testing
-    .readableStreamFrom([input])
-    .pipeThrough(new tarStream.TarStream())
-    .pipeThrough(
-      new CompressionStream("gzip") as unknown as TransformStream<
-        Uint8Array,
-        Uint8Array
-      >,
-    );
-};
+const oneFileTarball = (): ReadableStream<Uint8Array> =>
+  testing.gzippedTarball([
+    { type: "file", path: "repo-main/data.txt", content: "x".repeat(1024) },
+  ]);
 
 /** Runs the clone handler for gh:owner/repo into `dir`. */
 const runClone = async (

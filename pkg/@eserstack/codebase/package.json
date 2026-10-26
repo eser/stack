@@ -50,7 +50,6 @@
     "./install": "./install.ts"
   },
   "dependencies": {
-    "@eemeli/yaml": "npm:@jsr/eemeli__yaml@^2.9.1",
     "@eserstack/ai": "workspace:*",
     "@eserstack/ajan": "workspace:*",
     "@eserstack/config": "workspace:*",
@@ -61,12 +60,14 @@
     "@eserstack/standards": "workspace:*",
     "@eserstack/streams": "workspace:*",
     "@eserstack/workflows": "workspace:*",
-    "@std/jsonc": "npm:@jsr/std__jsonc@^1.0.2",
-    "@std/semver": "npm:@jsr/std__semver@^1.0.8",
-    "@std/toml": "npm:@jsr/std__toml@^1.0.11"
+    "jsonc-parser": "^3.3.1",
+    "semver": "^7.8.5",
+    "smol-toml": "^1.9.1",
+    "yaml": "^2.9.1"
   },
   "devDependencies": {
     "@eserstack/logging": "workspace:*",
-    "@eserstack/test-kit": "workspace:*"
+    "@eserstack/test-kit": "workspace:*",
+    "@types/semver": "^7.8.0"
   }
 }

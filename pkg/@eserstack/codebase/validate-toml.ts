@@ -6,7 +6,7 @@
  * @module
  */
 
-import * as toml from "@std/toml";
+import * as toml from "smol-toml";
 import * as standards from "@eserstack/standards";
 import * as cliSupport from "./cli-support.ts";
 import * as fileTool from "./file-tool.ts";

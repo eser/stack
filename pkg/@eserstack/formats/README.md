@@ -68,12 +68,12 @@ const parsed = await formats.deserialize("app1,1.0.0\napp2,2.0.0\n", "csv", {
 });
 ```
 
-| Option      | Formats    | Description                                                                                                                             |
-| ----------- | ---------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| `pretty`    | JSON, TOML | JSON: indent the output, two spaces unless `indent` says otherwise. TOML, TypeScript formats only: `false` stops aligning the `=` signs |
-| `indent`    | JSON, YAML | Indentation width, two spaces by default; JSON applies it only when `pretty` is on                                                      |
-| `headers`   | CSV        | Column names to write or to read rows with                                                                                              |
-| `delimiter` | CSV        | Field separator, `,` by default                                                                                                         |
+| Option      | Formats    | Description                                                                        |
+| ----------- | ---------- | ---------------------------------------------------------------------------------- |
+| `pretty`    | JSON       | Indent the output, two spaces unless `indent` says otherwise                       |
+| `indent`    | JSON, YAML | Indentation width, two spaces by default; JSON applies it only when `pretty` is on |
+| `headers`   | CSV        | Column names to write or to read rows with                                         |
+| `delimiter` | CSV        | Field separator, `,` by default                                                    |
 
 An unknown format name throws `FormatNotFoundError`; a value a format cannot
 encode or decode throws `SerializationError` or `DeserializationError`. All
@@ -84,14 +84,13 @@ three extend `FormatError` and carry the format name in `format`.
 The Go encoders and the TypeScript formats write the same data, but the text
 differs in these cases:
 
-| Case                      | Go encoders (native library)         | TypeScript formats                            |
-| ------------------------- | ------------------------------------ | --------------------------------------------- |
-| YAML, array               | One sequence, `-` per item           | One document per item, `---` between          |
-| Map key order             | Sorted                               | Insertion order                               |
-| TOML keys                 | `key = value`                        | `=` signs aligned, unless `pretty` is `false` |
-| TOML arrays               | `[80, 443]`                          | `[80,443]`                                    |
-| TOML table of tables only | An empty `[a]` header before `[a.b]` | `[a.b]` alone                                 |
-| CSV line endings          | `\n`                                 | `\r\n`                                        |
+| Case                      | Go encoders (native library)         | TypeScript formats                   |
+| ------------------------- | ------------------------------------ | ------------------------------------ |
+| YAML, array               | One sequence, `-` per item           | One document per item, `---` between |
+| Map key order             | Sorted                               | Insertion order                      |
+| TOML arrays               | `[80, 443]`                          | `[ 80, 443 ]`                        |
+| TOML table of tables only | An empty `[a]` header before `[a.b]` | `[a.b]` alone                        |
+| CSV line endings          | `\n`                                 | `\r\n`                               |
 
 ## Registry
 

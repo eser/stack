@@ -30,7 +30,7 @@
  * @module
  */
 
-import * as stdSemver from "@std/semver";
+import * as semver from "semver";
 import * as primitives from "@eserstack/primitives";
 import * as standards from "@eserstack/standards";
 import * as functions from "@eserstack/functions";
@@ -186,7 +186,7 @@ export const readVersionFile = async (
 
 /**
  * Purely calculates the next version from a current version and a command.
- * Delegates to Go FFI when available; falls back to @std/semver.
+ * Runs on the Go FFI.
  *
  * @param current - The current semver version string
  * @param command - The bump command: "patch" | "minor" | "major" | "explicit" | "sync"
@@ -234,14 +234,14 @@ const writeVersionFile = async (
  * Finds the highest version from an array of version strings.
  */
 const findHighestVersion = (versions: string[]): string => {
-  let highest = stdSemver.parse("0.0.0");
+  let highest = new semver.SemVer("0.0.0");
   for (const version of versions) {
-    const v = stdSemver.parse(version);
-    if (stdSemver.compare(v, highest) > 0) {
+    const v = new semver.SemVer(version);
+    if (semver.compare(v, highest) > 0) {
       highest = v;
     }
   }
-  return stdSemver.format(highest);
+  return highest.format();
 };
 
 /**
@@ -302,17 +302,16 @@ export const versions = async (
         'explicitVersion is required when command is "explicit".',
       );
     }
-    stdSemver.parse(options.explicitVersion); // validate format
+    if (semver.valid(options.explicitVersion) === null) {
+      throw new TypeError(`Cannot parse version: ${options.explicitVersion}`);
+    }
     targetVersion = options.explicitVersion;
   } else if (command === "sync") {
     targetVersion = highestVersion;
   } else {
-    targetVersion = stdSemver.format(
-      stdSemver.increment(
-        stdSemver.parse(highestVersion),
-        command as stdSemver.ReleaseType,
-      ),
-    );
+    targetVersion = new semver.SemVer(highestVersion)
+      .inc(command as semver.ReleaseType)
+      .format();
   }
 
   // Apply package updates (including root)

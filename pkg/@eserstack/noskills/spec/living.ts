@@ -13,7 +13,7 @@
  * @module
  */
 
-import * as yaml from "@eemeli/yaml";
+import * as yaml from "yaml";
 import type * as schema from "../state/schema.ts";
 import * as concernScope from "../state/concern-scope.ts";
 import { runtime } from "@eserstack/standards/cross-runtime";

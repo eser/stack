@@ -187,6 +187,26 @@ export interface RecipesAnswer extends ErrorAnswer {
   readonly recipes?: readonly unknown[];
 }
 
+/** The options of a kitExtractTarballStream open. */
+export interface ExtractTarballRequest {
+  readonly dir: string;
+  readonly stripComponents?: number;
+  readonly subpath?: string;
+  readonly maxBytes?: number;
+  readonly maxEntries?: number;
+}
+
+/**
+ * The answer of a tarball extraction's open, pushes and close: `done` once
+ * the archive is extracted, or the error that stopped it, with the limit and
+ * its value when a limit did.
+ */
+export interface ExtractTarballAnswer extends HandleAnswer {
+  readonly done?: boolean;
+  readonly limit?: "maxBytes" | "maxEntries";
+  readonly max?: number;
+}
+
 // The entry types are written once, as the `as` type of each table entry; the
 // aliases below keep those lines short.
 type Call<Req, Res, Async extends boolean = false> = CallBinding<
@@ -586,6 +606,29 @@ export const BINDINGS = {
     wasm: "no",
     async: false,
   } as Call<BridgeRequest, RecipesAnswer>,
+  // Push-fed: the gzipped archive goes in through
+  // kitExtractTarballStreamPush, base64-encoded, and close stops an
+  // extraction that has not ended.
+  kitExtractTarballStream: {
+    kind: "stream",
+    blocking: false,
+    wasm: "no",
+    async: false,
+  } as Stream<
+    ExtractTarballRequest,
+    ExtractTarballAnswer,
+    never,
+    ExtractTarballAnswer
+  >,
+  kitExtractTarballStreamPush: {
+    kind: "call",
+    blocking: false,
+    wasm: "no",
+    async: false,
+  } as Call<
+    HandleRequest & { readonly chunk?: string; readonly end?: boolean },
+    ExtractTarballAnswer
+  >,
 
   // Posts (postsfx)
   postsCreateService: {

@@ -237,7 +237,7 @@ bdd.describe("serializeWith() without the native library", () => {
       data: app,
       format: "csv",
       options: {},
-      // @std/csv ends rows with CRLF, as RFC 4180 does.
+      // The CSV writer ends rows with CRLF, as RFC 4180 does.
       expected: "name,replicas\r\napp,3\r\n",
     },
   ];
@@ -590,6 +590,46 @@ bdd.describe("FormatReader streaming", () => {
     const items = reader.push("app1,1.0.0\napp2,2.0.0\n");
     assert.assertEquals(items.length, 2);
     assert.assertEquals((items[0] as Record<string, unknown>)["name"], "app1");
+  });
+
+  bdd.it("CSV reads back the quoted fields it writes", () => {
+    const row = { name: 'say "hi"', note: "a,b", text: "line 1\nline 2" };
+    const text = csv.csvFormat.writeItem(row, { _isFirst: true });
+
+    assert.assertEquals(
+      text,
+      'name,note,text\r\n"say ""hi""","a,b","line 1\nline 2"\r\n',
+    );
+
+    const reader = csv.csvFormat.createReader();
+    assert.assertEquals([...reader.push(text), ...reader.flush()], [row]);
+  });
+
+  bdd.it("CSV reads a quoted field that spans lines and chunks", () => {
+    const reader = csv.csvFormat.createReader();
+
+    assert.assertEquals(reader.push('name,notes\napp1,"first\n'), []);
+    assert.assertEquals(reader.push('second"\napp2,'), [
+      { name: "app1", notes: "first\nsecond" },
+    ]);
+    assert.assertEquals(reader.flush(), [{ name: "app2", notes: "" }]);
+  });
+
+  bdd.it("CSV rejects a row with a different field count", () => {
+    const reader = csv.csvFormat.createReader();
+
+    assert.assertThrows(
+      () => reader.push("name,version\napp1\n"),
+      types.DeserializationError,
+      "The record has 1 fields, but the header has 2 fields",
+    );
+  });
+
+  bdd.it("CSV writes the given headers with CRLF", () => {
+    assert.assertEquals(
+      csv.csvFormat.writeStart!({ headers: ["a,b", "c"] }),
+      '"a,b",c\r\n',
+    );
   });
 
   bdd.it("JSON buffers everything until flush", () => {

@@ -11,13 +11,13 @@
     "./list": "./list.ts"
   },
   "dependencies": {
-    "@eemeli/yaml": "npm:@jsr/eemeli__yaml@^2.9.1",
     "@eserstack/config": "workspace:*",
     "@eserstack/functions": "workspace:*",
     "@eserstack/primitives": "workspace:*",
     "@eserstack/shell": "workspace:*",
     "@eserstack/standards": "workspace:*",
-    "@eserstack/streams": "workspace:*"
+    "@eserstack/streams": "workspace:*",
+    "yaml": "^2.9.1"
   },
   "devDependencies": {
     "@eserstack/test-kit": "workspace:*"

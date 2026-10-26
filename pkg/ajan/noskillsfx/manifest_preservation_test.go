@@ -95,7 +95,7 @@ func TestWriteManifestSectionKeepsTheRestOfTheFile(t *testing.T) {
 }
 
 // TestWriteManifestSectionWritesTheTypeScriptForm pins the bytes of a new
-// manifest: the ones `noskills init` writes through @eemeli/yaml.
+// manifest: the ones `noskills init` writes through the yaml package.
 func TestWriteManifestSectionWritesTheTypeScriptForm(t *testing.T) {
 	t.Parallel()
 

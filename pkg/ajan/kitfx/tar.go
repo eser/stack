@@ -104,6 +104,10 @@ func ExtractTarball(r io.Reader, dir string, opts ExtractOptions) error {
 		return fmt.Errorf("extract tarball: maxBytes %d and maxEntries %d must be positive integers", maxBytes, maxEntries)
 	}
 
+	if opts.StripComponents < 0 {
+		return fmt.Errorf("extract tarball: stripComponents %d must not be negative", opts.StripComponents)
+	}
+
 	gz, err := gzip.NewReader(r)
 	if err != nil {
 		return fmt.Errorf("extract tarball: decompress: %w", err)
@@ -137,7 +141,9 @@ func ExtractTarball(r io.Reader, dir string, opts ExtractOptions) error {
 		}
 
 		relative, ok := tarEntryPath(header.Name, opts.StripComponents, subpath)
-		if !ok {
+		if !ok || !filepath.IsLocal(filepath.FromSlash(relative)) {
+			// IsLocal also catches what only the host's own path rules make
+			// unsafe, such as a backslash or a drive letter on Windows.
 			continue
 		}
 
@@ -189,7 +195,10 @@ func writeTarEntry(r io.Reader, dest string) error {
 	}
 
 	if _, err := io.Copy(file, r); err != nil { //nolint:gosec // G110: the limitReader bounds the decompressed size
+		// An entry cut off by a limit or a broken archive leaves no partial
+		// file behind; the files written before it stay.
 		_ = file.Close()
+		_ = os.Remove(dest)
 
 		return err //nolint:wrapcheck
 	}

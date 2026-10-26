@@ -218,14 +218,17 @@ type tsKitRun struct {
 	name string
 	// env is added to the process environment.
 	env []string
+	// ajanDisabled: the run has no native library, so it cannot extract a
+	// tarball (recipes/tar.ts runs on the Go extractor since TASK-234).
+	ajanDisabled bool
 }
 
 // tsKitRuns are the TypeScript runs each Go run is compared with: the
 // default environment, where kit may route through the native ajan library,
 // and ESER_AJAN=disabled, where it uses its own TypeScript engine.
 var tsKitRuns = []tsKitRun{
-	{name: "ts-default", env: []string{"ESER_AJAN_DEBUG=1"}},
-	{name: "ts-engine", env: []string{"ESER_AJAN=disabled"}},
+	{name: "ts-default", env: []string{"ESER_AJAN_DEBUG=1"}, ajanDisabled: false},
+	{name: "ts-engine", env: []string{"ESER_AJAN=disabled"}, ajanDisabled: true},
 }
 
 func runTSKit(t *testing.T, run tsKitRun, proxyURL, dir string, args []string) string {
@@ -349,6 +352,10 @@ func TestKitParityWithTypeScript(t *testing.T) {
 		args  func(manifest string) []string
 		// sub is the directory compared, relative to the run's directory.
 		sub string
+		// extracts: the run downloads and extracts a tarball. The ts-default
+		// run still covers the TypeScript engine there, since a whole-repo
+		// clone never takes the FFI fast path of clone-recipe.ts.
+		extracts bool
 	}{
 		{
 			name:  "add with requires, a folder, an existing file and variables",
@@ -396,7 +403,8 @@ func TestKitParityWithTypeScript(t *testing.T) {
 			args: func(string) []string {
 				return []string{"clone", "acme/tpl", "my-app", "--var", "module=acme.dev/x", "--no-interactive"}
 			},
-			sub: "my-app",
+			sub:      "my-app",
+			extracts: true,
 		},
 		{
 			name:  "clone a recipe with a file list",
@@ -433,6 +441,10 @@ func TestKitParityWithTypeScript(t *testing.T) {
 			}
 
 			for _, tsRun := range tsKitRuns {
+				if tc.extracts && tsRun.ajanDisabled {
+					continue
+				}
+
 				tsDir := t.TempDir()
 				writeFiles(t, tsDir, tc.setup)
 				tsOutput := runTSKit(t, tsRun, proxyURL, tsDir, tc.args(manifest))

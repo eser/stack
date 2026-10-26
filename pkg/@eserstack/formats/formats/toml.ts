@@ -1,6 +1,6 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import * as toml from "@std/toml";
+import * as toml from "smol-toml";
 import type { Format, FormatOptions, FormatReader } from "../types.ts";
 import * as types from "../types.ts";
 
@@ -14,17 +14,11 @@ export const writeItem = (data: unknown, options?: FormatOptions): string => {
       throw new Error("TOML format requires each document to be an object");
     }
 
-    const tomlOptions: toml.StringifyOptions = {};
-
-    if (options?.pretty !== false) {
-      tomlOptions.keyAlignment = true;
-    }
-
+    // smol-toml writes one `key = value` per line with no alignment, so
+    // `pretty` changes nothing here.
     const separator =
       options?.separator === "" ? "+++" : (options?.separator ?? "+++");
-    return `${toml
-      .stringify(data as Record<string, unknown>, tomlOptions)
-      .trim()}\n${separator}\n`;
+    return `${toml.stringify(data as Record<string, unknown>).trim()}\n${separator}\n`;
   } catch (error) {
     throw new types.SerializationError(
       `Failed to serialize TOML: ${

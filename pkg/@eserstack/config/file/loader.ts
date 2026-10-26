@@ -1,8 +1,8 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import * as jsonc from "@std/jsonc";
-import * as toml from "@std/toml";
-import * as yaml from "@eemeli/yaml";
+import * as jsonc from "jsonc-parser";
+import * as toml from "smol-toml";
+import * as yaml from "yaml";
 import { runtime } from "@eserstack/standards/cross-runtime";
 import * as fileSearch from "./file-search.ts";
 import * as primitives from "./primitives.ts";
@@ -14,6 +14,32 @@ const FileFormatNames: Record<primitives.FileFormat, string> = {
   [primitives.FileFormats.JsonWithComments]: "JSONC",
   [primitives.FileFormats.Toml]: "TOML",
   [primitives.FileFormats.Yaml]: "YAML",
+};
+
+/**
+ * Parses JSON with comments and trailing commas. jsonc-parser recovers from
+ * errors and reports them in a list instead of throwing, so the first one is
+ * raised here as a SyntaxError, the way JSON.parse fails.
+ */
+const parseJsonc = (text: string): unknown => {
+  const errors: jsonc.ParseError[] = [];
+  const value: unknown = jsonc.parse(text, errors, {
+    allowTrailingComma: true,
+    disallowComments: false,
+    allowEmptyContent: false,
+  });
+
+  const first = errors[0];
+  if (first !== undefined) {
+    const before = text.slice(0, first.offset).split("\n");
+    const line = before.length;
+    const column = (before.at(-1)?.length ?? 0) + 1;
+    throw new SyntaxError(
+      `Cannot parse JSONC: ${jsonc.printParseErrorCode(first.error)} at line ${line}, column ${column}`,
+    );
+  }
+
+  return value;
 };
 
 /**
@@ -134,7 +160,7 @@ export const parse = async <T>(
 
     if (formatFinal === primitives.FileFormats.JsonWithComments) {
       return {
-        content: jsonc.parse(textContent) as T,
+        content: parseJsonc(textContent) as T,
         filepath: filepath,
         format: formatFinal,
       };

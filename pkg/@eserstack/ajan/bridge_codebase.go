@@ -93,6 +93,11 @@ type codebaseWalkRequest struct {
 	Extensions []string `json:"extensions,omitempty"`
 	Exclude    []string `json:"exclude,omitempty"`
 	GitAware   bool     `json:"gitAware"`
+	// GitFiles is the host's `git ls-files --cached --others
+	// --exclude-standard` listing for Dir. The WASM build cannot start git, so
+	// its host lists the files; without the listing a git-aware walk there
+	// fails (codebasefx.ErrGitUnavailable).
+	GitFiles []string `json:"gitFiles,omitempty"`
 }
 
 type codebaseFileJSON struct {
@@ -118,6 +123,8 @@ type codebaseValidateRequest struct {
 	Exclude          []string       `json:"exclude,omitempty"`
 	ValidatorOptions map[string]any `json:"validatorOptions,omitempty"`
 	GitAware         bool           `json:"gitAware"`
+	// GitFiles is the host's git listing, as on codebaseWalkRequest.
+	GitFiles []string `json:"gitFiles,omitempty"`
 }
 
 type codebaseValidatorResultJSON struct {
@@ -182,6 +189,17 @@ func bridgeCodebaseBumpVersion(requestJSON string) string {
 	return marshalResponse(codebaseBumpResponse{Version: version}) //nolint:exhaustruct
 }
 
+// walkRequestFiles walks the files of a codebase request: over the host's git
+// listing when a git-aware request carries one (the WASM build cannot start
+// git), with git otherwise.
+func walkRequestFiles(ctx context.Context, opts codebasefx.WalkOptions, gitFiles []string) ([]codebasefx.FileEntry, error) {
+	if opts.GitAware && gitFiles != nil {
+		return codebasefx.WalkListedFiles(opts, gitFiles)
+	}
+
+	return codebasefx.WalkSourceFiles(ctx, opts)
+}
+
 // bridgeCodebaseWalkFiles walks source files under a directory.
 func bridgeCodebaseWalkFiles(requestJSON string) string {
 	var req codebaseWalkRequest
@@ -189,12 +207,12 @@ func bridgeCodebaseWalkFiles(requestJSON string) string {
 		return marshalResponse(codebaseWalkResponse{Error: "invalid request JSON: " + err.Error()}) //nolint:exhaustruct
 	}
 
-	entries, err := codebasefx.WalkSourceFiles(context.Background(), codebasefx.WalkOptions{
+	entries, err := walkRequestFiles(context.Background(), codebasefx.WalkOptions{
 		Root:       req.Dir,
 		Extensions: req.Extensions,
 		Exclude:    req.Exclude,
 		GitAware:   req.GitAware,
-	})
+	}, req.GitFiles)
 	if err != nil {
 		return marshalResponse(codebaseWalkResponse{Error: err.Error()}) //nolint:exhaustruct
 	}
@@ -219,12 +237,12 @@ func bridgeCodebaseValidateFiles(requestJSON string) string {
 		return marshalResponse(codebaseValidateResponse{Error: "invalid request JSON: " + err.Error()}) //nolint:exhaustruct
 	}
 
-	files, err := codebasefx.WalkSourceFiles(context.Background(), codebasefx.WalkOptions{
+	files, err := walkRequestFiles(context.Background(), codebasefx.WalkOptions{
 		Root:       req.Dir,
 		Extensions: req.Extensions,
 		Exclude:    req.Exclude,
 		GitAware:   req.GitAware,
-	})
+	}, req.GitFiles)
 	if err != nil {
 		return marshalResponse(codebaseValidateResponse{Error: err.Error()}) //nolint:exhaustruct
 	}
@@ -635,12 +653,12 @@ func bridgeCodebaseWalkFilesStreamCreate(requestJSON string) string {
 			}
 		}()
 
-		entries, err := codebasefx.WalkSourceFiles(ctx, codebasefx.WalkOptions{
+		entries, err := walkRequestFiles(ctx, codebasefx.WalkOptions{
 			Root:       req.Dir,
 			Extensions: req.Extensions,
 			Exclude:    req.Exclude,
 			GitAware:   req.GitAware,
-		})
+		}, req.GitFiles)
 		if err != nil {
 			select {
 			case state.ch <- marshalError(err.Error()):
@@ -761,11 +779,11 @@ func bridgeCodebaseValidateFilesStreamCreate(requestJSON string) string {
 			}
 		}()
 
-		files, err := codebasefx.WalkSourceFiles(ctx, codebasefx.WalkOptions{
+		files, err := walkRequestFiles(ctx, codebasefx.WalkOptions{
 			Root:       req.Dir,
 			Extensions: req.Extensions,
 			GitAware:   req.GitAware,
-		})
+		}, req.GitFiles)
 		if err != nil {
 			select {
 			case state.ch <- marshalError(err.Error()):

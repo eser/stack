@@ -6,14 +6,14 @@ package codebasefx
 
 import (
 	"context"
-	"errors"
+	"fmt"
 )
 
 // errNoGitOnWasip1 is what runGit returns on wasip1, which cannot start a
-// process. The git-aware walk takes it as "git unavailable" and falls back to
-// the filesystem walk, as it does when git is missing. Keeping os/exec out of
-// this build keeps the WASM profile small (TASK-272, F2).
-var errNoGitOnWasip1 = errors.New("git is not available on wasip1")
+// process. A git-aware walk fails with it unless the caller passed the git
+// listing (WalkOptions.GitFiles). Keeping os/exec out of this build keeps the
+// WASM profile small (TASK-272, F2).
+var errNoGitOnWasip1 = fmt.Errorf("%w on wasip1, which cannot start a process", ErrGitUnavailable)
 
 func runGit(_ context.Context, _ string, _ ...string) (string, error) {
 	return "", errNoGitOnWasip1

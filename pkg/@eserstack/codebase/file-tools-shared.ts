@@ -11,8 +11,8 @@
 
 import * as crossRuntime from "@eserstack/standards/cross-runtime";
 import * as patterns from "@eserstack/standards/patterns";
-import * as shellExec from "@eserstack/shell/exec";
 import * as ffiClient from "./ffi-client.ts";
+import * as gitListing from "./git-listing.ts";
 
 // =============================================================================
 // Types
@@ -85,23 +85,6 @@ export const DEFAULT_EXCLUDES: readonly RegExp[] = [
 // =============================================================================
 
 /**
- * Get list of files tracked by git (respects .gitignore).
- * Returns null if not in a git repo or git is unavailable.
- */
-const getGitTrackedFiles = async (root: string): Promise<string[] | null> => {
-  try {
-    const files =
-      await shellExec.exec`git ls-files --cached --others --exclude-standard`
-        .cwd(root)
-        .noThrow()
-        .lines();
-    return files.length > 0 ? files : null;
-  } catch {
-    return null;
-  }
-};
-
-/**
  * Walk source files in a directory, respecting excludes.
  *
  * @param options - Walk options
@@ -130,7 +113,7 @@ export const walkSourceFiles = async (
         dir: root,
         extensions: goExtensions,
         exclude: goExcludes,
-        gitAware: true,
+        ...(await gitListing.bridgeGitOptions(lib, root)),
       }) as {
         files?: Array<{
           path: string;
@@ -187,8 +170,9 @@ export const walkSourceFiles = async (
 
   const files: FileEntry[] = [];
 
-  // Try git-aware file listing first (respects .gitignore)
-  const gitFiles = await getGitTrackedFiles(root);
+  // Git-aware listing first (respects .gitignore); null outside a git
+  // repository, and a throw when git cannot run.
+  const gitFiles = await gitListing.listGitFiles(root);
 
   if (gitFiles !== null) {
     // Git-aware path: iterate over git-tracked files

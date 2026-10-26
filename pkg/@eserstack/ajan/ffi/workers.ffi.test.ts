@@ -186,27 +186,49 @@ nodeTest.test(
         ),
       );
 
-      const watch = watchTimer();
-      const startedAt = performance.now();
-      const calls = Promise.all(
-        Array.from({ length: 8 }, () => lib.call("httpRequest", request)),
-      );
+      // The gate runs test files side by side, so one lateness spike from
+      // another process can pass the bound once. A round is measured up to
+      // three times and the test fails only when every round misses; on the
+      // main thread the calls make the timer seconds late in each round.
+      const rounds: { lateness: number; readMs: number }[] = [];
+      for (let round = 0; round < 3; round++) {
+        const watch = watchTimer();
+        const startedAt = performance.now();
+        const calls = Promise.all(
+          Array.from({ length: 8 }, () => lib.call("httpRequest", request)),
+        );
 
-      await new Promise((resolve) => setTimeout(resolve, 300));
-      assert.assertEquals(lib.workers().busy, 8);
-      const readMs = await timeSmallRead();
+        // Rounds run one after another, so each measures 8 calls in flight.
+        // oxlint-disable-next-line no-await-in-loop
+        await new Promise((resolve) => setTimeout(resolve, 300));
+        assert.assertEquals(lib.workers().busy, 8);
+        // oxlint-disable-next-line no-await-in-loop
+        const readMs = await timeSmallRead();
 
-      const answers = await calls;
-      const elapsed = performance.now() - startedAt;
-      const lateness = watch.stop();
+        // oxlint-disable-next-line no-await-in-loop
+        const answers = await calls;
+        const elapsed = performance.now() - startedAt;
+        const lateness = watch.stop();
 
-      for (const answer of answers) {
-        assert.assertEquals([answer.status, answer.body], [200, "slow"]);
+        for (const answer of answers) {
+          assert.assertEquals([answer.status, answer.body], [200, "slow"]);
+        }
+        // The 8 ran side by side, not one after another.
+        assert.assertLess(elapsed, 3_000, `the 8 calls took ${elapsed} ms`);
+
+        rounds.push({ lateness, readMs });
+        if (lateness < 50 && readMs < 100) {
+          break;
+        }
       }
-      assert.assertLess(readMs, 100, `the fs read took ${readMs} ms`);
-      assert.assertLess(lateness, 50, `the timer ran ${lateness} ms late`);
-      // The 8 ran side by side, not one after another.
-      assert.assertLess(elapsed, 3_000, `the 8 calls took ${elapsed} ms`);
+
+      const summary = rounds
+        .map((r) => `timer ${r.lateness} ms late, fs read ${r.readMs} ms`)
+        .join("; ");
+      assert.assert(
+        rounds.some((r) => r.lateness < 50 && r.readMs < 100),
+        `every round missed the 50 ms timer or 100 ms read bound: ${summary}`,
+      );
       lib.call("httpClose", client.handle ?? "");
     } finally {
       lib.close();

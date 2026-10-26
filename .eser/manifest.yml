@@ -168,6 +168,14 @@ workflows:
       - validate-circular-deps
       # Export sub-paths are kebab-case:
       - validate-export-names
+      # Every library's build script, files list, publishConfig.exports and
+      # tsconfig.build.json match its exports (TASK-232). The fix command
+      # writes them.
+      - shell:
+          name: library-manifests
+          command: node ./etc/scripts/gen-library-manifests.ts --check
+          fixCommand: node ./etc/scripts/gen-library-manifests.ts
+          timeout: 60
 
       # TypeScript checks, on the tools pinned in the root package.json.
       - shell:
@@ -324,6 +332,28 @@ workflows:
           name: legacy-binary-update
           command: ESER_PREFLIGHT=1 go test -count=1 -run
             TestLegacyBinariesSelfUpdate ./cmd/legacy-forwarder
+          timeout: 300
+      # The npm build of the libraries (TASK-232): tsc 7 emits each one's
+      # dist/ and the build fails on an emitted import that still names a .ts
+      # file. It removes the bundles the npm-build steps wrote into the dist/
+      # of cli, noskills and laroux-server, so it runs after every step that
+      # uses them.
+      - shell:
+          name: library-build
+          command: pnpm -r build
+          timeout: 300
+      # Every workspace package packed into etc/temp/npm-packs, which starts
+      # empty so no tarball of an earlier version is left in it.
+      - shell:
+          name: library-pack
+          command: rm -rf etc/temp/npm-packs && pnpm -r --filter
+            "./pkg/@eserstack/*" pack --pack-destination etc/temp/npm-packs
+          timeout: 300
+      # The packed primitives, which has no workspace dependencies, installed
+      # into a scratch consumer and imported with node --no-strip-types.
+      - shell:
+          name: library-consumer
+          command: node ./etc/scripts/preflight-library-consumer.ts
           timeout: 300
 
   - id: commit-validation

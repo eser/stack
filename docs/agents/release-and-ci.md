@@ -26,7 +26,11 @@ release-and-ci skill refers to.
   `eser dev homebrew` and `eser dev nix-hashes` in dry-run mode, and runs the
   old TypeScript updater of a v4.5.2 laroux and noskills under node against a
   local release of the laroux stub and the Go noskills
-  (`cmd/legacy-forwarder/legacy_update_test.go`).
+  (`cmd/legacy-forwarder/legacy_update_test.go`). Last, it builds the libraries
+  (`pnpm -r build`), packs every workspace package into `etc/temp/npm-packs`
+  and installs the packed `@eserstack/primitives` into a scratch consumer that
+  imports it with `node --no-strip-types`
+  (`etc/scripts/preflight-library-consumer.ts`).
 - The install dry runs are Go tests in `cmd/noskills/install_dry_run_test.go`.
   `TestInstallShInstallsTheGoNoskills` and `TestInstallShDecidesFromTheRelease`
   run in `go test ./...`: install.sh installs the Go noskills from a local
@@ -80,9 +84,18 @@ Validate job also runs `make vuln` (govulncheck for both Go modules).
   binary (`dist/noskills.js`) and carries the TypeScript CLI in `dist/ts/` for
   the commands the binary forwards.
 - **Libraries:** the `@eserstack/*` libraries publish to npm from 5.0.0; the
-  publish step for them is TASK-236. The laroux packages (`laroux`,
-  `laroux-bundler`, `laroux-react`, `laroux-server`) list what they publish in
-  the `files` field of their `package.json`.
+  publish step for them is TASK-236. Every non-private package with `exports`
+  is a library. Its `build` script runs `etc/scripts/build-library.ts`, which
+  emits JavaScript and declarations into its `dist/` with tsc 7 and
+  `tsconfig.build.json`, and fails on an emitted import of a `.ts` file. Its
+  `exports` stay on the sources, which the workspace runs, and
+  `publishConfig.exports` points at `dist/` with `types` and `import`
+  conditions; pnpm swaps it in when it packs. `files` lists the emitted files,
+  plus the bootstrap sources laroux-bundler copies from `laroux-react`, whose
+  `./client/bootstrap` export stays on the source. The bundles of `cli`,
+  `noskills` and `laroux-server` share that `dist/`: the library build removes
+  a bundle there and a bundle build removes the library emit, so whichever a
+  later step packs is built last.
 - **Release binaries:** Go commands built by `eser dev compile`
   (`ReleaseBinaries` in `pkg/ajan/codebasefx`): `eser`, `noskills`,
   `noskills-server` and, under the `laroux` archive name, the

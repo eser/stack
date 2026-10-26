@@ -69,6 +69,10 @@ A package is `pkg/@eserstack/<name>/` or one `pkg/ajan/<name>fx/`.
   every `package.json` together.
 - Each package's `package.json` is its only manifest; nothing generates
   another one from it.
+- In each library's `package.json`, `scripts.build`, `files` and
+  `publishConfig.exports`, and its `tsconfig.build.json`, are written by
+  `node ./etc/scripts/gen-library-manifests.ts`; the precommit step
+  `library-manifests` fails when they no longer match `exports`.
 - Lock files: `pnpm-lock.yaml` and `go.sum`.
 
 ## Commits, Pushes and Releases

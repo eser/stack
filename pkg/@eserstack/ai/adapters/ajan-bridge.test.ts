@@ -39,25 +39,6 @@ const stubLib = (captured: Captured[]): ffiTypes.FFILibrary => {
   });
 };
 
-/**
- * A library whose calls are answered by `handlers`, which may answer a
- * promise: it stands in for a backend that runs a call off the main thread,
- * so a test can act while the call is in flight.
- */
-const pendingLib = (
-  handlers: Readonly<Record<string, (request: unknown) => unknown>>,
-): ffiTypes.FFILibrary =>
-  ({
-    call: (name: string, request?: unknown) => {
-      const handler = handlers[name];
-      if (handler === undefined) {
-        throw new Error(`unexpected bridge call ${name}`);
-      }
-
-      return handler(request);
-    },
-  }) as unknown as ffiTypes.FFILibrary;
-
 const model = (captured: Captured[]) =>
   new ajanBridge.AjanBridgeModel(
     stubLib(captured),
@@ -411,20 +392,22 @@ const cancelSpy = (): CancelSpy => {
   const spy: CancelSpy = {
     cancels,
     sent,
-    lib: pendingLib({
-      // Deliberately async, mirroring an off-thread call: the whole point is
-      // that JS keeps running while the model call is in flight.
-      aiGenerateText: (request) => {
-        sent.push(JSON.stringify((request as ffiTypes.ModelRequest).options));
+    // The library's own abort path: a blocking name answers a promise, and
+    // an abort sends aiCancelRequest for the request's id.
+    lib: fake.createFakeLibrary({
+      calls: {
+        aiGenerateText: (request) => {
+          sent.push(JSON.stringify(request.options));
 
-        return new Promise<unknown>((resolve) => {
-          spy.resolveGenerate = (raw) => resolve(JSON.parse(raw));
-        });
-      },
-      aiCancelRequest: (request) => {
-        cancels.push(JSON.stringify(request));
+          return new Promise<ffiTypes.AiAnswer>((resolve) => {
+            spy.resolveGenerate = (raw) => resolve(JSON.parse(raw));
+          });
+        },
+        aiCancelRequest: (request) => {
+          cancels.push(JSON.stringify(request));
 
-        return {};
+          return {};
+        },
       },
     }),
   };
@@ -471,33 +454,36 @@ nodeTest.test(
     // Cancelling a different id than the request carries would be a silent no-op.
     assert.assertEquals(cancelledId, sentId);
 
-    spy.resolveGenerate!(JSON.stringify({ error: "context canceled" }));
-
+    // The call answers the abort without waiting for the Go side.
     const result = await pending;
 
     assert.assert(results.isFail(result), "an aborted call reported success");
     // The caller's own intent, not the Go plumbing that carried it out.
     assert.assertEquals(result.error.message, "request aborted");
+
+    spy.resolveGenerate!(JSON.stringify({ error: "context canceled" }));
   },
 );
 
-nodeTest.test("an already-aborted signal cancels without waiting", async () => {
-  const spy = cancelSpy();
+nodeTest.test(
+  "an already-aborted signal fails without sending the request",
+  async () => {
+    const spy = cancelSpy();
 
-  const result = spyModel(spy).generateText(
-    { messages: [] } as unknown as Parameters<
-      ReturnType<typeof spyModel>["generateText"]
-    >[0],
-    AbortSignal.abort(),
-  );
+    const result = await spyModel(spy).generateText(
+      { messages: [] } as unknown as Parameters<
+        ReturnType<typeof spyModel>["generateText"]
+      >[0],
+      AbortSignal.abort(),
+    );
 
-  // Sent immediately. Go records it against the id, so the request stops the
-  // instant it registers rather than running to completion first.
-  assert.assertEquals(spy.cancels.length, 1);
-
-  spy.resolveGenerate!(JSON.stringify({ error: "context canceled" }));
-  await result;
-});
+    assert.assert(results.isFail(result), "an aborted call reported success");
+    assert.assertEquals(result.error.message, "request aborted");
+    // Nothing reached the bridge, so there is nothing to cancel either.
+    assert.assertEquals(spy.sent.length, 0);
+    assert.assertEquals(spy.cancels.length, 0);
+  },
+);
 
 nodeTest.test(
   "the abort listener is detached when the call completes",
@@ -563,18 +549,20 @@ nodeTest.test(
     const sent: string[] = [];
     let resolveCall: ((raw: string) => void) | undefined;
 
-    const lib = pendingLib({
-      aiBatchGet: (request) => {
-        sent.push(JSON.stringify(request));
+    const lib = fake.createFakeLibrary({
+      calls: {
+        aiBatchGet: (request) => {
+          sent.push(JSON.stringify(request));
 
-        return new Promise<unknown>((resolve) => {
-          resolveCall = (raw) => resolve(JSON.parse(raw));
-        });
-      },
-      aiCancelRequest: (request) => {
-        cancels.push(JSON.stringify(request));
+          return new Promise<ffiTypes.AiAnswer>((resolve) => {
+            resolveCall = (raw) => resolve(JSON.parse(raw));
+          });
+        },
+        aiCancelRequest: (request) => {
+          cancels.push(JSON.stringify(request));
 
-        return {};
+          return {};
+        },
       },
     });
 
@@ -600,8 +588,6 @@ nodeTest.test(
 
     assert.assertEquals(cancelledId, sentId);
 
-    resolveCall!(JSON.stringify({ error: "context canceled" }));
-
     await pending.then(
       () => {
         throw new Error("an aborted batch call reported success");
@@ -610,6 +596,8 @@ nodeTest.test(
         assert.assertEquals(err.message, "request aborted");
       },
     );
+
+    resolveCall!(JSON.stringify({ error: "context canceled" }));
   },
 );
 

@@ -246,14 +246,15 @@ Every method behaves the same on both transports: the request is built the same
 way, interceptors run, the retry policy applies, and failures throw the same
 errors. Only the exchange itself differs:
 
-- With the native library, a call into the Go client blocks the JavaScript
-  thread until it returns. The client's `timeout` bounds the call and covers
-  reading the response body too, so a `requestStream` body is cut off once
-  `timeout` has passed. A per-request `timeout` or `signal` is checked before
-  each attempt but cannot stop one that is already in the Go client. On the WASM
-  fallback (no native library for the platform), the requests wait on the
-  runtime's `fetch` without blocking, and a `signal` stops one in flight; see
-  the `@eserstack/ajan` README, "Network on the WASM fallback".
+- With the native library, each call into the Go client runs in a worker
+  thread, so the JavaScript thread keeps running while it waits. The client's
+  `timeout` bounds the call and covers reading the response body too, so a
+  `requestStream` body is cut off once `timeout` has passed. A `signal` that
+  fires rejects the request at once; the Go request itself runs on in its
+  worker until it ends, and an abort while a streamed body is read closes the
+  stream. On the WASM fallback (no native library for the platform), the
+  requests wait on the runtime's `fetch`, and a `signal` stops one in flight;
+  see the `@eserstack/ajan` README, "Network on the WASM fallback".
 - Request bodies must be text: a string, `URLSearchParams`, or an object sent as
   JSON. A binary, `FormData`, `Blob` or stream body throws an `HttpClientError`;
   send those with the default transport.

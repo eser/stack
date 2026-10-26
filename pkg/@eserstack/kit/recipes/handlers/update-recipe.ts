@@ -92,13 +92,13 @@ export const updateRecipe = (
         const lib = ffiClient.getLib();
 
         if (lib !== null) {
-          const goResult = lib.call("kitUpdateRecipe", {
+          const goResult = (await lib.call("kitUpdateRecipe", {
             recipeName: input.recipeName,
             cwd: input.cwd,
             registrySource: input.registrySource,
             dryRun: input.dryRun,
             verbose: input.verbose,
-          }) as {
+          })) as {
             recipes?: Array<{
               name: string;
               written?: string[];

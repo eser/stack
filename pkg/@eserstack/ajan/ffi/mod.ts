@@ -17,6 +17,9 @@
  * - `ESER_AJAN_NATIVE=disabled`: skip node:ffi and go straight to the WASM build
  * - `ESER_AJAN_WASM=disabled`: disable the WASM fallback; only try node:ffi
  *
+ * `ESER_AJAN_POOL_SIZE` sets how many worker threads run the blocking calls
+ * of the native library at once (1 to 64, default 8; see offload.ts).
+ *
  * Usage:
  * ```ts
  * import * as ffi from "./ffi/mod.ts";
@@ -60,6 +63,8 @@ export {
 } from "./errors.ts";
 export { ABI_VERSION } from "./library.ts";
 export { BINDINGS, bindingOf } from "./bindings.ts";
+export { DEFAULT_POOL_SIZE, MAX_POOL_SIZE } from "./offload.ts";
+export type { WorkerStats } from "./offload.ts";
 export type {
   AiAnswer,
   BindingName,
@@ -67,9 +72,12 @@ export type {
   Bindings,
   BridgeAnswer,
   BridgeRequest,
+  CallArgs,
   CallBinding,
   CallName,
+  CallOptions,
   CallResult,
+  CancelEntry,
   ChunkOf,
   ClosedOf,
   EmptyAnswer,
@@ -85,6 +93,7 @@ export type {
   OpenedOf,
   RecipesAnswer,
   RequestArgs,
+  ReadResult,
   RequestOf,
   ResponseOf,
   SpawnAnswer,
@@ -97,6 +106,7 @@ export type {
 } from "./bindings.ts";
 
 import * as backendNode from "./backend-node.ts";
+import * as offload from "./offload.ts";
 import * as resolve from "./resolve.ts";
 import type * as types from "./types.ts";
 
@@ -114,7 +124,44 @@ export interface LoadOptions {
   native?: boolean;
   /** Allow the WASM fallback. Default: `true` (unless `ESER_AJAN_WASM=disabled`). */
   wasm?: boolean;
+  /**
+   * How many pool workers run the blocking calls of the native library at
+   * once: a whole number from 1 to 64. `ESER_AJAN_POOL_SIZE` takes
+   * precedence; the default is 8.
+   */
+  poolSize?: number;
 }
+
+/**
+ * The pool bound for a load: `ESER_AJAN_POOL_SIZE`, then `options.poolSize`,
+ * then {@link offload.DEFAULT_POOL_SIZE}.
+ *
+ * @throws {RangeError} When the value is not a whole number from 1 to
+ *   {@link offload.MAX_POOL_SIZE}
+ */
+export const resolvePoolSize = (
+  envValue: string | undefined,
+  optionValue: number | undefined,
+): number => {
+  const fromEnv = envValue === undefined || envValue === "" ? null : envValue;
+  const value =
+    fromEnv !== null
+      ? Number(fromEnv)
+      : (optionValue ?? offload.DEFAULT_POOL_SIZE);
+
+  if (!Number.isInteger(value) || value < 1 || value > offload.MAX_POOL_SIZE) {
+    const source =
+      fromEnv !== null
+        ? `ESER_AJAN_POOL_SIZE=${JSON.stringify(fromEnv)}`
+        : `poolSize ${String(optionValue)}`;
+
+    throw new RangeError(
+      `eser-ajan: ${source} is not a pool size; set a whole number from 1 to ${offload.MAX_POOL_SIZE}, or leave it unset for ${offload.DEFAULT_POOL_SIZE}`,
+    );
+  }
+
+  return value;
+};
 
 /** Reads an environment variable; `undefined` where there is no `process`. */
 const getEnv = (name: string): string | undefined =>
@@ -239,10 +286,16 @@ const openEserAjan = async (
   let nativeError: unknown;
 
   if (nativeAllowed) {
+    // A bad pool size is the caller's mistake, not a reason to fall back.
+    const poolSize = resolvePoolSize(
+      getEnv("ESER_AJAN_POOL_SIZE"),
+      opts?.poolSize,
+    );
+
     try {
       const resolvedPath =
         libraryPath ?? resolve.resolveLibraryPath(FFI_MODULE_DIR);
-      return await backendNode.open(resolvedPath);
+      return await backendNode.open(resolvedPath, { poolSize });
     } catch (error) {
       nativeError = error;
       debugLog(`native FFI failed: ${errorMessage(error)}`);
@@ -343,6 +396,7 @@ const cacheKey = (
     path: libraryPath ?? null,
     native: options?.native ?? null,
     wasm: options?.wasm ?? null,
+    poolSize: options?.poolSize ?? null,
   });
 
 /**
@@ -415,6 +469,7 @@ export const loadEserAjan = async (
     handshake: library.handshake,
     call: library.call,
     stream: library.stream,
+    workers: library.workers,
     close: (): void => {
       if (released) {
         return;

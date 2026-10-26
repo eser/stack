@@ -5,7 +5,6 @@ import * as cliSupport from "@eserstack/codebase/cli-support";
 import * as cli from "./main.ts";
 
 // Executable entry point, so the CLI runs at startup. exitCli prints a failure
-// message, sets the exit code and drains buffered output; see its docs for why
-// the native FFI teardown needs the hard exit.
+// message, drains buffered output and sets the exit code.
 // oxlint-disable-next-line node/no-top-level-await
 await cliSupport.exitCli(await cli.main());

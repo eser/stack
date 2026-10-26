@@ -146,10 +146,10 @@ export const listRecipes = (
             ? await registryFetcher.detectLocalRegistry()
             : undefined) ??
           registryFetcher.DEFAULT_REGISTRY_URL;
-        const goResult = lib.call("kitListRecipes", {
+        const goResult = (await lib.call("kitListRecipes", {
           registryUrl,
           cwd: runtime.process.cwd(),
-        }) as {
+        })) as {
           manifest?: {
             name: string;
             description: string;

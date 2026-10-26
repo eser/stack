@@ -1,0 +1,99 @@
+name: FFI and Workers
+
+# The node:ffi suites (*.ffi.test.ts) and the worker-thread tests of the native
+# bridge (decision-37, TASK-239), on the pinned Node minor. node:ffi is still
+# experimental, so a Node bump must pass them before it merges (decision-14):
+# the paths below include .node-version and every package.json, whose engines
+# field holds the Node range.
+on:
+  push:
+    branches:
+      - "**"
+    paths:
+      - ".node-version"
+      - "**/package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "go.mod"
+      - "go.sum"
+      - "Makefile"
+      - "pkg/**"
+      - ".github/workflows/ffi-workers.yml"
+
+  pull_request:
+    types:
+      - opened
+      - synchronize
+    branches:
+      - "**"
+    paths:
+      - ".node-version"
+      - "**/package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "go.mod"
+      - "go.sum"
+      - "Makefile"
+      - "pkg/**"
+      - ".github/workflows/ffi-workers.yml"
+
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.ref }}-ffi-workers
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  ffi-workers:
+    name: FFI and workers (${{ matrix.os }})
+    # One GitHub-hosted image per OS: macos-latest is arm64, and the teardown
+    # test is the one that catches a lost RTLD_NODELETE pin on macOS.
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04-arm, macos-latest]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+          cache-dependency-path: go.sum
+
+      - name: Setup pnpm
+        # No version: pnpm/action-setup reads packageManager from package.json.
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build the native library
+        run: make ajan-lib
+
+      # The worker tests are the *.ffi.test.ts suites of ajan (workers,
+      # teardown), shell (the PTY keypress test), codebase and workflows (the
+      # natural exits), plus the unit tests of the offload and the abort
+      # mapping. --test-timeout fails a hung test instead of the job timeout.
+      - name: FFI suites and worker tests
+        run: >-
+          node --test --test-timeout=240000
+          "pkg/**/*.ffi.test.ts"
+          pkg/@eserstack/ajan/ffi/bindings.test.ts
+          pkg/@eserstack/ajan/ffi/library.test.ts
+          pkg/@eserstack/ajan/ffi/offload.test.ts

@@ -211,7 +211,7 @@ export const cloneRecipe = (
                 ? `gh:${specifier.owner}/${specifier.repo}/${specifier.subpath}#${specifier.ref}`
                 : `gh:${specifier.owner}/${specifier.repo}#${specifier.ref}`;
 
-            const goResult = lib.call("kitCloneRecipe", {
+            const goResult = (await lib.call("kitCloneRecipe", {
               specifier: specifierStr,
               cwd: input.cwd,
               projectName: input.projectName,
@@ -220,7 +220,7 @@ export const cloneRecipe = (
               skipExisting: input.skipExisting,
               verbose: input.verbose,
               variables: input.variables,
-            }) as {
+            })) as {
               recipes?: Array<{
                 name: string;
                 written?: string[];

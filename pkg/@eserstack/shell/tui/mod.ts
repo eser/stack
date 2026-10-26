@@ -45,20 +45,15 @@ export {
   hideCursor,
   type InputEvent,
   type KeypressEvent,
+  parseKeypress,
   readInput,
   readKeypress,
   showCursor,
   withRawMode,
 } from "./keypress.ts";
 
-// FFI-backed TUI event source (Go-side keypress, raw mode, terminal size)
-export {
-  getTerminalSizeFFI,
-  type KeypressFFIEvent,
-  readKeypressFFI,
-  setStdinRawFFI,
-  type TerminalSize,
-} from "./keypress-go.ts";
+// Keypresses and resizes, read by Node (one terminal owner per process)
+export { readTerminalEvents, type TerminalEvent } from "./terminal-input.ts";
 
 // Interactive prompts
 export { confirm } from "./confirm.ts";

@@ -334,3 +334,27 @@ nodeTest.test(
     assert.assertMatch(stderr, /\[eser-ajan\/ffi\] native FFI failed: /);
   },
 );
+
+nodeTest.test(
+  "the pool size comes from the env, then the option, then 8",
+  () => {
+    assert.assertEquals(ffiMod.resolvePoolSize(undefined, undefined), 8);
+    assert.assertEquals(ffiMod.resolvePoolSize(undefined, 3), 3);
+    assert.assertEquals(ffiMod.resolvePoolSize("12", 3), 12);
+    assert.assertEquals(ffiMod.resolvePoolSize("", 3), 3);
+
+    for (const [envValue, optionValue] of [
+      ["0", undefined],
+      ["many", undefined],
+      ["2.5", undefined],
+      [undefined, 65],
+      [undefined, 0],
+    ] as const) {
+      assert.assertThrows(
+        () => ffiMod.resolvePoolSize(envValue, optionValue),
+        RangeError,
+        "a whole number from 1 to 64",
+      );
+    }
+  },
+);

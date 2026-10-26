@@ -3,10 +3,10 @@
 /**
  * FFI-backed PTY implementing the {@link PtyProcess} contract via the native
  * bridge's `shellPtyStream` stream (ConPTY on Windows, openpty on Unix, with working
- * resize). Mirrors child-go.ts: a deferred poll pump reads one merged chunk at a
- * time. node:ffi calls are synchronous, so while an idle PTY waits for output the
- * read parks the event loop; the worker-thread pattern of decision-37 (M2-T8)
- * moves it off the main thread.
+ * resize). Mirrors child-go.ts: a deferred pump reads one merged chunk at a
+ * time. `shellPtyStream` is a blocking stream, so each pane's reads run in its
+ * own worker thread (decision-37) while the spawn, write, resize and kill stay
+ * synchronous calls on this thread.
  *
  * Spawn errors propagate to the caller so {@link spawnPty} can fall back to the
  * script-based implementation when the native library is unavailable.
@@ -104,18 +104,16 @@ export const spawnPtyGo = async (opts: PtyOptions): Promise<PtyProcess> => {
     resolveExit(code);
   };
 
-  // Poll pump: each resolved read yields back to the event loop before the next
-  // one, so other panes and input get a turn between chunks.
+  // Read pump: each read waits in the pane's own worker thread, so the event
+  // loop, other panes and input run while the PTY is idle.
   const pump = async (): Promise<void> => {
     try {
       while (true) {
-        // Yield to the event loop before each read; reads run one at a time.
-        // oxlint-disable-next-line no-await-in-loop
-        await Promise.resolve();
-
         let ev: { chunk?: string; error?: string } | null;
         try {
-          ev = pty.read();
+          // Reads run one at a time, in order.
+          // oxlint-disable-next-line no-await-in-loop
+          ev = await pty.read();
         } catch {
           break;
         }

@@ -12,8 +12,10 @@
  */
 
 import type * as bindings from "./bindings.ts";
+import type * as offload from "./offload.ts";
 
 export type { Handshake } from "./bindings.ts";
+export type { WorkerStats } from "./offload.ts";
 
 /** Which backend serves a library. */
 export type Backend = "native" | "wasm";
@@ -60,9 +62,17 @@ export interface AjanStream<N extends bindings.StreamName> {
   readonly handle: string;
   /** The open answer. Check its `error` before reading. */
   readonly opened: bindings.OpenedOf<N>;
-  /** The next chunk, or null when the stream is done. */
-  readonly read: () => bindings.MaybeAsync<N, bindings.ChunkOf<N> | null>;
-  /** Closes the stream and releases its handle. */
+  /**
+   * The next chunk, or null when the stream is done. A blocking stream reads
+   * in its own worker and answers a promise; its signal ends the read.
+   */
+  readonly read: (
+    options?: bindings.CallOptions,
+  ) => bindings.ReadResult<N, bindings.ChunkOf<N> | null>;
+  /**
+   * Closes the stream and releases its handle, synchronously on the calling
+   * thread. A blocking stream's worker ends with it.
+   */
   readonly close: () => bindings.ClosedOf<N>;
 }
 
@@ -80,17 +90,28 @@ export interface FFILibrary {
   readonly backend: Backend;
   /** What the version handshake reported at load. */
   readonly handshake: bindings.Handshake;
-  /** Runs a call name. */
+  /**
+   * Runs a call name. A blocking name runs in a pool worker and answers a
+   * promise; the other names answer synchronously.
+   */
   readonly call: <N extends bindings.CallName>(
     name: N,
-    ...request: bindings.RequestArgs<N>
+    ...args: bindings.CallArgs<N>
   ) => bindings.CallResult<N>;
   /** Opens a stream name. */
   readonly stream: <N extends bindings.StreamName>(
     name: N,
-    ...request: bindings.RequestArgs<N>
+    ...args: bindings.CallArgs<N>
   ) => bindings.MaybeAsync<N, AjanStream<N>>;
-  /** Closes the library handle and releases resources. */
+  /**
+   * The counts of the workers behind the blocking names. A backend without
+   * workers (the WASM fallback, a fake) reports zeros.
+   */
+  readonly workers: () => offload.WorkerStats;
+  /**
+   * Closes the library handle and releases resources: it runs the cancel
+   * entry of each blocking name still in flight and ends every worker.
+   */
   readonly close: () => void;
 }
 

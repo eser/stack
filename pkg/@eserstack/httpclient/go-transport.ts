@@ -67,11 +67,12 @@ const toResponseOrError = (error: unknown, request: Request): Response => {
  * Makes a fetch-shaped function that sends each Request through `goClient`.
  * `stream` picks the Go streaming call, which hands the body over unread.
  *
- * With the native library a Go call blocks the JavaScript thread until it
- * returns, so the request's signal is checked before the call and cannot
- * interrupt it; the Go client's own `timeoutMs` bounds it. On the WASM
- * fallback the signal stops the request in flight, and the call fails as
- * fetch fails on an abort.
+ * The request's signal reaches the Go client, and an abort fails the call as
+ * fetch fails on one. With the native library the request runs in a worker
+ * thread: an abort frees the caller at once, while the worker finishes the Go
+ * request, which the Go client's own `timeoutMs` bounds, and an abort during
+ * a streamed body closes the stream. On the WASM fallback the signal stops
+ * the fetch in flight.
  */
 export const createGoFetch =
   (goClient: goClientModule.GoHttpClient, stream: boolean): FetchLike =>

@@ -67,8 +67,12 @@ export type GoHttpRequest = {
    */
   readonly maxResponseBytes?: number;
   /**
-   * Stops the request when it fires. Only the WASM fallback can stop a
-   * request in flight; the native library finishes it.
+   * Stops the request when it fires: the promise rejects with the signal's
+   * reason, and for `requestStream` the body errors. The native library runs
+   * each request in a worker thread; an aborted `request` frees the caller at
+   * once while its worker finishes the Go request (bounded by `timeoutMs`),
+   * and an aborted body read closes the stream, which ends the Go read. The
+   * WASM fallback aborts its fetch.
    */
   readonly signal?: AbortSignal;
 };
@@ -137,23 +141,31 @@ export type GoHttpClient = {
 const DEFAULT_TIMEOUT_MS = 30_000;
 
 /**
- * Runs a request for a client handle, with a requestId when the request has a
- * signal, and releases the signal once the call is answered.
+ * Runs a request for a client handle. With a signal, the request carries a
+ * requestId for the WASM fallback's fetch, and the call gets the signal, so
+ * the promise rejects with its reason when it fires; the signal is released
+ * once the call is answered.
  */
 const withSignal = async <T>(
   handle: string,
   req: GoHttpRequest,
-  send: (wire: ffiTypes.HttpRequestRequest) => T | Promise<T>,
+  send: (
+    wire: ffiTypes.HttpRequestRequest,
+    options: ffiTypes.CallOptions,
+  ) => T | Promise<T>,
 ): Promise<T> => {
   const { signal, ...wire } = req;
   if (signal === undefined) {
-    return await send({ handle, ...wire });
+    return await send({ handle, ...wire }, {});
   }
 
   signal.throwIfAborted();
   const registration = ffiClient.registerRequestSignal(signal);
   try {
-    return await send({ handle, ...wire, requestId: registration.requestId });
+    return await send(
+      { handle, ...wire, requestId: registration.requestId },
+      { signal },
+    );
   } finally {
     registration.release();
   }
@@ -176,8 +188,8 @@ const decodeChunk = (chunk: string): Uint8Array => {
 const checkedTimeout = (options: GoHttpClientOptions): number => {
   const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
-    // The Go client treats 0 as no limit at all, and each call blocks the
-    // JavaScript thread, so an unbounded client is never created.
+    // The Go client treats 0 as no limit at all, and each call holds a
+    // worker thread until it returns, so an unbounded client is never created.
     throw new RangeError(
       `createGoHttpClient: timeoutMs ${timeoutMs} is not a positive number of milliseconds`,
     );
@@ -210,8 +222,8 @@ export const createGoHttpClientFor = (
 
   return {
     async request(req: GoHttpRequest): Promise<GoHttpResponse> {
-      const res = await withSignal(handle, req, (wire) =>
-        lib.call("httpRequest", wire),
+      const res = await withSignal(handle, req, (wire, options) =>
+        lib.call("httpRequest", wire, options),
       );
 
       if (res.error !== undefined && res.error !== "") {
@@ -222,8 +234,8 @@ export const createGoHttpClientFor = (
     },
 
     async requestStream(req: GoHttpRequest): Promise<GoHttpStreamResponse> {
-      const stream = await withSignal(handle, req, (wire) =>
-        lib.stream("httpRequestStream", wire),
+      const stream = await withSignal(handle, req, (wire, options) =>
+        lib.stream("httpRequestStream", wire, options),
       );
       const init = stream.opened;
 
@@ -258,7 +270,9 @@ export const createGoHttpClientFor = (
 
       const body = new ReadableStream<Uint8Array>({
         async pull(controller) {
-          const chunk = await stream.read();
+          // The request's signal also ends a read in flight: its cancel
+          // entry closes the stream, as an aborted fetch errors its body.
+          const chunk = await stream.read({ signal: req.signal });
 
           if (chunk === null) {
             release();
@@ -299,9 +313,9 @@ export const createGoHttpClientFor = (
 /**
  * Creates a Go-backed HTTP client handle.
  *
- * With the native library, each call into the Go client blocks the
- * JavaScript thread until it returns, which `timeoutMs` bounds. On the WASM
- * fallback the requests wait on the runtime's fetch instead.
+ * With the native library, each request runs in a worker thread, so the
+ * JavaScript thread keeps running while it waits; `timeoutMs` bounds it. On
+ * the WASM fallback the requests wait on the runtime's fetch instead.
  *
  * @throws Error if the native library is unavailable.
  * @throws RangeError if `timeoutMs` is not a positive number.

@@ -597,7 +597,7 @@ export const main = async (
       2,
     );
     // The JSON goes to stdout; the non-interactive context above writes to
-    // stderr. Closing the output flushes it before exitCli's hard exit.
+    // stderr. Closing the output flushes it before the command returns.
     const jsonOut = streams.output({
       renderer: streams.renderers.plain(),
       sink: streams.sinks.stdout(),

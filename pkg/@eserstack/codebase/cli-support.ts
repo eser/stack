@@ -36,9 +36,8 @@ export type CliContext = {
 };
 
 // Every Output created through the helpers below is registered here so
-// {@link exitCli} can drain it before a hard process exit. The streams Output
-// is sync-write / async-flush; `runtime.process.exit` terminates
-// synchronously and would drop any not-yet-flushed buffer.
+// {@link exitCli} can drain it before the command's exit code is set. The
+// streams Output is sync-write / async-flush.
 const liveOutputs = new Set<streams.Output>();
 
 const flushLiveOutputs = async (): Promise<void> => {
@@ -176,23 +175,22 @@ export const runCliMain = (
  * `validation`).
  *
  * Resolves the exit code from `result`, prints any error, drains buffered CLI
- * output, then **hard-exits** via `runtime.process.exit`. The hard exit is
- * deliberate: once the Go c-shared library is loaded it intermittently SIGSEGVs
- * the host on natural teardown and discards the exit code; a hard exit commits
- * the status deterministically. Because that skips the streams async flush, we
- * drain every helper-created Output first (see {@link liveOutputs}).
+ * output (see {@link liveOutputs}) and sets the exit code; the process then
+ * exits on its own. It used to exit the process itself, because the Go
+ * library could crash Deno on teardown and lose the exit code. Under Node it
+ * does not (TASK-175, measurement (c); ajan's teardown.ffi.test.ts), and
+ * cli-support-exit.ffi.test.ts checks the code survives a natural exit after
+ * a prompt and the bridge's workers.
  *
  * @param result - The CliResult from the command dispatch
  */
 export const exitCli = async (
   result: shellArgs.CliResult<void>,
-): Promise<never> => {
+): Promise<void> => {
   const exitCode = results.match(result, {
     ok: () => 0,
     fail: (error) => {
       if (error.message !== undefined) {
-        // console.error writes synchronously, so the hard exit below cannot
-        // drop the message.
         // oxlint-disable-next-line no-console
         console.error(error.message);
       }
@@ -202,7 +200,7 @@ export const exitCli = async (
 
   await flushLiveOutputs();
 
-  return runtime.process.exit(exitCode);
+  runtime.process.setExitCode(exitCode);
 };
 
 /**
@@ -285,12 +283,10 @@ export const runStandaloneModule = async (
   module: { toCommand: (name: string, version: string) => shellArgs.Command },
   name: string,
   version: string,
-): Promise<never> => {
+): Promise<void> => {
   const app = attachStandardCommands(module.toCommand(name, version));
 
-  // exitCli rather than a natural return: the native FFI teardown makes a
-  // normal exit unsafe once the shared library has been loaded. See its docs.
-  return await exitCli(await app.parse());
+  await exitCli(await app.parse());
 };
 
 /**

@@ -5,13 +5,9 @@
   "license": "Apache-2.0",
   "type": "module",
   "files": [
-    "mod.ts",
-    "navigation/**/*.ts",
-    "image/**/*.ts",
-    "router/**/*.ts",
-    "config/**/*.ts",
-    "chunk-manifest/**/*.ts",
-    "README.md"
+    "dist/**/*.js",
+    "dist/**/*.d.ts",
+    "dist/**/*.json"
   ],
   "exports": {
     ".": "./mod.ts",
@@ -20,6 +16,37 @@
     "./router": "./router/mod.ts",
     "./config": "./config/mod.ts",
     "./chunk-manifest": "./chunk-manifest/mod.ts"
+  },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/mod.d.ts",
+        "import": "./dist/mod.js"
+      },
+      "./navigation": {
+        "types": "./dist/navigation/mod.d.ts",
+        "import": "./dist/navigation/mod.js"
+      },
+      "./image": {
+        "types": "./dist/image/mod.d.ts",
+        "import": "./dist/image/mod.js"
+      },
+      "./router": {
+        "types": "./dist/router/mod.d.ts",
+        "import": "./dist/router/mod.js"
+      },
+      "./config": {
+        "types": "./dist/config/mod.d.ts",
+        "import": "./dist/config/mod.js"
+      },
+      "./chunk-manifest": {
+        "types": "./dist/chunk-manifest/mod.d.ts",
+        "import": "./dist/chunk-manifest/mod.js"
+      }
+    }
+  },
+  "scripts": {
+    "build": "node ../../../etc/scripts/build-library.ts"
   },
   "dependencies": {
     "@eserstack/standards": "workspace:*"

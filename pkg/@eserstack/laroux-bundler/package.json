@@ -5,16 +5,9 @@
   "license": "Apache-2.0",
   "type": "module",
   "files": [
-    "mod.ts",
-    "system.ts",
-    "config.ts",
-    "types.ts",
-    "css-modules.ts",
-    "import-map-resolver-plugin.ts",
-    "server-externals-plugin.ts",
-    "domain/**/*.ts",
-    "adapters/**/*.ts",
-    "README.md"
+    "dist/**/*.js",
+    "dist/**/*.d.ts",
+    "dist/**/*.json"
   ],
   "exports": {
     ".": "./mod.ts",
@@ -29,6 +22,61 @@
     "./system": "./system.ts",
     "./config": "./config.ts",
     "./types": "./types.ts"
+  },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/mod.d.ts",
+        "import": "./dist/mod.js"
+      },
+      "./adapters": {
+        "types": "./dist/adapters/mod.d.ts",
+        "import": "./dist/adapters/mod.js"
+      },
+      "./adapters/react": {
+        "types": "./dist/adapters/react/mod.d.ts",
+        "import": "./dist/adapters/react/mod.js"
+      },
+      "./adapters/tailwindcss": {
+        "types": "./dist/adapters/tailwindcss/mod.d.ts",
+        "import": "./dist/adapters/tailwindcss/mod.js"
+      },
+      "./adapters/lightningcss": {
+        "types": "./dist/adapters/lightningcss/mod.d.ts",
+        "import": "./dist/adapters/lightningcss/mod.js"
+      },
+      "./adapters/sharp": {
+        "types": "./dist/adapters/sharp/mod.d.ts",
+        "import": "./dist/adapters/sharp/mod.js"
+      },
+      "./adapters/fonts": {
+        "types": "./dist/adapters/fonts/mod.d.ts",
+        "import": "./dist/adapters/fonts/mod.js"
+      },
+      "./adapters/runtime-bundler": {
+        "types": "./dist/adapters/runtime-bundler/mod.d.ts",
+        "import": "./dist/adapters/runtime-bundler/mod.js"
+      },
+      "./adapters/prebuilt-bundler": {
+        "types": "./dist/adapters/prebuilt-bundler/mod.d.ts",
+        "import": "./dist/adapters/prebuilt-bundler/mod.js"
+      },
+      "./system": {
+        "types": "./dist/system.d.ts",
+        "import": "./dist/system.js"
+      },
+      "./config": {
+        "types": "./dist/config.d.ts",
+        "import": "./dist/config.js"
+      },
+      "./types": {
+        "types": "./dist/types.d.ts",
+        "import": "./dist/types.js"
+      }
+    }
+  },
+  "scripts": {
+    "build": "node ../../../etc/scripts/build-library.ts"
   },
   "dependencies": {
     "@eserstack/bundler": "workspace:*",

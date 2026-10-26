@@ -5,14 +5,14 @@
   "license": "Apache-2.0",
   "type": "module",
   "files": [
-    "mod.ts",
+    "dist/**/*.js",
+    "dist/**/*.d.ts",
+    "dist/**/*.json",
     "client.ts",
     "protocol.ts",
-    "span-renderer.ts",
-    "use-function.ts",
-    "runtime/**/*.ts",
-    "client/**/*.ts",
-    "README.md"
+    "client/bootstrap/",
+    "runtime/image/fallback.ts",
+    "runtime/navigation/link-navigation.ts"
   ],
   "exports": {
     ".": "./mod.ts",
@@ -21,6 +21,34 @@
     "./client/bootstrap": "./client/bootstrap/index.ts",
     "./span-renderer": "./span-renderer.ts",
     "./use-function": "./use-function.ts"
+  },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/mod.d.ts",
+        "import": "./dist/mod.js"
+      },
+      "./client": {
+        "types": "./dist/client.d.ts",
+        "import": "./dist/client.js"
+      },
+      "./protocol": {
+        "types": "./dist/protocol.d.ts",
+        "import": "./dist/protocol.js"
+      },
+      "./client/bootstrap": "./client/bootstrap/index.ts",
+      "./span-renderer": {
+        "types": "./dist/span-renderer.d.ts",
+        "import": "./dist/span-renderer.js"
+      },
+      "./use-function": {
+        "types": "./dist/use-function.d.ts",
+        "import": "./dist/use-function.js"
+      }
+    }
+  },
+  "scripts": {
+    "build": "node ../../../etc/scripts/build-library.ts"
   },
   "dependencies": {
     "@eserstack/functions": "workspace:*",

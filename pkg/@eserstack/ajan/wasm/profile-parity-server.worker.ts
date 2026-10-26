@@ -1,10 +1,9 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 /**
- * The HTTP server of profile-parity.test.ts, on its own thread: a native
- * bridge call blocks the test's thread until it returns, so a server there
- * could never answer it. Posts its port once it listens, and closes on any
- * message.
+ * The HTTP server of profile-parity.test.ts, on its own thread, so it
+ * answers whatever the bridge calls on the test's thread do while they wait.
+ * Posts its port once it listens, and closes on any message.
  *
  * @module
  */

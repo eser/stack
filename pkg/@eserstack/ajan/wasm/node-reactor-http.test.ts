@@ -169,7 +169,7 @@ nodeTest.test(
       assert.assertStringIncludes(seen.otherScheme.location, "https://");
       assert.assertEquals(seen.streamed, "one two three");
       assert.assertEquals(seen.formatsDuringWait, true);
-      assert.assertStringIncludes(seen.aborted, "request aborted");
+      assert.assertEquals(seen.aborted, "AbortError");
       assert.assertEquals(
         seen.abortMs < 2_000,
         true,

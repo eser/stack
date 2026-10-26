@@ -22,6 +22,7 @@
 
 import type * as nodeFfi from "node:ffi";
 import * as library from "./library.ts";
+import * as offload from "./offload.ts";
 import type * as types from "./types.ts";
 
 /** A node:ffi function definition. */
@@ -130,9 +131,8 @@ export const createTransport = (
   const rawClose = raw["EserAjanStreamClose"]!;
 
   // node:ffi calls are synchronous, so every operation here runs on the
-  // calling thread. A blocking name (bindings.ts) parks the event loop for
-  // its whole duration; the worker threads of M2-T8 (TASK-239) move those off
-  // the main thread.
+  // calling thread. The library sends the blocking names (bindings.ts) to the
+  // workers of offload.ts instead, each of which runs this same transport.
   return {
     call: (name, request) => envelope(rawCall(name, request)),
     streamOpen: (name, request) => envelope(rawOpen(name, request)),
@@ -168,15 +168,24 @@ export const readHandshake = (
   return library.checkHandshake(text, libraryPath);
 };
 
+/** A library opened through node:ffi, before the typed layer goes on top. */
+export interface OpenedTransport {
+  readonly handshake: types.Handshake;
+  readonly transport: types.Transport;
+}
+
 /**
- * Opens the eser-ajan library at `libraryPath` through node:ffi.
+ * Opens the eser-ajan library at `libraryPath` through node:ffi and checks
+ * its handshake. The main thread and every worker of offload.ts open it so.
  *
  * @throws {Error} If node:ffi cannot be imported (Node before 26.9, or
  *   `--no-experimental-ffi`), `dlopen` fails (a missing or foreign file, a
  *   library from before the dispatcher ABI, or `--permission` without
  *   `--allow-ffi`), or the library speaks another dispatcher ABI.
  */
-export const open = async (libraryPath: string): Promise<types.FFILibrary> => {
+export const openTransport = async (
+  libraryPath: string,
+): Promise<OpenedTransport> => {
   let ffi: typeof nodeFfi;
   try {
     ffi = await import("node:ffi");
@@ -212,11 +221,43 @@ export const open = async (libraryPath: string): Promise<types.FFILibrary> => {
     throw error;
   }
 
-  return library.createLibrary({
-    backend: "native",
+  return {
     handshake,
     transport: createTransport(raw, toString, () => {
       opened.lib.close();
+    }),
+  };
+};
+
+/** Options for {@link open}. */
+export interface OpenOptions {
+  /**
+   * How many pool workers run the blocking calls at once
+   * (offload.DEFAULT_POOL_SIZE by default).
+   */
+  readonly poolSize?: number;
+}
+
+/**
+ * Opens the eser-ajan library at `libraryPath` through node:ffi, with the
+ * workers of offload.ts for its blocking names.
+ *
+ * @throws {Error} When {@link openTransport} does.
+ */
+export const open = async (
+  libraryPath: string,
+  options: OpenOptions = {},
+): Promise<types.FFILibrary> => {
+  const { handshake, transport } = await openTransport(libraryPath);
+
+  return library.createLibrary({
+    backend: "native",
+    handshake,
+    transport,
+    offload: offload.createOffload({
+      libraryPath,
+      poolSize: options.poolSize ?? offload.DEFAULT_POOL_SIZE,
+      inline: transport,
     }),
   });
 };

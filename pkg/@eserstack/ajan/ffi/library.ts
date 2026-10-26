@@ -10,14 +10,22 @@
  *   included; one without throws the {@link errors.AjanCallError} for its code.
  * - On the WASM backend, a name the table marks `wasm: "no"` throws
  *   {@link errors.UnsupportedInWasmError} without a round trip.
+ * - With an offload (the native backend), a blocking name runs in a worker:
+ *   a call in the pool, a stream's reads (and the open of an async stream) in
+ *   the stream's own worker. Every other name runs on the calling thread.
+ * - An AbortSignal in the options of a blocking name runs the name's cancel
+ *   entry on the calling thread and rejects with the signal's reason.
  * - After `close`, every operation throws instead of reaching into a library
- *   that is no longer there.
+ *   that is no longer there. Closing runs the cancel entry of every blocking
+ *   name still in flight, then ends the workers. A process that exits with
+ *   the library open runs those cancel entries too.
  *
  * @module
  */
 
 import * as bindings from "./bindings.ts";
 import * as errors from "./errors.ts";
+import type * as offload from "./offload.ts";
 import type * as types from "./types.ts";
 
 /** The dispatcher ABI this loader speaks, from dispatch.go. */
@@ -98,17 +106,105 @@ export interface LibraryOptions {
   readonly backend: types.Backend;
   readonly handshake: types.Handshake;
   readonly transport: types.Transport;
+  /** The workers for the blocking names; without it they run inline. */
+  readonly offload?: offload.Offload;
 }
+
+/** What {@link types.FFILibrary.workers} reports without workers. */
+const NO_WORKERS: offload.WorkerStats = {
+  poolSize: 0,
+  pool: 0,
+  busy: 0,
+  queued: 0,
+  peakPool: 0,
+  readers: 0,
+  posted: 0,
+};
+
+/** A request with the `requestId` its cancel entry needs. */
+const withRequestId = (
+  request: unknown,
+): { readonly request: unknown; readonly requestId: string } => {
+  if (typeof request !== "object" || request === null) {
+    const requestId = crypto.randomUUID();
+
+    return { request: { requestId }, requestId };
+  }
+
+  const fields = request as Readonly<Record<string, unknown>>;
+  if (typeof fields["requestId"] === "string") {
+    return { request, requestId: fields["requestId"] };
+  }
+
+  // The AI names that run on a model handle carry the id in their options.
+  const nested = fields["options"];
+  if (typeof nested === "object" && nested !== null) {
+    const options = nested as Readonly<Record<string, unknown>>;
+    if (typeof options["requestId"] === "string") {
+      return { request, requestId: options["requestId"] };
+    }
+
+    const requestId = crypto.randomUUID();
+
+    return {
+      request: { ...fields, options: { ...options, requestId } },
+      requestId,
+    };
+  }
+
+  const requestId = crypto.randomUUID();
+
+  return { request: { ...fields, requestId }, requestId };
+};
+
+/**
+ * Runs a cancel entry. A cancel that cannot be delivered, because the
+ * library or the handle is already gone, leaves nothing running to stop, so
+ * its failure is not the caller's.
+ */
+const runCancel = (cancel: () => void): void => {
+  try {
+    cancel();
+  } catch {
+    // Nothing is left in flight to end.
+  }
+};
+
+/**
+ * The in-flight cancel entries of every library with workers, run when the
+ * process exits. Node ends a worker only after its native call returns, so
+ * `process.exit()` with a reader blocked in Go (a PTY whose child never
+ * exits) would never finish; cancelling first ends those calls at once. The
+ * libraries stay open, so exit listeners that log still can.
+ */
+const exitCancels = new Set<() => void>();
+let exitHookInstalled = false;
+
+const installExitHook = (): void => {
+  if (exitHookInstalled) {
+    return;
+  }
+
+  exitHookInstalled = true;
+  // Read like ffi/resolve.ts reads it: there is no process outside Node.
+  globalThis.process?.once?.("exit", () => {
+    for (const cancelInflight of exitCancels) {
+      cancelInflight();
+    }
+  });
+};
 
 /**
  * Builds the typed library over one backend's transport.
  *
- * @param options - The backend, its handshake and its transport
+ * @param options - The backend, its handshake, its transport and its workers
  * @returns The library
  */
 export const createLibrary = (options: LibraryOptions): types.FFILibrary => {
-  const { backend, handshake, transport } = options;
+  const { backend, handshake, transport, offload } = options;
   let closed = false;
+  // The cancel entries of the blocking operations in flight, run by close.
+  const inflight = new Set<() => void>();
 
   const assertOpen = (target: string): void => {
     if (closed) {
@@ -136,90 +232,334 @@ export const createLibrary = (options: LibraryOptions): types.FFILibrary => {
     return envelope.result === "" ? null : JSON.parse(envelope.result);
   };
 
-  const call = (name: string, request?: unknown): unknown => {
-    assertOpen(name);
-    const spec = assertServed(name);
-    const wire = encodeRequest(request);
-
-    if (spec?.async === true) {
-      const pending =
-        transport.callAsync?.(name, wire) ??
-        Promise.resolve().then(() => transport.call(name, wire));
-
-      return pending.then((envelope) => unwrap(name, envelope));
+  /**
+   * Settles with `pending`, or rejects with the signal's reason once it
+   * fires, after running `cancel`. While `pending` runs, close can run
+   * `cancel` too.
+   */
+  const guarded = <T>(
+    pending: Promise<T>,
+    signal: AbortSignal | undefined,
+    cancel: (() => void) | null,
+  ): Promise<T> => {
+    if (cancel !== null) {
+      inflight.add(cancel);
+      const done = (): void => {
+        inflight.delete(cancel);
+      };
+      pending.then(done, done);
     }
 
-    return unwrap(name, transport.call(name, wire));
+    if (signal === undefined) {
+      return pending;
+    }
+
+    return new Promise<T>((resolve, reject) => {
+      const onAbort = (): void => {
+        if (cancel !== null) {
+          runCancel(cancel);
+        }
+        reject(signal.reason);
+      };
+
+      signal.addEventListener("abort", onAbort, { once: true });
+      pending.then(
+        (value) => {
+          signal.removeEventListener("abort", onAbort);
+          resolve(value);
+        },
+        (error: unknown) => {
+          signal.removeEventListener("abort", onAbort);
+          reject(error);
+        },
+      );
+    });
+  };
+
+  /** The cancel entry of a blocking operation, or null when it has none. */
+  const cancelOf = (
+    spec: bindings.BindingSpec,
+    requestId: string | null,
+    close: (() => void) | null,
+    handle: string,
+  ): (() => void) | null => {
+    switch (spec.cancel) {
+      case "aiCancelRequest":
+        return requestId === null
+          ? null
+          : () => {
+              transport.call("aiCancelRequest", JSON.stringify({ requestId }));
+            };
+      case "close":
+        return close;
+      case "shellPtyKill":
+        return handle === ""
+          ? null
+          : () => {
+              transport.call(
+                "shellPtyKill",
+                JSON.stringify({ handle, signal: "SIGKILL" }),
+              );
+            };
+      default:
+        return null;
+    }
+  };
+
+  /** Encodes a request, adding the `requestId` an AI cancel needs. */
+  const prepare = (
+    spec: bindings.BindingSpec | undefined,
+    request: unknown,
+  ): { readonly wire: string; readonly requestId: string | null } => {
+    if (spec?.cancel !== "aiCancelRequest") {
+      return { wire: encodeRequest(request), requestId: null };
+    }
+
+    const prepared = withRequestId(request);
+
+    return {
+      wire: encodeRequest(prepared.request),
+      requestId: prepared.requestId,
+    };
+  };
+
+  const call = (
+    name: string,
+    request?: unknown,
+    callOptions?: bindings.CallOptions,
+  ): unknown => {
+    assertOpen(name);
+    const spec = assertServed(name);
+    const signal = callOptions?.signal;
+
+    if (spec?.blocking === true || spec?.async === true) {
+      if (signal?.aborted === true) {
+        return Promise.reject(signal.reason);
+      }
+
+      const { wire, requestId } = prepare(spec, request);
+      const pending =
+        spec.blocking && offload !== undefined
+          ? offload.call(name, wire)
+          : (transport.callAsync?.(name, wire) ??
+            Promise.resolve().then(() => transport.call(name, wire)));
+
+      return guarded(pending, signal, cancelOf(spec, requestId, null, "")).then(
+        (envelope) => unwrap(name, envelope),
+      );
+    }
+
+    signal?.throwIfAborted();
+
+    return unwrap(name, transport.call(name, encodeRequest(request)));
   };
 
   const openStream = (
     name: string,
-    async: boolean,
+    spec: bindings.BindingSpec | undefined,
     opened: unknown,
+    lane: offload.ReaderLane | null,
+    requestId: string | null,
   ): types.AjanStream<bindings.StreamName> => {
     const answer = opened as { readonly handle?: unknown } | null;
     const handle = typeof answer?.handle === "string" ? answer.handle : "";
+    const blocking = spec?.blocking === true;
+    const async = spec?.async === true;
+
+    // The lane serves reads until the stream closes or reads to its end; a
+    // stream whose open answered no handle has nothing to read.
+    let laneOpen = lane !== null && handle !== "";
+    const endLane = (): void => {
+      laneOpen = false;
+      lane?.end();
+    };
+    if (!laneOpen) {
+      endLane();
+    }
+
+    let isClosed = false;
+    let closedAnswer: unknown = null;
+    const closeHandle = (): unknown => {
+      if (!isClosed) {
+        isClosed = true;
+        try {
+          closedAnswer = unwrap(name, transport.streamClose(handle));
+        } finally {
+          endLane();
+        }
+      }
+
+      return closedAnswer;
+    };
 
     const readSync = (): unknown => {
       assertOpen(name);
       return unwrap(name, transport.streamRead(handle));
     };
 
+    const readAsync = (readOptions?: bindings.CallOptions): unknown => {
+      assertOpen(name);
+      const signal = readOptions?.signal;
+      if (signal?.aborted === true) {
+        return Promise.reject(signal.reason);
+      }
+
+      const pending =
+        laneOpen && lane !== null
+          ? lane.read(name, handle)
+          : async
+            ? (transport.streamReadAsync?.(handle) ??
+              Promise.resolve().then(() => transport.streamRead(handle)))
+            : Promise.resolve().then(() => transport.streamRead(handle));
+
+      const cancel =
+        spec === undefined
+          ? null
+          : cancelOf(spec, requestId, closeHandle, handle);
+
+      return guarded(pending, signal, cancel).then((envelope) => {
+        const chunk = unwrap(name, envelope);
+        if (chunk === null) {
+          endLane();
+        }
+
+        return chunk;
+      });
+    };
+
     return {
       name: name as bindings.StreamName,
       handle,
       opened: opened as never,
-      read: (async
-        ? () => {
-            assertOpen(name);
-            const pending =
-              transport.streamReadAsync?.(handle) ??
-              Promise.resolve().then(() => transport.streamRead(handle));
-
-            return pending.then((envelope) => unwrap(name, envelope));
-          }
-        : readSync) as never,
+      read: (async || blocking
+        ? readAsync
+        : (readOptions?: bindings.CallOptions) => {
+            readOptions?.signal?.throwIfAborted();
+            return readSync();
+          }) as never,
       close: (() => {
         assertOpen(name);
-        return unwrap(name, transport.streamClose(handle));
+        return closeHandle();
       }) as never,
     };
   };
 
-  const stream = (name: string, request?: unknown): unknown => {
+  /**
+   * Closes the handle of a stream whose open answered after its caller gave
+   * up on it.
+   */
+  const releaseLateOpen = (pending: Promise<types.Envelope>): void => {
+    pending.then(
+      (envelope) => {
+        const answer = (
+          envelope.result === undefined || envelope.result === ""
+            ? null
+            : JSON.parse(envelope.result)
+        ) as { readonly handle?: unknown } | null;
+        if (typeof answer?.handle === "string" && answer.handle !== "") {
+          runCancel(() => transport.streamClose(answer.handle as string));
+        }
+      },
+      () => {},
+    );
+  };
+
+  const stream = (
+    name: string,
+    request?: unknown,
+    streamOptions?: bindings.CallOptions,
+  ): unknown => {
     assertOpen(name);
     const spec = assertServed(name);
-    const wire = encodeRequest(request);
+    const signal = streamOptions?.signal;
     const async = spec?.async === true;
+    const { wire, requestId } = prepare(spec, request);
+
+    if (async && signal?.aborted === true) {
+      return Promise.reject(signal.reason);
+    }
+    if (!async) {
+      signal?.throwIfAborted();
+    }
+
+    const lane =
+      spec?.blocking === true && offload !== undefined
+        ? offload.reader()
+        : null;
 
     if (async) {
       const pending =
-        transport.streamOpenAsync?.(name, wire) ??
-        Promise.resolve().then(() => transport.streamOpen(name, wire));
+        lane !== null
+          ? lane.open(name, wire)
+          : (transport.streamOpenAsync?.(name, wire) ??
+            Promise.resolve().then(() => transport.streamOpen(name, wire)));
 
-      return pending.then((envelope) =>
-        openStream(name, true, unwrap(name, envelope)),
+      const cancel =
+        spec === undefined ? null : cancelOf(spec, requestId, null, "");
+
+      return guarded(pending, signal, cancel).then(
+        (envelope) => {
+          try {
+            return openStream(
+              name,
+              spec,
+              unwrap(name, envelope),
+              lane,
+              requestId,
+            );
+          } catch (error) {
+            lane?.end();
+            throw error;
+          }
+        },
+        (error: unknown) => {
+          lane?.end();
+          releaseLateOpen(pending);
+          throw error;
+        },
       );
     }
 
-    return openStream(
-      name,
-      false,
-      unwrap(name, transport.streamOpen(name, wire)),
-    );
+    let opened: unknown;
+    try {
+      opened = unwrap(name, transport.streamOpen(name, wire));
+    } catch (error) {
+      lane?.end();
+      throw error;
+    }
+
+    return openStream(name, spec, opened, lane, requestId);
   };
+
+  const cancelInflight = (): void => {
+    for (const cancel of [...inflight]) {
+      runCancel(cancel);
+    }
+    inflight.clear();
+  };
+
+  if (offload !== undefined) {
+    exitCancels.add(cancelInflight);
+    installExitHook();
+  }
 
   return {
     backend,
     handshake,
     call: call as types.FFILibrary["call"],
     stream: stream as types.FFILibrary["stream"],
+    workers: () => offload?.stats() ?? NO_WORKERS,
     close: (): void => {
       if (closed) {
         return;
       }
 
       closed = true;
+      exitCancels.delete(cancelInflight);
+      // Stop what is in flight first: a worker cannot end while its Go call
+      // runs, and a cancelled call returns at once.
+      cancelInflight();
+      offload?.close();
       transport.close();
     },
   };

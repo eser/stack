@@ -8,15 +8,24 @@
  * Each entry gives:
  * - `kind`: `call` (one request, one answer, through `lib.call`) or `stream`
  *   (opened, read until `null` and closed, through `lib.stream`).
- * - `blocking`: the call can wait on the network, a child process or the
- *   terminal. Calls run synchronously on the calling thread today; M2-T8
- *   (TASK-239) moves the blocking ones to worker threads.
+ * - `blocking`: the name can wait on the network, a child process or the
+ *   terminal. On the native backend a blocking call runs in a pool worker
+ *   and a blocking stream gets a dedicated worker for its reads (offload.ts),
+ *   so the main event loop stays free; every other name runs synchronously
+ *   on the calling thread. A blocking call answers a promise (its `async` is
+ *   true), and so does each read of a blocking stream.
+ * - `cancel`: the entry an AbortSignal runs on the calling thread to end a
+ *   blocking name in flight (`aiCancelRequest`, the stream's `close`, or
+ *   `shellPtyKill`). The promise then rejects with the signal's reason. A
+ *   blocking name without one rejects at once, and its worker stays busy
+ *   until the Go call returns.
  * - `wasm`: whether the WASM fallback serves the name: `yes`, `fs` (yes, and
  *   it reads or writes files, so it needs the node:wasi preopen of the working
  *   directory) or `no` (native only; the loader refuses it without a round
  *   trip).
- * - `async`: the name answers a promise, because the WASM fallback waits on
- *   the host's fetch for it (TASK-277). Await it on every backend.
+ * - `async`: the call or the stream open answers a promise: a blocking call
+ *   or a stream that opens in its worker, or a name the WASM fallback waits
+ *   on the host's fetch for (TASK-277). Await it on every backend.
  * - The request and response types, carried by the `as` type of the entry.
  *
  * codebase/ajan-ffi-parity.test.ts checks the names and kinds against the Go
@@ -28,12 +37,31 @@
 /** Whether the WASM fallback serves a name. */
 export type WasmSupport = "yes" | "fs" | "no";
 
+/**
+ * The entry that ends a blocking name in flight when its AbortSignal fires:
+ * - `aiCancelRequest`: cancels the AI call that the request's `requestId`
+ *   names (the library adds one when the request has none)
+ * - `close`: closes the stream, which makes its read return
+ * - `shellPtyKill`: kills the PTY's child with SIGKILL, which ends its read
+ */
+export type CancelEntry = "aiCancelRequest" | "close" | "shellPtyKill";
+
 /** What every entry of the table says about its name. */
 export interface BindingSpec {
   readonly kind: "call" | "stream";
   readonly blocking: boolean;
   readonly wasm: WasmSupport;
   readonly async: boolean;
+  readonly cancel?: CancelEntry;
+}
+
+/** Options of a call, a stream open or a stream read. */
+export interface CallOptions {
+  /**
+   * Ends the operation: the promise rejects with the signal's reason, and
+   * the name's `cancel` entry, if it has one, stops the Go side.
+   */
+  readonly signal?: AbortSignal;
 }
 
 /**
@@ -50,16 +78,21 @@ export interface CallBinding<
   readonly types?: { readonly request: Req; readonly response: Res };
 }
 
-/** A stream name, with the types of its open request and its three answers. */
+/**
+ * A stream name, with the types of its open request and its three answers.
+ * `Blocking` streams answer each read with a promise.
+ */
 export interface StreamBinding<
   Req,
   Opened,
   Chunk,
   Closed,
   Async extends boolean = false,
+  Blocking extends boolean = Async,
 > extends BindingSpec {
   readonly kind: "stream";
   readonly async: Async;
+  readonly blocking: Blocking;
   readonly types?: {
     readonly request: Req;
     readonly opened: Opened;
@@ -220,7 +253,8 @@ type Stream<
   Chunk,
   Closed,
   Async extends boolean = false,
-> = StreamBinding<Req, Opened, Chunk, Closed, Async>;
+  Blocking extends boolean = Async,
+> = StreamBinding<Req, Opened, Chunk, Closed, Async, Blocking>;
 
 /** A request that is the bare handle string. */
 type HandleString = string;
@@ -264,14 +298,22 @@ export const BINDINGS = {
     kind: "call",
     blocking: true,
     wasm: "no",
-    async: false,
-  } as Call<ModelRequest, AiAnswer>,
+    async: true,
+    cancel: "aiCancelRequest",
+  } as Call<ModelRequest, AiAnswer, true>,
   aiTextStream: {
     kind: "stream",
     blocking: true,
     wasm: "no",
-    async: false,
-  } as Stream<ModelRequest, AiAnswer & HandleAnswer, AiAnswer, EmptyAnswer>,
+    async: true,
+    cancel: "aiCancelRequest",
+  } as Stream<
+    ModelRequest,
+    AiAnswer & HandleAnswer,
+    AiAnswer,
+    EmptyAnswer,
+    true
+  >,
   aiCancelRequest: {
     kind: "call",
     blocking: false,
@@ -288,32 +330,37 @@ export const BINDINGS = {
     kind: "call",
     blocking: true,
     wasm: "no",
-    async: false,
-  } as Call<BridgeRequest, AiAnswer>,
+    async: true,
+    cancel: "aiCancelRequest",
+  } as Call<BridgeRequest, AiAnswer, true>,
   aiBatchGet: {
     kind: "call",
     blocking: true,
     wasm: "no",
-    async: false,
-  } as Call<BridgeRequest, AiAnswer>,
+    async: true,
+    cancel: "aiCancelRequest",
+  } as Call<BridgeRequest, AiAnswer, true>,
   aiBatchList: {
     kind: "call",
     blocking: true,
     wasm: "no",
-    async: false,
-  } as Call<BridgeRequest, AiAnswer>,
+    async: true,
+    cancel: "aiCancelRequest",
+  } as Call<BridgeRequest, AiAnswer, true>,
   aiBatchDownload: {
     kind: "call",
     blocking: true,
     wasm: "no",
-    async: false,
-  } as Call<BridgeRequest, AiAnswer>,
+    async: true,
+    cancel: "aiCancelRequest",
+  } as Call<BridgeRequest, AiAnswer, true>,
   aiBatchCancel: {
     kind: "call",
     blocking: true,
     wasm: "no",
-    async: false,
-  } as Call<BridgeRequest, AiAnswer>,
+    async: true,
+    cancel: "aiCancelRequest",
+  } as Call<BridgeRequest, AiAnswer, true>,
 
   // Formats (formatfx)
   formatEncode: {
@@ -455,6 +502,7 @@ export const BINDINGS = {
     blocking: true,
     wasm: "yes",
     async: true,
+    cancel: "close",
   } as Stream<
     HttpRequestRequest,
     HandleAnswer & HttpResponseAnswer,
@@ -494,8 +542,8 @@ export const BINDINGS = {
     kind: "call",
     blocking: true,
     wasm: "no",
-    async: false,
-  } as Call<BridgeRequest, BridgeAnswer>,
+    async: true,
+  } as Call<BridgeRequest, BridgeAnswer, true>,
 
   // Crypto (cryptofx)
   cryptoHash: {
@@ -580,32 +628,32 @@ export const BINDINGS = {
     kind: "call",
     blocking: true,
     wasm: "no",
-    async: false,
-  } as Call<BridgeRequest, RecipesAnswer>,
+    async: true,
+  } as Call<BridgeRequest, RecipesAnswer, true>,
   kitApplyRecipe: {
     kind: "call",
     blocking: true,
     wasm: "no",
-    async: false,
-  } as Call<BridgeRequest, RecipesAnswer>,
+    async: true,
+  } as Call<BridgeRequest, RecipesAnswer, true>,
   kitCloneRecipe: {
     kind: "call",
     blocking: true,
     wasm: "no",
-    async: false,
-  } as Call<BridgeRequest, RecipesAnswer>,
+    async: true,
+  } as Call<BridgeRequest, RecipesAnswer, true>,
   kitNewProject: {
     kind: "call",
     blocking: true,
     wasm: "no",
-    async: false,
-  } as Call<BridgeRequest, RecipesAnswer>,
+    async: true,
+  } as Call<BridgeRequest, RecipesAnswer, true>,
   kitUpdateRecipe: {
     kind: "call",
     blocking: true,
     wasm: "no",
-    async: false,
-  } as Call<BridgeRequest, RecipesAnswer>,
+    async: true,
+  } as Call<BridgeRequest, RecipesAnswer, true>,
   // Push-fed: the gzipped archive goes in through
   // kitExtractTarballStreamPush, base64-encoded, and close stops an
   // extraction that has not ended.
@@ -641,20 +689,20 @@ export const BINDINGS = {
     kind: "call",
     blocking: true,
     wasm: "no",
-    async: false,
-  } as Call<BridgeRequest, BridgeAnswer>,
+    async: true,
+  } as Call<BridgeRequest, BridgeAnswer, true>,
   postsGetTimeline: {
     kind: "call",
     blocking: true,
     wasm: "no",
-    async: false,
-  } as Call<BridgeRequest, BridgeAnswer>,
+    async: true,
+  } as Call<BridgeRequest, BridgeAnswer, true>,
   postsSearch: {
     kind: "call",
     blocking: true,
     wasm: "no",
-    async: false,
-  } as Call<BridgeRequest, BridgeAnswer>,
+    async: true,
+  } as Call<BridgeRequest, BridgeAnswer, true>,
   postsClose: {
     kind: "call",
     blocking: false,
@@ -838,24 +886,28 @@ export const BINDINGS = {
   } as Call<HandleRequest & { readonly chunk: string }, TokensAnswer>,
 
   // Shell (shellfx)
-  shellExec: { kind: "call", blocking: true, wasm: "no", async: false } as Call<
+  shellExec: { kind: "call", blocking: true, wasm: "no", async: true } as Call<
     BridgeRequest,
     ErrorAnswer & {
       readonly stdout?: string;
       readonly stderr?: string;
       readonly code?: number;
-    }
+    },
+    true
   >,
   shellExecStream: {
     kind: "stream",
     blocking: true,
     wasm: "no",
     async: false,
+    cancel: "close",
   } as Stream<
     BridgeRequest,
     SpawnAnswer,
     ErrorAnswer & { readonly stream?: string; readonly chunk?: string },
-    ExitAnswer
+    ExitAnswer,
+    false,
+    true
   >,
   shellExecWrite: {
     kind: "call",
@@ -868,11 +920,14 @@ export const BINDINGS = {
     blocking: true,
     wasm: "no",
     async: false,
+    cancel: "shellPtyKill",
   } as Stream<
     BridgeRequest,
     SpawnAnswer,
     ErrorAnswer & { readonly chunk?: string },
-    ExitAnswer
+    ExitAnswer,
+    false,
+    true
   >,
   shellPtyWrite: {
     kind: "call",
@@ -900,7 +955,15 @@ export const BINDINGS = {
     blocking: true,
     wasm: "no",
     async: false,
-  } as Stream<BridgeRequest, HandleAnswer, BridgeAnswer, EmptyAnswer>,
+    cancel: "close",
+  } as Stream<
+    BridgeRequest,
+    HandleAnswer,
+    BridgeAnswer,
+    EmptyAnswer,
+    false,
+    true
+  >,
   shellTuiSetStdinRaw: {
     kind: "call",
     blocking: false,
@@ -950,6 +1013,14 @@ export type RequestArgs<N extends BindingName> = [RequestOf<N>] extends [void]
   ? []
   : [request: RequestOf<N>];
 
+/**
+ * The arguments after the name, with the {@link CallOptions} last: none for a
+ * name that takes no request.
+ */
+export type CallArgs<N extends BindingName> = [RequestOf<N>] extends [void]
+  ? []
+  : [request: RequestOf<N>, options?: CallOptions];
+
 /** The answer of a call name. */
 export type ResponseOf<N extends CallName> =
   TypesOf<N> extends {
@@ -992,6 +1063,16 @@ export type MaybeAsync<
   N extends BindingName,
   T,
 > = Bindings[N]["async"] extends true ? Promise<T> : T;
+
+/** What a stream read answers: a promise for async and blocking streams. */
+export type ReadResult<
+  N extends StreamName,
+  T,
+> = Bindings[N]["async"] extends true
+  ? Promise<T>
+  : Bindings[N]["blocking"] extends true
+    ? Promise<T>
+    : T;
 
 /** The table's entry for a name, or undefined for a name it does not hold. */
 export const bindingOf = (name: string): BindingSpec | undefined =>

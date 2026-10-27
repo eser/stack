@@ -162,10 +162,11 @@ export const updateRecipe = (
           }
         }
 
-        const manifest = await registryFetcher.fetchRegistry(
+        const registry = await registryFetcher.loadRegistry(
           input.registrySource,
           { verbose: input.verbose, local: input.local, cwd: input.cwd },
         );
+        const manifest = registry.manifest;
 
         const recipe = manifest.recipes.find(
           (r) => r.name === input.recipeName,
@@ -181,6 +182,7 @@ export const updateRecipe = (
         const result = await recipeApplier.applyRecipe(recipe, {
           cwd: input.cwd,
           registryUrl: manifest.registryUrl,
+          sourceDir: registry.sourceDir,
           force: true,
           dryRun: input.dryRun,
           verbose: input.verbose,

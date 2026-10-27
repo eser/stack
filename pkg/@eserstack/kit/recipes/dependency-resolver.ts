@@ -29,7 +29,7 @@ export interface ProjectDetection {
 export interface DependencyInstructions {
   /**
    * Install commands such as `deno add jsr:@eserstack/fp@^4.1.0`: the Go
-   * modules first, then JSR, then npm.
+   * modules first, then JSR, then npm, then the npm dev dependencies.
    */
   readonly instructions: readonly string[];
   /** Notes for the person running kit, such as a language mismatch. */
@@ -129,6 +129,13 @@ export const getDependencyInstructions = (
   if (deps.npm !== undefined && deps.npm.length > 0) {
     for (const dep of deps.npm) {
       instructions.push(`npm install ${dep}`);
+    }
+  }
+
+  // npm dev dependencies
+  if (deps.npmDev !== undefined && deps.npmDev.length > 0) {
+    for (const dep of deps.npmDev) {
+      instructions.push(`npm install --save-dev ${dep}`);
     }
   }
 

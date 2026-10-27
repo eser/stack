@@ -51,7 +51,7 @@ export type AddRecipeInput = {
 
 /**
  * What the add did. When the native ajan library applied the recipe,
- * `recipe` carries only its name and `depInfo` is empty.
+ * `recipe` carries only its name.
  */
 export type AddRecipeOutput = {
   /** The recipe from the registry. */
@@ -87,11 +87,121 @@ export type AddRecipeError =
 // Handler
 // =============================================================================
 
+/** What the native bridge answers for kitApplyRecipe (bridge_kit.go). */
+type NativeApplyAnswer = {
+  // The bridge sends each recipe flat (kitApplyRecipeResult) and leaves
+  // empty lists out.
+  readonly recipes?: ReadonlyArray<{
+    readonly name: string;
+    readonly written?: readonly string[];
+    readonly skipped?: readonly string[];
+    readonly total?: number;
+    readonly postInstallRan?: readonly string[];
+  }>;
+  readonly depInfo?: {
+    readonly instructions?: readonly string[];
+    readonly warnings?: readonly string[];
+  };
+  readonly error?: string;
+};
+
+const recipeNotFound = (recipeName: string): AddRecipeError => ({
+  _tag: "RecipeNotFound" as const,
+  message: `Recipe '${recipeName}' not found. Run \`eser kit list\` to see available recipes.`,
+});
+
+/** Prints a warning line for each dependency warning. */
+const writeWarnings = (
+  ctx: HandlerContext,
+  depInfo: dependencyResolver.DependencyInstructions,
+): void => {
+  for (const warning of depInfo.warnings) {
+    ctx.out.writeln(span.yellow(`Warning: ${warning}`));
+  }
+};
+
+/** Prints what the applied chain wrote and skipped, and the target's files. */
+const writeApplied = (
+  ctx: HandlerContext,
+  recipeName: string,
+  chainResult: recipeApplier.ApplyChainResult,
+): void => {
+  let totalWritten = 0;
+  let totalSkipped = 0;
+  for (const entry of chainResult.recipes) {
+    totalWritten += entry.result.written.length;
+    totalSkipped += entry.result.skipped.length;
+  }
+
+  ctx.out.writeln(span.green(`✓ Added ${totalWritten} file(s)`));
+
+  if (chainResult.recipes.length > 1) {
+    ctx.out.writeln(
+      span.dim(
+        `  Applied ${chainResult.recipes.length} recipes (including dependencies)`,
+      ),
+    );
+  }
+
+  if (totalSkipped > 0) {
+    ctx.out.writeln(span.dim(`  Skipped ${totalSkipped} existing file(s)`));
+  }
+
+  const targetResult = chainResult.recipes.find((r) => r.name === recipeName);
+  if (targetResult !== undefined) {
+    for (const file of targetResult.result.written) {
+      ctx.out.writeln(`  → ${file}`);
+    }
+  }
+};
+
+/**
+ * Runs the dependency install commands, unless `noInstall` or `dryRun` is
+ * set, in which case it prints them to run by hand. Returns the outcome of
+ * each command that ran.
+ */
+const installOrPrint = async (
+  ctx: HandlerContext,
+  input: AddRecipeInput,
+  depInfo: dependencyResolver.DependencyInstructions,
+): Promise<readonly dependencyResolver.InstallResult[] | undefined> => {
+  if (depInfo.instructions.length === 0) {
+    return undefined;
+  }
+
+  if (input.noInstall === true || input.dryRun === true) {
+    ctx.out.writeln(span.dim("\nDependencies (run manually):"));
+    for (const instruction of depInfo.instructions) {
+      ctx.out.writeln(span.dim(`  ${instruction}`));
+    }
+
+    return undefined;
+  }
+
+  ctx.out.writeln(span.dim("\nInstalling dependencies..."));
+  const installResults = await dependencyResolver.installDependencies(
+    depInfo.instructions,
+    input.cwd,
+    { verbose: input.verbose },
+  );
+
+  for (const ir of installResults) {
+    if (ir.success) {
+      ctx.out.writeln(span.green(`  ✓ ${ir.command}`));
+    } else {
+      ctx.out.writeln(span.red(`  ✗ ${ir.command}: ${ir.error}`));
+    }
+  }
+
+  return installResults;
+};
+
 /**
  * Applies a registry recipe, after the recipes it requires, to the project in
  * `input.cwd`, and writes the progress to `ctx.out`. Uses the native ajan
- * library when it loads. Otherwise the TypeScript applier runs and then
- * installs the recipe's dependencies, unless `noInstall` or `dryRun` is set.
+ * library when it loads, and the TypeScript applier otherwise. Either way it
+ * then installs the recipe's dependencies, unless `noInstall` or `dryRun` is
+ * set.
  *
  * @param input - The recipe, the project directory and the options
  * @returns A task that resolves to what was applied, or fails with a
@@ -107,86 +217,44 @@ export const addRecipe = (
         const lib = ffiClient.getLib();
 
         if (lib !== null) {
-          // The bridge sends each recipe flat (bridge_kit.go
-          // kitApplyRecipeResult) and leaves empty lists out.
           const goResult = (await lib.call("kitApplyRecipe", {
             recipeName: input.recipeName,
             registryUrl: input.registrySource,
             cwd: input.cwd,
+            local: input.local,
             force: input.force,
             skipExisting: input.skipExisting,
             dryRun: input.dryRun,
             verbose: input.verbose,
             variables: input.variables,
-          })) as {
-            recipes?: Array<{
-              name: string;
-              written?: string[];
-              skipped?: string[];
-              total?: number;
-              postInstallRan?: string[];
-            }>;
-            error?: string;
-          };
+          })) as NativeApplyAnswer;
 
           if (goResult.error === undefined && goResult.recipes !== undefined) {
-            const applied = goResult.recipes.map((entry) => ({
-              name: entry.name,
-              result: {
-                written: entry.written ?? [],
-                skipped: entry.skipped ?? [],
-                total: entry.total ?? 0,
-                postInstallRan: entry.postInstallRan ?? [],
-              },
-            }));
-            let totalWritten = 0;
-            let totalSkipped = 0;
-            for (const entry of applied) {
-              totalWritten += entry.result.written.length;
-              totalSkipped += entry.result.skipped.length;
-            }
+            const chainResult: recipeApplier.ApplyChainResult = {
+              recipes: goResult.recipes.map((entry) => ({
+                name: entry.name,
+                result: {
+                  written: entry.written ?? [],
+                  skipped: entry.skipped ?? [],
+                  total: entry.total ?? 0,
+                  postInstallRan: entry.postInstallRan ?? [],
+                },
+              })),
+            };
+            const depInfo: dependencyResolver.DependencyInstructions = {
+              instructions: goResult.depInfo?.instructions ?? [],
+              warnings: goResult.depInfo?.warnings ?? [],
+            };
 
-            ctx.out.writeln(span.green(`✓ Added ${totalWritten} file(s)`));
-
-            if (applied.length > 1) {
-              ctx.out.writeln(
-                span.dim(
-                  `  Applied ${applied.length} recipes (including dependencies)`,
-                ),
-              );
-            }
-
-            if (totalSkipped > 0) {
-              ctx.out.writeln(
-                span.dim(`  Skipped ${totalSkipped} existing file(s)`),
-              );
-            }
-
-            const targetResult = applied.find(
-              (r) => r.name === input.recipeName,
-            );
-            if (targetResult !== undefined) {
-              for (const file of targetResult.result.written) {
-                ctx.out.writeln(`  → ${file}`);
-              }
-            }
-
-            const chainResult = {
-              recipes: applied,
-            } as unknown as recipeApplier.ApplyChainResult;
-            const depInfo = {
-              instructions: [],
-              warnings: [],
-            } as unknown as dependencyResolver.DependencyInstructions;
-            const fakeRecipe = {
-              name: input.recipeName,
-            } as unknown as registrySchema.Recipe;
+            writeWarnings(ctx, depInfo);
+            writeApplied(ctx, input.recipeName, chainResult);
+            const installResults = await installOrPrint(ctx, input, depInfo);
 
             return results.ok({
-              recipe: fakeRecipe,
+              recipe: { name: input.recipeName },
               chainResult,
               depInfo,
-              installResults: undefined,
+              installResults,
             });
           }
 
@@ -198,28 +266,23 @@ export const addRecipe = (
               `recipe "${input.recipeName}" not found`,
             ) === true
           ) {
-            return results.fail({
-              _tag: "RecipeNotFound" as const,
-              message: `Recipe '${input.recipeName}' not found. Run \`eser kit list\` to see available recipes.`,
-            });
+            return results.fail(recipeNotFound(input.recipeName));
           }
         }
 
         // Fallback: TS apply chain
-        const manifest = await registryFetcher.fetchRegistry(
+        const registry = await registryFetcher.loadRegistry(
           input.registrySource,
           { verbose: input.verbose, local: input.local, cwd: input.cwd },
         );
+        const manifest = registry.manifest;
 
         const recipe = manifest.recipes.find(
           (r) => r.name === input.recipeName,
         );
 
         if (recipe === undefined) {
-          return results.fail({
-            _tag: "RecipeNotFound" as const,
-            message: `Recipe '${input.recipeName}' not found. Run \`eser kit list\` to see available recipes.`,
-          });
+          return results.fail(recipeNotFound(input.recipeName));
         }
 
         const project = await dependencyResolver.detectProjectType(input.cwd);
@@ -228,9 +291,7 @@ export const addRecipe = (
           project,
         );
 
-        for (const warning of depInfo.warnings) {
-          ctx.out.writeln(span.yellow(`Warning: ${warning}`));
-        }
+        writeWarnings(ctx, depInfo);
 
         const chainResult = await recipeApplier.applyRecipeChain(
           input.recipeName,
@@ -238,6 +299,7 @@ export const addRecipe = (
           {
             cwd: input.cwd,
             registryUrl: manifest.registryUrl,
+            sourceDir: registry.sourceDir,
             force: input.force,
             skipExisting: input.skipExisting,
             dryRun: input.dryRun,
@@ -246,67 +308,8 @@ export const addRecipe = (
           },
         );
 
-        let totalWritten = 0;
-        let totalSkipped = 0;
-        for (const entry of chainResult.recipes) {
-          totalWritten += entry.result.written.length;
-          totalSkipped += entry.result.skipped.length;
-        }
-
-        ctx.out.writeln(span.green(`✓ Added ${totalWritten} file(s)`));
-
-        if (chainResult.recipes.length > 1) {
-          ctx.out.writeln(
-            span.dim(
-              `  Applied ${chainResult.recipes.length} recipes (including dependencies)`,
-            ),
-          );
-        }
-
-        if (totalSkipped > 0) {
-          ctx.out.writeln(
-            span.dim(`  Skipped ${totalSkipped} existing file(s)`),
-          );
-        }
-
-        const targetResult = chainResult.recipes.find(
-          (r) => r.name === input.recipeName,
-        );
-        if (targetResult !== undefined) {
-          for (const file of targetResult.result.written) {
-            ctx.out.writeln(`  → ${file}`);
-          }
-        }
-
-        let installResults:
-          | readonly dependencyResolver.InstallResult[]
-          | undefined;
-
-        if (
-          !input.noInstall &&
-          !input.dryRun &&
-          depInfo.instructions.length > 0
-        ) {
-          ctx.out.writeln(span.dim("\nInstalling dependencies..."));
-          installResults = await dependencyResolver.installDependencies(
-            depInfo.instructions,
-            input.cwd,
-            { verbose: input.verbose },
-          );
-
-          for (const ir of installResults) {
-            if (ir.success) {
-              ctx.out.writeln(span.green(`  ✓ ${ir.command}`));
-            } else {
-              ctx.out.writeln(span.red(`  ✗ ${ir.command}: ${ir.error}`));
-            }
-          }
-        } else if (depInfo.instructions.length > 0) {
-          ctx.out.writeln(span.dim("\nDependencies (run manually):"));
-          for (const instruction of depInfo.instructions) {
-            ctx.out.writeln(span.dim(`  ${instruction}`));
-          }
-        }
+        writeApplied(ctx, input.recipeName, chainResult);
+        const installResults = await installOrPrint(ctx, input, depInfo);
 
         return results.ok({ recipe, chainResult, depInfo, installResults });
       } catch (error) {

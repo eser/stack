@@ -97,6 +97,56 @@ export const findBinary = (
 };
 
 /**
+ * The execute bits for user, group and others, which npm pack keeps on the
+ * binary and pnpm pack drops (TASK-368).
+ */
+export const EXECUTE_BITS = 0o111;
+
+/** What the launcher reads and changes of the binary's mode. */
+export type ModeAccess = {
+  /** Whether the current user may execute the file. */
+  readonly isExecutable: (file: string) => boolean;
+  /** The file's mode, as `fs.statSync(file).mode`. */
+  readonly mode: (file: string) => number;
+  readonly chmod: (file: string, mode: number) => void;
+};
+
+/** Whether the binary can run, or why it cannot. */
+export type Preparation =
+  | { readonly kind: "ready" }
+  | { readonly kind: "failed"; readonly message: string };
+
+/**
+ * Makes the binary executable when it is not. pnpm pack writes the binary of
+ * a platform package at mode 0644, and the release publishes those packages
+ * with pnpm, so an installed binary may lack the execute bits; the launcher
+ * adds them to its mode before it runs it. Windows has no execute bit.
+ */
+export const ensureExecutable = (
+  binary: string,
+  platform: string,
+  access: ModeAccess,
+): Preparation => {
+  if (platform === "win32" || access.isExecutable(binary)) {
+    return { kind: "ready" };
+  }
+
+  try {
+    access.chmod(binary, access.mode(binary) | EXECUTE_BITS);
+  } catch (error) {
+    // A read-only install, or one another user owns, cannot be changed.
+    const reason = error instanceof Error ? error.message : String(error);
+
+    return {
+      kind: "failed",
+      message: `noskills: ${binary} is not executable and the launcher cannot change its mode (${reason}). Run \`chmod +x ${binary}\` as the owner of the install (with sudo for a global one), or reinstall noskills.`,
+    };
+  }
+
+  return { kind: "ready" };
+};
+
+/**
  * The exit code the launcher ends with: the binary's, or the shell's
  * 128 + n for a binary that a signal ended.
  */
@@ -137,6 +187,27 @@ export const main = (): void => {
 
   if (lookup.kind === "missing") {
     process.stderr.write(`${lookup.message}\n`);
+    process.exitCode = 1;
+
+    return;
+  }
+
+  const preparation = ensureExecutable(lookup.path, process.platform, {
+    isExecutable: (file) => {
+      try {
+        fs.accessSync(file, fs.constants.X_OK);
+
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    mode: (file) => fs.statSync(file).mode,
+    chmod: (file, mode) => fs.chmodSync(file, mode),
+  });
+
+  if (preparation.kind === "failed") {
+    process.stderr.write(`${preparation.message}\n`);
     process.exitCode = 1;
 
     return;

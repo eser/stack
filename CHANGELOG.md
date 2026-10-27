@@ -1678,6 +1678,12 @@ in `.eser/concerns/`, which several entries below depend on.
   the context ends, and a negative `ApplyOptions.PostInstallTimeout` is an
   error. Set `PostInstallTimeout` to a longer positive duration for a recipe
   that needs more time.
+- kitfx: `LoadRegistry` returns the path it read for a manifest on disk, a
+  relative `Source` joined with `CWD`, instead of `Source` as given. Pass that
+  path to `SourceBaseFor` for `ApplyOptions.SourceBase`, so a local manifest's
+  files come from its own directory. Before:
+  `opts.SourceBase = manifest.RegistryURL`. After:
+  `opts.SourceBase = kitfx.SourceBaseFor(manifest, source)`.
 - workflowfx `http-fetch` fails a step whose response body is over 10 MiB;
   download large files with the shell tool. The postsfx X and Bluesky clients
   fail on an API response over 8 MiB.

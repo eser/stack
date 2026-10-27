@@ -10,7 +10,9 @@
  *   code, including `globalThis.Deno`, an alias such as `g.Bun`, a `typeof`
  *   check and test files;
  * - `process`: any member of Node's global `process` (`process.env`,
- *   `process.exit`, `globalThis.process.argv`, ...). A file that declares its
+ *   `process.exit`, `globalThis.process.argv`, ...), reached with optional
+ *   chaining (`globalThis.process?.cwd()`) or through an alias of
+ *   `globalThis` (`g.process.env`) too. A file that declares its
  *   own `process` binding (a child process handle, a parameter,
  *   `const { process } = runtime`) is only checked for `process.env` and
  *   `globalThis.process.*`.

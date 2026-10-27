@@ -163,9 +163,11 @@ export const resolvePoolSize = (
   return value;
 };
 
-/** Reads an environment variable; `undefined` where there is no `process`. */
-const getEnv = (name: string): string | undefined =>
-  globalThis.process?.env[name];
+/**
+ * Reads an environment variable through `resolve.ts`, which reads Node's
+ * process for the loader (see "Process access" there).
+ */
+const getEnv = (name: string): string | undefined => resolve.getEnvVar(name);
 
 /** Returns `true` when the given env var is set to `"disabled"` (case-insensitive). */
 const isDisabledByEnv = (envVar: string): boolean => {

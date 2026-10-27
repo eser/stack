@@ -117,9 +117,22 @@ workflows:
             # process.env; test-kit cannot import the cross-runtime layer,
             # whose own tests import test-kit.
             - "pkg/@eserstack/test-kit/leaks.test.ts"
-            # The library resolvers (ffi/resolve.ts, wasm/resolve.ts) read
-            # Node's process (cwd, env, platform, arch) without the
-            # cross-runtime layer, so their tests stub and read that object.
+            # The WASM entry of @eserstack/ajan loads on hosts without Node's
+            # built-ins (browsers, Cloudflare Workers), where the cross-runtime
+            # layer cannot load: it imports node:child_process, node:http and
+            # node:sea statically. The loader also reads only its own files
+            # (ffi/mod.test.ts runs it under --permission with reads of ffi/
+            # and wasm/ only). So the modules that entry imports read Node's
+            # process through globalThis.process?.: the resolvers (cwd, env,
+            # platform, arch, getBuiltinModule; ffi/mod.ts reads env through
+            # ffi/resolve.ts), the WASI loader (cwd, stdout, stderr) and the
+            # shared library core (the exit hook, which the cross-runtime
+            # layer has no event for).
+            - "pkg/@eserstack/ajan/ffi/library.ts"
+            - "pkg/@eserstack/ajan/ffi/resolve.ts"
+            - "pkg/@eserstack/ajan/wasm/loader-reactor.ts"
+            - "pkg/@eserstack/ajan/wasm/resolve.ts"
+            # The resolvers' tests stub and read that same process object.
             - "pkg/@eserstack/ajan/ffi/resolve.test.ts"
             - "pkg/@eserstack/ajan/wasm/resolve.test.ts"
       - validate-self-imports:

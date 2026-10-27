@@ -96,7 +96,8 @@ bdd.describe("laroux init: the recipe source", () => {
           await runtime.fs.readTextFile(
             runtime.path.join(projectDir, "package.json"),
           ),
-        ) as { scripts: Record<string, string> };
+        ) as { name: string; scripts: Record<string, string> };
+        assert.assertEquals(packageJson.name, "demo");
         assert.assertEquals(packageJson.scripts["dev"], "laroux dev");
         assert.assert(
           await runtime.fs.exists(

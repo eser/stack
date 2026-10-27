@@ -1843,6 +1843,15 @@ in `.eser/concerns/`, which several entries below depend on.
 - `EserAjanNoskillsInit` writes `command: npx eser@latest noskills`
   (`noskillsfx.DefaultCommandPrefix`) into a new manifest instead of `noskills`.
   Edit the manifest's `command` to keep a bare `noskills`.
+- `EserAjanKitApplyRecipe` without `registryUrl` loads the nearest
+  `.eser/recipes.json` at or above `cwd` only when the request has
+  `"local": true`, and the eser/stack registry otherwise; it used to take the
+  nearest local manifest whenever there was one, and fail without it. A
+  relative `registryUrl` path resolves against the process's working directory.
+  The registry is now checked against the registry/v1 rules. Its answer carries
+  `depInfo` (`instructions` and `warnings`). Before:
+  `{"recipeName": "lib", "cwd": "app"}`. After:
+  `{"recipeName": "lib", "cwd": "app", "local": true}`.
 
 - On the WASM fallback, a git-aware `EserAjanCodebaseWalkFiles`,
   `EserAjanCodebaseValidateFiles` or one of their streams fails unless the

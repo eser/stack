@@ -8,6 +8,7 @@ import (
 	"context"
 	"encoding/json"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/eser/stack/pkg/ajan/kitfx"
@@ -51,12 +52,25 @@ type kitApplyRecipeRequest struct {
 	DryRun       bool              `json:"dryRun,omitempty"`
 	Verbose      bool              `json:"verbose,omitempty"`
 	Variables    map[string]string `json:"variables,omitempty"`
+	// Local loads the nearest .eser/recipes.json at or above CWD when
+	// RegistryURL is empty, before the default registry (kit add --local).
+	Local bool `json:"local,omitempty"`
 }
 
 // kitApplyRecipeResponse is the JSON response for EserAjanKitApplyRecipe.
 type kitApplyRecipeResponse struct {
 	Recipes []kitApplyRecipeResult `json:"recipes,omitempty"`
-	Error   string                 `json:"error,omitempty"`
+	// DepInfo is the install commands for the applied recipe's dependencies
+	// and the warnings about them; only kitApplyRecipe answers it.
+	DepInfo *kitDependencyInfo `json:"depInfo,omitempty"`
+	Error   string             `json:"error,omitempty"`
+}
+
+// kitDependencyInfo mirrors kitfx.DependencyInstructions for JSON
+// serialization, as the TypeScript DependencyInstructions.
+type kitDependencyInfo struct {
+	Instructions []string `json:"instructions"`
+	Warnings     []string `json:"warnings"`
 }
 
 // kitApplyRecipeResult mirrors kitfx.NamedApplyResult for JSON serialization.
@@ -147,14 +161,44 @@ func bridgeKitApplyRecipe(requestJSON string) string {
 		}
 	}
 
-	manifest, err := kitfx.FetchRegistry(context.Background(), cwd, req.RegistryURL)
+	// A relative registry path is relative to the process's working directory,
+	// as in the TypeScript kit, not to cwd.
+	source := req.RegistryURL
+	if source != "" && !strings.Contains(source, "://") && !filepath.IsAbs(source) {
+		abs, err := filepath.Abs(source)
+		if err != nil {
+			return marshalResponse(kitApplyRecipeResponse{Error: "resolve registry path " + source + ": " + err.Error()}) //nolint:exhaustruct
+		}
+
+		source = abs
+	}
+
+	manifest, loadedFrom, err := kitfx.LoadRegistry(context.Background(), &kitfx.LoadRegistryOptions{ //nolint:exhaustruct
+		Source: source,
+		Local:  req.Local,
+		CWD:    cwd,
+	})
 	if err != nil {
 		return marshalResponse(kitApplyRecipeResponse{Error: err.Error()}) //nolint:exhaustruct
 	}
 
+	// The project type is read before the recipe writes its files, as the
+	// TypeScript kit reads it.
+	var depInfo *kitDependencyInfo
+
+	for i := range manifest.Recipes {
+		if manifest.Recipes[i].Name == req.RecipeName {
+			deps := kitfx.GetDependencyInstructions(&manifest.Recipes[i], kitfx.DetectProjectType(cwd))
+			depInfo = &kitDependencyInfo{Instructions: nonNil(deps.Instructions), Warnings: nonNil(deps.Warnings)}
+
+			break
+		}
+	}
+
 	chainResult, err := kitfx.ApplyRecipeChain(context.Background(), req.RecipeName, manifest, bridgeKitOptions(manifest, kitfx.ApplyOptions{
 		CWD:          cwd,
-		RegistryURL:  req.RegistryURL,
+		RegistryURL:  manifest.RegistryURL,
+		SourceBase:   kitfx.SourceBaseFor(manifest, loadedFrom),
 		Force:        req.Force,
 		SkipExisting: req.SkipExisting,
 		DryRun:       req.DryRun,
@@ -165,7 +209,16 @@ func bridgeKitApplyRecipe(requestJSON string) string {
 		return marshalResponse(kitApplyRecipeResponse{Error: err.Error()}) //nolint:exhaustruct
 	}
 
-	return marshalResponse(kitApplyRecipeResponse{Recipes: newKitApplyRecipeResults(chainResult.Recipes)}) //nolint:exhaustruct
+	return marshalResponse(kitApplyRecipeResponse{Recipes: newKitApplyRecipeResults(chainResult.Recipes), DepInfo: depInfo}) //nolint:exhaustruct
+}
+
+// nonNil returns values, or an empty slice for nil, so the list encodes as [].
+func nonNil(values []string) []string {
+	if values == nil {
+		return []string{}
+	}
+
+	return values
 }
 
 // kitCloneRecipeRequest is the JSON request for EserAjanKitCloneRecipe.
@@ -389,13 +442,18 @@ func bridgeKitUpdateRecipe(requestJSON string) string {
 }
 
 // bridgeKitOptions adds what `eser kit` (cmd/eser/kit.go) sets for every
-// apply: file sources resolve against the manifest's registryUrl, as the
-// TypeScript kit fetches them, conflicts are warned about and skipped,
+// apply: file sources resolve against opts.SourceBase, or the manifest's
+// registryUrl when it is empty, as the TypeScript kit fetches them
+// (kitApplyRecipe passes the directory of a manifest read from disk, as
+// kitfx.SourceBaseFor returns it), conflicts are warned about and skipped,
 // undeclared variables are dropped, and the first failed post-install command
 // stops the run. The engine's output is discarded; the TypeScript handler
 // prints its own lines from the result.
 func bridgeKitOptions(manifest *kitfx.RegistryManifest, opts kitfx.ApplyOptions) kitfx.ApplyOptions { //nolint:gocritic // hugeParam: built once per call
-	opts.SourceBase = manifest.RegistryURL
+	if opts.SourceBase == "" {
+		opts.SourceBase = manifest.RegistryURL
+	}
+
 	opts.SkipConflicts = true
 	opts.StrictVariables = true
 	opts.StopOnPostInstallFailure = true

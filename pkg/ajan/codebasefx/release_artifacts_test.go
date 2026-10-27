@@ -20,10 +20,13 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
+	"slices"
 	"strings"
 	"testing"
 	"time"
+	"unicode/utf8"
 
 	"github.com/eser/stack/pkg/ajan/codebasefx"
 )
@@ -291,6 +294,151 @@ func TestPlanHomebrewSkipsBinariesWithoutArchives(t *testing.T) {
 
 	if _, err := codebasefx.PlanHomebrew("v4.6", sums); err == nil {
 		t.Error("an invalid version should fail")
+	}
+}
+
+// homebrewDescProblems applies the desc rules of `brew audit`
+// (Library/Homebrew/rubocops/shared/desc_helper.rb) to the description of
+// the formula name, plus one of its own: the renderer writes desc into a Ruby
+// double-quoted string, so it must not hold a quote, a backslash or `#{`.
+func homebrewDescProblems(name, desc string) []string {
+	var problems []string
+
+	nameChars := make([]string, 0, len(name))
+	for _, char := range strings.ReplaceAll(name, "-", "") {
+		nameChars = append(nameChars, regexp.QuoteMeta(string(char)))
+	}
+
+	startsWithName := regexp.MustCompile(`(?i)^` + strings.Join(nameChars, `[\s\-]?`) + `\b`)
+	firstWord, _, _ := strings.Cut(desc, " ")
+
+	for _, rule := range []struct {
+		broken  bool
+		problem string
+	}{
+		{desc == "", "empty"},
+		{strings.TrimSpace(desc) != desc, "leading or trailing spaces"},
+		{regexp.MustCompile(`(?i)command ?line`).MatchString(desc), `"command line" instead of "command-line"`},
+		{regexp.MustCompile(`(?i)^(?:the|an?)\s`).MatchString(desc), "starts with an article"},
+		{!slices.Contains([]string{"iOS", "iPhone", "macOS"}, firstWord) && regexp.MustCompile(`^[a-z]`).MatchString(desc), "starts lowercase"},
+		{startsWithName.MatchString(desc), "starts with the formula name"},
+		{strings.HasSuffix(desc, ".") && !strings.HasSuffix(desc, "etc."), "ends with a full stop"},
+		{regexp.MustCompile(`\p{So}`).MatchString(desc), "holds an emoji or symbol"},
+		{utf8.RuneCountInString(desc) > 80, "longer than 80 characters"},
+		{strings.ContainsAny(desc, `"\`) || strings.Contains(desc, "#{"), "breaks the Ruby string"},
+	} {
+		if rule.broken {
+			problems = append(problems, rule.problem)
+		}
+	}
+
+	return problems
+}
+
+func TestHomebrewDescProblems(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name, desc string
+		want       []string
+	}{
+		{"eser", "Terminal client for Eser's work", nil},
+		{"laroux", "Command-line tool for laroux.js apps", nil},
+		{"macos-tool", "macOS helper", nil},
+		{"laroux", "laroux.js framework CLI", []string{"starts lowercase", "starts with the formula name"}},
+		{"noskills-server", "Noskills server for agents", []string{"starts with the formula name"}},
+		{"tool", "A command line tool.", []string{`"command line" instead of "command-line"`, "starts with an article", "ends with a full stop"}},
+		{"tool", `Prints "#{x}"`, []string{"breaks the Ruby string"}},
+		{"tool", strings.Repeat("x", 81), []string{"starts lowercase", "longer than 80 characters"}},
+	}
+
+	for _, tc := range tests {
+		if got := homebrewDescProblems(tc.name, tc.desc); !slices.Equal(got, tc.want) {
+			t.Errorf("%s %q: problems %q, want %q", tc.name, tc.desc, got, tc.want)
+		}
+	}
+}
+
+// TestRenderedHomebrewFormulasPassTheAudit pins what `brew audit --strict`
+// checks in the rendered formulas: no version line, since Homebrew reads the
+// version from the URL; descriptions the desc rules accept; and the
+// deprecation of laroux, which is on npm now (TASK-237, decision-23).
+func TestRenderedHomebrewFormulasPassTheAudit(t *testing.T) {
+	t.Parallel()
+
+	const version = "5.0.0"
+
+	binaries := make([]string, 0, len(codebasefx.HomebrewFormulas))
+	descriptions := make(map[string]string, len(codebasefx.HomebrewFormulas))
+
+	for _, spec := range codebasefx.HomebrewFormulas {
+		binaries = append(binaries, spec.Binary)
+		descriptions[spec.Binary] = spec.Description
+	}
+
+	plan, err := codebasefx.PlanHomebrew(version, codebasefx.PlaceholderSHA256Sums(version, binaries))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	laroux := "  license \"Apache-2.0\"\n\n" +
+		"  deprecate! date: \"2026-10-27\", because: \"is now on npm: run `npm install --save-dev laroux` in your app\"\n\n" +
+		"  on_macos do\n"
+
+	tests := []struct {
+		binary    string
+		desc      string
+		deprecate string
+	}{
+		{binary: "eser", desc: "Terminal client for Eser's work", deprecate: ""},
+		{binary: "noskills", desc: "State-machine orchestrator for AI agents", deprecate: ""},
+		{binary: "laroux", desc: "Command-line tool for laroux.js apps", deprecate: laroux},
+		{binary: "noskills-server", desc: "Persistent Claude Code sessions that survive reboots", deprecate: ""},
+	}
+
+	if len(tests) != len(codebasefx.HomebrewFormulas) {
+		t.Fatalf("the table covers %d formulas, HomebrewFormulas has %d", len(tests), len(codebasefx.HomebrewFormulas))
+	}
+
+	versionLine := regexp.MustCompile(`(?m)^\s*version\s`)
+
+	for _, tc := range tests {
+		t.Run(tc.binary, func(t *testing.T) {
+			t.Parallel()
+
+			formula, ok := plan.Formulas[tc.binary+".rb"]
+			if !ok {
+				t.Fatalf("no %s.rb in the plan", tc.binary)
+			}
+
+			if versionLine.MatchString(formula) {
+				t.Errorf("%s.rb has a version line, which brew audit --strict rejects as redundant:\n%s", tc.binary, formula)
+			}
+
+			if want := "/v" + version + "/" + tc.binary + "-v" + version + "-"; strings.Count(formula, want) != 4 {
+				t.Errorf("%s.rb should carry the version in all 4 URLs (%q):\n%s", tc.binary, want, formula)
+			}
+
+			if !strings.Contains(formula, "\n  desc \""+tc.desc+"\"\n") {
+				t.Errorf("%s.rb should have desc %q:\n%s", tc.binary, tc.desc, formula)
+			}
+
+			if problems := homebrewDescProblems(tc.binary, descriptions[tc.binary]); len(problems) > 0 {
+				t.Errorf("brew audit rejects the desc %q of %s: %s", descriptions[tc.binary], tc.binary, strings.Join(problems, ", "))
+			}
+
+			if tc.deprecate == "" {
+				if strings.Contains(formula, "deprecate!") {
+					t.Errorf("%s.rb should not be deprecated:\n%s", tc.binary, formula)
+				}
+
+				return
+			}
+
+			if strings.Count(formula, "deprecate!") != 1 || !strings.Contains(formula, tc.deprecate) {
+				t.Errorf("%s.rb should carry, between license and on_macos:\n%s\ngot:\n%s", tc.binary, tc.deprecate, formula)
+			}
+		})
 	}
 }
 

@@ -1,10 +1,10 @@
 ---
 id: TASK-213
 title: 'mux, noskills-server-worker and the daemon worker runtime search'
-status: In Progress
+status: Done
 assignee: []
 created_date: '2026-10-15 20:38'
-updated_date: '2026-10-25 18:00'
+updated_date: '2026-10-27 15:00'
 labels:
   - cutover
   - mux
@@ -37,8 +37,8 @@ Plan key: M1-T19. Effort: small.
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
 - [x] #1 `node --test` passes for mux and noskills-server-worker
-- [ ] #2 `git grep -wni 'deno\|bun' pkg/@eserstack/mux pkg/@eserstack/noskills-server-worker pkg/ajan/noskillsserverfx cmd` matches only the fallback warning and its test
-- [ ] #3 `make ok` passes; a worker smoke test starts mux-worker.ts under node, and a test covers the deno and bun fallback
+- [x] #2 `git grep -wni 'deno\|bun' -- pkg/@eserstack/mux pkg/ajan/noskillsserverfx cmd` matches only the kit install hint that decision-12 keeps (`deno add` in cmd/eser/README.md)
+- [x] #3 `make ok` passes; the daemon starts no JavaScript runtime, so there is no worker to smoke-test and no deno or bun fallback to cover
 <!-- AC:END -->
 
 ## Implementation Notes
@@ -58,4 +58,6 @@ TASK-213 (2026-10-25): commit 7d958e2f (the Go port of noskills) landed after th
 - go vet and go test -count=1 on ./pkg/ajan/noskillsserverfx/... pass; golangci-lint on it reports 0 issues.
 - AC #2: the grep (run with `--` because noskills-server-worker is gone) still matches cmd/eser (README.md, app_test.go, cs_test.go, kit_parity_test.go) and cmd/noskills (README.md, app_test.go, run_binary_test.go, state_commands.go). These are parity tests against the TypeScript CLI under deno and example strings, outside this task.
 - AC #3: `make ok` fails outside this scope while the cutover is mid-edit (cmd/eser TypeScript parity tests, codebasefx release parity and code-conventions baseline, workflowfx recipe manifests); noskillsserverfx passes in it.
+
+2026-10-27, owner decision: reword AC #2 and AC #3 to what the Go port left and close the task. pkg/@eserstack/noskills-server-worker is gone, so the grep drops it. On main the grep matches only `deno add` in cmd/eser/README.md:144, the install hint of kit's `jsr` dependency kind that decision-12 keeps. The cmd/eser and cmd/noskills parity matches listed above are gone with the cutover. The gate's go-check, go-lint and go-tests (`make ok`) pass on main. The fallback warning and the worker smoke test are dropped, because the daemon runs mux and agent sessions in-process and reads no NOSKILLS_WORKER_RUNTIME.
 <!-- SECTION:NOTES:END -->

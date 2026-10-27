@@ -21,6 +21,10 @@ import (
 //     the file binds its own `process` (a child process handle, a parameter,
 //     `const { process } = runtime`); such a file is checked only for
 //     `process.env` and `globalThis.process.*`, which no such binding has.
+//     `globalThis` counts with its aliases (`const g = globalThis as any`),
+//     and every member access counts with optional chaining too:
+//     `globalThis?.process?.cwd()` and `g.process?.env` are reported like
+//     `process.cwd()`.
 //
 // The source is read through the TypeScript lexer, so text in comments and in
 // string, template and regular expression literals never counts: a user
@@ -108,6 +112,7 @@ func ValidateRuntimeJSAPIs(path string, content []byte) []ValidatorIssue {
 
 	tokens := code(lexTS(content))
 	shadowsProcess := bindsProcess(tokens)
+	globals := globalThisAliases(tokens)
 
 	var issues []ValidatorIssue
 
@@ -122,12 +127,12 @@ func ValidateRuntimeJSAPIs(path string, content []byte) []ValidatorIssue {
 		case "Bun":
 			issues = append(issues, runtimeIssue(path, tokens, i, runtimeRuleBun))
 		case "process":
-			viaGlobalThis := isGlobalThisMember(tokens, i)
+			viaGlobalThis := isGlobalThisMember(tokens, i, globals)
 			if !viaGlobalThis && i > 0 && tokens[i-1].Text == "." {
 				continue // runtime.process.x and other member accesses
 			}
 
-			member := memberAfter(tokens, i)
+			_, member := memberAfter(tokens, i)
 			if member == "" || (shadowsProcess && !viaGlobalThis && member != "env") {
 				continue
 			}
@@ -155,18 +160,70 @@ func code(tokens []tsToken) []tsToken {
 	return kept
 }
 
-// memberAfter returns the name in `x.name` when tokens[i] is x, or "".
-func memberAfter(tokens []tsToken, i int) string {
-	if i+2 < len(tokens) && tokens[i+1].Text == "." && tokens[i+2].Kind == tsIdent {
-		return tokens[i+2].Text
+// memberAfter returns the operator and the name in `x.name` or `x?.name`
+// when tokens[i] is x, or "" and "". The lexer emits `?.` as two tokens.
+func memberAfter(tokens []tsToken, i int) (string, string) {
+	switch {
+	case i+2 < len(tokens) && tokens[i+1].Text == "." && tokens[i+2].Kind == tsIdent:
+		return ".", tokens[i+2].Text
+	case i+3 < len(tokens) && tokens[i+1].Text == "?" && tokens[i+2].Text == "." &&
+		tokens[i+3].Kind == tsIdent:
+		return "?.", tokens[i+3].Text
 	}
 
-	return ""
+	return "", ""
 }
 
-// isGlobalThisMember reports whether tokens[i] is reached as globalThis.x.
-func isGlobalThisMember(tokens []tsToken, i int) bool {
-	return i >= 2 && tokens[i-1].Text == "." && tokens[i-2].Text == "globalThis"
+// receiverBefore returns the index of x and the operator in `x.name` or
+// `x?.name` when tokens[i] is name and x is an identifier, or -1 and "".
+func receiverBefore(tokens []tsToken, i int) (int, string) {
+	if i < 2 || tokens[i-1].Text != "." {
+		return -1, ""
+	}
+
+	receiver, operator := i-2, "."
+	if tokens[receiver].Text == "?" {
+		receiver, operator = i-3, "?."
+	}
+
+	if receiver < 0 || tokens[receiver].Kind != tsIdent {
+		return -1, ""
+	}
+
+	return receiver, operator
+}
+
+// isGlobalThisMember reports whether tokens[i] is reached as globalThis.x,
+// globalThis?.x or through one of the aliases of globalThis.
+func isGlobalThisMember(tokens []tsToken, i int, aliases map[string]bool) bool {
+	receiver, _ := receiverBefore(tokens, i)
+
+	return receiver >= 0 && (tokens[receiver].Text == "globalThis" || aliases[tokens[receiver].Text])
+}
+
+// globalThisAliases returns the names the code binds to globalThis itself,
+// as in `const g = globalThis as any;`; `const x = globalThis.y` binds a
+// member, not an alias.
+func globalThisAliases(tokens []tsToken) map[string]bool {
+	aliases := map[string]bool{}
+
+	for i := 0; i+3 < len(tokens); i++ {
+		switch tokens[i].Text {
+		case "const", "let", "var":
+		default:
+			continue
+		}
+
+		if tokens[i+1].Kind != tsIdent || tokens[i+2].Text != "=" || tokens[i+3].Text != "globalThis" {
+			continue
+		}
+
+		if operator, _ := memberAfter(tokens, i+3); operator == "" {
+			aliases[tokens[i+1].Text] = true
+		}
+	}
+
+	return aliases
 }
 
 // runtimeIssue reports the reference at tokens[i]: the receiver it is read
@@ -175,14 +232,14 @@ func runtimeIssue(path string, tokens []tsToken, i int, rule string) ValidatorIs
 	text := tokens[i].Text
 	line := tokens[i].Line
 
-	if i >= 2 && tokens[i-1].Text == "." && tokens[i-2].Kind == tsIdent {
-		text = tokens[i-2].Text + "." + text
-		line = tokens[i-2].Line
+	if receiver, operator := receiverBefore(tokens, i); receiver >= 0 {
+		text = tokens[receiver].Text + operator + text
+		line = tokens[receiver].Line
 	}
 
-	member := memberAfter(tokens, i)
+	operator, member := memberAfter(tokens, i)
 	if member != "" {
-		text += "." + member
+		text += operator + member
 	}
 
 	replacement, ok := runtimeAPIReplacements[rule][member]

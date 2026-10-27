@@ -488,8 +488,10 @@ in `.eser/concerns/`, which several entries below depend on.
   ignored.
 - `validate-runtime-js-apis` runs in Go through the native library and has no
   baseline: `--write-baseline` is gone and every violation fails. It reports
-  members of Node's global `process` (`process.*`, `globalThis.process.*`)
-  outside `standards/cross-runtime/`, and every `Deno` or `Bun` reference in
+  members of Node's global `process` (`process.*`, `globalThis.process.*`,
+  optional chaining such as `globalThis.process?.cwd()` and an alias such as
+  `const g = globalThis; g.process.env` included) outside
+  `standards/cross-runtime/`, and every `Deno` or `Bun` reference in
   code, test files included. Text in comments and string literals never counts.
   Switch to `runtime` from `@eserstack/standards/cross-runtime`, or list scripts
   that run on Node by design in the step's `exclude`.

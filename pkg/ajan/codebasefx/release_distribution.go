@@ -50,22 +50,47 @@ var (
 )
 
 // HomebrewFormula is one formula of the eser/homebrew-tap repository.
+// Description must pass the desc rules of `brew audit`: it starts with a
+// capital letter and not with the formula name or an article, has no full
+// stop at the end and is at most 80 characters.
 type HomebrewFormula struct {
+	// Deprecation, when set, renders a `deprecate!` line, so brew warns on
+	// install and points to the replacement.
+	Deprecation *HomebrewDeprecation
 	Binary      string
 	ClassName   string
 	Description string
 }
 
+// HomebrewDeprecation is the `deprecate!` of a formula: the date it was
+// deprecated, as YYYY-MM-DD, and the reason brew prints after "because it".
+type HomebrewDeprecation struct {
+	Date    string
+	Because string
+}
+
 // HomebrewFormulas are the formulas of the tap; each is written only when
-// the release has its archives.
+// the release has its archives. laroux stays while the release ships the
+// laroux forwarding stub (decision-9, ADR 0005), deprecated in favor of its
+// npm package (decision-23, decision-47), so a release does not overwrite
+// the deprecated formula of the tap with one that is not.
 var HomebrewFormulas = []HomebrewFormula{ //nolint:gochecknoglobals
-	{Binary: "eser", ClassName: "Eser", Description: "Terminal client for Eser's work"},
-	{Binary: "noskills", ClassName: "Noskills", Description: "State-machine orchestrator for AI agents"},
-	{Binary: "laroux", ClassName: "Laroux", Description: "laroux.js framework CLI"},
+	{Binary: "eser", ClassName: "Eser", Description: "Terminal client for Eser's work", Deprecation: nil},
+	{Binary: "noskills", ClassName: "Noskills", Description: "State-machine orchestrator for AI agents", Deprecation: nil},
+	{
+		Binary:      "laroux",
+		ClassName:   "Laroux",
+		Description: "Command-line tool for laroux.js apps",
+		Deprecation: &HomebrewDeprecation{
+			Date:    "2026-10-27",
+			Because: "is now on npm: run `npm install --save-dev laroux` in your app",
+		},
+	},
 	{
 		Binary:      "noskills-server",
 		ClassName:   "NoskillsServer",
-		Description: "noskills-server — persistent Claude Code sessions that survive reboots",
+		Description: "Persistent Claude Code sessions that survive reboots",
+		Deprecation: nil,
 	},
 }
 
@@ -99,20 +124,26 @@ func releaseHashes(sums map[string]string, binary, version string) (map[string]s
 	}
 }
 
-// RenderHomebrewFormula writes the Ruby formula of a binary, as
-// etc/scripts/update-homebrew-formula.ts wrote it.
+// RenderHomebrewFormula writes the Ruby formula of a binary in the shape
+// `brew audit --strict` accepts. It has no `version` line: Homebrew reads the
+// version from the archive URLs, and the audit rejects one that repeats it.
 func RenderHomebrewFormula(spec HomebrewFormula, version string, hashes map[string]string) string {
 	url := func(triple string) string {
 		return "https://github.com/eser/stack/releases/download/v" + version + "/" + spec.Binary + "-v" + version + "-" + triple + ".tar.gz"
 	}
 
+	// The audit wants deprecate! after license and before on_macos.
+	deprecation := ""
+	if spec.Deprecation != nil {
+		deprecation = `  deprecate! date: "` + spec.Deprecation.Date + `", because: "` + spec.Deprecation.Because + `"` + "\n\n"
+	}
+
 	return `class ` + spec.ClassName + ` < Formula
   desc "` + spec.Description + `"
   homepage "https://github.com/eser/stack"
-  version "` + version + `"
   license "Apache-2.0"
 
-  on_macos do
+` + deprecation + `  on_macos do
     on_arm do
       url "` + url("aarch64-apple-darwin") + `"
       sha256 "` + hashes["aarch64-apple-darwin"] + `"

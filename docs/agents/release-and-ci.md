@@ -152,6 +152,18 @@ Validate job also runs `make vuln` (govulncheck for both Go modules).
   (install.ps1) names. A release without the product's archive gets the
   `npm i -g <product>` command and a non-zero exit, and laroux goes to npm from
   5.0.0 on.
+- **Homebrew:** `eser dev homebrew` renders `Formula/<binary>.rb` of
+  eser/homebrew-tap for each of `HomebrewFormulas` in
+  `pkg/ajan/codebasefx/release_distribution.go` that the release has archives
+  of, and leaves the others as they are. The formulas pass
+  `brew audit --strict`: no `version` line, since Homebrew reads it from the
+  archive URL, and descriptions that follow the audit's desc rules, which
+  `TestRenderedHomebrewFormulasPassTheAudit` checks. The laroux formula
+  installs the laroux stub and carries a `deprecate!` that points to
+  `npm install --save-dev laroux` (decision-23, TASK-371); it leaves the tap
+  with the stub (ADR 0005). `brew audit` takes formula names only, so check a
+  rendered formula in a local tap made with
+  `brew tap-new your_user/your_tap --no-git` and removed with `brew untap`.
 - **Nix:** `eser dev nix-hashes` writes `nix/hashes.json` after a release. A
   binary the release has no archives of keeps the entry of the earlier release
   that had them, with that release's version in the entry, and the flake

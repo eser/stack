@@ -17,7 +17,7 @@ release-and-ci skill refers to.
   - `pnpm cli codebase rerelease`, `pnpm cli codebase unrelease`;
   - bump without releasing: `pnpm cli codebase versions`;
   - changelog: `pnpm cli codebase changelog-gen`.
-- The preflight builds the three npm bundles, installs the CLI outside the repo
+- The preflight builds the two npm bundles, installs the CLI outside the repo
   from a packed tarball, builds the native and wasm ajan libraries, runs the
   release compile for the host (`eser dev compile --current-only`), stages the
   host's noskills binary into its npm platform package
@@ -26,7 +26,7 @@ release-and-ci skill refers to.
   `eser dev homebrew` and `eser dev nix-hashes` in dry-run mode, and runs the
   old TypeScript updater of a v4.5.2 laroux and noskills under node against a
   local release of the laroux stub and the Go noskills
-  (`cmd/legacy-forwarder/legacy_update_test.go`). Last, it builds the libraries
+  (`cmd/legacy-forwarder/legacy_update_test.go`). Then it builds the libraries
   (`pnpm -r build`), runs the publish job's library step in dry-run mode
   (`etc/scripts/publish-libraries.ts --dry-run`), packs every workspace package
   into `etc/temp/npm-packs`, and installs every packed library together into a
@@ -36,11 +36,21 @@ release-and-ci skill refers to.
   library checks point the `@eserstack` scope at an unreachable registry, so
   neither asks npm for an `@eserstack` name; the consumer also checks that its
   lockfile resolves every one of them from a tarball. Then
+  `etc/scripts/preflight-laroux-app.ts` scaffolds the laroux-app recipe outside
+  the repo, removes its config file, installs it with npm from the packed
+  `laroux` and libraries (an `overrides` map and the same unreachable scope)
+  and runs `laroux dev` with one HMR edit, `laroux build` and `laroux serve`
+  through the recipe's scripts; a resolve hook records every module the
+  servers load, and react, react-dom and `@eserstack/laroux-server` must each
+  load from one directory and the action registry from one file (TASK-237).
+  The servers load the native library of `make ajan-lib` through
+  `ESER_AJAN_LIB_PATH`, since the packed platform packages carry none. Last,
   `etc/scripts/preflight-plugin-bins.ts` installs the packed posts library and
-  its `@eserstack` dependencies, with the laroux and noskills bundles and the
-  host's noskills platform package that its `--save-bundles` step packed while
-  the bundles were still in dist/, outside the repo; it runs `eser-posts --help`
-  and `TestForwardReachesThePackedCLIs` of `cmd/eser` on the installed bins.
+  laroux package and their `@eserstack` dependencies, with the noskills bundle
+  and the host's noskills platform package that its `--save-bundles` step
+  packed while the bundle was still in dist/, outside the repo; it runs
+  `eser-posts --help` and `TestForwardReachesThePackedCLIs` of `cmd/eser` on
+  the installed bins.
 - The install dry runs are Go tests in `cmd/noskills/install_dry_run_test.go`.
   `TestInstallShInstallsTheGoNoskills` and `TestInstallShDecidesFromTheRelease`
   run in `go test ./...`: install.sh installs the Go noskills from a local
@@ -63,12 +73,12 @@ The `v*.*.*` tag push runs the Integrity Pipeline (`build.yml`):
 validate
  └─ preflight                  the release preflight above
      └─ release-gate           tag == VERSION, CHANGELOG.md has that section
-         ├─ smoke-test         builds and runs the eser, noskills and laroux bundles
+         ├─ smoke-test         builds and runs the eser and noskills bundles
          │   └─ npm-consumer-test   installs the eser bundle into a scratch project
          └─ build-ajan-darwin
              └─ compile-binaries    eser dev compile: eser, noskills, laroux stub, noskills-server
                  └─ publish-ajan    ajan-* and noskills-* platform packages on npm
-                     └─ publish     @eserstack libraries, then the eser, noskills and laroux bundles on npm
+                     └─ publish     @eserstack libraries and laroux, then the eser and noskills bundles on npm
                          └─ release-notes   changelog section to GitHub Release
                              └─ upload-assets   cosign signatures + SHA256SUMS
                                  ├─ update-homebrew
@@ -78,7 +88,9 @@ validate
 `publish-ajan` and `publish` also wait for `smoke-test` and
 `npm-consumer-test`, so nothing reaches npm before both pass. An ordinary push
 runs `validate`, `mux-no-js-runtime`, `cross-runtime-test` (Node on Linux and
-macOS), `node-ffi-cli` and `windows-smoke`, and `preflight` on `main`. The
+macOS), `laroux-smoke` (the reusable `laroux-smoke.yml`: the laroux app check
+of the preflight on Linux and macOS), `node-ffi-cli` and `windows-smoke`, and
+`preflight` on `main`. The
 Validate job also runs `make vuln` (govulncheck for both Go modules).
 
 ## Publishing Targets
@@ -86,11 +98,18 @@ Validate job also runs `make vuln` (govulncheck for both Go modules).
 - **JSR:** frozen at 4.5.x (decision-5). No job publishes to it, and the JSR
   versions stay available without updates.
 - **npm bundles:** `eser` (built by `pnpm cli build` from
-  `pkg/@eserstack/cli`), `noskills`
-  (`pkg/@eserstack/noskills/scripts/npm-build.ts`) and `laroux`
-  (`pkg/@eserstack/laroux-server/scripts/npm-build.ts`). `smoke-test` builds
-  them and `publish` runs `pnpm publish --provenance --access public` for each,
-  skipping a version npm already has. `noskills` is a launcher for the Go
+  `pkg/@eserstack/cli`) and `noskills`
+  (`pkg/@eserstack/noskills/scripts/npm-build.ts`). `smoke-test` builds them
+  and `publish` runs `pnpm publish --provenance --access public` for each,
+  skipping a version npm already has.
+- **laroux:** the npm package `laroux` is the workspace package
+  `pkg/@eserstack/laroux-bin` (TASK-237, decision-47): its bin `laroux` is its
+  emitted `dist/cli.js`, which runs the CLI of `@eserstack/laroux-server`, and
+  its one dependency is `@eserstack/laroux-server` at the same version, so the
+  commands, react, react-dom, rolldown, sharp, lightningcss and tailwind come
+  from the app's node_modules and nothing is inlined. It has no `exports`, so
+  it is no library: `pnpm -r build` builds it and `publish` publishes it from
+  the workspace right after the libraries, with the same `npm view` check. `noskills` is a launcher for the Go
   binary (`dist/noskills.js`) and carries the TypeScript CLI in `dist/ts/` for
   the commands the binary forwards.
 - **Libraries:** the `@eserstack/*` libraries publish to npm from 5.0.0. Every
@@ -107,8 +126,8 @@ Validate job also runs `make vuln` (govulncheck for both Go modules).
   `publishConfig.exports` points at `dist/` with `types` and `import`
   conditions; pnpm swaps it in when it packs. `files` lists the emitted files,
   plus the bootstrap sources laroux-bundler copies from `laroux-react`, whose
-  `./client/bootstrap` export stays on the source. The bundles of `cli`,
-  `noskills` and `laroux-server` share that `dist/`: the library build removes
+  `./client/bootstrap` export stays on the source. The bundles of `cli` and
+  `noskills` share that `dist/`: the library build removes
   a bundle there and a bundle build removes the library emit, so whichever a
   later step packs is built last. In the release run the two never meet:
   `smoke-test` builds the bundles and hands them on as artifacts, `publish`
@@ -239,6 +258,7 @@ gh workflow run "Integrity Pipeline" --ref main -f tag=your_release_tag -f stage
 | `publish-ajan.yml`        | manual                                                                                           | Builds, or bootstraps, the `@eserstack/ajan-*` npm packages outside the pipeline                              |
 | `codeql.yml`              | push and pull_request to `main`, weekly                                                          | CodeQL analysis                                                                                               |
 | `ffi-workers.yml`         | push and pull_request changing `.node-version`, a `package.json`, `pkg/` or the Go build, manual | The `*.ffi.test.ts` suites and the bridge's worker-thread tests on Linux and macOS (decision-14, decision-37) |
+| `laroux-smoke.yml`        | called by `build.yml` on push and pull_request, manual                                           | The packed `laroux` in a new laroux-app: dev, build and serve on Linux and macOS (TASK-237)                   |
 | `pr-labeler.yml`          | pull_request                                                                                     | Labels pull requests from `.github/pr-labeler.yml`                                                            |
 | `sync-issue-labels.yml`   | push to `main` changing `.github/issue-labels.yml`, manual                                       | Syncs the issue label set                                                                                     |
 | `update-contributors.yml` | weekly, manual                                                                                   | Refreshes the contributors list                                                                               |

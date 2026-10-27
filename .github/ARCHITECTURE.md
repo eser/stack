@@ -199,6 +199,8 @@ Developer runs:  eser codebase release patch
 │  ├─ preflight           pnpm preflight, on main only        │
 │  ├─ mux-no-js-runtime   mux sessions with no Node on PATH   │
 │  ├─ cross-runtime-test  node × linux / macos                │
+│  ├─ laroux-smoke        packed laroux app: dev, build and   │
+│  │                      serve × linux / macos               │
 │  ├─ node-ffi-cli        the CLI on node:ffi × linux / macos │
 │  └─ windows-smoke       compiles the Windows artifacts and  │
 │                         runs etc/scripts/install.ps1        │
@@ -221,8 +223,8 @@ Developer runs:  eser codebase release patch
 │                   │    and SHA256SUMS.txt                   │
 │                   └─ publish-ajan  ajan-* and noskills-*    │
 │                       │            platform packages on npm │
-│                       └─ publish   eser, noskills, laroux   │
-│                           │        bundles on npm           │
+│                       └─ publish   libraries, laroux, then  │
+│                           │        eser, noskills bundles   │
 │                           └─ release-notes  changelog       │
 │                               │      section → GitHub       │
 │                               │      Release                │

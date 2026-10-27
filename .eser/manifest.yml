@@ -289,10 +289,6 @@ workflows:
           name: npm-build-noskills
           command: node ./pkg/@eserstack/noskills/scripts/npm-build.ts
           timeout: 180
-      - shell:
-          name: npm-build-laroux
-          command: node ./pkg/@eserstack/laroux-server/scripts/npm-build.ts
-          timeout: 180
       # Installs the packed CLI OUTSIDE the repo and runs its smoke commands;
       # inside the monorepo, Node would resolve undeclared dependencies from
       # the workspace and hide them.
@@ -336,9 +332,9 @@ workflows:
           name: noskills-launcher-install
           command: node ./etc/scripts/preflight-noskills-launcher.ts
           timeout: 300
-      # The laroux and noskills bundles and this host's noskills platform
-      # package, packed into etc/temp/plugin-packs while the bundles are still
-      # in dist/; the plugin-bins step installs them (TASK-252).
+      # The noskills bundle and this host's noskills platform package, packed
+      # into etc/temp/plugin-packs while the bundle is still in dist/; the
+      # plugin-bins step installs them (TASK-252).
       - shell:
           name: plugin-bundles-pack
           command: node ./etc/scripts/preflight-plugin-bins.ts --save-bundles
@@ -356,8 +352,7 @@ workflows:
       # The npm build of the libraries (TASK-232): tsc 7 emits each one's
       # dist/ and the build fails on an emitted import that still names a .ts
       # file. It removes the bundles the npm-build steps wrote into the dist/
-      # of cli, noskills and laroux-server, so it runs after every step that
-      # uses them.
+      # of cli and noskills, so it runs after every step that uses them.
       - shell:
           name: library-build
           command: pnpm -r build
@@ -384,8 +379,18 @@ workflows:
           name: library-consumer
           command: node ./etc/scripts/preflight-library-consumer.ts
           timeout: 300
-      # The packed posts library and its @eserstack dependencies, with the
-      # saved bundles, installed into a scratch project outside the repo:
+      # A new app from the laroux-app recipe, installed with npm outside the
+      # repo from the packed laroux and the packed libraries, runs dev (with
+      # one HMR edit), build and serve with no config file, and loads one
+      # React and one action registry while it does (TASK-237). It needs the
+      # native library of the ajan-native-build step.
+      - shell:
+          name: laroux-app
+          command: node ./etc/scripts/preflight-laroux-app.ts
+          timeout: 600
+      # The packed posts library and laroux package and their @eserstack
+      # dependencies, with the saved bundle, installed into a scratch project
+      # outside the repo:
       # `eser-posts --help` must run, and the Go eser forwarding test must
       # resolve and run eser-posts, laroux and noskills from it (TASK-252).
       - shell:

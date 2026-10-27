@@ -351,7 +351,9 @@ jobs:
     name: npm Smoke Test
     needs: release-gate
     if: needs.release-gate.outputs.resume != 'true'
-    # ubicloud: builds three bundles with Node + pnpm we install ourselves.
+    # ubicloud: builds two bundles with Node + pnpm we install ourselves. The
+    # npm package laroux is the library emit, built and published by publish;
+    # the preflight and laroux-smoke run it.
     runs-on: ubicloud-standard-4-arm
     timeout-minutes: 10
 
@@ -384,9 +386,6 @@ jobs:
       - name: Build noskills npm package
         run: node pkg/@eserstack/noskills/scripts/npm-build.ts
 
-      - name: Build laroux npm package
-        run: node pkg/@eserstack/laroux-server/scripts/npm-build.ts
-
       - name: Smoke test — eser help
         run: node pkg/@eserstack/cli/dist/eser.js --help
 
@@ -399,9 +398,6 @@ jobs:
       - name: Smoke test — noskills help (TypeScript CLI bundle)
         run: node pkg/@eserstack/noskills/dist/ts/noskills.js --help
 
-      - name: Smoke test — laroux help
-        run: node pkg/@eserstack/laroux-server/dist/laroux.js --help
-
       - name: Upload eser npm bundle
         uses: actions/upload-artifact@v7
         with:
@@ -413,12 +409,6 @@ jobs:
         with:
           name: npm-noskills
           path: pkg/@eserstack/noskills/dist/
-
-      - name: Upload laroux npm bundle
-        uses: actions/upload-artifact@v7
-        with:
-          name: npm-laroux
-          path: pkg/@eserstack/laroux-server/dist/
 
   # ── npm consumer test ──────────────────────────────────────
   npm-consumer-test:
@@ -584,6 +574,21 @@ jobs:
         run: |
           pnpm cli build
           node etc/scripts/preflight-npm-consumer.ts --require-native
+
+  # ── laroux from the packed packages ────────────────────────
+  # A new app from the laroux-app recipe, installed from the packed laroux
+  # and libraries outside the repo, runs dev (with one HMR edit), build and
+  # serve on Linux and macOS (TASK-237). A reusable workflow, so the laroux
+  # conformance harness (TASK-315) can run on the same install. Skipped on
+  # tags like cross-runtime-test: the release preflight runs the same script
+  # on Linux before release-gate.
+  laroux-smoke:
+    name: laroux Smoke Test
+    needs: validate
+    if: "!startsWith(github.ref, 'refs/tags/') && inputs.tag == ''"
+    permissions:
+      contents: read
+    uses: ./.github/workflows/laroux-smoke.yml
 
   node-ffi-cli:
     name: CLI on node:ffi (${{ matrix.os }})
@@ -780,7 +785,7 @@ jobs:
     # GitHub-hosted: npm OIDC trusted publishing is tied to GitHub-issued
     # id-tokens from GitHub-hosted runners. JSR stays frozen at 4.5.x
     # (decision-5), so this job publishes to npm only: the @eserstack
-    # libraries, then the eser, noskills and laroux bundles.
+    # libraries and the laroux package, then the eser and noskills bundles.
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 25
 
@@ -809,9 +814,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # The libraries build into the dist/ of their packages in this fresh
-      # checkout. The bundles share the dist/ of cli, noskills and
-      # laroux-server, but they come from the smoke-test artifacts into
+      # The libraries and the laroux package build into the dist/ of their
+      # packages in this fresh checkout. The bundles share the dist/ of cli
+      # and noskills, but they come from the smoke-test artifacts into
       # npm-dist/, outside the workspace, so neither build can replace what
       # the other publishes, and `pnpm -r` never packs npm-dist/.
       - name: Build the libraries
@@ -826,6 +831,21 @@ jobs:
       - name: Publish the libraries to npm
         run: node ./etc/scripts/publish-libraries.ts
 
+      # The npm package laroux is the bin of pkg/@eserstack/laroux-bin, which
+      # depends on @eserstack/laroux-server at this version (TASK-237), so it
+      # follows the libraries. pnpm publishes it from the workspace with its
+      # publishConfig.bin and the workspace:* range rewritten to the version.
+      - name: Publish laroux to npm
+        run: |
+          NAME=$(node -p "require('./package.json').name")
+          VERSION=$(node -p "require('./package.json').version")
+          if npm view "$NAME@$VERSION" version >/dev/null 2>&1; then
+            echo "$NAME@$VERSION is already on npm — skipping so a later stage can be re-run"
+          else
+            pnpm publish --provenance --access public --no-git-checks
+          fi
+        working-directory: pkg/@eserstack/laroux-bin
+
       - name: Download eser npm bundle
         uses: actions/download-artifact@v8
         with:
@@ -837,12 +857,6 @@ jobs:
         with:
           name: npm-noskills
           path: npm-dist/noskills/
-
-      - name: Download laroux npm bundle
-        uses: actions/download-artifact@v8
-        with:
-          name: npm-laroux
-          path: npm-dist/laroux/
 
       - name: Publish eser to npm
         run: |
@@ -865,17 +879,6 @@ jobs:
             pnpm publish --provenance --access public --no-git-checks
           fi
         working-directory: npm-dist/noskills
-
-      - name: Publish laroux to npm
-        run: |
-          NAME=$(node -p "require('./package.json').name")
-          VERSION=$(node -p "require('./package.json').version")
-          if npm view "$NAME@$VERSION" version >/dev/null 2>&1; then
-            echo "$NAME@$VERSION is already on npm — skipping so a later stage can be re-run"
-          else
-            pnpm publish --provenance --access public --no-git-checks
-          fi
-        working-directory: npm-dist/laroux
 
       - name: Summary
         run: |

@@ -1,0 +1,84 @@
+name: laroux Smoke Test
+
+# The npm package laroux as a user gets it (TASK-237): every workspace package
+# is built and packed, a new app from the laroux-app recipe is installed with
+# npm outside the repo from those tarballs, and it runs `laroux dev` with one
+# HMR edit, `laroux build` and `laroux serve` with no config file, loading one
+# React and one action registry. etc/scripts/preflight-laroux-app.ts holds the
+# steps; the release preflight runs the same script.
+#
+# Reusable: build.yml calls it on every branch push and pull request, and the
+# laroux conformance harness (TASK-315) builds on the same install.
+on:
+  workflow_call:
+    inputs:
+      ref:
+        description: "The ref to check out; empty is the ref of the calling run."
+        required: false
+        type: string
+        default: ""
+
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  laroux-app:
+    name: laroux app (node on ${{ matrix.os }})
+    # One GitHub-hosted image per OS: the job proves the packed package on
+    # stock Node installs, as cross-runtime-test does for the eser bundle.
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04-arm, macos-latest]
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+          ref: ${{ inputs.ref || github.ref }}
+
+      - name: Setup Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+          cache-dependency-path: go.sum
+
+      - name: Setup pnpm
+        # No version: pnpm/action-setup reads packageManager from package.json.
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # The packed @eserstack/ajan-* platform packages carry no library; the
+      # script hands this one to the app's servers through ESER_AJAN_LIB_PATH.
+      - name: Build the native library
+        run: make ajan-lib
+
+      - name: Build the libraries and the laroux package
+        run: pnpm -r build
+
+      - name: Pack every workspace package
+        run: >-
+          rm -rf etc/temp/npm-packs &&
+          pnpm -r --filter "./pkg/@eserstack/*" pack
+          --pack-destination etc/temp/npm-packs
+
+      - name: Run dev, build and serve on a new laroux app
+        run: node ./etc/scripts/preflight-laroux-app.ts

@@ -57,6 +57,8 @@ nodeTest.test(
         "alias.ts": "const g = globalThis as any;\nconst b = g.Bun;\n",
         "lib.test.ts": 'Deno.test("x", () => {});\n',
         "node.ts": "const token = process.env.TOKEN;\n",
+        "optional.ts": "const cwd = globalThis.process?.cwd();\n",
+        "node-alias.ts": "const g = globalThis as any;\ng.process?.exit(1);\n",
       },
       async (root) => {
         const result = await runtimeJsApis.run({ root });
@@ -67,7 +69,9 @@ nodeTest.test(
           "deno.ts:1:Deno.readTextFile",
           "global.ts:1:globalThis.Deno",
           "lib.test.ts:1:Deno.test",
+          "node-alias.ts:2:g.process?.exit",
           "node.ts:1:process.env",
+          "optional.ts:1:globalThis.process?.cwd",
         ]);
       },
     ),

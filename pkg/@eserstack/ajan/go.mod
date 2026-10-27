@@ -2,6 +2,10 @@ module github.com/eser/ajan
 
 go 1.26.0
 
+// Pinned to the root module's toolchain so the bridge builds with the same
+// patch release.
+toolchain go1.26.10
+
 require github.com/eser/stack v4.1.56+incompatible
 
 require (
@@ -19,7 +23,7 @@ require (
 	go.opentelemetry.io/otel/metric v1.46.0 // indirect
 	go.opentelemetry.io/otel/trace v1.46.0 // indirect
 	golang.org/x/crypto v0.57.0 // indirect
-	golang.org/x/net v0.59.0 // indirect
+	golang.org/x/net v0.60.0 // indirect
 	golang.org/x/sys v0.48.0 // indirect
 	golang.org/x/term v0.46.0 // indirect
 	golang.org/x/text v0.42.0 // indirect

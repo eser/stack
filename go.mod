@@ -4,7 +4,7 @@ go 1.26.0
 
 // Pinned so CI (go-version-file: go.mod) and every developer build with the
 // same patch release instead of whatever "stable" resolves to that day.
-toolchain go1.26.6
+toolchain go1.26.10
 
 tool (
 	github.com/golangci/golangci-lint/v2/cmd/golangci-lint
@@ -47,7 +47,7 @@ require (
 	go.opentelemetry.io/otel/sdk/metric v1.46.0
 	go.opentelemetry.io/otel/trace v1.46.0
 	golang.org/x/crypto v0.57.0
-	golang.org/x/net v0.59.0
+	golang.org/x/net v0.60.0
 	golang.org/x/sys v0.48.0
 	golang.org/x/term v0.46.0
 	golang.org/x/text v0.42.0

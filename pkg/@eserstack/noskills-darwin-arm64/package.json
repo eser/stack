@@ -20,5 +20,10 @@
   ],
   "files": [
     "noskills"
-  ]
+  ],
+  "publishConfig": {
+    "executableFiles": [
+      "./noskills"
+    ]
+  }
 }

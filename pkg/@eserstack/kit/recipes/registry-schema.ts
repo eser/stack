@@ -49,6 +49,7 @@ export interface RecipeFile {
   readonly kind?: RecipeFileKind;
   /**
    * Where `source` lives: `"local"` (the default) relative to `registryUrl`,
+   * or to the manifest's own directory when the manifest is read from a file,
    * or `"github"` at the root of the repository that `registryUrl` names, a
    * raw.githubusercontent.com URL or a `gh:owner/repo` specifier.
    */
@@ -63,6 +64,11 @@ export interface RecipeDependencies {
   readonly jsr?: readonly string[];
   /** npm package names, installed with `npm install`. */
   readonly npm?: readonly string[];
+  /**
+   * npm package names installed as dev dependencies, with
+   * `npm install --save-dev`, such as a CLI that only the project's scripts run.
+   */
+  readonly npmDev?: readonly string[];
 }
 
 /** A template variable definition for substitution */
@@ -216,6 +222,9 @@ const isRecipeDependencies = (value: unknown): value is RecipeDependencies => {
     return false;
   }
   if (obj["npm"] !== undefined && !Array.isArray(obj["npm"])) {
+    return false;
+  }
+  if (obj["npmDev"] !== undefined && !Array.isArray(obj["npmDev"])) {
     return false;
   }
 

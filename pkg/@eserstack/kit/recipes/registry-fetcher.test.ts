@@ -342,3 +342,59 @@ nodeTest.test("detectLocalRegistry: wraps a path it cannot check", async () => {
   );
   assert.assertStrictEquals(error.cause, denied);
 });
+
+// =============================================================================
+// loadRegistry
+// =============================================================================
+
+const LOCAL_MANIFEST = JSON.stringify({
+  name: "local",
+  description: "A registry in a working tree",
+  author: "test",
+  registryUrl: "https://raw.githubusercontent.com/acme/tpl/main/.eser",
+  recipes: [],
+});
+
+nodeTest.test(
+  "loadRegistry: a manifest read from a file reports its directory",
+  async () => {
+    const root = await runtime.fs.makeTempDir({ prefix: "kit-load-test-" });
+    try {
+      await runtime.fs.mkdir(runtime.path.join(root, ".eser"));
+      await runtime.fs.mkdir(runtime.path.join(root, "app"));
+      const manifestPath = runtime.path.join(root, ".eser", "recipes.json");
+      await runtime.fs.writeTextFile(manifestPath, LOCAL_MANIFEST);
+
+      const direct = await registryFetcher.loadRegistry(manifestPath);
+      assert.assertEquals(direct.source, manifestPath);
+      assert.assertEquals(direct.sourceDir, runtime.path.join(root, ".eser"));
+      assert.assertEquals(direct.manifest.name, "local");
+
+      const found = await registryFetcher.loadRegistry(undefined, {
+        local: true,
+        cwd: runtime.path.join(root, "app"),
+      });
+      assert.assertEquals(found.sourceDir, runtime.path.join(root, ".eser"));
+    } finally {
+      await runtime.fs.remove(root, { recursive: true });
+    }
+  },
+);
+
+nodeTest.test(
+  "loadRegistry: a manifest fetched over https has no directory",
+  async () => {
+    const url =
+      "https://raw.githubusercontent.com/acme/tpl/main/.eser/recipes.json";
+    using _fetch = mock.stub(
+      globalThis,
+      "fetch",
+      fakeFetch({ [url]: () => new Response(LOCAL_MANIFEST) }),
+    );
+
+    const loaded = await registryFetcher.loadRegistry(url);
+
+    assert.assertEquals(loaded.source, url);
+    assert.assertEquals(loaded.sourceDir, undefined);
+  },
+);

@@ -561,3 +561,27 @@ nodeTest.test("resolveRegistryUrl — strips leading slash from path", () => {
 
   assert.assertEquals(result, "https://example.com/registry/recipes/foo.ts");
 });
+
+nodeTest.test(
+  "validateRegistryManifest — accepts npmDev and rejects one that is not a list",
+  () => {
+    const valid = {
+      ...VALID_MINIMAL,
+      recipes: [{ ...VALID_RECIPE, dependencies: { npmDev: ["laroux"] } }],
+    };
+    const invalid = {
+      ...VALID_MINIMAL,
+      recipes: [{ ...VALID_RECIPE, dependencies: { npmDev: "laroux" } }],
+    };
+
+    assert.assertEquals(
+      registrySchema.validateRegistryManifest(valid).recipes[0]?.dependencies,
+      { npmDev: ["laroux"] },
+    );
+    assert.assertThrows(
+      () => registrySchema.validateRegistryManifest(invalid),
+      Error,
+      "Invalid recipe",
+    );
+  },
+);

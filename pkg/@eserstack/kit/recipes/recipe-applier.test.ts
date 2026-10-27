@@ -636,3 +636,100 @@ bdd.describe("applyRecipe: whole-repo tarball limits", () => {
     });
   });
 });
+
+// =============================================================================
+// applyRecipe — a registry read from disk
+// =============================================================================
+
+bdd.describe("applyRecipe: sourceDir", () => {
+  // TASK-362: a manifest read from disk applied its local-provider files from
+  // its registryUrl (GitHub main), not from the working tree.
+  bdd.it(
+    "reads local-provider files and folders from sourceDir and github ones from the repository",
+    async () => {
+      using _fetch = mock.stub(
+        globalThis,
+        "fetch",
+        fakeFetch({
+          "https://raw.githubusercontent.com/acme/tpl/main/pkg/lib/doc.go":
+            () => new Response("package lib\n"),
+        }),
+      );
+
+      await withTempDir(async (dir) => {
+        const sourceDir = runtime.path.join(dir, "registry", ".eser");
+        const cwd = runtime.path.join(dir, "project");
+        await runtime.fs.mkdir(
+          runtime.path.join(sourceDir, "recipes", "folder", "nested"),
+          {
+            recursive: true,
+          },
+        );
+        await runtime.fs.mkdir(cwd);
+        await runtime.fs.writeTextFile(
+          runtime.path.join(sourceDir, "recipes", "a.txt"),
+          "a {{.name}}\n",
+        );
+        await runtime.fs.writeTextFile(
+          runtime.path.join(sourceDir, "recipes", "folder", "b.txt"),
+          "b\n",
+        );
+        await runtime.fs.writeTextFile(
+          runtime.path.join(sourceDir, "recipes", "folder", "nested", "c.txt"),
+          "c\n",
+        );
+
+        const result = await recipeApplier.applyRecipe(
+          {
+            name: "tree",
+            description: "Test",
+            language: "go",
+            scale: "utility" as const,
+            variables: [{ name: "name" }],
+            files: [
+              { source: "recipes/a.txt", target: "a.txt" },
+              {
+                source: "recipes/folder",
+                target: "out",
+                kind: "folder" as const,
+              },
+              {
+                source: "pkg/lib/doc.go",
+                target: "lib/doc.go",
+                provider: "github" as const,
+              },
+            ],
+          },
+          {
+            cwd,
+            registryUrl:
+              "https://raw.githubusercontent.com/acme/tpl/main/.eser",
+            sourceDir,
+            variables: { name: "tree" },
+          },
+        );
+
+        // A folder copies the files directly in it, as a GitHub listing does.
+        assert.assertEquals(result.written, [
+          "a.txt",
+          "out/b.txt",
+          "lib/doc.go",
+        ]);
+        assert.assertEquals(
+          await runtime.fs.readTextFile(runtime.path.join(cwd, "a.txt")),
+          "a tree\n",
+        );
+        assert.assertEquals(
+          await runtime.fs.readTextFile(runtime.path.join(cwd, "out", "b.txt")),
+          "b\n",
+        );
+        assert.assertEquals(
+          await runtime.fs.readTextFile(
+            runtime.path.join(cwd, "lib", "doc.go"),
+          ),
+          "package lib\n",
+        );
+      });
+    },
+  );
+});

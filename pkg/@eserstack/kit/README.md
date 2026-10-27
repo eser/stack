@@ -101,7 +101,7 @@ export ESER_KIT_MAX_ENTRIES=100000
 | `variables`    | `TemplateVariable[]`                    | Variables for `{{.name}}` substitution       |
 | `requires`     | `string[]`                              | Recipe dependencies (topologically applied)  |
 | `postInstall`  | `string[]`                              | Commands to run after files are written      |
-| `dependencies` | `RecipeDependencies`                    | go/jsr/npm deps to install                   |
+| `dependencies` | `RecipeDependencies`                    | go/jsr/npm/npmDev deps to install            |
 
 **Ignore example:**
 

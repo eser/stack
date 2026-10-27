@@ -56,7 +56,7 @@ func languageMatches(language string, project ProjectType) bool {
 // GetDependencyInstructions returns the install commands for the recipe's
 // declared dependencies, as the TypeScript kit does: `go get` for each Go
 // module, then `deno add` for each JSR package, then `npm install` for each
-// npm package. When the project type is known and does not suit the recipe's
+// npm package and `npm install --save-dev` for each npmDev one. When the project type is known and does not suit the recipe's
 // language, Warnings says so; callers show it without blocking.
 func GetDependencyInstructions(recipe *Recipe, detection ProjectDetection) DependencyInstructions {
 	if recipe.Dependencies == nil {
@@ -86,6 +86,10 @@ func GetDependencyInstructions(recipe *Recipe, detection ProjectDetection) Depen
 
 	for _, pkg := range deps.NPM {
 		instructions = append(instructions, "npm install "+pkg)
+	}
+
+	for _, pkg := range deps.NPMDev {
+		instructions = append(instructions, "npm install --save-dev "+pkg)
 	}
 
 	return DependencyInstructions{

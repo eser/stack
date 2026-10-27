@@ -488,8 +488,10 @@ in `.eser/concerns/`, which several entries below depend on.
   ignored.
 - `validate-runtime-js-apis` runs in Go through the native library and has no
   baseline: `--write-baseline` is gone and every violation fails. It reports
-  members of Node's global `process` (`process.*`, `globalThis.process.*`)
-  outside `standards/cross-runtime/`, and every `Deno` or `Bun` reference in
+  members of Node's global `process` (`process.*`, `globalThis.process.*`,
+  optional chaining such as `globalThis.process?.cwd()` and an alias such as
+  `const g = globalThis; g.process.env` included) outside
+  `standards/cross-runtime/`, and every `Deno` or `Bun` reference in
   code, test files included. Text in comments and string literals never counts.
   Switch to `runtime` from `@eserstack/standards/cross-runtime`, or list scripts
   that run on Node by design in the step's `exclude`.
@@ -1676,6 +1678,12 @@ in `.eser/concerns/`, which several entries below depend on.
   the context ends, and a negative `ApplyOptions.PostInstallTimeout` is an
   error. Set `PostInstallTimeout` to a longer positive duration for a recipe
   that needs more time.
+- kitfx: `LoadRegistry` returns the path it read for a manifest on disk, a
+  relative `Source` joined with `CWD`, instead of `Source` as given. Pass that
+  path to `SourceBaseFor` for `ApplyOptions.SourceBase`, so a local manifest's
+  files come from its own directory. Before:
+  `opts.SourceBase = manifest.RegistryURL`. After:
+  `opts.SourceBase = kitfx.SourceBaseFor(manifest, source)`.
 - workflowfx `http-fetch` fails a step whose response body is over 10 MiB;
   download large files with the shell tool. The postsfx X and Bluesky clients
   fail on an API response over 8 MiB.
@@ -1835,6 +1843,15 @@ in `.eser/concerns/`, which several entries below depend on.
 - `EserAjanNoskillsInit` writes `command: npx eser@latest noskills`
   (`noskillsfx.DefaultCommandPrefix`) into a new manifest instead of `noskills`.
   Edit the manifest's `command` to keep a bare `noskills`.
+- `EserAjanKitApplyRecipe` without `registryUrl` loads the nearest
+  `.eser/recipes.json` at or above `cwd` only when the request has
+  `"local": true`, and the eser/stack registry otherwise; it used to take the
+  nearest local manifest whenever there was one, and fail without it. A
+  relative `registryUrl` path resolves against the process's working directory.
+  The registry is now checked against the registry/v1 rules. Its answer carries
+  `depInfo` (`instructions` and `warnings`). Before:
+  `{"recipeName": "lib", "cwd": "app"}`. After:
+  `{"recipeName": "lib", "cwd": "app", "local": true}`.
 
 - On the WASM fallback, a git-aware `EserAjanCodebaseWalkFiles`,
   `EserAjanCodebaseValidateFiles` or one of their streams fails unless the

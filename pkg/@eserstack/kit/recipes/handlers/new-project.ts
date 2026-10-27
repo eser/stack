@@ -180,10 +180,11 @@ export const newProject = (
           }
         }
 
-        const manifest = await registryFetcher.fetchRegistry(
+        const registry = await registryFetcher.loadRegistry(
           input.registrySource,
           { local: input.local },
         );
+        const manifest = registry.manifest;
 
         const templates = manifest.recipes.filter((r) => r.scale === "project");
         const template = templates.find((r) => r.name === input.templateName);
@@ -211,6 +212,7 @@ export const newProject = (
         const result = await recipeApplier.applyRecipe(template, {
           cwd: input.targetDir,
           registryUrl: manifest.registryUrl,
+          sourceDir: registry.sourceDir,
           force: true,
           variables,
           interactive: input.interactive,

@@ -93,6 +93,46 @@ func TestValidateRuntimeJSAPIs(t *testing.T) {
 			want:   []string{"1:process.env", "2:process.exit", "3:globalThis.process.platform"},
 		},
 		{
+			name: "process members reached with optional chaining",
+			source: []string{
+				"const platform = globalThis.process?.platform;",
+				"const token = process?.env.TOKEN;",
+				"const cwd = globalThis?.process?.cwd() ?? \".\";",
+				"const fs = globalThis.process?.getBuiltinModule?.(\"node:fs\");",
+			},
+			want: []string{
+				"1:globalThis.process?.platform",
+				"2:process?.env",
+				"3:globalThis?.process?.cwd",
+				"4:globalThis.process?.getBuiltinModule",
+			},
+		},
+		{
+			name: "process members reached through an alias of globalThis",
+			source: []string{
+				"const g = globalThis as any;",
+				"const cwd: string = g.process.cwd();",
+				"g.process?.stdout.write(bytes);",
+				"const r = runtime;",
+				"r.process.exit(1);",
+			},
+			want: []string{"2:g.process.cwd", "3:g.process?.stdout"},
+		},
+		{
+			name:   "Deno and Bun members reached with optional chaining",
+			source: []string{"globalThis.Deno?.exit(1);", "const b = globalThis?.Bun?.version;"},
+			want:   []string{"1:globalThis.Deno?.exit", "2:globalThis?.Bun?.version"},
+		},
+		{
+			name: "a file that binds its own process is checked for optional-chained globals",
+			source: []string{
+				"const process = spawnChild(cmd);",
+				"await process?.waitForExit();",
+				"globalThis.process?.exit(1);",
+			},
+			want: []string{"3:globalThis.process?.exit"},
+		},
+		{
 			name: "the cross-runtime API",
 			source: []string{
 				"import { runtime } from \"@eserstack/standards/cross-runtime\";",
@@ -167,6 +207,10 @@ func TestValidateRuntimeJSAPIsMessages(t *testing.T) {
 		{
 			source: "const token = process.env.TOKEN;",
 			want:   "direct Node.js API usage: process.env; use runtime.env.get() from @eserstack/standards/cross-runtime (javascript-practices: Cross-Runtime APIs)",
+		},
+		{
+			source: "const value = globalThis.process?.env[name];",
+			want:   "direct Node.js API usage: globalThis.process?.env; use runtime.env.get() from @eserstack/standards/cross-runtime (javascript-practices: Cross-Runtime APIs)",
 		},
 		{
 			source: "Deno.exit(1);",

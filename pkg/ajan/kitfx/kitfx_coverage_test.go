@@ -1128,3 +1128,23 @@ func TestCloneRecipe_CWDAlreadySet_UsesProvidedCWD(t *testing.T) {
 		t.Fatalf("file should exist in pre-set CWD (%s): %v", targetDir, err)
 	}
 }
+
+// npmDev packages install as dev dependencies, after the npm packages
+// (TASK-362).
+func TestGetDependencyInstructions_NPMDevDeps(t *testing.T) {
+	t.Parallel()
+
+	recipe := &kitfx.Recipe{
+		Dependencies: &kitfx.RecipeDependencies{
+			NPM:    []string{"@eserstack/laroux"},
+			NPMDev: []string{"laroux", "@types/react"},
+		},
+	}
+
+	instr := kitfx.GetDependencyInstructions(recipe, kitfx.ProjectDetection{Type: kitfx.ProjectTypeNode})
+
+	want := []string{"npm install @eserstack/laroux", "npm install --save-dev laroux", "npm install --save-dev @types/react"}
+	if !slices.Equal(instr.Instructions, want) {
+		t.Errorf("Instructions = %q, want %q", instr.Instructions, want)
+	}
+}

@@ -296,8 +296,37 @@ export interface FetchRegistryOptions {
   readonly cwd?: string;
 }
 
+/** A registry manifest and where {@link loadRegistry} read it from. */
+export interface LoadedRegistry {
+  /** The validated manifest. */
+  readonly manifest: registrySchema.RegistryManifest;
+  /** The URL or file path the manifest was read from. */
+  readonly source: string;
+  /**
+   * For a manifest read from a file, the directory that holds it, which its
+   * local-provider files resolve against (`ApplyOptions.sourceDir`), so a
+   * registry in a working tree applies its own files rather than the ones
+   * published at its `registryUrl`; undefined for a manifest from a URL.
+   */
+  readonly sourceDir: string | undefined;
+}
+
 /**
- * Fetch and validate a registry manifest.
+ * Fetch and validate a registry manifest, as {@link loadRegistry} does, and
+ * return only the manifest.
+ *
+ * @throws {RegistryLoadError} When the manifest cannot be downloaded or read,
+ *   is not JSON, or does not match registry/v1; the step's error is the
+ *   `cause`.
+ */
+export const fetchRegistry = async (
+  source?: string,
+  options?: FetchRegistryOptions,
+): Promise<registrySchema.RegistryManifest> =>
+  (await loadRegistry(source, options)).manifest;
+
+/**
+ * Fetch and validate a registry manifest, and report where it came from.
  *
  * Resolution chain:
  * 1. If `source` is provided (URL or path), use it directly
@@ -308,10 +337,10 @@ export interface FetchRegistryOptions {
  *   is not JSON, or does not match registry/v1; the step's error is the
  *   `cause`.
  */
-export const fetchRegistry = async (
+export const loadRegistry = async (
   source?: string,
   options?: FetchRegistryOptions,
-): Promise<registrySchema.RegistryManifest> => {
+): Promise<LoadedRegistry> => {
   let registrySource = source ?? DEFAULT_REGISTRY_URL;
 
   if (options?.local === true && source === undefined) {
@@ -366,8 +395,9 @@ export const fetchRegistry = async (
     );
   }
 
+  let manifest: registrySchema.RegistryManifest;
   try {
-    return registrySchema.validateRegistryManifest(data);
+    manifest = registrySchema.validateRegistryManifest(data);
   } catch (error) {
     throw new RegistryLoadError(
       registrySource,
@@ -375,6 +405,14 @@ export const fetchRegistry = async (
       { cause: error },
     );
   }
+
+  return {
+    manifest,
+    source: registrySource,
+    sourceDir: isRemote
+      ? undefined
+      : crossRuntime.runtime.path.dirname(registrySource),
+  };
 };
 
 /**

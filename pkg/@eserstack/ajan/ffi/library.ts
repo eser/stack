@@ -186,7 +186,9 @@ const installExitHook = (): void => {
   }
 
   exitHookInstalled = true;
-  // Read like ffi/resolve.ts reads it: there is no process outside Node.
+  // Read like ffi/resolve.ts reads it: the WASM loader shares this module on
+  // hosts without Node's built-ins, and the cross-runtime layer has no exit
+  // event to listen for.
   globalThis.process?.once?.("exit", () => {
     for (const cancelInflight of exitCancels) {
       cancelInflight();

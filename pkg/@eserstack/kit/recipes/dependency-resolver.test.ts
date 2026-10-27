@@ -251,3 +251,31 @@ nodeTest.test("installDependencies — stops on first failure", async () => {
     await runtime.fs.remove(tmpDir, { recursive: true });
   }
 });
+
+nodeTest.test(
+  "getDependencyInstructions — npmDev packages install as dev dependencies",
+  () => {
+    const recipe = {
+      name: "laroux-app",
+      description: "Test",
+      language: "typescript",
+      scale: "project" as const,
+      files: [{ source: "a", target: "b" }],
+      dependencies: {
+        npm: ["@eserstack/laroux"],
+        npmDev: ["laroux", "@types/react"],
+      },
+    };
+
+    const result = dependencyResolver.getDependencyInstructions(recipe, {
+      type: "node",
+      configFile: "package.json",
+    });
+
+    assert.assertEquals(result.instructions, [
+      "npm install @eserstack/laroux",
+      "npm install --save-dev laroux",
+      "npm install --save-dev @types/react",
+    ]);
+  },
+);

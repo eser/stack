@@ -290,7 +290,9 @@ func (run *applyRun) usesLegacySource(f *RecipeFile) bool {
 // sourceBase is the base f's source resolves against: SourceBase, or, for a
 // github-provider file, the root of the repository SourceBase names on the
 // raw host (Raw/owner/repo/ref), as the TypeScript sourceBaseFor does, so a
-// registry kept in a subfolder can point at any file of its repository.
+// registry kept in a subfolder can point at any file of its repository. When
+// SourceBase is the directory of a manifest on disk, the repository is the
+// one its RegistryURL names.
 func (run *applyRun) sourceBase(f *RecipeFile) (string, error) {
 	if f.Provider != RecipeFileProviderGitHub {
 		return run.opts.SourceBase, nil
@@ -298,7 +300,12 @@ func (run *applyRun) sourceBase(f *RecipeFile) (string, error) {
 
 	raw := run.opts.GitHub.withDefaults().Raw
 
-	if rest, ok := strings.CutPrefix(run.opts.SourceBase, raw+"/"); ok {
+	for _, base := range []string{run.opts.SourceBase, run.opts.RegistryURL} {
+		rest, ok := strings.CutPrefix(base, raw+"/")
+		if !ok {
+			continue
+		}
+
 		parts := strings.SplitN(rest, "/", 4) //nolint:mnd // owner, repo, ref and the rest
 		if len(parts) >= 3 && parts[0] != "" && parts[1] != "" && parts[2] != "" {
 			return raw + "/" + strings.Join(parts[:3], "/"), nil

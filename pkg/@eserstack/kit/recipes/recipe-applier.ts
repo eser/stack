@@ -18,7 +18,7 @@
  */
 
 import { runtime } from "@eserstack/standards/cross-runtime";
-import type * as registrySchema from "./registry-schema.ts";
+import * as registrySchema from "./registry-schema.ts";
 import * as registryFetcher from "./registry-fetcher.ts";
 import * as variableProcessor from "./variable-processor.ts";
 import * as requiresResolver from "./requires-resolver.ts";
@@ -35,6 +35,14 @@ export interface ApplyOptions {
   readonly cwd: string;
   /** Base URL that each file's `source` resolves against. */
   readonly registryUrl: string;
+  /**
+   * The directory of a manifest read from a file
+   * (`registryFetcher.loadRegistry`'s `sourceDir`). When set, local-provider
+   * files and folders are read from it instead of fetched from
+   * `registryUrl`; github-provider ones still come from the repository that
+   * `registryUrl` names.
+   */
+  readonly sourceDir?: string;
   /** Overwrite files that already exist. */
   readonly force?: boolean;
   /** Leave files that already exist as they are, without a warning. */
@@ -307,6 +315,49 @@ export const processContent = (
 };
 
 // =============================================================================
+// Local sources
+// =============================================================================
+
+/**
+ * The directory `file` is read from: `options.sourceDir` for a local-provider
+ * file of a manifest read from disk, otherwise undefined, and the file is
+ * fetched from `registryUrl`.
+ */
+const localSourceDir = (
+  file: registrySchema.RecipeFile,
+  options: ApplyOptions,
+): string | undefined =>
+  file.provider === "github" ? undefined : options.sourceDir;
+
+/**
+ * Reads the files directly in the folder at `dir`/`source`, sorted by name,
+ * as `fetchRecipeFolder` lists a folder on GitHub: subfolders are left out.
+ */
+const readLocalFolder = async (
+  dir: string,
+  source: string,
+): Promise<readonly registryFetcher.FetchedFile[]> => {
+  const folder = registrySchema.resolveRegistryUrl(dir, source);
+  const names: string[] = [];
+  for await (const entry of runtime.fs.readDir(folder)) {
+    if (entry.isFile) {
+      names.push(entry.name);
+    }
+  }
+  names.sort();
+
+  const files: registryFetcher.FetchedFile[] = [];
+  for (const name of names) {
+    // One file at a time keeps the open handles bounded.
+    // oxlint-disable-next-line no-await-in-loop
+    const content = await runtime.fs.readTextFile(`${folder}/${name}`);
+    files.push({ path: name, content });
+  }
+
+  return files;
+};
+
+// =============================================================================
 // Single file application
 // =============================================================================
 
@@ -341,10 +392,16 @@ const applyFile = async (
     console.log(`  [write] ${file.target}`);
   }
 
-  const content = await registryFetcher.fetchRecipeFile(
-    registryFetcher.sourceBaseFor(file, options.registryUrl),
-    file.source,
-  );
+  const sourceDir = localSourceDir(file, options);
+  const content =
+    sourceDir !== undefined
+      ? await runtime.fs.readTextFile(
+          registrySchema.resolveRegistryUrl(sourceDir, file.source),
+        )
+      : await registryFetcher.fetchRecipeFile(
+          registryFetcher.sourceBaseFor(file, options.registryUrl),
+          file.source,
+        );
 
   const processed = processContent(content, options.variables);
 
@@ -365,10 +422,14 @@ const applyFolder = async (
   skipped: string[],
 ): Promise<void> => {
   // Fetch all files in the folder into memory first
-  const fetchedFiles = await registryFetcher.fetchRecipeFolder(
-    registryFetcher.sourceBaseFor(file, options.registryUrl),
-    file.source,
-  );
+  const sourceDir = localSourceDir(file, options);
+  const fetchedFiles =
+    sourceDir !== undefined
+      ? await readLocalFolder(sourceDir, file.source)
+      : await registryFetcher.fetchRecipeFolder(
+          registryFetcher.sourceBaseFor(file, options.registryUrl),
+          file.source,
+        );
 
   // Validate all target paths before writing anything
   for (const fetched of fetchedFiles) {

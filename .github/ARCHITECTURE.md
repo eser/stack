@@ -105,7 +105,8 @@ Layer 4: Framework
 ├── @eserstack/laroux                # Framework core
 ├── @eserstack/laroux-react          # React integration: Link, Image, RSC protocol and client
 ├── @eserstack/laroux-bundler        # Build pipeline and bundler adapters
-└── @eserstack/laroux-server         # Server-side runtime; the `laroux` binary
+├── @eserstack/laroux-server         # Server-side runtime and the `laroux` commands
+└── laroux (laroux-bin)              # The npm package `laroux`: the `laroux` bin
 
 Layer 5: Applications
 ├── @eserstack/noskills              # `noskills`: the same module `eser` mounts, re-rooted

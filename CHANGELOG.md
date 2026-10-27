@@ -93,6 +93,22 @@ here applies whichever package you use.
   it then runs `npx --yes laroux@<version>`, or prints `npm i -g laroux` when
   `npx` is missing. Run `npm i -g laroux` once and remove the old binary.
 
+- The npm package `laroux` is no longer a single-file bundle. It holds the
+  `laroux` bin only and depends on `@eserstack/laroux-server` at the same
+  version, so react, react-dom, rolldown, sharp, lightningcss and tailwind
+  install as dependencies instead of being inlined, and the CLI renders with
+  the app's React and shares its action registry. In an app, import the
+  `@eserstack` packages and list `laroux` as a dev dependency, so the bin runs
+  the app's own copies:
+
+  ```jsonc
+  // Before
+  "dependencies": { "@eserstack/laroux": "npm:@jsr/eser__laroux@^4.0.43" }
+  // After
+  "dependencies": { "@eserstack/laroux": "^5.0.0" },
+  "devDependencies": { "laroux": "^5.0.0" }
+  ```
+
 - `etc/scripts/install.sh` and `install.ps1` decide from the release they
   install: the latest one, or the one `ESER_INSTALL_VERSION` (install.sh) or
   `-Version` and `$env:VERSION` (install.ps1) names. When that release has no

@@ -5,7 +5,7 @@
  *
  * Usage:
  *   node ./cli.ts <command> [options]
- *   npx laroux <command> [options]
+ *   npx laroux <command> [options]   # the bin of the npm package `laroux`
  *
  * @module
  */
@@ -29,9 +29,12 @@ export const main = async (): Promise<
   return await app.parse();
 };
 
-if (import.meta.main) {
-  // CLI entry point: the process runs the command and exits when it settles.
-  // oxlint-disable-next-line node/no-top-level-await
+/**
+ * Run the `laroux` command line as a bin does: a failure prints its message to
+ * stderr and sets the process exit code. The `laroux` bin of the npm package
+ * `laroux` calls this, so the CLI and the app share one copy of this package.
+ */
+export const run = async (): Promise<void> => {
   const result = await main();
   results.match(result, {
     ok: () => {},
@@ -44,4 +47,10 @@ if (import.meta.main) {
       runtime.process.setExitCode(error.exitCode);
     },
   });
+};
+
+if (import.meta.main) {
+  // CLI entry point: the process runs the command and exits when it settles.
+  // oxlint-disable-next-line node/no-top-level-await
+  await run();
 }

@@ -17,10 +17,10 @@
  * Before the emit, it removes what an earlier build left in dist/: every
  * JavaScript, declaration, map and JSON file, and the copied directories.
  * Other files stay, because dist/ is shared: pkg/@eserstack/ajan keeps its
- * native and WASM builds there. The eser, noskills and laroux bundle scripts
- * write into the dist/ of cli, noskills and laroux-server too; this clean
- * removes a bundle there and a bundle build removes this emit, so whichever a
- * later step packs is built last.
+ * native and WASM builds there. The eser and noskills bundle scripts write
+ * into the dist/ of cli and noskills too; this clean removes a bundle there
+ * and a bundle build removes this emit, so whichever a later step packs is
+ * built last.
  *
  * After the emit, it fails when an emitted .js file still imports a
  * TypeScript file: Node does not strip types under node_modules, so such an

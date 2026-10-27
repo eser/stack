@@ -1,12 +1,13 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 /**
- * The esbuild externals list is shared by three npm builds that never import
+ * The esbuild externals list is shared by the npm builds, which never import
  * each other.
  *
- * `cli`, `noskills` and `laroux-server` each bundle a different entry point out
- * of the same workspace, so each one can reach `@eserstack/ajan` and the
- * per-platform shared libraries it loads at runtime.
+ * `cli` and `noskills` each bundle a different entry point out of the same
+ * workspace, so each one can reach `@eserstack/ajan` and the per-platform
+ * shared libraries it loads at runtime. laroux ships the library emit instead
+ * of a bundle (TASK-237).
  *
  * The list used to be copied into each builder and the copies drifted:
  * `noskills` broke the v4.3.0 run at the npm smoke test. It now lives in
@@ -31,7 +32,6 @@ const repoRoot = runtime.path.resolve(
 const BUILDS = [
   "pkg/@eserstack/cli/scripts/npm-build.ts",
   "pkg/@eserstack/noskills/scripts/npm-build.ts",
-  "pkg/@eserstack/laroux-server/scripts/npm-build.ts",
 ] as const;
 
 const SHARED_IMPORT =

@@ -338,7 +338,9 @@ Every channel installs this binary (TASK-261):
 - npm: `npm i -g noskills` or `npx noskills` installs the launcher, which runs
   the binary of the optional dependency `@eserstack/noskills-<platform>` for
   darwin-arm64, darwin-x64, linux-arm64, linux-x64 or win32-x64, and fails with
-  the list of those on another platform.
+  the list of those on another platform. A binary installed without its
+  execute bits gets them from the launcher before it runs; when the install is
+  read-only, the launcher names the binary and the `chmod +x` command to run.
 
 `cmd/noskills/install_dry_run_test.go` installs it with install.sh, install.ps1
 and the Homebrew formula from a local release.

@@ -20,8 +20,9 @@
  * 1. `--save-bundles`, after the npm-build steps and the noskills binary
  *    staging: packs both bundles and this host's noskills platform package
  *    into etc/temp/plugin-packs with npm pack, which keeps the binary's
- *    executable bit (the pnpm-packed platform tarball in etc/temp/npm-packs
- *    has the binary at mode 0644);
+ *    executable bit; the noskills launcher preflight packs the platform
+ *    package with pnpm, as the publish job does, which writes the binary at
+ *    mode 0644 for the launcher to fix (TASK-368);
  * 2. without arguments, after library-build and library-pack: installs the
  *    tarballs, checks that `eser-posts --help` prints the posts commands, and
  *    runs TestForwardReachesThePackedCLIs of cmd/eser with ESER_PACKED_BINS
@@ -275,8 +276,9 @@ const packBundle = async (
 };
 
 /**
- * Packs this host's noskills platform package with npm, as the noskills
- * launcher preflight does: npm pack keeps the binary's executable bit.
+ * Packs this host's noskills platform package with npm, which keeps the
+ * binary's executable bit, so `eser noskills --help` runs a binary the
+ * launcher does not have to change.
  */
 const packPlatformPackage = async (
   repoRoot: string,

@@ -21,8 +21,11 @@ release-and-ci skill refers to.
   from a packed tarball, builds the native and wasm ajan libraries, runs the
   release compile for the host (`eser dev compile --current-only`), stages the
   host's noskills binary into its npm platform package
-  (`eser dev npm-binaries`) and installs the packed noskills launcher outside
-  the repo (`etc/scripts/preflight-noskills-launcher.ts`), runs
+  (`eser dev npm-binaries`) and installs the noskills launcher and platform
+  package outside the repo (`etc/scripts/preflight-noskills-launcher.ts`),
+  packed with pnpm as the publish job packs them, checks that the tarball holds
+  the binary with its execute bits and that `npx noskills --help` runs it
+  without EACCES, runs
   `eser dev homebrew` and `eser dev nix-hashes` in dry-run mode, and runs the
   old TypeScript updater of a v4.5.2 laroux and noskills under node against a
   local release of the laroux stub and the Go noskills
@@ -143,7 +146,11 @@ Validate job also runs `make vuln` (govulncheck for both Go modules).
   `@eserstack/noskills-<platform>` packages (`darwin-arm64`, `darwin-x64`,
   `linux-arm64`, `linux-x64`, `win32-x64`) carry the Go `noskills` binary:
   `eser dev compile` builds it, `eser dev npm-binaries` stages it into each
-  package, and `publish-ajan` publishes them too. They must be on npm before
+  package, and `publish-ajan` publishes them too. `pnpm publish` writes a
+  file at mode 0644 unless the package lists it in
+  `publishConfig.executableFiles`, so each platform package lists its binary
+  there, and the launcher adds the execute bits before it runs a binary that
+  lost them (TASK-368). They must be on npm before
   `noskills@<version>`, which pins them. None of the five exists on npm yet, so
   each needs the one-time bootstrap below and a trusted publisher.
 - **New npm packages:** a name npm does not have yet is published once by hand

@@ -14,7 +14,8 @@
         "types": "./dist/main.d.ts",
         "import": "./dist/main.js"
       }
-    }
+    },
+    "bin": {}
   },
   "bin": {
     "eser": "./bin.ts"

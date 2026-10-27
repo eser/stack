@@ -349,6 +349,13 @@ workflows:
           name: library-build
           command: pnpm -r build
           timeout: 300
+      # The publish job's library step in dry-run mode (TASK-236): one
+      # `pnpm -r publish --dry-run` of every library, with the @eserstack
+      # scope on an unreachable registry, so it asks npm for nothing.
+      - shell:
+          name: library-publish-dry-run
+          command: node ./etc/scripts/publish-libraries.ts --dry-run
+          timeout: 300
       # Every workspace package packed into etc/temp/npm-packs, which starts
       # empty so no tarball of an earlier version is left in it.
       - shell:
@@ -356,8 +363,10 @@ workflows:
           command: rm -rf etc/temp/npm-packs && pnpm -r --filter
             "./pkg/@eserstack/*" pack --pack-destination etc/temp/npm-packs
           timeout: 300
-      # The packed primitives, which has no workspace dependencies, installed
-      # into a scratch consumer and imported with node --no-strip-types.
+      # Every packed library installed together into a scratch consumer, with
+      # an `overrides` map from each @eserstack name to its tarball and the
+      # scope on an unreachable registry, then every export imported with
+      # node --no-strip-types and type-checked.
       - shell:
           name: library-consumer
           command: node ./etc/scripts/preflight-library-consumer.ts

@@ -27,10 +27,15 @@ release-and-ci skill refers to.
   old TypeScript updater of a v4.5.2 laroux and noskills under node against a
   local release of the laroux stub and the Go noskills
   (`cmd/legacy-forwarder/legacy_update_test.go`). Last, it builds the libraries
-  (`pnpm -r build`), packs every workspace package into `etc/temp/npm-packs`
-  and installs the packed `@eserstack/primitives` into a scratch consumer that
-  imports it with `node --no-strip-types`
-  (`etc/scripts/preflight-library-consumer.ts`). Then
+  (`pnpm -r build`), runs the publish job's library step in dry-run mode
+  (`etc/scripts/publish-libraries.ts --dry-run`), packs every workspace package
+  into `etc/temp/npm-packs`, and installs every packed library together into a
+  scratch consumer (`etc/scripts/preflight-library-consumer.ts`). The consumer
+  maps each `@eserstack/*` name to its tarball with `overrides`, imports every
+  export with `node --no-strip-types` and type-checks the declarations. Both
+  library checks point the `@eserstack` scope at an unreachable registry, so
+  neither asks npm for an `@eserstack` name; the consumer also checks that its
+  lockfile resolves every one of them from a tarball. Then
   `etc/scripts/preflight-plugin-bins.ts` installs the packed posts library and
   its `@eserstack` dependencies, with the laroux and noskills bundles and the
   host's noskills platform package that its `--save-bundles` step packed while
@@ -63,7 +68,7 @@ validate
          └─ build-ajan-darwin
              └─ compile-binaries    eser dev compile: eser, noskills, laroux stub, noskills-server
                  └─ publish-ajan    ajan-* and noskills-* platform packages on npm
-                     └─ publish     eser, noskills and laroux bundles on npm
+                     └─ publish     @eserstack libraries, then the eser, noskills and laroux bundles on npm
                          └─ release-notes   changelog section to GitHub Release
                              └─ upload-assets   cosign signatures + SHA256SUMS
                                  ├─ update-homebrew
@@ -88,9 +93,14 @@ Validate job also runs `make vuln` (govulncheck for both Go modules).
   skipping a version npm already has. `noskills` is a launcher for the Go
   binary (`dist/noskills.js`) and carries the TypeScript CLI in `dist/ts/` for
   the commands the binary forwards.
-- **Libraries:** the `@eserstack/*` libraries publish to npm from 5.0.0; the
-  publish step for them is TASK-236. Every non-private package with `exports`
-  is a library. Its `build` script runs `etc/scripts/build-library.ts`, which
+- **Libraries:** the `@eserstack/*` libraries publish to npm from 5.0.0. Every
+  non-private package with `exports` is a library (38 of them). The `publish`
+  job runs `pnpm -r build` and then `etc/scripts/publish-libraries.ts`, which
+  skips each library whose version npm already has (the `npm view` check of
+  `publish-ajan`) and publishes the rest with one
+  `pnpm -r publish --provenance --access public --no-git-checks`, so a re-run
+  of a version publishes nothing twice. The private test-kit and the platform
+  packages are no libraries and are left out. Its `build` script runs `etc/scripts/build-library.ts`, which
   emits JavaScript and declarations into its `dist/` with tsc 7 and
   `tsconfig.build.json`, and fails on an emitted import of a `.ts` file. Its
   `exports` stay on the sources, which the workspace runs, and
@@ -100,7 +110,15 @@ Validate job also runs `make vuln` (govulncheck for both Go modules).
   `./client/bootstrap` export stays on the source. The bundles of `cli`,
   `noskills` and `laroux-server` share that `dist/`: the library build removes
   a bundle there and a bundle build removes the library emit, so whichever a
-  later step packs is built last.
+  later step packs is built last. In the release run the two never meet:
+  `smoke-test` builds the bundles and hands them on as artifacts, `publish`
+  downloads them into `npm-dist/` outside the workspace and builds the
+  libraries in its own checkout. In the preflight the library steps run after
+  every step that uses a bundle. `cli` publishes no bin
+  (`publishConfig.bin` is empty), so the `eser` command comes from the `eser`
+  bundle only. The exports carry `types` and `import` only, so `require()` of a
+  library fails with `ERR_PACKAGE_PATH_NOT_EXPORTED`; no consumer needs CommonJS
+  yet.
 - **Release binaries:** Go commands built by `eser dev compile`
   (`ReleaseBinaries` in `pkg/ajan/codebasefx`): `eser`, `noskills`,
   `noskills-server` and, under the `laroux` archive name, the
@@ -128,8 +146,8 @@ Validate job also runs `make vuln` (govulncheck for both Go modules).
   package, and `publish-ajan` publishes them too. They must be on npm before
   `noskills@<version>`, which pins them. None of the five exists on npm yet, so
   each needs the one-time bootstrap below and a trusted publisher.
-- **New npm packages:** published once by hand from the artifacts of
-  `publish-ajan.yml` in bootstrap mode, then given a trusted publisher.
+- **New npm packages:** a name npm does not have yet is published once by hand
+  and then given a trusted publisher; see Bootstrapping New npm Names.
 - **Exact pins:** `cli` and `ajan` declare the platform packages with
   `workspace:*`; the eser bundle's generated `dist/package.json` resolves them to
   the exact released version (`pkg/@eserstack/codebase/npm-workspace-specifiers.ts`).
@@ -137,8 +155,71 @@ Validate job also runs `make vuln` (govulncheck for both Go modules).
   bundle then fails on exports that package does not have.
 
 Verify a release with `npm view eser version`, `npm view noskills version`,
-`npm view laroux version`, one `@eserstack/ajan-*` package and one
-`@eserstack/noskills-*` package.
+`npm view laroux version`, one `@eserstack/ajan-*` package, one
+`@eserstack/noskills-*` package and one library, such as
+`npm view @eserstack/standards version`.
+
+## Bootstrapping New npm Names
+
+npm attaches a trusted publisher only to a package that exists, so OIDC cannot
+create a name: the first publish of a new name answers 404 on the PUT, and the
+`publish` or `publish-ajan` job fails. The owner bootstraps each such name once
+before the release that first publishes it. Agents never publish.
+
+These 43 names are not on npm yet (checked on 2026-10-26 with
+`npm view <name> version`, which answered E404 for each):
+
+- the 38 libraries: `@eserstack/agents`, `@eserstack/ai`, `@eserstack/ajan`,
+  `@eserstack/app-runtime`, `@eserstack/bundler`, `@eserstack/cache`,
+  `@eserstack/cli`, `@eserstack/codebase`, `@eserstack/collector`,
+  `@eserstack/config`, `@eserstack/crypto`, `@eserstack/cs`, `@eserstack/di`,
+  `@eserstack/events`, `@eserstack/formats`, `@eserstack/fp`,
+  `@eserstack/functions`, `@eserstack/http`, `@eserstack/httpclient`,
+  `@eserstack/kit`, `@eserstack/laroux`, `@eserstack/laroux-bundler`,
+  `@eserstack/laroux-react`, `@eserstack/laroux-server`, `@eserstack/logging`,
+  `@eserstack/mux`, `@eserstack/noskills`, `@eserstack/noskills-client`,
+  `@eserstack/noskills-web`, `@eserstack/parsing`, `@eserstack/posts`,
+  `@eserstack/primitives`, `@eserstack/shell`, `@eserstack/standards`,
+  `@eserstack/streams`, `@eserstack/testing`, `@eserstack/webtransport`,
+  `@eserstack/workflows`;
+- the five noskills platform packages: `@eserstack/noskills-darwin-arm64`,
+  `@eserstack/noskills-darwin-x64`, `@eserstack/noskills-linux-arm64`,
+  `@eserstack/noskills-linux-x64`, `@eserstack/noskills-win32-x64`.
+
+The six `@eserstack/ajan-*` packages and the `eser`, `noskills` and `laroux`
+bundles are on npm at 4.5.2. To list the missing names again:
+
+```bash
+for f in pkg/@eserstack/*/package.json; do
+  name=$(node -p "const m = require('./$f'); m.private ? '' : m.name")
+  [ -n "$name" ] && { npm view "$name" version >/dev/null 2>&1 || echo "$name"; }
+done
+```
+
+The owner's steps, once per name:
+
+1. Publish a placeholder, logged in to npm as an owner of the `eserstack`
+   organization, so the name exists without taking a release version. With the
+   names above in `names.txt`:
+
+   ```bash
+   mkdir -p etc/temp/npm-bootstrap && cd etc/temp/npm-bootstrap
+   while read -r name; do
+     dir=$(echo "$name" | tr / -)
+     mkdir -p "$dir"
+     printf '{"name":"%s","version":"0.0.0-bootstrap.0","license":"Apache-2.0","repository":{"type":"git","url":"git+https://github.com/eser/stack.git"}}\n' "$name" > "$dir/package.json"
+     (cd "$dir" && npm publish --access public --tag bootstrap)
+   done < names.txt
+   ```
+
+   The platform packages can instead get their first real version from the
+   artifacts of `publish-ajan.yml` in bootstrap mode.
+
+2. On npmjs.com, open each package's Settings, Trusted publishing, and add
+   GitHub Actions with repository `eser/stack` and workflow `build.yml`.
+3. The next release run publishes the release version of each name over OIDC
+   with provenance, and `latest` moves to it. `npm dist-tag rm <name> bootstrap`
+   and `npm deprecate <name>@0.0.0-bootstrap.0 "placeholder"` tidy up after.
 
 ## Resuming a Release
 

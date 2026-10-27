@@ -779,9 +779,10 @@ jobs:
     needs: [release-gate, smoke-test, npm-consumer-test, publish-ajan]
     # GitHub-hosted: npm OIDC trusted publishing is tied to GitHub-issued
     # id-tokens from GitHub-hosted runners. JSR stays frozen at 4.5.x
-    # (decision-5), so this job publishes the npm bundles only.
+    # (decision-5), so this job publishes to npm only: the @eserstack
+    # libraries, then the eser, noskills and laroux bundles.
     runs-on: ubuntu-24.04-arm
-    timeout-minutes: 15
+    timeout-minutes: 25
 
     permissions:
       contents: read
@@ -807,6 +808,23 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      # The libraries build into the dist/ of their packages in this fresh
+      # checkout. The bundles share the dist/ of cli, noskills and
+      # laroux-server, but they come from the smoke-test artifacts into
+      # npm-dist/, outside the workspace, so neither build can replace what
+      # the other publishes, and `pnpm -r` never packs npm-dist/.
+      - name: Build the libraries
+        run: pnpm -r build
+
+      # Every non-private package with exports, in one `pnpm -r publish
+      # --provenance --access public --no-git-checks`; a version npm already
+      # has is skipped (the same `npm view` check as publish-ajan), so a
+      # re-run publishes nothing twice. The preflight runs it with --dry-run.
+      # A name npm does not have yet fails here until the owner bootstraps it
+      # (docs/agents/release-and-ci.md: Bootstrapping New npm Names).
+      - name: Publish the libraries to npm
+        run: node ./etc/scripts/publish-libraries.ts
 
       - name: Download eser npm bundle
         uses: actions/download-artifact@v8
@@ -867,6 +885,7 @@ jobs:
           echo "- **npm (eser):** https://www.npmjs.com/package/eser/v/$VERSION" >> $GITHUB_STEP_SUMMARY
           echo "- **npm (noskills):** https://www.npmjs.com/package/noskills/v/$VERSION" >> $GITHUB_STEP_SUMMARY
           echo "- **npm (laroux):** https://www.npmjs.com/package/laroux/v/$VERSION" >> $GITHUB_STEP_SUMMARY
+          echo "- **npm (libraries):** https://www.npmjs.com/org/eserstack" >> $GITHUB_STEP_SUMMARY
 
   # ── Release: sync release notes ────────────────────────────────
   release-notes:

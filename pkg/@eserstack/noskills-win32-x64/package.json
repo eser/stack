@@ -20,5 +20,10 @@
   ],
   "files": [
     "noskills.exe"
-  ]
+  ],
+  "publishConfig": {
+    "executableFiles": [
+      "./noskills.exe"
+    ]
+  }
 }

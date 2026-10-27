@@ -1,5 +1,5 @@
 {
-  "name": "@test/laroux-app",
+  "name": "{{.project_name}}",
   "version": "0.0.0",
   "private": true,
   "type": "module",

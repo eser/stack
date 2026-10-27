@@ -1,0 +1,33 @@
+{
+  "name": "laroux",
+  "version": "4.5.2",
+  "description": "The laroux command: creates, develops, builds and serves laroux.js apps",
+  "license": "Apache-2.0",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/eser/stack",
+    "directory": "pkg/@eserstack/laroux-bin"
+  },
+  "homepage": "https://github.com/eser/stack/tree/main/pkg/@eserstack/laroux-server",
+  "bugs": {
+    "url": "https://github.com/eser/stack/issues"
+  },
+  "files": [
+    "dist/cli.js"
+  ],
+  "bin": {
+    "laroux": "./cli.ts"
+  },
+  "publishConfig": {
+    "bin": {
+      "laroux": "./dist/cli.js"
+    }
+  },
+  "scripts": {
+    "build": "node ../../../etc/scripts/build-library.ts"
+  },
+  "dependencies": {
+    "@eserstack/laroux-server": "workspace:*"
+  }
+}

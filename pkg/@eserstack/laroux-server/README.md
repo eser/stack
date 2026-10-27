@@ -2,8 +2,9 @@
 
 > **Note:** JSR is frozen at 4.5.x. From 5.0.0, `@eserstack/laroux-server` is
 > published on npm under the same name, and the `laroux` command as the npm
-> package `laroux` (`npm install -g laroux`); the JSR versions stay available
-> but get no updates.
+> package `laroux`, which an app lists as a dev dependency
+> (`npm install --save-dev laroux`); the JSR versions stay available but get no
+> updates.
 
 > **eserstack Product-Candidate** — SSR runtime for laroux ·
 > [eser/stack](https://github.com/eser/stack) **Install:**
@@ -33,12 +34,34 @@ including:
 
 ## 🚀 Quick Start
 
-The CLI creates a project and starts the development server:
+The `laroux` bin comes from the npm package `laroux`, whose one dependency is
+this package at the same version. The CLI creates a project and starts the
+development server:
 
 ```bash
 npx laroux init my-app
 cd my-app
 npx laroux dev
+```
+
+An app imports the `@eserstack` packages and lists `laroux` as a dev
+dependency, so the bin runs the app's own copy of this package and of React:
+
+```bash
+npm install @eserstack/laroux @eserstack/laroux-react react react-dom
+npm install --save-dev laroux
+```
+
+Its scripts call the bin, and the app needs no `laroux.config.ts` to run them:
+
+```json
+{
+  "scripts": {
+    "dev": "laroux dev",
+    "build": "laroux build",
+    "serve": "laroux serve"
+  }
+}
 ```
 
 The same commands run as `eser laroux <command>` through `@eserstack/cli`.

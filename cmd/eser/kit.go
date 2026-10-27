@@ -129,8 +129,10 @@ func (e *env) kitApplyOptions(cwd string) kitfx.ApplyOptions {
 }
 
 // loadKitRegistry loads --registry, or with --local the nearest
-// .eser/recipes.json at or above cwd (add --cwd), or the default registry.
-func (e *env) loadKitRegistry(c *clifx.Context, cwd string, verbose bool) (*kitfx.RegistryManifest, error) {
+// .eser/recipes.json at or above cwd (add --cwd), or the default registry. It
+// also returns the base the manifest's local-provider files resolve against
+// (kitfx.SourceBaseFor): its directory when it was read from disk.
+func (e *env) loadKitRegistry(c *clifx.Context, cwd string, verbose bool) (*kitfx.RegistryManifest, string, error) {
 	// A relative --registry path is relative to the working directory, as in
 	// the TypeScript kit, even when --cwd moves the target project.
 	source := c.String("registry")
@@ -138,7 +140,7 @@ func (e *env) loadKitRegistry(c *clifx.Context, cwd string, verbose bool) (*kitf
 		source = filepath.Join(e.cwd, source)
 	}
 
-	manifest, _, err := kitfx.LoadRegistry(c, &kitfx.LoadRegistryOptions{ //nolint:exhaustruct
+	manifest, loadedFrom, err := kitfx.LoadRegistry(c, &kitfx.LoadRegistryOptions{ //nolint:exhaustruct
 		Source:     source,
 		Local:      c.Bool("local"),
 		CWD:        cwd,
@@ -148,10 +150,10 @@ func (e *env) loadKitRegistry(c *clifx.Context, cwd string, verbose bool) (*kitf
 		HTTPClient: e.httpClient,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("load the registry: %w", err)
+		return nil, "", fmt.Errorf("load the registry: %w", err)
 	}
 
-	return manifest, nil
+	return manifest, kitfx.SourceBaseFor(manifest, loadedFrom), nil
 }
 
 func findRecipe(manifest *kitfx.RegistryManifest, name string) *kitfx.Recipe {
@@ -246,7 +248,7 @@ func (e *env) kitAdd(c *clifx.Context) error {
 		}
 	}
 
-	manifest, err := e.loadKitRegistry(c, cwd, verbose)
+	manifest, sourceBase, err := e.loadKitRegistry(c, cwd, verbose)
 	if err != nil {
 		return err
 	}
@@ -263,7 +265,7 @@ func (e *env) kitAdd(c *clifx.Context) error {
 
 	opts := e.kitApplyOptions(cwd)
 	opts.RegistryURL = manifest.RegistryURL
-	opts.SourceBase = manifest.RegistryURL
+	opts.SourceBase = sourceBase
 	opts.Force = c.Bool("force")
 	opts.SkipExisting = c.Bool("skip-existing")
 	opts.DryRun = dryRun
@@ -353,7 +355,7 @@ func kitListCommand(e *env) *clifx.Command {
 			fs.Bool("local", false, "use the nearest .eser/recipes.json first")
 		},
 		Run: func(c *clifx.Context) error {
-			manifest, err := e.loadKitRegistry(c, e.cwd, false)
+			manifest, _, err := e.loadKitRegistry(c, e.cwd, false)
 			if err != nil {
 				return err
 			}
@@ -443,7 +445,7 @@ func kitNewCommand(e *env) *clifx.Command {
 
 func (e *env) kitNew(c *clifx.Context) error {
 	if len(c.Args) == 0 {
-		manifest, err := e.loadKitRegistry(c, e.cwd, false)
+		manifest, _, err := e.loadKitRegistry(c, e.cwd, false)
 		if err != nil {
 			return err
 		}
@@ -473,7 +475,7 @@ func (e *env) kitNew(c *clifx.Context) error {
 
 	_, _ = fmt.Fprintf(e.stdout, "\nCreating %s from %s...\n\n", projectName, templateName)
 
-	manifest, err := e.loadKitRegistry(c, e.cwd, false)
+	manifest, sourceBase, err := e.loadKitRegistry(c, e.cwd, false)
 	if err != nil {
 		return err
 	}
@@ -508,7 +510,7 @@ func (e *env) kitNew(c *clifx.Context) error {
 
 	opts := e.kitApplyOptions(targetDir)
 	opts.RegistryURL = manifest.RegistryURL
-	opts.SourceBase = manifest.RegistryURL
+	opts.SourceBase = sourceBase
 	opts.Force = true
 	opts.Variables = vars
 	opts.Prompt = prompt
@@ -571,7 +573,7 @@ func (e *env) kitUpdate(c *clifx.Context) error {
 		_, _ = fmt.Fprintf(e.stdout, "\nUpdating %s...\n\n", name)
 	}
 
-	manifest, err := e.loadKitRegistry(c, e.cwd, verbose)
+	manifest, sourceBase, err := e.loadKitRegistry(c, e.cwd, verbose)
 	if err != nil {
 		return err
 	}
@@ -583,7 +585,7 @@ func (e *env) kitUpdate(c *clifx.Context) error {
 
 	opts := e.kitApplyOptions(e.cwd)
 	opts.RegistryURL = manifest.RegistryURL
-	opts.SourceBase = manifest.RegistryURL
+	opts.SourceBase = sourceBase
 	opts.Force = true
 	opts.DryRun = dryRun
 	opts.Verbose = verbose

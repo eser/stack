@@ -282,6 +282,39 @@ func TestKitPostInstallFailureStopsTheRest(t *testing.T) {
 	}
 }
 
+// add --local applies the files of the working tree next to the manifest,
+// not the ones published at its registryUrl, and prints the npmDev
+// dependencies as dev installs (TASK-362).
+func TestKitAddLocalAppliesTheWorkingTree(t *testing.T) {
+	t.Parallel()
+
+	g, _ := kitFixture(t)
+	project := t.TempDir()
+
+	writeFiles(t, project, map[string]string{
+		// Unreachable: a file fetched from here fails the run.
+		".eser/recipes.json": `{"name":"r","description":"d","author":"a","registryUrl":"https://127.0.0.1:9/.eser",
+			"recipes":[{"name":"util","description":"d","language":"typescript","scale":"utility",
+			"files":[{"source":"recipes/u.ts","target":"u.ts"}],
+			"dependencies":{"npm":["@eserstack/fp"],"npmDev":["laroux"]}}]}`,
+		".eser/recipes/u.ts": "export const tree = true;\n",
+	})
+
+	e := kitTestEnv(t, g, project)
+
+	if code := run(context.Background(), e, []string{"kit", "add", "util", "--local", "--no-install"}); code != 0 {
+		t.Fatalf("exit %d: %s", code, e.stderr)
+	}
+
+	if got, err := os.ReadFile(filepath.Join(project, "u.ts")); err != nil || string(got) != "export const tree = true;\n" { //nolint:gosec // the test's own output
+		t.Errorf("u.ts = %q (%v), want the working tree's file", got, err)
+	}
+
+	if stdout, _ := outputs(e); !strings.Contains(stdout, "  npm install --save-dev laroux") {
+		t.Errorf("stdout = %q", stdout)
+	}
+}
+
 // add --local finds the registry above --cwd, not above the working directory
 // (TASK-322; the TypeScript kit had the same gap).
 func TestKitAddLocalSearchesFromCwd(t *testing.T) {

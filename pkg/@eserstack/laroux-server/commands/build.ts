@@ -61,31 +61,82 @@ export type BuildCommandOptions = {
   readonly imageOptimizer?: ImageOptimizer;
 };
 
+type CliResult = results.Result<void, { message?: string; exitCode: number }>;
+
+const FLAGS: readonly shellArgs.FlagDef[] = [
+  {
+    name: "out-dir",
+    type: "string",
+    default: "dist",
+    description: "Output directory",
+  },
+  { name: "clean", type: "boolean", description: "Clean output first" },
+  { name: "no-minify", type: "boolean", description: "Disable minification" },
+  { name: "analyze", type: "boolean", description: "Analyze bundle size" },
+  {
+    name: "log-level",
+    type: "string",
+    default: "info",
+    description: `Log level (${VALID_LOG_LEVELS.join(", ")})`,
+  },
+  { name: "help", short: "h", type: "boolean", description: "Show this help" },
+];
+
 /**
- * Run `laroux build` with CLI arguments, building the app in the working
- * directory with the React, Tailwind, Lightning CSS, Google Fonts and sharp
- * adapters.
+ * The help text of `laroux build`.
+ *
+ * @returns The usage line, the options and examples
+ */
+export const helpText = (): string =>
+  shellArgs.generateHelp(
+    {
+      name: "build",
+      description: "Build the app in the working directory for production",
+      usage: "laroux build [options]",
+      flags: FLAGS,
+      children: [],
+      examples: ["laroux build", "laroux build --clean --analyze"],
+    },
+    ["laroux", "build"],
+  );
+
+/** The build inputs that come from the flags and the working directory. */
+export type BuildFlagOptions = Pick<
+  BuildCommandOptions,
+  "projectRoot" | "outDir" | "minify" | "clean" | "analyze" | "logLevel"
+>;
+
+/** The parts of `laroux build` a test replaces; each defaults to the real one. */
+export type BuildCommandDeps = {
+  /** Runs the build; defaults to {@link buildWithDefaultAdapters} */
+  readonly build?: (options: BuildFlagOptions) => Promise<CliResult>;
+  /** Where the command writes its own lines; defaults to stdout */
+  readonly sink?: streams.Sink<unknown>;
+};
+
+/**
+ * Run `laroux build [options]`: build the app in the working directory for
+ * production.
+ *
+ * @param args - The arguments after `build`
+ * @param deps - Replacements for the build and the output
+ * @returns The result of the build
  */
 export const main = async (
   args?: readonly string[],
-): Promise<results.Result<void, { message?: string; exitCode: number }>> => {
-  const { flags } = shellArgs.parseFlags(args ?? [], [
-    {
-      name: "out-dir",
-      type: "string",
-      default: "dist",
-      description: "Output directory",
-    },
-    { name: "clean", type: "boolean", description: "Clean output first" },
-    { name: "no-minify", type: "boolean", description: "Disable minification" },
-    { name: "analyze", type: "boolean", description: "Analyze bundle size" },
-    {
-      name: "log-level",
-      type: "string",
-      default: "info",
-      description: "Log level",
-    },
-  ]);
+  deps: BuildCommandDeps = {},
+): Promise<CliResult> => {
+  const { flags } = shellArgs.parseFlags(args ?? [], FLAGS);
+
+  if (flags["help"] === true) {
+    const out = streams.output({
+      renderer: streams.renderers.ansi(),
+      sink: deps.sink ?? streams.sinks.stdout(),
+    });
+    out.writeln(helpText());
+    await out.close();
+    return results.ok(undefined);
+  }
 
   const logLevelInput = (flags["log-level"] as string) ?? "info";
   const logLevel: LogLevel = VALID_LOG_LEVELS.includes(
@@ -94,6 +145,29 @@ export const main = async (
     ? (logLevelInput.toLowerCase() as LogLevel)
     : "info";
 
+  const crossRuntime = await import("@eserstack/standards/cross-runtime");
+  const build = deps.build ?? buildWithDefaultAdapters;
+
+  return await build({
+    projectRoot: crossRuntime.runtime.process.cwd(),
+    outDir: flags["out-dir"] as string,
+    minify: !(flags["no-minify"] as boolean),
+    clean: flags["clean"] as boolean,
+    analyze: flags["analyze"] as boolean,
+    logLevel,
+  });
+};
+
+/**
+ * Build the app at options.projectRoot for production with the React,
+ * Tailwind, Lightning CSS, Google Fonts and sharp adapters.
+ *
+ * @param options - The parsed flags and the project root
+ * @returns The result of {@link runBuild}
+ */
+export const buildWithDefaultAdapters = async (
+  options: BuildFlagOptions,
+): Promise<CliResult> => {
   const [crossRuntime, reactBundler, tailwindcss, lightningcss, fonts, sharp] =
     await Promise.all([
       import("@eserstack/standards/cross-runtime"),
@@ -103,15 +177,10 @@ export const main = async (
       import("@eserstack/laroux-bundler/adapters/fonts"),
       import("@eserstack/laroux-bundler/adapters/sharp"),
     ]);
-  const projectRoot = crossRuntime.runtime.process.cwd();
+  const { projectRoot } = options;
 
   return await runBuild({
-    projectRoot,
-    outDir: flags["out-dir"] as string,
-    minify: !(flags["no-minify"] as boolean),
-    clean: flags["clean"] as boolean,
-    analyze: flags["analyze"] as boolean,
-    logLevel,
+    ...options,
     frameworkPlugin: reactBundler.reactPlugin,
     cssPlugin: tailwindcss.createTailwindPlugin({
       globalCssPath: crossRuntime.runtime.path.resolve(

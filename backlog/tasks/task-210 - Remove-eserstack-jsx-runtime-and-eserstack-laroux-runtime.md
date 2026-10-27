@@ -1,10 +1,10 @@
 ---
 id: TASK-210
 title: Remove @eserstack/jsx-runtime and @eserstack/laroux-runtime
-status: In Progress
+status: Done
 assignee: []
 created_date: '2026-10-15 20:38'
-updated_date: '2026-10-25 18:00'
+updated_date: '2026-10-27 15:00'
 labels:
   - cutover
   - jsx-runtime
@@ -30,7 +30,7 @@ Plan key: M1-T16. Effort: small.
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
 - [x] #1 Both packages and both recipes are gone, and no import references them
-- [ ] #2 `pnpm install --frozen-lockfile` works; the CHANGELOG Migration entry (M1-T36) lists the removal
+- [x] #2 `pnpm install --frozen-lockfile` works; the CHANGELOG Migration entry (M1-T36) lists the removal
 <!-- AC:END -->
 
 ## Implementation Notes
@@ -50,4 +50,6 @@ TASK-210 (2026-10-25):
 - AC #2 pending: the integration agent updates pnpm-lock.yaml and runs `pnpm install --frozen-lockfile`. Status stays In Progress until then.
 - For TASK-230 (CHANGELOG Migration): @eserstack/jsx-runtime and @eserstack/laroux-runtime are removed, with the jsx-runtime-app and laroux-runtime-app recipes; their published 4.5.x versions stay available.
 The integration agent regenerated pnpm-lock.yaml with `pnpm install` (260 lines removed, no jsx-runtime, laroux-runtime or koffi entry left), and `pnpm install --frozen-lockfile` passes. AC #2 also needs the CHANGELOG Migration entry, which TASK-230 (M1-T36) writes from the note added to its task file; the task stays In Progress until then.
+
+2026-10-27: the CHANGELOG Migration section lists the removal under "Runtime, toolchain and distribution" (both packages and their recipes, with the replacement), `pnpm install --frozen-lockfile` passes on main, and pkg/@eserstack/cli/README.md no longer lists the removed templates. Done.
 <!-- SECTION:NOTES:END -->

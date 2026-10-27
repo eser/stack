@@ -105,7 +105,8 @@ Layer 4: Framework
 ├── @eserstack/laroux                # Framework core
 ├── @eserstack/laroux-react          # React integration: Link, Image, RSC protocol and client
 ├── @eserstack/laroux-bundler        # Build pipeline and bundler adapters
-└── @eserstack/laroux-server         # Server-side runtime; the `laroux` binary
+├── @eserstack/laroux-server         # Server-side runtime and the `laroux` commands
+└── laroux (laroux-bin)              # The npm package `laroux`: the `laroux` bin
 
 Layer 5: Applications
 ├── @eserstack/noskills              # `noskills`: the same module `eser` mounts, re-rooted
@@ -198,6 +199,8 @@ Developer runs:  eser codebase release patch
 │  ├─ preflight           pnpm preflight, on main only        │
 │  ├─ mux-no-js-runtime   mux sessions with no Node on PATH   │
 │  ├─ cross-runtime-test  node × linux / macos                │
+│  ├─ laroux-smoke        packed laroux app: dev, build and   │
+│  │                      serve × linux / macos               │
 │  ├─ node-ffi-cli        the CLI on node:ffi × linux / macos │
 │  └─ windows-smoke       compiles the Windows artifacts and  │
 │                         runs etc/scripts/install.ps1        │
@@ -220,8 +223,8 @@ Developer runs:  eser codebase release patch
 │                   │    and SHA256SUMS.txt                   │
 │                   └─ publish-ajan  ajan-* and noskills-*    │
 │                       │            platform packages on npm │
-│                       └─ publish   eser, noskills, laroux   │
-│                           │        bundles on npm           │
+│                       └─ publish   libraries, laroux, then  │
+│                           │        eser, noskills bundles   │
 │                           └─ release-notes  changelog       │
 │                               │      section → GitHub       │
 │                               │      Release                │

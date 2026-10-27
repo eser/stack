@@ -7,22 +7,23 @@
  * the Go eser would (TASK-252).
  *
  * - `eser-posts` comes from the @eserstack/posts library tarball, whose
- *   publishConfig.bin points at the emitted dist/main.js. It is installed with
- *   the tarballs of its @eserstack dependencies, so npm takes them from the
- *   pack directory and not from the registry.
- * - `laroux` and `noskills` come from the npm bundles that the laroux-server
- *   and noskills npm-build scripts write into their dist/, and `noskills` runs
- *   the Go binary of this host's @eserstack/noskills-<platform> package.
+ *   publishConfig.bin points at the emitted dist/main.js, and `laroux` from
+ *   the tarball of the npm package `laroux` (pkg/@eserstack/laroux-bin), whose
+ *   bin is its emitted dist/cli.js. Each is installed with the tarballs of its
+ *   @eserstack dependencies, so npm takes them from the pack directory and not
+ *   from the registry.
+ * - `noskills` comes from the npm bundle that the noskills npm-build script
+ *   writes into its dist/, and runs the Go binary of this host's
+ *   @eserstack/noskills-<platform> package.
  *
- * The bundles and the library emit share dist/, and the library build removes
- * the bundles, so the preflight runs this script twice:
+ * The bundle and the library emit share dist/, and the library build removes
+ * the bundle, so the preflight runs this script twice:
  *
  * 1. `--save-bundles`, after the npm-build steps and the noskills binary
- *    staging: packs both bundles and this host's noskills platform package
- *    into etc/temp/plugin-packs with npm pack, which keeps the binary's
- *    executable bit; the noskills launcher preflight packs the platform
- *    package with pnpm, as the publish job does, which writes the binary at
- *    mode 0644 for the launcher to fix (TASK-368);
+ *    staging: packs the noskills bundle and this host's noskills platform
+ *    package into etc/temp/plugin-packs with npm pack, which keeps the
+ *    binary's executable bit; the noskills launcher preflight packs the
+ *    platform package with pnpm, as the publish job does (TASK-368);
  * 2. without arguments, after library-build and library-pack: installs the
  *    tarballs, checks that `eser-posts --help` prints the posts commands, and
  *    runs TestForwardReachesThePackedCLIs of cmd/eser with ESER_PACKED_BINS
@@ -62,12 +63,14 @@ const BUNDLES_DIR = "etc/temp/plugin-packs";
 
 /** The bundles: the npm package name and the directory npm-build writes. */
 const BUNDLES: readonly { readonly name: string; readonly dir: string }[] = [
-  { name: "laroux", dir: "pkg/@eserstack/laroux-server/dist" },
   { name: "noskills", dir: "pkg/@eserstack/noskills/dist" },
 ];
 
 /** The library that carries the `eser-posts` bin. */
 const POSTS_PACKAGE = "@eserstack/posts";
+
+/** The workspace packages whose packed bins are installed: posts and laroux. */
+const PACKED_BIN_PACKAGES: readonly string[] = [POSTS_PACKAGE, "laroux"];
 
 /** What `eser-posts --help` prints first in its usage section. */
 const POSTS_USAGE = "eser-posts <command> [options]";
@@ -347,13 +350,18 @@ const requireTarball = async (tarball: string): Promise<void> => {
 const consumerTarballs = async (repoRoot: string): Promise<string[]> => {
   const manifests = await readWorkspaceManifests(repoRoot);
   const version = manifests.get(POSTS_PACKAGE)?.version ?? "";
-  const packed = workspaceClosure(POSTS_PACKAGE, manifests).map(
-    (name) =>
-      `${repoRoot}/${PACKS_DIR}/${libraryConsumer.tarballName(
-        name,
-        manifests.get(name)?.version ?? version,
-      )}`,
+  const closure = new Set(
+    PACKED_BIN_PACKAGES.flatMap((name) => workspaceClosure(name, manifests)),
   );
+  const packed = [...closure]
+    .sort()
+    .map(
+      (name) =>
+        `${repoRoot}/${PACKS_DIR}/${libraryConsumer.tarballName(
+          name,
+          manifests.get(name)?.version ?? version,
+        )}`,
+    );
   const bundles = [
     ...BUNDLES.map((bundle) => bundle.name),
     hostPlatformPackage(

@@ -3,11 +3,11 @@
 /**
  * The one list of packages the npm bundles must not inline.
  *
- * `cli`, `noskills` and `laroux-server` each bundle a different entry point out
- * of the same workspace with esbuild. They used to carry three copies of this
- * list, and the copies drifted: `noskills` broke the v4.3.0 release at the npm
- * smoke test because only `cli` had the FFI entries. One module, imported by
- * all three builders, cannot drift.
+ * `cli` and `noskills` each bundle a different entry point out of the same
+ * workspace with esbuild (laroux ships the library emit instead, TASK-237).
+ * The builders used to carry copies of this list, and the copies drifted:
+ * `noskills` broke the v4.3.0 release at the npm smoke test because only `cli`
+ * had the FFI entries. One module, imported by every builder, cannot drift.
  *
  * What stays external and why:
  *

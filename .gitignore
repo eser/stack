@@ -36,7 +36,7 @@ node_modules/
 /bin/
 
 # npm builds: the library emit of `pnpm -r build` (tsconfig.build.json) and
-# the eser, noskills and laroux bundles
+# the eser and noskills bundles
 /pkg/@eserstack/*/dist/
 
 # Nix

@@ -56,6 +56,9 @@ type RecipeDependencies struct {
 	Go  []string `json:"go,omitempty"`
 	JSR []string `json:"jsr,omitempty"`
 	NPM []string `json:"npm,omitempty"`
+	// NPMDev lists the npm packages a project installs as dev dependencies,
+	// such as a CLI that only its scripts run.
+	NPMDev []string `json:"npmDev,omitempty"`
 }
 
 // TemplateVariable defines a variable that can be substituted in recipe files.
@@ -190,11 +193,14 @@ type ApplyOptions struct {
 	PostInstallTimeout time.Duration
 
 	// SourceBase is the base that the source of each local-provider file
-	// resolves against: the manifest's registryUrl, as the TypeScript kit
-	// uses it. An http or https URL is fetched as SourceBase/source, a
+	// resolves against: the directory of a manifest read from disk, else the
+	// manifest's registryUrl, as SourceBaseFor returns it and the TypeScript
+	// kit uses it. An http or https URL is fetched as SourceBase/source, a
 	// file:// URL or a plain path is read from disk, and a folder under a
 	// https://raw.githubusercontent.com/ base (see GitHub) is listed through
-	// the GitHub contents API. Empty keeps each source as a path of its own.
+	// the GitHub contents API. A github-provider source resolves against the
+	// repository root that SourceBase names on the raw host, or else the one
+	// RegistryURL names. Empty keeps each source as a path of its own.
 	SourceBase string
 
 	// Specifier is the clone specifier (gh:owner/repo[/subpath][#ref]) that a

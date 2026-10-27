@@ -80,11 +80,15 @@ directory when no source is given and does not validate.
 
 `ApplyRecipe` writes one recipe; `ApplyRecipeChain` writes a recipe after the
 recipes it requires (`ResolveRequires`). Each file source resolves against
-`SourceBase`, the manifest's `registryUrl`: an http or https base is fetched, a
-`file://` URL or a plain path is read from disk, and a folder entry under a
-`raw.githubusercontent.com` base is listed through the GitHub contents API. A
-folder copies the files directly in it, not its subdirectories. Without a
-`SourceBase` each source is a path of its own, as before.
+`SourceBase`, which `SourceBaseFor` returns for the source `LoadRegistry`
+reports: the manifest's directory for a manifest on disk, so a working tree
+applies its own files, and the manifest's `registryUrl` otherwise. An http or
+https base is fetched, a `file://` URL or a plain path is read from disk, and a
+folder entry under a `raw.githubusercontent.com` base is listed through the
+GitHub contents API. A folder copies the files directly in it, not its
+subdirectories. A `github`-provider source resolves against the root of the
+repository that `SourceBase`, or else `RegistryURL`, names on the raw host.
+Without a `SourceBase` each source is a path of its own, as before.
 
 These options select the TypeScript kit's behaviour. Their zero values keep the
 earlier Go behaviour that the bridge relies on:
@@ -126,7 +130,8 @@ the client, so tests run against `httptest`.
 
 `DetectProjectType` looks for `go.mod`, `deno.json`, `deno.jsonc` and
 `package.json`, in that order. `GetDependencyInstructions` returns `go get`,
-`deno add` and `npm install` commands for a recipe's dependencies, with a
+`deno add`, `npm install` and, for `npmDev`, `npm install --save-dev` commands
+for a recipe's dependencies, with a
 warning when the project type does not suit the recipe's language.
 `RunInstallCommands` runs them with their output on the given writers and stops
 at the first failure; `InstallDependencies` captures the output and runs them

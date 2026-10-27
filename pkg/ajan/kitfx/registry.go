@@ -69,7 +69,8 @@ func (e *RegistryLoadError) Unwrap() error { return e.Err }
 // LoadRegistry loads and validates a registry manifest the way the TypeScript
 // kit does: Source when given, else the nearest local manifest when Local is
 // set, else the default registry. It returns the manifest and where it came
-// from.
+// from: the URL, or the path of the file it read, a relative Source joined
+// with CWD.
 func LoadRegistry(ctx context.Context, opts *LoadRegistryOptions) (*RegistryManifest, string, error) {
 	stdout := writerOrDiscard(opts.Stdout)
 	source := opts.Source
@@ -93,6 +94,8 @@ func LoadRegistry(ctx context.Context, opts *LoadRegistryOptions) (*RegistryMani
 	}
 
 	var data []byte
+
+	loadedFrom := source
 
 	if isHTTPURL(source) {
 		body, err := newFetcher(opts.HTTPClient, opts.GitHub).get(ctx, source, "", maxRegistryResponseBytes)
@@ -121,6 +124,7 @@ func LoadRegistry(ctx context.Context, opts *LoadRegistryOptions) (*RegistryMani
 		}
 
 		data = body
+		loadedFrom = path
 	}
 
 	manifest, err := ParseRegistryManifest(data, opts.Stderr)
@@ -128,7 +132,20 @@ func LoadRegistry(ctx context.Context, opts *LoadRegistryOptions) (*RegistryMani
 		return nil, source, &RegistryLoadError{Source: source, Step: "the manifest does not match the registry/v1 schema", Err: err}
 	}
 
-	return manifest, source, nil
+	return manifest, loadedFrom, nil
+}
+
+// SourceBaseFor returns the ApplyOptions.SourceBase for a manifest that
+// LoadRegistry loaded from source: the directory of the manifest file for a
+// path, so a registry in a working tree applies its own files rather than
+// the ones published at its registryUrl, and the manifest's registryUrl for
+// an http or https source.
+func SourceBaseFor(manifest *RegistryManifest, source string) string {
+	if isHTTPURL(source) {
+		return manifest.RegistryURL
+	}
+
+	return filepath.Dir(source)
 }
 
 // findLocalRegistry returns the nearest .eser/recipes.json in dir or one of

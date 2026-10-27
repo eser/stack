@@ -714,3 +714,84 @@ func TestApplyRecipe_GitHubProviderUsesTheRepositoryRoot(t *testing.T) {
 		t.Errorf("a github source under a non-GitHub base: %v", err)
 	}
 }
+
+// A manifest read from disk applies its local-provider files from its own
+// directory, the working tree, and not from the copies published at its
+// registryUrl; github-provider files still come from the repository that
+// registryUrl names (TASK-362). kit add --local used to write the files of
+// main into the project.
+func TestApplyRecipe_LocalManifestUsesItsDirectory(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/eser/stack/main/.eser/recipes/u.txt":
+			_, _ = io.WriteString(w, "published on main\n")
+		case "/eser/stack/main/pkg/ajan/lib/doc.go":
+			_, _ = io.WriteString(w, "package lib\n")
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(server.Close)
+
+	root := t.TempDir()
+	manifest := `{"name":"n","description":"d","author":"a","registryUrl":"` + server.URL + `/eser/stack/main/.eser",` +
+		`"recipes":[{"name":"r","description":"d","language":"go","scale":"utility","files":[` +
+		`{"source":"recipes/u.txt","target":"u.txt"},` +
+		`{"source":"pkg/ajan/lib/doc.go","target":"lib/doc.go","provider":"github"}]}]}`
+
+	if err := os.MkdirAll(filepath.Join(root, ".eser", "recipes"), 0o750); err != nil {
+		t.Fatal(err)
+	}
+
+	for path, content := range map[string]string{".eser/recipes.json": manifest, ".eser/recipes/u.txt": "working tree\n"} {
+		if err := os.WriteFile(filepath.Join(root, filepath.FromSlash(path)), []byte(content), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	for _, source := range []string{filepath.Join(root, ".eser", "recipes.json"), filepath.Join(".eser", "recipes.json")} {
+		loaded, from, err := kitfx.LoadRegistry(t.Context(), &kitfx.LoadRegistryOptions{Source: source, CWD: root}) //nolint:exhaustruct
+		if err != nil {
+			t.Fatalf("%s: %v", source, err)
+		}
+
+		if base := kitfx.SourceBaseFor(loaded, from); base != filepath.Join(root, ".eser") {
+			t.Fatalf("%s: SourceBaseFor = %q, want the manifest's directory", source, base)
+		}
+
+		cwd := t.TempDir()
+
+		_, err = kitfx.ApplyRecipe(t.Context(), &loaded.Recipes[0], kitfx.ApplyOptions{ //nolint:exhaustruct
+			CWD:         cwd,
+			RegistryURL: loaded.RegistryURL,
+			SourceBase:  kitfx.SourceBaseFor(loaded, from),
+			GitHub:      kitfx.GitHubEndpoints{Raw: server.URL}, //nolint:exhaustruct
+			HTTPClient:  server.Client(),
+		})
+		if err != nil {
+			t.Fatalf("%s: %v", source, err)
+		}
+
+		for file, want := range map[string]string{"u.txt": "working tree\n", "lib/doc.go": "package lib\n"} {
+			got, err := os.ReadFile(filepath.Join(cwd, file)) //nolint:gosec // the test's own output
+			if err != nil || string(got) != want {
+				t.Errorf("%s: %s = %q (%v), want %q", source, file, got, err, want)
+			}
+		}
+	}
+}
+
+// A manifest fetched over http or https keeps its registryUrl as the base.
+func TestSourceBaseFor_RemoteManifest(t *testing.T) {
+	t.Parallel()
+
+	manifest := &kitfx.RegistryManifest{RegistryURL: "https://raw.githubusercontent.com/eser/stack/main/.eser"} //nolint:exhaustruct
+
+	for _, source := range []string{"https://raw.githubusercontent.com/eser/stack/main/.eser/recipes.json", "http://localhost/recipes.json"} {
+		if got := kitfx.SourceBaseFor(manifest, source); got != manifest.RegistryURL {
+			t.Errorf("SourceBaseFor(%s) = %q, want the registryUrl", source, got)
+		}
+	}
+}

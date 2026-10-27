@@ -17,6 +17,18 @@
  * system library path; otherwise the caller lands on the WASM fallback in
  * `mod.ts`.
  *
+ * ## Process access
+ *
+ * This module reads Node's `process` itself (`globalThis.process?.`) instead
+ * of `runtime` from `@eserstack/standards/cross-runtime`. The WASM entry
+ * imports it, and that entry loads where Node's built-ins do not exist
+ * (browsers, Cloudflare Workers); the cross-runtime entry imports
+ * `node:child_process`, `node:http` and `node:sea` statically and would fail
+ * to load there. The loader also stays within its own files, which
+ * `mod.test.ts` checks by running it under `--permission` with reads of
+ * `ffi/` and `wasm/` only. `.eser/manifest.yml` excludes this file from
+ * validate-runtime-js-apis for these reasons.
+ *
  * @module
  */
 
@@ -293,6 +305,9 @@ export const resolveLibraryPath = (moduleDirHint?: string): string => {
   );
 };
 
-/** Reads an environment variable; `undefined` where there is no `process`. */
-const getEnvVar = (name: string): string | undefined =>
+/**
+ * Reads an environment variable; `undefined` where there is no `process`.
+ * `mod.ts` and `wasm/resolve.ts` read theirs through it.
+ */
+export const getEnvVar = (name: string): string | undefined =>
   globalThis.process?.env[name];

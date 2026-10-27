@@ -82,7 +82,9 @@ type WasiHost = {
   readonly drain: () => void;
 };
 
-// globalThis does not declare process on every runtime.
+// globalThis does not declare process on every runtime. The loader reads
+// Node's process itself, not the cross-runtime layer, because it runs on hosts
+// without Node's built-ins (see "Process access" in ffi/resolve.ts).
 // oxlint-disable-next-line typescript/no-explicit-any
 const g = globalThis as any;
 

@@ -8,14 +8,14 @@
  * and probes files through its `fileExists`, which acquires a synchronous
  * `stat` on first use. Importing this module performs no I/O.
  *
+ * It reads Node's `process` itself for the same reason as `ffi/resolve.ts`:
+ * the WASM entry loads on hosts without Node's built-ins, where the
+ * cross-runtime layer cannot load (see "Process access" there).
+ *
  * @module
  */
 
 import * as ffiResolve from "../ffi/resolve.ts";
-
-/** Reads an environment variable; `undefined` where there is no `process`. */
-const getEnvVar = (name: string): string | undefined =>
-  globalThis.process?.env[name];
 
 /** The WASM module's file name. */
 const WASM_FILENAME = "eser-ajan.wasm";
@@ -47,7 +47,7 @@ export const resolveWasmPath = (moduleDirHint?: string): string => {
   };
 
   // 1. Environment variable override
-  const envPath = getEnvVar("ESER_AJAN_WASM_PATH");
+  const envPath = ffiResolve.getEnvVar("ESER_AJAN_WASM_PATH");
   if (envPath !== undefined) {
     if (ffiResolve.fileExists(envPath)) {
       return envPath;

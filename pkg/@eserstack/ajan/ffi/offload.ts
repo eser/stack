@@ -96,6 +96,23 @@ export interface Offload {
   readonly close: () => void;
 }
 
+/**
+ * The members of a `node:worker_threads` Worker the pool uses. Declared here
+ * so the published declarations do not name `node:worker_threads`, which a
+ * consumer without @types/node cannot resolve.
+ */
+export interface PoolWorker {
+  readonly postMessage: (job: Job) => void;
+  readonly on: {
+    (event: "message", listener: (answer: Answer) => void): unknown;
+    (event: "error", listener: (error: Error) => void): unknown;
+    (event: "exit", listener: (code: number) => void): unknown;
+  };
+  readonly ref: () => void;
+  readonly unref: () => void;
+  readonly terminate: () => Promise<number>;
+}
+
 /** Options for {@link createOffload}. */
 export interface OffloadOptions {
   /** The library the workers open. */
@@ -105,7 +122,7 @@ export interface OffloadOptions {
   /** Runs a job on the calling thread when no worker can start. */
   readonly inline: types.Transport;
   /** Starts a worker; tests replace it. */
-  readonly spawn?: (data: WorkerData) => workerThreads.Worker;
+  readonly spawn?: (data: WorkerData) => PoolWorker;
 }
 
 /** The worker module next to this one, with this module's own extension. */
@@ -115,7 +132,7 @@ const workerUrl = (): URL => {
   return new URL(`./offload.worker${extension}`, import.meta.url);
 };
 
-const spawnWorker = (data: WorkerData): workerThreads.Worker =>
+const spawnWorker = (data: WorkerData): PoolWorker =>
   new workerThreads.Worker(workerUrl(), {
     workerData: data,
     name: "eser-ajan",
@@ -146,7 +163,7 @@ interface LaneHooks {
   readonly posted: () => void;
 }
 
-const startLane = (worker: workerThreads.Worker, hooks: LaneHooks): Lane => {
+const startLane = (worker: PoolWorker, hooks: LaneHooks): Lane => {
   const waiting = new Map<
     number,
     {

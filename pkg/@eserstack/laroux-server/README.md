@@ -300,6 +300,9 @@ See `UserConfig` in `@eserstack/laroux` for the full schema.
 | `laroux build`         | `--out-dir`, `--clean`, `--no-minify`, `--analyze`, `--log-level`           |
 | `laroux serve`         | `--port`, `--log-level`                                                     |
 
+Every command prints its usage and flags with `--help` (or `-h`) and does
+nothing else.
+
 `init` creates the project in `my-laroux-app` when no folder is given. It
 scaffolds a kit recipe, the same one `eser kit new laroux-app` creates: the
 `minimal` template is the `laroux-app` recipe of eser/stack's

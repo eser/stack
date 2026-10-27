@@ -2,8 +2,10 @@
 
 import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
+import * as mock from "@eserstack/test-kit/mock";
 import * as results from "@eserstack/primitives/results";
 import { runtime } from "@eserstack/standards/cross-runtime";
+import * as streams from "@eserstack/streams";
 import type { FrameworkPlugin } from "@eserstack/laroux-bundler";
 import * as build from "./build.ts";
 
@@ -50,3 +52,61 @@ nodeTest.test(
     }
   },
 );
+
+/** A build that records its calls and builds nothing. */
+const fakeBuild = () =>
+  mock.spy((_options: build.BuildFlagOptions) =>
+    Promise.resolve(results.ok(undefined)),
+  );
+
+nodeTest.describe("laroux build: help", () => {
+  for (const flag of ["--help", "-h"]) {
+    nodeTest.it(`${flag} prints the help and builds nothing`, async () => {
+      const runBuild = fakeBuild();
+      const sink = streams.sinks.buffer<string>();
+
+      const result = await build.main([flag], { build: runBuild, sink });
+
+      assert.assert(results.isOk(result));
+      mock.assertSpyCalls(runBuild, 0);
+
+      const printed = sink.items().join("");
+      assert.assertStringIncludes(printed, "laroux build [options]");
+      for (const name of [
+        "--out-dir",
+        "--clean",
+        "--no-minify",
+        "--analyze",
+        "--log-level",
+      ]) {
+        assert.assertStringIncludes(printed, name);
+      }
+    });
+  }
+});
+
+nodeTest.describe("laroux build: the flags", () => {
+  nodeTest.it(
+    "builds the working directory with the parsed flags",
+    async () => {
+      const runBuild = fakeBuild();
+      const sink = streams.sinks.buffer<string>();
+
+      const result = await build.main(
+        ["--out-dir", "out", "--no-minify", "--clean", "--log-level", "error"],
+        { build: runBuild, sink },
+      );
+
+      assert.assert(results.isOk(result));
+      mock.assertSpyCalls(runBuild, 1);
+      assert.assertEquals(runBuild.calls[0]?.args[0], {
+        projectRoot: runtime.process.cwd(),
+        outDir: "out",
+        minify: false,
+        clean: true,
+        analyze: false,
+        logLevel: "error",
+      });
+    },
+  );
+});

@@ -21,43 +21,73 @@ const VALID_LOG_LEVELS = [
   "error",
   "fatal",
 ] as const;
-type LogLevel = (typeof VALID_LOG_LEVELS)[number];
 
-export const main = async (
-  args?: readonly string[],
-): Promise<results.Result<void, { message?: string; exitCode: number }>> => {
-  const { flags } = shellArgs.parseFlags(args ?? [], [
+/** Lowest level the server logs. */
+export type LogLevel = (typeof VALID_LOG_LEVELS)[number];
+
+type CliResult = results.Result<void, { message?: string; exitCode: number }>;
+
+const FLAGS: readonly shellArgs.FlagDef[] = [
+  {
+    name: "port",
+    short: "p",
+    type: "number",
+    default: 8000,
+    description: "Server port",
+  },
+  {
+    name: "log-level",
+    type: "string",
+    default: "info",
+    description: `Log level (${VALID_LOG_LEVELS.join(", ")})`,
+  },
+  { name: "help", short: "h", type: "boolean", description: "Show this help" },
+];
+
+/**
+ * The help text of `laroux serve`.
+ *
+ * @returns The usage line, the options and examples
+ */
+export const helpText = (): string =>
+  shellArgs.generateHelp(
     {
-      name: "port",
-      short: "p",
-      type: "number",
-      default: 8000,
-      description: "Server port",
+      name: "serve",
+      description: "Serve the production build locally",
+      usage: "laroux serve [options]",
+      flags: FLAGS,
+      children: [],
+      examples: ["laroux serve", "laroux serve --port 3000"],
     },
-    {
-      name: "log-level",
-      type: "string",
-      default: "info",
-      description: "Log level",
-    },
-  ]);
+    ["laroux", "serve"],
+  );
 
-  const out = streams.output({
-    renderer: streams.renderers.ansi(),
-    sink: streams.sinks.stdout(),
-  });
+/** The production server inputs, after the flags are parsed. */
+export type ServeOptions = {
+  /** Port the server listens on */
+  readonly port: number | undefined;
+  /** Lowest level the server logs */
+  readonly logLevel: LogLevel;
+};
 
-  out.writeln(span.cyan("\n🚀 Serving production build...\n"));
+/** The parts of `laroux serve` a test replaces; each defaults to the real one. */
+export type ServeCommandDeps = {
+  /** Starts the server; defaults to {@link startProductionServer} */
+  readonly start?: (options: ServeOptions) => Promise<CliResult>;
+  /** Where the command writes its own lines; defaults to stdout */
+  readonly sink?: streams.Sink<unknown>;
+};
 
-  const port = flags["port"] as number | undefined;
-  const logLevelInput = (flags["log-level"] as string) ?? "info";
-
-  const logLevel: LogLevel = VALID_LOG_LEVELS.includes(
-    logLevelInput.toLowerCase() as LogLevel,
-  )
-    ? (logLevelInput.toLowerCase() as LogLevel)
-    : "info";
-
+/**
+ * Serve the production build of the app in the working directory with the
+ * React, Tailwind, Lightning CSS, Google Fonts and sharp adapters.
+ *
+ * @param options - The parsed flags
+ * @returns ok when the server stopped; exit code 1 when its build failed
+ */
+export const startProductionServer = async (
+  options: ServeOptions,
+): Promise<CliResult> => {
   const [
     server,
     reactAdapter,
@@ -76,13 +106,11 @@ export const main = async (
     import("@eserstack/laroux-bundler/adapters/sharp"),
   ]);
 
-  await out.close();
-
   try {
     await server.startServer({
       mode: "serve",
-      port,
-      logLevel,
+      port: options.port,
+      logLevel: options.logLevel,
       hmr: false,
       renderer: reactAdapter.reactRenderer,
       htmlShell: reactAdapter.reactHtmlShellBuilder,
@@ -104,4 +132,47 @@ export const main = async (
   }
 
   return results.ok(undefined);
+};
+
+/**
+ * Run `laroux serve [options]`: serve the production build of the app in the
+ * working directory.
+ *
+ * @param args - The arguments after `serve`
+ * @param deps - Replacements for the server start and the output
+ * @returns The result of the server start
+ */
+export const main = async (
+  args?: readonly string[],
+  deps: ServeCommandDeps = {},
+): Promise<CliResult> => {
+  const { flags } = shellArgs.parseFlags(args ?? [], FLAGS);
+
+  const out = streams.output({
+    renderer: streams.renderers.ansi(),
+    sink: deps.sink ?? streams.sinks.stdout(),
+  });
+
+  if (flags["help"] === true) {
+    out.writeln(helpText());
+    await out.close();
+    return results.ok(undefined);
+  }
+
+  out.writeln(span.cyan("\n🚀 Serving production build...\n"));
+  await out.close();
+
+  const logLevelInput = (flags["log-level"] as string) ?? "info";
+  const logLevel: LogLevel = VALID_LOG_LEVELS.includes(
+    logLevelInput.toLowerCase() as LogLevel,
+  )
+    ? (logLevelInput.toLowerCase() as LogLevel)
+    : "info";
+
+  const start = deps.start ?? startProductionServer;
+
+  return await start({
+    port: flags["port"] as number | undefined,
+    logLevel,
+  });
 };

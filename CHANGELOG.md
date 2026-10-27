@@ -1207,6 +1207,19 @@ in `.eser/concerns/`, which several entries below depend on.
   `ServerActionError` for an unknown id and for a throwing action, and no longer
   logs. Match `instanceof ServerActionError`, read `error.cause` for the
   action's own error and `error.actionId` for the action, and log in the caller.
+- `laroux init` scaffolds the `laroux-app` kit recipe instead of cloning
+  `gh:eser/laroux-template-{minimal,blog,dashboard,docs}`, and none of those
+  repositories exists. `--template` accepts `minimal` only; `blog`, `dashboard`
+  and `docs` had no source and fail with the list of available templates. Use
+  `minimal`, or drop `--template`. `init` stops at a folder that is not empty;
+  pass `--force` to write over it:
+
+  ```bash
+  # Before
+  laroux init my-blog --template blog
+  # After
+  laroux init my-blog
+  ```
 
 #### @eserstack/laroux-runtime
 

@@ -60,24 +60,31 @@ export const moduleDef: Module = new module.Module({
           name: "template",
           short: "t",
           type: "string",
-          description: "Project template (minimal, blog, dashboard, docs)",
+          description: "Project template (minimal)",
           default: "minimal",
+        },
+        {
+          name: "registry",
+          type: "string",
+          description:
+            "Path or URL of a kit recipes.json (default: eser/stack's registry on GitHub)",
         },
         {
           name: "force",
           short: "f",
           type: "boolean",
-          description: "Overwrite existing files",
+          description: "Write the template over a folder that is not empty",
         },
         {
           name: "no-git",
           type: "boolean",
-          description: "Skip git initialization",
+          description:
+            "Skip the template's post-install commands, as --no-install",
         },
         {
           name: "no-install",
           type: "boolean",
-          description: "Skip dependency installation",
+          description: "Skip the template's post-install commands",
         },
       ],
     },

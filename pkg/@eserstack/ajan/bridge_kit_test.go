@@ -12,6 +12,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -95,7 +96,7 @@ func kitTree(t *testing.T, dir string) map[string]string {
 func cliApply(t *testing.T, registry, cwd string) {
 	t.Helper()
 
-	manifest, err := kitfx.FetchRegistry(context.Background(), cwd, registry)
+	manifest, loadedFrom, err := kitfx.LoadRegistry(context.Background(), &kitfx.LoadRegistryOptions{Source: registry, CWD: cwd}) //nolint:exhaustruct
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -103,7 +104,7 @@ func cliApply(t *testing.T, registry, cwd string) {
 	_, err = kitfx.ApplyRecipeChain(context.Background(), "lib", manifest, kitfx.ApplyOptions{ //nolint:exhaustruct
 		CWD:                      cwd,
 		RegistryURL:              manifest.RegistryURL,
-		SourceBase:               manifest.RegistryURL,
+		SourceBase:               kitfx.SourceBaseFor(manifest, loadedFrom),
 		SkipConflicts:            true,
 		StrictVariables:          true,
 		StopOnPostInstallFailure: true,
@@ -213,4 +214,66 @@ func TestKitBridgeAppliesRegistriesLikeTheCLI(t *testing.T) {
 
 		check(t, server.URL+"/recipes.json")
 	})
+}
+
+// With local set, the bridge applies the nearest .eser/recipes.json above cwd
+// from its own directory, the working tree, and answers the recipe's
+// dependency instructions (TASK-362). It used to fetch the files from the
+// manifest's registryUrl and answer no instructions, and add-recipe.ts did not
+// pass local.
+func TestKitBridgeAppliesTheWorkingTreeOfALocalManifest(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte("published on main\n"))
+	}))
+	t.Cleanup(server.Close)
+
+	root := t.TempDir()
+	manifest, _ := json.Marshal(map[string]any{
+		"name": "fixture", "description": "a working tree registry", "author": "test",
+		"registryUrl": server.URL + "/.eser",
+		"recipes": []map[string]any{{
+			"name": "lib", "description": "a library file", "language": "typescript", "scale": "utility",
+			"files":        []map[string]any{{"source": "recipes/lib/util.ts", "target": "src/util.ts"}},
+			"dependencies": map[string]any{"npm": []string{"@eserstack/fp"}, "npmDev": []string{"laroux"}},
+		}},
+	})
+
+	for rel, content := range map[string]string{
+		".eser/recipes.json":        string(manifest),
+		".eser/recipes/lib/util.ts": "export const tree = true;\n",
+		"app/.keep":                 "",
+	} {
+		path := filepath.Join(root, filepath.FromSlash(rel))
+		if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
+			t.Fatal(err)
+		}
+
+		if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	cwd := filepath.Join(root, "app")
+	req, _ := json.Marshal(map[string]any{"recipeName": "lib", "cwd": cwd, "local": true})
+
+	var resp kitApplyRecipeResponse
+	if err := json.Unmarshal([]byte(bridgeKitApplyRecipe(string(req))), &resp); err != nil {
+		t.Fatal(err)
+	}
+
+	if resp.Error != "" {
+		t.Fatalf("bridge: %s", resp.Error)
+	}
+
+	got, err := os.ReadFile(filepath.Join(cwd, "src", "util.ts")) //nolint:gosec // the test's own output
+	if err != nil || string(got) != "export const tree = true;\n" {
+		t.Errorf("src/util.ts = %q (%v), want the working tree's file", got, err)
+	}
+
+	want := []string{"npm install @eserstack/fp", "npm install --save-dev laroux"}
+	if resp.DepInfo == nil || !slices.Equal(resp.DepInfo.Instructions, want) {
+		t.Errorf("depInfo = %+v, want instructions %q", resp.DepInfo, want)
+	}
 }

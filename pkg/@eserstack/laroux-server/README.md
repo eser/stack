@@ -35,13 +35,14 @@ including:
 ## 🚀 Quick Start
 
 The `laroux` bin comes from the npm package `laroux`, whose one dependency is
-this package at the same version. The CLI creates a project and starts the
-development server:
+this package at the same version. The CLI creates a project, and the project's
+own scripts start the development server once its dependencies are installed:
 
 ```bash
 npx laroux init my-app
 cd my-app
-npx laroux dev
+npm install
+npm run dev
 ```
 
 An app imports the `@eserstack` packages and lists `laroux` as a dev
@@ -292,15 +293,23 @@ See `UserConfig` in `@eserstack/laroux` for the full schema.
 
 ### CLI
 
-| Command                | Flags                                                                                |
-| ---------------------- | ------------------------------------------------------------------------------------ |
-| `laroux init [folder]` | `--template` (minimal, blog, dashboard, docs), `--force`, `--no-git`, `--no-install` |
-| `laroux dev`           | `--port`, `--no-hmr`, `--log-level`, `--open`                                        |
-| `laroux build`         | `--out-dir`, `--clean`, `--no-minify`, `--analyze`, `--log-level`                    |
-| `laroux serve`         | `--port`, `--log-level`                                                              |
+| Command                | Flags                                                                       |
+| ---------------------- | --------------------------------------------------------------------------- |
+| `laroux init [folder]` | `--template` (minimal), `--registry`, `--force`, `--no-git`, `--no-install` |
+| `laroux dev`           | `--port`, `--no-hmr`, `--log-level`, `--open`                               |
+| `laroux build`         | `--out-dir`, `--clean`, `--no-minify`, `--analyze`, `--log-level`           |
+| `laroux serve`         | `--port`, `--log-level`                                                     |
 
-`init` creates the project in `my-laroux-app` when no folder is given. The
-`./module` export holds the same command tree for the `eser` CLI to mount.
+`init` creates the project in `my-laroux-app` when no folder is given. It
+scaffolds a kit recipe, the same one `eser kit new laroux-app` creates: the
+`minimal` template is the `laroux-app` recipe of eser/stack's
+`.eser/recipes.json` on GitHub, which kit reads by default. `--registry` takes
+another `recipes.json` by path or URL, such as a fork's or a local checkout's.
+`init` does not install dependencies; `--no-git` and `--no-install` skip the
+recipe's post-install commands, and `laroux-app` has none. It stops at a folder
+that is not empty unless you pass `--force`, and when scaffolding fails it
+removes the folder it created. The `./module` export holds the same command
+tree for the `eser` CLI to mount.
 
 ### Server Action Registry (deprecated)
 
@@ -374,6 +383,12 @@ lists the changes in every package.
   `ServerActionError` for an unknown id and for a throwing action, and no longer
   logs. Match `instanceof ServerActionError`, read `error.cause` for the
   action's own error and `error.actionId` for the action, and log in the caller.
+- `laroux init` scaffolds the `laroux-app` kit recipe instead of cloning
+  `gh:eser/laroux-template-{minimal,blog,dashboard,docs}`, and none of those
+  repositories exists. `--template` accepts `minimal` only; `blog`, `dashboard`
+  and `docs` had no source and fail with the list of available templates. Use
+  `minimal`, or drop `--template`. `init` stops at a folder that is not empty;
+  pass `--force` to write over it.
 
 ## License
 

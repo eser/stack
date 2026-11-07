@@ -5,7 +5,7 @@
 > versions stay available but get no updates.
 
 > **eserstack Library** — [eser/stack on GitHub](https://github.com/eser/stack)
-> **Install:** `pnpm add jsr:@eserstack/testing`
+> **Install:** `pnpm add @eserstack/testing`
 
 Testing utilities for mocking HTTP servers, filesystems, and managing temporary
 directories.

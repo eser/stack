@@ -11,7 +11,7 @@ interceptors, and a typed error for each way a request can fail. Every method
 comes in two styles: one that throws, and one that returns a `Result` for
 `@eserstack/functions` pipelines.
 
-Install it with `pnpm add jsr:@eserstack/httpclient`.
+Install it with `pnpm add @eserstack/httpclient`.
 
 ## Quick Start
 
@@ -287,6 +287,5 @@ lists the changes in every package.
 
 ## 🔗 Links
 
-- [JSR package](https://jsr.io/@eserstack/httpclient): the API reference
-  generated from source
+- [npm package](https://www.npmjs.com/package/@eserstack/httpclient)
 - [eser/stack on GitHub](https://github.com/eser/stack)

@@ -6,7 +6,7 @@
 
 > **eserstack Foundation** —
 > [eser/stack on GitHub](https://github.com/eser/stack) **Install:**
-> `pnpm add jsr:@eserstack/functions`
+> `pnpm add @eserstack/functions`
 
 Higher-level workflow compositions for the eserstack ecosystem.
 

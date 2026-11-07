@@ -6,7 +6,7 @@
 
 > **eserstack Foundation** —
 > [eser/stack on GitHub](https://github.com/eser/stack) **Install:**
-> `pnpm add jsr:@eserstack/fp`
+> `pnpm add @eserstack/fp`
 
 Pure functional combinators for the eserstack ecosystem.
 
@@ -48,7 +48,7 @@ All functions are deterministic, side-effect-free, and independently importable.
 import * as primitives from "@eserstack/primitives";
 
 const data = '{"name":"eser"}';
-const url = "https://jsr.io/@eserstack/fp";
+const url = "https://www.npmjs.com/package/@eserstack/fp";
 
 // Transform values
 const doubled = primitives.results.map(primitives.results.ok(21), (x) => x * 2); // ok(42)

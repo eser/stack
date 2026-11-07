@@ -6,7 +6,7 @@
 
 > **eserstack Foundation** —
 > [eser/stack on GitHub](https://github.com/eser/stack) **Install:**
-> `pnpm add jsr:@eserstack/events`
+> `pnpm add @eserstack/events`
 
 Type-safe event handling with a fluent API built on top of the DOM EventTarget.
 

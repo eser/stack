@@ -10,7 +10,7 @@ reader, kept in a registry you can extend with your own formats. When the
 `@eserstack/ajan` native library is available, `serialize` and `deserialize` use
 its Go encoders and fall back to the TypeScript formats otherwise.
 
-Install it with `pnpm add jsr:@eserstack/formats`.
+Install it with `pnpm add @eserstack/formats`.
 
 ## Quick Start
 
@@ -222,6 +222,5 @@ lists the changes in every package.
 
 ## 🔗 Links
 
-- [JSR package](https://jsr.io/@eserstack/formats): the API reference generated
-  from source
+- [npm package](https://www.npmjs.com/package/@eserstack/formats)
 - [eser/stack on GitHub](https://github.com/eser/stack)

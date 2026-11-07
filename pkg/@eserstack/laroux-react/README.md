@@ -6,7 +6,7 @@
 
 > **eserstack Product-Candidate** — React integration for laroux ·
 > [eser/stack](https://github.com/eser/stack) **Install:**
-> `pnpm add jsr:@eserstack/laroux-react`
+> `pnpm add @eserstack/laroux-react`
 
 React Server Components adapter for laroux.js framework.
 
@@ -51,7 +51,7 @@ export function HomePage() {
 ## Installation
 
 ```bash
-pnpm add jsr:@eserstack/laroux-react
+pnpm add @eserstack/laroux-react
 ```
 
 ## Usage
@@ -296,13 +296,12 @@ setting can map `@eserstack/logging` to another module.
 
 ## Related Packages
 
-- [`@eserstack/laroux`](https://jsr.io/@eserstack/laroux) - Framework-agnostic
-  core utilities (navigation, image, router, config)
+- [`@eserstack/laroux`](https://www.npmjs.com/package/@eserstack/laroux) -
+  Framework-agnostic core utilities (navigation, image, router, config)
 
 ## Documentation
 
-- [JSR Package](https://jsr.io/@eserstack/laroux-react) — symbol-level API
-  reference, generated from source
+- [npm package](https://www.npmjs.com/package/@eserstack/laroux-react)
 - [React Server Components](https://react.dev/reference/rsc/server-components)
 
 ## Upgrading from 4.x

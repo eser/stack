@@ -5,7 +5,7 @@
 > stay available but get no updates.
 
 > **eserstack Library** — [eser/stack on GitHub](https://github.com/eser/stack)
-> **Install:** `pnpm add jsr:@eserstack/config`
+> **Install:** `pnpm add @eserstack/config`
 
 `@eserstack/config` helps you load configurations from `.env.*` files and
 environment variables, a practice based on **The 12-Factor App** methodology

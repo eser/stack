@@ -5,7 +5,7 @@
 > available but get no updates.
 
 > **eserstack Library** — [eser/stack on GitHub](https://github.com/eser/stack)
-> **Install:** `pnpm add jsr:@eserstack/ajan`
+> **Install:** `pnpm add @eserstack/ajan`
 
 C-shared library and WASM module exposing the eser Go runtime bridge. On Node it
 loads the native library through the built-in `node:ffi` module, and falls back
@@ -592,8 +592,7 @@ lists the changes in every package.
 
 ## 🔗 Links
 
-- [JSR package](https://jsr.io/@eserstack/ajan): the API reference generated
-  from source
+- [npm package](https://www.npmjs.com/package/@eserstack/ajan)
 - [`examples/`](./examples/): C, Python, Rust and browser programs that call the
   library
 - [@eserstack/ajan-wasm](../ajan-wasm/README.md) and the platform packages such

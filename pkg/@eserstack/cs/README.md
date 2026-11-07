@@ -5,7 +5,7 @@
 > available but get no updates.
 
 > **eserstack Library** — [eser/stack on GitHub](https://github.com/eser/stack)
-> **Install:** `pnpm add jsr:@eserstack/cs`
+> **Install:** `pnpm add @eserstack/cs`
 
 `@eserstack/cs` is a Kubernetes ConfigMap and Secret synchronization tool that
 simplifies the management of configuration data and secrets in Kubernetes

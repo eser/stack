@@ -420,14 +420,13 @@ lists the changes in every package.
 
 ## 🔗 Links
 
-- [@eserstack/cli](https://jsr.io/@eserstack/cli): main CLI tool (`eser laroux`
-  commands)
-- [@eserstack/laroux-server](https://jsr.io/@eserstack/laroux-server): server
-  runtime (SSR, routing, actions)
-- [@eserstack/laroux](https://jsr.io/@eserstack/laroux): framework-agnostic core
-  utilities
-- [JSR package](https://jsr.io/@eserstack/laroux-bundler): symbol-level API
-  reference, generated from source
+- [@eserstack/cli](https://www.npmjs.com/package/@eserstack/cli):
+  main CLI tool (`eser laroux` commands)
+- [@eserstack/laroux-server](https://www.npmjs.com/package/@eserstack/laroux-server):
+  server runtime (SSR, routing, actions)
+- [@eserstack/laroux](https://www.npmjs.com/package/@eserstack/laroux):
+  framework-agnostic core utilities
+- [npm package](https://www.npmjs.com/package/@eserstack/laroux-bundler)
 - [Architecture decision records](https://github.com/eser/stack/tree/main/docs/adr)
 
 Apache-2.0 © [Eser Ozvataf](https://github.com/eser)

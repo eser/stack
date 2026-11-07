@@ -6,7 +6,7 @@
 
 > **eserstack Foundation** —
 > [eser/stack on GitHub](https://github.com/eser/stack) **Install:**
-> `pnpm add jsr:@eserstack/standards`
+> `pnpm add @eserstack/standards`
 
 Cross-runtime standards and utilities for TypeScript applications. Provides
 common interfaces, type declarations, and utility functions for building

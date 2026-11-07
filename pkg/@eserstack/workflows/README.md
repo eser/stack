@@ -5,7 +5,7 @@
 > JSR versions stay available but get no updates.
 
 > **eserstack Tool** — [eser/stack on GitHub](https://github.com/eser/stack)
-> **Install:** `pnpm add jsr:@eserstack/workflows`
+> **Install:** `pnpm add @eserstack/workflows`
 
 `@eserstack/workflows` is an event-driven workflow engine for running tool
 pipelines. Define workflows declaratively in YAML or build them programmatically

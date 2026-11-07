@@ -6,7 +6,7 @@
 
 > **eserstack Product-Candidate** — framework-agnostic web core ·
 > [eser/stack](https://github.com/eser/stack) **Install:**
-> `pnpm add jsr:@eserstack/laroux`
+> `pnpm add @eserstack/laroux`
 
 Framework-agnostic core utilities for **Laroux.js** — a full-stack web framework
 built on React Server Components. This package provides the shared logic used

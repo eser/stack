@@ -5,7 +5,7 @@
 > versions stay available but get no updates.
 
 > **eserstack Library** — [eser/stack on GitHub](https://github.com/eser/stack)
-> **Install:** `pnpm add jsr:@eserstack/streams`
+> **Install:** `pnpm add @eserstack/streams`
 
 Composable stream primitives for eser stack. Built on the Web Streams API with a
 Span-based formatting model that makes output adapter-agnostic.
@@ -290,10 +290,9 @@ Apache-2.0
 
 ## 🔗 Links
 
-- [@eserstack/functions](https://jsr.io/@eserstack/functions): tasks whose
-  handlers write through an `Output`
-- [@eserstack/laroux-react](https://jsr.io/@eserstack/laroux-react): the React
-  renderer for Span trees
-- [JSR package](https://jsr.io/@eserstack/streams): the API reference generated
-  from source
+- [@eserstack/functions](https://www.npmjs.com/package/@eserstack/functions):
+  tasks whose handlers write through an `Output`
+- [@eserstack/laroux-react](https://www.npmjs.com/package/@eserstack/laroux-react):
+  the React renderer for Span trees
+- [npm package](https://www.npmjs.com/package/@eserstack/streams)
 - [eser/stack on GitHub](https://github.com/eser/stack)

@@ -5,7 +5,7 @@
 > available but get no updates.
 
 > **eserstack Tool** — [eser/stack on GitHub](https://github.com/eser/stack)
-> **Install:** `pnpm add jsr:@eserstack/ai`
+> **Install:** `pnpm add @eserstack/ai`
 
 Unified AI provider interface for eser stack. Supports cloud APIs (Anthropic,
 OpenAI, Gemini, Vertex AI) and local agents (Claude Code, Ollama, OpenCode,

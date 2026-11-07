@@ -5,7 +5,7 @@
 > stay available but get no updates.
 
 > **eserstack Library** — [eser/stack on GitHub](https://github.com/eser/stack)
-> **Install:** `pnpm add jsr:@eserstack/crypto`
+> **Install:** `pnpm add @eserstack/crypto`
 
 Cryptographic utilities for hashing, encoding, and related operations. Built on
 the Web Crypto API for cross-runtime compatibility.

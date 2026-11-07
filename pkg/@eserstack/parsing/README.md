@@ -5,7 +5,7 @@
 > versions stay available but get no updates.
 
 > **eserstack Library** — [eser/stack on GitHub](https://github.com/eser/stack)
-> **Install:** `pnpm add jsr:@eserstack/parsing`
+> **Install:** `pnpm add @eserstack/parsing`
 
 `@eserstack/parsing` is a parsing library for analyzing and tokenizing strings.
 While it includes a lexer component, its capabilities extend beyond simple

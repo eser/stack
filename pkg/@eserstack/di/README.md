@@ -6,7 +6,7 @@
 
 > **eserstack Foundation** —
 > [eser/stack on GitHub](https://github.com/eser/stack) **Install:**
-> `pnpm add jsr:@eserstack/di`
+> `pnpm add @eserstack/di`
 
 `@eserstack/di` is a crucial component of `eserstack` that provides simple and
 efficient dependency injection solutions.

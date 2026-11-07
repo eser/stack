@@ -5,7 +5,7 @@
 > versions stay available but get no updates.
 
 > **eserstack Tool** — [eser/stack on GitHub](https://github.com/eser/stack)
-> **Install:** `pnpm add jsr:@eserstack/codebase`
+> **Install:** `pnpm add @eserstack/codebase`
 
 `@eserstack/codebase` provides validation tools and project management utilities
 for maintaining code quality. It includes the validation tools listed under

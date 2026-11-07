@@ -5,7 +5,7 @@
 > JSR versions stay available but get no updates.
 
 > **eserstack Tool** · [eser/stack on GitHub](https://github.com/eser/stack) ·
-> **Install:** `pnpm add jsr:@eserstack/webtransport`
+> **Install:** `pnpm add @eserstack/webtransport`
 
 `@eserstack/webtransport` wraps the `WebTransport` API in a client for
 bidirectional streams, unidirectional streams and datagrams over HTTP/3. It

@@ -5,7 +5,7 @@
 > stay available but get no updates.
 
 > **eserstack Tool** · [eser/stack on GitHub](https://github.com/eser/stack) ·
-> **Install:** `pnpm add jsr:@eserstack/posts`
+> **Install:** `pnpm add @eserstack/posts`
 
 `@eserstack/posts` publishes, reads and manages posts on Twitter/X and Bluesky.
 It powers the `eser posts` commands and an interactive terminal menu, and it

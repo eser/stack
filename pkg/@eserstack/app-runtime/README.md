@@ -5,7 +5,7 @@
 > JSR versions stay available but get no updates.
 
 > **eserstack Tool** — [eser/stack on GitHub](https://github.com/eser/stack)
-> **Install:** `pnpm add jsr:@eserstack/app-runtime`
+> **Install:** `pnpm add @eserstack/app-runtime`
 
 Application lifecycle runtime for the eserstack ecosystem. Manages modules,
 channels, events, dependency injection, and run modes — providing a unified

@@ -5,7 +5,7 @@
 > versions stay available but get no updates.
 
 > **eserstack Library** — [eser/stack on GitHub](https://github.com/eser/stack)
-> **Install:** `pnpm add jsr:@eserstack/logging`
+> **Install:** `pnpm add @eserstack/logging`
 
 `@eserstack/logging` is a hierarchical, category-based logging library with
 context propagation, multiple sinks, filters, and OpenTelemetry integration. It

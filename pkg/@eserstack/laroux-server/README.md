@@ -8,7 +8,7 @@
 
 > **eserstack Product-Candidate** — SSR runtime for laroux ·
 > [eser/stack](https://github.com/eser/stack) **Install:**
-> `pnpm add jsr:@eserstack/laroux-server`
+> `pnpm add @eserstack/laroux-server`
 
 Core runtime and utilities for [laroux.js](https://github.com/eser/stack) - A
 React Server Components framework for Node.js. The server renders pages and RSC
@@ -399,13 +399,13 @@ Apache-2.0 © [Eser Ozvataf](https://github.com/eser)
 
 ## 🔗 Links
 
-- [@eserstack/cli](https://jsr.io/@eserstack/cli) - Main CLI tool (`eser laroux`
-  commands)
-- [@eserstack/laroux-bundler](https://jsr.io/@eserstack/laroux-bundler) - Build
-  system and HMR
-- [@eserstack/laroux](https://jsr.io/@eserstack/laroux) - Framework-agnostic
-  core: router, configuration types and defaults
-- [@eserstack/laroux-react](https://jsr.io/@eserstack/laroux-react) - React
-  integration for laroux
-- [JSR Package](https://jsr.io/@eserstack/laroux-server)
+- [@eserstack/cli](https://www.npmjs.com/package/@eserstack/cli) -
+  Main CLI tool (`eser laroux` commands)
+- [@eserstack/laroux-bundler](https://www.npmjs.com/package/@eserstack/laroux-bundler) -
+  Build system and HMR
+- [@eserstack/laroux](https://www.npmjs.com/package/@eserstack/laroux) -
+  Framework-agnostic core: router, configuration types and defaults
+- [@eserstack/laroux-react](https://www.npmjs.com/package/@eserstack/laroux-react) -
+  React integration for laroux
+- [npm package](https://www.npmjs.com/package/@eserstack/laroux-server)
 - [eserstack repository](https://github.com/eser/stack)

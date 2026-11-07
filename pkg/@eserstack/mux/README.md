@@ -12,7 +12,7 @@ speaks one neutral protocol over any transport, so the same session can drive
 the ANSI terminal frontend in this package or a browser frontend over a
 WebSocket.
 
-Install it with `pnpm add jsr:@eserstack/mux`.
+Install it with `pnpm add @eserstack/mux`.
 
 ## Quick Start
 
@@ -147,6 +147,5 @@ build the frontend-neutral view and the delta the server sends.
 
 ## 🔗 Links
 
-- [JSR package](https://jsr.io/@eserstack/mux): the API reference generated from
-  source
+- [npm package](https://www.npmjs.com/package/@eserstack/mux)
 - [eser/stack on GitHub](https://github.com/eser/stack)

@@ -13,7 +13,7 @@
     "@eserstack/primitives": "workspace:*",
     "@eserstack/standards": "workspace:*",
     "@eserstack/streams": "workspace:*",
-    "@opentelemetry/api": "^1.9.1"
+    "@opentelemetry/api": "^1.10.0"
   },
   "devDependencies": {
     "@std/assert": "npm:@jsr/std__assert@^1.0.19"

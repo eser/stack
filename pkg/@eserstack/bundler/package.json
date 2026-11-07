@@ -20,10 +20,10 @@
     "@eserstack/streams": "workspace:*",
     "@std/encoding": "npm:@jsr/std__encoding@^1.0.11",
     "@std/fs": "npm:@jsr/std__fs@^1.0.24",
-    "@tailwindcss/node": "^4.3.3",
-    "@tailwindcss/oxide": "^4.3.3",
+    "@tailwindcss/node": "^4.3.4",
+    "@tailwindcss/oxide": "^4.3.4",
     "lightningcss": "^1.33.0",
-    "rolldown": "^1.2.9"
+    "rolldown": "^1.2.16"
   },
   "devDependencies": {
     "@std/assert": "npm:@jsr/std__assert@^1.0.19"

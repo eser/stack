@@ -132,58 +132,60 @@ func isVersionHeading(stripped, bare string) bool {
 		strings.HasPrefix(stripped, "## [v"+bare+"]")
 }
 
-// InsertIntoChangelog inserts newSection just after the first "# Changelog"
-// heading (or prepends it). version is used only for finding an existing
-// duplicate entry to replace; pass "" to always insert fresh.
+// InsertIntoChangelog writes a version's section into a changelog and moves
+// the notes under "## Unreleased" into it, leaving that heading empty above
+// the section. The section goes below Unreleased, or first when the changelog
+// has no Unreleased. An existing section of version is replaced in place, and
+// the text in it a person wrote stays (see mergeReleaseSection). Pass version
+// "" to always insert a new section.
 func InsertIntoChangelog(changelogContent, newSection, version string) string {
-	lines := strings.Split(changelogContent, "\n")
+	intro, sections := splitAtHeadings(strings.Split(changelogContent, "\n"), "## ")
 	bare := strings.TrimPrefix(version, "v")
-	insertAt := -1
 
-	for i, line := range lines {
-		stripped := strings.TrimSpace(line)
+	var (
+		unreleased []string
+		notes      []string
+		rest       [][]string
+	)
 
-		// If this version already exists, replace it
-		if version != "" && isVersionHeading(stripped, bare) {
-			// Find the end of this section (next ## heading)
-			end := len(lines)
-			for j := i + 1; j < len(lines); j++ {
-				if strings.HasPrefix(strings.TrimSpace(lines[j]), "## ") {
-					end = j
+	for _, section := range sections {
+		if !unreleasedHeading.MatchString(section[0]) {
+			rest = append(rest, section)
 
-					break
-				}
-			}
-
-			before := strings.Join(lines[:i], "\n")
-			after := strings.Join(lines[end:], "\n")
-
-			return before + "\n" + newSection + "\n" + after
+			continue
 		}
 
-		// Insert before the first ## section heading
-		if insertAt < 0 && strings.HasPrefix(stripped, "## ") {
-			insertAt = i
+		if unreleased == nil {
+			unreleased = section[:1]
 		}
+
+		notes = append(append(notes, ""), section[1:]...)
 	}
 
-	if insertAt >= 0 {
-		before := strings.Join(lines[:insertAt], "\n")
-		after := strings.Join(lines[insertAt:], "\n")
+	existing := -1
 
-		return before + "\n" + newSection + "\n" + after
-	}
+	for i, section := range rest {
+		if version != "" && isVersionHeading(strings.TrimSpace(section[0]), bare) {
+			existing = i
 
-	// No existing ## section — append after first # heading
-	for i, line := range lines {
-		if strings.HasPrefix(strings.TrimSpace(line), "# ") {
-			before := strings.Join(lines[:i+1], "\n")
-			after := strings.Join(lines[i+1:], "\n")
-
-			return before + "\n\n" + newSection + "\n" + after
+			break
 		}
 	}
 
-	// Fallback: prepend
-	return newSection + "\n" + changelogContent
+	var previous []string
+	if existing >= 0 {
+		previous = rest[existing][1:]
+	}
+
+	merged := mergeReleaseSection(newSection, previous, notes)
+
+	if existing >= 0 {
+		rest[existing] = merged
+	} else {
+		rest = append([][]string{merged}, rest...)
+	}
+
+	blocks := append([][]string{intro}, unreleased)
+
+	return joinChangelogBlocks(append(blocks, rest...))
 }

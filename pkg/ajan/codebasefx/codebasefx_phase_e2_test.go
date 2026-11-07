@@ -213,7 +213,7 @@ func TestGetCommitsBetween(t *testing.T) {
 func TestInsertIntoChangelog_VersionAlreadyExists(t *testing.T) {
 	t.Parallel()
 
-	existing := "# Changelog\n\n## 1.1.0 - 2025-01-01\n\n### Added\n\n- old\n"
+	existing := "# Changelog\n\n## 1.1.0 - 2025-01-01\n\n### Added\n\n- old (abc1234)\n"
 	newSection := "## 1.1.0 - 2025-06-01\n\n### Added\n\n- updated\n"
 
 	result := codebasefx.InsertIntoChangelog(existing, newSection, "1.1.0")
@@ -224,7 +224,7 @@ func TestInsertIntoChangelog_VersionAlreadyExists(t *testing.T) {
 	}
 
 	// Old content must be replaced
-	if strings.Contains(result, "- old\n") {
+	if strings.Contains(result, "- old (abc1234)\n") {
 		t.Error("expected old section content to be replaced")
 	}
 

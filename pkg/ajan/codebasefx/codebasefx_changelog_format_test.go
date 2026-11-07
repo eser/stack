@@ -133,7 +133,7 @@ func TestInsertIntoChangelog_DedupFormats(t *testing.T) {
 	}{
 		{
 			name:         "bare heading without date",
-			existing:     "# Changelog\n\n## 1.1.0\n\n### Added\n\n- old entry\n",
+			existing:     "# Changelog\n\n## 1.1.0\n\n### Added\n\n- old entry (abc1234)\n",
 			version:      "1.1.0",
 			newSection:   "## 1.1.0 - 2026-06-01\n\n### Added\n\n- new entry\n",
 			wantReplaced: true,
@@ -141,7 +141,7 @@ func TestInsertIntoChangelog_DedupFormats(t *testing.T) {
 		},
 		{
 			name:         "bare heading with date",
-			existing:     "# Changelog\n\n## 1.1.0 - 2020-01-01\n\n### Added\n\n- old entry\n",
+			existing:     "# Changelog\n\n## 1.1.0 - 2020-01-01\n\n### Added\n\n- old entry (abc1234)\n",
 			version:      "1.1.0",
 			newSection:   "## 1.1.0 - 2026-06-01\n\n### Added\n\n- new entry\n",
 			wantReplaced: true,
@@ -149,7 +149,7 @@ func TestInsertIntoChangelog_DedupFormats(t *testing.T) {
 		},
 		{
 			name:         "legacy bracketed heading",
-			existing:     "# Changelog\n\n## [1.1.0] - 2020-01-01\n\n### Added\n\n- old entry\n",
+			existing:     "# Changelog\n\n## [1.1.0] - 2020-01-01\n\n### Added\n\n- old entry (abc1234)\n",
 			version:      "1.1.0",
 			newSection:   "## 1.1.0 - 2026-06-01\n\n### Added\n\n- new entry\n",
 			wantReplaced: true,
@@ -157,7 +157,7 @@ func TestInsertIntoChangelog_DedupFormats(t *testing.T) {
 		},
 		{
 			name:         "legacy bracketed v-prefixed heading",
-			existing:     "# Changelog\n\n## [v1.1.0] - 2020-01-01\n\n### Added\n\n- old entry\n",
+			existing:     "# Changelog\n\n## [v1.1.0] - 2020-01-01\n\n### Added\n\n- old entry (abc1234)\n",
 			version:      "1.1.0",
 			newSection:   "## 1.1.0 - 2026-06-01\n\n### Added\n\n- new entry\n",
 			wantReplaced: true,

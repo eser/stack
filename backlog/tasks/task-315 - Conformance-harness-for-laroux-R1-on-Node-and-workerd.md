@@ -4,6 +4,7 @@ title: 'Conformance harness for laroux R1 on Node and workerd'
 status: To Do
 assignee: []
 created_date: '2026-10-24 01:30'
+updated_date: '2026-11-07 20:00'
 labels:
   - laroux
   - ci
@@ -33,3 +34,9 @@ Plan key: L6b. Effort: large.
 - [ ] #3 The real-browser checks run in Playwright in Chromium, Firefox and WebKit, locally and in CI
 - [ ] #4 The scheduled React latest and canary job exists and reports to the owner, once the owner approves the workflow change
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+2026-11-07. Deferred here from TASK-314: the fixture test of the workerd-graph check (no server graph reaches node:ffi or an ajan binding outside the wasi profile, decision-45 as amended on 2026-10-24). The check needs the bundle graph, so it runs at build time in laroux-server (TASK-312, TASK-318), and neither it nor this suite exists yet, so TASK-314 wrote no test. Once TASK-312 adds the check, add to this suite a fixture that reaches node:ffi and one that reaches a binding outside the profile, both failing `laroux build --target workerd` with a message naming the binding and the import chain (TASK-312's AC #3), and one that calls a profile name and builds. TASK-314's validate-laroux-boundaries covers the static import rules only.
+<!-- SECTION:NOTES:END -->

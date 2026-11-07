@@ -2127,8 +2127,7 @@ in `.eser/concerns/`, which several entries below depend on.
 - `eser kit new library-pkg` produces a workspace package: a `package.json` with
   `"@eserstack/primitives": "workspace:*"`, no `deno.json`, the name
   `@eserstack/package-name`, and a `greet` that returns
-  `primitives.results.Result<string, Error>`. Outside the eser/stack workspace,
-  replace `workspace:*` with the npm range `^5.0.0`. Callers check the result:
+  `primitives.results.Result<string, Error>`. Callers check the result:
 
   ```typescript
   // Before
@@ -2136,6 +2135,41 @@ in `.eser/concerns/`, which several entries below depend on.
   // After
   const result = greet("Ada");
   if (primitives.results.isOk(result)) console.log(result.value);
+  ```
+
+  The recipe is the template for a package inside the eser/stack workspace, so
+  its test imports `@eserstack/test-kit`, the workspace's private test seam,
+  which is not on npm. Outside the workspace, edit two files before you install.
+  In `package.json`, set `@eserstack/primitives` to the npm range `^5.0.0`,
+  remove `@eserstack/test-kit` from `devDependencies` and give the package your
+  own name:
+
+  ```json
+  {
+    "name": "your_package_name",
+    "version": "0.0.0",
+    "type": "module",
+    "exports": {
+      ".": "./mod.ts"
+    },
+    "dependencies": {
+      "@eserstack/primitives": "^5.0.0"
+    }
+  }
+  ```
+
+  In `mod.test.ts`, import `node:assert/strict` and rename the assertions in
+  both tests. Then `pnpm install` and `node --test` run it:
+
+  ```typescript
+  // Before
+  import * as assert from "@eserstack/test-kit/assert";
+  assert.assert(primitives.results.isOk(result));
+  assert.assertEquals(result.value, "Hello, World!");
+  // After
+  import * as assert from "node:assert/strict";
+  assert.ok(primitives.results.isOk(result));
+  assert.equal(result.value, "Hello, World!");
   ```
 
 - The `cool-lime-app` and `jsx-runtime-app` recipes are removed with

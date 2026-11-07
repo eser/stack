@@ -177,6 +177,51 @@ nodeTest.test(
   },
 );
 
+nodeTest.test(
+  "the CHANGELOG library-pkg step names each recipe dependency npm never gets",
+  async () => {
+    const readRepoFile = (...segments: string[]): Promise<string> =>
+      runtime.fs.readTextFile(runtime.path.join(repoRoot, ...segments));
+
+    const recipe = JSON.parse(
+      await readRepoFile(".eser", "recipes", "library-pkg", "package.json"),
+    ) as {
+      readonly dependencies?: Readonly<Record<string, string>>;
+      readonly devDependencies?: Readonly<Record<string, string>>;
+    };
+    const workspaceNames = Object.entries({
+      ...recipe.dependencies,
+      ...recipe.devDependencies,
+    })
+      .filter(([, range]) => range === "workspace:*")
+      .map(([name]) => name);
+
+    const manifests = await Promise.all(
+      workspaceNames.map(async (name) => ({
+        name,
+        manifest: JSON.parse(
+          await readRepoFile("pkg", name, "package.json"),
+        ) as { readonly private?: boolean },
+      })),
+    );
+    const privateNames = manifests
+      .filter(({ manifest }) => manifest.private === true)
+      .map(({ name }) => name);
+
+    // The step tells a user outside the workspace what to edit. A range cannot
+    // install a private package, so the step has to say what to do with each.
+    const changelog = await readRepoFile("CHANGELOG.md");
+    const start = changelog.indexOf("- `eser kit new library-pkg` produces");
+    assert.assert(start !== -1, "the CHANGELOG has no library-pkg step");
+    const end = changelog.indexOf("\n- ", start);
+    const step = changelog.slice(start, end);
+
+    for (const name of privateNames) {
+      assert.assertStringIncludes(step, `remove \`${name}\``);
+    }
+  },
+);
+
 const manifestOf = (
   files: readonly registrySchema.RecipeFile[],
 ): registrySchema.RegistryManifest => ({

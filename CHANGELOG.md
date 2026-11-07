@@ -72,6 +72,31 @@ here applies whichever package you use.
   `eser-v5.0.0-aarch64-apple-darwin.tar.gz` follows the 4.5.x pattern. An
   installed v4.5.x `eser` or `noskills` binary updates to the Go binary with
   `eser update` or `noskills update`, as before.
+- The Go `eser` binary (install script, Homebrew, Nix, `eser update`) carries
+  no posts, laroux or noskills code. `eser posts`, `eser laroux` and
+  `eser noskills` run `eser-posts`, `laroux` or `noskills` from `PATH` or from
+  a directory of `ESER_PLUGIN_PATH`, and otherwise
+  `npx --yes laroux@<version>` (or `noskills@<version>`,
+  `--package @eserstack/posts@<version> eser-posts`), which needs npx and the
+  network. Without npx they print the `npm install -g` command and fail.
+  Install the tools you use:
+
+  ```bash
+  npm install -g noskills laroux @eserstack/posts
+  ```
+
+  The binary also drops the `.`, `nos` and `wf` aliases, the `ajan` command
+  and `eser codebase commitmsg`. Use `eser codebase` (or `eser cb`),
+  `eser noskills` and `eser workflows`; the commit-msg hook that
+  `eser codebase install` writes runs `eser workflows run -e commitmsg`. The
+  npm `eser` package is still the TypeScript CLI in 5.0.0 and keeps them.
+
+- The Go `noskills` binary runs the commands it does not implement in the
+  TypeScript CLI: the one `NOSKILLS_TS_CLI` names, the one the npm launcher
+  ships, or `npx --yes noskills@<version>`. A `noskills` installed from an
+  archive therefore needs Node, npx and the network for those commands, or
+  `NOSKILLS_TS_CLI` set to a local CLI such as
+  `node /path/to/noskills/main.ts`.
 - `noskills` ships as the Go binary through every channel. The `noskills` npm
   package is a launcher: it depends on the matching
   `@eserstack/noskills-<platform>` package (`darwin-arm64`, `darwin-x64`,
@@ -128,6 +153,18 @@ here applies whichever package you use.
   release's version in the entry, and the flake fetches each archive at its
   entry's version. A tool
   that reads the file takes an entry's `version` before the top-level one.
+- The `laroux` formula of the Homebrew tap installs the laroux forwarding stub
+  and is deprecated with `deprecate!`: `brew info` prints that laroux is now on
+  npm, and Homebrew disables the formula on 2027-10-27. Add laroux to your app
+  from npm instead:
+
+  ```bash
+  # Before
+  brew install eser/tap/laroux
+  # After
+  npm install --save-dev laroux
+  ```
+
 - `NOSKILLS_WORKER_RUNTIME` is not read anywhere, so its `deno` and `bun` values
   no longer pick a runtime; noskills-server runs mux sessions itself (see
   Go: pkg/ajan/noskillsserverfx below). Remove the variable.
@@ -519,6 +556,19 @@ in `.eser/concerns/`, which several entries below depend on.
   `DenoJson`, `DenoJsonc`, `JsrJson` and `JsrJsonc`, and a `deno.json` or
   `jsr.json` beside a `package.json` is no longer merged in. Move the fields
   you need into `package.json`.
+  `PackageConfig.imports` and the `"imports"` member of `PackageFieldName` are
+  removed with them, and `eser codebase versions` bumps `package.json` only.
+- The `./lint-plugin` export (the Deno lint rules `copyright-header`,
+  `no-top-level-arrow-exports` and `prefer-private-fields`) is removed. Delete
+  `"plugins": ["jsr:@eserstack/codebase/lint-plugin"]` from your `deno.json`;
+  `validate-licenses` still checks the license headers.
+- `validate()` of `./validation` also runs the new `validate-naming-and-todos`,
+  which fails on snake_case declarations and on a TODO or FIXME comment
+  without a task id such as `TODO(TASK-12)`, and which needs the native
+  library. Fix the reports, or pass `skip: ["validate-naming-and-todos"]`.
+- `eser codebase release` formats `CHANGELOG.md` with
+  `node --run fmt -- CHANGELOG.md` instead of `deno fmt CHANGELOG.md`. In a
+  repository without a `fmt` script, the changelog is committed as generated.
 - `CliApp.jsrPackage` is removed from `cli-system`, leaving `npmPackage` as the
   package that provides a binary. Delete the field.
 - `validate-code-conventions` has an `export-star` rule: `export * from` and
@@ -748,6 +798,10 @@ in `.eser/concerns/`, which several entries below depend on.
   `error instanceof recipes.fetcher.RegistryLoadError`.
 - Every kit command prints its failure message on stderr, and `eser kit new`
   without a template exits 1 when the registry cannot be loaded (it exited 0).
+- Cloning a whole repository with `eser kit clone` extracts the tarball through
+  the native library, and fails with "extract tarball: the eser-ajan native
+  library is unavailable" without it, the WASM fallback included. Install
+  `@eserstack/ajan` with its platform package, or set `ESER_AJAN_LIB_PATH`.
 
 #### @eserstack/posts
 
@@ -814,8 +868,37 @@ in `.eser/concerns/`, which several entries below depend on.
   platform instead of always on X. Pass `--platform=twitter` to keep X.
 - `BluekysSocialApi` is renamed `BlueskySocialApi`; the old name stays as a
   deprecated alias for one release.
+- `TWITTER_API_BASE_URL`, `BLUESKY_PDS_HOST` and `POSTS_TOKEN_STORE_PATH` are
+  read from the process environment only, never from `.env` files. The two
+  URLs must be absolute `https://` URLs (`http://` only for a loopback host),
+  and the token store path must be absolute or start with `~/`; any other
+  value throws. Export them in the shell instead of a `.env` file.
+- `AuthProvider.getAuthorizationUrl()` answers an `AuthorizationRequest` with
+  a required `state` beside `url` and `codeVerifier`. A custom provider returns
+  the OAuth `state` it put in the URL.
 
 #### @eserstack/shell
+
+- Flags are parsed with `node:util` `parseArgs` instead of `@std/cli`.
+  `buildParseOptions` returns the `parseArgs` options (one `ArgOption` per flag
+  name) instead of `{ boolean, string, alias, default }`, and `extractFlags`
+  takes the parsed `values` record. A `string[]` flag collects every
+  occurrence instead of keeping the last one, an unknown `--flag` no longer
+  takes the next argument as its value, and numeric positionals stay strings.
+  Declare every flag a command reads, and parse with `parseFlags` or the new
+  `parseArgs` of `./args/flags`:
+
+  ```typescript
+  import * as flags from "@eserstack/shell/args/flags";
+
+  // Before: --name a --name b gave name: "b"
+  // After
+  const parsed = flags.parseFlags(
+    ["--name", "a", "--name", "b"],
+    [{ name: "name", type: "string[]", description: "Names" }],
+  );
+  // parsed.flags.name is ["a", "b"]
+  ```
 
 - A command that does not run to an exit code throws
   `shell.exec.CommandRunError`, even with `noThrow()`: a missing program or
@@ -887,7 +970,8 @@ in `.eser/concerns/`, which several entries below depend on.
   ```
 
 - `cross-runtime`: `Runtime` has a required `http`, `RuntimeProcess` has
-  `addSignalListener` and `removeSignalListener`, and `RuntimeCapabilities` has
+  `addSignalListener`, `removeSignalListener` and `isStandalone`, `RuntimeFs`
+  has `statSync`, and `RuntimeCapabilities` has
   `http: boolean`. A hand-built runtime or mock no longer type-checks. Spread
   the real objects and override what you need, add `http: false` to capability
   literals, or build the mock with `await createRuntime({ ... })`:
@@ -936,6 +1020,13 @@ in `.eser/concerns/`, which several entries below depend on.
   result instead of rejecting. Check `result.success` (or the exit code) where
   you caught the rejection. `runtime.fs.makeTempDir()` without a prefix creates
   the directory inside the system temp directory.
+- `runtime.fs` throws `PermissionDeniedError` for `EACCES` and `EPERM`, with
+  the Node error as its `cause`, instead of the Node error itself. Before:
+  `error.code === "EACCES"`. After:
+  `error instanceof standards.crossRuntime.PermissionDeniedError`.
+- `compareSemanticVersions` takes the `SemVer` and `Range` objects of the
+  `semver` npm package instead of those of `@std/semver`. Build them with
+  `new semver.SemVer("1.2.3")` and `new semver.Range("^1.2.0")`.
 
 #### @eserstack/laroux
 
@@ -1032,7 +1123,9 @@ in `.eser/concerns/`, which several entries below depend on.
   the fallback as `data-laroux-fallback`, which laroux's client bootstrap
   applies. An empty `src` with a fallback renders the fallback directly. A React
   app that renders `Image` without laroux's bootstrap adds its own error
-  listener that reads `data-laroux-fallback`.
+  listener that reads `data-laroux-fallback`. `buildFallbackHandler()`, which
+  built the `onerror` string, is removed from `.` and `./image`; delete the
+  calls.
 - `ModuleLoader` returns `unknown` instead of `any`. Narrow the result before
   you render it.
 - The client bootstrap that laroux-bundler copies into the build imports
@@ -1138,6 +1231,12 @@ in `.eser/concerns/`, which several entries below depend on.
   longer copies the project's `deno.json` and `package.json` into
   `dist/server`. Drop `bundlerBackend: "deno-bundler"` and
   `platform: "deno"` from your config.
+- The import map is read from `package.json` only. `ImportMapEntry` is
+  `{ specifier, target, version }`, with the bare specifier as `target`
+  (`react`, not `npm:react@^19`); its `source`, `isNpmPackage`, `isJsrPackage`
+  and `isLocalPath` fields are removed. `ImportMap` has no `hasDenoJson`, and
+  `ImportMapResolverOptions` has no `importMap` option; drop it from the
+  plugin's options.
 
 #### @eserstack/laroux-server
 
@@ -1172,6 +1271,28 @@ in `.eser/concerns/`, which several entries below depend on.
   `imageOptimizer: sharp.sharpImageOptimizer`.
 - `clearRoutesCache` is removed: each server keeps its own route list and
   reloads it after a successful dev rebuild. Delete the calls.
+- The server listens on `server.host` (default `localhost`); under Deno it
+  listened on every interface whatever the setting. In a container or a VM, set
+  the host so that clients outside can reach it:
+
+  ```typescript
+  // laroux.config.ts
+  import type { UserConfig } from "@eserstack/laroux/config";
+
+  const config: UserConfig = { server: { host: "0.0.0.0" } };
+  export default config;
+  ```
+
+- `POST /_rsc` runs only the exports that the actions manifest lists and that
+  carry React's server-reference marker, and answers 404 for any other id. It
+  refuses a body over 1 MiB (`ACTION_MAX_BODY_BYTES`) with 413, and a
+  cross-site request with 403: `Sec-Fetch-Site` must be `same-origin` or
+  `none`, or, without it, `Origin` must equal the origin of the request URL.
+  Behind a proxy that rewrites the host, pass the public origin through to the
+  request URL, or a browser that sends only `Origin` is refused.
+- `GET /rsc?pathname=/p` runs the proxy chain of `/p`, the page it renders,
+  instead of the chain of `/rsc`, and the proxies get a request for the page
+  URL. Move a proxy that matched `/rsc` to the page paths it guards.
 - Page and `route.ts` params arrive percent-decoded, and API routes use the page
   matcher, so a catch-all also matches its prefix (`/docs` and `/api/docs/`).
   Remove `decodeURIComponent` on params, and validate a param before it reaches
@@ -1251,6 +1372,22 @@ in `.eser/concerns/`, which several entries below depend on.
   });
   ```
 
+- The rate limiter's `trustProxy` defaults to `false`, so it keys on the
+  connection's peer and ignores `X-Forwarded-For` and `X-Real-IP`; it was
+  `true`. `check(req, pathname, remote)` and `getClientIp` take the peer
+  address, and with `trustProxy: true` the headers count only when that peer
+  is in `trustedProxies` (default `127.0.0.1` and `::1`). Behind a reverse
+  proxy, every client otherwise shares one bucket:
+
+  ```typescript
+  const limiter = http.middlewares.rateLimiter.createRateLimiter({
+    trustProxy: true,
+    trustedProxies: ["10.0.0.5"],
+  });
+  // in the handler, with info from runtime.http.serve
+  const limited = limiter.check(req, pathname, info.remoteAddr);
+  ```
+
 #### @eserstack/httpclient
 
 - `request()` and `requestStream()` use `fetch` like the other methods instead
@@ -1288,6 +1425,10 @@ in `.eser/concerns/`, which several entries below depend on.
   `writeEnd` when the value is a whole document, and `streamLayers.writerLayer`
   passes `_inArray: true` and `_isFirst` on every call. A custom format that
   read `_inArray` treats `false` as a whole document.
+- The CSV writer formats the header like any row: a header that holds the
+  delimiter, a quote or a line break is quoted, and the header line ends with
+  `\r\n` like the rows. TOML ignores `pretty`, so keys are no longer aligned.
+  Update golden files that compare exact text.
 
 #### @eserstack/bundler
 
@@ -1379,6 +1520,27 @@ in `.eser/concerns/`, which several entries below depend on.
   on `koffi` (see Runtime, toolchain and distribution above).
 - The changes to the native library's exports are listed under Native bridge
   below.
+- `FFILibrary` has no `symbols` member. Run a bridge function by its name with
+  `lib.call()`, and a stream with `lib.stream()`; both answer the parsed JSON,
+  and `lib.handshake` holds what the library reported at load. An unknown name
+  throws `UnknownFunctionError`:
+
+  ```typescript
+  // Before
+  const reply = JSON.parse(lib.symbols.EserAjanShellExec(JSON.stringify(req)));
+  // After
+  const reply = await lib.call("shellExec", req);
+  ```
+
+- `LoadOptions.backends`, `detectRuntime()`, `selectBackend()` and the
+  `FFIBackend` and `RuntimeId` types are removed from `.` and `./ffi`; Node is
+  the only runtime. `LoadOptions` takes `native`, `wasm` and `poolSize`.
+- `@eserstack/ajan/wasm` has no command mode: `LoadWasmOptions.mode` is
+  removed and `isWasmAvailable()` takes no argument. The
+  `@eserstack/ajan-wasm` package ships one module, `eser-ajan.wasm`, and the
+  loader refuses a module of another ABI version, such as a 4.5.x one passed
+  as `wasmPath`. The WASM build serves the wasi profile only, and the names
+  outside it throw `UnsupportedInWasmError`; they need the native library.
 - The blocking names of the binding table run in worker threads on the native
   library and answer promises: `lib.call()` of a blocking call (the AI
   generation and batch calls, `httpRequest`, `shellExec`, the kit and posts
@@ -1773,13 +1935,35 @@ in `.eser/concerns/`, which several entries below depend on.
   A process that sets `OTEL_EXPORTER_OTLP_PROTOCOL` to anything other than
   `grpc` or `http/protobuf` now fails to create the connection.
 
-#### Go: pkg/ajan/logfx, processfx, types and i18nfx
+#### Go: pkg/ajan/logfx, lib, processfx, types and i18nfx
 
 - logfx: subscribers registered with `Handler.AddSubscriber`, including the OTLP
   export, get the attributes of `WithAttrs` and `WithGroup` flattened to dotted
   keys, and pretty and subscriber records under an open group carry `trace_id`
   and `span_id` under the group prefix. Before: `trace_id`. After:
   `http.trace_id` on a logger grouped as `http`.
+- logfx: `Logger.EnableOTLP` and the `OTLPConnectionResource` and
+  `OTLPLogExporter` interfaces moved to the `logfx/otlp` package, so that logfx
+  links no OpenTelemetry SDK; `EnableTelemetry` takes the API providers
+  directly. Use `otlp.ConnectionResource` and `otlp.LogExporter`:
+
+  ```go
+  // Before
+  logger.EnableOTLP(resource)
+  // After
+  otlp.Enable(logger, resource)
+  ```
+
+- logfx: the `Logger.InnerPropagator` field is removed. `PropagatorExtract` and
+  `PropagatorInject` keep working in native builds and always use W3C Trace
+  Context and Baggage.
+- lib: the network, crypto and SQL helpers moved to the new `lib/netlib`
+  package: `SplitHostPort`,
+  `DetectLocalNetwork`, `IsPrivateIP`, `ValidateExternalURL`,
+  `CryptoGetRandomBytes`, `GenerateSelfSignedCert`, `NullString` and
+  `ErrUnexpectedNullStringType`, with their error variables. Before:
+  `lib.IsPrivateIP(ip)`. After:
+  `netlib.IsPrivateIP(ip)`, importing `github.com/eser/stack/pkg/ajan/lib/netlib`.
 - processfx: `Process.Wait` no longer closes `Process.Signal`. Select on
   `p.Ctx.Done()` instead of waiting for the channel to close, and do not close
   `p.Signal` yourself; that only stops signal handling.
@@ -1816,6 +2000,9 @@ in `.eser/concerns/`, which several entries below depend on.
 - `csfx.Generate` (`eser cs generate`) writes JSON as `[\n  {...}\n]\n` instead
   of `[\n{...}\n\n]\n`, and YAML with 2-space indentation. Update golden files
   that compare exact text.
+- The JSON, JSONL, YAML and TOML readers refuse a document nested more than
+  `MaxNestingDepth` (1000) levels deep with an error wrapping
+  `ErrNestingTooDeep`, before they decode it. Flatten the document.
 
 #### Go: pkg/ajan/codebasefx
 
@@ -1853,9 +2040,55 @@ in `.eser/concerns/`, which several entries below depend on.
   files, err := codebasefx.WalkListedFiles(codebasefx.WalkOptions{Root: root, GitAware: true}, paths)
   ```
 
+- A walk root that is missing or cannot be read returns an error wrapping
+  `ErrUnreadableWalkRoot` (also in `collectorfx`) instead of an empty result,
+  so a validator run on a mistyped directory fails instead of checking 0
+  files. Pass a directory that exists.
+- `RegisterAllValidators` and `RunSingleValidator` moved to the new
+  `codebasefx/validatortools` package, and `RunSingleValidator` takes
+  `[]codebasefx.FileEntry`:
+
+  ```go
+  // Before
+  codebasefx.RegisterAllValidators(registry)
+  // After
+  validatortools.RegisterAllValidators(registry)
+  ```
+
+- `WorkspacePackageConfig` has no `Imports` or `RawDeno` field: it reads
+  `package.json` only. Read `RawPackage` instead.
+
 #### Native bridge (github.com/eser/ajan, @eserstack/ajan)
 
-- `EserAjanShellExec` (and command-mode WASM `shellExec`) stops a command after
+- The native library exports six functions instead of one per bridge function
+  (dispatcher ABI 3): `EserAjanVersion`, which answers a JSON handshake with the
+  library version, the ABI version and the names the build serves;
+  `EserAjanCall(name, request)`; `EserAjanStreamOpen(name, request)`,
+  `EserAjanStreamRead(handle)` and `EserAjanStreamClose(handle)`; and
+  `EserAjanFree`. Each answers an envelope
+  (`{"ok": true, "result": "..."}` or `{"ok": false, "code": "...", "error": "..."}`).
+  Every former `EserAjan<Name>` export is the call or stream name `<name>`, so
+  `EserAjanShellExec` is the call `shellExec`; the entries below keep the old
+  names. A host that loads the library itself calls through the dispatcher:
+
+  ```c
+  // Before
+  char *reply = EserAjanShellExec(request);
+  // After
+  char *reply = EserAjanCall("shellExec", request);
+  ```
+
+  `@eserstack/ajan` checks the handshake right after loading and refuses a
+  library of another ABI version, such as a 4.5.x one named by
+  `ESER_AJAN_LIB_PATH`, with `AbiMismatchError`.
+
+- The WASM build has no command mode (JSON over stdin and stdout) any more, and
+  serves the wasi profile only: the names outside it, such as the shell, HTTP,
+  AI, kit, posts and workflow names, answer `UNSUPPORTED_IN_WASM`.
+- Every call whose JSON request nests more than 1000 levels deep fails with
+  `nesting is too deep` before the bridge decodes it (see Go: pkg/ajan/formatfx
+  and csfx).
+- `EserAjanShellExec` stops a command after
   10 minutes when the request has no `timeout`, and rejects a zero or negative
   `timeout` before the command starts. Before: `{"timeout": "0s"}` meant no
   limit. After: omit `timeout` for the default, or send a positive Go duration

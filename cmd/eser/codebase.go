@@ -282,12 +282,6 @@ func changelogCommand(e *env) *clifx.Command {
 			}
 
 			section := codebasefx.FormatChangelogSection(result.Content)
-			if c.Bool("dry-run") {
-				_, _ = fmt.Fprintln(e.stdout, section)
-
-				return nil
-			}
-
 			path := filepath.Join(e.cwd, "CHANGELOG.md")
 
 			existing, err := os.ReadFile(path) //nolint:gosec // G304: the workspace's changelog
@@ -298,6 +292,20 @@ func changelogCommand(e *env) *clifx.Command {
 			}
 
 			updated := codebasefx.InsertIntoChangelog(string(existing), section, result.Version)
+
+			if c.Bool("dry-run") {
+				// The section as it would be written, Unreleased notes included.
+				for _, entry := range codebasefx.ParseChangelogText(updated) {
+					if entry.Version == result.Version {
+						section = entry.Notes
+					}
+				}
+
+				_, _ = fmt.Fprint(e.stdout, section)
+
+				return nil
+			}
+
 			if bytes.Equal([]byte(updated), existing) {
 				_, _ = fmt.Fprintln(e.stdout, "CHANGELOG.md is up to date.")
 

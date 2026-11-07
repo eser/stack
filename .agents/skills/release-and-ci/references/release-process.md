@@ -64,7 +64,8 @@ pushes describes a tree that already passed CI.
    written. Nothing changes.
 4. **Release:** `eser codebase release <patch|minor|major|same>`. In one run it
    bumps `VERSION` and every `package.json`, writes the `CHANGELOG.md` section
-   from the commits since the last tag, commits
+   from the commits since the last tag and moves the `Unreleased` notes into it,
+   commits
    `chore(codebase): release v<version>`, pushes to `main`, then creates and
    pushes the annotated tag `v<version>`.
 5. **Watch** the tag run in the repository's Actions tab.
@@ -269,8 +270,15 @@ Scope: Commit subjects and CHANGELOG.md
 
 Rule: `eser codebase changelog-gen` builds each release section from the
 conventional commits since the last tag. It collapses "take" series ("feat: x
-(take II)" with "feat: x"), groups entries by Keep a Changelog section, and
-replaces an existing section for the same version, so re-running it is safe.
+(take II)" with "feat: x") and groups entries by Keep a Changelog section. The
+notes under `## Unreleased` move into the new section, after the generated
+entries, and leave the heading empty above it; a hand-written list joins the
+generated section of its name, and `### Migration` comes last. An existing
+section for the same version gets new generated entries (those ending in a
+commit hash) and keeps
+everything else, so re-running it is safe. Run without a release, it takes the
+next patch as the version, so run it on its own only when that is the version
+the notes belong to.
 
 The commit subject is therefore the changelog entry, and the message is that
 line alone, two lines at most, with no body (workflow-practices: Git Commit

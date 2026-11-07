@@ -43,6 +43,7 @@ import * as tui from "@eserstack/shell/tui";
 
 import * as versions from "./versions.ts";
 import type { VersionCommand } from "./versions.ts";
+import type * as changelogGen from "./changelog-gen.ts";
 import * as cliSupport from "./cli-support.ts";
 
 // =============================================================================
@@ -62,6 +63,16 @@ export type ReleaseOptions = {
 };
 
 /**
+ * What the release flow calls out to, replaceable in tests.
+ */
+export type ReleaseDeps = {
+  /** Writes the changelog section, or previews it under dryRun. */
+  readonly generateChangelog: (
+    options: changelogGen.GenerateChangelogOptions,
+  ) => Promise<changelogGen.GenerateChangelogResult>;
+};
+
+/**
  * Result of the release command.
  */
 export type ReleaseResult = {
@@ -71,7 +82,7 @@ export type ReleaseResult = {
   readonly previousVersion: string;
   /** The release tag for the new version (e.g. "v4.3.1"). */
   readonly tag: string;
-  /** Whether a changelog entry was generated. */
+  /** Whether the commits since the last tag gave the changelog any entry. */
   readonly changelogGenerated: boolean;
   /** Whether changes were committed. */
   readonly committed: boolean;
@@ -223,6 +234,13 @@ const confirmPrompt = async (question: string): Promise<boolean> => {
 // Pure logic — release
 // =============================================================================
 
+const defaultReleaseDeps: ReleaseDeps = {
+  generateChangelog: async (options) => {
+    const changelogModule = await import("./changelog-gen.ts");
+    return await changelogModule.generateChangelog(options);
+  },
+};
+
 /**
  * Perform a full release: bump version, generate changelog, commit, push, and
  * push the `v<version>` tag that starts the release pipeline.
@@ -237,6 +255,7 @@ const confirmPrompt = async (question: string): Promise<boolean> => {
  */
 export const release = async (
   options: ReleaseOptions,
+  deps: ReleaseDeps = defaultReleaseDeps,
 ): Promise<ReleaseResult> => {
   const { type, dryRun = false } = options;
 
@@ -285,14 +304,21 @@ export const release = async (
   // The version is passed explicitly for the same reason it is kept from
   // versions() above: under --dry-run the VERSION file still holds the old
   // version, so a changelog that re-read it would head the entry with it.
-  let changelogGenerated = false;
+  //
+  // A failure stops the release. It means the native library did not load or
+  // git or the file write failed; going on would tag a release with no section,
+  // which the release gate rejects only after the tag is pushed.
+  let changelogGenerated: boolean;
   try {
-    const changelogModule = await import("./changelog-gen.ts");
-    await changelogModule.generateChangelog({ dryRun, version });
-    changelogGenerated = true;
-  } catch {
-    // No user-facing changes — that's fine, continue without changelog entry
-    changelogGenerated = false;
+    const generated = await deps.generateChangelog({ dryRun, version });
+    changelogGenerated = generated.entryCount > 0;
+  } catch (err) {
+    throw new Error(
+      "Changelog generation failed, so nothing was committed, pushed or " +
+        "tagged. Any version bump this run made is still in the working tree." +
+        cliSupport.commandFailureDetail(err),
+      { cause: err },
+    );
   }
 
   // 7-11. Format, stage, commit, push, tag
@@ -303,9 +329,7 @@ export const release = async (
   if (!dryRun) {
     // Format changelog with the workspace's pinned oxfmt. `node --run` puts
     // node_modules/.bin on PATH without the dependency check `pnpm exec` runs.
-    if (changelogGenerated) {
-      await shellExec.exec`node --run fmt -- CHANGELOG.md`.noThrow().spawn();
-    }
+    await shellExec.exec`node --run fmt -- CHANGELOG.md`.noThrow().spawn();
 
     // Stage and commit
     //

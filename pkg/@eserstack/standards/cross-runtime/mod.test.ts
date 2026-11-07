@@ -251,6 +251,7 @@ nodeTest.test(
         return Promise.resolve({
           hostname: "127.0.0.1",
           port: options.port,
+          unixSocket: null,
           finished: Promise.resolve(),
         });
       },

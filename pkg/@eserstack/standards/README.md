@@ -277,21 +277,102 @@ than rejecting. `runtime.fs.makeTempDir()` creates the directory inside
 `runtime.http.serve` answers HTTP requests with a fetch-style handler on Node;
 check `runtime.capabilities.http` first, since Workers and browsers have no
 server. It resolves once the server listens, binds to
-`127.0.0.1` unless you pass `hostname`, and stops when its `signal` aborts,
-closing open connections and WebSockets. A handler that throws sends the client
-a 500 response, and the error is printed to stderr.
+`127.0.0.1` unless you pass `hostname`, and stops when its `signal` aborts. A
+handler that throws sends the client a 500 response, and the error is printed to
+stderr.
 
 The handler gets a second argument, `info`. `info.remoteAddr` is the
 `{ hostname, port }` of the peer's socket, or `null` when the runtime cannot
-tell; it is the direct peer, so behind a proxy it is the proxy, and a forwarded
-header is yours to trust or not. `onListen` in the options is called with the
-bound address, the chosen port when `port` is 0, before `serve` resolves.
+tell; it is the direct peer, so behind a proxy it is the proxy unless you turn
+on `trustProxy`. `info.signal` aborts when the connection goes away before the
+response has finished, and `request.signal` follows it. `onListen` in the options
+is called with the bound address, the chosen port when `port` is 0, before
+`serve` resolves.
+
+| Option               | Default     | Effect                                                                   |
+| -------------------- | ----------- | ------------------------------------------------------------------------ |
+| `hostname`           | `127.0.0.1` | The address to listen on                                                 |
+| `unixSocket`         | none        | A socket path to listen on, instead of `hostname` and `port`             |
+| `signal`             | none        | Stops the server when aborted                                            |
+| `shutdownTimeoutMs`  | `10000`     | How long a stopping server waits for in-flight requests; 0 does not wait |
+| `headersTimeoutMs`   | `60000`     | Time to receive the headers, then 408; 0 turns it off                    |
+| `requestTimeoutMs`   | `300000`    | Time to receive the whole request, then 408; 0 turns it off              |
+| `keepAliveTimeoutMs` | `5000`      | How long an idle connection stays open, plus 1 s; 0 keeps it open        |
+| `trustProxy`         | off         | The proxies whose forwarded headers count                                |
+| `onListen`           | none        | Called with the bound address before `serve` resolves                    |
+
+The three timeouts keep Node's defaults when you leave them out. The headers and
+request timeouts limit how long the client takes to send, never the handler. `headersTimeoutMs` cannot
+be above `requestTimeoutMs`, and `serve` rejects a timeout that is not a whole
+number, 0 or more.
+
+**Stopping.** When `signal` aborts, the server stops listening, closes idle
+connections and sends each WebSocket a 1001 close frame. In-flight requests go on
+to finish, and their responses carry `connection: close`. After
+`shutdownTimeoutMs` it closes every connection that is left, which aborts their
+`info.signal`. `finished` resolves once the last connection has closed. A stream
+that never ends, such as server-sent events, holds the server until that timeout,
+so stop such a stream yourself if you want a faster exit.
+
+**Unix socket.** With `unixSocket`, `hostname` and `port` are ignored, `server`
+and `onListen` report `unixSocket` with the path, `""` as the hostname and `0` as
+the port, and the server removes the file when it stops. The file's permissions
+decide who can connect, so put it in a directory only your proxy can reach. `serve`
+rejects with `EADDRINUSE` when the path exists, so a file a crashed process left
+behind has to be removed first. `info.remoteAddr` is `null` on a socket unless
+`trustProxy` gives a client address.
+
+**Behind a proxy.** `trustProxy` is off by default, and a request's forwarded
+headers are then never read. Turn it on with the addresses and CIDRs of your
+proxies, and `"unix:"` for a peer on a unix socket. Only a request whose socket
+peer is on the list has its headers read:
+
+- `X-Forwarded-For` sets `info.remoteAddr`. The client is the right-most address
+  that is not on the list, so entries a client forged to the left are never
+  reached. Its port is 0, because a proxy does not report one.
+- `X-Forwarded-Proto` (`http` or `https`) sets the scheme of `request.url`, and
+  `X-Forwarded-Host` its host and port. The last value of a list counts, and an
+  invalid one is ignored.
+
+The `Forwarded` header (RFC 7239) is not read. The headers stay readable on
+`request.headers` whatever the setting, so read client data from `request.url` and
+`info`. List only proxies that overwrite or append to these headers: one that
+passes them through unchanged hands the client control of them.
+
+```typescript
+import * as standards from "@eserstack/standards";
+
+const { runtime } = standards.crossRuntime;
+
+await runtime.http.serve(
+  {
+    port: 0,
+    unixSocket: "/run/app/http.sock",
+    trustProxy: ["unix:"],
+    shutdownTimeoutMs: 30_000,
+    headersTimeoutMs: 10_000,
+  },
+  (request, info) =>
+    new Response(
+      `${request.url} for ${info.remoteAddr?.hostname ?? "unknown"}`,
+    ),
+);
+```
 
 Inside a handler, `runtime.http.upgradeWebSocket(request)` accepts a WebSocket
-handshake. Add the socket's listeners, then return `response` unchanged from the
-handler. `runtime.process.addSignalListener` and `removeSignalListener` listen
-for OS signals such as `SIGINT`. Node accepts every name, and a listener for a
-signal the platform never sends never runs.
+handshake. Add the socket's listeners, then return `response` from the handler.
+
+The upgrade is matched by identity: the handler has to return the same `Response`
+object that `upgradeWebSocket` gave it, because a fetch `Response` cannot carry
+status 101. A wrapper around the handler (for security headers, say) must pass
+that object through. A copy, even one with the same status and headers, refuses
+the handshake with the copy's status, and the socket closes with 1006 without
+ever opening. The same goes for the request: pass `upgradeWebSocket` the `Request`
+the handler received, not a clone.
+
+`runtime.process.addSignalListener` and `removeSignalListener` listen for OS
+signals such as `SIGINT`. Node accepts every name, and a listener for a signal
+the platform never sends never runs.
 
 ```typescript
 import * as standards from "@eserstack/standards";

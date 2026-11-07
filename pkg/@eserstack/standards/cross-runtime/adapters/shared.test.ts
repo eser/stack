@@ -160,7 +160,7 @@ nodeTest.test(
 );
 
 /** Handler info for a request whose peer is unknown. */
-const NO_PEER = { remoteAddr: null };
+const NO_PEER = { remoteAddr: null, signal: new AbortController().signal };
 
 nodeTest.test(
   "createSafeHandler passes the handler's response through",
@@ -175,14 +175,19 @@ nodeTest.test(
 );
 
 nodeTest.test("createSafeHandler passes the handler info through", async () => {
-  const info = { remoteAddr: { hostname: "10.0.0.7", port: 5123 } };
-  const respond = shared.createSafeHandler((_request, received) =>
-    Response.json(received),
-  );
+  const info = {
+    remoteAddr: { hostname: "10.0.0.7", port: 5123 },
+    signal: AbortSignal.abort(),
+  };
+  let received: unknown = null;
+  const respond = shared.createSafeHandler((_request, handed) => {
+    received = handed;
+    return new Response("seen");
+  });
 
-  const response = await respond(new Request("http://127.0.0.1/"), info);
+  await respond(new Request("http://127.0.0.1/"), info);
 
-  assert.assertEquals(await response.json(), info);
+  assert.assertStrictEquals(received, info);
 });
 
 nodeTest.test(

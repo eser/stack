@@ -14,6 +14,7 @@
 import type {
   HttpHandler,
   HttpServer,
+  ListenAddr,
   RuntimeHttp,
   ServeHandlerInfo,
   ServeOptions,
@@ -22,6 +23,7 @@ import type {
 import * as deps from "./deps.ts";
 import * as serverWebSocket from "./server-websocket.ts";
 import * as shared from "./shared.ts";
+import * as trustProxy from "./trust-proxy.ts";
 import * as frames from "./websocket-frames.ts";
 
 /** The largest WebSocket message a client may send: 16 MiB. */
@@ -32,6 +34,19 @@ const MAX_MESSAGE_BYTES = 16 * 1024 * 1024;
  * of the connection before it drops the connection.
  */
 const CLOSE_TIMEOUT_MS = 5_000;
+
+/** How long a stopping server waits for in-flight requests by default. */
+const DEFAULT_SHUTDOWN_TIMEOUT_MS = 10_000;
+
+/**
+ * Node checks the headers and request timeouts on an interval, 30 s by default,
+ * so a shorter timeout needs a shorter interval to fire near its value.
+ */
+const MAX_CHECK_INTERVAL_MS = 30_000;
+const MIN_CHECK_INTERVAL_MS = 50;
+
+/** The Host to assume on a unix socket for a request that names none. */
+const UNIX_SOCKET_FALLBACK_HOST = "localhost";
 
 /** The GUID RFC 6455 (4.2.2) appends to the client's key before hashing. */
 const HANDSHAKE_GUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
@@ -49,19 +64,90 @@ const encoder = new TextEncoder();
 /** The raw socket Node hands over with an upgrade request. */
 type RawSocket = deps.stream.Duplex;
 
+/** The address fields of a net.Socket, which are gone once it has closed. */
+type PeerSocket = {
+  readonly remoteAddress?: string;
+  readonly remotePort?: number;
+};
+
 /**
- * The handler info for a request on `socket`: its remote address, which a
- * net.Socket carries and which is gone once the socket has closed.
+ * The handler info for a request on `socket`: the client a trusted proxy names,
+ * or else the socket's remote address.
  */
-const handlerInfo = (socket: unknown): ServeHandlerInfo => {
-  const peer = socket as { remoteAddress?: string; remotePort?: number };
+const handlerInfo = (
+  socket: PeerSocket,
+  forwarded: trustProxy.Forwarded | null,
+  signal: AbortSignal,
+): ServeHandlerInfo => {
+  if (forwarded !== null && forwarded.clientAddress !== null) {
+    // A proxy reports the client's address but not its port.
+    return {
+      remoteAddr: { hostname: forwarded.clientAddress, port: 0 },
+      signal,
+    };
+  }
 
   return {
     remoteAddr:
-      peer.remoteAddress !== undefined && peer.remotePort !== undefined
-        ? { hostname: peer.remoteAddress, port: peer.remotePort }
+      socket.remoteAddress !== undefined && socket.remotePort !== undefined
+        ? { hostname: socket.remoteAddress, port: socket.remotePort }
         : null,
+    signal,
   };
+};
+
+const requireTimeout = (name: string, value: number): number => {
+  if (!Number.isSafeInteger(value) || value < 0) {
+    throw new TypeError(
+      `runtime.http.serve: ${name} must be a whole number of milliseconds, 0 or more, got ${value}`,
+    );
+  }
+
+  return value;
+};
+
+/**
+ * Turns the timeout options into Node's server options. What the caller leaves
+ * out stays at Node's default.
+ *
+ * @param options - The serve options
+ * @returns The options for http.createServer
+ * @throws {TypeError} If a timeout is not a whole number, 0 or more
+ */
+const toServerOptions = (options: ServeOptions): deps.http.ServerOptions => {
+  const serverOptions: deps.http.ServerOptions = {};
+  const checked: number[] = [];
+
+  if (options.headersTimeoutMs !== undefined) {
+    serverOptions.headersTimeout = requireTimeout(
+      "headersTimeoutMs",
+      options.headersTimeoutMs,
+    );
+    checked.push(serverOptions.headersTimeout);
+  }
+  if (options.requestTimeoutMs !== undefined) {
+    serverOptions.requestTimeout = requireTimeout(
+      "requestTimeoutMs",
+      options.requestTimeoutMs,
+    );
+    checked.push(serverOptions.requestTimeout);
+  }
+  if (options.keepAliveTimeoutMs !== undefined) {
+    serverOptions.keepAliveTimeout = requireTimeout(
+      "keepAliveTimeoutMs",
+      options.keepAliveTimeoutMs,
+    );
+  }
+
+  const enabled = checked.filter((timeout) => timeout > 0);
+  if (enabled.length > 0) {
+    serverOptions.connectionsCheckingInterval = Math.min(
+      MAX_CHECK_INTERVAL_MS,
+      Math.max(MIN_CHECK_INTERVAL_MS, Math.ceil(Math.min(...enabled) / 2)),
+    );
+  }
+
+  return serverOptions;
 };
 
 /** One WebSocket running over a raw socket. */
@@ -73,6 +159,8 @@ type Connection = {
   readonly abandon: () => void;
   /** Closes the connection with 1001 because the server is stopping. */
   readonly shutdown: () => void;
+  /** Drops the connection because a stopping server ran out of time. */
+  readonly destroy: () => void;
 };
 
 /** An upgrade request whose handler is still running. */
@@ -142,7 +230,8 @@ export const serializeRawResponse = (
 const toRequest = (
   incoming: deps.http.IncomingMessage,
   fallbackHost: string,
-  signal: AbortSignal | null,
+  signal: AbortSignal,
+  forwarded: trustProxy.Forwarded | null,
 ): Request | null => {
   const method = incoming.method ?? "GET";
   const hasBody = method !== "GET" && method !== "HEAD";
@@ -152,6 +241,21 @@ const toRequest = (
       incoming.url ?? "/",
       `http://${incoming.headers.host ?? fallbackHost}`,
     );
+
+    const forwardedProtocol = forwarded?.protocol ?? null;
+    if (forwardedProtocol !== null) {
+      url.protocol = forwardedProtocol;
+    }
+
+    const forwardedHost = forwarded?.host ?? null;
+    if (forwardedHost !== null) {
+      // Set on the parsed URL, because a request line in absolute form names
+      // its own host. The host setter keeps the old port when the value has
+      // none, so the name and the port are set apart.
+      const target = new URL(`${url.protocol}//${forwardedHost}`);
+      url.hostname = target.hostname;
+      url.port = target.port;
+    }
 
     const headers = new Headers();
     const raw = incoming.rawHeaders;
@@ -198,6 +302,13 @@ const writeResponse = async (
   outgoing: deps.http.ServerResponse,
   response: Response,
 ): Promise<void> => {
+  // The connection went away while the handler ran, so no write would ever
+  // complete. Cancelling the body releases what its source holds.
+  if (outgoing.destroyed) {
+    await response.body?.cancel();
+    return;
+  }
+
   outgoing.statusCode = response.status;
   if (response.statusText !== "") {
     outgoing.statusMessage = response.statusText;
@@ -407,6 +518,9 @@ const createConnection = (
       sendClose(frames.CLOSE_CODES.goingAway, "");
       raw.end();
     },
+    destroy: () => {
+      raw.destroy();
+    },
   };
 
   return connection;
@@ -430,21 +544,54 @@ export const createNodeHttp = (): RuntimeHttp => {
     new Promise((resolve, reject) => {
       const respond = shared.createSafeHandler(handler);
       const hostname = options.hostname ?? shared.DEFAULT_SERVE_HOSTNAME;
-      const server = deps.http.createServer();
+      const unixSocket = options.unixSocket ?? null;
+      if (unixSocket === "") {
+        throw new TypeError(
+          "runtime.http.serve: unixSocket is empty; pass the socket's path, or leave it out to listen on a TCP port",
+        );
+      }
+
+      const shutdownTimeoutMs = requireTimeout(
+        "shutdownTimeoutMs",
+        options.shutdownTimeoutMs ?? DEFAULT_SHUTDOWN_TIMEOUT_MS,
+      );
+      const trustPolicy =
+        options.trustProxy !== undefined
+          ? trustProxy.parseTrustProxy(options.trustProxy)
+          : null;
+      const server = deps.http.createServer(toServerOptions(options));
       // Raw sockets of upgrade requests still in their handler, and the
       // WebSockets running over the accepted ones. Both stop with the server.
       const pendingSockets = new Set<RawSocket>();
       const connections = new Set<Connection>();
       // The Host to assume for a request that names none (HTTP/1.0).
-      let fallbackHost = hostname;
+      let fallbackHost =
+        unixSocket !== null ? UNIX_SOCKET_FALLBACK_HOST : hostname;
+      let stopping = false;
 
       const finished = new Promise<void>((resolveFinished) => {
         server.once("close", () => resolveFinished());
       });
 
-      const stop = (): void => {
-        server.close();
+      const forceClose = (): void => {
         server.closeAllConnections();
+
+        for (const connection of connections) {
+          connection.destroy();
+        }
+      };
+
+      const stop = (): void => {
+        if (stopping) {
+          return;
+        }
+        stopping = true;
+
+        const deadline = setTimeout(forceClose, shutdownTimeoutMs);
+        server.once("close", () => clearTimeout(deadline));
+
+        server.close();
+        server.closeIdleConnections();
 
         for (const socket of pendingSockets) {
           socket.destroy();
@@ -452,6 +599,23 @@ export const createNodeHttp = (): RuntimeHttp => {
         for (const connection of connections) {
           connection.shutdown();
         }
+      };
+
+      /** Reads the forwarded headers, when `trustProxy` is on and allows it. */
+      const readForwarded = (
+        incoming: deps.http.IncomingMessage,
+        socket: PeerSocket,
+      ): trustProxy.Forwarded | null => {
+        if (trustPolicy === null) {
+          return null;
+        }
+
+        const peer =
+          unixSocket !== null
+            ? trustProxy.UNIX_PEER
+            : (socket.remoteAddress ?? null);
+
+        return trustProxy.resolveForwarded(trustPolicy, peer, incoming.headers);
       };
 
       const handleRequest = async (
@@ -464,18 +628,37 @@ export const createNodeHttp = (): RuntimeHttp => {
             disconnected.abort();
           }
         });
+        // Node keeps a connection open after a response unless told otherwise,
+        // and a connection that was busy when the server began to stop is idle
+        // only now.
+        outgoing.once("finish", () => {
+          if (stopping) {
+            server.closeIdleConnections();
+          }
+        });
 
-        const request = toRequest(incoming, fallbackHost, disconnected.signal);
+        const forwarded = readForwarded(incoming, incoming.socket);
+        const request = toRequest(
+          incoming,
+          fallbackHost,
+          disconnected.signal,
+          forwarded,
+        );
         if (request === null) {
           outgoing.writeHead(400, { "content-type": "text/plain" });
           outgoing.end("Bad Request: the URL or a header is malformed");
           return;
         }
 
-        await writeResponse(
-          outgoing,
-          await respond(request, handlerInfo(incoming.socket)),
+        const response = await respond(
+          request,
+          handlerInfo(incoming.socket, forwarded, disconnected.signal),
         );
+
+        if (stopping && !outgoing.headersSent) {
+          outgoing.setHeader("connection", "close");
+        }
+        await writeResponse(outgoing, response);
       };
 
       const handleUpgrade = async (
@@ -483,7 +666,16 @@ export const createNodeHttp = (): RuntimeHttp => {
         raw: RawSocket,
         head: Uint8Array,
       ): Promise<void> => {
-        const request = toRequest(incoming, fallbackHost, null);
+        const disconnected = new AbortController();
+        raw.once("close", () => disconnected.abort());
+
+        const forwarded = readForwarded(incoming, raw as PeerSocket);
+        const request = toRequest(
+          incoming,
+          fallbackHost,
+          disconnected.signal,
+          forwarded,
+        );
         if (request === null) {
           raw.end(
             serializeRawResponse(
@@ -504,7 +696,10 @@ export const createNodeHttp = (): RuntimeHttp => {
 
         let response: Response;
         try {
-          response = await respond(request, handlerInfo(raw));
+          response = await respond(
+            request,
+            handlerInfo(raw as PeerSocket, forwarded, disconnected.signal),
+          );
         } finally {
           upgrades.delete(request);
           pendingSockets.delete(raw);
@@ -523,7 +718,8 @@ export const createNodeHttp = (): RuntimeHttp => {
         }
 
         // The handler accepted the handshake but answered with another
-        // response, so the socket never opens.
+        // response, a copy of the handshake response included, so the socket
+        // never opens.
         accepted?.connection.abandon();
 
         const body = new Uint8Array(await response.arrayBuffer());
@@ -556,7 +752,7 @@ export const createNodeHttp = (): RuntimeHttp => {
       };
       server.once("error", onListenError);
 
-      server.listen(options.port, hostname, () => {
+      const onListening = (): void => {
         server.off("error", onListenError);
         // An error after listening (for example running out of file
         // descriptors) stops the server; `finished` then resolves.
@@ -565,21 +761,30 @@ export const createNodeHttp = (): RuntimeHttp => {
           stop();
         });
 
-        const address = server.address();
-        if (address === null || typeof address === "string") {
-          stop();
-          reject(
-            new Error(
-              `runtime.http.serve: ${hostname}:${options.port} did not give a TCP address`,
-            ),
-          );
-          return;
-        }
+        let listenAddr: ListenAddr = { hostname: "", port: 0, unixSocket };
 
-        fallbackHost =
-          address.family === "IPv6"
-            ? `[${address.address}]:${address.port}`
-            : `${address.address}:${address.port}`;
+        if (unixSocket === null) {
+          const address = server.address();
+          if (address === null || typeof address === "string") {
+            stop();
+            reject(
+              new Error(
+                `runtime.http.serve: ${hostname}:${options.port} did not give a TCP address`,
+              ),
+            );
+            return;
+          }
+
+          listenAddr = {
+            hostname: address.address,
+            port: address.port,
+            unixSocket: null,
+          };
+          fallbackHost =
+            address.family === "IPv6"
+              ? `[${address.address}]:${address.port}`
+              : `${address.address}:${address.port}`;
+        }
 
         if (options.signal?.aborted === true) {
           stop();
@@ -587,9 +792,15 @@ export const createNodeHttp = (): RuntimeHttp => {
           options.signal?.addEventListener("abort", stop, { once: true });
         }
 
-        options.onListen?.({ hostname: address.address, port: address.port });
-        resolve({ hostname: address.address, port: address.port, finished });
-      });
+        options.onListen?.(listenAddr);
+        resolve({ ...listenAddr, finished });
+      };
+
+      if (unixSocket !== null) {
+        server.listen(unixSocket, onListening);
+      } else {
+        server.listen(options.port, hostname, onListening);
+      }
     });
 
   const upgradeWebSocket = (request: Request): WebSocketUpgrade => {

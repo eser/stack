@@ -148,3 +148,9 @@ To add a package, copy `library-pkg/` to `pkg/@eserstack/<name>/` and replace
 `0.0.0`, and the next release sets it to the shared version. Then run
 `pnpm install` at the root to link the package, `pnpm exec oxfmt` on it (the
 rename changes the README's line breaks) and `pnpm cli ok`.
+
+`library-pkg/` stays a workspace template: its test imports the private
+`@eserstack/test-kit`, as every test in this repository does, and its internal
+dependencies are `workspace:*`. `eser kit new library-pkg` also serves users
+outside the workspace, and the Recipes entry of the CHANGELOG's Migration section
+lists the edits their copy needs (TASK-374).

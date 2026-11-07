@@ -555,6 +555,7 @@ nodeTest.test(
       );
       const from = (hostname: string) => ({
         remoteAddr: { hostname, port: 40_000 },
+        signal: stop.signal,
       });
       const get = async (hostname: string): Promise<number> => {
         const response = await handler(

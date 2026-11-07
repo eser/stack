@@ -14,6 +14,7 @@ export * as crypto from "node:crypto";
 export * as fs from "node:fs";
 export * as fsPromises from "node:fs/promises";
 export * as http from "node:http";
+export * as net from "node:net";
 export * as os from "node:os";
 export * as sea from "node:sea";
 

@@ -912,15 +912,33 @@ export interface NetAddr {
 }
 
 /**
+ * The address a server listens on. `hostname` and `port` describe a TCP
+ * listener; on a unix socket they are "" and 0 and `unixSocket` holds the path.
+ */
+export interface ListenAddr extends NetAddr {
+  /** The path of the unix socket, or null for a TCP listener. */
+  readonly unixSocket: string | null;
+}
+
+/**
  * What `runtime.http.serve` knows about the connection a request came on.
  */
 export interface ServeHandlerInfo {
   /**
-   * The peer that sent the request: the socket's remote address, not a
-   * forwarded header. Null when the runtime cannot tell, as for a socket that
-   * closed before the handler ran.
+   * The peer that sent the request: the socket's remote address, unless the
+   * peer is a proxy listed in `trustProxy`, which makes it the client that
+   * X-Forwarded-For names, with port 0 because a proxy does not report one.
+   * Null when the runtime cannot tell: a socket that closed before the handler
+   * ran, or a unix socket peer without a trusted forwarded address.
    */
   readonly remoteAddr: NetAddr | null;
+  /**
+   * Aborts when the connection goes away before the response has finished: the
+   * client disconnected, or a stopping server closed the connection when
+   * `shutdownTimeoutMs` ran out. For a WebSocket handshake, it aborts when the
+   * connection closes.
+   */
+  readonly signal: AbortSignal;
 }
 
 /**
@@ -936,33 +954,81 @@ export type HttpHandler = (
  * Options for `runtime.http.serve`.
  */
 export interface ServeOptions {
-  /** Port to listen on; 0 lets the system pick a free one. */
+  /**
+   * Port to listen on; 0 lets the system pick a free one. Ignored when
+   * `unixSocket` is set.
+   */
   readonly port: number;
   /**
    * Address to listen on (default: "127.0.0.1", so only this machine can
-   * connect). Pass "0.0.0.0" to accept connections from other machines.
+   * connect). Pass "0.0.0.0" to accept connections from other machines. Ignored
+   * when `unixSocket` is set.
    */
   readonly hostname?: string;
   /**
-   * Stops the server when aborted. The server stops listening and closes its
-   * open connections, WebSockets included.
+   * Path of a unix socket to listen on instead of a TCP port. The file's
+   * permissions decide who can connect, and the server removes it when it
+   * stops. `serve` rejects when the path exists, so a file a crashed process
+   * left behind has to be removed first.
+   */
+  readonly unixSocket?: string;
+  /**
+   * Stops the server when aborted. The server stops listening, closes idle
+   * connections and sends WebSockets a 1001 close frame at once, then waits for
+   * in-flight requests for up to `shutdownTimeoutMs`.
    */
   readonly signal?: AbortSignal;
+  /**
+   * Milliseconds to receive a request's headers before the server answers 408
+   * and closes the connection. 0 turns the limit off. It cannot be above
+   * `requestTimeoutMs`. Default: Node's 60000.
+   */
+  readonly headersTimeoutMs?: number;
+  /**
+   * Milliseconds to receive a whole request, body included, before the server
+   * answers 408 and closes the connection. It does not limit the handler. 0
+   * turns the limit off. Default: Node's 300000.
+   */
+  readonly requestTimeoutMs?: number;
+  /**
+   * Milliseconds an idle connection stays open after a response, plus the one
+   * second Node adds so that a client does not reuse a connection it is about
+   * to lose. 0 keeps idle connections open. Default: Node's 5000.
+   */
+  readonly keepAliveTimeoutMs?: number;
+  /**
+   * Milliseconds a stopping server waits for in-flight requests before it
+   * closes every connection that is left, which aborts their `info.signal`. A
+   * stream that never ends, such as server-sent events, holds the server until
+   * then. 0 closes them at once. Default: 10000.
+   */
+  readonly shutdownTimeoutMs?: number;
+  /**
+   * The proxies whose forwarded headers count: IP addresses, CIDRs such as
+   * "10.0.0.0/8", and "unix:" for a peer on a unix socket. Off by default, and
+   * only a request whose socket peer is listed has these headers read:
+   *
+   * - X-Forwarded-For sets `info.remoteAddr`. The client is the right-most
+   *   address that is not a listed proxy.
+   * - X-Forwarded-Proto and X-Forwarded-Host set the scheme and the host of
+   *   `request.url`. The last value of a list counts, and an invalid one is
+   *   ignored.
+   *
+   * List only proxies that overwrite or append to these headers. A proxy that
+   * passes them through unchanged hands the client control of them.
+   */
+  readonly trustProxy?: readonly string[];
   /**
    * Called once the server listens, with the address it bound; the port is
    * the chosen one when `port` was 0. It runs before `serve` resolves.
    */
-  readonly onListen?: (addr: NetAddr) => void;
+  readonly onListen?: (addr: ListenAddr) => void;
 }
 
 /**
  * A server that `runtime.http.serve` started.
  */
-export interface HttpServer {
-  /** The address the server listens on. */
-  readonly hostname: string;
-  /** The port the server listens on; the chosen one when the option was 0. */
-  readonly port: number;
+export interface HttpServer extends ListenAddr {
   /** Resolves once the server has stopped. */
   readonly finished: Promise<void>;
 }
@@ -976,7 +1042,13 @@ export interface WebSocketUpgrade {
    * `response`; add its listeners before that.
    */
   readonly socket: WebSocket;
-  /** The response the handler returns, unchanged, to complete the handshake. */
+  /**
+   * The response that completes the handshake. The handler returns this same
+   * object: the server recognizes it by identity, because a fetch `Response`
+   * cannot carry status 101. A wrapper around the handler must pass it through
+   * untouched; a copy, even one with the same status and headers, refuses the
+   * handshake with the copy's status, and the socket never opens.
+   */
   readonly response: Response;
 }
 
@@ -989,10 +1061,12 @@ export interface RuntimeHttp {
    * Listens for HTTP requests and answers each one with `handler`.
    *
    * Resolves once the server listens, and rejects when it cannot bind the
-   * address (for example when the port is in use). When the handler throws,
-   * the client gets a 500 response and the error is printed to stderr.
+   * address (for example when the port is in use) or an option is not valid.
+   * When the handler throws, the client gets a 500 response and the error is
+   * printed to stderr.
    *
-   * @param options - Port, address and the signal that stops the server
+   * @param options - What to listen on, the limits, the proxies to trust and
+   *   the signal that stops the server
    * @param handler - Answers each request
    * @returns The running server
    *
@@ -1020,7 +1094,8 @@ export interface RuntimeHttp {
    *
    * Call it from a `runtime.http.serve` handler with the request the handler
    * received, add the socket's listeners, and return `response` from the
-   * handler. The server sends no subprotocol and no extension.
+   * handler as the same object, not a copy. The server sends no subprotocol and
+   * no extension.
    *
    * @param request - A request with an `Upgrade: websocket` header
    * @returns The socket and the response that completes the handshake

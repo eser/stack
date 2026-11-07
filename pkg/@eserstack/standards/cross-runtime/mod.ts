@@ -43,6 +43,7 @@ export type {
   FsWatcher,
   HttpHandler,
   HttpServer,
+  ListenAddr,
   MakeTempOptions,
   MkdirOptions,
   NetAddr,

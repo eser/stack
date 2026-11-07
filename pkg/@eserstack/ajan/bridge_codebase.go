@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"path/filepath"
 	"sync"
 
 	"github.com/eser/stack/pkg/ajan/codebasefx"
@@ -540,6 +541,71 @@ func bridgeCodebaseCheckCircularDeps(requestJSON string) string {
 	return marshalResponse(result)
 }
 
+type codebaseLarouxBoundariesRequest struct {
+	Dir string `json:"dir"`
+	// Allowlist is relative to Dir; codebasefx.DefaultLarouxImporterAllowlist
+	// when empty.
+	Allowlist string   `json:"allowlist,omitempty"`
+	Exclude   []string `json:"exclude,omitempty"`
+	GitAware  bool     `json:"gitAware"`
+	// GitFiles is the host's git listing, as on codebaseWalkRequest.
+	GitFiles []string `json:"gitFiles,omitempty"`
+}
+
+type codebaseLarouxBoundariesResponse struct {
+	Issues       []codebaseValidatorIssueJSON `json:"issues"`
+	FilesChecked int                          `json:"filesChecked"`
+}
+
+// bridgeCodebaseCheckLarouxBoundaries applies the laroux import rules.
+func bridgeCodebaseCheckLarouxBoundaries(requestJSON string) string {
+	var req codebaseLarouxBoundariesRequest
+	if err := json.Unmarshal([]byte(requestJSON), &req); err != nil {
+		return marshalError("invalid request JSON: " + err.Error())
+	}
+
+	root := req.Dir
+	if root == "" {
+		root = "."
+	}
+
+	allowlistPath := req.Allowlist
+	if allowlistPath == "" {
+		allowlistPath = codebasefx.DefaultLarouxImporterAllowlist
+	}
+
+	allowlist, err := codebasefx.ReadLarouxImporterAllowlist(filepath.Join(root, allowlistPath))
+	if err != nil {
+		return marshalError(err.Error())
+	}
+
+	files, err := walkRequestFiles(context.Background(), codebasefx.WalkOptions{ //nolint:exhaustruct
+		Root:     root,
+		Exclude:  req.Exclude,
+		GitAware: req.GitAware,
+	}, req.GitFiles)
+	if err != nil {
+		return marshalError(err.Error())
+	}
+
+	result, err := codebasefx.CheckLarouxBoundaries(root, allowlist, files)
+	if err != nil {
+		return marshalError(err.Error())
+	}
+
+	issues := make([]codebaseValidatorIssueJSON, 0, len(result.Issues))
+	for _, issue := range result.Issues {
+		issues = append(issues, codebaseValidatorIssueJSON{
+			Severity: issue.Severity,
+			File:     issue.File,
+			Line:     issue.Line,
+			Message:  issue.Message,
+		})
+	}
+
+	return marshalResponse(codebaseLarouxBoundariesResponse{Issues: issues, FilesChecked: result.FilesChecked})
+}
+
 // bridgeCodebaseCheckExportNames validates JSR manifest export path naming.
 func bridgeCodebaseCheckExportNames(requestJSON string) string {
 	var req workspaceCheckRequest
@@ -888,6 +954,7 @@ func init() {
 	register("codebaseCheckExportNames", bridgeCodebaseCheckExportNames)
 	register("codebaseCheckModExports", bridgeCodebaseCheckModExports)
 	register("codebaseCheckDocs", bridgeCodebaseCheckDocs)
+	register("codebaseCheckLarouxBoundaries", bridgeCodebaseCheckLarouxBoundaries)
 	registerStream("codebaseWalkFilesStream", "cbwalk", streamFuncs{
 		open:  bridgeCodebaseWalkFilesStreamCreate,
 		read:  bridgeCodebaseWalkFilesStreamRead,

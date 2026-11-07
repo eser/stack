@@ -19,7 +19,7 @@ const reactorTest = (name: string, fn: () => Promise<void>) =>
   nodeTest.test(name, { skip: wasmPath === null }, fn);
 
 /**
- * The 44 names of the wasi profile (TASK-272, logging from TASK-278, HTTP from
+ * The 45 names of the wasi profile (TASK-272, logging from TASK-278, HTTP from
  * TASK-277; the noskills names left it with TASK-258), four of them streams
  * since the dispatcher ABI (TASK-238).
  */
@@ -35,6 +35,7 @@ const PROFILE_NAMES = [
   "codebaseCheckCircularDeps",
   "codebaseCheckDocs",
   "codebaseCheckExportNames",
+  "codebaseCheckLarouxBoundaries",
   "codebaseCheckModExports",
   "codebaseValidateCommitMsg",
   "codebaseValidateFiles",
@@ -71,7 +72,7 @@ const PROFILE_NAMES = [
 ];
 
 reactorTest(
-  "the handshake names the ABI, the profile and its 44 names",
+  "the handshake names the ABI, the profile and its 45 names",
   async () => {
     const host = await reactor.createReactorHost(wasmPath!);
 

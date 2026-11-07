@@ -16,6 +16,7 @@ import * as ffiClient from "../ffi-client.ts";
 
 // Hand-written validators
 import * as circularDeps from "./validators/circular-deps.ts";
+import * as larouxBoundaries from "./validators/laroux-boundaries.ts";
 import * as modExports from "./validators/mod-exports.ts";
 import * as exportNames from "./validators/export-names.ts";
 import * as docs from "./validators/docs.ts";
@@ -68,6 +69,7 @@ const state: RegistryState = {
 const initializeBuiltinValidators = (): void => {
   // Hand-written validators
   registerValidator(circularDeps.circularDepsValidator);
+  registerValidator(larouxBoundaries.larouxBoundariesValidator);
   registerValidator(modExports.modExportsValidator);
   registerValidator(exportNames.exportNamesValidator);
   registerValidator(docs.docsValidator);
@@ -268,6 +270,7 @@ export const getWorkflowTools = (): readonly WorkflowCompatibleTool[] => {
   // Hand-written validators (no mutations)
   const validators: Validator[] = [
     circularDeps.circularDepsValidator,
+    larouxBoundaries.larouxBoundariesValidator,
     modExports.modExportsValidator,
     exportNames.exportNamesValidator,
     docs.docsValidator,

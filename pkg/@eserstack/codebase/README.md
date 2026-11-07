@@ -124,6 +124,7 @@ npm has accepted the version — cut a new patch instead.
 | `validate-self-imports`        | Detect a package importing its own name        |
 | `validate-runtime-js-apis`     | Detect runtime globals outside `runtime`       |
 | `validate-code-conventions`    | Enforce namespace imports, `??`, no `export *` |
+| `validate-laroux-boundaries`   | Enforce the laroux package import rules        |
 
 Run any tool with `--help` for options:
 

@@ -222,6 +222,34 @@ export const serializeRawResponse = (
 };
 
 /**
+ * The URL of a request, from its target and the host to assume for it.
+ *
+ * A target in origin form is a path, not a relative reference: resolved against
+ * a base URL, `//evil.com/x` would name its own host, and so would `/\evil.com`,
+ * since a backslash reads as a slash in an http URL. It is parsed on a host of
+ * its own, and only its path and query are taken. An absolute-form target keeps
+ * its own host, as RFC 9112 (3.2.2) requires.
+ *
+ * @param target - The request target as the client sent it
+ * @param host - The Host header, or the server's address
+ * @returns The URL
+ * @throws {TypeError} If the host or the target cannot be parsed
+ */
+const toRequestUrl = (target: string, host: string): URL => {
+  const url = new URL(`http://${host}`);
+  if (!target.startsWith("/")) {
+    return new URL(target, url);
+  }
+
+  const parsed = new URL(`http://target.invalid${target}`);
+  url.pathname = parsed.pathname;
+  url.search = parsed.search;
+  url.hash = parsed.hash;
+
+  return url;
+};
+
+/**
  * Builds the fetch `Request` for a Node request.
  *
  * @returns The request, or null when its URL or a header cannot be
@@ -237,9 +265,9 @@ const toRequest = (
   const hasBody = method !== "GET" && method !== "HEAD";
 
   try {
-    const url = new URL(
+    const url = toRequestUrl(
       incoming.url ?? "/",
-      `http://${incoming.headers.host ?? fallbackHost}`,
+      incoming.headers.host ?? fallbackHost,
     );
 
     const forwardedProtocol = forwarded?.protocol ?? null;

@@ -18,7 +18,7 @@ launcher that runs the binary of its `@eserstack/noskills-<platform>`
 dependency, and carries this TypeScript CLI for the commands the binary hands
 over to it.
 
-Adding this package as a dependency (`pnpm add jsr:@eserstack/noskills`) gets
+Adding this package as a dependency (`pnpm add @eserstack/noskills`) gets
 you the modules, not the command: the source package declares no `bin`, which is
 generated at publish time by `scripts/npm-build.ts`. Depend on it when embedding
 the orchestrator in your own program; install the binary when you want to run
@@ -1130,6 +1130,5 @@ Apache-2.0
   the web dashboard for noskills specs and agent tabs
 - [`@eserstack/agents`](https://github.com/eser/stack/tree/main/pkg/@eserstack/agents):
   coding-agent discovery and the read-only git guard the hooks use
-- [JSR package](https://jsr.io/@eserstack/noskills): the API reference generated
-  from source
+- [npm package](https://www.npmjs.com/package/@eserstack/noskills)
 - [eser/stack on GitHub](https://github.com/eser/stack)

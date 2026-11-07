@@ -160,6 +160,5 @@ in step with the guard. noskills builds its agent-session git wrapper this way.
 - [`@eserstack/noskills`](https://github.com/eser/stack/tree/main/pkg/@eserstack/noskills):
   the orchestrator whose hooks use the git guard and whose manager launches
   agents through these adapters
-- [JSR package](https://jsr.io/@eserstack/agents): the API reference generated
-  from source
+- [npm package](https://www.npmjs.com/package/@eserstack/agents)
 - [eser/stack on GitHub](https://github.com/eser/stack)

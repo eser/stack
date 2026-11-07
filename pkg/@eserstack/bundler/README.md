@@ -5,7 +5,7 @@
 > versions stay available but get no updates.
 
 > **eserstack Tool** — [eser/stack on GitHub](https://github.com/eser/stack)
-> **Install:** `pnpm add jsr:@eserstack/bundler`
+> **Install:** `pnpm add @eserstack/bundler`
 
 A bundler abstraction on Rolldown, with CSS processing utilities.
 

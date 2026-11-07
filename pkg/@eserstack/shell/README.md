@@ -5,7 +5,7 @@
 > stay available but get no updates.
 
 > **eserstack Tool** — [eser/stack on GitHub](https://github.com/eser/stack)
-> **Install:** `pnpm add jsr:@eserstack/shell`
+> **Install:** `pnpm add @eserstack/shell`
 
 `@eserstack/shell` is a shell utilities library for building CLI applications.
 Import the package root once and reach every part through its namespace:

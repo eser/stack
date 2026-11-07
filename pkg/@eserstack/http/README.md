@@ -5,7 +5,7 @@
 > available but get no updates.
 
 > **eserstack Library** — [eser/stack on GitHub](https://github.com/eser/stack)
-> **Install:** `pnpm add jsr:@eserstack/http`
+> **Install:** `pnpm add @eserstack/http`
 
 HTTP utilities with security middleware for CORS, CSP, CSRF protection, and rate
 limiting.

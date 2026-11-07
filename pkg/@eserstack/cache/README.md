@@ -5,7 +5,7 @@
 > stay available but get no updates.
 
 > **eserstack Library** — [eser/stack on GitHub](https://github.com/eser/stack)
-> **Install:** `pnpm add jsr:@eserstack/cache`
+> **Install:** `pnpm add @eserstack/cache`
 
 Cross-platform cache management with XDG-compliant directory structure.
 

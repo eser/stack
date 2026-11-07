@@ -5,7 +5,7 @@
 > JSR versions stay available but get no updates.
 
 > **eserstack Library** — [eser/stack on GitHub](https://github.com/eser/stack)
-> **Install:** `pnpm add jsr:@eserstack/collector`
+> **Install:** `pnpm add @eserstack/collector`
 
 Module export collector and manifest generator. Walks a directory tree,
 dynamically imports modules, collects their exports, and generates a typed

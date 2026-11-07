@@ -6,7 +6,7 @@
 
 > **eserstack Foundation** —
 > [eser/stack on GitHub](https://github.com/eser/stack) **Install:**
-> `pnpm add jsr:@eserstack/primitives`
+> `pnpm add @eserstack/primitives`
 
 The type foundation for the eserstack FP ecosystem.
 

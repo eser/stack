@@ -5,7 +5,7 @@
 > JSR versions stay available but get no updates.
 
 > **eserstack Product** · [eser/stack on GitHub](https://github.com/eser/stack)
-> · **Install:** `pnpm add jsr:@eserstack/noskills-web`
+> · **Install:** `pnpm add @eserstack/noskills-web`
 
 `@eserstack/noskills-web` is the browser dashboard that `noskills web` starts.
 One local server on 127.0.0.1 shows the specs of a noskills project, a spec page

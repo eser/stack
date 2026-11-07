@@ -359,6 +359,14 @@ await runtime.http.serve(
 );
 ```
 
+**Paths.** `request.url` keeps the path the client sent, so `GET //evil.com/x`
+has the pathname `//evil.com/x` on the request's own host. Do not pass a pathname
+to `new URL(pathname, base)` or put it in a `Location` header unchecked: both read
+a leading `//` as another host. A target in absolute form
+(`GET http://example.com/x`) names its own host, which replaces `Host`, as RFC
+9112 requires; neither is proof of who the server is, so compare them with the
+hosts you serve when that matters.
+
 Inside a handler, `runtime.http.upgradeWebSocket(request)` accepts a WebSocket
 handshake. Add the socket's listeners, then return `response` from the handler.
 

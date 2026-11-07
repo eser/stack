@@ -1249,3 +1249,230 @@ nodeTest.describe("Node adapter upgrade identity", () => {
     },
   );
 });
+
+nodeTest.describe("Node adapter request target", () => {
+  type Observed = {
+    readonly status: string;
+    readonly url: string | null;
+    readonly port: number;
+  };
+
+  /** Sends `requestText(port)` on a raw socket; what the handler saw for it. */
+  const observe = async (
+    requestText: (port: number) => string,
+    options: Partial<crossRuntime.ServeOptions> = {},
+  ): Promise<Observed> => {
+    const controller = new AbortController();
+    let url: string | null = null;
+
+    const server = await nodeHttp
+      .createNodeHttp()
+      .serve({ port: 0, signal: controller.signal, ...options }, (request) => {
+        url = request.url;
+        return new Response("ok");
+      });
+
+    const client = connectRaw(tcpTarget(server));
+
+    try {
+      client.connection.write(requestText(server.port));
+      const answer = await client.closed;
+
+      return {
+        status: answer.slice(0, answer.indexOf("\r\n")),
+        url,
+        port: server.port,
+      };
+    } finally {
+      client.connection.destroy();
+      controller.abort();
+      await server.finished;
+    }
+  };
+
+  const get = (target: string, host = "test.local"): (() => string) => {
+    return () =>
+      `GET ${target} HTTP/1.1\r\nHost: ${host}\r\nConnection: close\r\n\r\n`;
+  };
+
+  const keptOnHost: readonly (readonly [string, string])[] = [
+    ["//evil.com/x", "http://test.local//evil.com/x"],
+    ["///evil.com/x", "http://test.local///evil.com/x"],
+    ["////evil.com/x", "http://test.local////evil.com/x"],
+    ["//evil.com", "http://test.local//evil.com"],
+    ["//evil.com:8080/x", "http://test.local//evil.com:8080/x"],
+    ["//user@evil.com/x", "http://test.local//user@evil.com/x"],
+    ["//evil.com/x?a=1", "http://test.local//evil.com/x?a=1"],
+    // The URL parser reads a backslash in an http URL as a slash, so this one
+    // takes the same path, and the backslash does not survive it.
+    ["/\\evil.com/x", "http://test.local//evil.com/x"],
+    ["/..//evil.com/x", "http://test.local//evil.com/x"],
+  ];
+
+  for (const [target, expected] of keptOnHost) {
+    nodeTest.it(
+      `keeps the host and the path for ${target}`,
+      TEST_LIMITS,
+      async () => {
+        const { status, url } = await observe(get(target));
+
+        assert.assertEquals(status, "HTTP/1.1 200 OK");
+        assert.assertEquals(url, expected);
+      },
+    );
+  }
+
+  const unchanged: readonly (readonly [string, string])[] = [
+    ["/", "http://test.local/"],
+    ["/a/b", "http://test.local/a/b"],
+    ["/a//b", "http://test.local/a//b"],
+    ["/a///b/", "http://test.local/a///b/"],
+    ["/a/../b", "http://test.local/b"],
+    ["/a/%2F/b", "http://test.local/a/%2F/b"],
+    ["/x?q=1&r=//y", "http://test.local/x?q=1&r=//y"],
+    ["/x?next=http://evil.com/", "http://test.local/x?next=http://evil.com/"],
+    ["/caf%C3%A9", "http://test.local/caf%C3%A9"],
+    ["*", "http://test.local/*"],
+  ];
+
+  for (const [target, expected] of unchanged) {
+    nodeTest.it(`leaves ${target} as it was`, TEST_LIMITS, async () => {
+      const { status, url } = await observe(get(target));
+
+      assert.assertEquals(status, "HTTP/1.1 200 OK");
+      assert.assertEquals(url, expected);
+    });
+  }
+
+  nodeTest.it(
+    "uses the server's address for a double slash without a Host",
+    TEST_LIMITS,
+    async () => {
+      const { url, port } = await observe(
+        () => "GET //evil.com/x HTTP/1.0\r\n\r\n",
+      );
+
+      assert.assertEquals(url, `http://127.0.0.1:${port}//evil.com/x`);
+    },
+  );
+
+  nodeTest.it(
+    "keeps the Host's port for a double slash",
+    TEST_LIMITS,
+    async () => {
+      const { url } = await observe(get("//evil.com/x", "test.local:8080"));
+
+      assert.assertEquals(url, "http://test.local:8080//evil.com/x");
+    },
+  );
+
+  nodeTest.it(
+    "takes only the host from a Host with a path or a query",
+    TEST_LIMITS,
+    async () => {
+      const withPath = await observe(get("/x?a=1", "test.local/base"));
+      const withQuery = await observe(get("/x", "test.local?q=1"));
+
+      assert.assertEquals(withPath.url, "http://test.local/x?a=1");
+      assert.assertEquals(withQuery.url, "http://test.local/x");
+    },
+  );
+
+  nodeTest.it(
+    "answers 400 to a Host with credentials",
+    TEST_LIMITS,
+    async () => {
+      const { status, url } = await observe(
+        get("//evil.com/x", "user@test.local"),
+      );
+
+      assert.assertEquals(status, "HTTP/1.1 400 Bad Request");
+      assert.assertEquals(url, null);
+    },
+  );
+
+  nodeTest.it(
+    "a forwarded host from a trusted proxy still applies to a double slash",
+    TEST_LIMITS,
+    async () => {
+      const { url } = await observe(
+        () =>
+          "GET //evil.com/x HTTP/1.1\r\n" +
+          "Host: test.local\r\n" +
+          "X-Forwarded-Proto: https\r\n" +
+          "X-Forwarded-Host: app.example.com\r\n" +
+          "Connection: close\r\n\r\n",
+        { trustProxy: ["127.0.0.1"] },
+      );
+
+      assert.assertEquals(url, "https://app.example.com//evil.com/x");
+    },
+  );
+
+  nodeTest.it(
+    "keeps the host of a WebSocket handshake with a double slash",
+    TEST_LIMITS,
+    async () => {
+      const http = nodeHttp.createNodeHttp();
+      const controller = new AbortController();
+      const seen: string[] = [];
+
+      const server = await http.serve(
+        { port: 0, signal: controller.signal, shutdownTimeoutMs: 0 },
+        (request) => {
+          const { socket, response } = http.upgradeWebSocket(request);
+          seen.push(request.url, socket.url);
+          return response;
+        },
+      );
+
+      const client = connectRaw(tcpTarget(server));
+
+      try {
+        client.connection.write(handshakeRequest("//evil.com/socket"));
+        await client.received("HTTP/1.1 101 ");
+
+        assert.assertEquals(seen, [
+          "http://test.local//evil.com/socket",
+          "ws://test.local//evil.com/socket",
+        ]);
+      } finally {
+        client.connection.destroy();
+        controller.abort();
+        await server.finished;
+      }
+    },
+  );
+
+  // RFC 9112, 3.2.2: a server takes the host of an absolute-form target and
+  // ignores the Host header. A client that can send this can set Host as well.
+  const absoluteForm: readonly (readonly [string, string])[] = [
+    ["http://evil.com/x", "http://evil.com/x"],
+    ["http://evil.com//a//b?q=1", "http://evil.com//a//b?q=1"],
+    ["https://evil.com/x", "https://evil.com/x"],
+  ];
+
+  for (const [target, expected] of absoluteForm) {
+    nodeTest.it(
+      `takes the host of the absolute-form target ${target}`,
+      TEST_LIMITS,
+      async () => {
+        const { status, url } = await observe(get(target));
+
+        assert.assertEquals(status, "HTTP/1.1 200 OK");
+        assert.assertEquals(url, expected);
+      },
+    );
+  }
+
+  nodeTest.it(
+    "answers 400 to an absolute-form target with credentials",
+    TEST_LIMITS,
+    async () => {
+      const { status, url } = await observe(get("http://u:p@evil.com/x"));
+
+      assert.assertEquals(status, "HTTP/1.1 400 Bad Request");
+      assert.assertEquals(url, null);
+    },
+  );
+});

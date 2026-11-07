@@ -181,6 +181,12 @@ workflows:
       - validate-circular-deps
       # Export sub-paths are kebab-case:
       - validate-export-names
+      # The import rules of the laroux packages (decision-46, decision-53). The
+      # importers of the deprecated packages are listed in
+      # .eser/baselines/laroux-deprecated-importers.json, which only shrinks: a
+      # stale entry fails. The workerd-graph check needs the bundle graph and
+      # runs at build time in laroux-server (TASK-312, TASK-318).
+      - validate-laroux-boundaries
       # Every library's build script, files list, publishConfig.exports and
       # tsconfig.build.json match its exports (TASK-232). The fix command
       # writes them.

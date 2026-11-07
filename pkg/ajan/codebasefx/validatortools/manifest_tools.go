@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/eser/stack/pkg/ajan/codebasefx"
@@ -111,6 +112,11 @@ func treeTools() []workflowfx.WorkflowTool {
 			},
 		},
 		&treeTool{
+			name: "validate-laroux-boundaries",
+			desc: "enforce the laroux package boundaries and the shrinking allowlist of deprecated-package importers",
+			run:  runLarouxBoundaries,
+		},
+		&treeTool{
 			name: "validate-commit-msg",
 			desc: "validate the conventional commit format",
 			run: func(root string, opts map[string]any) ([]workflowfx.WorkflowIssue, map[string]any, error) {
@@ -151,6 +157,44 @@ func treeTools() []workflowfx.WorkflowTool {
 			},
 		},
 	}
+}
+
+// runLarouxBoundaries walks the tree and applies the import rules, with the
+// allowlist named by the "allowlist" option (relative to the root).
+func runLarouxBoundaries(root string, opts map[string]any) ([]workflowfx.WorkflowIssue, map[string]any, error) {
+	exclude, err := stringOption(opts["exclude"])
+	if err != nil {
+		return nil, nil, fmt.Errorf("exclude: %w", err)
+	}
+
+	allowlist, err := codebasefx.ReadLarouxImporterAllowlist(
+		filepath.Join(root, optStr(opts, "allowlist", codebasefx.DefaultLarouxImporterAllowlist)),
+	)
+	if err != nil {
+		return nil, nil, err //nolint:wrapcheck // names the file
+	}
+
+	files, err := codebasefx.WalkSourceFiles(context.Background(), codebasefx.WalkOptions{ //nolint:exhaustruct
+		Root:     root,
+		Exclude:  slices.Concat(exclude, tsDefaultExcludes),
+		GitAware: true,
+	})
+	if err != nil {
+		return nil, nil, fmt.Errorf("walk: %w", err)
+	}
+
+	result, err := codebasefx.CheckLarouxBoundaries(root, allowlist, files)
+	if err != nil {
+		return nil, nil, err //nolint:wrapcheck // names the file
+	}
+
+	issues := make([]workflowfx.WorkflowIssue, 0, len(result.Issues))
+
+	for _, found := range result.Issues {
+		issues = append(issues, workflowfx.WorkflowIssue{Path: found.File, Line: found.Line, Message: found.Message}) //nolint:exhaustruct
+	}
+
+	return issues, map[string]any{"filesChecked": result.FilesChecked}, nil
 }
 
 // stringOption reads a list of strings from a JSON- or YAML-decoded option.

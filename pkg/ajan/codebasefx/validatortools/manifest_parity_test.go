@@ -93,6 +93,10 @@ func TestManifestToolsMatchTheTypeScriptTools(t *testing.T) {
 		{tool: "validate-server-loc", files: map[string]string{"a.txt": "x\n"}, opts: map[string]any{"directory": "pkg/missing"}, fails: []string{"pkg/missing"}},
 		{tool: "validate-error-coverage", files: map[string]string{"a.txt": "x\n"}, opts: map[string]any{"file": "pkg/errors.go", "errorObjects": []any{"NSError"}}, fails: []string{"pkg/errors.go"}},
 		{tool: "validate-eof", files: map[string]string{"node_modules/x/a.txt": "x", "etc/temp/b.txt": "x"}},
+		{tool: "validate-laroux-boundaries", files: map[string]string{"a.ts": "import * as q from \"@tanstack/q\";\n", "b.ts": "export {};\n", "node_modules/x/c.ts": "import \"@tanstack/q\";\n", "etc/temp/d.ts": "import \"@tanstack/q\";\n"}, fails: []string{"@tanstack/q"}},
+		{tool: "validate-laroux-boundaries", files: map[string]string{"a.ts": "import * as q from \"@tanstack/q\";\n"}, opts: map[string]any{"exclude": []any{"a.ts"}}},
+		{tool: "validate-laroux-boundaries", files: map[string]string{"a.ts": "import * as b from \"@eserstack/laroux-react\";\n", ".eser/baselines/laroux-deprecated-importers.json": "{\"@eserstack/laroux-react\": [\"a.ts\"]}\n"}},
+		{tool: "validate-laroux-boundaries", files: map[string]string{"a.ts": "export {};\n", "list.json": "{\"@eserstack/laroux-react\": [\"a.ts\"]}\n"}, opts: map[string]any{"allowlist": "list.json"}, fails: []string{"stale allowlist entry"}},
 		{tool: "validate-filenames", files: map[string]string{"pkg/Makefile.x": "x\n"}, opts: map[string]any{"rules": []any{map[string]any{"directory": "pkg/", "convention": "kebab-case"}}}, fails: []string{"Makefile.x"}},
 	} {
 		t.Run(tc.tool, func(t *testing.T) {

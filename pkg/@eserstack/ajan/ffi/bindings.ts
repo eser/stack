@@ -795,6 +795,12 @@ export const BINDINGS = {
     wasm: "fs",
     async: false,
   } as Call<{ readonly dir?: string }, BridgeAnswer>,
+  codebaseCheckLarouxBoundaries: {
+    kind: "call",
+    blocking: false,
+    wasm: "fs",
+    async: false,
+  } as Call<BridgeRequest, BridgeAnswer>,
   codebaseCheckDocs: {
     kind: "call",
     blocking: false,

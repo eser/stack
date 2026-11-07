@@ -1,0 +1,33 @@
+{
+  "@eserstack/laroux-bundler": [
+    "pkg/@eserstack/laroux-server/commands/build.test.ts",
+    "pkg/@eserstack/laroux-server/commands/build.ts",
+    "pkg/@eserstack/laroux-server/commands/dev.ts",
+    "pkg/@eserstack/laroux-server/commands/serve.ts",
+    "pkg/@eserstack/laroux-server/domain/html-shell.ts",
+    "pkg/@eserstack/laroux-server/domain/rebuild-handler.ts",
+    "pkg/@eserstack/laroux-server/domain/renderer.ts",
+    "pkg/@eserstack/laroux-server/domain/server-modules.test.ts",
+    "pkg/@eserstack/laroux-server/main.test.ts",
+    "pkg/@eserstack/laroux-server/main.ts",
+    "pkg/@eserstack/laroux-server/options.ts",
+    "pkg/@eserstack/laroux-server/runtime/html-shell.test.ts",
+    "pkg/@eserstack/laroux-server/runtime/html-shell.ts",
+    "pkg/@eserstack/laroux-server/runtime/server.ts"
+  ],
+  "@eserstack/laroux-react": [
+    "pkg/@eserstack/laroux-bundler/adapters/react/rsc-client-entry.test.ts",
+    "pkg/@eserstack/laroux-bundler/adapters/runtime-bundler/runtime-bundler.test.ts",
+    "pkg/@eserstack/laroux-bundler/system.test.ts",
+    "pkg/@eserstack/laroux-server/adapters/react/inline-rsc-emitter.ts",
+    "pkg/@eserstack/laroux-server/adapters/react/mod.ts",
+    "pkg/@eserstack/laroux-server/adapters/react/render-app.test.ts",
+    "pkg/@eserstack/laroux-server/adapters/react/render-app.ts",
+    "pkg/@eserstack/laroux-server/adapters/react/rsc-flight-renderer.test.ts",
+    "pkg/@eserstack/laroux-server/adapters/react/rsc-flight-renderer.ts",
+    "pkg/@eserstack/laroux-server/adapters/react/ssr-renderer.test.ts",
+    "pkg/@eserstack/laroux-server/adapters/react/ssr-renderer.ts",
+    "pkg/@eserstack/laroux-server/runtime/path-containment.test.ts",
+    "pkg/@eserstack/laroux-server/runtime/server.test.ts"
+  ]
+}

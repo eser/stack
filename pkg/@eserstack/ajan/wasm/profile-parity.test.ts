@@ -2,7 +2,7 @@
 
 /**
  * The wasi profile answers like the native library (TASK-272): every one of
- * its 44 names is called on both, with the same fixtures, and the answers are
+ * its 45 names is called on both, with the same fixtures, and the answers are
  * compared after handle ids are normalized (the two builds number their
  * handles independently).
  *
@@ -125,6 +125,7 @@ nodeTest.test(
         ["codebaseCheckExportNames", req({ dir: fixture })],
         ["codebaseCheckModExports", req({ dir: fixture })],
         ["codebaseCheckDocs", req({ dir: fixture })],
+        ["codebaseCheckLarouxBoundaries", req({ dir: fixture })],
         [
           "csGenerate",
           req({

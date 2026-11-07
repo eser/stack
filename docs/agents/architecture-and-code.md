@@ -51,3 +51,16 @@ architecture-guidelines: Architectural Decision Records lists; a new one does.
   package sub-path; the resolver rejects a sub-path that the package's
   `package.json` does not export (`ERR_PACKAGE_PATH_NOT_EXPORTED`), and
   `validate-self-imports` reports a package that imports itself by name.
+- `validate-laroux-boundaries` (Go, in `pkg/ajan/codebasefx/laroux_boundaries.go`)
+  runs in the precommit workflow and enforces the import rules of decision-46
+  and decision-53 on the tokens of the shared lexer: `laroux-server/runtime/`
+  never imports `cli/` or `dev/` (nor `cli.ts` and `commands/`, where that code
+  lives today), `@eserstack/bundler` never imports React or a laroux package,
+  `@eserstack/laroux` never imports `@eserstack/bundler` or `laroux-server`, and
+  nothing imports `@tanstack/*`, `@eserstack/laroux-bundler` or
+  `@eserstack/laroux-react`, except the files that
+  `.eser/baselines/laroux-deprecated-importers.json` lists per package. That
+  list only shrinks: an entry whose file no longer imports the package fails the
+  check, and a Go test fails on an entry that is not in the first snapshot
+  (`pkg/ajan/codebasefx/testdata/laroux_deprecated_importers_snapshot.json`).
+  Only direct imports with a literal specifier count, and manifests are not read.

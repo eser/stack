@@ -176,6 +176,12 @@ export const moduleDef: Module = new module.Module({
       category: "Validation",
       load: () => import("./validate-circular-deps.ts"),
     },
+    "validate-laroux-boundaries": {
+      description:
+        "Enforce the laroux package boundaries and the allowlist of deprecated-package importers",
+      category: "Validation",
+      load: () => import("./validate-laroux-boundaries.ts"),
+    },
     "validate-export-names": {
       description: "Validate export naming conventions",
       category: "Validation",

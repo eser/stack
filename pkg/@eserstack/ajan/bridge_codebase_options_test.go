@@ -135,3 +135,42 @@ func TestBridgeCodebaseValidateFiles_MissingRoot(t *testing.T) {
 		t.Errorf("expected no validator results, got %d", len(resp.Results))
 	}
 }
+
+func TestBridgeCodebaseCheckLarouxBoundaries(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	files := map[string]string{
+		"a.ts":      "export {};\nimport * as q from \"@tanstack/q\";\n",
+		"b.ts":      "export {};\n",
+		"list.json": "{\"@eserstack/laroux-react\": [\"b.ts\"]}\n",
+	}
+
+	for name, content := range files {
+		if err := os.WriteFile(filepath.Join(root, name), []byte(content), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	request, err := json.Marshal(map[string]any{"dir": root, "allowlist": "list.json"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var answer codebaseLarouxBoundariesResponse
+	if err := json.Unmarshal([]byte(bridgeCodebaseCheckLarouxBoundaries(string(request))), &answer); err != nil {
+		t.Fatal(err)
+	}
+
+	if answer.FilesChecked != 2 || len(answer.Issues) != 2 {
+		t.Fatalf("answer: %+v", answer)
+	}
+
+	if got := answer.Issues[0]; got.File != "a.ts" || got.Line != 2 || !strings.Contains(got.Message, "@tanstack/q") {
+		t.Errorf("the forbidden import: %+v", got)
+	}
+
+	if got := answer.Issues[1]; got.File != "b.ts" || !strings.Contains(got.Message, "stale allowlist entry") {
+		t.Errorf("the stale entry: %+v", got)
+	}
+}

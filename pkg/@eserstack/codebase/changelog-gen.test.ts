@@ -269,7 +269,101 @@ nodeTest.test("insertIntoChangelog - inserts after [Unreleased]", () => {
   const oldIdx = result.indexOf("## 4.1.1");
   assert.assert(unreleasedIdx < newIdx);
   assert.assert(newIdx < oldIdx);
+
+  // The notes move out of Unreleased, below the generated entries.
+  assert.assert(result.includes("## [Unreleased]\n\n## 4.1.2 - 2025-03-14"));
+  assert.assert(
+    result.indexOf("- new feature") < result.indexOf("- something in progress"),
+  );
+  assert.assert(result.indexOf("- something in progress") < oldIdx);
 });
+
+nodeTest.test(
+  "insertIntoChangelog - moves Migration notes to the end of the section",
+  () => {
+    const existing = `# Changelog
+
+## Unreleased
+
+### Migration
+
+- run the codemod
+
+  \`\`\`bash
+  ## not a heading
+  \`\`\`
+
+## 4.1.1 - 2024-07-16
+
+- old fix
+`;
+
+    const result = changelogGen.insertIntoChangelog(
+      existing,
+      "## 4.1.2 - 2025-03-14\n\n### Fixed\n\n- a fix (abc1234)\n",
+      "4.1.2",
+    );
+
+    assert.assertEquals(
+      result,
+      `# Changelog
+
+## Unreleased
+
+## 4.1.2 - 2025-03-14
+
+### Fixed
+
+- a fix (abc1234)
+
+### Migration
+
+- run the codemod
+
+  \`\`\`bash
+  ## not a heading
+  \`\`\`
+
+## 4.1.1 - 2024-07-16
+
+- old fix
+`,
+    );
+  },
+);
+
+nodeTest.test(
+  "insertIntoChangelog - a re-run keeps moved notes and is idempotent",
+  () => {
+    const section = "## 4.1.2 - 2025-03-14\n\n### Fixed\n\n- new (abc1234)\n";
+    const existing = `# Changelog
+
+## Unreleased
+
+## 4.1.2 - 2025-03-01
+
+### Fixed
+
+- stale (fed4321)
+
+### Migration
+
+- a step
+
+## 4.1.1 - 2024-07-16
+
+- old fix
+`;
+
+    const once = changelogGen.insertIntoChangelog(existing, section, "4.1.2");
+    const twice = changelogGen.insertIntoChangelog(once, section, "4.1.2");
+
+    assert.assert(!once.includes("stale"));
+    assert.assertStringIncludes(once, "- new (abc1234)\n\n### Migration");
+    assert.assertStringIncludes(once, "- a step");
+    assert.assertEquals(twice, once);
+  },
+);
 
 nodeTest.test("insertIntoChangelog - no [Unreleased] section", () => {
   const existing = `# Changelog
@@ -306,7 +400,7 @@ nodeTest.test(
 
 ### Added
 
-- old entry from failed release
+- old entry from failed release (abc1234)
 
 ## 4.1.1 - 2024-07-16
 

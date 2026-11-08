@@ -19,9 +19,10 @@ const reactorTest = (name: string, fn: () => Promise<void>) =>
   nodeTest.test(name, { skip: wasmPath === null }, fn);
 
 /**
- * The 55 names of the wasi profile (TASK-272, logging from TASK-278, HTTP from
+ * The 56 names of the wasi profile (TASK-272, logging from TASK-278, HTTP from
  * TASK-277, cacheResolvePaths, cacheExists, cacheEnsureDir,
- * cryptoHashCombined and the six config dotenv and file names from TASK-267;
+ * cryptoHashCombined, the six config dotenv and file names and formatReadCsv
+ * from TASK-267;
  * the noskills names left it with TASK-258), four of them streams since the
  * dispatcher ABI (TASK-238).
  */
@@ -65,6 +66,7 @@ const PROFILE_NAMES = [
   "formatEncode",
   "formatEncodeDocument",
   "formatList",
+  "formatReadCsv",
   "httpClose",
   "httpCreate",
   "httpRequest",
@@ -84,7 +86,7 @@ const PROFILE_NAMES = [
 ];
 
 reactorTest(
-  "the handshake names the ABI, the profile and its 55 names",
+  "the handshake names the ABI, the profile and its 56 names",
   async () => {
     const host = await reactor.createReactorHost(wasmPath!);
 

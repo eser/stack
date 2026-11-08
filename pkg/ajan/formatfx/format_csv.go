@@ -6,8 +6,8 @@ import (
 	"bytes"
 	"encoding/csv"
 	"fmt"
+	"slices"
 	"sort"
-	"strings"
 )
 
 type csvFmt struct{}
@@ -71,8 +71,22 @@ func (f *csvFmt) WriteItem(data any, opts *FormatOptions) (string, error) {
 
 func (f *csvFmt) WriteEnd(_ *FormatOptions) (string, error) { return "", nil }
 
+// CreateReader reads records with opts.Delimiter (a comma by default). The
+// first record gives the header names unless opts.Headers has some.
 func (f *csvFmt) CreateReader(opts *FormatOptions) FormatReader {
-	return &csvReader{opts: opts}
+	reader := &csvReader{delimiter: ",", state: CSVReadState{}} //nolint:exhaustruct
+
+	if opts != nil {
+		if opts.Delimiter != 0 {
+			reader.delimiter = string(opts.Delimiter)
+		}
+
+		if len(opts.Headers) > 0 {
+			reader.state.Headers = slices.Clone(opts.Headers)
+		}
+	}
+
+	return reader
 }
 
 // sortedMapKeys returns the keys of m sorted alphabetically.
@@ -125,86 +139,32 @@ func toCSVRow(data any, opts *FormatOptions) []string {
 	}
 }
 
+// csvReader is the FormatReader of the CSV format, on ReadCSV. Its items are
+// CSVRow values.
 type csvReader struct {
-	opts    *FormatOptions
-	buf     strings.Builder
-	headers []string // set on first row, reused for subsequent calls
+	delimiter string
+	state     CSVReadState
 }
 
 func (r *csvReader) Push(chunk string) ([]any, error) {
-	r.buf.WriteString(chunk)
-
-	return r.parseComplete()
+	return r.read(chunk, false)
 }
 
 func (r *csvReader) Flush() ([]any, error) {
-	text := r.buf.String()
-	r.buf.Reset()
-
-	if strings.TrimSpace(text) == "" {
-		return nil, nil
-	}
-
-	return r.parseText(text)
+	return r.read("", true)
 }
 
-func (r *csvReader) parseComplete() ([]any, error) {
-	text := r.buf.String()
-	lastNewline := strings.LastIndexByte(text, '\n')
-
-	if lastNewline < 0 {
-		return nil, nil
-	}
-
-	complete := text[:lastNewline+1]
-	remaining := text[lastNewline+1:]
-
-	r.buf.Reset()
-	r.buf.WriteString(remaining)
-
-	return r.parseText(complete)
-}
-
-func (r *csvReader) parseText(text string) ([]any, error) {
-	rd := csv.NewReader(strings.NewReader(text))
-
-	if r.opts != nil && r.opts.Delimiter != 0 {
-		rd.Comma = r.opts.Delimiter
-	}
-
-	records, err := rd.ReadAll()
+func (r *csvReader) read(chunk string, final bool) ([]any, error) {
+	rows, next, err := ReadCSV(r.state, chunk, r.delimiter, final)
 	if err != nil {
 		return nil, newDeserializationError("csv", "failed to deserialize CSV: "+err.Error(), err)
 	}
 
-	if len(records) == 0 {
-		return nil, nil
-	}
+	r.state = next
 
-	// Resolve the header row to use for key mapping.
-	// Priority: already-seen headers > caller-provided opts.Headers > auto-detect from first record.
-	dataStart := 0
-	if r.headers == nil {
-		if r.opts != nil && len(r.opts.Headers) > 0 {
-			// Caller provided headers: first record in text is a data row.
-			r.headers = r.opts.Headers
-		} else {
-			// Auto-detect: treat first record as header row.
-			r.headers = records[0]
-			dataStart = 1
-		}
-	}
-
-	items := make([]any, 0, len(records)-dataStart)
-
-	for _, rec := range records[dataStart:] {
-		row := make(map[string]string, len(r.headers))
-		for i, h := range r.headers {
-			if i < len(rec) {
-				row[h] = rec[i]
-			}
-		}
-		items = append(items, row)
+	items := make([]any, len(rows))
+	for i, row := range rows {
+		items[i] = row
 	}
 
 	return items, nil

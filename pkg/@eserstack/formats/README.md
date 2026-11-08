@@ -8,7 +8,8 @@
 through one API. Each format is a plain object with a writer and a streaming
 reader, kept in a registry you can extend with your own formats. When the
 `@eserstack/ajan` native library is available, `serialize` and `deserialize` use
-its Go encoders and fall back to the TypeScript formats otherwise.
+its Go encoders and fall back to the TypeScript formats otherwise. The CSV
+reader always runs in Go, through the native library or its WASM build.
 
 Install it with `pnpm add @eserstack/formats`.
 
@@ -91,6 +92,12 @@ differs in these cases:
 | TOML arrays               | `[80, 443]`                          | `[ 80, 443 ]`                        |
 | TOML table of tables only | An empty `[a]` header before `[a.b]` | `[a.b]` alone                        |
 | CSV line endings          | `\n`                                 | `\r\n`                               |
+| TOML dates, read          | Strings                              | `TomlDate` objects                   |
+| TOML tables, read         | Plain objects                        | Objects with a `null` prototype      |
+
+Reading YAML `.nan` or `.inf`, or TOML `nan` or `inf`, gives NaN and Infinity
+through the TypeScript formats, which `deserialize` falls back to when the Go
+side cannot answer them.
 
 ## Registry
 
@@ -172,7 +179,8 @@ formats.registerFormat(linesFormat);
 
 `formats.streamLayers` turns a format into a `@eserstack/streams` layer:
 `writerLayer(format)` serializes each chunk, and `readerLayer(format)` parses
-string chunks into items as they arrive.
+string chunks into items as they arrive. A layer calls the format's own writer
+and reader, so `readerLayer("csv")` reads in Go like `csvFormat` does.
 
 ```typescript
 import * as formats from "@eserstack/formats";
@@ -219,6 +227,14 @@ lists the changes in every package.
   indents 2 spaces, TOML whole numbers are integers, and `<`, `>` and `&` are no
   longer escaped, as in the TypeScript formats. Update golden files that compare
   exact text.
+- The CSV reader (`csvFormat.createReader()`, `deserialize` of CSV,
+  `streamLayers.readerLayer("csv")`) runs in Go and needs `@eserstack/ajan`'s
+  native library or its WASM build; without either it throws the bridge's load
+  error. Its items and messages are the same, but the `cause` of its
+  `DeserializationError` is now a plain `Error` with the message instead of a
+  `CsvParseError` or `TypeError`. Through the native library, `deserialize` of
+  CSV now lists keys in header order and trims the header names, as the
+  TypeScript reader did.
 
 ## 🔗 Links
 

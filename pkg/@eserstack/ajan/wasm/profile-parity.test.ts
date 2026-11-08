@@ -2,7 +2,7 @@
 
 /**
  * The wasi profile answers like the native library (TASK-272): every one of
- * its 55 names is called on both, with the same fixtures, and the answers are
+ * its 56 names is called on both, with the same fixtures, and the answers are
  * compared after handle ids are normalized (the two builds number their
  * handles independently).
  *
@@ -110,6 +110,25 @@ nodeTest.test(
           "formatEncodeDocument",
           req({ items: [{ a: 1 }, { a: 2 }], format: "jsonl" }),
         ],
+        [
+          "formatReadCsv",
+          req({
+            chunk: 'b,a,b\n1,"x\n',
+            final: false,
+            delimiter: ",",
+            state: { rest: "", headers: null, records: 0 },
+          }),
+        ],
+        [
+          "formatReadCsv",
+          req({
+            chunk: 'y",2\r\n4,5,6',
+            final: true,
+            delimiter: ",",
+            state: { rest: '1,"x\n', headers: ["b", "a", "b"], records: 1 },
+          }),
+        ],
+        ["formatReadCsv", req({ chunk: 'a"b\n', final: true, state: {} })],
         ["cryptoHash", req({ text: "abc", algorithm: "SHA-256" })],
         [
           "cryptoHashCombined",

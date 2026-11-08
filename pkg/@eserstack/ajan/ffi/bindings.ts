@@ -268,6 +268,17 @@ export interface ConfigDotenvAnswer extends ConfigFailureAnswer {
   readonly ignored?: readonly string[];
 }
 
+/**
+ * What a reader of `formatReadCsv` keeps between chunks: the text of the
+ * record still open, the header names (null until the header row is read) and
+ * the count of records read, blank lines included.
+ */
+export interface FormatCsvState {
+  readonly rest: string;
+  readonly headers: readonly string[] | null;
+  readonly records: number;
+}
+
 // The entry types are written once, as the `as` type of each table entry; the
 // aliases below keep those lines short.
 type Call<Req, Res, Async extends boolean = false> = CallBinding<
@@ -448,6 +459,27 @@ export const BINDINGS = {
       readonly indent?: number;
     },
     ErrorAnswer & { readonly result?: string }
+  >,
+  /**
+   * Reads one chunk of CSV text. The caller keeps `state` between chunks and
+   * sends back the one the last answer gave; `final` ends the input.
+   */
+  formatReadCsv: {
+    kind: "call",
+    blocking: false,
+    wasm: "yes",
+    async: false,
+  } as Call<
+    {
+      readonly chunk: string;
+      readonly final: boolean;
+      readonly delimiter?: string;
+      readonly state: Partial<FormatCsvState>;
+    },
+    ErrorAnswer & {
+      readonly items?: ReadonlyArray<Record<string, string>> | null;
+      readonly state?: FormatCsvState;
+    }
   >,
 
   // Logging (logfx)

@@ -1,0 +1,418 @@
+{
+  "files": {
+    ".env": "SHARED=base\nBASE_ONLY=1\nREF=${SHARED}-$ESER_DOTENV_FIXTURE_HOST\n",
+    ".env.development": "SHARED=development\nDEVELOPMENT_ONLY=1\n",
+    ".env.staging": "SHARED=staging\nSTAGING_ONLY=1\n",
+    ".env.production": "SHARED=production\n",
+    ".env.local": "SHARED=local\nLOCAL_ONLY=1\n1BAD=ignored\n",
+    ".env.staging.local": "SHARED=staging-local\nSTAGING_LOCAL_ONLY=1\n",
+    ".env.test": "SHARED=test\n",
+    ".env.test.local": "TEST_LOCAL_ONLY=1\n"
+  },
+  "cases": [
+    {
+      "name": "without a name the environment is development",
+      "envVars": [
+        "ENV",
+        "APP_ENV",
+        "NODE_ENV"
+      ],
+      "environ": [],
+      "envName": "development",
+      "entries": [
+        [
+          "SHARED",
+          "local"
+        ],
+        [
+          "BASE_ONLY",
+          "1"
+        ],
+        [
+          "REF",
+          "base-"
+        ],
+        [
+          "DEVELOPMENT_ONLY",
+          "1"
+        ],
+        [
+          "LOCAL_ONLY",
+          "1"
+        ]
+      ],
+      "ignored": [
+        "1BAD"
+      ]
+    },
+    {
+      "name": "an envVars variable names the environment",
+      "envVars": [
+        "ENV",
+        "APP_ENV",
+        "NODE_ENV"
+      ],
+      "environ": [
+        [
+          "APP_ENV",
+          "staging"
+        ]
+      ],
+      "envName": "staging",
+      "entries": [
+        [
+          "SHARED",
+          "staging-local"
+        ],
+        [
+          "BASE_ONLY",
+          "1"
+        ],
+        [
+          "REF",
+          "base-"
+        ],
+        [
+          "STAGING_ONLY",
+          "1"
+        ],
+        [
+          "LOCAL_ONLY",
+          "1"
+        ],
+        [
+          "STAGING_LOCAL_ONLY",
+          "1"
+        ]
+      ],
+      "ignored": [
+        "1BAD"
+      ]
+    },
+    {
+      "name": "the first set and non-empty variable names it",
+      "envVars": [
+        "ENV",
+        "APP_ENV",
+        "NODE_ENV"
+      ],
+      "environ": [
+        [
+          "ENV",
+          ""
+        ],
+        [
+          "APP_ENV",
+          "staging"
+        ],
+        [
+          "NODE_ENV",
+          "production"
+        ]
+      ],
+      "envName": "staging",
+      "entries": [
+        [
+          "SHARED",
+          "staging-local"
+        ],
+        [
+          "BASE_ONLY",
+          "1"
+        ],
+        [
+          "REF",
+          "base-"
+        ],
+        [
+          "STAGING_ONLY",
+          "1"
+        ],
+        [
+          "LOCAL_ONLY",
+          "1"
+        ],
+        [
+          "STAGING_LOCAL_ONLY",
+          "1"
+        ]
+      ],
+      "ignored": [
+        "1BAD"
+      ]
+    },
+    {
+      "name": "the env option wins over the variables",
+      "env": "production",
+      "envVars": [
+        "ENV",
+        "APP_ENV",
+        "NODE_ENV"
+      ],
+      "environ": [
+        [
+          "ENV",
+          "staging"
+        ]
+      ],
+      "envName": "production",
+      "entries": [
+        [
+          "SHARED",
+          "local"
+        ],
+        [
+          "BASE_ONLY",
+          "1"
+        ],
+        [
+          "REF",
+          "base-"
+        ],
+        [
+          "LOCAL_ONLY",
+          "1"
+        ]
+      ],
+      "ignored": [
+        "1BAD"
+      ]
+    },
+    {
+      "name": "the test environment skips .env.local",
+      "env": "test",
+      "envVars": [
+        "ENV",
+        "APP_ENV",
+        "NODE_ENV"
+      ],
+      "environ": [],
+      "envName": "test",
+      "entries": [
+        [
+          "SHARED",
+          "test"
+        ],
+        [
+          "BASE_ONLY",
+          "1"
+        ],
+        [
+          "REF",
+          "base-"
+        ],
+        [
+          "TEST_LOCAL_ONLY",
+          "1"
+        ]
+      ]
+    },
+    {
+      "name": "the process environment overrides the files",
+      "env": "staging",
+      "envVars": [
+        "ENV",
+        "APP_ENV",
+        "NODE_ENV"
+      ],
+      "loadProcessEnv": true,
+      "environ": [
+        [
+          "SHARED",
+          "from-process"
+        ],
+        [
+          "PROCESS_ONLY",
+          "1"
+        ],
+        [
+          "ESER_DOTENV_FIXTURE_HOST",
+          "host"
+        ]
+      ],
+      "envName": "staging",
+      "entries": [
+        [
+          "SHARED",
+          "from-process"
+        ],
+        [
+          "BASE_ONLY",
+          "1"
+        ],
+        [
+          "REF",
+          "base-host"
+        ],
+        [
+          "STAGING_ONLY",
+          "1"
+        ],
+        [
+          "LOCAL_ONLY",
+          "1"
+        ],
+        [
+          "STAGING_LOCAL_ONLY",
+          "1"
+        ],
+        [
+          "PROCESS_ONLY",
+          "1"
+        ],
+        [
+          "ESER_DOTENV_FIXTURE_HOST",
+          "host"
+        ]
+      ],
+      "ignored": [
+        "1BAD"
+      ]
+    },
+    {
+      "name": "references resolve against the process environment",
+      "env": "staging",
+      "envVars": [
+        "ENV",
+        "APP_ENV",
+        "NODE_ENV"
+      ],
+      "environ": [
+        [
+          "ESER_DOTENV_FIXTURE_HOST",
+          "host"
+        ]
+      ],
+      "envName": "staging",
+      "entries": [
+        [
+          "SHARED",
+          "staging-local"
+        ],
+        [
+          "BASE_ONLY",
+          "1"
+        ],
+        [
+          "REF",
+          "base-host"
+        ],
+        [
+          "STAGING_ONLY",
+          "1"
+        ],
+        [
+          "LOCAL_ONLY",
+          "1"
+        ],
+        [
+          "STAGING_LOCAL_ONLY",
+          "1"
+        ]
+      ],
+      "ignored": [
+        "1BAD"
+      ]
+    },
+    {
+      "name": "an environment without files of its own",
+      "env": "nofiles",
+      "envVars": [
+        "ENV",
+        "APP_ENV",
+        "NODE_ENV"
+      ],
+      "environ": [],
+      "envName": "nofiles",
+      "entries": [
+        [
+          "SHARED",
+          "local"
+        ],
+        [
+          "BASE_ONLY",
+          "1"
+        ],
+        [
+          "REF",
+          "base-"
+        ],
+        [
+          "LOCAL_ONLY",
+          "1"
+        ]
+      ],
+      "ignored": [
+        "1BAD"
+      ]
+    },
+    {
+      "name": "defaultEnvValue names the environment when no variable is set",
+      "envVars": [
+        "ESER_DOTENV_FIXTURE_UNSET_ENV"
+      ],
+      "defaultEnvValue": "staging",
+      "environ": [],
+      "envName": "staging",
+      "entries": [
+        [
+          "SHARED",
+          "staging-local"
+        ],
+        [
+          "BASE_ONLY",
+          "1"
+        ],
+        [
+          "REF",
+          "base-"
+        ],
+        [
+          "STAGING_ONLY",
+          "1"
+        ],
+        [
+          "LOCAL_ONLY",
+          "1"
+        ],
+        [
+          "STAGING_LOCAL_ONLY",
+          "1"
+        ]
+      ],
+      "ignored": [
+        "1BAD"
+      ]
+    },
+    {
+      "name": "a file over the size limit is refused",
+      "env": "staging",
+      "envVars": [
+        "ENV",
+        "APP_ENV",
+        "NODE_ENV"
+      ],
+      "maxFileSize": 10,
+      "environ": [],
+      "error": {
+        "name": "EnvFileTooLargeError",
+        "file": ".env",
+        "fileSize": 64,
+        "maxSize": 10
+      }
+    },
+    {
+      "name": "a directory without files loads nothing",
+      "dir": "missing",
+      "env": "staging",
+      "envVars": [
+        "ENV",
+        "APP_ENV",
+        "NODE_ENV"
+      ],
+      "environ": [],
+      "envName": "staging",
+      "entries": []
+    }
+  ]
+}

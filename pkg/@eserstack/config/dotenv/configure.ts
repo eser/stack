@@ -32,6 +32,8 @@ export type ConfigureFn<T = EnvVariables> = (
  * @param options - Options for `load()`
  * @returns What `configureFn` returned, or `target` when it returned nothing
  * @throws {EnvFileTooLargeError} When an `.env` file exceeds the size limit
+ * @throws {Error} When the bridge does not load (its load error is the
+ *   `cause`)
  *
  * @example
  * ```typescript

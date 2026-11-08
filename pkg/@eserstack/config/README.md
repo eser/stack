@@ -74,6 +74,16 @@ const vars = await dotenv.load({ baseDir: "./config" });
 console.log(vars.get("PORT"));
 ```
 
+The `.env` parser and loader (`load()`, `parseEnvFromFile()`,
+`parseEnvString()`) and the configuration file loader of
+`@eserstack/config/file` (`locate()`, `getFileFormat()`, `parse()`, `load()`)
+run in Go through the `@eserstack/ajan` bridge (the native library, or its WASM
+build). The synchronous `parseEnvString()` and `getFileFormat()` load the
+bridge on first use, and its WASM build compiles on the calling thread. When
+neither loads, they throw, and the async functions reject, with the bridge's
+load error. On the WASM build, files are read only under the working
+directory.
+
 ### Configuring an options object with environment reader
 
 **Basic usage:**
@@ -129,6 +139,12 @@ lists the changes in every package.
 - dotenv parsing expands a reference to a name that neither the file nor the
   process sets, with no default, to an empty string. Before: `A=x${UNSET}`
   read `xundefined`. After: it reads `x`.
+- file `parse()` and `load()` word JSON and JSONC syntax errors as Go does,
+  with the line and byte column. Before:
+  `Cannot parse JSONC: CommaExpected at line 3, column 3`. After:
+  `syntax error: line 3, column 3: invalid character '"' after object value (expecting ',' or '}')`.
+  The error is still a `ConfigParseError` with a `SyntaxError` cause; match on
+  the class, not the text.
 
 ---
 

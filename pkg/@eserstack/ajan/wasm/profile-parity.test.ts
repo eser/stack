@@ -2,7 +2,7 @@
 
 /**
  * The wasi profile answers like the native library (TASK-272): every one of
- * its 49 names is called on both, with the same fixtures, and the answers are
+ * its 55 names is called on both, with the same fixtures, and the answers are
  * compared after handle ids are normalized (the two builds number their
  * handles independently).
  *
@@ -92,6 +92,10 @@ nodeTest.test(
       await runtime.fs.writeTextFile(`${pkg}/README.md`, "# one\n");
       await runtime.fs.writeTextFile(`${fixture}/config.json`, '{"port":8080}');
       await runtime.fs.writeTextFile(`${fixture}/.env`, "KEY=value\n");
+      await runtime.fs.writeTextFile(
+        `${fixture}/broken.jsonc`,
+        '{"a": 1, // c\n "b": 2 "c": 3}',
+      );
 
       const req = (value: unknown) => JSON.stringify(value);
       const calls: Call[] = [
@@ -140,6 +144,47 @@ nodeTest.test(
           req({ entries: [{ path: "./a.ts", exports: ["x"] }] }),
         ],
         ["configLoad", req({ sources: [`json_file:${fixture}/config.json`] })],
+        // The dotenv names take the host environment from the request: the
+        // WASM build has none of its own.
+        [
+          "configParseDotenv",
+          req({
+            text: "A=1\nB=$A-$HOST:-x\n1X=y\nC='$A'",
+            environ: [["HOST", "h"]],
+          }),
+        ],
+        ["configReadDotenvFile", req({ path: `${fixture}/.env`, environ: [] })],
+        [
+          "configReadDotenvFile",
+          req({ path: `${fixture}/.env`, maxFileSize: 1, environ: [] }),
+        ],
+        [
+          "configLoadDotenv",
+          req({
+            baseDir: fixture,
+            env: "test",
+            envVars: [],
+            defaultEnvValue: "development",
+            loadProcessEnv: true,
+            environ: [["P", "1"]],
+          }),
+        ],
+        [
+          "configLocateFile",
+          req({
+            baseDir: pkg,
+            filenames: ["config.json"],
+            searchParents: true,
+          }),
+        ],
+        ["configFileFormat", req({ path: "a.jsonc" })],
+        ["configFileFormat", req({ path: "dir\\.env", windows: true })],
+        ["configParseFile", req({ path: `${fixture}/config.json` })],
+        ["configParseFile", req({ path: `${pkg}/README.md` })],
+        // A parse error rather than a missing file: both builds answer the
+        // code not_found, but its message carries each system's own words,
+        // which differ in case.
+        ["configParseFile", req({ path: `${fixture}/broken.jsonc` })],
         ["codebaseValidateCommitMsg", req({ message: "feat(x): add y" })],
         ["codebaseValidateCommitMsg", req({ message: "nope" })],
         ["codebaseBumpVersion", req({ current: "1.2.3", command: "minor" })],

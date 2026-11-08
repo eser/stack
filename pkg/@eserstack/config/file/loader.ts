@@ -1,10 +1,20 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
-import * as jsonc from "jsonc-parser";
+/**
+ * The configuration file loader. Go finds the file, picks its format, reads
+ * it and parses JSON and JSONC (`pkg/ajan/configfx`), through the
+ * `@eserstack/ajan` bridge, the native library or its WASM build; the
+ * functions throw or reject with the bridge's load error when neither loads.
+ * YAML and TOML text comes back from Go and is decoded here, with `yaml` and
+ * `smol-toml`.
+ *
+ * @module
+ */
+
 import * as toml from "smol-toml";
 import * as yaml from "yaml";
-import { runtime } from "@eserstack/standards/cross-runtime";
-import * as fileSearch from "./file-search.ts";
+import * as crossRuntime from "@eserstack/standards/cross-runtime";
+import * as ffiFile from "../adapters/ffi/file.ts";
 import * as primitives from "./primitives.ts";
 
 const FileFormatNames: Record<primitives.FileFormat, string> = {
@@ -14,32 +24,6 @@ const FileFormatNames: Record<primitives.FileFormat, string> = {
   [primitives.FileFormats.JsonWithComments]: "JSONC",
   [primitives.FileFormats.Toml]: "TOML",
   [primitives.FileFormats.Yaml]: "YAML",
-};
-
-/**
- * Parses JSON with comments and trailing commas. jsonc-parser recovers from
- * errors and reports them in a list instead of throwing, so the first one is
- * raised here as a SyntaxError, the way JSON.parse fails.
- */
-const parseJsonc = (text: string): unknown => {
-  const errors: jsonc.ParseError[] = [];
-  const value: unknown = jsonc.parse(text, errors, {
-    allowTrailingComma: true,
-    disallowComments: false,
-    allowEmptyContent: false,
-  });
-
-  const first = errors[0];
-  if (first !== undefined) {
-    const before = text.slice(0, first.offset).split("\n");
-    const line = before.length;
-    const column = (before.at(-1)?.length ?? 0) + 1;
-    throw new SyntaxError(
-      `Cannot parse JSONC: ${jsonc.printParseErrorCode(first.error)} at line ${line}, column ${column}`,
-    );
-  }
-
-  return value;
 };
 
 /**
@@ -79,15 +63,15 @@ export class ConfigParseError extends Error {
  * @param filenames - Array of filenames to search for (in priority order)
  * @param searchParents - Whether to search parent directories
  * @returns The path to the first found file, or undefined if not found
+ * @throws {Error} When the bridge does not load (its load error is the
+ *   `cause`)
  */
 export const locate = async (
   baseDir: string,
   filenames: Array<string>,
   searchParents = false,
 ): Promise<string | undefined> => {
-  return await fileSearch.searchFileHierarchy(baseDir, filenames, {
-    searchParents,
-  });
+  return await ffiFile.locateFile(baseDir, filenames, searchParents);
 };
 
 /**
@@ -96,31 +80,11 @@ export const locate = async (
  *
  * @param filepath - The file path
  * @returns The format, or `FileFormats.Unknown` for any other extension
+ * @throws {Error} When the bridge does not load (its load error is the
+ *   `cause`)
  */
 export const getFileFormat = (filepath: string): primitives.FileFormat => {
-  const ext = runtime.path.extname(filepath);
-
-  if (ext === ".json") {
-    return primitives.FileFormats.Json;
-  }
-
-  if (ext === ".jsonc") {
-    return primitives.FileFormats.JsonWithComments;
-  }
-
-  if (ext === ".yaml" || ext === ".yml") {
-    return primitives.FileFormats.Yaml;
-  }
-
-  if (ext === ".toml") {
-    return primitives.FileFormats.Toml;
-  }
-
-  if (ext === ".env") {
-    return primitives.FileFormats.EnvironmentFile;
-  }
-
-  return primitives.FileFormats.Unknown;
+  return ffiFile.fileFormat(filepath) as primitives.FileFormat;
 };
 
 /** The parsed content of a configuration file, with its path and format. */
@@ -140,59 +104,82 @@ export type ParseResult<T> = {
  * @param format - Optional format override (auto-detected from extension if not provided)
  * @returns The parsed content, filepath, and format
  * @throws {ConfigParseError} If the file cannot be parsed in the expected format
+ * @throws {NotFoundError} If the file does not exist
+ * @throws {Error} When the bridge does not load (its load error is the
+ *   `cause`)
  */
 export const parse = async <T>(
   filepath: string,
   format?: primitives.FileFormat,
 ): Promise<ParseResult<T>> => {
-  const formatFinal = format ?? getFileFormat(filepath);
+  const parsed = await ffiFile.parseFile(filepath, format);
 
-  const textContent = await runtime.fs.readTextFile(filepath);
-
-  try {
-    if (formatFinal === primitives.FileFormats.Json) {
-      return {
-        content: JSON.parse(textContent) as T,
-        filepath: filepath,
-        format: formatFinal,
-      };
+  if (!parsed.ok) {
+    if (parsed.code === "not_found") {
+      throw new crossRuntime.NotFoundError(filepath);
     }
 
-    if (formatFinal === primitives.FileFormats.JsonWithComments) {
-      return {
-        content: parseJsonc(textContent) as T,
-        filepath: filepath,
-        format: formatFinal,
-      };
+    if (parsed.code === "permission_denied") {
+      throw new crossRuntime.PermissionDeniedError(filepath, {
+        cause: new Error(parsed.message),
+      });
     }
 
-    if (formatFinal === primitives.FileFormats.Yaml) {
-      return {
-        content: yaml.parse(textContent) as T,
-        filepath: filepath,
-        format: formatFinal,
-      };
+    if (parsed.code === "parse") {
+      throw new ConfigParseError(
+        filepath,
+        parsed.format as primitives.FileFormat,
+        new SyntaxError(parsed.message),
+      );
     }
 
-    if (formatFinal === primitives.FileFormats.Toml) {
-      return {
-        content: toml.parse(textContent) as T,
-        filepath: filepath,
-        format: formatFinal,
-      };
-    }
-
-    return {
-      content: undefined,
-      filepath: filepath,
-      format: primitives.FileFormats.Unknown,
-    };
-  } catch (error) {
-    if (error instanceof Error) {
-      throw new ConfigParseError(filepath, formatFinal, error);
-    }
-    throw new ConfigParseError(filepath, formatFinal, new Error(String(error)));
+    throw new Error(parsed.message);
   }
+
+  const formatFinal = parsed.format as primitives.FileFormat;
+
+  if (
+    formatFinal === primitives.FileFormats.Yaml ||
+    formatFinal === primitives.FileFormats.Toml
+  ) {
+    const text = parsed.text ?? "";
+
+    try {
+      return {
+        content: (formatFinal === primitives.FileFormats.Yaml
+          ? yaml.parse(text)
+          : toml.parse(text)) as T,
+        filepath: filepath,
+        format: formatFinal,
+      };
+    } catch (error) {
+      if (error instanceof Error) {
+        throw new ConfigParseError(filepath, formatFinal, error);
+      }
+      throw new ConfigParseError(
+        filepath,
+        formatFinal,
+        new Error(String(error)),
+      );
+    }
+  }
+
+  if (
+    formatFinal === primitives.FileFormats.Json ||
+    formatFinal === primitives.FileFormats.JsonWithComments
+  ) {
+    return {
+      content: parsed.content as T,
+      filepath: filepath,
+      format: formatFinal,
+    };
+  }
+
+  return {
+    content: undefined,
+    filepath: filepath,
+    format: primitives.FileFormats.Unknown,
+  };
 };
 
 /** The result of `load()`: the same shape as `ParseResult`. */
@@ -210,6 +197,8 @@ export type LoadResult<T> = ParseResult<T>;
  * @returns The parsed content, path and format; all `undefined` or
  *   `FileFormats.Unknown` when no file was found
  * @throws {ConfigParseError} When the file cannot be parsed in its format
+ * @throws {Error} When the bridge does not load (its load error is the
+ *   `cause`)
  *
  * @example
  * ```typescript

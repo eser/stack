@@ -1009,7 +1009,16 @@ export const BINDINGS = {
     blocking: false,
     wasm: "yes",
     async: false,
-  } as Call<BridgeRequest, ErrorAnswer & { readonly source?: string }>,
+  } as Call<
+    {
+      /** One per collected file: its path and the names its exports refer to. */
+      readonly entries: ReadonlyArray<{
+        readonly relPath: string;
+        readonly exports?: readonly string[];
+      }>;
+    },
+    ErrorAnswer & { readonly source?: string }
+  >,
 
   // Parsing (parsingfx)
   parsingTokenize: {

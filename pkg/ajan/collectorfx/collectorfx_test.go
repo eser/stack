@@ -78,46 +78,6 @@ func TestSpecifierToIdentifier_Deduplication(t *testing.T) {
 	}
 }
 
-// --- IsIdentifierStart / IsIdentifierChar ---
-
-func TestIsIdentifierStart(t *testing.T) {
-	t.Parallel()
-
-	valid := []rune{'a', 'z', 'A', 'Z', '_', '$', 'é', 'ñ'}
-	invalid := []rune{'0', '9', '-', ' ', '/', '.', '@'}
-
-	for _, r := range valid {
-		if !collectorfx.IsIdentifierStart(r) {
-			t.Errorf("IsIdentifierStart(%q) = false, want true", r)
-		}
-	}
-
-	for _, r := range invalid {
-		if collectorfx.IsIdentifierStart(r) {
-			t.Errorf("IsIdentifierStart(%q) = true, want false", r)
-		}
-	}
-}
-
-func TestIsIdentifierChar(t *testing.T) {
-	t.Parallel()
-
-	valid := []rune{'a', 'Z', '_', '$', '0', '9'}
-	invalid := []rune{'-', ' ', '/', '.', '@'}
-
-	for _, r := range valid {
-		if !collectorfx.IsIdentifierChar(r) {
-			t.Errorf("IsIdentifierChar(%q) = false, want true", r)
-		}
-	}
-
-	for _, r := range invalid {
-		if collectorfx.IsIdentifierChar(r) {
-			t.Errorf("IsIdentifierChar(%q) = true, want false", r)
-		}
-	}
-}
-
 // --- GenerateManifestSource ---
 
 func TestGenerateManifestSource_Empty(t *testing.T) {
@@ -125,12 +85,8 @@ func TestGenerateManifestSource_Empty(t *testing.T) {
 
 	src := collectorfx.GenerateManifestSource(nil)
 
-	if !strings.Contains(src, "export const manifest") {
-		t.Error("manifest declaration missing from output")
-	}
-
-	if !strings.Contains(src, "exports: [") {
-		t.Error("exports array missing from output")
+	if !strings.Contains(src, "export const manifest = {\n  \"exports\": []\n};\n") {
+		t.Errorf("empty manifest object missing from output:\n%s", src)
 	}
 }
 
@@ -138,21 +94,17 @@ func TestGenerateManifestSource_SingleEntry(t *testing.T) {
 	t.Parallel()
 
 	entries := []collectorfx.ManifestEntry{
-		{RelPath: "routes/index.ts", Exports: []string{"default", "config"}},
+		{RelPath: "routes/index.ts", Exports: []string{"handler", "config"}},
 	}
 
 	src := collectorfx.GenerateManifestSource(entries)
 
-	if !strings.Contains(src, `import * as routes_index from "./routes/index.ts"`) {
+	if !strings.Contains(src, `import * as $$routes_index from "./routes/index.ts";`) {
 		t.Errorf("import statement missing or wrong:\n%s", src)
 	}
 
-	if !strings.Contains(src, `"default"`) || !strings.Contains(src, `"config"`) {
-		t.Errorf("exports missing in manifest:\n%s", src)
-	}
-
-	if !strings.Contains(src, `"routes_index"`) {
-		t.Errorf("identifier missing in manifest entry:\n%s", src)
+	if !strings.Contains(src, "    $$routes_index.config,\n    $$routes_index.handler\n") {
+		t.Errorf("references missing or not sorted:\n%s", src)
 	}
 }
 
@@ -160,42 +112,17 @@ func TestGenerateManifestSource_DeduplicatesIdentifiers(t *testing.T) {
 	t.Parallel()
 
 	entries := []collectorfx.ManifestEntry{
-		{RelPath: "routes/foo.ts", Exports: []string{"default"}},
-		{RelPath: "routes/foo.js", Exports: []string{"default"}}, // same identifier before dedup
+		{RelPath: "routes/foo.ts", Exports: []string{"x"}},
+		{RelPath: "routes/foo.js", Exports: []string{"y"}}, // same identifier before dedup
 	}
 
 	src := collectorfx.GenerateManifestSource(entries)
 
-	if !strings.Contains(src, `routes_foo`) {
+	if !strings.Contains(src, `import * as $$routes_foo from "./routes/foo.ts";`) {
 		t.Errorf("first identifier missing:\n%s", src)
 	}
 
-	if !strings.Contains(src, `routes_foo_1`) {
+	if !strings.Contains(src, `import * as $$routes_foo_1 from "./routes/foo.js";`) {
 		t.Errorf("deduplicated identifier missing:\n%s", src)
-	}
-}
-
-func TestGenerateManifestSource_ValidTypeScript(t *testing.T) {
-	t.Parallel()
-
-	entries := []collectorfx.ManifestEntry{
-		{RelPath: "routes/[id].ts", Exports: []string{"default"}},
-		{RelPath: "routes/404.ts", Exports: nil},
-	}
-
-	src := collectorfx.GenerateManifestSource(entries)
-
-	// Both entries should appear
-	if !strings.Contains(src, "routes_id") {
-		t.Errorf("dynamic route identifier missing:\n%s", src)
-	}
-
-	if !strings.Contains(src, "_404") {
-		t.Errorf("numeric identifier missing:\n%s", src)
-	}
-
-	// Must end with `as const;`
-	if !strings.HasSuffix(strings.TrimSpace(src), "} as const;") {
-		t.Errorf("manifest must end with `} as const;`:\n%s", src)
 	}
 }

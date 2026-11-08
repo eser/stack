@@ -8,154 +8,69 @@
 
 import * as crossRuntime from "@eserstack/standards/cross-runtime";
 import * as logger from "@eserstack/logging/logger";
-import * as validatorIdentifier from "./validator-identifier/mod.ts";
 import * as collector from "./collector.ts";
 import * as ffiClient from "./ffi-client.ts";
 
-const IMPORT_PREFIX = "$$";
-const PLACEHOLDER_PREFIX = `##!!//__`;
-const PLACEHOLDER_SUFFIX = "__//!!##";
-
 /**
- * Convert a file path to an import specifier.
- * Normalizes to POSIX format and ensures ./ prefix for relative imports.
+ * Creates a JavaScript identifier for a project-relative specifier that is not
+ * in `used`, and adds it to `used`.
+ *
+ * Go answers it (`pkg/ajan/collectorfx`) through the `@eserstack/ajan`
+ * bridge, which loads synchronously on first use.
+ *
+ * @throws {Error} When the bridge does not load (its load error is the
+ *   `cause`) or Go refuses the request
  */
-const toImportSpecifier = (file: string) => {
-  const specifier = crossRuntime.toPosix(
-    crossRuntime.runtime.path.normalize(file),
-  );
-
-  if (!specifier.startsWith(".")) {
-    return `./${specifier}`;
-  }
-
-  return specifier;
-};
-
-// Create a valid JS identifier out of the project relative specifier.
 export const specifierToIdentifier = (
   specifier: string,
   used: Set<string>,
 ): string => {
-  const lib = ffiClient.getLib();
+  const answer = ffiClient
+    .requireLibSync()
+    .call("collectorSpecifierToIdentifier", { specifier, used: [...used] });
 
-  if (lib !== null) {
-    const result = lib.call("collectorSpecifierToIdentifier", {
-      specifier,
-      used: [...used],
-    });
-    if (!result.error && result.identifier !== undefined) {
-      used.add(result.identifier);
-      return result.identifier;
-    }
+  if (answer.error !== undefined) {
+    throw new Error(answer.error);
   }
 
-  // Fallback: TS implementation
-  const ext = crossRuntime.runtime.path.extname(specifier);
-  const spec = ext ? specifier.slice(0, -ext.length) : specifier;
+  const identifier = answer.identifier ?? "";
+  used.add(identifier);
 
-  let ident = "";
-  for (let i = 0; i < spec.length; i++) {
-    const char = spec.charCodeAt(i);
-    if (i === 0 && !validatorIdentifier.isIdentifierStart(char)) {
-      ident += "_";
-      if (validatorIdentifier.isIdentifierChar(char)) {
-        ident += spec[i];
-      }
-    } else if (!validatorIdentifier.isIdentifierChar(char)) {
-      if (ident[ident.length - 1] !== "_") {
-        ident += "_";
-      }
-    } else if (ident[ident.length - 1] !== "_" || spec[i] !== "_") {
-      ident += spec[i];
-    }
-  }
-
-  if (used.has(ident)) {
-    let check = ident;
-    let i = 1;
-
-    while (used.has(check)) {
-      check = `${ident}_${i++}`;
-    }
-
-    ident = check;
-  }
-
-  used.add(ident);
-
-  return ident;
+  return identifier;
 };
 
-const getSortFn = () => {
-  const naturalCollator = new Intl.Collator(undefined, { numeric: true });
-  return naturalCollator.compare;
-};
+/** The name a manifest refers to for one export: the name of its value. */
+const referenceNameOf = (value: unknown): string =>
+  `${(value as { name: string }).name}`;
 
-const placeholder = (text: string) => {
-  return `${PLACEHOLDER_PREFIX}${text}${PLACEHOLDER_SUFFIX}`;
-};
-
+/**
+ * Writes the source of a manifest module for a collection: one namespace
+ * import per file and a `manifest` object that refers to each export by the
+ * name of its value.
+ *
+ * Go writes it (`pkg/ajan/collectorfx`) through the `@eserstack/ajan` bridge.
+ * The source is not formatted.
+ *
+ * @throws {Error} When the bridge does not load (its load error is the
+ *   `cause`) or Go refuses the request
+ */
 export const writeManifestToString = async (
   collection: Array<[string, Array<[string, unknown]>]>,
 ): Promise<string> => {
-  await ffiClient.ensureLib();
-  const lib = ffiClient.getLib();
+  const lib = await ffiClient.requireLib();
 
-  if (lib !== null) {
-    const entries = collection.map(([relPath, exports]) => ({
+  const answer = lib.call("collectorGenerateManifest", {
+    entries: collection.map(([relPath, exports]) => ({
       relPath,
-      exports: exports.map(([name]) => name),
-    }));
-    const result = lib.call("collectorGenerateManifest", { entries });
-    if (!result.error && result.source !== undefined) {
-      return result.source;
-    }
+      exports: exports.map(([, value]) => referenceNameOf(value)),
+    })),
+  });
+
+  if (answer.error !== undefined) {
+    throw new Error(answer.error);
   }
 
-  // Fallback: TS manifest generation
-  const sortFn = getSortFn();
-  const used = new Set<string>();
-  const imports: Array<string> = [];
-  const manifest = {
-    exports: [] as Array<string>,
-  };
-
-  for (const [file, exports] of collection) {
-    const specifier = toImportSpecifier(file);
-    const identifier = specifierToIdentifier(file, used);
-
-    imports.push(
-      `import * as ${IMPORT_PREFIX}${identifier} from "${specifier}";`,
-    );
-
-    const ref = (target: unknown) => {
-      const name = (target as { name: string }).name;
-      return placeholder(`${IMPORT_PREFIX}${identifier}.${name}`);
-    };
-
-    for (const [, moduleFn] of exports) {
-      manifest.exports.push(ref(moduleFn));
-    }
-  }
-
-  imports.sort(sortFn);
-  const importsSerialized = imports.join("\n");
-
-  manifest.exports.sort(sortFn);
-  const manifestSerialized = JSON.stringify(manifest, null, 2)
-    .replaceAll(`"${PLACEHOLDER_PREFIX}`, "")
-    .replaceAll(`${PLACEHOLDER_SUFFIX}"`, "");
-
-  const output = `// This file is generated by @eserstack/collector. Your changes might be overwritten.
-
-${importsSerialized}
-
-export const manifest = ${manifestSerialized};
-`;
-
-  // Unformatted, as the Go generator returns it.
-  return output;
+  return answer.source ?? "";
 };
 
 export const buildManifest = async (

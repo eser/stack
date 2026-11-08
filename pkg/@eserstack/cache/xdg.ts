@@ -6,6 +6,11 @@
  * Provides cross-platform directory resolution following XDG conventions on Linux
  * and platform-specific conventions on macOS and Windows.
  *
+ * Go owns the rules (`pkg/ajan/cachefx`): every function asks it through the
+ * `@eserstack/ajan` bridge, which loads synchronously on first use, and throws
+ * the bridge's load error when neither the native library nor its WASM build
+ * loads.
+ *
  * @example
  * ```typescript
  * import * as xdg from "@eserstack/cache/xdg";
@@ -22,10 +27,8 @@
  * @module
  */
 
-import * as standardsCrossRuntime from "@eserstack/standards/cross-runtime";
 import type { AppIdentifier } from "./primitives.ts";
-
-const runtime = standardsCrossRuntime.runtime;
+import * as host from "./host.ts";
 
 /**
  * Gets the XDG cache home directory.
@@ -36,31 +39,9 @@ const runtime = standardsCrossRuntime.runtime;
  * - Windows: `%LOCALAPPDATA%` or `~/AppData/Local`
  *
  * @returns Absolute path to cache home directory
+ * @throws {Error} When the bridge does not load (its load error is the `cause`)
  */
-export const getXdgCacheHome = (): string => {
-  const platform = standardsCrossRuntime.getPlatform();
-  const homedir = standardsCrossRuntime.getHomedir();
-
-  if (platform === "darwin") {
-    return runtime.path.join(homedir, "Library", "Caches");
-  }
-
-  if (platform === "windows") {
-    const localAppData = runtime.env.get("LOCALAPPDATA");
-    if (localAppData) {
-      return localAppData;
-    }
-    return runtime.path.join(homedir, "AppData", "Local");
-  }
-
-  // Linux/Unix: Use XDG_CACHE_HOME or default
-  const xdgCacheHome = runtime.env.get("XDG_CACHE_HOME");
-  if (xdgCacheHome) {
-    return xdgCacheHome;
-  }
-
-  return runtime.path.join(homedir, ".cache");
-};
+export const getXdgCacheHome = (): string => host.resolvePaths({}).cacheHome;
 
 /**
  * Gets the XDG data home directory.
@@ -71,31 +52,9 @@ export const getXdgCacheHome = (): string => {
  * - Windows: `%LOCALAPPDATA%` or `~/AppData/Local`
  *
  * @returns Absolute path to data home directory
+ * @throws {Error} When the bridge does not load (its load error is the `cause`)
  */
-export const getXdgDataHome = (): string => {
-  const platform = standardsCrossRuntime.getPlatform();
-  const homedir = standardsCrossRuntime.getHomedir();
-
-  if (platform === "darwin") {
-    return runtime.path.join(homedir, "Library", "Application Support");
-  }
-
-  if (platform === "windows") {
-    const localAppData = runtime.env.get("LOCALAPPDATA");
-    if (localAppData) {
-      return localAppData;
-    }
-    return runtime.path.join(homedir, "AppData", "Local");
-  }
-
-  // Linux/Unix: Use XDG_DATA_HOME or default
-  const xdgDataHome = runtime.env.get("XDG_DATA_HOME");
-  if (xdgDataHome) {
-    return xdgDataHome;
-  }
-
-  return runtime.path.join(homedir, ".local", "share");
-};
+export const getXdgDataHome = (): string => host.resolvePaths({}).dataHome;
 
 /**
  * Gets the XDG config home directory.
@@ -106,31 +65,9 @@ export const getXdgDataHome = (): string => {
  * - Windows: `%APPDATA%` or `~/AppData/Roaming`
  *
  * @returns Absolute path to config home directory
+ * @throws {Error} When the bridge does not load (its load error is the `cause`)
  */
-export const getXdgConfigHome = (): string => {
-  const platform = standardsCrossRuntime.getPlatform();
-  const homedir = standardsCrossRuntime.getHomedir();
-
-  if (platform === "darwin") {
-    return runtime.path.join(homedir, "Library", "Preferences");
-  }
-
-  if (platform === "windows") {
-    const appData = runtime.env.get("APPDATA");
-    if (appData) {
-      return appData;
-    }
-    return runtime.path.join(homedir, "AppData", "Roaming");
-  }
-
-  // Linux/Unix: Use XDG_CONFIG_HOME or default
-  const xdgConfigHome = runtime.env.get("XDG_CONFIG_HOME");
-  if (xdgConfigHome) {
-    return xdgConfigHome;
-  }
-
-  return runtime.path.join(homedir, ".config");
-};
+export const getXdgConfigHome = (): string => host.resolvePaths({}).configHome;
 
 /**
  * Gets the application-specific cache directory.
@@ -141,6 +78,7 @@ export const getXdgConfigHome = (): string => {
  *
  * @param app - Application identifier
  * @returns Absolute path to application cache directory
+ * @throws {Error} When the bridge does not load (its load error is the `cause`)
  *
  * @example
  * ```typescript
@@ -153,15 +91,8 @@ export const getXdgConfigHome = (): string => {
  * // => ~/.cache/my-cli
  * ```
  */
-export const getAppCacheDir = (app: AppIdentifier): string => {
-  const cacheHome = getXdgCacheHome();
-
-  if (app.org) {
-    return runtime.path.join(cacheHome, app.org, app.name);
-  }
-
-  return runtime.path.join(cacheHome, app.name);
-};
+export const getAppCacheDir = (app: AppIdentifier): string =>
+  host.resolveAppPaths({ app }).appDir;
 
 /**
  * Gets a versioned path within the application cache.
@@ -172,6 +103,7 @@ export const getAppCacheDir = (app: AppIdentifier): string => {
  * @param version - Version string (e.g., "1.0.0" or "v1.0.0")
  * @param name - Name of the cached item
  * @returns Absolute path to the versioned cache location
+ * @throws {Error} When the bridge does not load (its load error is the `cause`)
  *
  * @example
  * ```typescript
@@ -186,11 +118,4 @@ export const getVersionedCachePath = (
   app: AppIdentifier,
   version: string,
   name: string,
-): string => {
-  const appCacheDir = getAppCacheDir(app);
-
-  // Normalize version to always have 'v' prefix
-  const normalizedVersion = version.startsWith("v") ? version : `v${version}`;
-
-  return runtime.path.join(appCacheDir, normalizedVersion, name);
-};
+): string => host.resolveAppPaths({ app, version, item: name }).versionedPath;

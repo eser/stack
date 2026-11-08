@@ -79,12 +79,12 @@ Creates a cache manager instance.
 | `remove(path)`                    | Remove a cached item                 |
 | `clear()`                         | Clear the entire cache               |
 
-`exists()`, `ensureDir()`, `list()`, `remove()` and `clear()` run in Go through
-the `@eserstack/ajan` bridge (the native library, or its WASM build) and reject
-with the bridge's load error when neither loads. `exists()`, `ensureDir()` and
-`remove()` take a path relative to the cache directory or an absolute path.
-`getCacheDir()`, `getVersionedPath()` and the XDG functions work without the
-bridge.
+Every method and the XDG functions run in Go through the `@eserstack/ajan`
+bridge (the native library, or its WASM build). The synchronous ones load the
+bridge on first use, and its WASM build compiles on the calling thread. When
+neither loads, they throw, and the async methods reject, with the bridge's load
+error. `exists()`, `ensureDir()` and `remove()` take a path relative to the
+cache directory or an absolute path.
 
 ---
 

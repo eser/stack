@@ -18,6 +18,19 @@
     "versionedPath": "/Users/user/Library/Caches/my-cli/v2.0.0/data.json"
   },
   {
+    "name": "windows puts the app under LOCALAPPDATA",
+    "host": {
+      "platform": "windows",
+      "home": "/Users/user",
+      "env": { "LOCALAPPDATA": "/AppData/Local" }
+    },
+    "app": { "org": "eser", "name": "my-cli" },
+    "version": "1.0.0",
+    "item": "binary",
+    "appDir": "/AppData/Local/eser/my-cli",
+    "versionedPath": "/AppData/Local/eser/my-cli/v1.0.0/binary"
+  },
+  {
     "name": "a base directory replaces the cache home",
     "host": {
       "platform": "linux",

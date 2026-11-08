@@ -13,4 +13,5 @@ export {
   getLib,
   getLoadError,
   requireLib,
+  requireLibSync,
 } from "@eserstack/ajan/ffi/client";

@@ -4,9 +4,9 @@
  * Cache manager implementation.
  *
  * Provides versioned cache storage with XDG-compliant directory structure.
- * Delegates the filesystem operations to Go (`pkg/ajan/cachefx`) through the
- * `@eserstack/ajan` bridge; without the bridge they reject with its load
- * error.
+ * Delegates the path resolution and the filesystem operations to Go
+ * (`pkg/ajan/cachefx`) through the `@eserstack/ajan` bridge; without the
+ * bridge they throw or reject with its load error.
  *
  * @example
  * ```typescript
@@ -32,13 +32,11 @@
  * @module
  */
 
-import { runtime } from "@eserstack/standards/cross-runtime";
 import type {
   CacheEntry,
   CacheManager,
   CacheManagerOptions,
 } from "./primitives.ts";
-import * as xdg from "./xdg.ts";
 import * as ffiClient from "./ffi-client.ts";
 import * as host from "./host.ts";
 
@@ -86,27 +84,13 @@ export const createCacheManager = (
     return _handlePromise;
   };
 
-  // Sync methods: path computation stays in TS until the bridge can serve a
-  // synchronous call before it has loaded (WIRING.md, "Not moved yet").
-  const getCacheDir = (): string => {
-    if (baseDir) {
-      if (app.org) {
-        return runtime.path.join(baseDir, app.org, app.name);
-      }
-      return runtime.path.join(baseDir, app.name);
-    }
-    return xdg.getAppCacheDir(app);
-  };
+  // Sync methods: Go resolves the paths through the bridge, which loads
+  // synchronously on first use.
+  const getCacheDir = (): string =>
+    host.resolveAppPaths({ app, baseDir }).appDir;
 
-  const getVersionedPath = (version: string, name: string): string => {
-    if (baseDir) {
-      const normalizedVersion = version.startsWith("v")
-        ? version
-        : `v${version}`;
-      return runtime.path.join(getCacheDir(), normalizedVersion, name);
-    }
-    return xdg.getVersionedCachePath(app, version, name);
-  };
+  const getVersionedPath = (version: string, name: string): string =>
+    host.resolveAppPaths({ app, baseDir, version, item: name }).versionedPath;
 
   // Go resolves a relative path against the cache directory.
   const exists = async (path: string): Promise<boolean> => {

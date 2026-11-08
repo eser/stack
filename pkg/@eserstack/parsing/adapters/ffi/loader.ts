@@ -18,7 +18,8 @@ const mapErrorCode = (msg: string): string => {
 
 /**
  * A `Loader` that runs the Go tokenizer. It throws a `ParsingError` with
- * `PARSING_TOKENIZE_FAILED` when the library is not available.
+ * `PARSING_TOKENIZE_FAILED` when the library is not available, with the
+ * bridge's load error as `cause`.
  */
 export const ffiLoader: Loader = {
   tokenize: async (input: TokenizeInput): Promise<FfiToken[]> => {
@@ -34,6 +35,7 @@ export const ffiLoader: Loader = {
           new errors.ParsingError(
             "native library unavailable",
             errors.PARSING_TOKENIZE_FAILED,
+            client.getLoadError() ?? undefined,
           ),
         onError: (msg) => new errors.ParsingError(msg, mapErrorCode(msg)),
       },
@@ -50,6 +52,7 @@ export const ffiLoader: Loader = {
           new errors.ParsingError(
             "native library unavailable",
             errors.PARSING_TOKENIZE_FAILED,
+            client.getLoadError() ?? undefined,
           ),
         onError: (msg) =>
           new errors.ParsingError(msg, errors.PARSING_TOKENIZE_FAILED),

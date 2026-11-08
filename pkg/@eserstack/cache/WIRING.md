@@ -25,45 +25,40 @@ TypeScript, for the reason given.
 | `CacheManager.close`            | Go    | `cacheClose`                                                                    |
 | `CacheManager.exists`           | moved | `cacheExists` (`Manager.Exists`)                                                |
 | `CacheManager.ensureDir`        | moved | `cacheEnsureDir` (`Manager.EnsureDir`)                                          |
-| `CacheManager.getCacheDir`      | TS    | Pending: synchronous, see "Not moved yet"; Go side ready (`cacheResolvePaths`)  |
-| `CacheManager.getVersionedPath` | TS    | Pending: synchronous, see "Not moved yet"; Go side ready (`cacheResolvePaths`)  |
-| `getXdgCacheHome`               | TS    | Pending: synchronous, see "Not moved yet"; Go side ready (`cacheResolvePaths`)  |
-| `getXdgDataHome`                | TS    | Pending: synchronous, see "Not moved yet"; Go side ready (`cacheResolvePaths`)  |
-| `getXdgConfigHome`              | TS    | Pending: synchronous, see "Not moved yet"; Go side ready (`cacheResolvePaths`)  |
-| `getAppCacheDir`                | TS    | Pending: synchronous, see "Not moved yet"; Go side ready (`cacheResolvePaths`)  |
-| `getVersionedCachePath`         | TS    | Pending: synchronous, see "Not moved yet"; Go side ready (`cacheResolvePaths`)  |
+| `CacheManager.getCacheDir`      | moved | `cacheResolvePaths` (`AppDir`), synchronously                                   |
+| `CacheManager.getVersionedPath` | moved | `cacheResolvePaths` (`VersionedPath`), synchronously                            |
+| `getXdgCacheHome`               | moved | `cacheResolvePaths` (`Host.CacheHome`), synchronously                           |
+| `getXdgDataHome`                | moved | `cacheResolvePaths` (`Host.DataHome`), synchronously                            |
+| `getXdgConfigHome`              | moved | `cacheResolvePaths` (`Host.ConfigHome`), synchronously                          |
+| `getAppCacheDir`                | moved | `cacheResolvePaths` (`AppDir`), synchronously                                   |
+| `getVersionedCachePath`         | moved | `cacheResolvePaths` (`VersionedPath`), synchronously                            |
 
 ### Kept fallbacks
 
 None. The package has no browser code, and laroux does not import it (no
 package in the repository does), so nothing here needs to run without the
-bridge. With `ESER_AJAN=disabled`, every Go and moved row rejects with the
-bridge's load error (`eser-ajan native library unavailable: ...`, with the load
-failure as `cause`); `bridge.test.ts` checks this in a child process.
+bridge. With `ESER_AJAN=disabled`, every Go and moved row throws (the
+synchronous ones) or rejects with the bridge's load error (`eser-ajan native
+library unavailable: ...`, with the load failure as `cause`); `bridge.test.ts`
+checks all twelve in a child process.
 
-### Not moved yet
+### Synchronous exports
 
-The seven pending rows return a `string` synchronously, but the bridge loads
-asynchronously (`ensureLib()` awaits a dynamic import of `node:ffi` or a
-`WebAssembly.compile`), and top-level `await` is banned by lint and by
-design-principles. Delegating them would make them throw until something in
-the process had awaited the load. Moving them needs one of these:
-
-- a synchronous loader in `@eserstack/ajan`, so that `requireLibSync()` can
-  open the library on first use;
-- an exported async readiness function in `@eserstack/cache`, which the
-  synchronous functions then require;
-- or keeping them in TypeScript as thin adapters.
-
-The Go side is in place: `Host.CacheHome`, `DataHome`, `ConfigHome`, `AppDir`
-and `VersionedPath` follow the TypeScript rules, `xdg_homes.json` and
-`app_paths.json` pin them, and `cacheResolvePaths` serves them on both
-backends.
+The seven `cacheResolvePaths` rows return a `string` synchronously. They reach
+the bridge through `requireLibSync()` of `@eserstack/ajan/ffi/client`, which
+loads the library with `loadEserAjanSync()` on first use: native first, then
+the WASM build, which compiles on the calling thread (the ajan README gives
+the timings). Each call sends the host facts (`host.ts`), so both backends
+resolve the same directories. An app without a name has no app paths: the
+functions throw `app.name is required`, as `cacheCreate` does, where the
+TypeScript code before TASK-267 joined the empty name.
 
 ### Fixtures
 
 `pkg/ajan/cachefx/testdata/` holds the cases both sides run:
-`fixtures_test.go` in Go, and `bridge.test.ts` here through `EserAjanCall`.
+`fixtures_test.go` in Go, and `bridge.test.ts` here through `EserAjanCall`,
+both on `cacheResolvePaths` directly with each case's host and on the public
+functions in a child process that runs as each case's host for this platform.
 `pkg/@eserstack/ajan/wasm/profile-parity.test.ts` calls every cache name on
 the WASM reactor and on the native library and compares the answers.
 

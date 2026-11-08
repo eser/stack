@@ -1,0 +1,83 @@
+[
+  {
+    "name": "linux uses the defaults under the home directory",
+    "host": { "platform": "linux", "home": "/home/user", "env": {} },
+    "cacheHome": "/home/user/.cache",
+    "dataHome": "/home/user/.local/share",
+    "configHome": "/home/user/.config"
+  },
+  {
+    "name": "linux reads the XDG variables",
+    "host": {
+      "platform": "linux",
+      "home": "/home/user",
+      "env": {
+        "XDG_CACHE_HOME": "/xdg/cache",
+        "XDG_DATA_HOME": "/xdg/data",
+        "XDG_CONFIG_HOME": "/xdg/config"
+      }
+    },
+    "cacheHome": "/xdg/cache",
+    "dataHome": "/xdg/data",
+    "configHome": "/xdg/config"
+  },
+  {
+    "name": "an empty XDG variable counts as unset",
+    "host": {
+      "platform": "linux",
+      "home": "/home/user",
+      "env": { "XDG_CACHE_HOME": "", "XDG_DATA_HOME": "", "XDG_CONFIG_HOME": "" }
+    },
+    "cacheHome": "/home/user/.cache",
+    "dataHome": "/home/user/.local/share",
+    "configHome": "/home/user/.config"
+  },
+  {
+    "name": "other unix systems follow the XDG rules",
+    "host": {
+      "platform": "freebsd",
+      "home": "/usr/home/user",
+      "env": { "XDG_CACHE_HOME": "/xdg/cache" }
+    },
+    "cacheHome": "/xdg/cache",
+    "dataHome": "/usr/home/user/.local/share",
+    "configHome": "/usr/home/user/.config"
+  },
+  {
+    "name": "macOS uses ~/Library and ignores the XDG variables",
+    "host": {
+      "platform": "darwin",
+      "home": "/Users/user",
+      "env": {
+        "XDG_CACHE_HOME": "/xdg/cache",
+        "XDG_DATA_HOME": "/xdg/data",
+        "XDG_CONFIG_HOME": "/xdg/config"
+      }
+    },
+    "cacheHome": "/Users/user/Library/Caches",
+    "dataHome": "/Users/user/Library/Application Support",
+    "configHome": "/Users/user/Library/Preferences"
+  },
+  {
+    "name": "windows reads LOCALAPPDATA and APPDATA and ignores the XDG variables",
+    "host": {
+      "platform": "windows",
+      "home": "/Users/user",
+      "env": {
+        "LOCALAPPDATA": "/AppData/Local",
+        "APPDATA": "/AppData/Roaming",
+        "XDG_CACHE_HOME": "/xdg/cache"
+      }
+    },
+    "cacheHome": "/AppData/Local",
+    "dataHome": "/AppData/Local",
+    "configHome": "/AppData/Roaming"
+  },
+  {
+    "name": "windows falls back to ~/AppData",
+    "host": { "platform": "windows", "home": "/Users/user", "env": {} },
+    "cacheHome": "/Users/user/AppData/Local",
+    "dataHome": "/Users/user/AppData/Local",
+    "configHome": "/Users/user/AppData/Roaming"
+  }
+]

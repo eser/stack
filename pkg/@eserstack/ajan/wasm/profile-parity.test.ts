@@ -2,7 +2,7 @@
 
 /**
  * The wasi profile answers like the native library (TASK-272): every one of
- * its 45 names is called on both, with the same fixtures, and the answers are
+ * its 48 names is called on both, with the same fixtures, and the answers are
  * compared after handle ids are normalized (the two builds number their
  * handles independently).
  *
@@ -107,6 +107,21 @@ nodeTest.test(
           req({ items: [{ a: 1 }, { a: 2 }], format: "jsonl" }),
         ],
         ["cryptoHash", req({ text: "abc", algorithm: "SHA-256" })],
+        // The host facts are explicit: the WASM build has neither the
+        // process's home nor its environment.
+        [
+          "cacheResolvePaths",
+          req({
+            host: {
+              platform: "windows",
+              home: "/home/parity",
+              env: { APPDATA: "/roaming" },
+            },
+            app: { org: "eser", name: "parity" },
+            version: "1.0.0",
+            item: "f",
+          }),
+        ],
         ["parsingTokenize", req({ input: "a + 12 * b" })],
         ["parsingSimpleTokens"],
         ["collectorSpecifierToIdentifier", req({ specifier: "./a/b-c.ts" })],
@@ -224,6 +239,18 @@ nodeTest.test(
         out.push([
           "cacheList",
           call("cacheList", req({ handle: cacheHandle })),
+        ]);
+        out.push([
+          "cacheEnsureDir",
+          call("cacheEnsureDir", req({ handle: cacheHandle, path: "made/x" })),
+        ]);
+        out.push([
+          "cacheExists",
+          call("cacheExists", req({ handle: cacheHandle, path: "made/x" })),
+        ]);
+        out.push([
+          "cacheExists",
+          call("cacheExists", req({ handle: cacheHandle, path: "missing" })),
         ]);
         out.push([
           "cacheRemove",

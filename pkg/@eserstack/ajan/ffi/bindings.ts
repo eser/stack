@@ -583,6 +583,46 @@ export const BINDINGS = {
     HandleRequest & { readonly version: string; readonly name: string },
     ErrorAnswer & { readonly path?: string }
   >,
+  cacheResolvePaths: {
+    kind: "call",
+    blocking: false,
+    wasm: "yes",
+    async: false,
+  } as Call<
+    {
+      readonly host?: {
+        readonly platform?: string;
+        readonly home?: string;
+        readonly env?: Readonly<Record<string, string>>;
+      };
+      readonly app?: { readonly name: string; readonly org?: string };
+      readonly baseDir?: string;
+      readonly version?: string;
+      readonly item?: string;
+    },
+    ErrorAnswer & {
+      readonly cacheHome?: string;
+      readonly dataHome?: string;
+      readonly configHome?: string;
+      readonly appDir?: string;
+      readonly versionedPath?: string;
+    }
+  >,
+  cacheExists: {
+    kind: "call",
+    blocking: false,
+    wasm: "fs",
+    async: false,
+  } as Call<
+    HandleRequest & { readonly path: string },
+    ErrorAnswer & { readonly exists?: boolean }
+  >,
+  cacheEnsureDir: {
+    kind: "call",
+    blocking: false,
+    wasm: "fs",
+    async: false,
+  } as Call<HandleRequest & { readonly path: string }, EmptyAnswer>,
   cacheList: {
     kind: "call",
     blocking: false,

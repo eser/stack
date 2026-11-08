@@ -38,9 +38,66 @@ type cacheAppInput struct {
 	Name string `json:"name"`
 }
 
+// cacheHostInput carries the host facts the base directories come from. The
+// WASM build runs as wasip1 without the host's home or environment, so the
+// caller sends them; an absent field falls back to this process's own.
+type cacheHostInput struct {
+	Env      map[string]string `json:"env,omitempty"`
+	Platform string            `json:"platform,omitempty"`
+	Home     string            `json:"home,omitempty"`
+}
+
+// host builds the cachefx.Host of a request: the process's own facts with
+// the fields the request sets put over them. A request env replaces the
+// process environment as a whole.
+func (in *cacheHostInput) host() *cachefx.Host {
+	host := cachefx.CurrentHost()
+	if in == nil {
+		return &host
+	}
+
+	if in.Platform != "" {
+		host.OS = in.Platform
+	}
+
+	if in.Home != "" {
+		host.Home = in.Home
+	}
+
+	if in.Env != nil {
+		env := in.Env
+		host.Getenv = func(key string) string { return env[key] }
+	}
+
+	return &host
+}
+
 type cacheCreateRequest struct {
-	App     cacheAppInput `json:"app"`
-	BaseDir string        `json:"baseDir,omitempty"`
+	Host    *cacheHostInput `json:"host,omitempty"`
+	App     cacheAppInput   `json:"app"`
+	BaseDir string          `json:"baseDir,omitempty"`
+}
+
+type cacheResolvePathsRequest struct {
+	Host    *cacheHostInput `json:"host,omitempty"`
+	App     cacheAppInput   `json:"app"`
+	BaseDir string          `json:"baseDir,omitempty"`
+	Version string          `json:"version,omitempty"`
+	Item    string          `json:"item,omitempty"`
+}
+
+type cacheResolvePathsResponse struct {
+	CacheHome     string `json:"cacheHome,omitempty"`
+	DataHome      string `json:"dataHome,omitempty"`
+	ConfigHome    string `json:"configHome,omitempty"`
+	AppDir        string `json:"appDir,omitempty"`
+	VersionedPath string `json:"versionedPath,omitempty"`
+	Error         string `json:"error,omitempty"`
+}
+
+type cacheExistsResponse struct {
+	Error  string `json:"error,omitempty"`
+	Exists bool   `json:"exists"`
 }
 
 type cacheHandleResponse struct {
@@ -81,9 +138,20 @@ type cacheVersionedPathRequest struct {
 	Name    string `json:"name"`
 }
 
-type cacheRemoveRequest struct {
+// cachePathRequest names a path in a cache: an absolute path, or one
+// relative to the cache directory.
+type cachePathRequest struct {
 	Handle string `json:"handle"`
 	Path   string `json:"path"`
+}
+
+// lookupCache returns the Manager behind a handle.
+func lookupCache(handle string) (*cachefx.Manager, bool) {
+	cacheMu.RLock()
+	mgr, ok := cacheHandles[handle]
+	cacheMu.RUnlock()
+
+	return mgr, ok
 }
 
 // ---------------------------------------------------------------------------
@@ -102,6 +170,7 @@ func bridgeCacheCreate(requestJSON string) string {
 	}
 
 	mgr := cachefx.NewManager(cachefx.Options{
+		Host:    req.Host.host(),
 		BaseDir: req.BaseDir,
 		App:     cachefx.AppIdentifier{Org: req.App.Org, Name: req.App.Name},
 	})
@@ -185,9 +254,73 @@ func bridgeCacheList(requestJSON string) string {
 	return marshalResponse(cacheListResponse{Entries: jsonEntries}) //nolint:exhaustruct
 }
 
-// bridgeCacheRemove deletes a specific path from the cache.
+// bridgeCacheResolvePaths answers the base directories of a host and, when
+// the request names an app, its cache directory and a versioned path in it.
+// It reads no files.
+func bridgeCacheResolvePaths(requestJSON string) string {
+	var req cacheResolvePathsRequest
+	if err := json.Unmarshal([]byte(requestJSON), &req); err != nil {
+		return marshalResponse(cacheResolvePathsResponse{Error: fmt.Errorf("invalid request JSON: %w", err).Error()}) //nolint:exhaustruct
+	}
+
+	host := req.Host.host()
+	resp := cacheResolvePathsResponse{ //nolint:exhaustruct
+		CacheHome:  host.CacheHome(),
+		DataHome:   host.DataHome(),
+		ConfigHome: host.ConfigHome(),
+	}
+
+	if req.App.Name != "" {
+		mgr := cachefx.NewManager(cachefx.Options{
+			Host:    host,
+			BaseDir: req.BaseDir,
+			App:     cachefx.AppIdentifier{Org: req.App.Org, Name: req.App.Name},
+		})
+		resp.AppDir = mgr.Dir()
+		resp.VersionedPath = mgr.VersionedPath(req.Version, req.Item)
+	}
+
+	return marshalResponse(resp)
+}
+
+// bridgeCacheExists reports whether a path in the cache exists.
+func bridgeCacheExists(requestJSON string) string {
+	var req cachePathRequest
+	if err := json.Unmarshal([]byte(requestJSON), &req); err != nil {
+		return marshalResponse(cacheExistsResponse{Error: fmt.Errorf("invalid request JSON: %w", err).Error()}) //nolint:exhaustruct
+	}
+
+	mgr, ok := lookupCache(req.Handle)
+	if !ok {
+		return marshalResponse(cacheExistsResponse{Error: "cache handle not found: " + req.Handle}) //nolint:exhaustruct
+	}
+
+	return marshalResponse(cacheExistsResponse{Exists: mgr.Exists(req.Path)}) //nolint:exhaustruct
+}
+
+// bridgeCacheEnsureDir creates a directory in the cache with its parents.
+func bridgeCacheEnsureDir(requestJSON string) string {
+	var req cachePathRequest
+	if err := json.Unmarshal([]byte(requestJSON), &req); err != nil {
+		return errorResponse(fmt.Errorf("invalid request JSON: %w", err).Error())
+	}
+
+	mgr, ok := lookupCache(req.Handle)
+	if !ok {
+		return errorResponse("cache handle not found: " + req.Handle)
+	}
+
+	if err := mgr.EnsureDir(req.Path); err != nil {
+		return errorResponse(err.Error())
+	}
+
+	return "{}"
+}
+
+// bridgeCacheRemove deletes a path in the cache: an absolute path, or one
+// relative to the cache directory.
 func bridgeCacheRemove(requestJSON string) string {
-	var req cacheRemoveRequest
+	var req cachePathRequest
 	if err := json.Unmarshal([]byte(requestJSON), &req); err != nil {
 		return marshalResponse(struct {
 			Error string `json:"error,omitempty"`
@@ -262,6 +395,9 @@ func init() {
 	register("cacheCreate", bridgeCacheCreate)
 	register("cacheGetDir", bridgeCacheGetDir)
 	register("cacheGetVersionedPath", bridgeCacheGetVersionedPath)
+	register("cacheResolvePaths", bridgeCacheResolvePaths)
+	register("cacheExists", bridgeCacheExists)
+	register("cacheEnsureDir", bridgeCacheEnsureDir)
 	register("cacheList", bridgeCacheList)
 	register("cacheRemove", bridgeCacheRemove)
 	register("cacheClear", bridgeCacheClear)

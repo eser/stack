@@ -358,7 +358,7 @@ Full working examples live in [`examples/`](./examples/).
 
 The WASM build is one module, `eser-ajan.wasm`: the slim "wasi" profile of the
 bridge, built with `-buildmode=c-shared` as a reactor (decision-45). It serves
-the 45 names that work on wasip1 (formats, crypto, config, parsing and its
+the 48 names that work on wasip1 (formats, crypto, config, parsing and its
 stream, collector, codebase walks, validators and checks with their streams,
 cache, csGenerate, logging, HTTP), the ones the binding table marks `wasm:
 "yes"` or `"fs"`; every other name answers `UNSUPPORTED_IN_WASM`, and the
@@ -409,7 +409,7 @@ The module does not link `net/http`, which would pull in `crypto/tls` (+7.3 MB
 measured); it speaks to the host directly.
 
 The `version` call answers the same handshake as the native `EserAjanVersion`,
-with the profile `wasi` and its 45 names, which the TypeScript loader checks
+with the profile `wasi` and its 48 names, which the TypeScript loader checks
 once at load. `loadEserAjanWasm()` compiles the module
 once, keeps one instance (so handles survive between calls), replaces it after a
 trap, and gives it a preopen of the working directory when `node:wasi` is

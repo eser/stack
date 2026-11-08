@@ -1,0 +1,20 @@
+{
+  "files": ["file1", "dir1/nested.txt"],
+  "dirs": ["empty"],
+  "exists": [
+    { "path": "file1", "want": true },
+    { "path": "dir1", "want": true },
+    { "path": "dir1/nested.txt", "want": true },
+    { "path": "empty", "want": true },
+    { "path": "missing", "want": false },
+    { "path": "dir1/missing.txt", "want": false }
+  ],
+  "ensureDir": ["made", "dir1/deeper/still"],
+  "remove": ["file1", "dir1", "missing"],
+  "afterRemove": [
+    { "path": "file1", "want": false },
+    { "path": "dir1/nested.txt", "want": false },
+    { "path": "empty", "want": true },
+    { "path": "made", "want": true }
+  ]
+}

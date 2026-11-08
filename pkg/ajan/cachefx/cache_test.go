@@ -178,8 +178,8 @@ func TestExistsEnsureDirRemoveClear(t *testing.T) {
 }
 
 func TestXdgCacheHome(t *testing.T) {
-	// t.Setenv is incompatible with t.Parallel — runs serially.
-	// Env override must take precedence.
+	// t.Setenv is incompatible with t.Parallel, so this runs serially.
+	skipUnlessXdgHost(t)
 	t.Setenv("XDG_CACHE_HOME", "/custom/cache")
 
 	got := cachefx.XdgCacheHome()

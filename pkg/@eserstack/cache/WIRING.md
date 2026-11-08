@@ -1,6 +1,71 @@
 # @eserstack/cache — FFI Wiring Contract
 
-Verified: 2026-04-17 (Wave 2)
+Verified: 2026-11-08 (TASK-267)
+
+This page is for people who change `@eserstack/cache` or the cache names of the
+bridge. It lists where each export runs, then the wire contract of the cache
+names that `pkg/@eserstack/ajan/bridge_cache.go` registers.
+
+## Audit (TASK-267)
+
+Go means the export already called the bridge before TASK-267, moved means
+TASK-267 moved its logic to Go (`pkg/ajan/cachefx`), and TS means it stays in
+TypeScript, for the reason given.
+
+| Export                          | Where | Reason or Go entry                                                              |
+| ------------------------------- | ----- | ------------------------------------------------------------------------------- |
+| `AppIdentifier`                 | TS    | Type                                                                            |
+| `CacheEntry`                    | TS    | Type                                                                            |
+| `CacheManager`                  | TS    | Type                                                                            |
+| `CacheManagerOptions`           | TS    | Type                                                                            |
+| `createCacheManager`            | TS    | Thin adapter: builds the manager object, holds the handle, maps answers         |
+| `CacheManager.list`             | Go    | `cacheList`                                                                     |
+| `CacheManager.remove`           | Go    | `cacheRemove`; TASK-267 moved the relative path resolution to `Manager.Resolve` |
+| `CacheManager.clear`            | Go    | `cacheClear`                                                                    |
+| `CacheManager.close`            | Go    | `cacheClose`                                                                    |
+| `CacheManager.exists`           | moved | `cacheExists` (`Manager.Exists`)                                                |
+| `CacheManager.ensureDir`        | moved | `cacheEnsureDir` (`Manager.EnsureDir`)                                          |
+| `CacheManager.getCacheDir`      | TS    | Pending: synchronous, see "Not moved yet"; Go side ready (`cacheResolvePaths`)  |
+| `CacheManager.getVersionedPath` | TS    | Pending: synchronous, see "Not moved yet"; Go side ready (`cacheResolvePaths`)  |
+| `getXdgCacheHome`               | TS    | Pending: synchronous, see "Not moved yet"; Go side ready (`cacheResolvePaths`)  |
+| `getXdgDataHome`                | TS    | Pending: synchronous, see "Not moved yet"; Go side ready (`cacheResolvePaths`)  |
+| `getXdgConfigHome`              | TS    | Pending: synchronous, see "Not moved yet"; Go side ready (`cacheResolvePaths`)  |
+| `getAppCacheDir`                | TS    | Pending: synchronous, see "Not moved yet"; Go side ready (`cacheResolvePaths`)  |
+| `getVersionedCachePath`         | TS    | Pending: synchronous, see "Not moved yet"; Go side ready (`cacheResolvePaths`)  |
+
+### Kept fallbacks
+
+None. The package has no browser code, and laroux does not import it (no
+package in the repository does), so nothing here needs to run without the
+bridge. With `ESER_AJAN=disabled`, every Go and moved row rejects with the
+bridge's load error (`eser-ajan native library unavailable: ...`, with the load
+failure as `cause`); `bridge.test.ts` checks this in a child process.
+
+### Not moved yet
+
+The seven pending rows return a `string` synchronously, but the bridge loads
+asynchronously (`ensureLib()` awaits a dynamic import of `node:ffi` or a
+`WebAssembly.compile`), and top-level `await` is banned by lint and by
+design-principles. Delegating them would make them throw until something in
+the process had awaited the load. Moving them needs one of these:
+
+- a synchronous loader in `@eserstack/ajan`, so that `requireLibSync()` can
+  open the library on first use;
+- an exported async readiness function in `@eserstack/cache`, which the
+  synchronous functions then require;
+- or keeping them in TypeScript as thin adapters.
+
+The Go side is in place: `Host.CacheHome`, `DataHome`, `ConfigHome`, `AppDir`
+and `VersionedPath` follow the TypeScript rules, `xdg_homes.json` and
+`app_paths.json` pin them, and `cacheResolvePaths` serves them on both
+backends.
+
+### Fixtures
+
+`pkg/ajan/cachefx/testdata/` holds the cases both sides run:
+`fixtures_test.go` in Go, and `bridge.test.ts` here through `EserAjanCall`.
+`pkg/@eserstack/ajan/wasm/profile-parity.test.ts` calls every cache name on
+the WASM reactor and on the native library and compares the answers.
 
 ## 1. Input marshalling
 
@@ -9,23 +74,57 @@ Every call goes through the dispatcher ABI of `@eserstack/ajan` (TASK-238):
 JSON for `EserAjanCall`. The names and their request and answer types are in
 the ajan binding table (`ffi/bindings.ts`).
 
-**Create** (handle-based — must be called before list/remove/clear/close):
-
-```ts
-lib.call("cacheCreate", { app: { name: app.name, org: app.org }, baseDir });
-```
-
-Wire type:
+**Host facts.** `cacheCreate` and `cacheResolvePaths` take an optional `host`:
 
 ```json
-{ "app": { "name": "my-cli", "org": "eser" }, "baseDir": "/optional/override" }
+{
+  "platform": "linux",
+  "home": "/home/user",
+  "env": { "XDG_CACHE_HOME": "/xdg/cache" }
+}
 ```
 
-`baseDir` is optional. When absent, Go resolves the XDG cache dir.
+`platform` is a Go OS name (`darwin`, `windows`, `linux`, ...). A field that is
+absent falls back to the Go process's own value; an `env` object replaces the
+process environment as a whole. The WASM build runs as wasip1 without the
+host's home directory or environment, so `cache.ts` always sends them
+(`host.ts` reads them).
+
+**Create** (handle-based; must be called before the handle calls):
+
+```ts
+lib.call("cacheCreate", {
+  app: { name: app.name, org: app.org },
+  baseDir,
+  host: host.currentHost(),
+});
+```
+
+`baseDir` is optional. When it is absent, Go uses the cache home of `host`.
 
 > **Footgun**: Sending `{ name, org, baseDir }` flat (without the nested `app`
-> key) causes the bridge to receive `app.Name=""` and return a null handle
-> silently. Always nest as `{ app: { name, org }, baseDir }`.
+> key) makes the bridge answer `app.name is required`. Always nest as
+> `{ app: { name, org }, baseDir }`.
+
+**Resolve paths** (stateless, reads no files):
+
+```ts
+lib.call("cacheResolvePaths", { host, app, baseDir, version, item });
+// { cacheHome, dataHome, configHome, appDir?, versionedPath? }
+```
+
+`appDir` and `versionedPath` are present when `app.name` is set.
+
+**Exists / EnsureDir / Remove** (handle + path):
+
+```ts
+lib.call("cacheExists", { handle, path }); // { exists }
+lib.call("cacheEnsureDir", { handle, path }); // {}
+lib.call("cacheRemove", { handle, path }); // {}
+```
+
+A relative `path` is resolved against the cache directory in Go
+(`Manager.Resolve`); an absolute one is used as it is.
 
 **List / Clear / Close** (handle-only):
 
@@ -35,26 +134,12 @@ lib.call("cacheClear", { handle });
 lib.call("cacheClose", { handle });
 ```
 
-**Remove** (handle + absolute path):
-
-```ts
-lib.call("cacheRemove", { handle, path: resolvePath(relativePath) });
-```
-
-> **Footgun**: Go's `os.RemoveAll(path)` is path-literal — it does NOT prepend
-> the cache directory. Always pass an absolute path. Use `resolvePath()` before
-> sending to Go.
+`cacheGetDir` and `cacheGetVersionedPath` answer the directory and a versioned
+path of a handle; the TypeScript package does not call them.
 
 ## 2. Output marshalling
 
 `lib.call` answers the parsed JSON, error answers included.
-
-**Create** response:
-
-```ts
-const result = lib.call("cacheCreate", request); // { handle?, error? }
-// result.handle → "cache-1" (opaque string)
-```
 
 **List** response:
 
@@ -74,8 +159,7 @@ const result = lib.call("cacheList", { handle }) as {
 
 > **Footgun**: `entries` is tagged `omitempty` in Go. When the cache dir is
 > empty, the field is **absent** from the JSON response (`{}`), not
-> `{ "entries": [] }`. `result.entries.map(...)` throws TypeError on undefined.
-> Guard with `(result.entries ?? []).map(...)`.
+> `{ "entries": [] }`. Guard with `(result.entries ?? []).map(...)`.
 
 **mtimeUnix conversion**:
 
@@ -86,29 +170,21 @@ mtime: e.mtimeUnix ? new Date(e.mtimeUnix * 1000) : null;
 Go sends Unix seconds as `int64`; multiply by 1000 to get milliseconds for
 `new Date()`.
 
-**Remove / Clear / Close** response:
-
-```ts
-const result = lib.call("cacheClear", { handle }); // { error? }
-if (!result.error) return; // success
-```
+**Exists** answers `{ "exists": true }` or `{ "exists": false }`; a path that
+cannot be stat'ed, for lack of permission for one, counts as missing, as
+`runtime.fs.exists` did.
 
 The `cacheClose` answer is ignored entirely (fire-and-forget).
 
 ## 3. Error protocol
 
-Always-valid-JSON model: Go never returns null or empty.
+Always-valid-JSON model: Go never returns null or empty. On error, the answer
+has an `error` field and no other field. `cache.ts` throws an `Error` with that
+message. No structured error codes come from Go.
 
-```go
-type cacheCreateResponse struct {
-    Handle string `json:"handle,omitempty"`
-    Error  string `json:"error,omitempty"`
-}
-```
-
-On error, `handle` is absent and `error` is set. TS falls through to the TS
-filesystem implementation. No structured error codes from Go — the TS layer uses
-try/catch fallback, not code mapping.
+When the bridge does not load, `ffiClient.requireLib()` throws
+`eser-ajan native library unavailable: <reason>` with the load failure as
+`cause`, and every Go-backed method rejects with it.
 
 ## 4. Memory ownership
 
@@ -116,33 +192,18 @@ Go allocates every answer with `C.CString` (heap). The ajan library copies it
 to a JS string and frees it with `EserAjanFree` itself; TS calling code never
 sees a C string.
 
-Handles (`"cache-1"`, etc.) are opaque Go-side strings — do not parse,
+Handles (`"cache-1"`, etc.) are opaque Go-side strings: do not parse,
 construct, or persist them.
 
 ## 5. Handle lifecycle
 
 `_handlePromise` is a lazy singleton per `createCacheManager()` instance:
 
-```ts
-let _handlePromise: Promise<string | null> | null = null;
-```
-
-- **Create**: triggered on first async operation (`list`, `remove`, `clear`) —
-  calls `cacheCreate`
-- **Close**: `close()` resets `_handlePromise = null` BEFORE awaiting, so a
-  concurrent second close sees null and returns early. This is intentional — it
+- **Create**: triggered on the first async operation (`exists`, `ensureDir`,
+  `list`, `remove`, `clear`), which calls `cacheCreate`
+- **Close**: `close()` resets `_handlePromise = null` BEFORE calling Go, so a
+  concurrent second close sees null and returns early. This is intentional: it
   prevents double-free.
-
-```ts
-const close = async (): Promise<void> => {
-  if (_handlePromise === null) return; // idempotent guard
-  const handle = await _handlePromise;
-  _handlePromise = null; // reset before Go call
-  if (handle !== null) {
-    lib.call("cacheClose", { handle });
-  }
-};
-```
 
 Supports `await using cache = ...` (TC39 explicit resource management) via
 `[Symbol.asyncDispose]: close`.
@@ -153,18 +214,21 @@ Supports `await using cache = ...` (TC39 explicit resource management) via
 - G12 1000-loop: PASS (1000/1000 cycles, no errors or leaks)
 - G13 double-close: PASS (test "double-close is safe")
 
-## 6. Known limitations / WASM
+## 6. WASM
 
-- `cacheCreate` uses XDG dir resolution which calls `os.UserCacheDir()`
-  — this returns an error under WASM (`wasip1`). Cache FFI will fail silently
-  under WASM; TS fallback handles all ops.
-- File mtime is returned as `mtimeUnix: int64` (Unix seconds). Zero means "stat
-  failed" — TS maps to `null`, not `new Date(0)`.
-- `list()` only returns immediate children of the cache dir (non-recursive) —
-  matches `readDir` behavior.
+- Every cache name is in the wasi profile (`bridge_cache.go` builds with
+  `!wasip1 || eserajan_wasi`). `cacheResolvePaths` reads no files
+  (`wasm: "yes"`); the others need the loader's preopen of the working
+  directory (`wasm: "fs"`), so on WASM they reach only paths under it.
+- Without `host`, the WASM build resolves the cache home as GOOS wasip1 with no
+  home directory, which gives the relative `.cache`. `cache.ts` always sends
+  `host`.
+- `list()` only returns immediate children of the cache dir (non-recursive).
 
 ## Behavioral divergences
 
-None discovered — cache package had no pre-existing TS implementation, so no
-TS-vs-Go test divergences. The TS implementation in `cache.ts` was written fresh
-to match Go's wire protocol.
+Before TASK-267, Go's `XdgCacheHome`, `XdgDataHome` and `XdgConfigHome` read
+the `XDG_*` variables on every system, while TypeScript and Go's own doc
+comments read them on Linux and BSD only. With `XDG_CACHE_HOME` set on macOS,
+`list()` (Go) and `getCacheDir()` (TypeScript) named different directories.
+cachefx now follows the documented rules, which `xdg_homes.json` pins.

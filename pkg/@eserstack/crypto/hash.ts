@@ -3,7 +3,9 @@
 /**
  * Content hashing utilities.
  *
- * Delegates all operations to the native Go library.
+ * Go owns the hashing (`pkg/ajan/cryptofx`): every function asks it through
+ * the `@eserstack/ajan` bridge, the native library or its WASM build, and
+ * rejects with the bridge's load error when neither loads.
  *
  * @module
  */
@@ -23,6 +25,18 @@ const toBase64 = (bytes: Uint8Array): string => {
   return btoa(binary);
 };
 
+/** Turns a `cryptoHash` or `cryptoHashCombined` answer into the digest. */
+const digestOf = (answer: {
+  readonly hash?: string;
+  readonly error?: string;
+}): string => {
+  if (answer.error !== undefined) {
+    throw new Error(answer.error);
+  }
+
+  return answer.hash ?? "";
+};
+
 /**
  * Compute a content hash.
  *
@@ -30,6 +44,8 @@ const toBase64 = (bytes: Uint8Array): string => {
  * @param algorithm - Hash algorithm (default: SHA-256)
  * @param length - Hash output length in hex chars (default: 16)
  * @returns Hex-encoded hash
+ * @throws {Error} When the bridge does not load (its load error is the `cause`)
+ *   or Go refuses the request, such as for an unknown algorithm
  *
  * @example
  * ```ts
@@ -42,21 +58,11 @@ export const computeHash = async (
   algorithm: HashAlgorithm = "SHA-256",
   length = 16,
 ): Promise<string> => {
-  await ffiClient.ensureLib();
-  const lib = ffiClient.getLib();
-  if (lib === null) {
-    throw new Error("native library unavailable");
-  }
+  const lib = await ffiClient.requireLib();
 
-  const result = lib.call("cryptoHash", {
-    data: toBase64(content),
-    algorithm,
-    length,
-  }) as { hash: string; error?: string };
-  if (result.error) {
-    throw new Error(result.error);
-  }
-  return result.hash;
+  return digestOf(
+    lib.call("cryptoHash", { data: toBase64(content), algorithm, length }),
+  );
 };
 
 /**
@@ -66,6 +72,8 @@ export const computeHash = async (
  * @param algorithm - Hash algorithm (default: SHA-256)
  * @param length - Hash output length in hex chars (default: 16)
  * @returns Hex-encoded hash
+ * @throws {Error} When the bridge does not load (its load error is the `cause`)
+ *   or Go refuses the request, such as for an unknown algorithm
  *
  * @example
  * ```ts
@@ -78,30 +86,21 @@ export const computeStringHash = async (
   algorithm: HashAlgorithm = "SHA-256",
   length = 16,
 ): Promise<string> => {
-  await ffiClient.ensureLib();
-  const lib = ffiClient.getLib();
-  if (lib === null) {
-    throw new Error("native library unavailable");
-  }
+  const lib = await ffiClient.requireLib();
 
-  const result = lib.call("cryptoHash", {
-    text: content,
-    algorithm,
-    length,
-  }) as { hash: string; error?: string };
-  if (result.error) {
-    throw new Error(result.error);
-  }
-  return result.hash;
+  return digestOf(lib.call("cryptoHash", { text: content, algorithm, length }));
 };
 
 /**
- * Compute a hash for multiple pieces of content.
+ * Compute a hash for multiple pieces of content, hashed in order as one
+ * input.
  *
  * @param contents - Array of content to hash together
  * @param algorithm - Hash algorithm (default: SHA-256)
  * @param length - Hash output length in hex chars (default: 16)
  * @returns Hex-encoded hash
+ * @throws {Error} When the bridge does not load (its load error is the `cause`)
+ *   or Go refuses the request, such as for an unknown algorithm
  *
  * @example
  * ```ts
@@ -111,17 +110,18 @@ export const computeStringHash = async (
  * ]);
  * ```
  */
-export const computeCombinedHash = (
+export const computeCombinedHash = async (
   contents: readonly Uint8Array[],
   algorithm: HashAlgorithm = "SHA-256",
   length = 16,
 ): Promise<string> => {
-  const totalLength = contents.reduce((sum, c) => sum + c.length, 0);
-  const combined = new Uint8Array(totalLength);
-  let offset = 0;
-  for (const content of contents) {
-    combined.set(content, offset);
-    offset += content.length;
-  }
-  return computeHash(combined, algorithm, length);
+  const lib = await ffiClient.requireLib();
+
+  return digestOf(
+    lib.call("cryptoHashCombined", {
+      parts: contents.map((part) => toBase64(part)),
+      algorithm,
+      length,
+    }),
+  );
 };

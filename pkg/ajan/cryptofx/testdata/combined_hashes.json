@@ -1,0 +1,58 @@
+[
+  {
+    "name": "two parts hash like their concatenation",
+    "parts": ["AQI=", "AwQ="],
+    "algorithm": "SHA-256",
+    "length": 16,
+    "hash": "9f64a747e1b97f13"
+  },
+  {
+    "name": "no parts hash zero bytes",
+    "parts": [],
+    "algorithm": "SHA-256",
+    "length": 0,
+    "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "name": "empty parts add nothing",
+    "parts": ["", "aGVsbG8=", ""],
+    "algorithm": "SHA-256",
+    "length": 0,
+    "hash": "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824"
+  },
+  {
+    "name": "a text split across parts",
+    "parts": ["aGVs", "bG8="],
+    "algorithm": "SHA-1",
+    "length": 0,
+    "hash": "aaf4c61ddcc5e8a2dabede0f3b482cd9aea9434d"
+  },
+  {
+    "name": "bytes that are not UTF-8",
+    "parts": ["/w==", "AP8="],
+    "algorithm": "SHA-384",
+    "length": 32,
+    "hash": "674b4480665f2c4f6020c32309bf0f0b"
+  },
+  {
+    "name": "a length past the digest gives the full digest",
+    "parts": ["YWJj"],
+    "algorithm": "SHA-512",
+    "length": 200,
+    "hash": "ddaf35a193617abacc417349ae20413112e6fa4e89a97ea20a9eeee64b55d39a2192992a274fc1a836ba3c23a3feebbd454d4423643ce80e2a9ac94fa54ca49f"
+  },
+  {
+    "name": "a negative length gives the full digest",
+    "parts": ["YWJj"],
+    "algorithm": "SHA-256",
+    "length": -1,
+    "hash": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+  },
+  {
+    "name": "an unknown algorithm is refused",
+    "parts": ["YQ=="],
+    "algorithm": "MD5",
+    "length": 0,
+    "error": "unknown hash algorithm"
+  }
+]

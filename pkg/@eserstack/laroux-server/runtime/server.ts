@@ -458,10 +458,14 @@ export function createHandler(
       if (middlewareDispatcher) {
         // For /rsc the chain runs for the requested page, as it does for that
         // page's document request, so route-scoped proxies cover its payload.
-        const proxyRequest =
-          rscPagePathname !== null
-            ? new Request(new URL(rscPagePathname, url.origin), req)
-            : req;
+        // The pathname is set on a copy of the origin, never resolved against
+        // it: resolving "//evil.com/x" would take the host from the client.
+        let proxyRequest = req;
+        if (rscPagePathname !== null) {
+          const proxyUrl = new URL(url.origin);
+          proxyUrl.pathname = rscPagePathname;
+          proxyRequest = new Request(proxyUrl, req);
+        }
         const { result, finalPathname } = await middlewareDispatcher.runProxies(
           proxyRequest,
           rscPagePathname ?? pathname,

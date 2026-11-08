@@ -444,8 +444,9 @@ const loadProxyFixture = async (
   );
   await runtime.fs.writeTextFile(
     runtime.path.join(serverDir, "proxies", "root.ts"),
-    `export default ({ pathname }) => {
+    `export default ({ request, pathname }) => {
   globalThis.rootProxyRuns = [...(globalThis.rootProxyRuns ?? []), pathname];
+  globalThis.rootProxyUrls = [...(globalThis.rootProxyUrls ?? []), request.url];
   return { type: "next" };
 };
 `,
@@ -465,6 +466,9 @@ const loadProxyFixture = async (
 
 const rootProxyRuns = (): string[] =>
   (globalThis as { rootProxyRuns?: string[] }).rootProxyRuns ?? [];
+
+const rootProxyUrls = (): string[] =>
+  (globalThis as { rootProxyUrls?: string[] }).rootProxyUrls ?? [];
 
 nodeTest.test(
   "track-l-delete: GET /rsc runs the proxy chain of the requested page",
@@ -501,6 +505,45 @@ nodeTest.test(
         } else {
           assert.assertFalse(text.includes("page content"));
         }
+      }
+    } finally {
+      await runtime.fs.remove(root, { recursive: true });
+    }
+  },
+);
+
+nodeTest.test(
+  "GET /rsc keeps the server host in the proxy request for a double-slash pathname",
+  async () => {
+    const root = await runtime.fs.makeTempDir({ prefix: "laroux-proxy-" });
+    try {
+      const Layout = (props: larouxRouter.LayoutProps<React.ReactNode>) =>
+        React.createElement("main", null, props.children);
+      const Page = () => React.createElement("p", null, "page content");
+      const handler = server.createHandler({
+        ...makeDeps(root, () => Promise.resolve({ Layout, Page, params: {} })),
+        middlewareDispatcher: await loadProxyFixture(root),
+      });
+
+      for (const page of ["//evil.com/x", "///evil.com/x", "/\\evil.com/x"]) {
+        const before = rootProxyUrls().length;
+        // Sequential: each case reads the proxy URL its request recorded.
+        // oxlint-disable-next-line no-await-in-loop
+        const response = await handler(
+          new Request(
+            `http://localhost/rsc?pathname=${encodeURIComponent(page)}`,
+          ),
+        );
+        // oxlint-disable-next-line no-await-in-loop
+        await response.body?.cancel();
+
+        const seen = new URL(rootProxyUrls()[before] ?? "http://missing/");
+        assert.assertEquals(seen.host, "localhost", page);
+        assert.assertEquals(
+          seen.pathname,
+          rootProxyRuns()[rootProxyRuns().length - 1],
+          page,
+        );
       }
     } finally {
       await runtime.fs.remove(root, { recursive: true });

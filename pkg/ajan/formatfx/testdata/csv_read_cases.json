@@ -1,0 +1,1667 @@
+[
+  {
+    "name": "reads LF and CRLF rows after the header row",
+    "chunks": [
+      "name,version\napp1,1.0.0\r\napp2,2.0.0\n"
+    ],
+    "calls": [
+      {
+        "items": [
+          {
+            "name": "app1",
+            "version": "1.0.0"
+          },
+          {
+            "name": "app2",
+            "version": "2.0.0"
+          }
+        ]
+      },
+      {
+        "items": []
+      }
+    ]
+  },
+  {
+    "name": "reads a last row without a line ending on flush",
+    "chunks": [
+      "a,b\n1,2"
+    ],
+    "calls": [
+      {
+        "items": []
+      },
+      {
+        "items": [
+          {
+            "a": "1",
+            "b": "2"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "reads empty fields",
+    "chunks": [
+      "a,b,c,d\n,x,,\n"
+    ],
+    "calls": [
+      {
+        "items": [
+          {
+            "a": "",
+            "b": "x",
+            "c": "",
+            "d": ""
+          }
+        ]
+      },
+      {
+        "items": []
+      }
+    ]
+  },
+  {
+    "name": "skips blank and whitespace-only lines",
+    "chunks": [
+      "a\n\n  \r\nb\n\t\nc"
+    ],
+    "calls": [
+      {
+        "items": [
+          {
+            "a": "b"
+          }
+        ]
+      },
+      {
+        "items": [
+          {
+            "a": "c"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "counts a line of delimiters as a record",
+    "chunks": [
+      "a,b,c\n, ,\n"
+    ],
+    "calls": [
+      {
+        "items": [
+          {
+            "a": "",
+            "b": " ",
+            "c": ""
+          }
+        ]
+      },
+      {
+        "items": []
+      }
+    ]
+  },
+  {
+    "name": "reads a quoted delimiter",
+    "chunks": [
+      "h1,h2\n\"a,b\",c\n"
+    ],
+    "calls": [
+      {
+        "items": [
+          {
+            "h1": "a,b",
+            "h2": "c"
+          }
+        ]
+      },
+      {
+        "items": []
+      }
+    ]
+  },
+  {
+    "name": "reads doubled quotes as one quote",
+    "chunks": [
+      "h1,h2\n\"say \"\"hi\"\"\",x\n"
+    ],
+    "calls": [
+      {
+        "items": [
+          {
+            "h1": "say \"hi\"",
+            "h2": "x"
+          }
+        ]
+      },
+      {
+        "items": []
+      }
+    ]
+  },
+  {
+    "name": "reads an empty quoted field",
+    "chunks": [
+      "h1,h2\n\"\",a\n"
+    ],
+    "calls": [
+      {
+        "items": [
+          {
+            "h1": "",
+            "h2": "a"
+          }
+        ]
+      },
+      {
+        "items": []
+      }
+    ]
+  },
+  {
+    "name": "keeps a quoted field of spaces",
+    "chunks": [
+      "h\n\" \"\n"
+    ],
+    "calls": [
+      {
+        "items": [
+          {
+            "h": " "
+          }
+        ]
+      },
+      {
+        "items": []
+      }
+    ]
+  },
+  {
+    "name": "reads line breaks inside a quoted field",
+    "chunks": [
+      "h1,h2\n\"line 1\nline 2\r\nline 3\",b\nc,d\n"
+    ],
+    "calls": [
+      {
+        "items": [
+          {
+            "h1": "line 1\nline 2\r\nline 3",
+            "h2": "b"
+          },
+          {
+            "h1": "c",
+            "h2": "d"
+          }
+        ]
+      },
+      {
+        "items": []
+      }
+    ]
+  },
+  {
+    "name": "keeps a quoted field that spans chunks",
+    "chunks": [
+      "h1,h2,h3\nid,\"first\n",
+      "second\"",
+      "\"\",x\n",
+      "2,\"y\",z",
+      "\n"
+    ],
+    "calls": [
+      {
+        "items": []
+      },
+      {
+        "items": []
+      },
+      {
+        "items": [
+          {
+            "h1": "id",
+            "h2": "first\nsecond\"",
+            "h3": "x"
+          }
+        ]
+      },
+      {
+        "items": []
+      },
+      {
+        "items": [
+          {
+            "h1": "2",
+            "h2": "y",
+            "h3": "z"
+          }
+        ]
+      },
+      {
+        "items": []
+      }
+    ]
+  },
+  {
+    "name": "waits for the LF of a CRLF split across chunks",
+    "chunks": [
+      "k\r",
+      "\n",
+      "a\r",
+      "\nc"
+    ],
+    "calls": [
+      {
+        "items": []
+      },
+      {
+        "items": []
+      },
+      {
+        "items": []
+      },
+      {
+        "items": [
+          {
+            "k": "a"
+          }
+        ]
+      },
+      {
+        "items": [
+          {
+            "k": "c"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "reads a delimiter of several characters",
+    "delimiter": "::",
+    "chunks": [
+      "h1::h2::h3::h4\na::b::",
+      "\"c::d\"::e\n"
+    ],
+    "calls": [
+      {
+        "items": []
+      },
+      {
+        "items": [
+          {
+            "h1": "a",
+            "h2": "b",
+            "h3": "c::d",
+            "h4": "e"
+          }
+        ]
+      },
+      {
+        "items": []
+      }
+    ]
+  },
+  {
+    "name": "waits for a delimiter of several characters split across chunks",
+    "delimiter": "::",
+    "chunks": [
+      "a:",
+      ":b\n1:",
+      ":2\n"
+    ],
+    "calls": [
+      {
+        "items": []
+      },
+      {
+        "items": []
+      },
+      {
+        "items": [
+          {
+            "a": "1",
+            "b": "2"
+          }
+        ]
+      },
+      {
+        "items": []
+      }
+    ]
+  },
+  {
+    "name": "reads a different delimiter",
+    "delimiter": ";",
+    "chunks": [
+      "x;y\na;b,c\n"
+    ],
+    "calls": [
+      {
+        "items": [
+          {
+            "x": "a",
+            "y": "b,c"
+          }
+        ]
+      },
+      {
+        "items": []
+      }
+    ]
+  },
+  {
+    "name": "reads a tab delimiter",
+    "delimiter": "\t",
+    "chunks": [
+      "x\ty\n1\t2\n"
+    ],
+    "calls": [
+      {
+        "items": [
+          {
+            "x": "1",
+            "y": "2"
+          }
+        ]
+      },
+      {
+        "items": []
+      }
+    ]
+  },
+  {
+    "name": "reads back the quoting the writer writes",
+    "headers": [
+      "a",
+      "b",
+      "c",
+      "d",
+      "e",
+      "f"
+    ],
+    "chunks": [
+      "plain,\"a \"\"q\"\"\",\"x,y\",\"line\nbreak\",\"cr\rlf\",\r\n"
+    ],
+    "calls": [
+      {
+        "items": [
+          {
+            "a": "plain",
+            "b": "a \"q\"",
+            "c": "x,y",
+            "d": "line\nbreak",
+            "e": "cr\rlf",
+            "f": ""
+          }
+        ]
+      },
+      {
+        "items": []
+      }
+    ]
+  },
+  {
+    "name": "keeps a lone CR inside an unquoted field",
+    "chunks": [
+      "a,b\nx\ry,z\n"
+    ],
+    "calls": [
+      {
+        "items": [
+          {
+            "a": "x\ry",
+            "b": "z"
+          }
+        ]
+      },
+      {
+        "items": []
+      }
+    ]
+  },
+  {
+    "name": "ends the last record at a CR on flush",
+    "chunks": [
+      "a\nb\r"
+    ],
+    "calls": [
+      {
+        "items": []
+      },
+      {
+        "items": [
+          {
+            "a": "b"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "reads a closing quote at the end of a chunk",
+    "chunks": [
+      "a,b\n\"x\"",
+      ",y\n"
+    ],
+    "calls": [
+      {
+        "items": []
+      },
+      {
+        "items": [
+          {
+            "a": "x",
+            "b": "y"
+          }
+        ]
+      },
+      {
+        "items": []
+      }
+    ]
+  },
+  {
+    "name": "reads text outside ASCII",
+    "chunks": [
+      "ad,şehir\nİstanbul,日本😀\n"
+    ],
+    "calls": [
+      {
+        "items": [
+          {
+            "ad": "İstanbul",
+            "şehir": "日本😀"
+          }
+        ]
+      },
+      {
+        "items": []
+      }
+    ]
+  },
+  {
+    "name": "trims the header names it reads with JavaScript's whitespace",
+    "chunks": [
+      "\ufeff name , \tversion\u00a0,\u0085x\nn,v,y\n"
+    ],
+    "calls": [
+      {
+        "items": [
+          {
+            "name": "n",
+            "version": "v",
+            "\u0085x": "y"
+          }
+        ]
+      },
+      {
+        "items": []
+      }
+    ]
+  },
+  {
+    "name": "keeps given header names as they are",
+    "headers": [
+      " a ",
+      "b"
+    ],
+    "chunks": [
+      "1,2\n"
+    ],
+    "calls": [
+      {
+        "items": [
+          {
+            " a ": "1",
+            "b": "2"
+          }
+        ]
+      },
+      {
+        "items": []
+      }
+    ]
+  },
+  {
+    "name": "reads every row with given headers",
+    "headers": [
+      "name",
+      "version"
+    ],
+    "chunks": [
+      "app1,1.0.0\napp2,2.0.0\n"
+    ],
+    "calls": [
+      {
+        "items": [
+          {
+            "name": "app1",
+            "version": "1.0.0"
+          },
+          {
+            "name": "app2",
+            "version": "2.0.0"
+          }
+        ]
+      },
+      {
+        "items": []
+      }
+    ]
+  },
+  {
+    "name": "keeps the last value and the first position of a repeated header",
+    "chunks": [
+      "a,b,a\n1,2,3\n"
+    ],
+    "calls": [
+      {
+        "items": [
+          {
+            "a": "3",
+            "b": "2"
+          }
+        ]
+      },
+      {
+        "items": []
+      }
+    ]
+  },
+  {
+    "name": "drops a __proto__ header",
+    "chunks": [
+      "__proto__,x\n1,2\n"
+    ],
+    "calls": [
+      {
+        "items": [
+          {
+            "x": "2"
+          }
+        ]
+      },
+      {
+        "items": []
+      }
+    ]
+  },
+  {
+    "name": "orders integer-like header names first, as a JavaScript object does",
+    "chunks": [
+      "name,2,1\nn,b,a\n"
+    ],
+    "calls": [
+      {
+        "items": [
+          {
+            "1": "a",
+            "2": "b",
+            "name": "n"
+          }
+        ]
+      },
+      {
+        "items": []
+      }
+    ]
+  },
+  {
+    "name": "reads nothing from empty input",
+    "chunks": [
+      ""
+    ],
+    "calls": [
+      {
+        "items": []
+      },
+      {
+        "items": []
+      }
+    ]
+  },
+  {
+    "name": "reads nothing from a header row alone",
+    "chunks": [
+      "name,version\n"
+    ],
+    "calls": [
+      {
+        "items": []
+      },
+      {
+        "items": []
+      }
+    ]
+  },
+  {
+    "name": "reads nothing from a header row without a line ending",
+    "chunks": [
+      "name,version"
+    ],
+    "calls": [
+      {
+        "items": []
+      },
+      {
+        "items": []
+      }
+    ]
+  },
+  {
+    "name": "reads a record pushed one character at a time",
+    "chunks": [
+      "h",
+      ",",
+      "i",
+      "\n",
+      "\"",
+      "a",
+      "\"",
+      ",",
+      "b",
+      "\r",
+      "\n",
+      "c",
+      ",",
+      "d"
+    ],
+    "calls": [
+      {
+        "items": []
+      },
+      {
+        "items": []
+      },
+      {
+        "items": []
+      },
+      {
+        "items": []
+      },
+      {
+        "items": []
+      },
+      {
+        "items": []
+      },
+      {
+        "items": []
+      },
+      {
+        "items": []
+      },
+      {
+        "items": []
+      },
+      {
+        "items": []
+      },
+      {
+        "items": [
+          {
+            "h": "a",
+            "i": "b"
+          }
+        ]
+      },
+      {
+        "items": []
+      },
+      {
+        "items": []
+      },
+      {
+        "items": []
+      },
+      {
+        "items": [
+          {
+            "h": "c",
+            "i": "d"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "rejects a record with more fields than the header",
+    "chunks": [
+      "a,b\n1,2,3\n"
+    ],
+    "calls": [
+      {
+        "error": "The record has 3 fields, but the header has 2 fields"
+      }
+    ]
+  },
+  {
+    "name": "rejects a record with fewer fields than the header",
+    "chunks": [
+      "a,b\n1\n"
+    ],
+    "calls": [
+      {
+        "error": "The record has 1 fields, but the header has 2 fields"
+      }
+    ]
+  },
+  {
+    "name": "rejects every record when the given headers are empty",
+    "headers": [],
+    "chunks": [
+      "a\n"
+    ],
+    "calls": [
+      {
+        "error": "The record has 1 fields, but the header has 0 fields"
+      }
+    ]
+  },
+  {
+    "name": "rejects a quote inside an unquoted field",
+    "chunks": [
+      "ab\"c,d\n"
+    ],
+    "calls": [
+      {
+        "error": "CSV record 1: a quote inside an unquoted field"
+      }
+    ]
+  },
+  {
+    "name": "rejects text after a closing quote",
+    "chunks": [
+      "a\n\"b\"c\n"
+    ],
+    "calls": [
+      {
+        "error": "CSV record 2: text after a closing quote"
+      }
+    ]
+  },
+  {
+    "name": "rejects a CR after a closing quote that no LF follows",
+    "chunks": [
+      "a\n\"b\"\rc\n"
+    ],
+    "calls": [
+      {
+        "error": "CSV record 2: text after a closing quote"
+      }
+    ]
+  },
+  {
+    "name": "rejects a quoted field left open at the end",
+    "chunks": [
+      "a,\"b\n"
+    ],
+    "calls": [
+      {
+        "items": []
+      },
+      {
+        "error": "CSV record 1: unterminated quoted field"
+      }
+    ]
+  },
+  {
+    "name": "numbers records across blank lines",
+    "chunks": [
+      "a\n\n\n\"x\"y\n"
+    ],
+    "calls": [
+      {
+        "error": "CSV record 4: text after a closing quote"
+      }
+    ]
+  },
+  {
+    "name": "numbers records across chunks",
+    "chunks": [
+      "a\nb\n",
+      "c\n",
+      "d\"e\n"
+    ],
+    "calls": [
+      {
+        "items": [
+          {
+            "a": "b"
+          }
+        ]
+      },
+      {
+        "items": [
+          {
+            "a": "c"
+          }
+        ]
+      },
+      {
+        "error": "CSV record 4: a quote inside an unquoted field"
+      }
+    ]
+  },
+  {
+    "name": "rejects an empty delimiter",
+    "delimiter": "",
+    "chunks": [
+      "a\n"
+    ],
+    "calls": [
+      {
+        "error": "CSV delimiter \"\" must be non-empty and hold no quote, CR or LF"
+      }
+    ]
+  },
+  {
+    "name": "rejects a quote delimiter",
+    "delimiter": "\"",
+    "chunks": [
+      "a\n"
+    ],
+    "calls": [
+      {
+        "error": "CSV delimiter \"\\\"\" must be non-empty and hold no quote, CR or LF"
+      }
+    ]
+  },
+  {
+    "name": "rejects an LF delimiter",
+    "delimiter": "\n",
+    "chunks": [
+      "a\n"
+    ],
+    "calls": [
+      {
+        "error": "CSV delimiter \"\\n\" must be non-empty and hold no quote, CR or LF"
+      }
+    ]
+  },
+  {
+    "name": "rejects a delimiter that holds a CR",
+    "delimiter": ";\r",
+    "chunks": [
+      "a\n"
+    ],
+    "calls": [
+      {
+        "error": "CSV delimiter \";\\r\" must be non-empty and hold no quote, CR or LF"
+      }
+    ]
+  },
+  {
+    "name": "rejects a bad delimiter on flush alone",
+    "delimiter": "",
+    "chunks": [],
+    "calls": [
+      {
+        "error": "CSV delimiter \"\" must be non-empty and hold no quote, CR or LF"
+      }
+    ]
+  },
+  {
+    "name": "reads a split at 0 as the whole text",
+    "chunks": [
+      "",
+      "h1,h2\na,\"b \"\"q\"\" \r\nc\"\r\nd,e\n"
+    ],
+    "calls": [
+      {
+        "items": []
+      },
+      {
+        "items": [
+          {
+            "h1": "a",
+            "h2": "b \"q\" \r\nc"
+          },
+          {
+            "h1": "d",
+            "h2": "e"
+          }
+        ]
+      },
+      {
+        "items": []
+      }
+    ]
+  },
+  {
+    "name": "reads a split at 1 as the whole text",
+    "chunks": [
+      "h",
+      "1,h2\na,\"b \"\"q\"\" \r\nc\"\r\nd,e\n"
+    ],
+    "calls": [
+      {
+        "items": []
+      },
+      {
+        "items": [
+          {
+            "h1": "a",
+            "h2": "b \"q\" \r\nc"
+          },
+          {
+            "h1": "d",
+            "h2": "e"
+          }
+        ]
+      },
+      {
+        "items": []
+      }
+    ]
+  },
+  {
+    "name": "reads a split at 2 as the whole text",
+    "chunks": [
+      "h1",
+      ",h2\na,\"b \"\"q\"\" \r\nc\"\r\nd,e\n"
+    ],
+    "calls": [
+      {
+        "items": []
+      },
+      {
+        "items": [
+          {
+            "h1": "a",
+            "h2": "b \"q\" \r\nc"
+          },
+          {
+            "h1": "d",
+            "h2": "e"
+          }
+        ]
+      },
+      {
+        "items": []
+      }
+    ]
+  },
+  {
+    "name": "reads a split at 3 as the whole text",
+    "chunks": [
+      "h1,",
+      "h2\na,\"b \"\"q\"\" \r\nc\"\r\nd,e\n"
+    ],
+    "calls": [
+      {
+        "items": []
+      },
+      {
+        "items": [
+          {
+            "h1": "a",
+            "h2": "b \"q\" \r\nc"
+          },
+          {
+            "h1": "d",
+            "h2": "e"
+          }
+        ]
+      },
+      {
+        "items": []
+      }
+    ]
+  },
+  {
+    "name": "reads a split at 4 as the whole text",
+    "chunks": [
+      "h1,h",
+      "2\na,\"b \"\"q\"\" \r\nc\"\r\nd,e\n"
+    ],
+    "calls": [
+      {
+        "items": []
+      },
+      {
+        "items": [
+          {
+            "h1": "a",
+            "h2": "b \"q\" \r\nc"
+          },
+          {
+            "h1": "d",
+            "h2": "e"
+          }
+        ]
+      },
+      {
+        "items": []
+      }
+    ]
+  },
+  {
+    "name": "reads a split at 5 as the whole text",
+    "chunks": [
+      "h1,h2",
+      "\na,\"b \"\"q\"\" \r\nc\"\r\nd,e\n"
+    ],
+    "calls": [
+      {
+        "items": []
+      },
+      {
+        "items": [
+          {
+            "h1": "a",
+            "h2": "b \"q\" \r\nc"
+          },
+          {
+            "h1": "d",
+            "h2": "e"
+          }
+        ]
+      },
+      {
+        "items": []
+      }
+    ]
+  },
+  {
+    "name": "reads a split at 6 as the whole text",
+    "chunks": [
+      "h1,h2\n",
+      "a,\"b \"\"q\"\" \r\nc\"\r\nd,e\n"
+    ],
+    "calls": [
+      {
+        "items": []
+      },
+      {
+        "items": [
+          {
+            "h1": "a",
+            "h2": "b \"q\" \r\nc"
+          },
+          {
+            "h1": "d",
+            "h2": "e"
+          }
+        ]
+      },
+      {
+        "items": []
+      }
+    ]
+  },
+  {
+    "name": "reads a split at 7 as the whole text",
+    "chunks": [
+      "h1,h2\na",
+      ",\"b \"\"q\"\" \r\nc\"\r\nd,e\n"
+    ],
+    "calls": [
+      {
+        "items": []
+      },
+      {
+        "items": [
+          {
+            "h1": "a",
+            "h2": "b \"q\" \r\nc"
+          },
+          {
+            "h1": "d",
+            "h2": "e"
+          }
+        ]
+      },
+      {
+        "items": []
+      }
+    ]
+  },
+  {
+    "name": "reads a split at 8 as the whole text",
+    "chunks": [
+      "h1,h2\na,",
+      "\"b \"\"q\"\" \r\nc\"\r\nd,e\n"
+    ],
+    "calls": [
+      {
+        "items": []
+      },
+      {
+        "items": [
+          {
+            "h1": "a",
+            "h2": "b \"q\" \r\nc"
+          },
+          {
+            "h1": "d",
+            "h2": "e"
+          }
+        ]
+      },
+      {
+        "items": []
+      }
+    ]
+  },
+  {
+    "name": "reads a split at 9 as the whole text",
+    "chunks": [
+      "h1,h2\na,\"",
+      "b \"\"q\"\" \r\nc\"\r\nd,e\n"
+    ],
+    "calls": [
+      {
+        "items": []
+      },
+      {
+        "items": [
+          {
+            "h1": "a",
+            "h2": "b \"q\" \r\nc"
+          },
+          {
+            "h1": "d",
+            "h2": "e"
+          }
+        ]
+      },
+      {
+        "items": []
+      }
+    ]
+  },
+  {
+    "name": "reads a split at 10 as the whole text",
+    "chunks": [
+      "h1,h2\na,\"b",
+      " \"\"q\"\" \r\nc\"\r\nd,e\n"
+    ],
+    "calls": [
+      {
+        "items": []
+      },
+      {
+        "items": [
+          {
+            "h1": "a",
+            "h2": "b \"q\" \r\nc"
+          },
+          {
+            "h1": "d",
+            "h2": "e"
+          }
+        ]
+      },
+      {
+        "items": []
+      }
+    ]
+  },
+  {
+    "name": "reads a split at 11 as the whole text",
+    "chunks": [
+      "h1,h2\na,\"b ",
+      "\"\"q\"\" \r\nc\"\r\nd,e\n"
+    ],
+    "calls": [
+      {
+        "items": []
+      },
+      {
+        "items": [
+          {
+            "h1": "a",
+            "h2": "b \"q\" \r\nc"
+          },
+          {
+            "h1": "d",
+            "h2": "e"
+          }
+        ]
+      },
+      {
+        "items": []
+      }
+    ]
+  },
+  {
+    "name": "reads a split at 12 as the whole text",
+    "chunks": [
+      "h1,h2\na,\"b \"",
+      "\"q\"\" \r\nc\"\r\nd,e\n"
+    ],
+    "calls": [
+      {
+        "items": []
+      },
+      {
+        "items": [
+          {
+            "h1": "a",
+            "h2": "b \"q\" \r\nc"
+          },
+          {
+            "h1": "d",
+            "h2": "e"
+          }
+        ]
+      },
+      {
+        "items": []
+      }
+    ]
+  },
+  {
+    "name": "reads a split at 13 as the whole text",
+    "chunks": [
+      "h1,h2\na,\"b \"\"",
+      "q\"\" \r\nc\"\r\nd,e\n"
+    ],
+    "calls": [
+      {
+        "items": []
+      },
+      {
+        "items": [
+          {
+            "h1": "a",
+            "h2": "b \"q\" \r\nc"
+          },
+          {
+            "h1": "d",
+            "h2": "e"
+          }
+        ]
+      },
+      {
+        "items": []
+      }
+    ]
+  },
+  {
+    "name": "reads a split at 14 as the whole text",
+    "chunks": [
+      "h1,h2\na,\"b \"\"q",
+      "\"\" \r\nc\"\r\nd,e\n"
+    ],
+    "calls": [
+      {
+        "items": []
+      },
+      {
+        "items": [
+          {
+            "h1": "a",
+            "h2": "b \"q\" \r\nc"
+          },
+          {
+            "h1": "d",
+            "h2": "e"
+          }
+        ]
+      },
+      {
+        "items": []
+      }
+    ]
+  },
+  {
+    "name": "reads a split at 15 as the whole text",
+    "chunks": [
+      "h1,h2\na,\"b \"\"q\"",
+      "\" \r\nc\"\r\nd,e\n"
+    ],
+    "calls": [
+      {
+        "items": []
+      },
+      {
+        "items": [
+          {
+            "h1": "a",
+            "h2": "b \"q\" \r\nc"
+          },
+          {
+            "h1": "d",
+            "h2": "e"
+          }
+        ]
+      },
+      {
+        "items": []
+      }
+    ]
+  },
+  {
+    "name": "reads a split at 16 as the whole text",
+    "chunks": [
+      "h1,h2\na,\"b \"\"q\"\"",
+      " \r\nc\"\r\nd,e\n"
+    ],
+    "calls": [
+      {
+        "items": []
+      },
+      {
+        "items": [
+          {
+            "h1": "a",
+            "h2": "b \"q\" \r\nc"
+          },
+          {
+            "h1": "d",
+            "h2": "e"
+          }
+        ]
+      },
+      {
+        "items": []
+      }
+    ]
+  },
+  {
+    "name": "reads a split at 17 as the whole text",
+    "chunks": [
+      "h1,h2\na,\"b \"\"q\"\" ",
+      "\r\nc\"\r\nd,e\n"
+    ],
+    "calls": [
+      {
+        "items": []
+      },
+      {
+        "items": [
+          {
+            "h1": "a",
+            "h2": "b \"q\" \r\nc"
+          },
+          {
+            "h1": "d",
+            "h2": "e"
+          }
+        ]
+      },
+      {
+        "items": []
+      }
+    ]
+  },
+  {
+    "name": "reads a split at 18 as the whole text",
+    "chunks": [
+      "h1,h2\na,\"b \"\"q\"\" \r",
+      "\nc\"\r\nd,e\n"
+    ],
+    "calls": [
+      {
+        "items": []
+      },
+      {
+        "items": [
+          {
+            "h1": "a",
+            "h2": "b \"q\" \r\nc"
+          },
+          {
+            "h1": "d",
+            "h2": "e"
+          }
+        ]
+      },
+      {
+        "items": []
+      }
+    ]
+  },
+  {
+    "name": "reads a split at 19 as the whole text",
+    "chunks": [
+      "h1,h2\na,\"b \"\"q\"\" \r\n",
+      "c\"\r\nd,e\n"
+    ],
+    "calls": [
+      {
+        "items": []
+      },
+      {
+        "items": [
+          {
+            "h1": "a",
+            "h2": "b \"q\" \r\nc"
+          },
+          {
+            "h1": "d",
+            "h2": "e"
+          }
+        ]
+      },
+      {
+        "items": []
+      }
+    ]
+  },
+  {
+    "name": "reads a split at 20 as the whole text",
+    "chunks": [
+      "h1,h2\na,\"b \"\"q\"\" \r\nc",
+      "\"\r\nd,e\n"
+    ],
+    "calls": [
+      {
+        "items": []
+      },
+      {
+        "items": [
+          {
+            "h1": "a",
+            "h2": "b \"q\" \r\nc"
+          },
+          {
+            "h1": "d",
+            "h2": "e"
+          }
+        ]
+      },
+      {
+        "items": []
+      }
+    ]
+  },
+  {
+    "name": "reads a split at 21 as the whole text",
+    "chunks": [
+      "h1,h2\na,\"b \"\"q\"\" \r\nc\"",
+      "\r\nd,e\n"
+    ],
+    "calls": [
+      {
+        "items": []
+      },
+      {
+        "items": [
+          {
+            "h1": "a",
+            "h2": "b \"q\" \r\nc"
+          },
+          {
+            "h1": "d",
+            "h2": "e"
+          }
+        ]
+      },
+      {
+        "items": []
+      }
+    ]
+  },
+  {
+    "name": "reads a split at 22 as the whole text",
+    "chunks": [
+      "h1,h2\na,\"b \"\"q\"\" \r\nc\"\r",
+      "\nd,e\n"
+    ],
+    "calls": [
+      {
+        "items": []
+      },
+      {
+        "items": [
+          {
+            "h1": "a",
+            "h2": "b \"q\" \r\nc"
+          },
+          {
+            "h1": "d",
+            "h2": "e"
+          }
+        ]
+      },
+      {
+        "items": []
+      }
+    ]
+  },
+  {
+    "name": "reads a split at 23 as the whole text",
+    "chunks": [
+      "h1,h2\na,\"b \"\"q\"\" \r\nc\"\r\n",
+      "d,e\n"
+    ],
+    "calls": [
+      {
+        "items": [
+          {
+            "h1": "a",
+            "h2": "b \"q\" \r\nc"
+          }
+        ]
+      },
+      {
+        "items": [
+          {
+            "h1": "d",
+            "h2": "e"
+          }
+        ]
+      },
+      {
+        "items": []
+      }
+    ]
+  },
+  {
+    "name": "reads a split at 24 as the whole text",
+    "chunks": [
+      "h1,h2\na,\"b \"\"q\"\" \r\nc\"\r\nd",
+      ",e\n"
+    ],
+    "calls": [
+      {
+        "items": [
+          {
+            "h1": "a",
+            "h2": "b \"q\" \r\nc"
+          }
+        ]
+      },
+      {
+        "items": [
+          {
+            "h1": "d",
+            "h2": "e"
+          }
+        ]
+      },
+      {
+        "items": []
+      }
+    ]
+  },
+  {
+    "name": "reads a split at 25 as the whole text",
+    "chunks": [
+      "h1,h2\na,\"b \"\"q\"\" \r\nc\"\r\nd,",
+      "e\n"
+    ],
+    "calls": [
+      {
+        "items": [
+          {
+            "h1": "a",
+            "h2": "b \"q\" \r\nc"
+          }
+        ]
+      },
+      {
+        "items": [
+          {
+            "h1": "d",
+            "h2": "e"
+          }
+        ]
+      },
+      {
+        "items": []
+      }
+    ]
+  },
+  {
+    "name": "reads a split at 26 as the whole text",
+    "chunks": [
+      "h1,h2\na,\"b \"\"q\"\" \r\nc\"\r\nd,e",
+      "\n"
+    ],
+    "calls": [
+      {
+        "items": [
+          {
+            "h1": "a",
+            "h2": "b \"q\" \r\nc"
+          }
+        ]
+      },
+      {
+        "items": [
+          {
+            "h1": "d",
+            "h2": "e"
+          }
+        ]
+      },
+      {
+        "items": []
+      }
+    ]
+  },
+  {
+    "name": "reads a split at 27 as the whole text",
+    "chunks": [
+      "h1,h2\na,\"b \"\"q\"\" \r\nc\"\r\nd,e\n",
+      ""
+    ],
+    "calls": [
+      {
+        "items": [
+          {
+            "h1": "a",
+            "h2": "b \"q\" \r\nc"
+          },
+          {
+            "h1": "d",
+            "h2": "e"
+          }
+        ]
+      },
+      {
+        "items": []
+      },
+      {
+        "items": []
+      }
+    ]
+  }
+]

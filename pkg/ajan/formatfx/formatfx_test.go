@@ -347,12 +347,16 @@ func TestFormatCSV_HeaderRoundtrip(t *testing.T) {
 		t.Fatalf("expected 2 items, got %d", len(decoded))
 	}
 
-	row0 := decoded[0].(map[string]string)
-	if row0["name"] != "app1" {
-		t.Errorf("item[0].name: got %v, want app1", row0["name"])
+	row0, ok := decoded[0].(formatfx.CSVRow)
+	if !ok {
+		t.Fatalf("item[0]: got %T, want formatfx.CSVRow", decoded[0])
 	}
 
-	if row0["version"] != "1.0.0" {
-		t.Errorf("item[0].version: got %v, want 1.0.0", row0["version"])
+	if name, _ := row0.Get("name"); name != "app1" {
+		t.Errorf("item[0].name: got %v, want app1", name)
+	}
+
+	if version, _ := row0.Get("version"); version != "1.0.0" {
+		t.Errorf("item[0].version: got %v, want 1.0.0", version)
 	}
 }

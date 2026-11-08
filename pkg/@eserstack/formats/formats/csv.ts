@@ -2,7 +2,15 @@
 
 import type { Format, FormatOptions, FormatReader } from "../types.ts";
 import * as types from "../types.ts";
+import * as ffiClient from "../ffi-client.ts";
 import * as csvCodec from "./csv-codec.ts";
+
+/** What a reader keeps between chunks, as `formatReadCsv` answers it. */
+type FormatCsvState = {
+  readonly rest: string;
+  readonly headers: readonly string[] | null;
+  readonly records: number;
+};
 
 const isPlainObject = (value: unknown): value is Record<string, unknown> =>
   value !== null && value !== undefined && value.constructor === Object;
@@ -72,63 +80,55 @@ export const writeEnd = (_options?: FormatOptions): string => {
   return "";
 };
 
+/**
+ * Creates a CSV reader. The reading runs in Go (`formatReadCsv` of the
+ * bridge, over `formatfx.ReadCSV`); this reader keeps the state Go hands back
+ * between chunks, so nothing stays open in Go when a reader is dropped
+ * without a flush.
+ *
+ * The first record gives the header names, trimmed, unless `headers` is set.
+ * Records are read with `delimiter` (a comma by default): LF or CRLF row
+ * endings, quoted fields across line breaks and chunks, blank lines skipped.
+ *
+ * @throws {Error} From push and flush when the bridge is unavailable, with the
+ *   load failure as `cause`
+ * @throws {types.DeserializationError} From push and flush for text that
+ *   breaks the quoting rules, a record of another width than the header, or a
+ *   delimiter that is empty or holds a quote, CR or LF
+ */
 export const createReader = (options?: FormatOptions): FormatReader => {
   const delimiter = options?.delimiter ?? ",";
-  let parser: csvCodec.RecordParser | undefined;
-  let headers: readonly string[] | undefined = options?.headers;
-
-  /** Turns records into objects keyed by the headers; the first record is the header row unless headers were given. */
-  const toItems = (records: readonly string[][]): unknown[] => {
-    const items: unknown[] = [];
-
-    for (const record of records) {
-      if (headers === undefined) {
-        headers = record.map((name) => name.trim());
-        continue;
-      }
-
-      if (record.length !== headers.length) {
-        throw new Error(
-          `The record has ${record.length} fields, but the header has ${headers.length} fields`,
-        );
-      }
-
-      const item: Record<string, string> = {};
-      for (const [index, name] of headers.entries()) {
-        item[name] = record[index] ?? "";
-      }
-      items.push(item);
-    }
-
-    return items;
+  let state: FormatCsvState = {
+    rest: "",
+    headers: options?.headers ?? null,
+    records: 0,
   };
 
-  const read = (
-    label: string,
-    next: (parser: csvCodec.RecordParser) => string[][],
-  ): unknown[] => {
-    try {
-      parser ??= csvCodec.createRecordParser(delimiter);
+  const read = (label: string, chunk: string, final: boolean): unknown[] => {
+    const answer = ffiClient
+      .requireLibSync()
+      .call("formatReadCsv", { chunk, final, delimiter, state });
 
-      return toItems(next(parser));
-    } catch (error) {
+    if (typeof answer.error === "string" && answer.error.length > 0) {
       throw new types.DeserializationError(
-        `Failed to deserialize ${label}: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
+        `Failed to deserialize ${label}: ${answer.error}`,
         "csv",
-        error instanceof Error ? error : undefined,
+        new Error(answer.error),
       );
     }
+
+    state = answer.state ?? state;
+
+    return [...(answer.items ?? [])];
   };
 
   return {
     push(chunk: string): unknown[] {
-      return read("CSV row", (p) => p.push(chunk));
+      return read("CSV row", chunk, false);
     },
 
     flush(): unknown[] {
-      return read("CSV", (p) => p.flush());
+      return read("CSV", "", true);
     },
   };
 };

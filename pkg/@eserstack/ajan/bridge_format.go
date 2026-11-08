@@ -67,6 +67,28 @@ type formatListResponse struct {
 	Error   string       `json:"error,omitempty"`
 }
 
+// formatCSVState is what the caller of formatReadCsv keeps between chunks
+// (formatfx.CSVReadState). Headers is null until the header row is read.
+type formatCSVState struct {
+	Rest    string   `json:"rest"`
+	Headers []string `json:"headers"`
+	Records int      `json:"records"`
+}
+
+type formatReadCSVRequest struct {
+	// Delimiter is a comma when the request leaves it out.
+	Delimiter *string        `json:"delimiter"`
+	State     formatCSVState `json:"state"`
+	Chunk     string         `json:"chunk"`
+	Final     bool           `json:"final"`
+}
+
+type formatReadCSVResponse struct {
+	State *formatCSVState   `json:"state,omitempty"`
+	Error string            `json:"error,omitempty"`
+	Items []formatfx.CSVRow `json:"items"`
+}
+
 // ---------------------------------------------------------------------------
 // Format bridge functions
 // ---------------------------------------------------------------------------
@@ -257,9 +279,49 @@ func bridgeFormatList() string {
 	return marshalResponse(formatListResponse{Formats: infos, Error: ""})
 }
 
+// bridgeFormatReadCSV reads one chunk of CSV text with the state the caller
+// kept from the last chunk, and answers the rows the chunk completes with the
+// state for the next one. It holds nothing between calls, so a reader that is
+// never flushed leaves nothing behind in Go. With final set, the input ends.
+// The rows keep the header order, so JSON.parse builds the objects the
+// TypeScript reader built.
+func bridgeFormatReadCSV(requestJSON string) string {
+	var req formatReadCSVRequest
+	if err := json.Unmarshal([]byte(requestJSON), &req); err != nil {
+		return marshalResponse(formatReadCSVResponse{Error: fmt.Errorf("invalid request JSON: %w", err).Error()}) //nolint:exhaustruct
+	}
+
+	delimiter := ","
+	if req.Delimiter != nil {
+		delimiter = *req.Delimiter
+	}
+
+	state := formatfx.CSVReadState{
+		Rest:    req.State.Rest,
+		Headers: req.State.Headers,
+		Records: req.State.Records,
+	}
+
+	rows, next, err := formatfx.ReadCSV(state, req.Chunk, delimiter, req.Final)
+	if err != nil {
+		return marshalResponse(formatReadCSVResponse{Error: err.Error()}) //nolint:exhaustruct
+	}
+
+	if rows == nil {
+		rows = []formatfx.CSVRow{}
+	}
+
+	return marshalResponse(formatReadCSVResponse{
+		Items: rows,
+		State: &formatCSVState{Rest: next.Rest, Headers: next.Headers, Records: next.Records},
+		Error: "",
+	})
+}
+
 func init() {
 	register("formatEncode", bridgeFormatEncode)
 	register("formatDecode", bridgeFormatDecode)
 	register("formatList", func(string) string { return bridgeFormatList() })
 	register("formatEncodeDocument", bridgeFormatEncodeDocument)
+	register("formatReadCsv", bridgeFormatReadCSV)
 }

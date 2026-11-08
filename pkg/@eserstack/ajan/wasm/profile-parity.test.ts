@@ -2,7 +2,7 @@
 
 /**
  * The wasi profile answers like the native library (TASK-272): every one of
- * its 48 names is called on both, with the same fixtures, and the answers are
+ * its 49 names is called on both, with the same fixtures, and the answers are
  * compared after handle ids are normalized (the two builds number their
  * handles independently).
  *
@@ -107,6 +107,15 @@ nodeTest.test(
           req({ items: [{ a: 1 }, { a: 2 }], format: "jsonl" }),
         ],
         ["cryptoHash", req({ text: "abc", algorithm: "SHA-256" })],
+        [
+          "cryptoHashCombined",
+          req({
+            parts: ["YWI=", "", "Yw=="],
+            algorithm: "SHA-384",
+            length: 32,
+          }),
+        ],
+        ["cryptoHashCombined", req({ parts: ["!"] })],
         // The host facts are explicit: the WASM build has neither the
         // process's home nor its environment.
         [

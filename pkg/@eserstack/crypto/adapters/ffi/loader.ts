@@ -40,6 +40,7 @@ export const ffiLoader: Loader = {
           new errors.CryptoError(
             "native library unavailable",
             errors.CRYPTO_HASH_FAILED,
+            client.getLoadError() ?? undefined,
           ),
         onError: (msg) => new errors.CryptoError(msg, mapErrorCode(msg)),
       },

@@ -560,6 +560,19 @@ export const BINDINGS = {
     },
     ErrorAnswer & { readonly hash?: string }
   >,
+  cryptoHashCombined: {
+    kind: "call",
+    blocking: false,
+    wasm: "yes",
+    async: false,
+  } as Call<
+    {
+      readonly parts?: readonly string[];
+      readonly algorithm?: string;
+      readonly length?: number;
+    },
+    ErrorAnswer & { readonly hash?: string }
+  >,
 
   // Cache (cachefx)
   cacheCreate: {

@@ -7,8 +7,11 @@
 > **eserstack Library** — [eser/stack on GitHub](https://github.com/eser/stack)
 > **Install:** `pnpm add @eserstack/crypto`
 
-Cryptographic utilities for hashing, encoding, and related operations. Built on
-the Web Crypto API for cross-runtime compatibility.
+Cryptographic utilities for hashing, encoding, and related operations. The
+hashing runs in Go (`pkg/ajan/cryptofx`), which the package reaches through
+`@eserstack/ajan`: the native library, or its WASM build where the native
+library cannot load. When neither loads, every hash function rejects with the
+bridge's load error.
 
 ## 🚀 Quick Start
 
@@ -32,7 +35,8 @@ console.log(binaryHash); // "039058c6f2c0cb49"
 - **Combined Hashing** — Hash multiple content pieces together
 - **Multiple Algorithms** — Supports SHA-256, SHA-384, SHA-512, and SHA-1
 - **Configurable Length** — Control hash output length in hex characters
-- **Web Crypto API** — Uses the standard Web Crypto API for portability
+- **Go-backed**: the same digests as the Go `cryptofx` package, on the native
+  library or its WASM build
 
 ## 🔌 API Reference
 
@@ -75,7 +79,7 @@ const hash = await crypto.computeHash(data);
 
 ### `computeCombinedHash(contents, algorithm?, length?)`
 
-Compute a hash for multiple pieces of content concatenated together.
+Compute a hash for multiple pieces of content, hashed in order as one input.
 
 ```typescript
 import * as crypto from "@eserstack/crypto";

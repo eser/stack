@@ -14,7 +14,9 @@ type CollectableFile struct {
 type ManifestEntry struct {
 	// RelPath is the file's path relative to the base directory.
 	RelPath string
-	// Exports is the list of named export symbols from that file.
+	// Exports are the names the manifest refers to on the file's namespace,
+	// one per collected export. @eserstack/collector sends the name of each
+	// export's value (a function's name), not the export's own name.
 	Exports []string
 }
 

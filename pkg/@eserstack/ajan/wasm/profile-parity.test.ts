@@ -138,10 +138,20 @@ nodeTest.test(
         ["parsingTokenize", req({ input: "a + 12 * b" })],
         ["parsingSimpleTokens"],
         ["collectorSpecifierToIdentifier", req({ specifier: "./a/b-c.ts" })],
+        [
+          "collectorSpecifierToIdentifier",
+          req({ specifier: "caf\u00e9/[id].ts", used: ["caf_id_"] }),
+        ],
         ["collectorWalkFiles", req({ dir: fixture })],
         [
           "collectorGenerateManifest",
-          req({ entries: [{ path: "./a.ts", exports: ["x"] }] }),
+          req({
+            entries: [
+              { relPath: "routes/page10.ts", exports: ["b", "a"] },
+              { relPath: "routes/page2.ts", exports: ["B", 'q"t'] },
+              { relPath: "../x/./y.ts" },
+            ],
+          }),
         ],
         ["configLoad", req({ sources: [`json_file:${fixture}/config.json`] })],
         // The dotenv names take the host environment from the request: the

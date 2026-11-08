@@ -20,8 +20,10 @@ type collectorSpecifierRequest struct {
 	Used      []string `json:"used,omitempty"`
 }
 
+// collectorSpecifierResponse always carries the identifier, since an empty
+// specifier gives an empty one.
 type collectorSpecifierResponse struct {
-	Identifier string `json:"identifier,omitempty"`
+	Identifier string `json:"identifier"`
 	Error      string `json:"error,omitempty"`
 }
 
@@ -44,6 +46,8 @@ type collectorManifestRequest struct {
 	Entries []collectorManifestEntryJSON `json:"entries"`
 }
 
+// collectorManifestEntryJSON is one collected file: its path and the names
+// the manifest refers to on its namespace (collectorfx.ManifestEntry).
 type collectorManifestEntryJSON struct {
 	RelPath string   `json:"relPath"`
 	Exports []string `json:"exports,omitempty"`
@@ -54,7 +58,9 @@ type collectorManifestResponse struct {
 	Error  string `json:"error,omitempty"`
 }
 
-// bridgeCollectorSpecifierToIdentifier converts a file-path specifier to a valid JS identifier.
+// bridgeCollectorSpecifierToIdentifier turns a specifier into a JavaScript
+// identifier that is not in used. Returns JSON:
+// { identifier: string } | { error: string }.
 func bridgeCollectorSpecifierToIdentifier(requestJSON string) string {
 	var req collectorSpecifierRequest
 	if err := json.Unmarshal([]byte(requestJSON), &req); err != nil {
@@ -98,7 +104,9 @@ func bridgeCollectorWalkFiles(requestJSON string) string {
 	return marshalResponse(collectorWalkResponse{Files: jsonFiles}) //nolint:exhaustruct
 }
 
-// bridgeCollectorGenerateManifest generates TypeScript manifest source from entries.
+// bridgeCollectorGenerateManifest writes the source of a manifest module for
+// the entries, as @eserstack/collector's writeManifestToString returns it.
+// Returns JSON: { source: string } | { error: string }.
 func bridgeCollectorGenerateManifest(requestJSON string) string {
 	var req collectorManifestRequest
 	if err := json.Unmarshal([]byte(requestJSON), &req); err != nil {

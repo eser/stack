@@ -112,13 +112,45 @@ await collector.buildManifest(file, {
 
 ### `writeManifestToString(collection)`
 
-Convert a collected export array into a manifest string. The source is not
+Convert a collected export array into a manifest string: one
+`import * as $$identifier from "./path"` line per file and a `manifest` object
+whose `exports` array refers to each export by the name of its value (a
+function's `name`). Imports and references are sorted in natural order, with
+numbers compared by value and lower case before upper case. The source is not
 formatted; run it through a formatter such as oxfmt for canonical style.
+
+```typescript
+import * as collector from "@eserstack/collector";
+
+const source = await collector.writeManifestToString(
+  await collector.collectExports({ baseDir: "./src/routes" }),
+);
+```
 
 ### `specifierToIdentifier(specifier, used)`
 
 Convert a file path into a valid JavaScript identifier for use in generated
-imports.
+imports, and add it to `used`. A name already in `used` gets a `_1`, `_2`, ...
+suffix.
+
+```typescript
+import * as collector from "@eserstack/collector";
+
+const used = new Set<string>();
+collector.specifierToIdentifier("routes/[id].ts", used); // "routes_id_"
+collector.specifierToIdentifier("routes/[id].js", used); // "routes_id__1"
+```
+
+### Where the work runs
+
+Go writes the manifest and the identifiers (`pkg/ajan/collectorfx`), reached
+through `@eserstack/ajan`: the native library, or its WASM build where the
+native library cannot load. `writeManifestToString`, `buildManifest`,
+`buildManifestFile` and `specifierToIdentifier` throw the bridge's load error
+when neither loads, for example with `ESER_AJAN=disabled`.
+`specifierToIdentifier` is synchronous and loads the bridge synchronously on
+first use. `walkFiles` and `collectExports` work without the bridge, as
+described above.
 
 ## 📋 Types
 

@@ -1,0 +1,450 @@
+[
+  {
+    "name": "strips the extension",
+    "used": [],
+    "specifiers": [
+      "foo/bar.ts"
+    ],
+    "identifiers": [
+      "foo_bar"
+    ]
+  },
+  {
+    "name": "strips only the last extension",
+    "used": [],
+    "specifiers": [
+      "foo/bar.json.ts"
+    ],
+    "identifiers": [
+      "foo_bar_json"
+    ]
+  },
+  {
+    "name": "dynamic segment",
+    "used": [],
+    "specifiers": [
+      "foo/[id]/bar"
+    ],
+    "identifiers": [
+      "foo_id_bar"
+    ]
+  },
+  {
+    "name": "catch-all segment",
+    "used": [],
+    "specifiers": [
+      "foo/[...all]/bar"
+    ],
+    "identifiers": [
+      "foo_all_bar"
+    ]
+  },
+  {
+    "name": "optional segment",
+    "used": [],
+    "specifiers": [
+      "foo/[[optional]]/bar"
+    ],
+    "identifiers": [
+      "foo_optional_bar"
+    ]
+  },
+  {
+    "name": "segment glued to a name",
+    "used": [],
+    "specifiers": [
+      "foo/[id]bar.tsx"
+    ],
+    "identifiers": [
+      "foo_id_bar"
+    ]
+  },
+  {
+    "name": "dash",
+    "used": [],
+    "specifiers": [
+      "foo/as-df/bar"
+    ],
+    "identifiers": [
+      "foo_as_df_bar"
+    ]
+  },
+  {
+    "name": "at sign",
+    "used": [],
+    "specifiers": [
+      "foo/as@df"
+    ],
+    "identifiers": [
+      "foo_as_df"
+    ]
+  },
+  {
+    "name": "dotted name",
+    "used": [],
+    "specifiers": [
+      "foo/foo.bar.baz.tsx"
+    ],
+    "identifiers": [
+      "foo_foo_bar_baz"
+    ]
+  },
+  {
+    "name": "leading digit",
+    "used": [],
+    "specifiers": [
+      "404"
+    ],
+    "identifiers": [
+      "_404"
+    ]
+  },
+  {
+    "name": "leading digits then letters",
+    "used": [],
+    "specifiers": [
+      "123abc.ts"
+    ],
+    "identifiers": [
+      "_123abc"
+    ]
+  },
+  {
+    "name": "underscore segment",
+    "used": [],
+    "specifiers": [
+      "foo/_middleware"
+    ],
+    "identifiers": [
+      "foo_middleware"
+    ]
+  },
+  {
+    "name": "leading underscore kept",
+    "used": [],
+    "specifiers": [
+      "_middleware.ts"
+    ],
+    "identifiers": [
+      "_middleware"
+    ]
+  },
+  {
+    "name": "double underscores collapse",
+    "used": [],
+    "specifiers": [
+      "__a__b.ts"
+    ],
+    "identifiers": [
+      "_a_b"
+    ]
+  },
+  {
+    "name": "runs of separators collapse",
+    "used": [],
+    "specifiers": [
+      "a--b//c..d.ts"
+    ],
+    "identifiers": [
+      "a_b_c_d"
+    ]
+  },
+  {
+    "name": "dollar sign",
+    "used": [],
+    "specifiers": [
+      "$lib/a.ts"
+    ],
+    "identifiers": [
+      "$lib_a"
+    ]
+  },
+  {
+    "name": "lone underscore",
+    "used": [],
+    "specifiers": [
+      "_"
+    ],
+    "identifiers": [
+      "_"
+    ]
+  },
+  {
+    "name": "lone dollar",
+    "used": [],
+    "specifiers": [
+      "$"
+    ],
+    "identifiers": [
+      "$"
+    ]
+  },
+  {
+    "name": "empty specifier",
+    "used": [],
+    "specifiers": [
+      ""
+    ],
+    "identifiers": [
+      ""
+    ]
+  },
+  {
+    "name": "dot",
+    "used": [],
+    "specifiers": [
+      "."
+    ],
+    "identifiers": [
+      "_"
+    ]
+  },
+  {
+    "name": "dot dot",
+    "used": [],
+    "specifiers": [
+      ".."
+    ],
+    "identifiers": [
+      "_"
+    ]
+  },
+  {
+    "name": "relative prefix",
+    "used": [],
+    "specifiers": [
+      "./routes/index.ts"
+    ],
+    "identifiers": [
+      "_routes_index"
+    ]
+  },
+  {
+    "name": "parent prefix",
+    "used": [],
+    "specifiers": [
+      "../outside.ts"
+    ],
+    "identifiers": [
+      "_outside"
+    ]
+  },
+  {
+    "name": "dotfile keeps its name",
+    "used": [],
+    "specifiers": [
+      "dir/.env"
+    ],
+    "identifiers": [
+      "dir_env"
+    ]
+  },
+  {
+    "name": "dotfile with an extension",
+    "used": [],
+    "specifiers": [
+      ".hidden.ts"
+    ],
+    "identifiers": [
+      "_hidden"
+    ]
+  },
+  {
+    "name": "trailing dot",
+    "used": [],
+    "specifiers": [
+      "foo."
+    ],
+    "identifiers": [
+      "foo"
+    ]
+  },
+  {
+    "name": "trailing slash",
+    "used": [],
+    "specifiers": [
+      "foo.ts/"
+    ],
+    "identifiers": [
+      "foo_"
+    ]
+  },
+  {
+    "name": "dot in a directory only",
+    "used": [],
+    "specifiers": [
+      "a.b/c"
+    ],
+    "identifiers": [
+      "a_b_c"
+    ]
+  },
+  {
+    "name": "leading space",
+    "used": [],
+    "specifiers": [
+      " space.ts"
+    ],
+    "identifiers": [
+      "_space"
+    ]
+  },
+  {
+    "name": "backslash",
+    "used": [],
+    "specifiers": [
+      "a\\b.ts"
+    ],
+    "identifiers": [
+      "a_b"
+    ]
+  },
+  {
+    "name": "latin letters after the first",
+    "used": [],
+    "specifiers": [
+      "café/menü.ts"
+    ],
+    "identifiers": [
+      "caf_men_"
+    ]
+  },
+  {
+    "name": "latin letter first",
+    "used": [],
+    "specifiers": [
+      "über.ts"
+    ],
+    "identifiers": [
+      "_ber"
+    ]
+  },
+  {
+    "name": "combining mark",
+    "used": [],
+    "specifiers": [
+      "x́y.ts"
+    ],
+    "identifiers": [
+      "x́y"
+    ]
+  },
+  {
+    "name": "zero width non-joiner",
+    "used": [],
+    "specifiers": [
+      "a‌b.ts"
+    ],
+    "identifiers": [
+      "a‌b"
+    ]
+  },
+  {
+    "name": "letter number first",
+    "used": [],
+    "specifiers": [
+      "Ⅻ.ts"
+    ],
+    "identifiers": [
+      "_"
+    ]
+  },
+  {
+    "name": "arabic-indic digit first",
+    "used": [],
+    "specifiers": [
+      "٣x.ts"
+    ],
+    "identifiers": [
+      "_٣x"
+    ]
+  },
+  {
+    "name": "cjk",
+    "used": [],
+    "specifiers": [
+      "日本/語.ts"
+    ],
+    "identifiers": [
+      "_"
+    ]
+  },
+  {
+    "name": "astral character",
+    "used": [],
+    "specifiers": [
+      "a😀b.ts"
+    ],
+    "identifiers": [
+      "a_b"
+    ]
+  },
+  {
+    "name": "astral letter",
+    "used": [],
+    "specifiers": [
+      "𐐀.ts"
+    ],
+    "identifiers": [
+      "_"
+    ]
+  },
+  {
+    "name": "nested route",
+    "used": [],
+    "specifiers": [
+      "api/v1/users/[id]/posts.ts"
+    ],
+    "identifiers": [
+      "api_v1_users_id_posts"
+    ]
+  },
+  {
+    "name": "duplicates get a counter",
+    "used": [],
+    "specifiers": [
+      "foo/bar",
+      "foo/bar",
+      "foo/bar.js",
+      "foo-bar.tsx"
+    ],
+    "identifiers": [
+      "foo_bar",
+      "foo_bar_1",
+      "foo_bar_2",
+      "foo_bar_3"
+    ]
+  },
+  {
+    "name": "a counter skips names already used",
+    "used": [
+      "foo_bar",
+      "foo_bar_1",
+      "foo_bar_3"
+    ],
+    "specifiers": [
+      "foo/bar",
+      "foo/bar",
+      "foo/bar"
+    ],
+    "identifiers": [
+      "foo_bar_2",
+      "foo_bar_4",
+      "foo_bar_5"
+    ]
+  },
+  {
+    "name": "a counted name can collide with a plain one",
+    "used": [],
+    "specifiers": [
+      "a/b",
+      "a/b",
+      "a/b/1"
+    ],
+    "identifiers": [
+      "a_b",
+      "a_b_1",
+      "a_b_1_1"
+    ]
+  }
+]

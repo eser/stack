@@ -14,6 +14,10 @@
  * const lib = await wasm.loadEserAjanWasm();
  * console.log(lib.handshake.version);
  * lib.close();
+ *
+ * // The same load without awaiting; it compiles on the calling thread.
+ * const syncLib = wasm.loadEserAjanWasmSync();
+ * syncLib.close();
  * ```
  *
  * The module is the slim "wasi" profile, built as a reactor and reused for
@@ -28,6 +32,7 @@
 export type { FFILibrary } from "../ffi/types.ts";
 
 import type * as types from "../ffi/types.ts";
+import * as reactor from "./loader-reactor.ts";
 import * as resolve from "./resolve.ts";
 
 /**
@@ -75,7 +80,29 @@ export const loadEserAjanWasm = async (
 ): Promise<types.FFILibrary> => {
   const wasmPath =
     options?.wasmPath ?? resolve.resolveWasmPath(WASM_MODULE_DIR);
-  const { loadReactorWasm } = await import("./loader-reactor.ts");
 
-  return await loadReactorWasm(wasmPath);
+  return await reactor.loadReactorWasm(wasmPath);
+};
+
+/**
+ * Loads the eser-ajan WASM module without awaiting, for callers that cannot be
+ * async.
+ *
+ * The module compiles on the calling thread (`new WebAssembly.Module`), which
+ * blocks it for the whole compile; {@link loadEserAjanWasm} compiles off the
+ * thread. `node:fs` and `node:wasi` come from `process.getBuiltinModule`, so
+ * this works on Node only.
+ *
+ * @param options - Optional configuration for the WASM file path.
+ * @returns An FFILibrary handle.
+ * @throws {Error} If the WASM file cannot be found or fails to load, or the
+ *   host has no `process.getBuiltinModule("node:fs")`.
+ */
+export const loadEserAjanWasmSync = (
+  options?: LoadWasmOptions,
+): types.FFILibrary => {
+  const wasmPath =
+    options?.wasmPath ?? resolve.resolveWasmPath(WASM_MODULE_DIR);
+
+  return reactor.loadReactorWasmSync(wasmPath);
 };

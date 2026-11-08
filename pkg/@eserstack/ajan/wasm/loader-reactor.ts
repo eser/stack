@@ -32,6 +32,7 @@
  */
 
 import * as library from "../ffi/library.ts";
+import * as resolve from "../ffi/resolve.ts";
 import type * as types from "../ffi/types.ts";
 import * as hostFetch from "./host-fetch.ts";
 import * as wasiShim from "./wasi-shim.ts";
@@ -112,15 +113,15 @@ const shimHost = (): WasiHost => {
 };
 
 /**
- * node:wasi when the runtime provides it, with a preopen of the working
- * directory; otherwise the built-in shim, which has no filesystem. The import
- * happens once, so replacing a failed instance later is synchronous.
+ * The WASI host factory over `nodeWasi`: node:wasi with a preopen of the
+ * working directory, or the built-in shim, which has no filesystem, when the
+ * runtime has no node:wasi. Building an instance's host is synchronous, so
+ * replacing a failed instance later is too.
  */
-const createWasiHostFactory = async (): Promise<WasiHostFactory> => {
-  let nodeWasi: typeof import("node:wasi") | null = null;
-  try {
-    nodeWasi = await import("node:wasi");
-  } catch {
+const wasiHostFactory = (
+  nodeWasi: typeof import("node:wasi") | undefined,
+): WasiHostFactory => {
+  if (nodeWasi === undefined) {
     return shimHost;
   }
 
@@ -147,6 +148,70 @@ const createWasiHostFactory = async (): Promise<WasiHostFactory> => {
       // node:wasi exists but cannot run here; use the shim.
       return shimHost();
     }
+  };
+};
+
+/** node:wasi through a dynamic import, `undefined` where it does not exist. */
+const importNodeWasi = async (): Promise<
+  typeof import("node:wasi") | undefined
+> => {
+  try {
+    return await import("node:wasi");
+  } catch {
+    return undefined;
+  }
+};
+
+/**
+ * A compiled reactor module with the WASI host factory for its instances:
+ * everything a load needs before the first instance.
+ */
+export interface PreparedReactor {
+  readonly wasmPath: string;
+  readonly module: WebAssembly.Module;
+  readonly makeHost: WasiHostFactory;
+}
+
+/**
+ * Compiles the reactor module at `wasmPath` off the calling thread
+ * (`WebAssembly.compile`) and picks its WASI host.
+ */
+export const prepareReactor = async (
+  wasmPath: string,
+): Promise<PreparedReactor> => {
+  const nodeFs = await import("node:fs");
+  const wasmModule = await WebAssembly.compile(nodeFs.readFileSync(wasmPath));
+
+  return {
+    wasmPath,
+    module: wasmModule,
+    makeHost: wasiHostFactory(await importNodeWasi()),
+  };
+};
+
+/**
+ * Compiles the reactor module at `wasmPath` on the calling thread
+ * (`new WebAssembly.Module`) and picks its WASI host. `node:fs` and
+ * `node:wasi` come from `process.getBuiltinModule`.
+ *
+ * @throws {Error} When the host has no synchronous `node:fs`, or the file
+ *   does not compile
+ */
+export const prepareReactorSync = (wasmPath: string): PreparedReactor => {
+  const nodeFs =
+    resolve.getBuiltinModuleSync<typeof import("node:fs")>("node:fs");
+  if (nodeFs === undefined) {
+    throw new Error(
+      "the synchronous WASM load needs node:fs through process.getBuiltinModule, which this host does not offer",
+    );
+  }
+
+  return {
+    wasmPath,
+    module: new WebAssembly.Module(nodeFs.readFileSync(wasmPath)),
+    makeHost: wasiHostFactory(
+      resolve.getBuiltinModuleSync<typeof import("node:wasi")>("node:wasi"),
+    ),
   };
 };
 
@@ -217,11 +282,20 @@ export const checkHandshake = (
 export const createReactorHost = async (
   wasmPath: string,
   options: ReactorHostOptions = {},
-): Promise<ReactorHost> => {
-  const nodeFs = await import("node:fs");
-  const wasmModule = await WebAssembly.compile(nodeFs.readFileSync(wasmPath));
+): Promise<ReactorHost> =>
+  createReactorHostFrom(await prepareReactor(wasmPath), options);
 
-  const makeHost = await createWasiHostFactory();
+/**
+ * Instantiates a prepared reactor module and checks the handshake.
+ * Synchronous: the module is already compiled.
+ *
+ * @throws {Error} When the module speaks another ABI version
+ */
+export const createReactorHostFrom = (
+  prepared: PreparedReactor,
+  options: ReactorHostOptions = {},
+): ReactorHost => {
+  const { wasmPath, module: wasmModule, makeHost } = prepared;
 
   type Live = {
     readonly exports: ReactorExports;
@@ -395,8 +469,17 @@ export const createReactorTransport = (
  */
 export const loadReactorWasm = async (
   wasmPath: string,
-): Promise<types.FFILibrary> => {
-  const reactor = await createReactorHost(wasmPath);
+): Promise<types.FFILibrary> =>
+  loadPreparedReactor(await prepareReactor(wasmPath));
+
+/**
+ * Instantiates a prepared reactor module and returns the typed library over
+ * it. Synchronous: the module is already compiled.
+ */
+export const loadPreparedReactor = (
+  prepared: PreparedReactor,
+): types.FFILibrary => {
+  const reactor = createReactorHostFrom(prepared);
 
   return library.createLibrary({
     backend: "wasm",
@@ -404,3 +487,13 @@ export const loadReactorWasm = async (
     transport: createReactorTransport(reactor),
   });
 };
+
+/**
+ * Loads the reactor module without awaiting: it compiles on the calling
+ * thread (see {@link prepareReactorSync}).
+ *
+ * @param wasmPath - Absolute path to the `eser-ajan.wasm` file.
+ * @returns The library.
+ */
+export const loadReactorWasmSync = (wasmPath: string): types.FFILibrary =>
+  loadPreparedReactor(prepareReactorSync(wasmPath));

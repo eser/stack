@@ -203,6 +203,49 @@ names run in worker threads (see [Worker threads](#worker-threads)).
 NODE_OPTIONS=--no-experimental-ffi node --run cli -- ajan version
 ```
 
+### Load without awaiting
+
+`loadEserAjanSync()` is `loadEserAjan()` for code that cannot be async, such as
+a function that returns a value synchronously. It takes the same arguments and
+options, follows the same loader order, honours the same environment variables
+(`ESER_AJAN=disabled` throws the same error) and returns the same library:
+
+```typescript
+import * as ajan from "@eserstack/ajan";
+
+const lib = ajan.loadEserAjanSync();
+console.log(lib.backend, lib.call("formatList").formats?.length);
+lib.close();
+```
+
+The two loaders share their opens. Whichever runs first opens the library and
+the other gets that library, also when `loadEserAjanSync()` runs while a
+`loadEserAjan()` is still in flight: the sync loader opens it at once, and the
+async one returns it when it reaches its own `dlopen` or instantiation step. A
+WASM module the async loader compiled meanwhile is dropped unused.
+
+The sync loader takes `node:ffi`, `node:fs` and `node:wasi` through
+`process.getBuiltinModule`, so it runs on Node only. Its WASM fallback compiles
+the module on the calling thread (`new WebAssembly.Module`) and blocks it for
+the whole load. Measured on an Apple M4 Max with Node 26.12.1 and the
+7,623,997-byte module, each figure from a fresh process:
+
+| Step                                                                                 | Time   |
+| ------------------------------------------------------------------------------------ | ------ |
+| `new WebAssembly.Module` alone                                                       | ~4 ms  |
+| `loadEserAjanWasmSync()`: read, compile, instantiate, Go runtime start and handshake | ~31 ms |
+| The first call after it (`formatList`)                                               | ~1 ms  |
+
+V8 compiles the function bodies lazily, so the compile itself is short and
+part of its cost moves to the first calls. `loadEserAjanWasm()` takes about the
+same wall time (~32 ms) but compiles off the thread. The native load through
+`node:ffi` (`dlopen` and handshake) took ~4 ms on the same machine.
+
+The shared client in `@eserstack/ajan/ffi/client` builds on it: `ensureLibSync()`
+loads the bridge once without awaiting and never throws, and `requireLibSync()`
+loads it on first use when no load has finished, then returns the library or
+throws the load failure as `cause`.
+
 ## Build
 
 The Makefile at the repository root builds the library with Go and a C compiler;
@@ -419,9 +462,12 @@ available, which the filesystem functions need.
 import * as wasm from "@eserstack/ajan/wasm";
 
 const lib = await wasm.loadEserAjanWasm();
-console.log(lib.handshake.names.length); // 44
+console.log(lib.handshake.names.length); // 48
 lib.call("shellExec", { command: "true" }); // throws UnsupportedInWasmError
 ```
+
+`loadEserAjanWasmSync()` loads the same module without awaiting; it compiles
+on the calling thread (see [Load without awaiting](#load-without-awaiting)).
 
 ### Nesting limit
 

@@ -44,6 +44,16 @@
  * const nativeOnly = await ffi.loadEserAjan({ wasm: false });
  * ```
  *
+ * `loadEserAjanSync()` loads without awaiting, in the same order and with the
+ * same switches, for callers that cannot be async. The two share their opens,
+ * so a process opens the library once whichever runs first. Its WASM fallback
+ * compiles the module on the calling thread:
+ * ```ts
+ * const lib = ffi.loadEserAjanSync();
+ * lib.call("formatList");
+ * lib.close();
+ * ```
+ *
  * @module
  */
 
@@ -105,6 +115,8 @@ export type {
   WasmSupport,
 } from "./bindings.ts";
 
+import * as reactor from "../wasm/loader-reactor.ts";
+import * as wasmResolve from "../wasm/resolve.ts";
 import * as backendNode from "./backend-node.ts";
 import * as offload from "./offload.ts";
 import * as resolve from "./resolve.ts";
@@ -229,15 +241,24 @@ const NATIVE_HELP =
   `  - Set ESER_AJAN_LIB_PATH to the full path of the library to skip the search.\n` +
   `  See: https://github.com/eser/stack/tree/main/pkg/@eserstack/ajan`;
 
+/** What one open may try, decided from the arguments and the environment. */
+interface OpenPlan {
+  readonly libraryPath: string | undefined;
+  readonly options: LoadOptions | undefined;
+  readonly nativeAllowed: boolean;
+  readonly wasmAllowed: boolean;
+}
+
 /**
- * Performs one real open: resolve, dlopen through node:ffi, or fall back to
- * WASM. Every call reaches the runtime, so callers go through
- * {@link loadEserAjan}, which shares the result.
+ * Splits the overloaded arguments and applies the switches. The same for the
+ * async and the synchronous loader.
+ *
+ * @throws {Error} Under `ESER_AJAN=disabled`.
  */
-const openEserAjan = async (
+const planOpen = (
   libraryPathOrOptions?: string | LoadOptions,
   options?: LoadOptions,
-): Promise<types.FFILibrary> => {
+): OpenPlan => {
   // Resolve overloaded arguments
   const libraryPath: string | undefined =
     typeof libraryPathOrOptions === "string" ? libraryPathOrOptions : undefined;
@@ -281,70 +302,77 @@ const openEserAjan = async (
     );
   }
 
-  // --- Try node:ffi ---
-  // Kept for the failure paths below: whichever of resolveLibraryPath, the
-  // node:ffi import or dlopen failed is the only description of WHY native is
-  // unavailable, and every later throw has to carry it or it is lost for good.
-  let nativeError: unknown;
+  return { libraryPath, options: opts, nativeAllowed, wasmAllowed };
+};
 
-  if (nativeAllowed) {
-    // A bad pool size is the caller's mistake, not a reason to fall back.
-    const poolSize = resolvePoolSize(
-      getEnv("ESER_AJAN_POOL_SIZE"),
-      opts?.poolSize,
-    );
+/**
+ * The slot one open settles. The async and the synchronous loader share it
+ * through the entry of `openLibraries`: each checks it right before its
+ * `dlopen` or WASM instantiation and fills it right after, in the same
+ * synchronous run, so a process opens the library once whichever loader
+ * reaches that step first.
+ */
+interface OpenSlot {
+  settled: types.FFILibrary | null;
+}
 
-    try {
-      const resolvedPath =
-        libraryPath ?? resolve.resolveLibraryPath(FFI_MODULE_DIR);
-      return await backendNode.open(resolvedPath, { poolSize });
-    } catch (error) {
-      nativeError = error;
-      debugLog(`native FFI failed: ${errorMessage(error)}`);
-
-      // An explicit path is an assertion that this exact file is the library to
-      // use. Answering with WASM instead would serve a different implementation
-      // than the caller named, so the failure is theirs to see.
-      if (libraryPath !== undefined) {
-        throw error;
-      }
-    }
+/** Runs the final, synchronous open step unless the slot is already settled. */
+const settle = (
+  slot: OpenSlot,
+  open: () => types.FFILibrary,
+): types.FFILibrary => {
+  if (slot.settled === null) {
+    slot.settled = open();
   }
 
-  // --- Fall back to WASM ---
-  if (wasmAllowed) {
-    try {
-      const wasmMod = await import("../wasm/mod.ts");
-      return await wasmMod.loadEserAjanWasm();
-    } catch (wasmErr) {
-      throw new Error(
-        (nativeError === undefined
-          ? `eser-ajan did not load: node:ffi was not tried, and the WASM fallback failed to load.\n`
-          : `eser-ajan did not load through node:ffi, and the WASM fallback also failed to load.\n`) +
-          `Native error: ${
-            nativeError === undefined
-              ? "node:ffi not attempted"
-              : errorMessage(nativeError)
-          }\n` +
-          `WASM error: ${errorMessage(wasmErr)}\n\n` +
-          NATIVE_HELP,
-        // The native failure is the root cause whenever there was one; the WASM
-        // failure is only the fallback declining to paper over it.
-        { cause: nativeError ?? wasmErr },
-      );
-    }
-  }
+  return slot.settled;
+};
 
-  // --- Neither native nor WASM allowed ---
+/** The pool bound of a plan; a bad value is the caller's mistake. */
+const planPoolSize = (plan: OpenPlan): number =>
+  resolvePoolSize(getEnv("ESER_AJAN_POOL_SIZE"), plan.options?.poolSize);
+
+/** Records a failed native attempt; an explicit path rethrows it. */
+const nativeFailed = (plan: OpenPlan, error: unknown): void => {
+  debugLog(`native FFI failed: ${errorMessage(error)}`);
+
+  // An explicit path is an assertion that this exact file is the library to
+  // use. Answering with WASM instead would serve a different implementation
+  // than the caller named, so the failure is theirs to see.
+  if (plan.libraryPath !== undefined) {
+    throw error;
+  }
+};
+
+/** The error of a WASM fallback that failed too. */
+const wasmFailure = (nativeError: unknown, wasmErr: unknown): Error =>
+  new Error(
+    (nativeError === undefined
+      ? `eser-ajan did not load: node:ffi was not tried, and the WASM fallback failed to load.\n`
+      : `eser-ajan did not load through node:ffi, and the WASM fallback also failed to load.\n`) +
+      `Native error: ${
+        nativeError === undefined
+          ? "node:ffi not attempted"
+          : errorMessage(nativeError)
+      }\n` +
+      `WASM error: ${errorMessage(wasmErr)}\n\n` +
+      NATIVE_HELP,
+    // The native failure is the root cause whenever there was one; the WASM
+    // failure is only the fallback declining to paper over it.
+    { cause: nativeError ?? wasmErr },
+  );
+
+/** The error when the plan allowed no step that could still run. */
+const noBackendFailure = (plan: OpenPlan, nativeError: unknown): Error => {
   const reasons: string[] = [];
-  if (!nativeAllowed) {
+  if (!plan.nativeAllowed) {
     reasons.push(
       isDisabledByEnv("ESER_AJAN_NATIVE")
         ? "ESER_AJAN_NATIVE=disabled"
         : "native=false in LoadOptions",
     );
   }
-  if (!wasmAllowed) {
+  if (!plan.wasmAllowed) {
     reasons.push(
       isDisabledByEnv("ESER_AJAN_WASM")
         ? "ESER_AJAN_WASM=disabled"
@@ -357,7 +385,7 @@ const openEserAjan = async (
   // disabled" would name the caller's own `wasm: false` as the fault and drop
   // the one diagnostic that explains the failure.
   if (nativeError !== undefined) {
-    throw new Error(
+    return new Error(
       `eser-ajan did not load through node:ffi, and no fallback is available.\n` +
         `Native error: ${errorMessage(nativeError)}\n` +
         `Fallback unavailable: ${reasons.join(", ")}\n\n` +
@@ -366,20 +394,102 @@ const openEserAjan = async (
     );
   }
 
-  throw new Error(
+  return new Error(
     `Both node:ffi and the WASM fallback are disabled.\n` +
       `Reasons: ${reasons.join(", ")}\n\n` +
       `To fix this, unset the relevant environment variables or adjust LoadOptions.`,
   );
 };
 
+/**
+ * Performs one real open: resolve, dlopen through node:ffi, or fall back to
+ * WASM. Every call reaches the runtime, so callers go through
+ * {@link loadEserAjan}, which shares the result.
+ */
+const openEserAjan = async (
+  plan: OpenPlan,
+  slot: OpenSlot,
+): Promise<types.FFILibrary> => {
+  // Kept for the failure paths below: whichever of resolveLibraryPath, the
+  // node:ffi import or dlopen failed is the only description of WHY native is
+  // unavailable, and every later throw has to carry it or it is lost for good.
+  let nativeError: unknown;
+
+  // --- Try node:ffi ---
+  if (plan.nativeAllowed) {
+    const poolSize = planPoolSize(plan);
+
+    try {
+      const resolvedPath =
+        plan.libraryPath ?? resolve.resolveLibraryPath(FFI_MODULE_DIR);
+      const ffi = await backendNode.importFfi();
+      return settle(slot, () =>
+        backendNode.openWith(ffi, resolvedPath, { poolSize }),
+      );
+    } catch (error) {
+      nativeError = error;
+      nativeFailed(plan, error);
+    }
+  }
+
+  // --- Fall back to WASM ---
+  if (plan.wasmAllowed) {
+    try {
+      const prepared = await reactor.prepareReactor(
+        wasmResolve.resolveDefaultWasmPath(),
+      );
+      return settle(slot, () => reactor.loadPreparedReactor(prepared));
+    } catch (wasmErr) {
+      throw wasmFailure(nativeError, wasmErr);
+    }
+  }
+
+  throw noBackendFailure(plan, nativeError);
+};
+
+/** {@link openEserAjan} without awaiting, for {@link loadEserAjanSync}. */
+const openEserAjanSync = (plan: OpenPlan, slot: OpenSlot): types.FFILibrary => {
+  let nativeError: unknown;
+
+  if (plan.nativeAllowed) {
+    const poolSize = planPoolSize(plan);
+
+    try {
+      const resolvedPath =
+        plan.libraryPath ?? resolve.resolveLibraryPath(FFI_MODULE_DIR);
+      return settle(slot, () =>
+        backendNode.openSync(resolvedPath, { poolSize }),
+      );
+    } catch (error) {
+      nativeError = error;
+      nativeFailed(plan, error);
+    }
+  }
+
+  if (plan.wasmAllowed) {
+    try {
+      const wasmPath = wasmResolve.resolveDefaultWasmPath();
+      return settle(slot, () => reactor.loadReactorWasmSync(wasmPath));
+    } catch (wasmErr) {
+      throw wasmFailure(nativeError, wasmErr);
+    }
+  }
+
+  throw noBackendFailure(plan, nativeError);
+};
+
 // ---------------------------------------------------------------------------
 // Shared handles
 // ---------------------------------------------------------------------------
 
-/** A live shared open, plus how many callers still hold it. */
+/**
+ * A live shared open, plus how many callers still hold it. `slot.settled` is
+ * the library once a loader has opened it; until then an async open is in
+ * flight.
+ */
 interface CacheEntry {
-  library: Promise<types.FFILibrary>;
+  readonly library: Promise<types.FFILibrary>;
+  readonly slot: OpenSlot;
   refs: number;
 }
 
@@ -402,10 +512,51 @@ const cacheKey = (
   });
 
 /**
+ * One caller's handle on a shared library: its own idempotent `close()`, which
+ * releases one reference of the entry.
+ */
+const holdShared = (
+  key: string,
+  entry: CacheEntry,
+  library: types.FFILibrary,
+): types.FFILibrary => {
+  let released = false;
+
+  return {
+    backend: library.backend,
+    handshake: library.handshake,
+    call: library.call,
+    stream: library.stream,
+    workers: library.workers,
+    close: (): void => {
+      if (released) {
+        return;
+      }
+
+      released = true;
+
+      const current = openLibraries.get(key);
+      if (current !== entry) {
+        return;
+      }
+
+      entry.refs -= 1;
+      if (entry.refs > 0) {
+        return;
+      }
+
+      openLibraries.delete(key);
+      library.close();
+    },
+  };
+};
+
+/**
  * Opens the eser-ajan shared library through node:ffi, falling back to WASM
  * when node:ffi or the library cannot load.
  *
- * Callers asking for the same thing share one open. Roughly twenty packages in
+ * Callers asking for the same thing share one open, with
+ * {@link loadEserAjanSync} too. Roughly twenty packages in
  * this repo each used to hold their own loader singleton, so a process touching
  * logging, shell, formats and codebase paid four `dlopen` calls for one file;
  * they now share one handle.
@@ -445,17 +596,20 @@ export const loadEserAjan = async (
   let entry = openLibraries.get(key);
 
   if (entry === undefined) {
-    entry = {
-      library: openEserAjan(libraryPathOrOptions, options),
-      refs: 0,
-    };
-    openLibraries.set(key, entry);
+    const slot: OpenSlot = { settled: null };
+    // planOpen throws under ESER_AJAN=disabled; inside the async function
+    // the throw becomes this promise's rejection.
+    const library = (async () =>
+      await openEserAjan(planOpen(libraryPathOrOptions, options), slot))();
+    const created: CacheEntry = { library, slot, refs: 0 };
+    entry = created;
+    openLibraries.set(key, created);
 
     // Drop the entry on failure so the next caller retries rather than
     // inheriting a rejection that described a since-fixed environment. The
     // catch is attached before any await so a rejection cannot go unhandled.
-    entry.library.catch(() => {
-      if (openLibraries.get(key) === entry) {
+    library.catch(() => {
+      if (openLibraries.get(key) === created) {
         openLibraries.delete(key);
       }
     });
@@ -463,34 +617,51 @@ export const loadEserAjan = async (
 
   entry.refs += 1;
 
-  const library = await entry.library;
-  let released = false;
+  return holdShared(key, entry, await entry.library);
+};
 
-  return {
-    backend: library.backend,
-    handshake: library.handshake,
-    call: library.call,
-    stream: library.stream,
-    workers: library.workers,
-    close: (): void => {
-      if (released) {
-        return;
-      }
+/**
+ * Opens the eser-ajan shared library like {@link loadEserAjan}, without
+ * awaiting, for callers that cannot be async.
+ *
+ * It follows the same loader order (node:ffi, then the WASM build), honours
+ * the same switches and options, and throws the same errors. It shares its
+ * opens with {@link loadEserAjan}: whichever of the two runs first opens the
+ * library, and the other gets that library, also when it is called while an
+ * async open is still in flight.
+ *
+ * node:ffi comes from `process.getBuiltinModule`. The WASM fallback compiles
+ * the module on the calling thread (`new WebAssembly.Module`), which blocks it
+ * for the whole compile; the README gives a measured figure. Prefer
+ * {@link loadEserAjan} wherever the caller can await.
+ *
+ * @param libraryPathOrOptions - Optional explicit path **or** a `LoadOptions` object.
+ * @param options - Optional `LoadOptions` when a library path is also provided.
+ * @returns A unified FFI library handle.
+ * @throws {Error} If neither native FFI nor WASM fallback is available, as
+ *   {@link loadEserAjan} rejects.
+ */
+export const loadEserAjanSync = (
+  libraryPathOrOptions?: string | LoadOptions,
+  options?: LoadOptions,
+): types.FFILibrary => {
+  const plan = planOpen(libraryPathOrOptions, options);
+  const key = cacheKey(plan.libraryPath, plan.options);
+  let entry = openLibraries.get(key);
 
-      released = true;
+  if (entry === undefined) {
+    const slot: OpenSlot = { settled: null };
+    // A failed open throws here and leaves nothing behind, as in loadEserAjan.
+    const library = openEserAjanSync(plan, slot);
+    entry = { library: Promise.resolve(library), slot, refs: 0 };
+    openLibraries.set(key, entry);
+  } else if (entry.slot.settled === null) {
+    // An async open is in flight: open now into its slot, and the async open
+    // returns this library when it reaches its own open step.
+    openEserAjanSync(plan, entry.slot);
+  }
 
-      const current = openLibraries.get(key);
-      if (current !== entry) {
-        return;
-      }
+  entry.refs += 1;
 
-      entry.refs -= 1;
-      if (entry.refs > 0) {
-        return;
-      }
-
-      openLibraries.delete(key);
-      library.close();
-    },
-  };
+  return holdShared(key, entry, entry.slot.settled!);
 };

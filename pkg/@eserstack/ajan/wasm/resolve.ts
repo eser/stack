@@ -114,3 +114,11 @@ export const resolveWasmPath = (moduleDirHint?: string): string => {
       `  2. Or set ESER_AJAN_WASM_PATH to the full path of ${wasmFile}`,
   );
 };
+
+/**
+ * Resolves the WASM file from this module's own directory, the `wasm/`
+ * directory of the package. The loader in `ffi/mod.ts` resolves through it, so
+ * it probes the same locations as `loadEserAjanWasm()`.
+ */
+export const resolveDefaultWasmPath = (): string =>
+  resolveWasmPath(import.meta.dirname);

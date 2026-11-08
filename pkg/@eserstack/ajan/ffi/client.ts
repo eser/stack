@@ -38,6 +38,11 @@ const asError = (cause: unknown): Error =>
  * through {@link getLoadError}.
  */
 export const ensureLib = (): Promise<void> => {
+  if (loadPromise === null && (library !== null || loadError !== null)) {
+    // ensureLibSync made the one attempt already.
+    loadPromise = Promise.resolve();
+  }
+
   if (loadPromise === null) {
     loadPromise = ffi
       .loadEserAjan()
@@ -51,6 +56,27 @@ export const ensureLib = (): Promise<void> => {
   }
 
   return loadPromise;
+};
+
+/**
+ * Loads the bridge once per process without awaiting, and never throws.
+ *
+ * The synchronous counterpart of {@link ensureLib}, through
+ * `loadEserAjanSync()`: native first, then the WASM build, which compiles on
+ * the calling thread. It does nothing once a load has succeeded or failed.
+ * Called while an {@link ensureLib} load is in flight, it opens the library
+ * now, and both end up with the same library.
+ */
+export const ensureLibSync = (): void => {
+  if (library !== null || loadError !== null) {
+    return;
+  }
+
+  try {
+    library = ffi.loadEserAjanSync();
+  } catch (cause: unknown) {
+    loadError = asError(cause);
+  }
 };
 
 /** The loaded bridge, or `null` when it is unavailable or not yet loaded. */
@@ -145,26 +171,21 @@ export const callJson = async <TResponse>(
  * The loaded bridge, without awaiting.
  *
  * For call sites that cannot be async -- the logging hot path is the standing
- * example. `ensureLib()` must already have settled; this never triggers a load,
- * because doing so silently would hand back a `null` that looks like "no native
- * library" when it only means "not finished loading".
+ * example. When no load has finished yet, it loads the bridge synchronously
+ * first ({@link ensureLibSync}).
  *
- * @throws {Error} When the bridge is unavailable or loading has not completed.
+ * @throws {Error} When the bridge is unavailable, carrying the underlying load
+ *   failure as `cause`.
  */
 export const requireLibSync = (): types.FFILibrary => {
+  ensureLibSync();
+
   if (library !== null) {
     return library;
   }
 
-  if (loadError !== null) {
-    throw new Error(
-      `eser-ajan native library unavailable: ${loadError.message}`,
-      { cause: loadError },
-    );
-  }
-
   throw new Error(
-    "eser-ajan native library has not finished loading. " +
-      "Await ensureLib() before calling requireLibSync().",
+    `eser-ajan native library unavailable: ${loadError?.message ?? "unknown"}`,
+    { cause: loadError },
   );
 };

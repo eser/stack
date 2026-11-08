@@ -311,3 +311,19 @@ export const resolveLibraryPath = (moduleDirHint?: string): string => {
  */
 export const getEnvVar = (name: string): string | undefined =>
   globalThis.process?.env[name];
+
+/**
+ * Returns a Node built-in module synchronously through
+ * `process.getBuiltinModule`, or `undefined` where the host has no such module
+ * or no `process` (browsers, Cloudflare Workers), and where Node refuses it
+ * (`node:ffi` under `--no-experimental-ffi`). The synchronous loaders of
+ * `backend-node.ts` and `wasm/loader-reactor.ts` take `node:ffi`, `node:fs`
+ * and `node:wasi` through it.
+ */
+export const getBuiltinModuleSync = <T>(id: string): T | undefined => {
+  try {
+    return globalThis.process?.getBuiltinModule?.(id) as T | undefined;
+  } catch {
+    return undefined;
+  }
+};

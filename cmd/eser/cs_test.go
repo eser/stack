@@ -8,13 +8,10 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"reflect"
-	"slices"
 	"strings"
 	"testing"
 
 	"github.com/eser/stack/pkg/ajan/csfx"
-	"gopkg.in/yaml.v3"
 )
 
 // csFixture is a layered set of .env files: each later file replaces some of
@@ -83,52 +80,26 @@ func TestCSGenerateMatchesTypeScript(t *testing.T) {
 				t.Fatalf("eser cs: exit %d: %s", code, goErr)
 			}
 
-			// The TypeScript CLI through the native ajan library when it loads,
-			// and with ESER_AJAN=disabled on its own TypeScript code.
-			for _, ajan := range []string{"", "ESER_AJAN=disabled"} {
-				cmd := exec.Command(node, append([]string{ //nolint:gosec,noctx
-					filepath.Join(repo, "pkg/@eserstack/cs/cli.ts"),
-				}, args...)...)
-				cmd.Dir = e.cwd
-				// Neither side reads process variables for generate, but the
-				// environment name falls back to $ENV and friends.
-				cmd.Env = []string{"PATH=" + os.Getenv("PATH"), "HOME=" + os.Getenv("HOME"), ajan}
+			// The TypeScript CLI loads the ajan library: its .env reading runs in
+			// configfx, so it has no path without the bridge (TASK-267).
+			cmd := exec.Command(node, append([]string{ //nolint:gosec,noctx
+				filepath.Join(repo, "pkg/@eserstack/cs/cli.ts"),
+			}, args...)...)
+			cmd.Dir = e.cwd
+			// Neither side reads process variables for generate, but the
+			// environment name falls back to $ENV and friends.
+			cmd.Env = []string{"PATH=" + os.Getenv("PATH"), "HOME=" + os.Getenv("HOME")}
 
-				tsOut, err := cmd.Output()
-				if err != nil {
-					t.Fatalf("TypeScript cs %s: %v", ajan, err)
-				}
+			tsOut, err := cmd.Output()
+			if err != nil {
+				t.Fatalf("TypeScript cs: %v", err)
+			}
 
-				if goOut == string(tsOut) {
-					continue
-				}
-
-				// The TypeScript yaml library and yaml.v3 quote some scalars
-				// differently ("a # b" against 'a # b', yes against "yes");
-				// the documents must still hold the same values.
-				if ajan != "" && !slices.Contains(args, "json") && sameYAML(t, goOut, string(tsOut)) {
-					continue
-				}
-
-				t.Errorf("%s\n--- TypeScript\n%s\n--- Go\n%s", ajan, tsOut, goOut)
+			if goOut != string(tsOut) {
+				t.Errorf("--- TypeScript\n%s\n--- Go\n%s", tsOut, goOut)
 			}
 		})
 	}
-}
-
-func sameYAML(t *testing.T, a, b string) bool {
-	t.Helper()
-
-	var va, vb any
-	if err := yaml.Unmarshal([]byte(a), &va); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := yaml.Unmarshal([]byte(b), &vb); err != nil {
-		t.Fatal(err)
-	}
-
-	return reflect.DeepEqual(va, vb)
 }
 
 func TestCSGenerateReadsTheLayers(t *testing.T) {

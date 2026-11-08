@@ -240,6 +240,34 @@ export interface ExtractTarballAnswer extends HandleAnswer {
   readonly max?: number;
 }
 
+/**
+ * The host environment of the dotenv calls: the variables in the host's
+ * order, and whether names match regardless of case (Windows). The WASM build
+ * has no environment of its own.
+ */
+export interface ConfigEnvironRequest {
+  readonly environ: ReadonlyArray<readonly [string, string]>;
+  readonly envCaseInsensitive?: boolean;
+}
+
+/**
+ * The failure of the config file calls: `code` is `not_found`,
+ * `permission_denied`, `too_large` (with the file's size) or `parse`.
+ */
+export interface ConfigFailureAnswer extends ErrorAnswer {
+  readonly code?: string;
+  readonly fileSize?: number;
+}
+
+/**
+ * The answer of the dotenv calls: the variables, each where its key first
+ * appears, and the keys skipped as not identifiers.
+ */
+export interface ConfigDotenvAnswer extends ConfigFailureAnswer {
+  readonly entries?: ReadonlyArray<readonly [string, string]>;
+  readonly ignored?: readonly string[];
+}
+
 // The entry types are written once, as the `as` type of each table entry; the
 // aliases below keep those lines short.
 type Call<Req, Res, Async extends boolean = false> = CallBinding<
@@ -482,6 +510,85 @@ export const BINDINGS = {
   } as Call<
     { readonly sources: readonly string[]; readonly caseInsensitive?: boolean },
     ErrorAnswer & { readonly values?: Readonly<Record<string, unknown>> }
+  >,
+  configParseDotenv: {
+    kind: "call",
+    blocking: false,
+    wasm: "yes",
+    async: false,
+  } as Call<
+    ConfigEnvironRequest & { readonly text: string },
+    ConfigDotenvAnswer
+  >,
+  configReadDotenvFile: {
+    kind: "call",
+    blocking: false,
+    wasm: "fs",
+    async: false,
+  } as Call<
+    ConfigEnvironRequest & {
+      readonly path: string;
+      readonly maxFileSize?: number | null;
+    },
+    ConfigDotenvAnswer
+  >,
+  configLoadDotenv: {
+    kind: "call",
+    blocking: false,
+    wasm: "fs",
+    async: false,
+  } as Call<
+    ConfigEnvironRequest & {
+      readonly baseDir: string;
+      readonly env?: string;
+      readonly envVars: readonly string[];
+      readonly defaultEnvValue: string;
+      readonly loadProcessEnv: boolean;
+      readonly maxFileSize?: number | null;
+    },
+    ConfigDotenvAnswer & {
+      readonly envName?: string;
+      readonly filepath?: string;
+    }
+  >,
+  configLocateFile: {
+    kind: "call",
+    blocking: false,
+    wasm: "fs",
+    async: false,
+  } as Call<
+    {
+      readonly baseDir: string;
+      readonly filenames: readonly string[];
+      readonly searchParents?: boolean;
+    },
+    ErrorAnswer & { readonly path?: string }
+  >,
+  configFileFormat: {
+    kind: "call",
+    blocking: false,
+    wasm: "yes",
+    async: false,
+  } as Call<
+    { readonly path: string; readonly windows?: boolean },
+    ErrorAnswer & { readonly format?: number }
+  >,
+  configParseFile: {
+    kind: "call",
+    blocking: false,
+    wasm: "fs",
+    async: false,
+  } as Call<
+    {
+      readonly path: string;
+      readonly format?: number;
+      readonly windows?: boolean;
+    },
+    ConfigFailureAnswer & {
+      readonly format?: number;
+      readonly content?: unknown;
+      readonly text?: string;
+    }
   >,
 
   // HTTP (httpclient)

@@ -1,0 +1,782 @@
+[
+  {
+    "name": "plain keys",
+    "text": "A=1\nB=two",
+    "entries": [
+      [
+        "A",
+        "1"
+      ],
+      [
+        "B",
+        "two"
+      ]
+    ]
+  },
+  {
+    "name": "spaces around the equals sign",
+    "text": "A = spaced value",
+    "entries": [
+      [
+        "A",
+        "spaced value"
+      ]
+    ]
+  },
+  {
+    "name": "the export prefix",
+    "text": "export A=yes",
+    "entries": [
+      [
+        "A",
+        "yes"
+      ]
+    ]
+  },
+  {
+    "name": "the export prefix with a tab",
+    "text": "export\tA=tab",
+    "entries": [
+      [
+        "A",
+        "tab"
+      ]
+    ]
+  },
+  {
+    "name": "export as the whole key",
+    "text": "export=1\nexported=2",
+    "entries": [
+      [
+        "export",
+        "1"
+      ],
+      [
+        "exported",
+        "2"
+      ]
+    ]
+  },
+  {
+    "name": "comment lines",
+    "text": "# comment\nA=1\n  # indented\nB=2",
+    "entries": [
+      [
+        "A",
+        "1"
+      ],
+      [
+        "B",
+        "2"
+      ]
+    ]
+  },
+  {
+    "name": "an inline comment after a space",
+    "text": "A=value # comment",
+    "entries": [
+      [
+        "A",
+        "value"
+      ]
+    ]
+  },
+  {
+    "name": "a hash without a space ends the value too",
+    "text": "URL=http://x/#top",
+    "entries": [
+      [
+        "URL",
+        "http://x/"
+      ]
+    ]
+  },
+  {
+    "name": "a hash inside quotes",
+    "text": "A=\"a # b\"\nB='a # b'",
+    "entries": [
+      [
+        "A",
+        "a # b"
+      ],
+      [
+        "B",
+        "a # b"
+      ]
+    ]
+  },
+  {
+    "name": "single quotes keep the text as written",
+    "text": "A='single ${B} \\n $B'",
+    "entries": [
+      [
+        "A",
+        "single ${B} \\n $B"
+      ]
+    ]
+  },
+  {
+    "name": "double-quote escapes",
+    "text": "A=\"tab\\there\\nnew \\\"q\\\" back\\\\slash \\q \\'s\\r\"",
+    "entries": [
+      [
+        "A",
+        "tab\there\nnew \"q\" back\\slash \\q 's\r"
+      ]
+    ]
+  },
+  {
+    "name": "a multiline double-quoted value",
+    "text": "A=\"first\nsecond\"\nB=after",
+    "entries": [
+      [
+        "A",
+        "first\nsecond"
+      ],
+      [
+        "B",
+        "after"
+      ]
+    ]
+  },
+  {
+    "name": "a multiline single-quoted value",
+    "text": "A='first\nsecond'\nB=after",
+    "entries": [
+      [
+        "A",
+        "first\nsecond"
+      ],
+      [
+        "B",
+        "after"
+      ]
+    ]
+  },
+  {
+    "name": "one newline after and before the quotes is dropped",
+    "text": "A=\"\nbody\n\"\nB='\n\nbody\n\n'",
+    "entries": [
+      [
+        "A",
+        "body"
+      ],
+      [
+        "B",
+        "\nbody\n"
+      ]
+    ]
+  },
+  {
+    "name": "CRLF line endings",
+    "text": "A=1\r\nB=\"x\r\ny\"\r\nC='p\r\nq'\r\n",
+    "entries": [
+      [
+        "A",
+        "1"
+      ],
+      [
+        "B",
+        "x\r\ny"
+      ],
+      [
+        "C",
+        "p\r\nq"
+      ]
+    ]
+  },
+  {
+    "name": "a lone carriage return separates lines",
+    "text": "A=1\rB=2",
+    "entries": [
+      [
+        "A",
+        "1"
+      ],
+      [
+        "B",
+        "2"
+      ]
+    ]
+  },
+  {
+    "name": "an empty value",
+    "text": "A=\nB=next",
+    "entries": [
+      [
+        "A",
+        ""
+      ],
+      [
+        "B",
+        "next"
+      ]
+    ]
+  },
+  {
+    "name": "empty quoted values",
+    "text": "A=\"\"\nB=''",
+    "entries": [
+      [
+        "A",
+        ""
+      ],
+      [
+        "B",
+        ""
+      ]
+    ]
+  },
+  {
+    "name": "text after the closing quote is ignored",
+    "text": "A=\"x\" trailing\nB='y' more # c\nC=1",
+    "entries": [
+      [
+        "A",
+        "x"
+      ],
+      [
+        "B",
+        "y"
+      ],
+      [
+        "C",
+        "1"
+      ]
+    ]
+  },
+  {
+    "name": "an unterminated double quote reads as unquoted",
+    "text": "A=\"abc\nB=2",
+    "entries": [
+      [
+        "A",
+        "\"abc"
+      ],
+      [
+        "B",
+        "2"
+      ]
+    ]
+  },
+  {
+    "name": "an unterminated single quote reads as unquoted",
+    "text": "A='abc\nB=2",
+    "entries": [
+      [
+        "A",
+        "'abc"
+      ],
+      [
+        "B",
+        "2"
+      ]
+    ]
+  },
+  {
+    "name": "a double-quoted value runs to the next quote",
+    "text": "A=\"abc\nB=2\nC=\"z\"\nD=4",
+    "entries": [
+      [
+        "A",
+        "abc\nB=2\nC="
+      ],
+      [
+        "D",
+        "4"
+      ]
+    ]
+  },
+  {
+    "name": "keys that are not identifiers are ignored",
+    "text": "1A=x\nB-C=y\nOK=1\nserver.port=8080",
+    "entries": [
+      [
+        "OK",
+        "1"
+      ]
+    ],
+    "ignored": [
+      "1A",
+      "B-C",
+      "server.port"
+    ]
+  },
+  {
+    "name": "a colon does not separate",
+    "text": "KEY: value\nOTHER=1",
+    "entries": [
+      [
+        "OTHER",
+        "1"
+      ]
+    ]
+  },
+  {
+    "name": "a line without an equals sign is skipped",
+    "text": "just text\nA=1",
+    "entries": [
+      [
+        "A",
+        "1"
+      ]
+    ]
+  },
+  {
+    "name": "braced and bare references",
+    "text": "A=plain\nB=${A}-$A",
+    "entries": [
+      [
+        "A",
+        "plain"
+      ],
+      [
+        "B",
+        "plain-plain"
+      ]
+    ]
+  },
+  {
+    "name": "a reference to a key further down",
+    "text": "B=${A}\nA=later",
+    "entries": [
+      [
+        "B",
+        "later"
+      ],
+      [
+        "A",
+        "later"
+      ]
+    ]
+  },
+  {
+    "name": "defaults",
+    "text": "A=${ESER_DOTENV_FIXTURE_UNSET_A:-fallback}\nB=$ESER_DOTENV_FIXTURE_UNSET_B:-fallback rest\nC=${ESER_DOTENV_FIXTURE_UNSET_C:-two words}",
+    "entries": [
+      [
+        "A",
+        "fallback"
+      ],
+      [
+        "B",
+        "fallback rest"
+      ],
+      [
+        "C",
+        "two words"
+      ]
+    ]
+  },
+  {
+    "name": "a default is unused when the name is set",
+    "text": "P=p\nA=${P:-unused}\nB=$P:-unused",
+    "entries": [
+      [
+        "P",
+        "p"
+      ],
+      [
+        "A",
+        "p"
+      ],
+      [
+        "B",
+        "p"
+      ]
+    ]
+  },
+  {
+    "name": "a backslash keeps a bare reference but not a braced one",
+    "text": "P=p\nA=\\$P\nB=\\${P}",
+    "entries": [
+      [
+        "P",
+        "p"
+      ],
+      [
+        "A",
+        "\\$P"
+      ],
+      [
+        "B",
+        "\\p"
+      ]
+    ]
+  },
+  {
+    "name": "an unset name without a default is empty",
+    "text": "A=a${ESER_DOTENV_FIXTURE_UNSET_D}b\nB=x$ESER_DOTENV_FIXTURE_UNSET_E",
+    "entries": [
+      [
+        "A",
+        "ab"
+      ],
+      [
+        "B",
+        "x"
+      ]
+    ]
+  },
+  {
+    "name": "a self reference stops after ten passes",
+    "text": "LOOP=x$LOOP",
+    "entries": [
+      [
+        "LOOP",
+        "xxxxxxxxxxx$LOOP"
+      ]
+    ]
+  },
+  {
+    "name": "a repeated self reference expands once per line",
+    "text": "LOOP=x$LOOP\nLOOP=x$LOOP",
+    "entries": [
+      [
+        "LOOP",
+        "xxxxxxxxxxxxxxxxxxxxx$LOOP"
+      ]
+    ]
+  },
+  {
+    "name": "a later quoted value of an expanded key is expanded",
+    "text": "B=b\nA=$B\nA='$B'",
+    "entries": [
+      [
+        "B",
+        "b"
+      ],
+      [
+        "A",
+        "b"
+      ]
+    ]
+  },
+  {
+    "name": "a later unquoted value replaces a quoted one",
+    "text": "B=b\nA='$B'\nA=$B",
+    "entries": [
+      [
+        "B",
+        "b"
+      ],
+      [
+        "A",
+        "b"
+      ]
+    ]
+  },
+  {
+    "name": "references resolve against the host environment",
+    "text": "A=${ESER_DOTENV_FIXTURE_HOST}/$ESER_DOTENV_FIXTURE_HOST",
+    "env": {
+      "ESER_DOTENV_FIXTURE_HOST": "from-host"
+    },
+    "entries": [
+      [
+        "A",
+        "from-host/from-host"
+      ]
+    ]
+  },
+  {
+    "name": "the file wins over the host environment",
+    "text": "ESER_DOTENV_FIXTURE_X=file\nA=$ESER_DOTENV_FIXTURE_X",
+    "env": {
+      "ESER_DOTENV_FIXTURE_X": "host"
+    },
+    "entries": [
+      [
+        "ESER_DOTENV_FIXTURE_X",
+        "file"
+      ],
+      [
+        "A",
+        "file"
+      ]
+    ]
+  },
+  {
+    "name": "an empty value in the file still wins",
+    "text": "ESER_DOTENV_FIXTURE_E=\nA=[$ESER_DOTENV_FIXTURE_E]",
+    "env": {
+      "ESER_DOTENV_FIXTURE_E": "host"
+    },
+    "entries": [
+      [
+        "ESER_DOTENV_FIXTURE_E",
+        ""
+      ],
+      [
+        "A",
+        "[]"
+      ]
+    ]
+  },
+  {
+    "name": "a braced default runs to the last closing brace",
+    "text": "A=${ESER_DOTENV_FIXTURE_UNSET_F:-x}-${ESER_DOTENV_FIXTURE_UNSET_G}",
+    "entries": [
+      [
+        "A",
+        "x}-${ESER_DOTENV_FIXTURE_UNSET_G"
+      ]
+    ]
+  },
+  {
+    "name": "an empty braced default is part of the name",
+    "text": "A=[${ESER_DOTENV_FIXTURE_UNSET_H:-}]",
+    "entries": [
+      [
+        "A",
+        "[]"
+      ]
+    ]
+  },
+  {
+    "name": "empty braces stay as written",
+    "text": "A=${}",
+    "entries": [
+      [
+        "A",
+        "${}"
+      ]
+    ]
+  },
+  {
+    "name": "a dollar without a name stays",
+    "text": "A=$ and $",
+    "entries": [
+      [
+        "A",
+        "$ and $"
+      ]
+    ]
+  },
+  {
+    "name": "unicode values",
+    "text": "A=héllo wörld ✓\nB=\"😀\"",
+    "entries": [
+      [
+        "A",
+        "héllo wörld ✓"
+      ],
+      [
+        "B",
+        "😀"
+      ]
+    ]
+  },
+  {
+    "name": "non-breaking spaces are trimmed from unquoted values",
+    "text": "A=\u00a0value\u00a0",
+    "entries": [
+      [
+        "A",
+        "value"
+      ]
+    ]
+  },
+  {
+    "name": "double-quoted values are not expanded",
+    "text": "P=p\nA=\"$P ${P}\"",
+    "entries": [
+      [
+        "P",
+        "p"
+      ],
+      [
+        "A",
+        "$P ${P}"
+      ]
+    ]
+  },
+  {
+    "name": "a key followed by a newline before the equals sign",
+    "text": "A\n=1\nB=2",
+    "entries": [
+      [
+        "A",
+        "1"
+      ],
+      [
+        "B",
+        "2"
+      ]
+    ]
+  },
+  {
+    "name": "blank lines and indentation",
+    "text": "\n\n   A=1\n\n\tB=2\n\n",
+    "entries": [
+      [
+        "A",
+        "1"
+      ],
+      [
+        "B",
+        "2"
+      ]
+    ]
+  },
+  {
+    "name": "an equals sign inside the value",
+    "text": "A=b=c",
+    "entries": [
+      [
+        "A",
+        "b=c"
+      ]
+    ]
+  },
+  {
+    "name": "a tab after the equals sign",
+    "text": "A=\tvalue",
+    "entries": [
+      [
+        "A",
+        "value"
+      ]
+    ]
+  },
+  {
+    "name": "trailing spaces are trimmed",
+    "text": "A=value   \nB=x\t",
+    "entries": [
+      [
+        "A",
+        "value"
+      ],
+      [
+        "B",
+        "x"
+      ]
+    ]
+  },
+  {
+    "name": "export with a quoted value",
+    "text": "export A=\"q\"",
+    "entries": [
+      [
+        "A",
+        "q"
+      ]
+    ]
+  },
+  {
+    "name": "a hash right after the equals sign",
+    "text": "A=#notcomment\nB= # comment\nC=1",
+    "entries": [
+      [
+        "A",
+        ""
+      ],
+      [
+        "B",
+        ""
+      ],
+      [
+        "C",
+        "1"
+      ]
+    ]
+  },
+  {
+    "name": "an escaped quote before the closing quote",
+    "text": "A=\"a\\\"\" b\nB=1",
+    "entries": [
+      [
+        "A",
+        "a\""
+      ],
+      [
+        "B",
+        "1"
+      ]
+    ]
+  },
+  {
+    "name": "double quotes inside single quotes",
+    "text": "A='say \"hi\"'",
+    "entries": [
+      [
+        "A",
+        "say \"hi\""
+      ]
+    ]
+  },
+  {
+    "name": "a line separator inside an unquoted value",
+    "text": "A=1\u2028B=2\nC=3",
+    "entries": [
+      [
+        "A",
+        "1\u2028B=2"
+      ],
+      [
+        "C",
+        "3"
+      ]
+    ]
+  },
+  {
+    "name": "a chain of references",
+    "text": "A=$B\nB=$C\nC=end",
+    "entries": [
+      [
+        "A",
+        "end"
+      ],
+      [
+        "B",
+        "end"
+      ],
+      [
+        "C",
+        "end"
+      ]
+    ]
+  },
+  {
+    "name": "prototype names are plain keys",
+    "text": "__proto__=x\nconstructor=y\nA=$__proto__",
+    "entries": [
+      [
+        "__proto__",
+        "x"
+      ],
+      [
+        "constructor",
+        "y"
+      ],
+      [
+        "A",
+        "x"
+      ]
+    ]
+  },
+  {
+    "name": "the last value of a key wins and keeps its first position",
+    "text": "A=1\nB=2\nA=3",
+    "entries": [
+      [
+        "A",
+        "3"
+      ],
+      [
+        "B",
+        "2"
+      ]
+    ]
+  },
+  {
+    "name": "an empty file",
+    "text": "",
+    "entries": []
+  },
+  {
+    "name": "only comments",
+    "text": "# a\n# b\n",
+    "entries": []
+  }
+]

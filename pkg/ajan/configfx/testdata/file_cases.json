@@ -1,0 +1,336 @@
+{
+  "files": {
+    "app/config.json": "{\n  \"port\": 8080,\n  \"name\": \"app\",\n  \"nested\": { \"b\": 1, \"a\": [1, 2] }\n}\n",
+    "app/config.jsonc": "{\n  // the port\n  \"port\": 8080,\n  /* hosts,\n     in order */\n  \"hosts\": [\"b\", \"a\",],\n  \"zeta\": { \"y\": true, \"x\": null, },\n}\n",
+    "app/settings.yaml": "name: app\nport: 8080\nhosts:\n  - b\n  - a\n",
+    "app/settings.toml": "name = \"app\"\n\n[server]\nport = 8080\n",
+    "app/broken.json": "{\n  \"a\": 1\n  \"b\": 2\n}\n",
+    "app/broken.jsonc": "{\n  \"a\": 1\n  \"b\": 2\n}\n",
+    "app/empty.jsonc": "",
+    "app/broken.toml": "[invalid\nname = ",
+    "app/plain.txt": "hello\n",
+    "app/app.env": "A=1\n",
+    "app/forced.txt": "{\"forced\": true}\n",
+    "app/numbers.json": "{\"big\": 12345678901234567890, \"small\": 1.5e-300, \"neg\": -1, \"exp\": 1E2}\n",
+    "app/proto.json": "{\"__proto__\": {\"x\": 1}, \"a\": \"<&>\", \"a\": \"last\"}\n",
+    "app/bom.json": "\ufeff{\"a\": 1}\n",
+    "app/deep/er/leaf.txt": "leaf\n",
+    "app/dir.json/inner.txt": "inner\n"
+  },
+  "formats": [
+    {
+      "path": "config.json",
+      "format": 2
+    },
+    {
+      "path": "config.jsonc",
+      "format": 3
+    },
+    {
+      "path": "config.yaml",
+      "format": 5
+    },
+    {
+      "path": "config.yml",
+      "format": 5
+    },
+    {
+      "path": "config.toml",
+      "format": 4
+    },
+    {
+      "path": "app.env",
+      "format": 1
+    },
+    {
+      "path": ".env",
+      "format": 0
+    },
+    {
+      "path": "dir/.env",
+      "format": 0
+    },
+    {
+      "path": "config.JSON",
+      "format": 0
+    },
+    {
+      "path": "Makefile",
+      "format": 0
+    },
+    {
+      "path": "config.json/",
+      "format": 2
+    },
+    {
+      "path": "archive.tar.json",
+      "format": 2
+    },
+    {
+      "path": ".hidden.json",
+      "format": 2
+    },
+    {
+      "path": "..json",
+      "format": 2
+    },
+    {
+      "path": "dir.d/file",
+      "format": 0
+    },
+    {
+      "path": "/abs/path/config.toml",
+      "format": 4
+    },
+    {
+      "path": "./rel/config.yml",
+      "format": 5
+    },
+    {
+      "path": "config.",
+      "format": 0
+    },
+    {
+      "path": "dir/..",
+      "format": 0
+    },
+    {
+      "path": ".",
+      "format": 0
+    },
+    {
+      "path": "",
+      "format": 0
+    }
+  ],
+  "locate": [
+    {
+      "name": "the first name found wins",
+      "baseDir": "app",
+      "filenames": [
+        "config.json",
+        "config.jsonc"
+      ],
+      "want": "app/config.json"
+    },
+    {
+      "name": "names are tried in order",
+      "baseDir": "app",
+      "filenames": [
+        "config.jsonc",
+        "config.json"
+      ],
+      "want": "app/config.jsonc"
+    },
+    {
+      "name": "nothing found",
+      "baseDir": "app",
+      "filenames": [
+        "absent.json"
+      ],
+      "want": null
+    },
+    {
+      "name": "a directory does not count",
+      "baseDir": "app",
+      "filenames": [
+        "dir.json",
+        "config.json"
+      ],
+      "want": "app/config.json"
+    },
+    {
+      "name": "parent directories are searched when asked",
+      "baseDir": "app/deep/er",
+      "filenames": [
+        "config.json"
+      ],
+      "searchParents": true,
+      "want": "app/config.json"
+    },
+    {
+      "name": "parent directories are not searched by default",
+      "baseDir": "app/deep/er",
+      "filenames": [
+        "config.json"
+      ],
+      "want": null
+    },
+    {
+      "name": "the nearest directory wins",
+      "baseDir": "app/deep/er",
+      "filenames": [
+        "leaf.txt",
+        "config.json"
+      ],
+      "searchParents": true,
+      "want": "app/deep/er/leaf.txt"
+    },
+    {
+      "name": "a search up to the root finds nothing",
+      "baseDir": "app/deep/er",
+      "filenames": [
+        "eser-config-fixture-absent.json"
+      ],
+      "searchParents": true,
+      "want": null
+    }
+  ],
+  "parse": [
+    {
+      "name": "JSON keeps the key order",
+      "path": "app/config.json",
+      "wantFormat": 2,
+      "decodedBy": "go",
+      "content": {
+        "port": 8080,
+        "name": "app",
+        "nested": {
+          "b": 1,
+          "a": [
+            1,
+            2
+          ]
+        }
+      }
+    },
+    {
+      "name": "JSONC drops comments and trailing commas",
+      "path": "app/config.jsonc",
+      "wantFormat": 3,
+      "decodedBy": "go",
+      "content": {
+        "port": 8080,
+        "hosts": [
+          "b",
+          "a"
+        ],
+        "zeta": {
+          "y": true,
+          "x": null
+        }
+      }
+    },
+    {
+      "name": "YAML",
+      "path": "app/settings.yaml",
+      "wantFormat": 5,
+      "decodedBy": "typescript",
+      "content": {
+        "name": "app",
+        "port": 8080,
+        "hosts": [
+          "b",
+          "a"
+        ]
+      }
+    },
+    {
+      "name": "TOML",
+      "path": "app/settings.toml",
+      "wantFormat": 4,
+      "decodedBy": "typescript",
+      "content": {
+        "name": "app",
+        "server": {
+          "port": 8080
+        }
+      }
+    },
+    {
+      "name": "a forced format",
+      "path": "app/forced.txt",
+      "format": 2,
+      "wantFormat": 2,
+      "decodedBy": "go",
+      "content": {
+        "forced": true
+      }
+    },
+    {
+      "name": "an unknown extension reads no content",
+      "path": "app/plain.txt",
+      "wantFormat": 0,
+      "decodedBy": "go",
+      "content": null
+    },
+    {
+      "name": "an environment file reads no content",
+      "path": "app/app.env",
+      "wantFormat": 0,
+      "decodedBy": "go",
+      "content": null
+    },
+    {
+      "name": "numbers keep their JSON meaning",
+      "path": "app/numbers.json",
+      "wantFormat": 2,
+      "decodedBy": "go",
+      "content": {
+        "big": 12345678901234567000,
+        "small": 1.5e-300,
+        "neg": -1,
+        "exp": 100
+      }
+    },
+    {
+      "name": "a __proto__ key is a plain key and a repeated key keeps its last value",
+      "path": "app/proto.json",
+      "wantFormat": 2,
+      "decodedBy": "go",
+      "content": {
+        "__proto__": {
+          "x": 1
+        },
+        "a": "last"
+      }
+    },
+    {
+      "name": "a JSON syntax error names its position",
+      "path": "app/broken.json",
+      "wantFormat": 2,
+      "decodedBy": "go",
+      "errorCode": "parse",
+      "error": "line 3, column 3"
+    },
+    {
+      "name": "a JSONC syntax error names its position",
+      "path": "app/broken.jsonc",
+      "wantFormat": 3,
+      "decodedBy": "go",
+      "errorCode": "parse",
+      "error": "line 3, column 3"
+    },
+    {
+      "name": "an empty JSONC file is refused",
+      "path": "app/empty.jsonc",
+      "wantFormat": 3,
+      "decodedBy": "go",
+      "errorCode": "parse",
+      "error": "line 1, column 1"
+    },
+    {
+      "name": "a byte order mark is not JSON",
+      "path": "app/bom.json",
+      "wantFormat": 2,
+      "decodedBy": "go",
+      "errorCode": "parse",
+      "error": "line 1, column 1"
+    },
+    {
+      "name": "a TOML syntax error",
+      "path": "app/broken.toml",
+      "wantFormat": 4,
+      "decodedBy": "typescript",
+      "errorCode": "parse",
+      "error": "Failed to parse TOML file"
+    },
+    {
+      "name": "a missing file",
+      "path": "app/absent.json",
+      "wantFormat": 2,
+      "decodedBy": "go",
+      "errorCode": "not_found"
+    }
+  ]
+}

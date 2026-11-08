@@ -41,17 +41,14 @@ bdd.describe("parse", () => {
     );
 
     assert.assertInstanceOf(error.cause, SyntaxError);
-    assert.assertStringIncludes(
-      error.message,
-      "CommaExpected at line 3, column 3",
-    );
+    assert.assertStringIncludes(error.message, "line 3, column 3");
   });
 
   bdd.it("rejects an empty JSONC file", async () => {
     await assert.assertRejects(
       () => parseText("config.jsonc", ""),
       loader.ConfigParseError,
-      "ValueExpected",
+      "line 1, column 1",
     );
   });
 

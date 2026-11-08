@@ -174,6 +174,23 @@ The Go reading differs from `@std/dotenv` in four places:
 - Expansion stops after ten passes or when a pass changes nothing, so `A=$A`
   reads as `$A`; `@std/dotenv` loops on it.
 
+`envparser.ParseDotenv` reads the dialect without those differences, exactly
+as `@eserstack/config/dotenv` reads it, and `envparser.LoadDotenv` loads `.env`,
+`.env.<name>`, `.env.local` and `.env.<name>.local` the way its `load()` does.
+The TypeScript library calls them through the bridge, and the fixtures
+`envparser/testdata/dotenv_cases.json` and `dotenv_load.json` are read by both
+in their tests:
+
+```go
+values := envparser.ParseDotenv("PORT=${PORT_OVERRIDE:-8080}\n", nil)
+// values.Entries: [{PORT 8080}]
+```
+
+The configuration file loader of `@eserstack/config/file` lives here too:
+`FileFormatOf` picks a format from the extension, `LocateFile` finds the first
+of some file names in a directory and its parents, and `ParseFile` reads a file
+and returns JSON and JSONC as standard JSON with the keys in file order.
+
 ### 3. System Environment Variables
 
 ```bash

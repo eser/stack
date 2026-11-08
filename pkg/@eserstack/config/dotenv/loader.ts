@@ -1,8 +1,17 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+/**
+ * The `.env` loader. Go owns the dialect and the file loading
+ * (`pkg/ajan/configfx/envparser`); these functions reach it through the
+ * `@eserstack/ajan` bridge, the native library or its WASM build, and throw
+ * or reject with the bridge's load error when neither loads.
+ *
+ * @module
+ */
+
 import * as crossRuntime from "@eserstack/standards/cross-runtime";
+import * as ffiDotenv from "../adapters/ffi/dotenv.ts";
 import * as base from "./base.ts";
-import * as parser from "./parser.ts";
 import type { EnvMap } from "./base.ts";
 
 /**
@@ -69,11 +78,37 @@ export type LoaderOptions = {
  * Parses the contents of a `.env` file. A name the file does not set expands
  * from the process environment.
  *
+ * Single-quoted values stay as written, double-quoted values unescape `\n`,
+ * `\r`, `\t`, `\"`, `\'` and `\\`, and unquoted values expand `${NAME}`,
+ * `$NAME` and `${NAME:-default}`. A key that is not an identifier is skipped
+ * with a warning.
+ *
  * @param rawDotenv - The file contents
  * @returns The variables by name
+ * @throws {Error} When the bridge does not load (its load error is the
+ *   `cause`)
  */
 export const parseEnvString = (rawDotenv: string): Record<string, string> => {
-  return parser.parse(rawDotenv, (name) => crossRuntime.runtime.env.get(name));
+  return ffiDotenv.parseText(rawDotenv);
+};
+
+/** Turns a failed read of `filepath` into the error the loader throws. */
+const failureError = (
+  filepath: string,
+  maxFileSize: number,
+  failure: ffiDotenv.DotenvFailure,
+): Error => {
+  if (failure.code === "too_large") {
+    return new EnvFileTooLargeError(filepath, failure.fileSize, maxFileSize);
+  }
+
+  if (failure.code === "permission_denied") {
+    return new crossRuntime.PermissionDeniedError(filepath, {
+      cause: new Error(failure.message),
+    });
+  }
+
+  return new Error(failure.message);
 };
 
 /**
@@ -83,49 +118,19 @@ export const parseEnvString = (rawDotenv: string): Record<string, string> => {
  * @param maxFileSize - Maximum allowed file size in bytes (defaults to DEFAULT_MAX_FILE_SIZE)
  * @returns Parsed environment variables as key-value pairs
  * @throws {EnvFileTooLargeError} If the file exceeds the maximum size limit
+ * @throws {Error} When the bridge does not load (its load error is the
+ *   `cause`)
  */
 export const parseEnvFromFile = async (
   filepath: string,
   maxFileSize: number = DEFAULT_MAX_FILE_SIZE,
 ): Promise<ReturnType<typeof parseEnvString>> => {
-  try {
-    // Check file size before reading to prevent memory exhaustion
-    const stat = await crossRuntime.runtime.fs.stat(filepath);
-
-    if (stat.size > maxFileSize) {
-      throw new EnvFileTooLargeError(filepath, stat.size, maxFileSize);
-    }
-
-    const data = await crossRuntime.runtime.fs.readFile(filepath);
-    const decoded = new TextDecoder("utf-8").decode(data);
-
-    const result = parseEnvString(decoded);
-
-    return result;
-  } catch (e) {
-    if (e instanceof crossRuntime.NotFoundError) {
-      return {};
-    }
-
-    throw e;
-  }
-};
-
-// The environment name is the value of the first variable in `envVars` that
-// is set and not empty, so ENV=production selects .env.production.
-const getEnvName = (
-  sysVars: Readonly<Record<string, string>>,
-  envVars: ReadonlyArray<string>,
-  defaultValue: string,
-): string => {
-  for (const envVar of envVars) {
-    const value = sysVars[envVar];
-    if (value !== undefined && value !== "") {
-      return value;
-    }
+  const result = await ffiDotenv.readFile(filepath, maxFileSize);
+  if (!result.ok) {
+    throw failureError(filepath, maxFileSize, result.failure);
   }
 
-  return defaultValue;
+  return result.values;
 };
 
 /**
@@ -141,6 +146,8 @@ const getEnvName = (
  * @param options - Loader configuration options
  * @returns Map of environment variable names to values
  * @throws {EnvFileTooLargeError} If any .env file exceeds the maximum size limit
+ * @throws {Error} When the bridge does not load (its load error is the
+ *   `cause`)
  */
 export const load = async (
   options?: Partial<LoaderOptions>,
@@ -157,48 +164,28 @@ export const load = async (
     },
     options,
   );
+  // An explicit undefined takes parseEnvFromFile's default, as it did when
+  // this function called it.
+  const maxFileSize = options_.maxFileSize ?? DEFAULT_MAX_FILE_SIZE;
 
-  const sysVars = crossRuntime.runtime.env.toObject();
-  const envName =
-    options_.env ??
-    getEnvName(sysVars, options_.envVars, options_.defaultEnvValue);
+  const result = await ffiDotenv.loadFiles({
+    // The paths were built from a template string, so they read as one.
+    baseDir: `${options_.baseDir}`,
+    env: options_.env,
+    envVars: options_.envVars,
+    defaultEnvValue: options_.defaultEnvValue,
+    loadProcessEnv: options_.loadProcessEnv,
+    maxFileSize,
+  });
+
+  if (!result.ok) {
+    throw failureError(result.filepath, maxFileSize, result.failure);
+  }
 
   const vars = new Map<typeof base.env | string, string>();
-  vars.set(base.env, envName);
-
-  const envImport = (entries: Record<string, string>) => {
-    for (const [key, value] of Object.entries(entries)) {
-      vars.set(key, value);
-    }
-  };
-
-  // Load .env files with size limit enforcement
-  envImport(
-    await parseEnvFromFile(`${options_.baseDir}/.env`, options_.maxFileSize),
-  );
-  envImport(
-    await parseEnvFromFile(
-      `${options_.baseDir}/.env.${envName}`,
-      options_.maxFileSize,
-    ),
-  );
-  if (envName !== "test") {
-    envImport(
-      await parseEnvFromFile(
-        `${options_.baseDir}/.env.local`,
-        options_.maxFileSize,
-      ),
-    );
-  }
-  envImport(
-    await parseEnvFromFile(
-      `${options_.baseDir}/.env.${envName}.local`,
-      options_.maxFileSize,
-    ),
-  );
-
-  if (options_.loadProcessEnv) {
-    envImport(sysVars);
+  vars.set(base.env, result.envName);
+  for (const [key, value] of result.entries) {
+    vars.set(key, value);
   }
 
   return vars;

@@ -1,6 +1,9 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
+import * as childProcess from "node:child_process";
+import * as nodeProcess from "node:process";
 import * as nodeTest from "node:test";
+import * as util from "node:util";
 import * as assert from "@eserstack/test-kit/assert";
 import * as ffi from "./adapters/ffi/mod.ts";
 import * as errors from "./business/errors.ts";
@@ -68,3 +71,73 @@ nodeTest.test("FFI error: invalid pattern throws ParsingError", async () => {
       }
     });
 });
+
+nodeTest.test(
+  "with ESER_AJAN=disabled the Go-backed exports reject with the bridge's load error and the lexer and parser still run",
+  async () => {
+    // The package does not depend on @eserstack/standards, so the child
+    // process starts through Node's own modules.
+    const script = `
+      import * as parsing from ${JSON.stringify(import.meta.resolve("./mod.ts"))};
+      const out = { rejections: [], tokens: null, nodes: null };
+      for (const run of [
+        () => parsing.ffiLoader.tokenize({ input: "a" }),
+        () => parsing.ffiLoader.simpleTokens(),
+        () => parsing.tokenizeWith(parsing.ffiLoader, { input: "a" }),
+        () => parsing.simpleTokensWith(parsing.ffiLoader),
+      ]) {
+        try {
+          await run();
+          out.rejections.push(null);
+        } catch (error) {
+          out.rejections.push({
+            isParsingError: error instanceof parsing.ParsingError,
+            code: error.code,
+            cause: error.cause?.message ?? null,
+          });
+        }
+      }
+      const lexer = new parsing.Tokenizer(
+        parsing.createTokenizerState(parsing.simpleTokens),
+      );
+      out.tokens = [...lexer.tokenizeFromString("1+2")].map((t) => t.kind);
+      out.nodes = parsing.sequence(
+        parsing.token("T_NUMERIC"),
+        parsing.token("T_PLUS"),
+      )(lexer.tokenizeFromString("1+2"))?.length ?? null;
+      process.stdout.write(JSON.stringify(out));
+    `;
+    // execFile rejects when the child exits with a non-zero code.
+    const { stdout } = await util.promisify(childProcess.execFile)(
+      nodeProcess.execPath,
+      ["--input-type=module", "--eval", script],
+      { env: { ...nodeProcess.env, ESER_AJAN: "disabled" } },
+    );
+
+    const result = JSON.parse(stdout) as {
+      rejections: Array<{
+        isParsingError: boolean;
+        code: string;
+        cause: string | null;
+      } | null>;
+      tokens: string[];
+      nodes: number | null;
+    };
+
+    assert.assertEquals(result.rejections.length, 4);
+    for (const rejection of result.rejections) {
+      assert.assertExists(rejection);
+      assert.assertEquals(rejection.isParsingError, true);
+      assert.assertEquals(rejection.code, errors.PARSING_TOKENIZE_FAILED);
+      assert.assertStringIncludes(rejection.cause ?? "", "ESER_AJAN=disabled");
+    }
+
+    assert.assertEquals(result.tokens, [
+      "T_NUMERIC",
+      "T_PLUS",
+      "T_NUMERIC",
+      "T_END",
+    ]);
+    assert.assertEquals(result.nodes, 2);
+  },
+);

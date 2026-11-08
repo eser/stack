@@ -12,6 +12,16 @@ import (
 
 // ─── XDG helpers ─────────────────────────────────────────────────────────────
 
+// skipUnlessXdgHost skips a test of the XDG variables on macOS and Windows,
+// which do not read them; xdg_homes.json covers those systems.
+func skipUnlessXdgHost(t *testing.T) {
+	t.Helper()
+
+	if runtime.GOOS == "darwin" || runtime.GOOS == "windows" {
+		t.Skip("the XDG variables apply on Linux and BSD only")
+	}
+}
+
 func TestXdgCacheHome_ReturnsNonEmpty(t *testing.T) {
 	t.Parallel()
 
@@ -22,6 +32,7 @@ func TestXdgCacheHome_ReturnsNonEmpty(t *testing.T) {
 }
 
 func TestXdgCacheHome_EnvOverride(t *testing.T) {
+	skipUnlessXdgHost(t)
 	t.Setenv("XDG_CACHE_HOME", "/tmp/test-cache-override")
 
 	got := cachefx.XdgCacheHome()
@@ -40,6 +51,7 @@ func TestXdgDataHome_ReturnsNonEmpty(t *testing.T) {
 }
 
 func TestXdgDataHome_EnvOverride(t *testing.T) {
+	skipUnlessXdgHost(t)
 	t.Setenv("XDG_DATA_HOME", "/tmp/test-data-override")
 
 	got := cachefx.XdgDataHome()
@@ -58,6 +70,7 @@ func TestXdgConfigHome_ReturnsNonEmpty(t *testing.T) {
 }
 
 func TestXdgConfigHome_EnvOverride(t *testing.T) {
+	skipUnlessXdgHost(t)
 	t.Setenv("XDG_CONFIG_HOME", "/tmp/test-config-override")
 
 	got := cachefx.XdgConfigHome()

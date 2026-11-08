@@ -1,0 +1,44 @@
+[
+  {
+    "name": "an app with an org under the cache home",
+    "host": { "platform": "linux", "home": "/home/user", "env": {} },
+    "app": { "org": "eser", "name": "my-cli" },
+    "version": "1.0.0",
+    "item": "binary",
+    "appDir": "/home/user/.cache/eser/my-cli",
+    "versionedPath": "/home/user/.cache/eser/my-cli/v1.0.0/binary"
+  },
+  {
+    "name": "an app without an org keeps a leading v",
+    "host": { "platform": "darwin", "home": "/Users/user", "env": {} },
+    "app": { "name": "my-cli" },
+    "version": "v2.0.0",
+    "item": "data.json",
+    "appDir": "/Users/user/Library/Caches/my-cli",
+    "versionedPath": "/Users/user/Library/Caches/my-cli/v2.0.0/data.json"
+  },
+  {
+    "name": "a base directory replaces the cache home",
+    "host": {
+      "platform": "linux",
+      "home": "/home/user",
+      "env": { "XDG_CACHE_HOME": "/xdg/cache" }
+    },
+    "app": { "org": "eser", "name": "my-cli" },
+    "baseDir": "/base",
+    "version": "0.0.1",
+    "item": "data",
+    "appDir": "/base/eser/my-cli",
+    "versionedPath": "/base/eser/my-cli/v0.0.1/data"
+  },
+  {
+    "name": "an empty version still gets the v prefix",
+    "host": { "platform": "linux", "home": "/home/user", "env": {} },
+    "app": { "name": "my-cli" },
+    "baseDir": "/base",
+    "version": "",
+    "item": "data",
+    "appDir": "/base/my-cli",
+    "versionedPath": "/base/my-cli/v/data"
+  }
+]

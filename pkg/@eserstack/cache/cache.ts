@@ -4,7 +4,9 @@
  * Cache manager implementation.
  *
  * Provides versioned cache storage with XDG-compliant directory structure.
- * Delegates filesystem operations to the native Go library.
+ * Delegates the filesystem operations to Go (`pkg/ajan/cachefx`) through the
+ * `@eserstack/ajan` bridge; without the bridge they reject with its load
+ * error.
  *
  * @example
  * ```typescript
@@ -38,6 +40,7 @@ import type {
 } from "./primitives.ts";
 import * as xdg from "./xdg.ts";
 import * as ffiClient from "./ffi-client.ts";
+import * as host from "./host.ts";
 
 /**
  * Creates a cache manager for the specified application.
@@ -68,14 +71,11 @@ export const createCacheManager = (
 
   const getHandle = (): Promise<string> => {
     if (_handlePromise === null) {
-      _handlePromise = ffiClient.ensureLib().then(() => {
-        const lib = ffiClient.getLib();
-        if (lib === null) {
-          throw new Error("native library unavailable");
-        }
+      _handlePromise = ffiClient.requireLib().then((lib) => {
         const result = lib.call("cacheCreate", {
           app: { name: app.name, org: app.org },
           baseDir,
+          host: host.currentHost(),
         });
         if (result.error) {
           throw new Error(result.error);
@@ -86,7 +86,8 @@ export const createCacheManager = (
     return _handlePromise;
   };
 
-  // Sync methods: path computation stays in TS (interface requires sync return)
+  // Sync methods: path computation stays in TS until the bridge can serve a
+  // synchronous call before it has loaded (WIRING.md, "Not moved yet").
   const getCacheDir = (): string => {
     if (baseDir) {
       if (app.org) {
@@ -95,13 +96,6 @@ export const createCacheManager = (
       return runtime.path.join(baseDir, app.name);
     }
     return xdg.getAppCacheDir(app);
-  };
-
-  const resolvePath = (path: string): string => {
-    if (runtime.path.isAbsolute(path)) {
-      return path;
-    }
-    return runtime.path.join(getCacheDir(), path);
   };
 
   const getVersionedPath = (version: string, name: string): string => {
@@ -114,13 +108,24 @@ export const createCacheManager = (
     return xdg.getVersionedCachePath(app, version, name);
   };
 
-  // Filesystem existence/mkdir stay in TS: no Go FFI equivalent
-  const exists = (path: string): Promise<boolean> => {
-    return runtime.fs.exists(resolvePath(path));
+  // Go resolves a relative path against the cache directory.
+  const exists = async (path: string): Promise<boolean> => {
+    const handle = await getHandle();
+    const lib = ffiClient.getLib()!;
+    const result = lib.call("cacheExists", { handle, path });
+    if (result.error) {
+      throw new Error(result.error);
+    }
+    return result.exists === true;
   };
 
   const ensureDir = async (path: string): Promise<void> => {
-    await runtime.fs.mkdir(resolvePath(path), { recursive: true });
+    const handle = await getHandle();
+    const lib = ffiClient.getLib()!;
+    const result = lib.call("cacheEnsureDir", { handle, path });
+    if (result.error) {
+      throw new Error(result.error);
+    }
   };
 
   const list = async (): Promise<CacheEntry[]> => {
@@ -151,9 +156,7 @@ export const createCacheManager = (
   const remove = async (path: string): Promise<void> => {
     const handle = await getHandle();
     const lib = ffiClient.getLib()!;
-    // Resolve to absolute path — Go's Manager.Remove calls os.RemoveAll(path)
-    // directly (not relative to cache dir), so we must pass the absolute path.
-    const result = lib.call("cacheRemove", { handle, path: resolvePath(path) });
+    const result = lib.call("cacheRemove", { handle, path });
     if (result.error) {
       throw new Error(result.error);
     }

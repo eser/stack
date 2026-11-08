@@ -24,8 +24,11 @@ type AppIdentifier struct {
 
 // Options configures a new Manager.
 type Options struct {
-	App AppIdentifier
-	// BaseDir overrides the XDG cache home. Defaults to XdgCacheHome().
+	// Host supplies the cache home when BaseDir is empty; nil stands for
+	// CurrentHost().
+	Host *Host
+	App  AppIdentifier
+	// BaseDir overrides the cache home of Host.
 	BaseDir string
 }
 
@@ -44,45 +47,74 @@ type Manager struct {
 }
 
 // NewManager returns a Manager whose cache dir is rooted under BaseDir (or the
-// XDG cache home when BaseDir is empty), namespaced by Org and Name.
+// cache home of Host when BaseDir is empty), namespaced by Org and Name.
 func NewManager(opts Options) *Manager {
 	base := opts.BaseDir
 	if base == "" {
-		base = XdgCacheHome()
+		host := CurrentHost()
+		if opts.Host != nil {
+			host = *opts.Host
+		}
+
+		base = host.CacheHome()
 	}
 
-	var dir string
-	if opts.App.Org != "" {
-		dir = filepath.Join(base, opts.App.Org, opts.App.Name)
-	} else {
-		dir = filepath.Join(base, opts.App.Name)
+	return &Manager{cacheDir: AppDir(base, opts.App)}
+}
+
+// AppDir returns the directory of app under base: base/org/name, or
+// base/name when app has no Org.
+func AppDir(base string, app AppIdentifier) string {
+	if app.Org != "" {
+		return filepath.Join(base, app.Org, app.Name)
 	}
 
-	return &Manager{cacheDir: dir}
+	return filepath.Join(base, app.Name)
+}
+
+// VersionedPath returns the path of the named artefact for a version under
+// dir: dir/v<version>/name. A leading "v" is normalised, so "1.0.0" and
+// "v1.0.0" resolve to the same path.
+func VersionedPath(dir, version, name string) string {
+	v := "v" + strings.TrimPrefix(version, "v")
+
+	return filepath.Join(dir, v, name)
 }
 
 // Dir returns the absolute path to the application cache directory.
 func (m *Manager) Dir() string { return m.cacheDir }
 
-// VersionedPath returns the path for a named artefact under a semver version.
-// A leading "v" is normalised so "1.0.0" and "v1.0.0" resolve to the same path.
+// VersionedPath returns the path for a named artefact under a semver version;
+// see the package function VersionedPath.
 func (m *Manager) VersionedPath(version, name string) string {
-	v := "v" + strings.TrimPrefix(version, "v")
-
-	return filepath.Join(m.cacheDir, v, name)
+	return VersionedPath(m.cacheDir, version, name)
 }
 
-// Exists reports whether path exists on disk.
+// Resolve returns path as it is when it is absolute, and joined to the cache
+// directory otherwise.
+func (m *Manager) Resolve(path string) string {
+	if filepath.IsAbs(path) {
+		return path
+	}
+
+	return filepath.Join(m.cacheDir, path)
+}
+
+// Exists reports whether path, resolved as Resolve does, can be stat'ed. A
+// path that cannot be reached, for lack of permission for one, counts as
+// missing.
 func (m *Manager) Exists(path string) bool {
-	_, err := os.Stat(path)
+	_, err := os.Stat(m.Resolve(path))
 
-	return !errors.Is(err, fs.ErrNotExist)
+	return err == nil
 }
 
-// EnsureDir creates path and all parents if they do not already exist.
+// EnsureDir creates path, resolved as Resolve does, and all parents if they do
+// not already exist.
 func (m *Manager) EnsureDir(path string) error {
-	if err := os.MkdirAll(path, 0o755); err != nil { //nolint:gosec // directory creation
-		return fmt.Errorf("ensure dir %q: %w", path, err)
+	resolved := m.Resolve(path)
+	if err := os.MkdirAll(resolved, 0o755); err != nil { //nolint:gosec // directory creation
+		return fmt.Errorf("ensure dir %q: %w", resolved, err)
 	}
 
 	return nil
@@ -120,10 +152,12 @@ func (m *Manager) List() ([]Entry, error) {
 	return result, nil
 }
 
-// Remove deletes the entry at path (file or directory tree).
+// Remove deletes the entry at path, resolved as Resolve does (a file or a
+// directory tree). A missing entry is not an error.
 func (m *Manager) Remove(path string) error {
-	if err := os.RemoveAll(path); err != nil {
-		return fmt.Errorf("remove cache entry %q: %w", path, err)
+	resolved := m.Resolve(path)
+	if err := os.RemoveAll(resolved); err != nil {
+		return fmt.Errorf("remove cache entry %q: %w", resolved, err)
 	}
 
 	return nil

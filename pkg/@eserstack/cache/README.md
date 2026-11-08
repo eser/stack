@@ -79,9 +79,12 @@ Creates a cache manager instance.
 | `remove(path)`                    | Remove a cached item                 |
 | `clear()`                         | Clear the entire cache               |
 
-`list()`, `remove()` and `clear()` call the `@eserstack/ajan` native library and
-throw when it cannot be loaded; the path methods, `exists()` and `ensureDir()`
-work without it.
+`exists()`, `ensureDir()`, `list()`, `remove()` and `clear()` run in Go through
+the `@eserstack/ajan` bridge (the native library, or its WASM build) and reject
+with the bridge's load error when neither loads. `exists()`, `ensureDir()` and
+`remove()` take a path relative to the cache directory or an absolute path.
+`getCacheDir()`, `getVersionedPath()` and the XDG functions work without the
+bridge.
 
 ---
 

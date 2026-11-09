@@ -1409,6 +1409,18 @@ in `.eser/concerns/`, which several entries below depend on.
   reason (an `AbortError`), as fetch does; on the WASM fallback the rejection
   used to be a `GoHttpError` with the message "request aborted". Check
   `error.name === "AbortError"` instead of the message.
+- The retry policy (attempts, backoff, jitter, a 429's `Retry-After`) runs in
+  Go, so every request needs `@eserstack/ajan`, on the default `fetch`
+  transport too. When neither the native library nor its WASM build loads, a
+  request rejects with an `HttpClientError` before anything is sent, with the
+  bridge's load error as `cause`, and the Result methods return it as a `Fail`.
+  Keep the optional platform and WASM packages of `@eserstack/ajan` installed
+  and leave `ESER_AJAN` unset.
+- A `RetryConfig` value outside its types, such as `retry: true`,
+  `jitter: "yes"` or a string delay, rejects the request with an
+  `HttpClientError` naming the field; it used to be coerced, and `retry: true`
+  meant the defaults. Omit `retry` or pass `retry: {}` for the defaults. A
+  field set to `undefined` or `null` now takes its default.
 
 #### @eserstack/formats
 
@@ -1429,6 +1441,16 @@ in `.eser/concerns/`, which several entries below depend on.
   delimiter, a quote or a line break is quoted, and the header line ends with
   `\r\n` like the rows. TOML ignores `pretty`, so keys are no longer aligned.
   Update golden files that compare exact text.
+- The CSV reader (`csvFormat.createReader()`, `deserialize` of CSV and
+  `streamLayers.readerLayer("csv")`) runs in Go and needs `@eserstack/ajan`:
+  without the native library or its WASM build it throws the bridge's load
+  error. Keep the optional packages of `@eserstack/ajan` installed. The `cause`
+  of its `DeserializationError` is a plain `Error` with the message, where it
+  was a `CsvParseError` with a `record` field or a `TypeError`; read the
+  message instead. A lone surrogate in the text becomes U+FFFD.
+- When `@eserstack/ajan` loads, `deserialize` of CSV lists the keys of each
+  item in header order instead of sorted, trims the header names and skips
+  whitespace-only lines, as the TypeScript reader did.
 
 #### @eserstack/bundler
 
@@ -1483,6 +1505,28 @@ in `.eser/concerns/`, which several entries below depend on.
 - The dotenv parser expands a reference to an unset name with no default to
   `""`; it wrote `undefined` before. Expansion stops after 10 passes. Give such
   references a default: `URL=${HOST:-localhost}`.
+- The `.env` loader and parser (`load()`, `configure()`, `parseEnvFromFile()`,
+  `parseEnvString()`) and the file loader of `@eserstack/config/file`
+  (`locate()`, `getFileFormat()`, `parse()`, `load()`) run in Go and need
+  `@eserstack/ajan`. Without the native library or its WASM build, the
+  synchronous `parseEnvString()` and `getFileFormat()` throw and the others
+  reject with the bridge's load error; on the WASM build they read files only
+  under the working directory. Keep the optional packages of `@eserstack/ajan`
+  installed.
+- file `parse()` and `load()` word JSON and JSONC syntax errors as Go does, with
+  the line and byte column. Before:
+  `Cannot parse JSONC: CommaExpected at line 3, column 3`. After:
+  `syntax error: line 3, column 3: invalid character '"' after object value (expecting ',' or '}')`.
+  The error is still a `ConfigParseError` with a `SyntaxError` cause; match on
+  the class, not the text.
+- A `__proto__` key in a JSONC file is an own property of the parsed object, as
+  `JSON.parse` makes it; it used to replace the object's prototype. Read the
+  nested values from the `__proto__` property instead of through the
+  prototype chain.
+- A `.env` read that fails for a reason other than a missing file, the size
+  limit or a permission (a directory named `.env`, for example) rejects with a
+  plain `Error` carrying Go's message instead of Node's system error. Check the
+  message, not `error.code`.
 
 #### @eserstack/cs
 
@@ -1505,10 +1549,65 @@ in `.eser/concerns/`, which several entries below depend on.
 
 #### @eserstack/collector
 
-- The TypeScript fallback of `writeManifestToString`, used when the native
-  library is not loaded, no longer formats its output (it ran `deno fmt`). It
-  returns the source unformatted, as the Go generator does. Run your formatter
-  on the written manifest if you compare it as text.
+- `writeManifestToString`, `buildManifest` and `buildManifestFile` no longer
+  format their output; 4.5.2 ran `deno fmt` when the native library was not
+  loaded. Run your formatter on the written manifest if you compare it as
+  text.
+- With the native library loaded, these functions used to write another
+  format: unprefixed, unsorted imports and a `manifest` of
+  `{ path, identifier, exports }` objects ending in `as const`. They now always
+  write the format the README describes: `$$`-prefixed imports and a
+  `manifest.exports` array that refers to each export's value, both sorted in
+  natural order. `specifierToIdentifier` gives the same names on every path:
+  the native path used to drop a leading underscore (`_middleware` gave
+  `middleware`) and keep non-ASCII letters (`café` gave `café`, now `caf_`).
+  Regenerate manifests written with the native library loaded.
+- `writeManifestToString`, `buildManifest`, `buildManifestFile` and
+  `specifierToIdentifier` run in Go and need `@eserstack/ajan`: without the
+  native library or its WASM build they throw the bridge's load error, where
+  they used to fall back to TypeScript. `walkFiles` and `collectExports` work
+  without it. Keep the optional packages of `@eserstack/ajan` installed.
+- The sort no longer depends on the host locale: ASCII text sorts in the root
+  order of `Intl.Collator` with `numeric: true`, and non-ASCII characters
+  after ASCII by code point. Paths follow the posix rules on Windows too, so a
+  hand-built collection with `\` in a path can give another specifier or
+  identifier.
+
+#### @eserstack/cache
+
+- The XDG functions (`getXdgCacheHome`, `getXdgDataHome`, `getXdgConfigHome`,
+  `getAppCacheDir`, `getVersionedCachePath`) and every `CacheManager` method
+  run in Go and need `@eserstack/ajan`; 4.5.2 ran the path functions,
+  `exists()` and `ensureDir()` in TypeScript. The synchronous ones load the
+  bridge on first use. Without the native library or its WASM build they
+  throw, and the async methods reject, with the bridge's load error. Keep the
+  optional packages of `@eserstack/ajan` installed.
+- An app without a name throws `app.name is required` from `getAppCacheDir`,
+  `getVersionedCachePath` and the manager's `getCacheDir()` and
+  `getVersionedPath()`, as the other manager methods already did; these used
+  to join the empty name. Give the app a name.
+
+#### @eserstack/crypto
+
+- When neither the native library nor its WASM build loads, `computeHash`,
+  `computeStringHash` and `computeCombinedHash` reject with the bridge's load
+  error: its message is `eser-ajan native library unavailable:` followed by
+  the reason, where it was `native library unavailable`, and the load failure
+  is its `cause`. Match the message with `includes()`, or read `cause`.
+
+#### @eserstack/logging
+
+- `configure()` no longer loads `@eserstack/ajan` and no longer rejects when
+  the bridge cannot load; records then go to the console fallback on stderr,
+  with one warning. Code that skipped logging setup after that rejection can
+  call `configure()` unconditionally.
+- `log()` and the level methods write the record before they return their
+  promise, so the record is written even when you do not await the call. The
+  first record, and the first `getEffectiveConfig()` resolution after
+  `configure()`, load the bridge synchronously on the calling thread (the
+  `@eserstack/ajan` README gives the timings); 4.5.2 loaded it asynchronously.
+  To keep that load off a request path, call `await ensureLib()` from
+  `@eserstack/ajan/ffi/client` at startup.
 
 #### @eserstack/ajan
 
@@ -2003,6 +2102,37 @@ in `.eser/concerns/`, which several entries below depend on.
 - The JSON, JSONL, YAML and TOML readers refuse a document nested more than
   `MaxNestingDepth` (1000) levels deep with an error wrapping
   `ErrNestingTooDeep`, before they decode it. Flatten the document.
+- The CSV reader (`CreateReader` of `csv`) reads with `ReadCSV` instead of
+  `encoding/csv`, as `@eserstack/formats` reads CSV: its items are `CSVRow`
+  values, which keep the header order, instead of `map[string]string`; header
+  names are trimmed, a `__proto__` header is dropped, whitespace-only lines are
+  skipped, and the errors carry the TypeScript reader's messages. Read a field
+  with `Get`:
+
+  ```go
+  // Before
+  value := item.(map[string]string)["name"]
+  // After
+  value, ok := item.(formatfx.CSVRow).Get("name")
+  ```
+
+#### Go: pkg/ajan/cachefx and collectorfx
+
+- cachefx: `XdgCacheHome`, `XdgDataHome` and `XdgConfigHome` read
+  `XDG_CACHE_HOME`, `XDG_DATA_HOME` and `XDG_CONFIG_HOME` on Linux and the
+  BSDs only, as their doc comments said; on macOS and Windows they ignore
+  them. Set `Options.BaseDir` to pick the cache directory there.
+- cachefx: `Manager.Exists`, `EnsureDir` and `Remove` resolve a relative path
+  against the cache directory (`Manager.Resolve`) instead of the working
+  directory, and `Exists` reports false for a path it cannot stat, such as one
+  behind a permission error. Pass an absolute path to keep the old target.
+- collectorfx: `IsIdentifierStart` and `IsIdentifierChar` are removed.
+  `SpecifierToIdentifier` and `GenerateManifestSource` give what
+  `@eserstack/collector` gives (see its entry above): `$$`-prefixed, sorted
+  imports and a `manifest.exports` list of references instead of
+  `{ path, identifier, exports }` objects, and `ManifestEntry.Exports` holds the
+  names the manifest refers to, the names of the export values. Regenerate
+  manifests written with collectorfx.
 
 #### Go: pkg/ajan/codebasefx
 
@@ -2121,6 +2251,15 @@ in `.eser/concerns/`, which several entries below depend on.
   `git ls-files --cached --others --exclude-standard` listing for `dir`;
   `@eserstack/codebase` sends it. The WASM build cannot start git, and the walk
   used to list gitignored files instead.
+- `EserAjanCacheRemove` resolves a relative `path` against the cache directory,
+  as `EserAjanCacheExists` and `EserAjanCacheEnsureDir` do; it used to resolve
+  it against the process's working directory. Send an absolute path to keep
+  the old target.
+- `EserAjanCollectorGenerateManifest`, `EserAjanCollectorSpecifierToIdentifier`
+  and `EserAjanFormatDecode` of CSV answer what `@eserstack/collector` and
+  `@eserstack/formats` answer (see Go: pkg/ajan/formatfx and csfx, and Go:
+  pkg/ajan/cachefx and collectorfx). The `exports` of a manifest entry are the
+  names the manifest refers to, the names of the export values.
 
 #### Recipes
 

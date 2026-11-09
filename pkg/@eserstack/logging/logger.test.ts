@@ -280,6 +280,208 @@ nodeTest.test(
   },
 );
 
+/** The log handle calls `recordLogHandles` saw, all passed through to Go. */
+type LogHandleRecord = {
+  readonly created: string[];
+  readonly closed: string[];
+  readonly configured: Array<{ handle: string; level: string }>;
+  readonly writeErrors: string[];
+  readonly restore: () => void;
+};
+
+/**
+ * Records the log handles the loggers create, close and reconfigure and the
+ * errors their writes answer, passing every call through to the real library
+ * until `restore` runs.
+ */
+const recordLogHandles = (): LogHandleRecord => {
+  const record: LogHandleRecord = {
+    created: [],
+    closed: [],
+    configured: [],
+    writeErrors: [],
+    restore: () => {
+      if (mutableLib !== null && realCall !== undefined) {
+        mutableLib.call = realCall;
+      }
+    },
+  };
+
+  if (mutableLib === null || realCall === undefined) {
+    return record;
+  }
+
+  mutableLib.call = (name, request) => {
+    const answer = realCall(name, request) as {
+      handle?: string;
+      error?: string;
+    };
+
+    if (name === "logCreate" && answer.handle !== undefined) {
+      record.created.push(answer.handle);
+    } else if (name === "logClose") {
+      record.closed.push(String(request));
+    } else if (name === "logConfigure") {
+      record.configured.push(request as { handle: string; level: string });
+    } else if (name === "logWrite" && answer.error !== undefined) {
+      record.writeErrors.push(answer.error);
+    }
+
+    return answer;
+  };
+
+  return record;
+};
+
+/** Asks Go whether a log handle is still open. */
+const isLogHandleOpen = (handle: string): boolean => {
+  const answer = realCall?.("logShouldLog", { handle, level: "INFO" }) as
+    | { error?: string }
+    | undefined;
+
+  return answer?.error === undefined;
+};
+
+for (const [via, dropLoggers] of [
+  ["clearLoggerCache()", () => log.logger.clearLoggerCache()],
+  [
+    "configure({ reset: true })",
+    () => configure({ sinks: {}, loggers: [], reset: true }),
+  ],
+] as const) {
+  nodeTest.test(
+    `${via} closes the Go handles of the loggers it drops`,
+    { skip: withoutFfi },
+    async () => {
+      await beforeEach();
+
+      const handles = recordLogHandles();
+      try {
+        await getLogger(["dropped-a"]).info("first category");
+        await getLogger(["dropped-b"]).with({ requestId: "r1" }).info("second");
+        await dropLoggers();
+      } finally {
+        handles.restore();
+      }
+
+      assert.assertEquals(handles.created.length, 2);
+      assert.assertEquals(
+        [...handles.closed].sort(),
+        [...handles.created].sort(),
+      );
+      for (const handle of handles.created) {
+        assert.assertEquals(isLogHandleOpen(handle), false, handle);
+      }
+    },
+  );
+}
+
+nodeTest.test(
+  "Logger.with() and getChild() loggers of one category share one Go handle",
+  { skip: withoutFfi },
+  async () => {
+    await beforeEach();
+
+    const handles = recordLogHandles();
+    const lines = await captureConsole(async () => {
+      try {
+        const base = getLogger(["per-request"]);
+
+        for (let index = 0; index < 20; index += 1) {
+          // oxlint-disable-next-line no-await-in-loop
+          await base.with({ requestId: `req-${index}` }).info("handled");
+        }
+
+        for (let index = 0; index < 5; index += 1) {
+          // oxlint-disable-next-line no-await-in-loop
+          await base.getChild("db").info("queried");
+        }
+      } finally {
+        handles.restore();
+      }
+    });
+
+    // One handle for ["per-request"], one for ["per-request", "db"].
+    assert.assertEquals(handles.created.length, 2);
+    assert.assertEquals(handles.writeErrors, []);
+    assert.assertEquals(lines, []);
+  },
+);
+
+nodeTest.test(
+  "a logger held across clearLoggerCache() still writes through Go",
+  { skip: withoutFfi },
+  async () => {
+    await beforeEach();
+
+    const handles = recordLogHandles();
+    const lines = await captureConsole(async () => {
+      try {
+        const held = getLogger(["held"]);
+        await held.info("before the clear");
+        log.logger.clearLoggerCache();
+        await held.info("after the clear");
+      } finally {
+        handles.restore();
+      }
+    });
+
+    assert.assertEquals(handles.writeErrors, []);
+    assert.assertEquals(lines, []);
+    assert.assertEquals(handles.created.length, 2);
+    assert.assertEquals(isLogHandleOpen(handles.created[1]!), true);
+  },
+);
+
+nodeTest.test(
+  "configure() pushes a new level to every live Go handle of a configured category",
+  { skip: withoutFfi },
+  async () => {
+    await beforeEach();
+
+    const handles = recordLogHandles();
+    try {
+      await configure({
+        sinks: {},
+        loggers: [
+          { category: ["levels"], lowestLevel: logging.Severities.Debug },
+        ],
+      });
+      const base = getLogger(["levels"]);
+      await base.debug("written at debug");
+
+      // A logger made after the level changed resolves the new level, so it
+      // writes through a second handle.
+      log.config.registerLogger({
+        category: ["levels"],
+        lowestLevel: logging.Severities.Warning,
+      });
+      await base.with({ requestId: "r1" }).warn("written at warn");
+
+      await configure({
+        sinks: {},
+        loggers: [
+          { category: ["levels"], lowestLevel: logging.Severities.Error },
+        ],
+      });
+    } finally {
+      handles.restore();
+    }
+
+    assert.assertEquals(handles.created.length, 2);
+    assert.assertEquals(
+      handles.configured.map((request) => request.handle).sort(),
+      [...handles.created].sort(),
+    );
+    for (const handle of handles.created) {
+      const answer = realCall?.("logShouldLog", { handle, level: "WARN" }) as {
+        allowed?: boolean;
+      };
+      assert.assertEquals(answer.allowed, false, handle);
+    }
+  },
+);
+
 /** An error with a cause, the shape a handled site logs as `{ error }`. */
 const createErrorWithCause = (): Error =>
   new Error("bundle client entry", {

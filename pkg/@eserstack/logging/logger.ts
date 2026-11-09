@@ -81,8 +81,46 @@ const writeFallbackRecord = (
   );
 };
 
-/** Module-level map from category key → Go handle, shared with configure hook. */
-const goHandles = new Map<string, string>();
+/** A Go logger shared by the loggers of one category that write at one level. */
+type SharedGoHandle = { readonly handle: string; level: string };
+
+/**
+ * The Go loggers this module opened, by category key. A Go logger holds only
+ * the scope name and the level (properties travel with each record), so every
+ * logger of a category and level writes through one handle: `with()` and
+ * `getChild()` loggers made per request do not open one each. The configure
+ * hook pushes new levels to these handles, and `clearLoggerCache()` closes
+ * them.
+ */
+const goHandles = new Map<string, SharedGoHandle[]>();
+
+/**
+ * Bumped by `clearLoggerCache()` when it closes every handle. A logger whose
+ * handle is from an older generation takes a current one on its next record,
+ * so a logger a module still holds keeps writing through Go.
+ */
+let goHandleGeneration = 0;
+
+/** Closes every Go logger this module opened. Never throws. */
+const closeGoHandles = (): void => {
+  const lib = ffiClient.getLib();
+
+  if (lib !== null) {
+    for (const shared of goHandles.values()) {
+      for (const { handle } of shared) {
+        try {
+          // logClose takes the bare handle.
+          lib.call("logClose", handle);
+        } catch {
+          // A handle that cannot be closed is gone with the library itself.
+        }
+      }
+    }
+  }
+
+  goHandles.clear();
+  goHandleGeneration += 1;
+};
 
 /**
  * Logger class with hierarchical category support.
@@ -106,7 +144,8 @@ export class Logger implements logging.Logger {
 
   /** Go FFI handle for this logger (null until first log or if FFI unavailable). */
   #goHandle: string | null = null;
-  #goHandleInitialized = false;
+  /** The `goHandleGeneration` `#goHandle` belongs to; -1 before the first record. */
+  #goHandleGeneration = -1;
 
   /**
    * Latched once this logger's Go backend has failed. Both known causes -- no
@@ -157,23 +196,36 @@ export class Logger implements logging.Logger {
   }
 
   /**
-   * Lazily creates and caches a Go FFI handle for this logger, loading the
-   * bridge synchronously on first use. Returns null when no handle could be
-   * created; never throws, because a logging outage must not propagate into
-   * the calling application.
+   * Lazily takes the shared Go handle of this logger's category and level,
+   * creating it on first use and loading the bridge synchronously. Returns
+   * null when no handle could be created; never throws, because a logging
+   * outage must not propagate into the calling application.
    */
   #ensureGoHandle(): string | null {
-    if (this.#goHandleInitialized) return this.#goHandle;
+    if (this.#goHandleGeneration === goHandleGeneration) {
+      return this.#goHandle;
+    }
 
-    this.#goHandleInitialized = true;
+    this.#goHandleGeneration = goHandleGeneration;
+    this.#goHandle = null;
 
     try {
       // Throws the bridge's load error when it cannot load.
       const lib = ffiClient.requireLib();
-      const effectiveConfig = this.#getEffectiveConfig();
+      const key = category.categoryKey(this.category);
+      const level = severityToGoLevel(this.#getEffectiveConfig().lowestLevel);
+      const shared = goHandles.get(key) ?? [];
+      const existing = shared.find((entry) => entry.level === level);
+
+      if (existing !== undefined) {
+        this.#goHandle = existing.handle;
+
+        return this.#goHandle;
+      }
+
       const result = lib.call("logCreate", {
         scopeName: category.categoryToString(this.category),
-        level: severityToGoLevel(effectiveConfig.lowestLevel),
+        level,
       });
 
       if (result.handle === undefined || result.handle === "") {
@@ -185,7 +237,8 @@ export class Logger implements logging.Logger {
       }
 
       this.#goHandle = result.handle;
-      goHandles.set(category.categoryKey(this.category), result.handle);
+      shared.push({ handle: result.handle, level });
+      goHandles.set(key, shared);
     } catch (error) {
       this.#degrade(describeCause(error));
 
@@ -766,6 +819,10 @@ export const getLogger = (loggerCategory: Category | string): Logger => {
 export const clearLoggerCache = (): void => {
   loggerInstances.clear();
 
+  // The dropped loggers' Go handles go with them; a logger still held takes a
+  // new handle on its next record.
+  closeGoHandles();
+
   // Cached loggers carry the latched fallback state, so dropping them re-arms
   // the one-time warning: the replacement loggers may reach a working backend.
   fallbackWarned = false;
@@ -791,13 +848,11 @@ config.registerConfigureHook((loggerConfigs) => {
 
     const normalized = category.normalizeCategory(loggerConfig.category);
     const key = category.categoryKey(normalized);
-    const handle = goHandles.get(key);
+    const level = severityToGoLevel(loggerConfig.lowestLevel);
 
-    if (handle !== undefined) {
-      lib.call("logConfigure", {
-        handle,
-        level: severityToGoLevel(loggerConfig.lowestLevel),
-      });
+    for (const shared of goHandles.get(key) ?? []) {
+      lib.call("logConfigure", { handle: shared.handle, level });
+      shared.level = level;
     }
   }
 });

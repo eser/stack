@@ -298,6 +298,83 @@ func TestFormatTOML_RejectNonObjectRoot(t *testing.T) {
 	}
 }
 
+func TestFormatCSV_WritesWithTheDelimiter(t *testing.T) {
+	t.Parallel()
+
+	semicolon := &formatfx.FormatOptions{Delimiter: new(";"), Headers: []string{"a", "b"}} //nolint:exhaustruct
+
+	start, err := formatfx.CSVFormat.WriteStart(semicolon)
+	if err != nil || start != "a;b\n" {
+		t.Errorf("WriteStart = %q, %v; want %q", start, err, "a;b\n")
+	}
+
+	item := map[string]any{"a": 1, "b": "x;y"}
+	first := &formatfx.FormatOptions{Delimiter: new(";"), IsFirst: true} //nolint:exhaustruct
+
+	out, err := formatfx.CSVFormat.WriteItem(item, first)
+	if err != nil || out != "a;b\n1;\"x;y\"\n" {
+		t.Errorf("WriteItem = %q, %v; want %q", out, err, "a;b\n1;\"x;y\"\n")
+	}
+
+	out, err = formatfx.CSVFormat.WriteItem(item, nil)
+	if err != nil || out != "1,x;y\n" {
+		t.Errorf("WriteItem without a delimiter = %q, %v; want %q", out, err, "1,x;y\n")
+	}
+}
+
+func TestFormatCSV_WriteRefusesADelimiter(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		delimiter string
+		want      string
+	}{
+		{"", `[csv] failed to write CSV: CSV delimiter "" must be non-empty and hold no quote, CR or LF`},
+		{`"`, `[csv] failed to write CSV: CSV delimiter "\"" must be non-empty and hold no quote, CR or LF`},
+		{"\r", `[csv] failed to write CSV: CSV delimiter "\r" must be non-empty and hold no quote, CR or LF`},
+		{"\n", `[csv] failed to write CSV: CSV delimiter "\n" must be non-empty and hold no quote, CR or LF`},
+		{"::", `[csv] failed to write CSV: CSV delimiter "::" must be one character`},
+	}
+
+	for _, tc := range cases {
+		opts := &formatfx.FormatOptions{Delimiter: new(tc.delimiter), IsFirst: true} //nolint:exhaustruct
+
+		_, err := formatfx.CSVFormat.WriteItem(map[string]any{"a": 1}, opts)
+		if !errors.Is(err, formatfx.ErrSerialization) || err.Error() != tc.want {
+			t.Errorf("WriteItem with %q: got %v, want %s", tc.delimiter, err, tc.want)
+		}
+
+		opts.Headers = []string{"a"}
+
+		_, err = formatfx.CSVFormat.WriteStart(opts)
+		if !errors.Is(err, formatfx.ErrSerialization) || err.Error() != tc.want {
+			t.Errorf("WriteStart with %q: got %v, want %s", tc.delimiter, err, tc.want)
+		}
+	}
+}
+
+func TestFormatCSV_ReadsWithTheDelimiter(t *testing.T) {
+	t.Parallel()
+
+	reader := formatfx.CSVFormat.CreateReader(&formatfx.FormatOptions{Delimiter: new("::")}) //nolint:exhaustruct
+
+	items, err := reader.Push("a::b\n1::2\n")
+	if err != nil {
+		t.Fatalf("Push: %v", err)
+	}
+
+	raw, err := json.Marshal(items)
+	if err != nil || string(raw) != `[{"a":"1","b":"2"}]` {
+		t.Errorf("got %s, %v", raw, err)
+	}
+
+	// An empty delimiter is given, not left out, so the reader refuses it.
+	_, err = formatfx.CSVFormat.CreateReader(&formatfx.FormatOptions{Delimiter: new("")}).Push("a\n1\n") //nolint:exhaustruct
+	if _, ok := errors.AsType[*formatfx.CSVDelimiterError](err); !ok || !errors.Is(err, formatfx.ErrDeserialization) {
+		t.Errorf("empty delimiter: got %v, want a CSVDelimiterError", err)
+	}
+}
+
 func TestFormatCSV_HeaderRoundtrip(t *testing.T) {
 	t.Parallel()
 

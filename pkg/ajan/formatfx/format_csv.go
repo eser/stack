@@ -5,10 +5,17 @@ package formatfx
 import (
 	"bytes"
 	"encoding/csv"
+	"errors"
 	"fmt"
 	"slices"
 	"sort"
+	"unicode/utf8"
 )
+
+// ErrCSVWriteDelimiter reports a CSV delimiter of more than one character
+// given to the writer, which encoding/csv cannot write with. ReadCSV reads
+// such a delimiter.
+var ErrCSVWriteDelimiter = errors.New("CSV delimiter must be one character to write")
 
 type csvFmt struct{}
 
@@ -24,11 +31,9 @@ func (f *csvFmt) WriteStart(opts *FormatOptions) (string, error) {
 		return "", nil
 	}
 
-	var buf bytes.Buffer
-	w := csv.NewWriter(&buf)
-
-	if opts.Delimiter != 0 {
-		w.Comma = opts.Delimiter
+	w, buf, err := newCSVWriter(opts)
+	if err != nil {
+		return "", err
 	}
 
 	if err := w.Write(opts.Headers); err != nil {
@@ -41,11 +46,9 @@ func (f *csvFmt) WriteStart(opts *FormatOptions) (string, error) {
 }
 
 func (f *csvFmt) WriteItem(data any, opts *FormatOptions) (string, error) {
-	var buf bytes.Buffer
-	w := csv.NewWriter(&buf)
-
-	if opts != nil && opts.Delimiter != 0 {
-		w.Comma = opts.Delimiter
+	w, buf, err := newCSVWriter(opts)
+	if err != nil {
+		return "", err
 	}
 
 	// Auto-emit a sorted header row from map keys on the first item.
@@ -71,14 +74,43 @@ func (f *csvFmt) WriteItem(data any, opts *FormatOptions) (string, error) {
 
 func (f *csvFmt) WriteEnd(_ *FormatOptions) (string, error) { return "", nil }
 
-// CreateReader reads records with opts.Delimiter (a comma by default). The
+// newCSVWriter answers a writer that separates fields with opts.Delimiter, a
+// comma when it is nil. The delimiter must pass ReadCSV's check and be one
+// character, the only kind encoding/csv writes with.
+func newCSVWriter(opts *FormatOptions) (*csv.Writer, *bytes.Buffer, error) {
+	buf := &bytes.Buffer{}
+	w := csv.NewWriter(buf)
+
+	if opts == nil || opts.Delimiter == nil {
+		return w, buf, nil
+	}
+
+	delimiter := *opts.Delimiter
+	if err := checkCSVDelimiter(delimiter); err != nil {
+		return nil, nil, newSerializationError("csv", "failed to write CSV: "+err.Error(), err)
+	}
+
+	comma, size := utf8.DecodeRuneInString(delimiter)
+	if size != len(delimiter) {
+		msg := fmt.Sprintf("failed to write CSV: CSV delimiter %s must be one character", jsQuote(delimiter))
+
+		return nil, nil, newSerializationError("csv", msg, ErrCSVWriteDelimiter)
+	}
+
+	w.Comma = comma
+
+	return w, buf, nil
+}
+
+// CreateReader reads records with opts.Delimiter (a comma when it is nil);
+// Push and Flush return ReadCSV's *CSVDelimiterError for one it refuses. The
 // first record gives the header names unless opts.Headers has some.
 func (f *csvFmt) CreateReader(opts *FormatOptions) FormatReader {
 	reader := &csvReader{delimiter: ",", state: CSVReadState{}} //nolint:exhaustruct
 
 	if opts != nil {
-		if opts.Delimiter != 0 {
-			reader.delimiter = string(opts.Delimiter)
+		if opts.Delimiter != nil {
+			reader.delimiter = *opts.Delimiter
 		}
 
 		if len(opts.Headers) > 0 {

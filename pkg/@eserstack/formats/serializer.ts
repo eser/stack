@@ -26,6 +26,10 @@ const encodeNative = (
 ): string | null => {
   const pretty = options?.pretty ?? false;
   const indent = options?.indent ?? 0;
+  // Left out of the request when undefined, so Go writes with a comma. A
+  // delimiter Go cannot write with (more than one character) makes Go answer
+  // an error, and the TypeScript writer below writes with it or refuses it.
+  const delimiter = options?.delimiter;
 
   try {
     // An array is a list of items: WriteStart, WriteItem per item, WriteEnd.
@@ -36,6 +40,7 @@ const encodeNative = (
           items: data,
           pretty,
           indent,
+          delimiter,
         })
       : lib.call("formatEncode", {
           format,
@@ -44,6 +49,7 @@ const encodeNative = (
           indent,
           isFirst: true,
           document: true,
+          delimiter,
         });
 
     if (typeof parsed.error === "string" && parsed.error.length > 0) {

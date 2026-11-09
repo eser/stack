@@ -23,7 +23,10 @@ type FormatOptions struct {
 	Indent    int
 	Separator string
 	Headers   []string
-	Delimiter rune
+	// Delimiter separates CSV fields; nil means a comma. The CSV reader takes
+	// any delimiter ReadCSV takes, the writer one character, and both refuse
+	// an empty one or one holding a quote, CR or LF.
+	Delimiter *string
 	Quote     rune
 	Encoding  string
 	// IsFirst signals that WriteItem is being called for the first array element,

@@ -19,7 +19,7 @@
  *   tag: "v4.0.43",
  *   createIfMissing: true,
  * });
- * console.log(result.action); // "created" | "updated" | "skipped"
+ * console.log(result.action); // "created" (as a draft) | "updated" | "skipped"
  * ```
  *
  * CLI usage:
@@ -70,7 +70,7 @@ export type SyncReleaseNotesOptions = {
   readonly repo: string;
   /** Target tag (e.g., "v4.0.43"). If omitted, uses latest changelog entry */
   readonly tag?: string;
-  /** Create release if it doesn't exist (default: false) */
+  /** Create the release as a draft if it doesn't exist (default: false) */
   readonly createIfMissing?: boolean;
   /** Path to CHANGELOG.md relative to root (default: "CHANGELOG.md") */
   readonly changelogPath?: string;
@@ -113,18 +113,31 @@ export const parseChangelog = async (
 };
 
 /**
+ * Runs one `gh` command with the given arguments. It resolves when gh exits 0
+ * and rejects with the command's error otherwise, gh's stderr included.
+ */
+export type GhRunner = (args: ReadonlyArray<string>) => Promise<void>;
+
+/** The gh on PATH, its output captured. */
+const runGh: GhRunner = async (args) => {
+  await new shell.exec.CommandBuilder("gh", [...args]).spawn();
+};
+
+/**
  * Checks whether a GitHub Release exists for a given tag.
  *
  * @param tag - The tag to check (e.g., "v4.0.43")
  * @param repo - The repository slug (e.g., "owner/repo")
+ * @param gh - Runs gh (default: the gh on PATH)
  * @returns true if the release exists
  */
 export const hasGitHubRelease = async (
   tag: string,
   repo: string,
+  gh: GhRunner = runGh,
 ): Promise<boolean> => {
   try {
-    await shell.exec.exec`gh release view ${tag} --repo ${repo}`.quiet().text();
+    await gh(["release", "view", tag, "--repo", repo]);
     return true;
   } catch {
     return false;
@@ -134,14 +147,18 @@ export const hasGitHubRelease = async (
 /**
  * Syncs a changelog entry to a GitHub Release.
  *
- * Finds the changelog entry matching the target tag, then creates or updates
- * the corresponding GitHub Release with the entry's notes.
+ * Finds the changelog entry matching the target tag, then edits the notes of
+ * the corresponding GitHub Release, draft or published, or creates it as a
+ * draft when `createIfMissing` is set. An edit changes the notes only, never
+ * the draft state; publishing the draft is left to the release run.
  *
  * @param options - Options for the operation
+ * @param gh - Runs gh (default: the gh on PATH)
  * @returns Result describing what action was taken
  */
 export const syncReleaseNotes = async (
   options: SyncReleaseNotesOptions,
+  gh: GhRunner = runGh,
 ): Promise<SyncReleaseNotesResult> => {
   const {
     repo,
@@ -178,12 +195,19 @@ export const syncReleaseNotes = async (
   await standards.crossRuntime.runtime.fs.writeTextFile(notesPath, entry.notes);
 
   try {
-    const exists = await hasGitHubRelease(targetTag, repo);
+    const exists = await hasGitHubRelease(targetTag, repo, gh);
 
     if (exists) {
       try {
-        await shell.exec
-          .exec`gh release edit ${targetTag} --repo ${repo} --notes-file ${notesPath}`.spawn();
+        await gh([
+          "release",
+          "edit",
+          targetTag,
+          "--repo",
+          repo,
+          "--notes-file",
+          notesPath,
+        ]);
       } catch (editErr) {
         throw new Error(
           `gh release edit ${targetTag} failed.${cliSupport.commandFailureDetail(
@@ -199,11 +223,25 @@ export const syncReleaseNotes = async (
       return { tag: targetTag, entry, action: "skipped" };
     }
 
-    const title = releaseTitle.replace("{tag}", targetTag);
+    const title = releaseTitle.replaceAll("{tag}", targetTag);
 
+    // A draft, like the Go SyncReleaseNotes and build.yml's release-notes job
+    // create: the release run publishes it once its archives are attached, so
+    // releases/latest never names a release without them. gh finds a draft by
+    // its tag, so the view and edit above reach it on a later sync.
     try {
-      await shell.exec
-        .exec`gh release create ${targetTag} --repo ${repo} --title ${title} --notes-file ${notesPath}`.spawn();
+      await gh([
+        "release",
+        "create",
+        targetTag,
+        "--repo",
+        repo,
+        "--title",
+        title,
+        "--draft",
+        "--notes-file",
+        notesPath,
+      ]);
       return { tag: targetTag, entry, action: "created" };
     } catch (createErr) {
       // Falling back to `edit` is only right when someone else created the
@@ -211,7 +249,7 @@ export const syncReleaseNotes = async (
       // edit fails too ("release not found"), and reporting THAT error hides
       // the one that matters. Re-check before choosing, and carry gh's own
       // stderr — it is the only place the real reason lives.
-      if (!(await hasGitHubRelease(targetTag, repo))) {
+      if (!(await hasGitHubRelease(targetTag, repo, gh))) {
         throw new Error(
           `gh release create ${targetTag} failed.${cliSupport.commandFailureDetail(
             createErr,
@@ -220,8 +258,15 @@ export const syncReleaseNotes = async (
         );
       }
 
-      await shell.exec
-        .exec`gh release edit ${targetTag} --repo ${repo} --notes-file ${notesPath}`.spawn();
+      await gh([
+        "release",
+        "edit",
+        targetTag,
+        "--repo",
+        repo,
+        "--notes-file",
+        notesPath,
+      ]);
       return { tag: targetTag, entry, action: "updated" };
     }
   } finally {
@@ -293,7 +338,7 @@ const cliResponseMapper: functions.handler.ResponseMapper<
     case "created":
       tui.log.success(
         ctx,
-        `Created release ${value.tag} with changelog notes.`,
+        `Created draft release ${value.tag} with changelog notes.`,
       );
       break;
     case "updated":
@@ -302,7 +347,7 @@ const cliResponseMapper: functions.handler.ResponseMapper<
     case "skipped":
       tui.log.warn(
         ctx,
-        `Release ${value.tag} not found. Skipping (pass --create-if-missing to create).`,
+        `Release ${value.tag} not found. Skipping (pass --create-if-missing to create a draft).`,
       );
       break;
   }

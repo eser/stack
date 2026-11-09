@@ -599,6 +599,13 @@ in `.eser/concerns/`, which several entries below depend on.
   `await cliSupport.exitCli(result); // never returns`. After: end the entry
   point with it, or call `runtime.process.exit()` yourself after it.
 
+- `syncReleaseNotes()` with `createIfMissing` and
+  `eser codebase gh release-notes --create-if-missing` create a missing GitHub
+  Release as a draft, as the Go `eser codebase gh release-notes --create` does;
+  it used to be published at once. An existing release gets new notes only and
+  keeps its draft state. Publish the draft once its assets are attached:
+  `gh release edit <tag> --draft=false --latest`.
+
 #### eser CLI (@eserstack/cli)
 
 - Manifest scripts receive each forwarded argument as exactly one word, with

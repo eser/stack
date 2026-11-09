@@ -88,11 +88,11 @@ npm has accepted the version — cut a new patch instead.
 
 ### GitHub
 
-| Command            | Description                                           |
-| ------------------ | ----------------------------------------------------- |
-| `gh contributors`  | Update contributor list in README.md                  |
-| `gh release-notes` | Sync CHANGELOG to GitHub Releases                     |
-| `gh release-tag`   | Create and push the release tag (the release trigger) |
+| Command            | Description                                             |
+| ------------------ | ------------------------------------------------------- |
+| `gh contributors`  | Update contributor list in README.md                    |
+| `gh release-notes` | Sync CHANGELOG to GitHub Releases, a new one as a draft |
+| `gh release-tag`   | Create and push the release tag (the release trigger)   |
 
 ### Validation
 

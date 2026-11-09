@@ -16,6 +16,7 @@
 
 import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
+import { runtime } from "@eserstack/standards/cross-runtime";
 import * as releaseNotes from "./release-notes.ts";
 
 // =============================================================================
@@ -243,3 +244,196 @@ nodeTest.test("parseCliArgs leaves absent flags out and maps -h", () => {
   assert.assertEquals(event.flags["repo"], undefined);
   assert.assertEquals(event.flags["create-if-missing"], undefined);
 });
+
+// =============================================================================
+// syncReleaseNotes — the gh calls
+// =============================================================================
+
+const CHANGELOG = [
+  "# Changelog",
+  "",
+  "## 1.2.4 - 2026-02-02",
+  "",
+  "- a fix",
+  "",
+  "## [v1.2.3] - 2026-01-01",
+  "",
+  "- first",
+  "",
+].join("\n");
+
+/**
+ * A gh that records each call and never reaches GitHub. `release view`
+ * succeeds once `exists` is set; `fails` names the subcommands that reject.
+ * The notes file path is temporary, so a call records "<notes-file>" in its
+ * place and keeps the file's text in `notes`.
+ */
+const fakeGh = (state: { exists: boolean; fails?: ReadonlySet<string> }) => {
+  const calls: string[][] = [];
+  const notes: string[] = [];
+
+  const gh: releaseNotes.GhRunner = async (args) => {
+    const recorded = [...args];
+    const fileIndex = recorded.indexOf("--notes-file") + 1;
+
+    if (fileIndex > 0) {
+      notes.push(await runtime.fs.readTextFile(recorded[fileIndex]!));
+      recorded[fileIndex] = "<notes-file>";
+    }
+
+    calls.push(recorded);
+
+    if (state.fails?.has(args[1]!) === true) {
+      throw new Error(`gh release ${args[1]} failed`);
+    }
+
+    if (args[1] === "view" && !state.exists) {
+      throw new Error("release not found");
+    }
+  };
+
+  return { gh, calls, notes };
+};
+
+const withChangelog = async (
+  run: (root: string) => Promise<void>,
+): Promise<void> => {
+  const root = await runtime.fs.makeTempDir({ prefix: "release-notes-test-" });
+
+  try {
+    await runtime.fs.writeTextFile(
+      runtime.path.join(root, "CHANGELOG.md"),
+      CHANGELOG,
+    );
+    await run(root);
+  } finally {
+    await runtime.fs.remove(root, { recursive: true });
+  }
+};
+
+// The release run publishes a created release once its archives are attached,
+// so releases/latest never names a release without them (TASK-376). The
+// arguments are the ones the Go SyncReleaseNotes sends (pkg/ajan/codebasefx).
+nodeTest.test(
+  "syncReleaseNotes creates a missing release as a draft, with the arguments of the Go twin",
+  async () => {
+    await withChangelog(async (root) => {
+      const fake = fakeGh({ exists: false });
+
+      const result = await releaseNotes.syncReleaseNotes(
+        { repo: "eser/stack", tag: "1.2.3", createIfMissing: true, root },
+        fake.gh,
+      );
+
+      assert.assertEquals(result.action, "created");
+      assert.assertEquals(result.tag, "v1.2.3");
+      assert.assertEquals(fake.calls, [
+        ["release", "view", "v1.2.3", "--repo", "eser/stack"],
+        [
+          "release",
+          "create",
+          "v1.2.3",
+          "--repo",
+          "eser/stack",
+          "--title",
+          "eserstack v1.2.3",
+          "--draft",
+          "--notes-file",
+          "<notes-file>",
+        ],
+      ]);
+      assert.assertEquals(fake.notes, ["## 1.2.3 - 2026-01-01\n\n- first\n"]);
+    });
+  },
+);
+
+nodeTest.test(
+  "syncReleaseNotes skips a missing release unless asked to create it",
+  async () => {
+    await withChangelog(async (root) => {
+      const fake = fakeGh({ exists: false });
+
+      const result = await releaseNotes.syncReleaseNotes(
+        { repo: "eser/stack", root },
+        fake.gh,
+      );
+
+      assert.assertEquals(result.action, "skipped");
+      assert.assertEquals(result.tag, "v1.2.4");
+      assert.assertEquals(fake.calls, [
+        ["release", "view", "v1.2.4", "--repo", "eser/stack"],
+      ]);
+    });
+  },
+);
+
+// An edit changes the notes only: it never turns a published release back into
+// a draft, nor publishes a draft.
+nodeTest.test(
+  "syncReleaseNotes edits only the notes of an existing release",
+  async () => {
+    await withChangelog(async (root) => {
+      const fake = fakeGh({ exists: true });
+
+      const result = await releaseNotes.syncReleaseNotes(
+        { repo: "eser/stack", tag: "v1.2.4", createIfMissing: true, root },
+        fake.gh,
+      );
+
+      assert.assertEquals(result.action, "updated");
+      assert.assertEquals(fake.calls, [
+        ["release", "view", "v1.2.4", "--repo", "eser/stack"],
+        [
+          "release",
+          "edit",
+          "v1.2.4",
+          "--repo",
+          "eser/stack",
+          "--notes-file",
+          "<notes-file>",
+        ],
+      ]);
+      assert.assertEquals(fake.notes, ["## 1.2.4 - 2026-02-02\n\n- a fix\n"]);
+    });
+  },
+);
+
+// Someone else created the release between the check and the create: the
+// fallback edits the notes of that release and leaves its draft state alone.
+nodeTest.test(
+  "syncReleaseNotes edits only the notes when a create loses the race",
+  async () => {
+    await withChangelog(async (root) => {
+      const state = { exists: false, fails: new Set(["create"]) };
+      const fake = fakeGh(state);
+      const gh: releaseNotes.GhRunner = async (args) => {
+        try {
+          await fake.gh(args);
+        } finally {
+          if (args[1] === "create") {
+            state.exists = true;
+          }
+        }
+      };
+
+      const result = await releaseNotes.syncReleaseNotes(
+        { repo: "eser/stack", tag: "v1.2.4", createIfMissing: true, root },
+        gh,
+      );
+
+      assert.assertEquals(result.action, "updated");
+      assert.assertEquals(fake.calls.slice(2), [
+        ["release", "view", "v1.2.4", "--repo", "eser/stack"],
+        [
+          "release",
+          "edit",
+          "v1.2.4",
+          "--repo",
+          "eser/stack",
+          "--notes-file",
+          "<notes-file>",
+        ],
+      ]);
+    });
+  },
+);

@@ -2,7 +2,7 @@
 
 /**
  * The wasi profile answers like the native library (TASK-272): every one of
- * its 56 names is called on both, with the same fixtures, and the answers are
+ * its 58 names is called on both, with the same fixtures, and the answers are
  * compared after handle ids are normalized (the two builds number their
  * handles independently).
  *
@@ -139,6 +139,44 @@ nodeTest.test(
           }),
         ],
         ["cryptoHashCombined", req({ parts: ["!"] })],
+        [
+          "httpRetryResolve",
+          req({
+            client: { maxAttempts: 4, maxDelay: "Infinity" },
+            request: { factor: 1.5, retryableStatuses: [418, 503] },
+          }),
+        ],
+        ["httpRetryResolve", req({ client: false, streamBody: true })],
+        ["httpRetryResolve", req({ client: true })],
+        [
+          "httpRetryNext",
+          req({
+            plan: {
+              maxAttempts: 4,
+              policy: {
+                maxAttempts: 4,
+                initialDelay: 2.5,
+                maxDelay: "Infinity",
+                factor: 1.5,
+                jitter: true,
+                retryableStatuses: [429, 503],
+                respectRetryAfter: true,
+              },
+            },
+            attempt: 2,
+            status: 503,
+            random: 0.25,
+          }),
+        ],
+        [
+          "httpRetryNext",
+          req({
+            plan: { maxAttempts: 3, policy: null },
+            attempt: 0,
+            status: 429,
+            retryAfterMs: "NaN",
+          }),
+        ],
         // The host facts are explicit: the WASM build has neither the
         // process's home nor its environment.
         [

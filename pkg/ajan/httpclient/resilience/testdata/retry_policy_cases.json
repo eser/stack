@@ -1,0 +1,880 @@
+[
+  {
+    "name": "the default policy retries a 500 twice and backs off with jitter",
+    "steps": [
+      {
+        "status": 500,
+        "random": 0
+      },
+      {
+        "status": 500,
+        "random": 0.5
+      },
+      {
+        "status": 200
+      }
+    ],
+    "want": {
+      "fetches": 3,
+      "delays": [
+        500,
+        1500
+      ],
+      "retries": 2,
+      "status": 200
+    }
+  },
+  {
+    "name": "the default policy gives up after three attempts",
+    "steps": [
+      {
+        "status": 503,
+        "random": 0.25
+      },
+      {
+        "status": 502,
+        "random": 0.75
+      },
+      {
+        "status": 504,
+        "random": 0.1
+      }
+    ],
+    "want": {
+      "fetches": 3,
+      "delays": [
+        625,
+        1750
+      ],
+      "error": "HttpResponseError",
+      "message": "HTTP 504",
+      "status": 504
+    }
+  },
+  {
+    "name": "every default retryable status is retried",
+    "client": {
+      "jitter": false,
+      "maxAttempts": 7
+    },
+    "steps": [
+      {
+        "status": 408
+      },
+      {
+        "status": 429
+      },
+      {
+        "status": 500
+      },
+      {
+        "status": 502
+      },
+      {
+        "status": 503
+      },
+      {
+        "status": 504
+      },
+      {
+        "status": 200
+      }
+    ],
+    "want": {
+      "fetches": 7,
+      "delays": [
+        1000,
+        2000,
+        4000,
+        8000,
+        16000,
+        30000
+      ],
+      "retries": 6,
+      "status": 200
+    }
+  },
+  {
+    "name": "a status outside the list is not retried",
+    "steps": [
+      {
+        "status": 404
+      }
+    ],
+    "want": {
+      "fetches": 1,
+      "delays": [],
+      "error": "HttpResponseError",
+      "message": "HTTP 404",
+      "status": 404
+    }
+  },
+  {
+    "name": "501 is not in the default list",
+    "steps": [
+      {
+        "status": 501
+      }
+    ],
+    "want": {
+      "fetches": 1,
+      "delays": [],
+      "error": "HttpResponseError",
+      "message": "HTTP 501",
+      "status": 501
+    }
+  },
+  {
+    "name": "a network failure is retried with the backoff",
+    "client": {
+      "jitter": false
+    },
+    "steps": [
+      {
+        "network": true
+      },
+      {
+        "network": true
+      },
+      {
+        "status": 200
+      }
+    ],
+    "want": {
+      "fetches": 3,
+      "delays": [
+        1000,
+        2000
+      ],
+      "retries": 2,
+      "status": 200
+    }
+  },
+  {
+    "name": "network failures exhaust the attempts and the last one is thrown",
+    "client": {
+      "jitter": false,
+      "maxAttempts": 2
+    },
+    "steps": [
+      {
+        "network": true
+      },
+      {
+        "network": true
+      }
+    ],
+    "want": {
+      "fetches": 2,
+      "delays": [
+        1000
+      ],
+      "error": "HttpNetworkError",
+      "message": "fetch failed"
+    }
+  },
+  {
+    "name": "a 429 waits for its Retry-After",
+    "steps": [
+      {
+        "status": 429,
+        "retryAfterMs": 2000,
+        "random": 0.9
+      },
+      {
+        "status": 200
+      }
+    ],
+    "want": {
+      "fetches": 2,
+      "delays": [
+        2000
+      ],
+      "retries": 1,
+      "status": 200
+    }
+  },
+  {
+    "name": "a 429 Retry-After of zero waits zero",
+    "steps": [
+      {
+        "status": 429,
+        "retryAfterMs": 0,
+        "random": 0.9
+      },
+      {
+        "status": 200
+      }
+    ],
+    "want": {
+      "fetches": 2,
+      "delays": [
+        0
+      ],
+      "retries": 1,
+      "status": 200
+    }
+  },
+  {
+    "name": "a 429 without Retry-After backs off",
+    "client": {
+      "jitter": false
+    },
+    "steps": [
+      {
+        "status": 429
+      },
+      {
+        "status": 200
+      }
+    ],
+    "want": {
+      "fetches": 2,
+      "delays": [
+        1000
+      ],
+      "retries": 1,
+      "status": 200
+    }
+  },
+  {
+    "name": "respectRetryAfter false ignores Retry-After",
+    "client": {
+      "jitter": false,
+      "respectRetryAfter": false
+    },
+    "steps": [
+      {
+        "status": 429,
+        "retryAfterMs": 5000
+      },
+      {
+        "status": 200
+      }
+    ],
+    "want": {
+      "fetches": 2,
+      "delays": [
+        1000
+      ],
+      "retries": 1,
+      "status": 200
+    }
+  },
+  {
+    "name": "Retry-After on a 503 is not honoured",
+    "client": {
+      "jitter": false
+    },
+    "steps": [
+      {
+        "status": 503,
+        "retryAfterMs": 5000
+      },
+      {
+        "status": 200
+      }
+    ],
+    "want": {
+      "fetches": 2,
+      "delays": [
+        1000
+      ],
+      "retries": 1,
+      "status": 200
+    }
+  },
+  {
+    "name": "a Retry-After past maxDelay is still waited",
+    "client": {
+      "maxDelay": 100
+    },
+    "steps": [
+      {
+        "status": 429,
+        "retryAfterMs": 60000
+      },
+      {
+        "status": 200
+      }
+    ],
+    "want": {
+      "fetches": 2,
+      "delays": [
+        60000
+      ],
+      "retries": 1,
+      "status": 200
+    }
+  },
+  {
+    "name": "the last 429 is thrown without waiting",
+    "client": {
+      "maxAttempts": 2
+    },
+    "steps": [
+      {
+        "status": 429,
+        "retryAfterMs": 1000
+      },
+      {
+        "status": 429,
+        "retryAfterMs": 1000
+      }
+    ],
+    "want": {
+      "fetches": 2,
+      "delays": [
+        1000
+      ],
+      "error": "HttpRateLimitError",
+      "message": "HTTP 429",
+      "status": 429
+    }
+  },
+  {
+    "name": "retry false on the client sends once",
+    "client": false,
+    "steps": [
+      {
+        "status": 500
+      }
+    ],
+    "want": {
+      "fetches": 1,
+      "delays": [],
+      "error": "HttpResponseError",
+      "message": "HTTP 500",
+      "status": 500
+    }
+  },
+  {
+    "name": "retry false on the request sends once",
+    "client": {
+      "maxAttempts": 5
+    },
+    "request": false,
+    "steps": [
+      {
+        "network": true
+      }
+    ],
+    "want": {
+      "fetches": 1,
+      "delays": [],
+      "error": "HttpNetworkError",
+      "message": "fetch failed"
+    }
+  },
+  {
+    "name": "the request config overrides the client config field by field",
+    "client": {
+      "maxAttempts": 4,
+      "initialDelay": 10,
+      "jitter": false
+    },
+    "request": {
+      "factor": 3
+    },
+    "steps": [
+      {
+        "status": 500
+      },
+      {
+        "status": 500
+      },
+      {
+        "status": 500
+      },
+      {
+        "status": 500
+      }
+    ],
+    "want": {
+      "fetches": 4,
+      "delays": [
+        10,
+        30,
+        90
+      ],
+      "error": "HttpResponseError",
+      "message": "HTTP 500",
+      "status": 500
+    }
+  },
+  {
+    "name": "maxDelay caps the exponential delay",
+    "client": {
+      "initialDelay": 1000,
+      "factor": 10,
+      "maxDelay": 5000,
+      "jitter": false,
+      "maxAttempts": 4
+    },
+    "steps": [
+      {
+        "status": 500
+      },
+      {
+        "status": 500
+      },
+      {
+        "status": 500
+      },
+      {
+        "status": 200
+      }
+    ],
+    "want": {
+      "fetches": 4,
+      "delays": [
+        1000,
+        5000,
+        5000
+      ],
+      "retries": 3,
+      "status": 200
+    }
+  },
+  {
+    "name": "jitter scales the capped delay by one half to one",
+    "client": {
+      "initialDelay": 1000,
+      "factor": 10,
+      "maxDelay": 5000,
+      "maxAttempts": 4
+    },
+    "steps": [
+      {
+        "status": 500,
+        "random": 0.999
+      },
+      {
+        "status": 500,
+        "random": 0.333
+      },
+      {
+        "status": 500,
+        "random": 0.5
+      },
+      {
+        "status": 200
+      }
+    ],
+    "want": {
+      "fetches": 4,
+      "delays": [
+        1000,
+        3333,
+        3750
+      ],
+      "retries": 3,
+      "status": 200
+    }
+  },
+  {
+    "name": "fractional delays round half up",
+    "client": {
+      "initialDelay": 2.5,
+      "factor": 1.5,
+      "jitter": false,
+      "maxAttempts": 4
+    },
+    "steps": [
+      {
+        "status": 500
+      },
+      {
+        "status": 500
+      },
+      {
+        "status": 500
+      },
+      {
+        "status": 500
+      }
+    ],
+    "want": {
+      "fetches": 4,
+      "delays": [
+        3,
+        4,
+        6
+      ],
+      "error": "HttpResponseError",
+      "message": "HTTP 500",
+      "status": 500
+    }
+  },
+  {
+    "name": "custom retryable statuses replace the default list",
+    "client": {
+      "retryableStatuses": [
+        418
+      ],
+      "jitter": false
+    },
+    "steps": [
+      {
+        "status": 418
+      },
+      {
+        "status": 500
+      }
+    ],
+    "want": {
+      "fetches": 2,
+      "delays": [
+        1000
+      ],
+      "error": "HttpResponseError",
+      "message": "HTTP 500",
+      "status": 500
+    }
+  },
+  {
+    "name": "an empty status list still retries network failures",
+    "client": {
+      "retryableStatuses": [],
+      "jitter": false
+    },
+    "steps": [
+      {
+        "network": true
+      },
+      {
+        "status": 503
+      }
+    ],
+    "want": {
+      "fetches": 2,
+      "delays": [
+        1000
+      ],
+      "error": "HttpResponseError",
+      "message": "HTTP 503",
+      "status": 503
+    }
+  },
+  {
+    "name": "maxAttempts 1 sends once",
+    "client": {
+      "maxAttempts": 1
+    },
+    "steps": [
+      {
+        "status": 503
+      }
+    ],
+    "want": {
+      "fetches": 1,
+      "delays": [],
+      "error": "HttpResponseError",
+      "message": "HTTP 503",
+      "status": 503
+    }
+  },
+  {
+    "name": "maxAttempts 0 sends nothing",
+    "client": {
+      "maxAttempts": 0
+    },
+    "steps": [],
+    "want": {
+      "fetches": 0,
+      "delays": [],
+      "error": "HttpClientError",
+      "message": "Request failed after 0 attempt(s)"
+    }
+  },
+  {
+    "name": "a negative maxAttempts sends nothing",
+    "client": {
+      "maxAttempts": -2
+    },
+    "steps": [],
+    "want": {
+      "fetches": 0,
+      "delays": [],
+      "error": "HttpClientError",
+      "message": "Request failed after -2 attempt(s)"
+    }
+  },
+  {
+    "name": "a fractional maxAttempts rounds the attempts up",
+    "client": {
+      "maxAttempts": 2.5,
+      "jitter": false
+    },
+    "steps": [
+      {
+        "status": 500
+      },
+      {
+        "status": 500
+      },
+      {
+        "status": 500
+      }
+    ],
+    "want": {
+      "fetches": 3,
+      "delays": [
+        1000,
+        2000
+      ],
+      "error": "HttpResponseError",
+      "message": "HTTP 500",
+      "status": 500
+    }
+  },
+  {
+    "name": "maxAttempts NaN sends nothing",
+    "client": {
+      "maxAttempts": "NaN"
+    },
+    "steps": [],
+    "want": {
+      "fetches": 0,
+      "delays": [],
+      "error": "HttpClientError",
+      "message": "Request failed after NaN attempt(s)"
+    }
+  },
+  {
+    "name": "maxDelay Infinity leaves the delay uncapped",
+    "client": {
+      "initialDelay": 1000,
+      "factor": 100,
+      "maxDelay": "Infinity",
+      "jitter": false
+    },
+    "steps": [
+      {
+        "status": 500
+      },
+      {
+        "status": 500
+      },
+      {
+        "status": 200
+      }
+    ],
+    "want": {
+      "fetches": 3,
+      "delays": [
+        1000,
+        100000
+      ],
+      "retries": 2,
+      "status": 200
+    }
+  },
+  {
+    "name": "an overflowing delay is Infinity",
+    "client": {
+      "initialDelay": 1e+308,
+      "factor": 10,
+      "maxDelay": "Infinity",
+      "jitter": false
+    },
+    "steps": [
+      {
+        "status": 500
+      },
+      {
+        "status": 500
+      },
+      {
+        "status": 200
+      }
+    ],
+    "want": {
+      "fetches": 3,
+      "delays": [
+        1e+308,
+        "Infinity"
+      ],
+      "retries": 2,
+      "status": 200
+    }
+  },
+  {
+    "name": "initialDelay NaN gives NaN delays",
+    "client": {
+      "initialDelay": "NaN"
+    },
+    "steps": [
+      {
+        "status": 500,
+        "random": 0.5
+      },
+      {
+        "status": 200
+      }
+    ],
+    "want": {
+      "fetches": 2,
+      "delays": [
+        "NaN"
+      ],
+      "retries": 1,
+      "status": 200
+    }
+  },
+  {
+    "name": "a negative initialDelay gives negative delays rounded up at the half",
+    "client": {
+      "initialDelay": -2.5,
+      "factor": 1,
+      "jitter": false
+    },
+    "steps": [
+      {
+        "status": 500
+      },
+      {
+        "status": 500
+      },
+      {
+        "status": 200
+      }
+    ],
+    "want": {
+      "fetches": 3,
+      "delays": [
+        -2,
+        -2
+      ],
+      "retries": 2,
+      "status": 200
+    }
+  },
+  {
+    "name": "a factor below one shrinks the delay",
+    "client": {
+      "initialDelay": 1000,
+      "factor": 0.5,
+      "jitter": false,
+      "maxAttempts": 4
+    },
+    "steps": [
+      {
+        "network": true
+      },
+      {
+        "network": true
+      },
+      {
+        "network": true
+      },
+      {
+        "status": 200
+      }
+    ],
+    "want": {
+      "fetches": 4,
+      "delays": [
+        1000,
+        500,
+        250
+      ],
+      "retries": 3,
+      "status": 200
+    }
+  },
+  {
+    "name": "a stream body is sent once",
+    "streamBody": true,
+    "steps": [
+      {
+        "status": 503
+      }
+    ],
+    "want": {
+      "fetches": 1,
+      "delays": [],
+      "error": "HttpResponseError",
+      "message": "HTTP 503",
+      "status": 503
+    }
+  },
+  {
+    "name": "a stream body with retry false is sent once",
+    "streamBody": true,
+    "client": false,
+    "steps": [
+      {
+        "network": true
+      }
+    ],
+    "want": {
+      "fetches": 1,
+      "delays": [],
+      "error": "HttpNetworkError",
+      "message": "fetch failed"
+    }
+  },
+  {
+    "name": "a 2xx answers on the first attempt",
+    "steps": [
+      {
+        "status": 201
+      }
+    ],
+    "want": {
+      "fetches": 1,
+      "delays": [],
+      "retries": 0,
+      "status": 201
+    }
+  },
+  {
+    "name": "a 3xx is an error and is not retried",
+    "steps": [
+      {
+        "status": 304
+      }
+    ],
+    "want": {
+      "fetches": 1,
+      "delays": [],
+      "error": "HttpResponseError",
+      "message": "HTTP 304",
+      "status": 304
+    }
+  },
+  {
+    "name": "mixed failures share one attempt count",
+    "client": {
+      "jitter": false,
+      "maxAttempts": 4,
+      "initialDelay": 100
+    },
+    "steps": [
+      {
+        "network": true
+      },
+      {
+        "status": 429,
+        "retryAfterMs": 1500
+      },
+      {
+        "status": 500
+      },
+      {
+        "status": 200
+      }
+    ],
+    "want": {
+      "fetches": 4,
+      "delays": [
+        100,
+        1500,
+        400
+      ],
+      "retries": 3,
+      "status": 200
+    }
+  }
+]

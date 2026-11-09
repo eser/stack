@@ -13,5 +13,6 @@ export {
   ensureLib,
   getLib,
   getLoadError,
+  requireLibSync,
 } from "@eserstack/ajan/ffi/client";
 export { registerRequestSignal } from "@eserstack/ajan/ffi/request-signals";

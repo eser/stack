@@ -18,22 +18,13 @@ import * as errors from "./errors.ts";
 import * as interceptors from "./interceptors.ts";
 import * as goClientModule from "./go-client.ts";
 import * as goTransport from "./go-transport.ts";
+import * as retryPolicy from "./retry-policy.ts";
 
 // =============================================================================
 // Defaults
 // =============================================================================
 
 const DEFAULT_TIMEOUT = 30_000;
-
-const DEFAULT_RETRY: Required<types.RetryConfig> = {
-  maxAttempts: 3,
-  initialDelay: 1_000,
-  maxDelay: 30_000,
-  factor: 2,
-  jitter: true,
-  retryableStatuses: [408, 429, 500, 502, 503, 504],
-  respectRetryAfter: true,
-};
 
 const defaultDelayFn = (ms: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, ms));
@@ -97,33 +88,6 @@ export const extractRateLimitInfo = (
     ...(limit !== null && { limit: Number(limit) }),
     ...(reset !== null && { resetAt: Number(reset) }),
     ...(retryAfterMs !== null && { retryAfterSeconds: retryAfterMs / 1_000 }),
-  };
-};
-
-const calcBackoffDelay = (
-  attempt: number,
-  cfg: Required<types.RetryConfig>,
-): number => {
-  let delay = cfg.initialDelay * Math.pow(cfg.factor, attempt);
-  delay = Math.min(delay, cfg.maxDelay);
-  if (cfg.jitter) {
-    delay = delay * (0.5 + Math.random() * 0.5);
-  }
-  return Math.round(delay);
-};
-
-const resolveRetryConfig = (
-  clientRetry: types.RetryConfig | false | undefined,
-  requestRetry: types.RetryConfig | false | undefined,
-): Required<types.RetryConfig> | false => {
-  if (clientRetry === false || requestRetry === false) return false;
-  if (clientRetry === undefined && requestRetry === undefined) {
-    return DEFAULT_RETRY;
-  }
-  return {
-    ...DEFAULT_RETRY,
-    ...(clientRetry ?? {}),
-    ...(requestRetry ?? {}),
   };
 };
 
@@ -365,7 +329,9 @@ export class HttpClient {
    *
    * This is the single source of truth for retry/timeout behavior — both
    * _execute and _executeStream delegate entirely to this method, on the
-   * fetch and the native transport alike. `stream` tells the native
+   * fetch and the native transport alike. The loop stays here because it runs
+   * the request interceptors before every attempt; the decisions come from
+   * the retry policy in Go (retry-policy.ts). `stream` tells the native
    * transport to hand the body over unread.
    */
   private async _executeFetch<T>(
@@ -430,23 +396,23 @@ export class HttpClient {
       );
     }
 
-    // Resolve retry and timeout config
-    const retryCfg = resolveRetryConfig(this.config.retry, options?.retry);
-    const timeout = options?.timeout ?? this.config.timeout ?? DEFAULT_TIMEOUT;
-    // A stream body is consumed by the first attempt and cannot be sent again,
-    // so a request with one is never retried.
+    // The retry policy lives in Go: it answers how many attempts this request
+    // gets and, after each failed one, whether and how long to wait. A stream
+    // body is consumed by the first attempt and cannot be sent again, so a
+    // request with one gets one attempt.
     const replayable = !(body instanceof ReadableStream);
-    const maxAttempts =
-      retryCfg === false || !replayable
-        ? 1
-        : (retryCfg.maxAttempts ?? DEFAULT_RETRY.maxAttempts);
+    const plan = retryPolicy.resolveRetryPlan(
+      this.config.retry,
+      options?.retry,
+      !replayable,
+    );
+    const timeout = options?.timeout ?? this.config.timeout ?? DEFAULT_TIMEOUT;
     const requestInterceptors = this.config.interceptors?.request ?? [];
     const fetchFn = await this.#resolveFetch(stream);
 
     let retries = 0;
-    let lastError: errors.HttpClientError | undefined;
 
-    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    for (let attempt = 0; attempt < plan.maxAttempts; attempt++) {
       if (attempt > 0) {
         retries++;
       }
@@ -496,17 +462,14 @@ export class HttpClient {
           throw classified;
         }
 
-        lastError = classified;
-
-        if (attempt < maxAttempts - 1) {
-          const delay = calcBackoffDelay(
-            attempt,
-            retryCfg === false ? DEFAULT_RETRY : retryCfg,
-          );
-          // The backoff must elapse before the next attempt starts.
-          // oxlint-disable-next-line no-await-in-loop
-          await delayFn(delay);
+        const decision = retryPolicy.nextRetry(plan, attempt, 0, null);
+        if (!decision.retry) {
+          throw classified;
         }
+
+        // The backoff must elapse before the next attempt starts.
+        // oxlint-disable-next-line no-await-in-loop
+        await delayFn(decision.delayMs);
         continue;
       }
 
@@ -540,36 +503,17 @@ export class HttpClient {
                 body: errorBody,
               });
 
-        const retryableStatuses =
-          retryCfg !== false ? retryCfg.retryableStatuses : [];
-
-        if (
-          retryableStatuses.includes(raw.status) &&
-          attempt < maxAttempts - 1
-        ) {
-          lastError = httpError;
-
-          // Honour Retry-After for 429
-          if (
-            raw.status === 429 &&
-            retryCfg !== false &&
-            retryCfg.respectRetryAfter &&
-            retryAfterMs !== null
-          ) {
-            // The server's Retry-After wait must elapse before the next
-            // attempt.
-            // oxlint-disable-next-line no-await-in-loop
-            await delayFn(retryAfterMs);
-            continue;
-          }
-
-          const delay = calcBackoffDelay(
-            attempt,
-            retryCfg === false ? DEFAULT_RETRY : retryCfg,
-          );
-          // The backoff must elapse before the next attempt starts.
+        const decision = retryPolicy.nextRetry(
+          plan,
+          attempt,
+          raw.status,
+          retryAfterMs,
+        );
+        if (decision.retry) {
+          // The backoff, or a 429's Retry-After, must elapse before the next
+          // attempt starts.
           // oxlint-disable-next-line no-await-in-loop
-          await delayFn(delay);
+          await delayFn(decision.delayMs);
           continue;
         }
 
@@ -582,11 +526,10 @@ export class HttpClient {
       return await onSuccess(raw, sentRequest, retries, rateLimit);
     }
 
-    throw (
-      lastError ??
-      new errors.HttpClientError(
-        `Request failed after ${maxAttempts} attempt(s)`,
-      )
+    // Every failed attempt either retries or throws, so the loop only ends
+    // here when the plan allows no attempt at all.
+    throw new errors.HttpClientError(
+      `Request failed after ${plan.maxAttempts} attempt(s)`,
     );
   }
 
@@ -707,8 +650,9 @@ export class HttpClient {
 
     const create =
       this.config._createGoClient ?? goClientModule.createGoHttpClient;
-    // Retries stay off in Go: the retry policy above runs on both transports.
-    // The Go timeout bounds each blocking call.
+    // The Go client's own retries stay off: the retry policy of this client
+    // (retry-policy.ts) runs on both transports. The Go timeout bounds each
+    // blocking call.
     const init = create({
       timeoutMs: this.config.timeout ?? DEFAULT_TIMEOUT,
     }).catch((cause: unknown) => {

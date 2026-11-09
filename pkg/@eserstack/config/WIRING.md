@@ -55,27 +55,27 @@ and `./adapters/ffi` re-export rows of `.`.
 
 `./manifest`:
 
-| Export               | Where     | Reason or Go entry                                |
-| -------------------- | --------- | ------------------------------------------------- |
-| `loadManifest`       | TS (open) | Decodes YAML with `yaml`; see Open: YAML and TOML |
-| `getManifestPath`    | TS (open) | The file lookup of `loadManifest`, kept with it   |
-| `MANIFEST_FILENAMES` | TS        | Type: the names both functions try                |
+| Export               | Where | Reason or Go entry                                                 |
+| -------------------- | ----- | ------------------------------------------------------------------ |
+| `loadManifest`       | TS    | Fidelity: decodes YAML with `yaml`; see YAML and TOML stay in TS   |
+| `getManifestPath`    | TS    | Thin adapter: stats the names `loadManifest` tries, kept beside it |
+| `MANIFEST_FILENAMES` | TS    | Type: the names both functions try                                 |
 
 The internal modules `dotenv/parser.ts` (the `.env` dialect) and
 `file/file-search.ts` (the directory walk) are deleted: Go owns both. Neither
 was exported from an entry point.
 
-### Open: YAML and TOML
+### YAML and TOML stay in TS
 
 `file/loader.ts` decodes YAML with `yaml` and TOML with `smol-toml`, and
-`manifest.ts` decodes YAML, so these rows have none of the four reasons of
-TASK-267 (browser code, laroux client code, thin adapter, type). Go's codecs
+`manifest.ts` decodes YAML. These rows stay in TypeScript for fidelity, the
+reason the formats step of TASK-267 gives for `yamlFormat` and `tomlFormat`
+(formats WIRING.md, "Why the other codecs stay in TypeScript"). Go's codecs
 (`formatfx` over `yaml.v3` and `BurntSushi/toml`) decode into Go maps, which
 lose the key order of the document, smol-toml's `TomlDate` values and its
-null-prototype tables, and they accept a different YAML schema. Moving the
-decode would change what `parse()` and `loadManifest()` return. The formats
-step of TASK-267 owns those codecs; the owner decides there whether config
-follows.
+null-prototype tables, and they accept a different YAML schema; the bridge's
+JSON cannot carry the NaN and Infinity both libraries return. Moving the decode
+would change what `parse()` and `loadManifest()` return.
 
 ### Kept fallbacks
 

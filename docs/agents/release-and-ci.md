@@ -84,14 +84,26 @@ validate
              └─ compile-binaries    eser dev compile: eser, noskills, laroux stub, noskills-server
                  └─ publish-ajan    ajan-* and noskills-* platform packages on npm
                      └─ publish     @eserstack libraries and laroux, then the eser and noskills bundles on npm
-                         └─ release-notes   changelog section to GitHub Release
-                             └─ upload-assets   cosign signatures + SHA256SUMS
+                         └─ release-notes   changelog section to a draft GitHub Release
+                             └─ upload-assets   cosign signatures + SHA256SUMS, then publishes the release
                                  ├─ update-homebrew
                                  └─ update-nix-hashes
 ```
 
 `publish-ajan` and `publish` also wait for `smoke-test` and
-`npm-consumer-test`, so nothing reaches npm before both pass. An ordinary push
+`npm-consumer-test`, so nothing reaches npm before both pass.
+
+`release-notes` creates the GitHub Release as a draft, and the last step of
+`upload-assets` publishes it as latest once every archive, signature and
+`SHA256SUMS.txt` is attached (TASK-376). Until then `releases/latest` and the
+tag's download URLs serve the previous release, so install.sh, install.ps1,
+`eser update`, the CLI version check and the noskills-server update check never
+see a release without archives; a failed upload leaves the draft for a resume.
+gh finds a draft by its tag, so `gh release view`, `edit` and `upload` reach it
+on the first run and on a resume. The publish step publishes only a draft and
+leaves a release that is already published as it is. `update-homebrew` and
+`update-nix-hashes` run after it, since they read `SHA256SUMS.txt` from the
+public download URL, which serves nothing for a draft. An ordinary push
 runs `validate`, `mux-no-js-runtime`, `cross-runtime-test` (Node on Linux and
 macOS), `laroux-smoke` (the reusable `laroux-smoke.yml`: the laroux app check
 of the preflight on Linux and macOS), `node-ffi-cli` and `windows-smoke`, and

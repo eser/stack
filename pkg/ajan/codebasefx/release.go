@@ -309,8 +309,9 @@ func Unrelease(ctx context.Context, env *ReleaseEnv, confirmed bool) (string, bo
 }
 
 // SyncReleaseNotes copies a version's CHANGELOG.md section to its GitHub
-// Release: it edits an existing release, creates one when createIfMissing
-// is set, and otherwise reports "skipped". tag "" takes the newest section.
+// Release: it edits the notes of an existing release, draft or published,
+// creates a draft when createIfMissing is set, and otherwise reports
+// "skipped". tag "" takes the newest section.
 func SyncReleaseNotes(ctx context.Context, env *ReleaseEnv, repo, tag string, createIfMissing bool, title string) (string, string, error) {
 	data, err := os.ReadFile(filepath.Join(env.Root, "CHANGELOG.md")) //nolint:gosec // G304: the workspace's changelog
 	if err != nil {
@@ -367,7 +368,11 @@ func SyncReleaseNotes(ctx context.Context, env *ReleaseEnv, repo, tag string, cr
 		title = "eserstack {tag}"
 	}
 
-	if _, err := env.gh(ctx, "release", "create", target, "--repo", repo, "--title", strings.ReplaceAll(title, "{tag}", target), "--notes-file", notes.Name()); err != nil {
+	// A draft, like the one build.yml's release-notes job creates: the release
+	// run publishes it once its archives are attached, so releases/latest
+	// never names a release without them. gh finds a draft by its tag, so the
+	// view and edit above reach it on a later sync.
+	if _, err := env.gh(ctx, "release", "create", target, "--repo", repo, "--title", strings.ReplaceAll(title, "{tag}", target), "--draft", "--notes-file", notes.Name()); err != nil {
 		return target, "", fmt.Errorf("gh release create %s failed: %w", target, err)
 	}
 

@@ -65,8 +65,35 @@ Recommendation: option 1, unless the owner also wants tagged URLs clean during t
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 The owner has chosen an option and approved the workflow change
+- [x] #1 The owner has chosen an option and approved the workflow change
 - [ ] #2 During a release run, `releases/latest` does not name a release without its archives and SHA256SUMS.txt
 - [ ] #3 A resume with `stage=post-publish` still works, for a release that has archives and for one that does not
 - [ ] #4 `update-homebrew` and `update-nix-hashes` still find the archives and SHA256SUMS.txt
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Owner's decision, 2026-11-09: option 2, create the release as a draft and publish it after the assets upload. This is also the owner's approval of the workflow change (AC #1).
+
+What changed:
+
+- build.yml `release-notes`: `gh release create` gets `--draft`. The view-then-edit path is unchanged and edits the notes only, so a resume never changes the draft state of a release, draft or published.
+- build.yml `upload-assets`: a new last step, `Publish the release`, runs after the signing, the per-file upload loop and the summary. It reads `gh release view "$TAG" --json isDraft` and, only when the release is a draft, runs `gh release edit "$TAG" --draft=false --latest`. A release that is already published (a resume after a successful publish, or a release created before this change) is left as it is, Latest badge included. A failed upload fails the job before this step, so the release stays a draft, the previous release stays latest, and a `stage=post-publish` resume uploads into the draft and publishes it.
+- `update-homebrew` and `update-nix-hashes` keep `needs: upload-assets` and their `needs.upload-assets.result == 'success'` condition. The publish is the last step of that job, so both already run after it; a comment on each now says why (`DownloadSHA256Sums`, pkg/ajan/codebasefx/release_distribution.go:255-262, reads the public download URL, which serves nothing for a draft).
+- pkg/ajan/codebasefx/release.go `SyncReleaseNotes` (`eser codebase gh release-notes --create`) creates a draft too, so a release created by hand before the run is published by the run like one the run created. The edit path is unchanged. `TestSyncReleaseNotes` now pins the create arguments (`--draft`) and that the edit passes the notes only; it failed before the release.go change. The `--create` flag help and cmd/eser/README.md say so.
+- Docs: docs/agents/release-and-ci.md (job tree and a paragraph on the draft), .agents/skills/release-and-ci/references/release-process.md (post-publish order, draft rule under Release Binaries), .github/ARCHITECTURE.md (job tree).
+
+How gh finds a draft by tag: `gh release view`, `edit` and `upload` all call `shared.FetchRelease` (cli/cli pkg/cmd/release/shared/fetch.go), which runs the REST `releases/tags/{tag}` lookup, published releases only, and a GraphQL `repository.release(tagName:)` lookup that returns a draft by its pending tag name, and takes whichever finds the release. So the existing calls reach the draft on the first run (create, then upload, then publish in the next job) and on a resume (view finds the draft or the published release). `gh release edit` maps `--draft=false` to `draft: false` and `--latest` to `make_latest: "true"`. Read from the gh source, not run against a repository.
+
+Readers of `releases/latest`: etc/scripts/install.sh:83, etc/scripts/install.ps1:103, cmd/eser/update.go:63, pkg/@eserstack/codebase/cli-system/handlers/version-check.ts:37 and pkg/ajan/noskillsserverfx/update_check.go:15 all read `https://api.github.com/repos/eser/stack/releases/latest` unauthenticated, which never returns a draft, and download from `releases/download/<tag>/`, which serves nothing for a draft. During the window they see the previous release; `ESER_INSTALL_VERSION=<new version>` gets the 404 path it already handles. No code change was needed there.
+
+Left as they are:
+
+- pkg/@eserstack/codebase/release-notes.ts `syncReleaseNotes` (the TypeScript `eser codebase gh release-notes --create-if-missing`) still creates a published release. It is another package; build.yml now points at the Go `SyncReleaseNotes` instead.
+- Publishing a draft with `--latest` makes it latest even if a newer release exists, which only matters for a resume of an older draft after a newer release was published.
+
+AC #2, #3 and #4 need a release run: that the draft stays out of `releases/latest` during the run, that a `stage=post-publish` resume uploads into a draft and publishes it and leaves a published release published, and that `update-homebrew` and `update-nix-hashes` read SHA256SUMS.txt after the publish. None of it can be checked without a run on GitHub.
+
+Verified locally: actionlint on build.yml reports nothing, `go test ./pkg/ajan/codebasefx/ -run TestSyncReleaseNotes` passes, and `pnpm ok` passes.
+<!-- SECTION:NOTES:END -->

@@ -226,10 +226,11 @@ Developer runs:  eser codebase release patch
 │                       └─ publish   libraries, laroux, then  │
 │                           │        eser, noskills bundles   │
 │                           └─ release-notes  changelog       │
-│                               │      section → GitHub       │
-│                               │      Release                │
+│                               │      section → draft        │
+│                               │      GitHub Release         │
 │                               └─ upload-assets  cosign      │
 │                                   │  signatures + SHA256SUMS│
+│                                   │  → publishes the release│
 │                                   ├─ update-homebrew        │
 │                                   │    → eser/tap           │
 │                                   └─ update-nix-hashes      │

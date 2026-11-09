@@ -396,7 +396,7 @@ func TestSyncReleaseNotes(t *testing.T) {
 	root := t.TempDir()
 	writeFiles(t, root, map[string]string{"CHANGELOG.md": "# Changelog\n\n## [Unreleased]\n\n## 1.2.4 - 2026-02-02\n\n### Fixed\n\n- a fix\n\n## [v1.2.3] - 2026-01-01\n\n- first\n"})
 
-	var calls []string
+	var calls, writes []string
 
 	exists := false
 	env := &codebasefx.ReleaseEnv{ //nolint:exhaustruct
@@ -405,6 +405,7 @@ func TestSyncReleaseNotes(t *testing.T) {
 			if len(args) > 4 && args[len(args)-2] == "--notes-file" {
 				notes, _ := os.ReadFile(args[len(args)-1])
 				calls = append(calls, args[1]+" "+args[2]+": "+string(notes))
+				writes = append(writes, strings.Join(args[:len(args)-1], " "))
 			}
 
 			if args[1] == "view" && !exists {
@@ -425,10 +426,23 @@ func TestSyncReleaseNotes(t *testing.T) {
 		t.Errorf("create: %q %q %v %q", tag, action, err, calls)
 	}
 
+	// A created release is a draft until the release run has attached its
+	// archives and publishes it, so releases/latest never names a release
+	// without them (TASK-376).
+	if len(writes) != 1 || writes[0] != "release create v1.2.3 --repo eser/stack --title eserstack v1.2.3 --draft --notes-file" {
+		t.Errorf("create args: %q", writes)
+	}
+
 	exists = true
 
 	if _, action, err := codebasefx.SyncReleaseNotes(context.Background(), env, "eser/stack", "v1.2.4", false, ""); err != nil || action != "updated" {
 		t.Errorf("update: %q %v", action, err)
+	}
+
+	// An edit changes the notes only: it never turns a published release
+	// back into a draft, nor publishes a draft.
+	if len(writes) != 2 || writes[1] != "release edit v1.2.4 --repo eser/stack --notes-file" {
+		t.Errorf("edit args: %q", writes)
 	}
 }
 

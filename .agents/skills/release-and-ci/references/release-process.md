@@ -88,8 +88,9 @@ passes:
    registry is still untouched.
 2. Smoke tests of the built artifacts.
 3. Publishing to the registries.
-4. Post-publish stages: GitHub release notes from the changelog section,
-   binaries, signatures and checksums, package manager formulas.
+4. Post-publish stages: a draft GitHub Release with the changelog section as
+   its notes, binaries, signatures and checksums attached to it, the release
+   published, then package manager formulas.
 
 An ordinary push runs validation (and the preflight on `main`) and publishes
 nothing. The concrete job graph is in the docs linked from this codebase's
@@ -146,8 +147,16 @@ forwarding stub, which runs the npm package or prints the `npm i -g` command.
 Only the owner retires a stub, and the release that drops it carries a
 `### Migration` entry with the command to run instead.
 
+The GitHub Release is created as a draft and published, as latest, only after
+every archive, signature and checksum file is attached. A resume publishes it
+only while it is still a draft and never turns a published release back into
+one. The formula and hash updates run after the publish, since a draft serves
+nothing at its public download URLs.
+
 **Why:** a renamed or missing archive breaks the self-update of every binary
-already installed, with no way to reach those users afterwards (ADR 0005).
+already installed, with no way to reach those users afterwards (ADR 0005). A
+published release without archives sends every install and self-update that
+resolves the latest release to an error until the upload finishes.
 
 ---
 

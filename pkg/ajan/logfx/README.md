@@ -444,6 +444,11 @@ for the loggers it exposes to TypeScript; `NewLogger` does not apply them:
 - Category levels: `Configure` stores dot-separated category routes, and
   `EffectiveLevel` returns the level of the longest matching prefix
   (`myapp.http` matches `myapp.http.server` but not `myapp.httpx`).
+- Category configs: `ResolveCategoryConfig` answers which level, sink names
+  and filter names a category takes from the logger configurations of
+  `@eserstack/logging` (`CategoryConfig`, categories as segments), as that
+  package's `getEffectiveConfig` does. The bridge serves it as
+  `logResolveConfig`.
 
 ## Level Configuration Examples
 

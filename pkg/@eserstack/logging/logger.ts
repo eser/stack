@@ -157,18 +157,18 @@ export class Logger implements logging.Logger {
   }
 
   /**
-   * Lazily creates and caches a Go FFI handle for this logger. Returns null
-   * when no handle could be created; never throws, because a logging outage
-   * must not propagate into the calling application.
+   * Lazily creates and caches a Go FFI handle for this logger, loading the
+   * bridge synchronously on first use. Returns null when no handle could be
+   * created; never throws, because a logging outage must not propagate into
+   * the calling application.
    */
-  async #ensureGoHandle(): Promise<string | null> {
+  #ensureGoHandle(): string | null {
     if (this.#goHandleInitialized) return this.#goHandle;
 
     this.#goHandleInitialized = true;
 
     try {
-      await ffiClient.ensureLib();
-
+      // Throws the bridge's load error when it cannot load.
       const lib = ffiClient.requireLib();
       const effectiveConfig = this.#getEffectiveConfig();
       const result = lib.call("logCreate", {
@@ -237,13 +237,16 @@ export class Logger implements logging.Logger {
     return false;
   }
 
-  /** Routes one record to Go, or to the console sink once Go has failed. */
-  async #emit(
+  /**
+   * Routes one record to Go, or to the console sink once Go has failed.
+   * Synchronous, so the record is written before `log()` returns.
+   */
+  #emit(
     severity: logging.Severity,
     message: string,
     attrs: Record<string, unknown>,
-  ): Promise<void> {
-    const handle = this.#degraded ? null : await this.#ensureGoHandle();
+  ): void {
+    const handle = this.#degraded ? null : this.#ensureGoHandle();
 
     if (handle !== null && this.#writeToGo(handle, severity, message, attrs)) {
       return;
@@ -347,7 +350,11 @@ export class Logger implements logging.Logger {
    * Logs a message at the given severity level. Delegates to Go FFI, degrading
    * to a local console sink when the backend is unavailable or rejects the
    * record. Never throws: a logging fault must not crash the caller.
+   *
+   * The record is written synchronously, before `log()` returns; `log()` stays
+   * async so a message function that throws still rejects the promise.
    */
+  // oxlint-disable-next-line require-await
   async log<T>(
     severity: logging.Severity,
     message:
@@ -386,7 +393,7 @@ export class Logger implements logging.Logger {
       attrs["args"] = args;
     }
 
-    await this.#emit(severity, logMessage, attrs);
+    this.#emit(severity, logMessage, attrs);
 
     return message instanceof Function ? fnResult : message;
   }
@@ -768,10 +775,16 @@ export const clearLoggerCache = (): void => {
 config.registerLoggerCacheClear(clearLoggerCache);
 
 // When TS configure() runs, push updated levels to any live Go handles.
-config.registerConfigureHook(async (loggerConfigs) => {
-  await ffiClient.ensureLib();
-  // Throws when the native library never loaded, rather than skipping.
-  const lib = ffiClient.requireLib();
+config.registerConfigureHook((loggerConfigs) => {
+  // A Go handle exists only once the bridge has loaded, so without handles
+  // there is nothing to update. configure() neither loads nor requires the
+  // bridge: a process without it (laroux with ESER_AJAN=disabled) configures
+  // logging and writes to the console fallback.
+  const lib = ffiClient.getLib();
+
+  if (lib === null || goHandles.size === 0) {
+    return;
+  }
 
   for (const loggerConfig of loggerConfigs) {
     if (loggerConfig.lowestLevel === undefined) continue;

@@ -2,7 +2,7 @@
 
 /**
  * The wasi profile answers like the native library (TASK-272): every one of
- * its 58 names is called on both, with the same fixtures, and the answers are
+ * its 59 names is called on both, with the same fixtures, and the answers are
  * compared after handle ids are normalized (the two builds number their
  * handles independently).
  *
@@ -139,6 +139,20 @@ nodeTest.test(
           }),
         ],
         ["cryptoHashCombined", req({ parts: ["!"] })],
+        [
+          "logResolveConfig",
+          req({
+            category: ["app", "http", "req"],
+            loggers: [
+              { category: [], hasLevel: true, sinks: ["root"] },
+              { category: ["app"], sinks: ["a"], parentSinks: "override" },
+              { category: ["app", "http"], hasLevel: true, filters: ["f"] },
+              { category: ["app", "db"], hasLevel: true, sinks: ["d"] },
+            ],
+          }),
+        ],
+        ["logResolveConfig", req({ category: ["x"] })],
+        ["logResolveConfig", req({ category: "x" })],
         [
           "httpRetryResolve",
           req({

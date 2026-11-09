@@ -11,6 +11,7 @@ import type {
 } from "./types.ts";
 import * as category from "./category.ts";
 import * as context from "./context.ts";
+import * as resolveConfig from "./resolve-config.ts";
 
 /**
  * External callback to clear logger cache (set by logger.ts to avoid circular imports).
@@ -194,53 +195,28 @@ export const getEffectiveConfig = (
     return result;
   }
 
-  // Find matching configs (sorted by specificity, most specific first)
-  const matchingConfigs = category.findMatchingConfigs(
+  // Go resolves the configs that match the category, most specific first:
+  // the level, and the sink and filter names, which map back to the functions
+  // registered under them. Without the bridge, TypeScript resolves the same.
+  const configs = Array.from(registryState.loggers.values());
+  const resolution = resolveConfig.resolveCategoryConfig(
     loggerCategory,
-    registryState.loggers,
+    configs,
   );
 
-  // Track which sinks to use
-  const sinkNames = new Set<string>();
-  const filterNames = new Set<string>();
-  let levelSet = false;
-
-  for (const config of matchingConfigs) {
-    // Handle sinks
-    if (config.sinks && config.sinks.length > 0) {
-      if (config.parentSinks === "override") {
-        // Override: only use this config's sinks
-        sinkNames.clear();
-      }
-      for (const sinkName of config.sinks) {
-        sinkNames.add(sinkName);
-      }
-    }
-
-    // Handle filters
-    if (config.filters) {
-      for (const filterName of config.filters) {
-        filterNames.add(filterName);
-      }
-    }
-
-    // Handle lowest level (use most specific)
-    if (!levelSet && config.lowestLevel !== undefined) {
-      result.lowestLevel = config.lowestLevel;
-      levelSet = true;
-    }
+  const levelConfig = configs[resolution.levelIndex];
+  if (levelConfig?.lowestLevel !== undefined) {
+    result.lowestLevel = levelConfig.lowestLevel;
   }
 
-  // Resolve sink names to actual sinks
-  for (const sinkName of sinkNames) {
+  for (const sinkName of resolution.sinks) {
     const sink = registryState.sinks.get(sinkName);
     if (sink) {
       result.sinks.push(sink);
     }
   }
 
-  // Resolve filter names to actual filters
-  for (const filterName of filterNames) {
+  for (const filterName of resolution.filters) {
     const filter = registryState.filters.get(filterName);
     if (filter) {
       result.filters.push(filter);

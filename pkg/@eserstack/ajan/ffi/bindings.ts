@@ -223,6 +223,20 @@ export interface HttpRetryPlan {
   readonly policy: Required<HttpRetryConfigWire> | null;
 }
 
+/**
+ * One logger configuration of `@eserstack/logging` for `logResolveConfig`:
+ * the sinks and filters are JavaScript functions, so only their names travel,
+ * and only whether the config sets a level.
+ */
+export interface LogCategoryConfigWire {
+  readonly category: readonly string[];
+  readonly hasLevel?: boolean;
+  readonly sinks?: readonly string[];
+  /** "inherit" (the default) or "override". */
+  readonly parentSinks?: string;
+  readonly filters?: readonly string[];
+}
+
 /** The answer of a shell spawn: the stream's handle and the child's pid. */
 export interface SpawnAnswer extends HandleAnswer {
   readonly pid?: number;
@@ -558,6 +572,25 @@ export const BINDINGS = {
     wasm: "yes",
     async: false,
   } as Call<{ readonly handle: string; readonly level: string }, EmptyAnswer>,
+  logResolveConfig: {
+    kind: "call",
+    blocking: false,
+    wasm: "yes",
+    async: false,
+  } as Call<
+    {
+      /** The category to resolve, as its segments. */
+      readonly category: readonly string[];
+      /** The logger configurations, their categories as segments. */
+      readonly loggers?: readonly LogCategoryConfigWire[];
+    },
+    ErrorAnswer & {
+      /** The index in `loggers` of the config whose level applies, or -1. */
+      readonly levelIndex?: number;
+      readonly sinks?: readonly string[];
+      readonly filters?: readonly string[];
+    }
+  >,
 
   // Config (configfx)
   configLoad: {

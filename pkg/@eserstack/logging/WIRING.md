@@ -44,7 +44,7 @@ in TypeScript, for the reason given.
 | `getEffectiveConfig`                                                                                                                                                                                                                                                                                  | `config.ts`     | moved  | Which configs match a category, which one gives the level, and which sink and filter names it gathers run in Go: `logfx.ResolveCategoryConfig` through `logResolveConfig`, once per category until the next `configure()` (the answer is cached). The TypeScript copy in `resolve-config.ts` is a kept fallback (below). Mapping the names to the sink and filter functions stays here.                   |
 | `configure`                                                                                                                                                                                                                                                                                           | `config.ts`     | TS     | Thin adapter: stores the sink and filter functions and the logger configs, then pushes new levels to live Go handles through `logConfigure` (Go). It neither loads nor requires the bridge.                                                                                                                                                                                                               |
 | `reset`, `registerSink`, `unregisterSink`, `registerFilter`, `unregisterFilter`, `registerLogger`, `getSinkNames`, `getFilterNames`, `getLoggerCategories`, `getRegistryState`, `isConfigured`, `registerLoggerCacheClear`, `registerConfigureHook`                                                   | `config.ts`     | TS     | Thin adapters over the registry of JavaScript sink and filter functions (`reset` disposes the sinks); the two `register*` hooks connect `config.ts` and `logger.ts`.                                                                                                                                                                                                                                      |
-| `Logger` and its level methods                                                                                                                                                                                                                                                                        | `logger.ts`     | Go     | Each record goes to `logCreate` and `logWrite`, with the console sink as a kept fallback (below). The level gate before the message function runs stays in TypeScript, so a lazy message is only built when the level passes.                                                                                                                                                                             |
+| `Logger` and its level methods                                                                                                                                                                                                                                                                        | `logger.ts`     | Go     | A record of a category with configured sinks goes to those sinks only, after its filters, all in TypeScript: they are JavaScript functions (TASK-380). Any other record goes to `logCreate` and `logWrite`, with the console sink as a kept fallback (below). The level gate before the message function runs stays in TypeScript, so a lazy message is only built when the level passes.                 |
 | `Logger.asString`, `getChild`, `with`, `loggerName`                                                                                                                                                                                                                                                   | `logger.ts`     | TS     | Thin adapters: `asString` turns a JavaScript value into text (an `Error`'s `stack`, `String()` of a symbol); the others build loggers.                                                                                                                                                                                                                                                                    |
 | `getLogger`, `clearLoggerCache`, `DEFAULT_LEVEL`, `current`                                                                                                                                                                                                                                           | `logger.ts`     | TS     | Thin adapters: the cache of `Logger` objects, a constant and the default logger.                                                                                                                                                                                                                                                                                                                          |
 | `normalizeCategory`, `categoryToString`, `categoryKey`, `isDescendant`, `isDescendantOrSelf`, `isAncestor`, `categoriesEqual`, `getParentCategory`, `extendCategory`, `getCommonAncestor`, `matchesPattern`, `findMatchingConfigs`                                                                    | `category.ts`   | TS     | Synchronous helpers on the hot path: `getLogger`, `getChild` and the category filters call them, and a bridge round trip costs more than the array work. The kept fallbacks need them without the bridge. `findMatchingConfigs` answers the caller's own config objects; Go's `ResolveCategoryConfig` holds the same matching rules for `getEffectiveConfig`.                                             |
@@ -77,10 +77,15 @@ with the browser shim in `@eserstack/laroux/config/logging-browser-shim.ts`.
 
 With `ESER_AJAN=disabled`, `bridge.test.ts` checks in a child process that
 `configure()` resolves, that `getEffectiveConfig` answers every fixture case
-through the TypeScript fallback, that records go to the console sink with one
-warning naming `ESER_AJAN=disabled`, and that `createGoLogger` writes nothing.
-`pkg/@eserstack/laroux-server/commands/build.test.ts` and
-`pkg/@eserstack/laroux-bundler/system.test.ts` pass with `ESER_AJAN=disabled`.
+through the TypeScript fallback, that the records of a category with sinks
+reach those sinks and not stderr, that the records of a category without sinks
+go to the console sink with one warning naming `ESER_AJAN=disabled`, and that
+`createGoLogger` writes nothing.
+`pkg/@eserstack/laroux-server/commands/build.test.ts` runs a failing build in a
+child process with and without `ESER_AJAN=disabled` and checks that the
+failure is logged once, through the `getOutputSink` the build configures, and
+not on stderr. `pkg/@eserstack/laroux-bundler/system.test.ts` passes with
+`ESER_AJAN=disabled`.
 
 ### Fixtures
 
@@ -91,7 +96,43 @@ takes. `category_config_fixtures_test.go` runs it in Go; `bridge.test.ts` runs
 it through `EserAjanCall` on the native library and on the WASM reactor,
 through `config.getEffectiveConfig`, and through the TypeScript fallback, also
 in the `ESER_AJAN=disabled` child. `pkg/@eserstack/ajan/wasm/profile-parity.test.ts`
-calls `logResolveConfig` on both builds and compares the answers.
+calls `logResolveConfig` on both builds and compares the answers. The laroux
+browser shim's test (`laroux/config/logging-browser-shim.test.ts`) runs the
+same cases and checks the sinks and filters the shim calls. TASK-380 changed
+the override cases to the shim's meaning (below).
+
+## Fixed: records never reached the configured sinks and filters
+
+- **Status**: RESOLVED (TASK-380)
+- **Location**: `logger.ts`, `Logger.log`.
+- **Cause**: `Logger.log` read only `lowestLevel` from the effective config and
+  sent every record to Go or the console sink. Nothing called the sinks and
+  filters that `configure()` registers, so `getRecordCollectorSink` collected
+  nothing and laroux's `getOutputSink` never received a line. v4.5.2 had the
+  same gap.
+- **Fix**: when the category has sinks, `Logger.log` builds the `LogRecord`
+  and hands it to them synchronously after every filter passes it; the record
+  does not go to Go then (owner decision, 2026-11-09). A category without sinks
+  writes through Go or the console sink as before. A sink that throws or
+  rejects and a filter that throws are reported once each on stderr, written
+  directly and not through a logger, so the report cannot reach the failing
+  sink; a failing filter drops the record. `Logger` no longer caches the
+  effective config itself: `config.getEffectiveConfig` caches it per category
+  and drops the cache on every configuration change, so a logger a module
+  holds across `configure()` takes the new sinks.
+- **Override**: `parentSinks: "override"` on a config that names sinks now
+  keeps the sinks and filters of its ancestors out: the gathering from the
+  most specific config outward stops at the override config, and the level
+  still comes from any config (owner decision, 2026-11-09). Before, the
+  override config cleared the names gathered from the more specific configs.
+  Go (`logfx.ResolveCategoryConfig`), `resolveInTypeScript` and the laroux
+  browser shim agree, and `category_configs.json` pins it.
+- **Tests**: `logger.test.ts` (the README record collector example, a
+  rejecting filter, the record's fields, sinks only, a category without sinks,
+  delivery before `log()` returns, a logger held across `configure()`, failing
+  sinks and filters); `bridge.test.ts`, `category_config_fixtures_test.go` and
+  `logging-browser-shim.test.ts` on the fixture; the bridge's
+  `bridge_log_resolve_test.go`; laroux's `build.test.ts`.
 
 ## Fixed: configure() failed without the native library
 
@@ -142,7 +183,10 @@ calls `logResolveConfig` on both builds and compares the answers.
 
 ## Sync vs async
 
-The record path is synchronous (M2-T8): `Logger.log` resolves its config, takes
+The record path is synchronous (M2-T8). With configured sinks, `Logger.log`
+calls the filters and the sinks before it returns and does not await a sink's
+promise; a rejection is caught and reported. Without them, `Logger.log`
+resolves its config, takes
 the bridge with `requireLibSync()` (which loads it synchronously on first use,
 through `ensureLibSync()`), takes the Go handle of its category and level, and
 writes the record before
@@ -154,6 +198,10 @@ TASK-267). `createGoLogger` still awaits `ensureLib()`.
 
 ## Behavioral divergences
 
+- Records of a category with configured sinks go to those sinks and no longer
+  to Go or the console sink (TASK-380).
+- `parentSinks: "override"` keeps the ancestors' sinks and filters out instead
+  of clearing the sinks of the more specific configs (TASK-380).
 - `configure()` no longer loads the bridge and no longer rejects when it is
   unavailable (the fix above).
 - `Logger.log` writes the record before it returns its promise; before

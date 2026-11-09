@@ -59,6 +59,8 @@ export type BuildCommandOptions = {
   readonly fontOptimizer?: FontOptimizer;
   /** Image optimizer; the CLI passes the sharp optimizer */
   readonly imageOptimizer?: ImageOptimizer;
+  /** Where the build's log lines go; defaults to stdout */
+  readonly logSink?: streams.Sink<unknown>;
 };
 
 type CliResult = results.Result<void, { message?: string; exitCode: number }>;
@@ -226,7 +228,7 @@ export const runBuild = async (
 
   const loggingOut = streams.output({
     renderer: streams.renderers.ansi(),
-    sink: streams.sinks.stdout(),
+    sink: options.logSink ?? streams.sinks.stdout(),
   });
   await logging.config.configure({
     sinks: {
@@ -283,6 +285,9 @@ export const runBuild = async (
   const buildResult = await system.build(context);
 
   await logging.config.reset();
+  // The log lines reach the output's sink asynchronously; they are all there
+  // before the build reports its result.
+  await loggingOut.flush();
 
   if (!buildResult.success) {
     await out.close();

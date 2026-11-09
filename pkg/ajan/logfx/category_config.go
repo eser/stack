@@ -4,8 +4,9 @@ package logfx
 
 import "slices"
 
-// ParentSinksOverride is the CategoryConfig.ParentSinks value that clears the
-// sink names gathered before the config that carries it.
+// ParentSinksOverride is the CategoryConfig.ParentSinks value that keeps the
+// sinks and filters of less specific configs out: the gathering stops at the
+// config that carries it, when that config names sinks.
 const ParentSinksOverride = "override"
 
 // CategoryConfig is one logger configuration of @eserstack/logging: a
@@ -46,12 +47,11 @@ func isSelfOrDescendant(category, parent []string) bool {
 // the same length in their given order:
 //
 //   - the level comes from the first of them that sets one;
-//   - the sink names of each config with sinks are added, a name already
-//     added keeping its place, and a config whose ParentSinks is
-//     ParentSinksOverride first clears the names gathered so far (those of the
-//     more specific configs, since the read goes outward);
-//   - the filter names of every config are added the same way, without
-//     override.
+//   - the sink names and the filter names of each config are added, a name
+//     already added keeping its place;
+//   - a config with sinks whose ParentSinks is ParentSinksOverride is the last
+//     one whose sinks and filters are added, so the less specific configs
+//     (its ancestors) add none; their levels still count.
 func ResolveCategoryConfig(category []string, configs []CategoryConfig) CategoryResolution {
 	matches := make([]int, 0, len(configs))
 
@@ -71,18 +71,22 @@ func ResolveCategoryConfig(category []string, configs []CategoryConfig) Category
 		LevelIndex: -1,
 	}
 
+	gathering := true
+
 	for _, index := range matches {
 		config := configs[index]
 
-		if len(config.Sinks) > 0 {
-			if config.ParentSinks == ParentSinksOverride {
-				resolution.Sinks = resolution.Sinks[:0]
-			}
+		if resolution.LevelIndex < 0 && config.HasLevel {
+			resolution.LevelIndex = index
+		}
 
-			for _, name := range config.Sinks {
-				if !slices.Contains(resolution.Sinks, name) {
-					resolution.Sinks = append(resolution.Sinks, name)
-				}
+		if !gathering {
+			continue
+		}
+
+		for _, name := range config.Sinks {
+			if !slices.Contains(resolution.Sinks, name) {
+				resolution.Sinks = append(resolution.Sinks, name)
 			}
 		}
 
@@ -92,8 +96,8 @@ func ResolveCategoryConfig(category []string, configs []CategoryConfig) Category
 			}
 		}
 
-		if resolution.LevelIndex < 0 && config.HasLevel {
-			resolution.LevelIndex = index
+		if len(config.Sinks) > 0 && config.ParentSinks == ParentSinksOverride {
+			gathering = false
 		}
 	}
 

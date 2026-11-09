@@ -420,6 +420,25 @@ type ConfigureOptions = {
 `contextLocalStorage` defaults to `AsyncLocalStorage`, and `reset: true` clears
 the existing configuration before applying this one.
 
+Each entry of `loggers` configures a category and the categories below it:
+`lowestLevel`, the names of its `sinks` and `filters`, and `parentSinks`. A
+category takes the level of the most specific entry that sets one, and the
+sinks and filters of its own entry and of every entry above it. An entry that
+names sinks and sets `parentSinks: "override"` stops that: the category takes
+no sinks or filters from the entries above the override entry.
+
+Where a record goes:
+
+- When the category has sinks, a record at or above its level goes to those
+  sinks only, after every one of its filters passes it.
+- When the category has no sinks, the record goes to the Go logging backend of
+  `@eserstack/ajan`, or as a line on stderr when the native library is not
+  available.
+
+`log()` calls the sinks before it returns and does not wait for a sink that
+returns a promise. A sink or filter that throws or rejects does not fail the
+log call: it is reported once on stderr, and a failing filter drops the record.
+
 #### `reset(): Promise<void>`
 
 Resets the logging configuration.

@@ -495,7 +495,7 @@
     }
   },
   {
-    "name": "override on the most specific config clears nothing gathered yet",
+    "name": "override on the most specific config keeps the sinks of less specific configs out",
     "category": [
       "app",
       "http"
@@ -523,14 +523,13 @@
     "want": {
       "lowestLevel": 9,
       "sinks": [
-        "h",
-        "a"
+        "h"
       ],
       "filters": []
     }
   },
   {
-    "name": "override on an ancestor clears the sinks of more specific configs",
+    "name": "override on an ancestor keeps the sinks of more specific configs and stops there",
     "category": [
       "app",
       "http",
@@ -575,14 +574,15 @@
     "want": {
       "lowestLevel": 9,
       "sinks": [
-        "a",
-        "root"
+        "r",
+        "h",
+        "a"
       ],
       "filters": []
     }
   },
   {
-    "name": "override without sinks clears nothing",
+    "name": "override without sinks does not stop the gathering",
     "category": [
       "app",
       "http"
@@ -603,14 +603,85 @@
         ],
         "sinks": [],
         "parentSinks": "override"
+      },
+      {
+        "category": [],
+        "sinks": [
+          "root"
+        ]
       }
     ],
     "want": {
       "lowestLevel": 9,
       "sinks": [
-        "h"
+        "h",
+        "root"
       ],
       "filters": []
+    }
+  },
+  {
+    "name": "override keeps the sinks and filters of its ancestors out but not their level",
+    "category": [
+      "app",
+      "http",
+      "req"
+    ],
+    "loggers": [
+      {
+        "category": [],
+        "lowestLevel": 17,
+        "sinks": [
+          "root"
+        ],
+        "filters": [
+          "rf"
+        ]
+      },
+      {
+        "category": [
+          "app"
+        ],
+        "sinks": [
+          "a"
+        ],
+        "filters": [
+          "af"
+        ]
+      },
+      {
+        "category": [
+          "app",
+          "http"
+        ],
+        "sinks": [
+          "h"
+        ],
+        "filters": [
+          "hf"
+        ],
+        "parentSinks": "override"
+      },
+      {
+        "category": [
+          "app",
+          "http",
+          "req"
+        ],
+        "sinks": [
+          "r"
+        ]
+      }
+    ],
+    "want": {
+      "lowestLevel": 17,
+      "sinks": [
+        "r",
+        "h"
+      ],
+      "filters": [
+        "hf"
+      ]
     }
   },
   {
@@ -649,7 +720,7 @@
     }
   },
   {
-    "name": "filters gather from every matching config without override",
+    "name": "filters gather from the matching configs up to an override",
     "category": [
       "app",
       "http"
@@ -693,8 +764,7 @@
       "filters": [
         "shared",
         "h",
-        "a",
-        "root"
+        "a"
       ]
     }
   },

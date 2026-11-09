@@ -1,7 +1,7 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 import * as logging from "@eserstack/standards/logging";
-import type { Category, Filter, Sink } from "./types.ts";
+import type { Category, Filter, LogRecord, Sink } from "./types.ts";
 import * as category from "./category.ts";
 import * as config from "./config.ts";
 import * as context from "./context.ts";
@@ -81,6 +81,73 @@ const writeFallbackRecord = (
   );
 };
 
+/**
+ * The configured sinks and filters that have failed, each reported once.
+ * Reporting per record would turn a broken sink into a flood on stderr.
+ * clearLoggerCache() re-arms the reports, as it does the fallback warning.
+ */
+let reportedFaults = new WeakSet<Sink | Filter>();
+
+/**
+ * Reports a sink or filter that threw or rejected. It writes to stderr
+ * directly, never through a logger, so the report cannot reach the failing
+ * sink again.
+ */
+const reportFault = (
+  kind: "sink" | "filter",
+  failed: Sink | Filter,
+  error: unknown,
+): void => {
+  if (reportedFaults.has(failed)) {
+    return;
+  }
+
+  reportedFaults.add(failed);
+
+  writeStderrLine(
+    `[eserstack/logging] a configured log ${kind} failed (${describeCause(error)}); ` +
+      `the records it fails on are lost. Reported once per ${kind}.`,
+  );
+};
+
+/**
+ * Hands one record to the configured sinks when every configured filter
+ * passes it. Synchronous: each sink is called before this returns, and a sink
+ * that returns a promise is not awaited. Never throws: a sink or filter that
+ * throws or rejects is reported and the other sinks still get the record.
+ */
+const deliverToSinks = (
+  record: LogRecord,
+  sinks: readonly Sink[],
+  filters: readonly Filter[],
+): void => {
+  for (const filter of filters) {
+    try {
+      if (!filter(record)) {
+        return;
+      }
+    } catch (error) {
+      reportFault("filter", filter, error);
+
+      return;
+    }
+  }
+
+  for (const sink of sinks) {
+    try {
+      const result = sink(record);
+
+      if (result !== undefined) {
+        Promise.resolve(result).catch((error: unknown) => {
+          reportFault("sink", sink, error);
+        });
+      }
+    } catch (error) {
+      reportFault("sink", sink, error);
+    }
+  }
+};
+
 /** A Go logger shared by the loggers of one category that write at one level. */
 type SharedGoHandle = { readonly handle: string; level: string };
 
@@ -135,13 +202,6 @@ export class Logger implements logging.Logger {
   /** Preset properties to include in all log records */
   readonly #properties: Record<string, unknown>;
 
-  /** Cached effective config (sinks, filters, level) */
-  #effectiveConfig: {
-    sinks: Sink[];
-    filters: Filter[];
-    lowestLevel: logging.Severity;
-  } | null = null;
-
   /** Go FFI handle for this logger (null until first log or if FFI unavailable). */
   #goHandle: string | null = null;
   /** The `goHandleGeneration` `#goHandle` belongs to; -1 before the first record. */
@@ -174,19 +234,18 @@ export class Logger implements logging.Logger {
   }
 
   /**
-   * Gets the effective configuration for this logger.
-   * Resolves inheritance from parent categories via the config system.
+   * Gets the effective configuration for this logger: its level, sinks and
+   * filters, inherited from the configs of its category's ancestors. The
+   * config module caches it per category and drops the cache on every
+   * configuration change, so a logger held across `configure()` takes the
+   * new configuration.
    */
   #getEffectiveConfig(): {
     sinks: Sink[];
     filters: Filter[];
     lowestLevel: logging.Severity;
   } {
-    if (this.#effectiveConfig === null) {
-      this.#effectiveConfig = config.getEffectiveConfig(this.category);
-    }
-
-    return this.#effectiveConfig;
+    return config.getEffectiveConfig(this.category);
   }
 
   /** Latches the console fallback for this logger and warns the operator once. */
@@ -400,12 +459,16 @@ export class Logger implements logging.Logger {
   }
 
   /**
-   * Logs a message at the given severity level. Delegates to Go FFI, degrading
-   * to a local console sink when the backend is unavailable or rejects the
-   * record. Never throws: a logging fault must not crash the caller.
+   * Logs a message at the given severity level. When sinks are configured for
+   * this logger's category, the record goes to them only, after the
+   * configured filters. Otherwise it goes to Go, degrading to a local console
+   * sink when the backend is unavailable or rejects the record. Never throws:
+   * a logging fault, a failing sink or filter included, must not crash the
+   * caller.
    *
-   * The record is written synchronously, before `log()` returns; `log()` stays
-   * async so a message function that throws still rejects the promise.
+   * The record is written synchronously, before `log()` returns, and a sink
+   * that returns a promise is not awaited; `log()` stays async so a message
+   * function that throws still rejects the promise.
    */
   // oxlint-disable-next-line require-await
   async log<T>(
@@ -434,10 +497,30 @@ export class Logger implements logging.Logger {
       logMessage = this.asString(message);
     }
 
-    const contextProperties = context.getContext();
+    const contextProperties = context.getContext() ?? {};
+
+    if (effectiveConfig.sinks.length > 0) {
+      deliverToSinks(
+        {
+          message: logMessage,
+          rawMessage: logMessage,
+          args,
+          datetime: new Date(),
+          severity,
+          category: this.category,
+          properties: this.#properties,
+          context: contextProperties,
+        },
+        effectiveConfig.sinks,
+        effectiveConfig.filters,
+      );
+
+      return message instanceof Function ? fnResult : message;
+    }
+
     const attrs: Record<string, unknown> = {
       ...this.#properties,
-      ...(contextProperties ?? {}),
+      ...contextProperties,
     };
 
     // Forward any variadic call args as a structured attr so they reach the Go
@@ -826,6 +909,7 @@ export const clearLoggerCache = (): void => {
   // Cached loggers carry the latched fallback state, so dropping them re-arms
   // the one-time warning: the replacement loggers may reach a working backend.
   fallbackWarned = false;
+  reportedFaults = new WeakSet();
 };
 
 // Register the logger cache clear callback with config.ts

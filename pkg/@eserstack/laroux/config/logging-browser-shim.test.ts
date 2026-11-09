@@ -2,6 +2,7 @@
 
 import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
+import { runtime } from "@eserstack/standards/cross-runtime";
 import * as standardsLogging from "@eserstack/standards/logging";
 import * as defaults from "./defaults.ts";
 import * as loggingBrowserShim from "./logging-browser-shim.ts";
@@ -36,6 +37,14 @@ type ShimLogger = {
   readonly getChild: (subcategory: string | readonly string[]) => ShimLogger;
 };
 
+type ShimLoggerConfig = {
+  readonly category: string | readonly string[];
+  readonly lowestLevel?: number;
+  readonly sinks?: readonly string[];
+  readonly parentSinks?: "inherit" | "override";
+  readonly filters?: readonly string[];
+};
+
 type ShimModule = {
   readonly Severities: typeof standardsLogging.Severities;
   readonly SeverityNames: typeof standardsLogging.SeverityNames;
@@ -45,12 +54,8 @@ type ShimModule = {
   readonly config: {
     readonly configure: (options: {
       readonly sinks: Record<string, (record: ShimRecord) => unknown>;
-      readonly loggers: readonly {
-        readonly category: string | readonly string[];
-        readonly lowestLevel?: number;
-        readonly sinks?: readonly string[];
-        readonly parentSinks?: "inherit" | "override";
-      }[];
+      readonly filters?: Record<string, (record: ShimRecord) => boolean>;
+      readonly loggers: readonly ShimLoggerConfig[];
     }) => Promise<void>;
     readonly reset: () => Promise<void>;
     readonly isConfigured: () => boolean;
@@ -319,6 +324,73 @@ nodeTest.test(
     await shim.logger.getLogger("app.audit").warn("overrides app");
 
     assert.assertEquals(written, ["payments", "app", "payments"]);
+  },
+);
+
+/**
+ * The resolution cases @eserstack/logging and Go's logfx share; the shim
+ * resolves sinks and filters by the same rules.
+ */
+const CATEGORY_CONFIG_FIXTURE = runtime.path.join(
+  import.meta.dirname ?? ".",
+  "..",
+  "..",
+  "..",
+  "ajan",
+  "logfx",
+  "testdata",
+  "category_configs.json",
+);
+
+type CategoryConfigCase = {
+  readonly name: string;
+  readonly category: readonly string[];
+  readonly loggers: readonly ShimLoggerConfig[];
+  readonly want: {
+    readonly sinks: readonly string[];
+    readonly filters: readonly string[];
+  };
+};
+
+nodeTest.test(
+  "the shim reaches the sinks and filters of category_configs.json",
+  async () => {
+    const cases = JSON.parse(
+      await runtime.fs.readTextFile(CATEGORY_CONFIG_FIXTURE),
+    ) as CategoryConfigCase[];
+
+    for (const tc of cases) {
+      // oxlint-disable-next-line no-await-in-loop
+      const shim = await loadShim();
+      const sinksReached: string[] = [];
+      const filtersReached: string[] = [];
+      const sinks: Record<string, () => void> = {};
+      const filters: Record<string, () => boolean> = {};
+
+      for (const loggerConfig of tc.loggers) {
+        for (const name of loggerConfig.sinks ?? []) {
+          sinks[name] = () => {
+            sinksReached.push(name);
+          };
+        }
+        for (const name of loggerConfig.filters ?? []) {
+          filters[name] = () => {
+            filtersReached.push(name);
+            return true;
+          };
+        }
+      }
+
+      // oxlint-disable-next-line no-await-in-loop
+      await shim.config.configure({ sinks, filters, loggers: tc.loggers });
+      // oxlint-disable-next-line no-await-in-loop
+      await recordConsole(async () => {
+        await shim.logger.getLogger(tc.category).emergency("resolved");
+      });
+
+      assert.assertEquals(sinksReached, tc.want.sinks, tc.name);
+      assert.assertEquals(filtersReached, tc.want.filters, tc.name);
+    }
   },
 );
 

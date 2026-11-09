@@ -90,18 +90,14 @@ const captureConsole = async (run: () => Promise<void>): Promise<string[]> => {
 
 const WARNING_MARKER = "[eserstack/logging]";
 
+/**
+ * Configures a level and no sinks for the category, so its records go to Go
+ * or the console fallback: configured sinks would take them instead.
+ */
 const configureFallbackTest = async (category: string): Promise<void> => {
-  const { sink } = getTestSink();
-
   await configure({
-    sinks: { test: sink },
-    loggers: [
-      {
-        category: [category],
-        sinks: ["test"],
-        lowestLevel: logging.Severities.Debug,
-      },
-    ],
+    sinks: {},
+    loggers: [{ category: [category], lowestLevel: logging.Severities.Debug }],
   });
 };
 
@@ -1058,5 +1054,292 @@ nodeTest.test(
     });
     assert.assertEquals(debugCalled, true); // passes (5 >= 5)
     assert.assertEquals(debugResult, "debug message");
+  },
+);
+
+// Records and configured sinks and filters (TASK-380).
+
+nodeTest.test(
+  "the README record collector example collects the record",
+  async () => {
+    await beforeEach();
+    const { sink, records } = log.sinks.getRecordCollectorSink();
+
+    await configure({
+      sinks: { test: sink },
+      loggers: [
+        {
+          category: ["app"],
+          sinks: ["test"],
+          lowestLevel: logging.Severities.Debug,
+        },
+      ],
+    });
+
+    const logger = getLogger(["app"]);
+    await logger.info("hello");
+
+    assert.assertEquals(records.length, 1);
+    assert.assertEquals(records[0]?.message, "hello");
+  },
+);
+
+nodeTest.test(
+  "a configured filter that rejects a record keeps it from the sink",
+  async () => {
+    await beforeEach();
+    const { sink, records } = log.sinks.getRecordCollectorSink();
+    const seen: string[] = [];
+
+    await configure({
+      sinks: { test: sink },
+      filters: {
+        warnings: (record) => {
+          seen.push(record.message);
+
+          return record.severity >= logging.Severities.Warning;
+        },
+      },
+      loggers: [
+        {
+          category: ["app"],
+          sinks: ["test"],
+          filters: ["warnings"],
+          lowestLevel: logging.Severities.Debug,
+        },
+      ],
+    });
+
+    const logger = getLogger(["app", "db"]);
+    await logger.info("rejected");
+    await logger.warn("accepted");
+
+    assert.assertEquals(seen, ["rejected", "accepted"]);
+    assert.assertEquals(
+      records.map((record) => record.message),
+      ["accepted"],
+    );
+  },
+);
+
+nodeTest.test(
+  "a record carries its severity, category, arguments, properties and context to the sink",
+  async () => {
+    await beforeEach();
+    const { sink, records } = log.sinks.getRecordCollectorSink();
+
+    await configure({
+      sinks: { test: sink },
+      loggers: [{ category: ["app"], sinks: ["test"] }],
+    });
+
+    await log.context.withContext({ requestId: "req-1" }, async () => {
+      await getLogger(["app", "http"])
+        .with({ userId: "u-7" })
+        .warn("slow request", 1200);
+    });
+
+    assert.assertEquals(records.length, 1);
+    const record = records[0]!;
+    assert.assertEquals(record.message, "slow request");
+    assert.assertEquals(record.rawMessage, "slow request");
+    assert.assertEquals(record.severity, logging.Severities.Warning);
+    assert.assertEquals(record.category, ["app", "http"]);
+    assert.assertEquals(record.args, [1200]);
+    assert.assertEquals(record.properties, { userId: "u-7" });
+    assert.assertEquals(record.context, { requestId: "req-1" });
+    assert.assertInstanceOf(record.datetime, Date);
+  },
+);
+
+nodeTest.test(
+  "a record goes to the configured sinks only, not to Go or the console fallback",
+  async () => {
+    await beforeEach();
+    const { sink, records } = log.sinks.getRecordCollectorSink();
+
+    await configure({
+      sinks: { test: sink },
+      loggers: [{ category: ["sinks-only"], sinks: ["test"] }],
+    });
+
+    const writes: unknown[] = [];
+    const restore = stubLogSymbols({
+      write: (request: unknown): string => {
+        writes.push(request);
+
+        return passthroughWrite(request);
+      },
+    });
+
+    const lines = await captureConsole(async () => {
+      try {
+        await getLogger(["sinks-only"]).info("to the sink");
+      } finally {
+        restore();
+      }
+    });
+
+    assert.assertEquals(records.length, 1);
+    assert.assertEquals(writes, []);
+    assert.assertEquals(lines, []);
+  },
+);
+
+nodeTest.test(
+  "a category without configured sinks still writes through Go or the console fallback",
+  async () => {
+    await beforeEach();
+    const { sink, records } = log.sinks.getRecordCollectorSink();
+
+    await configure({
+      sinks: { test: sink },
+      loggers: [
+        { category: ["with-sink"], sinks: ["test"] },
+        { category: ["without-sink"], lowestLevel: logging.Severities.Debug },
+      ],
+    });
+
+    // Forces the console fallback, so the record can be read back.
+    const restore = stubLogSymbols({
+      create: () => JSON.stringify({ error: "create-boom" }),
+    });
+
+    const lines = await captureConsole(async () => {
+      try {
+        await getLogger(["without-sink"]).debug("not for the sink");
+      } finally {
+        restore();
+      }
+    });
+
+    assert.assertEquals(records, []);
+    assert.assertExists(
+      lines.find((line) => line.includes("not for the sink")),
+    );
+  },
+);
+
+nodeTest.test(
+  "log() hands the record to a sink before it returns",
+  async () => {
+    await beforeEach();
+    const { sink, records } = log.sinks.getRecordCollectorSink();
+
+    await configure({
+      sinks: { test: sink },
+      loggers: [{ category: ["sync"], sinks: ["test"] }],
+    });
+
+    const pending = getLogger(["sync"]).info("written at once");
+
+    assert.assertEquals(records.length, 1);
+    assert.assertEquals(await pending, "written at once");
+  },
+);
+
+nodeTest.test(
+  "a logger taken before configure() writes to the sinks configure() sets",
+  async () => {
+    await beforeEach();
+    const held = getLogger(["held-config"]);
+    await captureConsole(() => held.info("before configure").then(() => {}));
+
+    const { sink, records } = log.sinks.getRecordCollectorSink();
+    await configure({
+      sinks: { test: sink },
+      loggers: [{ category: ["held-config"], sinks: ["test"] }],
+    });
+    await held.info("after configure");
+
+    assert.assertEquals(
+      records.map((record) => record.message),
+      ["after configure"],
+    );
+  },
+);
+
+nodeTest.test(
+  "a sink that throws or rejects does not fail the caller and the other sinks still get the record",
+  async () => {
+    await beforeEach();
+    const { sink, records } = log.sinks.getRecordCollectorSink();
+    let throwingCalls = 0;
+    let rejectingCalls = 0;
+
+    await configure({
+      sinks: {
+        throwing: () => {
+          throwingCalls += 1;
+          throw new Error("sink offline");
+        },
+        rejecting: () => {
+          rejectingCalls += 1;
+
+          return Promise.reject(new Error("sink rejected"));
+        },
+        test: sink,
+      },
+      loggers: [
+        {
+          category: ["faulty"],
+          sinks: ["throwing", "rejecting", "test"],
+        },
+      ],
+    });
+
+    const lines = await captureConsole(async () => {
+      const logger = getLogger(["faulty"]);
+      assert.assertEquals(await logger.error("first"), "first");
+      assert.assertEquals(await logger.error("second"), "second");
+      // The rejection is reported once the promise settles.
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    assert.assertEquals(
+      records.map((record) => record.message),
+      ["first", "second"],
+    );
+    // The fault report does not go back into the failing sinks.
+    assert.assertEquals(throwingCalls, 2);
+    assert.assertEquals(rejectingCalls, 2);
+
+    const reports = lines.filter((line) => line.includes(WARNING_MARKER));
+    // Each failing sink is reported once, not once per record.
+    assert.assertEquals(reports.length, 2);
+    assert.assertStringIncludes(reports.join("\n"), "sink offline");
+    assert.assertStringIncludes(reports.join("\n"), "sink rejected");
+  },
+);
+
+nodeTest.test(
+  "a filter that throws keeps the record from the sinks and does not fail the caller",
+  async () => {
+    await beforeEach();
+    const { sink, records } = log.sinks.getRecordCollectorSink();
+
+    await configure({
+      sinks: { test: sink },
+      filters: {
+        broken: () => {
+          throw new Error("filter offline");
+        },
+      },
+      loggers: [
+        { category: ["filter-fault"], sinks: ["test"], filters: ["broken"] },
+      ],
+    });
+
+    const lines = await captureConsole(async () => {
+      assert.assertEquals(
+        await getLogger(["filter-fault"]).warn("filtered out"),
+        "filtered out",
+      );
+    });
+
+    assert.assertEquals(records, []);
+    const reports = lines.filter((line) => line.includes(WARNING_MARKER));
+    assert.assertEquals(reports.length, 1);
+    assert.assertStringIncludes(reports[0]!, "filter offline");
   },
 );

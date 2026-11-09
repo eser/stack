@@ -1608,6 +1608,21 @@ in `.eser/concerns/`, which several entries below depend on.
   `@eserstack/ajan` README gives the timings); 4.5.2 loaded it asynchronously.
   To keep that load off a request path, call `await ensureLib()` from
   `@eserstack/ajan/ffi/client` at startup.
+- Records reach the sinks and filters that `configure()` sets; 4.5.2 never
+  called them, so `getRecordCollectorSink()` collected nothing and
+  `getOutputSink()` wrote nothing. A record of a category with sinks now goes
+  to those sinks only, after its filters, and no longer to the Go backend or
+  the console fallback on stderr; a category without sinks still writes there.
+  `laroux build`, `laroux dev` and `laroux serve` print their log lines through
+  their `getOutputSink` on stdout instead of Go's JSON lines on stderr. If you
+  read those records from stderr, configure no sinks for the category, or add
+  a sink that writes where you read them.
+- `parentSinks: "override"` on a logger config with sinks now means the
+  category takes no sinks or filters from the configs of its ancestors, as the
+  laroux browser shim already did. It used to drop the sinks of the more
+  specific configs instead, and did nothing on the most specific one. Move
+  `override` to the most specific config whose ancestors' sinks you want to
+  leave out. `logfx.ResolveCategoryConfig` answers the same.
 
 #### @eserstack/ajan
 

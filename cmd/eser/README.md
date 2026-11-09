@@ -97,7 +97,8 @@ updates and removes the other's hooks.
 - `gh release-tag`, `gh release-notes [--tag --create --title --repo]` and
   `gh contributors [--columns --readme --commit]` create the release tag, copy a
   version's changelog section to its GitHub Release, and update the contributor
-  table of the README.
+  table of the README. `--create` makes a missing release a draft, which the
+  release run publishes once its archives are attached.
 
 ## Release builds: `eser dev`
 

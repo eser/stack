@@ -946,10 +946,15 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
 
-      # Same create-or-edit semantics as syncReleaseNotes in
-      # codebase/release-notes.ts: edit an existing release, otherwise create
-      # it, and fall back to edit only when someone else created it between the
-      # check and the create.
+      # Same create-or-edit semantics as SyncReleaseNotes in
+      # pkg/ajan/codebasefx/release.go: edit the notes of an existing release,
+      # otherwise create it, and fall back to edit only when someone else
+      # created it between the check and the create. A new release is a draft
+      # until upload-assets has attached its archives and publishes it, so
+      # releases/latest and the tag's download URLs never serve a release
+      # without them (TASK-376). gh finds a draft by its tag, so view, edit and
+      # upload reach it on the first run and on a resume; the edit changes the
+      # notes only and leaves a published release published.
       - name: Sync CHANGELOG to GitHub Release
         run: |
           set -euo pipefail
@@ -958,8 +963,8 @@ jobs:
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --notes-file "$NOTES"
             echo "Updated release notes for $TAG"
-          elif gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --title "eserstack $TAG" --notes-file "$NOTES"; then
-            echo "Created release $TAG"
+          elif gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --title "eserstack $TAG" --draft --notes-file "$NOTES"; then
+            echo "Created draft release $TAG"
           elif gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --notes-file "$NOTES"
             echo "Updated release notes for $TAG (created concurrently)"
@@ -1306,9 +1311,30 @@ jobs:
             echo "- $line" >> $GITHUB_STEP_SUMMARY
           done
 
+      # Last, once every archive, signature and SHA256SUMS.txt is attached:
+      # release-notes created the release as a draft, and a failed upload
+      # above leaves it one, with the previous release still latest, until a
+      # resume. Only a draft is published; a resume of a release that is
+      # already published leaves it as it is and never makes it a draft again.
+      - name: Publish the release
+        run: |
+          set -euo pipefail
+          TAG="v$(cat VERSION)"
+          if [ "$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft)" = "true" ]; then
+            gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false --latest
+            echo "Published release $TAG as latest"
+          else
+            echo "Release $TAG is already published"
+          fi
+        env:
+          GH_TOKEN: ${{ github.token }}
+
   # ── Release: update Homebrew tap ──────────────────────────────
   update-homebrew:
     name: Update Homebrew Tap
+    # After upload-assets, whose last step publishes the draft release:
+    # `eser dev homebrew` reads SHA256SUMS.txt from the public download URL,
+    # which serves nothing for a draft.
     needs: upload-assets
     # Explicit, with !cancelled(): a job without its own condition is skipped
     # whenever ANY job upstream in the chain was skipped, and validate + preflight
@@ -1355,6 +1381,9 @@ jobs:
   # ── Release: update Nix hashes ────────────────────────────────
   update-nix-hashes:
     name: Update Nix Hashes
+    # After upload-assets, whose last step publishes the draft release:
+    # `eser dev nix-hashes` reads SHA256SUMS.txt from the public download URL,
+    # which serves nothing for a draft.
     needs: upload-assets
     # Explicit, with !cancelled(): a job without its own condition is skipped
     # whenever ANY job upstream in the chain was skipped, and validate + preflight

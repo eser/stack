@@ -358,7 +358,7 @@ func ghCommand(e *env) *clifx.Command {
 				Flags: func(fs *flag.FlagSet) {
 					fs.String("repo", "eser/stack", "the GitHub repository")
 					fs.String("tag", "", "the release tag (default: the newest changelog section)")
-					fs.Bool("create", false, "create the release when it does not exist")
+					fs.Bool("create", false, "create the release as a draft when it does not exist")
 					fs.String("title", "eserstack {tag}", "the title of a created release")
 				},
 				Run: func(c *clifx.Context) error {

@@ -7,20 +7,21 @@
  * every other package, so the whole process opens the library once. This module
  * stays as the import path the package's own code already uses.
  *
- * Importing this module opens nothing. The library loads on the first
- * `ensureLib()` call, which `Logger` makes before its first record goes to the
- * bridge.
+ * Importing this module opens nothing. The library loads synchronously on the
+ * first record a `Logger` writes or the first category it resolves
+ * (`ensureLibSync()`), or on `createGoLogger()` (`ensureLib()`).
  *
- * Logging is the one caller that needs the synchronous accessor: `Logger.log`
- * reaches the bridge on a hot path that cannot await a load. It is exported
- * under the name `requireLib` that this package's call sites already use, and
- * those call sites only reach it after `ensureLib()` has settled.
+ * The logging hot path cannot await a load, so `Logger` uses the synchronous
+ * loader. `requireLibSync` is exported under the name `requireLib` that this
+ * package's call sites already use; it throws the bridge's load error, which
+ * `Logger` catches to fall back to its console sink.
  *
  * @module
  */
 
 export {
   ensureLib,
+  ensureLibSync,
   getLib,
   getLoadError,
   requireLibSync as requireLib,

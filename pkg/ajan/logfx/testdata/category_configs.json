@@ -1,0 +1,901 @@
+[
+  {
+    "name": "no logger configs answer the defaults",
+    "category": [
+      "app"
+    ],
+    "loggers": [],
+    "want": {
+      "lowestLevel": 9,
+      "sinks": [],
+      "filters": []
+    }
+  },
+  {
+    "name": "an unrelated category answers the defaults",
+    "category": [
+      "other"
+    ],
+    "loggers": [
+      {
+        "category": [
+          "app"
+        ],
+        "lowestLevel": 5,
+        "sinks": [
+          "a"
+        ],
+        "filters": [
+          "f"
+        ]
+      }
+    ],
+    "want": {
+      "lowestLevel": 9,
+      "sinks": [],
+      "filters": []
+    }
+  },
+  {
+    "name": "the category itself matches",
+    "category": [
+      "app"
+    ],
+    "loggers": [
+      {
+        "category": [
+          "app"
+        ],
+        "lowestLevel": 5,
+        "sinks": [
+          "a"
+        ],
+        "filters": [
+          "f"
+        ]
+      }
+    ],
+    "want": {
+      "lowestLevel": 5,
+      "sinks": [
+        "a"
+      ],
+      "filters": [
+        "f"
+      ]
+    }
+  },
+  {
+    "name": "a descendant inherits its ancestor",
+    "category": [
+      "app",
+      "http",
+      "req"
+    ],
+    "loggers": [
+      {
+        "category": [
+          "app"
+        ],
+        "lowestLevel": 13,
+        "sinks": [
+          "a"
+        ],
+        "filters": [
+          "f"
+        ]
+      }
+    ],
+    "want": {
+      "lowestLevel": 13,
+      "sinks": [
+        "a"
+      ],
+      "filters": [
+        "f"
+      ]
+    }
+  },
+  {
+    "name": "an ancestor does not take a descendant's config",
+    "category": [
+      "app"
+    ],
+    "loggers": [
+      {
+        "category": [
+          "app",
+          "http"
+        ],
+        "lowestLevel": 1,
+        "sinks": [
+          "a"
+        ]
+      }
+    ],
+    "want": {
+      "lowestLevel": 9,
+      "sinks": [],
+      "filters": []
+    }
+  },
+  {
+    "name": "a prefix that is not a whole segment does not match",
+    "category": [
+      "application"
+    ],
+    "loggers": [
+      {
+        "category": [
+          "app"
+        ],
+        "lowestLevel": 1,
+        "sinks": [
+          "a"
+        ]
+      }
+    ],
+    "want": {
+      "lowestLevel": 9,
+      "sinks": [],
+      "filters": []
+    }
+  },
+  {
+    "name": "segments compare whole, a dot inside one included",
+    "category": [
+      "app",
+      "http"
+    ],
+    "loggers": [
+      {
+        "category": [
+          "app.http"
+        ],
+        "lowestLevel": 1,
+        "sinks": [
+          "dotted"
+        ]
+      },
+      {
+        "category": [
+          "app"
+        ],
+        "lowestLevel": 17,
+        "sinks": [
+          "a"
+        ]
+      }
+    ],
+    "want": {
+      "lowestLevel": 17,
+      "sinks": [
+        "a"
+      ],
+      "filters": []
+    }
+  },
+  {
+    "name": "a string category is split on dots",
+    "category": [
+      "app",
+      "http"
+    ],
+    "loggers": [
+      {
+        "category": "app.http",
+        "lowestLevel": 21,
+        "sinks": [
+          "a"
+        ]
+      }
+    ],
+    "want": {
+      "lowestLevel": 21,
+      "sinks": [
+        "a"
+      ],
+      "filters": []
+    }
+  },
+  {
+    "name": "empty segments of a string category are dropped",
+    "category": [
+      "app",
+      "http"
+    ],
+    "loggers": [
+      {
+        "category": ".app..http.",
+        "lowestLevel": 21,
+        "sinks": [
+          "a"
+        ]
+      }
+    ],
+    "want": {
+      "lowestLevel": 21,
+      "sinks": [
+        "a"
+      ],
+      "filters": []
+    }
+  },
+  {
+    "name": "the root config matches every category",
+    "category": [
+      "any",
+      "thing"
+    ],
+    "loggers": [
+      {
+        "category": [],
+        "lowestLevel": 23,
+        "sinks": [
+          "root"
+        ],
+        "filters": [
+          "rf"
+        ]
+      }
+    ],
+    "want": {
+      "lowestLevel": 23,
+      "sinks": [
+        "root"
+      ],
+      "filters": [
+        "rf"
+      ]
+    }
+  },
+  {
+    "name": "the root config matches the root category",
+    "category": [],
+    "loggers": [
+      {
+        "category": [],
+        "lowestLevel": 1,
+        "sinks": [
+          "root"
+        ]
+      },
+      {
+        "category": [
+          "app"
+        ],
+        "lowestLevel": 5,
+        "sinks": [
+          "a"
+        ]
+      }
+    ],
+    "want": {
+      "lowestLevel": 1,
+      "sinks": [
+        "root"
+      ],
+      "filters": []
+    }
+  },
+  {
+    "name": "the most specific level wins",
+    "category": [
+      "app",
+      "http",
+      "req"
+    ],
+    "loggers": [
+      {
+        "category": [
+          "app"
+        ],
+        "lowestLevel": 17
+      },
+      {
+        "category": [
+          "app",
+          "http"
+        ],
+        "lowestLevel": 5
+      },
+      {
+        "category": [],
+        "lowestLevel": 23
+      }
+    ],
+    "want": {
+      "lowestLevel": 5,
+      "sinks": [],
+      "filters": []
+    }
+  },
+  {
+    "name": "the most specific config that sets a level wins",
+    "category": [
+      "app",
+      "http",
+      "req"
+    ],
+    "loggers": [
+      {
+        "category": [
+          "app"
+        ],
+        "lowestLevel": 17
+      },
+      {
+        "category": [
+          "app",
+          "http"
+        ],
+        "sinks": [
+          "h"
+        ]
+      },
+      {
+        "category": [
+          "app",
+          "http",
+          "req"
+        ],
+        "filters": [
+          "f"
+        ]
+      }
+    ],
+    "want": {
+      "lowestLevel": 17,
+      "sinks": [
+        "h"
+      ],
+      "filters": [
+        "f"
+      ]
+    }
+  },
+  {
+    "name": "a level of zero counts as set",
+    "category": [
+      "app",
+      "http"
+    ],
+    "loggers": [
+      {
+        "category": [
+          "app"
+        ],
+        "lowestLevel": 13
+      },
+      {
+        "category": [
+          "app",
+          "http"
+        ],
+        "lowestLevel": 0
+      }
+    ],
+    "want": {
+      "lowestLevel": 0,
+      "sinks": [],
+      "filters": []
+    }
+  },
+  {
+    "name": "no config sets a level",
+    "category": [
+      "app"
+    ],
+    "loggers": [
+      {
+        "category": [
+          "app"
+        ],
+        "sinks": [
+          "a"
+        ]
+      },
+      {
+        "category": [],
+        "filters": [
+          "f"
+        ]
+      }
+    ],
+    "want": {
+      "lowestLevel": 9,
+      "sinks": [
+        "a"
+      ],
+      "filters": [
+        "f"
+      ]
+    }
+  },
+  {
+    "name": "sinks gather from the most specific config outward",
+    "category": [
+      "app",
+      "http"
+    ],
+    "loggers": [
+      {
+        "category": [],
+        "sinks": [
+          "root"
+        ]
+      },
+      {
+        "category": [
+          "app"
+        ],
+        "sinks": [
+          "a",
+          "shared"
+        ]
+      },
+      {
+        "category": [
+          "app",
+          "http"
+        ],
+        "sinks": [
+          "h",
+          "shared"
+        ]
+      }
+    ],
+    "want": {
+      "lowestLevel": 9,
+      "sinks": [
+        "h",
+        "shared",
+        "a",
+        "root"
+      ],
+      "filters": []
+    }
+  },
+  {
+    "name": "a repeated sink name keeps its first place",
+    "category": [
+      "app",
+      "http"
+    ],
+    "loggers": [
+      {
+        "category": [
+          "app"
+        ],
+        "sinks": [
+          "x",
+          "y",
+          "x"
+        ]
+      },
+      {
+        "category": [
+          "app",
+          "http"
+        ],
+        "sinks": [
+          "y",
+          "z"
+        ]
+      }
+    ],
+    "want": {
+      "lowestLevel": 9,
+      "sinks": [
+        "y",
+        "z",
+        "x"
+      ],
+      "filters": []
+    }
+  },
+  {
+    "name": "override on the most specific config clears nothing gathered yet",
+    "category": [
+      "app",
+      "http"
+    ],
+    "loggers": [
+      {
+        "category": [
+          "app"
+        ],
+        "sinks": [
+          "a"
+        ]
+      },
+      {
+        "category": [
+          "app",
+          "http"
+        ],
+        "sinks": [
+          "h"
+        ],
+        "parentSinks": "override"
+      }
+    ],
+    "want": {
+      "lowestLevel": 9,
+      "sinks": [
+        "h",
+        "a"
+      ],
+      "filters": []
+    }
+  },
+  {
+    "name": "override on an ancestor clears the sinks of more specific configs",
+    "category": [
+      "app",
+      "http",
+      "req"
+    ],
+    "loggers": [
+      {
+        "category": [
+          "app",
+          "http",
+          "req"
+        ],
+        "sinks": [
+          "r"
+        ]
+      },
+      {
+        "category": [
+          "app",
+          "http"
+        ],
+        "sinks": [
+          "h"
+        ]
+      },
+      {
+        "category": [
+          "app"
+        ],
+        "sinks": [
+          "a"
+        ],
+        "parentSinks": "override"
+      },
+      {
+        "category": [],
+        "sinks": [
+          "root"
+        ]
+      }
+    ],
+    "want": {
+      "lowestLevel": 9,
+      "sinks": [
+        "a",
+        "root"
+      ],
+      "filters": []
+    }
+  },
+  {
+    "name": "override without sinks clears nothing",
+    "category": [
+      "app",
+      "http"
+    ],
+    "loggers": [
+      {
+        "category": [
+          "app",
+          "http"
+        ],
+        "sinks": [
+          "h"
+        ]
+      },
+      {
+        "category": [
+          "app"
+        ],
+        "sinks": [],
+        "parentSinks": "override"
+      }
+    ],
+    "want": {
+      "lowestLevel": 9,
+      "sinks": [
+        "h"
+      ],
+      "filters": []
+    }
+  },
+  {
+    "name": "inherit keeps the sinks gathered so far",
+    "category": [
+      "app",
+      "http"
+    ],
+    "loggers": [
+      {
+        "category": [
+          "app",
+          "http"
+        ],
+        "sinks": [
+          "h"
+        ]
+      },
+      {
+        "category": [
+          "app"
+        ],
+        "sinks": [
+          "a"
+        ],
+        "parentSinks": "inherit"
+      }
+    ],
+    "want": {
+      "lowestLevel": 9,
+      "sinks": [
+        "h",
+        "a"
+      ],
+      "filters": []
+    }
+  },
+  {
+    "name": "filters gather from every matching config without override",
+    "category": [
+      "app",
+      "http"
+    ],
+    "loggers": [
+      {
+        "category": [],
+        "filters": [
+          "root"
+        ]
+      },
+      {
+        "category": [
+          "app"
+        ],
+        "filters": [
+          "a",
+          "shared"
+        ],
+        "parentSinks": "override",
+        "sinks": [
+          "s"
+        ]
+      },
+      {
+        "category": [
+          "app",
+          "http"
+        ],
+        "filters": [
+          "shared",
+          "h"
+        ]
+      }
+    ],
+    "want": {
+      "lowestLevel": 9,
+      "sinks": [
+        "s"
+      ],
+      "filters": [
+        "shared",
+        "h",
+        "a",
+        "root"
+      ]
+    }
+  },
+  {
+    "name": "an empty filter list adds nothing",
+    "category": [
+      "app"
+    ],
+    "loggers": [
+      {
+        "category": [
+          "app"
+        ],
+        "filters": []
+      },
+      {
+        "category": [],
+        "filters": [
+          "root"
+        ]
+      }
+    ],
+    "want": {
+      "lowestLevel": 9,
+      "sinks": [],
+      "filters": [
+        "root"
+      ]
+    }
+  },
+  {
+    "name": "configs of other branches are left out",
+    "category": [
+      "app",
+      "db"
+    ],
+    "loggers": [
+      {
+        "category": [
+          "app",
+          "http"
+        ],
+        "lowestLevel": 1,
+        "sinks": [
+          "h"
+        ],
+        "filters": [
+          "hf"
+        ]
+      },
+      {
+        "category": [
+          "app",
+          "db"
+        ],
+        "sinks": [
+          "d"
+        ]
+      },
+      {
+        "category": [
+          "app"
+        ],
+        "lowestLevel": 9,
+        "filters": [
+          "af"
+        ]
+      },
+      {
+        "category": [
+          "other"
+        ],
+        "lowestLevel": 5,
+        "sinks": [
+          "o"
+        ]
+      }
+    ],
+    "want": {
+      "lowestLevel": 9,
+      "sinks": [
+        "d"
+      ],
+      "filters": [
+        "af"
+      ]
+    }
+  },
+  {
+    "name": "segments compare case-sensitively",
+    "category": [
+      "App"
+    ],
+    "loggers": [
+      {
+        "category": [
+          "app"
+        ],
+        "lowestLevel": 1,
+        "sinks": [
+          "a"
+        ]
+      }
+    ],
+    "want": {
+      "lowestLevel": 9,
+      "sinks": [],
+      "filters": []
+    }
+  },
+  {
+    "name": "non-ASCII segments compare by their text",
+    "category": [
+      "uygulama",
+      "günlük",
+      "çıktı"
+    ],
+    "loggers": [
+      {
+        "category": [
+          "uygulama",
+          "günlük"
+        ],
+        "lowestLevel": 5,
+        "sinks": [
+          "g"
+        ]
+      },
+      {
+        "category": [
+          "uygulama",
+          "gunluk"
+        ],
+        "lowestLevel": 1,
+        "sinks": [
+          "ascii"
+        ]
+      }
+    ],
+    "want": {
+      "lowestLevel": 5,
+      "sinks": [
+        "g"
+      ],
+      "filters": []
+    }
+  },
+  {
+    "name": "an empty segment in an array category is a segment",
+    "category": [
+      "app",
+      "",
+      "x"
+    ],
+    "loggers": [
+      {
+        "category": [
+          "app",
+          ""
+        ],
+        "lowestLevel": 5,
+        "sinks": [
+          "empty"
+        ]
+      },
+      {
+        "category": [
+          "app"
+        ],
+        "lowestLevel": 13,
+        "sinks": [
+          "a"
+        ]
+      }
+    ],
+    "want": {
+      "lowestLevel": 5,
+      "sinks": [
+        "empty",
+        "a"
+      ],
+      "filters": []
+    }
+  },
+  {
+    "name": "a level outside the named severities passes through",
+    "category": [
+      "app"
+    ],
+    "loggers": [
+      {
+        "category": [
+          "app"
+        ],
+        "lowestLevel": 3
+      }
+    ],
+    "want": {
+      "lowestLevel": 3,
+      "sinks": [],
+      "filters": []
+    }
+  }
+]

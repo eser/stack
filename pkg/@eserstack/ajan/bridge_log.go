@@ -112,9 +112,65 @@ type logConfigureInput struct {
 	Formatter string            `json:"formatter"` // "json" | "text" | "span-json" | "span-text"
 }
 
+// logCategoryConfig is one logger configuration of @eserstack/logging, its
+// category already normalized to segments.
+type logCategoryConfig struct {
+	ParentSinks string   `json:"parentSinks"`
+	Category    []string `json:"category"`
+	Sinks       []string `json:"sinks"`
+	Filters     []string `json:"filters"`
+	HasLevel    bool     `json:"hasLevel"`
+}
+
+type logResolveConfigRequest struct {
+	Category []string            `json:"category"`
+	Loggers  []logCategoryConfig `json:"loggers"`
+}
+
+type logResolveConfigResponse struct {
+	Error      string   `json:"error,omitempty"`
+	Sinks      []string `json:"sinks"`
+	Filters    []string `json:"filters"`
+	LevelIndex int      `json:"levelIndex"`
+}
+
 // ---------------------------------------------------------------------------
 // Log bridge functions
 // ---------------------------------------------------------------------------
+
+// bridgeLogResolveConfig answers which level, sinks and filters a category
+// takes from @eserstack/logging's logger configurations
+// (logfx.ResolveCategoryConfig). It holds no state: the configurations come
+// with every request.
+// Returns JSON: { levelIndex, sinks, filters } | { error }.
+func bridgeLogResolveConfig(requestJSON string) string {
+	var req logResolveConfigRequest
+	if err := json.Unmarshal([]byte(requestJSON), &req); err != nil {
+		return marshalResponse(logResolveConfigResponse{ //nolint:exhaustruct
+			Error:      fmt.Errorf("invalid request JSON: %w", err).Error(),
+			LevelIndex: -1,
+		})
+	}
+
+	configs := make([]logfx.CategoryConfig, 0, len(req.Loggers))
+	for _, logger := range req.Loggers {
+		configs = append(configs, logfx.CategoryConfig{
+			ParentSinks: logger.ParentSinks,
+			Category:    logger.Category,
+			Sinks:       logger.Sinks,
+			Filters:     logger.Filters,
+			HasLevel:    logger.HasLevel,
+		})
+	}
+
+	resolution := logfx.ResolveCategoryConfig(req.Category, configs)
+
+	return marshalResponse(logResolveConfigResponse{ //nolint:exhaustruct
+		Sinks:      resolution.Sinks,
+		Filters:    resolution.Filters,
+		LevelIndex: resolution.LevelIndex,
+	})
+}
 
 // bridgeLogCreate creates a slog.Logger writing JSON to stderr and stores it
 // under a generated handle. Returns JSON with the handle.
@@ -360,4 +416,5 @@ func init() {
 	register("logClose", bridgeLogClose)
 	register("logShouldLog", bridgeLogShouldLog)
 	register("logConfigure", bridgeLogConfigure)
+	register("logResolveConfig", bridgeLogResolveConfig)
 }

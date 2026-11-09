@@ -66,7 +66,11 @@ export type LoggerConfig = {
   readonly lowestLevel?: logging.Severity;
   /** Names of sinks to use (optional, inherits from parent) */
   readonly sinks?: readonly string[];
-  /** How to handle parent sinks: "inherit" (default) or "override" */
+  /**
+   * How to handle parent sinks: "inherit" (default) adds the sinks and filters
+   * of the parent configs; "override", on a config with sinks, takes none from
+   * them
+   */
   readonly parentSinks?: "inherit" | "override";
   /** Names of filters to apply (optional) */
   readonly filters?: readonly string[];

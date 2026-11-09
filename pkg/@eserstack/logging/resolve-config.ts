@@ -45,9 +45,9 @@ export const toWire = (
 /**
  * The TypeScript resolution, the same rules as `logfx.ResolveCategoryConfig`:
  * the configs whose category is the category or an ancestor of it, read from
- * the most specific outward; the first that sets a level gives it, sink names
- * gather (a config with `parentSinks: "override"` and sinks first clears the
- * names gathered so far), filter names gather.
+ * the most specific outward; the first that sets a level gives it, and sink
+ * and filter names gather up to and including a config with sinks and
+ * `parentSinks: "override"`, so its ancestors add no sinks or filters.
  */
 export const resolveInTypeScript = (
   loggerCategory: Category,
@@ -69,27 +69,33 @@ export const resolveInTypeScript = (
   const sinks = new Set<string>();
   const filters = new Set<string>();
   let levelIndex = -1;
+  let gathering = true;
 
   for (const { index } of matches) {
     const config = configs[index]!;
 
-    if (config.sinks && config.sinks.length > 0) {
-      if (config.parentSinks === "override") {
-        sinks.clear();
-      }
-      for (const sinkName of config.sinks) {
-        sinks.add(sinkName);
-      }
-    }
-
-    if (config.filters) {
-      for (const filterName of config.filters) {
-        filters.add(filterName);
-      }
-    }
-
     if (levelIndex < 0 && config.lowestLevel !== undefined) {
       levelIndex = index;
+    }
+
+    if (!gathering) {
+      continue;
+    }
+
+    for (const sinkName of config.sinks ?? []) {
+      sinks.add(sinkName);
+    }
+
+    for (const filterName of config.filters ?? []) {
+      filters.add(filterName);
+    }
+
+    if (
+      config.sinks !== undefined &&
+      config.sinks.length > 0 &&
+      config.parentSinks === "override"
+    ) {
+      gathering = false;
     }
   }
 

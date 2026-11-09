@@ -221,7 +221,7 @@ nodeTest.test(
 );
 
 nodeTest.test(
-  "with ESER_AJAN=disabled logging configures, resolves in TypeScript and writes to the console fallback",
+  "with ESER_AJAN=disabled logging configures, resolves in TypeScript, writes to the configured sinks and to the console fallback without them",
   async () => {
     const script = `
       import * as fs from "node:fs/promises";
@@ -233,14 +233,19 @@ nodeTest.test(
       out.effective = await run(log, cases);
 
       // laroux build configures logging this way before its first record.
-      const { sink } = log.sinks.getRecordCollectorSink();
+      const { sink, records } = log.sinks.getRecordCollectorSink();
       await log.config.configure({
         sinks: { console: sink },
-        loggers: [{ category: ["laroux-bundler"], lowestLevel: log.Severities.Debug, sinks: ["console"] }],
+        loggers: [
+          { category: ["laroux-bundler"], lowestLevel: log.Severities.Debug, sinks: ["console"] },
+          { category: ["no-sinks"], lowestLevel: log.Severities.Debug },
+        ],
       });
       const logger = log.logger.getLogger(["laroux-bundler", "cli"]);
       out.debug = await logger.debug("first record");
       out.warn = await logger.warn("second record");
+      out.collected = records.map((record) => record.message);
+      await log.logger.getLogger(["no-sinks"]).debug("third record");
       await log.config.configure({
         sinks: { console: sink },
         loggers: [{ category: ["laroux-bundler"], lowestLevel: log.Severities.Error, sinks: ["console"] }],
@@ -264,12 +269,14 @@ nodeTest.test(
       effective: Array<{ name: string; got: unknown }>;
       debug: string;
       warn: string;
+      collected: string[];
       reconfigured: boolean;
     };
 
     assertEffectiveCases(await readCases(), result.effective);
     assert.assertEquals(result.debug, "first record");
     assert.assertEquals(result.warn, "second record");
+    assert.assertEquals(result.collected, ["first record", "second record"]);
     assert.assertEquals(result.reconfigured, true);
 
     const lines = stderr.split("\n");
@@ -278,15 +285,14 @@ nodeTest.test(
     );
     assert.assertEquals(warnings.length, 1);
     assert.assertStringIncludes(warnings[0]!, "ESER_AJAN=disabled");
-    assert.assertExists(
-      lines.find((line) =>
-        line.includes(" DEBUG laroux-bundler.cli: first record"),
-      ),
+    // The records of a category with sinks reach the sinks only; a category
+    // without sinks writes to the console fallback.
+    assert.assertEquals(
+      lines.some((line) => line.includes("laroux-bundler.cli")),
+      false,
     );
     assert.assertExists(
-      lines.find((line) =>
-        line.includes(" WARN laroux-bundler.cli: second record"),
-      ),
+      lines.find((line) => line.includes(" DEBUG no-sinks: third record")),
     );
     assert.assertEquals(
       lines.some((line) => line.includes("dropped")),

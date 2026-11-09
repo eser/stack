@@ -25,9 +25,9 @@ func TestBridgeLogResolveConfig(t *testing.T) {
 			want:    `{"sinks":["h","a","root"],"filters":["af","rf"],"levelIndex":1}`,
 		},
 		{
-			name:    "override clears the names gathered before it",
-			request: `{"category":["app","http"],"loggers":[{"category":["app","http"],"sinks":["h"]},{"category":["app"],"sinks":["a"],"parentSinks":"override"}]}`,
-			want:    `{"sinks":["a"],"filters":[],"levelIndex":-1}`,
+			name:    "override keeps the names of the configs above it out",
+			request: `{"category":["app","http"],"loggers":[{"category":["app","http"],"sinks":["h"]},{"category":["app"],"sinks":["a"],"parentSinks":"override"},{"category":[],"sinks":["root"],"filters":["rf"]}]}`,
+			want:    `{"sinks":["h","a"],"filters":[],"levelIndex":-1}`,
 		},
 		{
 			name:    "a category that is not segments is refused",

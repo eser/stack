@@ -448,7 +448,8 @@ for the loggers it exposes to TypeScript; `NewLogger` does not apply them:
   and filter names a category takes from the logger configurations of
   `@eserstack/logging` (`CategoryConfig`, categories as segments), as that
   package's `getEffectiveConfig` does. The bridge serves it as
-  `logResolveConfig`.
+  `logResolveConfig`. A config with sinks and `ParentSinks` set to
+  `ParentSinksOverride` takes no sinks or filters from its ancestors.
 
 ## Level Configuration Examples
 

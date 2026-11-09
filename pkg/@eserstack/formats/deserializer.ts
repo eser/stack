@@ -19,6 +19,7 @@ export const deserialize = async (
         format,
         text: input,
         headers: options?.headers,
+        delimiter: options?.delimiter,
       });
       if (!parsed.error) {
         return [...(parsed.items ?? [])];

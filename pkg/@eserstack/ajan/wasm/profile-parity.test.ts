@@ -107,8 +107,24 @@ nodeTest.test(
         ["formatEncode", req({ data: { a: 1, b: "x" }, format: "toml" })],
         ["formatDecode", req({ text: "a: 1\nb: [2, 3]\n", format: "yaml" })],
         [
+          "formatDecode",
+          req({ text: "a;b\n1;2\n", format: "csv", delimiter: ";" }),
+        ],
+        [
+          "formatDecode",
+          req({ text: "a\n1\n", format: "csv", delimiter: '"' }),
+        ],
+        [
           "formatEncodeDocument",
           req({ items: [{ a: 1 }, { a: 2 }], format: "jsonl" }),
+        ],
+        [
+          "formatEncodeDocument",
+          req({ items: [{ a: 1, b: 2 }], format: "csv", delimiter: ";" }),
+        ],
+        [
+          "formatEncode",
+          req({ data: { a: 1 }, format: "csv", delimiter: "::" }),
         ],
         [
           "formatReadCsv",

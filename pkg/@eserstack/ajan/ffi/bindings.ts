@@ -455,6 +455,8 @@ export const BINDINGS = {
       readonly indent?: number;
       readonly isFirst?: boolean;
       readonly document?: boolean;
+      /** CSV only: one character; a comma when left out. */
+      readonly delimiter?: string;
     },
     ErrorAnswer & { readonly result?: string }
   >,
@@ -468,6 +470,8 @@ export const BINDINGS = {
       readonly format: string;
       readonly text: string;
       readonly headers?: readonly string[];
+      /** CSV only: a comma when left out. */
+      readonly delimiter?: string;
     },
     ErrorAnswer & { readonly items?: readonly unknown[] }
   >,
@@ -497,6 +501,8 @@ export const BINDINGS = {
       readonly items: readonly unknown[];
       readonly pretty?: boolean;
       readonly indent?: number;
+      /** CSV only: one character; a comma when left out. */
+      readonly delimiter?: string;
     },
     ErrorAnswer & { readonly result?: string }
   >,

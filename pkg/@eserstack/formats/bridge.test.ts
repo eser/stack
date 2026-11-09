@@ -171,6 +171,34 @@ nodeTest.test("csvFormat reads back the rows its writer writes", () => {
   assertItems([...reader.push(text), ...reader.flush()], rows, "round trip");
 });
 
+nodeTest.test(
+  "a CSV delimiter of several characters is read in Go and written by the TypeScript writer",
+  async () => {
+    formats.registerFormat(formats.csvFormat);
+
+    assertItems(
+      await formats.deserialize("a::b\n1::2\n", "csv", { delimiter: "::" }),
+      [{ a: "1", b: "2" }],
+      "deserialize",
+    );
+    // Go writes with one character only, so serialize falls back to the
+    // registry's writer, which ends rows with CRLF.
+    assert.assertEquals(
+      await formats.serialize([{ a: 1, b: 2 }], "csv", { delimiter: "::" }),
+      "a::b\r\n1::2\r\n",
+    );
+
+    const error = await assert.assertRejects(
+      () => formats.serialize([{ a: 1 }], "csv", { delimiter: '"' }),
+      formats.SerializationError,
+    );
+    assert.assertEquals(
+      error.message,
+      'Failed to serialize CSV: CSV delimiter "\\"" must be non-empty and hold no quote, CR or LF',
+    );
+  },
+);
+
 nodeTest.test("readerLayer reads CSV chunks through the bridge", async () => {
   formats.registerFormat(formats.csvFormat);
 
@@ -189,6 +217,103 @@ nodeTest.test("readerLayer reads CSV chunks through the bridge", async () => {
     "reader layer",
   );
 });
+
+/** What the delimiter script below reports from one backend. */
+interface CsvDelimiterReport {
+  readonly backend: string | null;
+  readonly expected: Array<Record<string, string>>;
+  readonly read: unknown[];
+  readonly writer: string;
+  readonly written: string;
+  readonly refused: ReadonlyArray<{
+    readonly name: string;
+    readonly message: string;
+  } | null>;
+}
+
+/** Delimiters `formatfx.ReadCSV` refuses. */
+const REFUSED_DELIMITERS = ["", '"', "\r", "\n"] as const;
+
+/**
+ * Reads and writes semicolon-separated CSV through `deserialize` and
+ * `serialize` in a child process whose bridge has only `backend` enabled, and
+ * reads with each refused delimiter.
+ */
+const runCsvDelimiterChild = async (
+  backend: "native" | "wasm",
+): Promise<CsvDelimiterReport> => {
+  const script = `
+    import * as formats from ${JSON.stringify(import.meta.resolve("./mod.ts"))};
+    import * as ffiClient from ${JSON.stringify(import.meta.resolve("./ffi-client.ts"))};
+    formats.registerBuiltinFormats();
+    await ffiClient.ensureLib();
+    const text = "a;b\\n1;2\\n";
+    const reader = formats.csvFormat.createReader({ delimiter: ";" });
+    const out = {
+      backend: ffiClient.getLib()?.backend ?? null,
+      expected: [...reader.push(text), ...reader.flush()],
+      read: await formats.deserialize(text, "csv", { delimiter: ";" }),
+      writer: formats.csvFormat.writeItem({ a: 1, b: 2 }, { delimiter: ";", _inArray: true, _isFirst: true }),
+      written: await formats.serialize([{ a: 1, b: 2 }], "csv", { delimiter: ";" }),
+      refused: [],
+    };
+    for (const delimiter of ${JSON.stringify(REFUSED_DELIMITERS)}) {
+      try {
+        await formats.deserialize("a\\n1\\n", "csv", { delimiter });
+        out.refused.push(null);
+      } catch (error) {
+        out.refused.push({ name: error.name, message: error.message });
+      }
+    }
+    process.stdout.write(JSON.stringify(out));
+  `;
+
+  const env: Record<string, string | undefined> = { ...nodeProcess.env };
+  for (const name of ["ESER_AJAN", "ESER_AJAN_NATIVE", "ESER_AJAN_WASM"]) {
+    delete env[name];
+  }
+  env[backend === "native" ? "ESER_AJAN_WASM" : "ESER_AJAN_NATIVE"] =
+    "disabled";
+
+  // execFile rejects when the child exits with a non-zero code.
+  const { stdout } = await util.promisify(childProcess.execFile)(
+    nodeProcess.execPath,
+    ["--input-type=module", "--eval", script],
+    { env },
+  );
+
+  return JSON.parse(stdout) as CsvDelimiterReport;
+};
+
+for (const backend of ["native", "wasm"] as const) {
+  nodeTest.test(
+    `deserialize and serialize use the CSV delimiter they are given (${backend})`,
+    async () => {
+      const report = await runCsvDelimiterChild(backend);
+
+      assert.assertEquals(report.backend, backend);
+      assert.assertEquals(report.expected, [{ a: "1", b: "2" }]);
+      assertItems(report.read, report.expected, "deserialize");
+      // The Go writer ends rows with LF and the TypeScript one with CRLF
+      // (README, Go and TypeScript Output); the fields are the same.
+      assert.assertEquals(report.writer, "a;b\r\n1;2\r\n");
+      assert.assertEquals(
+        report.written,
+        report.writer.replaceAll("\r\n", "\n"),
+      );
+
+      assert.assertEquals(
+        report.refused,
+        REFUSED_DELIMITERS.map((delimiter) => ({
+          name: "DeserializationError",
+          message: `Failed to deserialize CSV row: CSV delimiter ${JSON.stringify(
+            delimiter,
+          )} must be non-empty and hold no quote, CR or LF`,
+        })),
+      );
+    },
+  );
+}
 
 nodeTest.test(
   "with ESER_AJAN=disabled reading CSV throws the bridge's load error and the TypeScript codecs still work",

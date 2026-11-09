@@ -26,6 +26,8 @@ type formatEncodeRequest struct {
 	IsFirst bool            `json:"isFirst"`
 	// Document marks data as a whole document rather than one list entry.
 	Document bool `json:"document"`
+	// Delimiter separates CSV fields; a comma when the request leaves it out.
+	Delimiter *string `json:"delimiter"`
 }
 
 type formatEncodeResponse struct {
@@ -34,10 +36,12 @@ type formatEncodeResponse struct {
 }
 
 type formatEncodeDocumentRequest struct {
-	Format string            `json:"format"`
-	Items  []json.RawMessage `json:"items"`
-	Pretty bool              `json:"pretty"`
-	Indent int               `json:"indent"`
+	// Delimiter separates CSV fields; a comma when the request leaves it out.
+	Delimiter *string           `json:"delimiter"`
+	Format    string            `json:"format"`
+	Items     []json.RawMessage `json:"items"`
+	Pretty    bool              `json:"pretty"`
+	Indent    int               `json:"indent"`
 }
 
 type formatEncodeDocumentResponse struct {
@@ -46,9 +50,11 @@ type formatEncodeDocumentResponse struct {
 }
 
 type formatDecodeRequest struct {
-	Format  string   `json:"format"`
-	Text    string   `json:"text"`
-	Headers []string `json:"headers,omitempty"`
+	// Delimiter separates CSV fields; a comma when the request leaves it out.
+	Delimiter *string  `json:"delimiter"`
+	Format    string   `json:"format"`
+	Text      string   `json:"text"`
+	Headers   []string `json:"headers,omitempty"`
 }
 
 type formatDecodeResponse struct {
@@ -127,10 +133,11 @@ func bridgeFormatEncode(requestJSON string) string {
 	}
 
 	opts := &formatfx.FormatOptions{ //nolint:exhaustruct
-		Pretty:   req.Pretty,
-		Indent:   req.Indent,
-		IsFirst:  req.IsFirst,
-		Document: req.Document,
+		Pretty:    req.Pretty,
+		Indent:    req.Indent,
+		IsFirst:   req.IsFirst,
+		Document:  req.Document,
+		Delimiter: req.Delimiter,
 	}
 
 	result, err := f.WriteItem(data, opts)
@@ -160,7 +167,7 @@ func bridgeFormatEncodeDocument(requestJSON string) string {
 		return marshalResponse(formatEncodeDocumentResponse{Error: err.Error()}) //nolint:exhaustruct
 	}
 
-	baseOpts := &formatfx.FormatOptions{Pretty: req.Pretty, Indent: req.Indent} //nolint:exhaustruct
+	baseOpts := &formatfx.FormatOptions{Pretty: req.Pretty, Indent: req.Indent, Delimiter: req.Delimiter} //nolint:exhaustruct
 
 	var chunks []string
 
@@ -180,9 +187,10 @@ func bridgeFormatEncodeDocument(requestJSON string) string {
 		}
 
 		itemOpts := &formatfx.FormatOptions{ //nolint:exhaustruct
-			Pretty:  req.Pretty,
-			Indent:  req.Indent,
-			IsFirst: i == 0,
+			Pretty:    req.Pretty,
+			Indent:    req.Indent,
+			IsFirst:   i == 0,
+			Delimiter: req.Delimiter,
 		}
 
 		encoded, err := f.WriteItem(item, itemOpts)
@@ -226,9 +234,11 @@ func bridgeFormatDecode(requestJSON string) string {
 		return marshalResponse(formatDecodeResponse{Error: err.Error()}) //nolint:exhaustruct
 	}
 
+	// A delimiter the request gives, empty or not, reaches the reader, so the
+	// CSV reader refuses one ReadCSV refuses instead of reading with commas.
 	var readerOpts *formatfx.FormatOptions
-	if len(req.Headers) > 0 {
-		readerOpts = &formatfx.FormatOptions{Headers: req.Headers} //nolint:exhaustruct
+	if len(req.Headers) > 0 || req.Delimiter != nil {
+		readerOpts = &formatfx.FormatOptions{Headers: req.Headers, Delimiter: req.Delimiter} //nolint:exhaustruct
 	}
 
 	reader := f.CreateReader(readerOpts)

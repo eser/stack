@@ -150,6 +150,7 @@ lib.call("formatEncode", {
   indent?,
   isFirst?,
   document?,
+  delimiter?,
 });
 ```
 
@@ -162,14 +163,34 @@ one-item sequence, and TOML writes the table without a `+++` line.
 **Encode document** (`formatEncodeDocument`):
 
 ```ts
-lib.call("formatEncodeDocument", { format, items: <jsonArray>, pretty?, indent? });
+lib.call("formatEncodeDocument", {
+  format,
+  items: <jsonArray>,
+  pretty?,
+  indent?,
+  delimiter?,
+});
 ```
 
 **Decode** (`formatDecode`):
 
 ```ts
-lib.call("formatDecode", { format: string, text: string, headers?: string[] });
+lib.call("formatDecode", {
+  format: string,
+  text: string,
+  headers?: string[],
+  delimiter?: string,
+});
 ```
+
+`delimiter` is the CSV field separator, a comma when left out, and the other
+formats ignore it. `serialize()` and `deserialize()` send their `delimiter`
+option. The bridge passes it on as `formatfx.FormatOptions.Delimiter`, a
+`*string`, so an empty delimiter given in the request reaches the CSV format
+instead of turning into the default. The reader (`formatDecode`) takes any
+delimiter `ReadCSV` takes, several characters included; the writer
+(`formatEncode`, `formatEncodeDocument`) writes with `encoding/csv` and takes
+one character. Both refuse an empty delimiter or one holding a quote, CR or LF.
 
 **List formats** (`formatList`):
 
@@ -226,6 +247,17 @@ booleans). JSON keeps the types, but not NaN or Infinity (see above).
 ## 3. Error protocol
 
 Format errors come from Go's `formatfx.GetFormat` or encoding/decoding errors.
+A CSV delimiter the format refuses is one of them:
+`parse failed: [csv] failed to deserialize CSV: CSV delimiter "<delimiter>" must be non-empty and hold no quote, CR or LF`
+from `formatDecode`, and
+`[csv] failed to write CSV: CSV delimiter "<delimiter>" must be non-empty and hold no quote, CR or LF`
+or `[csv] failed to write CSV: CSV delimiter "<delimiter>" must be one character`
+from the encode names (`formatEncodeDocument` puts `writeItem[<i>]: ` or
+`writeStart: ` before it). `serialize` and `deserialize` then fall back to the
+registry's format, as for any Go error: `deserialize` throws the reader's
+`DeserializationError` for the same delimiter, and `serialize` writes with a
+delimiter of several characters through the TypeScript writer (rows end with
+`\r\n` there) or throws its `SerializationError` for a refused one.
 `ffiFormats` matches substrings:
 
 - `"format not found"`, `"not registered"`, or `"not found in registry"` →
@@ -288,6 +320,16 @@ the profile is 7,839,419 bytes raw and 1,505,392 brotli.
   header order instead of sorted, header names trimmed, whitespace-only lines
   skipped, a `__proto__` header dropped, and the TypeScript reader's error
   messages. These are what the TypeScript reader returned.
+
+### TASK-379
+
+- `deserialize` and `serialize` of CSV with the bridge loaded used the
+  `delimiter` option nowhere: Go read and wrote with commas and no error. They
+  now send it, so `deserialize("a;b\n1;2\n", "csv", { delimiter: ";" })` gives
+  `[{ a: "1", b: "2" }]` and `serialize` writes `a;b\n1;2\n`. A delimiter that
+  is empty or holds a quote, CR or LF makes `deserialize` throw the reader's
+  `DeserializationError` and `serialize` throw a `SerializationError`, where
+  both used commas before.
 
 ### Before TASK-267
 

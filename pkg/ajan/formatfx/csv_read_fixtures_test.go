@@ -245,7 +245,7 @@ func TestReadCSVErrorTypes(t *testing.T) {
 func TestCSVReaderKeysRowsByHeader(t *testing.T) {
 	t.Parallel()
 
-	reader := formatfx.CSVFormat.CreateReader(&formatfx.FormatOptions{Delimiter: ';'}) //nolint:exhaustruct
+	reader := formatfx.CSVFormat.CreateReader(&formatfx.FormatOptions{Delimiter: new(";")}) //nolint:exhaustruct
 
 	pushed, err := reader.Push("b;a\n2;")
 	if err != nil {

@@ -2116,6 +2116,20 @@ in `.eser/concerns/`, which several entries below depend on.
   value, ok := item.(formatfx.CSVRow).Get("name")
   ```
 
+- `FormatOptions.Delimiter` is a `*string` instead of a `rune`, nil for a
+  comma, so the CSV reader takes the delimiters `ReadCSV` takes, several
+  characters included, and refuses an empty one. The CSV writer refuses an
+  empty delimiter, one holding a quote, CR or LF, or one of more than one
+  character, with an error wrapping `ErrSerialization` (and
+  `ErrCSVWriteDelimiter` for the length):
+
+  ```go
+  // Before
+  opts := &formatfx.FormatOptions{Delimiter: ';'}
+  // After
+  opts := &formatfx.FormatOptions{Delimiter: new(";")}
+  ```
+
 #### Go: pkg/ajan/cachefx and collectorfx
 
 - cachefx: `XdgCacheHome`, `XdgDataHome` and `XdgConfigHome` read

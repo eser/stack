@@ -119,11 +119,33 @@ calls `logResolveConfig` on both builds and compares the answers.
 - **Fix**: `close()` sends the handle itself; `go-logger.test.ts` checks the
   request and that a later write on the handle answers "log handle not found".
 
+## Fixed: dropped loggers kept their Go loggers
+
+- **Status**: RESOLVED (TASK-381)
+- **Location**: `logger.ts`, `Logger.#ensureGoHandle`, `clearLoggerCache` and
+  the configure hook.
+- **Cause**: every `Logger` opened its own Go logger on its first record and
+  nothing in `logger.ts` closed one. `clearLoggerCache()` (and so
+  `configure({ reset: true })`) dropped the loggers but not their handles, and
+  `with()` and `getChild()` return new loggers, so a per-request
+  `logger.with({ requestId })` left one Go logger per request. The configure
+  hook kept one handle per category and reached only the latest one.
+- **Fix**: a Go logger holds only the scope name and the level, so the loggers
+  of one category and level share one handle. `clearLoggerCache()` closes
+  every handle and bumps a generation; a logger held across it takes a current
+  handle on its next record and keeps writing through Go. The configure hook
+  pushes the new level to every handle of the category.
+- **Tests**: `logger.test.ts` checks that both `clearLoggerCache()` and
+  `configure({ reset: true })` close the dropped handles, that 20 `with()` and
+  5 `getChild()` loggers open two handles, that a held logger writes through Go
+  after the clear, and that `configure()` reaches every handle of a category.
+
 ## Sync vs async
 
 The record path is synchronous (M2-T8): `Logger.log` resolves its config, takes
 the bridge with `requireLibSync()` (which loads it synchronously on first use,
-through `ensureLibSync()`), creates its Go handle and writes the record before
+through `ensureLibSync()`), takes the Go handle of its category and level, and
+writes the record before
 `log()` returns. `getEffectiveConfig` loads the bridge the
 same way on its first resolution. The first record of a process therefore opens
 the library on the calling thread: about 4 ms for the native library and about

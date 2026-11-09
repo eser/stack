@@ -102,6 +102,12 @@ const health = await client.get("/health", { retry: false });
 A request whose body is a `ReadableStream` is sent once and never retried,
 because the first attempt consumes the stream.
 
+The retry policy runs in Go, in the `@eserstack/ajan` library this package
+depends on: the client asks it how many attempts a request gets and, after each
+failed attempt, whether and how long to wait. That holds for both transports.
+When the library cannot be loaded, every request throws an `HttpClientError`
+before anything is sent, and its `cause` says why.
+
 ## Errors
 
 A failed request throws an `HttpClientError` subclass. Each one has
@@ -262,7 +268,8 @@ errors. Only the exchange itself differs:
   32 MiB, so a binary body is not kept byte for byte. `requestStream` passes the
   bytes through unchanged.
 - When the native library cannot be loaded, every request throws an
-  `HttpClientError` whose `cause` says why.
+  `HttpClientError` whose `cause` says why, as on the default transport (see
+  Timeouts and Retries).
 - `transport: "native"` cannot be combined with `fetchFn`.
 
 Call `client.close()` to release the Go client when you are done with a client.
@@ -284,6 +291,12 @@ lists the changes in every package.
   together with `fetchFn` throws `TypeError`.
 - A request whose body is a `ReadableStream` is not retried. Buffer the body
   yourself if you need retries.
+- The retry policy runs in Go through `@eserstack/ajan`, on the default `fetch`
+  transport too, so a request throws an `HttpClientError` when that library
+  cannot be loaded (for example with `ESER_AJAN=disabled`).
+- A `RetryConfig` field set to `undefined` or `null` takes its default, and a
+  value outside the `RetryConfig` types (such as `jitter: "yes"` or
+  `retry: true`) throws an `HttpClientError` instead of being coerced.
 
 ## 🔗 Links
 

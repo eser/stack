@@ -139,6 +139,49 @@ which does not import `net/http`; the names here are aliases of it. The WASM
 build of the ajan bridge uses that package to retry and break circuits the same
 way on the host's fetch.
 
+## The HttpClient Retry Policy
+
+`resilience` also holds the retry policy of the TypeScript
+`@eserstack/httpclient` client, which reaches it through the bridge names
+`httpRetryResolve` and `httpRetryNext`. It is a separate policy from
+`RetryStrategy`: its fields are the TypeScript `RetryConfig` fields, it retries
+the statuses in a list (408, 429, 500, 502, 503, 504 by default) and network
+failures, and it waits for a 429's `Retry-After`. The TypeScript client keeps
+the attempt loop, because it runs the caller's request interceptors before
+every attempt, and asks the policy what to do after each failed one:
+
+```go
+package main
+
+import (
+	"fmt"
+
+	"github.com/eser/stack/pkg/ajan/httpclient/resilience"
+)
+
+func main() {
+	maxAttempts := 4.0
+	plan := resilience.ResolveRetryPlan(
+		resilience.RetrySetting{Config: resilience.RetryConfig{MaxAttempts: &maxAttempts}},
+		resilience.RetrySetting{}, // the request sets nothing
+		false,                     // the body can be sent again
+	)
+
+	decision := plan.Next(0, resilience.RetryOutcome{Status: 503}, 0.5)
+	fmt.Println(decision.Retry, decision.DelayMs) // true 750
+}
+```
+
+`ResolveRetryPlan` merges the client's and the request's settings over
+`DefaultRetryPolicy()`, field by field; either one set to `Off` gives one
+attempt and no policy, and so does a stream body. `Next` takes the failed
+attempt's number, its status (0 for a network failure) and Retry-After, and a
+random number in [0, 1) for the jitter: the wait is
+`InitialDelay × Factor^attempt`, capped at `MaxDelay`, scaled by
+`0.5 + random × 0.5` when `Jitter` is set, and rounded half up. The numbers are
+JavaScript numbers, so NaN and the infinities pass through; `JSNumber` reads
+and writes them on the wire by name.
+
 ## Usage
 
 The circuit breaker and retry strategy can be configured in **four independent

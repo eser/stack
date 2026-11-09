@@ -197,6 +197,32 @@ export interface HttpResponseAnswer extends ErrorAnswer {
   readonly retries?: number;
 }
 
+/**
+ * A JavaScript number on the wire: JSON has no NaN or infinities, so those
+ * travel as their names.
+ */
+export type WireNumber = number | "NaN" | "Infinity" | "-Infinity";
+
+/**
+ * The retry fields of an HttpClient or a request (httpclient's RetryConfig),
+ * numbers as {@link WireNumber}; a missing field is not set.
+ */
+export interface HttpRetryConfigWire {
+  readonly maxAttempts?: WireNumber;
+  readonly initialDelay?: WireNumber;
+  readonly maxDelay?: WireNumber;
+  readonly factor?: WireNumber;
+  readonly jitter?: boolean;
+  readonly retryableStatuses?: readonly WireNumber[];
+  readonly respectRetryAfter?: boolean;
+}
+
+/** The retry plan of one request; `policy` is null when retries are off. */
+export interface HttpRetryPlan {
+  readonly maxAttempts: WireNumber;
+  readonly policy: Required<HttpRetryConfigWire> | null;
+}
+
 /** The answer of a shell spawn: the stream's handle and the child's pid. */
 export interface SpawnAnswer extends HandleAnswer {
   readonly pid?: number;
@@ -655,6 +681,39 @@ export const BINDINGS = {
     wasm: "yes",
     async: false,
   } as Call<HandleString, EmptyAnswer>,
+  httpRetryResolve: {
+    kind: "call",
+    blocking: false,
+    wasm: "yes",
+    async: false,
+  } as Call<
+    {
+      readonly client?: HttpRetryConfigWire | false;
+      readonly request?: HttpRetryConfigWire | false;
+      /** A body the first attempt consumes; it gets one attempt. */
+      readonly streamBody?: boolean;
+    },
+    ErrorAnswer & { readonly plan?: HttpRetryPlan }
+  >,
+  httpRetryNext: {
+    kind: "call",
+    blocking: false,
+    wasm: "yes",
+    async: false,
+  } as Call<
+    {
+      readonly plan: HttpRetryPlan;
+      /** The failed attempt's number, 0 for the first. */
+      readonly attempt: number;
+      /** The response status, 0 for a network failure. */
+      readonly status: number;
+      /** The response's Retry-After in milliseconds; null when it has none. */
+      readonly retryAfterMs?: WireNumber | null;
+      /** A number in [0, 1) for the jitter. */
+      readonly random: number;
+    },
+    ErrorAnswer & { readonly retry?: boolean; readonly delayMs?: WireNumber }
+  >,
 
   // Noskills (noskillsfx)
   noskillsInit: {

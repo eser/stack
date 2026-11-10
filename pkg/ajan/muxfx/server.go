@@ -16,6 +16,17 @@ import (
 // frontend reads.
 const maxQueuedEvents = 1024
 
+// drainBudget bounds the events a caller applies once it found the server
+// idle; a goroutine of the server's own applies the rest. Without it, a pane
+// that writes faster than the server applies its output keeps the queue from
+// emptying, and the Dispatch, Connect or frontend message whose caller drains
+// it never returns.
+const drainBudget = maxQueuedEvents
+
+// drainAll is the budget of the server's own goroutine: it applies the queue
+// until it is empty.
+const drainAll = -1
+
 // SpawnSpec is what a [SpawnResolver] decides a pane runs.
 type SpawnSpec struct {
 	Command string
@@ -308,8 +319,8 @@ func (s *Server) startDispose() {
 }
 
 // post queues an event and, when no other goroutine is applying events,
-// applies the queue. wait makes a full queue block the caller (pane readers)
-// instead of growing.
+// applies the queue, at most drainBudget events of it. wait makes a full
+// queue block the caller (pane readers) instead of growing.
 func (s *Server) post(ev *event, wait bool) {
 	s.qmu.Lock()
 
@@ -328,17 +339,29 @@ func (s *Server) post(ev *event, wait bool) {
 	s.draining = true
 	s.qmu.Unlock()
 
-	s.drain()
+	s.drain(drainBudget)
 }
 
-func (s *Server) drain() {
-	for {
+// drain applies the queue until it is empty, or until it applied budget
+// events (drainAll has no bound); then a new goroutine applies the rest. The
+// draining flag stays set across the handover, so one goroutine at a time
+// applies events, in the order they were posted.
+func (s *Server) drain(budget int) {
+	for applied := 0; ; applied++ {
 		s.qmu.Lock()
 
 		if len(s.queue) == 0 {
 			s.draining = false
 			s.queue = nil
 			s.qmu.Unlock()
+
+			return
+		}
+
+		if budget != drainAll && applied >= budget {
+			s.qmu.Unlock()
+
+			go s.drain(drainAll)
 
 			return
 		}

@@ -413,3 +413,90 @@ func TestServerReentrantFrontend(t *testing.T) {
 		t.Errorf("dispose: %v", err)
 	}
 }
+
+// floodHost is a fakeHost whose panes write without pause from the moment
+// they spawn until the server kills them, faster than the server applies
+// their output.
+type floodHost struct {
+	fakeHost
+
+	stopOnce sync.Once
+	stop     chan struct{}
+}
+
+func (h *floodHost) factory(cb muxfx.PtyHostCallbacks) muxfx.PtyHost {
+	h.cb = cb
+
+	return h
+}
+
+func (h *floodHost) Spawn(req *muxfx.SpawnRequest) error {
+	if err := h.fakeHost.Spawn(req); err != nil {
+		return err
+	}
+
+	chunk := []byte(strings.Repeat("flood\r\n", 512))
+	flooding := make(chan struct{})
+
+	go func() {
+		for i := 0; ; i++ {
+			select {
+			case <-h.stop:
+				return
+			default:
+				h.cb.OnData(req.Pane, chunk)
+			}
+
+			if i == 0 {
+				close(flooding)
+			}
+		}
+	}()
+
+	// Spawn runs while the server applies the newTab, so the first output is
+	// queued behind it, as a process that writes at once would have it.
+	<-flooding
+
+	return nil
+}
+
+func (h *floodHost) KillAll() {
+	h.stopOnce.Do(func() { close(h.stop) })
+}
+
+// TestServerDispatchReturnsWhileAPaneFloods pins that a caller who finds
+// the server idle and applies the queue is not held there by a pane that
+// writes faster than the server applies its output: the newTab below spawns
+// such a pane while its own Dispatch is applying the queue.
+func TestServerDispatchReturnsWhileAPaneFloods(t *testing.T) {
+	t.Parallel()
+
+	host := &floodHost{stop: make(chan struct{})} //nolint:exhaustruct
+	server := muxfx.NewServer(&muxfx.ServerOptions{
+		InitialState: muxfx.NewInitialState(muxfx.Viewport{Cols: 80, Rows: 24}),
+		ResolveSpawn: func(*muxfx.Pane, muxfx.Geom) muxfx.SpawnSpec { return muxfx.SpawnSpec{Command: "sh"} },
+		NewHost:      host.factory,
+	})
+
+	t.Cleanup(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		if err := server.Dispose(ctx); err != nil {
+			t.Errorf("dispose: %v", err)
+		}
+	})
+
+	dispatched := make(chan struct{})
+
+	go func() {
+		server.Dispatch(&muxfx.Action{Type: muxfx.ActionNewTab})
+		close(dispatched)
+	}()
+
+	select {
+	case <-dispatched:
+	case <-time.After(10 * time.Second):
+		t.Fatal("Dispatch did not return while the pane floods")
+	}
+}

@@ -176,6 +176,12 @@ func changelogRepo(t *testing.T) string {
 	root := t.TempDir()
 	writeFiles(t, root, workspaceFixture)
 	git(t, root, "init", "-q", "-b", "main")
+	// The release commits and tags through runGit, which inherits the process
+	// environment rather than this helper's identity variables; a repository
+	// identity keeps the tests independent of a global git config, which CI
+	// runners do not have.
+	git(t, root, "config", "user.name", "Release Test")
+	git(t, root, "config", "user.email", "release@example.com")
 	git(t, root, "add", "-A")
 	git(t, root, "commit", "-q", "-m", "chore: start")
 	git(t, root, "tag", "-a", "v1.2.3", "-m", "Release v1.2.3")

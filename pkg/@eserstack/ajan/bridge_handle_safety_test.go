@@ -321,10 +321,14 @@ func TestUnknownValidatorIsRejected(t *testing.T) {
 		t.Fatalf("write fixture: %v", err)
 	}
 
-	payload := fmt.Sprintf(`{"dir":%q,"validators":["bogus","eof"],"gitAware":false}`, dir)
+	// Encoded as JSON: %q quotes for Go, which is not JSON for every path.
+	payload, err := json.Marshal(map[string]any{"dir": dir, "validators": []string{"bogus", "eof"}, "gitAware": false})
+	if err != nil {
+		t.Fatalf("marshal request: %v", err)
+	}
 
 	var resp codebaseValidateResponse
-	if err := json.Unmarshal([]byte(bridgeCodebaseValidateFiles(payload)), &resp); err != nil {
+	if err := json.Unmarshal([]byte(bridgeCodebaseValidateFiles(string(payload))), &resp); err != nil {
 		t.Fatalf("unmarshal: %v", err)
 	}
 

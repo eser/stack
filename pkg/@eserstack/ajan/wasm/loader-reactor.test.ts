@@ -157,10 +157,21 @@ reactorTest("warm calls cost microseconds on one instance", async () => {
     };
   };
 
-  // The full gate runs other suites in parallel, so a few calls in a round can
-  // wait on the scheduler; a real slowdown fails every round.
+  // A warm call takes about 25 us on a laptop and about 120 us on a shared CI
+  // runner while the full gate runs other suites in parallel. The bound sits
+  // well above both and still fails a call that got ten times slower; a call
+  // that instantiates the module again costs the load time, tens of ms.
+  const medianBoundMs = 1;
+  const p99BoundMs = 10;
+
+  // A few calls in a round can wait on the scheduler; a real slowdown fails
+  // every round.
   let round = measure();
-  for (let i = 1; i < 3 && (round.median >= 0.1 || round.p99 >= 10); i++) {
+  for (
+    let i = 1;
+    i < 3 && (round.median >= medianBoundMs || round.p99 >= p99BoundMs);
+    i++
+  ) {
     round = measure();
   }
   const { median, p99 } = round;
@@ -171,8 +182,11 @@ reactorTest("warm calls cost microseconds on one instance", async () => {
       median * 1000
     ).toFixed(1)} us, p99 ${(p99 * 1000).toFixed(1)} us`,
   );
-  assert.assert(median < 0.1, `median ${median} ms is over 0.1 ms`);
-  assert.assert(p99 < 10, `p99 ${p99} ms is over 10 ms`);
+  assert.assert(
+    median < medianBoundMs,
+    `median ${median} ms is over ${medianBoundMs} ms`,
+  );
+  assert.assert(p99 < p99BoundMs, `p99 ${p99} ms is over ${p99BoundMs} ms`);
 });
 
 reactorTest(

@@ -64,10 +64,10 @@
   "dependencies": {
     "@eserstack/standards": "workspace:*",
     "@eserstack/streams": "workspace:*",
-    "@tailwindcss/node": "^4.3.3",
-    "@tailwindcss/oxide": "^4.3.3",
+    "@tailwindcss/node": "^4.3.5",
+    "@tailwindcss/oxide": "^4.3.5",
     "lightningcss": "^1.33.0",
-    "rolldown": "^1.2.9"
+    "rolldown": "^1.3.0"
   },
   "devDependencies": {
     "@eserstack/test-kit": "workspace:*"

@@ -493,3 +493,33 @@ nodeTest.test(
     assert.assertEquals(fake.sent.length, 0);
   },
 );
+
+nodeTest.test(
+  "sampling options are not sent, as API version 2026-10-21 rejects them",
+  async () => {
+    const fake = fakeClient(
+      message("end_turn", [{ type: "text", text: "ok" }]),
+    );
+
+    const result = await new anthropic.AnthropicModel(
+      fake.client,
+      config.withDefaults({
+        provider: "anthropic",
+        model: "claude-test",
+        temperature: 0.2,
+      }),
+    ).generateText({
+      messages: [{ role: "user", content: [{ kind: "text", text: "hi" }] }],
+      temperature: 0.2,
+      topP: 0.9,
+      stopWords: ["END"],
+    });
+
+    assert.assert(results.isOk(result), "generateText failed");
+    const sent = fake.sent[0]!;
+    assert.assertEquals("temperature" in sent, false);
+    assert.assertEquals("top_p" in sent, false);
+    assert.assertEquals("top_k" in sent, false);
+    assert.assertEquals(sent["stop_sequences"], ["END"]);
+  },
+);

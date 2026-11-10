@@ -11,9 +11,9 @@
   "dependencies": {
     "@eserstack/laroux": "^5.0.0",
     "@eserstack/laroux-react": "^5.0.0",
-    "react": "^19.3.0",
-    "react-dom": "^19.3.0",
-    "tailwindcss": "^4.3.3"
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "tailwindcss": "^4.3.5"
   },
   "devDependencies": {
     "@types/react": "^19.3.0",

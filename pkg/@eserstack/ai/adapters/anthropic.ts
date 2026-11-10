@@ -329,8 +329,9 @@ const buildParams = (
     params["system"] = options.system;
   }
 
-  // temperature and topP are not sent: Claude 4.7+ and the Claude 5 models
-  // reject non-default sampling parameters.
+  // temperature and topP are not sent: API version 2026-10-21, which
+  // @anthropic-ai/sdk 1.x sends, rejects temperature, top_p and top_k on every
+  // model.
 
   if (options.stopWords !== undefined) {
     params["stop_sequences"] = options.stopWords;

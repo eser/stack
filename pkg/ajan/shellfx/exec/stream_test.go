@@ -193,8 +193,9 @@ func TestStreamCloseReleasesParkedReader(t *testing.T) {
 	}
 
 	select {
-	case <-parked:
+	case readErr := <-parked:
 		// Any error is fine; returning at all is the property under test.
+		t.Logf("the parked read returned: %v", readErr)
 	case <-time.After(10 * time.Second):
 		t.Fatal("Close did not release a reader parked in Read")
 	}

@@ -87,9 +87,9 @@
     "@eserstack/logging": "workspace:*",
     "@eserstack/standards": "workspace:*",
     "lightningcss": "^1.33.0",
-    "tailwindcss": "^4.3.3",
-    "@tailwindcss/oxide": "^4.3.3",
-    "sharp": "^0.35.4"
+    "tailwindcss": "^4.3.5",
+    "@tailwindcss/oxide": "^4.3.5",
+    "sharp": "^0.35.5"
   },
   "devDependencies": {
     "@eserstack/test-kit": "workspace:*"

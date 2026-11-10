@@ -35,8 +35,11 @@ func TestStreamIteratorCloseUnblocksNext(t *testing.T) {
 	go func() { closed <- iter.Close() }()
 
 	select {
-	case <-closed:
+	case closeErr := <-closed:
 		// Close acquired the mutex while Next was parked -- the fix.
+		if closeErr != nil {
+			t.Errorf("Close: %v", closeErr)
+		}
 	case <-time.After(3 * time.Second):
 		t.Fatal("Close blocked: Next is holding iter.mu across its receive")
 	}

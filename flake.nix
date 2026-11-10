@@ -140,7 +140,7 @@
             ];
           };
 
-          vendorHash = "sha256-NsnUJHStnUXOLtaA+LvR6H/AsBm3ozQ3SOrStLTw800=";
+          vendorHash = "sha256-pqF89za9DlHNZ5xRmro/Tn1VLkOQytx6/N34kFHLZqw=";
 
           subPackages = [ "cmd/noskills" ];
 

@@ -752,6 +752,15 @@ in `.eser/concerns/`, which several entries below depend on.
   `--max-tokens` that is not a positive whole number exit 1 with a message.
   Before: `eser ai ask -m` ignored the flag. After: pass a value, as in
   `eser ai ask "your prompt" -m your_model_id`.
+- The Anthropic adapter needs `@anthropic-ai/sdk` 1.7 or later, which calls the
+  API with version `2026-10-21` and sends the API key as
+  `Authorization: Bearer` instead of `X-Api-Key`. A proxy or gateway behind a
+  custom `baseUrl` that reads `X-Api-Key` has to read the bearer token instead.
+  The adapter already left out `temperature` and `topP`, which that version
+  rejects.
+- The Gemini and Vertex AI adapters need `@google/genai` 3.0 or later and pin
+  the API version to `v1beta` and `v1beta1`, the versions the Go adapters call,
+  so `GOOGLE_GENAI_API_VERSION` no longer changes it.
 
 #### @eserstack/kit
 

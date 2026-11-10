@@ -240,6 +240,8 @@ func TestTokenizeStream_LeakGate(t *testing.T) {
 		outCh, errCh := parsingfx.TokenizeStream(context.Background(), in, parsingfx.SimpleTokens())
 		for range outCh {
 		}
-		<-errCh
+		if err := <-errCh; err != nil {
+			t.Fatalf("TokenizeStream: %v", err)
+		}
 	}
 }

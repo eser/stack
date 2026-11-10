@@ -108,6 +108,9 @@ export const vertexaiFactory: model.ProviderFactory = {
       vertexai: true,
       project: cfg.projectId,
       location: cfg.location ?? "us-central1",
+      // Pinned so GOOGLE_GENAI_API_VERSION cannot move it; v1beta1 is the
+      // version the Go twin calls (pkg/ajan/aifx/google_client.go).
+      apiVersion: "v1beta1",
     };
 
     if (cfg.apiKey !== undefined) {

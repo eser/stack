@@ -279,7 +279,11 @@ func TestRunBinaryInterruptReleasesTheTurn(t *testing.T) {
 	}
 
 	select {
-	case <-exited:
+	case waitErr := <-exited:
+		// A non-zero exit is checked below; any other Wait error is a failure.
+		if _, isExit := errors.AsType[*exec.ExitError](waitErr); waitErr != nil && !isExit {
+			t.Fatalf("wait: %v", waitErr)
+		}
 	case <-time.After(30 * time.Second):
 		_ = cmd.Process.Kill()
 

@@ -65,7 +65,8 @@ func startServer(t *testing.T, cert *tls.Certificate, handle func(*wt.Session, *
 			t.Errorf("close server: %v", closeErr)
 		}
 
-		<-served
+		// Serve returns once the server is closed; its error is expected.
+		t.Logf("serve returned: %v", <-served)
 		_ = udpConn.Close() // Serve has returned; the error says nothing new
 	})
 

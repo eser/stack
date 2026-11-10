@@ -54,9 +54,10 @@ func TestHardenCommandKillsGrandchildren(t *testing.T) {
 	}()
 
 	select {
-	case <-drained:
+	case readErr := <-drained:
 		// EOF or a read error: the write end is closed, so the whole group is
 		// gone. That is the pass condition.
+		t.Logf("stdout closed: %v", readErr)
 	case <-time.After(10 * time.Second):
 		t.Fatal(
 			"stdout never closed after cancel: a grandchild survived and is " +

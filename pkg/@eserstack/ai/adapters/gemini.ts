@@ -104,7 +104,13 @@ export const geminiFactory: model.ProviderFactory = {
   ): Promise<model.LanguageModel> => {
     const genai = await import("@google/genai");
 
-    const client = new genai.GoogleGenAI({ apiKey: cfg.apiKey });
+    // @google/genai 3 defaults the Gemini API to v1 and lets
+    // GOOGLE_GENAI_API_VERSION move it; v1beta is the version the Go twin
+    // calls (pkg/ajan/aifx/google_client.go).
+    const client = new genai.GoogleGenAI({
+      apiKey: cfg.apiKey,
+      apiVersion: "v1beta",
+    });
 
     return new GeminiModel(client, cfg);
   },

@@ -187,9 +187,7 @@ nodeTest.test(
 
 // A Result carries its own iterator function, so two equal results never
 // compare equal; tests compare this plain form instead.
-const settled = <T, E>(
-  result: results.Result<T, E>,
-): { ok: T } | { fail: E } =>
+const settled = <T, E>(result: results.Result<T, E>): { ok: T } | { fail: E } =>
   results.isOk(result) ? { ok: result.value } : { fail: result.error };
 
 const parseScriptCases = [

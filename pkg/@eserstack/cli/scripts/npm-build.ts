@@ -170,9 +170,9 @@ const main = async (): Promise<void> => {
     type: "module",
     bin: { eser: "./eser.js" },
     dependencies: {
-      "@tailwindcss/oxide": "^4.3.3",
-      lightningcss: "^1.30.0",
-      tailwindcss: "^4.1.8",
+      "@tailwindcss/oxide": "^4.3.5",
+      lightningcss: "^1.33.0",
+      tailwindcss: "^4.3.5",
     },
     // The platform packages are workspace members declared with workspace:*;
     // this manifest is published from dist/, outside the workspace, so pnpm

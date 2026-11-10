@@ -52,7 +52,7 @@
     "build": "node ../../../etc/scripts/build-library.ts"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.126.0",
+    "@anthropic-ai/sdk": "^1.7.0",
     "@eserstack/ajan": "workspace:*",
     "@eserstack/httpclient": "workspace:*",
     "@eserstack/logging": "workspace:*",
@@ -60,8 +60,8 @@
     "@eserstack/shell": "workspace:*",
     "@eserstack/standards": "workspace:*",
     "@eserstack/streams": "workspace:*",
-    "@google/genai": "^2.23.0",
-    "openai": "^7.17.0"
+    "@google/genai": "^3.0.0",
+    "openai": "^7.54.0"
   },
   "devDependencies": {
     "@eserstack/test-kit": "workspace:*"

@@ -27,6 +27,10 @@ type ServerConfig struct {
 	// DataDir is the root directory for daemon state (~/.noskills by default).
 	DataDir string
 
+	// WorkspaceRoot is the directory a workspace registered by path must lie
+	// in, symlinks resolved (the home directory by default).
+	WorkspaceRoot string
+
 	// CertString and KeyString are PEM-encoded cert/key for TLS.
 	// When both are empty and SelfSigned is true, a cert is generated on startup.
 	CertString string
@@ -109,6 +113,8 @@ func New(config *ServerConfig, logger *logfx.Logger) *Server {
 
 		config.DataDir = dataDir
 	}
+
+	config.WorkspaceRoot = workspaceRootOrHome(config.WorkspaceRoot)
 
 	// An unset timeout would make shutdown wait for nothing at all.
 	if config.GracefulShutdownTimeout <= 0 {

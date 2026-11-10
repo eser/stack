@@ -152,6 +152,7 @@ logs an error and replays the lines below it.
 | ------------------- | ------------- | --------------------------------------------------------------------- |
 | `--listen`          | `:4433`       | UDP address to listen on                                              |
 | `--data-dir`        | `~/.noskills` | Daemon state directory                                                |
+| `--workspace-root`  | `~`           | Directory a project registered by path must lie in (see below)        |
 | `--self-signed`     | `true`        | Generate a self-signed TLS cert                                       |
 | `--cert`            | —             | PEM cert file (overrides `--self-signed`)                             |
 | `--key`             | —             | PEM key file                                                          |
@@ -162,6 +163,21 @@ logs an error and replays the lines below it.
 When the daemon cannot start, for example because another process holds the
 `--listen` port or an `--allowed-origins` entry is not an origin, `start` logs
 the cause and exits with status 1.
+
+### Workspace root
+
+`POST /api/projects` with a `path` registers a directory only when it lies in
+the workspace root, the home directory unless `--workspace-root` names another,
+after symlinks are resolved; a symlink that leads out of the root is refused.
+The root itself can be registered. Projects outside the home directory need a
+root that holds them:
+
+```sh
+noskills-server start --workspace-root /srv/code
+```
+
+A project cloned from a `git` URL goes to `~/.noskills/projects/` and needs no
+root.
 
 ### Browser origins
 

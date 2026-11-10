@@ -1,18 +1,20 @@
 package noskillsserverfx
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 )
 
-// newProjectsServer builds a Server with nothing wired but the data directory,
-// which is all the project-registration path validation reads.
-func newProjectsServer(t *testing.T, dataDir string) *Server {
+// newProjectsServer builds a Server with nothing wired but the data directory
+// and the workspace root, which is all the project-registration path
+// validation reads.
+func newProjectsServer(t *testing.T, dataDir, workspaceRoot string) *Server {
 	t.Helper()
 
-	return &Server{config: &ServerConfig{DataDir: dataDir}} //nolint:exhaustruct
+	return &Server{config: &ServerConfig{DataDir: dataDir, WorkspaceRoot: workspaceRoot}} //nolint:exhaustruct
 }
 
 // realPath is what the daemon records after resolving symlinks. Test temp dirs
@@ -136,44 +138,68 @@ func TestContainsPath(t *testing.T) {
 func TestResolveWorkspacePath(t *testing.T) {
 	t.Parallel()
 
-	dataDir := t.TempDir()
-	workspace := t.TempDir()
+	// The workspace root holds the data directory, as ~ holds ~/.noskills, so
+	// the data-directory cases are refused for that reason and not as outside.
+	root := t.TempDir()
+	dataDir := filepath.Join(root, ".noskills")
+	workspace := filepath.Join(root, "work", "app")
+	outside := t.TempDir()
+
+	for _, dir := range []string{filepath.Join(dataDir, "sessions"), workspace} {
+		if err := os.MkdirAll(dir, 0o700); err != nil {
+			t.Fatalf("mkdir %q: %v", dir, err)
+		}
+	}
 
 	file := filepath.Join(workspace, "file.txt")
 	if err := os.WriteFile(file, []byte("x"), 0o600); err != nil {
 		t.Fatalf("write file: %v", err)
 	}
 
-	insideData := filepath.Join(dataDir, "sessions")
-	if err := os.MkdirAll(insideData, 0o700); err != nil {
-		t.Fatalf("mkdir inside data-dir: %v", err)
+	linkIn := filepath.Join(outside, "link-in")
+	linkOut := filepath.Join(workspace, "link-out")
+
+	for link, target := range map[string]string{linkIn: workspace, linkOut: outside} {
+		if err := os.Symlink(target, link); err != nil {
+			t.Fatalf("symlink: %v", err)
+		}
 	}
 
-	link := filepath.Join(t.TempDir(), "link")
-	if err := os.Symlink(workspace, link); err != nil {
-		t.Fatalf("symlink: %v", err)
-	}
-
-	srv := newProjectsServer(t, dataDir)
+	srv := newProjectsServer(t, dataDir, root)
 
 	tests := []struct {
 		name    string
 		path    string
 		want    string
-		wantErr bool
+		wantErr error
 	}{
-		{name: "absolute dir", path: workspace, want: realPath(t, workspace), wantErr: false},
+		{name: "absolute dir", path: workspace, want: realPath(t, workspace), wantErr: nil},
+		{name: "the root itself", path: root, want: realPath(t, root), wantErr: nil},
 		{
-			name: "symlink resolved to target",
-			path: link,
-			want: realPath(t, workspace), wantErr: false,
+			name: "symlink outside resolved to a target inside",
+			path: linkIn,
+			want: realPath(t, workspace), wantErr: nil,
 		},
-		{name: "relative", path: "relative/dir", wantErr: true},
-		{name: "dot relative", path: "../..", wantErr: true},
-		{name: "missing", path: filepath.Join(workspace, "nope"), wantErr: true},
-		{name: "regular file", path: file, wantErr: true},
-		{name: "data-dir itself", path: dataDir, wantErr: true},
-		{name: "inside data-dir", path: insideData, wantErr: true},
+		{name: "relative", path: "relative/dir", want: "", wantErr: errPathRelative},
+		{name: "dot relative", path: "../..", want: "", wantErr: errPathRelative},
+		{name: "missing", path: filepath.Join(workspace, "nope"), want: "", wantErr: os.ErrNotExist},
+		{name: "regular file", path: file, want: "", wantErr: errPathNotDir},
+		{name: "data-dir itself", path: dataDir, want: "", wantErr: errPathInDataDir},
+		{name: "inside data-dir", path: filepath.Join(dataDir, "sessions"), want: "", wantErr: errPathInDataDir},
+		{name: "outside the root", path: outside, want: "", wantErr: errPathOutsideRoot},
+		{name: "parent of the root", path: filepath.Dir(root), want: "", wantErr: errPathOutsideRoot},
+		{
+			name: "traversal that stays in the root",
+			path: root + "/work/../work/app",
+			want: realPath(t, workspace), wantErr: nil,
+		},
+		{
+			// Both temporary directories share a parent, so this names outside.
+			name: "traversal out of the root",
+			path: workspace + "/../../../" + filepath.Base(outside),
+			want: "", wantErr: errPathOutsideRoot,
+		},
+		{name: "symlink inside to a target outside", path: linkOut, want: "", wantErr: errPathOutsideRoot},
 	}
 
 	for _, tt := range tests {
@@ -181,9 +207,9 @@ func TestResolveWorkspacePath(t *testing.T) {
 			t.Parallel()
 
 			got, err := srv.resolveWorkspacePath(tt.path)
-			if tt.wantErr {
-				if err == nil {
-					t.Fatalf("resolveWorkspacePath(%q) = %q, want error", tt.path, got)
+			if tt.wantErr != nil {
+				if !errors.Is(err, tt.wantErr) {
+					t.Fatalf("resolveWorkspacePath(%q) = (%q, %v), want error %v", tt.path, got, err, tt.wantErr)
 				}
 
 				return
@@ -200,13 +226,48 @@ func TestResolveWorkspacePath(t *testing.T) {
 	}
 }
 
+// TestResolveWorkspacePathRoots covers the root itself: unset, and inside the
+// data directory, where no workspace under it can be registered.
+func TestResolveWorkspacePathRoots(t *testing.T) {
+	t.Parallel()
+
+	dataDir := t.TempDir()
+	nested := filepath.Join(dataDir, "projects", "app")
+
+	if err := os.MkdirAll(nested, 0o700); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+
+	tests := []struct {
+		name    string
+		root    string
+		wantErr error
+	}{
+		{name: "unset", root: "", wantErr: errNoWorkspaceRoot},
+		{name: "inside the data directory", root: filepath.Join(dataDir, "projects"), wantErr: errPathInDataDir},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			srv := newProjectsServer(t, dataDir, tt.root)
+
+			got, err := srv.resolveWorkspacePath(nested)
+			if !errors.Is(err, tt.wantErr) {
+				t.Fatalf("resolveWorkspacePath(%q) = (%q, %v), want error %v", nested, got, err, tt.wantErr)
+			}
+		})
+	}
+}
+
 // TestCloneDestinationStaysInProjectsDir checks the second gate directly, with
 // slugs that validateSlug would have rejected first.
 func TestCloneDestinationStaysInProjectsDir(t *testing.T) {
 	t.Parallel()
 
 	dataDir := t.TempDir()
-	srv := newProjectsServer(t, dataDir)
+	srv := newProjectsServer(t, dataDir, "")
 
 	base := filepath.Join(realPath(t, dataDir), "projects")
 

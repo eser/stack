@@ -68,6 +68,10 @@ it receives, and every later call sends it as a Bearer token.
 | `subscribePush(subscription, sessionFilter?)`        | `POST /api/push/subscribe`                         |
 | `unsubscribePush(subscriptionId)`                    | `DELETE /api/push/subscribe/{id}`                  |
 
+`registerProject({ path })` takes an absolute path to an existing directory in
+the daemon's workspace root, the home directory unless the daemon was started
+with `--workspace-root`; the daemon answers 400 for any other path.
+
 Slugs and ids in the path are percent-encoded. A response with an error status
 throws a `NoskillsResponseError` with `method`, `path`, `status` and `detail`
 (the response body), and a message of the form

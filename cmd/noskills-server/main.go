@@ -81,6 +81,8 @@ func runStart(args []string) int {
 
 	listen := fs.String("listen", ":4433", "UDP address to listen on (HTTP/3)")
 	dataDir := fs.String("data-dir", defaultDataDir(), "daemon state directory")
+	workspaceRoot := fs.String("workspace-root", "",
+		"directory a project registered by path must lie in (default: the home directory)")
 	selfSigned := fs.Bool("self-signed", true, "generate a self-signed TLS cert (development mode)")
 	certFile := fs.String("cert", "", "PEM cert file (overrides --self-signed)")
 	keyFile := fs.String("key", "", "PEM key file (overrides --self-signed)")
@@ -105,6 +107,7 @@ func runStart(args []string) int {
 	config := &noskillsserverfx.ServerConfig{
 		H3Addr:         *listen,
 		DataDir:        *dataDir,
+		WorkspaceRoot:  *workspaceRoot,
 		SelfSigned:     certPEM == "" && *selfSigned,
 		CertString:     certPEM,
 		KeyString:      keyPEM,

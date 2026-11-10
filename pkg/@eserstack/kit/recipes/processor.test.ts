@@ -57,6 +57,25 @@ bdd.describe("shouldIgnore", () => {
     assert.assertEquals(processor.shouldIgnore("src/index.ts", []), false);
   });
 
+  bdd.it("takes linear time on a long run of slashes", () => {
+    // A trailing-slash regex retried the run from every start position: 100k
+    // slashes took seconds. A linear scan takes about a millisecond, so the
+    // bound leaves room for a slow runner and still fails the quadratic one.
+    const slashes = "/".repeat(100_000);
+    const started = performance.now();
+
+    assert.assertEquals(processor.shouldIgnore(`${slashes}x`, []), false);
+
+    const elapsedMs = performance.now() - started;
+    assert.assert(elapsedMs < 1000, `took ${elapsedMs.toFixed(0)} ms`);
+  });
+
+  bdd.it("still strips trailing slashes and backslashes", () => {
+    assert.assertEquals(processor.shouldIgnore("dist/", ["dist//"]), true);
+    assert.assertEquals(processor.shouldIgnore("dist\\", ["dist"]), true);
+    assert.assertEquals(processor.shouldIgnore("dist/a.js", ["dist/"]), true);
+  });
+
   bdd.it("matches top-level file via **/foo globstar pattern", () => {
     assert.assertEquals(processor.shouldIgnore("foo", ["**/foo"]), true);
   });

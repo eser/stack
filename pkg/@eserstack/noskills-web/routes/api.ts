@@ -71,9 +71,11 @@ export const faultResponse = async (
     requestId: context.requestId,
   };
 
-  if (debugErrorsEnabled()) {
-    body["detail"] =
-      cause instanceof Error ? (cause.stack ?? cause.message) : String(cause);
+  // The error text only, as the Go dashboard sends: a stack would add the
+  // module paths of this process. A thrown value that is not an Error has no
+  // error text and adds no detail; the log has both.
+  if (debugErrorsEnabled() && cause instanceof Error) {
+    body["detail"] = cause.message;
   }
 
   return json(body, status);

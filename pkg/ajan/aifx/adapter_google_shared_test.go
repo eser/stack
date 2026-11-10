@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"reflect"
+	"strconv"
 	"testing"
 )
 
@@ -300,6 +302,32 @@ func TestBuildGenerateContentConfig(t *testing.T) {
 
 	if config.ThinkingConfig == nil {
 		t.Error("expected ThinkingConfig")
+	}
+}
+
+func TestBuildGenerateContentConfigRefusesMaxTokensOverInt32(t *testing.T) {
+	t.Parallel()
+
+	if strconv.IntSize == 32 {
+		t.Skip("an int cannot exceed the int32 field on this platform")
+	}
+
+	// maxOutputTokens is an int32; converting a larger limit wrapped it, so
+	// 2^32+512 reached the API as 512.
+	for _, tokens := range []int64{math.MaxInt32 + 1, 1<<32 + 512} {
+		_, err := buildGenerateContentConfig(&GenerateTextOptions{MaxTokens: int(tokens)}) //nolint:exhaustruct
+		if !errors.Is(err, ErrBadRequest) {
+			t.Errorf("buildGenerateContentConfig(MaxTokens: %d) error = %v, want ErrBadRequest", tokens, err)
+		}
+	}
+
+	config, err := buildGenerateContentConfig(&GenerateTextOptions{MaxTokens: math.MaxInt32}) //nolint:exhaustruct
+	if err != nil {
+		t.Fatalf("buildGenerateContentConfig(MaxTokens: MaxInt32): %v", err)
+	}
+
+	if config.MaxOutputTokens != math.MaxInt32 {
+		t.Errorf("MaxOutputTokens = %d, want %d", config.MaxOutputTokens, math.MaxInt32)
 	}
 }
 

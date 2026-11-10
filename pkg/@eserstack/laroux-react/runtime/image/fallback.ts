@@ -23,6 +23,8 @@ export type FallbackSourceElement = {
 /** The parts of an `<img>` element that applying a fallback reads and changes. */
 export type FallbackImageElement = {
   readonly tagName: string;
+  /** The URL that relative sources resolve against. */
+  readonly baseURI: string;
   readonly complete: boolean;
   readonly naturalWidth: number;
   readonly parentElement: {
@@ -61,8 +63,29 @@ const isFallbackImage = (value: unknown): value is FallbackImageElement =>
   "tagName" in value &&
   value.tagName === "IMG";
 
+/** The schemes an image source can load from. */
+const IMAGE_SCHEMES: ReadonlySet<string> = new Set([
+  "http:",
+  "https:",
+  "data:",
+  "blob:",
+]);
+
+/** `value` resolved against `base`, or null when it is not a URL. */
+const parseUrl = (value: string, base: string): URL | null => {
+  try {
+    return new URL(value, base);
+  } catch {
+    return null;
+  }
+};
+
 /**
  * Switch a failed image to the source in its {@link FALLBACK_ATTRIBUTE}.
+ *
+ * The attribute is page text, so it is parsed as a URL against the image's
+ * base and applied as the parser serializes it, and only with a scheme an
+ * image loads from; a `javascript:` value is refused.
  *
  * Does nothing when the image has no fallback or already shows it, so a
  * fallback that fails too does not start a loop. Inside a `<picture>`, the
@@ -73,12 +96,20 @@ const isFallbackImage = (value: unknown): value is FallbackImageElement =>
  * @returns Whether the fallback was applied
  */
 export function applyImageFallback(image: FallbackImageElement): boolean {
-  const fallback = image.getAttribute(FALLBACK_ATTRIBUTE);
+  const raw = image.getAttribute(FALLBACK_ATTRIBUTE);
+  if (raw === null || raw === "") {
+    return false;
+  }
 
+  const fallback = parseUrl(raw, image.baseURI);
+  if (fallback === null || !IMAGE_SCHEMES.has(fallback.protocol)) {
+    return false;
+  }
+
+  const current = image.getAttribute("src");
   if (
-    fallback === null ||
-    fallback === "" ||
-    image.getAttribute("src") === fallback
+    current !== null &&
+    parseUrl(current, image.baseURI)?.href === fallback.href
   ) {
     return false;
   }
@@ -91,7 +122,7 @@ export function applyImageFallback(image: FallbackImageElement): boolean {
   }
 
   image.removeAttribute("srcset");
-  image.setAttribute("src", fallback);
+  image.setAttribute("src", fallback.href);
 
   return true;
 }

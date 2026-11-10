@@ -464,6 +464,34 @@ bdd.describe("POST /api/spec/:name/:action failures", () => {
   );
 
   bdd.it(
+    "adds the error text, never the stack, as detail when debug errors are on",
+    async () => {
+      const previous = runtime.env.get("NOSKILLS_WEB_DEBUG_ERRORS");
+      runtime.env.set("NOSKILLS_WEB_DEBUG_ERRORS", "1");
+
+      try {
+        const response = await api.faultResponse(
+          actionContext("missing-spec", "approve"),
+          "Action could not be completed",
+          400,
+          new Error("state.json unreadable"),
+        );
+        const body = await response.json();
+
+        // The Go dashboard answers err.Error() here; the stack would add the
+        // module paths of this process.
+        assert.assertEquals(body.detail, "state.json unreadable");
+      } finally {
+        if (previous === undefined) {
+          runtime.env.delete("NOSKILLS_WEB_DEBUG_ERRORS");
+        } else {
+          runtime.env.set("NOSKILLS_WEB_DEBUG_ERRORS", previous);
+        }
+      }
+    },
+  );
+
+  bdd.it(
     "answers a rejection the dashboard decided on without a log record",
     async () => {
       const root = await makeTempDir();

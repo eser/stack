@@ -3,6 +3,8 @@
 package noskillsfx_test
 
 import (
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/eser/stack/pkg/ajan/noskillsfx"
@@ -72,5 +74,31 @@ func TestLooksLikeDescription(t *testing.T) {
 				t.Errorf("LooksLikeDescription(%q) = %v, want %v", tc.input, got, tc.expected)
 			}
 		})
+	}
+}
+
+// uniqueSpecName joins the slug of a caller's description into
+// .eser/specs/<slug>, so every slug must be one plain path element.
+func TestSlugFromDescriptionIsOnePathElement(t *testing.T) {
+	t.Parallel()
+
+	descriptions := []string{
+		"../../etc/passwd",
+		"/etc/passwd",
+		`..\..\windows\system32`,
+		"~/.ssh/id_rsa",
+		"fix a/../../b",
+		". .. ...",
+		"spec\x00name",
+		"C:\\Users\\runner",
+		strings.Repeat("../", 100),
+	}
+
+	for _, description := range descriptions {
+		slug := noskillsfx.SlugFromDescription(description)
+
+		if !filepath.IsLocal(slug) || strings.ContainsAny(slug, `/\.`+"\x00") {
+			t.Errorf("SlugFromDescription(%q) = %q, want one path element of [a-z0-9-]", description, slug)
+		}
 	}
 }

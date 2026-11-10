@@ -97,6 +97,14 @@ func uniqueSpecName(root, description string) string {
 	candidate := base
 
 	for suffix := 2; ; suffix++ {
+		// The description is caller text (noskills-server passes the request
+		// body). SlugFromDescription keeps only [a-z0-9-], and this check states
+		// that before the name is joined into a path: a candidate outside the
+		// spec name pattern is returned unchecked, and SpecNew refuses it.
+		if !specNamePattern.MatchString(candidate) {
+			return candidate
+		}
+
 		if !IsReservedSpecName(candidate) && !pathExists(filepath.Join(root, specsDir, candidate)) {
 			return candidate
 		}

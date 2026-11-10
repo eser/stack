@@ -20,7 +20,11 @@ nodeTest.test("every external script and stylesheet is pinned with SRI", () => {
     assert.assert(/integrity="sha384-[A-Za-z0-9+/=]{64}"/.test(tag), tag);
     assert.assert(tag.includes('crossorigin="anonymous"'), tag);
   }
-  assert.assertEquals(page.includes("cdnjs.cloudflare.com"), false);
+  // Every file comes from the one CDN host the CSP allows, so the old
+  // cdnjs.cloudflare.com copies are gone. The host is parsed, not searched for
+  // in the URL text, where it could sit in a path or a subdomain.
+  const hosts = new Set(external.map(([, , url]) => new URL(url!).hostname));
+  assert.assertEquals([...hosts], ["cdn.jsdelivr.net"]);
   assert.assertEquals(page.includes("xterm-addon-fit"), false);
 });
 

@@ -89,8 +89,17 @@ const markPathDots = (value: string): string =>
 const markPatternDots = (pattern: string): string =>
   pattern.replace(/(^|[/{(|,])\./g, `$1${DOT_MARK}`);
 
-const stripTrailingSlashes = (value: string): string =>
-  value.replace(/[\\/]+$/, "");
+// A scan from the end, not /[\\/]+$/: the regex retries a run of slashes
+// from every start position, which is quadratic on a path or pattern with a
+// long run of them that does not end the string.
+const stripTrailingSlashes = (value: string): string => {
+  let end = value.length;
+  while (end > 0 && (value[end - 1] === "/" || value[end - 1] === "\\")) {
+    end--;
+  }
+
+  return value.slice(0, end);
+};
 
 /**
  * Check if a relative path matches any of the ignore patterns, with

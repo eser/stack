@@ -33,8 +33,8 @@ type h3RoundTripperConfig struct {
 type H3Option func(*h3RoundTripperConfig)
 
 // WithH3TLSClientConfig sets a base tls.Config for the HTTP/3 transport.
-// If CertHashes are also provided, this config is cloned and patched with
-// InsecureSkipVerify + VerifyPeerCertificate.
+// If CertHashes are also provided, this config is cloned and its chain
+// verification is replaced with a leaf pin (see WithH3CertHashes).
 func WithH3TLSClientConfig(cfg *tls.Config) H3Option {
 	return func(c *h3RoundTripperConfig) {
 		c.TLSConfig = cfg
@@ -120,20 +120,32 @@ func buildH3TLSConfig(cfg *h3RoundTripperConfig) *tls.Config {
 		base.MinVersion = tls.VersionTLS13
 	}
 
-	// Verification is replaced here, not dropped. A self-signed daemon cert has no
-	// chain to build and no CA that will vouch for it, so the built-in verifier can
-	// only ever reject it; InsecureSkipVerify is how Go lets us substitute our own
-	// check. crypto/tls still invokes VerifyPeerCertificate when this flag is set,
-	// and the callback below fails closed. Pinning the exact leaf is a tighter bind
-	// than the hostname check it displaces: it accepts one specific key, not every
-	// cert any trusted CA is willing to issue for the name.
-	base.InsecureSkipVerify = true //nolint:gosec // G402: see above — pinning substitutes for chain validation.
+	verifyLeafAgainstPins(base, cfg.CertHashes)
 
-	// Capture hashes for the closure.
-	pinnedHashes := make([][]byte, len(cfg.CertHashes))
-	for i, h := range cfg.CertHashes {
+	return base
+}
+
+// verifyLeafAgainstPins replaces the chain and hostname verification of base
+// with a pin on the server's leaf certificate. It is the only place in this
+// package that sets InsecureSkipVerify, and it sets it together with the two
+// callbacks that enforce the pin, so a server whose leaf matches none of hashes
+// fails the handshake.
+//
+// Verification is replaced here, not dropped. A self-signed daemon cert has no
+// chain to build and no CA that will vouch for it, so the built-in verifier can
+// only ever reject it; InsecureSkipVerify is how Go lets us substitute our own
+// check. crypto/tls still invokes VerifyPeerCertificate when this flag is set,
+// and the callback below fails closed. Pinning the exact leaf is a tighter bind
+// than the hostname check it displaces: it accepts one specific key, not every
+// cert any trusted CA is willing to issue for the name.
+func verifyLeafAgainstPins(base *tls.Config, hashes [][]byte) {
+	// Capture hashes for the closures.
+	pinnedHashes := make([][]byte, len(hashes))
+	for i, h := range hashes {
 		pinnedHashes[i] = bytes.Clone(h)
 	}
+
+	base.InsecureSkipVerify = true //nolint:gosec // G402: the callbacks below verify the leaf against the pins.
 
 	base.VerifyPeerCertificate = func(rawCerts [][]byte, _ [][]*x509.Certificate) error {
 		// Hash rawCerts[0] only. It is the end-entity cert whose private key signed
@@ -148,15 +160,11 @@ func buildH3TLSConfig(cfg *h3RoundTripperConfig) *tls.Config {
 			return fmt.Errorf("httpclient H3: server presented no certificate") //nolint:err113
 		}
 
-		sum := sha256.Sum256(rawCerts[0])
-
-		for _, pinned := range pinnedHashes {
-			if bytes.Equal(sum[:], pinned) {
-				return nil
-			}
+		if !leafMatchesPin(rawCerts[0], pinnedHashes) {
+			return fmt.Errorf("httpclient H3: leaf certificate matched none of the pinned fingerprints") //nolint:err113
 		}
 
-		return fmt.Errorf("httpclient H3: leaf certificate matched none of the pinned fingerprints") //nolint:err113
+		return nil
 	}
 
 	// VerifyPeerCertificate is NOT called when a session is resumed, so pinning
@@ -170,16 +178,24 @@ func buildH3TLSConfig(cfg *h3RoundTripperConfig) *tls.Config {
 			return fmt.Errorf("httpclient H3: connection presented no certificate") //nolint:err113
 		}
 
-		sum := sha256.Sum256(cs.PeerCertificates[0].Raw)
-
-		for _, pinned := range pinnedHashes {
-			if bytes.Equal(sum[:], pinned) {
-				return nil
-			}
+		if !leafMatchesPin(cs.PeerCertificates[0].Raw, pinnedHashes) {
+			return fmt.Errorf("httpclient H3: resumed session leaf matched none of the pinned fingerprints") //nolint:err113
 		}
 
-		return fmt.Errorf("httpclient H3: resumed session leaf matched none of the pinned fingerprints") //nolint:err113
+		return nil
+	}
+}
+
+// leafMatchesPin reports whether the SHA-256 of the DER certificate leaf equals
+// one of pins.
+func leafMatchesPin(leaf []byte, pins [][]byte) bool {
+	sum := sha256.Sum256(leaf)
+
+	for _, pinned := range pins {
+		if bytes.Equal(sum[:], pinned) {
+			return true
+		}
 	}
 
-	return base
+	return false
 }

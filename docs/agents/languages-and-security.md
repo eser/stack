@@ -92,5 +92,12 @@ to.
   Application Default Credentials (a service account key, gcloud user
   credentials or the metadata server) and keeps tokens and secrets out of its
   errors; the sources are listed in `pkg/ajan/aifx/README.md`.
-- `webtransport` pins certificate hashes with `VerifyPeerCertificate`, the one
-  accepted use of `InsecureSkipVerify`.
+- `webtransport` and the `httpclient` HTTP/3 transport pin certificate hashes
+  in `verifyLeafAgainstPins`, the one accepted use of `InsecureSkipVerify`: it
+  is set there only together with `VerifyPeerCertificate` and
+  `VerifyConnection` (which covers resumed sessions), and CodeQL's
+  `go/disabled-certificate-check` accepts it because the function's name says
+  it verifies.
+- noskills-server registers a workspace by path only inside its workspace root
+  (`--workspace-root`, the home directory by default), opened with `os.Root`
+  (`resolveWorkspacePath` in `pkg/ajan/noskillsserverfx/project_paths.go`).

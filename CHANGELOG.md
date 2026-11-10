@@ -1137,7 +1137,9 @@ in `.eser/concerns/`, which several entries below depend on.
   instead of loading the whole page. Render a plain `<a>` for a full page load.
 - `Image` has no `onError` handler and no `data-onerror` attribute; it renders
   the fallback as `data-laroux-fallback`, which laroux's client bootstrap
-  applies. An empty `src` with a fallback renders the fallback directly. A React
+  applies, resolved to an absolute URL and only with an `http`, `https`,
+  `data` or `blob` scheme. An empty `src` with a fallback renders the fallback
+  directly. A React
   app that renders `Image` without laroux's bootstrap adds its own error
   listener that reads `data-laroux-fallback`. `buildFallbackHandler()`, which
   built the `onerror` string, is removed from `.` and `./image`; delete the
@@ -1879,6 +1881,19 @@ in `.eser/concerns/`, which several entries below depend on.
   worker, err := noskillsserverfx.SpawnWorker(ctx, sid, root, dataDir, kind, logger)
   ```
 
+- `POST /api/projects` with a `path` registers only a directory in the workspace
+  root, the home directory by default, with symlinks resolved; any other path
+  answers 400, where it used to be registered. Projects already in
+  `daemon.json` stay registered. Start the daemon with a root that holds your
+  projects, or set `ServerConfig.WorkspaceRoot` when you embed it:
+
+  ```bash
+  # Before
+  noskills-server start
+  # After, for projects under /srv/code
+  noskills-server start --workspace-root /srv/code
+  ```
+
 #### Go: pkg/ajan/noskillsfx
 
 - `BuildBehavioral(state, maxIterations, allowGit, concerns, hints)` is
@@ -1979,6 +1994,9 @@ in `.eser/concerns/`, which several entries below depend on.
   16 MiB and an OpenAI batch output file over 512 MiB fail with an error
   wrapping `lib.ErrReadLimitExceeded`. Use `StreamText` for very long Ollama
   replies, and split such batches.
+- A Gemini or Vertex AI request with `MaxTokens` over 2147483647 fails with
+  an error wrapping `ErrBadRequest`; the int32 `maxOutputTokens` field used to
+  wrap it to another value. Pass a limit the model accepts.
 
 #### Go: pkg/ajan/kitfx, workflowfx and postsfx
 

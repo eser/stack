@@ -38,6 +38,7 @@ const createImage = (options: FakeImageOptions): FakeImage => {
   return {
     attributes,
     tagName: "IMG",
+    baseURI: "http://localhost/",
     complete: options.complete ?? false,
     naturalWidth: options.naturalWidth ?? 0,
     parentElement:
@@ -106,7 +107,10 @@ nodeTest.test("applyImageFallback switches the src to the fallback", () => {
   });
 
   assert.assertEquals(imageFallback.applyImageFallback(image), true);
-  assert.assertEquals(image.attributes.get("src"), "/placeholder.jpg");
+  assert.assertEquals(
+    image.attributes.get("src"),
+    "http://localhost/placeholder.jpg",
+  );
   assert.assertEquals(image.attributes.has("srcset"), false);
 });
 
@@ -126,7 +130,10 @@ nodeTest.test("applyImageFallback clears the picture sources", () => {
     sources.map((source) => source.attributes.has("srcset")),
     [false, false],
   );
-  assert.assertEquals(image.attributes.get("src"), "/placeholder.jpg");
+  assert.assertEquals(
+    image.attributes.get("src"),
+    "http://localhost/placeholder.jpg",
+  );
 });
 
 const unchangedCases: ReadonlyArray<{
@@ -143,6 +150,27 @@ const unchangedCases: ReadonlyArray<{
     attributes: {
       src: "/placeholder.jpg",
       [imageFallback.FALLBACK_ATTRIBUTE]: "/placeholder.jpg",
+    },
+  },
+  {
+    name: "shows the fallback it applied",
+    attributes: {
+      src: "http://localhost/placeholder.jpg",
+      [imageFallback.FALLBACK_ATTRIBUTE]: "/placeholder.jpg",
+    },
+  },
+  {
+    name: "has a javascript: fallback",
+    attributes: {
+      src: "/hero.jpg",
+      [imageFallback.FALLBACK_ATTRIBUTE]: "javascript:alert(1)",
+    },
+  },
+  {
+    name: "has a fallback that is not a URL",
+    attributes: {
+      src: "/hero.jpg",
+      [imageFallback.FALLBACK_ATTRIBUTE]: "http://[",
     },
   },
 ];
@@ -176,7 +204,10 @@ nodeTest.test(
     imageFallback.installImageFallbacks(document);
     dispatchError(document, image);
 
-    assert.assertEquals(image.attributes.get("src"), "/placeholder.jpg");
+    assert.assertEquals(
+      image.attributes.get("src"),
+      "http://localhost/placeholder.jpg",
+    );
   },
 );
 
@@ -233,7 +264,10 @@ nodeTest.test(
     assert.assertEquals(document.queries, [
       `img[${imageFallback.FALLBACK_ATTRIBUTE}]`,
     ]);
-    assert.assertEquals(broken.attributes.get("src"), "/placeholder.jpg");
+    assert.assertEquals(
+      broken.attributes.get("src"),
+      "http://localhost/placeholder.jpg",
+    );
     assert.assertEquals(unsizedSvg.attributes.get("src"), "/logo.svg");
     assert.assertEquals(loading.attributes.get("src"), "/later.jpg");
   },

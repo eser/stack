@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"maps"
+	"math"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -777,7 +778,14 @@ func (e *env) kitClone(c *clifx.Context) error {
 	opts.Prompt = prompt
 	opts.SkipPostInstall = c.Bool("no-post-install")
 	opts.MaxBytes = maxBytes
-	opts.MaxEntries = int(maxEntries)
+
+	// kitLimit allows up to 2^53-1, and MaxEntries is an int, 32 bits wide on
+	// a 32-bit platform, where the conversion would wrap. No tarball holds 2^31
+	// entries, so a larger limit means the same as math.MaxInt32.
+	opts.MaxEntries = math.MaxInt32
+	if maxEntries <= math.MaxInt32 {
+		opts.MaxEntries = int(maxEntries)
+	}
 
 	result, err := kitfx.ApplyRecipe(c, recipe, opts)
 	if err != nil {

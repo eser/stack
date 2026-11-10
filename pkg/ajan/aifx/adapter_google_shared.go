@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"math"
 )
 
 // genaiRoleUser is the role name for user messages in the generateContent API.
@@ -323,9 +325,12 @@ func buildGenerateContentConfig(
 	// System instruction.
 	config.SystemInstruction = buildSystemInstruction(opts.System)
 
-	applyGenAIGenerationParams(config, opts)
+	err := applyGenAIGenerationParams(config, opts)
+	if err != nil {
+		return nil, err
+	}
 
-	err := applyGenAITools(config, opts)
+	err = applyGenAITools(config, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -345,10 +350,18 @@ func buildGenerateContentConfig(
 	return config, nil
 }
 
+// applyGenAIGenerationParams sets the sampling and length settings. A token
+// limit over the int32 maxOutputTokens field is refused rather than wrapped,
+// which would send a different limit than the caller asked for.
 func applyGenAIGenerationParams(
 	config *genaiGenerateContentConfig,
 	opts *GenerateTextOptions,
-) {
+) error {
+	if opts.MaxTokens > math.MaxInt32 {
+		return fmt.Errorf("%w: max tokens %d does not fit maxOutputTokens, an int32 (limit %d)",
+			ErrBadRequest, opts.MaxTokens, math.MaxInt32)
+	}
+
 	if opts.MaxTokens > 0 {
 		config.MaxOutputTokens = int32(opts.MaxTokens)
 	}
@@ -364,6 +377,8 @@ func applyGenAIGenerationParams(
 	if len(opts.StopWords) > 0 {
 		config.StopSequences = opts.StopWords
 	}
+
+	return nil
 }
 
 func applyGenAITools(

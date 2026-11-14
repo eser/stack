@@ -20,8 +20,10 @@ const maxQueuedEvents = 1024
 // idle; a goroutine of the server's own applies the rest. Without it, a pane
 // that writes faster than the server applies its output keeps the queue from
 // emptying, and the Dispatch, Connect or frontend message whose caller drains
-// it never returns.
-const drainBudget = maxQueuedEvents
+// it never returns. It is far below the queue capacity: applying a flooding
+// pane's output costs about 2ms an event under the race detector, so a budget
+// of the full queue would hold the caller for seconds.
+const drainBudget = 64
 
 // drainAll is the budget of the server's own goroutine: it applies the queue
 // until it is empty.

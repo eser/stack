@@ -4,7 +4,7 @@ go 1.26.7
 
 // Pinned to the root module's toolchain so the bridge builds with the same
 // patch release.
-toolchain go1.26.10
+toolchain go1.26.11
 
 require github.com/eser/stack v4.1.56+incompatible
 

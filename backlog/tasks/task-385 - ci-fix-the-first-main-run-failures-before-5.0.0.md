@@ -4,7 +4,7 @@ title: 'ci: fix the first main run failures before 5.0.0'
 status: In Progress
 assignee: []
 created_date: '2026-11-10 09:00'
-updated_date: '2026-11-10'
+updated_date: '2026-11-14'
 labels:
   - ci
   - bug
@@ -50,7 +50,11 @@ Bridge JSON (AC3), pkg/@eserstack/ajan/bridge_config_test.go: `configTestDir` (:
 
 Panic (AC4): the panic is the deliberate `s[3]` of `TestGuardString` (pkg/@eserstack/ajan/panic_guard_test.go:57), which checks that `guardString` turns a runtime panic into an error envelope; the case passed, so nothing changed there.
 
-Mux drain (AC5): `TestServerDispatchReturnsWhileAPaneFloods` (pkg/ajan/muxfx/server_test.go:471) spawns a pane through `floodHost` (:420), whose output is already queued when `Spawn` returns and never stops until `KillAll`. Before the fix its `Dispatch` of newTab did not return in 10 s, on macOS without the race detector. Fix in pkg/ajan/muxfx/server.go: a caller drafted by `post` (:324) applies at most `drainBudget` events (:24, one full queue), then `drain` (:349) hands the rest to a goroutine of the server's own (:364) that applies the queue until it is empty (`drainAll`, :28). The draining flag stays set across the handover, so events are still applied one at a time in posting order, and a caller that is not held by a flood still finds its events, and those they cause, applied when it returns, which `TestServerReentrantFrontend` and the session tests rely on. The muxfx suite passes with `-race`; in the linux/arm64 container the job's three commands pass, the `-race` run of noskillsserverfx in about 11 s where it had hung. Repeated there with `-race`, 5 rounds of the mux tests and 20 of the muxfx server tests passed.
+Mux drain (AC5): `TestServerDispatchReturnsWhileAPaneFloods` (pkg/ajan/muxfx/server_test.go:471) spawns a pane through `floodHost` (:420), whose output is already queued when `Spawn` returns and never stops until `KillAll`. Before the fix its `Dispatch` of newTab did not return in 10 s, on macOS without the race detector. Fix in pkg/ajan/muxfx/server.go: a caller drafted by `post` (:324) applies at most `drainBudget` events (:24, 64 since the second main run, below), then `drain` (:349) hands the rest to a goroutine of the server's own (:364) that applies the queue until it is empty (`drainAll`, :28). The draining flag stays set across the handover, so events are still applied one at a time in posting order, and a caller that is not held by a flood still finds its events, and those they cause, applied when it returns, which `TestServerReentrantFrontend` and the session tests rely on. The muxfx suite passes with `-race`; in the linux/arm64 container the job's three commands pass, the `-race` run of noskillsserverfx in about 11 s where it had hung. Repeated there with `-race`, 5 rounds of the mux tests and 20 of the muxfx server tests passed.
 
 `pnpm ok` passes (AC6). AC7 needs the owner's push of these changes; the jobs that Validate gates (Release Preflight, the cross-runtime, npm and laroux smoke tests) and the Windows steps after the ajan module tests did not run on 2c520a07, so that run is their first.
+
+Second main run, at dc3c105e after the history was made linear: Validate failed in `go-tests`, `TestServerDispatchReturnsWhileAPaneFloods` (pkg/ajan/muxfx/server_test.go:500, "Dispatch did not return while the pane floods"). Root cause: `drainBudget` was one full queue, 1024 events, and applying 1024 events of a flooding pane takes about 2.3 s under the race detector on a 16-core laptop; the runner, running the other packages in parallel, took over 10 s. The budget is now 64 events (pkg/ajan/muxfx/server.go:24), and the test takes about 0.15 s with `-race`.
+
+Third main run, at 9fc169ac: the muxfx test passed and Validate failed in `Check Go vulnerabilities`, GO-2026-6859 in net/http of go1.26.10, fixed in go1.26.11 and reached from httpfx, noskillsfx, noskillsserverfx and the other HTTP callers. Both modules now pin `toolchain go1.26.11` (go.mod:7, pkg/@eserstack/ajan/go.mod:7), and govulncheck reports no called vulnerability in either. It still lists GO-2026-5932 in golang.org/x/crypto v0.58.0 as required but not called; its fix is only in a pseudo-version, so the module stays on the latest release.
 <!-- SECTION:NOTES:END -->

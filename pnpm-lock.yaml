@@ -46,8 +46,8 @@ importers:
   pkg/@eserstack/ai:
     dependencies:
       '@anthropic-ai/sdk':
-        specifier: ^1.7.0
-        version: 1.7.0
+        specifier: ^1.8.0
+        version: 1.8.0
       '@eserstack/ajan':
         specifier: workspace:*
         version: link:../ajan
@@ -70,11 +70,11 @@ importers:
         specifier: workspace:*
         version: link:../streams
       '@google/genai':
-        specifier: ^3.0.0
-        version: 3.0.0
+        specifier: ^3.1.0
+        version: 3.1.0
       openai:
-        specifier: ^7.54.0
-        version: 7.54.0(google-auth-library@10.9.1)(ws@8.22.2)
+        specifier: ^7.55.0
+        version: 7.55.0(google-auth-library@10.9.1)(ws@8.22.2)
     devDependencies:
       '@eserstack/test-kit':
         specifier: workspace:*
@@ -931,8 +931,8 @@ importers:
 
 packages:
 
-  '@anthropic-ai/sdk@1.7.0':
-    resolution: {integrity: sha512-Z+0c1iHQozlt4ymMHapPXEXfFnSbPEWGnSKbkavt+qeyaMQ3Sd6QNxfQj7vyhHYqiqYadC9shrXub8ISKf7xjQ==}
+  '@anthropic-ai/sdk@1.8.0':
+    resolution: {integrity: sha512-yDOArk2+Qpd/djEKmZjrv7JZ+pn5iBHARJ9PAdvfhGf4H5wNqTgY/2K0/yDKdQdm8G8hrNQchMlBAHpPK7yBfg==}
     hasBin: true
     peerDependencies:
       zod: ^3.25.0 || ^4.0.0
@@ -1112,8 +1112,8 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@google/genai@3.0.0':
-    resolution: {integrity: sha512-0o2uBXPWBNUu0jWg2Id5iBtCnsd7lnxKPQfnijKvNublG/zj40CToERvz/eyfNjzzXt2kwuvxpouLUrRCZ2WUQ==}
+  '@google/genai@3.1.0':
+    resolution: {integrity: sha512-fKLeRkpULBDox+b5wmm4UN6PsUw1v5kP+8vJF1aq/wSpiI2sV4AuDtL0uZqu91AH4lc25fZ8sDa6cyCQOFyaXg==}
     engines: {node: '>=22.0.0'}
     peerDependencies:
       '@modelcontextprotocol/sdk': ^1.25.2
@@ -2165,8 +2165,8 @@ packages:
     resolution: {integrity: sha512-dRB78srN/l6gqWulah9SrxeYnxeddIG30+GOqK/9OlLVyLg3HPnr6SqOWTWOXKRwC2eGYCkZ59NNuSgvSrpgOA==}
     engines: {node: ^12.20.0 || ^14.13.1 || >=16.0.0}
 
-  openai@7.54.0:
-    resolution: {integrity: sha512-1fKNSPuyR4xIhivt69u6eW9bDZ2hzzNa9PAnQ1rYhr9DWqjrl6OUIKMBmKWT3vCT0XoGkjdP/I0nXZmRYRsazw==}
+  openai@7.55.0:
+    resolution: {integrity: sha512-0r4snVSRN46m4wL2vXCW5Xw6CKGPbdNI8t79KZOpe8GKKPmhL8peDXN8YOY/2ipsOVWSfsP/vgkLjTmWB+kMug==}
     engines: {node: '>=22.0.0'}
     peerDependencies:
       '@aws-sdk/credential-provider-node': '>=3.972.0 <4'
@@ -2330,7 +2330,7 @@ packages:
 
 snapshots:
 
-  '@anthropic-ai/sdk@1.7.0':
+  '@anthropic-ai/sdk@1.8.0':
     dependencies:
       '@opentelemetry/api': 1.10.0
       json-schema-to-ts: 3.1.1
@@ -2437,7 +2437,7 @@ snapshots:
   '@esbuild/win32-x64@0.28.2':
     optional: true
 
-  '@google/genai@3.0.0':
+  '@google/genai@3.1.0':
     dependencies:
       google-auth-library: 10.9.1
       p-retry: 4.6.2
@@ -3144,7 +3144,7 @@ snapshots:
       fetch-blob: 3.2.0
       formdata-polyfill: 4.0.10
 
-  openai@7.54.0(google-auth-library@10.9.1)(ws@8.22.2):
+  openai@7.55.0(google-auth-library@10.9.1)(ws@8.22.2):
     optionalDependencies:
       google-auth-library: 10.9.1
       ws: 8.22.2

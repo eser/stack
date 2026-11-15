@@ -1476,3 +1476,131 @@ nodeTest.describe("Node adapter request target", () => {
     },
   );
 });
+
+/** Whether this host can listen on the IPv6 loopback. */
+const canListenOn = (host: string): Promise<boolean> =>
+  new Promise((resolve) => {
+    const probe = net.createServer();
+    probe.once("error", () => resolve(false));
+    probe.listen(0, host, () => probe.close(() => resolve(true)));
+  });
+
+/** The status of a GET to `url`, or the error code of the connection. */
+const statusOf = async (url: string): Promise<number | string> => {
+  try {
+    const response = await fetch(url, { signal: AbortSignal.timeout(5_000) });
+    await response.body?.cancel();
+
+    return response.status;
+  } catch (error) {
+    const cause = (error as { cause?: { code?: string } }).cause;
+
+    return cause?.code ?? String(error);
+  }
+};
+
+nodeTest.describe("Node adapter on localhost", () => {
+  // Set before the tests run: a host without the IPv6 loopback skips them.
+  let hasIpv6Loopback = false;
+  nodeTest.before(async () => {
+    hasIpv6Loopback = await canListenOn("::1");
+  });
+
+  nodeTest.it(
+    "answers on both loopback addresses at one port",
+    TEST_LIMITS,
+    async (t) => {
+      if (!hasIpv6Loopback) {
+        t.skip("no IPv6 loopback");
+        return;
+      }
+
+      const controller = new AbortController();
+      const server = await nodeHttp
+        .createNodeHttp()
+        .serve(
+          { port: 0, hostname: "localhost", signal: controller.signal },
+          () => new Response("ok"),
+        );
+
+      try {
+        assert.assertEquals(
+          [
+            await statusOf(`http://127.0.0.1:${server.port}/`),
+            await statusOf(`http://[::1]:${server.port}/`),
+          ],
+          [200, 200],
+        );
+      } finally {
+        controller.abort();
+        await server.finished;
+      }
+    },
+  );
+
+  nodeTest.it(
+    "stops listening on both loopback addresses once stopped",
+    TEST_LIMITS,
+    async (t) => {
+      if (!hasIpv6Loopback) {
+        t.skip("no IPv6 loopback");
+        return;
+      }
+
+      const controller = new AbortController();
+      const server = await nodeHttp
+        .createNodeHttp()
+        .serve(
+          { port: 0, hostname: "localhost", signal: controller.signal },
+          () => new Response("ok"),
+        );
+
+      controller.abort();
+      await server.finished;
+
+      assert.assertEquals(
+        [
+          await statusOf(`http://127.0.0.1:${server.port}/`),
+          await statusOf(`http://[::1]:${server.port}/`),
+        ],
+        ["ECONNREFUSED", "ECONNREFUSED"],
+      );
+    },
+  );
+
+  nodeTest.it(
+    "rejects a port another process holds on one loopback address",
+    TEST_LIMITS,
+    async (t) => {
+      if (!hasIpv6Loopback) {
+        t.skip("no IPv6 loopback");
+        return;
+      }
+
+      const holder = net.createServer();
+      await new Promise<void>((resolve) => {
+        holder.listen(0, "127.0.0.1", () => resolve());
+      });
+      const { port } = holder.address() as net.AddressInfo;
+
+      try {
+        await assert.assertRejects(
+          () =>
+            nodeHttp
+              .createNodeHttp()
+              .serve({ port, hostname: "localhost" }, () => new Response("ok")),
+          Error,
+          "EADDRINUSE",
+        );
+        // The address the server did take is free again.
+        assert.assertEquals(await canListenOn("::1"), true);
+        assert.assertEquals(
+          await statusOf(`http://[::1]:${port}/`),
+          "ECONNREFUSED",
+        );
+      } finally {
+        await new Promise<void>((resolve) => holder.close(() => resolve()));
+      }
+    },
+  );
+});

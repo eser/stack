@@ -48,6 +48,23 @@ const MIN_CHECK_INTERVAL_MS = 50;
 /** The Host to assume on a unix socket for a request that names none. */
 const UNIX_SOCKET_FALLBACK_HOST = "localhost";
 
+/**
+ * The loopback address of the other family, for a server that listens on
+ * localhost. Node binds a host name to its first address only, and resolves
+ * localhost to ::1 first on current systems, so a client of 127.0.0.1 would
+ * find nothing there; the server listens on both.
+ */
+const OTHER_LOOPBACK: Readonly<Record<string, string>> = {
+  IPv4: "::1",
+  IPv6: "127.0.0.1",
+};
+
+/** Listen errors that say the host has no such address family. */
+const MISSING_FAMILY_ERRORS: ReadonlySet<string> = new Set([
+  "EADDRNOTAVAIL",
+  "EAFNOSUPPORT",
+]);
+
 /** The GUID RFC 6455 (4.2.2) appends to the client's key before hashing. */
 const HANDSHAKE_GUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
 
@@ -588,6 +605,9 @@ export const createNodeHttp = (): RuntimeHttp => {
           ? trustProxy.parseTrustProxy(options.trustProxy)
           : null;
       const server = deps.http.createServer(toServerOptions(options));
+      // The listener on the other loopback address of a localhost server. It
+      // hands its connections to `server`, which answers and tracks them.
+      let companion: deps.net.Server | null = null;
       // Raw sockets of upgrade requests still in their handler, and the
       // WebSockets running over the accepted ones. Both stop with the server.
       const pendingSockets = new Set<RawSocket>();
@@ -597,9 +617,13 @@ export const createNodeHttp = (): RuntimeHttp => {
         unixSocket !== null ? UNIX_SOCKET_FALLBACK_HOST : hostname;
       let stopping = false;
 
-      const finished = new Promise<void>((resolveFinished) => {
-        server.once("close", () => resolveFinished());
+      const serverClosed = new Promise<void>((resolveClosed) => {
+        server.once("close", () => resolveClosed());
       });
+      // Set once the companion listens; the server closes only after stop,
+      // which closes the companion too.
+      let companionClosed = Promise.resolve();
+      const finished = serverClosed.then(() => companionClosed);
 
       const forceClose = (): void => {
         server.closeAllConnections();
@@ -619,6 +643,11 @@ export const createNodeHttp = (): RuntimeHttp => {
         server.once("close", () => clearTimeout(deadline));
 
         server.close();
+        // The companion takes no new connections either; `finished` waits
+        // for it.
+        if (companion?.listening === true) {
+          companion.close();
+        }
         server.closeIdleConnections();
 
         for (const socket of pendingSockets) {
@@ -812,8 +841,58 @@ export const createNodeHttp = (): RuntimeHttp => {
             address.family === "IPv6"
               ? `[${address.address}]:${address.port}`
               : `${address.address}:${address.port}`;
+
+          const other = OTHER_LOOPBACK[address.family];
+          if (hostname === "localhost" && other !== undefined) {
+            listenCompanion(other, address.port, listenAddr);
+            return;
+          }
         }
 
+        ready(listenAddr);
+      };
+
+      /**
+       * Listens on the other loopback address at the port of the server. A
+       * host without that address family keeps the one listener; any other
+       * failure, such as a port another process holds there, stops the server.
+       */
+      const listenCompanion = (
+        address: string,
+        port: number,
+        listenAddr: ListenAddr,
+      ): void => {
+        const listener = deps.net.createServer((socket) => {
+          server.emit("connection", socket);
+        });
+
+        listener.once("error", (error: NodeJS.ErrnoException) => {
+          if (MISSING_FAMILY_ERRORS.has(error.code ?? "")) {
+            ready(listenAddr);
+            return;
+          }
+
+          stop();
+          serverClosed.then(
+            () => reject(error),
+            () => reject(error),
+          );
+        });
+
+        listener.listen(port, address, () => {
+          companion = listener;
+          companionClosed = new Promise<void>((resolveClosed) => {
+            listener.once("close", () => resolveClosed());
+          });
+          listener.on("error", (error) => {
+            shared.reportServeError("the server failed and stopped.", error);
+            stop();
+          });
+          ready(listenAddr);
+        });
+      };
+
+      const ready = (listenAddr: ListenAddr): void => {
         if (options.signal?.aborted === true) {
           stop();
         } else {

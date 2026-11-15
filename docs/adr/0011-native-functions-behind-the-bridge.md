@@ -246,8 +246,10 @@ dispatcher ABI (version 3): open takes `{ name, input }` and checks the input
 before anything is produced, each read answers `{ output }` for an item or
 `{ error, errorKind }` as the last item and then null, and closing the stream
 ends the context the function runs on, so a function that honors its context
-stops. The producer waits for the reader (one item of buffer), so a slow reader
-slows the function, and at most 1024 streams are open at once. TypeScript reaches
+stops. The function runs only as far as its reader asks: after an item it waits
+for the next read, so a slow reader slows the function and a reader that stops
+stops it before it makes another item, and at most 1024 streams are open at
+once. TypeScript reaches
 it with `streamFunction` of `@eserstack/ajan/ffi/functions`, and
 `fromNativeStream` of `@eserstack/functions/native` gives the items as `Result`s
 a `collect` pipeline can `yield*`. The generated types mark such a function with

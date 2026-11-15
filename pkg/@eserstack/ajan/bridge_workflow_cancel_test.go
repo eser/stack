@@ -6,8 +6,10 @@ package main
 
 import (
 	"encoding/json"
+	"io"
 	"os"
 	"path/filepath"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -16,13 +18,20 @@ func TestBridgeWorkflowRunStopsOnCancel(t *testing.T) {
 	t.Parallel()
 
 	root := t.TempDir()
+
+	// The first step writes to a FIFO, so opening it for reading returns once
+	// the step runs.
+	if err := syscall.Mkfifo(filepath.Join(root, "started"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
 	manifest := `workflows:
   - id: slow
     on: [manual]
     steps:
       - shell:
           name: wait
-          command: touch started && sleep 30
+          command: echo started > started && sleep 30
       - shell:
           name: after
           command: touch after
@@ -39,18 +48,16 @@ func TestBridgeWorkflowRunStopsOnCancel(t *testing.T) {
 
 	go func() { answer <- bridgeWorkflowRun(string(request)) }()
 
-	deadline := time.Now().Add(10 * time.Second)
-	for {
-		if _, err := os.Stat(filepath.Join(root, "started")); err == nil {
-			break
-		}
-
-		if time.Now().After(deadline) {
-			t.Fatal("the first step did not start")
-		}
-
-		time.Sleep(20 * time.Millisecond)
+	fifo, err := os.OpenInRoot(root, "started")
+	if err != nil {
+		t.Fatal(err)
 	}
+
+	if _, err := io.ReadAll(fifo); err != nil {
+		t.Fatal(err)
+	}
+
+	_ = fifo.Close()
 
 	if !cancelAIRequest("workflow-cancel-running") {
 		t.Fatal("cancelAIRequest found no running workflow")

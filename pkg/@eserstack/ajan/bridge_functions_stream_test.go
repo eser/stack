@@ -12,6 +12,7 @@ import (
 	"reflect"
 	"slices"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -363,5 +364,36 @@ func TestAStreamReadToItsEndReleasesItsHandle(t *testing.T) {
 
 	if open {
 		t.Error("the handle of a stream read to its end is still held, so it counts against the stream cap until a close")
+	}
+}
+
+func TestAFunctionStreamProducesAnItemOnlyWhenItIsRead(t *testing.T) {
+	t.Parallel()
+
+	var produced atomic.Int32
+
+	lazy := counter(t, "lazy", func(ctx context.Context, input countRequest) iter.Seq2[int, error] {
+		return func(yield func(int, error) bool) {
+			for i := 1; i <= input.To; i++ {
+				produced.Add(1)
+
+				if ctx.Err() != nil || !yield(i, nil) {
+					return
+				}
+			}
+		}
+	})
+
+	handle := openStream(t, streamRegistry(t, lazy), `{"name":"lazy","input":{"to":3}}`)
+
+	if got := bridgeFunctionStreamRead(handle); got != `{"output":1}` {
+		t.Fatalf("first read = %s", got)
+	}
+
+	// Close returns once the producer has ended, so the count is final here.
+	bridgeFunctionStreamClose(handle)
+
+	if got := produced.Load(); got != 1 {
+		t.Errorf("produced %d items after one read, want 1: the function ran ahead of its reader", got)
 	}
 }

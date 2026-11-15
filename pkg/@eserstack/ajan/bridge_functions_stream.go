@@ -24,6 +24,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"sync/atomic"
 
 	"github.com/eser/stack/pkg/ajan/functionsfx"
 )
@@ -48,13 +49,18 @@ const (
 	kindTooManyStreams functionsfx.Kind = "TooManyStreams"
 )
 
-// functionStreamState is one open stream. items holds the answers the reader has
-// not read yet, and the goroutine that fills it ends when the sequence ends or
-// the context does.
+// functionStreamState is one open stream. The goroutine that runs the sequence
+// hands each answer to a read through items and then waits on demand, which the
+// next read fills, so the function never runs ahead of its reader: a reader that
+// stops after one item stops the function before it makes another. The
+// goroutine ends when the sequence ends or the context does.
 type functionStreamState struct {
 	items  chan string
+	demand chan struct{}
 	cancel context.CancelFunc
 	wg     sync.WaitGroup
+	// read is set by the first read; every later read asks for one more item.
+	read atomic.Bool
 }
 
 var (
@@ -97,7 +103,7 @@ func bridgeFunctionStreamOpen(registry *functionsfx.Registry) callFunc {
 			return functionError(err)
 		}
 
-		state := &functionStreamState{items: make(chan string, 1), cancel: cancel}
+		state := &functionStreamState{items: make(chan string), demand: make(chan struct{}, 1), cancel: cancel} //nolint:exhaustruct
 		state.wg.Add(1)
 
 		go produceFunctionStream(ctx, state, items)
@@ -143,6 +149,13 @@ func produceFunctionStream(ctx context.Context, state *functionStreamState, item
 		if err != nil {
 			return
 		}
+
+		// The sequence goes on only when the next read asks for it.
+		select {
+		case <-state.demand:
+		case <-ctx.Done():
+			return
+		}
 	}
 }
 
@@ -166,6 +179,13 @@ func bridgeFunctionStreamRead(handle string) string {
 	}
 
 	defer state.wg.Done()
+
+	if state.read.Swap(true) {
+		select {
+		case state.demand <- struct{}{}:
+		default:
+		}
+	}
 
 	answer, open := <-state.items
 	if !open {

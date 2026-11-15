@@ -4,7 +4,7 @@ title: 'functionsfx and bridge: serve functions that produce a sequence as a str
 status: Done
 assignee: []
 created_date: '2026-11-13 20:26'
-updated_date: '2026-11-15 22:30'
+updated_date: '2026-11-15 23:40'
 labels:
   - go
   - bridge
@@ -51,4 +51,6 @@ AC4: the full gate passed on the third run. The first failed on a test of mine, 
 Full gate: go run ./cmd/eser ok passed all steps (exit 0) on 2026-11-14, with a stand-in pnpm that only maps 'pnpm exec <tool>' to node_modules/.bin/<tool>; the real pnpm was not run.
 
 Review before 5.0.0: a stream read to its end kept its handle until a close, so a caller of `lib.stream("functionStream")` that never closed would fill the cap of 1024. `bridgeFunctionStreamRead` now releases the handle and the context at the end, as the codebase walk stream does (`TestAStreamReadToItsEndReleasesItsHandle`), and `TestCloseOfUnknownHandleSucceedsEverywhere` covers `bridgeFunctionStreamClose`. The TypeScript docs of the error kinds list every kind the bridge answers.
+
+Fourth review point, from the first FFI and Workers run of main at 6573569e: `a reader that stops after one step stops the Go run` (pkg/@eserstack/codebase/workflows-native.ffi.test.ts:277) failed on ubuntu-24.04-arm, the second step had run. Root cause in the bridge: the producer handed each item to a channel with a buffer of one and went on with the sequence at once (pkg/@eserstack/ajan/bridge_functions_stream.go, `produceFunctionStream`), so a function ran up to two items ahead of its reader. The channel has no buffer now, and after each item the producer waits on `demand`, which every read after the first fills, or on the end of the context, so a close stops the function before it makes another item. `TestAFunctionStreamProducesAnItemOnlyWhenItIsRead` closes after one read and counts the items made, ordered by the close, which waits for the producer; it failed 20 times in 20 before the change, with 3 items made, and passes 20 in 20 after. ADR 0011 says the function runs only as far as its reader asks.
 <!-- SECTION:NOTES:END -->

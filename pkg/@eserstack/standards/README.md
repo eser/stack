@@ -196,7 +196,7 @@ const { runtime } = standards.crossRuntime;
 
 // Auto-detected runtime singleton
 runtime.name; // "node" | "workerd" | "browser" | "unknown"
-runtime.version; // "26.12.1"
+runtime.version; // "26.13.1"
 
 // Check capabilities before use
 if (runtime.capabilities.fs) {

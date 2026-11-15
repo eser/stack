@@ -68,7 +68,7 @@ body:
     id: runtime-version
     attributes:
       label: Runtime Version
-      placeholder: "Node 26.12.1"
+      placeholder: "Node 26.13.1"
 
   - type: textarea
     id: additional

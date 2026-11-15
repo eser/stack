@@ -588,6 +588,108 @@ tools, LangChain/LangGraph, Pydantic AI. The `ToolCallEvent` and
 > you get `AdaptError`, not a runtime crash. The same handler serves CLI users,
 > HTTP clients, and AI agents without any business logic duplication.
 
+### 🔗 Native Functions (Go)
+
+A function can run in Go and be called from here. `functions.native.fromNative`
+turns a function registered in the Go package
+[functionsfx](../../ajan/functionsfx/) into a `Handler`, so it composes like
+any other: with `flatMapW`, `bind`, `createTrigger` and `collect`.
+
+The call goes through a `NativeCaller`, a port this package defines and does not
+implement. `@eserstack/ajan/ffi/functions` implements it on the native bridge
+(`functionCaller()`), and a test passes a fake. This package imports no native
+library, so code that never calls `fromNative` loads none and your dependencies
+do not change.
+
+```typescript
+import * as functions from "@eserstack/functions";
+
+// In an application, use functionCaller() from "@eserstack/ajan/ffi/functions".
+const caller: functions.native.NativeCaller = (call) =>
+  call.name === "require-email" && !String(call.input).includes("@")
+    ? Promise.resolve({
+        ok: false,
+        error: "Invalid email address",
+        kind: "ValidationError",
+      })
+    : Promise.resolve({ ok: true, output: String(call.input) });
+
+const requireEmail = functions.native.fromNative<string, string>(
+  caller,
+  "require-email",
+);
+
+// The context carries the signal that stops the Go function.
+const context = { signal: new AbortController().signal };
+
+const good = await functions.task.runTask(
+  requireEmail("ada@example.com"),
+  context,
+);
+const bad = await functions.task.runTask(requireEmail("nope"), context);
+// good: ok("ada@example.com")
+// bad:  fail({ _tag: "ValidationError", message: "Invalid email address" })
+```
+
+You do not have to write the types by hand. `eser codebase native-types`
+generates a `NativeFunctions` map into the package that owns the functions (for
+example `@eserstack/codebase/native-functions`), and `fromNativeOf` reads the
+input and output of a function from it. Give it the map and the port, then the
+name; a name the map lacks, the name of a function that streams, and an input of
+the wrong shape fail to compile:
+
+```typescript
+import * as functions from "@eserstack/functions";
+
+// Generated from the Go types; here written out for the example.
+type NativeFunctions = {
+  readonly "add-up": {
+    readonly input: { readonly numbers: readonly number[] };
+    readonly output: { readonly total: number };
+  };
+};
+
+const caller: functions.native.NativeCaller = () =>
+  Promise.resolve({ ok: true, output: { total: 6 } });
+
+const addUp = functions.native.fromNativeOf<NativeFunctions>(caller)("add-up");
+
+const result = await functions.task.runTask(addUp({ numbers: [1, 2, 3] }), {
+  signal: new AbortController().signal,
+});
+// ok({ total: 6 }), and the total is a number
+```
+
+`fromNativeStreamOf` does the same for the functions the map marks
+`stream: true`. The map comes first because TypeScript cannot take a type
+argument in part, so `fromNative<NativeFunctions>(caller, "add-up")` is not
+possible.
+
+A Go function that streams is turned into a function of its input with
+`functions.native.fromNativeStream`: it gives the items as `Result`s as they
+arrive, a failure of the function is the last item, and a loop that stops early
+stops the Go function. A `collect` pipeline takes it with `yield*`, and the
+`NativeStreamCaller` port is implemented by `functionStreamCaller()` of
+`@eserstack/ajan/ffi/functions`.
+
+The kind of a Go error becomes the `_tag` of the TypeScript error:
+`ValidationError`, `AbortError` and `AdaptError` are the types of the same names
+in `task` and `handler`, `UnknownFunction` means Go has no function of that name,
+and any other kind arrives as `NativeError` with the kind in `kind`. A signal
+that aborts stops the Go function through its context and fails with an
+`AbortError`.
+
+Every feature of this package has a counterpart in Go or a recorded reason it
+has none. The pairing table is in the
+[functionsfx README](../../ajan/functionsfx/README.md#pairing-with-eserstackfunctions),
+and the decision is
+[ADR 0011](../../../docs/adr/0011-native-functions-behind-the-bridge.md).
+
+> **Why it matters:** the code that does the work lives once, in Go, and serves a
+> workflow step, a Go service and this package with one input schema. You keep
+> writing TypeScript: `fromNative` is the only place that knows the function is
+> not.
+
 ## functions.resources.* — Resource Management
 
 Safe acquire-use-release patterns with guaranteed cleanup. `openFile` and
@@ -723,6 +825,20 @@ const slow = await functions.resources.withTimeout(
 | `bind(handler, adapter)` | Bind adapter to handler (contravariant map)     |
 | `createTrigger(binding)` | Create full round-trip trigger (input + output) |
 | `adaptError(message)`    | Create an AdaptError                            |
+
+### functions.native.*
+
+| Export                                  | Description                                                   |
+| --------------------------------------- | ------------------------------------------------------------- |
+| `fromNative(caller, name)`              | Turn a Go function into a `Handler` that needs a signal       |
+| `toNativeError(kind, message)`          | Map the kind of a Go error to a TypeScript error              |
+| `fromNativeStream(caller, name)`        | Turn a Go function that streams into one that gives `Result`s |
+| `fromNativeOf<Map>(caller)(name)`       | `fromNative` typed by the generated `NativeFunctions` map     |
+| `fromNativeStreamOf<Map>(caller)(name)` | `fromNativeStream` typed by the generated map                 |
+| `NativeFunctionMap`                     | The shape of the generated map                                |
+| `NativeCaller`                          | The port that reaches the native library                      |
+| `NativeStreamCaller`                    | The port that opens a Go function that streams                |
+| `NativeError`                           | `ValidationError`, `AbortError`, `AdaptError`, and more       |
 
 ### functions.triggers.*
 

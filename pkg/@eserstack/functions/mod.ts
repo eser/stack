@@ -47,6 +47,9 @@ export * as task from "./task.ts";
 // Trigger adapters
 export * as handler from "./handler.ts";
 
+// Functions that run in Go, called through a port (no native library import)
+export * as native from "./native.ts";
+
 // Trigger event types
 export * as triggers from "./triggers.ts";
 

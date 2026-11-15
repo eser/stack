@@ -10,6 +10,7 @@
   "exports": {
     ".": "./mod.ts",
     "./handler": "./handler.ts",
+    "./native": "./native.ts",
     "./pipeline": "./pipeline.ts",
     "./resources": "./resources.ts",
     "./task": "./task.ts",
@@ -24,6 +25,10 @@
       "./handler": {
         "types": "./dist/handler.d.ts",
         "import": "./dist/handler.js"
+      },
+      "./native": {
+        "types": "./dist/native.d.ts",
+        "import": "./dist/native.js"
       },
       "./pipeline": {
         "types": "./dist/pipeline.d.ts",

@@ -530,6 +530,7 @@ func TestCloseOfUnknownHandleSucceedsEverywhere(t *testing.T) {
 		{name: "keypress", close: bridgeShellTuiKeypressClose},
 		{name: "codebase walk stream", close: bridgeCodebaseWalkFilesStreamClose},
 		{name: "codebase validate stream", close: bridgeCodebaseValidateFilesStreamClose},
+		{name: "function stream", close: bridgeFunctionStreamClose},
 		{
 			name: "cache",
 			close: func(handle string) string {

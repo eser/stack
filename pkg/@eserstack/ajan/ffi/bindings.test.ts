@@ -23,6 +23,9 @@ nodeTest.test("the blocking names are the ones that wait on I/O", () => {
     "aiBatchList",
     "aiGenerateText",
     "aiTextStream",
+    // functions: the call that runs a function, which may do any I/O
+    "functionCall",
+    "functionStream",
     // HTTP
     "httpRequest",
     "httpRequestStream",
@@ -73,10 +76,13 @@ nodeTest.test("each cancellable blocking name has its cancel entry", () => {
     aiBatchList: "aiCancelRequest",
     aiBatchDownload: "aiCancelRequest",
     aiBatchCancel: "aiCancelRequest",
+    functionCall: "aiCancelRequest",
+    functionStream: "close",
     httpRequestStream: "close",
     shellExecStream: "close",
     shellPtyStream: "shellPtyKill",
     shellTuiKeypressStream: "close",
+    workflowRun: "aiCancelRequest",
   });
 
   for (const [name, spec] of entries) {

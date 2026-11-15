@@ -157,6 +157,51 @@ export interface Handshake {
   readonly streams: readonly string[];
 }
 
+/** The request of `functionCall`. */
+export interface FunctionCallRequest {
+  /** The registered name of the function. */
+  readonly name: string;
+  /** The JSON the function decodes; absent reads as null. */
+  readonly input?: unknown;
+  /** Names the call for `aiCancelRequest`; the library adds one. */
+  readonly requestId?: string;
+}
+
+/**
+ * The answer of `functionCall`: the output, or an `error` with the `errorKind`
+ * of the Go error. The kinds of `functionsfx` are `ValidationError`,
+ * `AbortError` and `AdaptError`; the bridge adds `UnknownFunction`,
+ * `NotAStream`, `StreamOnly` and `TooManyStreams`. An error without a kind came
+ * from the function itself.
+ */
+export interface FunctionCallAnswer extends ErrorAnswer {
+  readonly output?: unknown;
+  readonly errorKind?: string;
+}
+
+/** What `functionList` says about one function. */
+export interface FunctionDescriptor {
+  readonly name: string;
+  readonly description?: string;
+  /** JSON Schema (draft 2020-12) every input is validated against. */
+  readonly inputSchema?: unknown;
+  /** JSON Schema that describes the output. */
+  readonly outputSchema?: unknown;
+  /** The invocation sources: `http`, `cli`, `cron`, `queue`, `tool-call`. */
+  readonly triggers?: readonly string[];
+  /** Whether the function runs in the WASM profile of the bridge. */
+  readonly wasm: boolean;
+  /** Whether the function answers a sequence: open it with `functionStream`. */
+  readonly stream?: boolean;
+  /** The workspace package that owns the function. */
+  readonly owner?: string;
+}
+
+/** The answer of `functionList`. */
+export interface FunctionListAnswer extends ErrorAnswer {
+  readonly functions?: readonly FunctionDescriptor[];
+}
+
 /** A token of the parsing calls. */
 export interface Token {
   readonly kind: string;
@@ -775,11 +820,14 @@ export const BINDINGS = {
   } as Call<BridgeRequest, BridgeAnswer>,
 
   // Workflows (workflowfx)
+  // A run is cancelled the way a function call is, so a step's timeout or
+  // signal stops the Go steps too.
   workflowRun: {
     kind: "call",
     blocking: true,
     wasm: "no",
     async: true,
+    cancel: "aiCancelRequest",
   } as Call<BridgeRequest, BridgeAnswer, true>,
 
   // Crypto (cryptofx)
@@ -1283,6 +1331,39 @@ export const BINDINGS = {
   } as Call<
     BridgeRequest,
     ErrorAnswer & { readonly cols?: number; readonly rows?: number }
+  >,
+
+  // Functions (functionsfx). Two generic names serve every function, so a
+  // function added in Go changes neither this table nor the ABI. The WASM
+  // profile leaves both out: schema validation would add 1.7 MB to it.
+  functionCall: {
+    kind: "call",
+    blocking: true,
+    wasm: "no",
+    async: true,
+    cancel: "aiCancelRequest",
+  } as Call<FunctionCallRequest, FunctionCallAnswer, true>,
+  functionList: {
+    kind: "call",
+    blocking: false,
+    wasm: "no",
+    async: false,
+  } as Call<void, FunctionListAnswer>,
+  // A function that streams (its descriptor says so) is opened here, not called:
+  // each read answers `{ output }` for an item, or `{ error, errorKind }` as the
+  // last item, then null. Closing the stream stops the Go function.
+  functionStream: {
+    kind: "stream",
+    blocking: true,
+    wasm: "no",
+    async: true,
+    cancel: "close",
+  } as Stream<
+    FunctionCallRequest,
+    FunctionCallAnswer & HandleAnswer,
+    FunctionCallAnswer,
+    EmptyAnswer,
+    true
   >,
 };
 

@@ -13,6 +13,7 @@
     "./ffi/bindings": "./ffi/bindings.ts",
     "./ffi/client": "./ffi/client.ts",
     "./ffi/fake": "./ffi/fake.ts",
+    "./ffi/functions": "./ffi/functions.ts",
     "./ffi/request-signals": "./ffi/request-signals.ts",
     "./wasm": "./wasm/mod.ts"
   },
@@ -37,6 +38,10 @@
       "./ffi/fake": {
         "types": "./dist/ffi/fake.d.ts",
         "import": "./dist/ffi/fake.js"
+      },
+      "./ffi/functions": {
+        "types": "./dist/ffi/functions.d.ts",
+        "import": "./dist/ffi/functions.js"
       },
       "./ffi/request-signals": {
         "types": "./dist/ffi/request-signals.d.ts",

@@ -27,11 +27,15 @@ type workflowRunRequest struct {
 	Only         string             `json:"only,omitempty"`
 	// Manifest is the text of a .eser/manifest.yml; when set, its workflows
 	// (in the manifest's own step format) replace Workflows.
-	Manifest  string   `json:"manifest,omitempty"`
-	Args      []string `json:"args,omitempty"`
-	TimeoutMs int      `json:"timeoutMs,omitempty"`
-	Fix       bool     `json:"fix"`
-	DryRun    bool     `json:"dryRun,omitempty"`
+	Manifest string   `json:"manifest,omitempty"`
+	Args     []string `json:"args,omitempty"`
+	// RequestID names the run for aiCancelRequest, which the library sends
+	// when the caller's AbortSignal fires; the run's context then ends and its
+	// running step is stopped. Empty means the run cannot be cancelled.
+	RequestID string `json:"requestId,omitempty"`
+	TimeoutMs int    `json:"timeoutMs,omitempty"`
+	Fix       bool   `json:"fix"`
+	DryRun    bool   `json:"dryRun,omitempty"`
 }
 
 type workflowDefInput struct {
@@ -174,18 +178,25 @@ func bridgeWorkflowRun(requestJSON string) string {
 		DefaultTimeout: defaultTimeout,
 	}
 
+	ctx, done, proceed := beginCancellable(req.RequestID)
+	defer done()
+
+	if !proceed {
+		return marshalResponse(workflowRunResponse{Error: "workflow run cancelled: " + context.Canceled.Error()}) //nolint:exhaustruct
+	}
+
 	var results []*workflowfx.WorkflowResult
 
 	if req.WorkflowID != "" {
 		cfg := &workflowfx.WorkflowsConfig{Workflows: defs} //nolint:exhaustruct
-		r, err := workflowfx.RunWorkflowWithConfig(context.Background(), req.WorkflowID, cfg, registry, runOpts)
+		r, err := workflowfx.RunWorkflowWithConfig(ctx, req.WorkflowID, cfg, registry, runOpts)
 		if err != nil {
 			return marshalResponse(workflowRunResponse{Error: err.Error()}) //nolint:exhaustruct
 		}
 		results = []*workflowfx.WorkflowResult{r}
 	} else {
 		var err error
-		results, err = workflowfx.RunByEvent(context.Background(), req.Event, defs, registry, runOpts)
+		results, err = workflowfx.RunByEvent(ctx, req.Event, defs, registry, runOpts)
 		if err != nil {
 			return marshalResponse(workflowRunResponse{Error: err.Error()}) //nolint:exhaustruct
 		}

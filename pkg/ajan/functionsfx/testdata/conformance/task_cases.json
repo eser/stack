@@ -1,0 +1,309 @@
+{
+  "validate": [
+    {
+      "name": "a value that passes the predicate is the output",
+      "predicate": "contains-at",
+      "message": "Invalid email address",
+      "input": "ada@example.com",
+      "want": { "ok": "ada@example.com" }
+    },
+    {
+      "name": "a value that fails it is a ValidationError with the message",
+      "predicate": "contains-at",
+      "message": "Invalid email address",
+      "input": "nope",
+      "want": { "error": { "kind": "ValidationError", "message": "Invalid email address" } }
+    }
+  ],
+  "map": [
+    {
+      "name": "the function transforms the value",
+      "task": { "ok": 21 },
+      "want": { "ok": 42 },
+      "mapped": true
+    },
+    {
+      "name": "a failure skips the function",
+      "task": { "error": { "kind": "ValidationError", "message": "bad" } },
+      "want": { "error": { "kind": "ValidationError", "message": "bad" } },
+      "mapped": false
+    }
+  ],
+  "then": [
+    {
+      "name": "the next task takes the value of the first",
+      "first": { "ok": 1 },
+      "next": "add-ten",
+      "want": { "ok": 11 },
+      "ranNext": true
+    },
+    {
+      "name": "a failure of the first skips the next task",
+      "first": { "error": { "kind": "AbortError", "message": "stop" } },
+      "next": "add-ten",
+      "want": { "error": { "kind": "AbortError", "message": "stop" } },
+      "ranNext": false
+    },
+    {
+      "name": "a failure of the next task is the answer",
+      "first": { "ok": 1 },
+      "next": "too-big",
+      "want": { "error": { "kind": "ValidationError", "message": "too big" } },
+      "ranNext": true
+    }
+  ],
+  "all": [
+    {
+      "name": "collects the values in order",
+      "tasks": [{ "ok": 1 }, { "ok": 2 }, { "ok": 3 }],
+      "want": { "ok": [1, 2, 3] },
+      "ran": [0, 1, 2]
+    },
+    {
+      "name": "stops at the first failure and runs no later task",
+      "tasks": [{ "ok": 1 }, { "error": { "kind": "ValidationError", "message": "bad" } }, { "ok": 3 }],
+      "want": { "error": { "kind": "ValidationError", "message": "bad" } },
+      "ran": [0, 1]
+    },
+    {
+      "name": "no task is an empty list",
+      "tasks": [],
+      "want": { "ok": [] },
+      "ran": []
+    }
+  ],
+  "allPar": [
+    {
+      "name": "collects the values in the order of the tasks",
+      "tasks": [{ "ok": "a" }, { "ok": "b" }, { "ok": "c" }],
+      "want": { "ok": ["a", "b", "c"] }
+    },
+    {
+      "name": "one failure fails the whole",
+      "tasks": [{ "ok": 1 }, { "error": { "kind": "AbortError", "message": "stop" } }, { "ok": 3 }],
+      "want": { "error": { "kind": "AbortError", "message": "stop" } }
+    },
+    {
+      "name": "no task is an empty list",
+      "tasks": [],
+      "want": { "ok": [] }
+    }
+  ],
+  "retry": [
+    {
+      "name": "the first success is the answer and nothing waits",
+      "attempts": 3,
+      "delayMs": 5,
+      "failures": 0,
+      "want": { "ok": "done" },
+      "calls": 1,
+      "delays": []
+    },
+    {
+      "name": "waits between the failures",
+      "attempts": 3,
+      "delayMs": 5,
+      "failures": 2,
+      "want": { "ok": "done" },
+      "calls": 3,
+      "delays": [5, 5]
+    },
+    {
+      "name": "answers the last failure when every attempt failed",
+      "attempts": 2,
+      "delayMs": 7,
+      "failures": 5,
+      "want": { "error": { "kind": "", "message": "flaky 2" } },
+      "calls": 2,
+      "delays": [7]
+    },
+    {
+      "name": "a delay of zero is no wait",
+      "attempts": 3,
+      "delayMs": 0,
+      "failures": 2,
+      "want": { "ok": "done" },
+      "calls": 3,
+      "delays": []
+    },
+    {
+      "name": "no attempt is an error",
+      "attempts": 0,
+      "delayMs": 5,
+      "failures": 0,
+      "want": { "error": { "kind": "", "message": "No attempts made" } },
+      "calls": 0,
+      "delays": []
+    }
+  ],
+  "retryWithBackoff": [
+    {
+      "name": "the wait doubles after each failure",
+      "backoff": { "maxAttempts": 4, "initialDelay": 100, "factor": 2 },
+      "failures": 3,
+      "want": { "ok": "done" },
+      "calls": 4,
+      "delays": [100, 200, 400]
+    },
+    {
+      "name": "the wait is capped by the maximum",
+      "backoff": { "maxAttempts": 5, "initialDelay": 100, "maxDelay": 250, "factor": 2 },
+      "failures": 4,
+      "want": { "ok": "done" },
+      "calls": 5,
+      "delays": [100, 200, 250, 250]
+    },
+    {
+      "name": "a first wait above the maximum: TypeScript waits it whole and Go caps it",
+      "backoff": { "maxAttempts": 3, "initialDelay": 500, "maxDelay": 200, "factor": 2 },
+      "failures": 2,
+      "want": { "ok": "done" },
+      "calls": 3,
+      "delaysByLanguage": { "ts": [500, 200], "go": [200, 200] }
+    },
+    {
+      "name": "the factor is 2 when it is left out",
+      "backoff": { "maxAttempts": 3, "initialDelay": 10 },
+      "failures": 2,
+      "want": { "ok": "done" },
+      "calls": 3,
+      "delays": [10, 20]
+    },
+    {
+      "name": "answers the last failure after the last attempt",
+      "backoff": { "maxAttempts": 3, "initialDelay": 10, "factor": 3 },
+      "failures": 9,
+      "want": { "error": { "kind": "", "message": "flaky 3" } },
+      "calls": 3,
+      "delays": [10, 30]
+    },
+    {
+      "name": "one attempt never waits",
+      "backoff": { "maxAttempts": 1, "initialDelay": 10 },
+      "failures": 1,
+      "want": { "error": { "kind": "", "message": "flaky 1" } },
+      "calls": 1,
+      "delays": []
+    },
+    {
+      "name": "fewer than one attempt is an error",
+      "backoff": { "maxAttempts": -1, "initialDelay": 10 },
+      "failures": 0,
+      "want": { "error": { "kind": "", "message": "No attempts made" } },
+      "calls": 0,
+      "delays": []
+    }
+  ],
+  "scope": [
+    {
+      "name": "finalizers run the last added first",
+      "finalizers": [{ "name": "a" }, { "name": "b" }, { "name": "c" }],
+      "want": { "order": ["c", "b", "a"], "closeFails": false }
+    },
+    {
+      "name": "a failing finalizer does not stop the others",
+      "finalizers": [{ "name": "a" }, { "name": "b", "fails": true }, { "name": "c" }],
+      "want": { "order": ["c", "b", "a"], "closeFails": true }
+    },
+    {
+      "name": "close runs the finalizers once",
+      "finalizers": [{ "name": "a" }],
+      "closeTwice": true,
+      "want": { "order": ["a"], "closeFails": false }
+    },
+    {
+      "name": "a finalizer added after close is refused",
+      "finalizers": [{ "name": "a" }],
+      "addAfterClose": true,
+      "want": { "order": ["a"], "closeFails": false, "addAfterCloseFails": true }
+    }
+  ],
+  "bracket": [
+    {
+      "name": "the release runs after the use",
+      "variant": "bracket",
+      "acquire": "ok",
+      "use": "ok",
+      "release": "ok",
+      "want": { "outcome": { "ok": "used" }, "events": ["acquire", "use", "release"] }
+    },
+    {
+      "name": "the release runs when the use fails",
+      "variant": "bracket",
+      "acquire": "ok",
+      "use": "fail",
+      "release": "ok",
+      "want": {
+        "outcome": { "error": { "kind": "ValidationError", "message": "use failed" } },
+        "events": ["acquire", "use", "release"]
+      }
+    },
+    {
+      "name": "a failed acquire runs neither the use nor the release",
+      "variant": "bracket",
+      "acquire": "fail",
+      "use": "ok",
+      "release": "ok",
+      "want": {
+        "outcome": { "error": { "kind": "ValidationError", "message": "acquire failed" } },
+        "events": ["acquire"]
+      }
+    },
+    {
+      "name": "a good release leaves the result of the use",
+      "variant": "withReleaseError",
+      "acquire": "ok",
+      "use": "ok",
+      "release": "ok",
+      "want": { "outcome": { "ok": "used" }, "events": ["acquire", "use", "release"] }
+    },
+    {
+      "name": "a failed release is the answer after a good use",
+      "variant": "withReleaseError",
+      "acquire": "ok",
+      "use": "ok",
+      "release": "fail",
+      "want": {
+        "outcome": { "error": { "kind": "ValidationError", "message": "release failed" } },
+        "events": ["acquire", "use", "release"]
+      }
+    },
+    {
+      "name": "a failed release wins over a failed use",
+      "variant": "withReleaseError",
+      "acquire": "ok",
+      "use": "fail",
+      "release": "fail",
+      "want": {
+        "outcome": { "error": { "kind": "ValidationError", "message": "release failed" } },
+        "events": ["acquire", "use", "release"]
+      }
+    },
+    {
+      "name": "a failed use stays the answer when the release is good",
+      "variant": "withReleaseError",
+      "acquire": "ok",
+      "use": "fail",
+      "release": "ok",
+      "want": {
+        "outcome": { "error": { "kind": "ValidationError", "message": "use failed" } },
+        "events": ["acquire", "use", "release"]
+      }
+    }
+  ],
+  "ensure": [
+    {
+      "name": "the finalizer runs after a success",
+      "task": { "ok": 1 },
+      "want": { "outcome": { "ok": 1 }, "events": ["task", "finalizer"] }
+    },
+    {
+      "name": "the finalizer runs after a failure",
+      "task": { "error": { "kind": "ValidationError", "message": "bad" } },
+      "want": {
+        "outcome": { "error": { "kind": "ValidationError", "message": "bad" } },
+        "events": ["task", "finalizer"]
+      }
+    }
+  ]
+}

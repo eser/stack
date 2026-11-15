@@ -1,0 +1,137 @@
+{
+  "pipeline": [
+    {
+      "name": "run collects what the chain emits, in order",
+      "middleware": [[{ "emit": "a" }, { "next": true }], [{ "emit": "b" }]],
+      "method": "run",
+      "want": { "ok": ["a", "b"] }
+    },
+    {
+      "name": "a middleware that delegates first emits its own after the rest",
+      "middleware": [[{ "next": true }, { "emit": "after" }], [{ "emit": "inner" }]],
+      "method": "run",
+      "want": { "ok": ["inner", "after"] }
+    },
+    {
+      "name": "without next the rest of the chain does not run",
+      "middleware": [[{ "emit": "only" }], [{ "emit": "never" }]],
+      "method": "run",
+      "want": { "ok": ["only"] }
+    },
+    {
+      "name": "a chain that emits nothing runs to an empty list",
+      "middleware": [[]],
+      "method": "run",
+      "want": { "ok": [] }
+    },
+    {
+      "name": "run stops at the first failure",
+      "middleware": [[{ "emit": "a" }, { "fail": { "kind": "ValidationError", "message": "bad" } }, { "emit": "c" }]],
+      "method": "run",
+      "want": { "error": { "kind": "ValidationError", "message": "bad" } }
+    },
+    {
+      "name": "iterate emits every item, failures included",
+      "middleware": [[{ "emit": "a" }, { "fail": { "kind": "ValidationError", "message": "bad" } }, { "emit": "c" }]],
+      "method": "iterate",
+      "want": {
+        "items": [
+          { "ok": "a" },
+          { "error": { "kind": "ValidationError", "message": "bad" } },
+          { "ok": "c" }
+        ]
+      }
+    },
+    {
+      "name": "runFirst answers the first item",
+      "middleware": [[{ "emit": "a" }, { "emit": "b" }]],
+      "method": "runFirst",
+      "want": { "ok": "a" }
+    },
+    {
+      "name": "runFirst answers a failure that comes first",
+      "middleware": [[{ "fail": { "kind": "AbortError", "message": "stop" } }, { "emit": "b" }]],
+      "method": "runFirst",
+      "want": { "error": { "kind": "AbortError", "message": "stop" } }
+    },
+    {
+      "name": "runLast answers the last value",
+      "middleware": [[{ "emit": "a" }, { "emit": "b" }, { "emit": "c" }]],
+      "method": "runLast",
+      "want": { "ok": "c" }
+    },
+    {
+      "name": "runLast answers a failure instead of the last value",
+      "middleware": [[{ "emit": "a" }, { "fail": { "kind": "AbortError", "message": "stop" } }, { "emit": "c" }]],
+      "method": "runLast",
+      "want": { "error": { "kind": "AbortError", "message": "stop" } }
+    },
+    {
+      "name": "runFirst of a chain that emits nothing is an error",
+      "middleware": [[]],
+      "method": "runFirst",
+      "want": { "error": { "kind": "", "message": "Pipeline produced no results" } }
+    },
+    {
+      "name": "runLast of a chain that emits nothing is an error",
+      "middleware": [[]],
+      "method": "runLast",
+      "want": { "error": { "kind": "", "message": "Pipeline produced no results" } }
+    },
+    {
+      "name": "mapError changes a failure once, though it passes up through next",
+      "middleware": [[{ "next": true }], [{ "next": true }], [{ "fail": { "kind": "ValidationError", "message": "bad" } }]],
+      "mapError": "to-abort",
+      "method": "run",
+      "want": { "error": { "kind": "AbortError", "message": "mapped: bad" } }
+    },
+    {
+      "name": "mapError leaves values alone",
+      "middleware": [[{ "emit": "a" }]],
+      "mapError": "to-abort",
+      "method": "run",
+      "want": { "ok": ["a"] }
+    },
+    {
+      "name": "recover turns each failure into a value, once",
+      "middleware": [[{ "emit": "a" }, { "next": true }], [{ "fail": { "kind": "ValidationError", "message": "bad" } }]],
+      "recover": "fallback",
+      "method": "run",
+      "want": { "ok": ["a", "fallback"] }
+    },
+    {
+      "name": "recover wins over mapError",
+      "middleware": [[{ "fail": { "kind": "ValidationError", "message": "bad" } }]],
+      "mapError": "to-abort",
+      "recover": "fallback",
+      "method": "run",
+      "want": { "ok": ["fallback"] }
+    },
+    {
+      "name": "the state is shared along a run and starts empty in the next",
+      "middleware": [[{ "emitState": "k" }, { "setState": { "key": "k", "value": 1 } }, { "emitState": "k" }]],
+      "method": "run",
+      "runs": 2,
+      "want": { "ok": [null, 1] }
+    },
+    {
+      "name": "a later middleware reads the state an earlier one wrote",
+      "middleware": [[{ "setState": { "key": "k", "value": "from-first" } }, { "next": true }], [{ "emitState": "k" }]],
+      "method": "run",
+      "want": { "ok": ["from-first"] }
+    },
+    {
+      "name": "the arguments reach every middleware",
+      "middleware": [[{ "emitArg": 0 }, { "next": true }], [{ "emitArg": 0 }]],
+      "args": ["x"],
+      "method": "run",
+      "want": { "ok": ["x", "x"] }
+    },
+    {
+      "name": "asking for next twice is an error",
+      "middleware": [[{ "next": true }, { "next": true }], [{ "emit": "a" }]],
+      "method": "run",
+      "want": { "error": { "kind": "", "message": "next() called multiple times in same middleware" } }
+    }
+  ]
+}

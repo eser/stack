@@ -1,0 +1,72 @@
+{
+  "bind": [
+    {
+      "name": "an adapted event reaches the handler",
+      "handler": "greet",
+      "adapter": "http-query-name",
+      "event": { "method": "GET", "path": "/greet", "headers": {}, "query": { "name": "Ada" }, "body": null },
+      "want": { "ok": "Hello, Ada" }
+    },
+    {
+      "name": "a missing query value takes the default of the adapter",
+      "handler": "greet",
+      "adapter": "http-query-name",
+      "event": { "method": "GET", "path": "/greet", "headers": {}, "query": {}, "body": null },
+      "want": { "ok": "Hello, world" }
+    },
+    {
+      "name": "an adapter failure is an AdaptError",
+      "handler": "greet",
+      "adapter": "http-post-body",
+      "event": { "method": "GET", "path": "/greet", "headers": {}, "query": {}, "body": null },
+      "want": { "error": { "kind": "AdaptError", "message": "Method not allowed" } }
+    },
+    {
+      "name": "a handler success passes through the identity adapter",
+      "handler": "require-email",
+      "adapter": "identity",
+      "event": "ada@example.com",
+      "want": { "ok": "ada@example.com" }
+    },
+    {
+      "name": "a handler ValidationError keeps its kind and message",
+      "handler": "require-email",
+      "adapter": "identity",
+      "event": "not-an-email",
+      "want": { "error": { "kind": "ValidationError", "message": "Invalid email address" } }
+    },
+    {
+      "name": "a handler AbortError keeps its kind and message",
+      "handler": "always-abort",
+      "adapter": "identity",
+      "event": null,
+      "want": { "error": { "kind": "AbortError", "message": "Operation aborted" } }
+    }
+  ],
+  "trigger": [
+    {
+      "name": "an output maps to a 200 response",
+      "handler": "greet",
+      "adapter": "http-query-name",
+      "mapper": "http-response",
+      "event": { "method": "GET", "path": "/greet", "headers": {}, "query": { "name": "Ada" }, "body": null },
+      "want": { "status": 200, "headers": {}, "body": "Hello, Ada" }
+    },
+    {
+      "name": "an adapter failure maps to a 400 response",
+      "handler": "greet",
+      "adapter": "http-post-body",
+      "mapper": "http-response",
+      "event": { "method": "GET", "path": "/greet", "headers": {}, "query": {}, "body": null },
+      "want": { "status": 400, "headers": {}, "body": "Method not allowed" }
+    },
+    {
+      "name": "a handler failure maps to a 500 response",
+      "handler": "require-email",
+      "adapter": "http-post-body",
+      "mapper": "http-response",
+      "event": { "method": "POST", "path": "/signup", "headers": {}, "query": {}, "body": "not-an-email" },
+      "want": { "status": 500, "headers": {}, "body": "Invalid email address" }
+    }
+  ]
+}

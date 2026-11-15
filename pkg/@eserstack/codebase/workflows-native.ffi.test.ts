@@ -293,9 +293,8 @@ nodeTest.test(
         break;
       }
 
-      // The close waited for the run, so nothing starts after the loop.
-      await new Promise((resolve) => setTimeout(resolve, 300));
-
+      // Leaving the loop closes the stream, and the close returns once the Go
+      // run is over, so the file says whether the second step ever started.
       assert.assertEquals(seen, 1);
       assert.assertEquals(
         await runtime.fs.exists(runtime.path.join(root, "second-ran")),

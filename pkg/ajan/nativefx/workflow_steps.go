@@ -131,6 +131,9 @@ func streamWorkflowSteps(
 			defer cancel()
 
 			steps := make(chan WorkflowStep)
+			// resume lets the run go on after a step: the next step starts only
+			// once the reader took this one and asked for more.
+			resume := make(chan struct{})
 			finished := make(chan error, 1)
 
 			options := &workflowfx.RunOptions{ //nolint:exhaustruct
@@ -144,6 +147,12 @@ func streamWorkflowSteps(
 				OnStepEnd: func(_ string, result workflowfx.StepResult) {
 					select {
 					case steps <- stepOf(&result):
+					case <-runCtx.Done():
+						return
+					}
+
+					select {
+					case <-resume:
 					case <-runCtx.Done():
 					}
 				},
@@ -174,6 +183,11 @@ func streamWorkflowSteps(
 					}
 
 					return
+				}
+
+				select {
+				case resume <- struct{}{}:
+				case <-runCtx.Done():
 				}
 			}
 

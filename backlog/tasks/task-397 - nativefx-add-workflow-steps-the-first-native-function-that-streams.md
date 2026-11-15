@@ -4,7 +4,7 @@ title: 'nativefx: add workflow-steps, the first native function that streams'
 status: Done
 assignee: []
 created_date: '2026-11-14 05:21'
-updated_date: '2026-11-14 05:27'
+updated_date: '2026-11-15 23:40'
 labels:
   - go
   - bridge
@@ -38,4 +38,6 @@ Add the function workflow-steps to the native catalog (pkg/ajan/nativefx, owner 
 
 <!-- SECTION:NOTES:BEGIN -->
 pkg/ajan/nativefx/workflow_steps.go: WorkflowStepsInput (manifest text, workflow id, root, only, args, changedFiles, timeoutMs, fix, dryRun), WorkflowStep (name, passed, durationMs, issues, mutations, stats) and workflowStepsFunction, registered by nativefx.Register with owner @eserstack/workflows. The run goes in its own goroutine with an unbuffered channel fed by OnStepEnd, so a slow reader slows the run; a stopped reader or an ended context cancels it and the stream waits for it to close the channel. A panic in the run is caught in that goroutine and ends the stream as ErrWorkflowPanic. A failed step is an item and the run goes on: the engine does not stop at a failed step (my first test assumed it did; the engine stops only on an error). Mutations are reported, not applied. The tool set is the shell tool and RegisterManifestTools, the same as bridge_workflow.go, kept as a private copy in nativefx. Types: pkg/@eserstack/workflows/native-functions.ts generated, export added to its package.json (exports and publishConfig). cmd/eser native-types test env now creates both owner packages. Tests: 8 Go tests (-race, 5 runs) and 5 on the real library in codebase/workflows-native.ffi.test.ts (steps in order, validate-eof issue, early stop leaves no later step, ValidationError, AbortError at 300 ms on sleep 30). validators-native.ffi.test.ts said no function streams; it now says workflow-steps is the only one. Not covered: the WASM profile (functions are native only; size unchanged at 7906884). Full gate: 36 passed, exit 0, through the pnpm exec shim (no pnpm in this shell); pinned golangci-lint clean on both modules.
+
+Fourth review point, from the same FFI run (see TASK-396): `OnStepEnd` handed the step to the stream loop and returned, so the run started the next step while the reader still held the last one. It now waits on `resume`, which the loop sends after `yield` returns true, or on the end of the run's context (pkg/ajan/nativefx/workflow_steps.go). The tests that check that a reader that stops stops the run had a sleep before their check; the check now comes after the loop, which returns only once the run is over (`TestStoppingTheReaderStopsTheRun` and the ffi test), so they are ordered rather than timed.
 <!-- SECTION:NOTES:END -->

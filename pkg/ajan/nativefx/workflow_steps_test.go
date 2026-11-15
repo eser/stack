@@ -270,9 +270,8 @@ func TestStoppingTheReaderStopsTheRun(t *testing.T) {
 		break
 	}
 
-	// The stream waited for the run, so nothing starts after the loop returns.
-	time.Sleep(200 * time.Millisecond)
-
+	// Breaking the loop returns only once the run is over, so the marker says
+	// whether the second step ever started.
 	if _, err := os.Stat(marker); err == nil {
 		t.Error("a step ran after the reader stopped")
 	}

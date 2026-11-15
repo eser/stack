@@ -1,10 +1,10 @@
 ---
 id: TASK-384
 title: 'security: close the open CodeQL alerts before 5.0.0'
-status: In Progress
+status: Done
 assignee: []
 created_date: '2026-11-10 09:00'
-updated_date: '2026-11-10'
+updated_date: '2026-11-15'
 labels:
   - security
   - bug
@@ -41,7 +41,7 @@ The task also covers govulncheck on both Go modules and the gosec rules of the p
 - [x] #5 The CodeQL CLI reports none of the alerts on the changed tree; no alert is dismissed on GitHub
 - [x] #6 govulncheck on both Go modules and the gosec rules of the precommit lint report no finding in called or linted code
 - [x] #7 `pnpm ok` passes
-- [ ] #8 CodeQL reports no open alert on the next main run
+- [x] #8 CodeQL reports no open alert on the next main run
 <!-- AC:END -->
 
 ## Implementation Notes
@@ -70,4 +70,6 @@ CodeQL (AC5): CodeQL CLI 2.27.4 with the go-code-scanning and javascript-code-sc
 govulncheck (`pnpm cli go-vuln`, AC6): both modules report 0 vulnerabilities in called code and the one module-level finding not called that TASK-383 recorded (GO-2026-5932, `golang.org/x/crypto/openpgp`). The precommit golangci-lint run, gosec included, reports no issue in either module. No dependency, go.mod, package.json or pnpm-lock.yaml changed.
 
 `pnpm ok` passes (AC7). AC8 needs the owner's push of these changes; the CodeQL workflow runs on push to main.
+
+AC8: the CodeQL runs of main at 9fc169ac, 4fe2c72c and ba2cd280 passed, and code scanning lists no open alert on main.
 <!-- SECTION:NOTES:END -->

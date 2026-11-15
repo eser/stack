@@ -1,10 +1,10 @@
 ---
 id: TASK-385
 title: 'ci: fix the first main run failures before 5.0.0'
-status: In Progress
+status: Done
 assignee: []
 created_date: '2026-11-10 09:00'
-updated_date: '2026-11-14'
+updated_date: '2026-11-15'
 labels:
   - ci
   - bug
@@ -36,7 +36,7 @@ Mux Sessions (no JS runtime): cancelled by its 10 minute job timeout, which equa
 - [x] #4 The recovered `index out of range [3]` panic in the Windows log is traced to its test
 - [x] #5 A test written first hangs on the mux server drain while a pane floods; the fix is in muxfx, and the commands of the Mux Sessions job, the `-race` run included, pass in a linux/arm64 container
 - [x] #6 `pnpm ok` passes
-- [ ] #7 The Integrity Pipeline run of main after the push is green
+- [x] #7 The Integrity Pipeline run of main after the push is green
 <!-- AC:END -->
 
 ## Implementation Notes
@@ -59,4 +59,6 @@ Second main run, at dc3c105e after the history was made linear: Validate failed 
 Third main run, at 9fc169ac: the muxfx test passed and Validate failed in `Check Go vulnerabilities`, GO-2026-6859 in net/http of go1.26.10, fixed in go1.26.11 and reached from httpfx, noskillsfx, noskillsserverfx and the other HTTP callers. Both modules now pin `toolchain go1.26.11` (go.mod:7, pkg/@eserstack/ajan/go.mod:7), and govulncheck reports no called vulnerability in either. It still lists GO-2026-5932 in golang.org/x/crypto v0.58.0 as required but not called; its fix is only in a pseudo-version, so the module stays on the latest release.
 
 Fourth main run, at 4fe2c72c: Validate passed, so the jobs behind it ran for the first time on main. The laroux Smoke Test (both platforms) and Release Preflight failed in `laroux-app`: `laroux dev` printed `Local: http://localhost:<port>` and `http://127.0.0.1:<port>/` gave no answer for 120 s (etc/scripts/preflight-laroux-app.ts:613). Reproduced on macOS: the dev server listened on `[::1]` only. Root cause: the laroux default host is `localhost` (pkg/@eserstack/laroux/config/defaults.ts:30), Node binds a host name to its first address, and Node 26 resolves `localhost` to `::1` first on macOS and in a Debian container alike. Fix in the Node adapter of `runtime.http` (pkg/@eserstack/standards/cross-runtime/adapters/node-http.ts), as the owner chose over a 127.0.0.1 default: a server on `localhost` also listens on the other loopback address at the same port, through a `net.Server` that hands its connections to the HTTP server, so stopping, idle connections and WebSockets stay in one place. A host without that address family keeps one listener; a port another process holds there rejects `serve`. Three tests written first (node-http.test.ts, "Node adapter on localhost") failed with `127.0.0.1` refused and pass now; the adapter suite passes, and the laroux app preflight passes locally.
+
+AC7: the Integrity Pipeline run of main at ba2cd280 is green, Release Preflight and the laroux, cross-runtime, node:ffi, Windows and Mux Sessions jobs included; the jobs it skipped run only for a release tag. FFI and Workers and CodeQL passed on the same commit.
 <!-- SECTION:NOTES:END -->

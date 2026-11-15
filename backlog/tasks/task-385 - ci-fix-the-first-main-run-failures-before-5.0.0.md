@@ -4,7 +4,7 @@ title: 'ci: fix the first main run failures before 5.0.0'
 status: Done
 assignee: []
 created_date: '2026-11-10 09:00'
-updated_date: '2026-11-15'
+updated_date: '2026-11-15 23:50'
 labels:
   - ci
   - bug
@@ -61,4 +61,6 @@ Third main run, at 9fc169ac: the muxfx test passed and Validate failed in `Check
 Fourth main run, at 4fe2c72c: Validate passed, so the jobs behind it ran for the first time on main. The laroux Smoke Test (both platforms) and Release Preflight failed in `laroux-app`: `laroux dev` printed `Local: http://localhost:<port>` and `http://127.0.0.1:<port>/` gave no answer for 120 s (etc/scripts/preflight-laroux-app.ts:613). Reproduced on macOS: the dev server listened on `[::1]` only. Root cause: the laroux default host is `localhost` (pkg/@eserstack/laroux/config/defaults.ts:30), Node binds a host name to its first address, and Node 26 resolves `localhost` to `::1` first on macOS and in a Debian container alike. Fix in the Node adapter of `runtime.http` (pkg/@eserstack/standards/cross-runtime/adapters/node-http.ts), as the owner chose over a 127.0.0.1 default: a server on `localhost` also listens on the other loopback address at the same port, through a `net.Server` that hands its connections to the HTTP server, so stopping, idle connections and WebSockets stay in one place. A host without that address family keeps one listener; a port another process holds there rejects `serve`. Three tests written first (node-http.test.ts, "Node adapter on localhost") failed with `127.0.0.1` refused and pass now; the adapter suite passes, and the laroux app preflight passes locally.
 
 AC7: the Integrity Pipeline run of main at ba2cd280 is green, Release Preflight and the laroux, cross-runtime, node:ffi, Windows and Mux Sessions jobs included; the jobs it skipped run only for a release tag. FFI and Workers and CodeQL passed on the same commit.
+
+Fifth main run, at 6573569e: the reactor test failed again, `p99 11.8 ms is over 10 ms`, on a runner where the TypeScript suite took 154 s against 30 s on a laptop. A wall-clock bound cannot hold on a shared runner, however loose. The test is now "warm calls run on the one instance the host loaded" (pkg/@eserstack/ajan/wasm/loader-reactor.test.ts): it counts instances through `wrapExports` over 551 calls and checks that every answer matches the first. A new instance is what makes a call cost the load time, so the count checks the intent of AC1 without timing a call.
 <!-- SECTION:NOTES:END -->

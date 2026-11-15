@@ -133,60 +133,29 @@ nodeTest.test(
   },
 );
 
-reactorTest("warm calls cost microseconds on one instance", async () => {
-  const started = performance.now();
-  const host = await reactor.createReactorHost(wasmPath!);
-  const loadMs = performance.now() - started;
+reactorTest("warm calls run on the one instance the host loaded", async () => {
+  // What makes a call slow is a new instance: it costs the load time, tens of
+  // ms, where a warm call costs microseconds. Counting instances checks that
+  // without timing the calls, which a loaded runner cannot keep steady.
+  let instances = 0;
+  const host = await reactor.createReactorHost(wasmPath!, {
+    wrapExports: (exports) => {
+      instances++;
+      return exports;
+    },
+  });
 
   const request = JSON.stringify({ data: { a: 1, b: [1, 2] }, format: "json" });
-  for (let i = 0; i < 50; i++) {
-    host.callEnvelope("formatEncode", request);
+  const first = host.callEnvelope("formatEncode", request);
+  assert.assertEquals(first.ok, true, first.error);
+
+  for (let i = 0; i < 550; i++) {
+    const answer = host.callEnvelope("formatEncode", request);
+    assert.assertEquals(answer.ok, true, answer.error);
+    assert.assertEquals(answer.result, first.result);
   }
 
-  const measure = (): { median: number; p99: number } => {
-    const timings: number[] = [];
-    for (let i = 0; i < 500; i++) {
-      const t0 = performance.now();
-      host.callEnvelope("formatEncode", request);
-      timings.push(performance.now() - t0);
-    }
-    timings.sort((a, b) => a - b);
-    return {
-      median: timings[Math.floor(timings.length / 2)]!,
-      p99: timings[Math.floor(timings.length * 0.99)]!,
-    };
-  };
-
-  // A warm call takes about 25 us on a laptop and about 120 us on a shared CI
-  // runner while the full gate runs other suites in parallel. The bound sits
-  // well above both and still fails a call that got ten times slower; a call
-  // that instantiates the module again costs the load time, tens of ms.
-  const medianBoundMs = 1;
-  const p99BoundMs = 10;
-
-  // A few calls in a round can wait on the scheduler; a real slowdown fails
-  // every round.
-  let round = measure();
-  for (
-    let i = 1;
-    i < 3 && (round.median >= medianBoundMs || round.p99 >= p99BoundMs);
-    i++
-  ) {
-    round = measure();
-  }
-  const { median, p99 } = round;
-
-  // oxlint-disable-next-line no-console
-  console.log(
-    `reactor load ${loadMs.toFixed(1)} ms; formatEncode median ${(
-      median * 1000
-    ).toFixed(1)} us, p99 ${(p99 * 1000).toFixed(1)} us`,
-  );
-  assert.assert(
-    median < medianBoundMs,
-    `median ${median} ms is over ${medianBoundMs} ms`,
-  );
-  assert.assert(p99 < p99BoundMs, `p99 ${p99} ms is over ${p99BoundMs} ms`);
+  assert.assertEquals(instances, 1);
 });
 
 reactorTest(

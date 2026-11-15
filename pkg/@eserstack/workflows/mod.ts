@@ -82,3 +82,32 @@ export {
 
 // Built-in tools
 export { shellTool } from "./shell-tool.ts";
+
+// Tools that run a function as a step: a TypeScript handler or a native one
+export {
+  createHandlerTool,
+  createNativeFunctionTool,
+  createNativeFunctionTools,
+  NATIVE_FUNCTION_TOOL,
+  toolResultOfOutput,
+} from "./function-tools.ts";
+export type {
+  FunctionStepError,
+  NativeCaller,
+  NativeFunctionInfo,
+  StepHandler,
+  ToolOutput,
+} from "./function-tools.ts";
+
+// A tool that runs a workflow on the Go engine as one step
+export {
+  createGoWorkflowTool,
+  GO_WORKFLOW_TOOL,
+  toolResultOfGoWorkflow,
+} from "./go-workflow-tool.ts";
+export type {
+  GoWorkflowAnswer,
+  GoWorkflowRequest,
+  GoWorkflowRunner,
+  GoWorkflowStep,
+} from "./go-workflow-tool.ts";

@@ -61,9 +61,13 @@ const app = cliSupport
     aliases: ["wf"],
     load: async () => {
       const validation = await import("@eserstack/codebase/validation");
+      const nativeTools = await import("./native-tools.ts");
 
       return workflowsModule
-        .createModuleDef(validation.getWorkflowTools())
+        .createModuleDef([
+          ...validation.getWorkflowTools(),
+          ...nativeTools.createNativeTools(),
+        ])
         .toCommand("workflows", config.version);
     },
   })

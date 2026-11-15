@@ -168,6 +168,35 @@ with "Step 'format' (shell) ran past its 120s timeout". With `--dry-run` the
 tool never runs `fixCommand`, which would write files; it runs `command` and
 reports what that finds.
 
+## 🔗 Functions and Go Workflows as Steps
+
+A step can run a function that lives in Go, a TypeScript function, or a whole
+workflow on the Go engine. The tools take the port to the native library as an
+argument, so this package loads no native library until you pass one:
+
+```typescript
+import * as workflows from "@eserstack/workflows/mod";
+
+// A caller reaches the native library; `@eserstack/ajan/ffi/functions` has one.
+const caller: workflows.NativeCaller = () =>
+  Promise.resolve({ ok: true, output: { passed: true } });
+
+const registry = workflows.createRegistry();
+registry.register(workflows.createNativeFunctionTool(caller));
+
+const workflow = workflows
+  .createWorkflow("mixed")
+  .on("check")
+  .step("native-function", { function: "validate-eof" })
+  .build();
+```
+
+`createGoWorkflowTool` runs a manifest workflow on the Go engine, and
+`createHandlerTool` runs a `@eserstack/functions` handler. The eser CLI
+registers `native-function` and `go-workflow` on `eser workflows run`, so the
+steps of a manifest can name them. Go cannot call TypeScript. [WIRING.md](./WIRING.md#tools-that-reach-go-adr-0011) has the
+options, the results and the two ports.
+
 ## 📋 CLI Flags
 
 ```text

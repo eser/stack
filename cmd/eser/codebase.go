@@ -103,6 +103,7 @@ func codebaseCommand(e *env) *clifx.Command {
 			unreleaseCommand(e),
 			versionsCommand(e),
 			changelogCommand(e),
+			nativeTypesCommand(e),
 			ghCommand(e),
 		}, validatorCommands(e)...),
 	}

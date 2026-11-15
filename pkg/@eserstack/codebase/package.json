@@ -13,6 +13,7 @@
     "./module": "./module.ts",
     "./directive-analysis": "./directive-analysis.ts",
     "./git": "./git.ts",
+    "./native-functions": "./native-functions.ts",
     "./package": "./package/mod.ts",
     "./validation": "./validation/mod.ts",
     "./workspace-discovery": "./workspace-discovery.ts",
@@ -75,6 +76,10 @@
       "./git": {
         "types": "./dist/git.d.ts",
         "import": "./dist/git.js"
+      },
+      "./native-functions": {
+        "types": "./dist/native-functions.d.ts",
+        "import": "./dist/native-functions.js"
       },
       "./package": {
         "types": "./dist/package/mod.d.ts",

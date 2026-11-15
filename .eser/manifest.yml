@@ -150,6 +150,9 @@ workflows:
       - validate-naming-and-todos:
           exclude:
             - ".eser/recipes/"
+            # Generated from the descriptions of the Go functions, one of which
+            # is about TODO comments; the Go source is where a name is checked.
+            - "@eserstack/codebase/native-functions.ts"
       - validate-server-loc:
           directory: "pkg/ajan/noskillsserverfx"
       - validate-error-coverage:
@@ -195,6 +198,15 @@ workflows:
           command: node ./etc/scripts/gen-library-manifests.ts --check
           fixCommand: node ./etc/scripts/gen-library-manifests.ts
           timeout: 60
+      # The TypeScript types of the native functions are written from their Go
+      # descriptors into the package that owns each function (ADR 0011), so a
+      # change to a Go function that leaves them behind fails here. The fix
+      # command writes them.
+      - shell:
+          name: native-function-types
+          command: go run ./cmd/eser codebase native-types --check
+          fixCommand: go run ./cmd/eser codebase native-types
+          timeout: 300
 
       # TypeScript checks, on the tools pinned in the root package.json.
       - shell:

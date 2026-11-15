@@ -13,7 +13,8 @@
     "./module": "./module.ts",
     "./loader": "./loader.ts",
     "./run": "./run.ts",
-    "./list": "./list.ts"
+    "./list": "./list.ts",
+    "./native-functions": "./native-functions.ts"
   },
   "publishConfig": {
     "exports": {
@@ -40,6 +41,10 @@
       "./list": {
         "types": "./dist/list.d.ts",
         "import": "./dist/list.js"
+      },
+      "./native-functions": {
+        "types": "./dist/native-functions.d.ts",
+        "import": "./dist/native-functions.js"
       }
     }
   },

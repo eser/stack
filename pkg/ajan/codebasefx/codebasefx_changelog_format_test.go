@@ -118,6 +118,25 @@ func TestGenerateChangelogSection_HeadingFormat(t *testing.T) {
 	}
 }
 
+// A wildcard scope names no package, so the entry carries no scope label;
+// "**" + "*" + "**" would render as a run of asterisks.
+func TestGenerateChangelogSection_WildcardScopeHasNoLabel(t *testing.T) {
+	t.Parallel()
+
+	section := codebasefx.GenerateChangelogSection("1.1.0", []codebasefx.ConventionalCommit{
+		{Type: "feat", Scope: "*", Message: "move the repository to Node"},
+		{Type: "feat", Scope: "cli", Message: "add a flag"},
+	})
+
+	if !strings.Contains(section, "\n- move the repository to Node\n") {
+		t.Errorf("want the wildcard entry without a scope label, got:\n%s", section)
+	}
+
+	if !strings.Contains(section, "\n- **cli**: add a flag\n") {
+		t.Errorf("want the scoped entry to keep its label, got:\n%s", section)
+	}
+}
+
 // ─── InsertIntoChangelog: dedup heading forms ─────────────────────────────────
 
 func TestInsertIntoChangelog_DedupFormats(t *testing.T) {

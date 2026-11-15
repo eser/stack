@@ -199,6 +199,16 @@ nodeTest.test("generateChangelogSection - produces markdown", () => {
   assert.assertStringIncludes(section, "- fix crash");
 });
 
+nodeTest.test("generateChangelogSection - wildcard scope has no label", () => {
+  const commits: ConventionalCommit[] = [
+    { type: "feat", scope: "*", message: "move to Node", hash: "a" },
+  ];
+
+  const section = changelogGen.generateChangelogSection("1.0.0", commits);
+  assert.assertStringIncludes(section, "\n- move to Node");
+  assert.assertEquals(section.includes("**"), false);
+});
+
 nodeTest.test(
   "generateChangelogSection - maintenance section when all skipped",
   () => {

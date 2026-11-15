@@ -93,7 +93,9 @@ func GenerateChangelogSection(version string, commits []ConventionalCommit) stri
 
 			b.WriteString("- ")
 
-			if c.Scope != "" {
+			// The wildcard scope "*" names no package, and "**" + "*" + "**"
+			// would render as a run of asterisks, so it gets no label.
+			if c.Scope != "" && c.Scope != "*" {
 				b.WriteString("**")
 				b.WriteString(c.Scope)
 				b.WriteString("**: ")

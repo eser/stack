@@ -233,7 +233,9 @@ export const groupBySection = (
  * Without scope: "- add login system"
  */
 const formatEntry = (commit: ConventionalCommit): string => {
-  if (commit.scope !== undefined) {
+  // The wildcard scope "*" names no package, and "**" + "*" + "**" would
+  // render as a run of asterisks, so it gets no label.
+  if (commit.scope !== undefined && commit.scope !== "*") {
     return `- **${commit.scope}:** ${commit.message}`;
   }
   return `- ${commit.message}`;

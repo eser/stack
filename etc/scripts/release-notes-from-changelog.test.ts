@@ -99,3 +99,15 @@ nodeTest.test(
     assert.assertEquals(notes.includes("## Unreleased"), false);
   },
 );
+
+// GitHub refuses a release body over 125,000 characters, as the 5.0.0
+// release did with its migration guide.
+nodeTest.test("the release notes fit in a GitHub Release", () => {
+  const guide = "- a migration step that takes a line\n".repeat(4_000);
+  const changelog = `# Changelog\n\n## 5.0.0 - 2026-11-16\n\n### Fixed\n\n- **cli**: repair the thing (abc1234)\n\n### Migration\n\n${guide}`;
+  const notes = notesFor(changelog, "v5.0.0");
+
+  assert.assert(notes.length <= 125_000, `${notes.length} chars`);
+  assert.assertStringIncludes(notes, "- **cli**: repair the thing");
+  assert.assertStringIncludes(notes, "CHANGELOG.md");
+});

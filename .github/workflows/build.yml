@@ -932,6 +932,21 @@ jobs:
           persist-credentials: false
           ref: ${{ inputs.tag && format('refs/tags/{0}', inputs.tag) || github.ref }}
 
+      # The notes script comes from the commit this run's workflow comes from:
+      # the tag itself on a tag push, main on a workflow_dispatch resume. A tag
+      # that reached npm never moves, so a fix to the script reaches a released
+      # tag only this way; CHANGELOG.md and VERSION still come from the tag.
+      - name: Checkout the notes script of this run
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          path: tooling
+          persist-credentials: false
+          sparse-checkout: |
+            etc/scripts/release-notes-from-changelog.ts
+            pkg/@eserstack/codebase/changelog-text.ts
+          sparse-checkout-cone-mode: false
+
       - name: Setup Node.js
         uses: actions/setup-node@v7
         with:
@@ -941,14 +956,16 @@ jobs:
       # registry at release time. It used to install eser@$VERSION from npm into a
       # scratch dir with no lockfile and install scripts enabled, which ran the
       # newest release of every caret-range dependency next to the write token.
-      # The notes now come from the pure CHANGELOG parser in the tag tree
+      # The notes now come from the pure CHANGELOG parser
       # (codebase/changelog-text.ts, the same code `eser codebase gh
       # release-notes` uses), run by a bare node, and gh is called directly.
+      # Notes over GitHub's 125,000-character limit lose their last sections
+      # and link to CHANGELOG.md instead.
       - name: Extract release notes from CHANGELOG
         run: |
           set -euo pipefail
           VERSION=$(cat VERSION)
-          node etc/scripts/release-notes-from-changelog.ts "v$VERSION" "$RUNNER_TEMP/release-notes.md"
+          node tooling/etc/scripts/release-notes-from-changelog.ts "v$VERSION" "$RUNNER_TEMP/release-notes.md" "$GITHUB_REPOSITORY"
 
       # A failing `gh` used to surface only as "exit code 1" from the wrapper, so
       # print the CLI version and what the token can do BEFORE relying on it.

@@ -7,7 +7,10 @@
  * contents: write token, so it imports only the dependency-free parser and
  * Node built-ins. Nothing is installed from a registry.
  *
- * Usage: node etc/scripts/release-notes-from-changelog.ts <tag> <out-file>
+ * Notes longer than a GitHub Release accepts lose their last sections, and a
+ * closing line links to CHANGELOG.md in `<repository>` (default eser/stack).
+ *
+ * Usage: node etc/scripts/release-notes-from-changelog.ts <tag> <out-file> [repository]
  *
  * @module
  */
@@ -20,9 +23,11 @@ import * as fs from "node:fs";
 import * as process from "node:process";
 import * as changelogText from "../../pkg/@eserstack/codebase/changelog-text.ts";
 
-const [rawTag, outFile] = process.argv.slice(2);
+const [rawTag, outFile, repository = "eser/stack"] = process.argv.slice(2);
 if (rawTag === undefined || outFile === undefined) {
-  console.error("usage: release-notes-from-changelog.ts <tag> <out-file>");
+  console.error(
+    "usage: release-notes-from-changelog.ts <tag> <out-file> [repository]",
+  );
   process.exit(2);
 }
 
@@ -36,5 +41,8 @@ if (entry === undefined) {
   process.exit(1);
 }
 
-fs.writeFileSync(outFile, entry.notes);
-console.log(`Wrote ${tag} notes (${entry.notes.length} bytes) to ${outFile}`);
+const notes = changelogText.fitReleaseNotes(entry.notes, repository);
+fs.writeFileSync(outFile, notes);
+console.log(
+  `Wrote ${tag} notes (${notes.length} of ${entry.notes.length} characters) to ${outFile}`,
+);

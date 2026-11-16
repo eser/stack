@@ -114,3 +114,100 @@ export const parseChangelogText = (text: string): ChangelogEntry[] => {
     };
   });
 };
+
+/** The longest release body GitHub accepts, in characters. */
+export const RELEASE_NOTES_LIMIT = 125_000;
+
+/**
+ * The anchor GitHub gives a markdown heading: lower case, punctuation other
+ * than hyphens removed, spaces turned into hyphens.
+ */
+const headingAnchor = (heading: string): string =>
+  heading
+    .replace(/^#+\s*/, "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s-]/gu, "")
+    .replace(/\s/g, "-");
+
+/**
+ * Splits notes into the part before the first `### ` heading and one block
+ * per `### ` section. A `### ` line inside a fenced code block is not a
+ * section.
+ */
+const splitSections = (notes: string): string[] => {
+  const blocks: string[][] = [[]];
+  let fence = false;
+
+  for (const line of notes.split("\n")) {
+    if (/^\s*(```|~~~)/.test(line)) {
+      fence = !fence;
+    }
+
+    if (!fence && line.startsWith("### ")) {
+      blocks.push([]);
+    }
+
+    blocks[blocks.length - 1]!.push(line);
+  }
+
+  return blocks.map((block) => block.join("\n").trimEnd());
+};
+
+/**
+ * Fits release notes into a GitHub Release. Notes within `limit` come back
+ * unchanged. Longer notes lose whole `### ` sections from the end until they
+ * fit, and a closing line names the dropped sections and links to the
+ * version's section of CHANGELOG.md at the tag. When the first section alone
+ * is too long, it is cut at a line.
+ *
+ * @param notes - Notes as parseChangelogText returns them, `## <version>` first
+ * @param repository - The GitHub repository, as `owner/name`
+ * @param limit - The longest body allowed, in characters
+ * @returns Notes no longer than `limit`
+ */
+export const fitReleaseNotes = (
+  notes: string,
+  repository: string,
+  limit: number = RELEASE_NOTES_LIMIT,
+): string => {
+  if (notes.length <= limit) {
+    return notes;
+  }
+
+  const heading = notes.slice(0, notes.indexOf("\n"));
+  const version = heading.replace(/^##\s*/, "").split(/\s/)[0] ?? "";
+  const link = `https://github.com/${repository}/blob/v${version}/CHANGELOG.md#${headingAnchor(heading)}`;
+  const blocks = splitSections(notes);
+  const dropped: string[] = [];
+
+  const closing = (): string => {
+    const names = dropped.length > 0 ? dropped.join(", ") : "The rest";
+    const pronoun = dropped.length > 1 ? "them" : "it";
+
+    return `_${names} did not fit in the GitHub Release; read ${pronoun} in [CHANGELOG.md](${link})._\n`;
+  };
+
+  const render = (kept: readonly string[]): string =>
+    `${kept.join("\n\n")}\n\n${closing()}`;
+
+  while (blocks.length > 1) {
+    const last = blocks.pop()!;
+    dropped.unshift(
+      last
+        .slice(4, last.indexOf("\n") === -1 ? undefined : last.indexOf("\n"))
+        .trim(),
+    );
+
+    if (render(blocks).length <= limit) {
+      return render(blocks);
+    }
+  }
+
+  const lines = blocks[0]!.split("\n");
+  while (lines.length > 1 && render([lines.join("\n")]).length > limit) {
+    lines.pop();
+  }
+
+  return render([lines.join("\n").trimEnd()]);
+};

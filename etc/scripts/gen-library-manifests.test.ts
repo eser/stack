@@ -146,6 +146,11 @@ nodeTest.test("applyLibraryFields: inserts the fields around exports", () => {
   "name": "@eserstack/primitives",
   "version": "4.5.2",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/eser/stack",
+    "directory": "pkg/@eserstack/primitives"
+  },
   "files": [
     "dist/**/*.js",
     "dist/**/*.d.ts",
@@ -181,6 +186,28 @@ nodeTest.test("applyLibraryFields: inserts the fields around exports", () => {
   assert.assertEquals(gen.applyLibraryFields(result, fields), result);
 });
 
+// npm checks a provenance bundle against repository.url, so a library
+// without it fails its publish with a 422.
+nodeTest.test(
+  "applyLibraryFields: writes the repository npm checks provenance against",
+  () => {
+    const text = `{\n  "name": "@eserstack/x",\n  "exports": "./mod.ts"\n}\n`;
+    const manifest = JSON.parse(text) as gen.Manifest;
+    const parsed = JSON.parse(
+      gen.applyLibraryFields(
+        text,
+        gen.libraryFields("pkg/@eserstack/x", manifest),
+      ),
+    ) as Record<string, unknown>;
+
+    assert.assertEquals(parsed["repository"], {
+      type: "git",
+      url: "https://github.com/eser/stack",
+      directory: "pkg/@eserstack/x",
+    });
+  },
+);
+
 nodeTest.test(
   "applyLibraryFields: replaces owned fields, keeps the rest",
   () => {
@@ -207,6 +234,7 @@ nodeTest.test(
 
     assert.assertEquals(Object.keys(parsed), [
       "name",
+      "repository",
       "files",
       "exports",
       "bin",
@@ -232,6 +260,11 @@ nodeTest.test(
     for (const bin of [{ "eser-posts": "./dist/main.js" }, {}]) {
       const text = `{
   "name": "@eserstack/x",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/eser/stack",
+    "directory": "pkg/@eserstack/x"
+  },
   "files": [
     "dist/**/*.js",
     "dist/**/*.d.ts",

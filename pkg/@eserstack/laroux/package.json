@@ -4,6 +4,11 @@
   "description": "Framework-agnostic core utilities for laroux.js",
   "license": "Apache-2.0",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/eser/stack",
+    "directory": "pkg/@eserstack/laroux"
+  },
   "files": [
     "dist/**/*.js",
     "dist/**/*.d.ts",

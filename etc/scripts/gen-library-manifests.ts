@@ -2,8 +2,10 @@
 
 /**
  * Writes the npm build fields of every workspace library: the `build` script,
- * the `files` list and `publishConfig.exports` in its package.json, and the
- * tsconfig.build.json next to it that extends the root one.
+ * the `repository`, the `files` list and `publishConfig.exports` in its
+ * package.json, and the tsconfig.build.json next to it that extends the root
+ * one. npm checks a provenance bundle against `repository.url`, so a library
+ * published without it is rejected.
  *
  * A library is a workspace package that is not private and has `exports`: the
  * TypeScript libraries and tools. The private test seam (test-kit) and the
@@ -16,7 +18,7 @@
  * in place of `exports` when it packs or publishes the package. Node does not
  * strip types under node_modules, so a published library must point at .js.
  *
- * The package.json text is edited in place: only the three fields this script
+ * The package.json text is edited in place: only the four fields this script
  * owns change (and inside `scripts` and `publishConfig`, only `build` and
  * `exports`), the other fields keep their order and text, and new fields go
  * next to `exports`. A `publishConfig.bin` that points a bin at its emitted
@@ -42,6 +44,9 @@ import * as crossRuntime from "../../pkg/@eserstack/standards/cross-runtime/mod.
 const { runtime } = crossRuntime;
 const REPO_ROOT = runtime.path.resolve(import.meta.dirname ?? ".", "..", "..");
 const PACKAGES_DIR = "pkg/@eserstack";
+
+/** The repository npm matches a provenance bundle against. */
+const REPOSITORY_URL = "https://github.com/eser/stack";
 
 /** The root emit config that every package's tsconfig.build.json extends. */
 const ROOT_BUILD_CONFIG = "tsconfig.build.json";
@@ -102,9 +107,17 @@ export type DistConditions = {
   readonly import: string;
 };
 
+/** The `repository` of one library's package.json. */
+export type Repository = {
+  readonly type: "git";
+  readonly url: string;
+  readonly directory: string;
+};
+
 /** The fields this script owns in one library's package.json. */
 export type LibraryFields = {
   readonly build: string;
+  readonly repository: Repository;
   readonly files: readonly string[];
   readonly publishExports: Readonly<Record<string, DistConditions | string>>;
 };
@@ -214,6 +227,7 @@ export const libraryFields = (
   options: LibraryOptions = {},
 ): LibraryFields => ({
   build: buildScript(pkgDir, options.copy),
+  repository: { type: "git", url: REPOSITORY_URL, directory: pkgDir },
   files: filesList(options),
   publishExports: publishExports(manifest.exports, options.sourceExports),
 });
@@ -414,8 +428,8 @@ const DEPENDENCY_FIELDS = [
 ];
 
 /**
- * Applies the fields of one library to its package.json text: `files` before
- * `exports`, `publishConfig` after it, and `scripts` before the dependency
+ * Applies the fields of one library to its package.json text: `repository`
+ * before `files`, `files` before `exports`, `publishConfig` after it, and `scripts` before the dependency
  * fields, unless the field is already there. Inside `scripts` and
  * `publishConfig` only `build` and `exports` change.
  */
@@ -431,6 +445,9 @@ export const applyLibraryFields = (
   };
 
   let result = setMember(text, "files", fields.files, { before: ["exports"] });
+  result = setMember(result, "repository", fields.repository, {
+    before: ["files"],
+  });
   result = setMember(result, "publishConfig", publishConfig, {
     after: ["exports"],
   });

@@ -2,6 +2,11 @@
   "name": "@eserstack/agents",
   "version": "5.0.0",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/eser/stack",
+    "directory": "pkg/@eserstack/agents"
+  },
   "files": [
     "dist/**/*.js",
     "dist/**/*.d.ts",

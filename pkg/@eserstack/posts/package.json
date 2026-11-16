@@ -2,6 +2,11 @@
   "name": "@eserstack/posts",
   "version": "5.0.0",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/eser/stack",
+    "directory": "pkg/@eserstack/posts"
+  },
   "files": [
     "dist/**/*.js",
     "dist/**/*.d.ts",

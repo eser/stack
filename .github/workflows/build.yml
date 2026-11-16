@@ -422,14 +422,27 @@ jobs:
       contents: read
 
     steps:
+      # Only the two version pins: the setup actions read packageManager from
+      # package.json and the Node version from .node-version. Checked out
+      # before any download, since actions/checkout empties a workspace that
+      # is not a repository yet.
+      - name: Checkout the version pins
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag && format('refs/tags/{0}', inputs.tag) || github.ref }}
+          sparse-checkout: |
+            package.json
+            .node-version
+          sparse-checkout-cone-mode: false
+
       - name: Setup pnpm
         # No version: pnpm/action-setup reads packageManager from package.json.
         uses: pnpm/action-setup@v6
 
-      # No `cache: "pnpm"`: this job never checks out the repo -- it installs a
-      # downloaded artifact -- and setup-node resolves the pnpm cache key from
-      # pnpm-lock.yaml in the workspace, so it hard-fails with "Dependencies
-      # lock file is not found" before any test runs.
+      # No `cache: "pnpm"`: this job checks out only the version pins -- it
+      # installs a downloaded artifact -- and setup-node resolves the pnpm
+      # cache key from pnpm-lock.yaml in the workspace, so it hard-fails with
+      # "Dependencies lock file is not found" before any test runs.
       - name: Setup Node.js only
         uses: actions/setup-node@v7
         with:
@@ -1148,6 +1161,19 @@ jobs:
       id-token: write
 
     steps:
+      # Only the two version pins: the setup actions read packageManager from
+      # package.json and the Node version from .node-version. Checked out
+      # before any download, since actions/checkout empties a workspace that
+      # is not a repository yet.
+      - name: Checkout the version pins
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag && format('refs/tags/{0}', inputs.tag) || github.ref }}
+          sparse-checkout: |
+            package.json
+            .node-version
+          sparse-checkout-cone-mode: false
+
       - name: Download ajan npm packages
         uses: actions/download-artifact@v8
         with:
@@ -1159,8 +1185,8 @@ jobs:
         uses: pnpm/action-setup@v6
 
       # No `cache: "pnpm"` -- same reason as npm-consumer-test: this job
-      # publishes prebuilt directories from an artifact and never checks
-      # out the repo, so there is no lockfile for the cache to key on.
+      # publishes prebuilt directories from an artifact and checks out only
+      # the version pins, so there is no lockfile for the cache to key on.
       - name: Setup Node.js
         uses: actions/setup-node@v7
         with:

@@ -2,10 +2,11 @@
 
 Newer standard library features that replace older idioms or third-party
 packages. The module's `go` directive decides what is allowed: these conventions
-target `go 1.26`, so everything below up to Go 1.26 may be used, and nothing
+target `go 1.27`, so everything below up to Go 1.27 may be used, and nothing
 newer until the directive is raised on purpose. Each item was checked against
-the Go 1.26 toolchain. `go fix ./...` (rewritten in Go 1.26) applies many of
-these rewrites automatically; review its diff like any other change.
+the Go 1.27 toolchain. `go fix ./...` (rewritten in Go 1.26) applies many of
+these rewrites automatically; review its diff like any other change, in a
+commit of its own.
 
 ---
 
@@ -61,12 +62,13 @@ Since Go 1.23, a timer or ticker that goes out of scope is collected without
 
 ## JSON: Stay on `encoding/json` for Now
 
-`encoding/json/v2` needs `GOEXPERIMENT=jsonv2` on Go 1.26; without it the
-package does not build. Do not set the experiment in a shared module; use
-`encoding/json` (with `omitzero`, which works there since Go 1.24). Move to v2
-when the module targets a Go release where it is the default, and test real
-payloads first: v2 rejects duplicate object keys and invalid UTF-8 that v1
-accepted.
+Since Go 1.27, `encoding/json` runs on the v2 implementation with the v1
+behavior, and `encoding/json/v2` and `encoding/json/jsontext` build without an
+experiment. Keep using `encoding/json` (with `omitzero`, which works there since
+Go 1.24). Move a package to v2 in a change of its own, and test real payloads
+first: v2 rejects duplicate object keys and invalid UTF-8 that v1 accepted.
+`json.SyntaxError.Offset` now ends after the whole character that failed, so
+step back one rune (`utf8.DecodeLastRune`) to find where it starts.
 
 ---
 
@@ -74,7 +76,8 @@ accepted.
 
 - `go fix ./...` applies the modernizers the toolchain ships; check coverage
   with `go tool fix help`.
-- Use `go doc`; Go 1.26 removed `go tool doc`.
+- Use `go doc`; Go 1.26 removed `go tool doc`. Since Go 1.27 it also reads
+  `pkg@version`.
 - `govulncheck` reports vulnerabilities reachable from the code. Pin it as a
   `tool` in `go.mod`, expose it as a `make vuln` target that scans every module
   (`go tool govulncheck -C <dir> ./...` for a module that cannot resolve the

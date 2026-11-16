@@ -283,10 +283,11 @@ profiled hot path, and leave a comment with the numbers:
   on each previous addition; splitting it into four independent sums lets the
   CPU run them in parallel.
 - **SIMD and assembly.** Rely on the compiler's vectorization and `math/bits`.
-  `simd/archsimd` is a Go 1.26 experiment behind `GOEXPERIMENT=simd`; do not use
-  it here. Hand-written assembly needs an ADR. Pick a CPU-specific path in a
-  package-level variable initializer (`golang.org/x/sys/cpu`), never in
-  `init()`, and keep the portable version tested.
+  `simd` and `simd/archsimd` are Go 1.27 experiments behind
+  `GOEXPERIMENT=simd`; do not use them here. Hand-written assembly needs an ADR.
+  Pick a CPU-specific path in a package-level variable initializer
+  (`golang.org/x/sys/cpu`), never in `init()`, and keep the portable version
+  tested.
 - **`unsafe`.** Only for FFI and layout (data-structures.md).
 
 ### The Scheduler

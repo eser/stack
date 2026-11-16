@@ -55,7 +55,7 @@ type noskillsErrResponse struct {
 // ones the noskills CLI and noskills-server run, so the files they leave and
 // the answers they give are the CLI's. They are not in the WASM profile:
 // the full lifecycle (TASK-258) adds about 1.7 MB to the module, past the
-// 8 MB limit of TASK-272, so on wasip1 the names answer UNSUPPORTED_IN_WASM.
+// 9 MB limit of TASK-272, so on wasip1 the names answer UNSUPPORTED_IN_WASM.
 
 // ---------------------------------------------------------------------------
 // bridgeNoskillsInit: `init --agent` without the tool files

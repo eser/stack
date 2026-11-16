@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/tailscale/hujson"
 )
@@ -34,7 +35,12 @@ func Document(text string) (json.RawMessage, error) {
 
 	var syntaxErr *json.SyntaxError
 	if errors.As(err, &syntaxErr) {
-		offset = max(int(syntaxErr.Offset)-1, 0)
+		// Offset counts the bytes read up to the end of the character that
+		// failed; from Go 1.27 that is the whole character, so a three-byte
+		// byte order mark ends at 3. Step back one character to its start.
+		end := min(max(int(syntaxErr.Offset), 0), len(data))
+		_, size := utf8.DecodeLastRune(data[:end])
+		offset = end - size
 		if strings.Contains(syntaxErr.Error(), "unexpected end of JSON input") {
 			offset = len(data)
 		}

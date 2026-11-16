@@ -12,7 +12,7 @@ Scope: Every Dockerfile and compose file, and any image a CI job runs in
 Rule: Build on Debian, never Alpine. A runtime stage starts from
 `debian:<release>-slim` or the slim Debian tag of a language image
 (`node:24-trixie-slim`). A build stage may use the full Debian tag
-(`golang:1.26-trixie`), since it never ships. A third-party image without a slim
+(`golang:1.27-trixie`), since it never ships. A third-party image without a slim
 variant uses its default Debian tag (`postgres:17`, not `postgres:17-alpine`).
 Name the Debian release in the tag (`trixie-slim`, not `stable-slim` or
 `latest`), so moving to the next release is a reviewed change.
@@ -52,7 +52,7 @@ for an existing server image) stays a single stage.
 Correct:
 
 ```dockerfile
-FROM golang:1.26-trixie AS build
+FROM golang:1.27-trixie AS build
 WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
@@ -71,7 +71,7 @@ ENTRYPOINT ["/usr/local/bin/server"]
 Incorrect:
 
 ```dockerfile
-FROM golang:1.26-trixie
+FROM golang:1.27-trixie
 WORKDIR /src
 COPY . .
 RUN go build -o /usr/local/bin/server ./cmd/server

@@ -1,10 +1,10 @@
 module github.com/eser/stack
 
-go 1.26.7
+go 1.27.0
 
 // Pinned so CI (go-version-file: go.mod) and every developer build with the
 // same patch release instead of whatever "stable" resolves to that day.
-toolchain go1.26.11
+toolchain go1.27.4
 
 tool (
 	github.com/golangci/golangci-lint/v2/cmd/golangci-lint

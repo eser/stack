@@ -126,3 +126,31 @@ func TestParseBytes_RejectsInvalidInput(t *testing.T) {
 		})
 	}
 }
+
+// The column is the first byte of the character that failed, however many
+// bytes it has.
+func TestDocument_ErrorColumnIsTheStartOfTheCharacter(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		text string
+		want string
+	}{
+		{name: "an ASCII character", text: `{"a": x}`, want: "line 1, column 7"},
+		{name: "a two-byte character", text: `{"a": é}`, want: "line 1, column 7"},
+		{name: "a byte order mark", text: "\ufeff{}", want: "line 1, column 1"},
+		{name: "on the second line", text: "{\n  \"a\": ü}", want: "line 2, column 8"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			_, err := jsonparser.Document(tt.text)
+
+			require.ErrorIs(t, err, jsonparser.ErrSyntax)
+			assert.Contains(t, err.Error(), tt.want)
+		})
+	}
+}

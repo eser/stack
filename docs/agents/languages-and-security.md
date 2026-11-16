@@ -51,8 +51,8 @@ to.
 - `make test` runs `go test -race ./...`; `pnpm cli go-test` adds coverage.
 - `pnpm cli go-vuln` (`make vuln`) runs govulncheck on both modules, and
   the Validate job in `.github/workflows/build.yml` runs it.
-- The encoding/json/v2 experiment (`GOEXPERIMENT=jsonv2`) is not set, so Go
-  code uses `encoding/json`.
+- Go code uses `encoding/json`, which runs on the v2 implementation since Go
+  1.27; a move to `encoding/json/v2` is a change of its own.
 
 ## TypeScript
 

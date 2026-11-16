@@ -408,7 +408,7 @@ cache, csGenerate, logging, HTTP), the ones the binding table marks `wasm:
 TypeScript loader refuses the names marked `"no"` without calling the module. The noskills names left the profile with TASK-258: the
 full spec lifecycle would take the module past its size limit. Loggers write
 their records to the instance's stderr. `make ajan-wasm-check` fails when the
-module grows past 8 MB, or 1.6 MB with brotli, or links aifx, the vendor AI
+module grows past 9 MB, or 1.75 MB with brotli, or links aifx, the vendor AI
 SDKs, gRPC, protobuf, QUIC, `os/exec`, `net/http` or the OpenTelemetry SDK.
 
 The module exports `_initialize`, `memory` and five functions (dispatcher ABI

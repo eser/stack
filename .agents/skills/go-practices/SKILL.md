@@ -27,7 +27,7 @@ codebase's module layout and commands are in its `AGENTS.md`.
 - Dependencies arrive through constructors: no globals, no service locator, no
   `init()`; functional options that validate; enums start at an Unknown.
 - `defer Close()` on the line after a successful open; `panic` only for bugs.
-- Use the standard library up to the `go 1.26` directive, nothing newer.
+- Use the standard library up to the `go 1.27` directive, nothing newer.
 - Tests are table-driven with `t.Parallel()` and run with `-race`.
 - `./...` never crosses a module boundary: when this codebase has several Go
   modules, check, lint and test each one in its own directory.

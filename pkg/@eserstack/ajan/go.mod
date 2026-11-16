@@ -1,10 +1,10 @@
 module github.com/eser/ajan
 
-go 1.26.7
+go 1.27.0
 
 // Pinned to the root module's toolchain so the bridge builds with the same
 // patch release.
-toolchain go1.26.11
+toolchain go1.27.4
 
 require github.com/eser/stack v4.1.56+incompatible
 

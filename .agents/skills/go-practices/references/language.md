@@ -398,13 +398,13 @@ func valid(id string) bool {
 
 Scope: All Go JSON operations
 
-Rule: Use `encoding/json`. `encoding/json/v2` needs `GOEXPERIMENT=jsonv2` on the
-Go 1.26 toolchain this module targets and does not build without it, and this
-codebase does not set that experiment. Use the `omitzero` tag (Go 1.24+) for
+Rule: Use `encoding/json`. Since Go 1.27 it runs on the v2 implementation with
+the v1 behavior, and `encoding/json/v2` builds without an experiment, but moving
+a package to v2 is a change of its own (see
+[modernization.md](modernization.md)). Use the `omitzero` tag (Go 1.24+) for
 fields whose zero value should be left out, including `time.Time` and structs,
 where `omitempty` does nothing. Stream large payloads with `json.NewDecoder`
-instead of reading them into memory first. Moving to v2 is part of raising the
-`go` directive, see [modernization.md](modernization.md).
+instead of reading them into memory first.
 
 Correct:
 
@@ -418,7 +418,7 @@ type Session struct {
 Incorrect:
 
 ```go
-import "encoding/json/v2" // does not build without GOEXPERIMENT=jsonv2
+import "encoding/json/v2" // a v2 move hidden in an unrelated change
 
 type Session struct {
     LastActiveAt time.Time `json:"lastActiveAt,omitempty"` // zero time is still written
@@ -433,6 +433,6 @@ Scope: All Go code
 
 Rule: Use the standard library feature that replaced an older idiom or a
 third-party package, up to the Go version in the module's `go` directive
-(`go 1.26` here), and nothing newer. The replacement table, the JSON note and
+(`go 1.27` here), and nothing newer. The replacement table, the JSON note and
 the upgrade procedure are in [modernization.md](modernization.md). Run
 `go fix ./...` to apply the automatic rewrites.

@@ -152,7 +152,7 @@ func TestKitAddInstallsAndWarns(t *testing.T) {
 	})
 
 	dir := t.TempDir()
-	writeFiles(t, dir, map[string]string{"go.mod": "module example.com/p\n\ngo 1.26\n"})
+	writeFiles(t, dir, map[string]string{"go.mod": "module example.com/p\n\ngo 1.27\n"})
 
 	e := kitTestEnv(t, g, t.TempDir())
 	args := []string{"kit", "add", "util", "--registry", filepath.Join(registry, ".eser", "recipes.json"), "--cwd", dir}

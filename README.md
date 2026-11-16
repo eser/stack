@@ -290,7 +290,7 @@ your fork, and then submit a pull request.
 - Node.js 26.9 or higher (https://nodejs.org/); `.node-version` pins the
   version CI uses
 - pnpm 11.18.0 (https://pnpm.io/)
-- Go 1.26 or higher (https://go.dev/) for the Go packages and binaries
+- Go 1.27 or higher (https://go.dev/) for the Go packages and binaries
 
 ### Versioning
 

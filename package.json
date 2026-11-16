@@ -1,6 +1,6 @@
 {
   "name": "@eserstack/stack",
-  "version": "4.5.2",
+  "version": "5.0.0",
   "private": true,
   "packageManager": "pnpm@11.18.0",
   "engines": {

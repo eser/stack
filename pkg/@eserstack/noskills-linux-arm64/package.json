@@ -1,6 +1,6 @@
 {
   "name": "@eserstack/noskills-linux-arm64",
-  "version": "4.5.2",
+  "version": "5.0.0",
   "description": "noskills binary for Linux ARM64",
   "license": "Apache-2.0",
   "repository": {

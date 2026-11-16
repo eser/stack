@@ -1,6 +1,6 @@
 {
   "name": "@eserstack/test-kit",
-  "version": "4.5.2",
+  "version": "5.0.0",
   "private": true,
   "type": "module",
   "exports": {

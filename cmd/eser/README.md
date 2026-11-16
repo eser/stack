@@ -142,7 +142,7 @@ URL, `--local` uses the nearest `.eser/recipes.json` in this directory or a
 parent, and the default is the registry of eser/stack on GitHub.
 
 - `add <recipe>` writes the recipe after the recipes it requires, then installs
-  its dependencies (`go get`, `deno add`, `npm install`) unless `--no-install`
+  its dependencies (`go get`, `npm install`) unless `--no-install`
   or `--dry-run`. `--var key=value` (repeatable) sets a variable, `--cwd` the
   project directory; `--force` overwrites existing files and `--skip-existing`
   leaves them, and without either an existing file is skipped with a warning.

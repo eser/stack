@@ -55,8 +55,9 @@ func languageMatches(language string, project ProjectType) bool {
 
 // GetDependencyInstructions returns the install commands for the recipe's
 // declared dependencies, as the TypeScript kit does: `go get` for each Go
-// module, then `deno add` for each JSR package, then `npm install` for each
-// npm package and `npm install --save-dev` for each npmDev one. When the project type is known and does not suit the recipe's
+// module, then `npm install` for each npm package and `npm install --save-dev`
+// for each npmDev one. JSR is frozen at 4.5.x, so an old manifest's `jsr`
+// list installs nothing. When the project type is known and does not suit the recipe's
 // language, Warnings says so; callers show it without blocking.
 func GetDependencyInstructions(recipe *Recipe, detection ProjectDetection) DependencyInstructions {
 	if recipe.Dependencies == nil {
@@ -78,10 +79,6 @@ func GetDependencyInstructions(recipe *Recipe, detection ProjectDetection) Depen
 
 	for _, pkg := range deps.Go {
 		instructions = append(instructions, "go get "+pkg)
-	}
-
-	for _, pkg := range deps.JSR {
-		instructions = append(instructions, "deno add "+pkg)
 	}
 
 	for _, pkg := range deps.NPM {

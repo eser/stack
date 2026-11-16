@@ -64,7 +64,7 @@ const kitRegistryManifest = `{
       ],
       "ignore": ["**/*.md"],
       "postInstall": ["touch post-installed.txt"],
-      "dependencies": { "npm": ["left-pad"], "jsr": ["jsr:@std/path"] }
+      "dependencies": { "npm": ["left-pad"] }
     },
     {
       "name": "app",
@@ -82,7 +82,7 @@ const kitRegistryManifest = `{
         { "source": "recipes/widget/assets", "target": "public", "kind": "folder" }
       ],
       "postInstall": ["touch .created"],
-      "dependencies": { "jsr": ["jsr:@std/path"] }
+      "dependencies": { "npm": ["left-pad"] }
     }
   ]
 }

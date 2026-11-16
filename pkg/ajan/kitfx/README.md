@@ -130,9 +130,9 @@ the client, so tests run against `httptest`.
 
 `DetectProjectType` looks for `go.mod`, `deno.json`, `deno.jsonc` and
 `package.json`, in that order. `GetDependencyInstructions` returns `go get`,
-`deno add`, `npm install` and, for `npmDev`, `npm install --save-dev` commands
-for a recipe's dependencies, with a
-warning when the project type does not suit the recipe's language.
+`npm install` and, for `npmDev`, `npm install --save-dev` commands for a
+recipe's dependencies, with a warning when the project type does not suit the
+recipe's language.
 `RunInstallCommands` runs them with their output on the given writers and stops
 at the first failure; `InstallDependencies` captures the output and runs them
 all.

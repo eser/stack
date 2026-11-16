@@ -108,8 +108,10 @@ nodeTest.test(
   },
 );
 
+// JSR is frozen at 4.5.x, so a Deno project gets the npm packages too and an
+// old manifest's `jsr` list installs nothing from JSR.
 nodeTest.test(
-  "getDependencyInstructions — generates deno add instructions",
+  "getDependencyInstructions — installs from npm only, in a Deno project too",
   () => {
     const recipe = {
       name: "test",
@@ -117,7 +119,10 @@ nodeTest.test(
       language: "typescript",
       scale: "utility" as const,
       files: [{ source: "a", target: "b" }],
-      dependencies: { jsr: ["jsr:@eserstack/fp@^4.1.0"] },
+      dependencies: {
+        jsr: ["jsr:@eserstack/fp@^4.1.0"],
+        npm: ["@eserstack/fp"],
+      },
     };
 
     const result = dependencyResolver.getDependencyInstructions(recipe, {
@@ -125,8 +130,7 @@ nodeTest.test(
       configFile: "deno.json",
     });
 
-    assert.assertEquals(result.instructions.length, 1);
-    assert.assertStringIncludes(result.instructions[0]!, "deno add");
+    assert.assertEquals(result.instructions, ["npm install @eserstack/fp"]);
     assert.assertEquals(result.warnings.length, 0);
   },
 );
@@ -178,7 +182,7 @@ nodeTest.test(
       language: "typescript",
       scale: "utility" as const,
       files: [{ source: "a", target: "b" }],
-      dependencies: { jsr: ["jsr:@eserstack/fp@^4.1.0"] },
+      dependencies: { npm: ["@eserstack/fp"] },
     };
 
     const result = dependencyResolver.getDependencyInstructions(recipe, {

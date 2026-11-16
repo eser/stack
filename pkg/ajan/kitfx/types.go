@@ -54,7 +54,6 @@ type RecipeFile struct {
 // RecipeDependencies lists packages to install, grouped by ecosystem.
 type RecipeDependencies struct {
 	Go  []string `json:"go,omitempty"`
-	JSR []string `json:"jsr,omitempty"`
 	NPM []string `json:"npm,omitempty"`
 	// NPMDev lists the npm packages a project installs as dev dependencies,
 	// such as a CLI that only its scripts run.

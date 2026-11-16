@@ -352,35 +352,49 @@ func TestGetDependencyInstructions_NPMDeps_Multi(t *testing.T) {
 	}
 }
 
-func TestGetDependencyInstructions_JSRDeps(t *testing.T) {
+// JSR is frozen at 4.5.x, so a Deno project gets the npm packages too and an
+// old manifest's `jsr` list installs nothing from JSR.
+func TestGetDependencyInstructions_NPMOnlyInDenoProject(t *testing.T) {
 	t.Parallel()
 
-	recipe := &kitfx.Recipe{
-		Dependencies: &kitfx.RecipeDependencies{
-			JSR: []string{"@std/path"},
-		},
+	manifest, err := kitfx.ParseRegistryManifest([]byte(`{
+		"name": "r", "description": "d", "author": "a", "registryUrl": "https://example.com",
+		"recipes": [{
+			"name": "fp", "description": "d", "language": "typescript", "scale": "utility",
+			"files": [{"source": "a", "target": "b"}],
+			"dependencies": {"jsr": ["jsr:@eserstack/fp@^4.1.0"], "npm": ["@eserstack/fp"]}
+		}]
+	}`), nil)
+	if err != nil {
+		t.Fatalf("ParseRegistryManifest: %v", err)
 	}
 
-	instr := kitfx.GetDependencyInstructions(recipe, kitfx.ProjectDetection{Type: kitfx.ProjectTypeDeno})
+	instr := kitfx.GetDependencyInstructions(&manifest.Recipes[0], kitfx.ProjectDetection{Type: kitfx.ProjectTypeDeno})
 
-	if len(instr.Instructions) == 0 || !strings.Contains(instr.Instructions[0], "deno add") {
-		t.Errorf("expected deno add instruction, got %v", instr.Instructions)
+	want := []string{"npm install @eserstack/fp"}
+	if !slices.Equal(instr.Instructions, want) {
+		t.Errorf("Instructions = %q, want %q", instr.Instructions, want)
+	}
+
+	if len(instr.Warnings) != 0 {
+		t.Errorf("Warnings = %q, want none", instr.Warnings)
 	}
 }
 
-func TestGetDependencyInstructions_JSRDeps_WrongProjectType(t *testing.T) {
+func TestGetDependencyInstructions_NPMDeps_WrongProjectType(t *testing.T) {
 	t.Parallel()
 
 	recipe := &kitfx.Recipe{
+		Language: "typescript",
 		Dependencies: &kitfx.RecipeDependencies{
-			JSR: []string{"@std/path"},
+			NPM: []string{"@eserstack/fp"},
 		},
 	}
 
 	instr := kitfx.GetDependencyInstructions(recipe, kitfx.ProjectDetection{Type: kitfx.ProjectTypeGo})
 
 	if len(instr.Warnings) == 0 {
-		t.Error("expected warning for JSR deps in Go project")
+		t.Error("expected warning for npm deps in Go project")
 	}
 }
 
@@ -391,7 +405,6 @@ func TestGetDependencyInstructions_UnknownType_NoWarning(t *testing.T) {
 		Dependencies: &kitfx.RecipeDependencies{
 			Go:  []string{"github.com/pkg/errors@latest"},
 			NPM: []string{"express"},
-			JSR: []string{"@std/path"},
 		},
 	}
 
@@ -401,9 +414,9 @@ func TestGetDependencyInstructions_UnknownType_NoWarning(t *testing.T) {
 		t.Errorf("expected no warnings for Unknown project type, got %v", instr.Warnings)
 	}
 
-	want := []string{"go get github.com/pkg/errors@latest", "deno add @std/path", "npm install express"}
+	want := []string{"go get github.com/pkg/errors@latest", "npm install express"}
 	if !slices.Equal(instr.Instructions, want) {
-		t.Errorf("Instructions = %q, want Go, then JSR, then npm: %q", instr.Instructions, want)
+		t.Errorf("Instructions = %q, want Go, then npm: %q", instr.Instructions, want)
 	}
 }
 

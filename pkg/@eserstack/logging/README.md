@@ -358,7 +358,7 @@ await logging.config.configure({
 ### Testing with Record Collector
 
 ```typescript
-import * as assert from "@std/assert";
+import * as assert from "node:assert/strict";
 import * as logging from "@eserstack/logging";
 
 const { sink, records } = logging.sinks.getRecordCollectorSink();
@@ -377,8 +377,8 @@ await logging.config.configure({
 const logger = logging.logger.getLogger(["app"]);
 await logger.info("hello");
 
-assert.assertEquals(records.length, 1);
-assert.assertEquals(records[0]?.message, "hello");
+assert.equal(records.length, 1);
+assert.equal(records[0]?.message, "hello");
 ```
 
 ## API Reference

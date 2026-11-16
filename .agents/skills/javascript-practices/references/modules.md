@@ -78,14 +78,13 @@ Existing named imports in the code are not a precedent for new ones.
 Correct:
 
 ```typescript
-import * as path from "@std/path";
 import * as primitives from "@eserstack/primitives";
 import * as shell from "@eserstack/shell";
 import * as span from "@eserstack/streams/span"; // published sub-path
 import * as workflows from "@eserstack/workflows/mod"; // "." is the CLI
 import { runtime } from "@eserstack/standards/cross-runtime";
 
-const filePath = path.join(dir, "config.ts");
+const filePath = runtime.path.join(dir, "config.ts");
 const source = await runtime.fs.readTextFile(filePath);
 const branch = await shell.exec.exec`git branch --show-current`.text();
 const result = primitives.results.ok(source);
@@ -96,12 +95,12 @@ const registry = workflows.createRegistry();
 Incorrect:
 
 ```typescript
-import { join } from "@std/path"; // named import from a package
+import { parse } from "semver"; // named import from a package
 import * as span from "@eserstack/streams/span.ts"; // a file, not an export
 // inside @eserstack/workflows: its own name instead of "./loader.ts"
 import * as loader from "@eserstack/workflows/loader";
 
-const filePath = join(dir, "config.ts"); // which join?
+const version = parse(text); // which parse?
 ```
 
 **Why:** a namespace shows where every symbol comes from and cannot collide with

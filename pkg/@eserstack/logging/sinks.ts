@@ -206,7 +206,7 @@ export const fingersCrossedSink = (
  *
  * @example
  * ```typescript
- * import * as assert from "@std/assert";
+ * import * as assert from "node:assert/strict";
  * import * as logging from "@eserstack/logging";
  *
  * const { sink, records } = logging.sinks.getRecordCollectorSink();
@@ -217,7 +217,7 @@ export const fingersCrossedSink = (
  * });
  *
  * await logging.logger.getLogger(["app"]).warn("disk almost full");
- * assert.assertEquals(records[0]?.message, "disk almost full");
+ * assert.equal(records[0]?.message, "disk almost full");
  * ```
  */
 export const getRecordCollectorSink = (): {

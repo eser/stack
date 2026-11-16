@@ -12,7 +12,7 @@ believe a common philosophy can be adopted across the ecosystem.
   - Why: ES Modules is the official standard for JavaScript modules, supported
     by all modern browsers and WinterCG runtimes, whereas alternatives like
     CommonJS and AMD are not.
-- **DO** import modules as namespaces (`import * as path from "@std/path"`)
+- **DO** import modules as namespaces (`import * as path from "node:path"`)
   rather than importing names one by one.
   - Why: A namespace shows where every symbol comes from (`path.join`, not a
     bare `join`) and cannot collide with a local name. Bundlers keep only the

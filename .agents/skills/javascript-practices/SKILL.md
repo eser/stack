@@ -12,7 +12,7 @@ frontend-practices.
 
 ## Always
 
-- Always import as a namespace (`import * as path from "@std/path"`), in code,
+- Always import as a namespace (`import * as semver from "semver"`), in code,
   tests, JSDoc `@example` blocks and READMEs alike; the only exceptions are
   `runtime` from `@eserstack/standards/cross-runtime`, type-only imports and the
   default import of a JSON or CSS module

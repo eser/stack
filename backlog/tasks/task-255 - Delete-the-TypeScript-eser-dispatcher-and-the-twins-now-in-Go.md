@@ -4,6 +4,7 @@ title: Delete the TypeScript eser dispatcher and the twins now in Go
 status: To Do
 assignee: []
 created_date: '2026-10-15 20:38'
+updated_date: '2026-11-17 07:55'
 labels:
   - cli
   - codebase
@@ -32,3 +33,9 @@ Plan key: M3-T12. Effort: medium.
 - [ ] #2 `eser laroux --help`, `eser posts --help` and `eser noskills --help` still run the Node CLIs through forwarding
 - [ ] #3 The gate is green; the code-conventions baseline only shrinks
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Deleting pkg/@eserstack/cli/scripts/npm-build.ts also removes the last users of @eserstack/codebase/npm-externals and npm-workspace-specifiers once TASK-262 deletes the noskills one: delete both modules, their tests and exports, and the esbuild devDependency of cli. codebase/cli-system is not deleted: TASK-403 moves it to @eserstack/shell, because laroux keeps a TypeScript bin with the system commands.
+<!-- SECTION:NOTES:END -->

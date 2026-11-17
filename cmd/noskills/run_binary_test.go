@@ -11,7 +11,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"strconv"
 	"strings"
 	"syscall"
@@ -328,109 +327,5 @@ func TestRunBinaryInterruptReleasesTheTurn(t *testing.T) {
 		_ = syscall.Kill(pid, syscall.SIGKILL)
 
 		t.Errorf("the fake claude (pid %d) outlived the interrupted turn", pid)
-	}
-}
-
-// timestamps are the ISO times a run writes.
-var timestamps = regexp.MustCompile(`\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z`)
-
-// comparedFiles are the project files the TypeScript and Go runs must
-// leave alike, with their timestamps blanked. The spec's own state is not
-// among them: the Go loop copies each recorded iteration and the claim into
-// it, and the TypeScript loop leaves it as it was.
-func comparedFiles(t *testing.T, root string) map[string]string {
-	t.Helper()
-
-	files := map[string]string{}
-
-	for _, path := range []string{
-		".eser/.state/progresses/state.json",
-		".eser/.state/progresses/iterations/iteration-1.json",
-		".eser/.state/progresses/iterations/iteration-2.json",
-		".eser/.state/progresses/files-changed.jsonl",
-		"src/a.go",
-	} {
-		data, err := os.ReadFile(filepath.Join(root, path)) //nolint:gosec // G304: a file of the test's project
-		if err != nil {
-			files[path] = "<missing>"
-
-			continue
-		}
-
-		files[path] = timestamps.ReplaceAllString(string(data), "<time>")
-	}
-
-	return files
-}
-
-// loopLines are the lines both CLIs print: the Go build's streamed agent
-// text (indented four spaces) is left out.
-func loopLines(stdout string) []string {
-	var lines []string
-
-	for line := range strings.SplitSeq(stdout, "\n") {
-		if !strings.HasPrefix(line, agentOutputIndent) {
-			lines = append(lines, line)
-		}
-	}
-
-	return lines
-}
-
-func TestRunBinaryMatchesTypeScript(t *testing.T) {
-	if os.Getenv("NOSKILLS_RUN_PARITY") != "1" {
-		t.Skip("set NOSKILLS_RUN_PARITY=1 to compare with the TypeScript CLI (needs node)")
-	}
-
-	node, err := exec.LookPath("node")
-	if err != nil {
-		t.Fatal("the comparison needs node")
-	}
-
-	mainTS, err := filepath.Abs("../../pkg/@eserstack/noskills/main.ts")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	binary := buildBinary(t)
-	tsArgs := []string{mainTS}
-	tsCommand := node + " " + strings.Join(tsArgs, " ")
-
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-	defer cancel()
-
-	results := map[string]runResult{}
-	files := map[string]map[string]string{}
-
-	for _, cli := range []string{"go", "typescript"} {
-		root := writeRunProject(t, noskillsfx.PhaseExecuting, "  allowGit: true\n")
-		gitProject(t, root)
-
-		binDir, fakeDir := fakeClaude(t, "edit", "edit", "edit")
-
-		if cli == "go" {
-			results[cli] = runCommandLine(t, ctx, root, runEnviron(binDir, fakeDir, binary), binary, "run", "--max-iterations=2")
-		} else {
-			results[cli] = runCommandLine(t, ctx, root, runEnviron(binDir, fakeDir, tsCommand), node,
-				append(tsArgs, "run", "--max-iterations=2")...)
-		}
-
-		files[cli] = comparedFiles(t, root)
-	}
-
-	goRun, tsRun := results["go"], results["typescript"]
-
-	if goRun.code != tsRun.code {
-		t.Errorf("exit %d in Go, %d in TypeScript", goRun.code, tsRun.code)
-	}
-
-	if got, want := strings.Join(loopLines(goRun.stdout), "\n"), strings.Join(loopLines(tsRun.stdout), "\n"); got != want {
-		t.Errorf("stdout differs\n--- go\n%s\n--- typescript\n%s\n--- typescript stderr\n%s", got, want, tsRun.stderr)
-	}
-
-	for path, want := range files["typescript"] {
-		if got := files["go"][path]; got != want {
-			t.Errorf("%s differs\n--- go\n%s\n--- typescript\n%s", path, got, want)
-		}
 	}
 }

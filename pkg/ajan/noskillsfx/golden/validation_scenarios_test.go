@@ -66,12 +66,10 @@ func validationSteps() []step {
 func validationScenarios() []scenario {
 	return []scenario{
 		{
-			name:       "next_validation",
-			setup:      withToolDirs(".claude"),
-			steps:      validationSteps(),
-			nativeFrom: 0,
-			portedBy:   "TASK-258.1",
-			delta:      true,
+			name:  "next_validation",
+			setup: withToolDirs(".claude"),
+			steps: validationSteps(),
+			delta: true,
 		},
 	}
 }

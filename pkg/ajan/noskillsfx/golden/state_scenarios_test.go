@@ -158,12 +158,10 @@ func purgeSteps() []step {
 func stateScenarios() []scenario {
 	return []scenario{
 		{
-			name:       "state_commands",
-			setup:      withToolDirs(".claude"),
-			steps:      stateCommandSteps(),
-			nativeFrom: 0,
-			portedBy:   "TASK-259",
-			delta:      true,
+			name:  "state_commands",
+			setup: withToolDirs(".claude"),
+			steps: stateCommandSteps(),
+			delta: true,
 		},
 		{
 			name:  "init_active_spec",
@@ -174,17 +172,13 @@ func stateScenarios() []scenario {
 				{Args: []string{"init"}, Env: fixedTools()},
 				{Args: []string{"init", "--non-interactive", "--human"}, Env: fixedTools(), Stderr: true},
 			},
-			nativeFrom: 0,
-			portedBy:   "TASK-259",
-			delta:      true,
+			delta: true,
 		},
 		{
-			name:       "purge_selective",
-			setup:      withToolDirs(".claude"),
-			steps:      purgeSteps(),
-			nativeFrom: 0,
-			portedBy:   "TASK-259",
-			delta:      true,
+			name:  "purge_selective",
+			setup: withToolDirs(".claude"),
+			steps: purgeSteps(),
+			delta: true,
 		},
 	}
 }

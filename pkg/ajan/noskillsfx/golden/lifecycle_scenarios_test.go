@@ -276,27 +276,21 @@ func lifecycleScenarios() []scenario {
 
 	return []scenario{
 		{
-			name:       "lifecycle",
-			setup:      withToolDirs(".claude"),
-			steps:      lifecycleSteps(),
-			nativeFrom: 1,
-			portedBy:   "TASK-258",
-			delta:      true,
+			name:  "lifecycle",
+			setup: withClaudeOnPath(".claude"),
+			steps: claudeInit(lifecycleSteps()),
+			delta: true,
 		},
 		{
-			name:       "lifecycle_concerns",
-			setup:      withToolDirs(".claude"),
-			steps:      concernsSteps(),
-			nativeFrom: 1,
-			portedBy:   "TASK-259 (init depends on the providers of the recording machine)",
-			delta:      true,
+			name:  "lifecycle_concerns",
+			setup: withClaudeOnPath(".claude"),
+			steps: claudeInit(concernsSteps()),
+			delta: true,
 		},
 		{
-			name:       "spec_new",
-			steps:      specNewSteps(),
-			nativeFrom: 0,
-			portedBy:   "TASK-258",
-			delta:      true,
+			name:  "spec_new",
+			steps: specNewSteps(),
+			delta: true,
 		},
 		{
 			name:  "init_tools",
@@ -305,9 +299,7 @@ func lifecycleScenarios() []scenario {
 				{Args: []string{"init"}, Env: noTools},
 				{Args: []string{"init", "--agent", "--concerns=beautiful-product"}, Env: noTools},
 			},
-			nativeFrom: 0,
-			portedBy:   "TASK-258",
-			delta:      true,
+			delta: true,
 		},
 		{
 			name: "init_bare",
@@ -318,9 +310,7 @@ func lifecycleScenarios() []scenario {
 				{Args: []string{"status"}},
 				{Args: []string{"next"}},
 			},
-			nativeFrom: 0,
-			portedBy:   "TASK-258",
-			delta:      true,
+			delta: true,
 		},
 	}
 }

@@ -286,8 +286,8 @@ func diagramSteps() []step {
 
 func sessionScenarios() []scenario {
 	return []scenario{
-		{name: "sessions", steps: sessionSteps(), nativeFrom: 0, portedBy: "TASK-259.1", delta: true},
-		{name: "user_identity", steps: identitySteps(), nativeFrom: 0, portedBy: "TASK-259.1", delta: true},
-		{name: "diagrams", steps: diagramSteps(), nativeFrom: 0, portedBy: "TASK-259.1", delta: true},
+		{name: "sessions", steps: sessionSteps(), delta: true},
+		{name: "user_identity", steps: identitySteps(), delta: true},
+		{name: "diagrams", steps: diagramSteps(), delta: true},
 	}
 }

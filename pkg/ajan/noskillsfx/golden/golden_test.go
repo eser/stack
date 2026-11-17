@@ -4,15 +4,17 @@
 // scenario runs noskills commands in a fresh fixture project and records, per
 // step, the exit code, stdout and every file the project holds afterwards.
 //
-// Recording runs the TypeScript CLI and writes testdata/golden (all
-// scenarios, or the comma-separated NOSKILLS_GOLDEN_SCENARIOS):
+// The recordings in testdata/golden were made on the TypeScript CLI, and
+// cmd/noskills replaced it command by command (TASK-257 to TASK-259) until
+// every step of every scenario ran in Go and the TypeScript twin was deleted
+// (TASK-262). Recording now runs cmd/noskills and writes testdata/golden (all
+// scenarios, or the comma-separated NOSKILLS_GOLDEN_SCENARIOS), for a
+// scenario that is new or a behavior that changes on purpose:
 //
 //	NOSKILLS_GOLDEN_RECORD=1 go test ./pkg/ajan/noskillsfx/golden/
 //
-// Replay builds cmd/noskills and compares it with the recordings, from each
-// scenario's first step that runs in Go (TASK-257 ported the hooks,
-// TASK-258 the lifecycle, TASK-259 purge, restore, the state commands and
-// sync). The recordings are also checked for being complete.
+// Replay builds cmd/noskills and compares it with the recordings, which are
+// also checked for being complete.
 package golden
 
 import (
@@ -53,18 +55,14 @@ type step struct {
 	Before func(t *testing.T, project string) `json:"-"`
 }
 
-// scenario is a sequence of steps in one fixture project. The replay runs
-// the steps from nativeFrom on cmd/noskills; the ones before it belong to
-// portedBy and are seeded from the recording. A delta scenario's recording
+// scenario is a sequence of steps in one fixture project. A delta scenario's recording
 // holds, per step, only the files that step added or changed and the ones
 // it removed, which keeps a long scenario's recording small.
 type scenario struct {
-	name       string
-	setup      func(t *testing.T, project string)
-	steps      []step
-	nativeFrom int
-	portedBy   string
-	delta      bool
+	name  string
+	setup func(t *testing.T, project string)
+	steps []step
+	delta bool
 }
 
 // recorded is the golden of one step. Files is every file of the project
@@ -224,17 +222,15 @@ func snapshot(t *testing.T, project string, replacements map[string]string) map[
 	return files
 }
 
-// run is how a scenario runs: the command line prefix, the first step to
-// run, the files to seed the project with first, and extra environment.
+// run is how a scenario runs: the command line prefix and extra
+// environment.
 type run struct {
 	prefix []string
-	from   int
-	seed   map[string]string
 	env    []string
 }
 
-// placeholderValues stand in for the normalized parts of a recording when
-// it seeds a project; each normalizes back to its placeholder.
+// placeholderValues stand in for the placeholders of a step's arguments,
+// input and files; each normalizes back to its placeholder.
 func placeholderValues(project, home string) *strings.Replacer {
 	return strings.NewReplacer(
 		"<PROJECT>", project,
@@ -297,10 +293,6 @@ func runScenario(t *testing.T, sc *scenario, r run) []recorded { //nolint:funlen
 
 	fill := placeholderValues(project, home)
 
-	for rel, content := range r.seed {
-		writeProjectFile(t, project, rel, fill.Replace(content))
-	}
-
 	replacements := map[string]string{}
 	for _, form := range pathForms(project) {
 		replacements[form] = "<PROJECT>"
@@ -324,7 +316,7 @@ func runScenario(t *testing.T, sc *scenario, r run) []recorded { //nolint:funlen
 
 	out := make([]recorded, 0, len(sc.steps))
 
-	for _, st := range sc.steps[r.from:] {
+	for _, st := range sc.steps {
 		for rel, content := range st.Write {
 			writeProjectFile(t, project, rel, fill.Replace(content))
 		}
@@ -434,25 +426,15 @@ func recordedScenarios() []scenario {
 	return picked
 }
 
-// TestRecord records the TypeScript CLI's behavior when
-// NOSKILLS_GOLDEN_RECORD=1; NOSKILLS_GOLDEN_SCENARIOS limits it to some
-// scenarios.
+// TestRecord records cmd/noskills when NOSKILLS_GOLDEN_RECORD=1;
+// NOSKILLS_GOLDEN_SCENARIOS limits it to some scenarios.
 func TestRecord(t *testing.T) {
 	if os.Getenv("NOSKILLS_GOLDEN_RECORD") != "1" {
-		t.Skip("set NOSKILLS_GOLDEN_RECORD=1 to record the TypeScript CLI")
+		t.Skip("set NOSKILLS_GOLDEN_RECORD=1 to record cmd/noskills")
 	}
 
-	node, err := exec.LookPath("node")
-	if err != nil {
-		t.Fatal("recording needs node")
-	}
-
-	mainTS, err := filepath.Abs(filepath.Join(repoRoot, "pkg/@eserstack/noskills/main.ts"))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	ts := run{prefix: []string{node, "--disable-warning=ExperimentalWarning", mainTS}, from: 0, seed: nil, env: nil}
+	binary := buildNoskills(t)
+	ts := run{prefix: []string{binary}, env: []string{"NOSKILLS_NO_FORWARD=1"}}
 
 	for _, sc := range recordedScenarios() {
 		steps := runScenario(t, &sc, ts)
@@ -467,7 +449,7 @@ func TestRecord(t *testing.T) {
 				_ = os.WriteFile(filepath.Join(dir, sc.name+".2.json"), second, 0o600) //nolint:gosec // G703: a debug dir the developer names
 			}
 
-			t.Fatalf("%s: two TypeScript runs differ; extend normalize()", sc.name)
+			t.Fatalf("%s: two runs differ; extend normalize()", sc.name)
 		}
 
 		stored := steps
@@ -572,21 +554,12 @@ func TestRecordingsComplete(t *testing.T) {
 				t.Errorf("%s step %d: recorded %v, defined %v; record again", sc.name, i, st.Args, sc.steps[i].Args)
 			}
 		}
-
-		if sc.nativeFrom < 0 || sc.nativeFrom > len(sc.steps) {
-			t.Errorf("%s: nativeFrom %d is outside 0..%d", sc.name, sc.nativeFrom, len(sc.steps))
-		}
 	}
 }
 
-// TestReplay runs the scenarios against cmd/noskills and compares each step
-// it runs with the TypeScript recording. The steps before a scenario's
-// nativeFrom are not ported yet: the project starts as the recording of the
-// step before nativeFrom left it. NOSKILLS_NO_FORWARD=1 keeps cmd/noskills
-// from handing a step to the TypeScript CLI, so every step compared ran in
-// Go.
-func TestReplay(t *testing.T) {
-	t.Parallel()
+// buildNoskills builds cmd/noskills into a temporary directory.
+func buildNoskills(t *testing.T) string {
+	t.Helper()
 
 	binary := filepath.Join(t.TempDir(), "noskills")
 
@@ -597,32 +570,26 @@ func TestReplay(t *testing.T) {
 		t.Fatalf("build cmd/noskills: %v: %s", err, out)
 	}
 
+	return binary
+}
+
+// TestReplay runs the scenarios against cmd/noskills and compares each step
+// with the recording. NOSKILLS_NO_FORWARD=1 keeps cmd/noskills from handing a
+// step to another CLI, so every step compared ran in Go.
+func TestReplay(t *testing.T) {
+	t.Parallel()
+
+	binary := buildNoskills(t)
+
 	for _, sc := range scenarios() {
 		t.Run(sc.name, func(t *testing.T) {
 			t.Parallel()
 
-			if sc.nativeFrom >= len(sc.steps) {
-				t.Skipf("no step of %s runs in Go yet; %s ports them", sc.name, sc.portedBy)
-			}
-
 			want := readGolden(t, &sc)
-
-			var seed map[string]string
-			if sc.nativeFrom > 0 {
-				seed = want[sc.nativeFrom-1].Files
-			}
-
-			env := []string{"NOSKILLS_NO_FORWARD=1"}
-
-			got := runScenario(t, &sc, run{
-				prefix: []string{binary},
-				from:   sc.nativeFrom,
-				seed:   seed,
-				env:    env,
-			})
+			got := runScenario(t, &sc, run{prefix: []string{binary}, env: []string{"NOSKILLS_NO_FORWARD=1"}})
 
 			for i := range got {
-				compareStep(t, sc.name, sc.nativeFrom+i, &want[sc.nativeFrom+i], &got[i])
+				compareStep(t, sc.name, i, &want[i], &got[i])
 			}
 		})
 	}

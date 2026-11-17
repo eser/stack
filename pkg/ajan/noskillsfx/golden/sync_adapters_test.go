@@ -3,28 +3,23 @@
 package golden
 
 import (
-	"bytes"
-	"context"
 	"encoding/json"
 	"os"
-	"os/exec"
-	"path/filepath"
 	"slices"
 	"sort"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/eser/stack/pkg/ajan/noskillsfx"
 )
 
 // The sync adapter comparison (TASK-259): every adapter, alone and all
-// together, syncs the same fixture projects in TypeScript (syncAll in
-// sync/engine.ts) and in Go (noskillsfx.SyncAll), and the two file trees
-// must be identical byte for byte. The TypeScript trees are recorded in
-// testdata/golden/sync_adapters.json (NOSKILLS_GOLDEN_RECORD=1 writes it),
-// so the comparison runs without node; with node on PATH the test also
-// runs the TypeScript sync live.
+// together, syncs the same fixture projects with noskillsfx.SyncAll, and the
+// file trees must match testdata/golden/sync_adapters.json byte for byte. The
+// TypeScript sync (syncAll in sync/engine.ts) wrote that recording, and Go
+// matched it before the TypeScript twin was deleted (TASK-262);
+// NOSKILLS_GOLDEN_RECORD=1 now records the Go sync, for a new case or a change
+// on purpose.
 
 type syncFixture struct {
 	name   string
@@ -210,86 +205,16 @@ func runGoSync(t *testing.T, dir string, tools []string, config map[string]any) 
 	return syncOutcome{Synced: synced, Files: readTree(t, dir)}
 }
 
-// tsSyncScript runs syncAll for each job on stdin and prints what it synced.
-const tsSyncScript = `
-import { pathToFileURL } from "node:url";
-const engine = await import(pathToFileURL(process.argv[2]).href);
-let input = "";
-for await (const chunk of process.stdin) input += chunk;
-const out = [];
-for (const job of JSON.parse(input)) {
-  out.push(await engine.syncAll(job.dir, job.tools, job.config));
-}
-process.stdout.write(JSON.stringify(out));
-`
-
-type tsSyncJob struct {
-	Dir    string         `json:"dir"`
-	Tools  []string       `json:"tools"`
-	Config map[string]any `json:"config"`
-}
-
-// runTSSyncs runs the TypeScript sync for every job in one node process.
-func runTSSyncs(t *testing.T, node string, jobs []tsSyncJob) [][]string {
+// recordGoSyncs runs every case in Go and returns the outcomes.
+func recordGoSyncs(t *testing.T) map[string]syncOutcome {
 	t.Helper()
 
-	engine, err := filepath.Abs(filepath.Join(repoRoot, "pkg/@eserstack/noskills/sync/engine.ts"))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	script := filepath.Join(t.TempDir(), "sync.mjs")
-	if err := os.WriteFile(script, []byte(tsSyncScript), 0o600); err != nil {
-		t.Fatal(err)
-	}
-
-	input, err := json.Marshal(jobs)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-	defer cancel()
-
-	cmd := exec.CommandContext(ctx, node, "--disable-warning=ExperimentalWarning", script, engine) //nolint:gosec // G204: the harness's own command line
-	cmd.Stdin = bytes.NewReader(input)
-
-	var stdout, stderr bytes.Buffer
-
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-
-	if err := cmd.Run(); err != nil {
-		t.Fatalf("typescript sync: %v: %s", err, stderr.String())
-	}
-
-	var synced [][]string
-	if err := json.Unmarshal(stdout.Bytes(), &synced); err != nil {
-		t.Fatalf("typescript sync output: %v: %s", err, stdout.String())
-	}
-
-	return synced
-}
-
-// recordTSSyncs runs every case in TypeScript and returns the outcomes.
-func recordTSSyncs(t *testing.T, node string) map[string]syncOutcome {
-	t.Helper()
-
-	cases := syncCases()
-	jobs := make([]tsSyncJob, len(cases))
-	dirs := make([]string, len(cases))
-
-	for i, c := range cases {
-		dirs[i] = t.TempDir()
-		writeFixture(t, dirs[i], c.fixture.files)
-		jobs[i] = tsSyncJob{Dir: dirs[i], Tools: c.tools, Config: c.fixture.config}
-	}
-
-	synced := runTSSyncs(t, node, jobs)
 	out := map[string]syncOutcome{}
 
-	for i, c := range cases {
-		out[c.name] = syncOutcome{Synced: synced[i], Files: readTree(t, dirs[i])}
+	for _, c := range syncCases() {
+		dir := t.TempDir()
+		writeFixture(t, dir, c.fixture.files)
+		out[c.name] = runGoSync(t, dir, c.tools, c.fixture.config)
 	}
 
 	return out
@@ -326,28 +251,22 @@ func compareSyncOutcome(t *testing.T, name string, want, got syncOutcome) {
 
 		switch {
 		case !inWant:
-			t.Errorf("%s: Go wrote %s, which TypeScript does not", name, path)
+			t.Errorf("%s: Go wrote %s, which the recording does not hold", name, path)
 		case !inGot:
 			t.Errorf("%s: Go did not write %s", name, path)
 		case w != g:
-			t.Errorf("%s: %s differs:\n--- typescript\n%s\n--- go\n%s", name, path, w, g)
+			t.Errorf("%s: %s differs:\n--- recorded\n%s\n--- go\n%s", name, path, w, g)
 		}
 	}
 }
 
-// TestSyncAdaptersMatchTypeScript compares each adapter's Go output with
-// the recorded TypeScript output, and records it with
-// NOSKILLS_GOLDEN_RECORD=1.
-func TestSyncAdaptersMatchTypeScript(t *testing.T) {
+// TestSyncAdaptersMatchTheRecording compares each adapter's output with the
+// recording, and records it with NOSKILLS_GOLDEN_RECORD=1.
+func TestSyncAdaptersMatchTheRecording(t *testing.T) {
 	t.Parallel()
 
 	if os.Getenv("NOSKILLS_GOLDEN_RECORD") == "1" {
-		node, err := exec.LookPath("node")
-		if err != nil {
-			t.Fatal("recording needs node")
-		}
-
-		data, err := json.MarshalIndent(recordTSSyncs(t, node), "", "  ")
+		data, err := json.MarshalIndent(recordGoSyncs(t), "", "  ")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -383,26 +302,6 @@ func TestSyncAdaptersMatchTypeScript(t *testing.T) {
 		dir := t.TempDir()
 		writeFixture(t, dir, c.fixture.files)
 		compareSyncOutcome(t, c.name, recorded, runGoSync(t, dir, c.tools, c.fixture.config))
-	}
-}
-
-// TestSyncAdaptersLive runs the TypeScript sync next to the Go sync when
-// node is on PATH, so a change to an adapter on either side shows up before
-// the recording is renewed.
-func TestSyncAdaptersLive(t *testing.T) {
-	t.Parallel()
-
-	node, err := exec.LookPath("node")
-	if err != nil {
-		t.Skip("the live comparison runs the TypeScript sync, which needs node")
-	}
-
-	ts := recordTSSyncs(t, node)
-
-	for _, c := range syncCases() {
-		dir := t.TempDir()
-		writeFixture(t, dir, c.fixture.files)
-		compareSyncOutcome(t, c.name, ts[c.name], runGoSync(t, dir, c.tools, c.fixture.config))
 	}
 }
 

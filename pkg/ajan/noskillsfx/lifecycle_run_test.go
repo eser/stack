@@ -6,19 +6,17 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
 )
 
-// runPromptsFile holds the prompt the TypeScript `noskills run` builds for
-// each fixture of runPromptFixtures. Record it again with
+// runPromptsFile holds the prompt `noskills run` builds for each fixture of
+// runPromptFixtures. The TypeScript `noskills run` recorded it, and Go
+// matched it before the TypeScript twin was deleted (TASK-262). Record the Go
+// prompts, for a new fixture or a change on purpose, with
 //
-//	NOSKILLS_RUN_PROMPT_RECORD=1 go test -run TestBuildRunPromptMatchesTypeScript ./pkg/ajan/noskillsfx/
-//
-// which runs commands/run.ts (compile with headlessHints, then
-// buildAgentPrompt) under node on the same fixture projects.
+//	NOSKILLS_RUN_PROMPT_RECORD=1 go test -run TestBuildRunPromptMatchesTheRecording ./pkg/ajan/noskillsfx/
 const runPromptsFile = "testdata/run_prompts.json"
 
 // runFixtureState is an EXECUTING state of spec "test" with the execution
@@ -84,59 +82,7 @@ func writeRunFixture(t *testing.T, root string, concerns []string, state *JSObje
 	}
 }
 
-// tsRunPrompt runs the TypeScript prompt builder of commands/run.ts on a
-// project under node.
-func tsRunPrompt(t *testing.T, root string) string {
-	t.Helper()
-
-	node, err := exec.LookPath("node")
-	if err != nil {
-		t.Fatal("recording needs node")
-	}
-
-	pkg, err := filepath.Abs("../../@eserstack/noskills")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	script := `
-const [root, pkg] = process.argv.slice(1);
-const run = await import(pkg + "/commands/run.ts");
-const compiler = await import(pkg + "/context/compiler.ts");
-const persistence = await import(pkg + "/state/persistence.ts");
-const syncEngine = await import(pkg + "/sync/engine.ts");
-const cmd = await import(pkg + "/output/cmd.ts");
-await cmd.loadCommandPrefix(root);
-const state = await persistence.readState(root);
-const config = await persistence.readManifest(root);
-const concerns = (await persistence.listConcerns(root)).filter((c) => config.concerns.includes(c.id));
-const rules = await syncEngine.loadRules(root);
-const output = await compiler.compile(state, concerns, rules, config, undefined, undefined, undefined, run.headlessHints());
-process.stdout.write(JSON.stringify(run.buildAgentPrompt(output)));
-`
-
-	cmd := exec.Command(node, "--disable-warning=ExperimentalWarning", "--input-type=module", "-e", script, root, pkg) //nolint:gosec,noctx // G204: node on the repository's own sources
-	cmd.Dir = root
-
-	out, err := cmd.Output()
-	if err != nil {
-		var exitErr *exec.ExitError
-		if errors.As(err, &exitErr) {
-			t.Fatalf("node: %v: %s", err, exitErr.Stderr)
-		}
-
-		t.Fatal(err)
-	}
-
-	var prompt string
-	if err := json.Unmarshal(out, &prompt); err != nil {
-		t.Fatalf("node printed %q: %v", out, err)
-	}
-
-	return prompt
-}
-
-func TestBuildRunPromptMatchesTypeScript(t *testing.T) {
+func TestBuildRunPromptMatchesTheRecording(t *testing.T) {
 	t.Parallel()
 
 	record := os.Getenv("NOSKILLS_RUN_PROMPT_RECORD") == "1"
@@ -164,7 +110,7 @@ func TestBuildRunPromptMatchesTypeScript(t *testing.T) {
 		got[name] = BuildRunPrompt(CompileRunTurn(e, state), CommandPrefixOf(mustManifest(t, root)))
 
 		if record {
-			recorded[name] = tsRunPrompt(t, root)
+			recorded[name] = got[name]
 		}
 	}
 
@@ -181,7 +127,7 @@ func TestBuildRunPromptMatchesTypeScript(t *testing.T) {
 
 	for name, want := range recorded {
 		if got[name] != want {
-			t.Errorf("%s: the Go prompt differs from the TypeScript one\n--- go\n%s\n--- typescript\n%s", name, got[name], want)
+			t.Errorf("%s: the prompt differs from the recording\n--- go\n%s\n--- recorded\n%s", name, got[name], want)
 		}
 	}
 

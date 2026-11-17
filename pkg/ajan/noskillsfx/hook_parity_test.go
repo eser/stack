@@ -12,56 +12,14 @@ import (
 
 // The parity test for the hook predicates (TASK-257): the answers of the
 // TypeScript functions for a corpus of inputs, replayed against the Go port.
-// The corpus is every string literal of the TypeScript tests for the guard,
-// the hook decisions, the git wrapper and the hook commands, run through
-// each string predicate, plus structured cases for the functions that take
-// objects. Recording needs node:
-//
-//	NOSKILLS_PARITY_RECORD=1 go test -run TestRecordHookParity ./pkg/ajan/noskillsfx/
+// The corpus was every string literal of the TypeScript tests for the guard,
+// the hook decisions, the git wrapper and the hook commands, run through each
+// string predicate, plus commands the tests did not hold and structured cases
+// for the functions that take objects. The TypeScript twin and its recorder
+// were deleted (TASK-262); testdata/hook_parity.json keeps the recorded
+// answers.
 
 const parityRecording = "testdata/hook_parity.json"
-
-// paritySources are the TypeScript tests the command corpus is mined from.
-func paritySources() []string {
-	return []string{
-		"pkg/@eserstack/agents/guards/git.test.ts",
-		"pkg/@eserstack/agents/guards/git-bypass.test.ts",
-		"pkg/@eserstack/agents/guards/git-config.test.ts",
-		"pkg/@eserstack/noskills/commands/hook-decisions.test.ts",
-		"pkg/@eserstack/noskills/commands/git-guard-hook.test.ts",
-		"pkg/@eserstack/noskills/commands/git-wrapper.test.ts",
-		"pkg/@eserstack/noskills/commands/invoke-hook.test.ts",
-		"pkg/@eserstack/noskills/sync/hook-commands.test.ts",
-	}
-}
-
-// parityCommands are commands the tests do not hold, for the JavaScript
-// string and regexp corners the port has to keep.
-func parityCommands() []string {
-	return []string{
-		"git\u2028push", "git\u00a0push origin", "\u3000git push", "git push\r\nls", "gIt PuSh", "GIT commit -m x",
-		"echo ok\u2029git push", "ls | sh\r", "cat x |\u00a0bash", "sh <<EOF\ngit push\nEOF", "bash -lc 'git commit -am x'",
-		"eval 'git reset --hard'", "$GIT push", "${G} push", "env -i git push", "sudo -u x git push",
-		"\"git\" push", "g''it push", "\\git push", "/usr/bin/git push", "./git push", "git.exe push",
-		"git -C /tmp commit", "git -c user.name=x commit", "git --git-dir=.git commit", "git --exec-path",
-		"git config --global user.name x", "git config user.name", "git config --get user.name", "git config --list",
-		"git branch", "git branch -D main", "git tag v1", "git tag -l", "git stash", "git stash list", "git remote add o x",
-		"git remote -v", "git reflog expire", "git send-pack x", "git clone https://x", "git -p log", "git --bogus commit",
-		"rm -rf .eser", "rm -rf .eser/", "rm -rf .eser/*", "rm -rf ./.eser/.state", "cd .eser && rm -rf .state",
-		"mv .eser/.state/bin x", "cat .eser/.state/bin/git", "ls .eser/.state/bin", "sed -i s/a/b/ .eser/manifest.yml",
-		"sed s/a/b/ .eser/manifest.yml", "echo x > .eser/manifest.yml", "echo x >/dev/null; cat .eser/manifest.yml",
-		"cat .eser/manifest.yml 2>&1", "yq -i .a=1 .eser/manifest.yml", "echo $(cat .eser/manifest.yml)",
-		"rm -rf .ESER/.State/Bin", "rm \u0130.eser/.state", "x=1 rm .eser/.state/bin/git", "echo .eser/manifest.yml.bak",
-		"noskills next --answer=\"use git push\"", "npx eser@latest noskills next --answer='git commit'",
-		"deno run -A jsr:@eserstack/cli noskills", "deno x npm:noskills", "deno run ./local.ts", "A=1 B=2 npx eser",
-		"npm exec noskills", "npm x noskills", "pnpm dlx noskills", "yarn dlx noskills", "bunx noskills", "pnpx noskills",
-		"noskills invoke-hook pre-tool-use", "x invoke-hook stop --flag", "invoke-hook stopped", "nos next", "a nos b",
-		"*** Update File: src/a.ts\n*** Add File: b.ts\r*** Delete File: c.ts\u2028*** Move to: d.ts",
-		"*** Update File:  spaced.ts  ", "sh run.sh", "bash -e x.sh", "source x.sh", ". ./x.sh", "sh -c 'git push'",
-		"echo 'git push' > x.sh && sh x.sh", "tee x.sh < y && bash x.sh", "sh < x.sh",
-		"   ", "", "git", "git status && git push || git log; git diff\ngit commit",
-	}
-}
 
 // parityCase is one structured call: a function and its arguments as JSON.
 type parityCase struct {

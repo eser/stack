@@ -334,17 +334,15 @@ func specSectionsSteps() []step {
 
 func specStateScenarios() []scenario {
 	return []scenario{
-		{name: "spec_states", steps: specStatesSteps(), nativeFrom: 0, portedBy: "TASK-258.1", delta: true},
+		{name: "spec_states", steps: specStatesSteps(), delta: true},
 		{
-			name:       "spec_execution",
-			setup:      withToolDirs(".claude"),
-			steps:      specExecutionSteps(),
-			nativeFrom: 0,
-			portedBy:   "TASK-258.1",
-			delta:      true,
+			name:  "spec_execution",
+			setup: withToolDirs(".claude"),
+			steps: specExecutionSteps(),
+			delta: true,
 		},
-		{name: "spec_split_answer", steps: specSplitAnswerSteps(), nativeFrom: 0, portedBy: "TASK-258.1", delta: true},
-		{name: "legacy_layout", steps: legacySteps(), nativeFrom: 0, portedBy: "TASK-258.1", delta: true},
-		{name: "spec_sections", steps: specSectionsSteps(), nativeFrom: 0, portedBy: "TASK-325", delta: true},
+		{name: "spec_split_answer", steps: specSplitAnswerSteps(), delta: true},
+		{name: "legacy_layout", steps: legacySteps(), delta: true},
+		{name: "spec_sections", steps: specSectionsSteps(), delta: true},
 	}
 }

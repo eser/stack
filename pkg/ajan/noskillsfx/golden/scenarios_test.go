@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -45,8 +46,45 @@ func withToolDirs(dirs ...string) func(t *testing.T, project string) {
 	}
 }
 
+// withClaudeOnPath is withToolDirs plus a claude program in <HOME>/bin. The
+// recordings of the scenarios that open with init were made on a machine
+// with claude on PATH, and claudeInit runs that init with only <HOME>/bin and
+// the system directories on PATH, so init detects the recording's providers
+// on every machine.
+func withClaudeOnPath(dirs ...string) func(t *testing.T, project string) {
+	tools := withToolDirs(dirs...)
+
+	return func(t *testing.T, project string) {
+		t.Helper()
+
+		tools(t, project)
+
+		bin := filepath.Join(filepath.Dir(project), "home", "bin")
+		if err := os.MkdirAll(bin, 0o750); err != nil {
+			t.Fatal(err)
+		}
+
+		if err := os.WriteFile(filepath.Join(bin, "claude"), []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil { //nolint:gosec // G306: a program on the fixture's PATH
+			t.Fatal(err)
+		}
+	}
+}
+
+// claudeInit gives the init step that opens steps the PATH of
+// withClaudeOnPath and the command prefix the recordings hold.
+func claudeInit(steps []step) []step {
+	steps = slices.Clone(steps)
+	if steps[0].Args[0] != "init" {
+		panic("claudeInit: the first step is not init")
+	}
+
+	steps[0].Env = map[string]string{"PATH": "<HOME>/bin:/usr/bin:/bin", "NOSKILLS_CLI_PREFIX": "npx eser@latest noskills"}
+
+	return steps
+}
+
 // The state files the hook_events scenario writes to put the project in
-// each phase, as the TypeScript CLI would leave them.
+// each phase, as the CLI leaves them.
 const (
 	globalStateFile = ".eser/.state/progresses/state.json"
 
@@ -220,8 +258,8 @@ func scenarios() []scenario {
 	return append([]scenario{
 		{
 			name:  "spec_lifecycle",
-			setup: withToolDirs(".claude"),
-			steps: []step{
+			setup: withClaudeOnPath(".claude"),
+			steps: claudeInit([]step{
 				{Args: []string{"init"}},
 				{Args: []string{"spec", "new", "add a login page"}},
 				{Args: []string{"spec", "add-login-page", "next"}},
@@ -229,31 +267,25 @@ func scenarios() []scenario {
 				{Args: []string{"spec", "add-login-page", "next"}},
 				{Args: []string{"status"}},
 				{Args: []string{"spec", "list"}},
-			},
-			nativeFrom: 1,
-			portedBy:   "TASK-259 (init depends on the providers of the recording machine)",
+			}),
 		},
 		{
 			name:  "hooks",
-			setup: withToolDirs(".claude"),
-			steps: []step{
+			setup: withClaudeOnPath(".claude"),
+			steps: claudeInit([]step{
 				{Args: []string{"init"}},
 				{Args: []string{"spec", "new", "add a login page"}},
 				{Args: []string{"invoke-hook", "pre-tool-use"}, Stdin: hookInput("Bash", map[string]any{"command": "git push origin main"})},
 				{Args: []string{"invoke-hook", "pre-tool-use"}, Stdin: hookInput("Write", map[string]any{"file_path": "src/login.ts", "content": "x"})},
 				{Args: []string{"invoke-hook", "pre-tool-use"}, Stdin: hookInput("Read", map[string]any{"file_path": "package.json"})},
 				{Args: []string{"invoke-hook", "session-start"}},
-			},
-			nativeFrom: 1,
-			portedBy:   "TASK-259 (init depends on the providers of the recording machine)",
+			}),
 		},
 		{
-			name:       "hook_events",
-			setup:      withToolDirs(".claude"),
-			steps:      hookEventsSteps(),
-			nativeFrom: 1,
-			portedBy:   "TASK-259 (init depends on the providers of the recording machine)",
-			delta:      true,
+			name:  "hook_events",
+			setup: withClaudeOnPath(".claude"),
+			steps: claudeInit(hookEventsSteps()),
+			delta: true,
 		},
 		{
 			name:  "purge_restore",
@@ -266,8 +298,6 @@ func scenarios() []scenario {
 				{Args: []string{"purge", "restore", "latest"}, Stderr: true},
 				{Args: []string{"spec", "list"}},
 			},
-			nativeFrom: 0,
-			portedBy:   "TASK-259",
 		},
 		{
 			name:  "sync",
@@ -276,8 +306,6 @@ func scenarios() []scenario {
 				{Args: []string{"init"}, Env: fixedTools()},
 				{Args: []string{"sync"}, Env: fixedTools()},
 			},
-			nativeFrom: 0,
-			portedBy:   "TASK-259",
 		},
 	}, append(append(append(append(lifecycleScenarios(), stateScenarios()...), validationScenarios()...), sessionScenarios()...), specStateScenarios()...)...)
 }

@@ -65,7 +65,7 @@ Its scripts call the bin, and the app needs no `laroux.config.ts` to run them:
 }
 ```
 
-The same commands run as `eser laroux <command>` through `@eserstack/cli`.
+The same commands run as `eser laroux <command>`, which runs the `laroux` bin.
 
 To start the server from code, pass the renderer and HTML shell of a framework
 adapter. Without a bundler plugin, `startServer` serves the build already in
@@ -399,8 +399,8 @@ Apache-2.0 © [Eser Ozvataf](https://github.com/eser)
 
 ## 🔗 Links
 
-- [@eserstack/cli](https://www.npmjs.com/package/@eserstack/cli) -
-  Main CLI tool (`eser laroux` commands)
+- [laroux](https://www.npmjs.com/package/laroux) - The `laroux` CLI, which
+  `eser laroux` runs
 - [@eserstack/laroux-bundler](https://www.npmjs.com/package/@eserstack/laroux-bundler) -
   Build system and HMR
 - [@eserstack/laroux](https://www.npmjs.com/package/@eserstack/laroux) -

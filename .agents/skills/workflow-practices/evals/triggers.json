@@ -64,7 +64,7 @@
     "should_trigger": true
   },
   {
-    "query": "this change touches both @eserstack/shell and @eserstack/cli, plan it",
+    "query": "this change touches both @eserstack/shell and @eserstack/laroux-server, plan it",
     "should_trigger": true
   },
   {

@@ -24,5 +24,6 @@ run = "make ajan-wasm"
 description = "Build Go WASM modules"
 
 [tasks.test-ffi]
-run = "node ./pkg/@eserstack/cli/main.ts ajan version"
+dir = "pkg/@eserstack/ajan"
+run = """node --input-type=module -e "const lib = await (await import('@eserstack/ajan')).loadEserAjan(); console.log('eser-ajan', lib.handshake.version, lib.backend)""""
 description = "Verify FFI bridge works"

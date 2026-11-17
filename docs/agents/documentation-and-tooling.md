@@ -52,7 +52,7 @@ CLI `main.ts` (`node ./pkg/@eserstack/workflows/main.ts` starts the workflows
 CLI). Each one publishes its library as `./mod`, which READMEs import as
 `import * as workflows from "@eserstack/workflows/mod"`
 (documentation-conventions: README Import Pattern), and its command tree as
-`./module`, which `pkg/@eserstack/cli/main.ts` mounts in the `eser` CLI. The
+`./module`. The
 `./mod` of `kit` holds only `moduleDef`; its recipe library is the `./recipes`
 export.
 `laroux-server` is not one of them: its `.` export is the server library

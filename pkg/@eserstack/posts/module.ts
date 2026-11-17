@@ -3,7 +3,7 @@
 /**
  * @eserstack/posts module definition — multi-platform social posting for the eser CLI.
  *
- * Registered as `eser posts <command>` in @eserstack/cli.
+ * The `eser-posts` bin runs it, and `eser posts <command>` forwards to that bin.
  *
  * @module
  */

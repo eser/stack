@@ -412,8 +412,7 @@ jobs:
       # outside the repo, then loaded from there, where Node cannot fall back
       # on the workspace's node_modules. --require-native: with the library
       # just built and named in ESER_AJAN_LIB_PATH, a graceful "no native
-      # library" is a failure here, not an acceptable outcome. The CLI from
-      # source is node-ffi-cli's job.
+      # library" is a failure here, not an acceptable outcome.
       - name: Verify FFI — @eserstack/ajan from an npm install
         env:
           ESER_AJAN_WASM: disabled
@@ -434,59 +433,6 @@ jobs:
     permissions:
       contents: read
     uses: ./.github/workflows/laroux-smoke.yml
-
-  node-ffi-cli:
-    name: CLI on node:ffi (${{ matrix.os }})
-    needs: validate
-    # Runs the eser CLI from source under plain node, which loads the bridge
-    # through node:ffi with no FFI flag (TASK-189, decision-37): the gate
-    # runner M1 depends on, proven before the cutover.
-    if: "!startsWith(github.ref, 'refs/tags/') && inputs.tag == ''"
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 15
-
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-24.04-arm, macos-latest]
-
-    permissions:
-      contents: read
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-
-      - name: Setup Go
-        uses: actions/setup-go@v7
-        with:
-          go-version-file: go.mod
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v6
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v7
-        with:
-          node-version-file: .node-version
-          cache: "pnpm"
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Build the native library
-        run: make ajan-lib
-
-      # The excludes are the manifest's: a standalone validator run reads its
-      # options from flags only.
-      - name: eser ajan version
-        run: node pkg/@eserstack/cli/main.ts ajan version
-
-      - name: eser codebase validate-eof
-        run: node pkg/@eserstack/cli/main.ts codebase validate-eof --exclude docs/api/ --exclude third-party/
-
-      - name: eser codebase validate-licenses
-        run: node pkg/@eserstack/cli/main.ts codebase validate-licenses --exclude .eser/recipes/ --exclude third-party/
 
   # ── Windows ─────────────────────────────────────────────────────
   # The only job that runs on Windows at all. Two things were unexercised

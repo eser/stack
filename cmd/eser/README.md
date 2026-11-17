@@ -31,7 +31,7 @@ bin/eser --help       # built-in commands and the manifest's scripts
 - `eser doctor` reports the version, platform, binary, PATH, git, node, pnpm and
   go, the manifest and the git hooks; `--json` prints it as JSON.
 - `eser system` holds the same `install`, `uninstall`, `update`, `version` and
-  `doctor`, as the TypeScript CLI did, with `completions [--shell bash|zsh|fish]`
+  `doctor`, with `completions [--shell bash|zsh|fish]`
   (the shell of `$SHELL` by default) and `info`, which reports the Go runtime,
   the locations, the arguments, how eser was installed and selected
   environment variables (`--json` too).
@@ -181,7 +181,7 @@ directory; the first one that fails stops the command.
 `eser cs generate <cm|configmap|secret>/<name>` prints a ConfigMap or Secret
 built from the `.env` files; `eser cs sync <resource>` reads the resource's keys
 with `kubectl` and prints the `kubectl patch` command that sets them from the
-environment (`-s` prints the patch only). The flags match the TypeScript CLI:
+environment (`-s` prints the patch only). The flags are
 `-e/--env`, `-n/--namespace`, `-o/--output yaml|json` (generate defaults to
 YAML, sync to JSON).
 
@@ -204,7 +204,7 @@ ollama on `localhost:11434`, opencode, then an Anthropic or OpenAI credential.
 request; `-v/--verbose` logs each step to stderr. `--json` waits for the whole
 answer and prints the result in the shape of the TypeScript
 `GenerateTextResult`. Ctrl-C stops the request and exits with code 130. The
-answer is written as it arrives, without the TypeScript CLI's typewriter delay.
+answer is written as it arrives.
 
 `eser ai list` prints each provider and whether it is available; `--json` prints
 the list.

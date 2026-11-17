@@ -175,52 +175,6 @@ importers:
         specifier: workspace:*
         version: link:../test-kit
 
-  pkg/@eserstack/cli:
-    dependencies:
-      '@eserstack/ai':
-        specifier: workspace:*
-        version: link:../ai
-      '@eserstack/ajan':
-        specifier: workspace:*
-        version: link:../ajan
-      '@eserstack/codebase':
-        specifier: workspace:*
-        version: link:../codebase
-      '@eserstack/config':
-        specifier: workspace:*
-        version: link:../config
-      '@eserstack/kit':
-        specifier: workspace:*
-        version: link:../kit
-      '@eserstack/laroux-server':
-        specifier: workspace:*
-        version: link:../laroux-server
-      '@eserstack/noskills':
-        specifier: workspace:*
-        version: link:../noskills
-      '@eserstack/posts':
-        specifier: workspace:*
-        version: link:../posts
-      '@eserstack/primitives':
-        specifier: workspace:*
-        version: link:../primitives
-      '@eserstack/shell':
-        specifier: workspace:*
-        version: link:../shell
-      '@eserstack/standards':
-        specifier: workspace:*
-        version: link:../standards
-      '@eserstack/streams':
-        specifier: workspace:*
-        version: link:../streams
-      '@eserstack/workflows':
-        specifier: workspace:*
-        version: link:../workflows
-    devDependencies:
-      '@eserstack/test-kit':
-        specifier: workspace:*
-        version: link:../test-kit
-
   pkg/@eserstack/codebase:
     dependencies:
       '@eserstack/ai':

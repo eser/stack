@@ -44,4 +44,6 @@ Owner decision (2026-11-17): port every TS-only eser command to Go before deleti
 Owner decision (2026-11-17): delete the TS CLI modules now and stay on 5.x, without a deprecation period or a major bump; the npm-externals and npm-workspace-specifiers exports removed by TASK-254 stay removed.
 
 Step 1 (2026-11-17): the Go eser has every TS-only command: the aliases codebase . and workflows wf and the noskills alias nos (forward.go pluginAliases), the system group (install, uninstall, update, completions --shell, version, doctor, info), ajan version (the linked Go library), codebase validate-code-conventions --write-baseline (byte-identical to the TS writer on this repo) and codebase commitmsg on aifx (cmd/eser/codebase_commitmsg.go). clifx exports CompletionScript. Tests first for each.
+
+Step 2a (2026-11-17): pkg/@eserstack/cli is deleted (the dispatcher, the manifest script runner, plugin resolution, native-tools and ajan version, all in the Go eser now) and `pnpm cli` runs `go run ./cmd/eser`. The node-ffi-cli CI job ran that package under node:ffi; the cross-runtime-test job keeps loading the bridge from an npm install with --require-native, so the job is removed with the package. The mise test-ffi task loads @eserstack/ajan directly. Next: the TypeScript twins in codebase, workflows, kit, cs and ai.
 <!-- SECTION:NOTES:END -->

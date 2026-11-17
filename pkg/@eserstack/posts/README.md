@@ -344,8 +344,8 @@ lists the changes in every package.
 ## 🔗 Links
 
 - [eser/stack on GitHub](https://github.com/eser/stack)
-- [`@eserstack/cli`](../cli/README.md): the `eser` command that registers
-  `eser posts`
+- [`eser`](../../../cmd/eser/README.md): the `eser` command, whose
+  `eser posts` runs the `eser-posts` bin of this package
 - [`@eserstack/functions`](../functions/README.md): `Task`, handlers and
   `bracket`, which the application layer builds on
 - [`@eserstack/primitives`](../primitives/README.md): the `Result` type every

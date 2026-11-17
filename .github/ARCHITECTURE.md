@@ -113,11 +113,10 @@ Layer 5: Applications
 ├── @eserstack/noskills-client       # Client for a running noskills-server daemon
 ├── @eserstack/noskills-web          # Browser dashboard that `noskills web` starts
 ├── noskills (noskills-bin)          # The npm package `noskills`: the launcher of the Go noskills
-├── eser (eser-bin)                  # The npm package `eser`: the launcher of the Go eser
-└── @eserstack/cli                   # The TypeScript eser CLI, which `pnpm cli` runs
+└── eser (eser-bin)                  # The npm package `eser`: the launcher of the Go eser
 
 Go (module github.com/eser/stack, root go.mod)
-├── cmd/eser                         # `eser`: the release binary of the CLI
+├── cmd/eser                         # `eser`: the CLI, which `pnpm cli` runs
 ├── cmd/noskills                     # `noskills`: the release binary of the spec workflow
 ├── cmd/noskills-server              # `noskills-server`: the daemon
 ├── cmd/legacy-forwarder             # The stub shipped under the `laroux` archive name
@@ -173,9 +172,8 @@ daemon needs no JavaScript runtime.
 `pkg/@eserstack/shell/cli-system/` owns `install`, `uninstall`, `update`,
 `completions`, `version`, `doctor` and `info`, parameterised by a `CliApp` so
 each binary gets a tree describing itself. `attachStandardCommands` binds it to
-a binary's ROOT command — which is what gives `noskills version` without
-`eser noskills version`, since `eser` mounts the very same module object the
-standalone binary re-roots.
+a binary's ROOT command, which is what gives `laroux version`. The Go `eser`
+has its own `system` group in `cmd/eser`.
 
 ## Build Pipeline
 
@@ -207,7 +205,6 @@ Developer runs:  eser codebase release patch
 │  ├─ cross-runtime-test  node × linux / macos                │
 │  ├─ laroux-smoke        packed laroux app: dev, build and   │
 │  │                      serve × linux / macos               │
-│  ├─ node-ffi-cli        the CLI on node:ffi × linux / macos │
 │  └─ windows-smoke       compiles the Windows artifacts and  │
 │                         runs etc/scripts/install.ps1        │
 └─────────────────────────────────────────────────────────────┘

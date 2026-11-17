@@ -45,10 +45,7 @@ The codebase validators that the eser CLI injects call the bridge themselves.
 The TypeScript engine stays the default of `workflows run`. Two tools let a
 TypeScript workflow use what runs in Go. This package does not register them:
 the application passes the port to the native library in, so the package imports
-no native library and a workflow that never uses them loads none. The eser CLI
-is that application: `pkg/@eserstack/cli/native-tools.ts` registers
-`native-function` and `go-workflow` on `eser workflows run`, and loads the
-library on the first call only.
+no native library and a workflow that never uses them loads none.
 
 | Tool                    | Factory                                         | Step options                                          | What it does                                                                                                             |
 | ----------------------- | ----------------------------------------------- | ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |

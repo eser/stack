@@ -40,7 +40,7 @@ body:
         - "@eserstack/di"
         - "@eserstack/events"
         - "@eserstack/config"
-        - "@eserstack/cli"
+        - "eser CLI"
         - "@eserstack/standards"
         - "@eserstack/laroux"
         - "@eserstack/shell"

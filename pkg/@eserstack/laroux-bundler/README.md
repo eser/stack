@@ -420,8 +420,8 @@ lists the changes in every package.
 
 ## 🔗 Links
 
-- [@eserstack/cli](https://www.npmjs.com/package/@eserstack/cli):
-  main CLI tool (`eser laroux` commands)
+- [laroux](https://www.npmjs.com/package/laroux): the `laroux` CLI, which
+  `eser laroux` runs
 - [@eserstack/laroux-server](https://www.npmjs.com/package/@eserstack/laroux-server):
   server runtime (SSR, routing, actions)
 - [@eserstack/laroux](https://www.npmjs.com/package/@eserstack/laroux):

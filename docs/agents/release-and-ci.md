@@ -110,8 +110,8 @@ leaves a release that is already published as it is. `update-homebrew` and
 public download URL, which serves nothing for a draft. An ordinary push
 runs `validate`, `mux-no-js-runtime`, `cross-runtime-test` (Node on Linux and
 macOS), `laroux-smoke` (the reusable `laroux-smoke.yml`: the laroux app check
-of the preflight on Linux and macOS), `node-ffi-cli` and `windows-smoke`, and
-`preflight` on `main`. The
+of the preflight on Linux and macOS) and `windows-smoke`, and `preflight` on
+`main`. The
 Validate job also runs `make vuln` (govulncheck for both Go modules).
 
 ## Publishing Targets

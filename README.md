@@ -97,7 +97,6 @@ workflow-facing (Tools).
 | [@eserstack/codebase](pkg/@eserstack/codebase/)       | Git ops, scaffolding, version management              |
 | [@eserstack/workflows](pkg/@eserstack/workflows/)     | Event-driven workflow engine                          |
 | [@eserstack/kit](pkg/@eserstack/kit/)                 | Recipe + template distribution                        |
-| [@eserstack/cli](pkg/@eserstack/cli/)                 | Main entrypoint CLI                                   |
 | [@eserstack/ai](pkg/@eserstack/ai/)                   | AI provider abstraction (Claude, OpenAI, Gemini)      |
 | [@eserstack/app-runtime](pkg/@eserstack/app-runtime/) | Application lifecycle management                      |
 

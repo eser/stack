@@ -66,7 +66,7 @@
 
 - name: "pkg:cli"
   color: "6f42c1"
-  description: "Changes to @eserstack/cli"
+  description: "Changes to the eser CLI (cmd/eser)"
 
 - name: "pkg:events"
   color: "6f42c1"

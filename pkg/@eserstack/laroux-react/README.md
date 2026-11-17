@@ -56,8 +56,8 @@ pnpm add @eserstack/laroux-react
 
 ## Usage
 
-The RSC protocol and client parser are typically used internally by
-`@eserstack/cli` (via `eser laroux` commands) and `@eserstack/laroux-server`.
+The RSC protocol and client parser are typically used internally by the
+`laroux` commands and `@eserstack/laroux-server`.
 You generally won't need to import them directly unless you're building custom
 tooling. Pages and components import `Link`, `useRouter` and `Image`.
 

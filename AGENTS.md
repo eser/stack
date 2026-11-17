@@ -94,7 +94,7 @@ pnpm cli --help    # Every command; the scripts are listed in .eser/manifest.yml
 which runs the workflows of `.eser/manifest.yml` on `pkg/ajan/workflowfx`;
 `pnpm ok`, `pnpm fix` and `pnpm preflight` call it through `go run ./cmd/eser`,
 so no install is needed. `eser codebase install` writes git hooks that run it.
-`pnpm cli ok` still runs the same workflow on the TypeScript CLI.
+`pnpm cli <command>` runs any other command on it the same way.
 
 The Makefile holds Go targets only (`ok`, `check`, `lint`, `fix`, `test`,
 `test-coverage`, `build`, `tools`, `vuln`) and lints the root module only. The

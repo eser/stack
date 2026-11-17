@@ -37,7 +37,8 @@ pkg:di:
 pkg:cli:
   - changed-files:
       - any-glob-to-any-file:
-          - "pkg/@eserstack/cli/**"
+          - "cmd/eser/**"
+          - "pkg/@eserstack/eser-bin/**"
 
 pkg:events:
   - changed-files:

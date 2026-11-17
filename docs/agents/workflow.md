@@ -28,8 +28,7 @@ pnpm preflight     # release-only steps; needed before tagging
 
 `--only` matches a step's tool name or its `name`, so it selects a validator
 or a shell step, and a filter that matches no step fails the run and names the
-filter. The Go eser and the TypeScript CLI (`pnpm cli ok` runs the same
-workflow on it) behave the same.
+filter.
 
 `make ok` covers Go only, so it never replaces `pnpm ok` for a change that
 touches TypeScript.
@@ -41,7 +40,7 @@ touches TypeScript.
 | `pkg/@eserstack/standards/`  | Cross-runtime abstractions; **high impact**, every package depends on it            |
 | `pkg/@eserstack/codebase/`   | Repo tooling and validators                                                         |
 | `pkg/@eserstack/shell/`      | CLI framework and TUI; owns `cli-system/`, the command tree of every binary         |
-| `pkg/@eserstack/cli/`        | The `eser` binary and its npm bundle                                                |
+| `cmd/eser/`                  | The `eser` binary; `pkg/@eserstack/eser-bin/` is its npm launcher                   |
 | `pkg/@eserstack/noskills*/`  | Spec workflow, daemon client, web dashboard                                         |
 | `pkg/@eserstack/laroux*/`    | Framework: server, bundler, React integration                                       |
 | `pkg/@eserstack/ai/`         | AI providers: TypeScript adapters and the Go bridge                                 |

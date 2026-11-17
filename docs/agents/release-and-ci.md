@@ -231,40 +231,38 @@ These five names are not on npm yet (checked on 2026-11-17 with
 of TASK-254, `@eserstack/eser-darwin-arm64`, `@eserstack/eser-darwin-x64`,
 `@eserstack/eser-linux-arm64`, `@eserstack/eser-linux-x64` and
 `@eserstack/eser-win32-x64`. Every other package, the libraries and the `ajan`
-and `noskills` platform packages included, is on npm from 5.0.0. To list the
-missing names again:
+and `noskills` platform packages included, is on npm from 5.0.0.
 
-```bash
-for f in pkg/@eserstack/*/package.json; do
-  name=$(node -p "const m = require('./$f'); m.private ? '' : m.name")
-  [ -n "$name" ] && { npm view "$name" version >/dev/null 2>&1 || echo "$name"; }
-done
-```
+`etc/scripts/npm-bootstrap.ts` does the npm side. Without `--publish` it only
+reads the registry and lists every publishable workspace package npm answers
+E404 for; any other `npm view` failure stops it, so a network error never
+reads as a free name.
 
 The owner's steps, once per name:
 
 1. Publish a placeholder, logged in to npm as an owner of the `eserstack`
-   organization, so the name exists without taking a release version. With the
-   names above in `names.txt`:
+   organization. The script checks `npm whoami`, writes each placeholder
+   (`0.0.0-bootstrap.0`, which takes no release version) under
+   `etc/temp/npm-bootstrap`, and publishes it with
+   `npm publish --access public --tag bootstrap`, one at a time and attached to
+   the terminal, so npm can ask for a one-time password or a browser login:
 
    ```bash
-   mkdir -p etc/temp/npm-bootstrap && cd etc/temp/npm-bootstrap
-   while read -r name; do
-     dir=$(echo "$name" | tr / -)
-     mkdir -p "$dir"
-     printf '{"name":"%s","version":"0.0.0-bootstrap.0","license":"Apache-2.0","repository":{"type":"git","url":"git+https://github.com/eser/stack.git"}}\n' "$name" > "$dir/package.json"
-     (cd "$dir" && npm publish --access public --tag bootstrap)
-   done < names.txt
+   node ./etc/scripts/npm-bootstrap.ts            # list the missing names
+   node ./etc/scripts/npm-bootstrap.ts --publish  # publish their placeholders
+   node ./etc/scripts/npm-bootstrap.ts --publish --otp 123456 @eserstack/eser-linux-x64
    ```
 
    The platform packages can instead get their first real version from the
    artifacts of `publish-ajan.yml` in bootstrap mode.
 
 2. On npmjs.com, open each package's Settings, Trusted publishing, and add
-   GitHub Actions with repository `eser/stack` and workflow `build.yml`.
+   GitHub Actions with repository `eser/stack` and workflow `build.yml`. The
+   script prints the page of each name.
 3. The next release run publishes the release version of each name over OIDC
    with provenance, and `latest` moves to it. `npm dist-tag rm <name> bootstrap`
-   and `npm deprecate <name>@0.0.0-bootstrap.0 "placeholder"` tidy up after.
+   and `npm deprecate <name>@0.0.0-bootstrap.0 "placeholder"` tidy up after;
+   the script prints both for each name.
 
 ## Resuming a Release
 

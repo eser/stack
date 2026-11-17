@@ -15,8 +15,7 @@
   "exports": {
     ".": "./mod.ts",
     "./adapter": "./adapter.ts",
-    "./registry": "./registry.ts",
-    "./guards": "./guards/git.ts"
+    "./registry": "./registry.ts"
   },
   "publishConfig": {
     "exports": {
@@ -31,10 +30,6 @@
       "./registry": {
         "types": "./dist/registry.d.ts",
         "import": "./dist/registry.js"
-      },
-      "./guards": {
-        "types": "./dist/guards/git.d.ts",
-        "import": "./dist/guards/git.js"
       }
     }
   },

@@ -1,7 +1,10 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 /**
- * noskills module definition — state-machine orchestrator for AI agents.
+ * The commands the Go noskills hands over to this package: `watch`, `web` and
+ * `manager`. Every other noskills command runs in the Go binary (cmd/noskills),
+ * which forwards these three until they are ported (TASK-266). Internal: the
+ * npm noskills launcher runs this CLI, and nothing else should.
  *
  * @module
  */
@@ -15,71 +18,6 @@ export type Module = module.Module;
 export const moduleDef: Module = new module.Module({
   description: "noskills — state-machine orchestrator for AI agents",
   modules: {
-    init: {
-      description: "Initialize noskills in project",
-      load: () => import("./commands/init.ts"),
-    },
-    status: {
-      description: "Show current state",
-      load: () => import("./commands/status.ts"),
-    },
-    spec: {
-      description: "Manage specs (new, list)",
-      load: () => import("./commands/spec.ts"),
-    },
-    validate: {
-      description: "Read-only completeness check for a spec (CI-friendly)",
-      load: () => import("./commands/validate.ts"),
-    },
-    ledger: {
-      description: "Read-only decision ledger + maturity summary for a spec",
-      load: () => import("./commands/ledger.ts"),
-    },
-    next: {
-      description: "Get next instruction for agent",
-      load: () => import("./commands/next.ts"),
-    },
-    approve: {
-      description: "Approve phase transition",
-      load: () => import("./commands/approve.ts"),
-    },
-    block: {
-      description: "Mark spec as blocked",
-      load: () => import("./commands/block.ts"),
-    },
-    reset: {
-      description: "Reset current spec state",
-      load: () => import("./commands/reset.ts"),
-    },
-    done: {
-      description: "Mark spec execution as complete",
-      load: () => import("./commands/done.ts"),
-    },
-    free: {
-      description:
-        "Show idle mode info (noskills starts permissive by default)",
-      load: () => import("./commands/free.ts"),
-    },
-    cancel: {
-      description: "Cancel current spec",
-      load: () => import("./commands/cancel.ts"),
-    },
-    wontfix: {
-      description: "Mark spec as won't fix (requires reason)",
-      load: () => import("./commands/wontfix.ts"),
-    },
-    reopen: {
-      description: "Reopen a completed spec for revision",
-      load: () => import("./commands/reopen.ts"),
-    },
-    concern: {
-      description: "Manage concerns (add, remove, list)",
-      load: () => import("./commands/concern.ts"),
-    },
-    run: {
-      description: "Autonomous execution loop (Ralph loop)",
-      load: () => import("./commands/run.ts"),
-    },
     watch: {
       description: "Live dashboard for monitoring agent progress",
       load: () => import("./commands/watch.ts"),
@@ -87,44 +25,6 @@ export const moduleDef: Module = new module.Module({
     web: {
       description: "Start web interface (browser dashboard)",
       load: () => import("./commands/web.ts"),
-    },
-    sync: {
-      description: "Regenerate tool-specific files (redirects to init)",
-      load: () => import("./commands/sync.ts"),
-    },
-    learn: {
-      description: "Manage cross-session learnings (list, remove)",
-      load: () => import("./commands/learn.ts"),
-    },
-    diagrams: {
-      description:
-        "Diagram registry and staleness checks (scan, list, check, verify)",
-      load: () => import("./commands/diagrams.ts"),
-    },
-    purge: {
-      description:
-        "Remove all noskills content (specs, rules, concerns, hooks)",
-      load: () => import("./commands/purge.ts"),
-    },
-    "invoke-hook": {
-      description: "Internal hook handlers (called by agents)",
-      load: () => import("./commands/invoke-hook.ts"),
-    },
-    rule: {
-      description: "Manage rules (add, list, promote)",
-      load: () => import("./commands/rule.ts"),
-    },
-    config: {
-      description: "Manage configuration (set-user, get-user, clear-user)",
-      load: () => import("./commands/config.ts"),
-    },
-    pack: {
-      description: "Manage packs (list, install, uninstall, inspect, search)",
-      load: () => import("./commands/pack.ts"),
-    },
-    session: {
-      description: "Manage sessions for multi-instance support",
-      load: () => import("./commands/session.ts"),
     },
     manager: {
       description: "Multi-spec TUI with tab management",

@@ -18,10 +18,11 @@ build of the CLI ([cmd/noskills](../../../cmd/noskills)): the npm package
 its `@eserstack/noskills-<platform>` dependency, and depends on this package
 for the TypeScript CLI of the commands the binary hands over to it.
 
-Adding this package as a dependency (`pnpm add @eserstack/noskills`) gets you
-the modules, not the command: it declares no `bin`. Depend on it when embedding
-the orchestrator in your own program; install the binary when you want to run
-it.
+This package is internal to that setup: its CLI holds only `watch`, `web` and
+`manager`, which the Go binary forwards until they are ported (TASK-266), and
+its modules are the state, compiler and dashboard code those commands and
+`@eserstack/noskills-web` use. Every other command below runs in the Go binary.
+Install the binary to run noskills; do not depend on this package.
 
 AI agents are powerful. But left alone, they take shortcuts — they skip
 requirements, rush past edge cases, declare "done" when it isn't, and forget
@@ -932,6 +933,20 @@ work on track.
 State machine internals, JSON output format, hook implementation, CLI reference,
 directory structure, configuration, and library API — see
 **[README-HOW.md](./README-HOW.md)**.
+
+## Upgrading from 5.0.0
+
+The CLI of this package holds `watch`, `web` and `manager` only; the other
+commands, their modules (the hook decisions, sync adapters, packs, `run` and
+the rest) and the `./go-noskills` export are removed. The Go noskills runs
+every command.
+
+```bash
+# Before
+node node_modules/@eserstack/noskills/main.ts spec new "add a login page"
+# After
+noskills spec new "add a login page"
+```
 
 ## Upgrading from 4.x
 

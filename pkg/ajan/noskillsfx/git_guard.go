@@ -10,9 +10,9 @@ import (
 
 // The git guard: pure predicates that decide whether a shell command only
 // reads git state, and detect writes smuggled through subshells, pipes and
-// scripts. Port of pkg/@eserstack/agents/guards/git.ts; both sides keep one
-// allowlist, and the parity test in hook_parity_test.go replays the
-// TypeScript answers for a corpus of commands.
+// scripts. A port of the TypeScript guard of @eserstack/agents, deleted with
+// the TypeScript noskills (TASK-262); the parity test in hook_parity_test.go
+// replays the answers it recorded for a corpus of commands.
 
 // GitAllowedSubcommands are the subcommands that only read repository
 // state, whatever their arguments.

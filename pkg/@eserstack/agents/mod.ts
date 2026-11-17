@@ -6,7 +6,7 @@
  *
  * An {@link AgentAdapter} knows how to find and launch a coding agent (Claude
  * Code, OpenCode, Codex). Pairs with `@eserstack/mux`, which owns panes and
- * PTYs, and reuses the shared git guard.
+ * PTYs.
  *
  * The autonomous driving loop that used to live here is gone, along with the
  * regex state matchers it depended on: an agent's state now arrives as ACP
@@ -37,5 +37,3 @@ export {
 export { claudeCodeAdapter } from "./adapters/claude-code.ts";
 export { opencodeAdapter } from "./adapters/opencode.ts";
 export { codexAdapter } from "./adapters/codex.ts";
-
-export * as gitGuard from "./guards/git.ts";

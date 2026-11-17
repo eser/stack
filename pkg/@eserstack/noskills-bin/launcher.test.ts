@@ -312,7 +312,7 @@ nodeTest.test(
 
     assert.assertStringIncludes(
       source,
-      "The standalone CLI of @eserstack/noskills",
+      "The TypeScript CLI of `watch`, `web` and `manager`",
     );
   },
 );

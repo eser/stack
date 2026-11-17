@@ -57,6 +57,20 @@ and this project adheres to
   npx eser workflows run -e precommit
   ```
 
+- The TypeScript CLI of `@eserstack/noskills` holds `watch`, `web` and
+  `manager` only, the commands the Go noskills still forwards; every other
+  command and its modules, and the `./go-noskills` export, are removed. Run
+  the `noskills` binary (`npm install -g noskills`). The git guard of
+  `@eserstack/agents` (`agents.gitGuard` and the `./guards` export) is removed
+  with it; the Go hook `noskills invoke-hook pre-tool-use` runs the guard.
+
+  ```bash
+  # Before
+  node node_modules/@eserstack/noskills/main.ts spec new "add a login page"
+  # After
+  noskills spec new "add a login page"
+  ```
+
 ## 5.0.0 - 2026-11-16
 
 ### Added

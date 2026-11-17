@@ -18,8 +18,7 @@
     "./module": "./module.ts",
     "./dashboard": "./dashboard/mod.ts",
     "./persistence": "./state/persistence.ts",
-    "./session": "./manager/session-binding.ts",
-    "./go-noskills": "./go-noskills.ts"
+    "./session": "./manager/session-binding.ts"
   },
   "publishConfig": {
     "exports": {
@@ -46,10 +45,6 @@
       "./session": {
         "types": "./dist/manager/session-binding.d.ts",
         "import": "./dist/manager/session-binding.js"
-      },
-      "./go-noskills": {
-        "types": "./dist/go-noskills.d.ts",
-        "import": "./dist/go-noskills.js"
       }
     }
   },
@@ -59,8 +54,6 @@
   "dependencies": {
     "@eserstack/agents": "workspace:*",
     "@eserstack/ai": "workspace:*",
-    "@eserstack/ajan": "workspace:*",
-    "@eserstack/codebase": "workspace:*",
     "@eserstack/mux": "workspace:*",
     "@eserstack/primitives": "workspace:*",
     "@eserstack/shell": "workspace:*",

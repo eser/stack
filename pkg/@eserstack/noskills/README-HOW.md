@@ -643,7 +643,8 @@ their own payload: `tool_name` and `tool_input`, or Copilot CLI's camelCase
 `toolName` and `toolArgs`, with each tool's own tool names and input fields.
 pre-tool-use, post-file-write and post-bash map them to a shell command or the
 files a call changes before they decide anything (`toolCallOf` in
-`commands/hook-decisions.ts`, which cites each tool's documentation). A
+`pkg/ajan/noskillsfx/hook_decisions.go`, which cites each tool's
+documentation). A
 pre-tool-use denial exits with code 2 and the reason on stderr, which each of
 these tools takes as a denial; stdout carries the same denial as JSON for the
 tools that read one. Every config gives pre-tool-use 30 seconds, a limit set for
@@ -790,7 +791,8 @@ tool:
 
 Cursor, Windsurf and Copilot run no noskills hooks, so their file is the only
 instruction they get. All three files hold the same text, built in
-`sync/rule-file.ts`, and every command in it carries `spec <name>`: once a spec
+`pkg/ajan/noskillsfx/sync_rule_file.go`, and every command in it carries
+`spec <name>`: once a spec
 is active, `next` refuses a call without the spec name.
 
 ---
@@ -868,10 +870,9 @@ request:
 
 Redirects are refused, documents over 1 MiB are not read, and entries with
 control characters are rejected. A host name that resolves to an internal
-address is not caught; the module header of
-[pack/registry.ts](./pack/registry.ts) explains why that case is allowed. A
-refused or unreachable registry is reported, and the built-in packs are still
-listed.
+address is refused too, when the client dials it
+(`pkg/ajan/noskillsfx/pack_registry.go`). A refused or unreachable registry is
+reported, and the built-in packs are still listed.
 
 ---
 
@@ -1121,15 +1122,10 @@ Cline, Roo Code, Kilo Code).
 
 ## Agent Bridge
 
-`commands/run.ts` resolves an agent through `@eserstack/ai`:
-`adapters.factoryFor("claude-code")`, after `iteration.setDriver(root, "acp")`
-records which driver the run used.
-
-`factoryFor` prefers the ACP-backed Go bridge when the native library loads, and
-falls back to the TypeScript adapter otherwise. Both drive the same vendor
-binary in the same non-interactive mode, so the choice affects transport, not
-behaviour. If no agent can be resolved, `noskills run` reports that it could not
-run the agent and stops.
+`noskills run` (`cmd/noskills/run.go`) runs each turn in a fresh agent process
+through the `claude-code` provider of `pkg/ajan/aifx`: the claude CLI over ACP.
+It records which driver the run used before the first turn. If no agent can be
+started, `noskills run` reports that it could not run the agent and stops.
 
 There is no longer a `bridge/` module or a `claude -p` shell-out — that chain
 was removed when ACP replaced it.

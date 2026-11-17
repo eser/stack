@@ -1,10 +1,10 @@
 ---
 id: TASK-262
 title: Delete the TypeScript noskills twin
-status: In Progress
+status: Done
 assignee: []
 created_date: '2026-10-15 20:38'
-updated_date: '2026-11-17 09:17'
+updated_date: '2026-11-18 14:00'
 labels:
   - noskills
   - cleanup
@@ -25,8 +25,8 @@ Plan key: M4-T7. Effort: medium.
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 pkg/@eserstack/noskills holds no implementation of a command that has a Go version
-- [ ] #2 The golden harness runs against Go only; the gate is green
+- [x] #1 pkg/@eserstack/noskills holds no implementation of a command that has a Go version
+- [x] #2 The golden harness runs against Go only; the gate is green
 <!-- AC:END -->
 
 ## Implementation Notes
@@ -39,4 +39,6 @@ Owner decision (2026-11-17): watch, web and manager, which cmd/noskills still fo
 Step 1 (2026-11-17): the npm package noskills is the workspace package pkg/@eserstack/noskills-bin (laroux-bin model): bin noskills.ts on launcher.ts (generic, from scripts/npm-launcher.ts), the five noskills-<platform> optional dependencies and @eserstack/noskills at the same version, whose dist/main.js it names in NOSKILLS_TS_BUNDLE for watch, web and manager. noskills/scripts (npm-build.ts, npm-launcher.ts and its test) and the esbuild devDependency are gone; build.yml publishes noskills from the workspace after the libraries; the noskills-launcher-install preflight installs the packed closure after library-pack, and plugin-bins installs noskills like laroux. Verified: pnpm ok and pnpm preflight (17 steps).
 
 Step 2 (2026-11-18): the golden harness runs on Go only. The five scenarios that seeded init from the recording (lifecycle, lifecycle_concerns, spec_lifecycle, hooks, hook_events) run init with a claude stub alone on PATH and the recording's command prefix, and match it from step 0, so nativeFrom, portedBy and the seeding are gone. TestRecord and the sync adapter recording record cmd/noskills and noskillsfx.SyncAll; re-recording every scenario reproduced the recordings unchanged. TestSyncAdaptersLive, the hook parity recorder, the TypeScript run-prompt builder, TestRunBinaryMatchesTypeScript and the packs comparison are deleted; their recordings stay in testdata. Next: shrink pkg/@eserstack/noskills to watch, web, manager and what noskills-web imports.
+
+Step 3 (2026-11-18): pkg/@eserstack/noskills keeps the import closure of watch, web, manager and the modules noskills-web imports (mod, dashboard, persistence, session): 37 source files. The other commands, the hook decisions, git wrapper, sync engine and adapters, packs, detect, run, ffi-client, go-noskills.ts and bin-main.ts are deleted, with their tests and the tests that ran deleted commands through main.ts; module.ts registers watch, web, manager and mgr. The git guard of @eserstack/agents (guards/, the ./guards export and gitGuard) is deleted: its importers were the deleted hook modules. noskills drops its ajan and codebase dependencies. The README marks the package internal and README-HOW names the Go modules. Verified: pnpm ok, the npm launchers preflight, and watch, web and manager forwarded from a built cmd/noskills.
 <!-- SECTION:NOTES:END -->

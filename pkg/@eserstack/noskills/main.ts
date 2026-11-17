@@ -1,18 +1,10 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 /**
- * The standalone CLI of @eserstack/noskills. The package's `.` export runs this
- * CLI, and the library is published at `/mod`:
- *
- * ```typescript
- * import * as noskills from "@eserstack/noskills/mod";
- *
- * const state = noskills.createInitialState();
- * ```
- *
- * Usage:
- *   node ./main.ts <command> [options]
- *   npx noskills <command> [options]
+ * The TypeScript CLI of `watch`, `web` and `manager`, the noskills commands the
+ * Go noskills (cmd/noskills) forwards until they are ported (TASK-266). The npm
+ * noskills launcher points the binary at the emitted `dist/main.js`; run the
+ * noskills binary rather than this file.
  *
  * @module
  */

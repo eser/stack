@@ -1,14 +1,16 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 /**
- * noskills — state-machine orchestrator for AI agents.
+ * The modules of the TypeScript noskills that `watch`, `web`, `manager` and
+ * `@eserstack/noskills-web` use. Internal: the Go noskills (cmd/noskills) is
+ * the noskills command, and this package serves the commands it forwards
+ * until they are ported (TASK-266).
  *
  * @module
  */
 
 export { moduleDef } from "./module.ts";
 
-// Public API for programmatic consumers
 export type {
   CodingToolId,
   ConcernDefinition,

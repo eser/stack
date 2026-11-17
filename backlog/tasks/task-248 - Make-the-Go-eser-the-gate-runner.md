@@ -1,10 +1,10 @@
 ---
 id: TASK-248
 title: Make the Go eser the gate runner
-status: In Progress
+status: Done
 assignee: []
 created_date: '2026-10-15 20:38'
-updated_date: '2026-10-27 10:00'
+updated_date: '2026-11-17 09:05'
 labels:
   - go
   - gate
@@ -33,7 +33,7 @@ Plan key: M3-T7. Effort: medium.
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 `eser ok` and `make ok` pass locally and in CI validate
+- [x] #1 `eser ok` and `make ok` pass locally and in CI validate
 - [x] #2 The precommit and commit-msg hooks run the Go binary
 - [x] #3 Every validator id in the manifest resolves to a Go tool; the docs name `eser ok`
 <!-- AC:END -->
@@ -47,4 +47,6 @@ workflowfx: --only matched the tool name only (engine.go step loop), so a shell 
 Root package.json: ok, fix, preflight scripts call `go run ./cmd/eser`. build.yml: Validate runs `pnpm ok`, Release Preflight `pnpm preflight`; actionlint clean. Docs: AGENTS.md Essential Commands and Absolute Rules, docs/agents/workflow.md, release-and-ci.md, languages-and-security.md, architecture-and-code.md, .github/ARCHITECTURE.md, CONTRIBUTING.md, cmd/eser/README.md.
 Comparison on a clone of HEAD plus this change (the shared checkout was broken by in-flight TASK-233/TASK-238 edits): `pnpm cli ok` and `pnpm ok` ran the same 33 steps in the same order, all passed; `pnpm fix` changed no file; `pnpm preflight` passed its 12 steps; `make ok` passed. Left: AC #1 needs a CI Validate run; AC #2 needs the hooks of this checkout reinstalled with `go run ./cmd/eser codebase install` (the integration agent's step).
 The integration agent ran `go run ./cmd/eser codebase install` on main after the Go gate passed; pre-commit, commit-msg and pre-push now call `go run ./cmd/eser workflows run`. AC #2 holds; AC #1 waits for the CI Validate run.
+
+AC #1: the Validate job of Integrity Pipeline run 43860116835 on main (c090206f, 2026-11-16) passed; it runs pnpm ok, which is go run ./cmd/eser ok, and the gate's go-check, go-lint and go-tests steps run the make ok targets.
 <!-- SECTION:NOTES:END -->

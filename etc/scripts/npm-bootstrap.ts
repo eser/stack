@@ -6,8 +6,11 @@
  * npm attaches a trusted publisher only to a package that exists, so the
  * release's OIDC publish cannot create a name: its first PUT answers 404. The
  * owner publishes a placeholder for each such name once, `0.0.0-bootstrap.0`
- * under the `bootstrap` dist-tag, which takes no release version and leaves
- * `latest` to the first real release, and then adds the trusted publisher on
+ * under the `bootstrap` dist-tag, which takes no release version. npm points
+ * `latest` at the placeholder too, since a package always has one, until the
+ * first release moves it; nothing installs it meanwhile, because the
+ * launchers pin their platform packages to the exact release version. The
+ * owner then adds the trusted publisher on
  * npmjs.com ("Bootstrapping New npm Names" in docs/agents/release-and-ci.md).
  *
  * Without `--publish` it only reads the registry: it asks
@@ -45,7 +48,7 @@ const REPO_ROOT = runtime.path.resolve(import.meta.dirname ?? ".", "..", "..");
 /** The placeholder version: a prerelease below every release. */
 export const BOOTSTRAP_VERSION = "0.0.0-bootstrap.0";
 
-/** The dist-tag of the placeholder, so `latest` waits for a release. */
+/** The dist-tag of the placeholder, removed after the first release. */
 export const BOOTSTRAP_TAG = "bootstrap";
 
 /** Where the placeholders are written, relative to the repository root. */

@@ -203,8 +203,9 @@ Validate job also runs `make vuln` (govulncheck for both Go modules).
   `publishConfig.executableFiles`, so each platform package lists its binary
   there, and the launcher adds the execute bits before it runs a binary that
   lost them (TASK-368). They must be on npm before `eser@<version>` and
-  `noskills@<version>`, which pin them. The five eser ones are not on npm yet,
-  so each needs the one-time bootstrap below and a trusted publisher.
+  `noskills@<version>`, which pin them. The five eser ones were bootstrapped
+  on 2026-11-18 (see below) and get their first release version from the next
+  release.
 - **New npm packages:** a name npm does not have yet is published once by hand
   and then given a trusted publisher; see Bootstrapping New npm Names.
 - **Exact pins:** `ajan` and the `eser` and `noskills` launchers declare their
@@ -226,12 +227,15 @@ create a name: the first publish of a new name answers 404 on the PUT, and the
 `publish` or `publish-ajan` job fails. The owner bootstraps each such name once
 before the release that first publishes it. Agents never publish.
 
-These five names are not on npm yet (checked on 2026-11-17 with
-`npm view <name> version`, which answered E404): the eser platform packages
-of TASK-254, `@eserstack/eser-darwin-arm64`, `@eserstack/eser-darwin-x64`,
+The last names bootstrapped are the eser platform packages of TASK-254,
+`@eserstack/eser-darwin-arm64`, `@eserstack/eser-darwin-x64`,
 `@eserstack/eser-linux-arm64`, `@eserstack/eser-linux-x64` and
-`@eserstack/eser-win32-x64`. Every other package, the libraries and the `ajan`
-and `noskills` platform packages included, is on npm from 5.0.0.
+`@eserstack/eser-win32-x64`: their placeholders were published on 2026-11-18,
+each with a trusted publisher for `build.yml` that allows `npm publish`. Until
+the first release publishes them, `latest` and `bootstrap` both point at
+`0.0.0-bootstrap.0`; step 3 below tidies that up. Every other package, the
+libraries and the `ajan` and `noskills` platform packages included, is on npm
+from 5.0.0.
 
 `etc/scripts/npm-bootstrap.ts` does the npm side. Without `--publish` it only
 reads the registry and lists every publishable workspace package npm answers
@@ -261,8 +265,9 @@ The owner's steps, once per name:
    script prints the page of each name.
 3. The next release run publishes the release version of each name over OIDC
    with provenance, and `latest` moves to it. `npm dist-tag rm <name> bootstrap`
-   and `npm deprecate <name>@0.0.0-bootstrap.0 "placeholder"` tidy up after;
-   the script prints both for each name.
+   and `npm deprecate <name>@0.0.0-bootstrap.0 "placeholder"` tidy up after,
+   once `npm view <name> dist-tags` shows `latest` on the release version; the
+   script prints both for each name.
 
 ## Resuming a Release
 

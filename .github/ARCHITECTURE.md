@@ -112,6 +112,7 @@ Layer 5: Applications
 ├── @eserstack/noskills              # `noskills`: the same module `eser` mounts, re-rooted
 ├── @eserstack/noskills-client       # Client for a running noskills-server daemon
 ├── @eserstack/noskills-web          # Browser dashboard that `noskills web` starts
+├── noskills (noskills-bin)          # The npm package `noskills`: the launcher of the Go noskills
 └── @eserstack/cli                   # `eser`: the full CLI
 
 Go (module github.com/eser/stack, root go.mod)
@@ -129,10 +130,11 @@ Go (module github.com/eser/ajan, pkg/@eserstack/ajan/go.mod)
 optional dependencies. The release binaries are Go commands built by
 `eser codebase dist compile` (`ReleaseBinaries` in `pkg/ajan/codebasefx`):
 `eser` (`cmd/eser`), `noskills` (`cmd/noskills`) and `noskills-server`
-(decision-8). On npm, `noskills` is a launcher: its optional dependencies
-`@eserstack/noskills-<platform>` carry the binary
-(`eser codebase dist npm-binaries` stages it), and it also carries the
-TypeScript CLI for the commands the binary forwards. `laroux` ships on npm only;
+(decision-8). On npm, `noskills` (`pkg/@eserstack/noskills-bin`) is a
+launcher: its optional dependencies `@eserstack/noskills-<platform>` carry the
+binary (`eser codebase dist npm-binaries` stages it), and its dependency
+`@eserstack/noskills` carries the TypeScript CLI for the commands the binary
+forwards. `laroux` ships on npm only;
 under its archive name the release ships `cmd/legacy-forwarder`, a stub that
 installed v4.5.x laroux binaries update to and that runs
 `npx --yes laroux@<version>` (decision-9). The flake builds `noskills` from
@@ -224,8 +226,8 @@ Developer runs:  eser codebase release patch
 │                   │    and SHA256SUMS.txt                   │
 │                   └─ publish-ajan  ajan-* and noskills-*    │
 │                       │            platform packages on npm │
-│                       └─ publish   libraries, laroux, then  │
-│                           │        eser, noskills bundles   │
+│                       └─ publish   libraries, laroux, the   │
+│                           │        eser bundle, noskills    │
 │                           └─ release-notes  changelog       │
 │                               │      section → draft        │
 │                               │      GitHub Release         │

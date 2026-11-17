@@ -4,7 +4,8 @@ import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as crossRuntime from "@eserstack/standards/cross-runtime";
 import { runtime } from "@eserstack/standards/cross-runtime";
-import * as launcher from "./npm-launcher.ts";
+import * as launcher from "./launcher.ts";
+import * as noskills from "./noskills.ts";
 
 const installed = (packages: Record<string, string>) => (name: string) => {
   const manifest = packages[name];
@@ -18,6 +19,7 @@ const installed = (packages: Record<string, string>) => (name: string) => {
 
 nodeTest.test("findBinary: the platform package's binary", () => {
   const lookup = launcher.findBinary(
+    noskills.NOSKILLS,
     "darwin",
     "arm64",
     installed({
@@ -35,6 +37,7 @@ nodeTest.test("findBinary: the platform package's binary", () => {
 
 nodeTest.test("findBinary: noskills.exe on Windows", () => {
   const lookup = launcher.findBinary(
+    noskills.NOSKILLS,
     "win32",
     "x64",
     installed({ "@eserstack/noskills-win32-x64": "/w/pkg/package.json" }),
@@ -52,6 +55,7 @@ nodeTest.test(
   "findBinary: an unsupported platform names the supported ones",
   () => {
     const lookup = launcher.findBinary(
+      noskills.NOSKILLS,
       "win32",
       "arm64",
       installed({}),
@@ -70,6 +74,7 @@ nodeTest.test(
   "findBinary: a skipped optional dependency says how to fix it",
   () => {
     const lookup = launcher.findBinary(
+      noskills.NOSKILLS,
       "linux",
       "x64",
       installed({}),
@@ -86,6 +91,7 @@ nodeTest.test(
 
 nodeTest.test("findBinary: a package without its binary", () => {
   const lookup = launcher.findBinary(
+    noskills.NOSKILLS,
     "linux",
     "arm64",
     installed({ "@eserstack/noskills-linux-arm64": "/l/package.json" }),
@@ -104,7 +110,7 @@ nodeTest.test(
   async () => {
     const manifest = JSON.parse(
       await runtime.fs.readTextFile(
-        runtime.path.join(import.meta.dirname ?? ".", "..", "package.json"),
+        runtime.path.join(import.meta.dirname ?? ".", "package.json"),
       ),
     ) as { optionalDependencies: Record<string, string> };
 
@@ -113,7 +119,7 @@ nodeTest.test(
       .sort();
 
     assert.assertEquals(
-      Object.values(launcher.PLATFORM_PACKAGES).sort(),
+      Object.values(noskills.NOSKILLS.platformPackages).sort(),
       declared,
     );
   },
@@ -151,7 +157,12 @@ nodeTest.test(
     const { access, calls } = modeAccess(0o100644);
 
     assert.assertEquals(
-      launcher.ensureExecutable("/n/noskills", "linux", access),
+      launcher.ensureExecutable(
+        noskills.NOSKILLS,
+        "/n/noskills",
+        "linux",
+        access,
+      ),
       { kind: "ready" },
     );
     assert.assertEquals(calls, [{ file: "/n/noskills", mode: 0o100755 }]);
@@ -162,7 +173,12 @@ nodeTest.test("ensureExecutable: leaves an executable binary alone", () => {
   const { access, calls } = modeAccess(0o100755);
 
   assert.assertEquals(
-    launcher.ensureExecutable("/n/noskills", "darwin", access),
+    launcher.ensureExecutable(
+      noskills.NOSKILLS,
+      "/n/noskills",
+      "darwin",
+      access,
+    ),
     { kind: "ready" },
   );
   assert.assertEquals(calls, []);
@@ -172,7 +188,12 @@ nodeTest.test("ensureExecutable: Windows has no mode to set", () => {
   const { access, calls } = modeAccess(0o100644);
 
   assert.assertEquals(
-    launcher.ensureExecutable("C:\\n\\noskills.exe", "win32", access),
+    launcher.ensureExecutable(
+      noskills.NOSKILLS,
+      "C:\\n\\noskills.exe",
+      "win32",
+      access,
+    ),
     { kind: "ready" },
   );
   assert.assertEquals(calls, []);
@@ -188,6 +209,7 @@ nodeTest.test(
     });
 
     const result = launcher.ensureExecutable(
+      noskills.NOSKILLS,
       "/usr/lib/node_modules/@eserstack/noskills-linux-x64/noskills",
       "linux",
       access,
@@ -216,7 +238,7 @@ nodeTest.test(
     try {
       // One package per platform, so the host's is there whatever it is.
       const binaries = await Promise.all(
-        Object.values(launcher.PLATFORM_PACKAGES).map(async (name) => {
+        Object.values(noskills.NOSKILLS.platformPackages).map(async (name) => {
           const dir = runtime.path.join(
             root,
             "node_modules",
@@ -236,19 +258,23 @@ nodeTest.test(
         }),
       );
 
-      // The launcher next to the fixture node_modules, as dist/noskills.js
+      // The launcher next to the fixture node_modules, as dist/launcher.js
       // sits in an installed noskills package.
       await runtime.fs.writeTextFile(
         runtime.path.join(root, "package.json"),
         '{"type":"module"}\n',
       );
       await runtime.fs.copyFile(
-        runtime.path.join(import.meta.dirname ?? ".", "npm-launcher.ts"),
-        runtime.path.join(root, "npm-launcher.ts"),
+        runtime.path.join(import.meta.dirname ?? ".", "launcher.ts"),
+        runtime.path.join(root, "launcher.ts"),
       );
       await runtime.fs.writeTextFile(
         runtime.path.join(root, "entry.ts"),
-        'import { main } from "./npm-launcher.ts";\nmain();\n',
+        [
+          'import * as launcher from "./launcher.ts";',
+          `launcher.main(${JSON.stringify(noskills.NOSKILLS)}, import.meta.url, {});`,
+          "",
+        ].join("\n"),
       );
 
       const result = await runtime.exec.spawn(
@@ -275,5 +301,18 @@ nodeTest.test(
     } finally {
       await runtime.fs.remove(root, { recursive: true });
     }
+  },
+);
+
+nodeTest.test(
+  "tsCLIEntry: the TypeScript CLI of @eserstack/noskills",
+  async () => {
+    const entry = noskills.tsCLIEntry();
+    const source = await runtime.fs.readTextFile(entry);
+
+    assert.assertStringIncludes(
+      source,
+      "The standalone CLI of @eserstack/noskills",
+    );
   },
 );

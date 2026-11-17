@@ -7,23 +7,22 @@
  * the Go eser would (TASK-252).
  *
  * - `eser-posts` comes from the @eserstack/posts library tarball, whose
- *   publishConfig.bin points at the emitted dist/main.js, and `laroux` from
- *   the tarball of the npm package `laroux` (pkg/@eserstack/laroux-bin), whose
- *   bin is its emitted dist/cli.js. Each is installed with the tarballs of its
- *   @eserstack dependencies, so npm takes them from the pack directory and not
- *   from the registry.
- * - `noskills` comes from the npm bundle that the noskills npm-build script
- *   writes into its dist/, and runs the Go binary of this host's
- *   @eserstack/noskills-<platform> package.
+ *   publishConfig.bin points at the emitted dist/main.js, `laroux` from the
+ *   tarball of the npm package `laroux` (pkg/@eserstack/laroux-bin), whose
+ *   bin is its emitted dist/cli.js, and `noskills` from the tarball of the npm
+ *   package `noskills` (pkg/@eserstack/noskills-bin), whose bin is the
+ *   launcher of the Go binary in this host's @eserstack/noskills-<platform>
+ *   package. Each is installed with the tarballs of its @eserstack
+ *   dependencies, so npm takes them from the pack directory and not from the
+ *   registry.
  *
- * The bundle and the library emit share dist/, and the library build removes
- * the bundle, so the preflight runs this script twice:
+ * The preflight runs this script twice:
  *
- * 1. `--save-bundles`, after the npm-build steps and the noskills binary
- *    staging: packs the noskills bundle and this host's noskills platform
- *    package into etc/temp/plugin-packs with npm pack, which keeps the
- *    binary's executable bit; the noskills launcher preflight packs the
- *    platform package with pnpm, as the publish job does (TASK-368);
+ * 1. `--save-bundles`, after the noskills binary staging: packs this host's
+ *    noskills platform package into etc/temp/plugin-packs with npm pack,
+ *    which keeps the binary's executable bit; the noskills launcher preflight
+ *    packs the platform package with pnpm, as the publish job does
+ *    (TASK-368);
  * 2. without arguments, after library-build and library-pack: installs the
  *    tarballs, checks that `eser-posts --help` prints the posts commands, and
  *    runs TestForwardReachesThePackedCLIs of cmd/eser with ESER_PACKED_BINS
@@ -56,21 +55,20 @@ import * as libraryConsumer from "./preflight-library-consumer.ts";
 import * as npmConsumer from "./preflight-npm-consumer.ts";
 
 /** Where library-pack writes every workspace tarball. */
-const PACKS_DIR = "etc/temp/npm-packs";
+export const PACKS_DIR = "etc/temp/npm-packs";
 
-/** Where `--save-bundles` keeps the bundle and platform tarballs. */
+/** Where `--save-bundles` keeps the platform package tarball. */
 const BUNDLES_DIR = "etc/temp/plugin-packs";
-
-/** The bundles: the npm package name and the directory npm-build writes. */
-const BUNDLES: readonly { readonly name: string; readonly dir: string }[] = [
-  { name: "noskills", dir: "pkg/@eserstack/noskills/dist" },
-];
 
 /** The library that carries the `eser-posts` bin. */
 const POSTS_PACKAGE = "@eserstack/posts";
 
-/** The workspace packages whose packed bins are installed: posts and laroux. */
-const PACKED_BIN_PACKAGES: readonly string[] = [POSTS_PACKAGE, "laroux"];
+/** The workspace packages whose packed bins are installed. */
+const PACKED_BIN_PACKAGES: readonly string[] = [
+  POSTS_PACKAGE,
+  "laroux",
+  "noskills",
+];
 
 /** What `eser-posts --help` prints first in its usage section. */
 const POSTS_USAGE = "eser-posts <command> [options]";
@@ -195,17 +193,6 @@ const must = (result: npmConsumer.RunResult, what: string): void => {
 const isNotFound = (error: unknown): boolean =>
   error instanceof Error && "code" in error && error.code === "ENOENT";
 
-const readJson = async <T>(path: string, hint: string): Promise<T> => {
-  try {
-    return JSON.parse(await fs.readFile(path, "utf8")) as T;
-  } catch (error) {
-    if (isNotFound(error)) {
-      throw new Error(`${path} is missing; ${hint}`, { cause: error });
-    }
-    throw error;
-  }
-};
-
 /** Reads a package.json, or returns null when the directory has none. */
 const readManifestIfAny = async (
   path: string,
@@ -224,7 +211,7 @@ const readManifestIfAny = async (
 };
 
 /** Every workspace package.json under pkg/@eserstack, by package name. */
-const readWorkspaceManifests = async (
+export const readWorkspaceManifests = async (
   repoRoot: string,
 ): Promise<Map<string, WorkspaceManifest>> => {
   const pkgRoot = `${repoRoot}/pkg/@eserstack`;
@@ -245,37 +232,6 @@ const readWorkspaceManifests = async (
   }
 
   return byName;
-};
-
-/** Packs one bundle into the bundles directory after checking its name. */
-const packBundle = async (
-  repoRoot: string,
-  bundle: (typeof BUNDLES)[number],
-  bundlesDir: string,
-): Promise<void> => {
-  const dir = `${repoRoot}/${bundle.dir}`;
-  const manifest = await readJson<{ name?: string }>(
-    `${dir}/package.json`,
-    `run the ${bundle.name} npm-build script first`,
-  );
-
-  // The library build also writes a package.json into dist/, named after
-  // the library; only the bundle is named after its bin.
-  if (manifest.name !== bundle.name) {
-    throw new Error(
-      `${dir} holds ${manifest.name ?? "an unnamed package"}, not the ${bundle.name} bundle; run the ${bundle.name} npm-build script first`,
-    );
-  }
-
-  must(
-    await npmConsumer.run(
-      ["npm", "pack", "--pack-destination", bundlesDir],
-      dir,
-      NPM_PACK_TIMEOUT_MS,
-    ),
-    `npm pack in ${dir}`,
-  );
-  console.log(`Packed the ${bundle.name} bundle into ${BUNDLES_DIR}`);
 };
 
 /**
@@ -301,7 +257,7 @@ const packPlatformPackage = async (
   } catch (error) {
     if (isNotFound(error)) {
       throw new Error(
-        `${binary} is missing; run \`go run ./cmd/eser dev compile --current-only\` and \`go run ./cmd/eser dev npm-binaries\` first`,
+        `${binary} is missing; run \`go run ./cmd/eser codebase dist compile --current-only\` and \`go run ./cmd/eser codebase dist npm-binaries\` first`,
         { cause: error },
       );
     }
@@ -325,10 +281,7 @@ const saveBundles = async (repoRoot: string): Promise<void> => {
   // Empty first, so no tarball of an earlier version is left in it.
   await fs.rm(bundlesDir, { recursive: true, force: true });
   await fs.mkdir(bundlesDir, { recursive: true });
-  await Promise.all([
-    ...BUNDLES.map((bundle) => packBundle(repoRoot, bundle, bundlesDir)),
-    packPlatformPackage(repoRoot, bundlesDir),
-  ]);
+  await packPlatformPackage(repoRoot, bundlesDir);
 };
 
 /** Fails with the steps to run when a tarball is missing. */
@@ -338,7 +291,7 @@ const requireTarball = async (tarball: string): Promise<void> => {
   } catch (error) {
     if (isNotFound(error)) {
       throw new Error(
-        `${tarball} is missing; run the preflight steps library-build and library-pack, and this script with --save-bundles after the npm-build steps`,
+        `${tarball} is missing; run the preflight steps library-build and library-pack, and this script with --save-bundles after the noskills binary staging`,
         { cause: error },
       );
     }
@@ -363,7 +316,6 @@ const consumerTarballs = async (repoRoot: string): Promise<string[]> => {
         )}`,
     );
   const bundles = [
-    ...BUNDLES.map((bundle) => bundle.name),
     hostPlatformPackage(
       "noskills",
       crossRuntime.getPlatform(),

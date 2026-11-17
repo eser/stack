@@ -298,14 +298,15 @@ with their arguments as given, found in this order:
 
 1. `NOSKILLS_TS_CLI`, a command line split on whitespace, such as
    `node /path/to/pkg/@eserstack/noskills/main.ts`;
-2. `NOSKILLS_TS_BUNDLE`, the TypeScript CLI bundle that the npm `noskills`
-   launcher ships and sets, run with the `node` on PATH;
+2. `NOSKILLS_TS_BUNDLE`, the entry point of the TypeScript CLI that the npm
+   `noskills` launcher sets (`dist/main.js` of its dependency
+   `@eserstack/noskills`), run with the `node` on PATH;
 3. `npx --yes noskills@<version>`.
 
 The npm `noskills` package is the launcher of this binary (TASK-261), so step 3
 runs the binary again, with `NOSKILLS_TS_BUNDLE` set this time. The npx run gets
 `NOSKILLS_VIA_NPX=1`, and a binary that finds it set does not take step 3 again,
-so a launcher without its bundle cannot start a loop. A `noskills` in
+so a launcher that sets no entry point cannot start a loop. A `noskills` in
 `ESER_PLUGIN_PATH` is not looked at: the eser npm launcher points that variable
 at the noskills launcher, which runs this binary too.
 

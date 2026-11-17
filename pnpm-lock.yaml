@@ -699,9 +699,6 @@ importers:
       '@eserstack/test-kit':
         specifier: workspace:*
         version: link:../test-kit
-      esbuild:
-        specifier: ^0.28.2
-        version: 0.28.2
     optionalDependencies:
       '@eserstack/ajan-darwin-arm64':
         specifier: workspace:*
@@ -721,6 +718,20 @@ importers:
       '@eserstack/ajan-win32-x64':
         specifier: workspace:*
         version: link:../ajan-win32-x64
+
+  pkg/@eserstack/noskills-bin:
+    dependencies:
+      '@eserstack/noskills':
+        specifier: workspace:*
+        version: link:../noskills
+    devDependencies:
+      '@eserstack/standards':
+        specifier: workspace:*
+        version: link:../standards
+      '@eserstack/test-kit':
+        specifier: workspace:*
+        version: link:../test-kit
+    optionalDependencies:
       '@eserstack/noskills-darwin-arm64':
         specifier: workspace:*
         version: link:../noskills-darwin-arm64

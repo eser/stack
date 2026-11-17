@@ -39,8 +39,9 @@ func TestNpmPlatformNamesTheNodePlatform(t *testing.T) {
 }
 
 // Each npm binary has a committed platform package per release target, with
-// the shared version and the os and cpu npm selects it by; the launcher's
-// source manifest lists every one as an optional dependency.
+// the shared version and the os and cpu npm selects it by; the launcher
+// package, pkg/@eserstack/<binary>-bin, lists every one as an optional
+// dependency.
 func TestNpmPlatformPackagesAreCommitted(t *testing.T) {
 	t.Parallel()
 
@@ -51,7 +52,7 @@ func TestNpmPlatformPackagesAreCommitted(t *testing.T) {
 			OptionalDependencies map[string]string `json:"optionalDependencies"`
 		}
 
-		if err := json.Unmarshal([]byte(readRepoFile(t, "pkg/@eserstack/"+binary+"/package.json")), &launcher); err != nil {
+		if err := json.Unmarshal([]byte(readRepoFile(t, "pkg/@eserstack/"+binary+"-bin/package.json")), &launcher); err != nil {
 			t.Fatal(err)
 		}
 
@@ -83,7 +84,7 @@ func TestNpmPlatformPackagesAreCommitted(t *testing.T) {
 			}
 
 			if launcher.OptionalDependencies[name] != "workspace:*" {
-				t.Errorf("pkg/@eserstack/%s/package.json does not list %s as workspace:*", binary, name)
+				t.Errorf("pkg/@eserstack/%s-bin/package.json does not list %s as workspace:*", binary, name)
 			}
 		}
 	}

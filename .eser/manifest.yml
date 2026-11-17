@@ -303,10 +303,6 @@ workflows:
           name: npm-build-cli
           command: node ./pkg/@eserstack/cli/scripts/npm-build.ts
           timeout: 180
-      - shell:
-          name: npm-build-noskills
-          command: node ./pkg/@eserstack/noskills/scripts/npm-build.ts
-          timeout: 180
       # Installs the packed CLI OUTSIDE the repo and runs its smoke commands;
       # inside the monorepo, Node would resolve undeclared dependencies from
       # the workspace and hide them.
@@ -339,20 +335,12 @@ workflows:
           name: compile-current
           command: go run ./cmd/eser codebase dist compile --current-only
           timeout: 600
-      # The npm noskills launcher from a scratch install outside the repo:
-      # `npx noskills` must run this host's Go binary, staged into its
-      # platform package, and reach the TypeScript CLI it carries (TASK-261).
       - shell:
           name: npm-binaries-current
           command: go run ./cmd/eser codebase dist npm-binaries
           timeout: 120
-      - shell:
-          name: noskills-launcher-install
-          command: node ./etc/scripts/preflight-noskills-launcher.ts
-          timeout: 300
-      # The noskills bundle and this host's noskills platform package, packed
-      # into etc/temp/plugin-packs while the bundle is still in dist/; the
-      # plugin-bins step installs them (TASK-252).
+      # This host's noskills platform package, packed with npm into
+      # etc/temp/plugin-packs; the plugin-bins step installs it (TASK-252).
       - shell:
           name: plugin-bundles-pack
           command: node ./etc/scripts/preflight-plugin-bins.ts --save-bundles
@@ -367,10 +355,10 @@ workflows:
           command: ESER_PREFLIGHT=1 go test -count=1 -run
             TestLegacyBinariesSelfUpdate ./cmd/legacy-forwarder
           timeout: 300
-      # The npm build of the libraries (TASK-232): tsc 7 emits each one's
-      # dist/ and the build fails on an emitted import that still names a .ts
-      # file. It removes the bundles the npm-build steps wrote into the dist/
-      # of cli and noskills, so it runs after every step that uses them.
+      # The npm build of the libraries and bins (TASK-232): tsc 7 emits each
+      # one's dist/ and the build fails on an emitted import that still names
+      # a .ts file. It removes the bundle the npm-build step wrote into the
+      # dist/ of cli, so it runs after every step that uses it.
       - shell:
           name: library-build
           command: pnpm -r build
@@ -397,6 +385,15 @@ workflows:
           name: library-consumer
           command: node ./etc/scripts/preflight-library-consumer.ts
           timeout: 300
+      # The npm noskills launcher from a scratch install outside the repo,
+      # from the packed `noskills` and its @eserstack dependencies and this
+      # host's platform package packed with pnpm: `npx noskills` must run the
+      # Go binary staged by npm-binaries-current, and reach the TypeScript CLI
+      # of @eserstack/noskills for the commands it forwards (TASK-261).
+      - shell:
+          name: noskills-launcher-install
+          command: node ./etc/scripts/preflight-noskills-launcher.ts
+          timeout: 300
       # A new app from the laroux-app recipe, installed with npm outside the
       # repo from the packed laroux and the packed libraries, runs dev (with
       # one HMR edit), build and serve with no config file, and loads one
@@ -406,9 +403,9 @@ workflows:
           name: laroux-app
           command: node ./etc/scripts/preflight-laroux-app.ts
           timeout: 600
-      # The packed posts library and laroux package and their @eserstack
-      # dependencies, with the saved bundle, installed into a scratch project
-      # outside the repo:
+      # The packed posts library, laroux and noskills packages and their
+      # @eserstack dependencies, with the saved platform package, installed
+      # into a scratch project outside the repo:
       # `eser-posts --help` must run, and the Go eser forwarding test must
       # resolve and run eser-posts, laroux and noskills from it (TASK-252).
       - shell:

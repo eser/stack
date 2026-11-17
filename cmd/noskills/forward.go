@@ -19,14 +19,15 @@ import (
 //
 //  1. NOSKILLS_TS_CLI, a command line split on whitespace (no shell), such
 //     as `node /path/to/pkg/@eserstack/noskills/main.ts`;
-//  2. NOSKILLS_TS_BUNDLE, the TypeScript CLI bundle that the npm noskills
-//     launcher ships next to itself and sets, run with `node` from PATH;
+//  2. NOSKILLS_TS_BUNDLE, the entry point of the TypeScript CLI that the npm
+//     noskills launcher sets (dist/main.js of its dependency
+//     @eserstack/noskills), run with `node` from PATH;
 //  3. `npx --yes noskills@<version>` when npx is on PATH.
 //
 // The npm noskills package is the launcher of this binary (TASK-261), so
 // step 3 runs this binary again, now with NOSKILLS_TS_BUNDLE set. The npx run
 // gets NOSKILLS_VIA_NPX=1, and a binary that finds it set never takes step 3
-// again, so a launcher without the bundle cannot start a loop. A noskills
+// again, so a launcher that sets no entry point cannot start a loop. A noskills
 // bin in ESER_PLUGIN_PATH is not looked at: the eser npm launcher points it
 // at the noskills launcher, which is this binary too.
 //
@@ -108,8 +109,8 @@ func resolveTSCLI(e *env) tsCLI {
 		"can run " + spec + ", or set " + envTSCLI + " to the command that runs it.")
 }
 
-// bundledTSCLI runs the TypeScript CLI bundle of the npm launcher with the
-// node on PATH.
+// bundledTSCLI runs the TypeScript CLI entry point the npm launcher names
+// with the node on PATH.
 func bundledTSCLI(e *env, bundle string) tsCLI {
 	if info, err := os.Stat(bundle); err != nil || !info.Mode().IsRegular() {
 		return failedLookup(envTSBundle + " names " + bundle + ", which is not a file: reinstall the noskills npm package.")

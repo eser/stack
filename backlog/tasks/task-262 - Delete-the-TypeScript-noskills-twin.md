@@ -1,10 +1,10 @@
 ---
 id: TASK-262
 title: Delete the TypeScript noskills twin
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2026-10-15 20:38'
-updated_date: '2026-11-17 07:55'
+updated_date: '2026-11-17 09:17'
 labels:
   - noskills
   - cleanup
@@ -33,4 +33,8 @@ Plan key: M4-T7. Effort: medium.
 
 <!-- SECTION:NOTES:BEGIN -->
 With noskills/scripts/npm-build.ts gone, drop the esbuild devDependency of noskills; if cli's npm-build.ts (TASK-255) is already gone, delete @eserstack/codebase/npm-externals and npm-workspace-specifiers with their tests and exports too.
+
+Owner decision (2026-11-17): watch, web and manager, which cmd/noskills still forwards, reach the TS CLI through the published library: the noskills launcher depends on @eserstack/noskills at the exact version and runs its tsc emit dist/main.js; npm-build.ts, the TS bundle and esbuild go. TASK-262 comes before TASK-254.
+
+Step 1 (2026-11-17): the npm package noskills is the workspace package pkg/@eserstack/noskills-bin (laroux-bin model): bin noskills.ts on launcher.ts (generic, from scripts/npm-launcher.ts), the five noskills-<platform> optional dependencies and @eserstack/noskills at the same version, whose dist/main.js it names in NOSKILLS_TS_BUNDLE for watch, web and manager. noskills/scripts (npm-build.ts, npm-launcher.ts and its test) and the esbuild devDependency are gone; build.yml publishes noskills from the workspace after the libraries; the noskills-launcher-install preflight installs the packed closure after library-pack, and plugin-bins installs noskills like laroux. Verified: pnpm ok and pnpm preflight (17 steps).
 <!-- SECTION:NOTES:END -->

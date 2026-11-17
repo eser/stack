@@ -383,32 +383,17 @@ jobs:
       - name: Build eser npm package
         run: pnpm cli build
 
-      - name: Build noskills npm package
-        run: node pkg/@eserstack/noskills/scripts/npm-build.ts
-
       - name: Smoke test — eser help
         run: node pkg/@eserstack/cli/dist/eser.js --help
 
       - name: Smoke test — eser validate-licenses
         run: node pkg/@eserstack/cli/dist/eser.js codebase validate-licenses || true
 
-      # dist/noskills.js is the launcher of the Go binary, which this job does
-      # not build (the preflight installs the packed launcher with it); the
-      # TypeScript CLI the launcher carries is smoke-tested here.
-      - name: Smoke test — noskills help (TypeScript CLI bundle)
-        run: node pkg/@eserstack/noskills/dist/ts/noskills.js --help
-
       - name: Upload eser npm bundle
         uses: actions/upload-artifact@v7
         with:
           name: npm-eser
           path: pkg/@eserstack/cli/dist/
-
-      - name: Upload noskills npm bundle
-        uses: actions/upload-artifact@v7
-        with:
-          name: npm-noskills
-          path: pkg/@eserstack/noskills/dist/
 
   # ── npm consumer test ──────────────────────────────────────
   npm-consumer-test:
@@ -865,12 +850,6 @@ jobs:
           name: npm-eser
           path: npm-dist/eser/
 
-      - name: Download noskills npm bundle
-        uses: actions/download-artifact@v8
-        with:
-          name: npm-noskills
-          path: npm-dist/noskills/
-
       - name: Publish eser to npm
         run: |
           NAME=$(node -p "require('./package.json').name")
@@ -882,6 +861,11 @@ jobs:
           fi
         working-directory: npm-dist/eser
 
+      # The npm package noskills is the launcher of pkg/@eserstack/noskills-bin:
+      # it runs the Go binary of the noskills-<platform> packages publish-ajan
+      # published, and depends on @eserstack/noskills at this version for the
+      # commands the binary forwards, so it follows the libraries. pnpm
+      # publishes it from the workspace as it does laroux.
       - name: Publish noskills to npm
         run: |
           NAME=$(node -p "require('./package.json').name")
@@ -891,7 +875,7 @@ jobs:
           else
             pnpm publish --provenance --access public --no-git-checks
           fi
-        working-directory: npm-dist/noskills
+        working-directory: pkg/@eserstack/noskills-bin
 
       - name: Summary
         run: |

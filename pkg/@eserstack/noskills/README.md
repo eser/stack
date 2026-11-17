@@ -13,14 +13,13 @@
 `brew install eser/tap/noskills`,
 `nix profile install github:eser/stack#noskills` or `npm i -g noskills`. On
 Windows use `install.ps1 -Product noskills`. Every one of them installs the Go
-build of the CLI ([cmd/noskills](../../../cmd/noskills)): the npm package is a
-launcher that runs the binary of its `@eserstack/noskills-<platform>`
-dependency, and carries this TypeScript CLI for the commands the binary hands
-over to it.
+build of the CLI ([cmd/noskills](../../../cmd/noskills)): the npm package
+[`noskills`](../noskills-bin/README.md) is a launcher that runs the binary of
+its `@eserstack/noskills-<platform>` dependency, and depends on this package
+for the TypeScript CLI of the commands the binary hands over to it.
 
-Adding this package as a dependency (`pnpm add @eserstack/noskills`) gets
-you the modules, not the command: the source package declares no `bin`, which is
-generated at publish time by `scripts/npm-build.ts`. Depend on it when embedding
+Adding this package as a dependency (`pnpm add @eserstack/noskills`) gets you
+the modules, not the command: it declares no `bin`. Depend on it when embedding
 the orchestrator in your own program; install the binary when you want to run
 it.
 

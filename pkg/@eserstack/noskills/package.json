@@ -69,8 +69,7 @@
     "yaml": "^2.9.1"
   },
   "devDependencies": {
-    "@eserstack/test-kit": "workspace:*",
-    "esbuild": "^0.28.2"
+    "@eserstack/test-kit": "workspace:*"
   },
   "optionalDependencies": {
     "@eserstack/ajan-darwin-arm64": "workspace:*",
@@ -78,11 +77,6 @@
     "@eserstack/ajan-linux-arm64": "workspace:*",
     "@eserstack/ajan-linux-x64": "workspace:*",
     "@eserstack/ajan-win32-x64": "workspace:*",
-    "@eserstack/ajan-wasm": "workspace:*",
-    "@eserstack/noskills-darwin-arm64": "workspace:*",
-    "@eserstack/noskills-darwin-x64": "workspace:*",
-    "@eserstack/noskills-linux-arm64": "workspace:*",
-    "@eserstack/noskills-linux-x64": "workspace:*",
-    "@eserstack/noskills-win32-x64": "workspace:*"
+    "@eserstack/ajan-wasm": "workspace:*"
   }
 }

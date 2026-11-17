@@ -1,21 +1,18 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 /**
- * The `noskills` command of the npm package (TASK-261).
+ * The launcher of an npm package that ships a Go binary.
  *
- * The npm package is a launcher: it runs the Go noskills binary that npm
- * installed with it, from the optional dependency
- * `@eserstack/noskills-<platform>-<arch>` that matches this machine, with the
- * same arguments, standard streams and exit code. npm-build.ts bundles this
- * file into `dist/noskills.js`.
+ * The npm package holds no binary itself: it runs the one npm installed with
+ * it, from the optional dependency `@eserstack/<command>-<platform>-<arch>`
+ * that matches this machine, with the same arguments, standard streams and
+ * exit code (TASK-261).
  *
- * The package also carries the TypeScript CLI bundle, `ts/noskills.js`. The
- * launcher names it in NOSKILLS_TS_BUNDLE, and the binary runs it for the
- * commands that are not ported to Go yet (`watch`, `manager`, `web`).
- *
- * The launcher runs only under Node, as an npm bin, so it uses the node:
- * builtins directly and imports nothing else: it starts before every hook
- * that calls `npx noskills`, and stays small.
+ * It runs only under Node, as an npm bin, so it uses the node: builtins
+ * directly and imports nothing else: it starts before every hook that calls
+ * `npx noskills` or `npx eser`, and stays small. pkg/@eserstack/noskills-bin
+ * and pkg/@eserstack/eser-bin carry the same file; a test in each keeps them
+ * equal.
  *
  * @module
  */
@@ -24,22 +21,19 @@ import * as childProcess from "node:child_process";
 import * as fs from "node:fs";
 import * as nodeModule from "node:module";
 import * as path from "node:path";
-import * as url from "node:url";
 
 // The process of the Node that runs the launcher.
 const process = globalThis.process;
 
-/** The platform packages, by `<process.platform>-<process.arch>`. */
-export const PLATFORM_PACKAGES: Readonly<Record<string, string>> = {
-  "darwin-arm64": "@eserstack/noskills-darwin-arm64",
-  "darwin-x64": "@eserstack/noskills-darwin-x64",
-  "linux-arm64": "@eserstack/noskills-linux-arm64",
-  "linux-x64": "@eserstack/noskills-linux-x64",
-  "win32-x64": "@eserstack/noskills-win32-x64",
+/** What one launcher runs. */
+export type Launcher = {
+  /** The binary's name, which is also the npm package's name and bin. */
+  readonly command: string;
+  /** The platform packages, by `<process.platform>-<process.arch>`. */
+  readonly platformPackages: Readonly<Record<string, string>>;
+  /** The Go command that builds the binary, such as `cmd/noskills`. */
+  readonly source: string;
 };
-
-/** The environment variable that names the TypeScript CLI bundle. */
-export const TS_BUNDLE_ENV = "NOSKILLS_TS_BUNDLE";
 
 /** Where the binary is, or why there is none. */
 export type BinaryLookup =
@@ -52,22 +46,24 @@ export type BinaryLookup =
  * throws when the package is not installed.
  */
 export const findBinary = (
+  launcher: Launcher,
   platform: string,
   arch: string,
   resolvePackageJson: (name: string) => string,
   exists: (file: string) => boolean,
 ): BinaryLookup => {
+  const { command } = launcher;
   const key = `${platform}-${arch}`;
-  const name = PLATFORM_PACKAGES[key];
+  const name = launcher.platformPackages[key];
 
   if (name === undefined) {
     return {
       kind: "missing",
-      message: `noskills: no prebuilt binary for ${key}. The npm package ships one for ${Object.keys(
-        PLATFORM_PACKAGES,
+      message: `${command}: no prebuilt binary for ${key}. The npm package ships one for ${Object.keys(
+        launcher.platformPackages,
       ).join(
         ", ",
-      )}; on another platform, build cmd/noskills from https://github.com/eser/stack with Go.`,
+      )}; on another platform, build ${launcher.source} from https://github.com/eser/stack with Go.`,
     };
   }
 
@@ -77,19 +73,19 @@ export const findBinary = (
   } catch {
     return {
       kind: "missing",
-      message: `noskills: the platform package ${name} is not installed. npm installs it as an optional dependency of noskills; reinstall noskills without --omit=optional or --no-optional.`,
+      message: `${command}: the platform package ${name} is not installed. npm installs it as an optional dependency of ${command}; reinstall ${command} without --omit=optional or --no-optional.`,
     };
   }
 
   const binary = path.join(
     path.dirname(manifest),
-    platform === "win32" ? "noskills.exe" : "noskills",
+    platform === "win32" ? `${command}.exe` : command,
   );
 
   if (!exists(binary)) {
     return {
       kind: "missing",
-      message: `noskills: ${name} has no binary at ${binary}; reinstall noskills.`,
+      message: `${command}: ${name} has no binary at ${binary}; reinstall ${command}.`,
     };
   }
 
@@ -123,6 +119,7 @@ export type Preparation =
  * adds them to its mode before it runs it. Windows has no execute bit.
  */
 export const ensureExecutable = (
+  launcher: Launcher,
   binary: string,
   platform: string,
   access: ModeAccess,
@@ -139,7 +136,7 @@ export const ensureExecutable = (
 
     return {
       kind: "failed",
-      message: `noskills: ${binary} is not executable and the launcher cannot change its mode (${reason}). Run \`chmod +x ${binary}\` as the owner of the install (with sudo for a global one), or reinstall noskills.`,
+      message: `${launcher.command}: ${binary} is not executable and the launcher cannot change its mode (${reason}). Run \`chmod +x ${binary}\` as the owner of the install (with sudo for a global one), or reinstall ${launcher.command}.`,
     };
   }
 
@@ -175,10 +172,19 @@ const nodeSignalNumber = (signal: string): number | undefined => {
   return numbers[signal];
 };
 
-/** Runs the binary with this process's arguments and exits with its code. */
-export const main = (): void => {
-  const require = nodeModule.createRequire(import.meta.url);
+/**
+ * Runs the binary with this process's arguments and `env` added to its
+ * environment, and exits with its code. `from` is the launcher bin's
+ * `import.meta.url`, where the platform packages are resolved from.
+ */
+export const main = (
+  launcher: Launcher,
+  from: string,
+  env: Readonly<Record<string, string>>,
+): void => {
+  const require = nodeModule.createRequire(from);
   const lookup = findBinary(
+    launcher,
     process.platform,
     process.arch,
     (name) => require.resolve(`${name}/package.json`),
@@ -192,19 +198,24 @@ export const main = (): void => {
     return;
   }
 
-  const preparation = ensureExecutable(lookup.path, process.platform, {
-    isExecutable: (file) => {
-      try {
-        fs.accessSync(file, fs.constants.X_OK);
+  const preparation = ensureExecutable(
+    launcher,
+    lookup.path,
+    process.platform,
+    {
+      isExecutable: (file) => {
+        try {
+          fs.accessSync(file, fs.constants.X_OK);
 
-        return true;
-      } catch {
-        return false;
-      }
+          return true;
+        } catch {
+          return false;
+        }
+      },
+      mode: (file) => fs.statSync(file).mode,
+      chmod: (file, mode) => fs.chmodSync(file, mode),
     },
-    mode: (file) => fs.statSync(file).mode,
-    chmod: (file, mode) => fs.chmodSync(file, mode),
-  });
+  );
 
   if (preparation.kind === "failed") {
     process.stderr.write(`${preparation.message}\n`);
@@ -213,13 +224,9 @@ export const main = (): void => {
     return;
   }
 
-  const here = path.dirname(url.fileURLToPath(import.meta.url));
   const child = childProcess.spawn(lookup.path, process.argv.slice(2), {
     stdio: "inherit",
-    env: {
-      ...process.env,
-      [TS_BUNDLE_ENV]: path.join(here, "ts", "noskills.js"),
-    },
+    env: { ...process.env, ...env },
   });
 
   // The launcher waits for the binary, which handles the signals itself (a
@@ -239,7 +246,7 @@ export const main = (): void => {
 
   child.on("error", (error) => {
     process.stderr.write(
-      `noskills: cannot run ${lookup.path}: ${error.message}\n`,
+      `${launcher.command}: cannot run ${lookup.path}: ${error.message}\n`,
     );
     process.exit(1);
   });

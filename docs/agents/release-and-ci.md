@@ -19,17 +19,13 @@ release-and-ci skill refers to.
   - changelog: `pnpm cli codebase changelog-gen`, which moves the `Unreleased`
     notes into the section it writes; `InsertIntoChangelog` in
     `pkg/ajan/codebasefx` does it for both the Go and the TypeScript release.
-- The preflight builds the two npm bundles, installs the CLI outside the repo
-  from a packed tarball, builds the native and wasm ajan libraries, runs the
+- The preflight builds the eser npm bundle, installs it outside the repo from
+  a packed tarball, builds the native and wasm ajan libraries, runs the
   release compile for the host (`eser codebase dist compile --current-only`),
   stages the host's noskills binary into its npm platform package
-  (`eser codebase dist npm-binaries`) and installs the noskills launcher and
-  platform package outside the repo
-  (`etc/scripts/preflight-noskills-launcher.ts`), packed with pnpm as the
-  publish job packs them, checks that the tarball holds the binary with its
-  execute bits and that `npx noskills --help` runs it without EACCES, runs
-  `eser codebase dist homebrew` and `eser codebase dist nix-hashes` in dry-run
-  mode, and runs the old TypeScript updater of a v4.5.2 laroux and noskills
+  (`eser codebase dist npm-binaries`), runs `eser codebase dist homebrew` and
+  `eser codebase dist nix-hashes` in dry-run mode, and runs the old
+  TypeScript updater of a v4.5.2 laroux and noskills
   under node against a local release of the laroux stub and the Go noskills
   (`cmd/legacy-forwarder/legacy_update_test.go`). Then it builds the libraries
   (`pnpm -r build`), runs the publish job's library step in dry-run mode
@@ -41,6 +37,12 @@ release-and-ci skill refers to.
   library checks point the `@eserstack` scope at an unreachable registry, so
   neither asks npm for an `@eserstack` name; the consumer also checks that its
   lockfile resolves every one of them from a tarball. Then
+  `etc/scripts/preflight-noskills-launcher.ts` installs the packed `noskills`
+  and its `@eserstack` dependencies outside the repo, with the host's platform
+  package packed with pnpm as the publish job packs it; it checks that the
+  tarball holds the binary with its execute bits, that `npx noskills --help`
+  runs it without EACCES, and that an unknown command reaches the TypeScript
+  CLI of `@eserstack/noskills`. Then
   `etc/scripts/preflight-laroux-app.ts` scaffolds the laroux-app recipe outside
   the repo, removes its config file, installs it with npm from the packed
   `laroux` and libraries (an `overrides` map and the same unreachable scope)
@@ -50,10 +52,10 @@ release-and-ci skill refers to.
   load from one directory and the action registry from one file (TASK-237).
   The servers load the native library of `make ajan-lib` through
   `ESER_AJAN_LIB_PATH`, since the packed platform packages carry none. Last,
-  `etc/scripts/preflight-plugin-bins.ts` installs the packed posts library and
-  laroux package and their `@eserstack` dependencies, with the noskills bundle
-  and the host's noskills platform package that its `--save-bundles` step
-  packed while the bundle was still in dist/, outside the repo; it runs
+  `etc/scripts/preflight-plugin-bins.ts` installs the packed posts library,
+  laroux and noskills packages and their `@eserstack` dependencies, with the
+  host's noskills platform package that its `--save-bundles` step packed with
+  npm, outside the repo; it runs
   `eser-posts --help` and `TestForwardReachesThePackedCLIs` of `cmd/eser` on
   the installed bins.
 - The install dry runs are Go tests in `cmd/noskills/install_dry_run_test.go`.
@@ -78,12 +80,12 @@ The `v*.*.*` tag push runs the Integrity Pipeline (`build.yml`):
 validate
  └─ preflight                  the release preflight above
      └─ release-gate           tag == VERSION, CHANGELOG.md has that section
-         ├─ smoke-test         builds and runs the eser and noskills bundles
+         ├─ smoke-test         builds and runs the eser bundle
          │   └─ npm-consumer-test   installs the eser bundle into a scratch project
          └─ build-ajan-darwin
              └─ compile-binaries    eser codebase dist compile: eser, noskills, laroux stub, noskills-server
                  └─ publish-ajan    ajan-* and noskills-* platform packages on npm
-                     └─ publish     @eserstack libraries and laroux, then the eser and noskills bundles on npm
+                     └─ publish     @eserstack libraries, laroux, the eser bundle and noskills on npm
                          └─ release-notes   changelog section to a draft GitHub Release
                              └─ upload-assets   cosign signatures + SHA256SUMS, then publishes the release
                                  ├─ update-homebrew
@@ -114,11 +116,10 @@ Validate job also runs `make vuln` (govulncheck for both Go modules).
 
 - **JSR:** frozen at 4.5.x (decision-5). No job publishes to it, and the JSR
   versions stay available without updates.
-- **npm bundles:** `eser` (built by `pnpm cli build` from
-  `pkg/@eserstack/cli`) and `noskills`
-  (`pkg/@eserstack/noskills/scripts/npm-build.ts`). `smoke-test` builds them
-  and `publish` runs `pnpm publish --provenance --access public` for each,
-  skipping a version npm already has.
+- **npm bundle:** `eser` (built by `pnpm cli build` from
+  `pkg/@eserstack/cli`). `smoke-test` builds it and `publish` runs
+  `pnpm publish --provenance --access public` for it, skipping a version npm
+  already has.
 - **laroux:** the npm package `laroux` is the workspace package
   `pkg/@eserstack/laroux-bin` (TASK-237, decision-47): its bin `laroux` is its
   emitted `dist/cli.js`, which runs the CLI of `@eserstack/laroux-server`, and
@@ -126,9 +127,14 @@ Validate job also runs `make vuln` (govulncheck for both Go modules).
   commands, react, react-dom, rolldown, sharp, lightningcss and tailwind come
   from the app's node_modules and nothing is inlined. It has no `exports`, so
   it is no library: `pnpm -r build` builds it and `publish` publishes it from
-  the workspace right after the libraries, with the same `npm view` check. `noskills` is a launcher for the Go
-  binary (`dist/noskills.js`) and carries the TypeScript CLI in `dist/ts/` for
-  the commands the binary forwards.
+  the workspace right after the libraries, with the same `npm view` check.
+- **noskills:** the npm package `noskills` is the workspace package
+  `pkg/@eserstack/noskills-bin` (TASK-262), built and published the way
+  laroux is. Its bin `noskills` (`dist/noskills.js`) launches the Go binary
+  of the `@eserstack/noskills-<platform>` optional dependency for the host,
+  and names the TypeScript CLI of `@eserstack/noskills`, its one dependency at
+  the same version, in `NOSKILLS_TS_BUNDLE` for the commands the binary
+  forwards (`watch`, `manager`, `web`).
 - **Libraries:** the `@eserstack/*` libraries publish to npm from 5.0.0. Every
   non-private package with `exports` is a library (38 of them). The `publish`
   job runs `pnpm -r build` and then `etc/scripts/publish-libraries.ts`, which
@@ -143,14 +149,13 @@ Validate job also runs `make vuln` (govulncheck for both Go modules).
   `publishConfig.exports` points at `dist/` with `types` and `import`
   conditions; pnpm swaps it in when it packs. `files` lists the emitted files,
   plus the bootstrap sources laroux-bundler copies from `laroux-react`, whose
-  `./client/bootstrap` export stays on the source. The bundles of `cli` and
-  `noskills` share that `dist/`: the library build removes
-  a bundle there and a bundle build removes the library emit, so whichever a
-  later step packs is built last. In the release run the two never meet:
-  `smoke-test` builds the bundles and hands them on as artifacts, `publish`
-  downloads them into `npm-dist/` outside the workspace and builds the
-  libraries in its own checkout. In the preflight the library steps run after
-  every step that uses a bundle. `cli` publishes no bin
+  `./client/bootstrap` export stays on the source. The bundle of `cli` shares
+  that `dist/`: the library build removes the bundle there and a bundle build
+  removes the library emit, so whichever a later step packs is built last. In
+  the release run the two never meet: `smoke-test` builds the bundle and hands
+  it on as an artifact, `publish` downloads it into `npm-dist/` outside the
+  workspace and builds the libraries in its own checkout. In the preflight the
+  library steps run after every step that uses the bundle. `cli` publishes no bin
   (`publishConfig.bin` is empty), so the `eser` command comes from the `eser`
   bundle only. The exports carry `types` and `import` only, so `require()` of a
   library fails with `ERR_PACKAGE_PATH_NOT_EXPORTED`; no consumer needs CommonJS

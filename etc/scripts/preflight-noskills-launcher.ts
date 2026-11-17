@@ -4,12 +4,13 @@
  * Release preflight: install the noskills npm launcher the way a user would
  * (TASK-261).
  *
- * Packs `pkg/@eserstack/noskills/dist` (the launcher, from npm-build.ts) and
- * this host's platform package (`pkg/@eserstack/noskills-<platform>`, with
- * the binary `eser dev npm-binaries` staged) with pnpm pack, as the publish
- * job's `pnpm publish` does, installs both with npm into a scratch project
- * OUTSIDE the repository, and checks that `npx noskills` runs the Go binary,
- * and that the binary reaches the TypeScript CLI the launcher carries for the
+ * Installs the packed npm package `noskills` (pkg/@eserstack/noskills-bin)
+ * and its @eserstack dependencies from the tarballs library-pack wrote, with
+ * this host's platform package (`pkg/@eserstack/noskills-<platform>`, with the
+ * binary `eser codebase dist npm-binaries` staged) packed with pnpm pack, as
+ * the publish job's `pnpm publish` does, into a scratch project OUTSIDE the
+ * repository. Then it checks that `npx noskills` runs the Go binary, and that
+ * the binary reaches the TypeScript CLI of @eserstack/noskills for the
  * commands it forwards. Outside the repo, Node cannot find the platform
  * package through the workspace links, so a launcher that resolves it wrongly
  * fails here.
@@ -24,19 +25,20 @@
  * The plugin-bins preflight packs the platform package with npm, so both
  * packers are covered.
  *
- * npm fetches the other optional dependencies (the ajan libraries and the
- * other platforms' packages) from the registry; for a version that is not
- * published yet they are missing, which npm skips and the checks here do not
- * need.
+ * npm fetches the external dependencies and the other optional dependencies
+ * (the ajan libraries and the other platforms' packages) from the registry;
+ * for a version that is not published yet the optional ones are missing,
+ * which npm skips and the checks here do not need.
  *
- * Deliberately no workspace or registry imports, only Node built-ins and the
+ * It imports no workspace package by name, only Node built-ins and the
  * scripts next to it: it checks the packages as npm installs them, so it must
  * not lean on the workspace it checks.
  *
  * Usage:
- *   go run ./cmd/eser dev compile --current-only
- *   go run ./cmd/eser dev npm-binaries
- *   node pkg/@eserstack/noskills/scripts/npm-build.ts
+ *   go run ./cmd/eser codebase dist compile --current-only
+ *   go run ./cmd/eser codebase dist npm-binaries
+ *   pnpm -r build
+ *   rm -rf etc/temp/npm-packs && pnpm -r --filter "./pkg/@eserstack/*" pack --pack-destination etc/temp/npm-packs
  *   node etc/scripts/preflight-noskills-launcher.ts
  *
  * @module
@@ -50,13 +52,18 @@ import * as os from "node:os";
 import * as process from "node:process";
 import * as zlib from "node:zlib";
 import * as distUtils from "./dist-utils.ts";
+import * as libraryConsumer from "./preflight-library-consumer.ts";
 import * as npmConsumer from "./preflight-npm-consumer.ts";
+import * as pluginBins from "./preflight-plugin-bins.ts";
+
+/** The npm package of the launcher, pkg/@eserstack/noskills-bin. */
+const LAUNCHER_PACKAGE = "noskills";
 
 /** pnpm pack of one package directory. */
 const PACK_TIMEOUT_MS = 60_000;
 
-/** npm install of the two tarballs and the registry's optional packages. */
-const NPM_INSTALL_TIMEOUT_MS = 180_000;
+/** npm install of the tarballs and the registry's packages. */
+const NPM_INSTALL_TIMEOUT_MS = 300_000;
 
 /** One noskills command through npx. */
 const NOSKILLS_COMMAND_TIMEOUT_MS = 30_000;
@@ -174,30 +181,46 @@ const packOne = async (dir: string, packDir: string): Promise<string> => {
 
 const main = async (): Promise<void> => {
   const repoRoot = distUtils.repoRootFrom(import.meta.dirname);
-  const distDir = `${repoRoot}/pkg/@eserstack/noskills/dist`;
+  const manifests = await pluginBins.readWorkspaceManifests(repoRoot);
+  const version = manifests.get(LAUNCHER_PACKAGE)?.version ?? "";
   const platformDir = `${repoRoot}/pkg/@eserstack/noskills-${hostPlatform()}`;
   const binaryName = `noskills${process.platform === "win32" ? ".exe" : ""}`;
   const binary = `${platformDir}/${binaryName}`;
 
-  let packed: { version: string };
-  try {
-    packed = JSON.parse(await fs.readFile(`${distDir}/package.json`, "utf8"));
-  } catch (error) {
-    if (isNotFound(error)) {
-      throw new Error(
-        `${distDir} has no package.json; run pkg/@eserstack/noskills/scripts/npm-build.ts first.`,
-        { cause: error },
-      );
-    }
-    throw error;
-  }
+  // The launcher and every @eserstack package it depends on, from the
+  // tarballs library-pack wrote, so npm takes none of them from the registry.
+  const packed = pluginBins
+    .workspaceClosure(LAUNCHER_PACKAGE, manifests)
+    .map(
+      (name) =>
+        `${repoRoot}/${pluginBins.PACKS_DIR}/${libraryConsumer.tarballName(
+          name,
+          manifests.get(name)?.version ?? version,
+        )}`,
+    );
+
+  await Promise.all(
+    packed.map(async (tarball) => {
+      try {
+        await fs.stat(tarball);
+      } catch (error) {
+        if (isNotFound(error)) {
+          throw new Error(
+            `${tarball} is missing; run the preflight steps library-build and library-pack first.`,
+            { cause: error },
+          );
+        }
+        throw error;
+      }
+    }),
+  );
 
   try {
     await fs.stat(binary);
   } catch (error) {
     if (isNotFound(error)) {
       throw new Error(
-        `${binary} is missing; run \`go run ./cmd/eser dev compile --current-only\` and \`go run ./cmd/eser dev npm-binaries\` first.`,
+        `${binary} is missing; run \`go run ./cmd/eser codebase dist compile --current-only\` and \`go run ./cmd/eser codebase dist npm-binaries\` first.`,
         { cause: error },
       );
     }
@@ -212,7 +235,7 @@ const main = async (): Promise<void> => {
 
   try {
     const platformTarball = await packOne(platformDir, packDir);
-    const tarballs = [await packOne(distDir, packDir), platformTarball];
+    const tarballs = [...packed, platformTarball];
 
     const packedMode = tarEntryMode(
       zlib.gunzipSync(await fs.readFile(platformTarball)),
@@ -235,7 +258,9 @@ const main = async (): Promise<void> => {
       '{"name":"noskills-preflight-consumer","private":true,"version":"1.0.0"}\n',
     );
 
-    console.log(`Installing ${tarballs.join(" and ")} into ${consumerDir} ...`);
+    console.log(
+      `Installing ${tarballs.length} tarballs into ${consumerDir} ...`,
+    );
     must(
       await npmConsumer.run(
         ["npm", "install", "--no-audit", "--no-fund", ...tarballs],
@@ -277,14 +302,14 @@ const main = async (): Promise<void> => {
       console.log(`installed binary after the first run → ${formatMode(mode)}`);
     }
 
-    const version = await noskills("--version");
-    must(version, "npx noskills --version");
-    if (version.stdout.trim() !== `noskills ${packed.version}`) {
+    const printed = await noskills("--version");
+    must(printed, "npx noskills --version");
+    if (printed.stdout.trim() !== `noskills ${version}`) {
       throw new Error(
-        `npx noskills --version printed "${version.stdout.trim()}", want "noskills ${packed.version}"`,
+        `npx noskills --version printed "${printed.stdout.trim()}", want "noskills ${version}"`,
       );
     }
-    console.log(`npx noskills --version → ${version.stdout.trim()}`);
+    console.log(`npx noskills --version → ${printed.stdout.trim()}`);
 
     const json = await noskills("version", "--json");
     must(json, "npx noskills version --json");
@@ -292,15 +317,16 @@ const main = async (): Promise<void> => {
       runtime?: string;
       version?: string;
     };
-    if (reported.runtime !== "go" || reported.version !== packed.version) {
+    if (reported.runtime !== "go" || reported.version !== version) {
       throw new Error(
-        `npx noskills version --json reported ${json.stdout.trim()}; the launcher did not run the Go binary of ${packed.version}`,
+        `npx noskills version --json reported ${json.stdout.trim()}; the launcher did not run the Go binary of ${version}`,
       );
     }
     console.log(`npx noskills version --json → runtime ${reported.runtime}`);
 
-    // An unknown first word goes from the binary to the TypeScript CLI
-    // bundle the launcher names in NOSKILLS_TS_BUNDLE, which prints its help.
+    // An unknown first word goes from the binary to the TypeScript CLI of
+    // @eserstack/noskills, which the launcher names in NOSKILLS_TS_BUNDLE and
+    // which prints its help.
     const forwarded = await noskills("no-such-command");
     if (!forwarded.stdout.includes("noskills <command> [options]")) {
       throw new Error(

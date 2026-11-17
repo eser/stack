@@ -17,8 +17,8 @@ release-and-ci skill refers to.
   - `pnpm cli codebase rerelease`, `pnpm cli codebase unrelease`;
   - bump without releasing: `pnpm cli codebase versions`;
   - changelog: `pnpm cli codebase changelog-gen`, which moves the `Unreleased`
-    notes into the section it writes; `InsertIntoChangelog` in
-    `pkg/ajan/codebasefx` does it for both the Go and the TypeScript release.
+    notes into the section it writes (`InsertIntoChangelog` in
+    `pkg/ajan/codebasefx`).
 - The preflight installs the packed `@eserstack/ajan` outside the repo and
   loads the Go bridge from it (`etc/scripts/preflight-npm-consumer.ts`),
   builds the native and wasm ajan libraries, runs the release compile for the

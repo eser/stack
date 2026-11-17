@@ -177,9 +177,6 @@ importers:
 
   pkg/@eserstack/codebase:
     dependencies:
-      '@eserstack/ai':
-        specifier: workspace:*
-        version: link:../ai
       '@eserstack/ajan':
         specifier: workspace:*
         version: link:../ajan
@@ -189,46 +186,28 @@ importers:
       '@eserstack/fp':
         specifier: workspace:*
         version: link:../fp
-      '@eserstack/functions':
-        specifier: workspace:*
-        version: link:../functions
-      '@eserstack/primitives':
-        specifier: workspace:*
-        version: link:../primitives
       '@eserstack/shell':
         specifier: workspace:*
         version: link:../shell
       '@eserstack/standards':
         specifier: workspace:*
         version: link:../standards
-      '@eserstack/streams':
-        specifier: workspace:*
-        version: link:../streams
-      '@eserstack/workflows':
-        specifier: workspace:*
-        version: link:../workflows
-      jsonc-parser:
-        specifier: ^3.3.1
-        version: 3.3.1
-      semver:
-        specifier: ^7.8.6
-        version: 7.8.6
-      smol-toml:
-        specifier: ^1.9.1
-        version: 1.9.1
-      yaml:
-        specifier: ^2.9.1
-        version: 2.9.1
     devDependencies:
+      '@eserstack/functions':
+        specifier: workspace:*
+        version: link:../functions
       '@eserstack/logging':
         specifier: workspace:*
         version: link:../logging
+      '@eserstack/primitives':
+        specifier: workspace:*
+        version: link:../primitives
       '@eserstack/test-kit':
         specifier: workspace:*
         version: link:../test-kit
-      '@types/semver':
-        specifier: ^7.8.0
-        version: 7.8.0
+      '@eserstack/workflows':
+        specifier: workspace:*
+        version: link:../workflows
 
   pkg/@eserstack/collector:
     dependencies:
@@ -1863,9 +1842,6 @@ packages:
     resolution: {integrity: sha512-+DWg8jCJG2TEnpy7kOm/7/AxaYoaRbjVB4LFZLySZlWn8exGs3A4OLJR966cVvU26N7X9TWxl+Jsw7dzAqKT6g==}
     engines: {node: '>=16'}
 
-  jsonc-parser@3.3.1:
-    resolution: {integrity: sha512-HUgH65KyejrUFPvHFPbqOY0rsFip3Bo5wb4ngvdi1EpCYWUQDC5V+Y7mZws+DLkr4M//zQJoanu1SP+87Dv1oQ==}
-
   jwa@2.0.1:
     resolution: {integrity: sha512-hRF04fqJIP8Abbkq5NKGN0Bbr3JxlQ+qhZufXVr0DvujKy93ZCbXZMHDL4EOtodSbCWxOqR8MS1tXA5hwqCXDg==}
 
@@ -2764,8 +2740,6 @@ snapshots:
     dependencies:
       '@babel/runtime': 7.29.13
       ts-algebra: 2.0.0
-
-  jsonc-parser@3.3.1: {}
 
   jwa@2.0.1:
     dependencies:

@@ -61,8 +61,8 @@ the toolchain is Node `>=26.9` (`.node-version` pins the exact version), pnpm
   `pnpm cli <script>`; `.eser/recipes/library-pkg/` is the template for a
   new package, `go-service/` for a Go service.
 - Validators, release, version and changelog tooling live in
-  `pkg/@eserstack/codebase/`; the architecture overview is
-  `.github/ARCHITECTURE.md`.
+  `pkg/ajan/codebasefx/` and run as `eser codebase` (`cmd/eser`); the
+  architecture overview is `.github/ARCHITECTURE.md`.
 
 ## Repository Notes for Agents
 

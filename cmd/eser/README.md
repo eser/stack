@@ -79,6 +79,80 @@ the manifest is one of these commands.
 `eser codebase validate-code-conventions --write-baseline` records the current
 violations as the rule's baseline, `.eser/baselines/code-conventions.json`.
 
+| Command                        | Description                                    |
+| ------------------------------ | ---------------------------------------------- |
+| `validate-eof`                 | Ensure files end with newline                  |
+| `validate-trailing-whitespace` | Remove trailing whitespace                     |
+| `validate-bom`                 | Remove UTF-8 byte order markers                |
+| `validate-line-endings`        | Normalize line endings to LF                   |
+| `validate-large-files`         | Detect files exceeding size limit              |
+| `validate-case-conflict`       | Detect case-conflicting filenames              |
+| `validate-merge-conflict`      | Detect merge conflict markers                  |
+| `validate-json`                | Validate JSON syntax                           |
+| `validate-toml`                | Validate TOML syntax                           |
+| `validate-yaml`                | Validate YAML syntax                           |
+| `validate-symlinks`            | Detect broken symlinks                         |
+| `validate-shebangs`            | Validate shebang consistency                   |
+| `validate-secrets`             | Detect credentials and private keys            |
+| `validate-filenames`           | Enforce filename conventions                   |
+| `validate-submodules`          | Detect git submodules                          |
+| `validate-commit-msg`          | Validate conventional commit format            |
+| `validate-docs`                | Validate JSDoc documentation                   |
+| `validate-circular-deps`       | Detect circular dependencies                   |
+| `validate-export-names`        | Validate export naming conventions             |
+| `validate-licenses`            | Validate license headers                       |
+| `validate-mod-exports`         | Detect modules no package entry point reaches  |
+| `validate-server-loc`          | Fail when a non-test file exceeds a line cap   |
+| `validate-error-coverage`      | Check error structs for required fields        |
+| `validate-self-imports`        | Detect a package importing its own name        |
+| `validate-runtime-js-apis`     | Detect runtime globals outside `runtime`       |
+| `validate-code-conventions`    | Enforce namespace imports, `??`, no `export *` |
+| `validate-laroux-boundaries`   | Enforce the laroux package import rules        |
+
+A validator takes its options from its step in `.eser/manifest.yml`:
+
+```yaml
+stack:
+  - javascript
+  - golang
+
+workflows:
+  - id: default
+    on: [precommit, prepush]
+    steps:
+      # Validation tools with options
+      - validate-json:
+          exclude:
+            - "tsconfig.json"
+      - validate-filenames:
+          rules:
+            - directory: "apps/services/"
+              convention: "snake_case"
+            - directory: "*"
+              convention: "kebab-case"
+              exclude:
+                - "Makefile"
+                - "README.md"
+      - validate-secrets:
+          allowMissingCredentials: true
+      - validate-commit-msg:
+          forceScope: true
+          allowAsterisk: true
+          allowMultipleScopes: true
+          types: [ci, chore, docs, feat, fix, perf, refactor, revert, test]
+
+      # Shell commands for external tools
+      - shell:
+          name: formatter
+          command: oxfmt --check
+          fixCommand: oxfmt
+      - shell:
+          name: go-tests
+          command: "go test -race ./..."
+          workingDirectory: ./apps/services/
+          timeout: 300
+```
+
 `eser codebase install` writes a `pre-commit`, `commit-msg` or `pre-push` hook
 for each event the manifest's workflows run on, into the hooks directory git
 reports (`core.hooksPath` included). The hooks run `go run ./cmd/eser` in an

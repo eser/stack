@@ -13,64 +13,24 @@
     "dist/**/*.json"
   ],
   "exports": {
-    ".": "./main.ts",
+    ".": "./mod.ts",
     "./mod": "./mod.ts",
-    "./module": "./module.ts",
     "./directive-analysis": "./directive-analysis.ts",
     "./git": "./git.ts",
     "./native-functions": "./native-functions.ts",
     "./package": "./package/mod.ts",
-    "./validation": "./validation/mod.ts",
     "./workspace-discovery": "./workspace-discovery.ts",
-    "./validate-circular-deps": "./validate-circular-deps.ts",
-    "./validate-mod-exports": "./validate-mod-exports.ts",
-    "./validate-export-names": "./validate-export-names.ts",
-    "./validate-docs": "./validate-docs.ts",
-    "./validate-licenses": "./validate-licenses.ts",
-    "./versions": "./versions.ts",
-    "./gh": "./gh.ts",
-    "./gh-contributors": "./gh-contributors.ts",
-    "./release-tag": "./release-tag.ts",
-    "./release-notes": "./release-notes.ts",
-    "./changelog-gen": "./changelog-gen.ts",
-    "./commitmsg": "./commitmsg.ts",
-    "./release": "./release.ts",
-    "./cli-support": "./cli-support.ts",
-    "./file-tool": "./file-tool.ts",
-    "./file-tools-shared": "./file-tools-shared.ts",
-    "./walk-stream": "./walk-stream.ts",
-    "./validate-stream": "./validate-stream.ts",
-    "./validate-eof": "./validate-eof.ts",
-    "./validate-trailing-whitespace": "./validate-trailing-whitespace.ts",
-    "./validate-bom": "./validate-bom.ts",
-    "./validate-line-endings": "./validate-line-endings.ts",
-    "./validate-large-files": "./validate-large-files.ts",
-    "./validate-case-conflict": "./validate-case-conflict.ts",
-    "./validate-merge-conflict": "./validate-merge-conflict.ts",
-    "./validate-json": "./validate-json.ts",
-    "./validate-toml": "./validate-toml.ts",
-    "./validate-yaml": "./validate-yaml.ts",
-    "./validate-symlinks": "./validate-symlinks.ts",
-    "./validate-shebangs": "./validate-shebangs.ts",
-    "./validate-secrets": "./validate-secrets.ts",
-    "./validate-filenames": "./validate-filenames.ts",
-    "./validate-submodules": "./validate-submodules.ts",
-    "./validate-commit-msg": "./validate-commit-msg.ts",
-    "./install": "./install.ts"
+    "./cli-support": "./cli-support.ts"
   },
   "publishConfig": {
     "exports": {
       ".": {
-        "types": "./dist/main.d.ts",
-        "import": "./dist/main.js"
+        "types": "./dist/mod.d.ts",
+        "import": "./dist/mod.js"
       },
       "./mod": {
         "types": "./dist/mod.d.ts",
         "import": "./dist/mod.js"
-      },
-      "./module": {
-        "types": "./dist/module.d.ts",
-        "import": "./dist/module.js"
       },
       "./directive-analysis": {
         "types": "./dist/directive-analysis.d.ts",
@@ -88,153 +48,13 @@
         "types": "./dist/package/mod.d.ts",
         "import": "./dist/package/mod.js"
       },
-      "./validation": {
-        "types": "./dist/validation/mod.d.ts",
-        "import": "./dist/validation/mod.js"
-      },
       "./workspace-discovery": {
         "types": "./dist/workspace-discovery.d.ts",
         "import": "./dist/workspace-discovery.js"
       },
-      "./validate-circular-deps": {
-        "types": "./dist/validate-circular-deps.d.ts",
-        "import": "./dist/validate-circular-deps.js"
-      },
-      "./validate-mod-exports": {
-        "types": "./dist/validate-mod-exports.d.ts",
-        "import": "./dist/validate-mod-exports.js"
-      },
-      "./validate-export-names": {
-        "types": "./dist/validate-export-names.d.ts",
-        "import": "./dist/validate-export-names.js"
-      },
-      "./validate-docs": {
-        "types": "./dist/validate-docs.d.ts",
-        "import": "./dist/validate-docs.js"
-      },
-      "./validate-licenses": {
-        "types": "./dist/validate-licenses.d.ts",
-        "import": "./dist/validate-licenses.js"
-      },
-      "./versions": {
-        "types": "./dist/versions.d.ts",
-        "import": "./dist/versions.js"
-      },
-      "./gh": {
-        "types": "./dist/gh.d.ts",
-        "import": "./dist/gh.js"
-      },
-      "./gh-contributors": {
-        "types": "./dist/gh-contributors.d.ts",
-        "import": "./dist/gh-contributors.js"
-      },
-      "./release-tag": {
-        "types": "./dist/release-tag.d.ts",
-        "import": "./dist/release-tag.js"
-      },
-      "./release-notes": {
-        "types": "./dist/release-notes.d.ts",
-        "import": "./dist/release-notes.js"
-      },
-      "./changelog-gen": {
-        "types": "./dist/changelog-gen.d.ts",
-        "import": "./dist/changelog-gen.js"
-      },
-      "./commitmsg": {
-        "types": "./dist/commitmsg.d.ts",
-        "import": "./dist/commitmsg.js"
-      },
-      "./release": {
-        "types": "./dist/release.d.ts",
-        "import": "./dist/release.js"
-      },
       "./cli-support": {
         "types": "./dist/cli-support.d.ts",
         "import": "./dist/cli-support.js"
-      },
-      "./file-tool": {
-        "types": "./dist/file-tool.d.ts",
-        "import": "./dist/file-tool.js"
-      },
-      "./file-tools-shared": {
-        "types": "./dist/file-tools-shared.d.ts",
-        "import": "./dist/file-tools-shared.js"
-      },
-      "./walk-stream": {
-        "types": "./dist/walk-stream.d.ts",
-        "import": "./dist/walk-stream.js"
-      },
-      "./validate-stream": {
-        "types": "./dist/validate-stream.d.ts",
-        "import": "./dist/validate-stream.js"
-      },
-      "./validate-eof": {
-        "types": "./dist/validate-eof.d.ts",
-        "import": "./dist/validate-eof.js"
-      },
-      "./validate-trailing-whitespace": {
-        "types": "./dist/validate-trailing-whitespace.d.ts",
-        "import": "./dist/validate-trailing-whitespace.js"
-      },
-      "./validate-bom": {
-        "types": "./dist/validate-bom.d.ts",
-        "import": "./dist/validate-bom.js"
-      },
-      "./validate-line-endings": {
-        "types": "./dist/validate-line-endings.d.ts",
-        "import": "./dist/validate-line-endings.js"
-      },
-      "./validate-large-files": {
-        "types": "./dist/validate-large-files.d.ts",
-        "import": "./dist/validate-large-files.js"
-      },
-      "./validate-case-conflict": {
-        "types": "./dist/validate-case-conflict.d.ts",
-        "import": "./dist/validate-case-conflict.js"
-      },
-      "./validate-merge-conflict": {
-        "types": "./dist/validate-merge-conflict.d.ts",
-        "import": "./dist/validate-merge-conflict.js"
-      },
-      "./validate-json": {
-        "types": "./dist/validate-json.d.ts",
-        "import": "./dist/validate-json.js"
-      },
-      "./validate-toml": {
-        "types": "./dist/validate-toml.d.ts",
-        "import": "./dist/validate-toml.js"
-      },
-      "./validate-yaml": {
-        "types": "./dist/validate-yaml.d.ts",
-        "import": "./dist/validate-yaml.js"
-      },
-      "./validate-symlinks": {
-        "types": "./dist/validate-symlinks.d.ts",
-        "import": "./dist/validate-symlinks.js"
-      },
-      "./validate-shebangs": {
-        "types": "./dist/validate-shebangs.d.ts",
-        "import": "./dist/validate-shebangs.js"
-      },
-      "./validate-secrets": {
-        "types": "./dist/validate-secrets.d.ts",
-        "import": "./dist/validate-secrets.js"
-      },
-      "./validate-filenames": {
-        "types": "./dist/validate-filenames.d.ts",
-        "import": "./dist/validate-filenames.js"
-      },
-      "./validate-submodules": {
-        "types": "./dist/validate-submodules.d.ts",
-        "import": "./dist/validate-submodules.js"
-      },
-      "./validate-commit-msg": {
-        "types": "./dist/validate-commit-msg.d.ts",
-        "import": "./dist/validate-commit-msg.js"
-      },
-      "./install": {
-        "types": "./dist/install.d.ts",
-        "import": "./dist/install.js"
       }
     }
   },
@@ -242,24 +62,17 @@
     "build": "node ../../../etc/scripts/build-library.ts"
   },
   "dependencies": {
-    "@eserstack/ai": "workspace:*",
     "@eserstack/ajan": "workspace:*",
     "@eserstack/config": "workspace:*",
     "@eserstack/fp": "workspace:*",
-    "@eserstack/functions": "workspace:*",
-    "@eserstack/primitives": "workspace:*",
     "@eserstack/shell": "workspace:*",
-    "@eserstack/standards": "workspace:*",
-    "@eserstack/streams": "workspace:*",
-    "@eserstack/workflows": "workspace:*",
-    "jsonc-parser": "^3.3.1",
-    "semver": "^7.8.6",
-    "smol-toml": "^1.9.1",
-    "yaml": "^2.9.1"
+    "@eserstack/standards": "workspace:*"
   },
   "devDependencies": {
+    "@eserstack/functions": "workspace:*",
     "@eserstack/logging": "workspace:*",
+    "@eserstack/primitives": "workspace:*",
     "@eserstack/test-kit": "workspace:*",
-    "@types/semver": "^7.8.0"
+    "@eserstack/workflows": "workspace:*"
   }
 }

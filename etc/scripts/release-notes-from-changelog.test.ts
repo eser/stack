@@ -8,16 +8,26 @@ import * as path from "node:path";
 import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 import * as crossRuntime from "../../pkg/@eserstack/standards/cross-runtime/mod.ts";
-import * as changelogGen from "../../pkg/@eserstack/codebase/changelog-gen.ts";
 
 const script = path.join(
   import.meta.dirname,
   "release-notes-from-changelog.ts",
 );
 
-const before = `# Changelog
+// What `eser codebase release` writes for 5.0.0 when the Unreleased section
+// holds migration notes: the new section under an empty Unreleased, with the
+// notes moved into it (codebasefx.InsertIntoChangelog). Go's
+// TestReleasedChangelogReachesTheReleaseNotes runs this script on a release the
+// Go eser plans.
+const released = `# Changelog
 
 ## Unreleased
+
+## 5.0.0 - 2026-11-07
+
+### Fixed
+
+- **cli**: repair the thing (abc1234)
 
 ### Migration
 
@@ -37,13 +47,6 @@ Upgrade with these steps.
 - an older fix (def5678)
 `;
 
-const section = `## 5.0.0 - 2026-11-07
-
-### Fixed
-
-- **cli**: repair the thing (abc1234)
-`;
-
 const notesFor = (changelog: string, tag: string): string => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "eser-release-notes-"));
   try {
@@ -60,8 +63,6 @@ const notesFor = (changelog: string, tag: string): string => {
 };
 
 nodeTest.test("the release notes carry the moved migration notes", () => {
-  const released = changelogGen.insertIntoChangelog(before, section, "5.0.0");
-
   assert.assertEquals(
     notesFor(released, "v5.0.0"),
     `## 5.0.0 - 2026-11-07
@@ -87,7 +88,6 @@ Upgrade with these steps.
 nodeTest.test(
   "notes written after a release stay out of that release's notes",
   () => {
-    const released = changelogGen.insertIntoChangelog(before, section, "5.0.0");
     const later = released.replace(
       "## Unreleased\n",
       "## Unreleased\n\n### Migration\n\n- a later step\n",

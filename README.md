@@ -60,7 +60,7 @@ workflow-facing (Tools).
 | [@eserstack/formats](pkg/@eserstack/formats/)     | Bidirectional format conversion (JSON, YAML, CSV, TOML, JSONL) |
 | [@eserstack/streams](pkg/@eserstack/streams/)     | Pipeline I/O                                                   |
 | [@eserstack/logging](pkg/@eserstack/logging/)     | Hierarchical logging, OpenTelemetry                            |
-| [@eserstack/codebase](pkg/@eserstack/codebase/)   | Git ops, scaffolding, version management                       |
+| [@eserstack/codebase](pkg/@eserstack/codebase/)   | Git, package config and workspace discovery helpers            |
 | [@eserstack/workflows](pkg/@eserstack/workflows/) | Event-driven workflow engine                                   |
 | [@eserstack/ai](pkg/@eserstack/ai/)               | AI provider abstraction (Claude, OpenAI, Gemini)               |
 
@@ -94,7 +94,7 @@ workflow-facing (Tools).
 | [@eserstack/bundler](pkg/@eserstack/bundler/)         | Abstract bundler, snapshot AOT                        |
 | [@eserstack/shell](pkg/@eserstack/shell/)             | CLI framework: args, completions, exec, TUI           |
 | [@eserstack/mux](pkg/@eserstack/mux/)                 | Terminal multiplexer engine: tabs, panes, keybindings |
-| [@eserstack/codebase](pkg/@eserstack/codebase/)       | Git ops, scaffolding, version management              |
+| [@eserstack/codebase](pkg/@eserstack/codebase/)       | Git, package config and workspace discovery helpers   |
 | [@eserstack/workflows](pkg/@eserstack/workflows/)     | Event-driven workflow engine                          |
 | [@eserstack/kit](pkg/@eserstack/kit/)                 | Recipe + template distribution                        |
 | [@eserstack/ai](pkg/@eserstack/ai/)                   | AI provider abstraction (Claude, OpenAI, Gemini)      |

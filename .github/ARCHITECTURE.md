@@ -96,7 +96,7 @@ Layer 3: Services and Tooling
 ├── @eserstack/ai                    # AI provider interface (cloud APIs and local agents)
 ├── @eserstack/workflows             # Event-driven workflow engine for tool pipelines
 ├── @eserstack/kit                   # Recipe-based project scaffolding
-├── @eserstack/codebase              # Codebase analysis/validation
+├── @eserstack/codebase              # Git, package config and workspace helpers
 └── @eserstack/posts                 # Posts on Twitter/X and Bluesky
 
 Layer 4: Framework

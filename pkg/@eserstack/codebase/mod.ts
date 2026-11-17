@@ -93,7 +93,3 @@ export {
   extractExports,
   hasDirective,
 } from "./directive-analysis.ts";
-
-// CLI scripts are accessed via their own entry points in package.json exports,
-// not through this barrel. Each exports a `main` function which would collide.
-// Import directly: @eserstack/codebase/validate-circular-deps, @eserstack/codebase/versions, etc.

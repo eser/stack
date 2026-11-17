@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -96,41 +97,40 @@ func readTree(t *testing.T, root string) map[string]string {
 	return files
 }
 
-// nodeOrSkip returns the node binary that runs the TypeScript side of a
-// comparison; the repository's Node (.nvmrc) strips the types itself.
+// nodeOrSkip returns the node binary that runs a TypeScript script of the
+// repository; the repository's Node strips the types itself.
 func nodeOrSkip(t *testing.T) string {
 	t.Helper()
 
 	node, err := exec.LookPath("node")
 	if err != nil {
-		t.Skip("node is not installed; the TypeScript comparison needs it")
+		t.Skip("node is not installed; the TypeScript script needs it")
 	}
 
 	return node
 }
 
-// oxfmtOrSkip returns the repository's oxfmt, which formats CHANGELOG.md in
-// the TypeScript release.
-func oxfmtOrSkip(t *testing.T, repo string) string {
+// readGolden reads a file of testdata/release, which holds what the
+// TypeScript release wrote on the same fixtures before it was deleted
+// (TASK-255).
+func readGolden(t *testing.T, name string) []byte {
 	t.Helper()
 
-	oxfmt := filepath.Join(repo, "node_modules", ".bin", "oxfmt")
-	if _, err := os.Stat(oxfmt); err != nil {
-		t.Skip("oxfmt is not installed; run pnpm install for the formatter comparison")
+	data, err := os.ReadFile(filepath.Join("testdata", "release", name)) //nolint:gosec // the test's own file
+	if err != nil {
+		t.Fatal(err)
 	}
 
-	return oxfmt
+	return data
 }
 
-// TestPlanVersionsMatchesTypeScript bumps the fixture with the TypeScript
-// versions command and with PlanVersions, and compares the two trees.
-func TestPlanVersionsMatchesTypeScript(t *testing.T) {
+// TestPlanVersionsMatchesTheRecordedTrees bumps the fixture with PlanVersions
+// and compares the tree with the one the TypeScript versions command wrote.
+func TestPlanVersionsMatchesTheRecordedTrees(t *testing.T) {
 	t.Parallel()
 
-	node := nodeOrSkip(t)
-
-	repo, err := filepath.Abs(repoRootFromCodebasefx)
-	if err != nil {
+	var recorded map[string]map[string]string
+	if err := json.Unmarshal(readGolden(t, "plan_versions.json"), &recorded); err != nil {
 		t.Fatal(err)
 	}
 
@@ -138,30 +138,26 @@ func TestPlanVersionsMatchesTypeScript(t *testing.T) {
 		t.Run(command, func(t *testing.T) {
 			t.Parallel()
 
-			tsRoot, goRoot := t.TempDir(), t.TempDir()
-			writeFiles(t, tsRoot, workspaceFixture)
-			writeFiles(t, goRoot, workspaceFixture)
+			root := t.TempDir()
+			writeFiles(t, root, workspaceFixture)
 
-			cmd := exec.Command(node, filepath.Join(repo, "pkg/@eserstack/codebase/versions.ts"), command) //nolint:gosec,noctx
-			cmd.Dir = tsRoot
-
-			if out, err := cmd.CombinedOutput(); err != nil {
-				t.Fatalf("TypeScript versions %s: %v: %s", command, err, out)
-			}
-
-			plan, err := codebasefx.PlanVersions(goRoot, codebasefx.VersionCommand(command), "")
+			plan, err := codebasefx.PlanVersions(root, codebasefx.VersionCommand(command), "")
 			if err != nil {
 				t.Fatal(err)
 			}
 
-			if err := codebasefx.ApplyEdits(goRoot, plan.Edits); err != nil {
+			if err := codebasefx.ApplyEdits(root, plan.Edits); err != nil {
 				t.Fatal(err)
 			}
 
-			want, got := readTree(t, tsRoot), readTree(t, goRoot)
+			want, got := recorded[command], readTree(t, root)
+			if len(want) == 0 {
+				t.Fatalf("no recorded tree for %s", command)
+			}
+
 			for path, content := range want {
 				if got[path] != content {
-					t.Errorf("%s %s:\n--- TypeScript\n%s\n--- Go\n%s", command, path, content, got[path])
+					t.Errorf("%s %s:\n--- recorded\n%s\n--- Go\n%s", command, path, content, got[path])
 				}
 			}
 		})
@@ -200,20 +196,21 @@ func changelogRepo(t *testing.T) string {
 	return root
 }
 
-// TestReleaseChangelogMatchesTypeScript compares the CHANGELOG.md a Go
-// release plans with what the TypeScript release writes: its changelog-gen
-// (the Go generator through the bridge) followed by oxfmt CHANGELOG.md.
-func TestReleaseChangelogMatchesTypeScript(t *testing.T) {
+// changelogVolatile matches what differs between runs of a changelog: the
+// date of the new section and the short commit hashes.
+var changelogVolatile = []struct { //nolint:gochecknoglobals
+	pattern *regexp.Regexp
+	with    string
+}{
+	{regexp.MustCompile(`(?m)^## 1\.2\.4 - \d{4}-\d{2}-\d{2}$`), "## 1.2.4 - <DATE>"},
+	{regexp.MustCompile(`(?m) \([0-9a-f]{7,}\)$`), " (<HASH>)"},
+}
+
+// TestReleaseChangelogMatchesTheRecordedFile compares the CHANGELOG.md a Go
+// release plans with what the TypeScript release wrote: its changelog-gen
+// followed by oxfmt CHANGELOG.md.
+func TestReleaseChangelogMatchesTheRecordedFile(t *testing.T) {
 	t.Parallel()
-
-	node := nodeOrSkip(t)
-
-	repo, err := filepath.Abs(repoRootFromCodebasefx)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	oxfmt := oxfmtOrSkip(t, repo)
 
 	root := changelogRepo(t)
 
@@ -230,31 +227,12 @@ func TestReleaseChangelogMatchesTypeScript(t *testing.T) {
 		}
 	}
 
-	gen := exec.Command(node, filepath.Join(repo, "pkg/@eserstack/codebase/changelog-gen.ts")) //nolint:gosec,noctx
-	gen.Dir = root
-
-	if out, err := gen.CombinedOutput(); err != nil {
-		t.Fatalf("TypeScript changelog-gen: %v: %s", err, out)
+	for _, v := range changelogVolatile {
+		goChangelog = v.pattern.ReplaceAllString(goChangelog, v.with)
 	}
 
-	fmtCmd := exec.Command(oxfmt, "--config", filepath.Join(repo, ".oxfmtrc.json"), "CHANGELOG.md") //nolint:gosec,noctx
-	fmtCmd.Dir = root
-
-	if out, err := fmtCmd.CombinedOutput(); err != nil {
-		t.Fatalf("oxfmt: %v: %s", err, out)
-	}
-
-	tsChangelog, err := os.ReadFile(filepath.Join(root, "CHANGELOG.md")) //nolint:gosec // the test's own file
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if goChangelog != string(tsChangelog) {
-		t.Errorf("CHANGELOG.md:\n--- TypeScript + oxfmt\n%s\n--- Go\n%s", tsChangelog, goChangelog)
-	}
-
-	if !strings.Contains(goChangelog, "## 1.2.4 - ") {
-		t.Errorf("the 1.2.4 section is missing:\n%s", goChangelog)
+	if want := string(readGolden(t, "changelog.md")); goChangelog != want {
+		t.Errorf("CHANGELOG.md:\n--- recorded\n%s\n--- Go\n%s", want, goChangelog)
 	}
 }
 

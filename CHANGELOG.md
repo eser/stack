@@ -8,6 +8,40 @@ and this project adheres to
 
 ## Unreleased
 
+### Migration
+
+- The npm package `eser` runs the Go eser, and `@eserstack/cli` is no longer
+  published. Install the CLI with `npm install -g eser`; its commands, flags
+  and manifest scripts are the same.
+
+  ```bash
+  # Before
+  npx @eserstack/cli codebase validate-eof
+  # After
+  npx eser codebase validate-eof
+  ```
+
+- The TypeScript commands and validators of `@eserstack/codebase` are removed;
+  run them through the Go eser. The package keeps its library: git, package
+  config and workspace discovery (`@eserstack/codebase` is now `./mod`, no
+  longer the CLI). The removed exports are `./module`, `./validation`,
+  `./install`, `./release`, `./versions`, `./changelog-gen`,
+  `./release-notes`, `./release-tag`, `./gh`, `./gh-contributors`,
+  `./commitmsg`, `./file-tool`, `./file-tools-shared`, `./walk-stream`,
+  `./validate-stream`, `./npm-externals`, `./npm-workspace-specifiers` and
+  every `./validate-*`.
+
+  ```typescript
+  // Before
+  import * as validation from "@eserstack/codebase/validation";
+  await validation.validate({ root: "." });
+  ```
+
+  ```bash
+  # After
+  npx eser workflows run -e precommit
+  ```
+
 ## 5.0.0 - 2026-11-16
 
 ### Added

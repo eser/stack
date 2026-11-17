@@ -5,9 +5,7 @@
 package codebasefx_test
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -26,9 +24,9 @@ const (
 	olderSection = "## 1.0.0 - 2026-01-01\n\n### Added\n\n- the first release (def5678)\n"
 )
 
-// insertCases are the layouts a release must produce. The same table runs
-// against the TypeScript insertIntoChangelog in
-// TestInsertIntoChangelogMatchesTypeScript.
+// insertCases are the layouts a release must produce; the TypeScript
+// insertIntoChangelog produced the same output for each before it was deleted
+// (TASK-255).
 var insertCases = []struct { //nolint:gochecknoglobals
 	name     string
 	existing string
@@ -181,61 +179,6 @@ func TestInsertIntoChangelogMovesUnreleased(t *testing.T) {
 				t.Errorf("a re-run changed the file:\n--- first\n%s\n--- second\n%s", got, again)
 			}
 		})
-	}
-}
-
-// TestInsertIntoChangelogMatchesTypeScript runs every layout through the
-// exported TypeScript insertIntoChangelog, which keeps its own implementation.
-func TestInsertIntoChangelogMatchesTypeScript(t *testing.T) {
-	t.Parallel()
-
-	node := nodeOrSkip(t)
-
-	repo, err := filepath.Abs(repoRootFromCodebasefx)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	type input struct {
-		Existing string `json:"existing"`
-		Section  string `json:"section"`
-		Version  string `json:"version"`
-	}
-
-	inputs := make([]input, 0, len(insertCases))
-	for _, tc := range insertCases {
-		inputs = append(inputs, input{Existing: tc.existing, Section: tc.section, Version: tc.version})
-	}
-
-	payload, err := json.Marshal(inputs)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	script := `import { insertIntoChangelog } from "./pkg/@eserstack/codebase/changelog-gen.ts";
-import * as fs from "node:fs";
-const inputs = JSON.parse(fs.readFileSync(0, "utf8"));
-const outputs = inputs.map((i) => insertIntoChangelog(i.existing, i.section, i.version));
-process.stdout.write(JSON.stringify(outputs));`
-
-	cmd := exec.Command(node, "--input-type=module", "-e", script) //nolint:gosec,noctx
-	cmd.Dir = repo
-	cmd.Stdin = bytes.NewReader(payload)
-
-	out, err := cmd.Output()
-	if err != nil {
-		t.Fatalf("TypeScript insertIntoChangelog: %v", err)
-	}
-
-	var outputs []string
-	if err := json.Unmarshal(out, &outputs); err != nil {
-		t.Fatal(err)
-	}
-
-	for i, tc := range insertCases {
-		if outputs[i] != tc.want {
-			t.Errorf("%s:\n--- TypeScript\n%s\n--- Go\n%s", tc.name, outputs[i], tc.want)
-		}
 	}
 }
 

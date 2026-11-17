@@ -1,6 +1,6 @@
 {
   "name": "@eserstack/noskills-darwin-arm64",
-  "version": "5.0.0",
+  "version": "5.1.0",
   "description": "noskills binary for macOS ARM64 (Apple Silicon)",
   "license": "Apache-2.0",
   "repository": {

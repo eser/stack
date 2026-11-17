@@ -1,6 +1,6 @@
 {
   "name": "@eserstack/laroux-bundler",
-  "version": "5.0.0",
+  "version": "5.1.0",
   "description": "Framework-agnostic bundler for the laroux.js framework with hexagonal architecture",
   "license": "Apache-2.0",
   "type": "module",

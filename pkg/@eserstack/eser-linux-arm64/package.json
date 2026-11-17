@@ -1,6 +1,6 @@
 {
   "name": "@eserstack/eser-linux-arm64",
-  "version": "5.0.0",
+  "version": "5.1.0",
   "description": "eser binary for Linux ARM64",
   "license": "Apache-2.0",
   "repository": {

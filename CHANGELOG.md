@@ -8,6 +8,39 @@ and this project adheres to
 
 ## Unreleased
 
+## 5.1.0 - 2026-11-17
+
+### Added
+
+- **scripts**: bootstrap the npm names a release publishes first (16051b4)
+- **eser**: port the commands only the TypeScript eser had (801987e)
+- **eser**: publish the npm eser as a launcher of the Go binary (bc89c6d)
+- **kit**: install recipe dependencies from npm only, never from JSR (a982817)
+
+### Fixed
+
+- **release**: fit release notes over the GitHub limit by linking the sections that do not fit to the changelog (c090206)
+
+### Changed
+
+- **release**: record the eser platform package bootstrap (eaf6fc9)
+- **noskills**: keep only watch, web and manager in the TypeScript noskills (2caa1c0)
+- **noskills**: run the golden harness and the noskills tests on Go only (f1bce33)
+- **backlog**: close the TypeScript eser deletion task (dc2d7b2)
+- **eser**: delete the TypeScript CLIs of ai, cs, kit and workflows (85aa923)
+- **codebase**: delete the TypeScript twins of the eser codebase commands (3776a21)
+- **eser**: delete the TypeScript eser and run pnpm cli on the Go eser (7240723)
+- **noskills**: publish the npm noskills launcher from a workspace package on the library emit (1c49137)
+- **backlog**: close the Go gate runner task and record the eser porting decisions (c32a2a0)
+- **scripts**: name eser codebase dist in the release script comments (825b2ce)
+- **laroux-bundler**: take over directive-analysis from codebase (e231ab9)
+- **shell**: take over cli-support and the system commands from codebase (4ddb4e5)
+- **eser**: move the release build commands from eser dev to eser codebase dist (a7eb042)
+- **backlog**: plan moving the codebase helpers to shell and laroux-bundler (ff774e3)
+- **nix**: update binary hashes for v5.0.0 (aaa2877)
+- **go**: move both modules to Go 1.27, whose encoding/json runs on v2 (1357bd6)
+- replace the stale @std examples with npm packages and node built-ins (43f6b86)
+
 ### Migration
 
 - The npm package `eser` runs the Go eser, and `@eserstack/cli` is no longer

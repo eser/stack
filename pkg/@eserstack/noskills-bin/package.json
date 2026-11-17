@@ -1,6 +1,6 @@
 {
   "name": "noskills",
-  "version": "5.0.0",
+  "version": "5.1.0",
   "description": "The noskills command: spec-driven workflow for coding agents",
   "license": "Apache-2.0",
   "type": "module",

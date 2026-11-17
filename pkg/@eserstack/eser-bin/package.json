@@ -1,6 +1,6 @@
 {
   "name": "eser",
-  "version": "5.0.0",
+  "version": "5.1.0",
   "description": "The eser command: Eser's swiss-army-knife tooling for your terminal",
   "license": "Apache-2.0",
   "type": "module",

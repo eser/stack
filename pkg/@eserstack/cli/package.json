@@ -44,15 +44,6 @@
     "@eserstack/workflows": "workspace:*"
   },
   "devDependencies": {
-    "@eserstack/test-kit": "workspace:*",
-    "esbuild": "^0.28.2"
-  },
-  "optionalDependencies": {
-    "@eserstack/ajan-darwin-arm64": "workspace:*",
-    "@eserstack/ajan-darwin-x64": "workspace:*",
-    "@eserstack/ajan-linux-arm64": "workspace:*",
-    "@eserstack/ajan-linux-x64": "workspace:*",
-    "@eserstack/ajan-win32-x64": "workspace:*",
-    "@eserstack/ajan-wasm": "workspace:*"
+    "@eserstack/test-kit": "workspace:*"
   }
 }

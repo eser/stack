@@ -1,33 +1,35 @@
 // Copyright 2023-present Eser Ozvataf and other contributors. All rights reserved. Apache-2.0 license.
 
 /**
- * Release preflight: install the CLI npm bundle the way a user would.
+ * Release preflight: install the Go bridge library, @eserstack/ajan, the way
+ * an npm user would, and load it.
  *
- * Packs `pkg/@eserstack/cli/dist` into a tarball, installs it with npm into a
- * scratch project OUTSIDE the repository, and runs the same smoke commands the
- * pipeline's npm smoke job runs. Doing it outside the repo is the whole point:
- * inside the monorepo, Node walks up to the workspace's node_modules and hides
- * every unpublished or undeclared dependency — which is how v4.5.0 shipped a
- * bundle that imported a package not on npm and only failed in CI — or fails
- * to find one that IS declared (a dependency of @eserstack/ajan lives under it
- * in the pnpm tree, unreachable from cli/dist), which kept the Node job red.
+ * Builds @eserstack/standards and @eserstack/ajan, packs both, installs the
+ * tarballs with npm into a scratch project OUTSIDE the repository, and loads
+ * the bridge there under Node through node:ffi, as a library that depends on
+ * it does. Doing it outside the repo is the whole point: inside the monorepo,
+ * Node walks up to the workspace's node_modules and hides every unpublished or
+ * undeclared dependency — which is how v4.5.0 shipped a bundle that imported a
+ * package not on npm and only failed in CI. Until TASK-254 this checked the
+ * eser npm bundle, which loaded the bridge the same way; the npm `eser` is now
+ * the launcher of the Go binary, which needs no bridge.
  *
  * Deliberately no workspace or registry imports, only Node built-ins and
- * dist-utils.ts: it checks the bundle as npm installs it, so it must not lean
+ * dist-utils.ts: it checks the library as npm installs it, so it must not lean
  * on the workspace it checks.
  *
  * Usage:
  *   node etc/scripts/preflight-npm-consumer.ts [options]
  *
  * Options:
- *   --runtime=node       Run the installed bundle with this runtime (default
+ *   --runtime=node       Load the installed library with this runtime (default
  *                        and only value: node).
- *   --require-native     Fail unless `eser ajan version` loads the native
- *                        library and reports the bundle's version. Use with
- *                        ESER_AJAN_LIB_PATH pointing at a freshly built
- *                        library; without it a scratch install has no native
- *                        library for an unreleased version and the graceful
- *                        failure is the expected outcome.
+ *   --require-native     Fail unless the bridge loads and reports the
+ *                        library's version. Use with ESER_AJAN_LIB_PATH
+ *                        pointing at a freshly built library; without it a
+ *                        scratch install has no native library for an
+ *                        unreleased version and the graceful failure is the
+ *                        expected outcome.
  *
  * @module
  */
@@ -44,14 +46,35 @@ import * as distUtils from "./dist-utils.ts";
 // Each bound fails one stalled step with a message that names it, inside the
 // preflight step's five-minute limit, which stays the backstop.
 
-/** npm pack of the local dist directory into one tarball. */
-const NPM_PACK_TIMEOUT_MS = 60_000;
+/** The library build of @eserstack/standards and @eserstack/ajan. */
+const BUILD_TIMEOUT_MS = 180_000;
 
-/** npm install of the tarball, which fetches its dependencies from npm. */
+/** pnpm pack of one package directory into one tarball. */
+const PACK_TIMEOUT_MS = 60_000;
+
+/** npm install of the tarballs, which fetches the optional platform packages. */
 const NPM_INSTALL_TIMEOUT_MS = 180_000;
 
-/** One eser command (--help, version, ajan version) under Node. */
-const ESER_COMMAND_TIMEOUT_MS = 30_000;
+/** One load of the bridge under Node. */
+const LOAD_TIMEOUT_MS = 30_000;
+
+/** The packages installed: the bridge and its one dependency. */
+const PACKAGES = ["standards", "ajan"] as const;
+
+/**
+ * What the consumer runs: it loads the bridge from its node_modules and prints
+ * the version the library reports.
+ */
+const LOAD_SCRIPT = [
+  'const ajan = await import("@eserstack/ajan");',
+  "const lib = await ajan.loadEserAjan();",
+  "try {",
+  "  const { version, abi } = lib.handshake;",
+  "  console.log(`eser-ajan version ${version} (dispatcher ABI ${abi}, ${lib.backend})`);",
+  "} finally {",
+  "  lib.close();",
+  "}",
+].join("\n");
 
 /** The exit code and the decoded output of one command. */
 export type RunResult = { code: number; stdout: string; stderr: string };
@@ -61,14 +84,16 @@ export type PreflightOptions = { runtime: "node"; requireNative: boolean };
 
 /**
  * Runs `cmd` in `cwd` and returns its exit code and output for the caller to
- * judge. A run that `timeoutMs` stops throws instead: its exit code would only
- * say that it was killed, and `eser ajan version` would read that as the
- * expected graceful failure.
+ * judge, with `env` as its environment (this process's when not given). A run
+ * that `timeoutMs` stops throws instead: its exit code would only say that it
+ * was killed, and a load of the bridge would read that as the expected
+ * graceful failure.
  */
 export const run = (
   cmd: readonly string[],
   cwd: string,
   timeoutMs: number,
+  env?: Readonly<Record<string, string | undefined>>,
 ): Promise<RunResult> =>
   new Promise((resolve, reject) => {
     const signal = AbortSignal.timeout(timeoutMs);
@@ -76,6 +101,7 @@ export const run = (
       cwd,
       signal,
       stdio: ["ignore", "pipe", "pipe"],
+      ...(env === undefined ? {} : { env }),
     });
     const stdout: Buffer[] = [];
     const stderr: Buffer[] = [];
@@ -140,111 +166,108 @@ export const parseOptions = (args: readonly string[]): PreflightOptions => {
   };
 };
 
-const isNotFound = (error: unknown): boolean =>
-  error instanceof Error && "code" in error && error.code === "ENOENT";
-
 const main = async (): Promise<void> => {
   const { runtime, requireNative } = parseOptions(process.argv.slice(2));
   const repoRoot = distUtils.repoRootFrom(import.meta.dirname);
-  const distDir = `${repoRoot}/pkg/@eserstack/cli/dist`;
+  const ajanDir = `${repoRoot}/pkg/@eserstack/ajan`;
+  const manifest = JSON.parse(
+    await fs.readFile(`${ajanDir}/package.json`, "utf8"),
+  ) as { version: string };
 
-  let packedText: string;
-  try {
-    packedText = await fs.readFile(`${distDir}/package.json`, "utf8");
-  } catch (error) {
-    if (isNotFound(error)) {
-      throw new Error(
-        `${distDir} has no package.json; run \`pnpm cli build\` first.`,
-        { cause: error },
-      );
-    }
-    throw error;
-  }
-  const packed = JSON.parse(packedText) as { version: string };
+  console.log("Building @eserstack/standards and @eserstack/ajan ...");
+  must(
+    await run(
+      [
+        "pnpm",
+        ...PACKAGES.flatMap((name) => ["--filter", `@eserstack/${name}`]),
+        "build",
+      ],
+      repoRoot,
+      BUILD_TIMEOUT_MS,
+    ),
+    "the library build",
+  );
 
   // Both directories live under the OS temp dir, never under the repo.
-  const packDir = await fs.mkdtemp(`${os.tmpdir()}/eser-preflight-pack-`);
+  const packDir = await fs.mkdtemp(`${os.tmpdir()}/ajan-preflight-pack-`);
   const consumerDir = await fs.mkdtemp(
-    `${os.tmpdir()}/eser-preflight-consumer-`,
+    `${os.tmpdir()}/ajan-preflight-consumer-`,
   );
 
   try {
-    console.log(`Packing ${distDir} ...`);
-    must(
-      await run(
-        ["npm", "pack", "--pack-destination", packDir],
-        distDir,
-        NPM_PACK_TIMEOUT_MS,
+    // pnpm pack, as the publish job's pnpm publish does: it puts
+    // publishConfig.exports in place and rewrites the workspace: ranges.
+    await Promise.all(
+      PACKAGES.map(async (name) =>
+        must(
+          await run(
+            ["pnpm", "pack", "--pack-destination", packDir],
+            `${repoRoot}/pkg/@eserstack/${name}`,
+            PACK_TIMEOUT_MS,
+          ),
+          `pnpm pack of @eserstack/${name}`,
+        ),
       ),
-      "npm pack",
     );
 
-    const tarballs = (await fs.readdir(packDir)).filter((name) =>
-      name.endsWith(".tgz"),
-    );
-    if (tarballs.length !== 1) {
-      throw new Error(`expected one tarball in ${packDir}, found ${tarballs}`);
+    const tarballs = (await fs.readdir(packDir))
+      .filter((name) => name.endsWith(".tgz"))
+      .map((name) => `${packDir}/${name}`);
+    if (tarballs.length !== PACKAGES.length) {
+      throw new Error(
+        `expected ${PACKAGES.length} tarballs in ${packDir}, found ${tarballs.join(", ")}`,
+      );
     }
-    const tarball = `${packDir}/${tarballs[0]!}`;
 
     await fs.writeFile(
       `${consumerDir}/package.json`,
-      '{"name":"eser-preflight-consumer","private":true,"version":"1.0.0"}\n',
+      '{"name":"ajan-preflight-consumer","private":true,"version":"1.0.0","type":"module"}\n',
     );
 
-    console.log(`Installing ${tarballs[0]} into ${consumerDir} ...`);
+    console.log(
+      `Installing ${tarballs.length} tarballs into ${consumerDir} ...`,
+    );
     must(
       await run(
-        ["npm", "install", "--no-audit", "--no-fund", tarball],
+        ["npm", "install", "--no-audit", "--no-fund", ...tarballs],
         consumerDir,
         NPM_INSTALL_TIMEOUT_MS,
       ),
-      "npm install of the packed CLI",
+      "npm install of the packed library",
     );
 
-    // Invoke the Node that runs this script rather than the bin shim, so the
-    // matrix's Node is the one that runs — not whatever `node` the shebang
-    // finds first.
-    const entry = `${consumerDir}/node_modules/eser/eser.js`;
-    const eser = (...args: string[]): Promise<RunResult> =>
-      run(
-        [process.execPath, entry, ...args],
-        consumerDir,
-        ESER_COMMAND_TIMEOUT_MS,
-      );
-
-    must(await eser("--help"), `${runtime} eser --help`);
-
-    const version = await eser("version");
-    must(version, `${runtime} eser version`);
-    console.log(`${runtime} eser version → ${version.stdout.trim()}`);
-
-    const ajan = await eser("ajan", "version");
-    const ajanOutput = `${ajan.stdout}${ajan.stderr}`;
+    // The Node that runs this script, so the matrix's Node is the one that
+    // loads the bridge.
+    const load = await run(
+      [process.execPath, "--input-type=module", "-e", LOAD_SCRIPT],
+      consumerDir,
+      LOAD_TIMEOUT_MS,
+    );
+    const output = `${load.stdout}${load.stderr}`;
 
     // Whatever happens, the failure must never tell an npm user to install deno.
-    if (/deno/i.test(ajanOutput)) {
+    if (/deno/i.test(output)) {
       throw new Error(
-        `eser ajan version mentions deno — the npm package must not require it:\n${ajanOutput}`,
+        `loading @eserstack/ajan mentions deno — the npm package must not require it:\n${output}`,
       );
     }
 
-    if (ajan.code === 0) {
+    if (load.code === 0) {
       // The platform packages are pinned to this exact version; if a library
       // loaded it must be this build, not an older one that happened to resolve.
-      if (!ajan.stdout.includes(packed.version)) {
+      if (!load.stdout.includes(manifest.version)) {
         throw new Error(
-          `eser ajan version reported "${ajan.stdout.trim()}" but the bundle is ${packed.version} — a mismatched library was loaded`,
+          `the bridge reported "${load.stdout.trim()}" but @eserstack/ajan is ${manifest.version} — a mismatched library was loaded`,
         );
       }
-      console.log(`${runtime} eser ajan version → ${ajan.stdout.trim()}`);
+      console.log(`${runtime} @eserstack/ajan → ${load.stdout.trim()}`);
     } else if (requireNative) {
       throw new Error(
-        `--require-native: eser ajan version did not load the native library under ${runtime}:\n${ajanOutput}`,
+        `--require-native: @eserstack/ajan did not load the native library under ${runtime}:\n${output}`,
       );
     } else {
       console.log(
-        `${runtime} eser ajan version → failed gracefully without mentioning deno (no native library for an unreleased version)`,
+        `${runtime} @eserstack/ajan → failed gracefully without mentioning deno (no native library for an unreleased version)`,
       );
     }
 

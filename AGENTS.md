@@ -38,18 +38,19 @@ A TypeScript and Go monorepo on Node (ADR 0005). Install with `pnpm install`;
 the toolchain is Node `>=26.9` (`.node-version` pins the exact version), pnpm
 11.18.0, oxfmt, oxlint, tsc 7 and node:test.
 
-- `pkg/@eserstack/<name>/`: 52 packages (38 TypeScript libraries, the private
+- `pkg/@eserstack/<name>/`: 58 packages (38 TypeScript libraries, the private
   test seam `@eserstack/test-kit`, `laroux-bin` (the npm package `laroux`, the
-  bin of `@eserstack/laroux-server`), `noskills-bin` (the npm package
-  `noskills`, the launcher of the Go noskills), six `ajan-*` platform packages
-  and five `noskills-*` binary packages), all on the shared version in
-  `VERSION`, plus `directives/`, which holds documents only. Tests import
-  assertions and mocks from `@eserstack/test-kit`, never from `node:assert` or
-  the `node:test` mock directly. Publishing is npm only and JSR stays frozen
-  at 4.5.x (decision-5): `eser` goes to npm as a bundle, `laroux` and
-  `noskills` as the `laroux-bin` and `noskills-bin` packages (TASK-237,
-  TASK-262), the `ajan-*` and `noskills-*` packages as platform packages, and
-  the libraries from 5.0.0 (TASK-236).
+  bin of `@eserstack/laroux-server`), `eser-bin` and `noskills-bin` (the npm
+  packages `eser` and `noskills`, the launchers of the Go binaries), six
+  `ajan-*` platform packages and five `eser-*` and five `noskills-*` binary
+  packages), all on the shared version in `VERSION`, plus `directives/`, which
+  holds documents only. Tests import assertions and mocks from
+  `@eserstack/test-kit`, never from `node:assert` or the `node:test` mock
+  directly. Publishing is npm only and JSR stays frozen at 4.5.x
+  (decision-5): `laroux`, `noskills` and `eser` as the `laroux-bin`,
+  `noskills-bin` and `eser-bin` packages (TASK-237, TASK-262, TASK-254), the
+  `ajan-*`, `eser-*` and `noskills-*` packages as platform packages, and the
+  libraries from 5.0.0 (TASK-236).
 - Go: the root module `github.com/eser/stack` (`go.mod`, `Makefile`,
   `.golangci.yaml` at the root; framework in `pkg/ajan/`, the server in
   `cmd/noskills-server/`) and the FFI bridge `pkg/@eserstack/ajan/`

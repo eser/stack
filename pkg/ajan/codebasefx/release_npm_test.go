@@ -90,21 +90,23 @@ func TestNpmPlatformPackagesAreCommitted(t *testing.T) {
 	}
 }
 
-// stagingRepo is a repository root with the platform packages of noskills at
-// a version.
+// stagingRepo is a repository root with the platform packages of every npm
+// binary at a version.
 func stagingRepo(t *testing.T, version string) string {
 	t.Helper()
 
 	root := t.TempDir()
 
-	for _, target := range codebasefx.ReleaseTargets {
-		dir := filepath.Join(root, "pkg", "@eserstack", "noskills-"+codebasefx.NpmPlatform(target))
-		if err := os.MkdirAll(dir, 0o750); err != nil {
-			t.Fatal(err)
-		}
+	for _, binary := range codebasefx.NpmBinaries {
+		for _, target := range codebasefx.ReleaseTargets {
+			dir := filepath.Join(root, "pkg", "@eserstack", binary+"-"+codebasefx.NpmPlatform(target))
+			if err := os.MkdirAll(dir, 0o750); err != nil {
+				t.Fatal(err)
+			}
 
-		if err := os.WriteFile(filepath.Join(dir, "package.json"), []byte(`{"version":"`+version+`"}`), 0o600); err != nil {
-			t.Fatal(err)
+			if err := os.WriteFile(filepath.Join(dir, "package.json"), []byte(`{"version":"`+version+`"}`), 0o600); err != nil {
+				t.Fatal(err)
+			}
 		}
 	}
 
@@ -117,12 +119,15 @@ func TestStageNpmBinariesCopiesTheArchivedBinaries(t *testing.T) {
 	bin := filepath.Join(t.TempDir(), "binaries")
 
 	if _, err := codebasefx.CompileRelease(context.Background(), &codebasefx.CompileOptions{ //nolint:exhaustruct
-		OutDir:   bin,
-		Version:  "4.6.0",
-		Targets:  []codebasefx.ReleaseTarget{codebasefx.ReleaseTargets[0], codebasefx.ReleaseTargets[4]},
-		Binaries: []codebasefx.ReleaseBinary{{Name: "noskills", Main: "./cmd/noskills", VersionVar: "main.version"}}, //nolint:exhaustruct
-		Build:    fakeBuild,
-		ModTime:  time.Unix(1_700_000_000, 0),
+		OutDir:  bin,
+		Version: "4.6.0",
+		Targets: []codebasefx.ReleaseTarget{codebasefx.ReleaseTargets[0], codebasefx.ReleaseTargets[4]},
+		Binaries: []codebasefx.ReleaseBinary{
+			{Name: "eser", Main: "./cmd/eser", VersionVar: "main.version"},         //nolint:exhaustruct
+			{Name: "noskills", Main: "./cmd/noskills", VersionVar: "main.version"}, //nolint:exhaustruct
+		},
+		Build:   fakeBuild,
+		ModTime: time.Unix(1_700_000_000, 0),
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -134,11 +139,13 @@ func TestStageNpmBinariesCopiesTheArchivedBinaries(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if len(result.Staged) != 2 || len(result.Missing) != 3 {
+	if len(result.Staged) != 4 || len(result.Missing) != 6 {
 		t.Fatalf("staged %v, missing %v", result.Staged, result.Missing)
 	}
 
 	for path, want := range map[string]string{
+		filepath.Join(root, "pkg", "@eserstack", "eser-darwin-arm64", "eser"):          "eser 4.6.0 darwin/arm64",
+		filepath.Join(root, "pkg", "@eserstack", "eser-win32-x64", "eser.exe"):         "eser 4.6.0 windows/amd64",
 		filepath.Join(root, "pkg", "@eserstack", "noskills-darwin-arm64", "noskills"):  "noskills 4.6.0 darwin/arm64",
 		filepath.Join(root, "pkg", "@eserstack", "noskills-win32-x64", "noskills.exe"): "noskills 4.6.0 windows/amd64",
 	} {

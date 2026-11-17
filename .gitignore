@@ -50,7 +50,9 @@ result-*
 # output that `make ajan-packages` stages; the manifests are committed.
 /pkg/@eserstack/ajan-*/libeser_ajan.*
 /pkg/@eserstack/ajan-wasm/*.wasm
-# The noskills binaries that `eser codebase dist npm-binaries` stages; the
-# manifests are committed.
+# The eser and noskills binaries that `eser codebase dist npm-binaries`
+# stages; the manifests are committed.
+/pkg/@eserstack/eser-*-*/eser
+/pkg/@eserstack/eser-*-*/eser.exe
 /pkg/@eserstack/noskills-*-*/noskills
 /pkg/@eserstack/noskills-*-*/noskills.exe

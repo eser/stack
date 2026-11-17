@@ -27,8 +27,6 @@
     "./validate-export-names": "./validate-export-names.ts",
     "./validate-docs": "./validate-docs.ts",
     "./validate-licenses": "./validate-licenses.ts",
-    "./npm-externals": "./npm-externals.ts",
-    "./npm-workspace-specifiers": "./npm-workspace-specifiers.ts",
     "./versions": "./versions.ts",
     "./gh": "./gh.ts",
     "./gh-contributors": "./gh-contributors.ts",
@@ -117,14 +115,6 @@
       "./validate-licenses": {
         "types": "./dist/validate-licenses.d.ts",
         "import": "./dist/validate-licenses.js"
-      },
-      "./npm-externals": {
-        "types": "./dist/npm-externals.d.ts",
-        "import": "./dist/npm-externals.js"
-      },
-      "./npm-workspace-specifiers": {
-        "types": "./dist/npm-workspace-specifiers.d.ts",
-        "import": "./dist/npm-workspace-specifiers.js"
       },
       "./versions": {
         "types": "./dist/versions.d.ts",

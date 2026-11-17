@@ -18,10 +18,11 @@ import (
 )
 
 // NpmBinaries are the release binaries that npm installs through a launcher
-// package and one platform package per release target (TASK-261): the
-// launcher `noskills` lists @eserstack/noskills-<platform> as
-// optionalDependencies, and npm installs the one whose os and cpu match.
-var NpmBinaries = []string{"noskills"} //nolint:gochecknoglobals
+// package and one platform package per release target (TASK-261, TASK-254):
+// the launcher `<binary>` (pkg/@eserstack/<binary>-bin) lists
+// @eserstack/<binary>-<platform> as optionalDependencies, and npm installs the
+// one whose os and cpu match.
+var NpmBinaries = []string{"eser", "noskills"} //nolint:gochecknoglobals
 
 // maxStagedBinaryBytes bounds a binary read out of a release archive.
 const maxStagedBinaryBytes = 512 << 20

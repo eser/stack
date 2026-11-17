@@ -192,6 +192,33 @@ func TestSelfUpdate(t *testing.T) {
 		}
 	})
 
+	t.Run("an npm install is left to npm", func(t *testing.T) {
+		t.Parallel()
+
+		server, _ := serveRelease(t, releaseFixture{archive: archive}) //nolint:exhaustruct
+		e, _, _ := updateEnv(t, server)
+
+		self := filepath.Join(t.TempDir(), "node_modules", "@eserstack", "eser-linux-x64", "eser")
+		if err := os.MkdirAll(filepath.Dir(self), 0o750); err != nil {
+			t.Fatal(err)
+		}
+
+		if err := os.WriteFile(self, []byte("old binary"), 0o755); err != nil { //nolint:gosec // G306: a fake executable
+			t.Fatal(err)
+		}
+
+		e.executable = func() (string, error) { return self, nil }
+
+		err := selfUpdate(context.Background(), e)
+		if !errors.Is(err, errNpmInstall) || !strings.Contains(err.Error(), "npm install -g eser@latest") {
+			t.Fatalf("expected the npm refusal, got %v", err)
+		}
+
+		if got, _ := os.ReadFile(self); string(got) != "old binary" { //nolint:gosec // G304: the test's own file
+			t.Errorf("the binary changed: %q", got)
+		}
+	})
+
 	t.Run("an up-to-date binary does nothing", func(t *testing.T) {
 		t.Parallel()
 

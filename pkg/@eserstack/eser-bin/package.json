@@ -1,0 +1,45 @@
+{
+  "name": "eser",
+  "version": "5.0.0",
+  "description": "The eser command: Eser's swiss-army-knife tooling for your terminal",
+  "license": "Apache-2.0",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/eser/stack",
+    "directory": "pkg/@eserstack/eser-bin"
+  },
+  "homepage": "https://github.com/eser/stack/tree/main/cmd/eser",
+  "bugs": {
+    "url": "https://github.com/eser/stack/issues"
+  },
+  "files": [
+    "dist/eser.js",
+    "dist/launcher.js"
+  ],
+  "bin": {
+    "eser": "./eser.ts"
+  },
+  "publishConfig": {
+    "bin": {
+      "eser": "./dist/eser.js"
+    }
+  },
+  "scripts": {
+    "build": "node ../../../etc/scripts/build-library.ts"
+  },
+  "dependencies": {
+    "noskills": "workspace:*"
+  },
+  "devDependencies": {
+    "@eserstack/standards": "workspace:*",
+    "@eserstack/test-kit": "workspace:*"
+  },
+  "optionalDependencies": {
+    "@eserstack/eser-darwin-arm64": "workspace:*",
+    "@eserstack/eser-darwin-x64": "workspace:*",
+    "@eserstack/eser-linux-arm64": "workspace:*",
+    "@eserstack/eser-linux-x64": "workspace:*",
+    "@eserstack/eser-win32-x64": "workspace:*"
+  }
+}

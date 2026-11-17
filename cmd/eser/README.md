@@ -25,7 +25,9 @@ bin/eser --help       # built-in commands and the manifest's scripts
   from GitHub Releases, with the Rust target triples of decision-38, verifies it
   against the release's `SHA256SUMS.txt` and fails closed when it cannot, then
   renames the new binary over itself. A release without the archive ends with
-  the `npm install -g eser` command.
+  the `npm install -g eser` command. A binary under `node_modules`, which the
+  npm `eser` launcher runs, is left to npm: `eser update` prints
+  `npm install -g eser@latest` and changes nothing.
 - `eser doctor` reports the version, platform, binary, PATH, git, node, pnpm and
   go, the manifest and the git hooks; `--json` prints it as JSON.
 

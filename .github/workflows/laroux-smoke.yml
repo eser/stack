@@ -27,7 +27,7 @@ jobs:
   laroux-app:
     name: laroux app (node on ${{ matrix.os }})
     # One GitHub-hosted image per OS: the job proves the packed package on
-    # stock Node installs, as cross-runtime-test does for the eser bundle.
+    # stock Node installs, as cross-runtime-test does for @eserstack/ajan.
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
 

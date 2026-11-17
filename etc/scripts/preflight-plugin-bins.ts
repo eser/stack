@@ -134,12 +134,13 @@ export type WorkspaceManifest = {
 };
 
 /**
- * The package and every @eserstack package it reaches through
- * `dependencies`, sorted. Dev and optional dependencies are left out: npm
+ * The package and every workspace package it reaches through
+ * `dependencies`, sorted: the @eserstack ones and the `noskills` the eser
+ * launcher depends on. Dev and optional dependencies are left out: npm
  * installs no dev dependencies of a dependency, and the optional platform
  * packages come from the registry or are skipped.
  *
- * @throws Error for a dependency that is no workspace package
+ * @throws Error for an @eserstack dependency that is no workspace package
  */
 export const workspaceClosure = (
   name: string,
@@ -163,8 +164,9 @@ export const workspaceClosure = (
 
     seen.add(current);
     pending.push(
-      ...Object.keys(manifest.dependencies ?? {}).filter((dependency) =>
-        dependency.startsWith("@eserstack/"),
+      ...Object.keys(manifest.dependencies ?? {}).filter(
+        (dependency) =>
+          dependency.startsWith("@eserstack/") || manifests.has(dependency),
       ),
     );
   }

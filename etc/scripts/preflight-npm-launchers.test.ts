@@ -4,7 +4,7 @@
 // @eserstack/test-kit, so it resolves from the root node_modules.
 import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
-import * as launcherPreflight from "./preflight-noskills-launcher.ts";
+import * as launcherPreflight from "./preflight-npm-launchers.ts";
 
 type Entry = {
   readonly name: string;

@@ -102,13 +102,17 @@ workflows:
             # Release tooling: runs from a fresh checkout after publish and must
             # not depend on the workspace it just released.
             - "etc/scripts/preflight-npm-consumer.ts"
-            - "etc/scripts/preflight-noskills-launcher.ts"
+            - "etc/scripts/preflight-npm-launchers.ts"
             # Run on a bare node with built-ins only, so they cannot import the
-            # cross-runtime layer: a Claude Code hook, the skill validator and
-            # the release-notes CI step.
+            # cross-runtime layer: a Claude Code hook, the skill validator, the
+            # release-notes CI step, and the eser and noskills npm launchers,
+            # which start before every `npx eser` and `npx noskills` hook and
+            # depend on nothing but their binary and its plugins.
             - ".agents/hooks/decision-nudge.js"
             - ".agents/skills/eser-rules-manager/scripts/validate-skills.ts"
             - "etc/scripts/release-notes-from-changelog.ts"
+            - "pkg/@eserstack/eser-bin/"
+            - "pkg/@eserstack/noskills-bin/"
             # The opt-in leak check of the test seam diffs
             # process.getActiveResourcesInfo(), which only Node has and the
             # cross-runtime layer does not wrap; it is loaded by tests only.
@@ -299,13 +303,9 @@ workflows:
   - id: preflight
     on: [preflight]
     steps:
-      - shell:
-          name: npm-build-cli
-          command: node ./pkg/@eserstack/cli/scripts/npm-build.ts
-          timeout: 180
-      # Installs the packed CLI OUTSIDE the repo and runs its smoke commands;
-      # inside the monorepo, Node would resolve undeclared dependencies from
-      # the workspace and hide them.
+      # Installs the packed @eserstack/ajan OUTSIDE the repo and loads the Go
+      # bridge from it; inside the monorepo, Node would resolve undeclared
+      # dependencies from the workspace and hide them.
       - shell:
           name: npm-consumer-install
           command: node ./etc/scripts/preflight-npm-consumer.ts
@@ -345,11 +345,11 @@ workflows:
           name: plugin-bundles-pack
           command: node ./etc/scripts/preflight-plugin-bins.ts --save-bundles
           timeout: 180
-      # Installed v4.5.x laroux and noskills binaries update with the old
-      # TypeScript updater: it must find, verify and install the laroux
-      # forwarding stub, which must run the npm package (decision-9), and the
-      # Go noskills (TASK-261). Local release and fake npx, no network;
-      # ESER_PREFLIGHT fails it when the updater cannot run.
+      # Installed v4.5.x laroux, noskills and eser binaries update with the
+      # old TypeScript updater: it must find, verify and install the laroux
+      # forwarding stub, which must run the npm package (decision-9), the Go
+      # noskills (TASK-261) and the Go eser (TASK-254). Local release and fake
+      # npx, no network; ESER_PREFLIGHT fails it when the updater cannot run.
       - shell:
           name: legacy-binary-update
           command: ESER_PREFLIGHT=1 go test -count=1 -run
@@ -357,8 +357,7 @@ workflows:
           timeout: 300
       # The npm build of the libraries and bins (TASK-232): tsc 7 emits each
       # one's dist/ and the build fails on an emitted import that still names
-      # a .ts file. It removes the bundle the npm-build step wrote into the
-      # dist/ of cli, so it runs after every step that uses it.
+      # a .ts file.
       - shell:
           name: library-build
           command: pnpm -r build
@@ -385,14 +384,17 @@ workflows:
           name: library-consumer
           command: node ./etc/scripts/preflight-library-consumer.ts
           timeout: 300
-      # The npm noskills launcher from a scratch install outside the repo,
-      # from the packed `noskills` and its @eserstack dependencies and this
-      # host's platform package packed with pnpm: `npx noskills` must run the
-      # Go binary staged by npm-binaries-current, and reach the TypeScript CLI
-      # of @eserstack/noskills for the commands it forwards (TASK-261).
+      # The npm launchers eser and noskills from a scratch install outside the
+      # repo, from the packed packages and their workspace dependencies and
+      # this host's platform packages packed with pnpm: `npx eser` and
+      # `npx noskills` must run the Go binaries staged by
+      # npm-binaries-current, noskills must reach the TypeScript CLI of
+      # @eserstack/noskills for the commands it forwards, and eser must find
+      # the noskills it depends on with only node on PATH (TASK-261,
+      # TASK-254).
       - shell:
-          name: noskills-launcher-install
-          command: node ./etc/scripts/preflight-noskills-launcher.ts
+          name: npm-launchers-install
+          command: node ./etc/scripts/preflight-npm-launchers.ts
           timeout: 300
       # A new app from the laroux-app recipe, installed with npm outside the
       # repo from the packed laroux and the packed libraries, runs dev (with
@@ -464,7 +466,6 @@ scripts:
   check: pnpm exec tsc --noEmit
 
   # Build
-  build: node ./pkg/@eserstack/cli/scripts/npm-build.ts
   compile: go run ./cmd/eser codebase dist compile
 
   # Documentation

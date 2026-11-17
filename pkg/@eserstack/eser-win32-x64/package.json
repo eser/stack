@@ -1,0 +1,29 @@
+{
+  "name": "@eserstack/eser-win32-x64",
+  "version": "5.0.0",
+  "description": "eser binary for Windows x64",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/eser/stack",
+    "directory": "pkg/@eserstack/eser-win32-x64"
+  },
+  "homepage": "https://github.com/eser/stack/tree/main/cmd/eser",
+  "bugs": {
+    "url": "https://github.com/eser/stack/issues"
+  },
+  "os": [
+    "win32"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "files": [
+    "eser.exe"
+  ],
+  "publishConfig": {
+    "executableFiles": [
+      "./eser.exe"
+    ]
+  }
+}

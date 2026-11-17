@@ -113,7 +113,8 @@ Layer 5: Applications
 ├── @eserstack/noskills-client       # Client for a running noskills-server daemon
 ├── @eserstack/noskills-web          # Browser dashboard that `noskills web` starts
 ├── noskills (noskills-bin)          # The npm package `noskills`: the launcher of the Go noskills
-└── @eserstack/cli                   # `eser`: the full CLI
+├── eser (eser-bin)                  # The npm package `eser`: the launcher of the Go eser
+└── @eserstack/cli                   # The TypeScript eser CLI, which `pnpm cli` runs
 
 Go (module github.com/eser/stack, root go.mod)
 ├── cmd/eser                         # `eser`: the release binary of the CLI
@@ -126,15 +127,17 @@ Go (module github.com/eser/ajan, pkg/@eserstack/ajan/go.mod)
 └── pkg/@eserstack/ajan              # cgo and WASI FFI bridge that @eserstack/ajan loads
 ```
 
-`@eserstack/ajan` and `@eserstack/cli` list the six platform packages as
-optional dependencies. The release binaries are Go commands built by
-`eser codebase dist compile` (`ReleaseBinaries` in `pkg/ajan/codebasefx`):
-`eser` (`cmd/eser`), `noskills` (`cmd/noskills`) and `noskills-server`
-(decision-8). On npm, `noskills` (`pkg/@eserstack/noskills-bin`) is a
-launcher: its optional dependencies `@eserstack/noskills-<platform>` carry the
-binary (`eser codebase dist npm-binaries` stages it), and its dependency
-`@eserstack/noskills` carries the TypeScript CLI for the commands the binary
-forwards. `laroux` ships on npm only;
+`@eserstack/ajan` lists the six platform packages as optional dependencies.
+The release binaries are Go commands built by `eser codebase dist compile`
+(`ReleaseBinaries` in `pkg/ajan/codebasefx`): `eser` (`cmd/eser`), `noskills`
+(`cmd/noskills`) and `noskills-server` (decision-8). On npm, `eser`
+(`pkg/@eserstack/eser-bin`) and `noskills` (`pkg/@eserstack/noskills-bin`) are
+launchers: their optional dependencies `@eserstack/eser-<platform>` and
+`@eserstack/noskills-<platform>` carry the binaries
+(`eser codebase dist npm-binaries` stages them). The `noskills` dependency of
+`eser` serves `eser noskills`, and the `@eserstack/noskills` dependency of
+`noskills` carries the TypeScript CLI for the commands the binary forwards.
+`laroux` ships on npm only;
 under its archive name the release ships `cmd/legacy-forwarder`, a stub that
 installed v4.5.x laroux binaries update to and that runs
 `npx --yes laroux@<version>` (decision-9). The flake builds `noskills` from
@@ -217,17 +220,16 @@ Developer runs:  eser codebase release patch
 │       └─ release-gate  tag == VERSION, and CHANGELOG.md has │
 │           │              the matching section, both checked │
 │           │              BEFORE anything is published       │
-│           ├─ smoke-test                                     │
-│           │   └─ npm-consumer-test                          │
 │           └─ build-ajan-darwin                              │
 │               └─ compile-binaries  eser, noskills, laroux   │
 │                   │  stub, noskills-server (all Go)         │
 │                   │  → <binary>-v<version>-<triple>.tar.gz  │
 │                   │    and SHA256SUMS.txt                   │
-│                   └─ publish-ajan  ajan-* and noskills-*    │
-│                       │            platform packages on npm │
-│                       └─ publish   libraries, laroux, the   │
-│                           │        eser bundle, noskills    │
+│                   └─ publish-ajan  ajan-*, eser-* and       │
+│                       │            noskills-* platform      │
+│                       │            packages on npm          │
+│                       └─ publish   libraries, laroux,       │
+│                           │        noskills, eser           │
 │                           └─ release-notes  changelog       │
 │                               │      section → draft        │
 │                               │      GitHub Release         │

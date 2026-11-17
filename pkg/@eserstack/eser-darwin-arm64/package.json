@@ -1,0 +1,29 @@
+{
+  "name": "@eserstack/eser-darwin-arm64",
+  "version": "5.0.0",
+  "description": "eser binary for macOS ARM64 (Apple Silicon)",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/eser/stack",
+    "directory": "pkg/@eserstack/eser-darwin-arm64"
+  },
+  "homepage": "https://github.com/eser/stack/tree/main/cmd/eser",
+  "bugs": {
+    "url": "https://github.com/eser/stack/issues"
+  },
+  "os": [
+    "darwin"
+  ],
+  "cpu": [
+    "arm64"
+  ],
+  "files": [
+    "eser"
+  ],
+  "publishConfig": {
+    "executableFiles": [
+      "./eser"
+    ]
+  }
+}

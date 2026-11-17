@@ -19,18 +19,23 @@ import (
 	"github.com/eser/stack/pkg/ajan/codebasefx"
 )
 
-// The install dry runs (TASK-261): etc/scripts/install.sh, install.ps1 and
-// the Homebrew formula install the noskills that `eser codebase dist compile`
-// builds, from a local copy of a release, and the installed binary must be the
-// Go noskills. The Nix package is built by `nix build .#noskills`, which this
-// test cannot run without Nix.
+// The install dry runs (TASK-261, TASK-254): etc/scripts/install.sh,
+// install.ps1 and the Homebrew formula install the eser and noskills that
+// `eser codebase dist compile` builds, from a local copy of a release, and the
+// installed binary must be the Go build of that release. The Nix packages are
+// built by `nix build .#eser` and `.#noskills`, which this test cannot run
+// without Nix.
 
 // dryRunRelease is the version of the local release.
 const dryRunRelease = "5.0.0"
 
-// compileNoskills builds the release archive of noskills for target into
-// dir/v<dryRunRelease>/ and returns that directory and the archive.
-func compileNoskills(t *testing.T, target codebasefx.ReleaseTarget) (string, codebasefx.CompiledArchive) {
+// installedBinaries are the Go release binaries the install channels install.
+var installedBinaries = []string{"eser", "noskills"} //nolint:gochecknoglobals // a test table
+
+// compileBinary builds the release archive of the release binary name for
+// target into dir/v<dryRunRelease>/ and returns that directory and the
+// archive.
+func compileBinary(t *testing.T, name string, target codebasefx.ReleaseTarget) (string, codebasefx.CompiledArchive) {
 	t.Helper()
 
 	root, err := filepath.Abs("../..")
@@ -38,16 +43,16 @@ func compileNoskills(t *testing.T, target codebasefx.ReleaseTarget) (string, cod
 		t.Fatal(err)
 	}
 
-	var noskills codebasefx.ReleaseBinary
+	var compiled codebasefx.ReleaseBinary
 
 	for _, binary := range codebasefx.ReleaseBinaries {
-		if binary.Name == "noskills" {
-			noskills = binary
+		if binary.Name == name {
+			compiled = binary
 		}
 	}
 
-	if noskills.Main != "./cmd/noskills" {
-		t.Fatalf("ReleaseBinaries builds noskills from %q, want ./cmd/noskills", noskills.Main)
+	if compiled.Main != "./cmd/"+name {
+		t.Fatalf("ReleaseBinaries builds %s from %q, want ./cmd/%s", name, compiled.Main, name)
 	}
 
 	release := filepath.Join(t.TempDir(), "v"+dryRunRelease)
@@ -57,21 +62,23 @@ func compileNoskills(t *testing.T, target codebasefx.ReleaseTarget) (string, cod
 		OutDir:   release,
 		Version:  dryRunRelease,
 		Targets:  []codebasefx.ReleaseTarget{target},
-		Binaries: []codebasefx.ReleaseBinary{noskills},
+		Binaries: []codebasefx.ReleaseBinary{compiled},
 	})
 	if err != nil || len(result.Failed) > 0 || len(result.Archives) != 1 {
-		t.Fatalf("compile noskills: %v %+v", err, result)
+		t.Fatalf("compile %s: %v %+v", name, err, result)
 	}
 
 	return release, result.Archives[0]
 }
 
-// assertInstalledGoNoskills runs the installed binary's `version --json`.
-func assertInstalledGoNoskills(t *testing.T, binary string) {
+// assertInstalledGoBinary runs the installed binary's `version --json`, which
+// must report the release's version; noskills also reports the Go runtime.
+func assertInstalledGoBinary(t *testing.T, name, binary string) {
 	t.Helper()
 
 	out, err := exec.Command(binary, "version", "--json").CombinedOutput() //nolint:gosec,noctx // the installed binary
-	if err != nil || !strings.Contains(string(out), `"runtime": "go"`) || !strings.Contains(string(out), `"version": "`+dryRunRelease+`"`) {
+	if err != nil || !strings.Contains(string(out), `"version": "`+dryRunRelease+`"`) ||
+		(name == "noskills" && !strings.Contains(string(out), `"runtime": "go"`)) {
 		t.Fatalf("%s version --json: %v\n%s", binary, err, out)
 	}
 }
@@ -112,10 +119,10 @@ case "$url" in
 esac
 `
 
-func runInstallSh(t *testing.T, releases, installDir string) (string, error) {
+func runInstallSh(t *testing.T, releases, installDir, product string) (string, error) {
 	t.Helper()
 
-	return runInstallShFor(t, releases, installDir, "noskills", dryRunRelease)
+	return runInstallShFor(t, releases, installDir, product, dryRunRelease)
 }
 
 // runInstallShFor runs `install.sh <product>` against the local releases,
@@ -149,7 +156,7 @@ func runInstallShFor(t *testing.T, releases, installDir, product, latest string,
 	return string(out), err
 }
 
-func TestInstallShInstallsTheGoNoskills(t *testing.T) {
+func TestInstallShInstallsTheGoBinaries(t *testing.T) {
 	t.Parallel()
 
 	if runtime.GOOS == "windows" {
@@ -165,7 +172,21 @@ func TestInstallShInstallsTheGoNoskills(t *testing.T) {
 		t.Skip(err)
 	}
 
-	release, archive := compileNoskills(t, host)
+	for _, name := range installedBinaries {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			testInstallSh(t, name, host)
+		})
+	}
+}
+
+// testInstallSh installs name with install.sh, and checks that a checksum
+// mismatch stops it.
+func testInstallSh(t *testing.T, name string, host codebasefx.ReleaseTarget) {
+	t.Helper()
+
+	release, archive := compileBinary(t, name, host)
 	releases := filepath.Dir(release)
 
 	t.Run("installs", func(t *testing.T) {
@@ -173,18 +194,18 @@ func TestInstallShInstallsTheGoNoskills(t *testing.T) {
 
 		installDir := t.TempDir()
 
-		out, err := runInstallSh(t, releases, installDir)
+		out, err := runInstallSh(t, releases, installDir, name)
 		if err != nil {
-			t.Fatalf("install.sh noskills: %v\n%s", err, out)
+			t.Fatalf("install.sh %s: %v\n%s", name, err, out)
 		}
 
-		for _, want := range []string{"Downloading noskills v" + dryRunRelease + " for " + host.Triple, "noskills v" + dryRunRelease + " installed to " + installDir + "/noskills"} {
+		for _, want := range []string{"Downloading " + name + " v" + dryRunRelease + " for " + host.Triple, name + " v" + dryRunRelease + " installed to " + installDir + "/" + name} {
 			if !strings.Contains(out, want) {
 				t.Errorf("the install output should contain %q:\n%s", want, out)
 			}
 		}
 
-		assertInstalledGoNoskills(t, filepath.Join(installDir, "noskills"))
+		assertInstalledGoBinary(t, name, filepath.Join(installDir, name))
 	})
 
 	t.Run("refuses a checksum mismatch", func(t *testing.T) {
@@ -211,12 +232,12 @@ func TestInstallShInstallsTheGoNoskills(t *testing.T) {
 
 		installDir := t.TempDir()
 
-		out, err := runInstallSh(t, filepath.Dir(tampered), installDir)
+		out, err := runInstallSh(t, filepath.Dir(tampered), installDir, name)
 		if err == nil || !strings.Contains(out, "SHA256 checksum verification failed") {
 			t.Fatalf("install.sh accepted a wrong checksum: %v\n%s", err, out)
 		}
 
-		if _, err := os.Stat(filepath.Join(installDir, "noskills")); err == nil {
+		if _, err := os.Stat(filepath.Join(installDir, name)); err == nil {
 			t.Error("install.sh installed the binary after the checksum failed")
 		}
 	})
@@ -375,12 +396,12 @@ func TestInstallShDecidesFromTheRelease(t *testing.T) {
 	}
 }
 
-// TestInstallPs1InstallsTheGoNoskills runs install.ps1 on Windows with
+// TestInstallPs1InstallsTheGoBinaries runs install.ps1 on Windows with
 // Invoke-RestMethod and Invoke-WebRequest answered from a local release
 // (testdata/install_dry_run.ps1). install.ps1 adds the install directory to
 // the user's PATH in the registry, so the test runs only when
 // ESER_INSTALL_PS1_DRY_RUN=1 is set, as the Windows CI job does.
-func TestInstallPs1InstallsTheGoNoskills(t *testing.T) {
+func TestInstallPs1InstallsTheGoBinaries(t *testing.T) {
 	t.Parallel()
 
 	if runtime.GOOS != "windows" || os.Getenv("ESER_INSTALL_PS1_DRY_RUN") != "1" {
@@ -397,13 +418,25 @@ func TestInstallPs1InstallsTheGoNoskills(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	release, _ := compileNoskills(t, host)
-
 	root, err := filepath.Abs("../..")
 	if err != nil {
 		t.Fatal(err)
 	}
 
+	for _, name := range installedBinaries {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			testInstallPs1(t, pwsh, root, name, host)
+		})
+	}
+}
+
+// testInstallPs1 installs name with install.ps1 from a local release.
+func testInstallPs1(t *testing.T, pwsh, root, name string, host codebasefx.ReleaseTarget) {
+	t.Helper()
+
+	release, _ := compileBinary(t, name, host)
 	installDir := t.TempDir()
 
 	cmd := exec.CommandContext(t.Context(), pwsh, "-NoProfile", "-NonInteractive", "-File", //nolint:gosec // G204: pwsh from PATH with the test's own files
@@ -412,24 +445,25 @@ func TestInstallPs1InstallsTheGoNoskills(t *testing.T) {
 		"-Releases", filepath.Dir(release),
 		"-Version", dryRunRelease,
 		"-InstallDir", installDir,
+		"-Product", name,
 	)
 
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		t.Fatalf("install.ps1 -Product noskills: %v\n%s", err, out)
+		t.Fatalf("install.ps1 -Product %s: %v\n%s", name, err, out)
 	}
 
-	for _, want := range []string{"Installing noskills v" + dryRunRelease, "Checksum verified.", "Installed to " + installDir + ": noskills"} {
+	for _, want := range []string{"Installing " + name + " v" + dryRunRelease, "Checksum verified.", "Installed to " + installDir + ": " + name} {
 		if !strings.Contains(string(out), want) {
 			t.Errorf("the install output should contain %q:\n%s", want, out)
 		}
 	}
 
-	assertInstalledGoNoskills(t, filepath.Join(installDir, "noskills.exe"))
+	assertInstalledGoBinary(t, name, filepath.Join(installDir, name+".exe"))
 }
 
 // TestInstallPs1DecidesFromTheRelease is TestInstallShDecidesFromTheRelease
-// for install.ps1, with the same gate as TestInstallPs1InstallsTheGoNoskills.
+// for install.ps1, with the same gate as TestInstallPs1InstallsTheGoBinaries.
 func TestInstallPs1DecidesFromTheRelease(t *testing.T) {
 	t.Parallel()
 
@@ -485,12 +519,12 @@ func TestInstallPs1DecidesFromTheRelease(t *testing.T) {
 	}
 }
 
-// TestHomebrewFormulaInstallsTheGoNoskills renders the noskills formula the
-// release job pushes, points its URL for this host at a local archive, and
-// installs and tests it with brew from a temporary tap. It changes the brew
-// installation while it runs (it removes the tap and the keg afterwards), so
-// it runs only when ESER_HOMEBREW_DRY_RUN=1 is set.
-func TestHomebrewFormulaInstallsTheGoNoskills(t *testing.T) {
+// TestHomebrewFormulaInstallsTheGoBinaries renders the eser and noskills
+// formulas the release job pushes, points each one's URL for this host at a
+// local archive, and installs and tests it with brew from a temporary tap. It
+// changes the brew installation while it runs (it removes the tap and the keg
+// afterwards), so it runs only when ESER_HOMEBREW_DRY_RUN=1 is set.
+func TestHomebrewFormulaInstallsTheGoBinaries(t *testing.T) {
 	t.Parallel()
 
 	if os.Getenv("ESER_HOMEBREW_DRY_RUN") != "1" {
@@ -507,10 +541,24 @@ func TestHomebrewFormulaInstallsTheGoNoskills(t *testing.T) {
 		t.Fatalf("Homebrew has no formula for this host: %v", err)
 	}
 
-	release, archive := compileNoskills(t, host)
+	for _, name := range installedBinaries {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			testHomebrewFormula(t, brew, name, host)
+		})
+	}
+}
+
+// testHomebrewFormula installs and tests the formula of name from a
+// temporary tap whose URL for this host is a local archive.
+func testHomebrewFormula(t *testing.T, brew, name string, host codebasefx.ReleaseTarget) {
+	t.Helper()
+
+	release, archive := compileBinary(t, name, host)
 
 	// The other triples get placeholder sums; brew downloads this host's only.
-	sums := codebasefx.PlaceholderSHA256Sums(dryRunRelease, []string{"noskills"})
+	sums := codebasefx.PlaceholderSHA256Sums(dryRunRelease, []string{name})
 	sums[archive.Name] = archive.SHA256
 
 	plan, err := codebasefx.PlanHomebrew(dryRunRelease, sums)
@@ -518,7 +566,7 @@ func TestHomebrewFormulaInstallsTheGoNoskills(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	formula := strings.ReplaceAll(plan.Formulas["noskills.rb"],
+	formula := strings.ReplaceAll(plan.Formulas[name+".rb"],
 		"https://github.com/eser/stack/releases/download/v"+dryRunRelease+"/", "file://"+release+"/")
 
 	var suffix [4]byte
@@ -550,14 +598,14 @@ func TestHomebrewFormulaInstallsTheGoNoskills(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := os.WriteFile(filepath.Join(tapDir, "Formula", "noskills.rb"), []byte(formula), 0o644); err != nil { //nolint:gosec // G306: a tap file
+	if err := os.WriteFile(filepath.Join(tapDir, "Formula", name+".rb"), []byte(formula), 0o644); err != nil { //nolint:gosec // G306: a tap file
 		t.Fatal(err)
 	}
 
-	brewRun("install", "--formula", tap+"/noskills")
-	t.Cleanup(func() { _ = exec.Command(brew, "uninstall", "--formula", tap+"/noskills").Run() }) //nolint:gosec,noctx // cleanup
+	brewRun("install", "--formula", tap+"/"+name)
+	t.Cleanup(func() { _ = exec.Command(brew, "uninstall", "--formula", tap+"/"+name).Run() }) //nolint:gosec,noctx // cleanup
 
-	brewRun("test", tap+"/noskills")
+	brewRun("test", tap+"/"+name)
 
-	assertInstalledGoNoskills(t, filepath.Join(brewRun("--prefix", tap+"/noskills"), "bin", "noskills"))
+	assertInstalledGoBinary(t, name, filepath.Join(brewRun("--prefix", tap+"/"+name), "bin", name))
 }

@@ -30,13 +30,14 @@ const (
 )
 
 // TestLegacyBinariesSelfUpdate is the legacy-update preflight (TASK-253,
-// TASK-261, decision-9): `eser codebase dist compile` builds the laroux stub
-// and the Go noskills for the host, a local server serves them as release
-// v5.0.0, and the TypeScript updater that installed v4.5.x binaries run
-// (testdata/legacy_update.ts around update.ts) updates a v4.5.2 laroux and
-// noskills fixture from it, checksum included. The laroux fixture must then
-// be the stub and run the npm package through npx; the noskills fixture must
-// be the Go noskills. Nothing leaves the machine: the harness fails any URL
+// TASK-261, TASK-254, decision-9): `eser codebase dist compile` builds the
+// laroux stub, the Go noskills and the Go eser for the host, a local server
+// serves them as release v5.0.0, and the TypeScript updater that installed
+// v4.5.x binaries run (testdata/legacy_update.ts around update.ts) updates a
+// v4.5.2 laroux, noskills and eser fixture from it, checksum included. The
+// laroux fixture must then be the stub and run the npm package through npx;
+// the noskills fixture must be the Go noskills, and the eser fixture the Go
+// eser. Nothing leaves the machine: the harness fails any URL
 // it does not send to the local server, and npx is a fake.
 //
 // It needs Node 26.9 or later on PATH, which runs update.ts, and the
@@ -72,17 +73,20 @@ func TestLegacyBinariesSelfUpdate(t *testing.T) {
 		t.Skip(err)
 	}
 
-	legacy := make(map[string]codebasefx.ReleaseBinary, 2) //nolint:mnd // laroux and noskills
+	legacy := make(map[string]codebasefx.ReleaseBinary, 3) //nolint:mnd // laroux, noskills and eser
 	for _, binary := range codebasefx.ReleaseBinaries {
-		if binary.Name == "laroux" || binary.Name == "noskills" {
+		if binary.Name == "laroux" || binary.Name == "noskills" || binary.Name == "eser" {
 			legacy[binary.Name] = binary
 		}
 	}
 
-	if legacy["laroux"].Main != "./cmd/legacy-forwarder" || legacy["noskills"].Main != "./cmd/noskills" {
-		t.Fatalf("ReleaseBinaries builds laroux from %q and noskills from %q, want the stub and cmd/noskills",
-			legacy["laroux"].Main, legacy["noskills"].Main)
+	if legacy["laroux"].Main != "./cmd/legacy-forwarder" || legacy["noskills"].Main != "./cmd/noskills" ||
+		legacy["eser"].Main != "./cmd/eser" {
+		t.Fatalf("ReleaseBinaries builds laroux from %q, noskills from %q and eser from %q, want the stub, cmd/noskills and cmd/eser",
+			legacy["laroux"].Main, legacy["noskills"].Main, legacy["eser"].Main)
 	}
+
+	updated := []codebasefx.ReleaseBinary{legacy["laroux"], legacy["noskills"], legacy["eser"]}
 
 	downloads := t.TempDir()
 
@@ -91,16 +95,16 @@ func TestLegacyBinariesSelfUpdate(t *testing.T) {
 		OutDir:   filepath.Join(downloads, "v"+legacyRelease),
 		Version:  legacyRelease,
 		Targets:  []codebasefx.ReleaseTarget{host},
-		Binaries: []codebasefx.ReleaseBinary{legacy["laroux"], legacy["noskills"]},
+		Binaries: updated,
 	})
 	if err != nil || len(result.Failed) > 0 {
-		t.Fatalf("compile laroux and noskills: %v %v", err, result)
+		t.Fatalf("compile laroux, noskills and eser: %v %v", err, result)
 	}
 
 	server := httptest.NewServer(localRelease(downloads))
 	t.Cleanup(server.Close)
 
-	for _, binary := range []codebasefx.ReleaseBinary{legacy["laroux"], legacy["noskills"]} {
+	for _, binary := range updated {
 		t.Run(binary.Name, func(t *testing.T) {
 			t.Parallel()
 
@@ -123,12 +127,26 @@ func TestLegacyBinariesSelfUpdate(t *testing.T) {
 				t.Fatalf("the fixture is not the v%s %s after the update: %v\n%s", legacyRelease, binary.Name, err, version)
 			}
 
-			if binary.Name == "noskills" {
+			switch binary.Name {
+			case "noskills":
 				assertGoNoskills(t, fixture)
-			} else {
+			case "eser":
+				assertGoEser(t, fixture)
+			default:
 				assertForwardsToNpx(t, fixture, binary.Name)
 			}
 		})
+	}
+}
+
+// assertGoEser checks that the updated fixture is cmd/eser: `codebase dist`
+// is a Go-only command, which the v4.5.x TypeScript eser never had.
+func assertGoEser(t *testing.T, fixture string) {
+	t.Helper()
+
+	out, err := exec.Command(fixture, "codebase", "dist", "--help").CombinedOutput() //nolint:gosec,noctx // the installed binary
+	if err != nil || !strings.Contains(string(out), "Usage: eser codebase dist <command>") {
+		t.Fatalf("the updated eser is not the Go eser: %v\n%s", err, out)
 	}
 }
 

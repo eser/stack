@@ -4,7 +4,7 @@ title: Ship noskills as a Go binary through every channel
 status: In Progress
 assignee: []
 created_date: '2026-10-15 20:38'
-updated_date: '2026-10-25 14:00'
+updated_date: '2026-11-17 09:58'
 labels:
   - go
   - distribution
@@ -34,7 +34,7 @@ Plan key: M4-T6. Effort: medium.
 <!-- AC:BEGIN -->
 - [ ] #1 Dry runs of install.sh, install.ps1, Homebrew and Nix install a working noskills
 - [x] #2 A preflight test self-updates from a v4.5.2-named noskills archive to the Go binary
-- [ ] #3 `npx noskills --version` and `npx <packed eser> noskills --version` from the packed launchers run the Go binary
+- [x] #3 `npx noskills --version` and `npx <packed eser> noskills --version` from the packed launchers run the Go binary
 <!-- AC:END -->
 
 ## Implementation Notes
@@ -55,4 +55,6 @@ From TASK-257: cmd/noskills forwards non-ported commands to 'npx --yes noskills@
 - Found: nixpkgs-unstable no longer evaluates x86_64-darwin (every flake package there, eser included); the owner may pin a 26.05-darwin input for it.
 - Gates: make ok, deno task cli ok and deno task cli preflight passed.
 - Node port on the cutover branch (after merging main): npm-launcher.test.ts runs under node:test (tests codemod), npm-launcher.ts lost its deno-lint pragma (node: imports need no oxlint pragma), and etc/scripts/preflight-noskills-launcher.ts uses node:fs, node:os and node:process and the run() of preflight-npm-consumer.ts instead of Deno.*. The preflight gets compile-current (the Go `eser dev compile --current-only`) back before npm-binaries-current, which stages from its archive. `pnpm cli ok` (all steps but validate-case-conflict, which counts the unmerged index entries of the merge) and `pnpm cli preflight` (12 steps) passed on Node 26.12.1.
+
+AC #3 (2026-11-17, TASK-254): the npm-launchers-install preflight runs npx noskills --version and eser noskills --version from the packed eser and noskills launchers; both run the Go noskills.
 <!-- SECTION:NOTES:END -->

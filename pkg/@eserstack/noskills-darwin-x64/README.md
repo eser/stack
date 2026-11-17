@@ -13,5 +13,5 @@ manifest is.
 ## 🔗 Links
 
 - [cmd/noskills](../../../cmd/noskills/README.md): the Go noskills CLI
-- [noskills](../noskills/README.md): the npm package that installs this one
+- [noskills](../noskills-bin/README.md): the npm package that installs this one
 - [eser/stack on GitHub](https://github.com/eser/stack)

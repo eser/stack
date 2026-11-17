@@ -1,0 +1,29 @@
+{
+  "name": "@eserstack/eser-linux-arm64",
+  "version": "5.0.0",
+  "description": "eser binary for Linux ARM64",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/eser/stack",
+    "directory": "pkg/@eserstack/eser-linux-arm64"
+  },
+  "homepage": "https://github.com/eser/stack/tree/main/cmd/eser",
+  "bugs": {
+    "url": "https://github.com/eser/stack/issues"
+  },
+  "os": [
+    "linux"
+  ],
+  "cpu": [
+    "arm64"
+  ],
+  "files": [
+    "eser"
+  ],
+  "publishConfig": {
+    "executableFiles": [
+      "./eser"
+    ]
+  }
+}

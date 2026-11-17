@@ -19,6 +19,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -37,7 +38,16 @@ var (
 	errMissingArchive      = errors.New("the release has no archive for this binary")
 	errChecksum            = errors.New("checksum verification failed")
 	errNoBinaryInArchive   = errors.New("the archive does not hold the binary")
+	errNpmInstall          = errors.New("this eser was installed with npm")
 )
+
+// npmInstalled reports whether the binary sits in a node_modules directory,
+// as the binary of an @eserstack/eser-<platform> package that the npm `eser`
+// launcher runs (TASK-254). npm owns that file: replacing it would leave the
+// package's version behind, and the next install would undo it.
+func npmInstalled(self string) bool {
+	return slices.Contains(strings.Split(filepath.ToSlash(self), "/"), "node_modules")
+}
 
 // releaseTriples maps GOOS-GOARCH to the Rust target triple the release
 // archives are named with (decision-38), from codebasefx.ReleaseTargets, the
@@ -300,8 +310,13 @@ func replaceSelf(e *env, binary []byte) (string, error) {
 	return "", nil
 }
 
-// selfUpdate updates the running binary to the latest release.
+// selfUpdate updates the running binary to the latest release. A binary npm
+// installed is updated with npm instead.
 func selfUpdate(ctx context.Context, e *env) error {
+	if self, err := e.executable(); err == nil && npmInstalled(self) {
+		return fmt.Errorf("%w (%s); update it with npm:\n  npm install -g %s@latest", errNpmInstall, self, command)
+	}
+
 	latest, err := latestVersion(ctx, e)
 	if err != nil {
 		return err

@@ -24,8 +24,8 @@ import (
 
 // The flake builds noskills from source with buildGoModule (TASK-261). Its
 // vendorHash is the hash of what `go mod vendor` writes for the root module,
-// so it changes with go.sum; `eser dev nix-vendor-hash` computes it with Go,
-// without Nix, and writes or checks the value in flake.nix.
+// so it changes with go.sum; `eser codebase dist nix-vendor-hash` computes it
+// with Go, without Nix, and writes or checks the value in flake.nix.
 
 const goVendorTimeout = 5 * time.Minute
 

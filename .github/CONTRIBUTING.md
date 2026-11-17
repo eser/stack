@@ -28,7 +28,7 @@ pnpm ok            # full validation (Node + Go), must pass before every commit
 go build ./cmd/noskills-server
 
 # The release archives (eser, noskills, the laroux stub, noskills-server) and SHA256SUMS.txt:
-go run ./cmd/eser dev compile --current-only
+go run ./cmd/eser codebase dist compile --current-only
 
 # Run noskills-server tests
 go test ./pkg/ajan/noskillsserverfx/... -v

@@ -16,7 +16,8 @@ to.
   (`appcontext/appcontext.go`).
 - The Go binaries are `cmd/eser/`, `cmd/noskills/`, `cmd/noskills-server/` and
   `cmd/legacy-forwarder/` (the laroux stub that installed v4.5.x binaries
-  update to); `eser dev compile` builds the release archives (ADR 0005).
+  update to); `eser codebase dist compile` builds the release archives (ADR
+  0005).
 - The cgo and WASI FFI bridge is a second module, `github.com/eser/ajan`, in
   `pkg/@eserstack/ajan/`. Its bridge functions live in one file per domain
   (`bridge_format.go`, `bridge_ai.go`, ...) that registers its dispatch names

@@ -13,8 +13,8 @@
 //
 // The name is set at build time, like the version, because a self-update or
 // a package manager can rename the file (laroux.new, laroux.exe, a Homebrew
-// symlink) and argv[0] would then name the wrong package. `eser dev compile`
-// builds it once per name:
+// symlink) and argv[0] would then name the wrong package.
+// `eser codebase dist compile` builds it once per name:
 //
 //	go build -ldflags "-X main.name=laroux -X main.version=$(cat VERSION)" ./cmd/legacy-forwarder
 //

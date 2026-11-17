@@ -16,10 +16,10 @@
       let
         pkgs = import nixpkgs { inherit system; };
 
-        # Written by `eser dev nix-hashes` after each release: the released
-        # version and, per binary, the hash of each archive. A binary whose
-        # archives a release lacks keeps the entry of the earlier release that
-        # had them, with that release's version in the entry. A binary is
+        # Written by `eser codebase dist nix-hashes` after each release: the
+        # released version and, per binary, the hash of each archive. A binary
+        # whose archives a release lacks keeps the entry of the earlier release
+        # that had them, with that release's version in the entry. A binary is
         # packaged only when it is listed here.
         hashes = builtins.fromJSON (builtins.readFile ./nix/hashes.json);
 
@@ -123,8 +123,8 @@
 
         # noskills is built from this source tree (TASK-261), at the version
         # in VERSION, with cgo off like the release archives. vendorHash
-        # follows go.sum: `go run ./cmd/eser dev nix-vendor-hash` rewrites it,
-        # and the precommit workflow checks it.
+        # follows go.sum: `go run ./cmd/eser codebase dist nix-vendor-hash`
+        # rewrites it, and the precommit workflow checks it.
         noskills = pkgs.buildGoModule {
           pname = "noskills";
           version = pkgs.lib.fileContents ./VERSION;

@@ -175,9 +175,9 @@ created with that token, so `release.yml` — which triggered only on `push: tag
 carried a `noskills_*` asset.
 
 `.goreleaser.yaml` and `.github/workflows/release.yml` are both deleted.
-`eser dev compile` (`ReleaseBinaries` in `pkg/ajan/codebasefx`) builds every
-release binary, `noskills-server` included, in the one pipeline, so there is no
-second workflow left to fail to trigger.
+`eser codebase dist compile` (`ReleaseBinaries` in `pkg/ajan/codebasefx`) builds
+every release binary, `noskills-server` included, in the one pipeline, so there
+is no second workflow left to fail to trigger.
 
 ## ~~P0~~ DONE — Go runtime crash under the FFI library (surfaced 2026-08-01)
 

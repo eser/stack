@@ -17,10 +17,11 @@ import (
 
 var errBuildsFailed = errors.New("some builds failed")
 
-// The release build commands (M3-T10, decision-39): `eser dev compile` writes
-// the release archives and SHA256SUMS.txt, `eser dev homebrew` and
-// `eser dev nix-hashes` follow a published release, and dev_packages.go has
-// the npm platform packages and the flake's vendorHash.
+// The release build commands (M3-T10, decision-39):
+// `eser codebase dist compile` writes the release archives and SHA256SUMS.txt,
+// `eser codebase dist homebrew` and `eser codebase dist nix-hashes` follow a
+// published release, and codebase_dist_packages.go has the npm platform
+// packages and the flake's vendorHash.
 
 func (e *env) readVersion() (string, error) {
 	data, err := os.ReadFile(filepath.Join(e.cwd, "VERSION"))
@@ -83,10 +84,10 @@ func sumsFlags(fs *flag.FlagSet) {
 	fs.String("sums", "", "read the hashes from this SHA256SUMS.txt instead of the release")
 }
 
-func devCommand(e *env) *clifx.Command {
+func distCommand(e *env) *clifx.Command {
 	return &clifx.Command{ //nolint:exhaustruct
-		Name:  "dev",
-		Short: "Release build tools: archives, Homebrew formulas and Nix hashes",
+		Name:  "dist",
+		Short: "Release builds of this repository: archives, npm platform packages, Homebrew formulas and Nix hashes",
 		Subcommands: []*clifx.Command{
 			{
 				Name:  "compile",
@@ -254,8 +255,8 @@ func devCommand(e *env) *clifx.Command {
 					return nil
 				},
 			},
-			devNpmBinariesCommand(e),
-			devNixVendorHashCommand(e),
+			distNpmBinariesCommand(e),
+			distNixVendorHashCommand(e),
 		},
 	}
 }

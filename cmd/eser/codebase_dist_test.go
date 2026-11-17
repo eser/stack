@@ -15,7 +15,7 @@ import (
 	"github.com/eser/stack/pkg/ajan/codebasefx"
 )
 
-func devTestEnv(t *testing.T) *env {
+func distTestEnv(t *testing.T) *env {
 	t.Helper()
 
 	e := testEnv(t)
@@ -34,12 +34,12 @@ func devTestEnv(t *testing.T) *env {
 	return e
 }
 
-func TestDevCompileCurrentOnly(t *testing.T) {
+func TestDistCompileCurrentOnly(t *testing.T) {
 	t.Parallel()
 
-	e := devTestEnv(t)
+	e := distTestEnv(t)
 
-	out, stderr, code := runCLI(t, e, "dev", "compile", "--current-only")
+	out, stderr, code := runCLI(t, e, "codebase", "dist", "compile", "--current-only")
 	if code != 0 {
 		t.Fatalf("exit %d: %s", code, stderr)
 	}
@@ -62,17 +62,17 @@ func TestDevCompileCurrentOnly(t *testing.T) {
 	}
 
 	e.goos = "plan9"
-	if _, _, code := runCLI(t, e, "dev", "compile", "--current-only"); code != 1 {
+	if _, _, code := runCLI(t, e, "codebase", "dist", "compile", "--current-only"); code != 1 {
 		t.Errorf("an unknown host: exit %d", code)
 	}
 }
 
 // The extracted host archive holds a binary `eser update` accepts.
-func TestDevCompileArchiveIsWhatUpdateReads(t *testing.T) {
+func TestDistCompileArchiveIsWhatUpdateReads(t *testing.T) {
 	t.Parallel()
 
-	e := devTestEnv(t)
-	if _, stderr, code := runCLI(t, e, "dev", "compile", "--current-only", "--out", "out"); code != 0 {
+	e := distTestEnv(t)
+	if _, stderr, code := runCLI(t, e, "codebase", "dist", "compile", "--current-only", "--out", "out"); code != 0 {
 		t.Fatalf("exit %d: %s", code, stderr)
 	}
 
@@ -92,12 +92,12 @@ func TestDevCompileArchiveIsWhatUpdateReads(t *testing.T) {
 	}
 }
 
-func TestDevHomebrewAndNixDryRun(t *testing.T) {
+func TestDistHomebrewAndNixDryRun(t *testing.T) {
 	t.Parallel()
 
-	e := devTestEnv(t)
+	e := distTestEnv(t)
 
-	out, stderr, code := runCLI(t, e, "dev", "homebrew", "--dry-run")
+	out, stderr, code := runCLI(t, e, "codebase", "dist", "homebrew", "--dry-run")
 	if code != 0 {
 		t.Fatalf("exit %d: %s", code, stderr)
 	}
@@ -107,7 +107,7 @@ func TestDevHomebrewAndNixDryRun(t *testing.T) {
 		t.Errorf("homebrew dry run:\n%s", out)
 	}
 
-	out, _, code = runCLI(t, e, "dev", "nix-hashes", "--dry-run")
+	out, _, code = runCLI(t, e, "codebase", "dist", "nix-hashes", "--dry-run")
 	if code != 0 || !strings.Contains(out, `"version": "4.6.0"`) || !strings.Contains(out, `"noskills-server": {`) {
 		t.Errorf("nix dry run: exit %d\n%s", code, out)
 	}
@@ -117,10 +117,10 @@ func TestDevHomebrewAndNixDryRun(t *testing.T) {
 	}
 }
 
-func TestDevNixHashesFromSums(t *testing.T) {
+func TestDistNixHashesFromSums(t *testing.T) {
 	t.Parallel()
 
-	e := devTestEnv(t)
+	e := distTestEnv(t)
 	if err := os.MkdirAll(filepath.Join(e.cwd, "nix"), 0o750); err != nil {
 		t.Fatal(err)
 	}
@@ -134,7 +134,7 @@ func TestDevNixHashesFromSums(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	out, stderr, code := runCLI(t, e, "dev", "nix-hashes", "--sums", "SHA256SUMS.txt")
+	out, stderr, code := runCLI(t, e, "codebase", "dist", "nix-hashes", "--sums", "SHA256SUMS.txt")
 	if code != 0 {
 		t.Fatalf("exit %d: %s", code, stderr)
 	}
@@ -169,7 +169,7 @@ func TestDevNixHashesFromSums(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	out, stderr, code = runCLI(t, e, "dev", "nix-hashes", "--sums", "SHA256SUMS.txt")
+	out, stderr, code = runCLI(t, e, "codebase", "dist", "nix-hashes", "--sums", "SHA256SUMS.txt")
 	if code != 0 {
 		t.Fatalf("exit %d: %s", code, stderr)
 	}
@@ -191,14 +191,14 @@ func TestDevNixHashesFromSums(t *testing.T) {
 	}
 }
 
-func TestDevHomebrewPushesToTheTap(t *testing.T) {
+func TestDistHomebrewPushesToTheTap(t *testing.T) {
 	t.Parallel()
 
 	if runtime.GOOS == "windows" {
 		t.Skip("uses a local bare repository path as the tap URL")
 	}
 
-	e := devTestEnv(t)
+	e := distTestEnv(t)
 	tap := filepath.Join(t.TempDir(), "tap.git")
 	seed := t.TempDir()
 
@@ -224,7 +224,7 @@ func TestDevHomebrewPushesToTheTap(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	out, stderr, code := runCLI(t, e, "dev", "homebrew", "--sums", "sums.txt")
+	out, stderr, code := runCLI(t, e, "codebase", "dist", "homebrew", "--sums", "sums.txt")
 	if code != 0 || !strings.Contains(out, "Done: Homebrew formulas updated.") {
 		t.Fatalf("exit %d: %s\n%s", code, stderr, out)
 	}
@@ -232,5 +232,21 @@ func TestDevHomebrewPushesToTheTap(t *testing.T) {
 	files, _ := exec.Command("git", "-C", tap, "ls-tree", "--name-only", "-r", "HEAD").CombinedOutput() //nolint:noctx
 	if strings.TrimSpace(string(files)) != "Formula/eser.rb\nFormula/noskills-server.rb" {
 		t.Errorf("tap files:\n%s", files)
+	}
+}
+
+// The release builds moved under `eser codebase dist` (TASK-402); the eser
+// binary users install has no top-level `dev` command any more.
+func TestDistReplacesTheDevCommand(t *testing.T) {
+	t.Parallel()
+
+	e := distTestEnv(t)
+
+	if _, _, code := runCLI(t, e, "dev", "compile", "--current-only"); code == 0 {
+		t.Error("eser dev compile should be an unknown command")
+	}
+
+	if _, err := os.Stat(filepath.Join(e.cwd, "etc/temp/binaries")); !os.IsNotExist(err) {
+		t.Errorf("eser dev compile should build nothing: %v", err)
 	}
 }

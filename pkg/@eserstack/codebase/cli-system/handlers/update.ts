@@ -363,7 +363,7 @@ export const updateCompiledBinary = async (
     await new shellExec.CommandBuilder(extract.cmd, [...extract.args]).spawn();
 
     // The archive holds the binary under the app's command name, as
-    // `eser dev compile` (pkg/ajan/codebasefx) packs it.
+    // `eser codebase dist compile` (pkg/ajan/codebasefx) packs it.
     const newBinaryPath = runtime.path.join(
       tempDir,
       isWindows ? `${app.command}.exe` : app.command,

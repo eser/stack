@@ -51,12 +51,12 @@ type ReleaseBinary struct {
 	NameVar    string
 }
 
-// ReleaseBinaries are the commands `eser dev compile` builds (decision-8):
-// the Go eser, noskills and noskills-server, and the forwarding stub under
-// the laroux archive name that installed v4.5.x laroux binaries update to
-// (decision-9). cmd/noskills took the place of the noskills stub (TASK-261),
-// so installed v4.5.x noskills binaries update to it; ADR 0005 records when
-// the laroux stub stops being built.
+// ReleaseBinaries are the commands `eser codebase dist compile` builds
+// (decision-8): the Go eser, noskills and noskills-server, and the forwarding
+// stub under the laroux archive name that installed v4.5.x laroux binaries
+// update to (decision-9). cmd/noskills took the place of the noskills stub
+// (TASK-261), so installed v4.5.x noskills binaries update to it; ADR 0005
+// records when the laroux stub stops being built.
 var ReleaseBinaries = []ReleaseBinary{ //nolint:gochecknoglobals
 	{Name: "eser", Main: "./cmd/eser", VersionVar: "main.version", NameVar: ""},
 	{

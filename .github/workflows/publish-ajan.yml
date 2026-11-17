@@ -161,8 +161,8 @@ jobs:
       # @eserstack/noskills-<platform> packages the noskills launcher pins.
       - name: Compile and stage the noskills binaries
         run: |
-          go run ./cmd/eser dev compile
-          go run ./cmd/eser dev npm-binaries
+          go run ./cmd/eser codebase dist compile
+          go run ./cmd/eser codebase dist npm-binaries
 
       # ── bootstrap mode: upload the generated tarballs so they can be published
       # manually (npm login as the eserstack org owner). Needed for the FIRST

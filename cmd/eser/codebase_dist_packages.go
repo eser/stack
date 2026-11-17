@@ -13,20 +13,20 @@ import (
 	"github.com/eser/stack/pkg/ajan/codebasefx"
 )
 
-// The package outputs of the release binaries (TASK-261): `eser dev
+// The package outputs of the release binaries (TASK-261): `eser codebase dist
 // npm-binaries` puts the compiled noskills into its npm platform packages,
-// and `eser dev nix-vendor-hash` keeps the flake's buildGoModule vendorHash
-// in step with go.sum.
+// and `eser codebase dist nix-vendor-hash` keeps the flake's buildGoModule
+// vendorHash in step with go.sum.
 
-func devNpmBinariesCommand(e *env) *clifx.Command {
+func distNpmBinariesCommand(e *env) *clifx.Command {
 	return &clifx.Command{ //nolint:exhaustruct
 		Name:  "npm-binaries",
 		Short: "Copy the compiled binaries into their npm platform packages",
 		Long: "Extracts each npm binary (" + strings.Join(codebasefx.NpmBinaries, ", ") + ") from the archives " +
-			"`eser dev compile` wrote into pkg/@eserstack/<binary>-<platform>/, next to the committed package.json, " +
+			"`eser codebase dist compile` wrote into pkg/@eserstack/<binary>-<platform>/, next to the committed package.json, " +
 			"for the targets whose archives exist.",
 		Flags: func(fs *flag.FlagSet) {
-			fs.String("from", "etc/temp/binaries", "the directory `eser dev compile` wrote")
+			fs.String("from", "etc/temp/binaries", "the directory `eser codebase dist compile` wrote")
 		},
 		Run: func(c *clifx.Context) error {
 			version, err := e.readVersion()
@@ -55,7 +55,7 @@ func devNpmBinariesCommand(e *env) *clifx.Command {
 	}
 }
 
-func devNixVendorHashCommand(e *env) *clifx.Command {
+func distNixVendorHashCommand(e *env) *clifx.Command {
 	return &clifx.Command{ //nolint:exhaustruct
 		Name:  "nix-vendor-hash",
 		Short: "Write the vendorHash of the flake's noskills package from go.sum",
@@ -89,7 +89,7 @@ func devNixVendorHashCommand(e *env) *clifx.Command {
 			}
 
 			if c.Bool("check") {
-				return fmt.Errorf("%w: it is %s, go.sum gives %s; run `go run ./cmd/eser dev nix-vendor-hash`",
+				return fmt.Errorf("%w: it is %s, go.sum gives %s; run `go run ./cmd/eser codebase dist nix-vendor-hash`",
 					codebasefx.ErrVendorHashStale, current, want)
 			}
 

@@ -104,7 +104,6 @@ func builtinCommands(e *env) []*clifx.Command {
 		kitCommand(e),
 		csCommand(e),
 		aiCommand(e),
-		devCommand(e),
 	}
 }
 

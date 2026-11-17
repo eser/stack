@@ -29,7 +29,7 @@ const maxStagedBinaryBytes = 512 << 20
 var (
 	// ErrNothingStaged is returned when the binaries directory holds no
 	// archive of an npm binary.
-	ErrNothingStaged = errors.New("no archive of an npm binary was found; run `eser dev compile` first")
+	ErrNothingStaged = errors.New("no archive of an npm binary was found; run `eser codebase dist compile` first")
 	// ErrNotInArchive is returned when an archive does not hold the binary.
 	ErrNotInArchive = errors.New("the archive does not hold the binary")
 	// ErrPackageVersion is returned when a platform package's version is not
@@ -66,7 +66,7 @@ type StageOptions struct {
 	// Root is the repository root; the platform packages are its
 	// pkg/@eserstack/<binary>-<platform> directories.
 	Root string
-	// BinDir holds the archives `eser dev compile` wrote.
+	// BinDir holds the archives `eser codebase dist compile` wrote.
 	BinDir  string
 	Version string
 }
@@ -141,7 +141,7 @@ func stageOne(opts *StageOptions, binary string, target ReleaseTarget, archive s
 		fileName += ".exe"
 	}
 
-	data, err := os.ReadFile(archive) //nolint:gosec // G304: an archive `eser dev compile` wrote
+	data, err := os.ReadFile(archive) //nolint:gosec // G304: an archive `eser codebase dist compile` wrote
 	if err != nil {
 		return "", fmt.Errorf("read %s: %w", archive, err)
 	}

@@ -4,8 +4,8 @@ The Go build of the eser CLI (M3-T4, ADR 0005). It does not replace the
 TypeScript CLI yet: it covers manifest scripts, the workflow runner and the
 gate (`eser ok`), the validators, git hooks and release commands of
 `eser codebase`, its own install, update and diagnosis, plugin forwarding,
-`eser dev`, and `eser kit`, `eser cs` and `eser ai`. The other commands the
-TypeScript CLI implements itself come in later M3 tasks.
+`eser codebase dist`, and `eser kit`, `eser cs` and `eser ai`. The other
+commands the TypeScript CLI implements itself come in later M3 tasks.
 
 ```sh
 make build            # bin/eser, with the version from VERSION
@@ -100,38 +100,38 @@ updates and removes the other's hooks.
   table of the README. `--create` makes a missing release a draft, which the
   release run publishes once its archives are attached.
 
-## Release builds: `eser dev`
+## Release builds: `eser codebase dist`
 
-- `eser dev compile [--current-only] [--out dir]` builds `eser`, `noskills`,
-  `noskills-server` and the `laroux` forwarding stub (`cmd/legacy-forwarder`,
-  decision-9) with `CGO_ENABLED=0` for the five release targets and writes
-  `<name>-v<version>-<triple>.tar.gz` (`.zip` on Windows, the Rust triples of
-  decision-38) and `SHA256SUMS.txt` to `etc/temp/binaries/`. `SOURCE_DATE_EPOCH`
-  sets the time stored in the archives, so a rebuild of a commit gives the same
-  bytes. A failed build is reported and the others still run; the exit code
-  is 1.
-- `eser dev homebrew` reads the release's `SHA256SUMS.txt` and pushes the
-  formula of each binary it has archives for to `eser/homebrew-tap` with
+- `eser codebase dist compile [--current-only] [--out dir]` builds `eser`,
+  `noskills`, `noskills-server` and the `laroux` forwarding stub
+  (`cmd/legacy-forwarder`, decision-9) with `CGO_ENABLED=0` for the five release
+  targets and writes `<name>-v<version>-<triple>.tar.gz` (`.zip` on Windows, the
+  Rust triples of decision-38) and `SHA256SUMS.txt` to `etc/temp/binaries/`.
+  `SOURCE_DATE_EPOCH` sets the time stored in the archives, so a rebuild of a
+  commit gives the same bytes. A failed build is reported and the others still
+  run; the exit code is 1.
+- `eser codebase dist homebrew` reads the release's `SHA256SUMS.txt` and pushes
+  the formula of each binary it has archives for to `eser/homebrew-tap` with
   `GH_TOKEN`; the other formulas stay as they are.
-- `eser dev nix-hashes` writes `nix/hashes.json`: the version and the SRI hash
-  of each archive of `eser` and `noskills-server`, for the binaries the release
-  has. A binary the release has no archives of keeps its entry from the current
-  file, with the version of the release that had them, so the flake still
-  fetches archives that exist. The flake packages exactly the binaries the file
-  lists.
+- `eser codebase dist nix-hashes` writes `nix/hashes.json`: the version and the
+  SRI hash of each archive of `eser` and `noskills-server`, for the binaries the
+  release has. A binary the release has no archives of keeps its entry from the
+  current file, with the version of the release that had them, so the flake
+  still fetches archives that exist. The flake packages exactly the binaries the
+  file lists.
 
 Both take `--dry-run` (placeholder hashes for the binaries this release builds;
 nothing is pushed or written) and `--sums <file>` (a local `SHA256SUMS.txt`).
 
-- `eser dev npm-binaries [--from dir]` copies `noskills` out of the archives in
-  `etc/temp/binaries/` into its npm platform packages,
+- `eser codebase dist npm-binaries [--from dir]` copies `noskills` out of the
+  archives in `etc/temp/binaries/` into its npm platform packages,
   `pkg/@eserstack/noskills-<platform>/`, for the targets whose archives exist.
   The `noskills` npm package is the launcher that runs that binary.
-- `eser dev nix-vendor-hash [--check]` runs `go mod vendor`, hashes the result
-  the way Nix does, and writes it as the `vendorHash` of the flake's `noskills`
-  package, which `buildGoModule` builds from source. `--check` only compares;
-  the precommit workflow runs it, so a `go.sum` change fails the gate until the
-  hash is written.
+- `eser codebase dist nix-vendor-hash [--check]` runs `go mod vendor`, hashes
+  the result the way Nix does, and writes it as the `vendorHash` of the flake's
+  `noskills` package, which `buildGoModule` builds from source. `--check` only
+  compares; the precommit workflow runs it, so a `go.sum` change fails the gate
+  until the hash is written.
 
 ## Recipes: `eser kit`
 

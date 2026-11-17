@@ -331,10 +331,10 @@ Every channel installs this binary (TASK-261):
 
 - `install.sh` and `install.ps1` (`-Product noskills`), Homebrew
   (`brew install eser/tap/noskills`) and the release archives
-  `noskills-v<version>-<triple>`, which `eser dev compile` builds and which
-  installed v4.5.x noskills binaries self-update to;
+  `noskills-v<version>-<triple>`, which `eser codebase dist compile` builds and
+  which installed v4.5.x noskills binaries self-update to;
 - Nix: `nix build .#noskills` builds it from source with `buildGoModule`
-  (`vendorHash` is kept by `eser dev nix-vendor-hash`);
+  (`vendorHash` is kept by `eser codebase dist nix-vendor-hash`);
 - npm: `npm i -g noskills` or `npx noskills` installs the launcher, which runs
   the binary of the optional dependency `@eserstack/noskills-<platform>` for
   darwin-arm64, darwin-x64, linux-arm64, linux-x64 or win32-x64, and fails with

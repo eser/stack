@@ -20,9 +20,9 @@ import (
 )
 
 // The install dry runs (TASK-261): etc/scripts/install.sh, install.ps1 and
-// the Homebrew formula install the noskills that `eser dev compile` builds,
-// from a local copy of a release, and the installed binary must be the Go
-// noskills. The Nix package is built by `nix build .#noskills`, which this
+// the Homebrew formula install the noskills that `eser codebase dist compile`
+// builds, from a local copy of a release, and the installed binary must be the
+// Go noskills. The Nix package is built by `nix build .#noskills`, which this
 // test cannot run without Nix.
 
 // dryRunRelease is the version of the local release.

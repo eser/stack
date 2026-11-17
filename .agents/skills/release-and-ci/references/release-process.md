@@ -137,13 +137,13 @@ publish, and kept two release paths in step (ADR 0005).
 
 Scope: The standalone binaries attached to a GitHub Release
 
-Rule: `eser dev compile` builds every release binary from the tag's tree, for
-every target, and CI attaches the archives with their signatures and checksums.
-The binaries are Go programs; the job that compiles them needs no JavaScript
-runtime. Archive names never change: they keep the target triples they have
-always had, because installed binaries find their update by archive name. A
-binary that moved to npm keeps an archive under its old name that holds a
-forwarding stub, which runs the npm package or prints the `npm i -g` command.
+Rule: `eser codebase dist compile` builds every release binary from the tag's
+tree, for every target, and CI attaches the archives with their signatures and
+checksums. The binaries are Go programs; the job that compiles them needs no
+JavaScript runtime. Archive names never change: they keep the target triples
+they have always had, because installed binaries find their update by archive
+name. A binary that moved to npm keeps an archive under its old name that holds
+a forwarding stub, which runs the npm package or prints the `npm i -g` command.
 Only the owner retires a stub, and the release that drops it carries a
 `### Migration` entry with the command to run instead.
 

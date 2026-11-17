@@ -284,8 +284,8 @@ workflows:
       # command writes the new value.
       - shell:
           name: nix-vendor-hash
-          command: go run ./cmd/eser dev nix-vendor-hash --check
-          fixCommand: go run ./cmd/eser dev nix-vendor-hash
+          command: go run ./cmd/eser codebase dist nix-vendor-hash --check
+          fixCommand: go run ./cmd/eser codebase dist nix-vendor-hash
           timeout: 300
 
   # Release preflight: every release-only step, run on main BEFORE a tag exists.
@@ -326,25 +326,25 @@ workflows:
           timeout: 300
       - shell:
           name: homebrew-dry-run
-          command: go run ./cmd/eser dev homebrew --dry-run
+          command: go run ./cmd/eser codebase dist homebrew --dry-run
           timeout: 120
       - shell:
           name: nix-dry-run
-          command: go run ./cmd/eser dev nix-hashes --dry-run
+          command: go run ./cmd/eser codebase dist nix-hashes --dry-run
           timeout: 120
       # The release run's Go compile, for this host only, so a build that
       # fails stops here and not after publish; npm-binaries-current stages
       # the noskills binary from its archive.
       - shell:
           name: compile-current
-          command: go run ./cmd/eser dev compile --current-only
+          command: go run ./cmd/eser codebase dist compile --current-only
           timeout: 600
       # The npm noskills launcher from a scratch install outside the repo:
       # `npx noskills` must run this host's Go binary, staged into its
       # platform package, and reach the TypeScript CLI it carries (TASK-261).
       - shell:
           name: npm-binaries-current
-          command: go run ./cmd/eser dev npm-binaries
+          command: go run ./cmd/eser codebase dist npm-binaries
           timeout: 120
       - shell:
           name: noskills-launcher-install
@@ -468,7 +468,7 @@ scripts:
 
   # Build
   build: node ./pkg/@eserstack/cli/scripts/npm-build.ts
-  compile: go run ./cmd/eser dev compile
+  compile: go run ./cmd/eser codebase dist compile
 
   # Documentation
   # JSDoc presence on exported symbols, checked by the Go validator in

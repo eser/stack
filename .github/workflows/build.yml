@@ -182,8 +182,8 @@ jobs:
           fi
           echo "Confirmed: no node on PATH; go is $(command -v go)"
 
-          # CGO_ENABLED=0 is how `eser dev compile` builds the release binaries,
-          # so the pseudo-terminals are opened without libc here.
+          # CGO_ENABLED=0 is how `eser codebase dist compile` builds the release
+          # binaries, so the pseudo-terminals are opened without libc here.
           CGO_ENABLED=0 go build -o "$RUNNER_TEMP/noskills-server" ./cmd/noskills-server
           CGO_ENABLED=0 go test -count=1 ./pkg/ajan/shellfx/pty/ ./pkg/ajan/muxfx/...
           CGO_ENABLED=0 go test -count=1 -run 'TestMuxSession|TestMuxWorker|TestBrowserTerminal' -v ./pkg/ajan/noskillsserverfx/
@@ -1123,13 +1123,13 @@ jobs:
       # forwarding stub) for the five targets, with the commit time in the
       # archives so a rebuild gives the same bytes.
       - name: Compile for all platforms
-        run: SOURCE_DATE_EPOCH="$(git log -1 --format=%ct)" go run ./cmd/eser dev compile
+        run: SOURCE_DATE_EPOCH="$(git log -1 --format=%ct)" go run ./cmd/eser codebase dist compile
 
       # Copies the noskills binary of each target into its workspace member
       # (pkg/@eserstack/noskills-<platform>/), which the noskills npm launcher
       # pins as an optional dependency; the manifests are committed.
       - name: Stage noskills binaries into their npm packages
-        run: go run ./cmd/eser dev npm-binaries
+        run: go run ./cmd/eser codebase dist npm-binaries
 
       - name: Upload binary bundle
         uses: actions/upload-artifact@v7
@@ -1376,8 +1376,8 @@ jobs:
   update-homebrew:
     name: Update Homebrew Tap
     # After upload-assets, whose last step publishes the draft release:
-    # `eser dev homebrew` reads SHA256SUMS.txt from the public download URL,
-    # which serves nothing for a draft.
+    # `eser codebase dist homebrew` reads SHA256SUMS.txt from the public
+    # download URL, which serves nothing for a draft.
     needs: upload-assets
     # Explicit, with !cancelled(): a job without its own condition is skipped
     # whenever ANY job upstream in the chain was skipped, and validate + preflight
@@ -1400,8 +1400,8 @@ jobs:
           fetch-depth: 1
           ref: ${{ inputs.tag && format('refs/tags/{0}', inputs.tag) || github.ref }}
 
-      # `eser dev` is Go (pkg/ajan/codebasefx); it imports nothing from the
-      # TypeScript workspace, so no pnpm install either.
+      # `eser codebase dist` is Go (pkg/ajan/codebasefx); it imports nothing
+      # from the TypeScript workspace, so no pnpm install either.
       - name: Setup Go
         uses: actions/setup-go@v7
         with:
@@ -1417,7 +1417,7 @@ jobs:
           repositories: homebrew-tap
 
       - name: Update formula
-        run: go run ./cmd/eser dev homebrew
+        run: go run ./cmd/eser codebase dist homebrew
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
 
@@ -1425,8 +1425,8 @@ jobs:
   update-nix-hashes:
     name: Update Nix Hashes
     # After upload-assets, whose last step publishes the draft release:
-    # `eser dev nix-hashes` reads SHA256SUMS.txt from the public download URL,
-    # which serves nothing for a draft.
+    # `eser codebase dist nix-hashes` reads SHA256SUMS.txt from the public
+    # download URL, which serves nothing for a draft.
     needs: upload-assets
     # Explicit, with !cancelled(): a job without its own condition is skipped
     # whenever ANY job upstream in the chain was skipped, and validate + preflight
@@ -1449,8 +1449,8 @@ jobs:
           fetch-depth: 1
           ref: ${{ inputs.tag && format('refs/tags/{0}', inputs.tag) || github.ref }}
 
-      # `eser dev` is Go (pkg/ajan/codebasefx); it imports nothing from the
-      # TypeScript workspace, so no pnpm install either.
+      # `eser codebase dist` is Go (pkg/ajan/codebasefx); it imports nothing
+      # from the TypeScript workspace, so no pnpm install either.
       - name: Setup Go
         uses: actions/setup-go@v7
         with:
@@ -1466,7 +1466,7 @@ jobs:
           repositories: stack
 
       - name: Update hashes
-        run: go run ./cmd/eser dev nix-hashes
+        run: go run ./cmd/eser codebase dist nix-hashes
 
       # Two trees, because the constraints pull opposite ways: the hashes have
       # to be computed from the TAG's tree (main's VERSION may already point

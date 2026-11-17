@@ -30,9 +30,9 @@ const (
 )
 
 // TestLegacyBinariesSelfUpdate is the legacy-update preflight (TASK-253,
-// TASK-261, decision-9): `eser dev compile` builds the laroux stub and the
-// Go noskills for the host, a local server serves them as release v5.0.0,
-// and the TypeScript updater that installed v4.5.x binaries run
+// TASK-261, decision-9): `eser codebase dist compile` builds the laroux stub
+// and the Go noskills for the host, a local server serves them as release
+// v5.0.0, and the TypeScript updater that installed v4.5.x binaries run
 // (testdata/legacy_update.ts around update.ts) updates a v4.5.2 laroux and
 // noskills fixture from it, checksum included. The laroux fixture must then
 // be the stub and run the npm package through npx; the noskills fixture must

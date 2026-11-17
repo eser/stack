@@ -21,16 +21,16 @@ release-and-ci skill refers to.
     `pkg/ajan/codebasefx` does it for both the Go and the TypeScript release.
 - The preflight builds the two npm bundles, installs the CLI outside the repo
   from a packed tarball, builds the native and wasm ajan libraries, runs the
-  release compile for the host (`eser dev compile --current-only`), stages the
-  host's noskills binary into its npm platform package
-  (`eser dev npm-binaries`) and installs the noskills launcher and platform
-  package outside the repo (`etc/scripts/preflight-noskills-launcher.ts`),
-  packed with pnpm as the publish job packs them, checks that the tarball holds
-  the binary with its execute bits and that `npx noskills --help` runs it
-  without EACCES, runs
-  `eser dev homebrew` and `eser dev nix-hashes` in dry-run mode, and runs the
-  old TypeScript updater of a v4.5.2 laroux and noskills under node against a
-  local release of the laroux stub and the Go noskills
+  release compile for the host (`eser codebase dist compile --current-only`),
+  stages the host's noskills binary into its npm platform package
+  (`eser codebase dist npm-binaries`) and installs the noskills launcher and
+  platform package outside the repo
+  (`etc/scripts/preflight-noskills-launcher.ts`), packed with pnpm as the
+  publish job packs them, checks that the tarball holds the binary with its
+  execute bits and that `npx noskills --help` runs it without EACCES, runs
+  `eser codebase dist homebrew` and `eser codebase dist nix-hashes` in dry-run
+  mode, and runs the old TypeScript updater of a v4.5.2 laroux and noskills
+  under node against a local release of the laroux stub and the Go noskills
   (`cmd/legacy-forwarder/legacy_update_test.go`). Then it builds the libraries
   (`pnpm -r build`), runs the publish job's library step in dry-run mode
   (`etc/scripts/publish-libraries.ts --dry-run`), packs every workspace package
@@ -81,7 +81,7 @@ validate
          ├─ smoke-test         builds and runs the eser and noskills bundles
          │   └─ npm-consumer-test   installs the eser bundle into a scratch project
          └─ build-ajan-darwin
-             └─ compile-binaries    eser dev compile: eser, noskills, laroux stub, noskills-server
+             └─ compile-binaries    eser codebase dist compile: eser, noskills, laroux stub, noskills-server
                  └─ publish-ajan    ajan-* and noskills-* platform packages on npm
                      └─ publish     @eserstack libraries and laroux, then the eser and noskills bundles on npm
                          └─ release-notes   changelog section to a draft GitHub Release
@@ -155,7 +155,7 @@ Validate job also runs `make vuln` (govulncheck for both Go modules).
   bundle only. The exports carry `types` and `import` only, so `require()` of a
   library fails with `ERR_PACKAGE_PATH_NOT_EXPORTED`; no consumer needs CommonJS
   yet.
-- **Release binaries:** Go commands built by `eser dev compile`
+- **Release binaries:** Go commands built by `eser codebase dist compile`
   (`ReleaseBinaries` in `pkg/ajan/codebasefx`): `eser`, `noskills`,
   `noskills-server` and, under the `laroux` archive name, the
   `cmd/legacy-forwarder` stub that installed v4.5.x laroux binaries update to
@@ -166,7 +166,7 @@ Validate job also runs `make vuln` (govulncheck for both Go modules).
   (install.ps1) names. A release without the product's archive gets the
   `npm i -g <product>` command and a non-zero exit, and laroux goes to npm from
   5.0.0 on.
-- **Homebrew:** `eser dev homebrew` renders `Formula/<binary>.rb` of
+- **Homebrew:** `eser codebase dist homebrew` renders `Formula/<binary>.rb` of
   eser/homebrew-tap for each of `HomebrewFormulas` in
   `pkg/ajan/codebasefx/release_distribution.go` that the release has archives
   of, and leaves the others as they are. The formulas pass
@@ -178,10 +178,10 @@ Validate job also runs `make vuln` (govulncheck for both Go modules).
   with the stub (ADR 0005). `brew audit` takes formula names only, so check a
   rendered formula in a local tap made with
   `brew tap-new your_user/your_tap --no-git` and removed with `brew untap`.
-- **Nix:** `eser dev nix-hashes` writes `nix/hashes.json` after a release. A
-  binary the release has no archives of keeps the entry of the earlier release
-  that had them, with that release's version in the entry, and the flake
-  fetches each archive at its entry's version.
+- **Nix:** `eser codebase dist nix-hashes` writes `nix/hashes.json` after a
+  release. A binary the release has no archives of keeps the entry of the
+  earlier release that had them, with that release's version in the entry, and
+  the flake fetches each archive at its entry's version.
 - **Go modules:** not published. `noskills-server` and the bridge library are
   built from the release tag; the modules get no tags of their own.
 - **npm platform packages:** the six `@eserstack/ajan-*` packages carry the
@@ -190,9 +190,9 @@ Validate job also runs `make vuln` (govulncheck for both Go modules).
   `publish-ajan` publishes them before the bundles need them. The five
   `@eserstack/noskills-<platform>` packages (`darwin-arm64`, `darwin-x64`,
   `linux-arm64`, `linux-x64`, `win32-x64`) carry the Go `noskills` binary:
-  `eser dev compile` builds it, `eser dev npm-binaries` stages it into each
-  package, and `publish-ajan` publishes them too. `pnpm publish` writes a
-  file at mode 0644 unless the package lists it in
+  `eser codebase dist compile` builds it, `eser codebase dist npm-binaries`
+  stages it into each package, and `publish-ajan` publishes them too.
+  `pnpm publish` writes a file at mode 0644 unless the package lists it in
   `publishConfig.executableFiles`, so each platform package lists its binary
   there, and the launcher adds the execute bits before it runs a binary that
   lost them (TASK-368). They must be on npm before

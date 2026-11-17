@@ -15,8 +15,8 @@ import (
 	"github.com/eser/stack/pkg/ajan/codebasefx"
 )
 
-// The release asset name is a contract between `eser dev compile`, which
-// writes the archives, and etc/scripts/install.sh and install.ps1, which
+// The release asset name is a contract between `eser codebase dist compile`,
+// which writes the archives, and etc/scripts/install.sh and install.ps1, which
 // download them; nothing type-checks across it, and a drift is a 404 at
 // install time. (Ported from pkg/@eserstack/cli/scripts/release-naming.test.ts
 // with compile.ts.)

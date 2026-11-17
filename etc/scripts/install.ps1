@@ -254,7 +254,7 @@ try {
 
     Write-Host "Installing $Product v$Version (Windows/$archName)..."
 
-    # Must match the archive names `eser dev compile` writes:
+    # Must match the archive names `eser codebase dist compile` writes:
     # <product>-v<version>-<Rust target triple>, a .zip on Windows.
     $archive = "$Product-v$Version-x86_64-pc-windows-msvc.zip"
     $zip = Join-Path $tmp $archive

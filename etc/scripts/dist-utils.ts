@@ -4,7 +4,7 @@
  * Shared utilities for the release scripts in etc/scripts (the npm consumer
  * preflight). The SHA256SUMS.txt, SRI and credential helpers of the Homebrew
  * and Nix updaters moved to Go with them (pkg/ajan/codebasefx,
- * `eser dev homebrew` and `eser dev nix-hashes`).
+ * `eser codebase dist homebrew` and `eser codebase dist nix-hashes`).
  *
  * Pure functions with no I/O and no side effects, so each one has a test.
  *

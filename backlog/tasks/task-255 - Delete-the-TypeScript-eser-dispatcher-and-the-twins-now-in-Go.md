@@ -1,10 +1,10 @@
 ---
 id: TASK-255
 title: Delete the TypeScript eser dispatcher and the twins now in Go
-status: In Progress
+status: Done
 assignee: []
 created_date: '2026-10-15 20:38'
-updated_date: '2026-11-17 16:36'
+updated_date: '2026-11-18 10:00'
 labels:
   - cli
   - codebase
@@ -29,9 +29,9 @@ Plan key: M3-T12. Effort: medium.
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 No TypeScript entry point remains for a command with a Go implementation
-- [ ] #2 `eser laroux --help`, `eser posts --help` and `eser noskills --help` still run the Node CLIs through forwarding
-- [ ] #3 The gate is green; the code-conventions baseline only shrinks
+- [x] #1 No TypeScript entry point remains for a command with a Go implementation
+- [x] #2 `eser laroux --help`, `eser posts --help` and `eser noskills --help` still run the Node CLIs through forwarding
+- [x] #3 The gate is green; the code-conventions baseline only shrinks
 <!-- AC:END -->
 
 ## Implementation Notes
@@ -50,4 +50,6 @@ Step 2a (2026-11-17): pkg/@eserstack/cli is deleted (the dispatcher, the manifes
 Step 2b (2026-11-18): codebase keeps its library (git, package, workspace-discovery, the native-function types, changelog-text for etc/scripts/release-notes-from-changelog.ts, and the two deprecated shims); its TypeScript validators, validation runner, install, release, versions, changelog-gen, release-notes, release-tag, gh, commitmsg, file tools and CLI entry are deleted, and `.` is the library. The Go tests that ran versions.ts and changelog-gen.ts compare with the outputs those wrote, recorded in pkg/ajan/codebasefx/testdata/release; the release contract test was already ported (TestReleaseContract). CHANGELOG Unreleased has the Migration entry for @eserstack/cli and the removed codebase exports.
 
 Step 2c (2026-11-18): the TypeScript CLIs of ai (main, module, commands), cs (cli.ts), kit (main, mod, module, commands, and the add, list, clone and update handlers) and workflows (main, module, run, list) are deleted; each package root is its library. kit keeps the recipe library with the applier and new-project, which laroux init uses. cs keeps its TypeScript fallback in generate, a library behaviour rather than a CLI. The Go kit and cs parity tests compare with the trees and outputs the TypeScript CLIs wrote, recorded in cmd/eser/testdata. Unused dependencies dropped: ai logging, cs primitives, kit shell, workflows streams.
+
+Verified (2026-11-18): the TypeScript entry points left are the laroux and posts CLIs (no Go version), the noskills CLI (TASK-262) and the npm launchers. A built eser with ESER_PLUGIN_PATH on local laroux, eser-posts and noskills bins runs `laroux --help`, `posts --help`, `noskills --help` and `nos --help` through forwarding, each exiting 0. The gate is green and the code-conventions baseline did not grow.
 <!-- SECTION:NOTES:END -->

@@ -192,12 +192,16 @@ const workflow = workflows
 ```
 
 `createGoWorkflowTool` runs a manifest workflow on the Go engine, and
-`createHandlerTool` runs a `@eserstack/functions` handler. The eser CLI
-registers `native-function` and `go-workflow` on `eser workflows run`, so the
-steps of a manifest can name them. Go cannot call TypeScript. [WIRING.md](./WIRING.md#tools-that-reach-go-adr-0011) has the
+`createHandlerTool` runs a `@eserstack/functions` handler. An application
+registers `native-function` and `go-workflow` on its registry so the steps of
+its workflows can name them; `eser workflows run` runs on the Go engine, which
+runs Go functions as steps itself. Go cannot call TypeScript. [WIRING.md](./WIRING.md#tools-that-reach-go-adr-0011) has the
 options, the results and the two ports.
 
 ## 📋 CLI Flags
+
+`eser workflows run` is the Go eser's
+([cmd/eser](../../../cmd/eser/README.md#workflows-and-the-gate-eser-workflows)):
 
 ```text
 -e, --event <name>     Run workflows matching an event
@@ -250,22 +254,32 @@ workflows:
 
 ```text
 @eserstack/workflows
-├── main.ts         Standalone CLI (package root)
-├── mod.ts          Core library (types, registry, engine, builder)
-├── module.ts       Command module that the eser CLI mounts
+├── mod.ts          Core library (types, registry, engine, builder), the package root
 ├── loader.ts       .eser/manifest.yml file loader
-├── run.ts          CLI: workflows run
-├── list.ts         CLI: workflows list
 └── shell-tool.ts   Built-in shell command tool
 ```
 
 The core library (`mod.ts`) has zero I/O dependencies — it's pure functions for
-composing and running workflows. File loading and CLI are separate entry points.
+composing and running workflows. File loading is a separate entry point.
 
 `runWorkflow()`, `runWorkflowWithConfig()` and `runByEvent()` return lazy `Task`
 values (from `@eserstack/functions`). Use `functions.task.runTask()` to execute
 one and get a `Result`, then check it with `primitives.results.isOk()` or
 `primitives.results.isFail()`.
+
+## Upgrading from 5.0.0
+
+The TypeScript `workflows run` and `workflows list` commands are removed, with
+the `./module`, `./run` and `./list` exports; `eser workflows` runs manifest
+workflows on the Go engine with the same flags. The package root is the
+library, as `./mod` is.
+
+```bash
+# Before
+node node_modules/@eserstack/workflows/main.ts run -e precommit
+# After
+npx eser workflows run -e precommit
+```
 
 ## Upgrading from 4.x
 

@@ -13,18 +13,13 @@
     "dist/**/*.json"
   ],
   "exports": {
-    ".": "./mod.ts",
-    "./cli": "./cli.ts"
+    ".": "./mod.ts"
   },
   "publishConfig": {
     "exports": {
       ".": {
         "types": "./dist/mod.d.ts",
         "import": "./dist/mod.js"
-      },
-      "./cli": {
-        "types": "./dist/cli.d.ts",
-        "import": "./dist/cli.js"
       }
     }
   },
@@ -35,7 +30,6 @@
     "@eserstack/ajan": "workspace:*",
     "@eserstack/config": "workspace:*",
     "@eserstack/formats": "workspace:*",
-    "@eserstack/primitives": "workspace:*",
     "@eserstack/shell": "workspace:*",
     "@eserstack/standards": "workspace:*"
   },

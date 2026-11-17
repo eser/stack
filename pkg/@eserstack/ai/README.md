@@ -13,13 +13,12 @@ Kiro) through a single `LanguageModel` abstraction.
 
 ## CLI
 
-```bash
-# Standalone, from the package directory
-node ./main.ts ask "explain closures in JS" -p cc
-node ./main.ts ask "summarize this"                # auto-detect provider
-node ./main.ts list                                # show available providers
+The Go `eser` runs the same providers from a terminal
+([cmd/eser](../../../cmd/eser/README.md#ai-providers-eser-ai)):
 
-# Via eser CLI
+```bash
+eser ai ask "explain closures in JS" -p cc
+eser ai ask "summarize this"                # auto-detect provider
 eser ai ask "hello" -p ollama -m llama3
 eser ai ask "summarize this diff in one line" -p ant --effort low
 eser ai list
@@ -419,6 +418,19 @@ const registry = new ai.Registry({
 });
 
 await registry.loadFromConfig(config);
+```
+
+## Upgrading from 5.0.0
+
+The TypeScript `ai ask` and `ai list` commands are removed, with the
+`./module`, `./commands/ask` and `./commands/list` exports and `moduleDef`;
+`eser ai` runs them. The package root is the library, as `./mod` is.
+
+```bash
+# Before
+node node_modules/@eserstack/ai/main.ts ask "summarize this" -p ant
+# After
+npx eser ai ask "summarize this" -p ant
 ```
 
 ## Upgrading from 4.x

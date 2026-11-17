@@ -12,6 +12,10 @@ the eser registry.
 
 ## Commands
 
+The Go `eser` runs these commands
+([cmd/eser](../../../cmd/eser/README.md#recipes-eser-kit)); this package holds
+the TypeScript recipe library (`@eserstack/kit/recipes`).
+
 | Command                      | What it does                                          |
 | ---------------------------- | ----------------------------------------------------- |
 | `eser kit add <recipe>`      | Add a recipe from the registry to your project        |
@@ -165,6 +169,29 @@ status or the JSON syntax error.
 A target file that already exists is not an error: kit prints a warning, leaves
 the file as it is and exits 0. Pass `--force` to overwrite it, or
 `--skip-existing` to skip it without the warning.
+
+## Upgrading from 5.0.0
+
+The TypeScript kit CLI is removed, with the `./mod` and `./module` exports and
+the add, list, clone and update handlers (`./recipes/handlers` and its
+`list-recipes`, `add-recipe`, `clone-recipe` and `update-recipe` entries);
+`eser kit` runs the same commands. The package root is the recipe library
+(`./recipes`), and `./recipes/handlers/new-project` stays for
+`laroux init`.
+
+```typescript
+// Before
+import * as handlers from "@eserstack/kit/recipes/handlers";
+const addWidget = handlers.addRecipe.addRecipe({
+  recipeName: "widget",
+  cwd: ".",
+});
+```
+
+```bash
+# After
+npx eser kit add widget
+```
 
 ## Upgrading from 4.x
 

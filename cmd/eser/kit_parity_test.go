@@ -5,25 +5,19 @@ package main
 import (
 	"bytes"
 	"context"
-	"io"
-	"net"
-	"net/http"
-	"net/http/httptest"
+	"encoding/json"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"sort"
-	"strings"
 	"testing"
-	"time"
 )
 
-// The parity tests run the same kit command through this Go CLI and through
-// the TypeScript CLI (pkg/@eserstack/kit/main.ts) on copies of one fixture,
-// and compare the trees they leave byte for byte. Both sides read GitHub from
-// a local fake: the Go CLI through its HTTP client, the TypeScript CLI through
-// HTTPS_PROXY, a local CONNECT proxy in front of a TLS server.
+// The parity tests run kit commands through this Go CLI on one fixture, with
+// GitHub served by a local fake, and compare the trees they leave byte for
+// byte with testdata/kit_trees.json: the trees the TypeScript kit CLI left on
+// the same fixture before it was deleted (TASK-255), where it matched the Go
+// CLI with and without the native library.
 
 const kitRegistryManifest = `{
   "$schema": "https://eser.live/registry/v1.json",
@@ -153,139 +147,6 @@ func kitFixture(t *testing.T) (*fakeGitHub, string) {
 	return &fakeGitHub{repos: map[string]string{"acme/kit": registry, "acme/tpl": template, "acme/files": files}}, filepath.Join(registry, ".eser", "recipes.json")
 }
 
-// startConnectProxy serves g over TLS behind a CONNECT proxy and returns
-// the proxy URL.
-func startConnectProxy(t *testing.T, g http.Handler) string {
-	t.Helper()
-
-	tlsServer := httptest.NewTLSServer(g)
-	t.Cleanup(tlsServer.Close)
-
-	proxy := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodConnect {
-			http.Error(w, "only CONNECT", http.StatusMethodNotAllowed)
-
-			return
-		}
-
-		upstream, err := net.Dial("tcp", tlsServer.Listener.Addr().String()) //nolint:noctx // a test proxy
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadGateway)
-
-			return
-		}
-
-		client, _, err := w.(http.Hijacker).Hijack() //nolint:forcetypeassert // the test server supports it
-		if err != nil {
-			_ = upstream.Close()
-
-			return
-		}
-
-		_, _ = client.Write([]byte("HTTP/1.1 200 Connection Established\r\n\r\n"))
-
-		go func() {
-			_, _ = io.Copy(upstream, client)
-			_ = upstream.Close()
-		}()
-
-		_, _ = io.Copy(client, upstream)
-		_ = client.Close()
-	}))
-	t.Cleanup(proxy.Close)
-
-	return proxy.URL
-}
-
-// repoRoot is the monorepo root, two levels above this package.
-func repoRoot(t *testing.T) string {
-	t.Helper()
-
-	root, err := filepath.Abs(filepath.Join("..", ".."))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if _, err := os.Stat(filepath.Join(root, "pkg", "@eserstack", "kit", "main.ts")); err != nil {
-		t.Skipf("the TypeScript kit is not at %s: %v", root, err)
-	}
-
-	return root
-}
-
-// tsKitRun is one way to run the TypeScript CLI.
-type tsKitRun struct {
-	name string
-	// env is added to the process environment.
-	env []string
-	// ajanDisabled: the run has no native library, so it cannot extract a
-	// tarball (recipes/tar.ts runs on the Go extractor since TASK-234).
-	ajanDisabled bool
-}
-
-// tsKitRuns are the TypeScript runs each Go run is compared with: the
-// default environment, where kit may route through the native ajan library,
-// and ESER_AJAN=disabled, where it uses its own TypeScript engine.
-var tsKitRuns = []tsKitRun{
-	{name: "ts-default", env: []string{"ESER_AJAN_DEBUG=1"}, ajanDisabled: false},
-	{name: "ts-engine", env: []string{"ESER_AJAN=disabled"}, ajanDisabled: true},
-}
-
-func runTSKit(t *testing.T, run tsKitRun, proxyURL, dir string, args []string) string {
-	t.Helper()
-
-	node, err := exec.LookPath("node")
-	if err != nil {
-		t.Skip("node is not on PATH")
-	}
-
-	root := repoRoot(t)
-
-	if _, err := os.Stat(filepath.Join(root, "node_modules")); err != nil {
-		t.Skipf("the TypeScript kit's dependencies are not installed at %s: %v", root, err)
-	}
-
-	ctx, cancel := context.WithTimeout(t.Context(), 2*time.Minute)
-	defer cancel()
-
-	full := append([]string{filepath.Join(root, "pkg", "@eserstack", "kit", "main.ts")}, args...)
-
-	cmd := exec.CommandContext(ctx, node, full...)
-	cmd.Dir = dir
-
-	environ := make([]string, 0, len(os.Environ())+4+len(run.env))
-
-	for _, entry := range os.Environ() {
-		key, _, _ := strings.Cut(entry, "=")
-		switch strings.ToUpper(key) {
-		case "HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "NO_PROXY", "ESER_AJAN", "ESER_AJAN_DEBUG",
-			"NODE_USE_ENV_PROXY", "NODE_TLS_REJECT_UNAUTHORIZED":
-			continue
-		}
-
-		environ = append(environ, entry)
-	}
-
-	// NODE_USE_ENV_PROXY makes Node's fetch go through HTTPS_PROXY, and
-	// NODE_TLS_REJECT_UNAUTHORIZED=0 accepts the fake's self-signed test
-	// certificate, which is not issued for the GitHub host names.
-	environ = append(environ,
-		"HTTPS_PROXY="+proxyURL, "NODE_USE_ENV_PROXY=1", "NODE_TLS_REJECT_UNAUTHORIZED=0", "NO_COLOR=1")
-	environ = append(environ, run.env...)
-	cmd.Env = environ
-
-	var output bytes.Buffer
-
-	cmd.Stdout = &output
-	cmd.Stderr = &output
-
-	if err := cmd.Run(); err != nil {
-		t.Fatalf("%s %v: %v\n%s", run.name, args, err, output.String())
-	}
-
-	return output.String()
-}
-
 func runGoKit(t *testing.T, g *fakeGitHub, dir string, args []string) string {
 	t.Helper()
 
@@ -325,24 +186,30 @@ func diffTrees(t *testing.T, label string, want, got map[string]string) {
 
 		switch {
 		case !inWant:
-			t.Errorf("%s: %s is only in the TypeScript tree", label, name)
-		case !inGot:
 			t.Errorf("%s: %s is only in the Go tree", label, name)
+		case !inGot:
+			t.Errorf("%s: %s is only in the recorded tree", label, name)
 		case w != g:
-			t.Errorf("%s: %s differs\n go: %q\n ts: %q", label, name, w, g)
+			t.Errorf("%s: %s differs\n recorded: %q\n go:       %q", label, name, w, g)
 		}
 	}
 }
 
-func TestKitParityWithTypeScript(t *testing.T) {
+func TestKitMatchesTheRecordedTrees(t *testing.T) {
 	t.Parallel()
 
 	if runtime.GOOS == "windows" {
 		t.Skip("the fixture's post-install commands use touch")
 	}
 
-	if _, err := exec.LookPath("node"); err != nil {
-		t.Skip("node is not on PATH")
+	data, err := os.ReadFile(filepath.Join("testdata", "kit_trees.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var recorded map[string]map[string]string
+	if err := json.Unmarshal(data, &recorded); err != nil {
+		t.Fatal(err)
 	}
 
 	cases := []struct {
@@ -352,10 +219,6 @@ func TestKitParityWithTypeScript(t *testing.T) {
 		args  func(manifest string) []string
 		// sub is the directory compared, relative to the run's directory.
 		sub string
-		// extracts: the run downloads and extracts a tarball. The ts-default
-		// run still covers the TypeScript engine there, since a whole-repo
-		// clone never takes the FFI fast path of clone-recipe.ts.
-		extracts bool
 	}{
 		{
 			name:  "add with requires, a folder, an existing file and variables",
@@ -403,8 +266,7 @@ func TestKitParityWithTypeScript(t *testing.T) {
 			args: func(string) []string {
 				return []string{"clone", "acme/tpl", "my-app", "--var", "module=acme.dev/x", "--no-interactive"}
 			},
-			sub:      "my-app",
-			extracts: true,
+			sub: "my-app",
 		},
 		{
 			name:  "clone a recipe with a file list",
@@ -424,36 +286,27 @@ func TestKitParityWithTypeScript(t *testing.T) {
 		},
 	}
 
+	if len(recorded) != len(cases) {
+		t.Errorf("%d recorded trees for %d cases", len(recorded), len(cases))
+	}
+
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
+			want, ok := recorded[tc.name]
+			if !ok {
+				t.Fatalf("no recorded tree for %q", tc.name)
+			}
+
 			g, manifest := kitFixture(t)
-			proxyURL := startConnectProxy(t, g)
 
-			goDir := t.TempDir()
-			writeFiles(t, goDir, tc.setup)
-			goOutput := runGoKit(t, g, goDir, tc.args(manifest))
-			goTree := readTree(t, filepath.Join(goDir, tc.sub))
+			dir := t.TempDir()
+			writeFiles(t, dir, tc.setup)
+			output := runGoKit(t, g, dir, tc.args(manifest))
 
-			if len(goTree) == 0 {
-				t.Fatalf("the Go run wrote nothing:\n%s", goOutput)
-			}
-
-			for _, tsRun := range tsKitRuns {
-				if tc.extracts && tsRun.ajanDisabled {
-					continue
-				}
-
-				tsDir := t.TempDir()
-				writeFiles(t, tsDir, tc.setup)
-				tsOutput := runTSKit(t, tsRun, proxyURL, tsDir, tc.args(manifest))
-				t.Logf("%s output:\n%s", tsRun.name, tsOutput)
-
-				diffTrees(t, tsRun.name, goTree, readTree(t, filepath.Join(tsDir, tc.sub)))
-			}
-
-			t.Logf("go output:\n%s", goOutput)
+			diffTrees(t, tc.name, want, readTree(t, filepath.Join(dir, tc.sub)))
+			t.Logf("go output:\n%s", output)
 		})
 	}
 }

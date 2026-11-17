@@ -1,0 +1,57 @@
+{
+  "add as a dry run": {
+    "keep.txt": "a dry run writes nothing next to this\n"
+  },
+  "add with requires, a folder, an existing file and variables": {
+    "assets/a.txt": "asset of demo-app\n",
+    "assets/notes.md": "# notes for demo-app\n",
+    "base.txt": "base of demo-app\n",
+    "config/base.json": "kept: the conflict is skipped\n",
+    "post-installed.txt": "",
+    "src/widget.ts": "export const widget = \"demo-app\"; // hello acme.dev/widget {{.extra}}\n",
+    "{{.project_name}}/name.txt": "demo-app\n"
+  },
+  "add with skip-existing": {
+    "assets/a.txt": "asset of demo\n",
+    "assets/notes.md": "# notes for demo\n",
+    "base.txt": "base of demo\n",
+    "config/base.json": "{ \"name\": \"demo\", \"keep\": \"{{.undeclared}}\" }\n",
+    "post-installed.txt": "",
+    "src/widget.ts": "kept\n",
+    "{{.project_name}}/name.txt": "demo\n"
+  },
+  "clone a recipe with a file list": {
+    "b.txt": "b of demo\n",
+    "cloned.txt": "",
+    "out/a.txt": "a of demo\n"
+  },
+  "clone a whole repository with ignore globs and path variables": {
+    "README.md": "kept: the conflict is skipped\n",
+    "lib/acme.dev/x.txt": "acme.dev/x\n",
+    "logo.png": "binary {{.project_name}} stays\n",
+    "my-app/main.txt": "main of my-app\n",
+    "nested/recipe.json": "only the top-level recipe.json is ignored\n",
+    "src/{{.missing}}/mod.txt": "an unresolved path placeholder loses its spaces\n"
+  },
+  "new with a name and a variable": {
+    ".created": "",
+    "README.md": "# demo\n\nBy Grace.\n",
+    "public/a.txt": "asset of demo\n",
+    "public/notes.md": "# notes for demo\n",
+    "src/main.ts": "console.log(\"demo\");\n"
+  },
+  "new without post-install over an existing file": {
+    "README.md": "# app\n\nBy Ada.\n",
+    "public/a.txt": "asset of app\n",
+    "public/notes.md": "# notes for app\n",
+    "src/main.ts": "console.log(\"app\");\n"
+  },
+  "update overwrites the recipe's files": {
+    "assets/a.txt": "asset of demo\n",
+    "assets/notes.md": "# notes for demo\n",
+    "base.txt": "not part of widget\n",
+    "post-installed.txt": "",
+    "src/widget.ts": "export const widget = \"demo\"; // hello acme.dev/widget {{.extra}}\n",
+    "{{.project_name}}/name.txt": "demo\n"
+  }
+}

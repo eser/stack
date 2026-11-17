@@ -54,9 +54,6 @@ importers:
       '@eserstack/httpclient':
         specifier: workspace:*
         version: link:../httpclient
-      '@eserstack/logging':
-        specifier: workspace:*
-        version: link:../logging
       '@eserstack/primitives':
         specifier: workspace:*
         version: link:../primitives
@@ -265,9 +262,6 @@ importers:
       '@eserstack/formats':
         specifier: workspace:*
         version: link:../formats
-      '@eserstack/primitives':
-        specifier: workspace:*
-        version: link:../primitives
       '@eserstack/shell':
         specifier: workspace:*
         version: link:../shell
@@ -425,9 +419,6 @@ importers:
       '@eserstack/primitives':
         specifier: workspace:*
         version: link:../primitives
-      '@eserstack/shell':
-        specifier: workspace:*
-        version: link:../shell
       '@eserstack/standards':
         specifier: workspace:*
         version: link:../standards
@@ -876,9 +867,6 @@ importers:
       '@eserstack/standards':
         specifier: workspace:*
         version: link:../standards
-      '@eserstack/streams':
-        specifier: workspace:*
-        version: link:../streams
       yaml:
         specifier: ^2.9.1
         version: 2.9.1

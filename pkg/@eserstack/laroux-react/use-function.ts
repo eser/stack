@@ -7,15 +7,17 @@
  * @example
  * ```tsx
  * import * as larouxReact from "@eserstack/laroux-react";
- * import * as kitHandlers from "@eserstack/kit/recipes/handlers";
+ * import * as task from "@eserstack/functions/task";
+ * import * as results from "@eserstack/primitives/results";
  *
- * type RecipesPageProps = { readonly params: { readonly lang: string } };
+ * const greet = (name: string) =>
+ *   task.task<string, Error, larouxReact.FunctionContext>(async (ctx) => {
+ *     ctx.out.writeln(`Greeting ${name}`);
+ *     return results.ok(`Hello, ${name}`);
+ *   });
  *
- * export async function RecipesPage(props: RecipesPageProps) {
- *   const output = await larouxReact.runFunction(
- *     kitHandlers.listRecipes.listRecipes({ language: props.params.lang }),
- *   );
- *   return <div>{output.recipes.map((r) => <p key={r.name}>{r.name}</p>)}</div>;
+ * export async function GreetingPage() {
+ *   return <p>{await larouxReact.runFunction(greet("Ada"))}</p>;
  * }
  * ```
  *

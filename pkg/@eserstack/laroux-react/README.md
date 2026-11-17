@@ -218,27 +218,34 @@ const element = renderer.render([
 ### Running Handlers in Server Components
 
 Use `runFunction()` to run `@eserstack/functions` handlers inside React Server
-Components. The same handler that powers `eser kit list` in the terminal can
-fetch data for a web page:
+Components. A handler that a CLI command runs can fetch data for a web page
+too:
 
 ```tsx
-// src/app/routes/recipes/[lang]/page.tsx
+// src/app/routes/posts/[lang]/page.tsx
 import * as larouxReact from "@eserstack/laroux-react";
-import * as kitHandlers from "@eserstack/kit/recipes/handlers";
+import * as task from "@eserstack/functions/task";
+import * as results from "@eserstack/primitives/results";
+import * as posts from "../../../../posts.ts";
 
-type RecipesPageProps = { readonly params: { readonly lang: string } };
-
-export async function RecipesPage(props: RecipesPageProps) {
-  const output = await larouxReact.runFunction(
-    kitHandlers.listRecipes.listRecipes({ language: props.params.lang }),
+// Writes progress to ctx.out and returns the data, wherever it runs.
+const listPosts = (lang: string) =>
+  task.task<readonly posts.Post[], Error, larouxReact.FunctionContext>(
+    async (ctx) => {
+      ctx.out.writeln(`Listing the ${lang} posts`);
+      return results.ok(await posts.load(lang));
+    },
   );
+
+type PostsPageProps = { readonly params: { readonly lang: string } };
+
+export async function PostsPage(props: PostsPageProps) {
+  const items = await larouxReact.runFunction(listPosts(props.params.lang));
 
   return (
     <ul>
-      {output.recipes.map((recipe) => (
-        <li key={recipe.name}>
-          {recipe.name}: {recipe.description}
-        </li>
+      {items.map((post) => (
+        <li key={post.slug}>{post.title}</li>
       ))}
     </ul>
   );

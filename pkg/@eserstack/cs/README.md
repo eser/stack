@@ -73,8 +73,8 @@ Here you'll find examples of how to use `@eserstack/cs` for different scenarios.
 
 ### CLI Usage
 
-The `eser` CLI runs these commands as `eser cs`. From a checkout of this
-package, `node cli.ts` takes the same commands and flags.
+The Go `eser` runs these commands as `eser cs`
+([cmd/eser](../../../cmd/eser/README.md#kubernetes-config-eser-cs)).
 
 **Generate a ConfigMap from the `.env` files of an environment:**
 
@@ -226,6 +226,18 @@ official API specifications.
 does not define; the key is left out of the patch. `getResourceKeys(resource)`
 replaces the `kubectl get` key lookup, and `cwd` sets the directory the `.env`
 files are read from.
+
+## Upgrading from 5.0.0
+
+The TypeScript cs CLI and its `./cli` export are removed; `eser cs` runs the
+same commands with the same flags.
+
+```bash
+# Before
+node node_modules/@eserstack/cs/cli.ts generate cm/app-config -e production
+# After
+npx eser cs generate cm/app-config -e production
+```
 
 ## Upgrading from 4.x
 

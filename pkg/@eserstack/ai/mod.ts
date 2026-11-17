@@ -102,6 +102,3 @@ export { Registry } from "./registry.ts";
 // Detection
 export type { ProviderStatus } from "./detect.ts";
 export { detectAllProviders, getAvailableProviderNames } from "./detect.ts";
-
-// Module (CLI integration)
-export { moduleDef } from "./module.ts";

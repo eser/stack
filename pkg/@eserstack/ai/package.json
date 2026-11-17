@@ -13,27 +13,20 @@
     "dist/**/*.json"
   ],
   "exports": {
-    ".": "./main.ts",
+    ".": "./mod.ts",
     "./mod": "./mod.ts",
-    "./module": "./module.ts",
     "./adapters": "./adapters/mod.ts",
-    "./streams": "./streams/mod.ts",
-    "./commands/ask": "./commands/ask.ts",
-    "./commands/list": "./commands/list.ts"
+    "./streams": "./streams/mod.ts"
   },
   "publishConfig": {
     "exports": {
       ".": {
-        "types": "./dist/main.d.ts",
-        "import": "./dist/main.js"
+        "types": "./dist/mod.d.ts",
+        "import": "./dist/mod.js"
       },
       "./mod": {
         "types": "./dist/mod.d.ts",
         "import": "./dist/mod.js"
-      },
-      "./module": {
-        "types": "./dist/module.d.ts",
-        "import": "./dist/module.js"
       },
       "./adapters": {
         "types": "./dist/adapters/mod.d.ts",
@@ -42,14 +35,6 @@
       "./streams": {
         "types": "./dist/streams/mod.d.ts",
         "import": "./dist/streams/mod.js"
-      },
-      "./commands/ask": {
-        "types": "./dist/commands/ask.d.ts",
-        "import": "./dist/commands/ask.js"
-      },
-      "./commands/list": {
-        "types": "./dist/commands/list.d.ts",
-        "import": "./dist/commands/list.js"
       }
     }
   },
@@ -60,7 +45,6 @@
     "@anthropic-ai/sdk": "^1.7.0",
     "@eserstack/ajan": "workspace:*",
     "@eserstack/httpclient": "workspace:*",
-    "@eserstack/logging": "workspace:*",
     "@eserstack/primitives": "workspace:*",
     "@eserstack/shell": "workspace:*",
     "@eserstack/standards": "workspace:*",

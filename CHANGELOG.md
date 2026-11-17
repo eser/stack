@@ -42,6 +42,21 @@ and this project adheres to
   npx eser workflows run -e precommit
   ```
 
+- The TypeScript CLIs of `@eserstack/ai`, `@eserstack/cs`, `@eserstack/kit`
+  and `@eserstack/workflows` are removed; `eser ai`, `eser cs`, `eser kit` and
+  `eser workflows` run the same commands. Each package root is its library
+  (`./recipes` for kit). The removed exports are `./module` of ai, kit and
+  workflows, `./commands/ask` and `./commands/list` of ai, `./cli` of cs,
+  `./mod` and `./recipes/handlers` (with its add, list, clone and update
+  entries) of kit, and `./run` and `./list` of workflows.
+
+  ```bash
+  # Before
+  node node_modules/@eserstack/workflows/main.ts run -e precommit
+  # After
+  npx eser workflows run -e precommit
+  ```
+
 ## 5.0.0 - 2026-11-16
 
 ### Added

@@ -5,8 +5,8 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -53,18 +53,19 @@ var csGenerateCases = [][]string{ //nolint:gochecknoglobals
 	{"generate", "cm/app-config"}, // the development environment by default
 }
 
-// TestCSGenerateMatchesTypeScript runs each case through the TypeScript cs
-// CLI and the Go one on the same fixture and compares the output.
-func TestCSGenerateMatchesTypeScript(t *testing.T) {
+// TestCSGenerateMatchesTheRecordedOutput runs each case through the Go cs
+// and compares the output with testdata/cs_generate.json: what the TypeScript
+// cs CLI printed on the same fixture before it was deleted (TASK-255).
+func TestCSGenerateMatchesTheRecordedOutput(t *testing.T) {
 	t.Parallel()
 
-	node, err := exec.LookPath("node")
+	data, err := os.ReadFile(filepath.Join("testdata", "cs_generate.json"))
 	if err != nil {
-		t.Skip("node is not installed; the TypeScript comparison needs it")
+		t.Fatal(err)
 	}
 
-	repo, err := filepath.Abs("../..")
-	if err != nil {
+	var recorded map[string]string
+	if err := json.Unmarshal(data, &recorded); err != nil {
 		t.Fatal(err)
 	}
 
@@ -72,31 +73,21 @@ func TestCSGenerateMatchesTypeScript(t *testing.T) {
 		t.Run(strings.Join(args, " "), func(t *testing.T) {
 			t.Parallel()
 
+			want, ok := recorded[strings.Join(args, " ")]
+			if !ok {
+				t.Fatalf("no recorded output for %v", args)
+			}
+
 			e := testEnv(t)
 			writeCSFixture(t, e.cwd)
 
-			goOut, goErr, code := runCLI(t, e, append([]string{"cs"}, args...)...)
+			got, stderr, code := runCLI(t, e, append([]string{"cs"}, args...)...)
 			if code != 0 {
-				t.Fatalf("eser cs: exit %d: %s", code, goErr)
+				t.Fatalf("eser cs: exit %d: %s", code, stderr)
 			}
 
-			// The TypeScript CLI loads the ajan library: its .env reading runs in
-			// configfx, so it has no path without the bridge (TASK-267).
-			cmd := exec.Command(node, append([]string{ //nolint:gosec,noctx
-				filepath.Join(repo, "pkg/@eserstack/cs/cli.ts"),
-			}, args...)...)
-			cmd.Dir = e.cwd
-			// Neither side reads process variables for generate, but the
-			// environment name falls back to $ENV and friends.
-			cmd.Env = []string{"PATH=" + os.Getenv("PATH"), "HOME=" + os.Getenv("HOME")}
-
-			tsOut, err := cmd.Output()
-			if err != nil {
-				t.Fatalf("TypeScript cs: %v", err)
-			}
-
-			if goOut != string(tsOut) {
-				t.Errorf("--- TypeScript\n%s\n--- Go\n%s", tsOut, goOut)
+			if got != want {
+				t.Errorf("--- recorded\n%s\n--- Go\n%s", want, got)
 			}
 		})
 	}

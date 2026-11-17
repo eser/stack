@@ -22,8 +22,8 @@ import (
 // `eser workflows` runs the workflows of .eser/manifest.yml on the Go engine,
 // pkg/ajan/workflowfx (M3-T7). The manifest's step names resolve to the
 // built-in tools (shell and the file tools) and to the codebasefx validators
-// under their validate-* names. Its flags and output lines match the
-// TypeScript `workflows run` (pkg/@eserstack/workflows/run.ts).
+// under their validate-* names. Its flags and output lines are those of the
+// TypeScript `workflows run` it replaced (TASK-255).
 
 // gitDiffTimeout bounds the `git diff` of --changed, so a held index lock or a
 // credential prompt cannot stall the run.

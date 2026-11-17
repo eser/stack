@@ -7,8 +7,9 @@
  * programmatically with the builder, register tools into a registry,
  * and run them through the engine.
  *
- * For file-based config loading, use `@eserstack/workflows/loader`.
- * For CLI execution, use `@eserstack/workflows/run`.
+ * For file-based config loading, use `@eserstack/workflows/loader`. To run
+ * the workflows of `.eser/manifest.yml` from a terminal, use
+ * `eser workflows run`.
  *
  * @example
  * ```typescript

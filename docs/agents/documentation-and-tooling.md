@@ -47,14 +47,13 @@ package's source is the reference, and `pnpm cli docs-lint`
 
 ## CLI-first packages
 
-`ai`, `codebase`, `kit`, `noskills` and `workflows` map the `.` export to their
-CLI `main.ts` (`node ./pkg/@eserstack/workflows/main.ts` starts the workflows
-CLI). Each one publishes its library as `./mod`, which READMEs import as
-`import * as workflows from "@eserstack/workflows/mod"`
-(documentation-conventions: README Import Pattern), and its command tree as
-`./module`. The
-`./mod` of `kit` holds only `moduleDef`; its recipe library is the `./recipes`
-export.
+`noskills` maps the `.` export to its CLI `main.ts`, publishes its library as
+`./mod`, which READMEs import as `import * as noskills from
+"@eserstack/noskills/mod"` (documentation-conventions: README Import Pattern),
+and its command tree as `./module`. `ai`, `codebase`, `kit` and `workflows`
+did the same until their commands moved to the Go eser (TASK-255); their `.`
+export is now the library, and `./mod` stays as an alias of it, except in
+`kit`, whose library is `./recipes`.
 `laroux-server` is not one of them: its `.` export is the server library
 (`startServer`), and its CLI is the `./cli` export and the `laroux` npm binary.
 

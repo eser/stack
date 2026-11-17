@@ -9,7 +9,7 @@ import (
 )
 
 // progressColumn is where the status column starts, as in the TypeScript run
-// command (pkg/@eserstack/workflows/run.ts).
+// command `eser workflows run` replaced (TASK-255).
 const progressColumn = 50
 
 // ProgressPrinter returns an OnStepEnd callback that prints each step as it

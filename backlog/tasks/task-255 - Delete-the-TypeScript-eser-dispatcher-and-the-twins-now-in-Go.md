@@ -1,10 +1,10 @@
 ---
 id: TASK-255
 title: Delete the TypeScript eser dispatcher and the twins now in Go
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2026-10-15 20:38'
-updated_date: '2026-11-17 09:03'
+updated_date: '2026-11-17 16:36'
 labels:
   - cli
   - codebase
@@ -40,4 +40,8 @@ Plan key: M3-T12. Effort: medium.
 Deleting pkg/@eserstack/cli/scripts/npm-build.ts also removes the last users of @eserstack/codebase/npm-externals and npm-workspace-specifiers once TASK-262 deletes the noskills one: delete both modules, their tests and exports, and the esbuild devDependency of cli. codebase/cli-system is not deleted: TASK-403 moves it to @eserstack/shell, because laroux keeps a TypeScript bin with the system commands.
 
 Owner decision (2026-11-17): port every TS-only eser command to Go before deleting the TS CLI: the codebase alias `.`, workflows `wf`, noskills `nos`, `codebase commitmsg` (on aifx), `ajan version`, the `system` group with `info` and `completions`, and `codebase validate-code-conventions --write-baseline` (codebasefx.WriteCodeConventionsBaseline exists, nothing calls it).
+
+Owner decision (2026-11-17): delete the TS CLI modules now and stay on 5.x, without a deprecation period or a major bump; the npm-externals and npm-workspace-specifiers exports removed by TASK-254 stay removed.
+
+Step 1 (2026-11-17): the Go eser has every TS-only command: the aliases codebase . and workflows wf and the noskills alias nos (forward.go pluginAliases), the system group (install, uninstall, update, completions --shell, version, doctor, info), ajan version (the linked Go library), codebase validate-code-conventions --write-baseline (byte-identical to the TS writer on this repo) and codebase commitmsg on aifx (cmd/eser/codebase_commitmsg.go). clifx exports CompletionScript. Tests first for each.
 <!-- SECTION:NOTES:END -->

@@ -318,3 +318,26 @@ func TestCompletions(t *testing.T) {
 		t.Errorf("an unknown shell: code %d, stderr %q", code, stderr)
 	}
 }
+
+func TestCompletionScriptIsTheCompletionCommandsScript(t *testing.T) {
+	t.Parallel()
+
+	for _, shell := range []string{"bash", "zsh", "fish"} {
+		var record ran
+
+		app, out, _ := newApp(&record)
+
+		if code := app.Run(context.Background(), []string{"completion", shell}); code != clifx.ExitOK {
+			t.Fatalf("completion %s: exit %d", shell, code)
+		}
+
+		script, ok := clifx.CompletionScript(app.Name, shell)
+		if !ok || script != out.String() {
+			t.Errorf("CompletionScript(%q, %q) = %q, %v; completion prints %q", app.Name, shell, script, ok, out.String())
+		}
+	}
+
+	if _, ok := clifx.CompletionScript("eser", "tcsh"); ok {
+		t.Error("tcsh has no completion script")
+	}
+}

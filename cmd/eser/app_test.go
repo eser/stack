@@ -99,6 +99,7 @@ func TestResolvePlugin(t *testing.T) {
 		{name: "a known bin on PATH", command: "laroux", path: []string{larouxDir}, program: filepath.Join(larouxDir, "laroux")},
 		{name: "a known bin in a later ESER_PLUGIN_PATH entry", command: "laroux", plugins: pluginDir + string(os.PathListSeparator) + larouxDir, program: filepath.Join(larouxDir, "laroux")},
 		{name: "a known bin in ESER_PLUGIN_PATH", command: "noskills", plugins: pluginDir, program: filepath.Join(pluginDir, "noskills")},
+		{name: "nos is noskills", command: "nos", plugins: pluginDir, program: filepath.Join(pluginDir, "noskills")},
 		{name: "the npx fallback pins the eser version", command: "noskills", path: []string{npxDir}, program: filepath.Join(npxDir, "npx"), args: []string{"--yes", "noskills@4.5.2"}},
 		{name: "a dev build asks npx for the package without a version", command: "laroux", path: []string{npxDir}, version: "dev", program: filepath.Join(npxDir, "npx"), args: []string{"--yes", "laroux"}},
 		{name: "no npx: the npm install command", command: "noskills", message: "Install it with: npm install -g noskills@4.5.2"},
@@ -399,6 +400,27 @@ func TestForwardReachesThePackedCLIs(t *testing.T) {
 
 			if out := e.stdout.(*bytes.Buffer).String(); !strings.Contains(out, tc.want) { //nolint:forcetypeassert
 				t.Errorf("eser %s --help printed:\n%s", tc.command, out)
+			}
+		})
+	}
+}
+
+// The short names the TypeScript eser mounted (TASK-255): `eser .` and
+// `eser cb` for codebase, and `eser wf` for workflows.
+func TestCommandAliases(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct{ alias, usage string }{
+		{".", "Usage: eser codebase <command>"},
+		{"cb", "Usage: eser codebase <command>"},
+		{"wf", "Usage: eser workflows <command>"},
+	} {
+		t.Run(tc.alias, func(t *testing.T) {
+			t.Parallel()
+
+			out, stderr, code := runCLI(t, testEnv(t), tc.alias, "--help")
+			if code != 0 || !strings.Contains(out, tc.usage) {
+				t.Errorf("eser %s --help: exit %d\n%s%s", tc.alias, code, out, stderr)
 			}
 		})
 	}

@@ -3,13 +3,17 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"flag"
+	"fmt"
+	"io"
 	"maps"
 	"strings"
 	"time"
 
 	"github.com/eser/stack/pkg/ajan/clifx"
+	"github.com/eser/stack/pkg/ajan/codebasefx"
 	"github.com/eser/stack/pkg/ajan/workflowfx"
 )
 
@@ -18,6 +22,29 @@ import (
 
 // validatorTimeout is the deadline of a validator run from the command line.
 const validatorTimeout = 5 * time.Minute
+
+// codeConventionsValidator is the validator with a --write-baseline flag.
+const codeConventionsValidator = "validate-code-conventions"
+
+// writeCodeConventionsBaseline records every current violation of
+// validate-code-conventions under root as its baseline. The validator fails
+// only above it; after a migration, rewrite it to shrink the counts.
+func writeCodeConventionsBaseline(c *clifx.Context, root string) error {
+	ctx, cancel := context.WithTimeout(c, validatorTimeout)
+	defer cancel()
+
+	total, err := codebasefx.WriteCodeConventionsBaseline(ctx, root, codebasefx.DefaultCodeConventionsBaseline)
+	if err != nil {
+		return err //nolint:wrapcheck // the error names the file
+	}
+
+	return c.Output(map[string]any{"baseline": codebasefx.DefaultCodeConventionsBaseline, "violations": total},
+		func(w io.Writer) error {
+			_, err := fmt.Fprintf(w, "Wrote %s: %d violation(s).\n", codebasefx.DefaultCodeConventionsBaseline, total)
+
+			return err //nolint:wrapcheck
+		})
+}
 
 // validatorCommands returns a command for every validate-* tool of the
 // workflow registry.
@@ -53,9 +80,17 @@ func validatorCommand(e *env, name, description string) *clifx.Command {
 			fs.String("root", ".", "the directory to validate")
 			fs.Var(&varsFlag{}, "exclude", "skip paths that contain this text (repeatable)")
 			fs.Bool("no-manifest", false, "ignore the options of the manifest step")
+
+			if name == codeConventionsValidator {
+				fs.Bool("write-baseline", false, "record the current violations as the baseline instead of checking")
+			}
 		},
 		Run: func(c *clifx.Context) error {
 			root := e.resolveDir(c.String("root"))
+
+			if name == codeConventionsValidator && c.Bool("write-baseline") {
+				return writeCodeConventionsBaseline(c, root)
+			}
 
 			step := workflowfx.StepConfig{Name: name, Options: map[string]any{}} //nolint:exhaustruct
 			if !c.Bool("no-manifest") {

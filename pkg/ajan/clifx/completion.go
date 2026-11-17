@@ -32,6 +32,14 @@ func (a *App) completion(args []string) int {
 	return ExitOK
 }
 
+// CompletionScript returns the completion script of the app called name for
+// shell (bash, zsh or fish), which calls the app back with its hidden
+// completion word; ok is false for any other shell. `<name> completion
+// <shell>` prints the same script.
+func CompletionScript(name, shell string) (string, bool) {
+	return completionScript(name, shell)
+}
+
 func completionScript(name, shell string) (string, bool) {
 	fn := "_" + strings.NewReplacer("-", "_", ".", "_").Replace(name) + "_complete"
 

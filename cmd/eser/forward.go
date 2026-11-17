@@ -29,6 +29,10 @@ var knownPlugins = map[string]knownPlugin{ //nolint:gochecknoglobals
 	"posts":    {bin: "eser-posts", npmPackage: "@eserstack/posts"},
 }
 
+// pluginAliases are the short names of the known plugins, which the
+// TypeScript eser mounted too: `eser nos` runs `eser noskills`.
+var pluginAliases = map[string]string{"nos": "noskills"} //nolint:gochecknoglobals
+
 var semverPattern = regexp.MustCompile(`^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$`) //nolint:gochecknoglobals
 
 // resolution is how forward runs a command: a program and its leading
@@ -47,6 +51,10 @@ type resolution struct {
 func resolvePlugin(e *env, name string) resolution {
 	if name == "" || strings.ContainsAny(name, `/\`) || strings.Contains(name, "..") {
 		return resolution{message: fmt.Sprintf("%q is not a command name", name)} //nolint:exhaustruct
+	}
+
+	if canonical, ok := pluginAliases[name]; ok {
+		name = canonical
 	}
 
 	if path, err := e.lookPath(pluginPrefix + name); err == nil {

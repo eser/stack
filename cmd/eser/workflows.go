@@ -70,8 +70,9 @@ func loadWorkflows(dir string) (*workflowfx.WorkflowsConfig, error) {
 
 func workflowsCommand(e *env) *clifx.Command {
 	return &clifx.Command{ //nolint:exhaustruct
-		Name:  "workflows",
-		Short: "Run and list the workflows of .eser/manifest.yml",
+		Name:    "workflows",
+		Aliases: []string{"wf"},
+		Short:   "Run and list the workflows of .eser/manifest.yml",
 		Subcommands: []*clifx.Command{
 			workflowsRunCommand(e),
 			workflowsListCommand(e),

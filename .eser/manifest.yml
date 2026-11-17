@@ -147,7 +147,7 @@ workflows:
       # (javascript-practices). Existing
       # violations are listed in .eser/baselines/code-conventions.json; only
       # new ones fail. Shrink the baseline after migrating files with
-      # `node ./pkg/@eserstack/codebase/validate-code-conventions.ts --write-baseline`.
+      # `go run ./cmd/eser codebase validate-code-conventions --write-baseline`.
       - validate-code-conventions
       # camelCase declared names and TODO(TASK-<number>) comments, which oxlint
       # does not check (decision-21, decision-34).

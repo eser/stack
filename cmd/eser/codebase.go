@@ -92,7 +92,7 @@ func lineDiff(a, b []string) ([]string, []string) {
 func codebaseCommand(e *env) *clifx.Command {
 	return &clifx.Command{ //nolint:exhaustruct
 		Name:    "codebase",
-		Aliases: []string{"cb"},
+		Aliases: []string{"cb", "."},
 		Short:   "Git hooks, validators, release, version and distribution commands",
 		Subcommands: append([]*clifx.Command{
 			hooksInstallCommand(e),
@@ -106,6 +106,7 @@ func codebaseCommand(e *env) *clifx.Command {
 			nativeTypesCommand(e),
 			ghCommand(e),
 			distCommand(e),
+			commitmsgCommand(e),
 		}, validatorCommands(e)...),
 	}
 }

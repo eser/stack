@@ -1,11 +1,11 @@
 # eser (Go)
 
-The Go build of the eser CLI (M3-T4, ADR 0005). It does not replace the
-TypeScript CLI yet: it covers manifest scripts, the workflow runner and the
-gate (`eser ok`), the validators, git hooks and release commands of
-`eser codebase`, its own install, update and diagnosis, plugin forwarding,
-`eser codebase dist`, and `eser kit`, `eser cs` and `eser ai`. The other
-commands the TypeScript CLI implements itself come in later M3 tasks.
+The Go build of the eser CLI (M3-T4, ADR 0005), which every install channel
+ships; the npm package `eser` is a launcher of it (`pkg/@eserstack/eser-bin`).
+It covers manifest scripts, the workflow runner and the gate (`eser ok`), the
+validators, git hooks, release and AI commands of `eser codebase`, its own
+install, update and diagnosis, plugin forwarding, `eser codebase dist`, and
+`eser kit`, `eser cs` and `eser ai`.
 
 ```sh
 make build            # bin/eser, with the version from VERSION
@@ -30,6 +30,14 @@ bin/eser --help       # built-in commands and the manifest's scripts
   `npm install -g eser@latest` and changes nothing.
 - `eser doctor` reports the version, platform, binary, PATH, git, node, pnpm and
   go, the manifest and the git hooks; `--json` prints it as JSON.
+- `eser system` holds the same `install`, `uninstall`, `update`, `version` and
+  `doctor`, as the TypeScript CLI did, with `completions [--shell bash|zsh|fish]`
+  (the shell of `$SHELL` by default) and `info`, which reports the Go runtime,
+  the locations, the arguments, how eser was installed and selected
+  environment variables (`--json` too).
+- `eser ajan version` reports the Go library eser links in.
+- Short names: `eser cb` and `eser .` for `eser codebase`, `eser wf` for
+  `eser workflows`, `eser nos` for `eser noskills`.
 
 ## Workflows and the gate: `eser workflows`
 
@@ -68,6 +76,8 @@ the full gate; the root `package.json` runs it as `go run ./cmd/eser ok`.
 `--no-manifest` ignores them, `--root <dir>` validates another directory and
 `--exclude <text>` (repeatable) adds a skipped path. Every `validate-*` step of
 the manifest is one of these commands.
+`eser codebase validate-code-conventions --write-baseline` records the current
+violations as the rule's baseline, `.eser/baselines/code-conventions.json`.
 
 `eser codebase install` writes a `pre-commit`, `commit-msg` or `pre-push` hook
 for each event the manifest's workflows run on, into the hooks directory git
@@ -198,6 +208,12 @@ answer is written as it arrives, without the TypeScript CLI's typewriter delay.
 
 `eser ai list` prints each provider and whether it is available; `--json` prints
 the list.
+
+`eser codebase commitmsg` sends the staged diff, or the unstaged one when
+nothing is staged, to Claude Code when `claude` is on PATH and to the Anthropic
+API otherwise, and prints the conventional-commit line it answers with, a
+`git commit -m` command and a `pbcopy` command. A refusal fails instead of
+becoming the message.
 
 ## Plugin forwarding
 

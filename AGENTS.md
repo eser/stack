@@ -108,7 +108,7 @@ build.
 `validate-code-conventions` keeps existing violations in
 `.eser/baselines/code-conventions.json` and fails only on new ones. After
 migrating files, shrink it with
-`node ./pkg/@eserstack/codebase/validate-code-conventions.ts --write-baseline`;
+`go run ./cmd/eser codebase validate-code-conventions --write-baseline`;
 never raise a count to let a new violation pass.
 
 ## Absolute Rules

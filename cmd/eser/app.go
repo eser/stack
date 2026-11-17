@@ -84,17 +84,7 @@ func runInheritingStdio(ctx context.Context, e *env, name string, args []string,
 // builtinCommands are the commands the Go CLI implements itself.
 func builtinCommands(e *env) []*clifx.Command {
 	return []*clifx.Command{
-		{
-			Name:  "version",
-			Short: "Print the eser version",
-			Run: func(c *clifx.Context) error {
-				return c.Output(map[string]string{"version": e.version}, func(w io.Writer) error {
-					_, err := fmt.Fprintln(w, "eser", e.version)
-
-					return err
-				})
-			},
-		},
+		versionCommand(e),
 		installCommand(e),
 		updateCommand(e),
 		uninstallCommand(e),
@@ -104,6 +94,8 @@ func builtinCommands(e *env) []*clifx.Command {
 		kitCommand(e),
 		csCommand(e),
 		aiCommand(e),
+		systemCommand(e),
+		ajanCommand(e),
 	}
 }
 

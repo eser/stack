@@ -10,7 +10,7 @@
 import * as crossRuntime from "@eserstack/standards/cross-runtime";
 import type { FsWatcher } from "@eserstack/standards/cross-runtime";
 import * as logging from "@eserstack/logging";
-import * as directiveAnalysis from "@eserstack/codebase/directive-analysis";
+import * as directiveAnalysis from "./domain/directive-analysis.ts";
 import * as patterns from "@eserstack/standards/patterns";
 import * as serverActionTransform from "./domain/server-action-transform.ts";
 import * as clientActionStub from "./domain/client-action-stub.ts";

@@ -17,7 +17,7 @@
 
 import { runtime } from "@eserstack/standards/cross-runtime";
 import * as logging from "@eserstack/logging";
-import * as directiveAnalysis from "@eserstack/codebase/directive-analysis";
+import * as directiveAnalysis from "./directive-analysis.ts";
 
 const transformLogger = logging.logger.getLogger([
   "laroux-bundler",

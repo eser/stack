@@ -85,7 +85,6 @@
   },
   "dependencies": {
     "@eserstack/bundler": "workspace:*",
-    "@eserstack/codebase": "workspace:*",
     "@eserstack/collector": "workspace:*",
     "@eserstack/laroux": "workspace:*",
     "@eserstack/laroux-react": "workspace:*",

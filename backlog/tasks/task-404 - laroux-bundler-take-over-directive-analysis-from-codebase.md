@@ -1,9 +1,10 @@
 ---
 id: TASK-404
 title: 'laroux-bundler: take over directive-analysis from codebase'
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-11-17 07:54'
+updated_date: '2026-11-17 08:38'
 labels:
   - laroux
   - codebase
@@ -23,7 +24,13 @@ It belongs to the current pipeline: laroux R1 replaces it with the directive tra
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 directive-analysis and its tests live in laroux-bundler, and its four importers use the local module
-- [ ] #2 @eserstack/codebase/directive-analysis still resolves, re-exports by name and is marked deprecated until 6.0.0
-- [ ] #3 laroux-bundler no longer depends on @eserstack/codebase unless another import needs it, and pnpm ok passes
+- [x] #1 directive-analysis and its tests live in laroux-bundler, and its four importers use the local module
+- [x] #2 laroux-bundler no longer depends on @eserstack/codebase unless another import needs it, and pnpm ok passes
+- [x] #3 @eserstack/codebase/directive-analysis stays as a deprecated copy until 6.0.0: a re-export from laroux-bundler would make codebase (layer 3) import a layer 4 package
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Copied directive-analysis.ts and its test to laroux-bundler/domain/; system.ts, rsc-analyze.ts, client-action-stub.ts and server-action-transform.ts import it locally. laroux-bundler no longer depends on @eserstack/codebase, so neither laroux package pulls codebase in. The codebase module stays as a deprecated copy (module doc and mod.ts comment), noted on TASK-317 for deletion in 6.0.0. Verified: pnpm ok; 27 laroux-bundler tests (directive-analysis and system); laroux-bundler builds its dist.
+<!-- SECTION:NOTES:END -->

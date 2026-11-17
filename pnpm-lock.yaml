@@ -510,9 +510,6 @@ importers:
       '@eserstack/bundler':
         specifier: workspace:*
         version: link:../bundler
-      '@eserstack/codebase':
-        specifier: workspace:*
-        version: link:../codebase
       '@eserstack/collector':
         specifier: workspace:*
         version: link:../collector

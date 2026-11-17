@@ -78,6 +78,7 @@ export {
   resolveModulePath,
 } from "./workspace-discovery.ts";
 
+// Deprecated: laroux-bundler has its own copy (TASK-404); removed in 6.0.0.
 export type {
   DirectiveAnalysisOptions,
   DirectiveMatch,

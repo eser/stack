@@ -80,8 +80,8 @@ would change what `parse()` and `loadManifest()` return.
 ### Kept fallbacks
 
 None. The package has no browser code, and laroux is not on its import path:
-laroux-bundler imports `@eserstack/codebase/directive-analysis` only, and
-neither it nor laroux-server imports `@eserstack/config`. The importers are `@eserstack/posts` and `@eserstack/cs`
+neither laroux-bundler nor laroux-server imports `@eserstack/codebase` or
+`@eserstack/config`. The importers are `@eserstack/posts` and `@eserstack/cs`
 (`./dotenv`), `@eserstack/workflows`, `@eserstack/cli` and
 `@eserstack/codebase` (`./manifest`), and `codebase/package/loader.ts`
 (`parse` of `./file`). With `ESER_AJAN=disabled`, every moved row throws (the

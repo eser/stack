@@ -3,15 +3,15 @@
  * Module Graph Analyzer
  * Scans the codebase to identify "use client" directives and build a client component registry
  *
- * Uses @eserstack/codebase/directive-analysis for the core analysis,
+ * Uses domain/directive-analysis.ts for the core analysis,
  * adding caching support for incremental builds.
  */
 
-import * as directiveAnalysis from "@eserstack/codebase/directive-analysis";
+import * as directiveAnalysis from "../../domain/directive-analysis.ts";
 import type {
   DirectiveAnalysisOptions,
   DirectiveMatch,
-} from "@eserstack/codebase/directive-analysis";
+} from "../../domain/directive-analysis.ts";
 import { runtime } from "@eserstack/standards/cross-runtime";
 import * as patterns from "@eserstack/standards/patterns";
 import * as logging from "@eserstack/logging";

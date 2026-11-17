@@ -1,9 +1,10 @@
 ---
 id: TASK-317
-title: 'Delete the old laroux pipeline in the major after R1'
+title: Delete the old laroux pipeline in the major after R1
 status: To Do
 assignee: []
 created_date: '2026-10-24 01:30'
+updated_date: '2026-11-17 08:35'
 labels:
   - laroux
   - laroux-server
@@ -34,3 +35,9 @@ Plan key: L9. Effort: large.
 - [ ] #2 `git grep -n 'track-l-delete'` returns nothing, and each supersession candidate is closed with a note
 - [ ] #3 CHANGELOG Migration lists every removed export, and the gate passes
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Delete @eserstack/codebase/directive-analysis.ts, its test and its export in codebase's package.json and mod.ts with the old pipeline: TASK-404 left it as a deprecated copy for the 5.x releases, and laroux-bundler has its own.
+<!-- SECTION:NOTES:END -->

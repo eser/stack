@@ -6,6 +6,11 @@
  * Identifies files with specific directives like "use client", "use server",
  * and extracts their exports for module graph building.
  *
+ * @deprecated laroux-bundler, its only user, has its own copy
+ * (TASK-404); a module here cannot import it, since codebase sits a layer
+ * below laroux. This path stays for the 5.x releases, which published it on
+ * npm, and is removed with the old laroux pipeline in 6.0.0 (TASK-317).
+ *
  * @module
  */
 

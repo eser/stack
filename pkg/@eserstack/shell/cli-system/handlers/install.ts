@@ -15,9 +15,9 @@ import * as standardsCrossRuntime from "@eserstack/standards/cross-runtime";
 import type { CliApp } from "../app.ts";
 import * as appOpts from "../app-opts.ts";
 import * as results from "@eserstack/primitives/results";
-import type * as shellArgs from "@eserstack/shell/args";
-import * as shellExec from "@eserstack/shell/exec";
-import * as shellEnv from "@eserstack/shell/env";
+import type * as shellArgs from "../../args/mod.ts";
+import * as shellExec from "../../exec/mod.ts";
+import * as shellEnv from "../../env/mod.ts";
 import * as completionsSetup from "./completions-setup.ts";
 
 const runtime = standardsCrossRuntime.runtime;

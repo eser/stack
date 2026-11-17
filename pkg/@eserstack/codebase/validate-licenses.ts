@@ -30,7 +30,7 @@
 import * as standards from "@eserstack/standards";
 import * as crossRuntime from "@eserstack/standards/cross-runtime";
 import * as patterns from "@eserstack/standards/patterns";
-import * as cliSupport from "./cli-support.ts";
+import * as cliSupport from "@eserstack/shell/cli-support";
 import * as fileTool from "./file-tool.ts";
 import type {
   FileEntry,

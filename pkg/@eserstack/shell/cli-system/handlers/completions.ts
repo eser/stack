@@ -10,8 +10,8 @@ import * as span from "@eserstack/streams/span";
 import * as streams from "@eserstack/streams";
 import type { CliApp } from "../app.ts";
 import * as results from "@eserstack/primitives/results";
-import type * as shellArgs from "@eserstack/shell/args";
-import * as shellEnv from "@eserstack/shell/env";
+import type * as shellArgs from "../../args/mod.ts";
+import * as shellEnv from "../../env/mod.ts";
 
 const getInstallInstructions = (
   shell: shellEnv.Shell,

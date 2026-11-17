@@ -24,7 +24,8 @@
     "./tui/types": "./tui/types.ts",
     "./tui/colors": "./tui/colors.ts",
     "./vterm": "./vterm/mod.ts",
-    "./go-exec": "./go-exec.ts"
+    "./go-exec": "./go-exec.ts",
+    "./cli-support": "./cli-support.ts"
   },
   "publishConfig": {
     "exports": {
@@ -75,6 +76,10 @@
       "./go-exec": {
         "types": "./dist/go-exec.d.ts",
         "import": "./dist/go-exec.js"
+      },
+      "./cli-support": {
+        "types": "./dist/cli-support.d.ts",
+        "import": "./dist/cli-support.js"
       }
     }
   },
@@ -83,6 +88,7 @@
   },
   "dependencies": {
     "@eserstack/ajan": "workspace:*",
+    "@eserstack/functions": "workspace:*",
     "@eserstack/primitives": "workspace:*",
     "@eserstack/standards": "workspace:*",
     "@eserstack/streams": "workspace:*",

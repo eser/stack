@@ -19,7 +19,7 @@
 
 import type * as results from "@eserstack/primitives/results";
 import * as module from "./module.ts";
-import * as cliSupport from "./cli-support.ts";
+import * as cliSupport from "@eserstack/shell/cli-support";
 import config from "./package.json" with { type: "json" };
 
 const app = module.moduleDef.toCommand("codebase", config.version);

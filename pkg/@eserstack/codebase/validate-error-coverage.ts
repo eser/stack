@@ -13,7 +13,7 @@ import * as shellFlags from "@eserstack/shell/args/flags";
 import type * as shellArgs from "@eserstack/shell/args";
 import * as span from "@eserstack/streams/span";
 import { runtime } from "@eserstack/standards/cross-runtime";
-import * as cliSupport from "./cli-support.ts";
+import * as cliSupport from "@eserstack/shell/cli-support";
 
 export type CheckErrorCoverageOptions = {
   readonly root?: string;

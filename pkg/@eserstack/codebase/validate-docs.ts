@@ -11,7 +11,7 @@
 import * as primitives from "@eserstack/primitives";
 import type * as shellArgs from "@eserstack/shell/args";
 import * as span from "@eserstack/streams/span";
-import * as cliSupport from "./cli-support.ts";
+import * as cliSupport from "@eserstack/shell/cli-support";
 import * as ffiClient from "./ffi-client.ts";
 
 export type CheckDocsOptions = {

@@ -29,7 +29,7 @@ import * as functions from "@eserstack/functions";
 import type * as shellArgs from "@eserstack/shell/args";
 import * as shell from "@eserstack/shell";
 import * as tui from "@eserstack/shell/tui";
-import * as cliSupport from "./cli-support.ts";
+import * as cliSupport from "@eserstack/shell/cli-support";
 
 // --- Types ---
 

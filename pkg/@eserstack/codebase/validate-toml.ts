@@ -8,7 +8,7 @@
 
 import * as toml from "smol-toml";
 import * as standards from "@eserstack/standards";
-import * as cliSupport from "./cli-support.ts";
+import * as cliSupport from "@eserstack/shell/cli-support";
 import * as fileTool from "./file-tool.ts";
 import type { FileTool } from "./file-tool.ts";
 

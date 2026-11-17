@@ -9,7 +9,7 @@
 import * as appOpts from "../app-opts.ts";
 import type { CliApp } from "../app.ts";
 import * as results from "@eserstack/primitives/results";
-import type * as shellArgs from "@eserstack/shell/args";
+import type * as shellArgs from "../../args/mod.ts";
 import * as span from "@eserstack/streams/span";
 import * as streams from "@eserstack/streams";
 import * as standardsCrossRuntime from "@eserstack/standards/cross-runtime";

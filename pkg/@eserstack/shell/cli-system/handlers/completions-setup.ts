@@ -9,9 +9,9 @@
 import * as span from "@eserstack/streams/span";
 import * as streams from "@eserstack/streams";
 import { runtime } from "@eserstack/standards/cross-runtime";
-import * as shellEnv from "@eserstack/shell/env";
+import * as shellEnv from "../../env/mod.ts";
 
-export { detectShell, type Shell } from "@eserstack/shell/env";
+export { detectShell, type Shell } from "../../env/mod.ts";
 
 const COMPLETION_MARKER = "# eser CLI completions";
 

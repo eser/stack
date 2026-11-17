@@ -581,9 +581,6 @@ importers:
 
   pkg/@eserstack/laroux-server:
     dependencies:
-      '@eserstack/codebase':
-        specifier: workspace:*
-        version: link:../codebase
       '@eserstack/fp':
         specifier: workspace:*
         version: link:../fp
@@ -843,6 +840,9 @@ importers:
       '@eserstack/ajan':
         specifier: workspace:*
         version: link:../ajan
+      '@eserstack/functions':
+        specifier: workspace:*
+        version: link:../functions
       '@eserstack/primitives':
         specifier: workspace:*
         version: link:../primitives

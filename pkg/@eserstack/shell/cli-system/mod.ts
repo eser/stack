@@ -11,7 +11,7 @@
  * @module
  */
 
-import * as shellArgs from "@eserstack/shell/args";
+import * as shellArgs from "../args/mod.ts";
 
 import type { CliApp } from "./app.ts";
 import * as handlers from "./handlers/mod.ts";

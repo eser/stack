@@ -37,7 +37,7 @@ import * as functions from "@eserstack/functions";
 import type * as shellArgs from "@eserstack/shell/args";
 import * as tui from "@eserstack/shell/tui";
 import * as span from "@eserstack/streams/span";
-import * as cliSupport from "./cli-support.ts";
+import * as cliSupport from "@eserstack/shell/cli-support";
 import * as pkg from "./package/mod.ts";
 import * as ffiClient from "./ffi-client.ts";
 

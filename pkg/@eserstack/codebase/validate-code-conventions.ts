@@ -31,7 +31,7 @@ import * as primitives from "@eserstack/primitives";
 import * as standards from "@eserstack/standards";
 import * as patterns from "@eserstack/standards/patterns";
 import type * as shellArgs from "@eserstack/shell/args";
-import * as cliSupport from "./cli-support.ts";
+import * as cliSupport from "@eserstack/shell/cli-support";
 import * as fileTool from "./file-tool.ts";
 import type { FileTool } from "./file-tool.ts";
 import * as shared from "./file-tools-shared.ts";

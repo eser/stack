@@ -39,7 +39,7 @@ import type {
   FileMutation,
   WalkOptions,
 } from "./file-tools-shared.ts";
-import * as cliSupport from "./cli-support.ts";
+import * as cliSupport from "@eserstack/shell/cli-support";
 import * as ffiClient from "./ffi-client.ts";
 import * as gitListing from "./git-listing.ts";
 

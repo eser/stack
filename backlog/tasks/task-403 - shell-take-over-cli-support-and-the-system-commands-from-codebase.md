@@ -1,9 +1,10 @@
 ---
 id: TASK-403
 title: 'shell: take over cli-support and the system commands from codebase'
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-11-17 07:54'
+updated_date: '2026-11-17 08:24'
 labels:
   - shell
   - codebase
@@ -26,8 +27,14 @@ TASK-255 listed codebase/cli-system for deletion; laroux keeps a TypeScript bin 
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 cli-support and cli-system live in @eserstack/shell with their tests, and the cli, noskills, laroux-server and codebase sources import them from there
-- [ ] #2 @eserstack/codebase/cli-support still resolves, re-exports the shell module by name and is marked deprecated until 6.0.0
-- [ ] #3 laroux, noskills and eser keep their system, install, update, version and doctor commands, shown by a test per bin or an existing preflight step
-- [ ] #4 validate-circular-deps and the layer rules pass, and pnpm ok passes
+- [x] #1 cli-support and cli-system live in @eserstack/shell with their tests, and the cli, noskills, laroux-server and codebase sources import them from there
+- [x] #2 @eserstack/codebase/cli-support still resolves, re-exports the shell module by name and is marked deprecated until 6.0.0
+- [x] #3 laroux, noskills and eser keep their system, install, update, version and doctor commands, shown by a test per bin or an existing preflight step
+- [x] #4 validate-circular-deps and the layer rules pass, and pnpm ok passes
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Moved cli-support.ts, its two tests and cli-system/ to pkg/@eserstack/shell; self-imports became relative paths. shell gains the ./cli-support export and a dependency on @eserstack/functions (layer 1, the CliEvent type). codebase's 39 importers, the cli, noskills and laroux-server bins and the legacy updater fixture point at the new paths. laroux-server no longer depends on @eserstack/codebase: cli-support was its only import. Verified: pnpm ok; the 24 moved tests pass; `version` and `system --help` (7 subcommands) run on the laroux-server, noskills and cli bins; shell and codebase build their dist.
+<!-- SECTION:NOTES:END -->

@@ -29,7 +29,7 @@
 
 import * as standards from "@eserstack/standards";
 import * as patterns from "@eserstack/standards/patterns";
-import * as cliSupport from "./cli-support.ts";
+import * as cliSupport from "@eserstack/shell/cli-support";
 import * as ffiClient from "./ffi-client.ts";
 import * as gitListing from "./git-listing.ts";
 import * as fileTool from "./file-tool.ts";

@@ -20,7 +20,7 @@ import * as module from "@eserstack/shell/module";
 import * as aiModule from "@eserstack/ai/module";
 import * as kitModule from "@eserstack/kit/module";
 import * as codebaseModule from "@eserstack/codebase/module";
-import * as cliSupport from "@eserstack/codebase/cli-support";
+import * as cliSupport from "@eserstack/shell/cli-support";
 import * as workflowsModule from "@eserstack/workflows/module";
 
 import * as noskillsModule from "@eserstack/noskills/module";

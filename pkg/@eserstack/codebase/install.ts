@@ -14,7 +14,7 @@ import * as primitives from "@eserstack/primitives";
 import * as standards from "@eserstack/standards";
 import * as configManifest from "@eserstack/config/manifest";
 import type * as shellArgs from "@eserstack/shell/args";
-import * as cliSupport from "./cli-support.ts";
+import * as cliSupport from "@eserstack/shell/cli-support";
 
 // =============================================================================
 // Constants

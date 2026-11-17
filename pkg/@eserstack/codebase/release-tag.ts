@@ -26,7 +26,7 @@ import type * as shellArgs from "@eserstack/shell/args";
 import * as tui from "@eserstack/shell/tui";
 import * as git from "./git.ts";
 import * as versions from "./versions.ts";
-import * as cliSupport from "./cli-support.ts";
+import * as cliSupport from "@eserstack/shell/cli-support";
 
 /**
  * Options for pushing a release tag.

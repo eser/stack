@@ -18,7 +18,7 @@ import { runtime } from "@eserstack/standards/cross-runtime";
 import * as ffi from "@eserstack/ajan/ffi";
 
 const SUPPORT_URL = new URL("./cli-support.ts", import.meta.url).href;
-const TUI_URL = import.meta.resolve("@eserstack/shell/tui");
+const TUI_URL = new URL("./tui/mod.ts", import.meta.url).href;
 const FFI_URL = import.meta.resolve("@eserstack/ajan/ffi");
 const RESULTS_URL = import.meta.resolve("@eserstack/primitives/results");
 const RUNTIME_URL = import.meta.resolve("@eserstack/standards/cross-runtime");

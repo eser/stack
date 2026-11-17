@@ -39,7 +39,8 @@ touches TypeScript.
 | Area                         | Concern                                                                             |
 | ---------------------------- | ----------------------------------------------------------------------------------- |
 | `pkg/@eserstack/standards/`  | Cross-runtime abstractions; **high impact**, every package depends on it            |
-| `pkg/@eserstack/codebase/`   | Repo tooling and validators; owns `cli-system/`, the command tree of every binary   |
+| `pkg/@eserstack/codebase/`   | Repo tooling and validators                                                         |
+| `pkg/@eserstack/shell/`      | CLI framework and TUI; owns `cli-system/`, the command tree of every binary         |
 | `pkg/@eserstack/cli/`        | The `eser` binary and its npm bundle                                                |
 | `pkg/@eserstack/noskills*/`  | Spec workflow, daemon client, web dashboard                                         |
 | `pkg/@eserstack/laroux*/`    | Framework: server, bundler, React integration                                       |

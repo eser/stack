@@ -74,7 +74,6 @@
     "build": "node ../../../etc/scripts/build-library.ts"
   },
   "dependencies": {
-    "@eserstack/codebase": "workspace:*",
     "@eserstack/fp": "workspace:*",
     "@eserstack/functions": "workspace:*",
     "@eserstack/http": "workspace:*",

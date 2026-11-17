@@ -17,7 +17,7 @@ import * as primitives from "@eserstack/primitives";
 import * as standards from "@eserstack/standards";
 import type * as shellArgs from "@eserstack/shell/args";
 import * as tui from "@eserstack/shell/tui";
-import * as cliSupport from "./cli-support.ts";
+import * as cliSupport from "@eserstack/shell/cli-support";
 
 const showGhHelp = (): void => {
   const { ctx, output: out } = cliSupport.getCliContext();

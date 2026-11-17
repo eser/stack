@@ -225,27 +225,9 @@ if (validator !== null) {
 
 ### The shared `system` command tree
 
-`cli-system/` owns the operational commands every shipped binary carries —
-`install`, `uninstall`, `update`, `completions`, `version`, `doctor`, `info` —
-built once and parameterised by a `CliApp` so `eser`, `noskills` and `laroux`
-each get a tree describing themselves.
-
-```typescript
-import * as cliSupport from "@eserstack/codebase/cli-support";
-// The binary's own command module and package manifest.
-import * as module from "./module.ts";
-import config from "./package.json" with { type: "json" };
-
-const app = cliSupport.attachStandardCommands(
-  module.moduleDef.toCommand("noskills", config.version),
-);
-```
-
-It attaches to a binary's ROOT command, never to a Module. That is deliberate:
-`eser` mounts the very same module object the standalone `noskills` binary
-re-roots, so a layer living on the module would appear in both — and
-`eser noskills version` would exist, implying a submodule has a version of its
-own.
+`attachStandardCommands` and the `system` commands it mounts moved to
+[`@eserstack/shell/cli-support`](../shell/README.md#eserstackshellcli-support).
+`@eserstack/codebase/cli-support` re-exports them until 6.0.0.
 
 ## Upgrading from 4.x
 

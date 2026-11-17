@@ -285,7 +285,7 @@ export const workflowTool: workflows.WorkflowTool = {
 if (import.meta.main) {
   // Entry point: these awaits only run when this file is executed directly.
   // oxlint-disable-next-line node/no-top-level-await
-  const cliSupport = await import("./cli-support.ts");
+  const cliSupport = await import("@eserstack/shell/cli-support");
   const { output: out } = cliSupport.getCliContext();
   // oxlint-disable-next-line node/no-top-level-await
   const result = await main();

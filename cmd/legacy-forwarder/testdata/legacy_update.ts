@@ -25,7 +25,7 @@
 
 import * as standardsCrossRuntime from "../../../pkg/@eserstack/standards/cross-runtime/mod.ts";
 import * as results from "../../../pkg/@eserstack/primitives/results.ts";
-import * as update from "../../../pkg/@eserstack/codebase/cli-system/handlers/update.ts";
+import * as update from "../../../pkg/@eserstack/shell/cli-system/handlers/update.ts";
 
 const runtime = standardsCrossRuntime.runtime;
 

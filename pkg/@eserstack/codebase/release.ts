@@ -44,7 +44,7 @@ import * as tui from "@eserstack/shell/tui";
 import * as versions from "./versions.ts";
 import type { VersionCommand } from "./versions.ts";
 import type * as changelogGen from "./changelog-gen.ts";
-import * as cliSupport from "./cli-support.ts";
+import * as cliSupport from "@eserstack/shell/cli-support";
 
 // =============================================================================
 // Types

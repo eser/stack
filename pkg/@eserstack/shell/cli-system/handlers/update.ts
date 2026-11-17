@@ -22,8 +22,8 @@ import * as standardsCrossRuntime from "@eserstack/standards/cross-runtime";
 import * as appOpts from "../app-opts.ts";
 import type { CliApp } from "../app.ts";
 import * as results from "@eserstack/primitives/results";
-import type * as shellArgs from "@eserstack/shell/args";
-import * as shellExec from "@eserstack/shell/exec";
+import type * as shellArgs from "../../args/mod.ts";
+import * as shellExec from "../../exec/mod.ts";
 import * as install from "./install.ts";
 import * as versionCheck from "./version-check.ts";
 

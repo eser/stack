@@ -4,7 +4,7 @@ import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 
 import * as results from "@eserstack/primitives/results";
-import * as shellExec from "@eserstack/shell/exec";
+import * as shellExec from "../../exec/mod.ts";
 import * as standardsCrossRuntime from "@eserstack/standards/cross-runtime";
 
 import * as update from "./update.ts";

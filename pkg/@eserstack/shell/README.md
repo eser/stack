@@ -516,6 +516,36 @@ const result = await shell.goExec.goExec("git", {
 console.log(result.code, result.stdout);
 ```
 
+### @eserstack/shell/cli-support
+
+The entry point of every TypeScript CLI: `createCliContext` and `getCliContext`
+for the terminal context and output, `parseCliEvent` and `toCliEvent` to turn
+parsed arguments into a `CliEvent`, `runCliMain` and `exitCli` for exit codes,
+and `runStandaloneModule` for a binary that mounts a module at its root.
+
+`attachStandardCommands` adds the operational commands every shipped binary
+carries: `install`, `uninstall`, `update`, `completions`, `version`, `doctor`
+and `info`. They are built once in `cli-system/` and parameterised by a
+`CliApp`, so `eser`, `noskills` and `laroux` each get a tree describing
+themselves.
+
+```typescript
+import * as cliSupport from "@eserstack/shell/cli-support";
+// The binary's own command module and package manifest.
+import * as module from "./module.ts";
+import config from "./package.json" with { type: "json" };
+
+const app = cliSupport.attachStandardCommands(
+  module.moduleDef.toCommand("noskills", config.version),
+);
+```
+
+It attaches to a binary's ROOT command, never to a Module. That is deliberate:
+`eser` mounts the very same module object the standalone `noskills` binary
+re-roots, so a layer living on the module would appear in both, and
+`eser noskills version` would exist, implying a submodule has a version of its
+own.
+
 ## TUI Widgets
 
 Layout, scroll, tabs, and text editing primitives for terminal UIs.

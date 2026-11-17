@@ -32,7 +32,7 @@ import type * as shellArgs from "@eserstack/shell/args";
 import * as tui from "@eserstack/shell/tui";
 import { runtime } from "@eserstack/standards/cross-runtime";
 import * as streams from "@eserstack/streams";
-import * as cliSupport from "../cli-support.ts";
+import * as cliSupport from "@eserstack/shell/cli-support";
 import * as config from "./config.ts";
 import * as registry from "./registry.ts";
 import * as ffiClient from "../ffi-client.ts";

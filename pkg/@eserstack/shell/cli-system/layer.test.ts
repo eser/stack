@@ -4,7 +4,7 @@ import * as nodeTest from "node:test";
 import * as assert from "@eserstack/test-kit/assert";
 
 import * as results from "@eserstack/primitives/results";
-import * as shellArgs from "@eserstack/shell/args";
+import * as shellArgs from "../args/mod.ts";
 
 import * as cliSupport from "../cli-support.ts";
 import * as cliSystem from "./mod.ts";

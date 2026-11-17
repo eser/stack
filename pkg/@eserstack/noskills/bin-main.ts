@@ -10,7 +10,7 @@
  * @module
  */
 
-import * as cliSupport from "@eserstack/codebase/cli-support";
+import * as cliSupport from "@eserstack/shell/cli-support";
 import * as module from "./module.ts";
 import config from "./package.json" with { type: "json" };
 

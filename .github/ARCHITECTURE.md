@@ -165,7 +165,7 @@ daemon needs no JavaScript runtime.
 
 ## Shared `system` command tree
 
-`pkg/@eserstack/codebase/cli-system/` owns `install`, `uninstall`, `update`,
+`pkg/@eserstack/shell/cli-system/` owns `install`, `uninstall`, `update`,
 `completions`, `version`, `doctor` and `info`, parameterised by a `CliApp` so
 each binary gets a tree describing itself. `attachStandardCommands` binds it to
 a binary's ROOT command — which is what gives `noskills version` without

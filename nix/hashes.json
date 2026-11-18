@@ -1,15 +1,15 @@
 {
-  "version": "5.0.0",
+  "version": "5.1.0",
   "eser": {
-    "x86_64-unknown-linux-gnu": "sha256-bl5IK+NtJ0ugFf1EXldRwYb7AZEfkvXJt3Tvo/BMWYg=",
-    "aarch64-unknown-linux-gnu": "sha256-cVYXkEaLcPinfcNDYFAhgD3MXdSv5WE3TbvKgnBDRWk=",
-    "x86_64-apple-darwin": "sha256-M9pJ0kxFh64TuhhttG4L74i1zihNQP8FAev8Nx083N4=",
-    "aarch64-apple-darwin": "sha256-bhrkSAOM5a24S4KAD+6YVasvsraRp1BlqD7m501gJ0k="
+    "x86_64-unknown-linux-gnu": "sha256-PC1pTzICcJ63mc+TEjfD6lHr53LTFJ7RN9mWypxw8ug=",
+    "aarch64-unknown-linux-gnu": "sha256-ryNRJ1jW8mmPpYENPa01GPWjaIrLiPl1hyvWXKdzF/s=",
+    "x86_64-apple-darwin": "sha256-ejhlxekXlyMrVZ9d7tH6XXjTfIJlcTm+hgJi5DWi/EE=",
+    "aarch64-apple-darwin": "sha256-OjJ24HCoPmEwVkbC1fWHaccPVLHOXcbQw8SBEoqFfF4="
   },
   "noskills-server": {
-    "x86_64-unknown-linux-gnu": "sha256-QpkvXek6hNuAYwYJPLEbQ2fPSMQO/erwrKQt7a7lPEk=",
-    "aarch64-unknown-linux-gnu": "sha256-NC9EDISGHLfloAlgNdva6USVzSGFswgIRXTIjWOjpO0=",
-    "x86_64-apple-darwin": "sha256-j14gVLpiXOR6LRvfbZ2KqUuJTTC3+flZfCE4JbzD4IA=",
-    "aarch64-apple-darwin": "sha256-H3O1uxCu6c3Ti/P8HnLwqHqnNezm0c9IhRLQmtbl+Tk="
+    "x86_64-unknown-linux-gnu": "sha256-5bq9kAzgT6wgqktIqz07HFQrCoIG+6OLeVpP/fWss4Y=",
+    "aarch64-unknown-linux-gnu": "sha256-+VdwGwc4NhB0wJ05t/4zptWeJxyyimoDpt1QXxnBWU4=",
+    "x86_64-apple-darwin": "sha256-LWatko3Jdwa0Hme69hmbXTcwumpVe4qxaJ9rm7VrtZQ=",
+    "aarch64-apple-darwin": "sha256-982g7ejSngnnlSoBVgQ5823xc1JW/TLL/bmn3khOJJI="
   }
 }

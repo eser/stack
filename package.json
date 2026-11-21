@@ -27,9 +27,9 @@
     "@eserstack/test-kit": "workspace:*",
     "@types/node": "^26.6.6",
     "mitata": "1.0.34",
-    "oxfmt": "0.78.0",
-    "oxlint": "1.93.0",
-    "oxlint-tsgolint": "7.0.2006",
+    "oxfmt": "0.79.0",
+    "oxlint": "1.94.0",
+    "oxlint-tsgolint": "7.0.2007",
     "typescript": "7.0.2"
   }
 }
